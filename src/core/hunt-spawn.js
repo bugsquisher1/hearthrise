@@ -70,19 +70,28 @@ export function heroSetup(o) {
     range: row.range,
     element: '',
     settings: { dist: pick('distance', d.dist), chase: pick('chase', d.chase), tmode: pick('target_mode', d.tmode),
-      stance: pick('stance', d.stance) },
+      stance: pick('stance', d.stance), ...kindPick(opt.target_kind) },
   };
 }
+
+/* THE KIND FIRST (targeting.js kindOf; the Krell's Hold design's engine piece 4, remembered per ground): the monster kind the hero
+   takes first on this ground, the server's `target_kind` on the options it reads (a MONSTERS id), as settings' `tkind`; absent with
+   none. Anything but a catalogue id is none, so a forged or stale value only ever falls back to the Target setting alone. */
+const kindPick = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, v) ? { tkind: v } : {});
 
 /* One hero unit: the server-read hero at `tile`, its settings over its role's
    defaults for this party (roles.defaultSettings). */
 function heroUnit(id, h, partyRoles, tile) {
   const s = Object.assign(defaultSettings(h.role, partyRoles), h.settings || {});
   const [x, y] = tile;
-  return makeUnit({ id, side: 'hero', kind: h.role, pocket: null, alive: true, hp: h.hp ?? h.maxHp, maxHp: h.maxHp,
+  const u = makeUnit({ id, side: 'hero', kind: h.role, pocket: null, alive: true, hp: h.hp ?? h.maxHp, maxHp: h.maxHp,
     x, y, fx: x, fy: y, speed: HUNT_ROLES[h.role].speed, role: h.role, dist: s.dist, chase: s.chase, tmode: s.tmode,
     stance: s.stance, acc: h.acc, maxHit: h.maxHit, def: h.def || 0, element: h.element || '',
     mana: h.mana ?? h.maxMana ?? 0, maxMana: h.maxMana || 0, regenPm: h.regenPm || 1000 });
+  /* THE KIND FIRST is not persisted (the settle writes it at every boundary, combat-sim.js syncUnit): set on the unit it joins with */
+  const tkind = h.settings && h.settings.tkind;
+  if (typeof tkind === 'string') Object.assign(u, { tkind });
+  return u;
 }
 
 /**

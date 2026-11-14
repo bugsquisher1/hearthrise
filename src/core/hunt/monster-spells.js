@@ -23,6 +23,11 @@
 //           `spell_end` event (why 'landed', hits) closes the warning.
 //   dropped a caster that falls or leaves the fight (its pack reset) in its windup lands nothing: `spell_end` with why
 //           'killed' or 'reset', in the very sub-step it happened (dropCasts runs after every blow of the sub-step).
+//   a MEND  (data/monster-spells.js mends; the Krell's Hold design's engine piece 3, the Pyre Priest "mends the dead in his pull")
+//           takes the same path with a packmate for its target: it starts only with one to mend (mendable: the most hurt of
+//           its own pack in range, never itself, never a boss whose HP only falls), winds up, stands and makes no swing as any
+//           cast, marks nothing (marks.js castShape), and lands one roll of the spell's number back on that packmate (a `heal`
+//           naming the spell). Killing the caster in its windup stops it, as it stops any cast.
 // Each spell keeps its own cooldown, from one cast's start to its next earliest start (`spellCds`).
 //
 // THE FIRST CAST IS STAGGERED (Tyler 2026-11-08: a pack must not open with every cast at once and repeat in step). As a
@@ -32,14 +37,14 @@
 // monster out of the fight (its pack reset) forgets its waits and draws again when it next joins one.
 //
 // DICE: joining a fight, one `sc.rng.int` per spell whose firstCastSteps is above 0, casters in id order, spells in list
-// order; one `sc.rng.int` per hero struck (and landHit's own); a start draws nothing.
+// order; one `sc.rng.int` per hero struck (and landHit's own), one per packmate mended; a start draws nothing.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
 import { atTier } from '../../data/hunt-tiers.js?v=0.2.130';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.130';
-import { spellRow, castsOf, specOf, spellHit, marked, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.130';
+import { spellRow, castsOf, specOf, spellHit, marked, mends, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.130';
 import { monsterMaxHit } from '../combat.js?v=0.2.130';
 import { cheb, los } from './grid.js?v=0.2.130';
 import { atRest, unitById, dirOf } from './movement.js?v=0.2.130';
@@ -66,17 +71,44 @@ function drop(u, sc, why) {
   sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: s, why, hits: 0 }));
 }
 
-/* Start spell `id` (row `sp`) when its caster can: standing, its living hero target in range (line of sight past 1).
-   Answers whether it started. */
+/**
+ * THE PACKMATE A MEND OF `sp` FROM `u` WOULD TAKE NOW, or null: a living monster of u's own pack (its pocket), not u, missing HP,
+ * within the spell's range (line of sight past 1), and not a boss whose HP only falls (a row with `phases`: boss-phases.js reads
+ * his lines from his falling HP); the lowest share of its max HP first (compared whole: hp x other's max), ties to the lower id.
+ * The rule a hero healer's ally pick has (abilities.js targetFor 'ally'). Pure.
+ */
+function mendable(inst, u, sp) {
+  let best = null;
+  for (const m of inst.world.units) {
+    if (m === u || m.side !== 'mon' || !m.alive || m.pocket !== u.pocket || !(m.hp < m.maxHp)) continue;
+    if ((rowOf(inst, m.kind) || {}).phases) continue;
+    const d = cheb(u, m);
+    if (d > sp.range || (d > 1 && !los(inst.grid, u, m))) continue;
+    if (!best || m.hp * best.maxHp < best.hp * m.maxHp || (m.hp * best.maxHp === best.hp * m.maxHp && m.id < best.id)) best = m;
+  }
+  return best;
+}
+
+/* THE TARGET a cast of `sp` from `u` would take now, or null: a MEND's packmate (mendable); any other spell's living hero target,
+   in range (line of sight past 1). */
+function castTarget(inst, u, sp) {
+  if (mends(sp)) return mendable(inst, u, sp);
+  const t = unitById(inst, u.target);
+  if (!t || !t.alive || t.side !== 'hero') return null;
+  const d = cheb(u, t);
+  return d > sp.range || (d > 1 && !los(inst.grid, u, t)) ? null : t;
+}
+
+/* Start spell `id` (row `sp`) when its caster can: in a fight, standing, with a target (castTarget). Its shape is placed now; a
+   MEND's is its packmate's tile, and the packmate rides on the cast as `t` (the persisted json: the world's shape does not move;
+   it marks nothing, marks.js castShape). Answers whether it started. */
 function begin(inst, sc, u, id, sp) {
   if (!Number.isInteger(u.target) || !atRest(u)) return false;
-  const t = unitById(inst, u.target);
-  if (!t || !t.alive || t.side !== 'hero') return false;
-  const d = cheb(u, t);
-  if (d > sp.range || (d > 1 && !los(inst.grid, u, t))) return false;
+  const t = castTarget(inst, u, sp);
+  if (!t) return false;
   const ms = slowed(u, sp.windupMs);
-  const s = place(specOf(sp), u, t);
-  u.cast = { s: id, ms, left: ms, kind: s.kind, x: s.ox, y: s.oy, dx: s.dx, dy: s.dy, r: s.r, len: s.len };
+  const s = mends(sp) ? { kind: 'mend', ox: t.x, oy: t.y, dx: 0, dy: 0, r: 0, len: 0 } : place(specOf(sp), u, t);
+  u.cast = { s: id, ms, left: ms, kind: s.kind, x: s.ox, y: s.oy, dx: s.dx, dy: s.dy, r: s.r, len: s.len, ...(mends(sp) ? { t: t.id } : {}) };
   /* a boss's hasted spell under his enrage line waits less (boss-phases.js spellCdOf); every other spell its row's cdMs */
   u.spellCds = Object.assign({}, u.spellCds || {}, { [id]: spellCdOf(u, id, sp.cdMs) });
   u.dir = dirOf(t.x - u.x, t.y - u.y);
@@ -92,16 +124,26 @@ function begin(inst, sc, u, id, sp) {
   return true;
 }
 
-/* The landing: every living hero the shape covers, in id order, takes one hit; a worn shield braces a marked one. */
+/* The landing: every living hero the shape covers, in id order, takes one hit; a worn shield braces a marked one. A MEND puts one
+   roll of the same number back on the packmate it named, never past its max HP, and nothing on one that fell or left the fight
+   meanwhile (a pack reset heals it whole): its `heal` names the spell (tally.js credits a heal to a hero only), its hits are 0 or 1. */
 function land(inst, sc, u, sp) {
   const s = castShape(u);
   const id = u.cast.s;
   const row = swingRow(u, atTier(rowOf(inst, u.kind), inst.tier));   // the instance's row (a scaled hunt's), as a swing reads it (damage.js)
   const [lo, top] = spellHit(monsterMaxHit(row), sp);
-  const struck = inst.world.units.filter((h) => h.side === 'hero' && h.alive && covers(s, h.x, h.y)).sort((a, b) => a.id - b.id);
+  const t = mends(sp) ? unitById(inst, u.cast.t) : null;
+  /* (a pack reset takes the caster out of the fight too, which drops the cast before it lands: dropCasts) */
+  const mended = !!t && t.alive && t.side === 'mon' && t.pocket === u.pocket && t.hp < t.maxHp;
+  const struck = s ? inst.world.units.filter((h) => h.side === 'hero' && h.alive && covers(s, h.x, h.y)).sort((a, b) => a.id - b.id) : [];
   u.cast = null;
   restart(u);
-  sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: 'landed', hits: struck.length }));
+  sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: 'landed', hits: mends(sp) ? (mended ? 1 : 0) : struck.length }));
+  if (mended) {
+    const got = Math.min(t.maxHp - t.hp, sc.rng.int(lo, top));
+    t.hp += got;
+    sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, spell: id }));
+  }
   const plain = { id };
   const braced = { id, mult: 1000 - SHIELD_BRACE.markedPm };
   for (const h of struck) if (h.alive) landHit(inst, sc, u, h, sc.rng.int(lo, top), sp.element || null, marked(sp) && h.shieldWorn === true ? braced : plain, false);

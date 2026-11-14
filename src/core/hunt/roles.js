@@ -4,7 +4,8 @@
 // Where every unit WANTS to stand in a fight. This file only sets goals
 // (movement.setGoal / clearGoal / chooseSpot); movement.js takes every step.
 //
-//   monsters   surround their target, nearest first; extras queue on ring 2 (RO-02)
+//   monsters   surround their target, nearest first; extras queue on ring 2 (RO-02); a SHOOTER stands where it can shoot
+//              its target instead and takes no slot (shooters.js)
 //   tank       holds with a monster on him, on open ground (a step or two off a wall
 //              while a full box walks in); else steps toward the nearest (RO-01)
 //   Melee DPS  a free slot by the tank's target; never pulls or holds (RO-03)
@@ -31,6 +32,7 @@ import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, stand
 import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.130';
 import { anyMark, markedAt } from './marks.js?v=0.2.130';
 import { livingOf } from './unit-index.js?v=0.2.130';
+import { rangeOf, placeShooter } from './shooters.js?v=0.2.130';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */
@@ -169,6 +171,8 @@ function positionMonsters(inst, sc) {
   const mons = engaged(inst).map((m) => [m, unitById(inst, m.target)]).filter(([, t]) => t && t.alive)
     .sort(([a, ta], [b, tb]) => dist2(a, ta) - dist2(b, tb) || a.id - b.id);
   for (const [m, t] of mons) {
+    /* A SHOOTER takes no slot: it stands where it can shoot (shooters.js) */
+    if (rangeOf(inst, m)) { placeShooter(inst, m, t); continue; }
     if (cheb(m, t) <= 1 && atRest(m)) { taken.add(tileKey(inst.grid, m.x, m.y)); clearGoal(m); m.queued = false; continue; }
     if (m.aiMs > 0 && m.path.length) continue;
     m.aiMs = SURROUND.repathMs;
@@ -194,7 +198,8 @@ function tankPos(inst, h, mons) {
      like any melee, whatever else stands beside it on the way. The hold below is for the tank the
      pack walks to; without this a second tank within dist + 1.5 of the fight never moved and hit
      only what wandered next to it (live v0.2.20, ~30% of the leader's blows). */
-  const onMe = mons.filter((m) => m.target === h.id);
+  /* (a SHOOTER on him never comes to his box: shooters.js. With only shooters on him he walks out to them) */
+  const onMe = mons.filter((m) => m.target === h.id && !rangeOf(inst, m));
   if (!onMe.length) { h.spot = null; closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }
   const near = nearestTo(mons, h);
   const zone = (2 * h.dist + 3) * (2 * h.dist + 3);

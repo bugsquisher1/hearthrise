@@ -15,13 +15,19 @@
 //              it stands: nobody steps out of one, and the hero's gear is its answer (resistance: src/core/elements.js
 //              heroElementPermille). A MARKED spell fills its tiles first: 'ring' round the caster (r), 'blast' on its
 //              target's tile (r), 'cone' toward its target (len), 'line' through it (len). Melee heroes hold and take
-//              it, ranged heroes and casters step off (src/core/hunt/roles.js), a worn shield takes SHIELD_BRACE off it
-//   range      the most tiles (Chebyshev) from the caster to its target a cast may start at, line of sight past 1
+//              it, ranged heroes and casters step off (src/core/hunt/roles.js), a worn shield takes SHIELD_BRACE off it.
+//              A MEND ('mend', the Krell's Hold design's engine piece 3: the Pyre Priest "mends the dead in his pull") strikes
+//              nobody: it puts the spell's number back on the most hurt monster of its caster's own pack (mendable: the lowest
+//              share of its HP, never the caster, never a boss whose HP only falls), as a hero healer picks its ally. It
+//              marks no ground and no hero (src/core/hunt/marks.js), and its element is null
+//   range      the most tiles (Chebyshev) from the caster to its target a cast may start at, line of sight past 1 (a mend's
+//              target is the packmate it mends)
 //   windupMs   the warning: it lands this long after it starts, whole sub-steps, at least minWindupMs(row). A Chill on
 //              the caster as the cast starts stretches it (statuses.js slowPm)
 //   cdMs       from one cast's start to the same spell's next earliest start, longer than its windup
-//   hitPm      THE SPELL'S NUMBER: its top hit is hitPm / 1000 times the caster's own biggest normal hit (spellHit)
-//   element    an elements.js id, or null (none)
+//   hitPm      THE SPELL'S NUMBER: its top hit is hitPm / 1000 times the caster's own biggest normal hit (spellHit); a mend's
+//              top heal is the same number
+//   element    an elements.js id, or null (none; a mend's is always null)
 // Every number here is the designer's; the BOUNDS keep a bad row from striking a whole ground or landing unwarned.
 //
 // MUTABLE LIKE THE ROSTER: the balance sim's what-ifs (tools/balance-sim/worker.mjs) tune a row in place for one job
@@ -36,10 +42,14 @@ import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.130';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
 import { foldRows } from './grounds/shape.js?v=0.2.130';
 
-/* The shapes a monster may cast (a 'square' is an aimed footprint, a hero's); every one but 'group' is MARKED. */
-export const SPELL_SHAPES = Object.freeze(['group', 'ring', 'blast', 'cone', 'line']);
+/* The shapes a monster may cast (a 'square' is an aimed footprint, a hero's); every one but 'group' and 'mend' is MARKED. A 'mend'
+   is no shapes.js shape: it lands on one packmate, never on ground. */
+export const SPELL_SHAPES = Object.freeze(['group', 'ring', 'blast', 'cone', 'line', 'mend']);
+/** Is `row` a mend (it heals a packmate and strikes nobody)? Every reader that prices a monster's blows (pull-cycle.js
+    biggestBlowOn) passes over one. */
+export const mends = (row) => !!row && row.shape === 'mend';
 /** Is `row` a marked spell (its tiles filled before it lands, stepped off by a free ranged hero)? */
-export const marked = (row) => !!row && row.shape !== 'group';
+export const marked = (row) => !!row && row.shape !== 'group' && !mends(row);
 
 /* THE FAIR WARNING (the design's rule: a free hero can always step off a mark): the least windup is baseMs for a
    radius-1 mark (from its middle a hero walks 2 tiles off, 0.63 s at 3.2 tiles a second) and perRadiusMs more for each
@@ -84,7 +94,8 @@ export function minWindupMs(row) {
       top = max(1, floor(M x hitPm / 1000)),  low = max(1, ceil(top x SPELL_ROLL.lowPm / 1000)),
     and each hero struck rolls a whole number from low to top, with no to-hit roll. Then, as any blow: dodge, absorb,
     the hero's resistance to its element, ward, and the stances; a worn shield takes SHIELD_BRACE.markedPm / 1000 off a
-    marked spell. Answers [low, top]. */
+    marked spell. A MEND puts one roll of the same [low, top] back on the packmate it mends, never past its max HP.
+    Answers [low, top]. */
 export function spellHit(maxHit, row) {
   const top = Math.max(1, Math.floor((Math.max(1, Math.floor(Number(maxHit) || 1)) * row.hitPm) / 1000));
   return [Math.max(1, Math.ceil((top * SPELL_ROLL.lowPm) / 1000)), top];
@@ -161,7 +172,11 @@ export function validateSpell(row, id) {
   if (row.id !== undefined && row.id !== id) out.push(at + 'its id field is not its key');
   if (typeof row.n !== 'string' || !row.n) out.push(at + 'needs a name (n)');
   if (!SPELL_SHAPES.includes(row.shape)) out.push(at + 'shape must be one of ' + SPELL_SHAPES.join('/'));
-  else {
+  else if (mends(row)) {
+    /* A mend lands on one packmate: no tiles, so no r or len, and it heals, so no element. */
+    for (const p of ['r', 'len']) if (row[p] !== undefined) out.push(at + 'mend reads no ' + p);
+    if (row.element !== null) out.push(at + 'a mend has no element (null), got ' + row.element);
+  } else {
     const bad = shapeProblem(specOf(row));
     if (bad) out.push(at + bad);
     /* The parameter its shape does not read is a typo, never ignored (`n` is the row's name: a monster casts no square). */

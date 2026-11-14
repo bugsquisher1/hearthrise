@@ -53,12 +53,21 @@
 
 import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.130';
 import { BUILD } from '../build-info.js?v=0.2.130';
-import { observeSessions } from '../session/character-session.js?v=0.2.130';
-import { partyOf, huntOf, huntTierOf } from '../session/hunt-sections.js?v=0.2.130';
-import { levelOf } from '../session/character-sections.js?v=0.2.130';
+import { observeSessions } from '../session/session-observers.js?v=0.2.130';
 import { replayWanted } from '../session/replay-pref.js?v=0.2.130';
 import { startDiagnostics } from './diagnostics.js?v=0.2.130';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.130';
+
+/* THE HERO READERS (src/net/hero-readers.js: the hunt, party, tier, Level and last-session sections) pull the session's
+   whole graph, so they arrive with the game half (boot.js hands them in before it opens any hero) instead of being
+   imported here: the sign-in screen loads without them (lane b-first-load 2026-11-13). Only a hero's own events read
+   them, and no hero exists before they are in. */
+/** @type {typeof import('./hero-readers.js?v=0.2.130').HERO_READERS} */
+let read = /** @type {any} */ (null);
+/**
+ * The hero readers, once per page: boot.js, with the game half.
+ * @param {typeof import('./hero-readers.js?v=0.2.130').HERO_READERS} readers
+ */
+export function useHeroReaders(readers) { read = readers; }
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
@@ -153,7 +162,7 @@ export function createSendGate(limits = SEND_LIMITS) {
 function openHunts(watched) {
   const out = [];
   for (const cs of watched.keys()) {
-    const h = huntOf(cs);
+    const h = read.huntOf(cs);
     if (!h || h.ended) continue;
     const live = cs.live || {};
     const call = (fn) => (typeof fn === 'function' ? fn() : null);
@@ -230,7 +239,7 @@ function posthogOptions(cfg, win, uid, gate) {
 
 /* hunt_started / hunt_ended: the transitions THIS load saw in the server's `hunt` section. */
 function watchHunt(cs, w, now, send) {
-  const s = endedSessionOf(cs);
+  const s = read.endedSessionOf(cs);
   const open = !!s && !s.ended;
   if (!w.seen) { if (cs.record) { w.seen = true; w.open = open; w.sid = open ? s.id : null; w.never = !s; } return; }
   if (w.open && (!open || s.id !== w.sid)) {
@@ -244,9 +253,9 @@ function watchHunt(cs, w, now, send) {
     w.open = false; w.sid = null; w.reseeds = 0;
   }
   if (open && s.id !== w.sid) {
-    const party = partyOf(cs);
+    const party = read.partyOf(cs);
     /* The tier this hunt froze (hunt_tier); null when the server sent none. */
-    const tiers = huntTierOf(cs);
+    const tiers = read.huntTierOf(cs);
     send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1, tier: tiers ? tiers.playing : null });
     w.open = true; w.sid = s.id; w.reseeds = 0;
   }
@@ -279,12 +288,12 @@ function watchLive(cs, w, why, now) {
    hunt is over is returning, minutes by the server's clock. Later reads: a Level above the baseline's is a level reached. */
 function watchFunnel(cs, w, once) {
   if (!cs.record) return;
-  const lv = levelOf(cs);
+  const lv = read.levelOf(cs);
   const slot = cs.slot;
   if (!w.based) {
     w.based = true;
     w.level = lv ? lv.level : null;
-    const s = endedSessionOf(cs);
+    const s = read.endedSessionOf(cs);
     if (!s) once('first_town', { slot }, 'town:' + slot);
     else if (s.ended && s.endedMs !== null && typeof cs.serverNow === 'function') {
       const t = cs.serverNow();

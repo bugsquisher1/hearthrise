@@ -278,7 +278,7 @@ const mutants = [
     edits: [[G, '  const rows = pk.pack || pk.spawns;', '  const rows = pk.spawns;'], [G, '(pk.pack ? pk.pack.slice(pk.spawns.length) : rows)', 'rows']] },
   { name: 'a boss-only pocket is filled anyway', case: 'boss-once-per-pull', edits: [[G, ' || !rows.some((s) => !isBoss(s))) return', ') return']] },
   { name: 'spawnPack ignores the density', case: 'boss-once-per-pull', edits: [[P, 'pullRows(inst.ground, p, w.density)', 'pullRows(inst.ground, p, 0)']] },
-  { name: 'only one monster aggros', case: 'pull-on-approach', edits: [[P, '  for (const m of packMonsters(inst, p)) m.target = k.id;', '  packMonsters(inst, p)[0].target = k.id;']] },
+  { name: 'only one monster aggros', case: 'pull-on-approach', edits: [[P, '  for (const m of packMonsters(inst, p)) m.target = aimOf(inst, m, k.id);', '  packMonsters(inst, p)[0].target = k.id;']] },
   { name: 'the leader is the first hero by id', case: 'pull-on-approach', edits: [['src/core/hunt-spawn.js', 'leader: pickLeader(units),', 'leader: 1,']] },
   { name: 'a full box walls the leader off (no pull from the edge)', case: 'full-box-pull', edits: [[P, ' || arrived || walled)) {', ' || arrived)) {']] },
   { name: 'the leader pulls at any monster in its way, gap or not', case: 'full-box-pull',

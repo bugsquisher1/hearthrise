@@ -84,7 +84,8 @@ function castsOf(world, atMs) {
     const c = u.side === 'mon' && u.alive && u.cast && typeof u.cast === 'object' ? u.cast : null;
     if (!c || !isInt(c.ms) || !isInt(c.left) || !isInt(atMs)) continue;
     const from = atMs - (c.ms - c.left);
-    out.push({ id: 'cast.' + u.id + '.' + from, type: 'spell', atMs: from, u: u.id, t: isInt(u.target) ? u.target : u.id, spell: c.s,
+    /* (a mend names the packmate it lands on: monster-spells.js begin) */
+    out.push({ id: 'cast.' + u.id + '.' + from, type: 'spell', atMs: from, u: u.id, t: isInt(c.t) ? c.t : isInt(u.target) ? u.target : u.id, spell: c.s,
       shape: c.kind, x: c.x, y: c.y, dx: c.dx || 0, dy: c.dy || 0, r: c.r || 0, len: c.len || 0, ms: c.ms });
   }
   return out;

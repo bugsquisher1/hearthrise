@@ -20,7 +20,8 @@
 //   B-19 ONE FILE NEVER DECIDES THE PAGE (live v0.2.83: float-menu.js answered 503 once and the page stopped until a reload): one 503 on a
 //        file of the entry's graph, or on a preload nothing else imports yet, and the page boots with no press; a file that always fails ends
 //        on the words and a Reload press after exactly two reloads, then stays there (the press is one more try, never a loop); a third
-//        party's script reloads nothing; the World's module failing behind the first screen gets the same second go
+//        party's script reloads nothing; the World's module failing behind the first screen gets the same second go, and so does a
+//        file of the game half (src/app/game-half.js, lane b-first-load) on the sign-in press, the form never waiting for one
 //   B-1  play.html boots to the sign-in screen with zero console errors
 //   B-2  sign in -> the characters screen lists the server's owned slots
 //   B-3  Play -> the World pane (a canvas) and the shell mount for that character;
@@ -296,7 +297,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const docsOf = (page) => { const seen = { n: 0 }; page.on('request', (q) => { if (q.isNavigationRequest() && q.frame() === page.mainFrame()) seen.n++; }); return seen; };
       const atSignIn = (page) => until(page, () => document.querySelector('form[data-auth="sign-in"]') && !document.querySelector('.boot-shell'));
       /* A file of the entry's graph (the entry's own script fails), and a classic script from before the tab store has loaded (the verdict waits for the parse). */
-      for (const [tag, file] of [['a file of the entry\'s graph', 'src/shell/windows/float-menu.js'], ['a classic script', 'src/vendor/supabase-js-']]) {
+      for (const [tag, file] of [['a file of the entry\'s graph', 'src/app/legal-reader.js'], ['a classic script', 'src/vendor/supabase-js-']]) {
         const s = await fresh();
         const docs = docsOf(s.page);
         let hits = 0;
@@ -307,14 +308,15 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         if (!hits) fails.push('B-19 [' + tag + '] CONTROL: the route never answered');
         await s.ctx.close();
       }
-      /* A preload nothing has imported yet, failing with the shell up (the entry held, so the link's own error is the only word of it). */
+      /* A preload nothing has imported yet, failing with the shell up (the entry held, so the link's own error is the only word of it):
+         one of the sign-in screen's, the only preloads the page itself names (the game's are boot.js's to ask for). */
       {
         const s = await fresh();
         const docs = docsOf(s.page);
         let go = null;
         const shellUp = new Promise((k) => { go = k; });
         await s.page.route(FAILS('src/app/boot.js'), async (r) => { if (docs.n > 1) return r.fallback(); await new Promise(() => {}); });
-        await s.page.route(FAILS('src/world/world-boot.js'), async (r) => { if (docs.n > 1) return r.fallback(); await shellUp; return answer503(r).catch(() => {}); });
+        await s.page.route(FAILS('src/app/legal-reader.js'), async (r) => { if (docs.n > 1) return r.fallback(); await shellUp; return answer503(r).catch(() => {}); });
         await s.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
         await until(s.page, () => document.querySelector('.boot-shell') && document.readyState !== 'loading');
         go();
@@ -325,7 +327,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* Always down: exactly two reloads, then the words and the press, and it stays there. */
       const down = await fresh();
       const docs = docsOf(down.page);
-      await down.page.route(FAILS('src/shell/windows/float-menu.js'), answer503);
+      await down.page.route(FAILS('src/app/legal-reader.js'), answer503);
       await down.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
       const said = (page) => page.evaluate(() => { const b = document.querySelector('.boot-shell-again');
         return { words: /could not finish loading/.test((document.querySelector('.boot-shell-line') || {}).textContent || ''), press: !!b, seen: !!b && getComputedStyle(b).backgroundColor !== 'rgba(0, 0, 0, 0)' }; });
@@ -366,6 +368,29 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       letBoot();
       if (!(await atSignIn(other.page))) fails.push('B-19 a third party\'s script stopped the page');
       await other.ctx.close();
+      /* A file of the game half (the incident's own float-menu.js; src/app/game-half.js), held past the sign-in screen and then
+         down for this first page: the form waits for none of the game's files, and the sign-in press gets the page's own
+         second go, which signs back in to the characters screen. */
+      {
+        const s = await fresh();
+        const docs = docsOf(s.page);
+        let hits = 0, free = null;
+        const held = new Promise((k) => { free = k; });
+        await s.page.route(FAILS('src/shell/windows/float-menu.js'), async (r) => { if (docs.n > 1) return r.fallback(); hits++; await held; return answer503(r).catch(() => {}); });
+        await s.page.goto(base + '/play.html', { waitUntil: 'commit', timeout: 60000 });
+        if (!(await atSignIn(s.page))) fails.push('B-19 [the game half] the sign-in screen waited on a file of the game');
+        else {
+          free();
+          await s.page.fill('input[name=email]', 'qa@example.test');
+          await s.page.fill('input[name=password]', 'not-a-real-password');
+          await s.page.click('.auth-submit');
+          if (!(await until(s.page, () => document.querySelector('[data-app="play"], [data-app="create"]')))) fails.push('B-19 [the game half] a game file failing once left the page off the characters screen: ' + JSON.stringify((await s.page.evaluate(() => document.body.innerText)).slice(0, 160)));
+          else if (docs.n !== 2) fails.push('B-19 [the game half] a game file failing once took ' + docs.n + ' document load(s), want 2');
+        }
+        if (!hits) fails.push('B-19 [the game half] CONTROL: the route never answered');
+        free();
+        await s.ctx.close();
+      }
       /* The World's module, failing behind the first screen: the hero's Play reloads by itself, and the hero stands in the World. */
       const late = await fresh({ heroes: { 0: 'Tester' }, created: [] });
       const lateDocs = docsOf(late.page);
@@ -1344,6 +1369,8 @@ const MUTANTS = [
   ['the press cannot be seen with no image (B-19)', 'src/styles/app.css', 'border: 0; background: var(--gold); color: var(--bg-0); font-family: var(--f-ui); font-size: var(--t-body); font-weight: 700; cursor: pointer; }', 'border: 0; background: none; color: var(--bg-0); cursor: pointer; }'],
   ['a third party\'s failure reloads the page (B-19)', 'src/platform/load-shell.js', "if (url.indexOf(win.location.origin) !== 0 || !/\\.js(\\?|$)/.test(url)) return;", 'if (!/\\.js(\\?|$)/.test(url)) return;'],
   ['a failure behind the first screen reloads under the player (B-19)', 'src/platform/load-shell.js', [['    if (!shell.parentNode) return;\n    if (!win.HearthriseRetryLoad', '    if (!win.HearthriseRetryLoad'], ['if (failed || !t || !shell.parentNode || (t.tagName', 'if (failed || !t || (t.tagName']]],
+  ['a game file that failed gets no second go (B-19)', 'src/app/boot.js', "    if (typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad()) return;\n", ''],
+  ['the sign-in screen waits for the game again (B-19)', 'src/app/boot.js', "import { GAME_MODULES } from './game-modules.js?v=", "import './game-half.js?v=0';\nimport { GAME_MODULES } from './game-modules.js?v="],
   ['the World\'s module gets no second go (B-19)', 'src/app/world-pane.js', "reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();", 'void win;'],
   ['a script that fails before the store is up is lost (B-19)', 'src/platform/load-shell.js', "if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', failedNow); else failedNow();", 'failedNow();'],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],

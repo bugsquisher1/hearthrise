@@ -174,6 +174,467 @@ New text rows, in Tyler's voice, for the copy lint and the player-read gate:
 - One wiki line: resistance comes off before Ward, so on cloth it counts for more.
 
 **Not measured.** The Slake was played on a scratch copy of `release/v0.2.129` with the staged Slake pack folded in and Cold Bilge as a what-if. The heroes wore the Level-50 kit this branch has (steel, one armor tier under the Slake's own drops), so its lone numbers are harsher than they will be. The Pyre Field (no spell designed yet). Piece drops an hour. The hours to Crafting 25 and 50. Whether 20 hours is the right life.
+### 2026-11-14 The Morrow Hills: the region after Krell, Harry and Holly, two factions, and unique gear (designer, lane/d-next-region. Tyler 2026-11-14: "let's go ahead and get started on the next set of lore and hunts after this boss", "The lore should somewhat tie in", "a good guy in the lore somewhere named Harry Something after my son", "some type of normal fella that ends up being a god at the endgame", "something similar to horde and alliance it doesn't have to be called good and evil", "Havora is a neutral town", "each new zone has equal amounts", "after tier 7 we start getting unique with the itemization", "for now lets just call him Harry", "she will be the eventual leader of the other side. Lets start with Holly"): DESIGNED, one ground drafted as a STAGED pack and MEASURED on the real engine, two faction skills MEASURED as a what-if. Nothing built, nothing played by hand, no art, no server work
+**The call.** The road north keeps going past Krell's castle, up into the hills to a mining town called Morrow. That's where Dawnstone comes from and where the Banded Company came from. Six grounds, Levels 110 to 165, three for each faction, and a boss behind a keyed door at the end. Harry is the fella with the cart, and the region is his first job with the Last Ember. Holly is the hearth-hand who carries the old rite up the same road for the First Flame. The villain is an NPC, Father Gault, and both factions are against him. One ground, Carter's Rest, is drafted and measured below. The other five are a ladder, not rows.
+
+**What I cut.** A second region of more dead things with a bigger number on them. A "chosen one" Harry. A faction stat buff (the outfits and the skill carry it). A new ore, since Dawnstone is already in the data with nowhere to come from (`dawnstone_rock`, Mining 90, no ground has the node).
+
+#### 1. The old world plan, and what I kept
+Tyler's early world doc (2026-10-14, ten regions and sixty hunts) is not in the repo. Its files went with the old PC's scratch folder, so I read it back out of that session's saved transcript. The four workbook sheets (300 creatures) were not recoverable that way and are still wanted. The Excel file was `Hearthrise_PvE_World_Bestiary_Master.xlsx`. The game has already left that plan once, because the Barrow March isn't in it. Its region 2 was "Thornwild Expanse" and its region 3 "Ashfall Highlands".
+
+| Old name | Verdict | Why |
+|---|---|---|
+| Thornwild Expanse, Ashfall Highlands, Frostveil Reach | Replaced | A mood word glued to a place word, then a filler noun (Expanse, Reach). The same shape as Emberford |
+| Briarfen Marsh, Thornveil Grove, Moonshade Canopy, Fungalfall Hollow | Replaced | Two mood words and a place word each. A fen is already a marsh. Nobody who lived there would call it that |
+| Blackroot Burrows | Replaced | The same shape, and it sounds like the Muster Barrows |
+| Cindertrail Ravine, Dustwind Pass, Ashen Caldera | Replaced | Ash, Cinder and Dust in front of a landform |
+| Scoria Tunnels | Replaced | Scoria is a real rock, but it fails the "what is a castellan" test. Nobody knows the word |
+| Sunken Druid Circle | Idea kept, name parked | A drowned stone ring is a good landmark. "Druid" is stock. It waits for a region that has water |
+| **Wyvern Roost** | **Kept** | It names a real thing in plain words, and the old doc was right that the first wyverns are a milestone. It is ground 3 here |
+| Stonebreaker Camp | Kept for later | A camp named after a trade. Fine as it is |
+| Eternal Frostlord, Void Devourer, Reality Eater, Unmaker, Tidehunter | Dead | Banned filler words, and Tidehunter is a Dota hero |
+
+The old plan's themes for those two regions (poison, then fire and the first dragons) are spread across this region's grounds instead of being a region each.
+
+#### 2. The names
+Every new name was checked free in `src/data`, `src/shell` and `src/app` on `release/v0.2.129`.
+
+| Thing | Pick | Root | Other options |
+|---|---|---|---|
+| The region | **The Morrow Hills** | The hills around the town | The High Road, Carrick |
+| The mining town | **Morrow** | An old plain word for morning. It's where Dawnstone comes from, and the game's own promise is rise and dawn (`gear-tiers.js` header) | Pennet (pen, a hilltop), Carrick (a rock) |
+| The good fella | **Harry** | No surname for now (Tyler 2026-11-14: "for now lets just call him Harry"). He is in the Last Ember and ends up leading it (Tyler 2026-11-14). Wickstead stays the name of his farm, as a place name only | Surnames offered and parked: Wick, Hale, Coll |
+| The region's villain | **Father Gault** | Gault is a heavy blue clay that miners dig through. Short and hard like Krell and Hask | Marn, Sorrel |
+| The company's survivor | **Quartermaster Venn** | Short and hard, the company's style. She starts the Last Ember and Harry takes it over from her later | Tolley, Brask |
+| The First Flame's hero | **Holly** | Tyler's pick, 2026-11-14, after his daughter. No surname. The name may change, so the game keeps it in ONE text row that every line reads (proposed: `people.first_flame` in a new `src/data/text/people.js`, with Harry's beside it). No item, place or outfit id spells either name | Open |
+| Holly's teacher | **Keeper Rowe** | She has run the burnings at the Great Hearth for thirty years. Short, like Hask and Krell. A rowan is the tree people plant by a door to keep the dead out | Keeper Marn, Keeper Sorrel |
+| The power behind Krell and Gault | **the Crown** (a working name) | The game's own spine is the road to the throne (`docs/DESIGN_STANDARDS.md` §1). Somebody is sitting on it | Open. Its own sample when its region comes |
+| Morrow's furnace | **The Bellows** | What everyone in a smelting town would call the big furnace | The Blowing House (the real old word for a smelter, and Discord would have fun with it) |
+| The faction that keeps the old way | **The First Flame** | Tyler's pick, 2026-11-14. Holly's side. Preserve what was: the old rite, the Hearth, things put back the way they were | My offers (the Lamplighters, the Carters, the Wicks) were turned down |
+| The faction that builds the next thing | **The Last Ember** | Tyler's pick, 2026-11-14. Venn's side, the Banded Company re-formed around her. Forge what comes next: take the last coal forward and build something new with it | My offers (the Banded, the Roster, the Standing) were turned down |
+
+One flag, the same kind as the Krell note. "Morrow" is the front half of Morrowind. It's a plain word and I'd keep it. Tyler's to veto.
+
+#### 3. The story (a draft in the approved voice. It has not been through the reader gate, and I can't approve my own copy)
+**The Road to Morrow.**
+
+> Krell's toll was never really about the river. The road over that crossing keeps going north, past his castle and up into the hills, and it ends at a mining town called Morrow. Morrow is where Dawnstone comes from. Every wagon of it had to come down that road, so whoever held the crossing got paid on all of it. That money built Krell's castle, and the Dawnsteel he wears came down the same road.
+>
+> The Banded Company came from Morrow too. Most of them were miners' kids who signed on with Captain Hask because soldiering paid better than digging. The bronze band on an officer's ring was a Morrow thing. So when Havora needed somebody to guard the crossing, it hired the people who used that road more than anyone.
+>
+> Morrow has its own fire, the same way Havora has the Great Hearth. It's the big furnace at the top of town where they smelt the ore, and everybody calls it the Bellows. Morrow always burned its dead there. Then a priest named Father Gault took over the Bellows, and he worked out something Krell would've paid a lot for. If you say the right words over a body while it burns, it doesn't rest. It stays tied to that fire and does what the fire's keeper tells it. Gault put Morrow's dead to work in the mines, because dead miners don't get tired and nobody has to pay them. He's also the one who lent Krell the priests for the Pyre Field, and they did to the company exactly what Gault taught them.
+>
+> When you broke into Krell's hall, one of those priests grabbed a live coal out of the fire and ran. As long as that coal is burning somewhere, the soldiers tied to it aren't free, even with Krell dead. He's carrying it up the road to Gault.
+>
+> Two crews are going after him, and they don't agree about what happens next.
+>
+> Holly works at the Great Hearth. She stacks the wood Harry brings, rakes out the ash, and stands next to old Keeper Rowe while Rowe says the words over the dead. She took the job because it was a job. She kept it because of what she saw on people's faces when it was done right, and because Rowe said the words over Holly's own dad there. Rowe's too old for that road now, so she sent Holly. Put that coal out, take the furnace back from Gault, light it the way Morrow always lit it, and let every one of those people rest. The people who went with her call themselves the First Flame.
+>
+> Quartermaster Venn ran the company's supply barge, and being downriver that night is the only reason she's alive. She still has the company's own roster, the real one, and she isn't interested in putting things back. The way things were is what got her company killed. She wants to take Morrow and make it belong to the people who dig it and fight for it. Her people are the Last Ember.
+>
+> Harry's with Venn, mostly because she was hiring. He farmed at Wickstead until the Turncoats burned him out, and he's hauled firewood to the Great Hearth ever since, which is how he knows Holly. She's been telling him where to stack it for years. When he went back to look at the farm there wasn't enough left to fix. So when Venn needed a cart, he had a cart. Holly gave him a coal off the Great Hearth in an iron pot before he left, to keep the camp safe at night. That coal is the last ember they named themselves after, and Holly will remind him whose fire it came off.
+>
+> You can ride with either crew. It's the same road either way, and the first stop is an inn full of trolls.
+
+**How it ties back.** Nothing in "The Road North" changes. The new facts sit behind it: the toll was a toll on Dawnstone, the company were Morrow's kids, Krell's priests were on loan from Gault, and one coal got out of the hall. Burning a Roster Page at the Great Hearth still frees the names on that page, for anyone, and it stays the March's ending. What Krell had on his table was his own list of who he killed. The company's real roster is Venn's. Harry and Holly are friends, and that's on purpose. They disagree about what to do next and they say so. The two sides argue. They don't fight.
+
+#### 4. Harry and Holly
+**Harry.** He's a farmer who lost his farm and took the job that was going. First that was hauling wood to the Great Hearth. Now it's driving the Last Ember's cart for Venn. He isn't told he's special and neither is the player. He's good at keeping a fire going, he feeds whoever turns up at his camp, whichever side they're on, and he complains about the road. Every step up is something he did with his hands that a player helped with. He fits "forge what comes next" better than anyone, because he's the one with nothing to go back to.
+
+| Where | What he is there | In play |
+|---|---|---|
+| Havora, now | The fella with the firewood cart by the Great Hearth | One town crier line (`src/data/text/criers.js`). A small change, and it means a new player has seen him by hour 1 |
+| Wickstead, now | It was his farm | One line on the ground's wiki page. The Turncoats who burned it were company deserters, so he has every reason to hate the Banded Company, and he ends up driving its cart anyway |
+| Krell's Hold, after the kill | On the cart road with Venn, loading the cart, with the fire pot on the back | Venn is who a hero joins the Last Ember through (section 6). Harry is just the fella you talk to while you wait |
+| Carter's Rest | Camped in the inn yard, stuck behind the trolls | His cart is the landmark at the start tile, for every hero of either side. He is the ground's kill-task giver, on the Tally's own rails (`src/data/text/tally.js`), so no new system |
+| The other grounds that pay the Last Ember (Wyvern Roost, the Old Guard) | **Harry's Camp**, moved up the road | The same cart at the start tile. A player sees how far he's got. The three grounds that pay the First Flame have Holly's Vigil instead |
+| The Bellows, when Gault falls | Holly relights the furnace the old way. Harry walks back down the road and lights the cold hearth at Carter's Rest from his pot, and it takes | The region's ending has one fire for each side, and everybody sees both. The first odd thing: he mentions he hasn't put wood in that pot since the inn |
+
+**Harry's long arc. A sketch. It locks no later region's content.**
+
+| Beat | What happens | Why a player feels it |
+|---|---|---|
+| 1. The pot stops needing wood | End of the Morrow Hills | He thinks he just got good coal |
+| 2. The dead won't cross his light | A later region | His camp is the safe start tile of every ground there, and now there's a reason |
+| 3. He ends up running the camps | A later region | Venn does the fighting and the counting. Somebody has to decide where the next fire goes, and people keep asking Harry |
+| 4. People bring him their dead | A later region | Hill folk stop hauling bodies to a Hearth and bring them to Harry's camp. He hates the fuss, and he sends for Holly to say the words properly |
+| 5. Venn hands him the roster | Midway | She's a quartermaster and she knows what the Last Ember has turned into. He says no twice. He's the leader after that |
+| 6. He loses the cart | Later still | He doesn't need it. The fire comes when he asks. He still wears the same hat |
+| 7. He dies and the fire won't have it | Near the end | He goes down holding a camp, and he gets back up. Not like the March's dead. The fire had him on its books |
+| 8. Both sides, one fight | The endgame | The Crown's fire is the oldest wrong fire there is. The First Flame and the Last Ember go at it together |
+| 9. The last Hearth is his, and it's everybody's | The endgame | Harry lights it from the pot. Holly says the rite over it. He's what the game's name means, and she's the reason it counts |
+
+**Holly.** She's the other one a kid should be proud of. She's a hearth-hand, which means she stacks wood, rakes ash and learns the words. She didn't pick the job for any big reason. She's good at it because she's careful and she doesn't flinch, and she believes in it because she has seen what a proper rest does for the people left behind. She's the one who's sure of herself where Harry never is. She fits "preserve what was" because she knows exactly what would be lost, having done it with her own hands.
+
+| Where | What she is there | In play |
+|---|---|---|
+| Havora, now | The hearth-hand beside Keeper Rowe at the Great Hearth | One crier line, the same as Harry's. A new player has met both of them by hour 1 |
+| Krell's Hold, after the kill | On the cart road with a hand cart of ash rakes and wood, arguing with Harry about his stacking | Where a hero joins the First Flame (section 6) |
+| The Ox Road, the Night Shift, the Bellows | **Holly's Vigil**: a brazier and a wood stack at the start tile, where she burns what heroes put down | The landmark of the three grounds that pay the First Flame, and their kill-task giver on the Tally's rails |
+| The Bellows, when Gault falls | She relights Morrow's furnace by herself. It's the first time she has said the whole rite alone | The First Flame's half of the region's ending |
+
+**Holly's long arc. A sketch. It locks no later region's content.**
+
+| Beat | What happens | Why a player feels it |
+|---|---|---|
+| 1. She says it alone | End of the Morrow Hills | Rowe isn't there to check her. It works |
+| 2. People ask for her by name | A later region | Towns that lost their fire send for "the girl from the Hearth". She keeps saying she's only the hand |
+| 3. She says no to something easy | A later region | Somebody offers her a faster way to rest a whole field of dead, and it's Gault's words turned inside out. She won't. The First Flame follow her after that because she wouldn't |
+| 4. Rowe gives her the Keeper's rake | Midway | Rowe is too old and says so. Holly is Keeper, and the First Flame's leader |
+| 5. She and Harry have it out | Later | The one real fight between them, about a town where his new fire and her old rite can't both be had. Neither of them wins it. They still share a camp that night |
+| 6. Both sides, one fight | The endgame | She brings the First Flame to the Crown beside the Last Ember |
+| 7. The last Hearth is hers too | The endgame | The fire is Harry's. The Hearth is Holly's. Without her words it's only a fire |
+
+**The two of them.** They've known each other for years over a wood pile. He thinks she worries too much about doing it right. She thinks he'd light a fire in a hay barn. Each one is the first person the other would ask for help, and across every region each one shows up for the other at least once. Neither is ever the other's enemy, and no quest ever asks a player to act against either of them.
+
+**What "a god at the endgame" means in play (proposed, for the endgame lane).** Harry's Hearth is the endgame's hub, and Holly is its Keeper. The three Blessings (death protection, `src/data/blessings.js`) are bought there by anyone: his fire, her words. The last trial is theirs: a keyed room where the two of them test you and nobody kills either one. He still asks if you've eaten. She still tells him where to stack the wood. A player who watched him swear at a stuck cart wheel at Level 110, or watched her say the rite alone for the first time, should feel it.
+
+**Why a First Flame player doesn't end up on the losing side.** Harry becomes a god. The Last Ember doesn't win. Four things hold that.
+- His coal came off the Great Hearth, and Holly gave it to him. The last ember is a piece of the first flame, which is why the two names sit together. A First Flame hero can say the god's fire is their fire and be right.
+- The endgame fight is both sides against the Crown. Nobody beats the other faction, ever, anywhere.
+- The Hearth he lights at the end is only a true Hearth because Holly says the old rite over it. Harry can light a fire. He can't lay the dead to rest without what the First Flame kept. The endgame has two heroes in it, one from each side.
+- He's never been only the Last Ember's. Every hero of either side has eaten at his camp since Level 110, and Havora stays neutral to the end.
+
+**Named after them:** Harry's Camp and Harry's Lantern (the Last Ember's first outfit add-on). Holly's Vigil and Holly's Light (the First Flame's second outfit add-on). Wickstead is Harry's farm and is already live. It is not a faction seat. Display names only: every one reads the name from the one text row, so renaming Holly is one edit.
+
+#### 5. The ladder
+Bands overlap in pairs, so both factions always have a ground that pays them at their Level. At the 10-25 pace (about 10.8 hours a Level from 100 to 200, `LEVEL_PACE.targets`) the region is about 590 hunting hours end to end, so each ground has to hold a hero for 150 hours or more. Every number in this table is proposed, unmeasured, except Carter's Rest.
+
+| # | Ground, band | Pays standing to | Who lives there (class) | Problem it solves, decision it adds, what it plugs into | New in the engine | Drops (source and use) | Art kit |
+|---|---|---|---|---|---|---|---|
+| 1 | **Carter's Rest**, 110-125 | The Last Ember | A family of hill trolls in the halfway inn (Humanoid) | There's nothing to hunt or wear past Krell. Sword or poison, and where the back line stands. Finishes tier 7 armor | A monster that throws from range, a marked heavy hit, a group fire spell | Tier 7 boots, gloves, legs, belts in three weights (worn). Five rare uniques (section 9). Troll Hide, Bones, Coal (existing rows). Dawnstone Ore (smelts to Dawnsteel). Five imbuement pieces | Region kit: road, dry stone wall, moor grass. Own: the inn and its sign, Harry's cart |
+| 2 | **The Ox Road**, 112-128 | The First Flame | The last ore wagons, stopped dead on the road. Dead Teamsters and their Yoke Oxen (Undead), Gault's Coal Runners (Human) | A hammer and fire ground beside the sword's. Kill the priest or the ox first. Tier 7's missing weapons | A monster that heals its pull, Target by kind | Tier 7 wand, spellbook, crossbow, axes (no rows today, `gear-tiers.js`). Its own rare uniques. Grave Dust and Big Bones (Hearth fuel). The piece for a Sealed Ice Lining | Own: ore wagons, the ox, a broken bridge |
+| 3 | **Wyvern Roost**, 125-142 | The Last Ember | Wyverns on the crags over the road (Dragon) | The bow's ground and the first "mythical" kill. Stand in the breath or step off it. The bow's rare uniques and the first boss pieces | A marked cone on a regular monster, a call-out boss (the Roost Mother) on the called-room rails | Rare uniques for the bow. The Roost Mother's boss pieces (section 9). Wyvern hide and eggshell | Own: crag ledges, nests, the wyvern in three sizes |
+| 4 | **The Night Shift**, 122-140 | The First Flame | Morrow's dead, still mining for Gault (Undead), and the living Shift Boss who drives them (Human) | The gold and ore ground. Mine between pulls or don't. The first Dawnstone node on a ground | Named adds (the Shift Boss calls the shift), a poison group spell (Blackdamp, the real word for bad mine air) that makes the Poison Lining matter on the harder tiers | Dawnstone Ore from kills and from Dawnstone Veins (Mining 90, `dawnstone_rock`). Rare uniques for melee | Own: mine timbers, ore carts, lamps, a Dawnstone Vein sprite (the node kind has none) |
+| 5 | **The Old Guard**, 138-155 | The Last Ember | The stone guards Morrow's first smelters set on the stair to the Bellows (Construct), and the wind that lives in the pass (Elemental) | The mage's ground, which the March never had. Ice lining or more Levels. The casters' rare uniques | An ice group spell as the tier wall, a spell that speeds up under a phase line on the elite | Rare uniques for casters. Guard stone for a house trophy. The piece for the top Ice Lining | Own: the stair, standing stones, snow edge tiles |
+| 6 | **The Bellows**, 145-165 | The First Flame | Gault's priests (Human, they mend), his Castings, bodies poured in Dawnsteel (Construct), and the dead he keeps closest | The party ground and the region's exam. Every earlier lesson in one pull | Everything above together | Rare uniques. **Bellows Key** off the elite | Own: the furnace house, water wheel, the great bellows |
+| Boss | **Father Gault**, in the Bellows' keyed room | Counts with ground 6 | Gault, the Coal Runner who got away from Krell's hall (a named add), and the furnace | The region's ending | A keyed boss room, named adds, phase spells. The same pieces Krell needs | 1 in 10 a kill: his boss pieces (section 9), his trophy. The coal (section 6) | Gault, the furnace as a class row like the Hall Fire |
+
+Three and three. The boss room is part of ground 6 and has no count of its own.
+
+**What makes a ground pay one side or the other.** A ground pays the First Flame when the things on it are tied to the wrong fire: the kept dead and the people who keep them. Every one a First Flame hero puts down gets burned the old way and rests. A ground pays the Last Ember when the things on it are alive and sitting on something Morrow is going to need: trolls in the road's only inn, wyverns over the pass, the old stone guard on the stair. Every one the Last Ember clears is ground the next Morrow gets to use. Neither kind is the boring kind. One has trolls throwing a roof at you and the other has skeleton oxen.
+
+**No ground is best at everything (proposed, unmeasured past ground 1).** Carter's Rest wins the last Dawnsteel armor. The Ox Road wins the last Dawnsteel weapons. The Roost wins the bow's XP. The Night Shift wins gold and ore. The Old Guard wins the mage's XP. The Bellows wins party XP and the boss.
+
+**Gear, said plainly.** Dawnsteel is the last standard tier (Tyler 2026-11-14). It is worn from 88 and its last slots drop at 110-128, which keeps today's lag (tier 6 is worn at 75 and drops at 85-110). There is no tier 8. From here on every ground has a few rare unique pieces and every boss has pieces to mix and match. Section 9.
+
+**Held back on purpose.** Knockers, the mine folk from old miners' stories, are a good living family for this region. They wait for a seventh and eighth ground, added as a pair.
+
+#### 6. The two factions
+**Tyler's faction identity (2026-11-14, binding).** "Neither faction is inherently evil. Both can have understandable motivations, allowing players to identify with either side."
+
+| | The First Flame | The Last Ember |
+|---|---|---|
+| Primary color | Antique gold | Deep crimson |
+| Secondary color | Forged steel | Charcoal |
+| Symbol | Rising flame | Glowing ember |
+| Architecture | Fortified stone citadels | Weathered iron fortresses |
+| Philosophy | Preserve what was | Forge what comes next |
+
+**How that fits the story.** I first wrote the split as "frees the dead" against "keeps the bond". That made one side sound like it was keeping the dead, which is Gault's job, so I've moved it. The split is about what you do after a disaster.
+
+The First Flame want it put back. The dead get burned at a true Hearth and laid to rest, the way it was always done. The road opens, the crossing goes back to honest keeping, Morrow's furnace burns clean again, and people go home. Holly is their hero because she's the one who actually does the job, with her own hands, and knows what it's worth. Keeper Rowe, who taught her, stays at the Great Hearth in Havora and belongs to nobody's side.
+
+The Last Ember don't think you can put it back, or should. The old way is the one where a town hired the company, a lord bought their captain, and nobody came. So they carry one coal forward and build the next thing with it: new fires where people actually live, and a Morrow that answers to the people who dig it and fight for it. Venn starts it, because counting what's left and making something of it is what a quartermaster does. Harry ends up leading it, because he's the one who keeps the fire.
+
+**The dead, on each side.** For the First Flame, every one of them rests. For the Last Ember, each soldier gets asked. The ones who want to rest get burned at the Hearth like anyone else, and the ones who want to finish the march stay on the roster until it's done. Nobody is kept who doesn't want to be. That one rule is the whole difference between the Last Ember and Father Gault, who asks nobody and works them in a mine.
+
+**The villains are NPCs, and both sides are against them (Tyler 2026-11-14: "there should be overall bad guys that both sides are against that are just NPCs like krell").** No villain is ever a faction a player can join.
+
+| Villain | Where | Why the First Flame want him gone | Why the Last Ember want him gone |
+|---|---|---|---|
+| Lord Krell | The Barrow March, built | He left the dead unburned and then tied them to his own fire. He broke the rite | He bought their captain and killed their company |
+| Father Gault | The Morrow Hills, this design | He took Morrow's own furnace and turned its rite into a chain | He's working Morrow's dead in the mine and sitting on the town they mean to build |
+| **The Crown** (a working name, a sketch) | Behind both. Later regions, then the endgame | It's where the words came from. The oldest fire in the country has had the dead tied to it longer than anyone remembers | Nothing new gets built while it's there. Krell's toll and Gault's Dawnsteel both went up the road to it |
+
+**The rule for every region from here.** Each one has its own NPC villain, and both factions fight him for their own reasons: the First Flame because he fouls what was, the Last Ember because he chains what comes next. Each regional villain turns out to answer to the Crown, the way Krell's toll money and Gault's priests point the same direction. At the endgame the two factions stop arguing for one fight and go at the Crown together. That's the moment Harry's fire stands up, so both sides are in the room for it.
+
+**What this design does not lock.** Who or what the Crown is. I'd make it a king who tied himself to his own hall fire so he wouldn't have to die, which would make him the first one to ever do it. That is a proposal for its own lane and its own sample.
+
+**Where each one is wrong, so both stay honest.** The First Flame would hand Morrow back to the same arrangement that sold out the company once already. The Last Ember are asking dead soldiers a question that maybe shouldn't be asked, and a soldier isn't great at saying no to his quartermaster. A player can believe either one.
+
+| | The First Flame (preserve what was) | The Last Ember (forge what comes next) |
+|---|---|---|
+| Hero, and later leader | Holly. Her teacher, Keeper Rowe, stays neutral in Havora | Harry. Quartermaster Venn starts it and hands it to him |
+| Seat, outside Havora | **The Hold.** Krell's castle, taken back and garrisoned so nobody tolls the road again. Holly keeps a proper fire in the hall. A small gray stone castle in good shape is already what the Krell's Hold design draws, so it reuses that kit with gold banners over the gate | **Barge Fort**, on the Slake. Venn beached the company's supply barge and built a fort around it out of plate and ore-wagon iron. It's made of what the war left, and it has been rained on for years. Reuses the Slake's kit plus rusted iron cladding |
+| Mark on the hero | A rising flame in antique gold, by the name plate | A glowing ember in deep crimson, by the name plate |
+| Look | An antique gold tabard over forged steel plate, a tall shield, a ring of light behind the head. A paladin's shape | A charcoal hood and layered charcoal plate with deep crimson cloth, a soldier's iron face plate, a coal glowing in the chest. A reaper's shape, grim and not evil |
+| Earns standing on | Grounds 2, 4, 6 | Grounds 1, 3, 5 |
+| Skill | Lantern | Roll Call |
+
+**Havora is neutral.** No gate, price, vendor, fire or scoreboard in town knows a faction. The Great Hearth burns a Roster Page for anybody.
+
+**Joining.** After a hero's first Krell kill, Holly and Venn are both on the cart road outside the Hold, and Harry is loading Venn's cart. Talk to one and confirm once. Not choosing is allowed and costs nothing. An unaffiliated hero (before Krell, or one who never picks) hunts every ground at full XP and loot, earns no standing, has no mark and no faction skill.
+
+**No restrictions.** Both sides see each other, party together and hunt every ground. A ground that pays the other side still gives full XP and full loot. Standing is the only thing that differs, and standing only buys looks.
+
+**Standing.** One point a settled hunting minute on a ground that pays your side, added in the settle, never by the browser. Kept per faction and never lost, so a hero who swaps keeps both totals and can own both outfits.
+
+**No stat buff. My pick, and why.** Tyler asked for "mostly cosmetic" and then for a skill. A permanent buff on top of both would be a third thing to balance, and because swapping is allowed it would turn into gear people change for a ground. The outfit is the identity and the skill is the toy.
+
+**Swapping (Tyler: "like 10 hours of hunting something with a week cooldown").** Tell the other side's face you want in. Then hunt 10 hours on grounds that pay your new side. They pay you nothing while you do it. That's the price. Then you're in, your skill changes, and you can't start another swap for seven days. For a hero going over to the Last Ember, Harry just says "ten hours, then we'll talk". For one going over to the First Flame, Holly calls it keeping a vigil.
+
+**Outfits (the 10-15 outfit ruling: a base model with recolor regions and add-ons, cosmetic only, current art style, our own designs).** Re-specced from Tyler's two mood images (2026-11-14, `art/reference/faction-first-flame-mood-2026-11-14.webp` and `faction-last-ember-mood-2026-11-14.webp`, untracked). They are mood only: shape, palette and one signature detail each. Nothing is traced, and the paintings' detail doesn't survive a 40 px body anyway.
+
+**What carries over, and what doesn't.**
+| | The First Flame | The Last Ember |
+|---|---|---|
+| Shape at x2 | Wide and upright. A long tabard to the shin, square shoulders, a shield as tall as the body | Narrow and pointed. A peaked hood, ragged shoulder plates, a long blade |
+| Palette (Tyler's table) | Antique gold cloth and trim over forged steel. A little white at the head cloth | Charcoal hood and plate, deep crimson cloth underneath and at the sash. The ember is the only bright thing |
+| Signature detail | **A thin ring of pale gold light behind the head**, 2 frames | **A coal glowing in the middle of the chest**, with cracks of light running out from it, 4 frames |
+| Kept from the image | The white head cloth under the helm, the gold-edged shield, the flail | The mask with two lit eyes, the layered plate, the jagged blade |
+| Left out | The crosses. This world has no cross. Every one becomes the faction's own symbol, the rising flame. The thorns and spikes, which are noise at this size. The ghosts and candles, which are the seat's furniture and not the outfit | The burning town, since they don't burn towns. The skull, which becomes a soldier's plain iron face plate with a slotted mouth. The eyes are lit by the coal and not by anything worse. Grim is a soldier who has buried a lot of friends. Evil is a monster, and this isn't one |
+
+**The pieces, for the art pipeline lane.** Sample first: one base each, read side by side at x2 beside a Dawnsteel hero, before any add-on.
+
+| Faction | Piece | What it is | Recolor regions | Unlocks at |
+|---|---|---|---|---|
+| The First Flame | Mark | A rising flame, antique gold, 16 px | none | Joining |
+| The First Flame | Outfit: **Flamebearer** | Forged steel plate under an antique gold tabard to the shin, a white cloth under a closed helm, the rising flame on the chest | tabard, trim, sash, head cloth | 25 standing hours |
+| The First Flame | Add-on 1: **Hearth Shield** | A tall gold-edged steel shield with the rising flame on its face, carried on the arm, and a flail at the belt. Looks only. It is not the hero's real shield | shield face | 100 hours |
+| The First Flame | Add-on 2: **Holly's Light** | The ring of light behind the head. It's the light off her brazier, standing behind you. The piece people will recognise across the square | none | 300 hours |
+| The Last Ember | Mark | A glowing ember, deep crimson, 16 px | none | Joining |
+| The Last Ember | Outfit: **Emberkeeper** | A peaked charcoal hood over layered charcoal plate, deep crimson cloth showing at the collar, sash and skirt, the company's striped sleeve in crimson, a plain iron face plate | hood, plate edge, cloth, stripe | 25 standing hours |
+| The Last Ember | Add-on 1: **Harry's Lantern** | A small iron pot on a hip chain with a live coal in it, like the one on his cart, 2 frames | ember color | 100 hours |
+| The Last Ember | Add-on 2: **Kept Coal** | The coal in the chest, with the cracks of light around it, the ragged shoulder plates, and a long dark blade with a broken edge on the back. The coal is a piece off Harry's pot, set where the company badge used to go. Looks only. The blade is not the hero's real weapon | ember color | 300 hours |
+
+**Seats, for the same lane.** Tyler's table gives each side a building style: fortified stone for the First Flame, weathered iron for the Last Ember. The Hold and Barge Fort are the first of each. Later regions give each side one more of its kind.
+
+**Two things for the art director.** The house rule for creatures is a muted palette with no bold accent. Each outfit breaks it in exactly one small place, the ring and the coal, and that is the point of them. And both glows have to respect the on-screen effects opacity setting, like every other effect.
+
+That's 2 marks, 2 base outfits on the hero base model in 8 and 4 facings, 4 add-on layers, and 3 small looping glows. Hours are proposed. They need no sim, since an hour is an hour.
+
+**The weekly event. Designed now. It stays off until both sides have at least 20 heroes who hunted that week.** With six players it would be three against three and mean nothing. The contested place is the **Toll Stone** at the crossing, outside Havora and already in the story. Each week the side that earned more standing hangs its banner on the stone, antique gold or deep crimson, and each seat shows both totals. The prize is the banner and a crier line. No XP, no gold, no drop rate.
+
+**Server-owned (CLAUDE.md §1). Named, not built. Every one is on the pre-EA Security list.**
+
+| Piece | What it holds or does |
+|---|---|
+| `hr_faction_members` | hero, faction, joined_at, swap_started_at, swap_minutes, swap_ready_at |
+| `hr_faction_standing` | hero, faction, minutes. Raise-only |
+| `hr_faction_ledger` | Append-only. Every join, swap step, standing credit and outfit claim |
+| `hr_faction_weeks` | week, faction, minutes, heroes. Written by the settle |
+| `hr_faction_join(hero, faction)` | Refuses without a Krell kill on record. One row a hero |
+| `hr_faction_swap_start(hero)`, `hr_faction_swap_finish(hero)` | Server clock. Finish refuses under 600 swap minutes or inside the 7 days |
+| `hr_faction_outfit_claim(hero, piece)` | Reads standing, never a client number |
+| The settle (`hr-accrue`) | Credits standing and swap minutes from settled hunt time and the ground's `standingFor`. Clamped to the hours a hero can hunt in a day |
+| The hero snapshot | Carries `faction`, so the skill's gate is the server's |
+
+**The data rule and its guard (spec only).** Two new fields on a hunt row: `region` and `standingFor: 'first_flame' | 'last_ember'`. A new check in `src/data/catalogue-coherence.js`, held by `tests/faction-ground-balance.mjs`: every region after `barrow_march` has the same count of each, every post-Krell ground has the field, and a mutant with one flipped turns it red. The pack shape (`src/data/grounds/shape.js`) learns both fields in the same lane.
+
+#### 7. The faction skills (Tyler 2026-11-14: "a faction skill, not super over powered for either of them and balanced as best we can")
+One bar ability each, set up in Configure action like any other move. Different in kind.
+
+| | **Lantern** (the First Flame, a working name) | **Roll Call** (the Last Ember, a working name) |
+|---|---|---|
+| What the player reads | Blocks the next chunk of damage on you | Hits your target hard |
+| Kind | Protective. It answers the big hit and the group spell | Aggressive. It ends one monster sooner |
+| Row as measured | universal, support lane, 45 s, 15 mana, self shield 90 (grows 1% a Magic level), fires under 70% HP | universal, offense lane, 45 s, 15 mana, one hit of 1.2 times your own biggest blow |
+| Lore | The Great Hearth's light, held up | Venn reads a name and somebody answers |
+
+**Measured.** The real engine (`tools/balance-sim/cell.mjs`) run from a scratch copy of the tree with the two rows added to its `abilities.js`. Nothing in the repo carries them. Mosslight Glade at Level 24, each hero on its default bar with the skill in the first slot, the same dice in all three arms. Alone is 2 seeds x 1 h and the four is 1 seed x 1 h, so a death count this small is a first read and not a rate. Deaths and close calls are totals for the cell. Profit was not read.
+
+| Who, tier | No skill: kills an hour, deaths, close calls, meals an hour | Lantern: kills, deaths, close calls, meals | Roll Call: kills, deaths, close calls, meals |
+|---|---|---|---|
+| Tank, Normal | 286, 0, 0, 32 | +0.3%, 0, 0, 8 | +4.2%, 0, 0, 31 |
+| Tank, Dangerous | 333, 0, 0, 345 | -0.3%, 0, 0, 265 | +3.0%, 0, 0, 322 |
+| Tank, Deadly | 362, 13, 47, 944 | -1.4%, 6, 34, 835 | +3.6%, 8, 41, 916 |
+| Healer, Normal | 385, 0, 0, 0 | -0.5%, 0, 0, 2 | +6.0%, 0, 0, 1 |
+| Healer, Dangerous | 431, 0, 0, 13 | -1.9%, 0, 0, 10 | +5.1%, 0, 0, 16 |
+| Healer, Deadly | 451, 0, 6, 148 | +2.0%, 0, 6, 113 | +7.8%, 1, 5, 122 |
+| Bow, Normal | 380, 0, 0, 19 | -0.3%, 0, 0, 7 | +4.2%, 0, 0, 13 |
+| Bow, Dangerous | 507, 0, 0, 70 | -0.6%, 0, 0, 39 | +3.0%, 0, 0, 69 |
+| Bow, Deadly | 572, 6, 15, 290 | -0.2%, 2, 8, 205 | +1.0%, 7, 11, 278 |
+| Mage, Normal | 443, 0, 0, 6 | 0.0%, 0, 0, 2 | +4.7%, 0, 0, 3 |
+| Mage, Dangerous | 565, 0, 0, 80 | 0.0%, 0, 0, 43 | +4.4%, 0, 0, 75 |
+| Mage, Deadly | 669, 2, 11, 257 | -1.0%, 4, 6, 170 | +4.0%, 3, 9, 238 |
+| Four, Normal | 720, 0, 0, 0 | 0.0%, 0, 0, 0 | +1.4%, 0, 0, 0 |
+| Four, Dangerous | 1,195, 0, 0, 0 | +1.5%, 0, 0, 0 | +3.8%, 0, 0, 0 |
+| Four, Deadly | 1,507, 0, 0, 91 | -0.7%, 0, 0, 52 | +2.5%, 0, 0, 79 |
+
+Level XP an hour moved with kills in every row, within a point.
+
+**How to read it.** Roll Call is a steady 1 to 8% more kills, about 4% in the middle, for every role, and it doesn't change who dies. Lantern adds no kills at all. It took a lone tank's Deadly deaths from 13 to 6 and a lone bow's from 6 to 2, and it cut meals by 10 to 75% everywhere. The mage's 2 to 4 is inside the noise of a 2 hour cell. Neither broke the ground.
+
+**The honest verdict. Not balanced to a band yet.** Where nobody dies, Roll Call is the pick, because Lantern buys nothing there but food. Where a hero does die, Lantern is the pick by a mile, because a death at Level 24 costs 114,309 Level XP (6% of the total, `src/core/xp.js`), which is about an hour and a half of that tank's hunting, and at Level 110 it's about 23 hours. So the choice today is really "do you push tiers or farm Normal", and that is a real decision but a lopsided one. This was the second pass. The first (shield 60, a 2.0x hit) read Roll Call at +3 to +10% and Lantern at 13 to 9 deaths, so I cut Roll Call and raised Lantern. The next lever, unmeasured: give Lantern a small pace side of its own (the hero's next hit after the shield breaks lands harder) so it isn't dead weight on Normal, and hold Roll Call near +3%. Both skills need a 6 seed x 4 h grade and a second ground at Level 110 before either ships.
+
+**What the rows need.** Two rows in `src/data/abilities.js` with a new field `faction`, read where `alone` is read (`src/core/hunt/abilities.js`) against the server's snapshot, so the slot falls through for anyone else. A swap changes which one can fire, and a saved bar keeps both slots, so nobody rebuilds a bar after swapping (first principle). Lantern wants its shield as a share of max HP, a new field, because the measured row is about 28% of a Level 24 hero's HP and about 15% of a Level 110 hero's, and it should be the same share at both. No revive, no area, one cast every 45 seconds.
+
+**The guard (spec only).** `tests/faction-skill-band.mjs`: on the cells above, each skill's gain over no skill in kills an hour and its change in deaths stay inside an agreed band of the other's, and neither passes a ceiling. I'd start the band from the table above once Tyler has seen it.
+
+#### 8. Carter's Rest, the sample ground, Levels 110-125
+**The place.** Halfway up the Morrow road there's an inn where the ore carters used to stop for the night. When Krell shut the road the carters stopped coming, the innkeeper left, and a family of hill trolls moved in. They've each sort of taken a job. Harry's cart is parked in the yard, because he can't get past them.
+
+| # | Area | Who is there | Why it exists |
+|---|---|---|---|
+| 1 | **The Yard** | Troll Pickers going through the last wagon | The soft door, and Harry's Camp |
+| 2 | **The Stable** | A Stable Troll asleep in the straw, a Picker | The first marked hit. The tank holds it |
+| 3 | **The Roof** | Slate Throwers | The back line's problem |
+| 4 | **The Brewhouse** | Two Troll Brewers | The group fire spell. A Fire Lining from the March answers it |
+| 5 | **The Taproom** | A Stable Troll and a Thrower | Both lessons at once |
+| 6 | **The Cellar** | The Landlord | The hardest pull and the belts |
+
+**The sample of five.** One difficulty for every group. Stats are the formula's, written by `node tools/pack.mjs propose carters_rest --write` (tier 6, floor 110, fit both).
+
+| Creature | Level, role | Who it is | Class, weak to | What it does | Formula row |
+|---|---|---|---|---|---|
+| **Troll Picker** | 111, swarm | The young ones, going through every room for anything shiny | Humanoid. Sword, poison +15% | Nothing special. The majority | hp 146, atk 97, xp 1,633, gp 31-92 |
+| **Slate Thrower** | 114, glass | A lanky one on the roof, pulling the inn apart to throw it | Humanoid | Throws at whoever stands farthest back. Measured with Poacher's Volley standing in | hp 140, atk 129, xp 1,899, gp 29-89 |
+| **Stable Troll** | 117, heavy | The big one. Swings the water trough | Humanoid | A marked swing in front of him. Measured with Lash Sweep standing in | hp 230, atk 96, xp 2,890, gp 48-145 |
+| **Troll Brewer** | 119, regular | She kept the inn's kettles going | Humanoid | Throws boiling mash over everyone. Measured with Blasting Charge standing in | hp 195, atk 122, xp 2,242, gp 41-123 |
+| **The Landlord** | 123, elite | The biggest, in the innkeeper's apron, sitting on the last of the ale | Humanoid | No trick. The rare carrier | hp 322, atk 125, xp 4,315, gp 68-202 |
+
+The family is one body plan in five jobs, and the job changes what it does in a fight, not only its numbers. **Sample rule:** these five get built, played and read by the art director before a sixth is written.
+
+**Drops.** Every existing id was read in `ITEMS` on `release/v0.2.129`. The chances are the Hold's by role, proposed and not fitted.
+
+| From | Common | Uncommon (new, an imbuement piece) | Scarce, about hourly a piece | Rare, a unique (section 9) |
+|---|---|---|---|---|
+| Troll Picker | `bones`, `troll_hide` | Pewter Spoon (life leech) | Tier 7 boots: `dawn_boots`, `voidhide_boots`, `voidweave_boots` | Carter's Boots |
+| Slate Thrower | `bones`, `troll_hide` | Roof Slate (keen) | Tier 7 gloves: `dawn_gauntlets`, `voidhide_gloves`, `voidweave_gloves` | Slater's Mitts |
+| Stable Troll | `big_bones`, `troll_hide` | Stable Bit (ward) | Tier 7 legs: `dawn_platelegs`, `voidhide_pants`, `voidweave_pants` | Stable Door |
+| Troll Brewer | `bones`, `coal` | Coal Tongs (element ward) | none | Brewer's Ladle |
+| The Landlord | `big_bones`, `dawnstone_ore` | Cellar Tally (mana leech) | Tier 7 belts: `dawn_belt`, `voidhide_belt`, `voidweave_belt` | Landlord's Apron |
+
+**Where every drop goes.** Tier 7 armor is worn from 88, sold, or handed over through Storage. With Krell's bodies and helms that's the whole tier 7 set. Bones and Big Bones burn at the Hearth. Coal goes to the forge. Troll Hide sells today. The five rare uniques are worn, traded, or sold. Dawnstone Ore smelts into Dawnsteel bars (`smelt_dawn`, Smithing 88). The five pieces wait for the imbuer like every ground's. The Coal Tongs are the natural piece for the next Fire Lining. Their line is also the first proof a priest came this way: "One of Krell's priests came through here carrying a live coal in these. The trolls kept the tongs". The `voidhide` and `voidweave` names still carry a banned word. The renames are listed for Tyler at the end of this section.
+
+**Measured on the real engine.** The grader `pack check` runs (`tools/balance-sim/grade.mjs --mode quick --grounds carters_rest`, 72 cells, 1 seed x 1 h a cell), so every death count is a first read and not a rate.
+
+**One thing had to be worked around, and the Coordinator should know it.** On `release/v0.2.129` the sim dresses a hero in the best gear a player can get today, and with the March's packs unmerged that stops at tier 3. A plain `pack check` here plays Level 110 heroes in steel. So I ran the same grader from a scratch copy of the tree with one line of `tools/balance-sim/gear.mjs` changed to dress by Level and tier. The table is a hero in the full tier 6 set, which is what you arrive in from the Hold. No pack past Level 50 can be graded honestly on a branch until the grounds under it are open on that branch.
+
+XP is Level XP an hour for each hero, as a share of the pace contract (615k an hour at 110, 674k at 118). Deaths are for the whole cell.
+
+| Who | Normal: 105, 110, 118 | Normal at 110: deaths, typical low HP, kills an hour | Dangerous at 110: XP, deaths | Deadly at 110: XP, deaths |
+|---|---|---|---|---|
+| Tank alone | 0.95, 0.94, 0.89 | 0, 67%, 227 | 1.12, 29 | can't. 1 kill, 59 deaths |
+| Hammer alone | 1.04, 1.02, 0.99 | 0, 60%, 248 | 1.21, 44 | can't. 2 kills, 59 deaths |
+| Bow alone | 1.03, 0.98, 0.94 | 0, 82%, 238 | 1.50, 10 | 1.58, 26 |
+| Mage alone | 1.81, 1.69, 1.56 | 0, 97%, 410 | 2.30, 0 | 2.48, 15 |
+| Tank and Healer | 0.82, 0.80, 0.74 | 0, 85%, 448 | 1.12, 0 | 1.16, 51 |
+| Four (tank, healer, bow, mage) | 0.60, 0.57, 0.52 | 0, 90%, 634 | 1.04, 0 | 1.29, 2 |
+
+In the full tier 7 set on Normal at 110 the same four lone heroes read 1.00, 1.11, 1.05 and 1.87, which is 7 to 11% more XP than in tier 6, with the typical low HP up to 10 points higher. So finishing the set here is worth about what a gear step should be (10-25 ruling, 5 to 8% a meaningful upgrade).
+
+**What the numbers say.**
+1. **Normal is safe and on pace.** Nobody died in any Normal cell, five Levels under the floor included. The median lone hero at the floor is 1.00 of the contract, so I'm proposing no XP fit.
+2. **The Mage is way out.** Alone on Normal it earns 1.69 times the contract and never drops under 97% HP, and it does Dangerous alone at 2.30 with no deaths while a tank dies 29 times. That is a hunt that's clearly off, so by Tyler's 11-13 rule it gets its own look with these numbers and I have not tuned it. I don't know yet if it's this ground (trolls take magic at full) or the Mage at Level 110 on every ground. The Hold's pack notes say a lone Mage earns the most there too, which points at the Mage.
+3. **The harder tiers are a real wall for melee alone.** Dangerous kills a lone tank 29 times an hour and a lone hammer 44. Deadly can't be played alone in melee at all. A pair holds Dangerous with no deaths, and a four holds Deadly (2 deaths in 4 hero-hours, 26 close calls). That's "bring Levels or bring friends", which is what the tiers are for.
+4. **Parties have no XP row yet.** The four reads 0.57 on Normal because the pack carries no `partyClassXp`, the same place the Hold started (0.43 before its row). It gets fitted by the Hold's method when the pack lane takes it. Six of the grader's nine reds are this.
+5. **The other three reds.** The hammer's typical low at the floor is 59.7% against a bar of 60. The last two are profit rules that Tyler retired on 11-13, so they're printed and nothing was tuned to them: a lone hero at the floor nets about +11k gold an hour as a tank, -3k as a hammer, +22k as a bow and +46k as a mage.
+
+**What the measure can't tell you.** The layout is Wickstead's. The three spells are stand-ins from other grounds, so the Brewer's fire is 32 seconds apart and weaker than the design wants. Nothing shoots from range yet. One seed and one hour a cell.
+
+**The chase for a Level 110 hero.**
+| When | What they want |
+|---|---|
+| The first hour | A tier 7 piece in a slot Krell never gave them. Meeting Harry |
+| The first day | Boots, gloves and legs in their weight. The Landlord's first belt |
+| The first week | The full tier 7 set. 25 standing hours and the Last Ember's Emberkeeper outfit, or the same on the Ox Road for the First Flame's Flamebearer |
+| After that | The five rare uniques, one about every 10 to 20 hours each. The Picker's first bestiary stage at 2,500 kills, the 100 hour add-on, and Level 125 |
+
+**Walk-through.** A Level 110 hero just off Krell, in tier 6 with one or two Dawnsteel pieces, on the Hold's bar (`cooked_lobster`, `carrot_juice`, `barbed_arrows`, `chalked_poison_rune`, all real rows).
+
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Kills Krell once | The Hold | Not yet. The keyed room is unbuilt |
+| 2 | Talks to Harry or Venn on the cart road, or walks past both | Step 1 | Needs `hr_faction_join` and two world NPCs. Skipping works with nothing built |
+| 3 | Opens Hunts and sees Carter's Rest, 110-125 | Level 110 | Yes once the pack opens. `hunt-list.js` reads it |
+| 4 | Keeps the poison rune on the bar | The Hold's bar | Yes. Trolls are Humanoid, poison does 15% more. Nothing to change, which is the point |
+| 5 | Enters at the Yard beside Harry's cart. First pull is two Pickers | Step 3 | Not yet. No map (the pack plays Wickstead's layout) and no art |
+| 6 | First kills give coin, Bones, Troll Hide | Step 5 | Yes, real rows |
+| 7 | Within the hour, wears tier 7 boots | Step 6 | Yes. `dawn_boots` is worn from 88 |
+| 8 | Reaches the Roof. A slate hits the back line | Step 5 | Partly. The stand-in is a marked line. A real thrower needs the ranged piece |
+| 9 | Reaches the Brewhouse and takes fire as a group | Step 5 | Yes on a stand-in row. Its own spell row is the pack lane's |
+| 10 | Kills the Landlord, maybe a belt | Laps | Yes |
+| 11 | Sells spare tier 7 | Step 7 | Needs the tier 5-7 sale rates (the Hold's piece 9), or the gold floods |
+| 12 | Earns standing if the Last Ember | Step 2 | Needs the settle hook |
+
+Five of twelve steps wait on something unbuilt, and four of those five are the Hold's own pieces.
+
+**Art brief (current style only, `docs/ART_DIRECTION.md`).** Sample first: the Troll Picker and one run of inn wall, read at x2 beside Krell's Hold.
+
+| What | Class, size | Note |
+|---|---|---|
+| Troll Picker, Slate Thrower, Troll Brewer | `character`, 64x64 | One lanky body plan. Told apart by what they carry: a sack, a stack of slates, a ladle and apron |
+| Stable Troll, the Landlord | `brute` | The trough. The innkeeper's apron and the inn's sign under one arm |
+| Harry | `character`, 8 facings | Wide hat, road coat, ordinary. He has to read as nobody special at x2 |
+| Harry's cart and fire pot | `bulky`, 4 frames for the pot | The landmark. Reused at every Morrow start tile |
+| The inn | `building`, wall slices, a roof with missing slates | Two floors read from above, the sign post out front |
+| Tilesets, 4 | chained pro tilesets | Road and yard cobble, stable straw, taproom boards, cellar stone |
+| Props, 12 | `fixture`, `box`, `seat` | Ore wagon, kettles, bar, barrels, stalls, trough, bench, bed, slate pile, well, hitching rail, the inn sign |
+| Icons, 5 | 32 px | Pewter Spoon, Roof Slate, Stable Bit, Coal Tongs, Cellar Tally |
+| Effects, 2 | `vfx` | A thrown slate, the mash splash |
+| Portraits, 6 | bestiary, front-facing | The five and Harry |
+
+**The pack.** `src/data/grounds/carters_rest/` on its own branch, `lane/b-carters-rest-pack`, STAGED and registered there. It is kept off this docs branch because a registered pack moves the engine's data and every guard that loads it. It was started with `node tools/pack.mjs new carters_rest --like wickstead --band 110,125` and then every row rewritten. `tests/ground-pack.mjs` and `tests/copy-lint.mjs` exit 0 on it. Its map is Wickstead's layout under a new id, so the numbers above come from six pockets shaped like a farm. That's fine for a first read of danger and pace and wrong for a player. It opens only with its own map, art, spell rows, a fitted drop table and the ranged piece.
+
+#### 9. Gear after Dawnsteel: unique pieces, not tier 8 (Tyler 2026-11-14: "after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades", "Boss gear to mix and match, rare drops from hunts")
+**The rule.** Dawnsteel is the last standard tier. Carter's Rest and the Ox Road finish it. Past that there is no tier 8 and no ladder. Gear comes from two places. A ground has a few **rare drops**, each a named piece that does one thing a standard piece doesn't. A boss has **boss pieces**, one for several different slots, built so you mix pieces from several bosses. A unique is a choice against the piece you're wearing, and it always gives something up. Power still climbs with the Level bands, because a later ground's uniques carry bigger numbers and need a higher Level.
+
+**No set bonuses. My call.** A bonus for wearing two of Gault's pieces turns "mix and match" back into "collect the set". The pieces already work together on their own: element resistance adds up across pieces to the engine's 40% cap (`HERO_RESIST_PM.max`), so two fire pieces and a lining is a real build and nobody has to be told so.
+
+**The sample of five: Carter's Rest's rare drops.** Each is in the Rare band (`src/data/loot-bands.js`, one about every 10 to 20 hours at the floor, a `rare_drop` reveal and the party's rare roll, both already built). All need Level 110. Every number is proposed and unmeasured. All five names were checked free.
+
+| Piece, slot | From | Stats, beside the Dawnsteel-tier piece in that slot | What it does | Who wants it, and what they give up |
+|---|---|---|---|---|
+| **Carter's Boots**, boots | Troll Picker | 22 armor, no penalty to bow or magic. Dawnsteel Boots are 30 armor with -8 bow and -15 magic. Voidweave Slippers are 9 armor | Real armor with no caster penalty | A Healer or Mage who gets hit. They give up the magic bonus on cloth boots |
+| **Slater's Mitts**, gloves | Slate Thrower | 10 armor, +6 bow accuracy, 6% crit. Voidhide Bracers are 13 armor, +12 accuracy, 2.8% crit | Twice the crit, half the accuracy | A bow hunting under its Level who already lands every shot. On a ground above them they miss more |
+| **Stable Door**, shield | Stable Troll | 12 armor, -6 accuracy. Blocks 45% of a marked hit, where every other shield blocks 30% | The boss tank's shield | Whoever holds Krell's rake or the Stable Troll's swing. They hit less often on ordinary pulls |
+| **Brewer's Ladle**, two-handed hammer | Troll Brewer | 30 accuracy, 60 strength. Dawnsteel Warhammer is 32 and 68. Hits Humanoids 20% harder | Makes the hammer a real pick on a sword ground | A hammer hero farming trolls, goblins, and giants later. It's worse than Dawnsteel on everything else |
+| **Landlord's Apron**, belt | The Landlord | 20 armor, 10% less fire damage. Dawnsteel Belt is 30 armor | The first fire piece outside a lining | Anyone heading for the Brewhouse on Deadly, Wyvern Roost or the Bellows. They take a little more from every ordinary hit |
+
+Four of the five are data rows today. `critB`, `resistPm` and `bane` are fields the engine already reads (`src/core/combat.js` equipmentStats, `src/core/bane.js`). Only the Stable Door needs new engine work.
+
+**Boss pieces mix and match.** A sketch for the region's bosses. Names and numbers are proposed, and each boss gets its own sample when its ground is built.
+
+| Boss | Pieces (slot) | The idea |
+|---|---|---|
+| Lord Krell (built, the March) | Dawnsteel body and helm in three weights, the four Dawnsteel and Duskwood weapons | The plain best armor. The base every build starts from |
+| The Roost Mother (ground 3) | Roost Mother's Hide (legs, fire), Crag Talon (necklace, crit), Eggshell Cap (helm, light, bow) | Fire and crits. The bow's boss |
+| Father Gault (ground 6) | Furnace Mitts (gloves, fire, magic), Gault's Stole (cape, heals land harder), Bellows Key Ring (ring, mana) | Casters and Healers. The party's boss |
+
+**One late build, to show the mixing (proposed, unmeasured).** A Level 160 tank getting ready for the Bellows on Deadly, where nearly everything is fire.
+
+| Slot | Piece | From | Why this one |
+|---|---|---|---|
+| Body, helm | Dawnsteel Platebody and Helm | Krell | Nothing has more armor. No reason to swap |
+| Legs | Roost Mother's Hide | The Roost Mother | Less armor than Dawnsteel legs, but it's fire resistance and the Bellows is fire |
+| Belt | Landlord's Apron | A rare drop at Carter's Rest | The second fire piece. With the Hide and a Sealed Fire Lining the tank is at the 40% cap |
+| Shield | Stable Door | A rare drop at Carter's Rest | Gault's big hits are marked |
+| Gloves, boots | Dawnsteel | Carter's Rest, standard | Furnace Mitts would be more fire, but the tank is already at the cap and the Mitts' magic is wasted on them |
+
+The same hero on Wyvern Roost's Normal would drop the Stable Door (nothing there needs it) and go back to a Dawnsteel belt. That swap is the decision. A bow hero makes different ones: Krell's Duskwood Bow, the Eggshell Cap, Slater's Mitts on a ground under their Level and Voidhide Bracers on one above.
+
+**How a player compares two.** On the item card, a unique shows what changes against the piece worn in that slot, one line a stat, with the sign (the bar already does this for moves, `src/shell/action-table.js` compareLines). Under that is its one plain line, like "Blocks 45% of a marked hit" or "10% less fire damage". In Hunt prep the same card adds what the piece is worth on the ground you picked: "Fire was 34% of the damage you took here" from the per-element breakdown the server already sends (`takenByElement`, the resistance section's hint). No score and no "better" arrow, since a unique isn't better or worse until you say where you're going.
+
+**How it plugs into the linings (`lane/d-resist-imbue`, board 2026-11-13).** That section said a lining and a cape are the only sources of resistance. This widens the cape's half to any unique piece. The cap stays 40%, which is what keeps it a choice: a 30% lining and one 10% piece is already at the cap, so a second fire piece only helps a hero with a cheaper lining or none. The Landlord's Apron is that first piece. The Coal Tongs from the same ground are the natural piece for the lining itself, so one ground gives both halves.
+
+**First principle flag.** A hero who swaps three pieces for the Bellows and swaps back for the Roost is repeating a decision. Saved setups have to remember gear by ground, the same gap Krell's Hold flagged for bars (its piece 12). Uniques make that gap much worse, so it lands before they do.
+
+**What's missing.**
+| # | Piece | State today | Owner |
+|---|---|---|---|
+| 1 | A per-item property the engine reads, beyond `bane` | `src/data/item-effects.js` lists one live kind. The rule there stands: a new kind ships in the same change as its engine and its test. First new kind: a shield's own brace (`bracePm`, read where `SHIELD_BRACE.markedPm` is) | Systems |
+| 2 | Gear with no tier | Sale rates, Tempering, the sim's kit picker (`tools/balance-sim/gear.mjs`) and the gear ladders all key on `tier`. A unique needs a rule from its Level instead | Systems, Designer |
+| 3 | Resistance on any slot | The sum already reads every worn row's `resistPm`. Nothing to build. The item card needs the line | Art Director |
+| 4 | The compare view and the "on this ground" line | `compareLines` exists for bar moves only | Systems, Art Director |
+| 5 | Setups that remember gear by ground | Not built | Systems |
+| 6 | A guard that a unique is a trade | New, spec only: `tests/unique-is-a-trade.mjs`. No unique beats the standard piece of its slot and Level on every stat, each has exactly one property line, and each names who it's for | Designer |
+| 7 | The sim plays a named kit | `cell.gearBySeat` takes tier offsets only. It needs to take item ids, so a unique is measured against the piece it replaces on the same dice | Systems |
+| 8 | Sample rule | These five get built, measured against Dawnsteel and played before a sixth is written | Designer |
+
+**Done and verified.** The old world doc was read from the saved transcript. Every existing id named here was read on `release/v0.2.129`. Every new name was checked free. The pack loads and lints, the formula wrote its rows, and both measured tables are the real engine's. The fields the four data-only uniques use (`critB`, `resistPm`, `bane`, the stat bonuses) were read on real item rows. **Not verified.** Nothing was played by hand. No drop chance is fitted. No unique is in the pack or has been measured. Grounds 2 to 6 have no rows. The story text has had no reader. The faction skills were measured on one live ground at one Level. **Assumed.** Every unique's numbers, the boss pieces, the 20-hero switch for the weekly event, the outfit hours, and that Krell's engine pieces land as specced.
+
+**Renames for Tyler: the two tier 7 names with "Void" in them.** Display names only, the ids stay, the same way the 11-11 gear renames went. All were checked free in `ITEMS`.
+
+| Today | My pick | Why | Other options |
+|---|---|---|---|
+| Voidhide (tier 7 leather, 6 pieces) | **Duskhide** | It pairs with the Duskwood bow the same hero carries, the way Dawnsteel pairs with the Dawnsteel sword | Morrowhide, Dawnhide |
+| Voidweave (tier 7 cloth, 6 pieces) | **Dawnweave** | It keeps the dawn half of the game's own promise on the caster's set | Duskweave, Dawnspun |
+
+So "Voidhide Bracers" becomes "Duskhide Bracers" and "Voidweave Slippers" becomes "Dawnweave Slippers". The plate set is already Dawnsteel.
+
+**For Tyler.** The faction names, colors, symbols, building styles and philosophies are his (2026-11-14), and so are Harry in the Last Ember, Holly leading the First Flame, and the NPC villains. Neither has a surname. No tier 8, unique gear instead (section 9). Waiting on him: the two renames above, the name Keeper Rowe, and new names for the two skills. "Lantern" is the First Flame's skill and Harry's Lantern is now a Last Ember outfit piece, so that working name has to go.
 
 ### 2026-11-13 Under-Level pairs and the fresh hero's dips (designer, lane/d-live-grounds-2, the plan's #3 and #1 below): MEASURED on the full grade; the dips were a GRADER artefact (fixed in the grader, the Glade crow withdrawn); the under-Level rule CAN'T be met with monster stats on the three grounds under 16. **Tyler: one call**
 **#1, the fresh melee hero's dips under 25% HP: not real.** The grader played every cell in 120 s settle cuts and `cell.mjs` spreads a cut's regeneration evenly over it, so regeneration lost at full HP early in a cut reads as HP missing later. The same fights read in 10 s cuts (the live cadence) show the same XP and gold to the unit and **zero** dips: the Thicket's fresh melee 7/6/3/3 -> 0, the Glade's lone Rangers 47 in 96 h -> 0 (at the crow's old 4.4 too). Proof that it was the trace and not the fight: lowering every Thicket monster's to-hit 10% moved the 120 s dips not at all (35 -> 33). Fix: `tools/balance-sim/grade.mjs windowFor` reads a lone cell at 10 s (same run time, 8-13 s a cell); parties keep 120 s, since no rule reads a party's dips. Regression `lone-window` in `tests/balance-grade.mjs` (the old 120 s turns it red, read). **Yesterday's Glade crow change is WITHDRAWN** (speed back to 4.4): it fixed a number that wasn't there. If its hr-accrue was deployed, the next deploy puts it back; if not, nothing moves.
@@ -995,6 +1456,12 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 5 | A keyed boss room that pays XP and drops | BUILT, STAGED (lane/b-barrow-boss-room, 2026-11-13): src/data/boss-halls.js, core/hunt/boss-room.js, 2027-04-20-boss-hall.sql (hr_boss_hall_enter, the key read under the lock). No hall in the data yet: the pack's `hall` block must fold as paying rows (CONFLICTS 2026-11-13). boss-call.mjs untouched | Systems, Backend. A money surface, so it is on the Security list |
 | 6 | Adds that are a named boss with his own kit | BUILT (same lane): a row `boss` and `add` both, his own spells and an enrage line, no wave or guard of his own (gen-hunt-sessions hallRows); the log and the bar name him | Systems |
 | 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | BUILT (same lane): `phases.hasten` { spell, cdPm } (boss-phases.js spellCdOf); the bar counts it down. The Art Director owes a look at the bar's two new lines | Systems, Art Director for the bar line |
+| 2 | A monster that attacks from range | Engine built (lane/b-barrow-monster-kinds): a monster row's `range`, whole tiles 2 to 6 (`MONSTER_RANGE`), played by `src/core/hunt/shooters.js`. It aims at the hero farthest from it in its pack's area, stands where it can shoot and takes no slot. No row has a range yet | Designer: the Lookout's `range` |
+| 3 | A monster that heals its pull | Engine built (same lane): a `shape: 'mend'` row in `monster-spells.js` (range, windup, cooldown, `hitPm` is the heal). It mends the most hurt monster of its own pack in range, never itself and never a boss with phases | Designer: the Pyre Priest's row |
+| 4 | A Target mode that names a kind first | Engine built (same lane): a hero's `target_kind` takes that kind first under any Target mode. Nothing stores or shows it yet | Backend (lane C): `hunt_density.target_kind`, its setter, the instance read's overlay. Then the bar's choice |
+| 5 | A keyed boss room that pays XP and drops | `boss-phases.js` reads only in a called room, and `tests/boss-call.mjs` holds that a called room pays nothing. This is a new room kind. That guard is not loosened | Systems, Backend. A money surface, so it is on the Security list |
+| 6 | Adds that are a named boss with his own kit | Adds are plain rows marked `add` | Systems |
+| 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | None | Systems, Art Director for the bar line |
 | 8 | Element resistance on gear and imbuements | The area-spell spec's next phase | Systems |
 | 9 | Sale rates for gear tiers 5, 6 and 7 | DONE (lane/d-barrow-data, 2026-11-13). Tiers 4 to 6 were set 11-08 (0.075, 0.033, 0.015); tier 7 is 0.007, so a Dawnsteel piece sells for about 1.3x its Emberforged twin | Designer |
 | 10 | Pack fields for a named fuel, monster spells and a hall | `shape.js` refuses unknown fields | Systems |

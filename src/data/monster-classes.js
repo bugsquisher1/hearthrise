@@ -394,6 +394,14 @@ export function auditRoster(MONSTERS) {
       if (!Array.isArray(m.gp) || m.gp.length !== 2 || m.gp[0] > m.gp[1]) problems.push(id + ': gp must be [lo,hi] with lo<=hi');
       return;
     }
+    /* A BOSS ROOM'S PAYING ROWS (a keyed hall's, src/data/boss-halls.js: its boss, a row with lines, and his adds, rows marked `add`)
+       stand outside these hand bands as a called boss does: the fight is fitted to its ship bar (Tyler 2026-11-05), not to the August
+       roster's tier curve. tools/gen-hunt-sessions.mjs hallRows holds their shape; their gp still has to be a [lo, hi] pair. A ground's
+       boss with lines (Captain Hask) is a formula row, above. */
+    if (m.formation !== true && (m.add === true || (m.boss === true && !!m.phases))) {
+      if (!Array.isArray(m.gp) || m.gp.length !== 2 || m.gp[0] > m.gp[1]) problems.push(id + ': gp must be [lo,hi] with lo<=hi');
+      return;
+    }
     /* A champion is checked against championBand instead, and must not also
        claim to be a boss (two flags, two sets of rules — pick one). */
     const champ = m.champion === true;

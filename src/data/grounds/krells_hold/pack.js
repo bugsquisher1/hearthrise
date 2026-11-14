@@ -231,7 +231,7 @@ export default definePack({
          HIS PRIZE (the design's section 4), each rare about 1 kill in 10: the first tier 7 in the game (worn from 88), the four weapons and the
          body and helm in three weights. They break the 5% row ceiling on purpose: the loot-band guard learns a per-kill boss with the fold.
          Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
-      lord_krell: { name: 'Lord Krell', icon: '👑', tier: 6, level: 110, cls: 'human', family: 'Human', formation: true, boss: true,
+      lord_krell: { name: 'Lord Krell', icon: '👑', tier: 6, level: 110, cls: 'human', family: 'Human', boss: true,
         elements: { ember: 25, poison: -15 },
         /* his marked hit first, then his pulse (monster-spells.js: castSpells starts the first one ready) */
         spells: ['rake_the_coals', 'hall_fire'],
@@ -247,12 +247,12 @@ export default definePack({
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
          line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
-      hall_hask: { name: 'Captain Hask', icon: '⚔️', tier: 6, level: 100, cls: 'undead', family: 'Undead', formation: true, boss: true, add: true,
+      hall_hask: { name: 'Captain Hask', icon: '⚔️', tier: 6, level: 100, cls: 'undead', family: 'Undead', boss: true, add: true,
         /* a boss's kit, the marked hit then the pulse (Tyler 2026-11-08; tests/hunt-core/spell-rows.mjs boss-kits) */
         spells: ['hasks_cleave', 'hasks_war_cry'],
         hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
       /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92), paying a kill as there */
-      hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', formation: true, add: true,
+      hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', add: true,
         hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1869, gp: [38, 115], speed: 2400, drops: [] },
     },
   },

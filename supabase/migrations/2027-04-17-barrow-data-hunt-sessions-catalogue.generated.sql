@@ -8,12 +8,21 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: a022a7eba8c3f2e913851c38e5f234c4177529324c1f89aa0182547115aef35c
---   82 supplies, 130 hunts (named + training), 47 limits, 16 end reasons,
+--   digest: e3cab7e10d3c802b881140032f62e447368034910987d485fe0a270c38fcce01
+--   82 supplies, 138 hunts (named + training), 47 limits, 16 end reasons,
 --   567 vendor values, 49 store supplies paid per use, 5 target modes,
---   4 lanes, 21 abilities, 10 action-set options, 8 hunt grounds
+--   4 lanes, 21 abilities, 10 action-set options, 16 hunt grounds
 --
--- NEW IN THIS FILE (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"):
+-- NEW IN THIS FILE (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
+-- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and
+-- hr_hunt_travel; the training dummy (yard_dummy) in hr_hunt_kill_bounds, no coin and no drop, its XP bound its health at the hit rate; and the two
+-- training tables, hr_training_rules (the hourly fee, the dummy's floor, the longest session, the house dummy's property tier) and hr_training_grounds
+-- (each ground's place, skill, fee and XP share). No other row, bound, limit, end reason or world shape moves. ORDER: after
+-- 2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql (carried whole) and 2027-04-16-combat-training-hunts-catalogue.generated.sql (the
+-- grounds' hunts in hr_hunts), right before 2027-04-16-combat-training.sql. The hr-accrue that plays the grounds may land on either side of it: no
+-- player can open one until the verb exists.
+--
+-- CARRIED FROM 2027-04-15-area-spells-hunt-sessions-catalogue (lane/b-area-set, Tyler 2026-11-08: "start giving some monsters some aoe spells and our heros some more aoe spells"):
 -- hr_hunt_abilities gains the four hero area abilities (turning_cut, raking_shot, hoarfrost, spring_tide: the bar's vocabulary, so a slot naming
 -- one is accepted); hr_hunt_world_shape MOVES (a monster unit carries its spell cooldowns and its live cast: spellCds, cast); hr_hunt_limits gains
 -- spell_windup_min_ms, the least windup a monster's spell may have, which the settle's Defense bound leans on (the self-check below executes it).
@@ -423,10 +432,36 @@ create table if not exists public.hr_boss_calls (
 alter table public.hr_boss_calls drop column if exists party_min;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
+-- COMBAT TRAINING (training.js): the rules, one row, and each training ground's place, skill, fee and share. Read by hr_training_start, the settle's
+-- hourly charge (hr_training_hour) and its window check (hr_training_window), 2027-04-16-combat-training.sql.
+create table if not exists public.hr_training_rules (
+  id            boolean primary key default true check (id),
+  fee_base      int     not null check (fee_base >= 0),
+  fee_per_level int     not null check (fee_per_level >= 0),
+  hp_floor_pm   int     not null check (hp_floor_pm between 1 and 999),
+  max_hours     int     not null check (max_hours between 1 and 24),
+  house_tier    int     not null check (house_tier >= 1),
+  house_tier_id text    not null check (house_tier_id ~ '^[a-z0-9_]{1,32}$'),
+  constraint hr_training_rules_fee_ck check (fee_base + fee_per_level > 0)
+);
+create table if not exists public.hr_training_grounds (
+  hunt_id     text    primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
+  place       text    not null check (place in ('yard', 'house')),
+  skill       text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
+  ord         int     not null check (ord >= 0),
+  fee         boolean not null,
+  xp_permille int     not null check (xp_permille between 1 and 1000),
+  constraint hr_training_grounds_place_skill unique (place, skill),
+  constraint hr_training_grounds_fee_ck check (fee = (place = 'yard'))
+);
+comment on table public.hr_training_rules is
+  'tools/gen-hunt-sessions.mjs from src/data/training.js: the training yard''s fee, the dummy''s floor, the longest session, the house dummy''s property tier (lane/c-combat-training). Names no player; character wipe c_no_player.';
+comment on table public.hr_training_grounds is
+  'tools/gen-hunt-sessions.mjs from src/data/training.js and hunt-grounds.js TRAINING_GROUNDS: each training ground''s place, trained skill, hourly fee and XP share (lane/c-combat-training). Names no player; character wipe c_no_player.';
 do $$
 declare v_t text;
 begin
-  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls'] loop
+  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds'] loop
     execute format('alter table public.%I enable row level security', v_t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
   end loop;
@@ -732,6 +767,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('wraith', 115, 478, '{"grave_dust":1,"wraith_veil":1,"vamp_dust":1,"ancient_rune":1,"warlock_belt":1}'::jsonb),
   ('wyrmling', 50, 212, '{"dragon_scale":1,"bones":1,"big_bones":1,"boarhide_helmet":1}'::jsonb),
   ('wyvern', 112, 499, '{"dragon_scale":1,"dragon_bones":1,"big_bones":1,"snakeskin_boots":1}'::jsonb),
+  ('yard_dummy', 0, 1500, '{}'::jsonb),
   ('zombie', 45, 232, '{"grave_dust":1,"big_bones":1,"ancient_fragment":1,"lazlos_maul":1}'::jsonb);
 delete from public.hr_hunt_target_modes;
 insert into public.hr_hunt_target_modes (mode) values
@@ -773,6 +809,14 @@ insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn
   ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
   ('millrace_sewer_called', 'millrace_sewer_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
   ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
+  ('training_house_defense', 'training_house_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_house_magic', 'training_house_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_house_melee', 'training_house_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_house_ranged', 'training_house_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_defense', 'training_yard_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_magic', 'training_yard_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_melee', 'training_yard_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
+  ('training_yard_ranged', 'training_yard_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
   ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'chief_coppercap', 1),
@@ -804,6 +848,14 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('mosslight_glade', 'goblin_sluicer', 3),
   ('mosslight_glade', 'rook_poacher', 1),
   ('mosslight_glade', 'walking_vine', 10),
+  ('training_house_defense', 'yard_dummy', 1),
+  ('training_house_magic', 'yard_dummy', 1),
+  ('training_house_melee', 'yard_dummy', 1),
+  ('training_house_ranged', 'yard_dummy', 1),
+  ('training_yard_defense', 'yard_dummy', 1),
+  ('training_yard_magic', 'yard_dummy', 1),
+  ('training_yard_melee', 'yard_dummy', 1),
+  ('training_yard_ranged', 'yard_dummy', 1),
   ('wickstead', 'barn_spider', 7),
   ('wickstead', 'barn_wasp', 10),
   ('wickstead', 'granary_rat', 26),
@@ -1056,6 +1108,14 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('storm_elemental', 0, true),
   ('sump_slime', 0, true),
   ('the_silence', 0, true),
+  ('training_house_defense', 0, false),
+  ('training_house_magic', 0, false),
+  ('training_house_melee', 0, false),
+  ('training_house_ranged', 0, false),
+  ('training_yard_defense', 0, false),
+  ('training_yard_magic', 0, false),
+  ('training_yard_melee', 0, false),
+  ('training_yard_ranged', 0, false),
   ('turncoat', 0, true),
   ('vampire_bride', 0, true),
   ('venom_spider', 0, true),
@@ -1745,13 +1805,26 @@ delete from public.hr_boss_calls;
 insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, limit_ms) values
   ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 30000, 3, 600000),
   ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 10000, 3, 600000);
+delete from public.hr_training_grounds;
+delete from public.hr_training_rules;
+insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
+  (true, 50, 6, 500, 12, 1, 'homestead');
+insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
+  ('training_house_melee', 'house', 'melee', 0, false, 215),
+  ('training_house_ranged', 'house', 'ranged', 1, false, 245),
+  ('training_house_magic', 'house', 'magic', 2, false, 340),
+  ('training_house_defense', 'house', 'defense', 3, false, 215),
+  ('training_yard_melee', 'yard', 'melee', 0, true, 215),
+  ('training_yard_ranged', 'yard', 'ranged', 1, true, 245),
+  ('training_yard_magic', 'yard', 'magic', 2, true, 340),
+  ('training_yard_defense', 'yard', 'defense', 3, true, 215);
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
 declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 82
-     or (select count(*) from public.hr_hunt_travel) <> 130
+     or (select count(*) from public.hr_hunt_travel) <> 138
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 16
      or (select count(*) from public.hr_hunt_vendor_value) <> 567
@@ -1763,11 +1836,11 @@ begin
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
-     or (select count(*) from public.hr_hunt_kill_bounds) <> 144
+     or (select count(*) from public.hr_hunt_kill_bounds) <> 145
      or (select count(*) from public.hr_hunt_abilities) <> 21
-     or (select count(*) from public.hr_hunt_grounds) <> 8
+     or (select count(*) from public.hr_hunt_grounds) <> 16
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
-     or (select count(*) from public.hr_hunt_ground_spawns) <> 34
+     or (select count(*) from public.hr_hunt_ground_spawns) <> 42
      or (select count(*) from public.hr_hunt_roster) <> 30
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
@@ -1776,6 +1849,8 @@ begin
      or (select count(*) from public.hr_hunt_roles) <> 0
      or (select count(*) from public.hr_hunt_shields) <> 6
      or (select count(*) from public.hr_boss_calls) <> 2
+     or (select count(*) from public.hr_training_rules) <> 1
+     or (select count(*) from public.hr_training_grounds) <> 8
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
@@ -1783,11 +1858,11 @@ begin
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
-               (('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('wickstead', 60000))) then
+               (('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('training_house_defense', 10000), ('training_house_magic', 10000), ('training_house_melee', 10000), ('training_house_ranged', 10000), ('training_yard_defense', 10000), ('training_yard_magic', 10000), ('training_yard_melee', 10000), ('training_yard_ranged', 10000), ('wickstead', 60000))) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
   -- THE KILL BOUND'S BASE is the room as built for every group (Tyler 2026-11-11): every ground's spawns, as generated.
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
-               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('wickstead', 6, 12))) then
+               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('training_house_defense', 1, 1), ('training_house_magic', 1, 1), ('training_house_melee', 1, 1), ('training_house_ranged', 1, 1), ('training_yard_defense', 1, 1), ('training_yard_magic', 1, 1), ('training_yard_melee', 1, 1), ('training_yard_ranged', 1, 1), ('wickstead', 6, 12))) then
     raise exception 'a hunt ground''s spawns is not its rows as built (no party pull on Normal)'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"markPm":45,"markUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"ruleHold":51,"ruleWait":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb
@@ -1838,6 +1913,20 @@ begin
                  or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
     raise exception 'a called room pays, or its row reaches a normal hunt'; end if;
+  -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
+  -- pays no coin and no drop; no other ground fields it and no roster names it.
+  if exists (select 1 from public.hr_training_grounds t
+              where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id and g.seats = 1 and g.pockets = 1 and g.spawns = 1)
+                 or not exists (select 1 from public.hr_hunt_travel v where v.hunt_id = t.hunt_id and not v.training)
+                 or not exists (select 1 from public.hr_hunts h where h.hunt_id = t.hunt_id)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = t.hunt_id and s.monster_id <> 'yard_dummy'))
+     or exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = 'yard_dummy' and (b.gold_max <> 0 or b.drops <> '{}'::jsonb or b.xp_max < 1))
+     or not exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = 'yard_dummy')
+     or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = 'yard_dummy'
+                  and not exists (select 1 from public.hr_training_grounds t where t.hunt_id = s.hunt_id))
+     or exists (select 1 from public.hr_hunt_roster o where o.monster_id = 'yard_dummy')
+     or exists (select 1 from public.hr_hunt_travel v where v.hunt_id = 'yard_dummy') then
+    raise exception 'a training ground holds more than its dummy, or the dummy pays, or it stands where it trains nobody'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;
   -- every named hunt and ground hunt is in hr_hunts; every training id is a
   -- non-boss combat target; every ground spawn has a kill bound.
@@ -2229,11 +2318,11 @@ begin
     raise exception 'drink_mana_per_min_max is under the store drinks at one per consumable lane'; end if;
   -- No client role reads or writes any of them; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
-    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls'] loop
+    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
   end loop;
-  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls')) then
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

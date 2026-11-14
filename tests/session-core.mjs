@@ -1628,11 +1628,18 @@ async function rules(M) {
     const a = acc.character(0), b = acc.character(1);
     let painted = 0; b.subscribe((s, why) => { if (why === 'storage') painted++; });
     srv.spend('iron_ore', 1);
-    /* a ping-pong (the mutant) overflows the stack, and printing that error's stack frames ran a 2 GB CI runner out of heap
-       (client-guards-2, run 43392845828): count the listener failures instead of printing them */
+    /* a ping-pong (the mutant) used to recurse until the stack overflowed; each frame's listener loop then re-entered it,
+       and Node 20 ran a 2 GB CI runner out of heap (client-guards-2, runs 43392845828, 43593490462). Bound it: past
+       NOTE_CAP cross-hero re-renders the spy stops forwarding and records the loop, so it is caught at a shallow depth. */
+    const NOTE_CAP = 8; let notes = 0, looped = false;
+    for (const h of [a, b]) {
+      const real = h.noteStorage.bind(h);
+      h.noteStorage = () => { if (++notes > NOTE_CAP) { looped = true; return; } real(); };
+    }
     const err = console.error; let failed = 0;
     console.error = (...a0) => { if (String(a0[0]).includes('a listener failed')) failed++; else err(...a0); };
-    try { await a.load(); } finally { console.error = err; }
+    try { await a.load(); } finally { console.error = err; delete a.noteStorage; delete b.noteStorage; }
+    if (looped) return 'the heroes re-render each other back and forth (' + notes + '+ cross re-renders for one answer)';
     if (failed) return failed + ' listener(s) failed: the heroes re-render each other until the stack overflows';
     if (shows(b) !== '{"iron_ore":3}') return 'B shows ' + shows(b) + ' after A read 3 ore at the same instant';
     return (painted >= 1 && painted <= 2) || 'B re-rendered ' + painted + ' times for one answer of A';

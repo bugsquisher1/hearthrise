@@ -60,11 +60,12 @@ import { isMain } from '../tests/_is-main.mjs';
 import { bootReplay, ROOT } from '../tests/schema-replay.mjs';
 
 const REF = 'nezapsylztqbbwuwembx';
-/* A table bigger than PAGE_BYTES is paged by its integer primary key, PAGE_ROWS a page (~10 MB of ledger JSON an answer,
-   3.5 s, measured 2026-11-14). The selftest pages every keyed table 7 rows at a time so the pager itself is proven. */
+/* A table bigger than PAGE_BYTES is paged on its primary key (keyset), PAGE_ROWS a page (~11 MB of ledger JSON an
+   answer, ~3.5 s, measured 2026-11-14). The selftest pages every keyed table 7 rows at a time so the pager is proven. */
 let PAGE_BYTES = 64 * 1048576;
 let PAGE_ROWS = 20000;
 const SECRET_COLS = { hr_server_secrets: ['secret'] };   // never leaves production; the rebuild's own rows stay
+let TEMP_DIR = null;   // the export dir this run created (no --keep): removed on success AND on a crash
 /* REPEATABLE READ, as pg_dump runs: under READ COMMITTED every statement INSIDE a volatile function (hr_state_of is
    plpgsql) takes a fresh snapshot, so the envelopes saw a hero's accrual that committed while the export statement ran
    (version 17259 against the exported rows' 17258, measured 2026-11-14). One transaction snapshot for everything. */
@@ -610,6 +611,7 @@ async function main() {
     if (m >= 5 && m < 10) { console.log('waiting out hr-ledger-prune (:07) so the ledger pages and the snapshot agree…'); await new Promise((r) => setTimeout(r, (10 - m) * 60e3)); }
   }
   mkdirSync(dir, { recursive: true });
+  if (!keep) TEMP_DIR = dir;
   const tAll = performance.now();
   const ex = from ? loadExport(from) : await exportFrom(src, dir);
   const { db } = await step('2 rebuild: schema + catalogues from the repo (bootReplay)', async () => ({ ...(await bootReplay()), note: 'PGlite (PostgreSQL 18), the repo chain' }));
@@ -673,5 +675,10 @@ function report(posture, rto, results, muts, x) {
 }
 
 if (isMain(import.meta.url)) {
-  main().catch((e) => { console.error(String(e.stack || e)); process.exit(2); });
+  main().catch((e) => {
+    console.error(String(e.stack || e));
+    // The export holds production's rows: a crash must not leave them in the temp dir.
+    if (TEMP_DIR) rmSync(TEMP_DIR, { recursive: true, force: true });
+    process.exit(2);
+  });
 }

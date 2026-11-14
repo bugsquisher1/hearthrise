@@ -198,60 +198,55 @@ export default definePack({
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
   partyVsAlone: { 2: [-35, 0], 3: [-40, -5, 0], 4: [-55, -10, 0, 0] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778, deadlyFourNeeds: 'healer' }, // designer Q4 2026-11-12: Deadly keeps six, bring a Healer
-  /* KRELL'S HALL: one room, one fight, opened with a Hall Key (the design's section 3). Written in the called-room machinery's own shapes, so the
-     engine that plays the Rat King's and the Chief's rooms plays this one: `hunt` is a hunts.js CALLED_HUNTS row less its id and `called`,
-     `ground` a hunt-grounds.js CALLED_GROUNDS row less its id, hunt, map and call (the boss in the pocket's spawns, his adds in `adds`), and
-     `monsters` the room's own called rows (an id ending _called, `called: true`, boss or add, `phases` the boss's two lines,
-     core/hunt/boss-phases.js). shape.js checks the shape and tools/pack.mjs lintHall the rest.
-     NOT FOLDED INTO THE CALLED ROOMS. Today a called room is behind a gold fee and pays nothing (boss-calls.js; tests/boss-call.mjs holds it),
-     and its boss is a copy of a ground's own boss (gen-hunt-sessions calledRows `of`). Krell's door is a key, his room pays (the prize below),
-     and he copies no one. Those are the design's engine piece 5, a new room kind on the pre-EA Security list with the key; until it lands
-     this hall is data the fold will read, and nothing serves it. Krell's own kit (the coal cone, the Hall Fire's flare, the Roll) is pieces
-     1, 6 and 7; on today's machinery he is a boss who calls three adds at half his health, is shielded while they stand and rages at a
-     quarter. */
+  /* KRELL'S HALL: one room, one fight, opened with a Hall Key (the design's section 3). Shaped to the KEYED HALL contract of engine piece 5
+     (lane/b-barrow-boss-room: src/data/boss-halls.js, src/core/hunt/boss-room.js roomOf, tools/gen-hunt-sessions.mjs hallRows; CONFLICTS
+     2026-11-13). A HALL PAYS: its boss and adds are plain paying rows (never `called`, no id ending _called), the boss's prize is his own
+     drops, XP and coin, and a NAMED ADD (piece 6) is a row that is `boss` and `add` both, with at most his own enrage line. `hunt` is a
+     hunts.js HALL_HUNTS row less its id and `hall`; `ground` a hunt-grounds.js HALL_GROUNDS row less its id, hunt, map and `hall` (the boss
+     the pocket's ONE spawn, his wave in `adds`). CARRIED, NOT FOLDED on this branch: the fold (BOSS_HALLS.krells_hold = { id: 'krells_hold',
+     hunt: 'krells_hold_hall', key: 'hall_key', boss, Boss }, the HALL_HUNTS and HALL_GROUNDS rows, these rows into MONSTERS) lands with the
+     boss-room lane. Still to come with it: Krell's `phases.hasten` { spell: the Hall Fire, cdPm: 500 } once the Hall Fire is a spell row
+     (piece 7), and Hask's own spells (piece 6). Numbers are the formula's at the floor 85. PROPOSED, unmeasured. */
   hall: {
     key: 'hall_key',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
-      band: [85, 110], family: 'Human', art: 'lord_krell_called', travelS: 0, pull: 1, respawnMs: 600000 },
+      band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000 },
     ground: {
       /* in through the door off the Tower Stairs, Krell in his high seat across the hall, the fire behind him */
       start: [[48, 8], [47, 8], [49, 8], [48, 9]],
-      pockets: [{ room: [41, 1, 56, 6], spawns: [{ monster: 'lord_krell_called', x: 48, y: 2 }],
+      pockets: [{ room: [41, 1, 56, 6], spawns: [{ monster: 'lord_krell', x: 48, y: 2 }],
         /* he reads three names off the Roll: Captain Hask and two of the officers, standing up out of the floor */
-        adds: [{ monster: 'hall_hask_called', x: 44, y: 3 }, { monster: 'hall_grave_guard_called', x: 52, y: 3 }, { monster: 'hall_grave_guard_called', x: 48, y: 5 }] }],
+        adds: [{ monster: 'hall_hask', x: 44, y: 3 }, { monster: 'hall_grave_guard', x: 52, y: 3 }, { monster: 'hall_grave_guard', x: 48, y: 5 }] }],
       route: [0], respawnMs: 600000, pullDist: 1.5, groupFit: 'party',
     },
     monsters: {
       /* LORD KRELL, Level 110, Human: an old man in Dawnsteel plate. The fire at his back for years: fire does 25% less, poison 15% more (one
-         override, the element axis). The formula's boss row for the party fit (2,256 HP, atk 94, tier 6), to be fitted to the ship bar (Tyler
-         11-05: the same gear wins about 30% with a bad bar and 85% with a good one, 40 tries a row). His lines are the Chief's (adds at half,
-         shielded to 80% while they stand, enraged at a quarter); the enrage x1.4. PROPOSED, unmeasured. */
-      lord_krell_called: { name: 'Lord Krell', icon: '👑', tier: 6, level: 110, cls: 'human', family: 'Human', formation: true, called: true, boss: true,
+         override, the element axis). The formula's boss row for the party fit at the floor (2,256 HP, atk 94, tier 6, 21,720 XP, coin 251-753),
+         to be fitted to the ship bar (Tyler 11-05: the same gear wins about 30% with a bad bar and 85% with a good one, 40 tries a row). His
+         lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.4.
+         HIS PRIZE (the design's section 4), each rare about 1 kill in 10: the first tier 7 in the game (worn from 88), the four weapons and the
+         body and helm in three weights. They break the 5% row ceiling on purpose: the loot-band guard learns a per-kill boss with the fold.
+         Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
+      lord_krell: { name: 'Lord Krell', icon: '👑', tier: 6, level: 110, cls: 'human', family: 'Human', formation: true, boss: true,
         elements: { ember: 25, poison: -15 },
-        hp: 2256, atk: 94, baseAcc: 0.72, def: 80, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
+        drops: [
+          { id: 'dawn_sword', ch: 0.1, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.1, band: 'rare' },
+          { id: 'duskwood_bow', ch: 0.1, band: 'rare' }, { id: 'duskwood_staff', ch: 0.1, band: 'rare' },
+          { id: 'duskwood_wand', ch: 0.1, band: 'rare' }, { id: 'duskwood_codex', ch: 0.1, band: 'rare' },
+          { id: 'dawn_hatchets', ch: 0.1, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.1, band: 'rare' },
+          { id: 'dawn_platebody', ch: 0.1, band: 'rare' }, { id: 'slakehide_body', ch: 0.1, band: 'rare' }, { id: 'shroudweave_body', ch: 0.1, band: 'rare' },
+          { id: 'dawn_helm', ch: 0.1, band: 'rare' }, { id: 'slakehide_helmet', ch: 0.1, band: 'rare' }, { id: 'shroudweave_helmet', ch: 0.1, band: 'rare' }],
+        hp: 2256, atk: 94, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800, phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
-         bought him calls him by name and he has to come. The formula's elite at 100. A plain add today (his own kit is piece 6). Not the Barrows'
-         own Hask row (lane/b-muster-barrows): this is the hall's, so the two never share an id. */
-      hall_hask_called: { name: 'Captain Hask', icon: '⚔️', tier: 6, level: 100, cls: 'undead', family: 'Undead', formation: true, called: true, add: true,
-        hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 0, gp: [0, 0], speed: 3000, drops: [] },
-      /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92) */
-      hall_grave_guard_called: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', formation: true, called: true, add: true,
-        hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 0, gp: [0, 0], speed: 2400, drops: [] },
+         bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
+         line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
+      hall_hask: { name: 'Captain Hask', icon: '⚔️', tier: 6, level: 100, cls: 'undead', family: 'Undead', formation: true, boss: true, add: true,
+        hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
+      /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92), paying a kill as there */
+      hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', formation: true, add: true,
+        hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1869, gp: [38, 115], speed: 2400, drops: [] },
     },
-    /* WHAT THE KEYED ROOM PAYS, a kill (the design's section 4; piece 5 reads it, nothing does today). Each rare about 1 kill in 10: the first
-       tier 7 in the game (worn from 88), the four weapons and the body and helm in three weights. They break the 5% row ceiling on purpose,
-       and the loot-band guard must learn a per-kill boss before these rows reach a monster. Two prizes wait on their own rows: the Roll Page
-       (a named Hearth fuel: a NAMED_FUELS pack field, piece 10) and Krell's Toll Box (his Trophy, 100-150 h: a trophy row and its icon). */
-    prize: [
-      { id: 'coin', gp: [251, 753], band: 'common' },
-      { id: 'dawn_sword', ch: 0.1, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.1, band: 'rare' },
-      { id: 'duskwood_bow', ch: 0.1, band: 'rare' }, { id: 'duskwood_staff', ch: 0.1, band: 'rare' },
-      { id: 'duskwood_wand', ch: 0.1, band: 'rare' }, { id: 'duskwood_codex', ch: 0.1, band: 'rare' },
-      { id: 'dawn_hatchets', ch: 0.1, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.1, band: 'rare' },
-      { id: 'dawn_platebody', ch: 0.1, band: 'rare' }, { id: 'slakehide_body', ch: 0.1, band: 'rare' }, { id: 'shroudweave_body', ch: 0.1, band: 'rare' },
-      { id: 'dawn_helm', ch: 0.1, band: 'rare' }, { id: 'slakehide_helmet', ch: 0.1, band: 'rare' }, { id: 'shroudweave_helmet', ch: 0.1, band: 'rare' },
-    ],
   },
   map,
 });

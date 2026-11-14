@@ -64,12 +64,12 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                (its one-tile choke, tests/hunt-core/forest-cave.mjs), holders [monster, ...] (its room holders, no spawn weight), dropRef { roles, full } and valueToday (its measured value pin,
                tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground
      hall      (optional, lane/b-krells-hold-pack) a KEYED BOSS ROOM on the ground's own map, behind a key that drops on the ground:
-               { key, words { boss, Boss }, hunt, ground, monsters, prize }. `key` is one of the pack's items and `opens` the pack; `hunt` a
-               hunts.js CALLED_HUNTS row less its id and `called`; `ground` a hunt-grounds.js CALLED_GROUNDS row less its id, hunt, map and call
-               (one pocket: the boss in `spawns`, his adds in `adds`); `monsters` the room's own called rows (ids ending _called, boss or add,
-               never a MONSTERS id); `prize` what the room pays a kill. NOT folded into CALLED_HUNTS / CALLED_GROUNDS / BOSS_CALLS: a keyed
-               room that pays is a new room kind (the Krell's Hold design's engine piece 5), so the fold lands with it. tools/pack.mjs
-               lintHall (on lane/b-krells-hold-pack) checks it against the data. CARRIED, NOT RUN (engine piece 5)
+               { key, words { boss, Boss }, hunt, ground, monsters }. `key` is one of the pack's items and `opens` the pack; `hunt` a
+               hunts.js HALL_HUNTS row less its id and `hall`; `ground` a hunt-grounds.js HALL_GROUNDS row less its id, hunt, map and `hall`
+               (one pocket: the boss its ONE spawn, his adds in `adds`); `monsters` the room's own PAYING rows (a hall pays: never `called`,
+               no id ending _called; the boss's prize is his own drops, xp and gp; an add is `add`, a named add `boss` and `add` both, piece 6).
+               The keyed-hall contract of lane/b-barrow-boss-room (boss-halls.js, gen-hunt-sessions hallRows). CARRIED, NOT FOLDED: the fold
+               into BOSS_HALLS / HALL_HUNTS / HALL_GROUNDS and MONSTERS lands with that lane (engine piece 5)
      fuel      (optional, lane/b-pack-fields: engine piece 10) the ground's NAMED FUEL, a src/data/hearth.js NAMED_FUELS row plus its item:
                { item, xp, req, flame, secs, chunk }. `item` is one of the pack's own items. CARRIED, NOT FOLDED: hr_hearth_named is a server
                catalogue (tools/gen-hearth-catalogue.mjs), so the fold into NAMED_FUELS lands with the pack's ship. tools/pack.mjs lintFields
@@ -107,7 +107,7 @@ function spellsWhy(p) {
   }
   return null;
 }
-const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters', 'prize']);
+const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters']);
 const isSpot = (s) => isObj(s) && ID.test(String(s.monster)) && Number.isInteger(s.x) && Number.isInteger(s.y);
 
 /** A pack's `hall`, checked for shape: answers why it is malformed, or null. The data half (the key item, the rows) is tools/pack.mjs lintHall. */
@@ -118,19 +118,21 @@ function hallWhy(p) {
   if (typeof h.key !== 'string' || !(p.items && h.key in p.items)) return 'hall.key is not one of the pack\'s own items';
   if (p.items[h.key].opens !== p.id) return 'hall.key ' + h.key + ' does not open ' + p.id + ' (its item\'s `opens`)';
   if (!isObj(h.words) || typeof h.words.boss !== 'string' || typeof h.words.Boss !== 'string') return 'hall.words is not { boss, Boss }';
-  if (!isObj(h.hunt) || 'id' in h.hunt || 'called' in h.hunt || typeof h.hunt.name !== 'string') return 'hall.hunt is not a CALLED_HUNTS row less its id and called';
+  if (!isObj(h.hunt) || 'id' in h.hunt || 'called' in h.hunt || 'hall' in h.hunt || typeof h.hunt.name !== 'string') return 'hall.hunt is not a HALL_HUNTS row less its id and hall';
   const g = h.ground;
-  if (!isObj(g) || ['id', 'hunt', 'map', 'call'].some((k) => k in g)) return 'hall.ground is not a CALLED_GROUNDS row less its id, hunt, map and call';
+  if (!isObj(g) || ['id', 'hunt', 'map', 'call', 'hall'].some((k) => k in g)) return 'hall.ground is not a HALL_GROUNDS row less its id, hunt, map and hall';
   if (!Array.isArray(g.pockets) || g.pockets.length !== 1) return 'hall.ground has not exactly one pocket';
   const pk = g.pockets[0];
   if (!Array.isArray(pk.spawns) || pk.spawns.length !== 1 || !pk.spawns.every(isSpot)) return 'hall.ground\'s pocket stands not exactly one boss';
   if (!Array.isArray(pk.adds) || !pk.adds.length || !pk.adds.every(isSpot)) return 'hall.ground\'s pocket has no adds';
   if (!isObj(h.monsters) || !Object.keys(h.monsters).length) return 'hall.monsters is empty';
   for (const [id, m] of Object.entries(h.monsters)) {
-    if (!/^[a-z0-9_]+_called$/.test(id) || !isObj(m) || m.called !== true) return 'hall row ' + id + ' must be a called row, its id ending _called and its row marked called';
-    if ((m.boss === true) === (m.add === true)) return 'hall row ' + id + ' is not exactly one of boss or add';
+    if (/_called$/.test(id) || !isObj(m) || 'called' in m) return 'hall row ' + id + ' is a called row, and a hall pays (no id ending _called, no called mark)';
+    if (m.boss !== true && m.add !== true) return 'hall row ' + id + ' is neither the boss nor an add';
   }
-  if (!Array.isArray(h.prize) || !h.prize.every((r) => isObj(r) && typeof r.id === 'string' && typeof r.band === 'string')) return 'hall.prize is not a list of { id, band }';
+  const boss = h.monsters[pk.spawns[0].monster];
+  if (!boss || boss.boss !== true || boss.add === true) return 'hall.ground\'s one spawn is not the hall\'s boss row';
+  if (!pk.adds.every((s) => h.monsters[s.monster] && h.monsters[s.monster].add === true)) return 'hall.ground\'s adds are not the hall\'s add rows';
   return null;
 }
 

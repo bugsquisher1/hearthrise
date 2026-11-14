@@ -19,8 +19,8 @@
 --   hr_faction_outfit_claim(p_slot, p_piece, p_idem) refuses unknown_piece, piece_owned, standing_short { need_ms, have_ms }.
 --   Common refusals: not_signed_in, bad_slot, bad_idem, rate_limited, no_character, catalogue_missing.
 --   ok: { ok, faction: hr_faction_view } (the hero's side, its open swap, its standing per side, today's credited time, the pieces).
--- hr_faction_credit(user, slot, hunt, from, to): no client role. Called ONCE per hr_hunt_settle_session (§5, one splice before the session
---   clock moves), on the window the settle itself proved: [settled_to, the end or `to`]. One primary-key probe of hr_faction_grounds; a
+-- hr_faction_credit(user, slot, hunt, from, to): no client role. Called ONCE per hr_hunt_settle_session (§5, restated whole: one statement
+--   before the session clock moves), on the window the settle itself proved: [settled_to, the end or `to`]. One primary-key probe of hr_faction_grounds; a
 --   ground that pays nobody (every ground built today) returns there. Else: a member on its own side's ground gains standing, a member with
 --   an open swap on the new side's ground gains swap time (capped at the swap's need), anything else nothing. Split at UTC midnights, each
 --   day's part clamped so a hero's standing and swap time together never pass hr_faction_rule.day_cap_ms in a UTC day.
@@ -59,7 +59,7 @@
 -- standing at most 600 and 1,200; days one per hero per hunting day per side, about 600 a day, 219k a year (~25 MB with its index), the
 -- only table that grows with time; ledger a few rows per hero a week. No row per settle anywhere.
 --
--- REVERSIBILITY: re-apply hr_hunt_settle_session's pre-image (§5's anchor out: 2027-04-20-boss-hall.sql §2 is the last body), drop the four
+-- REVERSIBILITY: re-apply hr_hunt_settle_session's pre-image (this file's §5 less its FACTION-STANDING statement), drop the four
 -- verbs and their baseline rows, hr_faction_view, hr_faction_credit, the triggers and their functions, then the five tables. No player value
 -- moves with them (standing buys looks only). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
@@ -425,24 +425,362 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
   ('hr_faction_outfit_claim', 'p_slot integer, p_piece text, p_idem uuid', 'authenticated',
    'added 2027-04-22 (lane/c-faction-standing): this hero claims a cosmetic piece its server standing on the piece''s side has earned; refuses standing_short, piece_owned; moves no value');
 
--- ── §5 THE SETTLE'S CREDIT (hr_hunt_settle_session, one splice before the session clock; a second apply finds the post image) ─
-do $mig$
-declare v_def text; v_old text; v_new text; v_n int;
+-- ── §5 THE SETTLE'S CREDIT: hr_hunt_settle_session RESTATED WHOLE ─────────────
+-- Its chain stood four anchored patches deep since 2027-03-12-boss-call.sql's restatement (tests/patch-chain-guard.mjs), so the body is
+-- authored here in full: 2027-04-20-boss-hall.sql's image (§0 pins it, production's), plus ONE statement before the session clock, the
+-- FACTION-STANDING call. Nothing else in it moved; §7(g) holds the installed body to the reviewed md5.
+CREATE OR REPLACE FUNCTION public.hr_hunt_settle_session(p_user uuid, p_slot integer, p_session uuid, p_delta jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_catalog'
+AS $function$
+declare
+  c_skew       constant interval := interval '60 seconds';
+  c_max_window constant bigint   := 24 * 3600000;   -- the outage fuse, never a gameplay cap
+  c_min_swing_ms constant bigint := 500;            -- fuse on the swing count, not a balance figure
+  c_keys constant text[] := array['swing_from', 'swing_to', 'to', 'next_swing_at', 'uses', 'paid_ms', 'raw_xp', 'hints', 'ended'];
+  v_s      public.hunt_sessions%rowtype;
+  v_to     timestamptz; v_next timestamptz;
+  v_win    bigint;
+  v_from_i bigint; v_to_i bigint;
+  v_k text; v_v jsonb; v_kind text; v_left bigint; v_n bigint;
+  v_deaths int; v_lx bigint;
+  v_end text; v_end_at timestamptz;
+  v_hwm bigint; v_new_hwm bigint;
+  v_coins bigint; v_kills bigint;
+  v_xp jsonb; v_loot jsonb; v_sup jsonb;
+  v_ev int := 0; v_r record; v_hint jsonb; v_at timestamptz; v_i int;
+  v_next_id uuid;
+  v_raw jsonb;
+  v_used   jsonb := '{}'::jsonb;
+  v_used_n bigint := 0;
+  v_supply jsonb;
+  v_store  boolean;
+  -- THE FOLD'S TIME BOUND: every row this folds was stamped in the transaction
+  -- of a settle, and a window is at most c_max_window.
+  v_fold_from timestamptz := now() - interval '25 hours';
 begin
-  v_def := replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), chr(13), '');
-  if strpos(v_def, 'FACTION-STANDING') = 0 then
-    v_old := $a$  -- (4) THE SESSION CLOCK.
-$a$;
-    v_new := $a$  -- FACTION-STANDING (2027-04-22-faction-standing.sql): this window's hunting time, as this settle proved it, to the hero's standing
+  -- ── VALIDATE (no writes) ───────────────────────────────────────────────
+  if p_user is null or p_slot is null or p_session is null or p_delta is null or jsonb_typeof(p_delta) <> 'object' then
+    perform public.hr_reject('bad_arguments'); end if;
+  if exists (select 1 from jsonb_object_keys(p_delta) k where k <> all (c_keys)) then
+    perform public.hr_reject('unknown_delta_key'); end if;
+  v_s := public.hr_hunt_lock(p_user, p_slot);
+  if v_s.id is null or v_s.id <> p_session then perform public.hr_reject('no_hunt'); end if;
+
+  if jsonb_typeof(p_delta->'swing_from') is distinct from 'number' or jsonb_typeof(p_delta->'swing_to') is distinct from 'number'
+     or (p_delta->>'swing_from') !~ '^[0-9]{1,15}$' or (p_delta->>'swing_to') !~ '^[0-9]{1,15}$' then
+    perform public.hr_reject('bad_swing'); end if;
+  v_from_i := (p_delta->>'swing_from')::bigint; v_to_i := (p_delta->>'swing_to')::bigint;
+  if v_from_i <> v_s.swing_index then
+    perform public.hr_reject('session_moved', jsonb_build_object('swing_index', v_s.swing_index)); end if;
+  begin
+    v_to := (p_delta->>'to')::timestamptz;
+    v_next := (p_delta->>'next_swing_at')::timestamptz;
+  exception when others then
+    perform public.hr_reject('bad_window');
+  end;
+  if v_to is null or v_next is null or v_to <= v_s.settled_to then
+    perform public.hr_reject('bad_window', jsonb_build_object('settled_to', v_s.settled_to)); end if;
+  if v_to > now() + c_skew then perform public.hr_reject('window_in_future'); end if;
+  v_win := floor(extract(epoch from (v_to - v_s.settled_to)) * 1000)::bigint;
+  if v_win > c_max_window then perform public.hr_reject('window_too_long'); end if;
+  if v_next < v_to or v_next > v_to + c_skew then perform public.hr_reject('bad_next_swing'); end if;
+  if v_to_i < v_from_i or v_to_i - v_from_i > v_win / c_min_swing_ms + 1 then
+    perform public.hr_reject('bad_swing'); end if;
+
+  -- OWN USES: packed bag lines only, of a kind a hunt spends, never more than is left.
+  if p_delta ? 'uses' then
+    if jsonb_typeof(p_delta->'uses') <> 'object' or (select count(*) from jsonb_object_keys(p_delta->'uses')) > 10 then
+      perform public.hr_reject('bad_uses'); end if;
+    for v_k, v_v in select key, value from jsonb_each(p_delta->'uses') loop
+      if jsonb_typeof(v_v) <> 'number' or (v_v #>> '{}') !~ '^[0-9]{1,9}$' then
+        perform public.hr_reject('bad_uses', jsonb_build_object('item', left(v_k, 64))); end if;
+      v_n := (v_v #>> '{}')::bigint;
+      select b.qty_left, p.kind into v_left, v_kind
+        from public.hunt_bag b left join public.hr_hunt_supplies p on p.item_id = b.item_id
+       where b.session_id = p_session and b.item_id = v_k;
+      if v_left is null then perform public.hr_reject('not_in_bag', jsonb_build_object('item', left(v_k, 64))); end if;
+      if v_n > v_left then perform public.hr_reject('bag_short', jsonb_build_object('item', v_k, 'left', v_left)); end if;
+      -- OWN-DRINKS (2026-12-16-own-drinks-settle.sql): a drink (`mana`) is spent from the bag exactly as food is,
+      -- the kinds the member applier's lane caps count; a feast (`buff`) never is.
+      if v_n > 0 and v_kind is distinct from 'heal' and v_kind is distinct from 'mana' and v_kind is distinct from 'ammo' then
+        perform public.hr_reject('kind_not_used', jsonb_build_object('item', v_k, 'kind', v_kind)); end if;
+      v_left := null; v_kind := null;
+    end loop;
+  end if;
+
+  -- THE DEATH: the death rows hr_apply stamped with this session since the last fold (at most one).
+  select t.ledger_hwm into v_hwm from public.hunt_session_tally t where t.session_id = p_session;
+  v_hwm := coalesce(v_hwm, 0);
+  select count(*) into v_deaths from public.player_ledger l
+   where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind = 'combat' and l.intent = 'death';
+  if v_deaths > 1 then perform public.hr_reject('bad_counts', jsonb_build_object('deaths', v_deaths)); end if;
+  if (p_delta ? 'paid_ms' and (jsonb_typeof(p_delta->'paid_ms') <> 'number' or (p_delta->>'paid_ms')::numeric < 0
+                                  or (p_delta->>'paid_ms')::numeric > v_win)) then
+    perform public.hr_reject('bad_counts'); end if;
+  v_raw := coalesce(p_delta->'raw_xp', '{}'::jsonb);
+  if jsonb_typeof(v_raw) <> 'object' or (select count(*) from jsonb_object_keys(v_raw)) > 24
+     or exists (select 1 from jsonb_each(v_raw) x where x.key !~ '^[a-zA-Z0-9_]{1,64}$' or jsonb_typeof(x.value) <> 'number'
+                   or (x.value #>> '{}')::numeric < 0 or (x.value #>> '{}')::numeric > 1e12) then
+    perform public.hr_reject('bad_counts'); end if;
+
+  -- THE END, re-proved from server state as it will stand after the uses.
+  v_supply := public.hr_hunt_supply_of(p_user, p_slot, v_s.preset);
+  v_store := v_supply->>'supply_source' = 'store' or v_supply->>'on_empty' = 'switch';
+  if p_delta ? 'ended' and jsonb_typeof(p_delta->'ended') = 'object' then
+    v_end := p_delta->'ended'->>'reason';
+    begin v_end_at := (p_delta->'ended'->>'at')::timestamptz;
+    exception when others then perform public.hr_reject('bad_end'); end;
+    if v_end is null or not exists (select 1 from public.hr_hunt_end_reasons where reason = v_end)
+       or v_end_at is null or v_end_at < v_s.settled_to or v_end_at > v_to then
+      perform public.hr_reject('bad_end'); end if;
+    if not coalesce(case v_end
+      -- DIED (Tyler 2026-10-19): this settle journalled the hero's death.
+      when 'died' then v_deaths >= 1
+      -- LEAVE-TOGETHER (2026-12-18-party-leave-together.sql): another member's end (its death:
+      -- party_member_died; any other: party_member_left) sends THIS hero home only through its own box
+      -- (player_state.party_leave_together, written only by its own hr_party_leave_together_set) and only in an
+      -- instance that holds another member: the end can only stop value, never mint it.
+      when 'party_member_died' then coalesce((select ps.party_leave_together from public.player_state ps
+                                               where ps.user_id = p_user and ps.slot = p_slot), false)
+                                    and exists (select 1 from public.hunt_sessions o
+                                                 where o.instance_id = v_s.instance_id and o.id <> v_s.id)
+      when 'party_member_left' then coalesce((select ps.party_leave_together from public.player_state ps
+                                               where ps.user_id = p_user and ps.slot = p_slot), false)
+                                    and exists (select 1 from public.hunt_sessions o
+                                                 where o.instance_id = v_s.instance_id and o.id <> v_s.id)
+      -- heals_out / ammo_out: every essential line of the kind empty after the
+      -- uses, and the store closed to it (the hero's explicit `end`) or holding
+      -- no row it could buy instead.
+      when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
+                                         where b.session_id = p_session and p.kind = 'heal' and b.essential
+                                           and b.qty_left - coalesce((p_delta->'uses'->>b.item_id)::bigint, 0) > 0)
+                        and exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
+                                     where b.session_id = p_session and p.kind = 'heal' and b.essential)
+                        -- STORE-BY-SLOT (2026-11-04): any store food a slot may name (the player picks it).
+                        and not (v_store and exists (select 1 from public.hr_hunt_basic_supplies q where q.kind = 'heal'))
+      when 'ammo_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
+                                        where b.session_id = p_session and p.kind = 'ammo' and b.essential
+                                          and b.qty_left - coalesce((p_delta->'uses'->>b.item_id)::bigint, 0) > 0)
+                       and exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
+                                    where b.session_id = p_session and p.kind = 'ammo' and b.essential)
+                       and not (v_store and exists (select 1 from public.hunt_bag b join public.hr_hunt_basic_supplies q
+                                                     on q.kind = 'ammo' and q.partner = b.item_id
+                                                    where b.session_id = p_session and b.essential))
+      -- GOLD_OUT: the store was open to the hero, and the gold left over its floor
+      -- (after this window's coins and cover, written before this call, and its own
+      -- store bill, hr.purse_pending, which hr_hunt_apply_instance pays after every
+      -- member) is below the dearest store row it could need. ACCOUNT GOLD
+      -- (2026-12-15-account-gold.sql): the purse is the ACCOUNT's. A hero sharing this
+      -- instance with another hero of its own account spent the one purse in time order
+      -- with it, which no per-member read can re-prove: then, like party_member_died,
+      -- the end is provable only as "the store was open" — it can only stop value.
+      when 'gold_out' then v_store
+                       and (exists (select 1 from public.hunt_sessions o
+                                     where o.instance_id = v_s.instance_id and o.id <> v_s.id
+                                       and o.user_id = p_user and o.hunt_from < v_to
+                                       and (o.ended_at is null or o.ended_at > v_s.settled_to))
+                            or public.hr_purse_of(p_user)
+                           - coalesce(nullif(current_setting('hr.purse_pending', true), '')::bigint, 0)
+                           - (v_supply->>'gold_floor')::bigint
+                         < coalesce((select max(q.price) from public.hr_hunt_basic_supplies q
+                                      where q.kind in ('heal', 'mana')
+                                         or (q.kind = 'ammo' and (q.partner in (select b.item_id from public.hunt_bag b where b.session_id = p_session)
+                                                                  or q.partner = (select pe.item_id from public.player_equipment pe
+                                                                                   where pe.user_id = p_user and pe.slot = p_slot
+                                                                                     and pe.equip_slot = 'ammo')))), 0))
+      -- STAMINA: hr_hunt_apply_member wrote this window's end value at `to` before this call.
+      when 'stamina' then coalesce((select ps.stamina_ms from public.player_state ps
+                                     where ps.user_id = p_user and ps.slot = p_slot), 1) <= 0
+      when 'hours' then v_s.hours_limit is not null and v_end_at >= v_s.hunt_from + make_interval(hours => v_s.hours_limit)
+      when 'left' then v_s.leave_at is not null and v_end_at >= v_s.leave_at
+      when 'changed' then v_s.change_at is not null and v_end_at >= v_s.change_at
+      when 'server' then not coalesce((select enabled from public.hr_hunt_config where id), false)
+      -- NO-FIGHT (2027-02-11-no-fight-settle.sql): nobody in the instance landed a blow for the limit's minutes
+      -- (the engine's reading of its world). Provable as: hunting that long, and no kill in this window. It can only stop value.
+      when 'no_fight' then v_end_at >= v_s.hunt_from + make_interval(mins => public.hr_hunt_limit('no_fight_min'))
+                           and not exists (select 1 from public.player_ledger l
+                                            where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from
+                                              and jsonb_typeof(l.meta->'kills') = 'number' and (l.meta->>'kills')::numeric > 0)
+      -- CALL-OUT (2027-03-12-boss-call.sql): the room's ends, on a room only. The kill journals nothing to read (a called kill counts no kills), so, like `rule`, it can only stop value.
+      when 'boss_felled' then exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id)
+                              -- BOSS-HALL (2027-04-20-boss-hall.sql): a keyed hall ends the same way.
+                              or exists (select 1 from public.hr_boss_halls h where h.hunt_id = v_s.hunt_id)
+      when 'boss_time' then exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id
+                                      and v_end_at >= v_s.hunt_from + make_interval(secs => c.limit_ms / 1000.0) - c_skew)
+                            or exists (select 1 from public.hr_boss_halls h where h.hunt_id = v_s.hunt_id
+                                      and v_end_at >= v_s.hunt_from + make_interval(secs => h.limit_ms / 1000.0) - c_skew)
+      -- RUNE-SUPPLY (2027-03-24-rune-supply.sql, Tyler 2026-11-08): a spell's slot set to "Leave the hunt" came to cast with none of
+      -- the runes it ticks left (src/core/hunt/abilities.js runeFor). Provable as: the session's bar holds that spell (`ended.ability`,
+      -- the engine's) switched on and leaving on empty, and no rune it ticks is left in the hunt bag after this window's uses. It can
+      -- only stop value, never mint it.
+      when 'runes_out' then exists (select 1 from public.player_action_sets a
+                                     cross join lateral jsonb_array_elements(case when jsonb_typeof(a.slots) = 'array' then a.slots else '[]'::jsonb end) e
+                                     cross join lateral (select public.hr_hunt_rune_supply(e->'action') as rs) x
+                                    where a.user_id = p_user and a.slot = p_slot and a.preset = v_s.preset
+                                      and jsonb_typeof(e) = 'object' and e->'action'->>'id' = p_delta->'ended'->>'ability'
+                                      and e->'enabled' is distinct from 'false'::jsonb and x.rs->>'onEmpty' = 'leave'
+                                      and not exists (select 1 from public.hunt_bag b
+                                                       where b.session_id = p_session and x.rs->'own' @> jsonb_build_array(b.item_id)
+                                                         and b.qty_left - coalesce((p_delta->'uses'->>b.item_id)::bigint, 0) > 0))
+      -- RULE (lane action-engine): one of the hero's own stop rules held (src/core/hunt/conditions.js);
+      -- provable only as "the preset carries a stop rule": the end can only stop value, never mint it.
+      when 'rule' then exists (select 1 from public.player_action_sets a where a.user_id = p_user and a.slot = p_slot
+                                 and a.preset = v_s.preset and jsonb_typeof(a.options->'stop_rules') = 'array'
+                                 and jsonb_array_length(a.options->'stop_rules') > 0)
+      else false end, false) then
+      perform public.hr_reject('end_not_proven', jsonb_build_object('reason', v_end));
+    end if;
+  elsif p_delta ? 'ended' and jsonb_typeof(p_delta->'ended') <> 'null' then
+    perform public.hr_reject('bad_end');
+  else
+    -- AN END THE ENGINE OWED: a death journalled, a leave/change/hours
+    -- instant more than one skew behind the window end.
+    if v_deaths >= 1
+       or (v_s.leave_at is not null and v_to > v_s.leave_at + c_skew)
+       or (v_s.change_at is not null and v_to > v_s.change_at + c_skew)
+       or (v_s.hours_limit is not null and v_to > v_s.hunt_from + make_interval(hours => v_s.hours_limit) + c_skew)
+       -- CALL-OUT: the limit is owed too: no window runs a called room past it.
+       or exists (select 1 from public.hr_boss_halls h where h.hunt_id = v_s.hunt_id and v_to > v_s.hunt_from + make_interval(secs => h.limit_ms / 1000.0) + c_skew)
+       or exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id and v_to > v_s.hunt_from + make_interval(secs => c.limit_ms / 1000.0) + c_skew) then
+      perform public.hr_reject('end_missing'); end if;
+  end if;
+  v_hint := coalesce(p_delta->'hints', '{}'::jsonb);
+  if jsonb_typeof(v_hint) <> 'object' then perform public.hr_reject('bad_hints'); end if;
+
+  -- ── APPLY ──────────────────────────────────────────────────────────────
+  -- (1) OWN USES: the bag, and ONE `supply_own` row per settle carrying every
+  --     unit used in meta.items (qty = the units destroyed, negative, gold 0).
+  if p_delta ? 'uses' then
+    for v_k, v_v in select key, value from jsonb_each(p_delta->'uses') order by key loop
+      v_n := (v_v #>> '{}')::bigint;
+      continue when v_n = 0;
+      update public.hunt_bag set qty_left = qty_left - v_n where session_id = p_session and item_id = v_k
+        returning qty_left into v_left;
+      v_used := v_used || jsonb_build_object(v_k, v_n);
+      v_used_n := v_used_n + v_n;
+      if v_left = 0 then
+        v_at := least(greatest(coalesce(public.hr_hunt_hint_at(v_hint->'slot_dry'->v_k), v_to), v_s.settled_to), v_to);
+        insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+          values (p_session, p_user, p_slot, 'slot_dry', v_at, jsonb_build_object('item', v_k));
+        v_ev := v_ev + 1;
+      end if;
+    end loop;
+    if v_used_n > 0 then
+      insert into public.player_ledger (user_id, slot, kind, intent, gold, qty, meta, session_id)
+        values (p_user, p_slot, 'hunt', 'supply_own', 0, -v_used_n,
+                jsonb_build_object('side', 'bag', 'source', 'own', 'items', v_used), p_session);
+    end if;
+  end if;
+
+  -- (2) THE FOLD: every row stamped with this session since the high-water mark.
+  select coalesce(sum(case when l.kind <> 'hunt' then coalesce(l.gold, 0) else 0 end), 0),
+         coalesce(sum(case when jsonb_typeof(l.meta->'kills') = 'number' then greatest(0, (l.meta->>'kills')::numeric) else 0 end), 0)::bigint,
+         max(l.id)
+    into v_coins, v_kills, v_new_hwm
+    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from;
+  -- THE LEVEL XP the fold credited (hr_apply's ledger meta `lx`), tallied under `level`.
+  select coalesce(sum((l.meta->'delta'->>'lx')::numeric), 0)::bigint into v_lx
+    from public.player_ledger l
+   where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind <> 'hunt'
+     and jsonb_typeof(l.meta->'delta'->'lx') = 'number';
+  select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) into v_xp from (
+    select x.key as k, sum(x.value::numeric) as v
+      from public.player_ledger l, jsonb_each_text(case when jsonb_typeof(l.meta->'delta'->'x') = 'object'
+                                                         then l.meta->'delta'->'x' else '{}'::jsonb end) x
+     where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind <> 'hunt'
+     group by x.key) a;
+  select coalesce(jsonb_object_agg(k, v), '{}'::jsonb) into v_loot from (
+    select k, sum(v) as v from (
+      select i.key as k, i.value::numeric as v
+        from public.player_ledger l, jsonb_each_text(case when jsonb_typeof(l.meta->'delta'->'i') = 'object'
+                                                           then l.meta->'delta'->'i' else '{}'::jsonb end) i
+       where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind <> 'hunt'
+      union all
+      select '*', (l.meta->'delta'->>'i_sum')::numeric
+        from public.player_ledger l
+       where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind <> 'hunt'
+         and jsonb_typeof(l.meta->'delta'->'i_sum') = 'number') u
+    group by k) a;
+  select coalesce(jsonb_object_agg(k, n), '{}'::jsonb) into v_sup from (
+    select i.key as k, sum(i.value::numeric) as n
+      from public.player_ledger l, jsonb_each_text(case when jsonb_typeof(l.meta->'items') = 'object'
+                                                         then l.meta->'items' else '{}'::jsonb end) i
+     where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind = 'hunt' and l.intent = 'supply_own'
+     group by i.key) a;
+  update public.hunt_session_tally t
+     set coins = t.coins + v_coins, kills = t.kills + v_kills, deaths = t.deaths + v_deaths,
+         xp = public.hr_jsonb_add(t.xp, v_xp || case when v_lx > 0 then jsonb_build_object('level', v_lx) else '{}'::jsonb end),
+         loot = public.hr_jsonb_add(t.loot, v_loot),
+         supplies = public.hr_jsonb_add(t.supplies, v_sup), raw_xp = public.hr_jsonb_add(t.raw_xp, v_raw),
+         paid_ms = t.paid_ms + coalesce((p_delta->>'paid_ms')::numeric, 0)::bigint,
+         ledger_hwm = greatest(t.ledger_hwm, coalesce(v_new_hwm, 0)), updated_at = now()
+   where t.session_id = p_session;
+
+  -- (3) DERIVED EVENTS. The death from its row; Level- and level-ups from the XP the
+  --     fold credited; rare drops only for items this fold looted.
+  v_i := 0;
+  for v_r in select l.at, l.meta->>'monster' as monster from public.player_ledger l
+              where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from and l.kind = 'combat' and l.intent = 'death' order by l.id loop
+    v_at := least(greatest(coalesce(public.hr_hunt_hint_at(v_hint->'death'->v_i), v_r.at), v_s.settled_to), v_to);
+    insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+      values (p_session, p_user, p_slot, 'death', v_at, jsonb_build_object('monster', left(coalesce(v_r.monster, ''), 64)));
+    v_i := v_i + 1; v_ev := v_ev + 1;
+  end loop;
+  if v_lx > 0 then
+    select public.hr_char_level(ps.level_xp), public.hr_char_level(greatest(0, ps.level_xp - v_lx))
+      into v_n, v_left from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot;
+    if v_n > v_left then
+      insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+        values (p_session, p_user, p_slot, 'level_up', v_to, jsonb_build_object('skill', 'level', 'level', v_n));
+      v_ev := v_ev + 1;
+    end if;
+  end if;
+  for v_r in select x.key as skill, public.hr_skill_level(x.key, ps.xp) as lv_now,
+                    public.hr_skill_level(x.key, greatest(0, ps.xp - floor(x.value::numeric)::bigint)) as lv_then
+               from jsonb_each_text(v_xp) x
+               join public.player_skills ps on ps.user_id = p_user and ps.slot = p_slot and ps.skill_id = x.key
+              where x.value::numeric > 0 loop
+    if v_r.lv_now > v_r.lv_then then
+      insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+        values (p_session, p_user, p_slot, 'level_up', v_to, jsonb_build_object('skill', left(v_r.skill, 64), 'level', v_r.lv_now));
+      v_ev := v_ev + 1;
+    end if;
+  end loop;
+  if jsonb_typeof(v_hint->'rare_drop') = 'array' then
+    for v_r in select distinct on (e.value->>'item') e.value->>'item' as item, e.value->'at' as at_ms
+                 from jsonb_array_elements(v_hint->'rare_drop') with ordinality e(value, o)
+                where jsonb_typeof(e.value) = 'object' and coalesce((v_loot->>(e.value->>'item'))::numeric, 0) > 0
+                order by e.value->>'item', e.o limit 10 loop
+      v_at := least(greatest(coalesce(public.hr_hunt_hint_at(v_r.at_ms), v_to), v_s.settled_to), v_to);
+      insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+        values (p_session, p_user, p_slot, 'rare_drop', v_at, jsonb_build_object('item', left(v_r.item, 64)));
+      v_ev := v_ev + 1;
+    end loop;
+  end if;
+
+  -- FACTION-STANDING (2027-04-22-faction-standing.sql): this window's hunting time, as this settle proved it, to the hero's standing
   -- or its open swap when the ground pays a side. The server's window and catalogue; no number the engine sent.
   perform public.hr_faction_credit(p_user, p_slot, v_s.hunt_id, v_s.settled_to, coalesce(v_end_at, v_to));
 
-$a$ || v_old;
-    v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
-    if v_n <> 1 then raise exception 'hr_hunt_settle_session: the FACTION-STANDING anchor matched % times (need 1): the body moved', v_n; end if;
-    execute replace(v_def, v_old, v_new);
+  -- (4) THE SESSION CLOCK.
+  update public.hunt_sessions
+     set swing_index = v_to_i, settled_to = v_to, next_swing_at = v_next, version = version + 1
+   where id = p_session;
+
+  -- (5) THE END.
+  if v_end = 'changed' then
+    v_next_id := public.hr_hunt_swap(p_session, v_end_at);
+  elsif v_end is not null then
+    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);
   end if;
-end $mig$;
+
+  return jsonb_build_object('ok', true, 'session', p_session, 'swing_index', v_to_i, 'settled_to', v_to,
+                            'ended', v_end, 'next_session', v_next_id, 'events', v_ev,
+                            'version', (select version from public.hunt_sessions where id = p_session));
+end $function$;
 
 -- ── §6 THE WORDS ARE THE CLIENT'S: this file answers codes and numbers. The client lane adds them to src/data/refusal-words.js. ─
 
@@ -547,10 +885,13 @@ begin
   if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from auth.users where id = v_u)
      or exists (select 1 from public.hr_faction_grounds where hunt_id like 'zz\_faction\_probe%') then
     raise exception 'faction §7: LEAKED a probe row'; end if;
-  -- (g) THE SETTLE CREDITS: the splice is there, once.
+  -- (g) THE SETTLE CREDITS, once, and its body is the reviewed one (a restatement from a stale template would drop another file's lines).
   if (select count(*) from regexp_matches(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure),
                                           'perform public\.hr_faction_credit\(', 'g')) <> 1 then
     raise exception 'faction §7(g): the settle does not credit standing exactly once'; end if;
+  if md5(regexp_replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), '[[:space:]]+', ' ', 'g'))
+     is distinct from '959b4a30a0617ae08033a632bdd5c6b7' then
+    raise exception 'faction §7(g): hr_hunt_settle_session is not the reviewed image'; end if;
   -- (h) GRANTS: the four verbs are the client's and baselined; nothing else here is; no client role reaches a table; no policy opens one.
   foreach f in array array['public.hr_faction_credit(uuid,integer,text,timestamp with time zone,timestamp with time zone)', 'public.hr_faction_view(uuid,integer)',
                            'public.hr_faction_locked(text,uuid,integer,uuid,text)', 'public.hr_faction_done(uuid,integer,uuid,text,text,text,text,bigint,bigint)',

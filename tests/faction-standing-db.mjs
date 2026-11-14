@@ -349,8 +349,8 @@ export const MUTANTS = {
   unbaselined: { arm: 'FS-GRANT', why: 'a verb is not on the client baseline', ddl: "delete from public.hr_client_rpc_baseline where proname = 'hr_faction_swap_finish'" },
   repin_lost: { arm: 'FS-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image',
     sql: ['2027-04-22-faction-standing.sql', /and v_md5 is distinct from '[0-9a-f]{32}' then/, "and v_md5 is distinct from '00000000000000000000000000000000' then"] },
-  splice_twice: { arm: 'FS-AGAIN', why: 'a second apply splices the credit in again',
-    sql: ['2027-04-22-faction-standing.sql', "if strpos(v_def, 'FACTION-STANDING') = 0 then", "if strpos(v_def, 'NO-SUCH-MARK') = 0 then"] },
+  stale_template: { arm: 'FS-AGAIN', why: 'the settle is restated from a template that lost another file\'s line',
+    sql: ['2027-04-22-faction-standing.sql', "      when 'hours' then v_s.hours_limit is not null and v_end_at >= v_s.hunt_from + make_interval(hours => v_s.hours_limit)\n", ''] },
 };
 
 async function plant(db, m) {

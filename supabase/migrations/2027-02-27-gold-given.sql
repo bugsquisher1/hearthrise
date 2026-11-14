@@ -141,10 +141,6 @@ scores as (
   union all
   select 'gold_given', l.user_id, l.slot, l.name, (select sum(x.gold) from given x where x.user_id = l.user_id)::bigint, 0
   from given_lead l
-  union all
-  select 'renown', h.user_id, h.slot, h.name,
-         public.hr_lb_num(gs.snapshot, 'renown'), 1
-  from heroes h join public.game_saves gs on gs.user_id = h.user_id and gs.slot = h.slot
   -- NOTE: no 'renown', 'bosses', 'wealth' or 'clan_power' branch (2027-02-12-leaderboard-heroes.sql §2).
 )
 select board, user_id, slot, name, score, level,
@@ -179,7 +175,6 @@ declare
   v_b constant uuid := '000000c0-0000-4000-a000-0000901d6a02';
   v jsonb; v_role text; v_n bigint; v_name1 text; v_row record;
 begin
-  return; -- MUTATION HARNESS: §4 disabled so the BEHAVIOUR is what fails
   begin
     insert into auth.users (id) values (v_a), (v_b) on conflict (id) do nothing;
     insert into public.hr_access_allowlist (user_id, note) values (v_a, 'gold-given §4 probe'), (v_b, 'gold-given §4 probe') on conflict (user_id) do nothing;

@@ -117,7 +117,8 @@ function ps3(files, problems) {
   }
   if (!/\.set\(\s*cfg\.tabKey\s*,[^;]*\{\s*durable\s*:\s*true\s*\}/.test(body.text)) problems.push('PS-3 tabSessionId() writes the tab key without {durable:true} — a refused id would read back as this tab\'s');
   const boot = strip(files[BOOT] || '').noC;
-  if (!/new AccountSession\(\{[^}]*\btab:\s*HS\.session\b/.test(boot)) problems.push(`PS-3 ${BOOT} does not hand the account session the TAB store (HS.session) — the id would be shared by every tab of the browser`);
+  /* `G.`: boot.js reaches AccountSession through the game half (src/app/game-half.js, lane b-first-load) */
+  if (!/new (?:G\.)?AccountSession\(\{[^}]*\btab:\s*HS\.session\b/.test(boot)) problems.push(`PS-3 ${BOOT} does not hand the account session the TAB store (HS.session) — the id would be shared by every tab of the browser`);
 }
 
 /* ── PS-4: run the seam ───────────────────────────────────────────────────── */

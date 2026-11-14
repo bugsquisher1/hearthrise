@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-14",
- "replay_ms": 150957,
+ "replay_ms": 1808,
  "counts": {
-  "tracked_names": 860,
-  "entries": 712
+  "tracked_names": 862,
+  "entries": 714
  },
  "functions": [
   {
@@ -2346,17 +2346,64 @@
     "restate"
    ],
    "touched_by": [
-    "2027-03-12-boss-call.sql"
+    "2027-03-12-boss-call.sql",
+    "2027-04-20-boss-hall.sql"
    ],
    "live": {
-    "md5": "a373985d3863b900b4e1ad4e39cbbef9",
-    "norm_len": 701,
+    "md5": "90433466d661163d490b16749d322792",
+    "norm_len": 907,
     "measured": "2026-11-14",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a373985d3863b900b4e1ad4e39cbbef9",
-    "norm_len": 701,
+    "md5": "90433466d661163d490b16749d322792",
+    "norm_len": 907,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_hall_closed()",
+   "name": "hr_boss_hall_closed",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-20-boss-hall.sql"
+   ],
+   "live": {
+    "md5": "a7a21851411fb381b6d8a79c6d48fc8e",
+    "norm_len": 787,
+    "measured": "2026-11-14",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a7a21851411fb381b6d8a79c6d48fc8e",
+    "norm_len": 787,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_hall_enter(p_slot integer, p_hall text, p_idem uuid)",
+   "name": "hr_boss_hall_enter",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-20-boss-hall.sql"
+   ],
+   "live": {
+    "md5": "e372397f32ca0f051259cb1af5dd6a32",
+    "norm_len": 5562,
+    "measured": "2026-11-14",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e372397f32ca0f051259cb1af5dd6a32",
+    "norm_len": 5562,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6264,17 +6311,18 @@
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
     "2027-03-12-boss-call.sql",
-    "2027-04-16-combat-training.sql"
+    "2027-04-16-combat-training.sql",
+    "2027-04-20-boss-hall.sql"
    ],
    "live": {
-    "md5": "c6cff5f013d8a549567fd65413339052",
-    "norm_len": 2031,
+    "md5": "a35133547b1022f0eb1811728268f6e2",
+    "norm_len": 2480,
     "measured": "2026-11-14",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c6cff5f013d8a549567fd65413339052",
-    "norm_len": 2031,
+    "md5": "a35133547b1022f0eb1811728268f6e2",
+    "norm_len": 2480,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8455,17 +8503,18 @@
     "2026-12-18-party-leave-together.sql",
     "2027-02-11-no-fight-settle.sql",
     "2027-03-12-boss-call.sql",
-    "2027-03-24-rune-supply.sql"
+    "2027-03-24-rune-supply.sql",
+    "2027-04-20-boss-hall.sql"
    ],
    "live": {
-    "md5": "f48c47d0e3806822c53fae9f805c4fc0",
-    "norm_len": 21405,
+    "md5": "ddb5c049e8eeec6788f63561ca08a664",
+    "norm_len": 21878,
     "measured": "2026-11-14",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f48c47d0e3806822c53fae9f805c4fc0",
-    "norm_len": 21405,
+    "md5": "ddb5c049e8eeec6788f63561ca08a664",
+    "norm_len": 21878,
     "source": "computed-from-replay"
    },
    "agree": true

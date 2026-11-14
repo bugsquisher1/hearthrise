@@ -1,0 +1,9 @@
+  attack2 [group: 8a3cc88f-c33d-480d-bee7-b94998f32515]
+    description: lifts the longsword a little and makes one short heavy downward cut in front of him, then lowers it back to his side, feet planted, ends in the same pose it started, he keeps facing exactly the same direction the whole time and never turns, the red fur cloak stays red, the bald head and grey beard stay, the book stays in his left hand, the plain steel longsword stays in his right hand and keeps its shape, no staff, no magic, no glow, no star, no light, no motion trail, no swoosh arc, no dust, no smoke, nothing else appears in the frame
+    directions: north, north-east, north-west, south-west, west (5/8)
+    frames: 7
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/487df781-7941-4a82-a678-3d55e371c016/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/377da99c-5091-444a-9b46-6230956c2a8d/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/b3678d0e-7678-49ba-bdb1-f578d6ab5c3d/north-west/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/89d85bac-caf3-484c-bb3f-f5b1a63baf56/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/ff5a6489-753d-4eac-90b4-adcbc0ee3541/animations/4740fc7d-1e40-456f-ac2f-28cb45a2eb24/west/{i}.png  (i=0..6)

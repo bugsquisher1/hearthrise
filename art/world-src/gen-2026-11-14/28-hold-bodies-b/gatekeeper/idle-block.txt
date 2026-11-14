@@ -1,0 +1,12 @@
+  idle [group: 55390b07-eb92-4db4-9279-da26f53e9a40]
+    description: standing guard, breathing in place, only the chest rises and falls by one pixel, the head stays at the same height, the body does not straighten or grow, both feet stay put, the flanged mace stays in his hand and keeps its shape, the ring of keys stays at his belt, the red surcoat and steel plate stay the same, no glow, no spark, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 9
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/451ff9e7-db9c-452c-9fa9-fa1d7e64367c/east/{i}.png  (i=0..8)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/acd493ff-b54c-41d8-87cd-bfb9b7059f66/north/{i}.png  (i=0..8)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/764acc87-d96a-4bc7-9adf-53b04891c6f2/north-east/{i}.png  (i=0..8)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/3175bef8-9b9c-45a5-b1f3-4e28c2dfc87f/north-west/{i}.png  (i=0..8)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/47ffda1f-34cc-47e4-bc88-f50c06bf7aa2/south/{i}.png  (i=0..8)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/94e8e515-5eae-4c9c-8ee2-466b60903885/south-east/{i}.png  (i=0..8)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/f3f0b9fb-33df-4660-8173-4d160d233e47/south-west/{i}.png  (i=0..8)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/7bc83946-4500-4f79-ab09-2f1177b6e9d4/west/{i}.png  (i=0..8)

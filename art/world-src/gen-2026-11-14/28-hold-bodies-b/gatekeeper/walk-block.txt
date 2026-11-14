@@ -1,0 +1,12 @@
+  walk [group: b3b1cca9-9f01-4dd0-892a-0b9872595ae1]
+    description: a slow heavy armoured walk, both feet lift in turn, the flanged mace stays in his hand and keeps its shape, the ring of keys stays at his belt, the red surcoat and steel plate stay the same, no glow, no spark, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/5ed78a1c-c0ab-46c7-ab3b-aa846de357ee/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/a6270705-a243-4161-b142-3b6b1c23b9c6/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/f2f93755-9d13-4f8f-934f-d0ac5256dfb4/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/cde1f8f8-bbd8-42cc-bd96-cd8e44d31d03/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/2e4b6fd3-d964-4546-8e1c-b06893fa98f6/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/7382e94e-4119-4778-bbf6-956af2eb8fe5/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/04043e56-b9ca-4185-bac6-1ada2c5b80fe/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/4c759eff-7552-4819-b879-eba410501c20/animations/5ee48e2b-429b-4873-a0e4-9da8d3f7635c/west/{i}.png  (i=0..6)

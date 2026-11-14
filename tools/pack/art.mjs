@@ -73,10 +73,11 @@ const PARTS = Object.freeze(['tiles', 'props', 'bodies', 'icons', 'effects']);
 const ROADS = Object.freeze(['cobble', 'setts', 'road', 'track', 'causeway']);
 const HUMAN = new Set(['human', 'humanoid']);
 
-/** Every monster a ground places or its hunt can spawn, sorted. */
-function monstersOf(ground, hunt) {
+/** Every monster a ground places or its hunt can spawn, a boss's wave (`adds`) and its keyed hall's room rows (`hall`, the room's ground
+    row: src/data/hunt-grounds.js HALL_GROUNDS) included, sorted. */
+function monstersOf(ground, hunt, hall) {
   const ids = new Set();
-  for (const p of ground.pockets || []) for (const s of [...(p.pack || []), ...(p.spawns || [])]) ids.add(s.monster);
+  for (const g of [ground, hall]) for (const p of (g && g.pockets) || []) for (const s of [...(p.pack || []), ...(p.spawns || []), ...(p.adds || [])]) ids.add(s.monster);
   for (const s of (hunt && hunt.spawns) || []) ids.add(s.monster);
   return [...ids].sort();
 }
@@ -136,7 +137,7 @@ export function artList(d) {
   }
 
   /* BODIES: each monster's drawing through a whole kill */
-  const mons = monstersOf(d.ground, d.hunt);
+  const mons = monstersOf(d.ground, d.hunt, d.hall);
   const kitBodies = kit ? kit.units.filter((u) => own(d.sprites, u)) : [];
   for (const id of mons) {
     const art = (d.artAlias && d.artAlias[id]) || id, row = d.monsters[id] || {};
@@ -268,7 +269,9 @@ export async function loadArtData(root = ROOT) {
 export function inputOf(gid, D, over = {}) {
   const ground = own(D.G.HUNT_GROUNDS, gid) ? D.G.HUNT_GROUNDS[gid] : null;
   if (!ground) return null;
-  return { gid, ground, hunt: D.HUNT_INDEX[ground.hunt], map: D.mapRowOf(ground.map), monsters: D.MONSTERS, kits: D.kits, sprites: D.sprites, terrains: D.terrains,
+  /* the ground's keyed hall, when its pack carries one: its boss and adds are drawn like any body (Krell's Hall) */
+  const hall = Object.values(D.G.HALL_GROUNDS || {}).find((h) => h.hall === gid) || null;
+  return { gid, ground, hall, hunt: D.HUNT_INDEX[ground.hunt], map: D.mapRowOf(ground.map), monsters: D.MONSTERS, kits: D.kits, sprites: D.sprites, terrains: D.terrains,
     artAlias: D.artAlias, nodeKinds: D.nodeKinds, spells: D.spells, hitFx: D.hitFx, hasItemIcon: D.hasItemIcon, hasHeadIcon: D.hasHeadIcon, ...over };
 }
 

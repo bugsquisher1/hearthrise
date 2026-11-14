@@ -226,4 +226,7 @@ export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief
   ledger_wight: 'wight',
   /* The Muster Barrows' bodies are the March's (its pack header: a monster's numbers are its ground's, so each is the ground's own row
      under its own id): the kit's pikeman and wight, and the Muster set's Barrow Knight (art/world/muster). Captain Hask wears his own. */
-  barrow_pikeman: 'banded_pikeman', cairn_wight: 'wight', muster_knight: 'barrow_knight' });
+  barrow_pikeman: 'banded_pikeman', cairn_wight: 'wight', muster_knight: 'barrow_knight',
+  /* Krell's Hall (src/data/grounds/krells_hold `hall`): Captain Hask stands up as himself, and the two officers are the Hold's Grave Guard.
+     Their rows are the hall's own (they pay there); the drawings are the bodies everyone already met. Lord Krell wears his own. */
+  hall_hask: 'captain_hask', hall_grave_guard: 'grave_guard' });

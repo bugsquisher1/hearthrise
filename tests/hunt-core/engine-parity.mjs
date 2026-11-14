@@ -47,7 +47,10 @@ const SEED = '-4611686018427387904';
      src/data/hunt-grounds.js    moves glade-4 and glade-1-kite (kills 500 -> 504, 137 -> 128): the party's own Normal pull retired and the bear standing in
                                  Vine Hollow as built (lane/c-brook-bear, Tyler 2026-11-11)
      core-model.js (the re-fitted Level curve), scaled-hunts.js, balance-sheet.js, items.js, hunt-tiers.js, hunt-xp.js and the ground packs move no pin.
-   Every settle's hashes moved, the kills with them (warrens-4 221 as before). The baseline is --write on this tree. */
+   Every settle's hashes moved, the kills with them (warrens-4 221 as before). The baseline is --write on this tree.
+   RE-PINNED 2026-11-13 (lane/d-no-profit-molds), DATA ONLY: glade-4's TALLY alone moved (world and timeline held, kills 536 as pinned). Cause, proved by
+   putting the old row back alone (the bear's gp [13, 40]: every pin holds, exit 0): src/data/monsters.js brook_bear gp [13, 40] -> [11, 32], the purse
+   back on the formula when the +10% floor it served was retired (NO PROFIT MOLDS). The Cellar's XP fit (rat 15 -> 16 XP) is on no pinned ground. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

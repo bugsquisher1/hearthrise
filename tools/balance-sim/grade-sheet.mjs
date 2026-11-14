@@ -9,6 +9,24 @@
 // (floor+10 past the top). In range = floor, plus10, top. Sizes 1-4. Metrics (grade.mjs METRICS): deaths and dips per hour are
 // pooled per ground x tier x offset x size and judged on their 95% interval (FAIL only when the interval's low end is past the
 // bound, UNPROVEN when only its high end is); every other metric is the cell's own number.
+/* THE FOUR'S LINE, WHERE IT BINDS (designer 2026-11-13, lane/d-no-profit-molds; Tyler 10-25 §5 "a well-built four earns 15-25% more XP a head
+   than a comparable solo"). It binds a WELL-BUILT four, one of all four classes (Melee, Ranger, Mage, Healer), at the band's floor and middle,
+   where a party cell is fitted. Two places it reports instead (an advisory OFF, never red):
+     a three-class four (two Melee and no Healer, say) is paid its own, smaller cell by design (Tyler 10-31, party-class-xp.js), so 1.05-1.15 is
+       the rule working, not a miss;
+     the band's TOP is where a ground is being outgrown: a hero alone there kills in fewer blows and closes on the four, so the four's edge
+       narrows (the full grade 2026-11-13: Sewer 1.13 and Warrens 1.12 at their tops, 1.20-1.25 at their floors). That is the nudge to move
+       up a ground, where the next floor pays the four its 15-25% again, the same "outgrowing a ground should show" the Glade's top is held to.
+   One party cell per ground can't hold both ends (a cell keyed by the head's place in the band is a Systems change, PRIORITY_BOARD). */
+const CLASS_OF_STYLE = Object.freeze({ tank: 'melee', sword: 'melee', axes: 'melee', hammer: 'melee', melee_dps: 'melee', bow: 'ranger', crossbow: 'ranger', ranger: 'ranger', mage: 'mage', healer: 'healer' });
+/** A cell's comp ('tank+healer+bow+mage') holds all four classes; a comp naming a style this map doesn't know counts as well built (never skipped). */
+export const wellBuiltFour = (m) => { const styles = String(m.comp || '').split('+'); return styles.some((x) => !CLASS_OF_STYLE[x]) || new Set(styles.map((x) => CLASS_OF_STYLE[x])).size >= 4; };
+const fourRules = (min, max, why, whyReport, reportOnly) => [
+  { id: 'four-xp', why, tiers: ['normal'], offsets: ['floor', 'middle', 'plus10'], sizes: [4], skip: (m) => !wellBuiltFour(m), metric: 'xpVsSolo', min, max, binding: true, ...(reportOnly ? { reportOnly } : {}) },
+  { id: 'four-xp-report', why: whyReport, tiers: ['normal'], offsets: ['floor', 'middle', 'plus10', 'top'], sizes: [4], skip: (m) => wellBuiltFour(m) && m.offset !== 'top', metric: 'xpVsSolo', min, max, binding: false },
+];
+const FOUR_REPORT = 'designer 2026-11-13: a report line, the band top (a ground being outgrown) and a three-class four (its own cell by design, 10-31)';
+
 export const SHEET = Object.freeze({
   source: 'local copy: balance ruling 2026-10-25 + rulings of record to 2026-11-07 (grade-sheet.mjs)',
   rules: Object.freeze([
@@ -25,7 +43,7 @@ export const SHEET = Object.freeze({
     /* ABOVE THE BAND (10-18 "above range = low XP, small profit") */
     { id: 'above-low-xp', why: '10-18: past the band, the ground pays under the pace', offsets: ['above'], sizes: [1], metric: 'xpVsPace', max: 1, binding: false },
     /* PARTIES (10-25 §party: four 115-125, trio 110-120, duo 105-115 XP a head over a comparable solo) */
-    { id: 'four-xp', why: '10-25: a well-built four earns 15-25% more XP a head than a comparable solo', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], sizes: [4], metric: 'xpVsSolo', min: 1.15, max: 1.25, binding: true },
+    ...fourRules(1.15, 1.25, '10-25: a well-built four earns 15-25% more XP a head than a comparable solo', FOUR_REPORT),
     { id: 'trio-xp', why: '10-25 (provisional): a trio 110-120', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], sizes: [3], metric: 'xpVsSolo', min: 1.1, max: 1.2, binding: false },
     { id: 'duo-xp', why: '10-25 (provisional): a duo 105-115', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], sizes: [2], metric: 'xpVsSolo', min: 1.05, max: 1.15, binding: false },
     /* TIERS (11-05: bigger pull, harder, more XP a kill, the same coin; 11-07: coin per kill never scales, "BUT NOT GOLD") */
@@ -42,9 +60,16 @@ export const SHEET = Object.freeze({
  * its own scope: Normal at the floor (lone, the 8 ways in the Level's gear), the fresh hero (practice set, first-day grounds), the
  * weight class (pairs 2-3 under read for XP; heroes alone 5 under are read for deaths), the harder tiers at the floor (whoever holds them, and a four's deaths on Deadly), the four against solo, the largest blows.
  * A line the sheet calls "a report line" is advisory; every other line is binding (off it, the grader exits 1).
- * NO PROFIT MOLDS (Tyler 2026-11-13): the sheet's gold lines (normal.marginMin, normal.supplyShare, freshHero.marginMin, weightClass
- * dangerousUnder.netMax and deadlyUnder.netMax) are NOT read: gold is printed per ground (grade.mjs goldReport), never graded.
+ * NO PROFIT MOLDS (Tyler 2026-11-13): the sheet carries no gold line (its old marginMin, supplyShare and netMax are gone): gold is
+ * printed per ground (grade.mjs goldReport), never graded.
  */
+/* THE CONTRACT ON A TUTORIAL GROUND (designer 2026-11-13): a ground whose band middle is at or under LEVEL_PACE.early's Level is held by the
+   tutorial's promise (Level 5 inside its hours, tests/level-curve.mjs C3), not by the contract fitted on the ladder, so its contract line reports.
+   The Cellar (middle 5) reads 0.888x on the full grade; the one row step that lifts it walls Level 5 -> 6 (level-curve C6). */
+const EARLY_LEVEL = 5;   // src/data/core-model.js LEVEL_PACE.early.level (tests/balance-grade.mjs holds the two equal)
+export const contractIsEarly = (m) => Array.isArray(m.band) && Math.round((m.band[0] + m.band[1]) / 2) <= EARLY_LEVEL;
+export { EARLY_LEVEL };
+
 export function sheetFromBalanceSheet(BS) {
   const N = BS.normal, F = BS.freshHero, W = BS.weightClass, T = BS.tiers, P = BS.party;
   const floor1 = { tiers: ['normal'], offsets: ['floor'], sizes: [1] };
@@ -57,7 +82,8 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'normal-deaths', why: why('normal.deathsPer1000h (RULED 10-25)'), ...floor1, metric: 'deathsPer1000h', max: N.deathsPer1000h, pooled: true, binding: true },
       { id: 'normal-dips', why: why('normal.closeCallsPer12h (RULED 10-25)'), ...floor1, metric: 'dipsPer12h', max: N.closeCallsPer12h, pooled: true, binding: true },
       { id: 'normal-low-point', why: why('normal.typicalMinHpPct, every way (RULED 10-25)'), ...floor1, metric: 'minHpP50', min: N.typicalMinHpPct, binding: true },
-      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
+      { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], skip: contractIsEarly, aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },
+      { id: 'normal-xp-contract-early', why: why('normal.xpVsContract, a report line on a tutorial ground (band middle at or under LEVEL_PACE.early, whose promise level-curve C3 holds; designer 2026-11-13)'), tiers: ['normal'], offsets: ['middle'], skip: (m) => !contractIsEarly(m), aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: false },
       { id: 'fresh-deaths', why: why('freshHero.deaths, the practice set at a first-day floor'), ...fresh, metric: 'deaths', max: F.deaths },
       { id: 'fresh-dips', why: why('freshHero.closeCalls'), ...fresh, metric: 'dips', max: F.closeCalls },
       { id: 'fresh-low-point', why: why('freshHero.typicalMinHpPct'), ...fresh, metric: 'minHpP50', min: F.typicalMinHpPct },
@@ -77,9 +103,10 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true,
         /* designer Q4 2026-11-12: a pack whose Deadly says bring a Healer (checks.deadlyFourNeeds) grades the four with one; the four without is a note */
         reportOnly: (m) => m.deadlyFourNeeds === 'healer' && !String(m.comp).split('+').includes('healer') },
-      { id: 'four-xp', why: why('party.fourVsSolo (RULED 10-25)'), tiers: ['normal'], offsets: ['floor', 'middle', 'top'], sizes: [4], metric: 'xpVsSolo', min: P.fourVsSolo[0], max: P.fourVsSolo[1], binding: true,
-        /* designer Q2 2026-11-12: on a band 20 Levels wide or more one cell can't hold both ends, so the middle is graded and the ends reported */
-        reportOnly: (m) => m.offset !== 'middle' && Array.isArray(m.band) && m.band[1] - m.band[0] >= 20 },
+      /* designer Q2 2026-11-12, kept beside the 11-13 four line: on a band 20 Levels wide or more one cell can't hold both ends, so a well-built
+         four's middle is graded and its other cells reported (no ground a player can enter has a band that wide: the widest is 18) */
+      ...fourRules(P.fourVsSolo[0], P.fourVsSolo[1], why('party.fourVsSolo (RULED 10-25), a well-built four at the floor and middle'), why('party.fourVsSolo, ' + FOUR_REPORT),
+        (m) => m.offset !== 'middle' && Array.isArray(m.band) && m.band[1] - m.band[0] >= 20),
     ]),
   });
 }

@@ -19,7 +19,8 @@ import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid, isProf
 import { loadGear } from '../tools/balance-sim/gear.mjs';
 import { monstersOfGround } from '../tools/pack.mjs';
 import { MONSTERS } from '../src/data/monsters.js';
-import { SHEET, sheetFromBalanceSheet } from '../tools/balance-sim/grade-sheet.mjs';
+import { SHEET, sheetFromBalanceSheet, EARLY_LEVEL } from '../tools/balance-sim/grade-sheet.mjs';
+const CM = await import('../src/data/core-model.js');
 import { worse } from '../tools/balance-sim/grade-compare.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,6 +58,16 @@ for (const [mut, printed] of [['profit', '| +11% |'], ['under5', 'to 3,500)']]) 
 /* a four is judged against solos in its own kit: practice-kit fresh heroes at the floor don't drag the median (10-25 §5 "same gear quality") */
 const kitFails = failsOf(synthSet({ practice: true })).filter((v) => v.rule === 'four-xp');
 check(kitFails.length === 0, 'same-kit: practice-kit solos leave the four at 1.2' + (kitFails.length ? ' (' + kitFails.map((v) => v.key + ' ' + v.value).join('; ') + ')' : ''));
+/* THE FOUR'S LINE, WHERE IT BINDS (designer 2026-11-13): a well-built four (all four classes) at the floor and middle; a three-class four and the
+   band's top report. Each four below earns 1.08x a hero alone (under the 1.15 line). */
+const slowFour = (offset, comp) => synthSet().map((c) => (c.cell.grade.tier === 'normal' && c.cell.grade.offset === offset && c.cell.grade.size === 4
+  ? { ...c, cell: { ...c.cell, grade: { ...c.cell.grade, comp } }, heroes: c.heroes.map((h) => ({ ...h, levelXpPerH: 70000 * 1.08 })) } : c));
+const fourVerdicts = (cells) => gradeCells(cells, SHEET, flat).verdicts.filter((v) => v.rule.startsWith('four-xp') && v.verdict !== 'ok');
+check(fourVerdicts(slowFour('floor', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp' && v.verdict === 'FAIL'), 'four-binds: a well-built four at the floor under 1.15 FAILS four-xp');
+check(!fourVerdicts(slowFour('floor', 'tank+hammer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour('floor', 'tank+hammer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
+  'four-binds: a three-class four at the floor under 1.15 reads OFF on four-xp-report, never FAIL (its own cell, 10-31)');
+check(!fourVerdicts(slowFour('top', 'tank+healer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour('top', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
+  'four-binds: a well-built four at the band top under 1.15 reads OFF (a ground being outgrown), never FAIL');
 
 /* THE PACE CONTRACT READS THE LONE MEDIAN ON EVERY GROUND (Coordinator ruling 2026-11-11, lane/d-solo-fifteen): the contract is fitted on lone heroes, and a four
    is ruled 1.15-1.25x a lone hero, so on a party ground the four a head read about 1.2x it (the Sewer 1.19, the Warrens 1.52) while its lone median sat in band.
@@ -69,6 +80,12 @@ const middle = (loneX) => synthSet().filter((c) => c.cell.grade.tier === 'normal
 const contract = (loneX) => gradeCells(middle(loneX), { ...sheetFromBalanceSheet(BS0.BALANCE_SHEET), contract: flat }, flat, { g: 'party' }).verdicts.filter((v) => v.rule === 'normal-xp-contract');
 check(contract(1.0).length === 1 && contract(1.0)[0].verdict === 'ok' && contract(1.0)[0].key.includes('size 1'), 'lone-contract: a party ground reads its lone median, the four at 1.5x is not the pace (' + JSON.stringify(contract(1.0).map((v) => [v.key, v.verdict])) + ')');
 check(contract(1.3)[0].verdict === 'FAIL' && contract(1.3)[0].binding === true, 'lone-contract: the lone median at 1.3x FAILS, binding, on a party ground (' + contract(1.3)[0].verdict + ')');
+/* THE CONTRACT ON A TUTORIAL GROUND (designer 2026-11-13): a band whose middle is at or under LEVEL_PACE.early's Level reports, never FAILS; the line
+   still binds everywhere else (the 1.3x above, on [16, 31]). The grader's copy of the early Level is the data's. */
+const earlyBand = (loneX) => middle(loneX).map((c) => ({ ...c, cell: { ...c.cell, grade: { ...c.cell.grade, band: [1, 8] } } }));
+const early = (loneX) => gradeCells(earlyBand(loneX), { ...sheetFromBalanceSheet(BS0.BALANCE_SHEET), contract: flat }, flat, { g: 'solo' }).verdicts.filter((v) => v.rule.startsWith('normal-xp-contract'));
+check(!early(0.85).some((v) => v.verdict === 'FAIL') && early(0.85).some((v) => v.rule === 'normal-xp-contract-early' && v.verdict === 'OFF'), 'contract-early: a tutorial ground (middle 5) at 0.85x reads OFF on normal-xp-contract-early, never FAIL');
+check(EARLY_LEVEL === CM.LEVEL_PACE.early.level, 'contract-early: the grader early Level ' + EARLY_LEVEL + ' is LEVEL_PACE.early.level ' + CM.LEVEL_PACE.early.level);
 
 /* rare events: one Normal floor cell of 2,000 h holds the whole pooled group's hours (synthSet's floor solo is one cell) */
 const withDeaths = (k) => { const cells = synthSet(); const c = cells.find((x) => x.cell.grade.tier === 'normal' && x.cell.grade.offset === 'floor' && x.cell.grade.size === 1); c.heroes[0].deaths = k; return cells; };

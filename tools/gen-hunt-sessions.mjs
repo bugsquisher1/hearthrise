@@ -273,10 +273,16 @@ export const WORLD_FIELDS_READ = Object.freeze({
    hit rate, the most one blow on it can teach); and the training rules land as hr_training_rules and hr_training_grounds, which hr_training_start, the
    settle's hourly charge and its window check read (2027-04-16-combat-training.sql, which applies right after this file). No other row, bound, limit,
    end reason or world shape moves: the hr-accrue that plays the grounds can land before or after this file, and the verb that opens them lands after both. */
-/* BARROW DATA (lane/d-barrow-data) is the file after combat training (2027-04-16-combat-training.sql) and carries it whole. */
-/* KEYED HALLS (lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5; src/data/boss-halls.js): 2027-04-16-combat-training is the file before this
-   one and this one carries it whole. It adds hr_boss_halls (empty: the data holds no hall yet), which 2027-04-20-boss-hall.sql reads, applied right after
-   this file. No other row, bound, limit, end reason or world shape moves. */
+/* THE BROOK BEAR'S PURSE, BACK ON THE FORMULA (lane/d-no-profit-molds, designer 2026-11-13, NO PROFIT MOLDS): 2027-04-16-combat-training is APPLIED
+   history and 2027-04-20-bear-purse carries it whole. The bear's hand-kept purse [13, 40] served the Glade's retired +10% floor; it reads the formula's [11, 32]
+   (src/data/monsters.js, balance-sheet.js FORMULA_EXCEPTIONS), so its coin bound in hr_hunt_kill_bounds falls 40 -> 32. The bound only falls, so the hr-accrue
+   carrying the same monsters.js lands FIRST (its bear rolls at most 32, under both bounds); an old engine against that file would be refused on a roll of 33-40. */
+/* THE BARROW MARCH'S DATA AND THE KEYED HALLS, ONE FILE (lane/b-barrow-integrate, 2026-11-14; from lane/d-barrow-data and lane/b-barrow-boss-room, the Krell's
+   Hold design's engine piece 5; src/data/boss-halls.js): 2027-04-20-bear-purse is the file before this one and this one carries it whole. Each of those lanes
+   staged its own copy of this catalogue (2027-04-17-barrow-data, and this name with no barrow row); neither was applied, and one generator vouches for one
+   file, so the two are collapsed here (as the 12-21, 12-22 and 12-24 files were, above). It carries the tier 5 to 7 gear rows of the barrow data and adds
+   hr_boss_halls, which 2027-04-20-boss-hall.sql reads, applied right after this file. A STAGED pack is served nowhere: its ground, its monsters and its
+   hall join these tables the day the pack opens, not before. */
 export const OUT_NAME = '2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -926,12 +932,18 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5; src/data/boss-halls.js): the keyed halls' table, hr_boss_halls (the
--- room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit), which hr_hunt_admit, hr_boss_hall_enter and the settle's proof of a
--- room's ends read (2027-04-20-boss-hall.sql, which applies right after this file). The data holds no hall yet, so the table is empty; a hall's
--- room, its rows' kill bounds and its drops join the tables above like any ground's the day a pack carries one. No other row, bound, limit, end
--- reason or world shape moves. ORDER: after 2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql (carried whole), right before
--- 2027-04-20-boss-hall.sql. The hr-accrue that plays a hall may land on either side of it: no hall exists to open.
+-- NEW IN THIS FILE (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
+-- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
+-- which hr_hunt_admit, hr_boss_hall_enter and the settle's proof of a room's ends read (2027-04-20-boss-hall.sql, which applies right after this file).
+-- It is EMPTY: the one hall in the data is Lord Krell's, his pack is staged, and a staged pack is served nowhere; his room, its rows' kill bounds and its
+-- drops join the tables above like any ground's the day the pack opens. The barrow data's gear rows (tiers 5 to 7) ride in the tables that carry gear.
+-- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-04-20-bear-purse-hunt-sessions-catalogue.generated.sql (carried whole) and
+-- 2027-04-17-barrow-data-items-catalogue.generated.sql, right before 2027-04-20-boss-hall.sql. The hr-accrue that plays a hall may land on either side
+-- of it: no hall exists to open.
+--
+-- CARRIED FROM 2027-04-20-bear-purse-hunt-sessions-catalogue (lane/d-no-profit-molds, designer 2026-11-13; Tyler 2026-11-13 NO PROFIT MOLDS): ONE row of
+-- hr_hunt_kill_bounds. The Brook Bear's hand-kept purse [13, 40] served the Glade's retired +10% profit floor; it reads the formula's [11, 32], so its coin
+-- bound is 32. The hr-accrue carrying the same monsters.js lands FIRST (its bear rolls at most 32, under both bounds).
 --
 -- CARRIED FROM 2027-04-16-combat-training-hunt-sessions-catalogue (lane/c-combat-training, Tyler 2026-11-08: "a public yard paid by the hour" and "a personal training dummy for houses"; src/data/training.js):
 -- the eight training grounds (yard and house, one per trained skill: melee, ranged, magic, defense) in hr_hunt_grounds, hr_hunt_ground_spawns and

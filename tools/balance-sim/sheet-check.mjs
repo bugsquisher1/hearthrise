@@ -36,7 +36,7 @@ const signed = (n) => (n >= 0 ? '+' : '') + k(n);
 const pct = (x) => (x == null || !Number.isFinite(x) ? '-' : Math.round(x * 100) + '%');
 const TIER_WORD = { dangerous: 'Dangerous', deadly: 'Deadly' };
 /* NO PROFIT MOLDS (Tyler 2026-11-13): a gold line's target reads this and its pass is null (printed, never graded). The sheet's old gold
-   fields (normal.marginMin, normal.supplyShare, freshHero.marginMin, weightClass.*.netMax) are not read. */
+   fields (marginMin, supplyShare, netMax) are gone from it. */
 const GOLD = 'printed, not graded';
 export const load = (dir) => (existsSync(join(dir, 'cells.jsonl')) ? [...new Map(readFileSync(join(dir, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.heroes).map((r) => [r.id, r])).values()] : []);
 

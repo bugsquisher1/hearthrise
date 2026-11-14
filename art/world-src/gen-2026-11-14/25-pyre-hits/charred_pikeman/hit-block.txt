@@ -1,0 +1,12 @@
+  hit [group: 977cb082-dec6-4041-bc13-8848d9e2fdb2]
+    description: recoils from a blow, head snaps back, the pike stub stays in hand, the blow lands on frame 3, then it recovers to its stance, nothing else appears in the frame
+    directions: east, north, north-east, north-west, south, south-east, south-west, west (8/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/a153b2eb-d6cb-41d4-a99e-a3fcfaa2656e/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/f71a3346-c81f-4fed-9144-8d844b32ecf4/north/{i}.png  (i=0..6)
+    north-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/0d994efc-829f-4e90-89b3-3ddfdb3b98f5/north-east/{i}.png  (i=0..6)
+    north-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/1a5d6230-213b-4d01-b20f-12b2528c4642/north-west/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/c44b417f-3bc4-487b-9f45-efb81cd291aa/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/d103d049-b374-4605-8dd0-5c92b234a666/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/49f814ac-3cbb-4025-b35b-76cb2a33b45b/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/fb184755-3ad1-4430-8836-30e78134d2cc/animations/66147a21-5a2d-4afe-8a0e-5172f01bb705/west/{i}.png  (i=0..6)

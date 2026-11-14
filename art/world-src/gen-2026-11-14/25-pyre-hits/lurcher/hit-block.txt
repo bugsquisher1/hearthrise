@@ -1,0 +1,10 @@
+  hit [group: c4dc1145-5268-480f-b10e-604ce0f3ae6c]
+    description: yelps and flinches, the head ducks, feet stay planted, the blow lands on frame 3, then it recovers to its stance, nothing else appears in the frame
+    directions: east, north, south, south-east, south-west, west (6/8)
+    frames: 7
+    east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/1193a2a1-5683-43f3-b9c7-a9d1015e91c6/east/{i}.png  (i=0..6)
+    north: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/15a715c9-8ca2-4652-bb7a-7b2d87e9ef30/north/{i}.png  (i=0..6)
+    south: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/ed9efd79-8966-4905-880a-cd347976b2fa/south/{i}.png  (i=0..6)
+    south-east: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/6d8d28ae-faa0-42bc-b6c4-38bb03514163/south-east/{i}.png  (i=0..6)
+    south-west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/6ac994ae-d57c-49a7-8f12-b24212dbc549/south-west/{i}.png  (i=0..6)
+    west: https://backblaze.pixellab.ai/file/pixellab-characters/objects/813ba264-981b-46fa-a9eb-2a1d7695b6df/997e815e-6954-401c-8fc9-7e677848023a/animations/d2356a02-bdf2-4532-94e7-a61d0c267a4b/west/{i}.png  (i=0..6)

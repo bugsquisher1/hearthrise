@@ -31,6 +31,7 @@
       "hunt_presets",
       "hunt_settings",
       "hunt_setup",
+      "hunt_target_kind",
       "hunt_tier",
       "inventory",
       "inventory_complete",
@@ -105,5 +106,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-13"
+  "generatedAt": "2026-11-14"
 }

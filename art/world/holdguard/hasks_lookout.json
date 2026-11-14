@@ -1,0 +1,199 @@
+{
+  "id": "hasks_lookout",
+  "class": "character",
+  "style": "s1",
+  "material": "native",
+  "source": "hasks_lookout.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
+        "ne": 4,
+        "nw": 4
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 10,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "attack",
+      "fps": 10,
+      "loop": false,
+      "hit": 3,
+      "dirs": {
+        "s": 5,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 5,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "death",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "e": 5,
+        "n": 5,
+        "w": 5,
+        "se": 5,
+        "sw": 5,
+        "nw": 5
+      }
+    },
+    {
+      "name": "corpse",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "8046c3c6-84e2-4380-8690-be2ab0814e08",
+    "n_directions": 8,
+    "name": "S1 Hask's Lookout",
+    "idle": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "picked": {
+        "s": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "e": [
+          0,
+          2,
+          1,
+          2
+        ],
+        "n": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "w": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "se": [
+          0,
+          1,
+          7,
+          1
+        ],
+        "sw": [
+          0,
+          8,
+          2,
+          8
+        ],
+        "ne": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "nw": [
+          0,
+          8,
+          1,
+          8
+        ]
+      }
+    },
+    "clips": {
+      "attack": {
+        "s": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/south lay 1 2 3 4 5",
+        "e": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/east lay 1 2 3 4 5 6",
+        "n": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/north lay 1 2 3 4 5 6",
+        "w": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/west lay 1 2 3 4 5 6",
+        "se": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/south-east lay 1 2 3 4 5 6",
+        "sw": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/south-west lay 1 2 3 4 5",
+        "ne": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/north-east lay 1 2 3 4 5 6",
+        "nw": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/attack/north-west lay 1 2 3 4 5 6"
+      },
+      "death": {
+        "s": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/south lay 1 2 3 4 5 6",
+        "e": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/east lay 1 2 3 4 5 6",
+        "n": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/north lay 1 2 3 4 5 6",
+        "w": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/west lay 1 2 3 4 5 6",
+        "se": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/south-east lay 1 2 3 4 5 6",
+        "sw": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/south-west lay 1 2 3 4 5 6",
+        "ne": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/north-east lay 1 2 3 4 5 6",
+        "nw": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/death/north-west lay 1 2 3 4 5 6"
+      },
+      "hit": {
+        "e": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/hit/east lay 0 1 2 3 4",
+        "n": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/hit/north lay 0 1 2 3 4",
+        "w": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/hit/west lay 0 1 2 3 4",
+        "se": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/hit/south-east lay 0 1 2 3 4",
+        "sw": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/hit/south-west lay 0 1 2 3 4",
+        "nw": "art/world-src/gen-2026-11-14/27-hold-bodies-a/hasks_lookout/hit/north-west lay 0 1 2 3 4"
+      }
+    }
+  },
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object 8046c3c6-84e2-4380-8690-be2ab0814e08 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, earth, bone, blood, skin, leaf, bronze, stone, moss, cloth ramps before the lock (lock.mjs snapTo): its hue is its identity. Body lifted 1 ramp step(s) for its dark floor (lock.mjs liftBody). Combat clips (attack, death, hit) laid from reviewed raw frames by tools/world-art/import-clips.mjs (hunt-clips.mjs): registered on the idle still by whole pixels, falls seated on the anchor row, never scaled or redrawn."
+}

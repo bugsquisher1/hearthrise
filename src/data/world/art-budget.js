@@ -53,6 +53,9 @@ export const CLASSES = Object.freeze({
   // A humanoid boss a head taller than a hero (Chief Coppercap): the character frame and anchor, a bigger body.
   brute: row({ frame: [64, 64], anchor: [32, 58], body: [41, 52], measure: 'h', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   beast: row({ frame: [64, 64], anchor: [32, 56], body: [40, 48], measure: 'w', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
+  // A lean hound as long as a wolf (the Pyre Field's Lurcher): head-on it stands taller than the 48 px vermin frame holds, so it
+  // takes the beast's frame and anchor and is measured as vermin are, by its longer side.
+  hound: row({ frame: [64, 64], anchor: [32, 56], body: [34, 44], measure: 'max', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   box: row({ body: [12, 20], measure: 'h', maxW: 28, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   clutter: row({ body: [12, 22], measure: 'h', maxW: 28, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   bed: row({ body: [40, 60], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),

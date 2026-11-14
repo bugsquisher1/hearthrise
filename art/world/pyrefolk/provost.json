@@ -1,0 +1,104 @@
+{
+  "id": "provost",
+  "class": "brute",
+  "style": "s1",
+  "material": "native",
+  "source": "provost.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "overhang_px": [
+    0,
+    0,
+    5,
+    0
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 10,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "attack",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "death",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6
+      }
+    },
+    {
+      "name": "corpse",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "ramp re-pour of barrow_knight (0 generations)",
+    "from": "muster/barrow_knight",
+    "object": "95e3ea23-fbf4-4bbd-b467-fa6beec1a011",
+    "onto": [
+      "#0b0a0c",
+      "#17141a",
+      "#231d1f",
+      "#2f2723",
+      "#2c2e33",
+      "#4a4d54"
+    ]
+  },
+  "notes": "The Provost is the Barrow Knight burned in his plate (brief 12 P3): every earth and bronze pixel of muster/barrow_knight's locked frames, by luminance rank, onto #0b0a0c #17141a #231d1f #2f2723 #2c2e33 #4a4d54 by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn."
+}

@@ -207,8 +207,9 @@ export default definePack({
      hunt: 'krells_hold_hall', key: 'hall_key', boss, Boss } (boss-halls.js), the HALL_HUNTS and HALL_GROUNDS rows `krells_hold_hall`, and
      these rows into MONSTERS. STAGED WITH THE PACK: the room's hunt is `staged`, so no catalogue serves it and no page shows its door.
      HIS SPELLS (`spells` below, the design's section 3): Rake the Coals, a marked cone out of the fire, then the Hall Fire, the pulse nobody
-     steps out of, every 20 s and twice as often under his enrage line (`phases.hasten`, piece 7). Hask's own kit is one marked blow, Cleave
-     (piece 6). Numbers are the formula's at the floor 85. PROPOSED, unmeasured: the designer fits them to the ship bar. */
+     steps out of, every 20 s and twice as often under his enrage line (`phases.hasten`, piece 7). Hask's own kit is a boss's, his marked
+     blow (Cleave) and his pulse (War Cry), piece 6. Numbers are the formula's at the floor 85. PROPOSED, unmeasured: the designer fits them
+     to the ship bar. */
   hall: {
     key: 'hall_key',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
@@ -247,7 +248,8 @@ export default definePack({
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
          line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
       hall_hask: { name: 'Captain Hask', icon: '⚔️', tier: 6, level: 100, cls: 'undead', family: 'Undead', formation: true, boss: true, add: true,
-        spells: ['hasks_cleave'],
+        /* a boss's kit, the marked hit then the pulse (Tyler 2026-11-08; tests/hunt-core/spell-rows.mjs boss-kits) */
+        spells: ['hasks_cleave', 'hasks_war_cry'],
         hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 2920, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
       /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92), paying a kill as there */
       hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', formation: true, add: true,
@@ -259,11 +261,14 @@ export default definePack({
        Rake the Coals: Krell's marked cone, the tank's to stand in and a ranged hero's to step off. Chief Coppercap's Slag Toss (4F).
        The Hall Fire: his pulse on every hero in the room, every 20 s (the design's number). A boss's pulse (4L: 0.4x at 20 s). His row
          hastens it to every 10 s under a quarter (phases.hasten cdPm 500), still well over its 2 s warning.
-       Cleave: Captain Hask's own marked blow, the two tiles in front of him. The regulars' dodgeable hit (1.5x), on the Foreman's cone. */
+       Cleave: Captain Hask's own marked blow, the two tiles in front of him. The regulars' dodgeable hit (1.5x), on the Foreman's cone.
+       War Cry: his pulse while he stands, a boss's (0.4x at 20 s), no element. With the Hall Fire that is two pulses on the party until
+         Hask is down, which is the wave's question (kill the named add first): the designer's to measure before the hall opens. */
   spells: {
     rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
     hall_fire: { n: 'The Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: null },
+    hasks_war_cry: { n: 'War Cry', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: null },
   },
   map,
 });

@@ -7,7 +7,7 @@
 //   node tests/boss-hall.mjs            the guard
 //   node tests/boss-hall.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrual.js tools/gen-hunt-sessions.mjs
+// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrual.js tools/gen-hunt-sessions.mjs src/data/boss-halls.js src/data/hunts.js src/data/grounds/krells_hold/pack.js
 //
 // The data holds no hall yet (a ground pack's `hall` folds in later), so the arms play a FIXTURE hall: the Rat King's hall on the Millrace map,
 // its boss, a named add and two plain adds written below as paying rows, with real spells (Slag Rain stands in for the Hall Fire).
@@ -148,9 +148,46 @@ const ARMS = {
       const sql = GH.render([...X.H.OPEN_HUNTS, ...X.H.CALLED_HUNTS, HALL_HUNT, ...X.H.TRAINING_HUNTS], { ...X.M.MONSTERS });
       if (!sql.includes("'" + ROOM + "'")) bad.push('HL-ROW the hunts catalogue has no row for the room');
     } catch (e) { bad.push('HL-ROW the hunts catalogue refused the room: ' + String(e.message).slice(0, 160)); }
-    /* the real tables: no hall yet, and the called rooms still read as calls */
-    const real = X.GEN.catalogueRows({ monsters: Object.fromEntries(Object.entries(X.M.MONSTERS).filter(([id]) => !(id in ROWS))) });
-    if (real.bossHalls.length !== Object.keys(X.BH.BOSS_HALLS).length) bad.push('HL-ROW the real catalogue holds ' + real.bossHalls.length + ' halls');
+    /* the real tables: the OPEN halls and no other (a staged pack's hall is served nowhere), and the called rooms still read as calls */
+    const realMonsters = Object.fromEntries(Object.entries(X.M.MONSTERS).filter(([id]) => !(id in ROWS)));
+    const real = X.GEN.catalogueRows({ monsters: realMonsters });
+    const openHalls = Object.keys(X.BH.OPEN_BOSS_HALLS).sort();
+    if (real.bossHalls.map((h) => h.id).sort().join() !== openHalls.join()) bad.push('HL-ROW the real catalogue holds the halls ' + (real.bossHalls.map((h) => h.id).join() || 'none') + ', the open ones are ' + (openHalls.join() || 'none'));
+    /* EVERY HALL IN THE DATA (Krell's Hall, src/data/grounds/krells_hold): while its pack is staged it stands in no served table and no page
+       shows its door; and the generator takes it whole the day its pack opens (opened here: the pack's hunt and ground, and its hall). */
+    for (const h of Object.values(X.BH.BOSS_HALLS)) {
+      const staged = X.H.HUNT_INDEX[h.hunt] && X.H.HUNT_INDEX[h.hunt].staged === true;
+      if (staged !== (X.H.HUNT_INDEX[h.id] && X.H.HUNT_INDEX[h.id].staged === true)) bad.push('HL-ROW the hall ' + h.id + ' and its ground disagree on staged');
+      if (staged) {
+        const served = [real.bossHalls.some((r) => r.id === h.id) && 'hr_boss_halls', real.travel.some((t) => t.id === h.hunt) && 'hr_hunt_travel',
+          real.grounds.some((g) => g.hunt === h.hunt || g.id === h.hunt) && 'hr_hunt_grounds', real.groundSpawns.some((s) => s.hunt === h.hunt) && 'hr_hunt_ground_spawns'].filter(Boolean);
+        if (served.length) bad.push('HL-ROW the staged hall ' + h.id + ' is served in ' + served.join(', '));
+        /* the committed catalogues themselves (rendered on the whole view, tools/pack/whole.mjs: an unshipped pack is not in them): no line
+           names the staged room or one of its rows */
+        const g = X.G.HALL_GROUNDS[h.hunt];
+        const names = [h.hunt, ...new Set(g.pockets[0].spawns.concat(g.pockets[0].adds).map((s) => s.monster))];
+        for (const f of [X.GEN.OUT_NAME, GH.OUT_NAME]) {
+          const sql = readFileSync(join(REPO, 'supabase', 'migrations', f), 'utf8');
+          const hit = names.filter((n) => sql.includes('\'' + n + '\''));
+          if (hit.length) bad.push('HL-ROW the staged hall ' + h.id + ' is in ' + f + ': ' + hit.join(', '));
+        }
+        if (X.BH.hallFromGround(h.id) !== null) bad.push('HL-ROW the staged hall ' + h.id + ' shows a door on its ground\'s page');
+      } else if (!X.BH.hallFromGround(h.id)) bad.push('HL-ROW the open hall ' + h.id + ' shows no door');
+      if (X.BH.hallOfHunt(h.hunt) !== h || (X.R.roomOf(X.G.HALL_GROUNDS[h.hunt]) || {}).kind !== 'hall') bad.push('HL-ROW the engine does not read ' + h.hunt + ' as a hall');
+      let opened = null;
+      try {
+        opened = X.GEN.catalogueRows({ monsters: realMonsters, hunts: [...X.H.OPEN_HUNTS.filter((x) => x.id !== h.id), { ...X.H.HUNT_INDEX[h.id], staged: undefined }],
+          grounds: { ...X.G.OPEN_GROUNDS, [h.id]: X.G.HUNT_GROUNDS[h.id] },
+          hallHunts: [...X.H.OPEN_HALL_HUNTS.filter((x) => x.id !== h.hunt), { ...X.H.HUNT_INDEX[h.hunt], staged: undefined }],
+          hallGrounds: { ...X.G.OPEN_HALL_GROUNDS, [h.hunt]: X.G.HALL_GROUNDS[h.hunt] }, halls: { ...X.BH.OPEN_BOSS_HALLS, [h.id]: h } });
+      } catch (e) { bad.push('HL-ROW the hall ' + h.id + ' would be refused the day its pack opens: ' + String(e.message).slice(0, 220)); }
+      if (opened) {
+        const r = opened.bossHalls.find((x) => x.id === h.id), boss = X.BH.hallBossOf(X.G.HALL_GROUNDS[h.hunt]);
+        if (!r || r.hunt !== h.hunt || r.monster !== boss || r.key !== h.key) bad.push('HL-ROW opened, the hall ' + h.id + ' reads ' + JSON.stringify(r));
+        const b = opened.killBounds.find((k) => k.id === boss);
+        if (!b || !(b.xp > 0 && b.gold > 0 && Object.keys(b.drops).length)) bad.push('HL-ROW opened, ' + boss + '\'s kill bound pays nothing: ' + JSON.stringify(b));
+      }
+    }
     for (const c of Object.values(X.B.BOSS_CALLS)) {
       const room = X.BH.roomOfHunt(c.hunt);
       if (!room || room.kind !== 'call' || room.monster !== c.monster) bad.push('HL-ROW the call ' + c.id + ' reads as ' + JSON.stringify(room));
@@ -348,6 +385,12 @@ const MUTANTS = [
   { name: 'a called row may stand in a hall', edits: [['tools/gen-hunt-sessions.mjs', "if (!a || a.add !== true || a.called === true) throw", "if (!a || a.add !== true) throw"], ['tools/gen-hunt-sessions.mjs', "      if (!g.call && S.monsters[id] && S.monsters[id].called === true) throw", "      if (!g.call && !g.hall && S.monsters[id] && S.monsters[id].called === true) throw"]], want: /HL-ROW/ },
   { name: 'a hall\'s rows may stand on another ground', edits: [['tools/gen-hunt-sessions.mjs', "if (mine.has(s.monster)) throw new Error(`hall ${h.id}'s ${s.monster} stands on ${o.id} too`);", "if (false) throw new Error('');"]], want: /HL-ROW/ },
   { name: 'an add\'s drops are no room\'s drops', edits: [['tools/gen-hunt-sessions.mjs', '.concat(p.spawns || [], p.adds || [])) mons.add(s.monster);', '.concat(p.spawns || [])) mons.add(s.monster);']], want: /HL-ROW/ },
+  /* THE REAL HALL (Krell's, staged with its pack): hidden while staged, and held to the generator's rules for the day it opens */
+  { name: 'a staged hall shows its door', edits: [['src/data/boss-halls.js', 'return Object.values(OPEN_BOSS_HALLS).find((h) => h.id === huntId) || null;', 'return rows().find((h) => h.id === huntId) || null;']], want: /HL-ROW the staged hall \w+ shows a door/ },
+  { name: 'a staged hall is among the served halls', edits: [['src/data/boss-halls.js', '.filter(([, h]) => !(HUNT_INDEX[h.hunt] && HUNT_INDEX[h.hunt].staged === true))', '.filter(() => true)']], want: /HL-ROW/ },
+  { name: 'a staged hall\'s room is a served hunt', edits: [['src/data/hunts.js', 'export const OPEN_HALL_HUNTS = Object.freeze(HALL_HUNTS.filter((h) => h.staged !== true));', 'export const OPEN_HALL_HUNTS = HALL_HUNTS;']], want: /HL-ROW/ },
+  { name: 'Krell hastens a spell that is not his', edits: [['src/data/grounds/krells_hold/pack.js', "hasten: { spell: 'hall_fire', cdPm: 500 }", "hasten: { spell: 'squeal', cdPm: 500 }"]], want: /HL-ROW the hall krells_hold would be refused/ },
+  { name: 'Captain Hask brings a wave of his own in the hall', edits: [['src/data/grounds/krells_hold/pack.js', 'drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },', 'drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },']], want: /HL-ROW/ },
 ];
 
 async function main() {

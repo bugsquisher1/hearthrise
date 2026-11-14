@@ -78,7 +78,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
     time: Object.freeze({ first: 'Time ran out before his adds came, with him at {pct}%', adds: 'Time ran out while his adds were up, with him at {pct}%', enrage: 'Time ran out after he got enraged, with him at {pct}%' }),
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
-      first: 'His plain blows beat your healing. Bring a healer, eat earlier, or come back in better gear.',
+      first: 'His normal hits were too much for your healing. Bring a healer, eat earlier, or come back in better gear.',
       adds: 'His adds go for whoever isn\'t your tank. Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
       guarded: 'Your tank can\'t hold him and his adds at the same time. Take Challenge off your tank\'s bar for this fight and let your healer look after whoever the adds go for.',

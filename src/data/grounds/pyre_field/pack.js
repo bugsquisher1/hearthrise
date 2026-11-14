@@ -64,7 +64,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 9 Pikemen, 4 Stokers, 4 Lurchers, 4 Wraiths
      and 3 Provosts, two of them holding the Great Pyre. */
   hunt: {
-    name: 'The Pyre Field', theme: 'There were too many of Hask\'s dead to bury, so Lord Krell\'s priests burned them here. They keep getting back up.',
+    name: 'The Pyre Field', theme: 'There were too many of Hask\'s dead soldiers to bury, so Lord Krell\'s priests burned them here. They keep getting back up.',
     band: [70, 90],
     spawns: [{ monster: CP, w: 9, rarity: 'common' }, { monster: ST, w: 4, rarity: 'uncommon' },
       { monster: LU, w: 4, rarity: 'uncommon' }, { monster: PW, w: 4, rarity: 'uncommon' }, { monster: PV, w: 3, rarity: 'rare' }],

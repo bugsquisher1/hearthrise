@@ -189,7 +189,7 @@ export default definePack({
   },
   itemText: {
     coffin_nail: 'An iron nail off a Barrow Pikeman\'s coffin. It came loose when he climbed out',
-    urn_shard: 'A piece of a burial urn from the old graves under the cairns. They were here long before Hask\'s company',
+    urn_shard: 'A piece of a burial urn from the old graves under the cairns. Those graves were here long before Hask\'s company came',
     sergeant_spur: 'A spur off a Barrow Knight\'s boot. Krell buried the knights in their armor, spurs and all',
     hasks_coin: 'Lord Krell paid Captain Hask in these coins to give up the ford. Hask got buried with every one of them',
   },

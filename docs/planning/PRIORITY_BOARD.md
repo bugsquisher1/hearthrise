@@ -31,7 +31,17 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ### 2026-11-14 The Burning Tower (designer, lane/d-burning-tower. Tyler 2026-11-14: "it's kind of it's own challenge Where the floors get incrementally harder as the player or group climbs, there is a leaderboard, and dying has no penalty BUT the level xp isn't all that great", "Burning Tower Key", "burning tower chests that sit on the ledge of the Great Hearth", "Bronze Keys, Silver Keys, Gold Keys, Platinum keys, and each one has a higher % chance to drop a weapon", "tradable and there are one of each type, they are tiered based on key tier", "relatively close to the tiers dropped in hunting grounds BUT have a special attribute", "fitting in the system to ensure people are not losing exp while doing these game modes"): DESIGNED, a sample MEASURED on the real engine (`tools/balance-sim/tower-table.mjs`), nothing built, nothing played by hand, no art, no server work. **The server half is ranked and tradeable, so it is a §1 surface and goes on the pre-EA Security list (§3.7)**
 
-**The call.** The Burning Tower is the Great Hearth's chimney. You go in through the fire and climb. Every floor is one room of five monsters, and floor 40 fights like a Level 40 ground. It runs as a normal idle hunt on the one engine, alone or in a party, watched or not. Dying sends you back to the ledge and costs nothing. Every tenth floor an old Keeper holds a key, and you can take each landing's key once a week. The four chests sit on the Hearth's ledge in the middle of town, so everybody in the square sees you open one. Every chest has something in it, and a few have a tower weapon.
+**The call.** The Burning Tower is the Great Hearth's chimney. You go in through the fire and climb. Every floor is one room of five monsters, and floor 40 fights like a Level 40 ground. It runs as a normal idle hunt on the one engine, alone or in a party, watched or not. Dying sends you back to the ledge and costs nothing. Every tenth floor an old Keeper holds a key, and you can take each landing's key once a week. One chest sits on the Hearth's ledge in the middle of town, so everybody in the square sees you open it. Every key gets something out of it, and a few get a tower weapon.
+
+**What the Tower is, in plain words (Tyler 2026-11-14: "a quick summary of the game mode so people can understand exactly what the tower is in simple language without needing to understand the lore"). This is the first thing the Tower's window shows. The story sits behind a Story link. Drafts, not through the reader gate.**
+- The Tower is a climb. Every floor is one room of monsters, and every floor is harder than the last.
+- Your hero fights it like a hunt, alone or with a party. It uses your stamina and your supplies.
+- Dying here costs you nothing. You go back to town and you lose no XP.
+- Every 10th floor gives you a key. You can earn 6 keys a week, and higher floors give better keys.
+- Use a key on the chest at the Great Hearth. You always get something, and sometimes a tower weapon you can use or trade.
+- You get about half the XP of hunting and no gold. The Leaderboards show who climbed highest, solo and in a party.
+
+**Tyler's second read, 2026-11-14.** "I like it for the lore / story." The story is locked as written in section 1, with one change he asked for. "The 'magical chest' should likely just be a single chest and varies loot based on the key so we can add more keys later", and "we'll eventually want to go higher than platinum". So there is ONE chest on the ledge, and the keys are an open table: a new key above Platinum is one data row (section 5).
 
 **Tyler's answers, 2026-11-14, and what they changed here.** "lets start 50% exp since it uses stamina and supplies. I dont LOVE the cap on keys, but if we do have one i think it should be more than 3, maybe 6 and lower the odds."
 | Answer | Read as | What moved |
@@ -50,12 +60,12 @@ Stamina drains, keys don't trade, opening is free and the weapons keep the stand
 | Dying has no penalty | Kept, and made general | One server switch any mode can turn on, section 3. The Tower uses it first, the capture-the-flag idea later |
 | Level XP isn't great | Kept, with his number | A Tower hour gives about half of a hunting hour at Level 45, and the best die-and-retry case stays under hunting, section 7 |
 | A key every 10 floors | Kept, capped by the week | Each landing's key once a week for each hero. Without the cap, free deaths turn it into a key farm |
-| Bronze, Silver, Gold, Platinum | Kept as named | Everybody already knows that order. "Bronze" is also the first gear metal, and I don't think anyone will mix up a key and a sword |
+| Bronze, Silver, Gold, Platinum | Kept as named, as the first four rows of an open table | Everybody already knows that order. "Bronze" is also the first gear metal, and I don't think anyone will mix up a key and a sword |
 | Higher keys, better odds | Kept | 3 / 4.5 / 6 / 7.5% with six keys a week, printed on the chest |
-| Chests on the Hearth's ledge | Kept, and it's the best part | The opening happens in the shared town, not in a menu |
+| Chests on the Hearth's ledge | Kept as ONE chest (Tyler's second read) | The key decides what comes out. The opening happens in the shared town, not in a menu |
 | Tower weapons trade | Kept | Through the Weighhouse and player trade, like any gear (NO BOUND GEAR, 10-23) |
 | Are keys tradeable | **No. My one real pushback** | A key is a random roll. If keys trade, then Crowns buy gold, gold buys keys, and keys roll for weapons. That is the "random gold spends" line Tyler put on the avoid list on 11-04 because Steam can read it as gambling. Keys stay with the account. The weapons trade |
-| "One of each type" | Read as Tyler confirmed | One weapon for each of the seven weapon types in each chest, 28 in all. Sampled first, section 6 |
+| "One of each type" | Read as Tyler confirmed | One weapon for each of the seven weapon types for each key, 28 today. Sampled first, section 6 |
 
 **The purpose test (DESIGN_STANDARDS §4).**
 | Question | Answer |
@@ -68,13 +78,13 @@ Stamina drains, keys don't trade, opening is free and the weapons keep the stand
 | Depth or complexity | It adds no new stat, no new currency and no new combat rule. It is the game's own fight with the fear of dying taken off |
 
 #### 1. Where it is, and the story
-The Great Hearth's art is approved and doesn't change (`art/reference/hearth-reference-2026-10-25.png`). It already has a tall stack and a stone ledge in front of the fire. The stack is the Tower and the ledge is where the chests sit. New art is four small chests, the inside of the flue as one room kit, and a fire tint for monsters that already exist. The art director rules how.
+The Great Hearth's art is approved and doesn't change (`art/reference/hearth-reference-2026-10-25.png`). It already has a tall stack and a stone ledge in front of the fire. The stack is the Tower and the ledge is where the chest sits. New art is one chest, the inside of the flue as one room kit, and a fire tint for monsters that already exist. The art director rules how.
 
-**The Burning Tower (tuned 2026-11-14 after Tyler's read: "its good, it coudl use some tuning up. 'when you feel death coming for you, the hearth spits you out' or something like that". The fourth paragraph is built on his line. It has had no second reader, and I can't approve my own copy).**
+**The Burning Tower (LOCKED: Tyler 2026-11-14, "I like it for the lore / story". Its second paragraph now has one chest, as he asked. Tuned earlier the same day after his first read: "its good, it coudl use some tuning up. 'when you feel death coming for you, the hearth spits you out' or something like that". The fourth paragraph is built on his line. Tyler is its reader).**
 
 > The Great Hearth has a chimney, and everybody in Havora calls it the Burning Tower. It goes up a lot farther on the inside than it does on the outside, and nobody's found the top.
 >
-> For a few hundred years people brought their dead to the Hearth, and they'd leave the dead person's sword or bow on the ledge, the way you'd leave flowers. Nobody wanted to sell a dead man's sword, and nobody wanted to throw it out either. So the Keepers locked them in four chests on the ledge and hung the keys up inside the chimney. One key every ten floors, the good ones higher up, so no hearth-hand would get ideas.
+> For a few hundred years people brought their dead to the Hearth, and they'd leave the dead person's sword or bow on the ledge, the way you'd leave flowers. Nobody wanted to sell a dead man's sword, and nobody wanted to throw it out either. So the Keepers locked them all in one big chest on the ledge, with a different lock for the better ones, and hung the keys up inside the chimney. One key every ten floors, the good ones higher up, so no hearth-hand would get ideas.
 >
 > Then the fire got into the chimney, and it's never gone out. That fire has eaten every bone anybody ever fed the Hearth, and it remembers all of them. Climb up there and it throws them at you, floor after floor. The old Keepers are still on the landings holding the keys, and they don't hand them over.
 >
@@ -84,7 +94,7 @@ The Great Hearth's art is approved and doesn't change (`art/reference/hearth-ref
 
 **In the game's words.** Nobody dies in the Tower. The Hearth spits you out. The engine still ends the climb on the same `died` reason, with section 3's switch on, and every player line says "spat out", never "died".
 
-**How it ties in.** Nothing in "The Road North" or "The Road to Morrow" changes. The dead only rest if they're burned at the Great Hearth, and this is that fire. Krell and Gault are what happens when someone uses the wrong fire. The Tower is what the right one is like after a few hundred years. It is why the Tower spits you out for free and a death at Krell's Hold costs you. Holly rakes the ash, so she is the one you land next to. Rowe is the Keeper, so the chests are hers. Harry's line plants the question his own arc answers later, the pot that stops needing wood. Havora is neutral, so both factions climb the same Tower, and the board shows a hero's faction mark beside their name. That is all the faction gets here. A weekly "which side climbed more" tally is a good later idea and is not in this design.
+**How it ties in.** Nothing in "The Road North" or "The Road to Morrow" changes. The dead only rest if they're burned at the Great Hearth, and this is that fire. Krell and Gault are what happens when someone uses the wrong fire. The Tower is what the right one is like after a few hundred years. It is why the Tower spits you out for free and a death at Krell's Hold costs you. Holly rakes the ash, so she is the one you land next to. Rowe is the Keeper, so the chest is hers. Harry's line plants the question his own arc answers later, the pot that stops needing wood. Havora is neutral, so both factions climb the same Tower, and the board shows a hero's faction mark beside their name. That is all the faction gets here. A weekly "which side climbed more" tally is a good later idea and is not in this design.
 
 **Names** (each checked free in `src/data`, `src/shell` and `src/app` on main 405afc082): the Burning Tower, a landing, the old Keepers (the first two are Keeper Marn on floor 10 and Keeper Sorrel on floor 20, both names offered and not used for Rowe), Tower Cinders. "Keeper" appears once in `bosses.js`, inside another boss's title.
 
@@ -191,27 +201,23 @@ A third line under each board shows the all-time record and who holds it. A filt
 | Carrying a low hero for keys | Each Keeper has the whole-group pulse every boss gets (11-08), sized on a hero of the floor's Level. A hero far under the floor doesn't live through it, and a dead hero gets no key. A hero 10 or 20 under can be kept up by a good healer, and that is an optimized party doing its job. No Level gate and no contribution rule (11-04). The pulse is proposed, unmeasured |
 | Your own four heroes as a party | Allowed. It is how the game is played. The Party board says who was there |
 
-#### 5. Keys and chests
-**Keys.**
-| Key | Landings that give it | When |
-|---|---|---|
-| Bronze Key | 10, 20, 30 | Once a week for each hero and landing, when the Keeper dies and you're alive |
-| Silver Key | 40, 50, 60 | The same |
-| Gold Key | 70, 80, 90 | The same |
-| Platinum Key | 100, and every tenth floor after | The same. A fifth key is one data row when the game has gear above Dawnsteel for it |
+#### 5. Keys and the chest
+**Keys are an open table (`src/data/chests.js`, new).** A key row says where its landings start. A landing gives the key of the highest row that starts at or under it. So the top row is always open-ended, and adding a key above it is one row that changes nothing below.
+| Key | Its landings start at | So today it is | Chance of a tower weapon | Its weapons | Always inside |
+|---|---|---|---|---|---|
+| Bronze Key | 10 | 10, 20, 30 | 3% | Worn at Level 15, the Iron weapon's numbers | Tower Cinders, Tempering Salts |
+| Silver Key | 40 | 40, 50, 60 | 4.5% | Level 45, Mithril or Maple | More Cinders, Tempering Salts |
+| Gold Key | 70 | 70, 80, 90 | 6% | Level 75, Emberforged or Runewood | More Cinders, Fine Tempering Salts |
+| Platinum Key | 100 | 100, and every tenth floor after, until a row above it exists | 7.5% | Level 88, Dawnsteel or Duskwood | The most Cinders, Fine Tempering Salts |
+| The next key, when the game has gear for it | **130** | 130, 140, 150, and Platinum becomes 100, 110, 120 | +1.5%, so 9% | Its own seven weapons, numbers from that region's unique gear | Its own row |
 
-The week starts Monday 00:00 UTC. A hero's week is the six landings under their best, plus any new landing they reach. So six keys most weeks (Tyler 2026-11-14), about 20 minutes of climbing in a four and 40 to 60 alone. The six span two chests for most heroes: a hero whose best is 60 takes three Bronze and three Silver. A hero whose best is under 60 has fewer landings to take, so a new hero's keys grow with their record. A key is an item with no shop value that can't be listed, traded or sold. It can go through Storage to another hero on the same account, because that is still you. Opening costs nothing, ever.
+Every key owns three landings, so the next one after that starts at 160, then 190. No landing is ever renumbered: a hero's record, the board and the keys already taken all read floor numbers, and a new row only changes which key floors 130 and up hand out from that day on. A new key is one row here (its start, its odds, what is always inside), its seven weapon rows, and its art. No code and no new chest. Its name is the row's own, so the list doesn't have to stay metals. Each landing's key is given once a week for each hero, when the Keeper dies and they're alive.
 
-**The chests.** Four chests on the Hearth's ledge, one for each key. Click a chest, the hero walks over, the server rolls, and the chest opens for everyone in the square. A weapon is called out in chat on the rare-drop rails (`hr_world_notice_rules`) and gets the rare-drop reveal. "Open all" spends every key of that kind in one press and shows each result.
+The week starts Monday 00:00 UTC. A hero's week is the six landings under their best, plus any new landing they reach. So six keys most weeks (Tyler 2026-11-14), about 20 minutes of climbing in a four and 40 to 60 alone. The six span two kinds of key for most heroes: a hero whose best is 60 takes three Bronze and three Silver. A hero whose best is under 60 has fewer landings to take, so a new hero's keys grow with their record. A key is an item with no shop value that can't be listed, traded or sold. It can go through Storage to another hero on the same account, because that is still you. Opening costs nothing, ever.
 
-| Chest | Always inside | Chance of a tower weapon too | Which weapon |
-|---|---|---|---|
-| Bronze | Tower Cinders, Tempering Salts | 3% | One of the seven, even odds |
-| Silver | More Cinders, Tempering Salts | 4.5% | The same |
-| Gold | More Cinders, Fine Tempering Salts | 6% | The same |
-| Platinum | The most Cinders, Fine Tempering Salts | 7.5% | The same |
+**The chest.** One chest on the Hearth's ledge. Click it, the hero walks over, and it shows the keys you hold with each key's odds. Pick a key, the server rolls on that key's row, and the chest opens for everyone in the square. A weapon is called out in chat on the rare-drop rails (`hr_world_notice_rules`) and gets the rare-drop reveal. "Open all" spends every key you hold in one press and shows each result. What each key gets out is the key table above: its own always-inside row, and its own chance at one of its seven weapons at even odds.
 
-Tower Cinders are a new Hearth fuel. You burn them in the fire you just climbed for Inner Flame XP, so a chest with no weapon still feeds a skill. The Salts are the ones Tempering already uses (`temper_salts`, `fine_temper_salts`). No chest pays gold. The counts are proposed and get sized so a chest is worth about what the climb's food cost. The odds are printed on the chest. There is no hidden pity count. If real play shows long dry runs feel bad, a visible one is a data row.
+Tower Cinders are a new Hearth fuel. You burn them in the fire you just climbed for Inner Flame XP, so a key with no weapon still feeds a skill. The Salts are the ones Tempering already uses (`temper_salts`, `fine_temper_salts`). No key pays gold. The counts are proposed and get sized so a key is worth about what the climb's food cost. The odds are printed on the chest. There is no hidden pity count. If real play shows long dry runs feel bad, a visible one is a data row.
 
 **How many weapons that makes (arithmetic, not measured).** Six keys at half the odds is the same number of rolls' worth as three at full.
 | A hero whose best landing is | Keys a week | Weapons a week | The first design (3 keys, 6 / 9 / 12 / 15%) |
@@ -221,7 +227,7 @@ Tower Cinders are a new Hearth fuel. You burn them in the fire you just climbed 
 | 90 | 3 Silver, 3 Gold | 0.135 + 0.18 = 0.315 | 3 Gold, 0.36 |
 | 130 | 6 Platinum | 6 x 7.5% = 0.45 | 3 Platinum, 0.45 |
 
-So about one weapon a month for a hero at 60 or above, and one a week or so for an account of four, as before. Two things do move. A high hero now also opens the chest below theirs, so lower weapons reach the Weighhouse from people who don't need them, which is good for new players. And a hero under floor 60 has fewer than six landings, so they see about half the weapons they did. I'd leave that: their record climbs fast and every new landing is a key on the spot.
+So about one weapon a month for a hero at 60 or above, and one a week or so for an account of four, as before. Two things do move. A high hero now also earns the key below theirs, so lower weapons reach the Weighhouse from people who don't need them, which is good for new players. And a hero under floor 60 has fewer than six landings, so they see about half the weapons they did. I'd leave that: their record climbs fast and every new landing is a key on the spot.
 
 **One way to have no weekly cap (Tyler: "I dont LOVE the cap").** With free deaths, a key from every Keeper kill is a farm: start ten floors under the landing, kill the Keeper, leave, again, a key every three minutes. So a key has to cost something a death can't refund. The one honest price is stamina, which the server already counts.
 | | Weekly cap (as designed) | No cap, a key an hour |
@@ -234,11 +240,11 @@ So about one weapon a month for a hero at 60 or above, and one a week or so for 
 
 **RULED (Tyler 2026-11-14): six a week. The key-an-hour option is rejected and stays here only as the record.** My pick was the same: keep the weekly six. The no-cap version is fair and safe, but it sets Tower hours against Levels every single day, and the best way to get tower weapons becomes not playing the rest of the game. The weekly six gets a player to the Hearth every week and sends them back out. If Tyler wants no cap anyway, it is one rule on the key's source row and the odds column, and nothing else in this design changes.
 
-**Another key later is a row, not a system (Tyler's capture-the-flag idea, backlog).** The pipe is three small tables. A key row says what the key is. A source row says what gives it (today "a Tower landing from 10 to 30", later "a place in the capture-the-flag event"). A chest row says which key opens it, where it stands, what is always inside and what it can roll. A helmet chest for that event is one key row, one source row, one chest row and the helmet's item rows. The open call, the ledger line, the weekly cap, the call-out and the reveal are the same code. The no-loss mode in section 3 is the other half that mode needs.
+**Another key source later is a row, not a system (Tyler's capture-the-flag idea, backlog).** The pipe is three small tables. A key row says what the key is and what it gets out of the chest. A source row says what gives it (today "Tower landings from 100", later "a place in the capture-the-flag event"). The chest row says where the chest stands. A helmet key for that event is one key row with the helmet in its loot, one source row and the helmet's item rows, opened at the same chest. The open call, the ledger line, the weekly cap, the call-out and the reveal are the same code. The no-loss mode in section 3 is the other half that mode needs.
 
 #### 6. Tower weapons
 **Where they sit.**
-| Chest | Worn at Level | Numbers | Attribute size |
+| Key | Worn at Level | Numbers | Attribute size |
 |---|---|---|---|
 | Bronze | 15 | The Iron weapon's of its type (tier 2) | Half |
 | Silver | 45 | The Mithril or Maple weapon's (tier 4) | Full |
@@ -257,7 +263,9 @@ A hero climbing alone reaches a landing at about its own Level, so the key they 
 
 So the attribute is worth about 2 to 4% (two seeds, so the 9 and 12 rows are inside each other's noise). A whole weapon tier is worth 5 to 8% (balance ruling 10-25 §8). A tower weapon beats the standard weapon of its own rank and never reaches the next one. That is what "relatively close but with a special attribute" comes to in numbers. The standing guard to write with the rows: no tower weapon out-earns the next standard tier, and none is worth more than half a rung over its own.
 
-**One attribute for each weapon type.** Sizes are the Silver chest's. Each one is its own line on the item card and adds to what jewelry gives. Crit stays under the engine's 60% cap.
+**The weapon rows follow the key table.** A key row names its set of seven, so a key above Platinum brings its own seven and nothing here is rewritten. Past Dawnsteel there is no standard tier to copy, so that set takes its numbers from the unique gear of the region it ships with (the Morrow Hills, Levels 110 and up).
+
+**One attribute for each weapon type.** Sizes are the Silver Key's. Each one is its own line on the item card and adds to what jewelry gives. Crit stays under the engine's 60% cap.
 | Weapon | Attribute | In plain words | Engine today |
 |---|---|---|---|
 | Bow | Crit | 6% more of your shots land critical | Live. `critB` on the item row |
@@ -270,7 +278,7 @@ So the attribute is worth about 2 to 4% (two seeds, so the 9 and 12 rows are ins
 
 The sizes are jewelry's own measured exchange rate (`src/data/jewelry.js`, the tier 3 column), so a staff's 8% and a bow's 6% are meant to be worth the same. Only the bow is measured here. Three attributes play on hooks that exist. Three more are jewelry perks that were already waiting on a hook, so building them pays for both systems. `item-effects.js` holds the rule: an attribute ships in the same change as its engine and its test.
 
-**The sample of five: the Silver chest (Level 45).** Names from the people of Havora who left them on the ledge. All checked free.
+**The sample of five: the Silver Key's weapons (Level 45).** Names from the people of Havora who left them on the ledge. All checked free.
 | Weapon | Type | One line |
 |---|---|---|
 | Ferryman's Bow | Bow | He worked the Meadowbrook before there was a toll stone, and he shot pike from the boat |
@@ -279,9 +287,9 @@ The sizes are jewelry's own measured exchange rate (`src/data/jewelry.js`, the t
 | Chandler's Wand | Wand | The candle-maker's. It still smells like wax |
 | Old Ash Rake | Staff | A hearth-hand's rake from before Rowe's time. Holly says it's a better rake than hers |
 
-The hatchets and the crossbow are named when the five have been built and played. Then the Bronze chest's seven, then Gold and Platinum with the Barrow March, never more than 20 rows in a batch.
+The hatchets and the crossbow are named when the five have been built and played. Then the Bronze Key's seven, then Gold and Platinum with the Barrow March, never more than 20 rows in a batch.
 
-**Beside Dawnhide, Duskweave and unique gear after tier 7.** The Tower gives weapons only. Armor stays with the grounds and Krell, so Dawnhide and Duskweave lose nothing. A Platinum bow with a Dawnhide set is the tier 7 crit build, and nobody has to be told that. Dawnsteel is the last standard tier, and the Platinum weapons respect it: Dawnsteel numbers and a double attribute, not a tier 8. They are the first unique-style weapons a hero can own, and they sit beside the Morrow Hills' rare drops as another piece to pick between. When a region above Morrow opens, a fifth key is a data row.
+**Beside Dawnhide, Duskweave and unique gear after tier 7.** The Tower gives weapons only. Armor stays with the grounds and Krell, so Dawnhide and Duskweave lose nothing. A Platinum bow with a Dawnhide set is the tier 7 crit build, and nobody has to be told that. Dawnsteel is the last standard tier, and the Platinum weapons respect it: Dawnsteel numbers and a double attribute, not a tier 8. They are the first unique-style weapons a hero can own, and they sit beside the Morrow Hills' rare drops as another piece to pick between. The next key starts at floor 130 and is a data row (section 5).
 
 **Trading is the server's.** A tower weapon lists in the Weighhouse through the escrow that exists (`hr_market_*`), with a ceiling row for each weapon the way jewelry has one, and it moves in player trade when that ships. It sells to the Shop at the dropped-gear rate for its tier, so the Shop is a floor and never the reason to open a chest. Every move is journalled.
 
@@ -323,20 +331,20 @@ Hunting pace is the measured median of eight solo styles where the game sends th
 |---|---|
 | The hour | One more floor. You died on 47 to a volley, so you move your bow back a tile, change the lining, and go again from 41. It costs nothing but food |
 | The day | A new best landing. Each one is a key the moment you take it |
-| The week | Six keys, six chests opened on the ledge with the square watching, and a chance at a weapon |
+| The week | Six keys, six turns at the chest on the ledge with the square watching, and a chance at a weapon |
 | The month | Your place on the Solo and Party boards before they start over, and your name on the ledge |
-| The long chase | The seven weapons of your chest, by luck or at the Weighhouse. Then the next chest up |
+| The long chase | The seven weapons of your key, by luck or at the Weighhouse. Then the next key up, and there is always a next one |
 
-**What a new player sees first.** The Hearth is the middle of Havora, so the four chests are on screen in the first minute. Holly says one line in Local chat on the criers' rails. Two new rows for `src/data/text/criers.js` (drafts, not through the reader gate):
-- `say_tower`: "See the chests on the ledge? The keys are up the chimney. Go on up. It can't kill you, it just spits you back out here."
+**What a new player sees first.** The Hearth is the middle of Havora, so the chest is on screen in the first minute. Holly says one line in Local chat on the criers' rails. Two new rows for `src/data/text/criers.js` (drafts, not through the reader gate):
+- `say_tower`: "See the chest on the ledge? The keys are up the chimney. Go on up. It can't kill you, it just spits you back out here."
 - `go_tower`: "Open the Tower"
 
-The Tower window's own lines (drafts):
+The Tower window opens on the six plain lines at the top of this section, with a Story link to section 1's text. Its other lines (drafts):
 - The card: "Every floor is harder than the last. The Hearth spits you out before anything can kill you, and it costs you nothing. You get about half the XP you would hunting, and no gold."
 - The popup when a climb ends that way: "The Hearth spat you out on floor {floor}. You lost no XP."
-- A key: "You got a {key}. Open the {chest} on the Hearth's ledge."
+- A key: "You got a {key}. Use it on the chest at the Great Hearth."
 - A key you already took: "You already took this landing's key this week."
-- The chest's hover: "{pct}% of these have a tower weapon inside."
+- Beside each key in the chest: "{pct}% chance of a tower weapon."
 - The control is the glossary's word, Enter.
 
 #### 9. Walk-through against real data
@@ -344,14 +352,14 @@ Ids were read on main 405afc082. "New" means this design, not built.
 | # | Step | What the hero holds and can reach from the steps before | Checked |
 |---|---|---|---|
 | 0 | A new hero stands in Havora | The six starter weapon sets and the start bar (`start-kit.js` `STARTER_SETS`, `START_BAR`) | Exists |
-| 1 | They see the Hearth and its four chests, and Holly's line | The Hearth is station `hearth` in district `hearth_square` (`world/stations.js`). The criers' rails exist (`text/criers.js`) | Chests and the line are new |
+| 1 | They see the Hearth and its chest, and Holly's line | The Hearth is station `hearth` in district `hearth_square` (`world/stations.js`). The criers' rails exist (`text/criers.js`) | The chest and the line are new |
 | 2 | They hunt to Level 10, about 6 hours | `LEVEL_PACE.targets` [10, 6]. The Cellar, then the Thicket | Exists |
 | 3 | They click the Hearth and press Enter on the Tower | `great_hearth` opens the bag today. It gains a second entry, the Tower window | New window, new ground with mode `tower` |
 | 4 | Floors 1 to 9 | A Level 10 sword, bow, mage and healer each held floors 1, 5 and 10 with no death, lowest typical HP 60% (the sword on 10). Food on floor 10 is 0.5k to 3.0k gold an hour, and ten floors is about five minutes | Measured, the proxy |
 | 5 | Floor 10, Keeper Marn. A Bronze Key lands in the bag | The key row and the Keeper are new. The landing fight is not measured | New |
 | 6 | They keep going and die somewhere from 15 to 20 | The Level 10 sword held 15 and died twice on 20. The mage held 15 and died on 20 | Measured, the proxy |
 | 7 | They wake on the ledge. No XP lost, Blessings untouched | Section 3's switch | New, checked as a planted what-if |
-| 8 | They click the Bronze Chest and open it | They hold the key from step 5 and are standing at the ledge from step 7 | New |
+| 8 | They click the chest and use the Bronze Key | They hold the key from step 5 and are standing at the ledge from step 7 | New |
 | 9 | Inside: Tower Cinders and Tempering Salts. 3% of the time a weapon too | `temper_salts` exists and Tempering is under the Shop's Services. Cinders are new and burn at the same Hearth (`hearth.js`) | Salts exist, Cinders new |
 | 10 | A weapon needs Level 15. They wear it then, or list it | The Weighhouse is window `market` | Exists, the item rows are new |
 | 11 | They look at the Leaderboards | Window `honor`, two new rows | Rows are new |
@@ -371,15 +379,15 @@ One gap this found. Step 3 needs the hero to have gold for food. A Level 10 hero
 | `tower_board` (season, kind, character, floor, reached at, with whom) | The two boards. Read through `hr_lb_boards` | Raise-only inside a season. Public rows are read-only to others |
 | Start of a climb | The hunt-start verb that exists, with the Tower's ground and a start floor | The start floor is checked against `tower_progress` and `tower_keys_taken`. Party rules as a hunt |
 | The settle (`hr_hunt_apply_member`, restated whole) | Credits XP at the mode's permille, counts floors, grants a landing's key, writes the board | Floors a minute clamp. A key needs the engine's Keeper kill in the same window. The no-loss bound of section 3 |
-| `hr_keys`, `hr_key_sources`, `hr_chests`, `hr_chest_loot` (catalogues, generated from a new `src/data/chests.js`) | Section 5's pipe | Odds are whole permille and add up, checked |
-| `hr_chest_open(slot, chest, count)` (client RPC, added to `hr_client_rpc_baseline`) | Takes the keys, rolls on the server's random stream, grants the items, answers the envelope | 1 to 20 a call. `chest_opens` append-only with the roll. `player_ledger` intent `chest_open`. A weapon posts a world notice under the rare-drop daily cap |
+| `hr_keys` (a key's start landing, odds, weapon set, always-inside row), `hr_key_sources`, `hr_chests` (one row today) (catalogues, generated from a new `src/data/chests.js`) | Section 5's open table. A new key is rows, never a migration of code | Odds are whole permille and add up, checked |
+| `hr_chest_open(slot, chest, key, count)` (client RPC, added to `hr_client_rpc_baseline`) | Takes the keys, rolls on the server's random stream, grants the items, answers the envelope | 1 to 20 a call. `chest_opens` append-only with the roll. `player_ledger` intent `chest_open`. A weapon posts a world notice under the rare-drop daily cap |
 | Tower weapons | Item rows with a tier. Market ceiling rows | The Weighhouse's own caps and escrow |
 
 Both paths (§4): the climb viewed and the browser closed are the same settle, and the guard in section 3 plays both.
 
-**Build order.** 1: the mode switch and its guard, alone, because every later mode needs it. 2: the floor rows and a Tower room, a climb with no keys, measured as a real climb. 3: keys, the Bronze and Silver chests, the sample of five weapons with the three live attributes. 4: the boards and the season. 5: the three waiting hooks, then the rest of the weapons. 6: Gold and Platinum with the Barrow March. The feature stays hidden until step 3 is whole.
+**Build order.** 1: the mode switch and its guard, alone, because every later mode needs it. 2: the floor rows and a Tower room, a climb with no keys, measured as a real climb. 3: the chest, the Bronze and Silver keys, the sample of five weapons with the three live attributes. 4: the boards and the season. 5: the three waiting hooks, then the rest of the weapons. 6: Gold and Platinum with the Barrow March. The feature stays hidden until step 3 is whole.
 
-**For other lanes.** Systems: the mode switch in `die()`, a floor counter and floor-by-floor rows in one instance, the floor's time as an END reason, item-fed Follow-through and Surge, a named kit in the sim. Backend: section 10. Art Director: the chests on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal. Security: keys that can't trade, the weekly cap, the floors a minute clamp, the chest roll, weapons through the market.
+**For other lanes.** Systems: the mode switch in `die()`, a floor counter and floor-by-floor rows in one instance, the floor's time as an END reason, item-fed Follow-through and Surge, a named kit in the sim. Backend: section 10. Art Director: the one chest on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal. Security: keys that can't trade, the weekly cap, the floors a minute clamp, the chest roll, weapons through the market.
 
 **Done and verified.** Every existing id here was read on main. Every new name was checked free. The floor curve, the solo and four reach, the XP rates, the bow and the no-loss check are the real engine's numbers from `tower-table.mjs`, each run's exit code 0. **Not verified.** Nothing was played by hand. No real climb, no Keeper, no mixed roster, no Level past 45. Six of the seven attributes. The chest counts. The story and every player line have had no reader. **Assumed.** The 3 / 4.5 / 6 / 7.5% odds, the Tower's party row for pairs and threes, the Keeper's pulse, the three and ten minute limits, the 40% guard line.
 
@@ -391,7 +399,7 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 | 3 | Can keys be traded or sold? | Stands as picked: no, and opening is free |
 | 4 | How rare are the weapons? | ANSWERED and locked: six keys a week, 3 / 4.5 / 6 / 7.5%. No per-hour option |
 | 5 | How strong are they? | Stands as picked: the standard weapon's numbers plus the attribute |
-| 6 | Is the Tower the Hearth's chimney, and is that story his? | ANSWERED: "its good", with a tuning pass built on his line (section 1). The tuned text still needs a reader before it goes in the game |
+| 6 | Is the Tower the Hearth's chimney, and is that story his? | ANSWERED and locked: "I like it for the lore / story". One chest, an open key table and the plain summary were his additions |
 
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.

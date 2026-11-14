@@ -217,7 +217,7 @@ Every key owns three landings, so the next one after that starts at 160, then 19
 
 The week starts Monday 00:00 UTC. A hero's week is the six landings under their best, plus any new landing they reach. So six keys most weeks (Tyler 2026-11-14), about 20 minutes of climbing in a four and 40 to 60 alone. The six span two kinds of key for most heroes: a hero whose best is 60 takes three Bronze and three Silver. A hero whose best is under 60 has fewer landings to take, so a new hero's keys grow with their record. A key is an item with no shop value that can't be listed, traded or sold. It can go through Storage to another hero on the same account, because that is still you. Opening costs nothing, ever.
 
-**The chest.** One chest on the Hearth's ledge. Click it, the hero walks over, and it shows the keys you hold with each key's odds. Pick a key, the server rolls on that key's row, and the chest opens for everyone in the square. A weapon is called out in chat on the rare-drop rails (`hr_world_notice_rules`) and gets the rare-drop reveal. "Open all" spends every key you hold in one press and shows each result. What each key gets out is the key table above: its own always-inside row, and its own chance at one of its seven weapons at even odds.
+**The chest.** One chest on the Hearth's ledge. Click it, the hero walks over, and it shows the keys you hold with each key's odds. Pick a key, the server rolls on that key's row, and the chest opens for everyone in the square. A weapon is called out in chat on the rare-drop rails (`hr_world_notice_rules`) and gets the rare-drop reveal. "Open all" spends every key you hold in one press and shows each result. What each key gets out is the key table above: its own always-inside row, and its own chance at one of its seven weapons, weighted toward the type you have equipped (below).
 
 Tower Cinders are a new Hearth fuel. You burn them in the fire you just climbed for Inner Flame XP, so a key with no weapon still feeds a skill. The Salts are the ones Tempering already uses (`temper_salts`, `fine_temper_salts`). No key pays gold. The counts are proposed and get sized so a key is worth about what the climb's food cost. The odds are printed on the chest. There is no hidden pity count. If real play shows long dry runs feel bad, a visible one is a data row.
 
@@ -227,14 +227,23 @@ Tower Cinders are a new Hearth fuel. You burn them in the fire you just climbed 
 | 30, a new hero | 3 Bronze | 3 x 20% = 0.60 | 12 days |
 | 60 | 3 Bronze, 3 Silver | 0.60 + 0.36 = 0.96 | a week, most of them Bronze |
 | 90 | 3 Silver, 3 Gold | 0.36 + 0.21 = 0.57 | 12 days, a Gold one every 5 weeks |
-| 100 and up, a top hero today | 6 Platinum | 6 x 4% = 0.24 | 4 weeks. The one type they want, about 7 months |
+| 100 and up, a top hero today | 6 Platinum | 6 x 4% = 0.24 | 4 weeks |
 | 160, once the next key exists | 3 Platinum, 3 of the next | 0.12 + 0.09 = 0.21 | 5 weeks |
 
-A new hero gets a tower weapon in their second week on average, and with the first-key rule below, on their very first key. A top hero waits a month for any Platinum weapon and most of a year for a named one, which is what the Weighhouse is for.
+A new hero gets a tower weapon in their second week on average. A top hero waits a month for any Platinum weapon.
 
 **Does a flood of Bronze weapons hurt trade? No, and it shouldn't be fought.** Bronze weapons will be cheap. Only heroes whose best is 30 to 60 make them, and each makes about one every 12 days. A Bronze weapon is worn from 15 and outgrown at 30 when Steel comes, so it was never going to hold a price. Three things hold its floor: the Shop buys it at the dropped-gear rate for its tier, every new hero and every alt is a buyer between Levels 15 and 30, and nobody can make more than their three Bronze landings a week. The market's real value sits where the odds are low, in Gold and Platinum, and the reversal makes that better, not worse. A cheap Bronze weapon on the Weighhouse is also the cheapest ad the Tower can have.
 
-**The hook: your first key always has a weapon.** The first Bronze Key an ACCOUNT ever uses gets a tower weapon for sure, of the type the hero is holding when they use it, so it is one they can wear at 15. Once for the account, not once for each hero: a fresh alt can be carried to floor 10 by your own party in a minute, so a per-hero rule is a weapon farm by deleting and remaking heroes. It trades like any other gear (NO BOUND GEAR, 10-23). One Bronze weapon an account is worth about the Shop's floor, so a second account made for it earns nothing worth the trouble. Server side it is one flag on the account, read inside the same open call. The chest says so before the press: "Your first key always has a tower weapon."
+**Which weapon you get: half the time, your own type (Tyler 2026-11-14: "there are like 7 ish? weapons in the game right now, and the weapon you do get is going to be random", then "I like the 2nd option").** When a key rolls a weapon, it is the type the hero has equipped 500‰ of the time. The other 500‰ is spread evenly over the other six types, 83‰ each. The server reads the hero's worn weapon from its own equipment row inside the open call. The press carries no type. A hero with no weapon on rolls all seven evenly.
+| Who | Weapons a week | Of your own type | One of your own type about every | With even odds it was |
+|---|---|---|---|---|
+| A new hero, 3 Bronze keys | 0.60 | 0.30 | 3 weeks | 12 weeks |
+| Best landing 60, 3 Bronze and 3 Silver | 0.96 | 0.48 | 2 weeks | 7 weeks |
+| A top hero, 6 Platinum keys | 0.24 | 0.12 | 8 weeks | 7 months |
+
+It is a real choice and not a loophole: equip the weapon you want before you use the key. A bow hero who wants a wand for an alt puts a wand on first. The other half still lands as types you don't use, and that half is what stocks the Weighhouse.
+
+**The first-key guarantee is dropped (Tyler disliked it).** With 20% on a Bronze Key and half of those your own type, a new hero has a weapon in about 12 days and one they can use in about three weeks. That is soon enough to hook, and a guaranteed first key would have made every key after it feel worse. It also needed an account flag and a farm rule, and now it needs neither.
 
 **The super-rare outfit: the Sweep's Coat (Tyler 2026-11-14: "a super rare outfit that can drop from any chest would be cool too").** One cosmetic outfit, no stats, on the outfit system that exists (`src/data/outfits.js`: a base model, recolor regions, add-ons). Any key can roll it, on its own roll beside the weapon's.
 | Key | Chance of the Sweep's Coat |
@@ -404,7 +413,7 @@ Ids were read on main 405afc082. "New" means this design, not built.
 | 6 | They keep going and die somewhere from 15 to 20 | The Level 10 sword held 15 and died twice on 20. The mage held 15 and died on 20 | Measured, the proxy |
 | 7 | They wake on the ledge. No XP lost, Blessings untouched | Section 3's switch | New, checked as a planted what-if |
 | 8 | They click the chest and use the Bronze Key | They hold the key from step 5 and are standing at the ledge from step 7 | New |
-| 9 | Inside: 5 Tower Cinders, 2 Tempering Salts, and a tower weapon of the type they hold, because it is the account's first key. After that a Bronze Key has one 20% of the time | `temper_salts` exists and Tempering is under the Shop's Services. Cinders are new and burn at the same Hearth (`hearth.js`) | Salts exist, Cinders new |
+| 9 | Inside: 5 Tower Cinders and 2 Tempering Salts. 20% of the time a tower weapon too, and half of those are the type the hero has equipped | `temper_salts` exists and Tempering is under the Shop's Services. Cinders are new and burn at the same Hearth (`hearth.js`) | Salts exist, Cinders new |
 | 10 | A weapon needs Level 15. They wear it then, or list it | The Weighhouse is window `market` | Exists, the item rows are new |
 | 11 | They look at the Leaderboards | Window `honor`, two new rows | Rows are new |
 | 12 | Next week, three more keys from landings they can reach | Their best landing is 10, so the week starts at floor 1 and floor 10 gives its key again | Rule is new |
@@ -425,7 +434,7 @@ One gap this found. Step 3 needs the hero to have gold for food. A Level 10 hero
 | The settle (`hr_hunt_apply_member`, restated whole) | Credits XP at the mode's permille, counts floors, grants a landing's key, writes the board | Floors a minute clamp. A key needs the engine's Keeper kill in the same window. The no-loss bound of section 3 |
 | `hr_keys` (a key's start landing, odds, weapon set, always-inside row), `hr_key_sources`, `hr_chests` (one row today) (catalogues, generated from a new `src/data/chests.js`) | Section 5's open table. A new key is rows, never a migration of code | Odds are whole permille and add up, checked |
 | `hr_chest_outfits` (catalogue: bundle item, permille by key, add-on rules) and a `super_rare` world-notice kind | The Sweep's Coat and any later outfit | The bundle's use is the existing outfit-ownership write, journalled |
-| `hr_chest_open(slot, chest, key, count)` (client RPC, added to `hr_client_rpc_baseline`) | Takes the keys, rolls on the server's random stream, grants the items, answers the envelope | 1 to 20 a call. `chest_opens` append-only with the roll. `player_ledger` intent `chest_open`. A weapon posts a world notice under the rare-drop daily cap |
+| `hr_chest_open(slot, chest, key, count)` (client RPC, added to `hr_client_rpc_baseline`) | Takes the keys, rolls on the server's random stream, grants the items, answers the envelope | 1 to 20 a call. The weapon type's weight reads the server's equipment row, never the press. `chest_opens` append-only with the roll. `player_ledger` intent `chest_open`. A weapon posts a world notice under the rare-drop daily cap |
 | Tower weapons | Item rows with a tier. Market ceiling rows | The Weighhouse's own caps and escrow |
 
 Both paths (§4): the climb viewed and the browser closed are the same settle, and the guard in section 3 plays both.
@@ -442,7 +451,7 @@ Both paths (§4): the climb viewed and the browser closed are the same settle, a
 | 1 | How poor is the XP? | ANSWERED: "start 50% exp". Fitted as half a hunting hour at Level 45, section 7 |
 | 2 | Does climbing drain stamina? | Stands as picked: yes. His answer leans on it ("since it uses stamina and supplies") |
 | 3 | Can keys be traded or sold? | Stands as picked: no, and opening is free |
-| 4 | How rare are the weapons? | ANSWERED and locked: six keys a week, no per-hour option. Odds reversed by Tyler: 20 / 12 / 7 / 4%, and an account's first key always has a weapon (my addition, his to veto) |
+| 4 | How rare are the weapons? | ANSWERED and locked: six keys a week, no per-hour option. Odds reversed by Tyler: 20 / 12 / 7 / 4%. The weapon is your equipped type half the time (his pick). The first-key guarantee is dropped |
 | 5 | How strong are they? | Stands as picked: the standard weapon's numbers plus the attribute |
 | 6 | Is the Tower the Hearth's chimney, and is that story his? | ANSWERED and locked: "I like it for the lore / story". One chest, an open key table and the plain summary were his additions |
 

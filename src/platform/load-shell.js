@@ -58,6 +58,8 @@
     win.setTimeout(function () { win.location.reload(); }, pause);
     return true;
   };
+  /* Those goes spent with the shell still up (boot.js: the game's files behind a reload that signs back in): the words and the press. */
+  win.HearthriseLoadFailed = sayFailed;
 
   /* With the first screen up nothing is reloaded under the player: the file's own failure (an import) answers for it later. */
   function failedNow() {

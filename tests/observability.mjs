@@ -519,6 +519,7 @@ async function nodeChecks(root) {
   const u = (p) => pathToFileURL(join(root, p)).href + V;
   /* A fresh module per run: startObservability starts once per load, and a run must not reuse the last one's. */
   const OBS = await import(u('src/net/observability.js') + '&run=' + (++RUNS));
+  OBS.useHeroReaders((await import(u('src/net/hero-readers.js'))).HERO_READERS);   // as boot.js does with the game half
   const CS = await import(u('src/session/character-session.js'));
   const events = [];
   const timers = {};
@@ -736,6 +737,7 @@ async function replayChecks(root) {
   const row = SETTINGS.find((r) => r.id === 'help.replay');
   const rig = async () => {
     const OBS = await import(u('src/net/observability.js') + '&run=' + (++RUNS));
+    OBS.useHeroReaders((await import(u('src/net/hero-readers.js'))).HERO_READERS);   // as boot.js does with the game half
     const calls = [];
     const sdk = { init: () => sdk, capture() {}, identify() {}, reset() {}, startSessionRecording() { calls.push('start'); }, stopSessionRecording() { calls.push('stop'); } };
     const sentry = { init() {}, setUser() {}, captureException() {}, captureMessage() {}, captureConsoleIntegration: () => ({ name: 'CaptureConsole' }) };

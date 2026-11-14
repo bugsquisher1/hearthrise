@@ -3310,12 +3310,12 @@ tileset is paint --void plus kept face slices, read in region-kit.html (now read
 Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no hook, the lurcher reads 2.72:1 by ring on ash (its outline carries it).
 
 ## 2026-11-14 lane/a-text-polish (the bag's key help whole at 1366x768; " · " out of player text)
-The key help sat at the end of the bag's scroll, so the scroll edge cut its third line. It is now the window's last element, one li a hint
-("Ctrl+A to select or deselect all", the key in a kbd), wrapping whole, the gap as the separator; phones still hide it. AW-62 measures it
-against every scrolling ancestor, with and without a coach card. Every " · " literal in player text became words ("Rename for 50 gp"), a
+The key help sat at the end of the bag's scroll, so the scroll edge cut its third line. Pinning it under the scroll was tried first and
+failed AW-62/AW-93 (three lines took the bag's rows down to 96 px). It now lives behind the window's ? (shell-windows.js helpKeys,
+window-head.js keysHtml), under the help line: one li a hint, the key in a kbd, wrapping whole, none on touch. AW-62 opens the ? at
+1366x768 and measures the list against every scrolling ancestor; with the old layout it reads "not shown" and exits 1. Every " · " literal in player text became words ("Rename for 50 gp"), a
 comma, a sentence or parentheses ("Mill Cellar (Deadly)", "Marlow (18)"); copy-lint's `dot` rule forbids the glyph in any copy literal
 (selftest plants three; the old touching-a-word rule as a mutant misses two). Kept: format.js SEP between separately painted tag spans
 (Hunts list, hunt page, Tally), built at the v0.2.130 gate with no-break binding; a call for the designer if those should go too.
-Lessons: (1) help text inside a content scroll gets cut like content, so pin it outside; (2) pinning costs height: at 1366x768 the
-"Armor worn" line now sits just under the bag's fold; (3) the browser pane is shared with other sessions, so drive local-world through
-Playwright (world.play) for screenshots.
+Lessons: (1) help text inside a content scroll gets cut like content, and pinning it costs the content its rows: keys belong behind
+the ?; (2) the browser pane is shared with other sessions, so drive local-world through Playwright (world.play) for screenshots.

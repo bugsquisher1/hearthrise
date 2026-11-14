@@ -231,7 +231,7 @@ async function checks(overrides, shots) {
         await page.click('[data-hs-act="of-pick"][data-outfit="witch"]');
         await page.waitForTimeout(150);
         const witch = await page.evaluate(() => ({ off: document.querySelector('[data-hs-act="of-save"]').disabled, name: document.querySelector('.hw-of-name').textContent }));
-        if (!witch.off || !/Premium · not owned/.test(witch.name)) fails.push('CW-4 a premium outfit not owned can be saved, or is not marked: ' + JSON.stringify(witch));
+        if (!witch.off || !/Premium, not owned/.test(witch.name)) fails.push('CW-4 a premium outfit not owned can be saved, or is not marked: ' + JSON.stringify(witch));
         await page.click('[data-hs-act="of-pick"][data-outfit="ranger"]');
         await page.waitForTimeout(150);
         await page.click('[data-hs-act="of-save"]');

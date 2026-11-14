@@ -47,7 +47,7 @@ export function patchElsewhere(pane, ctx, query) {
     key: (r) => (r.slot === null ? 'account' : r.slot) + ':' + r.where + ':' + r.item,
     build: (r) => element(ctx.doc, '<li class="hw-line"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, r.item) + '</span><span class="hw-line-name"><b>' + esc(itemName(r.item)) + '</b><small></small></span></li>'),
     patch: (li, r) => text(li.querySelector('small'), (r.where === 'bank' ? 'In storage (all your characters)'
-      : (r.slot === cs.slot ? 'This character' : (r.name || 'Character ' + (r.slot + 1))) + ' · ' + WHERE[r.where]) + (r.where === 'worn' ? '' : ' · ×' + whole(r.qty))),
+      : (r.slot === cs.slot ? 'This character' : (r.name || 'Character ' + (r.slot + 1))) + ', ' + WHERE[r.where]) + (r.where === 'worn' ? '' : ', ×' + whole(r.qty))),
   });
   /* "Nowhere else." comes only from the server's answer: never while it searches, never after a read that failed. */
   const none = box.querySelector('.hw-found-none');

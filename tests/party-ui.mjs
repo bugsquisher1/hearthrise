@@ -1346,7 +1346,7 @@ async function pageRules(overrides, shots) {
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
           if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
-          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
+          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
           const lv = sent(s, 'hr_hunt_party_leave').length;
@@ -1475,7 +1475,7 @@ const PAGE_MUTANTS = [
   ['Leave party stays on while in flight', 'src/shell/windows/party-roster.js', "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', sc.pending);", "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', false);"],
   ["a member is offered the leader's hunt pick", 'src/styles/windows.css', '.hw-party-acts [hidden] { display: none; }', ''],
   ['Your party has no Leave', 'src/shell/windows/party-roster.js', "  return leaveOrDisband(ctx, ctx.character, sc, repaint, action);", "  return false;"],
-  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' · ' + role.label;", "  return 'No ' + word + ' yet (' + role.label + ')';"],
+  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' (' + role.label + ')';", "  return 'No ' + word + ' yet (' + role.label + ')';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
   ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "  return mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "  return '';"],

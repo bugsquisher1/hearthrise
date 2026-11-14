@@ -233,8 +233,8 @@ async function runTests(M) {
     const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
     const card = (over) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(Object.assign({ id: 'sess-t', hunt: 'wickstead', preset: 0,
       entered_at: '2026-11-05T10:00:00Z', ended_at: '2026-11-05T10:20:00Z', end_reason: 'left', phase: 'ended', bag: [], tally: { kills: 3, xp: 30, coins: 5 } }, over))), null, [])])[0];
-    eq([card({ tier: 'dangerous' }).tier, MD.groundTitle(card({ tier: 'dangerous' }))], ['dangerous', 'Wickstead · Dangerous'], 'a Dangerous hunt, stored and named');
-    eq(MD.groundTitle(card({ tier: 'deadly' })), 'Wickstead · Deadly', 'a Deadly hunt');
+    eq([card({ tier: 'dangerous' }).tier, MD.groundTitle(card({ tier: 'dangerous' }))], ['dangerous', 'Wickstead (Dangerous)'], 'a Dangerous hunt, stored and named');
+    eq(MD.groundTitle(card({ tier: 'deadly' })), 'Wickstead (Deadly)', 'a Deadly hunt');
     eq([MD.groundTitle(card({ tier: 'normal' })), MD.groundTitle(card({})), MD.groundTitle(card({ tier: null }))], ['Wickstead', 'Wickstead', 'Wickstead'], 'Normal, or a session the server stamped none on, is the ground alone');
     /* the residue is the player's own file: a forged tier names nothing */
     eq([MD.groundTitle(MD.sanitizeSummaries([entry(1, { hunt: 'wickstead', tier: 'constructor' })])[0]), MD.sanitizeSummaries([entry(1, { tier: 'Deadly!' })])[0].tier],

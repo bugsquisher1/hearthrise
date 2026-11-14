@@ -334,7 +334,7 @@ export function createHuntScene(o) {
     return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false, dye: read.dye,
       anim: walking ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : 'walk',
       frame: walking ? Math.floor((now / 1000) * walk.fps) : 0,
-      plate: { text: left > 0 ? 'Walking to ' + name + ' · ' + Math.ceil(left / 1000) + ' s' : (m && m.name) || 'Hero', kind: 'self' } };
+      plate: { text: left > 0 ? 'Walking to ' + name + ' (' + Math.ceil(left / 1000) + ' s)' : (m && m.name) || 'Hero', kind: 'self' } };
   }
 
   /** One unit's draw record at `now`, or null when it is gone (`at`: a stand-in position). */

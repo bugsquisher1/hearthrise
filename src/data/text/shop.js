@@ -14,7 +14,7 @@ export const SHOP_TEXT = Object.freeze({
   seed_needs_both: 'Needs Farming {level} and plot tier {tier} to plant',
   /* The Sell tab's one bulk sale: the Junk only, never a Material (Tyler 2026-11-08). */
   sell_junk: 'Sell all junk',
-  sell_junk_for: 'Sell all junk · {total}',
+  sell_junk_for: 'Sell all junk for {total}',
   junk_keeps_it: 'Sell all junk keeps it',
   /* The Equip upgrades line (src/shell/upgrade-plan.js upgradeWords), in the Shop and the bag, when every slot it could fill is a tie. An armor weight
      picked at Tamsin's settles a tie between weights, so only that tie says so (a Keen ring against a Surge ring is not one). */

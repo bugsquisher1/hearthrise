@@ -58,7 +58,7 @@ try {
   await page.waitForFunction(() => /\/ 100$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent));
   let r = await read();
   step('BE-1 the header reads Bag N / 100', /^Bag \d+ \/ 100$/.test(r.head), r.head);
-  step('BE-1 Expand shows the server\'s price', r.btn === 'Expand (+20) · ' + fmt(p0), r.btn + ' vs ' + p0);
+  step('BE-1 Expand shows the server\'s price', r.btn === 'Expand (+20) for ' + fmt(p0), r.btn + ' vs ' + p0);
   step('BE-2 short of gold: off, and says why', r.off && r.why === 'You need ' + fmt(p0 - 10) + ' more to expand your bag.', JSON.stringify(r));
   if (shots) await a.shot('storage-short');
 
@@ -71,7 +71,7 @@ try {
   await page.waitForFunction(() => /\/ 120$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent), null, { timeout: 20000 }).catch(() => {});
   r = await read();
   step('BE-3 the cap goes 100 -> 120', /\/ 120$/.test(r.head), r.head);
-  step('BE-3 the next price is the server\'s bank.1', r.btn === 'Expand (+20) · ' + fmt(p1), r.btn + ' vs ' + p1);
+  step('BE-3 the next price is the server\'s bank.1', r.btn === 'Expand (+20) for ' + fmt(p1), r.btn + ' vs ' + p1);
   if (shots) await a.shot('storage-bought');
 
   /* ── BE-4 ── */

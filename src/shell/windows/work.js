@@ -119,12 +119,12 @@ function rowHtml(g, w) {
 }
 
 function patchRow(li, w, cs, sc, on, hunting, lv) {
-  const each = secs(actionMs(cs, w)) + ' · ' + whole(xpEach(w)) + ' XP each';
+  const each = whole(xpEach(w)) + ' XP every ' + secs(actionMs(cs, w));
   const out = productOf(w);
   const gather = w.kind === 'gather';
   /* Who won't buy it is said before it is made (panel 2026-11-01: 12,000 runes, no buyer, no word). */
   const sale = !gather && out ? saleWords(out) : '';
-  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · about ' + whole(perHourOf(w, actionMs(cs, w))) + ' an hour · ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
+  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ', about ' + whole(perHourOf(w, actionMs(cs, w))) + ' an hour, ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
   /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the
@@ -143,13 +143,13 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const makes = (pick === 'all' ? 'Makes up to ' + whole(runs * yieldOf(w))
     : 'Makes ' + whole(Math.min(pick, runs) * yieldOf(w)) + ' of up to ' + whole(runs * yieldOf(w)));
   const have = gather ? gatherBagWords(cs, w, running)
-    : makes + ' · ' + each + (burn ? ' · burns up to ' + burn + '%' : '');
+    : makes + ', ' + each + (burn ? ', burns up to ' + burn + '%' : '');
   /* Running: the server's count left on this run ("3 left"), or nothing when it runs until the bag is out. */
   const left = running && !gather ? leftOf(cs) : null;
   /* Short of an input: where to get it, each place a link to its window (src/shell/goto.js) */
   const short = why ? shortInputLine(cs, w, hunting) : null;
   patchParts(li.querySelector('.hw-work-why'), short ? [short.head].concat(short.places.length ? [' '] : [], placesParts(short.places))
-    : [why || (running ? 'Working on it now · ' + (left !== null ? whole(left) + ' left · ' : '') : '') + have]);
+    : [why || (running ? 'Working on it now' + (left !== null ? ', ' + whole(left) + ' left' : '') + '. ' : '') + have]);
   /* "X": a typed count shows on its button; the field is open only on the row that asked for it. */
   const custom = typeof pick === 'number' && !BENCH_COUNTS.includes(pick);
   const xb = li.querySelector('.hw-work-xb');

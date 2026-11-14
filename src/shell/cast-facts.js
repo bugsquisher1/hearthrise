@@ -137,7 +137,7 @@ export function costLine(a, ctx) {
     if (!k) return '';
     const parts = (k.mana ? [t('bar.cost_mana', { mana: k.mana })] : [])
       .concat(k.rune ? [supplyPart(k.rune.name, k.rune.source, k.rune.have, k.rune.price, false)] : [], k.row.ammo ? [t('bar.cost_ammo', { ammo: k.row.ammo })] : []);
-    return parts.length ? t('bar.cost_line', { parts: parts.join(' · ') }) : t('bar.cost_no_mana');
+    return parts.length ? t('bar.cost_line', { parts: parts.join(', ') }) : t('bar.cost_no_mana');
   }
   const s = stockOf(a, c, c.worn);
   return s ? t('bar.cost_line', { parts: supplyPart(s.name, s.source, s.have, s.price, s.shot) }) : '';

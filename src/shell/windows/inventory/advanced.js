@@ -54,7 +54,7 @@ function roleWords(cs, eq) {
     id = me ? me.role : null;
   }
   const w = eq.weapon ? itemName(eq.weapon) : null;
-  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ' · from your ' + w : '');
+  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ', from your ' + w : '');
   return w ? 'Role: the server has not named a role for your ' + w + ' yet' : 'No weapon worn: wear one to take a hunt role';
 }
 
@@ -62,7 +62,7 @@ function buffWords(b) {
   const d = BUFFS_DEF[b.type];
   const label = d ? d.label : b.type.replace(/_/g, ' ');
   const amount = d && d.isPercent ? '+' + b.magnitude + '%' : '+' + b.magnitude;
-  return [label, amount + ' · ' + timeLeft(b.msLeft) + ' left'];
+  return [label, amount + ', ' + timeLeft(b.msLeft) + ' left'];
 }
 
 /** Patch the section; it is hidden (and left alone) while the Advanced view is off. */
@@ -94,7 +94,7 @@ export function patchAdvanced(root, st, ctx) {
       text(li.querySelector('b'), SLOT_LABEL.get(l.slot) + ': ' + itemName(l.item));
       const filled = l.v.filled.map((f) => IMBUE_WORDS[f.kind] + ' (' + timeLeft(f.msLeft) + ')');
       const free = l.v.slots - filled.length;
-      text(li.querySelector('small'), filled.concat(free > 0 ? [free + (free === 1 ? ' empty slot' : ' empty slots')] : []).join(' · '));
+      text(li.querySelector('small'), filled.concat(free > 0 ? [free + (free === 1 ? ' empty slot' : ' empty slots')] : []).join(', '));
     },
   });
 }

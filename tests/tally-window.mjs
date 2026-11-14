@@ -379,9 +379,9 @@ async function checks(overrides, shots) {
         /* a done task says how it is paid, under its line (lane/b-first-hour: "· Done" never said to come home); one
            still counting says nothing more */
         const rowsSaid = await page.evaluate(() => [...document.querySelectorAll('.hs-tally-row')].map((li) => [li.querySelector('span').textContent, (li.querySelector('.hs-tally-wait') || {}).textContent || '']));
-        const doneRow = rowsSaid.find(([l]) => / · Done$/.test(l));
+        const doneRow = rowsSaid.find(([l]) => / \(done\)$/.test(l));
         if (!doneRow || !/Tamsin|bag/.test(doneRow[1]) || /^Done/.test(doneRow[1])) fails.push('TW-6 the HUD\'s done task says how it is paid: ' + JSON.stringify(rowsSaid));
-        if (rowsSaid.some(([l, w]) => !/ · Done$/.test(l) && w)) fails.push('TW-6 a task still counting has a pay line: ' + JSON.stringify(rowsSaid));
+        if (rowsSaid.some(([l, w]) => !/ \(done\)$/.test(l) && w)) fails.push('TW-6 a task still counting has a pay line: ' + JSON.stringify(rowsSaid));
         await page.keyboard.press('h');
         await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]'), null, 4000);
         const card = await txt(page, '[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"] .hw-hunt-tally');

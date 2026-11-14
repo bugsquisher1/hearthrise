@@ -3319,3 +3319,13 @@ becomes 101 px. New class `gate` (OPEN_CLASSES): anchor on the passage's middle 
 The Slake is repainted on brief 22's two pairs (mud --same silt; reeds that touch water are silt). Lessons: (1) maskHash reads
 the BUILT atlas's class (open vs solid): rebuild the atlas before `world-core --hashes`; (2) the Slake's one silt tile shows a
 chevron row repeat at x2 (a variant fill needs create_tiles_pro); (3) the pane is shared: another session took the tab mid-read.
+## 2026-11-14 lane/a-text-polish (the bag's key help whole at 1366x768; " · " out of player text)
+The key help sat at the end of the bag's scroll, so the scroll edge cut its third line. Pinning it under the scroll was tried first and
+failed AW-62/AW-93 (three lines took the bag's rows down to 96 px). It now lives behind the window's ? (shell-windows.js helpKeys,
+window-head.js keysHtml), under the help line: one li a hint, the key in a kbd, wrapping whole, none on touch. AW-62 opens the ? at
+1366x768 and measures the list against every scrolling ancestor; with the old layout it reads "not shown" and exits 1. Every " · " literal in player text became words ("Rename for 50 gp"), a
+comma, a sentence or parentheses ("Mill Cellar (Deadly)", "Marlow (18)"); copy-lint's `dot` rule forbids the glyph in any copy literal
+(selftest plants three; the old touching-a-word rule as a mutant misses two). Kept: format.js SEP between separately painted tag spans
+(Hunts list, hunt page, Tally), built at the v0.2.130 gate with no-break binding; a call for the designer if those should go too.
+Lessons: (1) help text inside a content scroll gets cut like content, and pinning it costs the content its rows: keys belong behind
+the ?; (2) the browser pane is shared with other sessions, so drive local-world through Playwright (world.play) for screenshots.

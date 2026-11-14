@@ -12,7 +12,7 @@
 // WHY. Tyler, 2026-10-11, after playing: "craft 60 items in all — what? sounds
 // like broken english". The slips are a CLASS, not a line: a quantity padded
 // with "in all", "a"/"an" in front of a plural item ("an Apprentice Gloves"),
-// a "(s)" plural hack, two spaces where one belongs, a "·" glued to a word.
+// a "(s)" plural hack, two spaces where one belongs, a "·" standing in for words.
 // Each is cheap to write and cheap to catch, so this gate catches them.
 //
 // WHAT IS SCANNED. Every string and template literal in src/**/*.js (comments
@@ -25,7 +25,10 @@
 //   article       "a"/"an" before a plural item    → no article, or "a pair of"
 //                 name from src/data/items.js
 //   double-space  two spaces between words         → one
-//   dot-spacing   "·" touching a word on one side  → " · "
+//   dot           a "·" in copy (lane/a-text-polish 2026-11-14: "Rename · 50 gp", "12 kills · Out of food" read as
+//                 a generated dashboard, not a person) → words ("Rename for 50 gp"), a comma, a sentence,
+//                 or one item a part in the layout (the bag's key help). A row of separately painted tags may
+//                 still take src/render/format.js SEP between its spans; no literal carries the dot.
 //   spelling      a British form (armour, colour, centre, grey, favourite,
 //                 defence, cancelled, -ise…) — player copy is American
 //                 (Tyler 2026-10-28); one-word labels are read too, and so is
@@ -272,7 +275,7 @@ export const PERSON_PHRASES = Object.freeze([
 const UNIT_HEADER_RE = /^\s*(?:g|gp|gold|XP|HP|mana)\s+per\s/i;
 /* A field label glued to its explanation as one sentence ("Drink: restores mana.", "Requires: any weapon.", "Done: this hero is
    now Mira."): the whole line is 1 to 3 words, a colon, and a lower-case clause that ends on a period. A label with a value
-   ("Cost: 25 mana · 1 Earth Rune (1 g)", "Gold: 12,875 gp", "Next gear at Level 22: Houndskin Cloak") stays. */
+   ("Cost: 25 mana, 1 Earth Rune (1 g)", "Gold: 12,875 gp", "Next gear at Level 22: Houndskin Cloak") stays. */
 export const LABEL_SENTENCE_RE = /^[A-Z][\w’'&-]*(?: [\w’'&-]+){0,2}: [a-z§][^:]*[.!?]$/;
 export const PERSON_FIX = Object.freeze(Object.fromEntries([...PERSON_PHRASES.map(([r, , fix]) => [r, fix]),
   ['label-sentence', 'say it as a sentence: "Restores mana.", "Works with any weapon."'],
@@ -418,7 +421,7 @@ export function lintText(text, pluralRe, name = false) {
   if (/[A-Za-z]\(s\)/.test(t)) hits.push('plural-hack');
   const segs = t.split('\u0000');
   if (segs.some((seg) => !/\n/.test(seg) && /[A-Za-z0-9.,!?;:’']  +[A-Za-z0-9(]/.test(seg))) hits.push('double-space');
-  if (segs.some((seg) => /[A-Za-z0-9)%]·|·[A-Za-z0-9(]/.test(seg))) hits.push('dot-spacing');
+  if (segs.some((seg) => /·/.test(seg))) hits.push('dot');
   if (pluralRe && pluralRe.test(t)) hits.push('article');
   if (britishWords(t).length) hits.push('spelling');
   return hits;
@@ -703,7 +706,9 @@ async function selftest() {
       ['plural-hack', "export const a = `${n} item(s) left in your bag`;"],
       ['article', "export const a = 'Craft an Apprentice Gloves first';"],
       ['double-space', "export const a = 'Your crops are  ready to pick';"],
-      ['dot-spacing', "export const a = 'Lv 3 ·4h grow';"],
+      ['dot', "export const a = 'Lv 3 ·4h grow';"],
+      ['dot', "export const a = { rename: 'Rename · {price}' };"],
+      ['dot', "export const a = name + ' · ' + level;"],
       ['spelling', "export const a = 'Requires Defence 30 to wear';"],
       ['spelling', "export const TIP = { absorb: 'Heavy armour: the share of every blow it takes.' };"],
       ['spelling', "export const a = [{ key: 'armor', label: 'Armour' }];"],
@@ -838,7 +843,7 @@ async function selftest() {
     writeFileSync(plant, "export const a = ['Bronze Arrows are free and never run out.', 'g per shot, cheapest first', 'chance per kill, hunting alone',"
       + " 'Set more whenever you like.', 'Clawed at the knuckle out of habit rather than design', 'Could not reach the server. Check your connection and try again.',"
       + " 'The server did not answer. Reload to try again.', 'No connection. Your heroes keep hunting on the server, and the world loads by itself when you are back online.',"
-      + " 'Climb down the ladder into the cellar.', 'Makes the monsters near you attack you.', 'Cost: 25 mana · 1 Earth Rune (1 g)', 'Food: store, then your own bread',"
+      + " 'Climb down the ladder into the cellar.', 'Makes the monsters near you attack you.', 'Cost: 25 mana, 1 Earth Rune (1 g)', 'Food: store, then your own bread',"
       + " 'Next gear at Level 22: Houndskin Cloak', 'A new version of Hearthrise is out. Reload to get it.', 'The hunt screen stutters less in a four-hero party.',"
       + " 'Taunt pulls the monsters near you onto you.', 'The Thicket takes parties from Level 5, with bigger pulls.', 'Your hero holds the line until the pack breaks.',"
       + " 'Name this hero first.'];\n");

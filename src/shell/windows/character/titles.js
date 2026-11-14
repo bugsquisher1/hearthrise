@@ -40,7 +40,7 @@ function rowWords(r, purse) {
   const count = label + ': ' + whole(r.have) + ' of ' + whole(r.kills);
   if (r.have < r.kills) return { small: count, press: null, off: true };
   const short = purse !== null && purse < r.price ? r.price - purse : 0;
-  return { small: count + (short ? ' · You need ' + gold(short) + ' more.' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
+  return { small: count + (short ? '. You need ' + gold(short) + ' more.' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
 }
 
 /** Patch the Titles tab. */

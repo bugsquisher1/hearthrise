@@ -76,7 +76,7 @@ export function patchSetups(root, ctx, sc, hunting) {
       cls(li, 'is-current', current);
       cls(li, 'is-picked', picked);
       attr(li, 'aria-current', picked ? 'true' : null);
-      text(li.querySelector('small'), (current ? t('prep.in_use') + ' · ' : '') + t('prep.gear_count', { count: gearN }) + (picked && dirty ? ' · ' + t('prep.not_saved') : ''));
+      text(li.querySelector('small'), (current ? t('prep.in_use') + ', ' : '') + t('prep.gear_count', { count: gearN }) + (picked && dirty ? ', ' + t('prep.not_saved') : ''));
       cls(li, 'is-naming', sc.naming === p.preset);
       /* Delete asks once on the same button ("Delete it?", with Keep beside it); the second press sends. */
       const armed = sc.arming === p.preset;

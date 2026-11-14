@@ -45,7 +45,7 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
     build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span><small class="hs-tally-wait"></small></li>'),
     patch: (li, x) => {
       const elsewhere = hunting && !x.done && x.hunt !== h.huntId;
-      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' · Done' : elsewhere ? ' · Not here' : ''));
+      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' (done)' : elsewhere ? ' (not here)' : ''));
       attr(li, 'title', elsewhere ? 'Counts only in ' + huntName(x.hunt) + '.' : null);
       /* A done task says how it gets paid (lane/b-first-hour: "200/200 · Done" never said to come home): back in town,
          or why it waits (the tally window's own words, tally-sections.js waitWords). */

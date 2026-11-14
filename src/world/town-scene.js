@@ -32,7 +32,7 @@ const onPixelOf = (T) => (v) => Math.round(v * T) / T;
 const sameSpot = (a, b) => a.x === b.x && a.y === b.y && a.gx === b.gx && a.gy === b.gy && a.dir === b.dir;
 /** A peer's plate, from what the server said: "Marlow · 18" with "the Wolfer" under it (Tyler 2026-11-08). A Game Master's
     plate says GM in words, and its gold repeats it (ART_DIRECTION: color is never the only cue). */
-export const plateOf = (w) => ({ text: (w.gm ? 'GM ' : '') + w.name + (w.level !== null ? ' · ' + w.level : ''), title: w.title || null, kind: w.gm ? 'gm' : 'peer' });
+export const plateOf = (w) => ({ text: (w.gm ? 'GM ' : '') + w.name + (w.level !== null ? ' (' + w.level + ')' : ''), title: w.title || null, kind: w.gm ? 'gm' : 'peer' });
 
 /**
  * The town's people, frame by frame, for ONE map. frame(walkers, now) → units.

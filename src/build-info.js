@@ -23,7 +23,7 @@ export const BUILD = Object.freeze({
 });
 
 export function buildString() {
-  const c = BUILD.commit ? ' · ' + BUILD.commit.slice(0, 7) : '';
+  const c = BUILD.commit ? ' (' + BUILD.commit.slice(0, 7) + ')' : '';
   return `v${BUILD.version}${c}`;
 }
 

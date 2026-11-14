@@ -109,7 +109,7 @@ function skillsWindow(groups) {
           /* Inner Flame's payoff on its own line (lane/b-first-hour): the recovery the server's sheet says it gives now,
              before its next fuel; nothing until the server has said. */
           const flame = id === 'inner_flame' && regen !== null && regen > 100 ? 'Recovery +' + Math.round((regen - 100) * 10) / 10 + '%' : '';
-          const next = [flame, nextUnlock(id, r.level)].filter(Boolean).join(' · ');
+          const next = [flame, nextUnlock(id, r.level)].filter(Boolean).join('. ');
           const nx = li.querySelector('.hw-skill-next');
           text(nx, next);
           attr(nx, 'title', next || null);

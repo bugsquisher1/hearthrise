@@ -89,11 +89,11 @@ export function kindWords(id) {
     const parts = [typeWord(it.type, 'item.type_gear')];
     if (it.tier) parts.push(t('item.tier', { tier: it.tier }));
     parts.push(rarityWord(it.rarity));
-    return parts.join(' · ');
+    return parts.join(', ');
   }
   /* the ammo pocket holds more than shots: a rune fuels spells and a whetstone sharpens a blade (panel 2026-11-01) */
   if (k === 'ammo') return [t(/_rune$/.test(id) ? 'item.kind_rune' : it.reqSkill === 'melee' ? 'item.kind_whetstone' : 'item.kind_ammo')]
-    .concat(it.tier ? [t('item.tier', { tier: it.tier })] : []).join(' · ');
+    .concat(it.tier ? [t('item.tier', { tier: it.tier })] : []).join(', ');
   if (k === 'food') return t('item.kind_food', { heals: it.heals });
   if (k === 'junk') return t('item.kind_junk');
   if (k === 'material') return t('item.kind_material');

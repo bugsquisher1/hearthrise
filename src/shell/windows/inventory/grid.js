@@ -43,8 +43,7 @@ import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.130
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
   + '</optgroup><optgroup label="On pickup">' + LOOT_CHOICES.filter((c) => c[2] === 'pickup').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('') + '</optgroup>';
-/** The key help line under the grid: the keys actions.js and selection.js really read. */
-export const KEYS = t('bag.keys');
+/* The keys actions.js and selection.js read are listed behind the window's ? (src/data/shell-windows.js helpKeys, the bag.key_* rows). */
 
 /** The toolbar across the window (tabs, search, sort, categories). */
 export function toolbarHtml(g) {
@@ -94,7 +93,7 @@ export function toolsHtml(g) {
 const aheadWords = (d) => whole(Math.abs(d)) + (d > 0 ? ' more on the way' : ' being used');
 /** The picked stack's count: what is in hand, then the pending part. A stack being spent counts what is left, the same number as
     its pocket and the work line ("×15 · 14 being used" sat beside a pocket of 1, the panel 2026-11-01). Pure. */
-export const pickCountWords = (qty, ahead) => '×' + whole(qty + Math.min(0, ahead)) + (ahead ? ' · ' + aheadWords(ahead) : '');
+export const pickCountWords = (qty, ahead) => '×' + whole(qty + Math.min(0, ahead)) + (ahead ? ', ' + aheadWords(ahead) : '');
 
 function patchPocket(li, r, st) {
   const locked = !!(st.rules && st.rules.locked.has(r.id));
@@ -153,7 +152,7 @@ export function patchTools(root, st, ctx) {
   text(pick.querySelector('b'), cur ? itemName(cur) : '');
   /* The count every action here spends is the server's; the ticker's pending part is named beside it. */
   const ahead = cur ? aheadQty(st.tick, cur) : 0;
-  text(pick.querySelector('small'), cur ? pickCountWords(st.qty.get(cur), ahead) + (st.shop && st.shop.bids.has(cur) ? ' · the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
+  text(pick.querySelector('small'), cur ? pickCountWords(st.qty.get(cur), ahead) + (st.shop && st.shop.bids.has(cur) ? ', the shop pays ' + gold(st.shop.bids.get(cur)) + ' each' : '') : '');
   const prim = primaryOf(st, cur);
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
@@ -170,7 +169,7 @@ export function patchTools(root, st, ctx) {
   const pickSaid = !!cur && sc.msgAt === 'pick:' + cur && !!sc.msg;
   whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy || buryWhy || eatWhy), pickSaid);
   /* THE ITEM'S WAYS (Tyler 2026-11-08): what spends it and where to get more, each place a link to its window (src/shell/goto.js) */
-  patchParts(root.querySelector('.hw-pick-ways'), cur ? usePlaces(cur).concat(wherePlaces(cur)).flatMap((p, i) => (i ? [' · ', placeLink(p)] : [placeLink(p)])) : []);
+  patchParts(root.querySelector('.hw-pick-ways'), cur ? usePlaces(cur).concat(wherePlaces(cur)).flatMap((p, i) => (i ? [', ', placeLink(p)] : [placeLink(p)])) : []);
   patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLocked(st.cs), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
   const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');
@@ -227,7 +226,7 @@ function patchHuntPane(root, st, ctx) {
   for (const l of loot) if (bids && bids.has(l.item)) worth += bids.get(l.item) * l.count; else priced = false;
   const n = loot.reduce((s, l) => s + l.count, 0);
   const coin = new Set(lootToSell(loot.map((l) => ({ id: l.item, qty: l.count })), upgradeNeeds(homeOf(st.cs), chestsOf(st.cs))));
-  text(pane.querySelector('.hw-loot-sum'), loot.length ? 'This hunt: ' + whole(n) + (n === 1 ? ' item' : ' items') + (bids ? ' · worth ' + gold(worth) + (priced ? '' : ' or more') : '') : '');
+  text(pane.querySelector('.hw-loot-sum'), loot.length ? 'This hunt: ' + whole(n) + (n === 1 ? ' item' : ' items') + (bids ? ', worth ' + gold(worth) + (priced ? '' : ' or more') : '') : '');
   rows(pane.querySelector('.hw-loot'), loot, {
     key: (l) => l.item,
     build: (l) => element(ctx.doc, '<li class="hw-loot-row" data-hs-act="loot-row" data-item="' + esc(l.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, l.item) + '</span>'
@@ -237,7 +236,7 @@ function patchHuntPane(root, st, ctx) {
       const inBag = st.qty.get(l.item) || 0;
       /* a plan the server refuses for this item (its starting kit, no shop price) is off, its reason on the row's line */
       const offWhy = [...new Set(LOOT_CHOICES.map(([v]) => planBlock(l.item, v, bids, inBag > 0)).filter(Boolean))].join(' ');
-      text(li.querySelector('small'), '×' + whole(l.count) + ' this hunt · ' + whole(inBag) + ' in the bag' + (offWhy ? ' · ' + offWhy : ''));
+      text(li.querySelector('small'), '×' + whole(l.count) + ' this hunt, ' + whole(inBag) + ' in the bag' + (offWhy ? '. ' + offWhy : ''));
       const sel = li.querySelector('select');
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);

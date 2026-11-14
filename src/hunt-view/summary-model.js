@@ -188,7 +188,7 @@ export function buildSummary(s, an, deaths, role) {
 /** The card's and the history's name for a hunt: its ground, and the tier it ran at when that was harder than Normal ("Wickstead · Dangerous"). */
 export function groundTitle(s) {
   const name = s && s.hunt && HUNT_INDEX[s.hunt] ? HUNT_INDEX[s.hunt].name : 'Hunt';
-  return s && s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier) ? name + ' · ' + TIER_NAME[s.tier] : name;
+  return s && s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier) ? name + ' (' + TIER_NAME[s.tier] + ')' : name;
 }
 
 /** The list with `summary` first (replacing the same session id), bounded. */

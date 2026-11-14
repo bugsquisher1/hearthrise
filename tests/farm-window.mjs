@@ -327,7 +327,7 @@ async function checks(overrides) {
       await wait(page, () => document.querySelector('[data-hs-win="farm"] .hw-sow.is-on'), null, 2000);
       const said = await txt(page, W + '.hw-seeds li[data-crop="carrot"] small');
       const link = W + '.hw-seeds li[data-crop="carrot"] small .hs-goto';
-      if (!/^6 h · No seeds\. The Shop sells them for 10 gp\.$/.test(said || '') || (await txt(page, link)) !== 'The Shop sells them for 10 gp.')
+      if (!/^Grows in 6 h\. No seeds\. The Shop sells them for 10 gp\.$/.test(said || '') || (await txt(page, link)) !== 'The Shop sells them for 10 gp.')
         fails.push('FW-10 the carrot row reads ' + JSON.stringify(said) + ' with the link ' + JSON.stringify(await txt(page, link)));
       else if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-seeds li[data-crop="carrot"] [data-hs-act="sow"]').disabled)))
         fails.push('FW-10 a crop with no seed can be planted');

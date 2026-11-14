@@ -49,7 +49,7 @@ const LINE = (v) => (v === null || v === undefined ? '' : String(v));
 
 function factsOf(h) {
   const open = h.hunt ? { hunt: h.hunt.id, leaving: h.hunt.leaving } : { job: h.job, job_id: h.job_id, online: true };
-  return [h.name + ' · Level ' + h.level, where(open), LINE(h.gold) + ' gold', flags(h)].filter(Boolean).join(' · ');
+  return [h.name + ', Level ' + h.level, where(open), LINE(h.gold) + ' gold', flags(h)].filter(Boolean).join(', ');
 }
 function moreOf(h) {
   const out = [];
@@ -69,7 +69,7 @@ export function patchBody(el, ctx) {
   rows(root.querySelector('.gm-list'), st.heroes || [], {
     key: (h) => h.id + ':' + h.slot,
     build: (h) => element(ctx.doc, '<li><button type="button" class="hh-tool gm-pick" data-hs-act="gm-pick" data-id="' + esc(h.id) + '" data-slot="' + esc(h.slot) + '"></button></li>'),
-    patch: (li, h) => { text(li.querySelector('button'), [h.name + ' · ' + h.level, where(h), flags(h)].filter(Boolean).join(' · ')); },
+    patch: (li, h) => { text(li.querySelector('button'), [h.name + ' (' + h.level + ')', where(h), flags(h)].filter(Boolean).join(', ')); },
   });
   cls(root.querySelector('.gm-none'), 'is-on', !st.heroes || !st.heroes.length);
   if (st.heroes) text(root.querySelector('.gm-none'), 'Nobody is online or playing.');

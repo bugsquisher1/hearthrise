@@ -92,11 +92,11 @@ export function patchTemperPane(root, ctx, sc) {
       const offer = r.ladder ? r.ladder.offer : null;
       const short = offer && purse !== null && purse < r.ladder.gold ? r.ladder.gold - purse : 0;
       const itemsShort = r.needs.some((n) => n.short > 0);
-      text(li.querySelector('b'), track.label + (r.piece ? ' · ' + r.piece : ''));
+      text(li.querySelector('b'), track.label + (r.piece ? ' (' + r.piece + ')' : ''));
       text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? ' You need ' + gold(short) + ' more.' : ''));
       text(li.querySelector('.hw-temper-need'), needWords(r.needs));
       const btn = li.querySelector('button');
-      text(btn, offer ? 'Temper · ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
+      text(btn, offer ? 'Temper for ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
       prop(btn, 'disabled', !offer || !!short || itemsShort || sc.pending || !!sc.ask);
     },
   });

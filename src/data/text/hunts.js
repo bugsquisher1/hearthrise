@@ -27,8 +27,8 @@ export const HUNTS_TEXT = Object.freeze({
 
   /* How crowded a ground is. {size} is a count or pack_range. */
   pack_range: '{min} to {max}',
-  packs: { one: '{count} pack of {size} · respawns every {secs} seconds', other: '{count} packs of {size} · respawns every {secs} seconds' },
-  packs_boss: { one: '{count} pack of {size}, a boss · respawns every {secs} seconds', other: '{count} packs of {size}, a boss · respawns every {secs} seconds' },
+  packs: { one: '{count} pack of {size}, respawning every {secs} seconds', other: '{count} packs of {size}, respawning every {secs} seconds' },
+  packs_boss: { one: '{count} pack of {size} and a boss, respawning every {secs} seconds', other: '{count} packs of {size} and a boss, respawning every {secs} seconds' },
 
   /* What a tier does. */
   tier_choice: '{tier}: {head}.',
@@ -65,7 +65,7 @@ export const HUNTS_TEXT = Object.freeze({
   tag_next_step: 'Next step up',
 
   /* This hero's bests. */
-  best_rate: '{xp} Level XP per hour · balance {gold} per hour',
+  best_rate: '{xp} Level XP and a balance of {gold} per hour',
   best_alone: 'Best alone: {rate}',
   best_party: 'Best in a party: {rate}',
   best_none: 'No best here yet. Hunt {min} minutes or more to set one.',

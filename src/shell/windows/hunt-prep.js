@@ -121,7 +121,7 @@ function patchCarry(root, ctx, cs, sc, hunting) {
       + '<button type="button" class="hh-tool" data-hs-act="carry" data-item="' + r.id + '"></button></li>'),
     patch: (li, r) => {
       text(li.querySelector('b'), itemName(r.id));
-      text(li.querySelector('small'), t('prep.carry_line', { have: whole(r.have), inHunt: whole(r.inHunt) }) + (r.wait ? ' · ' + r.wait : ''));
+      text(li.querySelector('small'), t('prep.carry_line', { have: whole(r.have), inHunt: whole(r.inHunt) }) + (r.wait ? ', ' + r.wait : ''));
       const b = li.querySelector('button');
       text(b, t('prep.carry_press', { n: whole(r.max) }));
       attr(b, 'aria-label', carryWords(r));

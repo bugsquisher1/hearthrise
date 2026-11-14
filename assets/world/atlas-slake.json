@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-slake.png",
   "size": [2048,1596],
-  "pixels": "b6790bc625014b232a50212e9a1f50d1ec99d81a1c4ce992c3074fb7b6421f05",
+  "pixels": "e511b2e43e180eabf78e2353effdc7b5e7b93c08d448c9216ba17524607b87bd",
   "sprites": {
     "bargeman": {
       "class": "character",

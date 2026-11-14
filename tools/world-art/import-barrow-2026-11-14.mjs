@@ -12,7 +12,8 @@
 //   BODIES   each body's 8 rotations and v3 walk (unit), its idle from the kept idle clip (idle), then its swing, fall and
 //            flinch (import-clips.mjs --id). A palette-born body (the Slake's, the Hold's) names the ramps its rotations wear
 //            and is `native`; the mint glints the palette call put on metal are left off the list, so they land on steel.
-//            Lifts are the notes' (ring 3:1 on the Hold's 0.027 floors).
+//            The Hold's lifts are the notes' (ring 3:1 on its 0.027 floors); the Slake's are measured here on the copper silt
+//            (ring-contrast.mjs: 3 and 4 steps read 4.25:1, the notes' 1 step read 1.4-2.1).
 //   PROVOST  the Barrow Knight re-poured onto the charred end of the palette (brief 12 P3 / brief 25 row 7, 0 gens):
 //            every earth and bronze pixel of the knight's locked frames, by luminance rank, onto six shadow and iron steps.
 // ════════════════════════════════════════════════════════════════════════
@@ -45,11 +46,11 @@ const SL = `${G14}/21-slake-clips`, HA = `${G14}/27-hold-bodies-a`, HB = `${G14}
 const BODIES = Object.freeze([
   /* the Slake (brief 19 rotations, brief 21 clips) */
   { set: 'slake', id: 'greened_pikeman', cls: 'character', rot: `${G12}/slake-bodies/greened_pikeman/boneswap`, walk: [`${SL}/greened_pikeman/walk`, 1], idle: `${SL}/greened_pikeman/idle`,
-    ramps: 'shadow,earth,stone,bone,moss,leaf,bronze,iron,skin', lift: 1, object: '6973c53e-a801-42d9-8de8-5618d9568d1e', name: 'S1 Greened Pikeman' },
+    ramps: 'shadow,earth,stone,bone,moss,leaf,bronze,iron,skin', lift: 4, object: '6973c53e-a801-42d9-8de8-5618d9568d1e', name: 'S1 Greened Pikeman' },
   { set: 'slake', id: 'bargeman', cls: 'character', rot: `${G12}/slake-bodies/bargeman`, walk: [`${SL}/bargeman/walk`, 1], idle: `${SL}/bargeman/idle2`,
-    ramps: 'shadow,earth,stone,bone,iron,bronze', lift: 1, object: 'fc37534e-9ad0-4df7-a466-02bd1996b2d0', name: 'S1 Bargeman' },
+    ramps: 'shadow,earth,stone,bone,iron,bronze', lift: 3, object: 'fc37534e-9ad0-4df7-a466-02bd1996b2d0', name: 'S1 Bargeman' },
   { set: 'slake', id: 'color_sergeant', cls: 'brute', rot: `${G12}/slake-bodies/flag_sergeant`, walk: [`${SL}/flag_sergeant/walk`, 1], idle: `${SL}/flag_sergeant/idle`,
-    ramps: 'shadow,earth,stone,leaf,moss,bronze', lift: 1, object: 'a758d79a-0718-44a0-8601-770978ce874a', name: 'S1 Color Sergeant' },
+    ramps: 'shadow,earth,stone,leaf,moss,bronze', lift: 3, object: 'a758d79a-0718-44a0-8601-770978ce874a', name: 'S1 Color Sergeant' },
   /* the Pyre Field (b7, b8: drawn before the sticky palette, so graded and locked like every March body) */
   { set: 'pyrefolk', id: 'charred_pikeman', cls: 'character', rot: `${B13}/b7-pyre-bodies/charred_pikeman`, walk: [`${B13}/b7-pyre-bodies/charred_pikeman/walk`, 0], idle: `${B13}/b7-pyre-bodies/charred_pikeman/idle`,
     object: 'fb184755-3ad1-4430-8836-30e78134d2cc', name: 'S1 Charred Pikeman' },

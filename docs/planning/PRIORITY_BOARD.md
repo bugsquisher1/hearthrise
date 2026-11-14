@@ -29,7 +29,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
-### 2026-11-14 The Morrow Hills: the region after Krell, Harry and Holly, two factions, and unique gear (designer, lane/d-next-region. Tyler 2026-11-14: "let's go ahead and get started on the next set of lore and hunts after this boss", "The lore should somewhat tie in", "a good guy in the lore somewhere named Harry Something after my son", "some type of normal fella that ends up being a god at the endgame", "something similar to horde and alliance it doesn't have to be called good and evil", "Havora is a neutral town", "each new zone has equal amounts", "after tier 7 we start getting unique with the itemization", "for now lets just call him Harry", "she will be the eventual leader of the other side. Lets start with Holly"): DESIGNED, one ground drafted as a STAGED pack and MEASURED on the real engine, two faction skills MEASURED as a what-if. Nothing built, nothing played by hand, no art, no server work
+### 2026-11-14 The Morrow Hills: the region after Krell, Harry and Holly, two factions, and unique gear (designer, lane/d-next-region. Tyler 2026-11-14: "let's go ahead and get started on the next set of lore and hunts after this boss", "The lore should somewhat tie in", "a good guy in the lore somewhere named Harry Something after my son", "some type of normal fella that ends up being a god at the endgame", "something similar to horde and alliance it doesn't have to be called good and evil", "Havora is a neutral town", "each new zone has equal amounts", "after tier 7 we start getting unique with the itemization", "for now lets just call him Harry", "she will be the eventual leader of the other side. Lets start with Holly"): DESIGNED, one ground drafted as a STAGED pack and MEASURED on the real engine, the two faction skills, Bulwark and Reap, MEASURED as a what-if on a scratch copy of the engine. Nothing built, nothing played by hand, no art, no server work
 **The call.** The road north keeps going past Krell's castle, up into the hills to a mining town called Morrow. That's where Dawnstone comes from and where the Banded Company came from. Six grounds, Levels 110 to 165, three for each faction, and a boss behind a keyed door at the end. Harry is the fella with the cart, and the region is his first job with the Last Ember. Holly is the hearth-hand who carries the old rite up the same road for the First Flame. The villain is an NPC, Father Gault, and both factions are against him. One ground, Carter's Rest, is drafted and measured below. The other five are a ladder, not rows.
 
 **What I cut.** A second region of more dead things with a bigger number on them. A "chosen one" Harry. A faction stat buff (the outfits and the skill carry it). A new ore, since Dawnstone is already in the data with nowhere to come from (`dawnstone_rock`, Mining 90, no ground has the node).
@@ -215,7 +215,7 @@ The Last Ember don't think you can put it back, or should. The old way is the on
 | Mark on the hero | A rising flame in antique gold, by the name plate | A glowing ember in deep crimson, by the name plate |
 | Look | An antique gold tabard over forged steel plate, a tall shield, a ring of light behind the head. A paladin's shape | A charcoal hood and layered charcoal plate with deep crimson cloth, a soldier's iron face plate, a coal glowing in the chest. A reaper's shape, grim and not evil |
 | Earns standing on | Grounds 2, 4, 6 | Grounds 1, 3, 5 |
-| Skill | Lantern | Roll Call |
+| Skill | Bulwark | Reap |
 
 **Havora is neutral.** No gate, price, vendor, fire or scoreboard in town knows a faction. The Great Hearth burns a Roster Page for anybody.
 
@@ -277,45 +277,85 @@ That's 2 marks, 2 base outfits on the hero base model in 8 and 4 facings, 4 add-
 
 **The data rule and its guard (spec only).** Two new fields on a hunt row: `region` and `standingFor: 'first_flame' | 'last_ember'`. A new check in `src/data/catalogue-coherence.js`, held by `tests/faction-ground-balance.mjs`: every region after `barrow_march` has the same count of each, every post-Krell ground has the field, and a mutant with one flipped turns it red. The pack shape (`src/data/grounds/shape.js`) learns both fields in the same lane.
 
-#### 7. The faction skills (Tyler 2026-11-14: "a faction skill, not super over powered for either of them and balanced as best we can")
-One bar ability each, set up in Configure action like any other move. Different in kind.
+#### 7. The faction skills: Bulwark and Reap (Tyler 2026-11-14: "a faction skill, not super over powered for either of them and balanced as best we can", "What if roll call grants life leech for 5 seconds and lantern grants attack speed while the shield is active", "Bulwark and reap are it!", "let's just have the damage it's own base / multiplier based on highest combat stat")
+One bar ability each, set up in Configure action like any other move. Different in kind. The names are Tyler's.
 
-| | **Lantern** (the First Flame, a working name) | **Roll Call** (the Last Ember, a working name) |
+| | **Bulwark** (the First Flame) | **Reap** (the Last Ember) |
 |---|---|---|
-| What the player reads | Blocks the next chunk of damage on you | Hits your target hard |
-| Kind | Protective. It answers the big hit and the group spell | Aggressive. It ends one monster sooner |
-| Row as measured | universal, support lane, 45 s, 15 mana, self shield 90 (grows 1% a Magic level), fires under 70% HP | universal, offense lane, 45 s, 15 mana, one hit of 1.2 times your own biggest blow |
-| Lore | The Great Hearth's light, held up | Venn reads a name and somebody answers |
+| What the player reads | Blocks the next chunk of damage on you, and you attack faster while it holds | Hits your target, and for 5 seconds your hits heal you |
+| Kind | Protective, with a little speed | Aggressive, with a little healing |
+| Row as measured | universal, support lane, 45 s, 15 mana, a self shield of 90 (grows 1% a Magic level), 20% faster basic attacks while the shield stands, fires under 70% HP | universal, offense lane, 45 s, 15 mana, one hit of its own size (below), then 25% of the damage you deal comes back as HP for 5 s |
 
-**Measured.** The real engine (`tools/balance-sim/cell.mjs`) run from a scratch copy of the tree with the two rows added to its `abilities.js`. Nothing in the repo carries them. Mosslight Glade at Level 24, each hero on its default bar with the skill in the first slot, the same dice in all three arms. Alone is 2 seeds x 1 h and the four is 1 seed x 1 h, so a death count this small is a first read and not a rate. Deaths and close calls are totals for the cell. Profit was not read.
+**Reap's hit has its own size (Tyler's ruling).** It no longer reads the hero's own biggest blow. The top hit is a base plus a share of the hero's highest combat skill, and each hit rolls from half of that to all of it.
 
-| Who, tier | No skill: kills an hour, deaths, close calls, meals an hour | Lantern: kills, deaths, close calls, meals | Roll Call: kills, deaths, close calls, meals |
-|---|---|---|---|
-| Tank, Normal | 286, 0, 0, 32 | +0.3%, 0, 0, 8 | +4.2%, 0, 0, 31 |
-| Tank, Dangerous | 333, 0, 0, 345 | -0.3%, 0, 0, 265 | +3.0%, 0, 0, 322 |
-| Tank, Deadly | 362, 13, 47, 944 | -1.4%, 6, 34, 835 | +3.6%, 8, 41, 916 |
-| Healer, Normal | 385, 0, 0, 0 | -0.5%, 0, 0, 2 | +6.0%, 0, 0, 1 |
-| Healer, Dangerous | 431, 0, 0, 13 | -1.9%, 0, 0, 10 | +5.1%, 0, 0, 16 |
-| Healer, Deadly | 451, 0, 6, 148 | +2.0%, 0, 6, 113 | +7.8%, 1, 5, 122 |
-| Bow, Normal | 380, 0, 0, 19 | -0.3%, 0, 0, 7 | +4.2%, 0, 0, 13 |
-| Bow, Dangerous | 507, 0, 0, 70 | -0.6%, 0, 0, 39 | +3.0%, 0, 0, 69 |
-| Bow, Deadly | 572, 6, 15, 290 | -0.2%, 2, 8, 205 | +1.0%, 7, 11, 278 |
-| Mage, Normal | 443, 0, 0, 6 | 0.0%, 0, 0, 2 | +4.7%, 0, 0, 3 |
-| Mage, Dangerous | 565, 0, 0, 80 | 0.0%, 0, 0, 43 | +4.4%, 0, 0, 75 |
-| Mage, Deadly | 669, 2, 11, 257 | -1.0%, 4, 6, 170 | +4.0%, 3, 9, 238 |
-| Four, Normal | 720, 0, 0, 0 | 0.0%, 0, 0, 0 | +1.4%, 0, 0, 0 |
-| Four, Dangerous | 1,195, 0, 0, 0 | +1.5%, 0, 0, 0 | +3.8%, 0, 0, 0 |
-| Four, Deadly | 1,507, 0, 0, 91 | -0.7%, 0, 0, 52 | +2.5%, 0, 0, 79 |
+- **Which skills count:** Melee, Ranged, Magic and Defense, whichever is highest. Defense counts because a shield tank's highest skill is often Defense, and leaving it out would give the tank the smallest Reap. Inner Flame doesn't count. It's trained by burning fuel at the Hearth, so counting it would let gold buy a bigger Reap.
+- **The pick:** base 2, plus 0.95 for each Level of that skill. I sized it to land where the old rule's average did.
 
-Level XP an hour moved with kills in every row, within a point.
+| Hero, with every combat skill at its Level | Own biggest blow at 24 | Reap's top hit at 24 | Own biggest blow at 110 | Reap's top hit at 110 |
+|---|---|---|---|---|
+| Tank | 13 | 24 | 56 | 106 |
+| Healer | 24 | 24 | 113 | 106 |
+| Bow | 15 | 24 | 58 | 106 |
+| Mage | 26 | 24 | 120 | 106 |
 
-**How to read it.** Roll Call is a steady 1 to 8% more kills, about 4% in the middle, for every role, and it doesn't change who dies. Lantern adds no kills at all. It took a lone tank's Deadly deaths from 13 to 6 and a lone bow's from 6 to 2, and it cut meals by 10 to 75% everywhere. The mage's 2 to 4 is inside the noise of a 2 hour cell. Neither broke the ground.
+Every class gets the same Reap at the same skill. Under the old rule (1.2 times your own biggest blow) a Mage's Reap was twice a tank's: 31 against 15 at Level 24, and 144 against 67 at 110. The biggest blows were read off the engine's own units, at 110 in the full tier 6 set.
 
-**The honest verdict. Not balanced to a band yet.** Where nobody dies, Roll Call is the pick, because Lantern buys nothing there but food. Where a hero does die, Lantern is the pick by a mile, because a death at Level 24 costs 114,309 Level XP (6% of the total, `src/core/xp.js`), which is about an hour and a half of that tank's hunting, and at Level 110 it's about 23 hours. So the choice today is really "do you push tiers or farm Normal", and that is a real decision but a lopsided one. This was the second pass. The first (shield 60, a 2.0x hit) read Roll Call at +3 to +10% and Lantern at 13 to 9 deaths, so I cut Roll Call and raised Lantern. The next lever, unmeasured: give Lantern a small pace side of its own (the hero's next hit after the shield breaks lands harder) so it isn't dead weight on Normal, and hold Roll Call near +3%. Both skills need a 6 seed x 4 h grade and a second ground at Level 110 before either ships.
+**Measured.** The real engine (`tools/balance-sim/cell.mjs`) run from a scratch copy of the tree. Nothing in the repo carries the rows or the engine edits. Mosslight Glade at Level 24, each hero on its default bar with the skill in the first slot, the same dice in every arm, 2 seeds x 1 h a cell, the four included. Deaths and close calls are totals for the cell, so a small death count is a first read and not a rate. The no-skill arm on the edited engine answers the same numbers as before the edit. Profit was not read.
 
-**What the rows need.** Two rows in `src/data/abilities.js` with a new field `faction`, read where `alone` is read (`src/core/hunt/abilities.js`) against the server's snapshot, so the slot falls through for anyone else. A swap changes which one can fire, and a saved bar keeps both slots, so nobody rebuilds a bar after swapping (first principle). Lantern wants its shield as a share of max HP, a new field, because the measured row is about 28% of a Level 24 hero's HP and about 15% of a Level 110 hero's, and it should be the same share at both. No revive, no area, one cast every 45 seconds.
+The four arms:
+- **B, Bulwark as Tyler described it:** the shield, with 20% faster attacks while it stands, firing under 70% HP.
+- **B2:** the same, but it fires on cooldown in any fight.
+- **A, Reap:** the hit above with the 5 second leech at 25%.
+- **A2:** the same with a smaller hit (base 2, plus 0.78 a Level, about 1.0 times the average blow).
 
-**The guard (spec only).** `tests/faction-skill-band.mjs`: on the cells above, each skill's gain over no skill in kills an hour and its change in deaths stay inside an agreed band of the other's, and neither passes a ceiling. I'd start the band from the table above once Tyler has seen it.
+Each cell reads kills an hour (as a change from no skill), deaths, close calls, meals an hour.
+
+| Who, tier | No skill | B, Bulwark | B2, Bulwark on cooldown | A, Reap | A2, Reap with a smaller hit |
+|---|---|---|---|---|---|
+| Tank, Normal | 286, 0, 0, 32 | +2.4%, 0, 0, 5 | +7.0%, 0, 0, 7 | +5.9%, 0, 0, 26 | +7.0%, 0, 0, 22 |
+| Tank, Dangerous | 333, 0, 0, 345 | +0.6%, 0, 0, 253 | +2.4%, 0, 0, 245 | +4.2%, 0, 0, 298 | +5.7%, 0, 0, 320 |
+| Tank, Deadly | 362, 13, 47, 944 | +1.7%, 2, 29, 801 | +1.7%, 6, 22, 793 | +6.6%, 13, 39, 884 | +5.0%, 10, 38, 899 |
+| Healer, Normal | 385, 0, 0, 0 | +2.3%, 0, 0, 3 | +11.7%, 0, 0, 0 | +5.5%, 0, 0, 0 | +3.6%, 0, 0, 0 |
+| Healer, Dangerous | 431, 0, 0, 13 | +4.6%, 0, 0, 18 | +5.6%, 0, 0, 8 | +5.1%, 0, 0, 16 | +4.2%, 0, 0, 18 |
+| Healer, Deadly | 451, 0, 6, 148 | +4.2%, 2, 10, 132 | +4.9%, 0, 5, 114 | +5.8%, 1, 9, 132 | +3.3%, 2, 4, 110 |
+| Bow, Normal | 380, 0, 0, 19 | +2.9%, 0, 0, 3 | +8.2%, 0, 0, 3 | +3.4%, 0, 0, 10 | +3.4%, 0, 0, 15 |
+| Bow, Dangerous | 507, 0, 0, 70 | +3.9%, 0, 0, 34 | +5.9%, 0, 0, 22 | +2.0%, 0, 0, 69 | +3.4%, 0, 0, 63 |
+| Bow, Deadly | 572, 6, 15, 290 | +1.7%, 4, 9, 199 | +1.9%, 9, 16, 212 | +2.8%, 9, 29, 292 | +3.0%, 2, 14, 267 |
+| Mage, Normal | 443, 0, 0, 6 | +1.8%, 0, 0, 2 | +11.5%, 0, 0, 0 | +2.9%, 0, 0, 2 | +3.2%, 0, 0, 4 |
+| Mage, Dangerous | 565, 0, 0, 80 | +3.2%, 0, 0, 43 | +7.8%, 0, 0, 55 | +3.4%, 0, 1, 77 | +3.5%, 0, 1, 76 |
+| Mage, Deadly | 669, 2, 11, 257 | +4.5%, 0, 4, 166 | +5.5%, 0, 4, 171 | +4.0%, 1, 4, 220 | +4.5%, 5, 11, 228 |
+| Four, Normal | 721, 0, 0, 0 | +0.0%, 0, 0, 0 | +1.1%, 0, 0, 0 | +1.4%, 0, 0, 0 | +1.0%, 0, 0, 0 |
+| Four, Dangerous | 1,193, 0, 0, 0 | +1.8%, 0, 0, 1 | +9.0%, 0, 0, 1 | +4.3%, 0, 0, 1 | +3.1%, 0, 0, 0 |
+| Four, Deadly | 1,500, 0, 0, 82 | +1.6%, 0, 0, 64 | +9.1%, 0, 0, 47 | +3.2%, 0, 0, 73 | +2.8%, 0, 0, 77 |
+
+**What it says.**
+1. **Bulwark on cooldown (B2) is the pick everywhere, so it's out.** Alone on Normal nothing breaks the shield, so the speed never ends: 7 to 12% more kills for every class, 9% in a four on the harder tiers, and it still halves a lone tank's Deadly deaths. It beats Reap on pace and on safety at once.
+2. **Bulwark under 70% HP (B) works.** It's 0 to 5% more kills, about 2.5% in the middle, where the plain shield gave none. It still does the shield's job: a lone tank's Deadly deaths go from 13 to 2 and meals drop 15 to 85%.
+3. **Reap (A) is 1 to 7% more kills, about 4% in the middle,** for every class, with the hit now the same size for all of them.
+4. **The leech does almost nothing at 25%.** A lone hero deals about 5 damage a second at this Level, so 5 seconds of it at 25% is 6 HP against a 390 HP hero. Deaths don't move (the lone tank's Deadly is 13 with no skill, 14 with the hit alone and 13 with the leech) and meals drop a few percent. I ran it at 100% as well to be sure: still 13 deaths, meals another 2 to 12% lower, no extra kills. A leech this short can't save anyone until it's worth far more than the hit.
+5. **Is either one the pick everywhere? No, but it leans to Bulwark.** For a tank or a Healer on Normal and Dangerous, Reap is ahead by half a point to 4 points of kills. For a bow or a Mage the two are level on kills and Bulwark is safer, so Bulwark is the better pick for them. Wherever a hero dies, Bulwark wins outright.
+
+**Recommendation.**
+- **Bulwark:** arm B, with the speed cut from 20% to 15%, so a bow or a Mage gives up a point or two of kills for the safety. Never the on-cooldown rule.
+- **Reap:** arm A's hit (base 2, plus 0.95 a Level of the highest combat skill), and the leech raised to 100% for 5 seconds. Measured, that changes no death count and no kill count. It makes the heal numbers big enough to see, which is the point of having it.
+- The 15% speed is the one number here that isn't measured. Both skills still need a 6 seed x 4 h grade and a Level 110 ground before either ships.
+
+**What a real build needs.** The scratch edits were about 20 lines. The real thing is a combat-engine change, so it goes out in a combat batch under the world-tick parity rule (CLAUDE.md §3.3b), with the edge deployed before the client, and with a viewed test and a browser-closed test (§4).
+| Where | What |
+|---|---|
+| `src/data/abilities.js` | Two rows. New fields: `faction`, a shield's attack speed, a leech share and length, a hit sized from a base and the highest combat skill. `validate` learns each one |
+| `src/core/hunt/abilities.js` | The `faction` gate, read where `alone` is read, against the server's snapshot. Three unit fields added to `PERSISTED`, or the leech and the speed are lost at every settle cut. The effect applies them |
+| `src/core/hunt/damage.js` | `landHit` returns the leech to the hero as a `heal` event. `restart` shortens the swing clock while the shield stands, in whole 100 ms steps. That function sets every unit's swing, so this is the line the combat replay has to watch |
+| `src/core/hunt/member.js`, the hero snapshot | Carries `faction` from the server |
+| The server catalogue (`hr_hunt_abilities`, from `tools/gen-hunt-sessions`) | The two rows, and `hr_faction_members` as the gate's source |
+| The hunt view and the text | The browser runs the same engine, so the prediction follows. It needs a mark for "attacking faster" and for "leeching", and the two lines in `src/data/text/bar.js` |
+| Bulwark's shield | A share of max HP, a new field. The measured row is about 28% of a Level 24 hero's HP and about 15% of a Level 110 hero's, and it should be the same share at both |
+
+A swap changes which one can fire, and a saved bar keeps both slots, so nobody rebuilds a bar after swapping (first principle). No revive, no area, one cast every 45 seconds.
+
+**The guard (spec only).** `tests/faction-skill-band.mjs`: on the cells above, each skill's gain over no skill in kills an hour and its change in deaths stay inside an agreed band of the other's, and neither passes a ceiling. I'd start the band from this table once Tyler has seen it.
+
+**Earlier passes, for the record.** Pass 1 (a shield of 60, a hit of 2.0 times the biggest blow): Reap +3 to +10% kills, the shield no kills. Pass 2 (a shield of 90, a hit of 1.2 times): Reap +1 to +8%, the shield no kills, a lone tank's Deadly deaths 13 to 6. Both read the plain shield as dead weight on Normal, which is what the attack speed fixes.
 
 #### 8. Carter's Rest, the sample ground, Levels 110-125
 **The place.** Halfway up the Morrow road there's an inn where the ore carters used to stop for the night. When Krell shut the road the carters stopped coming, the innkeeper left, and a family of hill trolls moved in. They've each sort of taken a job. Harry's cart is parked in the yard, because he can't get past them.
@@ -489,7 +529,7 @@ The same hero on Wyvern Roost's Normal would drop the Stable Door (nothing there
 
 So "Voidhide Bracers" becomes "Duskhide Bracers" and "Voidweave Slippers" becomes "Dawnweave Slippers". The plate set is already Dawnsteel.
 
-**For Tyler.** The faction names, colors, symbols, building styles and philosophies are his (2026-11-14), and so are Harry in the Last Ember, Holly leading the First Flame, and the NPC villains. Neither has a surname. No tier 8, unique gear instead (section 9). Waiting on him: the two renames above, the name Keeper Rowe, and new names for the two skills. "Lantern" is the First Flame's skill and Harry's Lantern is now a Last Ember outfit piece, so that working name has to go.
+**For Tyler.** The faction names, colors, symbols, building styles and philosophies are his (2026-11-14), and so are Harry in the Last Ember, Holly leading the First Flame, the NPC villains, and the skill names Bulwark and Reap. Neither hero has a surname. No tier 8, unique gear instead (section 9). Waiting on him: the two renames above, the name Keeper Rowe, and the section 7 recommendation (Bulwark's speed at 15%, Reap's leech at 100%).
 
 ### 2026-11-13 Under-Level pairs and the fresh hero's dips (designer, lane/d-live-grounds-2, the plan's #3 and #1 below): MEASURED on the full grade; the dips were a GRADER artefact (fixed in the grader, the Glade crow withdrawn); the under-Level rule CAN'T be met with monster stats on the three grounds under 16. **Tyler: one call**
 **#1, the fresh melee hero's dips under 25% HP: not real.** The grader played every cell in 120 s settle cuts and `cell.mjs` spreads a cut's regeneration evenly over it, so regeneration lost at full HP early in a cut reads as HP missing later. The same fights read in 10 s cuts (the live cadence) show the same XP and gold to the unit and **zero** dips: the Thicket's fresh melee 7/6/3/3 -> 0, the Glade's lone Rangers 47 in 96 h -> 0 (at the crow's old 4.4 too). Proof that it was the trace and not the fight: lowering every Thicket monster's to-hit 10% moved the 120 s dips not at all (35 -> 33). Fix: `tools/balance-sim/grade.mjs windowFor` reads a lone cell at 10 s (same run time, 8-13 s a cell); parties keep 120 s, since no rule reads a party's dips. Regression `lone-window` in `tests/balance-grade.mjs` (the old 120 s turns it red, read). **Yesterday's Glade crow change is WITHDRAWN** (speed back to 4.4): it fixed a number that wasn't there. If its hr-accrue was deployed, the next deploy puts it back; if not, nothing moves.

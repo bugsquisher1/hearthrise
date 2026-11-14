@@ -4,7 +4,7 @@
 // then every row rewritten. The stat lines are the formula's (`node tools/pack.mjs propose wyvern_roost --write`): tier 6, floor 125, fit both.
 //
 // STAGED, A SAMPLE. The map is still Wickstead's layout under a new id (map.js): the crags, ledges and nests are not drawn and there is no
-// art. Nothing here is served or listed. It opens only with its own map, art and fitted drop chances.
+// art. Nothing here is served or listed. It opens only with its own map and art, and after the full grade.
 //
 // THE PLACE. Past the Ox Road the way to Morrow climbs through a pass, and wyverns nest on the crags over it. They were always there. Nobody
 // minded while the wagons came through in a crowd, but with the road shut for years they've spread down onto the road itself.
@@ -135,6 +135,9 @@ export default definePack({
      cells between at the Hold's proportions. */
   xpFit: { k: 0.94, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   partyClassXp: { 2: [990, 1595], 3: [1150, 1620, 1735], 4: [1150, 2100, 2325, 2335] },
+  /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
+     two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
+  partyVsAlone: { 2: [-30, 15], 3: [-25, 0, 10], 4: [-40, 15, 25, 25] },
   /* DEADLY BRINGS SIX (the Hold's and the Pyre Field's row): on eight a four of four classes died 9 times in 4 hero-hours at the floor (36 in 16,
      where the sheet allows 9). Six is the least Deadly may bring, one over Dangerous's five. */
   tierOverride: { deadly: 6, why: 'on the full box a group of four died 9 times in 4 hours at the floor, where the rule allows about 2. On six they hold it' },

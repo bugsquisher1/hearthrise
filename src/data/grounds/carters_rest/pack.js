@@ -125,6 +125,9 @@ export default definePack({
      tank and Healer 0.79 / 0.74, so the four 1000 x 1.20 / 0.523 = 2295, the pair 1000 x 1.10 / 0.764 = 1440, the cells between at the Hold's proportions. */
   xpFit: { k: 0.96, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   partyClassXp: { 2: [990, 1440], 3: [1150, 1595, 1705], 4: [1150, 2065, 2285, 2295] },
+  /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
+     two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
+  partyVsAlone: { 2: [-30, 0], 3: [-35, -10, 0], 4: [-45, 0, 10, 15] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 22472 },
   map,
 });

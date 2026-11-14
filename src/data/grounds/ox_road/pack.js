@@ -4,7 +4,7 @@
 // formula's (`node tools/pack.mjs propose ox_road --write`): tier 6, floor 112, fit both.
 //
 // STAGED, A SAMPLE. The map is still Wickstead's layout under a new id (map.js): the road, the wagons and the broken bridge are not drawn
-// and there is no art. Nothing here is served or listed. It opens only with its own map, art and fitted drop chances.
+// and there is no art. Nothing here is served or listed. It opens only with its own map and art, and after the full grade.
 //
 // THE PLACE. When Krell shut the crossing, the last ore wagons coming down from Morrow had nowhere to go, so they stopped on the road and
 // the men and oxen driving them died there. Gault got them back up. Now they haul for him, and his Drovers walk them with a goad. Those
@@ -141,6 +141,9 @@ export default definePack({
      Hold's proportions. */
   xpFit: { k: 0.91, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   partyClassXp: { 2: [990, 1610], 3: [1150, 1705, 1820], 4: [1150, 2210, 2445, 2455] },
+  /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
+     two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
+  partyVsAlone: { 2: [-30, 10], 3: [-35, -5, 0], 4: [-45, 5, 15, 15] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19318 },
   map,
 });

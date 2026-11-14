@@ -1,0 +1,23 @@
+{
+  "brief": "art/briefs/gen-2026-11-14/22-slake-tiles-barge-nets.txt",
+  "rows": {
+    "1-2 silt/reeds": {
+      "kept": "22-silt-reeds/ tileset 7442c425-c417-4486-92fd-4c0f5b60d65a (row 2, the re-roll): create_topdown_tileset pro 32 px, high top-down, transition 0, palette hr-world-56-v2 + max_colors 12 on both halves, NO chain",
+      "measured": "silt fill #2f2723 61.7 / #2a1c14 25.2 / #1f3322 11.4 (the olive copper stain) %: majority under 80, 36.6% on 2+ others; reeds fill #4a5a2a 43.6 / #1f3322 27.7 / #8a6440 11.0. Every pixel on palette, so the identity (native) lock moves 0%",
+      "refused": "22-rejected/silt-r1-749ab67f: silt #553a26 86.4% flat and red-brown, no copper; the reeds drew as lush green grass with yellow flowers",
+      "flag": "the new reeds are greener than the March kit's brown reeds (01014c39): with no chain the two reed fills cannot be one; place them so they do not touch"
+    },
+    "3-4 river/mud": {
+      "kept": "22-river-mud/ tileset 5730601c-af79-4b9f-9eea-6cf5b8df42d0 (row 4): water #2e4a52 96.8 + #5c6c7a ripples, dark and calm (flat by design, water); mud #2f2723 45.9 / #231d1f 29.2 / #3d2a1d 23.4, the same mud family as the kept silt",
+      "refused": "22-rejected/rivermud-r1-ad2aefa3: #4f7a80 water with bright #4fa8e8 wave marks, mud #553a26 82% (too light and red for the Slake's #332b23 floor)"
+    },
+    "5 grounded barge": "0 gens: the 11-08 barge with its end pieces is imported on origin/lane/a-import-slake-art (sl_grounded_barge + 4 pieces); not refused on re-read",
+    "6 stake nets": "0 gens: sl_stake_nets + _end _snag _torn exist on origin/lane/a-import-slake-art",
+    "7 kit props": {
+      "kept": "22-slake-props/: create_image_pro_flash 256x256 sheet c681a578 (9 gens), palette, style hf_pikes_fallen; cut by connected component (2 per prop): sl_stake_net_post 74x41, sl_rope_coil 58x39, sl_mudlark_hook_rack 67x54, sl_drowned_cart 66x52, each with an alt-",
+      "read": "x2 on the Slake mud: dark weathered wood, rope, rusty hooks, one family with the March kit"
+    }
+  },
+  "gens": "silt 15+15, river/mud 15+15 (one failed submit re-sent), props 9: about 70",
+  "wiring": "the Slake's set is on origin/lane/a-import-slake-art, not on release: the import lane wires the pairs (region-kits barrow_march, material native) and the props (port-pixellab sheet --set slake)"
+}

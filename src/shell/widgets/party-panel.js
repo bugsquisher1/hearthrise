@@ -31,22 +31,22 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.130';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.130';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.130';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.130';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.130';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.130';
-import { runIntent } from '../intent-words.js?v=0.2.130';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.130';
-import { short, whole } from '../../render/format.js?v=0.2.130';
-import { glyphSvg } from '../launcher.js?v=0.2.130';
-import { markPlayer } from '../context-menu.js?v=0.2.130';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.130';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.130';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.130';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.131';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.131';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.131';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.131';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.131';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.131';
+import { runIntent } from '../intent-words.js?v=0.2.131';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.131';
+import { short, whole } from '../../render/format.js?v=0.2.131';
+import { glyphSvg } from '../launcher.js?v=0.2.131';
+import { markPlayer } from '../context-menu.js?v=0.2.131';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.131';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.131';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.131';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.131';
+import { t } from '../../render/player-text.js?v=0.2.131';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'

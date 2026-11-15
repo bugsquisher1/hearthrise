@@ -86,7 +86,6 @@
     "from": "march/wight",
     "object": "68b66de1-bf39-482d-83c5-60f9c95d225d",
     "onto": [
-      "#2f2723",
       "#3a3a3e",
       "#4f4e52",
       "#6a6865",
@@ -95,5 +94,6 @@
       "#c9bfa0"
     ]
   },
-  "notes": "The Cairn Wight is the Ford's wight in the grey of the cairn stones: every earth pixel of march/wight's locked frames, by luminance rank, onto #2f2723 #3a3a3e #4f4e52 #6a6865 #8a867d #aaa49a #c9bfa0 by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn."
+  "notes": "The Cairn Wight is the Ford's wight in the grey of the cairn stones: every earth pixel of march/wight's locked frames, by luminance rank, onto #3a3a3e #4f4e52 #6a6865 #8a867d #aaa49a #c9bfa0 by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn.",
+  "lift": 3
 }

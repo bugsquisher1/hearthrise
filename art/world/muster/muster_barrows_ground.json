@@ -5,6 +5,7 @@
   "painted": true,
   "style": "s1",
   "material": "terrain",
+  "shade": 3,
   "source": "muster_barrows_ground.png",
   "lower": "painted",
   "upper": "painted",

@@ -18,6 +18,8 @@
 //   PROVOST  the Barrow Knight re-poured onto the charred end of the palette (brief 12 P3 / brief 25 row 7, 0 gens):
 //            every earth and bronze pixel of the knight's locked frames, by luminance rank, onto six shadow and iron steps.
 //   TWINS    the Muster's Barrow Pikeman and Cairn Wight, re-poured from the Ford's bodies they used to wear (0 gens), heads too.
+//   RING     last: each body's `lift` and the Ford's and Muster's floor `shade` (RING_LIFT, RING_SHADE), so every live monster reads
+//            3:1 off its floor (tests/world-assets.mjs [ring]).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -76,6 +78,29 @@ const BODIES = Object.freeze([
   { set: 'holdkeep', id: 'lord_krell', cls: 'brute', rot: `${HB}/lord_krell/rotations`, walk: [`${HB}/lord_krell/walk`, 1], idle: `${HB}/lord_krell/idle`,
     ramps: 'shadow,blood,cloth,stone,bone,earth,bronze,iron,steel,skin', lift: 2, object: 'ff5a6489-753d-4eac-90b4-adcbc0ee3541', name: 'S1 Lord Krell' },
 ]);
+
+/* ── READ 3:1 OFF THE FLOOR (art director 2026-11-15; tests/world-assets.mjs [ring], art-budget.js READABLE) ─────────────────
+   Measured under each map's spawn tiles, the Ford's and the Muster's floors sat at 0.077 and 0.089, the dead middle where neither a
+   dark nor a light body reads 3:1, and their bodies (one earth ramp each, after the lock) read 1.3-1.8:1. Both floors go three
+   value steps down their own ramps (moss into the leaf greens, build.mjs `shade`), to 0.015, the dim the Slake (0.022) and the
+   Hold (0.027) already have; each body goes up its ramps as far as its weakest facing needs (build.mjs `lift`, after the lock, so
+   the source stays the drawing). The Slake's and the Hold's few facings under 3:1 take one more step. The Pyre Field's dark bodies
+   on bright ash pass as they are. A body or floor this driver ports is rewritten without its key, so the key is set here, last. */
+const RING_LIFT = Object.freeze({
+  'march/banded_pikeman': 2, 'march/fordsunk': 3, 'march/wight': 4, 'march/bannerman': 3, 'muster/barrow_knight': 2, 'muster/captain_hask': 3,
+  'slake/greened_pikeman': 1, 'slake/bargeman': 1, 'holdguard/farmhand': 1, 'holdguard/hasks_lookout': 1, 'holdkeep/pyre_priest': 1,
+});
+const RING_SHADE = Object.freeze({ 'ford/hasks_ford_ground': 3, 'muster/muster_barrows_ground': 3 });
+/** Set a sidecar's readability key (`lift` or `shade`) just after its `material`, as the build reads it. */
+function ringKey(path, key, n) {
+  const f = join(ROOT, ART_DIR, path + '.json'), sc = JSON.parse(readFileSync(f, 'utf8')), out = {};
+  for (const [k, v] of Object.entries(sc)) { if (k === key) continue; out[k] = v; if (k === 'material') out[key] = n; }
+  writeFileSync(f, JSON.stringify(out, null, 2) + '\n');
+}
+function ringSteps(id) {
+  for (const [p, n] of Object.entries(RING_LIFT)) if (!id || p.endsWith('/' + id)) ringKey(p, 'lift', n);
+  for (const [p, n] of Object.entries(RING_SHADE)) if (!id) ringKey(p, 'shade', n);
+}
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
 
@@ -139,14 +164,15 @@ function pourOnto(img, ramps, onto) {
   return { out, moved };
 }
 /** A body re-poured from another's locked sheet (0 generations): its own pixels under its own id, so it is no twin. */
-function repour({ from, to, id, ramps, onto, note }) {
+function repour({ from, to, id, ramps, onto, note, lift }) {
   const [fset, fid] = from.split('/');
   const src = join(ROOT, ART_DIR, fset), dst = join(ROOT, ART_DIR, to);
   mkdirSync(dst, { recursive: true });
-  const sc = JSON.parse(readFileSync(join(src, fid + '.json'), 'utf8'));
+  /* the source's own drawing (its build-time `lift` is its floor's, not ours): a re-pour declares its own */
+  const { lift: _theirs, ...sc } = JSON.parse(readFileSync(join(src, fid + '.json'), 'utf8'));
   const { out, moved } = pourOnto(lock(decodePNG(readFileSync(join(src, sc.source))), sc.material), ramps, onto);
   writeFileSync(join(dst, id + '.png'), encodePNG(out));
-  const next = { ...sc, id, material: 'native', source: id + '.png',
+  const next = { ...sc, id, material: 'native', ...(lift ? { lift } : {}), source: id + '.png',
     pixellab: { tool: 'ramp re-pour of ' + fid + ' (0 generations)', from, object: sc.pixellab.object, onto },
     notes: note + ': every ' + ramps.join(' and ') + ' pixel of ' + from + '\'s locked frames, by luminance rank, onto ' + onto.join(' ') + ' by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn.' };
   writeFileSync(join(dst, id + '.json'), JSON.stringify(next, null, 2) + '\n');
@@ -161,15 +187,14 @@ function provost() {
    Ledger Wight pixel for pixel (HUNT_ART_ALIAS), so two names showed one drawing ([twin], the 2026-11-04 audit's "the same rat three
    times"). Each is now that body re-poured for the barrows (ART_DIRECTION §4: a value step, never a hue jump inside a ramp; bone,
    blood and stone kept): the pikeman's rotted leathers gone to grave-cold iron, the wight's robe to the grey of the cairn stones.
-   The pikeman goes a step darker, so his bones carry him; the wight a step lighter. Measured (ring-contrast.mjs, the Muster's
-   painted ground) the pikeman reads 1.60:1 and the wight 1.34:1, against 1.11:1 for the shipped Barrow Knight: still under the
-   3:1 the whole March owes (filed), never worse than the drawings they came from. Their 32 px heads take the same pour. */
+   No shadow step in the wight's pour (the shadow ramp never lifts). Each then lifts for the Muster's shaded floor (RING_LIFT's
+   reasoning): the pikeman 3.34:1, the wight 4.45:1. Their 32 px heads take the same pour, unlifted (a head sits on a panel). */
 const MUSTER_TWINS = Object.freeze([
   { from: 'march/banded_pikeman', to: 'muster', id: 'barrow_pikeman', ramps: ['earth'],
-    onto: ['#17141a', '#231d1f', '#2c2e33', '#4a4d54', '#6e727a', '#969aa1', '#aaa49a'],
+    onto: ['#17141a', '#231d1f', '#2c2e33', '#4a4d54', '#6e727a', '#969aa1', '#aaa49a'], lift: 2,
     note: 'The Barrow Pikeman is the Ford\'s Banded Pikeman out of a barrow, his leathers grave-cold' },
   { from: 'march/wight', to: 'muster', id: 'cairn_wight', ramps: ['earth'],
-    onto: ['#2f2723', '#3a3a3e', '#4f4e52', '#6a6865', '#8a867d', '#aaa49a', '#c9bfa0'],
+    onto: ['#3a3a3e', '#4f4e52', '#6a6865', '#8a867d', '#aaa49a', '#c9bfa0'], lift: 3,
     note: 'The Cairn Wight is the Ford\'s wight in the grey of the cairn stones' },
 ]);
 const HEADS_DIR = 'assets/icons-bundle/pixel/heads/';
@@ -196,6 +221,7 @@ function main(argv) {
     for (const t of MUSTER_TWINS) if (!id || id === t.id) musterTwin(t);
   }
   for (const [part, fn] of Object.entries(GROUNDS)) if (want(part) && !id) fn();
+  ringSteps(id);
 }
 
 /* the grounds' own art (tiles, floors, walls, props): barrow-grounds.mjs, one function a set */

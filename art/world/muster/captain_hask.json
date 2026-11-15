@@ -3,6 +3,7 @@
   "class": "brute",
   "style": "s1",
   "material": "unit",
+  "lift": 3,
   "source": "captain_hask.png",
   "anchor_px": [
     32,

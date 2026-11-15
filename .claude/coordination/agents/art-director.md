@@ -3386,3 +3386,6 @@ joined the barrow_march kit (brief 20 drew them as the March tree). (3) [twin] r
 barrow_pikeman and cairn_wight are ramp re-pours (provost precedent) of the Ford bodies, heads too, and their HUNT_ART_ALIAS rows
 are gone; the guard's alias-is-a-twin selftest stays. Driver: tools/world-art/import-barrow-2026-11-14.mjs (IDLES, MUSTER_TWINS).
 Lesson: check art/world-src for held generations before spending; 35 gens of idles sat unimported for a week.
+Readability pass (same lane): [ring] added to world-assets (READABLE in art-budget.js, Barrow March kits only; selftest +4).
+Lesson: a 0.07-0.09 floor is a dead zone for the 3:1 ring (bright bodies wash out to tan, dark ones can't pass); pick dim or
+bright per ground first, then lift. A whole-ramp lift of 4-5 steps turns earth bodies to gingerbread: shade the floor instead.

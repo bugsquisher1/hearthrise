@@ -101,5 +101,6 @@
       "#aaa49a"
     ]
   },
-  "notes": "The Barrow Pikeman is the Ford's Banded Pikeman out of a barrow, his leathers grave-cold: every earth pixel of march/banded_pikeman's locked frames, by luminance rank, onto #17141a #231d1f #2c2e33 #4a4d54 #6e727a #969aa1 #aaa49a by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn."
+  "notes": "The Barrow Pikeman is the Ford's Banded Pikeman out of a barrow, his leathers grave-cold: every earth pixel of march/banded_pikeman's locked frames, by luminance rank, onto #17141a #231d1f #2c2e33 #4a4d54 #6e727a #969aa1 #aaa49a by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn.",
+  "lift": 2
 }

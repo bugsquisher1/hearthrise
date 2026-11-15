@@ -3966,3 +3966,7 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   ring-contrast.mjs on the Muster's painted ground (median 0.074): Barrow Knight 1.11, Barrow Pikeman 1.60, Cairn Wight 1.34; on the
   Ford mud ref (0.051) the shipped banded_pikeman and barrow_knight stills read 1.00. No guard measures it. The fix is a lit-rim on
   the light-facing outline and a one-step body lift per body (§4), done once for the region. Owner: asset-director.
+  FIXED same day on lane/b-open-march-art: the Ford and Muster floors shaded 3 steps (0.077/0.089 -> 0.015 under the spawns),
+  bodies lifted (build.mjs `lift`/`shade`), every March monster now 3.06:1 or more on all four facings; world-assets [ring] holds it.
+  Left: lifted earth-ramp bodies (Barrow Knight, Captain Hask) read as one warm brown with less dark weight than their drawings; a
+  palette-born regen with a real lit rim would keep Hask's menace (gens, asset-director's call).

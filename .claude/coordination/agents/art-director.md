@@ -3344,3 +3344,16 @@ comma, a sentence or parentheses ("Mill Cellar (Deadly)", "Marlow (18)"); copy-l
 (Hunts list, hunt page, Tally), built at the v0.2.130 gate with no-break binding; a call for the designer if those should go too.
 Lessons: (1) help text inside a content scroll gets cut like content, and pinning it costs the content its rows: keys belong behind
 the ?; (2) the browser pane is shared with other sessions, so drive local-world through Playwright (world.play) for screenshots.
+
+## 2026-11-14 lane/b-march-floors (the Hold's and the Pyre's floors finished, the Slake's rows broken, Z3 green with the packs open)
+Z3 failed on krells_hold because its draw list held 7 sprites (decals are not sprites). Fixed with art, not a test change: Krell's red
+hung on three inner faces (kh_banner_hung, the banner stand's own crossbar and cloth, class `hanging`, open: maskHash unmoved). The
+floors: tools/world-art/ground-finish.mjs (ramp-step patches in rotated value noise, kept decals baked into the paint on a jittered
+grid, each on its own floor only), gravel and relaid-flag patches in the Hold's paint grid, burn scars on the ash, the hill on all four
+sides, the keep's mass a slate roof (15 gens) with a darker flagstone wall-walk, the gate's arch cut open. Lessons: (1) one axis-aligned
+value-noise lattice draws straight patch seams: rotate each octave; (2) a painted ground packs its UNIQUE cells, so wear costs atlas
+area (the Slake went 4096 wide until its blobs were coarsened; it now sits at 2048x1924); (3) the cart road's earth as worn patches on
+dark cobble read as bright square digs, the ash family's burnt grass fill is lime, the round shield decal reads as a cart wheel: cut;
+(4) local-world --site with junctions to src/ and assets/ serves tools/qa/region-kit.html from legal/ when python is absent.
+Open: a unit in the yard just north of the gatehouse (rows 35-37) still stands behind its towers, as behind any wall; a fade needs an
+engine rule (compose.js), filed for the systems engineer.

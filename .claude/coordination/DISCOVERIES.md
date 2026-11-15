@@ -3956,3 +3956,9 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   any committed `request.json` (PixelLab samples under art/world-src/ keep one) schedules 13 edge and intent tests and
   run-smoke for an art-only diff. I left that file out of this lane. Owner: reliability-engineer (match on the path, or skip
   art/world-src/**).
+- 2026-11-14 (art-director, lane/b-march-floors): atlas-slake is 2048x1924 of the 2048x2048 cap after the Slake's wear patches
+  (a painted ground packs every unique cell). The next Slake art (a body, a prop) will hit [atlas-size]: split the ground into its
+  own set, or coarsen the patches. Owner: asset-director.
+- 2026-11-14 (art-director, lane/b-march-floors): Krell's gatehouse is 156 px tall over a two-row passage, so a unit in the yard
+  just inside (rows 35-37) stands behind its towers. The arch is now see-through (units in the passage show); hiding behind the
+  towers needs an occluder fade like the roofs' (compose.js, a `gate` class rule). Owner: systems-engineer.

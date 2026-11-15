@@ -1,47 +1,78 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/boss-call-pane.js — CALL OUT ON A GROUND'S PAGE (src/data/boss-calls.js; Tyler 2026-11-04).
+// src/shell/windows/boss-call-pane.js — CALL OUT ON A GROUND'S PAGE (src/data/boss-calls.js; Tyler 2026-11-04, the series 2026-11-14).
 //
-// One section under Go as, on a ground whose boss can be called: the server's price and calls left, the press, then the
-// warning with its one confirm (the 11-04 risk ruling: a warned choice, one confirm press). Every number is the server's
-// quote (hr_boss_call_view, read when the page opens on it; a stale price only earns quote_changed). The press stays off
-// until a quote says yes, and says why when it doesn't. hunts.js owns the window, its status line and the run of the press.
-// A LIVE EVENT (Open Halls, 2027-03-22-live-events.sql §4) moves only the server's quote: a quote of 0 that names its event reads
-// that event's words (live-events-view.js callEventWords): its line before today's, "for free" on the press and the confirm, its
-// warning in place of the fee's. The event coming on or going off on the server's clock reads the quote again (feeKey).
+// One section under Go as, on a ground whose boss can be called: what a fight costs, the press, then the warning with the
+// SLIDER (how many fights in a row) and its one confirm (the 11-04 risk ruling: a warned choice, one confirm press).
+// EVERY NUMBER IS THE SERVER'S QUOTE (hr_boss_call_view, read when the page opens on it; CLAUDE.md §6): one fight's stamina and
+// gold, its time limit, the slider's top, what the room's stamina and gold cover right now, and the picked count's total, which
+// is the quote's own entry for that count (`totals`), never a sum made here. The only number this pane holds is the count the
+// slider picked, sent as it is; the server bounds it and compares the price (a stale one only earns quote_changed). The press
+// stays off until a quote says yes, and says why when it doesn't. hunts.js owns the window, its status line and the run of the press.
+// A LIVE EVENT (Open Halls, 2027-03-22-live-events.sql §4) moves only the server's quote: a fight that costs no gold reads the
+// no-gold labels, with the event's line before them (live-events-view.js callEventWords). It waives gold only: stamina stays.
+// The event coming on or going off on the server's clock reads the quote again (feeKey).
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls } from '../../render/paint.js?v=0.2.132';
+import { text, prop, cls, attr } from '../../render/paint.js?v=0.2.132';
 import { whole } from '../../render/format.js?v=0.2.132';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.132';
+import { BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.132';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.132';
 import { callOut } from '../../session/boss-intents.js?v=0.2.132';
 import { readCall } from '../../session/boss-quote.js?v=0.2.132';
 import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false }; SCRATCH.set(cs, s); } return s; };
-/* A quote is read again on a new ground or a new party, or once this old: the day's count may have moved on another hero. */
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false, fights: 1 }; SCRATCH.set(cs, s); } return s; };
+/* A quote is read again on a new ground or a new party, or once this old: the room's stamina and gold may have moved on another hero. */
 const QUOTE_STANDS_MS = 60000;
+const S = BOSS_CALL_WORDS.series;
 
-/** {Boss}, {boss}, {fee}, {minutes} and {guard} (his adds shield him, or nothing) in one of the table's lines. */
-export function callWords(line, call, price) {
-  return line.replace('{Boss}', call.Boss).replace('{boss}', call.boss).replace('{fee}', whole(price === undefined ? call.fee : price))
-    .replace('{minutes}', String(BOSS_CALL_RULES.limitMs / 60000)).replace('{guard}', isGuarded(MONSTERS[call.monster]) ? BOSS_CALL_WORDS.warnGuard : '');
+/* Milliseconds as minutes, the way a label says them: 2, 2.5, 10. */
+export const minutesOf = (ms) => { const m = ms / 60000; return Number.isInteger(m) ? String(m) : (Math.round(m * 10) / 10).toFixed(1); };
+
+/**
+ * {Boss}, {boss} and {guard} (his adds shield him, or nothing) from the call; every number from `x`, the server's:
+ * { fee, staminaMs, limitMs, n, stamina (ms), gold, covers, max, who, heroes }. A number the server has not said is left unfilled by the caller's choice of line.
+ */
+export function callWords(line, call, x = {}) {
+  const fill = (s, k, v) => (v === undefined || v === null ? s : s.replace('{' + k + '}', v));
+  let s = line.replace('{Boss}', call.Boss).replace('{boss}', call.boss).replace('{guard}', isGuarded(MONSTERS[call.monster]) ? BOSS_CALL_WORDS.warnGuard : '');
+  s = fill(s, 'fee', Number.isFinite(x.fee) ? whole(x.fee) : null);
+  s = fill(s, 'staminaMin', Number.isFinite(x.staminaMs) ? minutesOf(x.staminaMs) : null);
+  s = fill(s, 'minutes', Number.isFinite(x.limitMs) ? minutesOf(x.limitMs) : null);
+  s = fill(s, 'n', Number.isFinite(x.n) ? String(x.n) : null);
+  s = fill(s, 'stamina', Number.isFinite(x.stamina) ? minutesOf(x.stamina) : null);
+  s = fill(s, 'gold', Number.isFinite(x.gold) ? whole(x.gold) : null);
+  s = fill(s, 'covers', Number.isFinite(x.covers) ? String(x.covers) : null);
+  s = fill(s, 'max', Number.isFinite(x.max) ? String(x.max) : null);
+  s = fill(s, 'heroes', Number.isFinite(x.heroes) ? String(x.heroes) : null);
+  return fill(s, 'who', typeof x.who === 'string' && x.who ? x.who : null);
 }
-const leftWords = (q) => {
-  const w = BOSS_CALL_WORDS.left;
-  return q.left === 0 ? w.none : q.left === 1 ? w.one : w.other.replace('{n}', String(q.left));
-};
-/** The words for a refusal of this call (the designer's table), or null: the status line's general reader takes the rest. */
+/* One fight's numbers of quote `q`, for callWords. */
+const fightOf = (q) => (q ? { fee: q.price, staminaMs: q.staminaMs, limitMs: q.limitMs, max: q.maxFights, who: q.who, heroes: q.heroes } : {});
+
+/** The words for a refusal of this call (the designer's table), or null: the status line's general reader takes the rest.
+    `r` the refusal (its own `quote`, `who` and `max` are the server's); a line whose number the server did not say is not used. */
 export function callRefusal(r, call) {
   const line = r && Object.hasOwn(BOSS_CALL_WORDS.refused, r.error) ? BOSS_CALL_WORDS.refused[r.error] : null;
-  return line ? callWords(line, call) : null;
+  if (!line) return null;
+  const said = callWords(line, call, { ...fightOf(r.quote || null), ...(r.who ? { who: r.who } : {}), ...(Number.isFinite(r.max) ? { max: r.max } : {}) });
+  return /\{[a-zA-Z]+\}/.test(said) ? null : said;
 }
+
+/* How many fights the slider holds for quote `q`: the pick, inside the server's range. */
+const pickOf = (sc, q) => Math.max(1, Math.min(q ? q.maxFights : 1, Number.isInteger(sc.fights) ? sc.fights : 1));
 
 export function callHtml() {
   return '<section class="hw-hd-call" aria-label="Call out" hidden><h4 class="hw-hd-h">Call out</h4>'
     + '<p class="hw-call-line"></p>'
     + '<button type="button" class="hh-tool hw-call-press" data-hs-act="call-warn"></button>'
-    + '<div class="hw-confirm hw-call-warn" role="group" aria-label="Are you sure?"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-call-note-alone" hidden></p><p class="hw-confirm-note hw-call-note-a"></p><p class="hw-confirm-note hw-call-note-b"></p>'
+    + '<div class="hw-confirm hw-call-warn" role="group" aria-label="Are you sure?"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-call-note-alone" hidden></p><p class="hw-confirm-note hw-call-note-a"></p>'
+    /* THE SLIDER: how many fights in a row, 1 to the server's top. It answers as it moves (hunts.js names `input` in its events) and sends nothing until the confirm. */
+    + '<label class="hw-call-pick"><span class="hw-call-pick-l"></span>'
+    + '<input type="range" class="hw-call-n" min="1" max="1" step="1" value="1" data-hs-act="call-fights">'
+    + '<b class="hw-call-count"></b></label>'
+    + '<ul class="hw-call-facts"><li class="hw-call-f-stamina"></li><li class="hw-call-f-cost"></li><li class="hw-call-f-limit"></li><li class="hw-call-f-pay"></li>'
+    + '<li class="hw-call-f-total"></li><li class="hw-call-f-covers"></li><li class="hw-call-f-heroes" hidden></li><li class="hw-call-f-ends"></li></ul>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary is-on" data-hs-act="call-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="call-no"></button></div></div></section>';
 }
@@ -56,7 +87,7 @@ export function patchCall(det, ctx, v) {
   const sc = scratchOf(cs);
   /* A fee event coming on or going off moves the price: the key changes with it, so the quote is read again at once. */
   const key = call.id + ':' + (v.party ? v.party.id + ':' + v.party.seats.length : '') + ':' + feeKey(cs, call);
-  if (sc.key !== key) { sc.key = key; sc.quote = null; sc.at = 0; sc.warned = false; }
+  if (sc.key !== key) { sc.key = key; sc.quote = null; sc.at = 0; sc.warned = false; sc.fights = 1; }
   sc.call = call;
   const now = Date.now();
   /* One ask a minute, answered or not: a server that says nothing is not asked again on every repaint its own answer causes. */
@@ -69,45 +100,75 @@ export function patchCall(det, ctx, v) {
   }
   const q = sc.quote;
   const open = !!q && q.available && !v.now && !v.pending;
-  /* The quote's event, when it set the price (null: today's words). Its line goes first; today's reasons still follow it. */
+  const one = fightOf(q);
+  const free = !!q && q.price === 0;
+  /* The quote's event, when it set the price (null: today's words). Its line goes first; what a fight costs still follows it. */
   const ev = v.now ? null : callEventWords(cs, call, q);
-  const said = v.now ? BOSS_CALL_WORDS.hunting : !q ? BOSS_CALL_WORDS.noQuote : q.available ? leftWords(q) : (callRefusal({ error: q.why }, call) || BOSS_CALL_WORDS.noQuote);
-  /* No quote yet: the press names him at the data's fee, off, until the server has said; off, it always says why, beside it. */
+  const said = v.now ? BOSS_CALL_WORDS.hunting : !q ? BOSS_CALL_WORDS.noQuote
+    : q.available ? callWords(free ? S.eachFree : S.each, call, one) : (callRefusal({ error: q.why, quote: q, who: q.who }, call) || BOSS_CALL_WORDS.noQuote);
+  /* No quote yet: the press names him, off, until the server has said; off, it always says why, beside it. */
   text(box.querySelector('.hw-call-line'), ev && ev.line ? ev.line + ' ' + said : said);
   const press = box.querySelector('.hw-call-press');
-  text(press, callWords(ev ? ev.press : BOSS_CALL_WORDS.press, call, q ? q.price : undefined));
+  text(press, callWords(BOSS_CALL_WORDS.press, call));
   prop(press, 'disabled', !open);
   prop(press, 'hidden', sc.warned && open);
   const warn = box.querySelector('.hw-call-warn');
   cls(warn, 'is-on', sc.warned && open);
   if (sc.warned && open) {
-    text(warn.querySelector('.hw-confirm-q'), callWords(BOSS_CALL_WORDS.warnTitle, call, q.price));
+    const n = pickOf(sc, q);
+    /* the picked count's bill: the server's own entry for it */
+    const bill = { ...one, n, stamina: q.totals.staminaMs[n - 1], gold: q.totals.fee[n - 1], covers: q.covers };
+    text(warn.querySelector('.hw-confirm-q'), callWords(BOSS_CALL_WORDS.warnTitle, call));
     /* ALONE, A WARNING, NEVER A REFUSAL (designer's ruling 2, 2026-11-10): one more line, first, when the server says the room holds this hero only. */
     const alone = warn.querySelector('.hw-call-note-alone');
     prop(alone, 'hidden', !q.alone);
-    text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call, q.price) : '');
-    text(warn.querySelector('.hw-call-note-a'), callWords(BOSS_CALL_WORDS.warn[0], call, q.price));
-    text(warn.querySelector('.hw-call-note-b'), callWords(ev ? ev.warn : BOSS_CALL_WORDS.warn[1], call, q.price));
-    text(warn.querySelector('[data-hs-act="call-go"]'), callWords(ev ? ev.confirm : BOSS_CALL_WORDS.confirm, call, q.price));
+    text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call) : '');
+    text(warn.querySelector('.hw-call-note-a'), callWords(BOSS_CALL_WORDS.warn[0], call));
+    text(warn.querySelector('.hw-call-pick-l'), S.pick);
+    const slider = warn.querySelector('.hw-call-n');
+    attr(slider, 'max', String(q.maxFights));
+    attr(slider, 'aria-label', S.pick);
+    attr(slider, 'aria-valuetext', callWords(S.fights, call, bill));
+    if (Number(slider.value) !== n) slider.value = String(n);
+    prop(slider, 'disabled', q.maxFights < 2);
+    text(warn.querySelector('.hw-call-count'), callWords(S.fights, call, bill));
+    text(warn.querySelector('.hw-call-f-stamina'), callWords(S.stamina, call, bill));
+    text(warn.querySelector('.hw-call-f-cost'), callWords(free ? S.costFree : S.cost, call, bill));
+    text(warn.querySelector('.hw-call-f-limit'), callWords(S.limit, call, bill));
+    text(warn.querySelector('.hw-call-f-pay'), S.drops + '. ' + S.none + '.');
+    text(warn.querySelector('.hw-call-f-total'), callWords(bill.gold === 0 ? S.totalFree : S.total, call, bill));
+    text(warn.querySelector('.hw-call-f-covers'), callWords(q.covers === 0 ? S.covers.none : q.covers === 1 ? S.covers.one : S.covers.other, call, bill));
+    const heroes = warn.querySelector('.hw-call-f-heroes');
+    prop(heroes, 'hidden', !(q.heroes > 1));
+    text(heroes, q.heroes > 1 ? callWords(S.heroes, call, bill) : '');
+    text(warn.querySelector('.hw-call-f-ends'), S.ends);
+    text(warn.querySelector('[data-hs-act="call-go"]'), callWords(n === 1 ? S.confirmOne : S.confirm, call, bill));
     text(warn.querySelector('[data-hs-act="call-no"]'), BOSS_CALL_WORDS.cancel);
   }
 }
 
 /**
  * The section's presses. `run(send, busy, done)` is hunts.js's: the status line, the setup Go as chose, the close on a hunt under way.
- * Answers true when the action was this section's.
+ * `el` the control pressed (the slider's own value is the count). Answers true when the action was this section's.
  */
-export function actCall(ctx, action, repaint, run) {
-  if (action !== 'call-warn' && action !== 'call-no' && action !== 'call-go') return false;
+export function actCall(ctx, action, repaint, run, el) {
+  if (action !== 'call-warn' && action !== 'call-no' && action !== 'call-go' && action !== 'call-fights') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   if (action === 'call-warn') { sc.warned = true; repaint(); return true; }
   if (action === 'call-no') { sc.warned = false; repaint(); return true; }
+  if (action === 'call-fights') {
+    /* the slider's pick: display scratch until the confirm sends it; held to the server's range here, bounded again there */
+    const n = el ? Math.floor(Number(el.value)) : NaN;
+    if (Number.isFinite(n)) { sc.fights = Math.max(1, Math.min(sc.quote ? sc.quote.maxFights : 1, n)); repaint(); }
+    return true;
+  }
   const { call, quote } = sc;
   if (!call || !quote || !quote.available) return true;
+  const n = pickOf(sc, quote);
   sc.warned = false;
   const answered = quote.alone ? BOSS_CALL_WORDS.answered.alone : BOSS_CALL_WORDS.answered.party;
-  run(() => callOut(ctx.account, cs, call.id, quote.price), callWords(BOSS_CALL_WORDS.calling, call, quote.price), () => callWords(answered, call, quote.price))
+  run(() => callOut(ctx.account, cs, call.id, n, quote.price), callWords(BOSS_CALL_WORDS.calling, call), () => callWords(answered, call))
     .then((r) => { if (r && r.quote) sc.quote = r.quote; else sc.at = 0; repaint(); });
   return true;
 }

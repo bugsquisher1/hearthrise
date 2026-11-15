@@ -514,6 +514,9 @@ async function seriesDoors(door, boot) {
         if (job.after1 && !planted && Number(await one(db, 'select coalesce(max(call_fight), 0) from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid])) >= 2) {
           planted = true;
           from2 = await one(db, 'select max(fight_from) from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
+          /* THE RECORD IS ONE FIGHT'S (the losing line reads it): the second fight starts with none, not with the first one's */
+          const rec = await q(db, 'select t.fight from public.hunt_session_tally t join public.hunt_sessions h on h.id = t.session_id where h.instance_id = $1 and h.ended_at is null', [pid]);
+          if (rec.some((r) => r.fight !== null)) bad.push(`${tag}: the second fight began with the first fight's record: ${JSON.stringify(rec.map((r) => r.fight))}`);
           setRow(job.after1);
         }
         return false;
@@ -542,6 +545,9 @@ async function seriesDoors(door, boot) {
       const left = await pool(db, uid);
       if (left !== pool1[i] - (job.paid[i] - 1) * STAM) bad.push(`${tag}: seat ${i}'s pool reads ${left}, want ${pool1[i] - (job.paid[i] - 1) * STAM} (the press left ${pool1[i]}, ${job.paid[i] - 1} more fights at ${STAM})`);
       if (pool1[i] > pool0[i] - STAM + 5000 || pool1[i] < pool0[i] - STAM) bad.push(`${tag}: the press left seat ${i} ${pool1[i]} of ${pool0[i]}, want one fight off`);
+      /* ...and the pool READ at the room's last instant is the pool it holds: its stamp walked with every window, so no second in the room was rest */
+      const read = Number(await one(db, 'select public.hr_stamina_of($1::uuid, 0, $2::timestamptz)::text', [uid, g.ended_at]));
+      if (read !== left) bad.push(`${tag}: seat ${i}'s pool reads ${read} at the room's last instant and holds ${left}: the room's time rested it`);
       /* the title's counter: once a win this hero stood in */
       const n = Number(await one(db, `select coalesce(max(value), 0) from public.player_progress where user_id = $1 and slot = 0 and kind = 'stat' and period_key = '' and key = 'ev:kill_monster:' || $2`, [uid, KING.monster]));
       if (n !== job.won) bad.push(`${tag}: seat ${i}'s counter reads ${n}, want ${job.won}`);
@@ -620,6 +626,20 @@ async function forged(boot) {
     if (!res || res.ok === true || !said.includes(want)) bad.push('BD-FORGED ' + name + ' answered ' + said.slice(0, 200));
     await strikes(pid);
   }
+  /* BD-LOSS, THE ROOM'S PLAN (hr_boss_call_plan, what the settle decides before any member lands): a pair that both won goes on; a death beside the
+     win (the kill and a hero's fall in one swing), a leave, or a hero still fighting plans nothing, so the win's end closes the room for everyone. */
+  {
+    const seats = await q(db, 'select id, user_id from public.hunt_sessions where instance_id = $1 and ended_at is null order by seat', [pid]);
+    const at = new Date(anchorMs + 40000).toISOString();
+    const mem = (ends) => JSON.stringify(seats.map((s, i) => ({ user: s.user_id, slot: 0, session: s.id, hunt: { ended: ends[i] ? { reason: ends[i], at } : null } })));
+    const planOf = (ends) => one(db, 'select public.hr_boss_call_plan($1::uuid, $2::jsonb, $3::timestamptz)', [pid, mem(ends), at]);
+    const both = await planOf(['boss_felled', 'boss_felled']);
+    if (!both || both.next !== true || Object.keys(both.stop).length) bad.push('BD-LOSS CONTROL: a pair that both won plans ' + JSON.stringify(both));
+    for (const ends of [['boss_felled', 'died'], ['died', 'boss_felled'], ['boss_felled', 'left'], ['boss_felled', null], ['boss_felled', 'party_member_died']]) {
+      const plan = await planOf(ends);
+      if (plan !== null) bad.push('BD-LOSS a room that ended ' + ends.join(' and ') + ' planned a next fight: ' + JSON.stringify(plan));
+    }
+  }
   /* A forged record: the settle's bad_analyzer, whole. */
   for (const [name, f] of [['past the top', { boss_pm: 1001, fired: {} }], ['a stray key', { boss_pm: 5, fired: {}, gold: 9 }], ['a negative count', { boss_pm: 5, fired: { eat: -1 } }], ['not a number', { boss_pm: 'x', fired: {} }]]) {
     const plan = await M.HS.readHuntSettle({ exec, user: uids[0], slot: 0, atMs: anchorMs + WINDOW }, 'tick');
@@ -671,6 +691,8 @@ async function forged(boot) {
       ['skill XP on a win', (m) => { m.delta.xp = { melee: 1 }; }, 'called_pays'],
       ['coin on a win', (m) => { m.delta.gold = 5; }, 'called_pays'],
       ['a second kill', (m) => { m.delta.progress = [...m.delta.progress, KILL]; }, 'called_pays'],
+      /* ...and with nothing else in the window to refuse it: the title's counter moves once a fight */
+      ['a second kill and no drops', (m) => { m.delta.progress = [KILL, KILL]; delete m.delta.items; }, 'called_pays'],
       ['a loot count past the item', (m) => { m.delta.progress = [...m.delta.progress, { kind: 'stat', key: 'ev:loot:rat_tail', period: '', add: 5, state: 'active' }]; }, 'called_pays'],
       ['the end stripped off his kill', (m) => { m.hunt.ended = null; }, 'called_pays'],
       ['his kill stripped off the end', (m) => { m.delta.progress = m.delta.progress.filter((op) => !isKill(op) && !/^ev:loot:/.test(op.key) && op.key !== 'rare_drops'); delete m.delta.items; }, 'end_not_proven'],
@@ -780,10 +802,10 @@ const MUTANTS = [
   { name: 'gold never stops the series', fn: FN.plan, find: "if coalesce(v_p, 0) - v_b - v_f < v_floor then v_short := 'gold_out'; end if;", repl: '', arm: 'series', want: /BD-GOLD|THREW/ },
   { name: 'the series spends the hero\'s "Keep at least"', fn: FN.plan, find: "v_floor := greatest(0, coalesce((public.hr_hunt_supply_of(v_m.user_id, v_m.slot, v_m.preset)->>'gold_floor')::bigint, 0));", repl: 'v_floor := 0;', arm: 'series', want: /BD-GOLD/ },
   { name: 'a hero who can pay is told he can\'t', fn: FN.step, find: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'boss_felled');", repl: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'stamina');", arm: 'series', want: /BD-STAM/ },
-  { name: 'a death beside the win goes on to the next fight', fn: FN.plan, find: "where e.value->'hunt'->'ended'->>'reason' is distinct from 'boss_felled'", repl: "where e.value->'hunt'->'ended'->>'reason' is null", arm: 'series', want: /BD-LOSS|THREW/ },
+  { name: 'a death beside the win goes on to the next fight', fn: FN.plan, find: "where e.value->'hunt'->'ended'->>'reason' is distinct from 'boss_felled'", repl: "where e.value->'hunt'->'ended'->>'reason' is null", arm: 'forged', want: /BD-LOSS/ },
   { name: 'the second fight\'s limit runs from the first', fn: FN.read, find: 'coalesce(p_s.fight_from, p_s.hunt_from)', repl: 'p_s.hunt_from', arm: 'series', want: /BD-LIMIT2|THREW/ },
   { name: 'the second fight\'s limit is proved from the first', fn: FN.settle, find: 'and v_end_at >= coalesce(v_s.fight_from, v_s.hunt_from) + make_interval(secs => c.limit_ms / 1000.0) - c_skew)', repl: 'and v_end_at >= v_s.hunt_from + make_interval(secs => c.limit_ms / 1000.0) - c_skew + interval \'1 hour\')', arm: 'series', want: /BD-LIMIT2|THREW/ },
-  { name: 'the next fight keeps the fight\'s record', fn: FN.step, find: 'update public.hunt_session_tally set fight = null where session_id = p_session and fight is not null;', repl: 'null;', arm: 'series', want: /BD-LOSS|BD-LIMIT2|BD-SERIES/ },
+  { name: 'the next fight keeps the fight\'s record', fn: FN.inst, find: 'update public.hunt_session_tally t set fight = null\n        from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null and t.session_id = h.id and t.fight is not null;', repl: 'null;', arm: 'series', want: /BD-LOSS|BD-LIMIT2/ },
   { name: 'a win pays off his table', fn: FN.pays, find: "or (e.value #>> '{}')::int > coalesce((v_drops->>e.key)::int, 0)", repl: '', arm: 'forged', want: /BD-FORGED/ },
   { name: 'drops with no kill', fn: FN.pays, find: "and not (v_win and k = 'items')", repl: "and k <> 'items'", arm: 'forged', want: /BD-FORGED/ },
   { name: 'two kills in one window', fn: FN.pays, find: "if v_kills > 1 then return 'progress:ev:kill_monster'; end if;", repl: '', arm: 'forged', want: /BD-FORGED/ },
@@ -791,7 +813,7 @@ const MUTANTS = [
   { name: 'a win with no kill is taken', fn: FN.step, find: "if coalesce(v_held, v_end) = 'boss_felled' and not v_won then", repl: 'if false then', arm: 'forged', want: /BD-FORGED/ },
   { name: 'the engine\'s stamina number is the pool', fn: FN.apply, find: '    v_e := v_s0;\n', repl: "    v_e := coalesce((v_stam #>> '{}')::bigint, v_s0);\n", arm: 'forged', want: /BD-FORGED/ },
   { name: 'the next fight keeps the old room', fn: FN.inst, find: "if coalesce((nullif(current_setting('hr.boss_plan', true), '')::jsonb->>'next')::boolean, false) then v_world := null; end if;", repl: '', arm: 'forged', want: /BD-FORGED/, equivalent: 'the engine already proposes no world once every hero has ended (accrual.js); the line is the server\'s own belt' },
-  { name: 'a second apply of the series moves something', fn: FN.plan, find: 'declare v_m record;', repl: 'declare v_m record; -- a body the second apply will move back', arm: 'again2', want: /BD-AGAIN/ },
+  { name: 'a second apply of the series moves something', fn: FN.plan, find: 'declare v_m record;', repl: 'declare v_m record; /* a body the second apply will move back */', arm: 'again2', want: /BD-AGAIN/ },
 ];
 
 /* BD-AGAIN: the four files again, on the chain as of the lane's own last file. A later lane's full-replace catalogue (2027-03-14-jewelry's

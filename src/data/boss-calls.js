@@ -114,6 +114,8 @@ export const BOSS_CALL_WORDS = Object.freeze({
     total: 'Total: {stamina} min of stamina, {gold} gp',
     totalFree: 'Total: {stamina} min of stamina',
     covers: Object.freeze({ none: 'Not enough stamina or gold for a fight right now.', one: 'Enough stamina and gold for 1 fight right now.', other: 'Enough stamina and gold for {covers} fights right now.' }),
+    /* more than one of this account's heroes in the room ({heroes}, the server's count): whose stamina, whose gold */
+    heroes: 'Each of your {heroes} heroes pays its own stamina. The gold is for all of them.',
     ends: 'Ends on a death, or when stamina or gold runs out',
     confirm: 'Call him out {n} times',
     confirmOne: 'Call him out once',

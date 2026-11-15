@@ -49,8 +49,9 @@
 --     transaction only): null (no step: someone did not win, the last fight, no series), or { next, stop, at }. `next` when EVERY hero in
 --     the room proposes `boss_felled` on the window's own instant, fights are left, and every hero can pay the next: its pool (the room
 --     never drains or rests it) holds call_stamina_ms, and its account's purse, less this window's own store bills and the account's fees,
---     stays at or over the hero's own "Keep at least". Else `stop` names who can't: `gold_out` (ahead of `stamina`, END_ORDER). On `next`
---     the stored world is dropped: the next fight starts in a fresh room on the same instant.
+--     stays at or over the hero's own "Keep at least". Else `stop` names who can't: `gold_out` (ahead of `stamina`, END_ORDER). On `next`,
+--     once every member has landed, the stored world is dropped and each session's record of the fight (hunt_session_tally.fight, ONE
+--     fight's) is cleared: the next fight starts in a fresh room on the same instant.
 --   hr_hunt_settle_session: a fight's limit is proved and owed from fight_from; a `boss_felled` in a room with a plan is HELD (not
 --     closed) and answered `held`.
 --   hr_hunt_apply_member: a called window's stamina is the server's alone (the pool as it stood at the window's start, stamped at its end:
@@ -62,7 +63,7 @@
 --     end_not_proven; a kill with no `boss_felled`, or `died` in the same swing, is called_pays), then counted (call_won + 1, under the
 --     CHECK). A held end then follows the plan: `next` charges THIS hero the next fight (stamina, the fee, ONE ledger row kind shop, intent
 --     boss_call:<call>:fight, the session named in meta) and moves the session to it (call_fight + 1, fight_from and the session clock on
---     the room's instant, the fight's record cleared); otherwise the session closes here: the plan's reason for a hero who can't pay
+--     the room's instant); otherwise the session closes here: the plan's reason for a hero who can't pay
 --     (`stamina`, `gold_out`), the win's `boss_felled` for everyone else.
 --   hr_hunt_view: a session of a series shows `call` { fights, fight, won, fee, stamina_ms, paid_gold, paid_stamina_ms }; no other hunt's
 --     section gains a key.
@@ -288,8 +289,8 @@ begin
        set call_fight = call_fight + 1, fight_from = v_at, settled_to = v_at, next_swing_at = v_at, version = version + 1
      where id = p_session and call_fight = v_s.call_fight and ended_at is null;
     if not found then perform public.hr_reject('session_moved', jsonb_build_object('why', 'boss_fight')); end if;
-    -- The record of a fight is one fight's (the losing line reads it): the next starts clean.
-    update public.hunt_session_tally set fight = null where session_id = p_session and fight is not null;
+    -- (The record of the fight just won is cleared by hr_hunt_apply_instance once every member has landed: this member's own tally write,
+    -- which carries that record, runs after this step.)
     return (p_h - 'held') || jsonb_build_object('fight', jsonb_build_object('n', v_s.call_fight + 1, 'of', v_s.call_fights,
                                                                            'fee', v_s.call_fee, 'stamina_ms', v_s.call_stamina_ms));
   end if;
@@ -337,8 +338,13 @@ $a$ || v_old;
     v_def := replace(v_def, v_old, v_new);
     v_old := $a$    select count(*) into v_n from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null;$a$;
     v_new := v_old || $a$
-    -- CALL-SERIES: the next fight starts in a fresh room (no stored world), and the plan ends with this settle.
-    if coalesce((nullif(current_setting('hr.boss_plan', true), '')::jsonb->>'next')::boolean, false) then v_world := null; end if;
+    -- CALL-SERIES: the next fight starts in a fresh room (no stored world) with no record of the last one (hunt_session_tally.fight is ONE
+    -- fight's: the losing line reads it; each member's own tally write landed after its step, so it is cleared here), and the plan ends with this settle.
+    if coalesce((nullif(current_setting('hr.boss_plan', true), '')::jsonb->>'next')::boolean, false) then
+      v_world := null;
+      update public.hunt_session_tally t set fight = null
+        from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null and t.session_id = h.id and t.fight is not null;
+    end if;
     perform set_config('hr.boss_plan', '', true);$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_apply_instance: the world''s anchor matched % times (need 1): the body moved', v_n; end if;

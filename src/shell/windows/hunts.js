@@ -371,7 +371,8 @@ function patchPage(det, ctx, sc, v) {
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, el) {
-  if (ev.type !== 'click') return false;
+  /* Presses; and the Call out slider, which answers as it moves (an `input` a step, a `change` on release: boss-call-pane.js). */
+  if (ev.type !== 'click' && !(action === 'call-fights' && (ev.type === 'input' || ev.type === 'change'))) return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const hunt = el.getAttribute('data-hunt');
@@ -426,7 +427,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }))) return true;
+  }), el)) return true;
   /* A keyed hall: its section's presses, the same way; its refusals read its own words, with the key's name. */
   const hall = hallFromGround(sc.pick);
   if (actHall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -480,4 +481,6 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
 };
 
 /* The header's Back (src/shell/window-head.js): on a phone, a ground's page goes back to the list. */
+/* The slider's steps reach act (shell.js onExtra routes only the types a renderer names). */
+renderHunts.events = Object.freeze(['input']);
 renderHunts.inner = (ctx, body) => (ctx.isPhone() && body.querySelector('.is-paged') ? 'back' : null);

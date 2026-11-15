@@ -81,7 +81,7 @@ function cauldronLid() {
   return out;
 }
 
-export const CALL_ICONS = Object.freeze({ kingstooth, cauldron_lid: cauldronLid });
+const CALL_ICONS = Object.freeze({ kingstooth, cauldron_lid: cauldronLid });
 
 if (isMain(import.meta.url)) {
   const i = process.argv.indexOf('--out');

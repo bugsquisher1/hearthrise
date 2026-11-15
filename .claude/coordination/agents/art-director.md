@@ -3341,6 +3341,8 @@ market-model 209-228, readiness 58, town-work 454}, widgets/{hunt-topbar 59,63, 
 79, hunt-summary 207, inspect 28, inventory/advanced 57-97, inventory/elsewhere 50, inventory/grid 96-240, item-tip 67, market/browse
 112-198, market/ledger 47,56, market/sell 119,121, party-finder 52,106, party-roster 51, services 73-101, shop 124-187, skills 112,
 temper-pane 95,99, work 122-152}. Canvas text (hunt-view/scene 337,486, world/town-scene 35) and build-info 26 need no change.
+UPDATE after merging v0.2.131 (main aef9785c5): that list is gone. The only "·" left in src/**/*.js outside format.js sepHtml are
+32 inside comments (core/ammo, combat, perks, data/items, item-authority, library2-items, start-kit, a few shell quotes of old bugs).
 ## 2026-11-14 lane/b-hold-art (v0.2.130 gate opens: the Hold's hill and gate, the Slake's floor, the Pyre icons)
 Krell's Hold read as a castle's inside because every '#' was painted wall mass: the cart road climbed between black wall tops.
 barrow-grounds.mjs holdCastle splits the rock: castle = touches a castle floor, or two rows south of one (a south wall is two

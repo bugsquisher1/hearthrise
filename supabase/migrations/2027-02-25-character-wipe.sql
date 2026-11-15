@@ -94,7 +94,9 @@ declare
     'hr_lb_hidden', 'hr_name_holds', 'hr_tick_config', 'hr_tick_shard_cursor', 'hr_account_deletions',
     'hr_gm_accounts', 'hr_gm_log', 'hr_bans', 'hr_chat_mutes',
     /* the server feature switches (2027-03-21-feature-switches.sql): config naming tester accounts, which outlive a character wipe */
-    'hr_feature_switches'];
+    'hr_feature_switches',
+    /* the ledger fold's cursor and counters (2027-04-27-ledger-fold.sql): one row the fold needs, started over below */
+    'hr_ledger_fold_state'];
   c_market constant text[] := array['market_listings', 'market_sales', 'market_item_daily'];
   c_no_player constant text[] := array[
     'hr_activities', 'hr_bench_tax_rates', 'hr_blessing_rule', 'hr_blessing_tiers', 'hr_bounty_board_monsters', 'hr_bounty_monsters',
@@ -106,7 +108,7 @@ declare
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',
     'hr_hunt_stances', 'hr_hunt_supplies', 'hr_hunt_target_modes', 'hr_hunt_travel', 'hr_hunt_vendor_value', 'hr_hunt_weapon_roles', 'hr_hunt_weapons',
-    'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_ledger_fold_state', 'hr_level_curve', 'hr_market_config',
+    'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_level_curve', 'hr_market_config',
     'hr_market_premium_items', 'hr_name_blocklist', 'hr_outfit_dyes', 'hr_outfits', 'hr_players_online_cache', 'hr_plot_tier', 'hr_premium_login_reward',
     'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
     'hr_stamina_refill_rule', 'hr_start_equipment', 'hr_start_inventory', 'hr_start_kit', 'hr_start_skill_xp', 'hr_state_sections', 'hr_storage_chests',
@@ -231,6 +233,12 @@ begin
    where cursor_user is not null or cursor_slot is not null or cursor_at is not null;
   update public.hr_tick_config set cursor_user = null, cursor_slot = null, cursor_at = null
    where cursor_user is not null or cursor_slot is not null or cursor_at is not null;
+  -- The ledger fold's cursor and counters described a journal that is gone: it starts over on the new one, its dial untouched.
+  if to_regclass('public.hr_ledger_fold_state') is not null then
+    update public.hr_ledger_fold_state
+       set folded_to = null, runs = 0, rows_folded = 0, windows = 0, rows_left = 0, last_at = null, last = null
+     where only_row;
+  end if;
   -- A name a moderator pulled stays pulled, tied to nobody.
   update public.hr_name_holds set user_id = null where user_id is not null;
   -- Frames and chat pushes queued for hidden heroes. No page can read one back; they would only age out in an hour.

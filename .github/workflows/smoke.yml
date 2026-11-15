@@ -2329,6 +2329,19 @@ jobs:
           node tests/ledger-rollup.mjs
           node tools/mutant-gate.mjs node tests/ledger-rollup.mjs --mutate
 
+      # THE LEDGER'S FOLD TIER (2027-04-27-ledger-fold.sql) is the one path that deletes journal
+      # rows inside retention. This replays the chain, builds a ledger (a hunt the real engine
+      # settles among it), arms the tier with the staged arm file and runs the jobs as cron does:
+      # every folded row's gold, units, XP, loot and kills are in a window to the unit (worked
+      # out in JS, and against the hunt's own tally), a row with no window is refused deletion,
+      # the dry run moves nothing, every server reader and both reports answer the same before
+      # and after, and fold-then-prune writes the rollup the prune writes. --mutate plants 15.
+      - name: Ledger fold — every folded row is in a window to the unit and no reader moves
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/ledger-fold.mjs
+          node tools/mutant-gate.mjs node tests/ledger-fold.mjs --mutate
+
       # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
       # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
       # exists because of Security finding F2 (2026-09-13, Deep Seam review):

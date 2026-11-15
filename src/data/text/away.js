@@ -21,5 +21,5 @@ export const AWAY_TEXT = Object.freeze({
   next_food: 'Pack more food for a longer hunt.',
   next_ammo: 'Pack more ammo for a longer hunt.',
   next_runes: 'Pack more runes for a longer hunt.',
-  next_gold: 'Keep more gold for store supplies, or pack your own.',
+  next_gold: 'Lower your gold reserve, carry more gold, or pack your own supplies.',
 });

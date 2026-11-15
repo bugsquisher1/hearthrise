@@ -1004,7 +1004,7 @@ async function runTests(mods) {
     ok(nextOf('heals_out').includes('Pack more food for a longer hunt.'), 'out of food: ' + nextOf('heals_out'));
     ok(nextOf('ammo_out').includes('Pack more ammo for a longer hunt'), 'out of ammo: ' + nextOf('ammo_out'));
     ok(nextOf('runes_out').includes('Pack more runes for a longer hunt'), 'out of runes: ' + nextOf('runes_out'));
-    ok(nextOf('gold_out').includes('Keep more gold for store supplies, or pack your own'), 'out of gold: ' + nextOf('gold_out'));
+    ok(nextOf('gold_out').includes('Lower your gold reserve, carry more gold, or pack your own supplies'), 'out of gold: ' + nextOf('gold_out'));
     ok(nextOf('died').includes('Start mining, chopping or fishing before a hunt'), 'a death resumes a job too: ' + nextOf('died'));
     /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
     ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));

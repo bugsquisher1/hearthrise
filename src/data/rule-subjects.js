@@ -27,7 +27,7 @@ import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.131';
 export const TARGET_MODES = Object.freeze({
   nearest: Object.freeze({ label: 'Nearest' }),
   weakest: Object.freeze({ label: 'Lowest HP' }),
-  highest_pct: Object.freeze({ label: 'Highest % life' }),
+  highest_pct: Object.freeze({ label: 'Highest HP %' }),
   strongest: Object.freeze({ label: 'Strongest' }),
   follow: Object.freeze({ label: 'Follow the leader' }),
 });

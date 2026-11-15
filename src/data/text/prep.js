@@ -48,17 +48,19 @@ export const PREP_TEXT = Object.freeze({
   stance_more: '+{dealt}% damage dealt, +{taken}% damage taken',
   stance_less: '-{dealt}% damage dealt, -{taken}% damage taken',
   target: 'Target',
-  target_line: 'Who it hits first',
+  target_line: 'Target priority',
   distance: 'Distance',
   chase: 'Chase',
   closer: 'Closer',
   farther: 'Farther',
   chase_on: 'Chase on: runs up to its target',
   chase_off: { one: 'Chase off: stays {count} tile away', other: 'Chase off: stays {count} tiles away' },
-  gold: 'Gold to keep',
-  keep_at_least: 'Keep at least',
-  gold_word: 'gold',
-  gold_line: 'Never spends below this (sells loot, then stops)',
+  /* THE GOLD RESERVE (core/action-rules.js floorOf): a store buy never takes the purse below it; one that would sells this hunt's
+     loot, cheapest first, just enough to pay, and only when that is not enough does the hunt end gold_out. */
+  gold: 'Gold reserve',
+  keep_at_least: 'Gold reserve (gp)',
+  gold_word: 'gp',
+  gold_line: 'Stops buying supplies below this. Sells loot first, then ends the hunt.',
 
   /* THE ACTION BAR GRID. */
   bar: 'Action bar',

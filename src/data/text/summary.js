@@ -40,7 +40,7 @@ export const SUMMARY_TEXT = Object.freeze({
   end_party_member_left: 'Party member left (you came home too)',
   end_heals_out: 'Out of healing supplies',
   end_ammo_out: 'Out of ammunition',
-  end_gold_out: 'Out of gold for supplies',
+  end_gold_out: 'Gold reserve reached (no gold left for supplies)',
   end_rule: 'Stop rule met',
   end_stamina: 'Out of stamina (refills hour for hour in town)',
   end_hours: 'Time limit reached',

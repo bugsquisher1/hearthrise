@@ -76,6 +76,9 @@ export const CLIENT_RPCS = Object.freeze({
   /* Combat training (the designer's 2026-11-13 spec; server half lane/c-combat-training). */
   hr_training_start: 'train one combat skill at the yard or on the house dummy: the slot, a skill id, the place and the hourly fee the player saw, with a fresh key; the server re-quotes on its clock and charges each hour (training-intents.js)',
   hr_house_dummy_unlock: 'unlock one skill on the account\'s house dummy at the price the player saw, with a fresh key; the server gates, prices and debits it (training-intents.js)',
+  hr_training_gear_buy: 'buy one training item from the Arms Master: the slot, the item id and the price the player saw, with a fresh key; the server prices it from its catalogue, refuses quote_changed, a bound row and past the account\'s day (training-intents.js buyGear; 2027-04-23-training-gear.sql)',
+  hr_training_gear_open: 'open one sealed training item of the hero\'s into its bank for that skill: the slot and the item id, with a fresh key; the server takes it from the bag or Storage (training-intents.js openGear)',
+  hr_training_gear_switch: 'the hero\'s own "Use the training item" switch for one skill: the slot, a skill id and on/off, with a fresh key; no value (training-intents.js useGear)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',

@@ -246,9 +246,6 @@ export const REASONS = Object.freeze({
     { cond: 'r.held || !next', words: "'. You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
     { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
-  'src/shell/widgets/first-target.js': [
-    { cond: 'pending || v === null', words: "v === null ? t('bar.first_target_reading')", where: 'First target: off until the server says this ground\'s pick, and the note under it says it is loading' },
-  ],
   'src/shell/widgets/stamina-buy.js': [
     { cond: '!!why', words: ".hb-buy-why'), why", where: 'the bar\'s refill panel line' },
   ],
@@ -365,6 +362,9 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/widgets/action-bar.js': [
     { cond: '!s', words: '!s', where: 'the rename box before the settings load' },
+  ],
+  'src/shell/widgets/first-target.js': [
+    { cond: 'v === null', words: "t('bar.first_target_unknown')", where: 'the First target before the server sends the hunt_target_kind section: the line under the select reads "Waiting for server"' },
   ],
 });
 

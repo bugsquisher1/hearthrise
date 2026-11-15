@@ -4168,8 +4168,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 130) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
           /* THE BAG'S KEYS STAND WHOLE (lane/a-text-polish): they sat at the end of the bag's scroll and its edge cut the third line at
              1366x768. Behind the ?, every hint shows, no scrolling box the list sits in cuts it, and it ends inside the window; at rest none
-             is in the body. Measured, not snapshotted. */
-          await page.click('[data-hs-win="inventory"] [data-hs-help]');
+             is in the body. Measured, not snapshotted. A bag with no ? has no way to its keys: that is this rule's red, never a page
+             step that throws (release v0.2.131 in-page-18: the "AW-94 the header has no ?" mutant crashed here as HARNESS). */
+          const help = '[data-hs-win="inventory"] [data-hs-help]';
+          const hasHelp = !!(await page.$(help));
+          if (!hasHelp) fails.push('AW-62 the bag has no ? in its header, so its keys cannot be read');
+          if (hasHelp) await page.click(help);
           const keys = await page.evaluate(() => {
             const w = document.querySelector('[data-hs-win="inventory"]'), k = w.querySelector('.hs-help-keys');
             if (!k || !k.getClientRects().length) return { cut: 'not shown' };
@@ -4183,9 +4187,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             const lis = [...k.querySelectorAll('li')];
             return { cut, hints: lis.length, keyed: lis.filter((li) => li.querySelector('kbd')).length, wrapped: lis.filter((li) => li.getClientRects().length > 1).length };
           });
-          await page.click('[data-hs-win="inventory"] [data-hs-help]');
+          if (hasHelp) await page.click(help);
           const inBody = await page.evaluate(() => !!document.querySelector('[data-hs-win="inventory"] .hw-inv .hs-help-keys, [data-hs-win="inventory"] .hw-inv .hw-keys'));
-          if (keys.cut || keys.hints !== 9 || keys.keyed !== 9 || keys.wrapped || inBody) fails.push('AW-62 the bag\'s keys at 1366x768 read ' + JSON.stringify({ keys, inBody }));
+          if ((hasHelp && (keys.cut || keys.hints !== 9 || keys.keyed !== 9 || keys.wrapped)) || inBody) fails.push('AW-62 the bag\'s keys at 1366x768 read ' + JSON.stringify({ keys, inBody }));
           await page.keyboard.press('b');
           /* the Hunts how-to stands aside for a card there, and comes back */
           if (await openWin(page, 'h', 'hunts')) {

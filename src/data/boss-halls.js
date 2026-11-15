@@ -87,41 +87,43 @@ export const BOSS_HALL_WORDS = Object.freeze({
   /* the confirm group's name for a screen reader (src/shell/windows/boss-hall-pane.js) */
   sure: 'Are you sure?',
   press: 'Open {hall}',
-  have: Object.freeze({ none: 'You don\'t have a {key}.', one: 'You have 1 {key}.', other: 'You have {n} keys.' }),
+  have: Object.freeze({ none: 'Requires {key}', one: '{key}: 1', other: '{key}: {n}' }),
   warnTitle: 'Fight {boss}?',
+  /* LABELS, one a line (Tyler 2026-11-14), the same shape as a called room's (boss-calls.js warn). */
   warn: Object.freeze([
-    '{Boss} hits hard. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder.{haste} If anyone dies, the fight ends.',
-    'It uses up your {key}, win or lose. The fight ends after {minutes} minutes.',
+    'Hits hard\n50% HP: adds attack your non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
+    'Uses your {key}, win or lose\nTime limit: {minutes} min',
   ]),
   /* the same rule as a called room's (boss-calls.js warnGuard: Challenge is the wrong press at a shielded boss, measured) */
-  warnGuard: ' They shield him until you kill them. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
+  warnGuard: ' and shield him until killed\nTip: take Challenge off your tank\'s bar',
   /* the boss row's phases.hasten: the spell that speeds up under his enrage line */
-  warnHaste: ' From then on his {spell} comes faster.',
-  warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
+  warnHaste: ', {spell} comes faster',
+  /* the ground's own "Recommended: N+ players" (hunt-list.js partyNote) speaks first; this row only where the ground names no size */
+  warnAlone: 'Recommended: party',
   confirm: 'Use the {key}',
   cancel: 'Not yet',
   opening: 'Opening {hall}…',
-  opened: Object.freeze({ party: 'The door opens. Your party is on its way.', alone: 'The door opens. You\'re on your way.' }),
-  hunting: 'Not while you\'re hunting. Come back to town first.',
+  opened: Object.freeze({ party: 'Door open, party on the way', alone: 'Door open, on your way' }),
+  hunting: 'Not while hunting',
   /* The end card's Hunt again, off for a hall (one door: the key on the ground's page). */
-  again: 'To fight him again, use another {key} from the hunt\'s page.',
+  again: 'Fight again: use another {key} from the hunt\'s page',
   /* The end card's line when the hall's boss is down (summary-model.js END_WORDS.boss_felled is a called room's: it names a title). */
   felled: 'You beat {Boss}.',
   /* The boss bar (src/shell/widgets/boss-bar.js): the spell that speeds up, counting down, and a named add while he stands. */
   bar: Object.freeze({ soon: '{spell} in {s} s', casting: '{spell} is coming', named: '{pct}%', namedRage: 'Enraged' }),
   /* The combat log's line when his adds come with a named add among them (src/hunt-view/combat-log.js), after his name. */
   log: Object.freeze({
-    named: 'calls up {names} and the rest of his adds. They go for whoever isn\'t your tank.',
-    namedGuarded: 'calls up {names} and the rest of his adds. They go for whoever isn\'t your tank and shield him until you kill them.',
-    namedOnly: 'calls up {names}. They go for whoever isn\'t your tank.',
-    namedOnlyGuarded: 'calls up {names}. They go for whoever isn\'t your tank and shield him until you kill them.',
+    named: 'calls up {names} and his adds (they attack non-tanks)',
+    namedGuarded: 'calls up {names} and his adds (they attack non-tanks and shield him)',
+    namedOnly: 'calls up {names} (they attack non-tanks)',
+    namedOnlyGuarded: 'calls up {names} (they attack non-tanks and shield him)',
   }),
-  /* The verb's own refusals, each moving nothing (supabase/migrations/2027-04-20-boss-hall.sql). */
+  /* The verb's own refusals, each moving nothing (supabase/migrations/2027-04-20-boss-hall.sql): each says nothing was used. */
   refused: Object.freeze({
-    hall_leader: 'Only your party\'s leader can open it.',
-    no_key: 'You need a {key} for that, so nothing was used.',
-    hall_unknown: 'That hall isn\'t open, so nothing was used.',
-    not_ready: 'Not everyone in the party is ready, so nothing was used. The Party window says who.',
-    party_hunting: 'Not while your party is hunting, so nothing was used. Wait until everyone is back in town.',
+    hall_leader: 'Party leader only',
+    no_key: 'Requires {key}, nothing used',
+    hall_unknown: 'Hall not open, nothing used',
+    not_ready: 'Party not ready (see Party window), nothing used',
+    party_hunting: 'Party still hunting, nothing used',
   }),
 });

@@ -242,8 +242,9 @@ export function colonJoins(text) {
   const out = [];
   for (const m of w.matchAll(/:\s+(?=[a-z])/g)) {
     const before = w.slice(0, m.index);
-    /* the sentence it sits in: back to a sentence end, a tag gap, an open bracket or an attribute's opening quote */
-    const sentence = before.slice(Math.max(before.lastIndexOf('. '), before.lastIndexOf('! '), before.lastIndexOf('? '), before.lastIndexOf('\u0000'),
+    /* the sentence it sits in: back to a sentence end, a line break (a line of labels, Tyler 2026-11-14), a tag gap, an open bracket or an
+       attribute's opening quote */
+    const sentence = before.slice(Math.max(before.lastIndexOf('. '), before.lastIndexOf('! '), before.lastIndexOf('? '), before.lastIndexOf('\n'), before.lastIndexOf('\u0000'),
       before.lastIndexOf('('), before.lastIndexOf('="'), -1) + 1);
     const words = sentence.match(/[A-Za-z0-9§][\w'’%,.§-]*/g) || [];
     if (words.length >= 4) out.push(sentence.trim().slice(-60));

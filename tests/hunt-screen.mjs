@@ -410,7 +410,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (t0.dist !== '3' || t0.stance !== 'balanced' || t0.chase !== 'false' || t0.gold !== '') fails.push('HS-27 in town the panel does not show only the server\'s values: ' + JSON.stringify(t0));
         /* the gold to keep says what it does, in plain words under the field (Tyler 10-25), at the 12 px floor or more */
         const note = await page.evaluate((p) => { const n = document.querySelector(p + ' .is-gold + .hb-pl-note'); return n ? { t: n.textContent, px: parseFloat(getComputedStyle(n).fontSize) } : null; }, P);
-        if (!note || note.t !== 'The hunt sells loot, then stops, rather than spend below this.' || !(note.px >= 12)) fails.push('HS-27 the gold to keep has no plain-English line under it: ' + JSON.stringify(note));
+        if (!note || note.t !== 'Never spends below this (sells loot, then stops)' || !(note.px >= 12)) fails.push('HS-27 the gold to keep has no plain-English line under it: ' + JSON.stringify(note));
         const before = s.sent('hr_action_set_options').length;
         await page.click(P + ' [data-opt="distance"][data-val="1"]');
         await until(() => s.sent('hr_action_set_options').length > before);
@@ -1575,16 +1575,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           }, hunt);
         };
         const a = await card('mill_cellar');
-        if (!a || a.line !== 'Best 12,400 Level XP/h' || a.page.join('|') !== 'Best alone: 12,400 Level XP and a balance of 3,100 gp per hour' || !(a.px >= 12)) {
+        if (!a || a.line !== 'Best 12,400 Level XP/h' || a.page.join('|') !== 'Best alone: 12,400 Level XP/h, balance 3,100 gp/h' || !(a.px >= 12)) {
           fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const none = await card('meadowbrook_thicket');
-        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best here yet. Hunt 10 minutes or more to set one.') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
+        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best yet (hunt 10+ min to set one)') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
         /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
         const b = await card('mill_cellar');
-        if (!b || b.line !== 'Best 20,500 Level XP/h' || b.page.join('|') !== 'Best in a party: 20,500 Level XP and a balance of -450 gp per hour') {
+        if (!b || b.line !== 'Best 20,500 Level XP/h' || b.page.join('|') !== 'Best in a party: 20,500 Level XP/h, balance -450 gp/h') {
           fails.push('HS-24 the picker is not replaced by the next envelope: ' + JSON.stringify(b));
         }
         if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));

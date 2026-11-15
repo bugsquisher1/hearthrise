@@ -369,14 +369,14 @@ async function runTests(M) {
     const sell = r.steps[1];
     /* the LOOT PLAN's rule, Dispatch loot's own (Coordinator 2026-11-11): never a locked stack (Sticky Core), the kit (Shrimp) or a stack with no bid (Bones) */
     eq(sell.lines, [{ item: 'rat_tail', qty: 31 }, { item: 'slime_gel', qty: 12 }], 'the sale names the plan\'s Sell stacks whole, and nothing else');
-    eq(sell.words, 'Your loot plan marks Rat Tail and Slime Gel for the shop.', 'the sale says whose rule it is');
+    eq(sell.words, 'Marked Sell: Rat Tail and Slime Gel', 'the sale says whose rule it is');
     eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
     eq(r.steps[0].words, 'Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense).', 'Equip says what goes on');
     eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
-    eq(r.steps[2].words, 'Your loot plan marks Wolf Pelt for Storage, and that frees 1 bag space.', 'Deposit says what it frees');
+    eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt (frees 1 bag space)', 'Deposit says what it frees');
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
     eq(steps({ rules: { locked: new Set(['sticky_core', 'wolf_pelt']), loot: rules.loot } }).steps.map((s) => s.id), ['equip', 'sell', 'bless'], 'a locked Deposit stack is not a step');
-    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30. A death costs you less with them on.'], 'Bless names the tiers not on');
+    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30, less death loss'], 'Bless names the tiers not on');
     /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
     const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
     const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });
@@ -385,7 +385,7 @@ async function runTests(M) {
     /* Bless only while the purse covers the next tier (the server prices each); a purse not read reads as enough */
     const dear = { tiers: [{ tier: 1, price: 500, held: true }, { tier: 2, price: 900, held: false }, { tier: 3, price: 1400, held: false }], freeUntil: null };
     eq(steps({ blessings: dear, purse: 100 }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'short of the next Blessing, no Bless step');
-    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Costs 2,300 gp. A death costs you less with them on.', 'the purse covers the next');
+    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Costs 2,300 gp, less death loss', 'the purse covers the next');
     eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
     /* nothing to do at all: no steps, Hunt again is the press */
     const none = steps({ plan: { ops: {}, picks: [], choices: [] }, rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });

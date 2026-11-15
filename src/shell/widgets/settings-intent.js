@@ -52,7 +52,7 @@ export function effectsDoorHtml() {
 /** The gold-to-keep field:a whole number of gold, the server's own range (GOLD_FLOOR, hr_hunt_limits gold_floor_*). */
 export function goldFloorHtml() {
   return '<input type="number" class="hh-num hb-gold" min="' + GOLD_FLOOR.min + '" max="' + GOLD_FLOOR.max + '" step="50" inputmode="numeric"'
-    + ' data-opt="gold_floor" data-hs-act="opt" aria-label="Gold to keep: the hunt sells loot, then stops, rather than spend below it">';
+    + ' data-opt="gold_floor" data-hs-act="opt" aria-label="Gold to keep (never spends below it)">';
 }
 
 /* The server's gold floor (hunt_settings.gold_floor, hr_hunt_settings_view). settingsOf (hunt-sections.js, the

@@ -2,10 +2,11 @@
 // src/data/text/hunts.js — THE HUNTS LIST'S WORDS: a ground's band, packs, tier,
 // who may come, the advice and the warnings (src/shell/hunt-list.js).
 //
-// One row per sentence or label, read by t('hunts.<key>'). A harder tier says its
-// plain line (src/data/hunt-tiers.js TIER_LINES, Tyler 2026-11-08: no numbers on a
-// card) and its death line; tier_choice names it beside Enter ("Deadly: big groups
-// that hit hard.").
+// One row per label, read by t('hunts.<key>'). LABELS, NOT SENTENCES (Tyler 2026-11-14: "Recommended: 4+ players" is
+// "Perfect. Now do it like that for everything outside of actual lore"): a fact, warning or hint here is the short form
+// players know from MMOs, no period. A line built from several labels puts each on its own line (hunt-list.js joins
+// with a line break). A harder tier says its plain line (src/data/hunt-tiers.js TIER_LINES) and its death line;
+// tier_choice names it beside Enter ("Deadly: big groups that hit hard.").
 // ════════════════════════════════════════════════════════════════════════
 
 export const HUNTS_TEXT = Object.freeze({
@@ -13,62 +14,53 @@ export const HUNTS_TEXT = Object.freeze({
   tally_done: 'Done',
   /* Who lives here: one note under the line names each area caster's spells (src/shell/windows/hunt-detail.js), so no card grows a line. */
   casts: '{name} casts {spells}.',
-  /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is a number word (count_2 …). */
-  party_boss: '{boss} is built for a group of {n} or more. Alone, you still fight him, and he can kill you.',
-  party_hall: 'One hall here is built for a group of {n} or more. Alone, you still fight it, and it can kill you.',
-  count_1: 'one',
-  count_2: 'two',
-  count_3: 'three',
-  count_4: 'four',
-  count_5: 'five',
-  count_6: 'six',
-  count_7: 'seven',
-  count_8: 'eight',
+  /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is the pocket's forParty, a digit (Tyler 2026-11-14). */
+  party_size: 'Recommended: {n}+ players',
 
   /* How crowded a ground is. {size} is a count or pack_range. */
   pack_range: '{min} to {max}',
-  packs: { one: '{count} pack of {size}, respawning every {secs} seconds', other: '{count} packs of {size}, respawning every {secs} seconds' },
-  packs_boss: { one: '{count} pack of {size} and a boss, respawning every {secs} seconds', other: '{count} packs of {size} and a boss, respawning every {secs} seconds' },
+  packs: { one: '{count} pack of {size}, respawn {secs}s', other: '{count} packs of {size}, respawn {secs}s' },
+  packs_boss: { one: '{count} pack of {size} + boss, respawn {secs}s', other: '{count} packs of {size} + boss, respawn {secs}s' },
 
   /* What a tier does. */
   tier_choice: '{tier}: {head}.',
 
   /* The band, and a ground above the hero. */
   band: 'Level {lo} to {hi}',
-  band_you: 'Level {lo} to {hi}, you are {level}',
-  above_level: 'Its monsters are stronger than you. You’ll spend more on supplies and you might die, but you get more XP and better loot.',
-  far_above_level: 'Its monsters are far stronger than you. You’ll spend a lot more on supplies and you might die, but you get more XP and better loot.',
-  range_under: { one: 'You\'re {count} Level under this ground.', other: 'You\'re {count} Levels under this ground.' },
-  range_die: 'If you die, the hunt ends and you lose {loss}% of your Level XP.',
+  band_you: 'Level {lo} to {hi} (you: {level})',
+  above_level: 'Stronger monsters: more supplies, death risk, more XP, better loot',
+  far_above_level: 'Much stronger monsters: far more supplies, death risk, more XP, better loot',
+  range_under: { one: '{count} Level under this ground', other: '{count} Levels under this ground' },
+  range_die: 'On death: hunt ends, lose {loss}% Level XP',
   /* the same, with Blessings on: the share a death would really take, the server's held cut (hr_blessing_view permille) */
-  range_die_blessed: 'If you die, the hunt ends. With your Blessings on, you lose {loss}% of your Level XP.',
+  range_die_blessed: 'On death: hunt ends, lose {loss}% Level XP (Blessings on)',
   /* The away card: the hunt's best find, gear or a Rare (src/shell/away-recap.js). */
-  away_best: 'Your best find this hunt was the {item}.',
+  away_best: 'Best find: {item}',
   seat_level: '{name} (Level {level})',
-  seats_under: { one: '{who} is under this ground’s Level {level}. It will hit them hard, and they could die.',
-    other: '{who} are under this ground’s Level {level}. It will hit them hard, and they could die.' },
-  share_you: 'You earn {pct}% of a full share of Level XP here, so far under Level {top}.',
-  share_seat: '{name} earns {pct}% of a full share of Level XP here, so far under Level {top}.',
+  seats_under: { one: 'Under Level {level}, death risk: {who}', other: 'Under Level {level}, death risk: {who}' },
+  share_you: 'Your Level XP share: {pct}% (far under Level {top})',
+  share_seat: '{name}\'s Level XP share: {pct}% (far under Level {top})',
 
-  /* The advice. */
+  /* The advice: the ground at the Level and why, then the easier pick on its own line. */
   level_one: 'Level {level}',
   levels_range: 'Levels {lo} to {hi}',
-  no_ground: 'There’s no good hunt for {levels} yet.',
-  nearest_below: '{ground} (Level {lo} to {hi}) is the nearest below.',
+  no_ground: 'No good hunt for {levels} yet',
+  nearest_below: 'Nearest below: {ground} (Level {lo} to {hi})',
   /* A ground whose band holds the Level but is built tough (Tyler 2026-11-11: "no good hunt" over a row reading "In your range" was a lie). */
-  right_but_tough: '{ground} is right for {levels}, but its monsters are tough. {easier} (Level {lo} to {hi}) is the easier hunt.',
-  right_easier: '{ground} is right for {levels}. {easier} (Level {lo} to {hi}) is the easier hunt.',
+  right_but_tough: '{ground}: right for {levels}, tough monsters',
+  right_easier: '{ground}: right for {levels}',
   /* the same, when the server's best alone there lost gold (hunt_bests balanceH < 0) */
-  right_but_lost: '{ground} is right for {levels}, but alone you lost {gold} an hour there. {easier} (Level {lo} to {hi}) is the easier hunt.',
+  right_but_lost: '{ground}: right for {levels}, lost {gold}/h alone',
+  easier: 'Easier: {easier} (Level {lo} to {hi})',
   tag_right_party: 'Right for your party',
   tag_right_level: 'Right for your level',
   tag_next_step: 'Next step up',
 
   /* This hero's bests. */
-  best_rate: '{xp} Level XP and a balance of {gold} per hour',
+  best_rate: '{xp} Level XP/h, balance {gold}/h',
   best_alone: 'Best alone: {rate}',
   best_party: 'Best in a party: {rate}',
-  best_none: 'No best here yet. Hunt {min} minutes or more to set one.',
+  best_none: 'No best yet (hunt {min}+ min to set one)',
   best_line: 'Best {xp} Level XP/h',
   best_line_none: 'No best yet',
 
@@ -77,6 +69,6 @@ export const HUNTS_TEXT = Object.freeze({
   fit_far: 'Far above your level',
   fit_below: 'Below your level',
   fit_in: 'In your range',
-  heroes_up_to: 'Alone or with up to {n} more',
-  heroes_one: 'One hero',
+  heroes_up_to: 'Players: 1 to {max}',
+  heroes_one: 'Players: 1',
 });

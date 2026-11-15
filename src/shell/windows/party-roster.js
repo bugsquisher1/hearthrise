@@ -82,7 +82,7 @@ export function classXpLine(roles, hunt) {
      there, so its line says how to fix it (lane/d-party-xp-cells). */
   const vs = partyVsAlone(ground ? ground.id : null, seats);
   const place = huntName(hunt);
-  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + ' ';
+  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + '. ';
   if (vs === null) return have + t('party.class_none', { place });
   if (vs === 0) return have + t('party.class_same', { place });
   if (vs > 0) return have + t('party.class_more', { pct: vs, place });

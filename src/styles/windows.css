@@ -92,7 +92,7 @@
 .hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }
 .hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
-.hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); white-space: pre-line; }
 .hw-confirm-note:empty { display: none; }
 .hw-sell-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-sell-note:empty { display: none; }
@@ -334,6 +334,7 @@
 .hs-win[data-hs-win="hunts"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .hw-hunts { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .hw-hunts-now, .hw-hunts-reco { margin: 0 2px 8px; }
+.hw-hunts-reco { white-space: pre-line; }
 .hw-hunts-now.is-advised { display: none; }
 .hw-hunts-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 286px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 12px; }
 /* The list: a steel panel of lines, one a ground; the picked one is lifted, outlined in gold, a gold bar at its left. */
@@ -380,7 +381,7 @@
 .hw-hunt-event { display: block; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-event b { color: var(--ink); }
 .hw-hunt-events:empty { display: none; }
-.hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
+.hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); white-space: pre-line; }
 .hw-hunt-warn:empty { display: none; }
 .hw-hd-theme { margin: var(--gap) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
 /* Each section head is a Forged Steel head (shell.css): Cinzel in gold over a rule. */

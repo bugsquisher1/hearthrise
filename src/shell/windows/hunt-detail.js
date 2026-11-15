@@ -164,7 +164,7 @@ export function patchGround(det, ctx, r, o) {
   /* the dot is text, so a reader gets "Level 1–8 · In range", not "1–8In range" */
   prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
-  text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
+  text(det.querySelector('.hw-hd-who'), heroWords(r));
   /* A live event that reaches this ground, the server's (live-events-view.js): nothing at all while every switch is off. */
   rows(det.querySelector('.hw-hd-events'), groundLines(ctx.character, r.hunt), {
     key: (l) => l.id,

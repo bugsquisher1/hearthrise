@@ -311,7 +311,7 @@ function patchPage(det, ctx, sc, v) {
   const under = party && !follower ? seatsUnder(r, party).under : [];
   /* the death line says the share a death would really take with the Blessings the server says are on (designer re-read 2026-11-11) */
   const blessed = blessingsOf(cs);
-  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));
+  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join('\n'));
   /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */
   const carried = now ? huntBagOf(cs) : null;
   text(det.querySelector('.hw-hunt-pack'), now && now.huntId === r.hunt && carried ? carriedWords(carried) : '');
@@ -323,7 +323,7 @@ function patchPage(det, ctx, sc, v) {
     setups, chosen, off: sc.pending || !!now || follower,
     before: now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null }),
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
-      why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r) + '.',
+      why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r),
       find: party ? 'Open the party finder' : 'Find a party',
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,
@@ -443,7 +443,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     const low = row ? seatsUnder(row, lead) : { under: [] };
     if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {
       runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-        () => underWords(row, low.under) + ' They have been told. Press Enter anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
+        () => underWords(row, low.under) + '. Party warned. Press Enter anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
       return true;
     }
     if (!low.under.length && row && rangeWords(row, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {

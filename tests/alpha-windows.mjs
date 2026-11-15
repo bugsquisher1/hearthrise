@@ -597,7 +597,7 @@ async function stationSortRules(base) {
      AW-87  SAVE AND USE: the save, then ONE hr_hunt_preset_apply of that setup; a refused save puts nothing on; a stale copy sends nothing
      AW-88  USE EQUIPPED ASKS ONCE: the first press sends nothing, the second ONE hr_hunt_preset_save over the picked setup
      AW-89  NEW SAVES ON THE FIRST FREE NUMBER, named from the field (else Setup N)
-     AW-90  FIGHTS AS: a press on a dim role says how to get it ("Wear a bow or a crossbow to fight as a Ranger."); the worn role's
+     AW-90  FIGHTS AS: a press on a dim role says how to get it ("Requires a bow or a crossbow"); the worn role's
             line names the weapon and the shield; no hint shows for the role already worn
      AW-91  SORT AND CLEAR edit the copy: Sort lays the lanes out, Clear empties all twenty; neither sends
      AW-92  THE READ: the setup in use is the envelope's projection (no RPC); another is ONE hr_hunt_preset_read(p_slot, p_preset),
@@ -721,7 +721,7 @@ async function prepBuilderRules(base) {
   // AW-90: Fights as
   {
     const ranger = B.fightsLine('ranger', 'tank', { weapon: 'iron_sword', shield: 'wooden_shield' });
-    if (ranger !== 'Wear a bow or a crossbow to fight as a Ranger.') fails.push('AW-90 the Ranger hint reads ' + JSON.stringify(ranger));
+    if (ranger !== 'Requires a bow or a crossbow') fails.push('AW-90 the Ranger hint reads ' + JSON.stringify(ranger));
     const worn = B.fightsLine('tank', 'tank', { weapon: 'iron_sword', shield: 'wooden_shield' });
     if (!/Iron Sword/.test(worn) || !/Wooden shield/i.test(worn) || /Wear a/.test(worn)) fails.push('AW-90 the worn role\'s line reads ' + JSON.stringify(worn));
     if (!/bare hands/.test(B.fightsLine(null, 'melee_dps', {}))) fails.push('AW-90 no weapon does not read as bare hands');
@@ -1026,7 +1026,7 @@ async function huntsPure(imp) {
   const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
   if (lines !== '|Best 9,000 Level XP/h|No best yet') fails.push('AW-25 the list bests read ' + lines);
   const none = bestWords({ minMs: 600000, grounds: {} }, 'mill_cellar');
-  if (none.solo || none.party || none.none !== 'No best here yet. Hunt 10 minutes or more to set one.') fails.push('AW-25 a ground with no best reads ' + JSON.stringify(none));
+  if (none.solo || none.party || none.none !== 'No best yet (hunt 10+ min to set one)') fails.push('AW-25 a ground with no best reads ' + JSON.stringify(none));
   /* A session over plain sections, the way the envelope projects them. */
   const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
   const START = [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)];
@@ -1296,15 +1296,15 @@ async function planRules(base) {
   {
     const HL = await imp('src/shell/hunt-list.js');
     const glade = HL.huntRows().find((r) => r.band[0] > 6);
-    const die = (pm) => (HL.rangeWords(glade, 1, pm) || '').replace(/^.*?If you die/, 'If you die');
+    const die = (pm) => (HL.rangeWords(glade, 1, pm) || '').replace(/^[^]*?On death/, 'On death');
     const said = [die(0), die(250), die(750)];
-    if (said.join(' | ') !== 'If you die, the hunt ends and you lose 6% of your Level XP. | If you die, the hunt ends. With your Blessings on, you lose 4.5% of your Level XP. | If you die, the hunt ends. With your Blessings on, you lose 1.5% of your Level XP.') fails.push('AW-25 the death line with Blessings reads ' + JSON.stringify(said));
+    if (said.join(' | ') !== 'On death: hunt ends, lose 6% Level XP | On death: hunt ends, lose 4.5% Level XP (Blessings on) | On death: hunt ends, lose 1.5% Level XP (Blessings on)') fails.push('AW-25 the death line with Blessings reads ' + JSON.stringify(said));
   }
   /* A PLAN THAT HAS RUN IS NOT "NOTHING SET" (designer re-read 2026-11-11: "Nothing is set to Deposit or Sell yet." right under "Sold 17 for 5,407 gp."). */
   const { dispatchBlock } = await imp('src/shell/loot-dispatch.js');
   const bagCs = (inventory, loot) => ({ read: (k) => ({ inventory, bag_rules: { locked: [], loot } })[k] });
   const ran = dispatchBlock(bagCs({ bones: 3 }, { rat_tail: 'sell', wolf_pelt: 'deposit' })), none = dispatchBlock(bagCs({ bones: 3 }, {})), ready = dispatchBlock(bagCs({ rat_tail: 3 }, { rat_tail: 'sell' }));
-  if (!/^Your loot plan has nothing left to move\./.test(ran) || !/^You haven’t picked Deposit or Sell for anything yet\./.test(none) || ready !== '') fails.push('AW-32 the Dispatch loot why reads ' + JSON.stringify([ran, none, ready]));
+  if (!/^Nothing left to move/.test(ran) || !/^No loot plan yet/.test(none) || ready !== '') fails.push('AW-32 the Dispatch loot why reads ' + JSON.stringify([ran, none, ready]));
   /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
   const wire = (id) => ({ action: { type: 'ability', id }, conditions: [], enabled: true });
@@ -1417,10 +1417,10 @@ async function planRules(base) {
   const noneFree = blessed([], 0), oneOn = blessed([1], 450), allOn = blessed([1, 2, 3], 450);
   /* AW-97 while the Blessings are free, Before you go says nothing of them: the summary's Bless step is the one place (first-30 play 2026-11-12) */
   if (/Blessing/.test(noneFree)) fails.push('AW-97 no Blessings, free, still nags before you go: ' + JSON.stringify(noneFree));
-  if (!oneOn.endsWith("You have 1 of 3 Blessings on. You lose 25% less XP when you die. The next one costs 450 gp in the Shop's Services tab.")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
-  if (!allOn.endsWith('You have all 3 Blessings on. You lose 75% less XP when you die.')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
+  if (!oneOn.endsWith("Blessings: 1 of 3, 25% less death XP loss (next one 450 gp in the Shop)")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
+  if (!allOn.endsWith('Blessings: 3 of 3, 75% less death XP loss')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
   const nonePaid = blessed([], 450), oneFree = blessed([1], 0);
-  if (!nonePaid.endsWith("You have no Blessings on. They cut the XP you lose when you die. The first one costs 450 gp in the Shop's Services tab.")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
+  if (!nonePaid.endsWith("Blessings: none (they cut death XP loss, first one 450 gp in the Shop)")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
   if (/Blessing/.test(oneFree)) fails.push('AW-97 one Blessing, the rest free, still nags before you go: ' + JSON.stringify(oneFree));
   /* AW-27 A MOVE THE WORN WEAPON CAN'T USE SPENDS NOTHING: a club hero is not warned about Flame Volley's runes (QA 2026-11-04) */
   const clubSay = say(sess({ hunt_settings: { preset: 0, presets: [], discipline: 'club', slots: [slot('ability', 'flame_volley', 0), slot('ability', 'power_strike', 0)], store: RUNES } }));
@@ -1460,7 +1460,7 @@ async function planRules(base) {
   if (/Tamsin/.test(say(sess({ tally: TASK }), { hunt: 'mill_cellar' }))) fails.push('AW-27 a task that counts here is warned about');
   const { heroWords, huntRows } = await imp('src/shell/hunt-list.js');
   const sewer = huntRows().find((r) => r.hunt === 'millrace_sewer');
-  if (heroWords(sewer) !== 'Alone or with up to ' + (sewer.heroes - 1) + ' more') fails.push('AW-27 the Sewer reads ' + JSON.stringify(heroWords(sewer)));
+  if (heroWords(sewer) !== 'Players: 1 to ' + sewer.heroes) fails.push('AW-27 the Sewer reads ' + JSON.stringify(heroWords(sewer)));
   const { pickWords } = await imp('src/session/tally-sections.js');
   const picked = [['iron_boots', 'Iron Boots'], ['iron_helmet', 'an Iron Helm']].map(([item]) => pickWords({ pick: 'piece', item, qty: 1 }, (id) => ({ iron_boots: 'Iron Boots', iron_helmet: 'Iron Helm' }[id]))).join('|');
   if (picked !== 'Iron Boots|an Iron Helm') fails.push('AW-27 her pick reads ' + picked);
@@ -1583,8 +1583,8 @@ async function planRules(base) {
   const an = { hero: { per_hour: { waste: 500 } } };
   const prepSaid = (ended) => readinessOf(sess({ hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended }, hunt_analyzer: an,
     stamina: { ms: 27000000, at: '2026-10-22T00:00:00Z', max_ms: 28800000 } })).checks.filter((c) => c.id === 'stamina' || c.id === 'gold-now').map((c) => c.text).join(' | ');
-  const prepWant = (which) => 'Stamina: 7 h 30 m left | Gold: 500 gp. Supplies cost about 500 gp an hour on ' + which + ', so you have about 1 h of gold';
-  for (const [ended, which] of [[true, 'your last hunt'], [false, 'this hunt']]) {
+  const prepWant = (which) => 'Stamina: 7 h 30 m left | Gold: 500 gp, about 1 h at 500 gp/h ' + which;
+  for (const [ended, which] of [[true, '(last hunt)'], [false, 'on this hunt']]) {
     if (prepSaid(ended) !== prepWant(which)) fails.push('AW-8 Hunt prep ' + (ended ? 'in town' : 'mid-hunt') + ' reads ' + JSON.stringify(prepSaid(ended)));
   }
   const ops2 = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
@@ -1606,7 +1606,7 @@ async function planRules(base) {
        engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
     const kept = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['iron_sword', 3]], lv1, 16);
     if (ops2(kept) !== '{}' || JSON.stringify(kept.choices) !== '[{"slot":"weapon","ids":["iron_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]'
-      || UP.upgradeWords(kept) !== 'Nothing goes on by itself, since each piece is better at something. Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters. Pick on the doll.')
+      || UP.upgradeWords(kept) !== 'No clear upgrade. Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters. Pick on the doll.')
       fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
@@ -1644,7 +1644,7 @@ async function planRules(base) {
     if (Object.keys(rings('banded_signet_follow', 'banded_signet_keen', ['banded_signet_surge']).ops).length) fails.push('AW-21 a Surge ring silently takes a Keen ring\'s place');
     const pick = rings('banded_signet_follow', 'banded_signet', ['banded_signet_keen', 'banded_signet_surge']);
     if (ops2(pick) !== '{}' || JSON.stringify(pick.choices) !== '[{"slot":"ring2","ids":["banded_signet_keen","banded_signet_surge"]}]'
-      || UP.upgradeWords(pick) !== 'Nothing goes on by itself, since each piece is better at something. Ring 2: Banded Signet (Keen) or Banded Signet (Surge). Pick on the doll.')
+      || UP.upgradeWords(pick) !== 'No clear upgrade. Ring 2: Banded Signet (Keen) or Banded Signet (Surge). Pick on the doll.')
       fails.push('AW-21 Keen and Surge rings over a plain one read ' + ops2(pick) + ' / ' + JSON.stringify(pick.choices) + ' / ' + UP.upgradeWords(pick));
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
@@ -1676,7 +1676,7 @@ async function planRules(base) {
   if (/critical chance ends/.test(UP.upgradeWords(stepOf({ weapon: 'bronze_sword', body: 'bronze_platebody' }, ['iron_platebody'])))) fails.push('AW-21 a step that ends no set says it ends one');
   /* A tie that stands says why the button is off (playtest 2026-10-29 #11: the line was hidden, nothing said). */
   const tieSaid = UP.upgradeWords(tieOf(null));
-  if (tieSaid !== 'Nothing goes on by itself, since each piece is better at something. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll, or pick an armor weight at Tamsin\'s.')
+  if (tieSaid !== 'No clear upgrade. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll or pick an armor weight at Tamsin\'s.')
     fails.push('AW-21 a standing tie reads ' + JSON.stringify(tieSaid));
   /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
      called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
@@ -2274,7 +2274,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* the Sell step is the one gold press: its count and value are the server's (31 Rat Tail at 6, 12 Slime Gel at 5), the locked Sticky Core left out;
            the coach's next step is a press, not the gold one, and the card rings the row it is about */
         if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
-        if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Your loot plan marks Rat Tail and Slime Gel for the shop.') fails.push('AW-78 the Sell row reads ' + JSON.stringify([before.title, before.words]));
+        if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Marked Sell: Rat Tail and Slime Gel') fails.push('AW-78 the Sell row reads ' + JSON.stringify([before.title, before.words]));
         if (before.next !== 'Next: Sell what only pays coin') fails.push('AW-78 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
         if (JSON.stringify(before.ring) !== '["town:sell"]') fails.push('AW-78 the return card rings ' + JSON.stringify(before.ring) + ', want the summary\'s Sell row');
         if (shots) await shot(page, 'alpha-1440x900-back-in-town');
@@ -2460,7 +2460,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!(await openWin(page, 'p', 'hunt-prep'))) fails.push('AW-65 P did not open Hunt prep while hunting');
         await page.waitForTimeout(200);
         const r0 = await row();
-        if (!r0 || r0.press !== 'Carry 40' || r0.label !== 'Carry 40 into this hunt' || r0.small !== '40 in your backpack, 0 in this hunt' || !r0.head)
+        if (!r0 || r0.press !== 'Carry 40' || r0.label !== 'Carry 40 into this hunt' || r0.small !== '40 in backpack, 0 in hunt' || !r0.head)
           fails.push('AW-65 a hunting hero\'s Hunt prep offers ' + JSON.stringify(r0) + ' ' + errors.slice(0, 2).join(' | '));
         if (!(await carry(25))) fails.push('AW-65 Carry did not ask how many');
         for (let i = 0; i < 40 && !/^Carried/.test(await said()); i++) await page.waitForTimeout(100);
@@ -2468,7 +2468,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (c.length !== 1 || c[0].body.p_slot !== 0 || c[0].body.p_item !== 'cooked_shrimp' || c[0].body.p_qty !== 25 || !/^[0-9a-f-]{36}$/.test(c[0].body.p_idem)
             || Object.keys(c[0].body).sort().join() !== 'p_idem,p_item,p_qty,p_slot') fails.push('AW-65 Carry 25 sent ' + JSON.stringify(c.map((x) => x.body)));
         const r1 = await row();
-        if (!r1 || r1.small !== '15 in your backpack, 25 in this hunt' || r1.press !== 'Carry 15') fails.push('AW-65 after the server moved 25, Hunt prep reads ' + JSON.stringify(r1));
+        if (!r1 || r1.small !== '15 in backpack, 25 in hunt' || r1.press !== 'Carry 15') fails.push('AW-65 after the server moved 25, Hunt prep reads ' + JSON.stringify(r1));
         if ((await said()) !== 'Carried 25 Cooked Shrimp into this hunt.') fails.push('AW-65 the answer reads ' + JSON.stringify(await said()));
         /* the hunt is still catching up: the hunter's own settle (paced: catch-up.js's rule), then ONE more ask under a NEW
            key (the first wrote nothing), and the line is the second answer's */
@@ -2481,7 +2481,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (asks.length !== 2 || asks[0].body.p_idem === asks[1].body.p_idem || asks.some((x) => x.body.p_qty !== 5))
           fails.push('AW-65 a carry refused settle_first sent ' + JSON.stringify(asks.map((x) => x.body)));
         const r2 = await row();
-        if (!r2 || r2.small !== '10 in your backpack, 30 in this hunt') fails.push('AW-65 after the retried carry, Hunt prep reads ' + JSON.stringify(r2));
+        if (!r2 || r2.small !== '10 in backpack, 30 in hunt') fails.push('AW-65 after the retried carry, Hunt prep reads ' + JSON.stringify(r2));
         if (shots) await shot(page, 'alpha-1440x900-hunt-prep-carry');
       } else fails.push('AW-65 the screen did not mount');
       await ctx.close();
@@ -2640,7 +2640,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await openWin(page, 't', 'storage');
         await page.waitForTimeout(150);
         const sb = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); return b ? { off: b.disabled, why: document.querySelector('.hw-store-do .hw-why').textContent, pelt: !!document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="bank"] [data-item="wolf_pelt"]') } : null; });
-        if (!sb || !sb.off || !/^Your loot plan has nothing left to move\. /.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
+        if (!sb || !sb.off || !/^Nothing left to move \(/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
         if (shots) await shot(page, 'dispatch-1440x900-storage-after');
         if (errors.length) fails.push('AW-32 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('AW-32 the screen did not mount (town)');
@@ -2766,13 +2766,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
           li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
-        const want = ['mill_cellar:picked:Level 1–8:in:In your range:Right for your level:No best yet:Alone or with up to 3 more',
-          'meadowbrook_thicket::Level 5–15:above:Above your level::No best yet:Alone or with up to 3 more',
-          'millrace_sewer::Level 8–25:above:Above your level::No best yet:Alone or with up to 3 more',
+        const want = ['mill_cellar:picked:Level 1–8:in:In your range:Right for your level:No best yet:Players: 1 to 4',
+          'meadowbrook_thicket::Level 5–15:above:Above your level::No best yet:Players: 1 to 4',
+          'millrace_sewer::Level 8–25:above:Above your level::No best yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
-          'wickstead::Level 8–18:above:Above your level::No best yet:Alone or with up to 3 more',
-          'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Alone or with up to 3 more',
-          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Alone or with up to 3 more'];
+          'wickstead::Level 8–18:above:Above your level::No best yet:Players: 1 to 4',
+          'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Players: 1 to 4',
+          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Players: 1 to 4'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
         /* AW-25 THE DOTS ARE TEXT (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the line as it looks, and the
            picked ground's page reads its band the same way */
@@ -2813,14 +2813,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
           || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
-        if (p.bests.join('|') !== 'No best here yet. Hunt 10 minutes or more to set one.') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
+        if (p.bests.join('|') !== 'No best yet (hunt 10+ min to set one)') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 7141, balance_h: 1859 } } } };
         await pushEnvelope(page, s);
         const best = await page.evaluate((w) => document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"] .hw-hunt-bestline').textContent, W);
         const p2 = await page1();
-        if (best !== 'Best 7,141 Level XP/h' || p2.bests.join('|') !== 'Best alone: 7,141 Level XP and a balance of 1,859 gp per hour') fails.push('AW-25 the server\'s best reads ' + JSON.stringify([best, p2.bests]));
+        if (best !== 'Best 7,141 Level XP/h' || p2.bests.join('|') !== 'Best alone: 7,141 Level XP/h, balance 1,859 gp/h') fails.push('AW-25 the server\'s best reads ' + JSON.stringify([best, p2.bests]));
         /* AW-25b THE PICK FOLLOWS THE ADVICE until the player picks by hand (lane/b-first-hour: the Cellar, picked for a
            Level 1 hero, stayed picked at Level 5 while the coach sent the hero to the Thicket). */
         const pickedNow = () => page.evaluate((w) => (document.querySelector(w + '.hw-hunt.is-picked') || {}).dataset?.hunt, W);
@@ -2914,7 +2914,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const castNote = await page.evaluate((w) => { const n = document.querySelector(w + '.hw-hd-casts'); return n && !n.hidden ? n.textContent : null; }, W);
         if (castNote !== 'Sewer Kobold casts Muck Fling. Rat King casts Tail Lash and Squeal.') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));
         const pp = await party();
-        if (!pp || pp[0] !== 'Alone or with up to 3 more.' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = b.scrollHeight; }, W); await shot(page, 'hunts-1440x900-sewer-foot'); }
         /* Find a party: the Party window, on its finder, on this ground and this hero's weapon: ONE read with p_hunt. */
@@ -4287,7 +4287,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="coppercap_warrens"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] .hw-hunt[data-hunt=\"coppercap_warrens\"]'"));
             await page.waitForTimeout(200);
             const far = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent, warn: w.querySelector('.hw-hunt-warn').textContent, label: e.textContent }; });
-            if (far.off || far.why !== '' || far.label !== 'Enter' || !/^You're 31 Levels under this ground\. .*you lose 6% of your Level XP\.$/.test(far.warn)) fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
+            if (far.off || far.why !== '' || far.label !== 'Enter' || !/^31 Levels under this ground\n[^]*On death: hunt ends, lose 6% Level XP$/.test(far.warn)) fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
             const sentBefore = s.calls.filter((c) => c.name === 'hr_hunt_enter').length;
             await page.click('[data-hs-win="hunts"] .hw-hunt-enter');
             await page.waitForTimeout(200);

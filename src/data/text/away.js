@@ -16,10 +16,10 @@ export const AWAY_TEXT = Object.freeze({
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */
   after_waited: 'Then {name} waited in town for {time}.',
   /* The one next thing that would have filled the time, by what ended the hunt (after-hunt.js NEXT). */
-  next_gather: 'Start mining, chopping or fishing before you hunt, and {name} will go back to it when the hunt ends.',
-  next_longer: 'Set a longer hunt next time, up to the stamina you have.',
-  next_food: 'Pack more food next time, and the hunt can run longer.',
-  next_ammo: 'Pack more ammo next time, and the hunt can run longer.',
-  next_runes: 'Pack more runes next time, and the hunt can run longer.',
-  next_gold: 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.',
+  next_gather: 'Start mining, chopping or fishing before a hunt and {name} goes back to it after.',
+  next_longer: 'Set a longer hunt, up to your stamina.',
+  next_food: 'Pack more food for a longer hunt.',
+  next_ammo: 'Pack more ammo for a longer hunt.',
+  next_runes: 'Pack more runes for a longer hunt.',
+  next_gold: 'Keep more gold for store supplies, or pack your own.',
 });

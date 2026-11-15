@@ -137,7 +137,7 @@ export function renderActionBar(ctx) {
     /* THE FIRST TARGET (first-target.js): the monster the hero goes for first on this ground, before the Target order */
     + firstTargetHtml()
     + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label>'
-    + '<p class="hb-pl-note">The hunt sells loot, then stops, rather than spend below this.</p>'
+    + '<p class="hb-pl-note">Never spends below this (sells loot, then stops)</p>'
     + effectsDoorHtml() + '</div></div>'
     + '<div class="hb-pl-row is-stance"><span class="hh-segs hb-stance" role="group" aria-label="Stance" data-coach-hook="stance">' + stanceButtonsHtml() + '</span></div>'
     + '<div class="hb-pl-row is-move"><button type="button" class="hh-seg hb-chase" data-opt="chase" data-hs-act="opt" aria-pressed="false" data-coach-hook="chase" title="With chase off, the hero keeps its distance">Chase</button>'

@@ -130,21 +130,21 @@ async function checks(overrides) {
     if (b.capEarly.add !== null) fails.push('BH-4 a named add shows before the wave: ' + b.capEarly.add);
     /* BH-1 */
     const pn = r.panes;
-    if (pn.none.hidden || !pn.none.off || pn.none.line !== 'You don\'t have a Goblin Totem.') fails.push('BH-1 with no key the pane reads ' + JSON.stringify(pn.none));
-    if (pn.one.off || pn.one.line !== 'You have 1 Goblin Totem.' || !/^Open /.test(pn.one.press)) fails.push('BH-1 with a key the pane reads ' + JSON.stringify(pn.one));
-    if (pn.two.off || pn.two.line !== 'You have 2 keys.') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
-    if (!pn.member.off || pn.member.line !== 'Only your party\'s leader can open it.') fails.push('BH-1 a member reads ' + JSON.stringify(pn.member));
-    if (!pn.hunting.off || !/^Not while you're hunting/.test(pn.hunting.line)) fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
+    if (pn.none.hidden || !pn.none.off || pn.none.line !== 'Requires Goblin Totem') fails.push('BH-1 with no key the pane reads ' + JSON.stringify(pn.none));
+    if (pn.one.off || pn.one.line !== 'Goblin Totem: 1' || !/^Open /.test(pn.one.press)) fails.push('BH-1 with a key the pane reads ' + JSON.stringify(pn.one));
+    if (pn.two.off || pn.two.line !== 'Goblin Totem: 2') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
+    if (!pn.member.off || pn.member.line !== 'Party leader only') fails.push('BH-1 a member reads ' + JSON.stringify(pn.member));
+    if (!pn.hunting.off || pn.hunting.line !== 'Not while hunting') fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
     if (pn.leader.off) fails.push('BH-1 a party\'s leader with a key is off');
     if (!pn.noHall.hidden) fails.push('BH-1 a ground with no hall shows the section');
     for (const [k, x] of Object.entries(pn)) if (/[{}]/.test(Object.values(x).join(' '))) fails.push('BH-1 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
     /* BH-2 */
-    if (r.sentAfterWarn !== 0 || !r.warned.warn || r.warned.title !== 'Fight the Hall Boss?' || !r.warned.alone || !/Goblin Totem, win or lose/.test(r.warned.b) || r.warned.go !== 'Use the Goblin Totem') fails.push('BH-2 the first press: ' + r.sentAfterWarn + ' sent, the warning reads ' + JSON.stringify(r.warned));
+    if (r.sentAfterWarn !== 0 || !r.warned.warn || r.warned.title !== 'Fight the Hall Boss?' || !r.warned.alone || !/^Uses your Goblin Totem, win or lose\nTime limit: 10 min$/.test(r.warned.b) || r.warned.go !== 'Use the Goblin Totem') fails.push('BH-2 the first press: ' + r.sentAfterWarn + ' sent, the warning reads ' + JSON.stringify(r.warned));
     if (/[{}]/.test(Object.values(r.warned).join(' '))) fails.push('BH-2 the warning left a slot unfilled: ' + JSON.stringify(r.warned));
     if (!r.partyWarn.warn || r.partyWarn.alone !== null) fails.push('BH-2 a party\'s leader reads the warning ' + JSON.stringify(r.partyWarn));
     if (r.calls.length !== 1 || r.calls[0].name !== 'hr_boss_hall_enter' || Object.keys(r.calls[0].args).sort().join() !== 'p_hall,p_idem,p_slot'
         || r.calls[0].args.p_hall !== HALL_ROW.id || r.calls[0].args.p_slot !== 0) fails.push('BH-2 the confirm sent ' + JSON.stringify(r.calls));
-    if (r.runs.length !== 1 || !/^Opening /.test(r.runs[0].busy) || r.runs[0].done !== 'The door opens. You\'re on your way.') fails.push('BH-2 the status lines read ' + JSON.stringify(r.runs));
+    if (r.runs.length !== 1 || !/^Opening /.test(r.runs[0].busy) || r.runs[0].done !== 'Door open, on your way') fails.push('BH-2 the status lines read ' + JSON.stringify(r.runs));
     for (const e of errors) fails.push('BH page error: ' + e.slice(0, 160));
     await ctx.close();
   } finally {

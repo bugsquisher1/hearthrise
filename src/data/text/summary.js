@@ -17,19 +17,19 @@ export const SUMMARY_TEXT = Object.freeze({
   equip_n: { one: 'Equip 1 better piece', other: 'Equip {count} better pieces' },
   /* Sell: every stack the loot plan marks Sell, at the shop's bids. */
   sell_n: { one: 'Sell 1 stack for {total}', other: 'Sell {count} stacks for {total}' },
-  sell_words: 'Your loot plan marks {names} for the shop.',
+  sell_words: 'Marked Sell: {names}',
   /* Deposit: every stack the loot plan marks Deposit, with its worth when the shop bids on any of it. */
   deposit_n: { one: 'Deposit 1 stack', other: 'Deposit {count} stacks' },
   deposit_worth: { one: 'Deposit 1 stack worth {worth}', other: 'Deposit {count} stacks worth {worth}' },
-  deposit_words: { one: 'Your loot plan marks {names} for Storage, and that frees 1 bag space.', other: 'Your loot plan marks {names} for Storage, and that frees {count} bag spaces.' },
+  deposit_words: { one: 'Marked Deposit: {names} (frees 1 bag space)', other: 'Marked Deposit: {names} (frees {count} bag spaces)' },
   /* Bless: the Blessings not on, each at the price the server quotes now. */
   bless_n: 'Bless {names}',
-  bless_free: 'Free until Level {level}. A death costs you less with them on.',
-  bless_cost: 'Costs {total}. A death costs you less with them on.',
+  bless_free: 'Free until Level {level}, less death loss',
+  bless_cost: 'Costs {total}, less death loss',
   /* The answers. */
   selling: 'Selling…',
-  depositing: 'Putting it away…',
-  sold: 'The shop paid {gold}.',
-  sold_plain: 'Sold.',
-  deposited: { one: 'Put away 1 stack.', other: 'Put away {count} stacks.' },
+  depositing: 'Depositing…',
+  sold: 'Sold for {gold}',
+  sold_plain: 'Sold',
+  deposited: { one: 'Deposited 1 stack', other: 'Deposited {count} stacks' },
 });

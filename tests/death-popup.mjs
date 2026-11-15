@@ -68,8 +68,8 @@ const WANT = {
   title: 'Tyler died in ' + HUNT_INDEX.millrace_sewer.name,
   killed: 'Killed by ' + MONSTERS.rat_king.name + '.',
   lost: 'Dying cost 1,200 Level XP and 40 ' + SKILLS_DEF.melee.name + ' XP.',
-  level: 'Tyler dropped from Level ' + (FLOOR + 2) + ' to Level ' + (FLOOR + 1) + '.',
-  saved: 'Your 2 Blessings saved you 300 Level XP. They\'re used up now.',
+  level: 'Tyler: Level ' + (FLOOR + 2) + ' to Level ' + (FLOOR + 1),
+  saved: '2 Blessings saved 300 Level XP (used up)',
   town: 'Tyler is back in town with full health and mana.',
 };
 /* The why reads the Level died at (the row's level_from, in range), not the hero's Level now (the fixture's is 1). */
@@ -86,7 +86,7 @@ async function pure(base) {
   for (const k of Object.keys(WANT)) if (w[k] !== WANT[k]) fail(fails, 'DP-0 ' + k + ' reads ' + JSON.stringify(w[k]) + ', want ' + JSON.stringify(WANT[k]));
   const old = Object.assign({}, ROW); delete old.saved;
   if (words(old).saved !== '') fail(fails, 'DP-0 a row with no `saved` key (an older server) still says something about a Blessing: ' + JSON.stringify(words(old).saved));
-  if (!/^You had no Blessing\./.test(words(Object.assign({}, ROW, { saved: null })).saved)) fail(fails, 'DP-0 saved null does not say no Blessing was active');
+  if (!/^No Blessings \(/.test(words(Object.assign({}, ROW, { saved: null })).saved)) fail(fails, 'DP-0 saved null does not say no Blessing was active');
   const unpriced = words(Object.assign({}, ROW, { xp: null, xp_lost: null }));
   if (unpriced.lost !== '') fail(fails, 'DP-0 an unpriced death states a cost: ' + JSON.stringify(unpriced.lost));
   /* THE WHY (Tyler 2026-11-04 UTC: a death teaches): how far under the ground, what that did to every blow, what would have helped. The server's Level and row; an older hunt's row says nothing. */
@@ -103,12 +103,12 @@ async function pure(base) {
   /* DP-0b A DEATH CAN TAKE A LEVEL (Tyler 2026-11-09; 2027-03-25-death-share.sql): the row's level_from / level_to say so, the
      why reads the Level the hero died at, and the Blessings line counts the tiers the death used. */
   const took = Object.assign({}, ROW, { level_from: floor, level_to: floor - 1, blessings: 3 });
-  if (words(took).level !== 'Tyler dropped from Level ' + floor + ' to Level ' + (floor - 1) + '.') fail(fails, 'DP-0b a death that took a Level reads ' + JSON.stringify(words(took).level));
+  if (words(took).level !== 'Tyler: Level ' + floor + ' to Level ' + (floor - 1)) fail(fails, 'DP-0b a death that took a Level reads ' + JSON.stringify(words(took).level));
   if (words(Object.assign({}, took, { level_to: floor })).level !== '') fail(fails, 'DP-0b a death that took no Level still names one');
   if (words(BARE).level !== '') fail(fails, 'DP-0b an older row (no Level pair) names a Level: ' + JSON.stringify(words(BARE).level));
-  if (words(took).saved !== 'Your 3 Blessings saved you 300 Level XP. They\'re used up now.') fail(fails, 'DP-0b three Blessings read ' + JSON.stringify(words(took).saved));
-  if (words(Object.assign({}, took, { saved: {} })).saved !== 'Your 3 Blessings are now used up.') fail(fails, 'DP-0b three Blessings that kept nothing read ' + JSON.stringify(words(Object.assign({}, took, { saved: {} })).saved));
-  if (words(Object.assign({}, ROW, { saved: null })).saved !== 'You had no Blessing. Blessings in the Shop\'s Services tab make dying cost less.') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
+  if (words(took).saved !== '3 Blessings saved 300 Level XP (used up)') fail(fails, 'DP-0b three Blessings read ' + JSON.stringify(words(took).saved));
+  if (words(Object.assign({}, took, { saved: {} })).saved !== '3 Blessings used up') fail(fails, 'DP-0b three Blessings that kept nothing read ' + JSON.stringify(words(Object.assign({}, took, { saved: {} })).saved));
+  if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessings (they cut death loss, Shop, Services tab)') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
   const tookCs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [took] : k === 'state' ? { level_xp: charXpForLevel(2) } : k === 'level' ? levelBlock(charXpForLevel(2)) : k === 'hunt' ? { session_id: SESSION, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
   const tookWhy = deathWords(tookCs, { session: SESSION, row: deathLogOf(tookCs)[0] }).why;
   if (tookWhy !== 'Better armor, food eaten sooner or a smaller pull would help.') fail(fails, 'DP-0b a hero who died in range and lost Levels is told it stood under the ground: ' + JSON.stringify(tookWhy));
@@ -416,7 +416,7 @@ const MUTANTS = [
   ['the why reads the Level after the death, not the one died at (DP-0b)', 'src/shell/death-popup.js',
     'const at = d.row.levelFrom !== null && d.row.levelFrom !== undefined ? d.row.levelFrom : lv ? lv.level : null;', 'const at = lv ? lv.level : null;'],
   ['the projection drops the Level pair (DP-0b)', 'src/session/character-sections.js', 'levelFrom: pair ? from : null, levelTo: pair ? to : null', 'levelFrom: null, levelTo: null'],
-  ['an older row is read as no Blessing', 'src/shell/death-popup.js', "    saved: row.saved === undefined ? ''\n", "    saved: row.saved === undefined ? 'You had no Blessing.'\n"],
+  ['an older row is read as no Blessing', 'src/shell/death-popup.js', "    saved: row.saved === undefined ? ''\n", "    saved: row.saved === undefined ? 'No Blessings'\n"],
   ['the own death is a side line again', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    out.push('],
   ['the projection drops the Blessing', 'src/session/character-sections.js', "      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null,", '      saved: undefined,'],
   ['Hunt summary only closes', 'src/shell/windows/death.js', "  if (action === 'death-summary') ctx.show('hunt-summary');\n", ''],

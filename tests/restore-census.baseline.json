@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-14",
+ "generated": "2026-11-15",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -1251,7 +1251,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 4,
+   "replay": 5,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-14",
@@ -1780,7 +1780,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 43,
+   "replay": 44,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {

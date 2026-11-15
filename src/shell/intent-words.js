@@ -24,6 +24,7 @@ import { TITLES } from '../data/titles.js?v=0.2.130';
 import { sinkRefusal } from './sink-words.js?v=0.2.130';
 import { t } from '../render/player-text.js?v=0.2.130';
 import { trainingRefusal } from './training-words.js?v=0.2.130';
+import { factionRefusal } from './faction-words.js?v=0.2.130';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -94,6 +95,9 @@ export function refusalText(r, cs) {
   /* Combat training: the server's fee, price and the dummy's hero in its sentences (training-words.js). */
   const training = trainingRefusal(r, cs ? nameOf(cs) : null);
   if (training) return training;
+  /* The factions: the server's standing, swap time and cooldown in their sentences (faction-words.js). */
+  const faction = factionRefusal(r, cs);
+  if (faction) return faction;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
     const why = seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]

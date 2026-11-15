@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-14",
- "digest": "61d24e0f551a5dea4931121b7e8c36ee7324d165f2e9151c8780247bff384068",
+ "generated": "2026-11-15",
+ "digest": "4f90a5ff9c29b0094eae019658c306d7fd21c0a37033568dbb6f27224ca35953",
  "counts": {
   "relations": 287,
-  "functions": 724,
+  "functions": 725,
   "policies": 120,
   "indexes": 404,
   "triggers": 97,
@@ -510,6 +510,7 @@
    "hr_faction_locked(p_verb text, p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
    "hr_faction_outfit_claim(p_slot integer, p_piece text, p_idem uuid)",
    "hr_faction_raise_only()",
+   "hr_faction_section(p_user uuid, p_slot integer)",
    "hr_faction_swap_finish(p_slot integer, p_idem uuid)",
    "hr_faction_swap_start(p_slot integer, p_faction text, p_idem uuid)",
    "hr_faction_view(p_user uuid, p_slot integer)",

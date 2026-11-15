@@ -129,6 +129,12 @@ export const CLIENT_RPCS = Object.freeze({
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks Crafting and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
+  /* The factions (2027-04-22-faction-standing.sql, behind the `factions` switch 2027-04-23-faction-section.sql): a slot, a side or a piece
+     id and a fresh key, never a number; the server reads the Krell count, standing, swap time and cooldown itself. Moves no value. */
+  hr_faction_join: 'join a side once, after the server counted this hero\'s Krell kill (faction-intents.js joinFaction)',
+  hr_faction_swap_start: 'start a swap to the other side, a cooldown after the last change (faction-intents.js startSwap)',
+  hr_faction_swap_finish: 'finish the open swap once the settle credited its hunting time (faction-intents.js finishSwap)',
+  hr_faction_outfit_claim: 'claim a cosmetic piece this hero\'s server standing has earned (faction-intents.js claimPiece)',
   hr_hero_colors_view: 'what a color save costs this hero right now; the read of the Outfit tab, moves nothing (hero-color-intents.js readColorsPrice)',
   hr_hero_colors_set: 'this hero\'s four dye indices at the quoted price; never a color value (hero-color-intents.js saveHeroColors; 2027-03-05-hero-colors.sql)',
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',

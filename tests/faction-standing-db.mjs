@@ -20,9 +20,11 @@
 //   FS-END    a hunt that ends mid-window (the hero left) is credited to its end, not to the window's
 //   FS-DAY    the credit split at UTC midnight, a day's ceiling held against a window counted twice, a swap filled to its need and no more
 //   FS-TRIG   standing and days only rise and never move key; the journal is never edited or deleted
-//   FS-GRANT  the four verbs are the client's and baselined, anon reaches none, no helper or table reaches a client; no state section and
-//             no client module names a faction verb yet (hidden)
-//   FS-AGAIN  both files applied a second time move nothing: every body, the settle, the catalogue rows
+//   FS-GRANT  the four verbs are the client's and baselined, anon reaches none, no helper or table reaches a client; the one state section
+//             is hr_faction_section, behind the `factions` switch (2027-04-23-faction-section.sql): off, it reads null and a verb refuses
+//             feature_off; the one client module that names a verb is the client lane's src/session/faction-intents.js
+//   FS-AGAIN  the three files applied a second time move nothing: every body, the settle, the catalogue rows
+//   Every arm but FS-GRANT's off half runs with the `factions` switch on for everyone (runArm), as the Coordinator turns it on.
 //
 // TRUE CONCURRENCY is unverified here (PGlite is one backend): two presses of one hero are ordered by hr_hunt_lock (the migration's header).
 // Exit: 0 green · 1 red · 2 harness.
@@ -36,7 +38,7 @@ import { isMain } from './_is-main.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q } = H;
-const FILES = ['2027-04-22-faction-catalogue.generated.sql', '2027-04-22-faction-standing.sql'];
+const FILES = ['2027-04-22-faction-catalogue.generated.sql', '2027-04-22-faction-standing.sql', '2027-04-23-faction-section.sql'];
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const [A, B, C] = H.UIDS;
 const GROUND = 'mill_cellar';
@@ -270,7 +272,7 @@ const ARMS = {
     return bad;
   },
 
-  'FS-GRANT': async (db) => {
+  'FS-GRANT': async (db, M, X) => {
     const bad = [];
     const verbs = ['hr_faction_join(integer,text,uuid)', 'hr_faction_swap_start(integer,text,uuid)', 'hr_faction_swap_finish(integer,uuid)', 'hr_faction_outfit_claim(integer,text,uuid)'];
     for (const f of verbs) {
@@ -292,11 +294,19 @@ const ARMS = {
     for (const t of tables) if (!t.rls || t.au || t.an || t.pol) bad.push(`FS-GRANT ${t.t}: rls ${t.rls}, authenticated ${t.au}, anon ${t.an}, policy ${t.pol}`);
     const hyg = await one(db, 'select public.hr_assert_grant_hygiene(false)');
     if (hyg && Array.isArray(hyg.ungated_client_rpcs) && hyg.ungated_client_rpcs.some((x) => /hr_faction/.test(x))) bad.push('FS-GRANT a verb is ungated: ' + hyg.ungated_client_rpcs);
-    /* HIDDEN: no section serves it and no client module calls it yet */
-    if (Number(await one(db, `select count(*) from public.hr_state_sections where fn like 'hr\\_faction%'`))) bad.push('FS-GRANT a state section serves the factions before the client lane');
+    /* BEHIND THE SWITCH: one section, hr_faction_section; with the switch off for the account it reads null and the door refuses */
+    const secs = (await q(db, `select key, fn from public.hr_state_sections where fn like 'hr\\_faction%'`)).map((r) => r.key + ':' + r.fn);
+    if (secs.join() !== 'factions:hr_faction_section') bad.push('FS-GRANT the faction sections are ' + JSON.stringify(secs));
+    await hero(db, M, A);
+    await krell(db, A);
+    await db.query("update public.hr_feature_switches set scope = 'off' where switch_id = 'factions'");
+    const off = await one(db, 'select public.hr_faction_section($1::uuid, 0)', [A]);
+    const shut = await join_(db, A, X.sides[0]);
+    if (off !== null || shut.error !== 'feature_off' || (await rows(db, A)).members) bad.push('FS-GRANT with the switch off the section reads ' + JSON.stringify(off) + ' and a join answers ' + JSON.stringify(shut));
     const walk = (d) => readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : p.endsWith('.js') ? [p] : []; });
-    const callers = walk(join(ROOT, 'src')).filter((f) => /hr_faction_(join|swap_start|swap_finish|outfit_claim|view)\b/.test(readFileSync(f, 'utf8')));
-    if (callers.length) bad.push('FS-GRANT a client module names a faction verb before the client lane: ' + callers.join(', '));
+    const callers = walk(join(ROOT, 'src')).filter((f) => /hr_faction_(join|swap_start|swap_finish|outfit_claim|view)\b/.test(readFileSync(f, 'utf8')))
+      .map((f) => f.slice(ROOT.length + 1).split('\\').join('/'));
+    if (callers.join() !== 'src/session/faction-intents.js') bad.push('FS-GRANT the client modules naming a faction verb are ' + JSON.stringify(callers) + ', want the client lane\'s one');
     return bad;
   },
 
@@ -307,7 +317,9 @@ const ARMS = {
         'rows', (select jsonb_build_object('f', jsonb_agg(f order by f.faction_id)) from public.hr_factions f) ||
                 (select jsonb_build_object('r', jsonb_agg(r)) from public.hr_faction_rule r) ||
                 (select jsonb_build_object('o', jsonb_agg(o order by o.piece_id)) from public.hr_faction_outfits o) ||
-                (select jsonb_build_object('g', coalesce(jsonb_agg(g order by g.hunt_id), '[]'::jsonb)) from public.hr_faction_grounds g),
+                (select jsonb_build_object('g', coalesce(jsonb_agg(g order by g.hunt_id), '[]'::jsonb)) from public.hr_faction_grounds g) ||
+                (select jsonb_build_object('sw', jsonb_agg(jsonb_build_array(w.scope, w.accounts, w.note))) from public.hr_feature_switches w where w.switch_id = 'factions') ||
+                (select jsonb_build_object('sec', jsonb_agg(jsonb_build_array(x.key, x.fn))) from public.hr_state_sections x where x.key = 'factions'),
         'base', (select jsonb_agg(jsonb_build_array(b.proname, b.identity_args, b.grantee, b.note) order by b.proname) from public.hr_client_rpc_baseline b where b.proname like 'hr\\_faction\\_%'))`);
     const before = await image();
     for (const f of FILES) {
@@ -347,6 +359,11 @@ export const MUTANTS = {
   helper_open: { arm: 'FS-GRANT', why: 'a client can credit standing', ddl: 'grant execute on function public.hr_faction_credit(uuid, integer, text, timestamptz, timestamptz) to authenticated' },
   table_open: { arm: 'FS-GRANT', why: 'a client can read and write standing', ddl: 'grant select, update on public.hr_faction_standing to authenticated' },
   unbaselined: { arm: 'FS-GRANT', why: 'a verb is not on the client baseline', ddl: "delete from public.hr_client_rpc_baseline where proname = 'hr_faction_swap_finish'" },
+  door_open: { arm: 'FS-GRANT', why: 'a verb runs with the switch off', db: [LOCKED, "  if not public.hr_feature_on('factions', p_uid) then\n", '  if false then\n'] },
+  section_unswitched: { arm: 'FS-GRANT', why: 'the section shows with the switch off',
+    db: ['public.hr_faction_section(uuid,integer)', "  if not public.hr_feature_on('factions', p_user) then return null; end if;\n", ''] },
+  switch_reverted: { arm: 'FS-AGAIN', why: 'a second apply turns the Coordinator\'s switch back off',
+    sql: ['2027-04-23-faction-section.sql', '  on conflict (switch_id) do nothing;', "  on conflict (switch_id) do update set scope = 'off';"] },
   repin_lost: { arm: 'FS-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image',
     sql: ['2027-04-22-faction-standing.sql', /and v_md5 is distinct from '[0-9a-f]{32}' then/, "and v_md5 is distinct from '00000000000000000000000000000000' then"] },
   stale_template: { arm: 'FS-AGAIN', why: 'the settle is restated from a template that lost another file\'s line',
@@ -367,6 +384,8 @@ async function runArm(name, M, mutant) {
   try {
     await H.pinDice(db);
     await db.query('update public.hr_hunt_config set enabled = true where id');
+    /* the factions open, as the Coordinator opens them (2027-04-23-faction-section.sql) */
+    await db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'factions'");
     const X = await ctx(db);
     await db.query('begin');
     try {

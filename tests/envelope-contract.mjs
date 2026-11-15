@@ -182,6 +182,12 @@ function contract(R, cs, body, tl) {
     && tr.quotes.every((q) => Number.isInteger(q.feeH) && q.feeH > 0 && Number.isInteger(q.level))
     && !!tr.dummy && tr.dummy.ladder.length === 4 && Number.isInteger(tr.dummy.nextPrice) && tr.dummy.nextPrice > 0,
     'trainingOf yields ' + JSON.stringify(tr) + ' from ' + JSON.stringify(body.training).slice(0, 200));
+  // the factions (2027-04-23-faction-section.sql, the switch on inside this test): a hero with no side and no Krell kill, both sides' standing
+  // at the server's 0, every piece's need, and the swap's need and cooldown the Faction tab says
+  const fx = R.FX.factionOf(cs);
+  need('factions', !!fx && fx.side === null && fx.canJoin === false && fx.sides.length === 2 && fx.sides.every((x) => fx.standing[x] === 0)
+    && fx.pieces.length > 0 && fx.pieces.every((x) => x.needMs > 0 && fx.sides.includes(x.side) && x.held === false) && fx.swapNeedMs > 0 && fx.cooldownMs > 0,
+    'factionOf yields ' + JSON.stringify(fx) + ' from ' + JSON.stringify(body.factions).slice(0, 240));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
@@ -306,7 +312,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -365,7 +371,7 @@ async function readers(root) {
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
-    TR: await import(u('src/session/training-sections.js')),
+    TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };
@@ -395,6 +401,8 @@ async function realBody(db, M, H) {
      test's transaction only), so the section lists it; a fee dial moves no settle number. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'event_open_halls'");
   await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'open_halls'");
+  /* THE FACTIONS (2027-04-23-faction-section.sql): their switch on for everyone, inside this test's transaction only. */
+  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'factions'");
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,
@@ -502,6 +510,9 @@ const DB_MUTANTS = [
   /* lane/c-combat-training: the Training window prices each hour from the quote and the House the next unlock from the dummy */
   ['training', 'public.hr_training_section(uuid,integer)', "'fee_h', public.hr_training_fee(q.lv),", "'fee', public.hr_training_fee(q.lv),"],
   ['training', 'public.hr_training_section(uuid,integer)', "'ladder', coalesce(to_jsonb(", "'prices', coalesce(to_jsonb("],
+  /* lane/b-faction-ui: the Faction tab reads each piece's need and the swap's need */
+  ['factions', 'public.hr_faction_view(uuid,integer)', "'need_ms', o.need_ms,", "'need', o.need_ms,"],
+  ['factions', 'public.hr_faction_section(uuid,integer)', "jsonb_build_object('swap_need_ms', r.swap_ms,", "jsonb_build_object('swap_ms', r.swap_ms,"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

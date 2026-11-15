@@ -131,7 +131,7 @@ begin
   for v_r in select * from (values
     ('public.hr_training_quote(uuid,integer,text,text)', '2bbfea96fad5c835318f5a257ced5d7e', '96f6ff5050f6b80466ca802da5f1ec7c'),
     ('public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)', 'a396047961d1fccbd116c392c8bbc3db', 'f946c6985e9d5ef43831489646ac9cc9'),
-    ('public.hr_training_section(uuid,integer)', '24b243ffdf16736de5f987eced185a86', '8c5c30ae9e669898e567c30c41f31c24'),
+    ('public.hr_training_section(uuid,integer)', '24b243ffdf16736de5f987eced185a86', '6bc2a9f36cc4142dd6a8116020723d81'),
     ('public.hr_hunt_member_read(public.hunt_sessions)', '14cd77882a9bfba0be7624652017aaf6', 'a34a1041fb1d9762d4eaac94d9b91c48')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -427,10 +427,11 @@ begin
     from public.hr_training_grounds g
     left join public.player_training_gear b on b.user_id = p_user and b.slot = p_slot and b.skill = g.skill
    where g.place = 'yard';
-  -- THE ARMS MASTER'S DAY: the account's buys since the UTC day began (only read while the switch is on).
+  -- THE ARMS MASTER'S DAY: the account's buys since the UTC day began (only read while the switch is on). A buy moves gold, so the
+  -- account's gold rows of today are the range read (player_ledger_gold_idx: user, at, where gold <> 0).
   v_today := case when v_on then (select count(*) from public.player_ledger l
-                                   where l.user_id = p_user and l.kind = 'shop' and l.intent like 'training\_gear\_buy:%'
-                                     and l.at >= public.hr_utc_day_start(now()))::int else 0 end;
+                                   where l.user_id = p_user and l.gold <> 0 and l.at >= public.hr_utc_day_start(now())
+                                     and l.kind = 'shop' and l.intent like 'training\_gear\_buy:%')::int else 0 end;
   -- THE RUN: this hero's open training session, its hourly price now and the gold its fee rows took (the session named in their meta).
   select h.id, h.entered_at, h.hunt_from, g.skill, g.place, g.fee into v_s
     from public.hunt_sessions h join public.hr_training_grounds g on g.hunt_id = h.hunt_id
@@ -509,8 +510,10 @@ begin
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'quote_changed', 'price', v_g.price)); end if;
   -- THE DAY: every hero of the account together, counted from the append-only ledger.
   select r.buy_per_day into v_max from public.hr_training_rules r where r.id;
+  -- (a buy moves gold: the account's gold rows of today are the range read, player_ledger_gold_idx)
   v_today := (select count(*) from public.player_ledger l
-               where l.user_id = v_uid and l.kind = 'shop' and l.intent like 'training\_gear\_buy:%' and l.at >= public.hr_utc_day_start(now()))::int;
+               where l.user_id = v_uid and l.gold <> 0 and l.at >= public.hr_utc_day_start(now())
+                 and l.kind = 'shop' and l.intent like 'training\_gear\_buy:%')::int;
   if v_today >= v_max then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'buy_limit', 'today', v_today, 'max', v_max)); end if;
   -- THE GOLD AND THE ITEM, one apply on the caller's key (the purse and the bag; bag_full and insufficient_gold are hr_apply's).

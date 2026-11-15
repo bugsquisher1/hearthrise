@@ -760,8 +760,13 @@ function calledRows(S) {
     if (!g || g.call !== c.id) throw new Error(`call ${c.id}: its room's ground does not name it`);
     if (!(S.monsters[c.monster] && S.monsters[c.monster].called === true)) throw new Error(`call ${c.id} names ${c.monster}, which is no called row`);
     if (!from || from.call || !from.pockets.some((p) => (p.pack || []).concat(p.spawns).some((s) => s.monster === c.of))) throw new Error(`call ${c.id}: its press's ground ${c.from} does not field ${c.of}`);
-    if (!(whole(c.fee) && c.fee >= 1 && c.fee <= 1000000000)) throw new Error(`call ${c.id} fee ${c.fee} is not whole gold in 1..1e9`);
-    return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fee: c.fee };
+    /* ONE FIGHT'S PRICE (Tyler 2026-11-14: each fight costs stamina plus a small gold fee): whole gold in 1..1e9 (a free fight is a live event's
+       dial, never a row) and 1 s to 1 h of stamina. The one-fight verb's `fee` is gone: a row that still names one is refused rather than ignored. */
+    const ft = c.fight || {};
+    if (!(whole(ft.fee) && ft.fee >= 1 && ft.fee <= 1000000000)) throw new Error(`call ${c.id} fight fee ${ft.fee} is not whole gold in 1..1e9`);
+    if (!(whole(ft.staminaMs) && ft.staminaMs >= 1000 && ft.staminaMs <= 3600000)) throw new Error(`call ${c.id} fight stamina ${ft.staminaMs} is not 1 s to 1 h in whole ms: a fight that costs no stamina has no limit`);
+    if ('fee' in c) throw new Error(`call ${c.id} still names the one-fight fee: a fight's price is its \`fight\``);
+    return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fightFee: ft.fee, fightStaminaMs: ft.staminaMs };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
   /* A BOSS'S LINES, ON ANY ROW THAT HAS THEM (src/core/hunt/boss-phases.js plays a ground's boss as it plays a room's): only a boss carries
      them. A NAMED ADD (boss and add both; he stands in a keyed hall, hallRows) carries an enrage line at most; every other boss both lines, in
@@ -788,10 +793,12 @@ function calledRows(S) {
   if (hs.length) throw new Error(`called hunt ${hs[0].id} has no call: it would have no door`);
   const rules = S.callRules;
   /* No party size (the designer's ruling 2, 2026-11-10): a hero alone may call, so a rule that names one is refused rather than ignored. */
-  if (!(whole(rules.perDay) && rules.perDay >= 1 && whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000 && !('partyMin' in rules))) {
-    throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a whole per-day count, a limit of 1 to 60 minutes, and no party size (a hero alone may call)`);
+  /* NO DAILY CAP (Tyler 2026-11-14: stamina is the limit): a rule that names one is refused too. The slider's top is a whole count of 1 to 1000. */
+  if (!(whole(rules.limitMs) && rules.limitMs >= 60000 && rules.limitMs <= 3600000 && !('partyMin' in rules) && !('perDay' in rules)
+        && whole(rules.maxFights) && rules.maxFights >= 1 && rules.maxFights <= 1000)) {
+    throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a limit of 1 to 60 minutes, a slider top of 1 to 1000 fights, no party size (a hero alone may call) and no daily cap (stamina is the limit)`);
   }
-  return rows.map((c) => ({ ...c, perDay: rules.perDay, limitMs: rules.limitMs }));
+  return rows.map((c) => ({ ...c, limitMs: rules.limitMs, maxFights: rules.maxFights }));
 }
 
 /* THE KEYED HALLS, AT THE GENERATOR (tests/boss-hall.mjs drives it): the rows of hr_boss_halls, or a throw. A hall PAYS, so none of its rows is called;
@@ -940,7 +947,7 @@ export function render(src) {
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
   const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee}, ${t.pm})`).join(',\n');
   const trainRule = r.training.rules;
-  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.limitMs})`).join(',\n');
+  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.limitMs}, ${c.fightFee}, ${c.fightStaminaMs}, ${c.maxFights})`).join(',\n');
   const hallValues = r.bossHalls.map((h) => `  (${sq(h.id)}, ${sq(h.hunt)}, ${sq(h.monster)}, ${sq(h.key)}, ${h.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
@@ -969,7 +976,11 @@ export function render(src) {
 -- Chief Coppercap's table and the Cauldron Lid), still gold 0 and xp 0, and hr_hunt_kill_bounds_xp_max_check lets a called row carry drops, never XP or
 -- coin. hr_hunt_vendor_value gains the two pieces (567 -> 569), hr_hunt_weapons the Kingstooth (76 -> 77), hr_hunt_shields the Cauldron Lid (6 -> 7).
 -- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-04-23-boss-call-drops-items-catalogue.generated.sql (the self-check wants
--- both pieces in hr_items); then lane C's call-drops migration (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
+-- both pieces in hr_items); then 2027-04-24-boss-call-series.sql (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
+-- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
+-- fee, no daily cap): hr_boss_calls carries one fight's price and the slider's top (fight_fee, fight_stamina_ms, max_fights) and loses the one-fight verb's
+-- fee and per_day. 2027-04-24-boss-call-series.sql restates every reader of those columns and applies RIGHT AFTER this file; between the two the old quote
+-- names a column that is gone, so Call out answers an error and charges nothing.
 --
 -- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
@@ -1397,14 +1408,19 @@ create table if not exists public.hr_boss_calls (
   hunt_id    text   not null unique check (hunt_id ~ '^[a-z0-9_]{1,57}_called$'),
   from_hunt  text   not null check (from_hunt ~ '^[a-z0-9_]{1,64}$'),
   monster_id text   not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
-  fee        bigint not null check (fee between 1 and 1000000000),
-  per_day    int    not null check (per_day between 1 and 100),
-  limit_ms   int    not null check (limit_ms between 60000 and 3600000)
+  limit_ms   int    not null check (limit_ms between 60000 and 3600000),
+  fight_fee  bigint not null,
+  fight_stamina_ms int not null,
+  max_fights int    not null
 );
 -- A HERO ALONE MAY CALL (2027-04-05-call-out-alone.sql restates the quote that read it first): no party size.
 alter table public.hr_boss_calls drop column if exists party_min;
+-- THE SERIES (Tyler 2026-11-14: a slider of fights, each costing stamina and a small fee; no daily cap): one fight's price and the slider's top.
+-- The one-fight verb's fee and daily cap go. 2027-04-24-boss-call-series.sql restates every reader of them and applies RIGHT AFTER this file.
+alter table public.hr_boss_calls add column if not exists fight_fee bigint, add column if not exists fight_stamina_ms int, add column if not exists max_fights int;
+alter table public.hr_boss_calls drop column if exists fee, drop column if exists per_day;
 comment on table public.hr_boss_calls is
-  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
 -- COMBAT TRAINING (training.js): the rules, one row, and each training ground's place, skill, fee and share. Read by hr_training_start, the settle's
 -- hourly charge (hr_training_hour) and its window check (hr_training_window), 2027-04-16-combat-training.sql.
 create table if not exists public.hr_training_rules (
@@ -1538,8 +1554,12 @@ delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, limit_ms) values
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights) values
 ${callValues};
+alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null;
+alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
+alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
+  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000);
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
@@ -1804,7 +1824,11 @@ function selftest() {
       pockets: [{ room: [4, 5, 10, 10], spawns: [{ monster: 'rat_king_called', x: 7, y: 8 }] }, ...OPEN_GROUNDS.mill_cellar.pockets.slice(1)] } } }),
     'a call with no room': () => ({ calls: { ...BOSS_CALLS, ghost: { ...BOSS_CALLS.rat_king, id: 'ghost', hunt: 'nowhere_called' } } }),
     'a called hunt with no call': () => ({ calls: { rat_king: BOSS_CALLS.rat_king } }),
-    'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 0 } } }),
+    'a free call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fight: { ...BOSS_CALLS.rat_king.fight, fee: 0 } } } }),
+    'a fight that costs no stamina': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fight: { ...BOSS_CALLS.rat_king.fight, staminaMs: 0 } } } }),
+    'the one-fight fee back on a call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 10000 } } }),
+    'a daily cap on the call (stamina is the limit)': () => ({ callRules: { ...BOSS_CALL_RULES, perDay: 3 } }),
+    'a slider with no top': () => ({ callRules: { ...BOSS_CALL_RULES, maxFights: 0 } }),
     'a party size on the call (a hero alone may call)': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 2 } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
     /* THE DEFENSE BOUND AND A MONSTER'S SPELL: the least windup x block_mult covers the swing interval, and no row winds up faster than the least */

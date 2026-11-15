@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 176c9851810a1ec6a4a52a2cca12341b3827c89ab3351ed801911a7a512b8b53
+--   digest: dcd2ca2ca4b4c43110e8ba84a1eb3970ed16f526edc02b247fe91d15dfc38692
 --   82 supplies, 165 hunts (named + training), 47 limits, 16 end reasons,
 --   592 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 22 hunt grounds
@@ -18,7 +18,11 @@
 -- Chief Coppercap's table and the Cauldron Lid), still gold 0 and xp 0, and hr_hunt_kill_bounds_xp_max_check lets a called row carry drops, never XP or
 -- coin. hr_hunt_vendor_value gains the two pieces (567 -> 569), hr_hunt_weapons the Kingstooth (76 -> 77), hr_hunt_shields the Cauldron Lid (6 -> 7).
 -- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-04-23-boss-call-drops-items-catalogue.generated.sql (the self-check wants
--- both pieces in hr_items); then lane C's call-drops migration (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
+-- both pieces in hr_items); then 2027-04-24-boss-call-series.sql (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
+-- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
+-- fee, no daily cap): hr_boss_calls carries one fight's price and the slider's top (fight_fee, fight_stamina_ms, max_fights) and loses the one-fight verb's
+-- fee and per_day. 2027-04-24-boss-call-series.sql restates every reader of those columns and applies RIGHT AFTER this file; between the two the old quote
+-- names a column that is gone, so Call out answers an error and charges nothing.
 --
 -- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
@@ -446,14 +450,19 @@ create table if not exists public.hr_boss_calls (
   hunt_id    text   not null unique check (hunt_id ~ '^[a-z0-9_]{1,57}_called$'),
   from_hunt  text   not null check (from_hunt ~ '^[a-z0-9_]{1,64}$'),
   monster_id text   not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
-  fee        bigint not null check (fee between 1 and 1000000000),
-  per_day    int    not null check (per_day between 1 and 100),
-  limit_ms   int    not null check (limit_ms between 60000 and 3600000)
+  limit_ms   int    not null check (limit_ms between 60000 and 3600000),
+  fight_fee  bigint not null,
+  fight_stamina_ms int not null,
+  max_fights int    not null
 );
 -- A HERO ALONE MAY CALL (2027-04-05-call-out-alone.sql restates the quote that read it first): no party size.
 alter table public.hr_boss_calls drop column if exists party_min;
+-- THE SERIES (Tyler 2026-11-14: a slider of fights, each costing stamina and a small fee; no daily cap): one fight's price and the slider's top.
+-- The one-fight verb's fee and daily cap go. 2027-04-24-boss-call-series.sql restates every reader of them and applies RIGHT AFTER this file.
+alter table public.hr_boss_calls add column if not exists fight_fee bigint, add column if not exists fight_stamina_ms int, add column if not exists max_fights int;
+alter table public.hr_boss_calls drop column if exists fee, drop column if exists per_day;
 comment on table public.hr_boss_calls is
-  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
 -- COMBAT TRAINING (training.js): the rules, one row, and each training ground's place, skill, fee and share. Read by hr_training_start, the settle's
 -- hourly charge (hr_training_hour) and its window check (hr_training_window), 2027-04-16-combat-training.sql.
 create table if not exists public.hr_training_rules (
@@ -1971,9 +1980,13 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('yew_staff', 148),
   ('yew_wand', 133);
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, limit_ms) values
-  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 30000, 3, 600000),
-  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 10000, 3, 600000);
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights) values
+  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 100, 150000, 100),
+  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 600000, 50, 120000, 100);
+alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null;
+alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
+alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
+  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000);
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values

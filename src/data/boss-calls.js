@@ -15,17 +15,22 @@
 // that is what skipping the route costs. tests/boss-call.mjs is the standing guard: a called room pays only on `boss_felled`, only
 // from the called boss's own table, never on a loss or at the limit, never XP or coin, and his adds pay nothing at all.
 //
-// THE SERIES (lane C wires it: `fight` on each call, BOSS_CALL_RULES.maxFights; PRIORITY_BOARD "Boss call drops"): a slider
+// THE SERIES (lane/c-boss-call-b, 2027-04-24-boss-call-series.sql; `fight` on each call, BOSS_CALL_RULES.maxFights): a slider
 // picks how many fights in a row, 1 to maxFights, played viewed or not like any hunt. Each fight charges every hero in the room
 // his own `fight.staminaMs` and `fight.fee` as it starts, win or lose; the time in the room drains nothing more. The series ends
-// at its count, on a death, when a hero's stamina or gold can't pay the next fight, or on a leave. NO DAILY CAP: stamina is
-// the limit (Tyler 2026-11-14).
+// at its count, on a death, at a fight's limit, when a hero's stamina or gold can't pay the next fight, or on a leave. NO DAILY
+// CAP: stamina is the limit (Tyler 2026-11-14).
+// WHO DECIDES WHAT: the engine plays ONE fight (src/core/combat-sim.js: his kill ends it `boss_felled`, a death or the limit ends it);
+// the SERVER owns the series. When every hero in the room won and fights are left, the settle charges each hero the next fight
+// (the fee as the server quoted it at the press, kept for the whole series) and starts it on the same instant, or ends the series:
+// `stamina` or `gold_out` for a hero who can't pay it, the win's `boss_felled` for everyone else. The engine never counts a fight.
 // THE PRICE (designer 2026-11-14, the real settle, 3 seeds x 2 h a cell): on the Sewer a four meets the Rat King every 2.6
 // stamina minutes a hero, a pair every 4.6; on the Warrens a four meets Chief Coppercap every 3.1, a pair every 5.1. A call
 // fight costs 2 and 2.5: cheaper a boss kill, while the ground keeps its coin, its Level XP and its other drops, so the ground
 // stays the better all-round hour. The fee is a small sink, never the main cost.
-// UNTIL LANE C LANDS the live verb is ONE paid fight that pays nothing: `fee` and `perDay` are its server columns (hr_boss_calls) and
-// retire with it, and BOSS_CALL_RULES.dropsLive keeps the engine's drop door shut (the live allowlist refuses a window with an item).
+// THE DROP DOOR IS OPEN (BOSS_CALL_RULES.dropsLive): it opened with the server half that allows a win's window its items
+// (hr_boss_call_pays), holds every win to a paid fight (hunt_sessions' CHECK: wins never pass the fights paid) and proves the win
+// from the window's own kill. tests/boss-call.mjs still plays the door shut.
 //
 // Postgres reads this table as hr_boss_calls (tools/gen-hunt-sessions.mjs). Fees are the designer's; a row moves them.
 //
@@ -33,29 +38,27 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const BOSS_CALL_RULES = Object.freeze({
-  /* The live one-fight verb's: per account, per UTC day, whichever hero calls. Retires with lane C (no daily cap, Tyler 2026-11-14). */
-  perDay: 3,
   /* One fight's limit from its first swing: nobody sits in the room for ever. */
   limitMs: 10 * 60000,
   /* The slider's top: the most fights one series can queue. Stamina ends a series long before most players reach it. */
   maxFights: 100,
-  /* THE DROPS' SWITCH (hidden until its server half lands, CLAUDE.md §3.5): false, a win pays nothing, as the live settle's allowlist
-     (hr_boss_call_pays) still demands. Lane C flips it in the release that applies its migration; the words below flip with it
-     (warn[1] -> series). tests/boss-call.mjs plays the door both ways. */
-  dropsLive: false,
+  /* THE DROPS' SWITCH: true, a win rolls his table (src/core/hunt-rewards.js calledSwing). It opened with 2027-04-24-boss-call-series.sql,
+     whose allowlist takes a win's items; the hr-accrue carrying this deploys AFTER that file (an older settle refuses every win: called_pays).
+     tests/boss-call.mjs plays the door both ways. */
+  dropsLive: true,
 });
 
 /* `id` the catalogue id the verb names; `hunt` the called room's hunt and ground (hunts.js CALLED_HUNTS, hunt-grounds.js
    CALLED_GROUNDS); `from` the ground whose page carries the press, and where the party stands afterwards; `monster` the
    called row; `of` the boss it copies; `boss` how a sentence names him (he/him: both are men, as the words say).
-   `fee` the live one-fight verb's price (retires with lane C). `fight` one fight of a series, charged to EACH hero as it starts,
-   win or lose: `staminaMs` (under the ground's own stamina a boss kill, THE PRICE above) and `fee` in gp.
+   `fight` one fight of a series, charged to EACH hero as it starts, win or lose: `staminaMs` (under the ground's own stamina a
+   boss kill, THE PRICE above) and `fee` in gp (hr_boss_calls.fight_stamina_ms, fight_fee; a live event's dial may waive the fee, never the stamina).
    `callOnly` the piece only his called fight drops (CALL_ITEMS). */
 export const BOSS_CALLS = Object.freeze({
   rat_king: Object.freeze({ id: 'rat_king', hunt: 'millrace_sewer_called', from: 'millrace_sewer', monster: 'rat_king_called', of: 'rat_king',
-    boss: 'the Rat King', Boss: 'The Rat King', fee: 10000, fight: Object.freeze({ staminaMs: 2 * 60000, fee: 50 }), callOnly: 'kingstooth' }),
+    boss: 'the Rat King', Boss: 'The Rat King', fight: Object.freeze({ staminaMs: 2 * 60000, fee: 50 }), callOnly: 'kingstooth' }),
   chief_coppercap: Object.freeze({ id: 'chief_coppercap', hunt: 'coppercap_warrens_called', from: 'coppercap_warrens', monster: 'chief_coppercap_called', of: 'chief_coppercap',
-    boss: 'Chief Coppercap', Boss: 'Chief Coppercap', fee: 30000, fight: Object.freeze({ staminaMs: 150000, fee: 100 }), callOnly: 'cauldron_lid' }),
+    boss: 'Chief Coppercap', Boss: 'Chief Coppercap', fight: Object.freeze({ staminaMs: 150000, fee: 100 }), callOnly: 'cauldron_lid' }),
 });
 
 /* ── THE CALL-ONLY PIECES (Tyler 2026-11-14: "sprinkle items like this throughout the game", normal stats plus ONE attribute) ──
@@ -87,26 +90,37 @@ export function callFromGround(huntId) { return rows.find((c) => c.from === hunt
 
 /* ── THE WORDS (designer's table; `{Boss}` and `{boss}` from the row) ───────────────────────────────────────────────── */
 export const BOSS_CALL_WORDS = Object.freeze({
-  /* "for {fee} gp", never a colon-joined price (the copy rules; mocks 2026-11-10 SPEC §2 gap 3). A free call reads its event's words
-     (src/data/live-events.js WORDS.open_halls: "Call out {boss} for free", "Call him out for free"). */
-  press: 'Call out {boss} for {fee} gp',
+  /* The press opens the warning. The price is one fight's: the line beside the press and the warning's labels say it (a free fight
+     reads its event's words, src/data/live-events.js WORDS.open_halls). */
+  press: 'Call out {boss}',
   warnTitle: 'Call out {boss}?',
   warn: Object.freeze([
-    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder. If anyone dies, the fight ends.',
-    /* the live one-fight verb's, true while `dropsLive` is false; lane C replaces it with the series' labels below */
-    'You pay {fee} gp, win or lose. You get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
+    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder. If anyone dies, the fights end.',
   ]),
-  /* THE SERIES' LABELS (lane C's slider; Tyler 2026-11-14). {n} fights picked, {stamina} and {gold} the series' whole bill, {fee} and {staminaMin} one fight's. */
+  /* THE SERIES' LABELS (the slider; Tyler 2026-11-14). EVERY NUMBER IS THE SERVER'S QUOTE (hr_boss_call_view): {n} the fights picked (1 to its
+     max_fights), {fee} and {staminaMin} one fight's price, {minutes} one fight's limit, {stamina} and {gold} the picked count's bill (the quote's
+     `totals`, never a sum made in the browser), {covers} the fights the room's stamina and gold pay for right now. */
   series: Object.freeze({
+    each: 'A fight costs {staminaMin} min of stamina and {fee} gp.',
+    eachFree: 'A fight costs {staminaMin} min of stamina and no gold.',
+    pick: 'Fights in a row',
     fights: 'Fights: {n}',
     stamina: 'Stamina: {staminaMin} min a fight',
     cost: 'Cost: {fee} gp a fight, win or lose',
+    costFree: 'Cost: no gold',
     drops: 'Drops on a win',
     none: 'No XP or coin',
     limit: 'Time limit: {minutes} min a fight',
-    total: 'Total: {stamina} stamina, {gold} gp',
+    total: 'Total: {stamina} min of stamina, {gold} gp',
+    totalFree: 'Total: {stamina} min of stamina',
+    covers: Object.freeze({ none: 'Not enough stamina or gold for a fight right now.', one: 'Enough stamina and gold for 1 fight right now.', other: 'Enough stamina and gold for {covers} fights right now.' }),
     ends: 'Ends on a death, or when stamina or gold runs out',
     confirm: 'Call him out {n} times',
+    confirmOne: 'Call him out once',
+    /* While the fights run (the hunt's own line) and once they are over (the summary): the server's count of fights and wins, and what it charged. */
+    now: 'Fight {fight} of {fights}',
+    done: Object.freeze({ one: 'Won {won} of 1 fight', other: 'Won {won} of {fought} fights' }),
+    paid: 'Paid {stamina} min of stamina and {gold} gp',
   }),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
   /* NO PER-BOSS CHALLENGE ADVICE (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance re-fit
@@ -114,12 +128,10 @@ export const BOSS_CALL_WORDS = Object.freeze({
   warnGuard: ' They shield him until you kill them.',
   /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
   warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
-  confirm: 'Call him out for {fee} gp',
   cancel: 'Not yet',
   /* The status line while the call is out, and once he answers (alone: no party walks in with you). */
   calling: 'Calling {boss} out…',
   answered: Object.freeze({ party: '{Boss} answers. Your party is on its way.', alone: '{Boss} answers. You\'re on your way.' }),
-  left: Object.freeze({ one: 'You have 1 call left today.', other: 'You have {n} calls left today.', none: 'You have no calls left today.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
   noQuote: 'Checking if you can call him out.',
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
@@ -145,7 +157,10 @@ export const BOSS_CALL_WORDS = Object.freeze({
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */
   refused: Object.freeze({
     call_leader: 'Only your party\'s leader can call him out.',
-    call_limit: 'You\'ve called 3 times today. More after midnight UTC.',
+    bad_fights: 'Pick between 1 and {max} fights, so you weren\'t charged.',
+    call_stamina: 'You need {staminaMin} min of stamina for a fight, so you weren\'t charged.',
+    party_stamina: '{who} doesn\'t have the stamina for a fight, so nobody was charged.',
+    party_gold: '{who} doesn\'t have the gold for a fight, so nobody was charged.',
     quote_changed: 'The price moved, so you weren\'t charged. Look again.',
     call_unknown: 'Nobody here answers that call, so you weren\'t charged.',
     insufficient_gold: 'You don\'t have the gold, so you weren\'t charged.',

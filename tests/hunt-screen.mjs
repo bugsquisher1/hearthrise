@@ -514,7 +514,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (rg[0] !== '+13/s rest' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+13/s rest","+0.3/s"]');
         /* the rate a watcher can see on the bar, the fight's in its title (first-hour play 2026-10-31: "+0.6/s" over HP racing back) */
         const hpTitle = await page.evaluate(() => document.querySelector('[data-r="hp"]').getAttribute('title'));
-        if (hpTitle !== 'Health regained each second between fights. In a fight: +0.7/s.') fails.push('HS-18 the hub HP rate title reads ' + JSON.stringify(hpTitle));
+        if (hpTitle !== 'Health regen between fights (in a fight: +0.7/s)') fails.push('HS-18 the hub HP rate title reads ' + JSON.stringify(hpTitle));
         /* HS-18 FOOD IS THE HUNT BAG'S (Brannoc 10-22: "Food ×0" while the server's hunt bag held 20 Cooked Shrimp; Enter
            moves the food out of the bag): the socket counts the open hunt's hunt bag, and the next envelope replaces it. */
         const foodK = () => page.evaluate(() => document.querySelector('.hb-socket.is-food .hb-socket-k').textContent);
@@ -1122,7 +1122,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* the server's leave_at is now long past (the close is late): the line says so, plainly */
         const asked = s.sent('hr-accrue').length;
         s.env.hunt = Object.assign({}, s.env.hunt, { session: Object.assign({}, s.env.hunt.session, { leave_at: iso(20000) }) });
-        if (!(await reads('Still processing your leave…'))) fails.push('HS-16 a late close never says it is still being processed: ' + JSON.stringify(await line()));
+        if (!(await reads('Still leaving…'))) fails.push('HS-16 a late close never says it is still being processed: ' + JSON.stringify(await line()));
         const l = await line();
         if (!l || !l.off) fails.push('HS-16 Leave hunt is pressable while the late leave is processed: ' + JSON.stringify(l));
         if (!(await until(() => s.sent('hr-accrue').length > asked))) fails.push('HS-16 the late close is not asked again');
@@ -2093,7 +2093,7 @@ const MUTANTS = [
   ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const cd = over ? null : ctx.character.leaveCountdown();", "  const cd = null;"],
   ['the leave countdown reads the device clock', 'src/session/character-session.js', "leaveCountdown(at, this.serverNow(),", "leaveCountdown(at, Date.now(),"],
   ['the countdown waits for the settle after the press', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],
-  ['a late close never says so', 'src/shell/widgets/hunt-topbar.js', "late: 'Still processing your leave…'", "late: 'Leaving now…'"],
+  ['a late close never says so', 'src/shell/widgets/hunt-topbar.js', "late: 'hud.leaving_late'", "late: 'hud.leaving_now'"],
   ['the countdown line is not shown', 'src/shell/widgets/hunt-topbar.js', "  prop(line, 'hidden', !leaving || over);", "  prop(line, 'hidden', true);"],
   ['the leave closes a whole poll late', 'src/session/hunt-poll.js', "  return closeMs === null ? ms : Math.min(ms, closeMs);", "  return ms;"],
   ['a free character gets no basic analyzer', 'src/shell/widgets/analyzer.js', 'const a = analyzerOf(ctx.character);', 'const a = premium ? analyzerOf(ctx.character) : null;'],

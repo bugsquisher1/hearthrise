@@ -19,6 +19,7 @@ import { EVENTS_TEXT } from './events.js?v=0.2.131';
 import { FARM_TEXT } from './farm.js?v=0.2.131';
 import { HEROES_TEXT } from './heroes.js?v=0.2.131';
 import { HOUSE_TEXT } from './house.js?v=0.2.131';
+import { HUD_TEXT } from './hud.js?v=0.2.131';
 import { HUNTS_TEXT } from './hunts.js?v=0.2.131';
 import { ITEM_TEXT } from './item.js?v=0.2.131';
 import { MONSTER_TEXT } from './monster.js?v=0.2.131';
@@ -47,6 +48,7 @@ export const TEXT = Object.freeze({
   farm: FARM_TEXT,
   heroes: HEROES_TEXT,
   house: HOUSE_TEXT,
+  hud: HUD_TEXT,
   hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
   log: LOG_TEXT,

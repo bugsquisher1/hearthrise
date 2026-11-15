@@ -614,7 +614,7 @@ async function checks(overrides, shots) {
       if (met.up) {
         await met.page.waitForTimeout(500);
         const line = await met.page.evaluate(() => (document.querySelector('[data-hs-widget="tally"] .hs-tally-none') || {}).textContent || '');
-        if (!/Tamsin has kill tasks/.test(line)) fails.push('TW-10 once met (a weight asked), the empty Tally box reads ' + JSON.stringify(line));
+        if (!/^Kill tasks: Tamsin's board/.test(line)) fails.push('TW-10 once met (a weight asked), the empty Tally box reads ' + JSON.stringify(line));
       }
       await met.ctx.close();
     }

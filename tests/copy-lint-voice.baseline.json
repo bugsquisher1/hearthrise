@@ -31,7 +31,6 @@
     "src/shell/setup-words.js#this-slots#This hero's",
     "src/shell/setup-words.js#this-slots#This hero's 1 setup slot is full.",
     "src/shell/slot-waits.js#label-sentence#Waiting: this slot ignores the monster you’re fighting.",
-    "src/shell/widgets/stamina-buy.js#server-talk#The server has not priced a refill yet.",
     "src/shell/windows/character/deaths.js#server-talk#<p class=\"hh-empty hw-dl-none\">No deaths on record. The server keeps the deaths of your recent hunts.</p></section>",
     "src/shell/windows/character/sheet.js#label-sentence#Heavy armor: the share of every blow that lands which your armor takes.",
     "src/shell/windows/character/sheet.js#label-sentence#Light armor: a flat amount taken off every blow that lands. Best against many small blows.",

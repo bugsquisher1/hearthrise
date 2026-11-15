@@ -41,3 +41,12 @@ Each: repro, server said vs screen said, likely file, and for fun/sense the evid
 
 ### F10 P3 · Only gathering resumes after a hunt; a bench job does not
 - Repro: start Normal Plank (Crafting, 1,249 logs left), enter the Glade, stamina runs out. Summary: "Start mining, chopping or fishing before you hunt, and Corwen will go back to it when the hunt ends." The bench job is dropped. Tyler 10-14: "resumes the last non-hunt activity". The copy is honest; the rule is narrower than the ruling. Coordinator call: resume the bench with its remaining materials, or record the narrower rule.
+
+### F11 P2 · A loot plan is per hero and can't be copied (first principle)
+- Repro: Corwen set 15 items to Sell; Ilsa (same account) starts with every item on Keep (`player_item_rules` rows only for slot 0), and no window offers "Use Corwen's plan". Each new hero redoes the dropdowns one item at a time (the 11-11 #8 "17 dropdowns" again). Tyler's first principle: a decision made once is reusable and copyable. Better: "Copy loot plan from <hero>" in the This hunt tab, or an account-wide plan with per-hero overrides.
+
+### F12 P2 (economy) · A million gold by Level 50 with little to spend it on
+- Evidence: purse 1,010,859 gp after ~150 hunted hero-hours (Corwen 50, Ilsa 34). Spent so far: two hero slots, 4 stamina refills, a bag row, the Homestead (400 gp) and a crate (1,500 gp). House tiers are gated by materials (Oak, Iron Bar, Trout), not gold; the Weighhouse is closed on the local chain; Tempering untried yet. Income at the Ford is +10.7k gp/h a hero. Better (design): gold sinks that track income by Level (refills already do), and House tiers that cost gold in proportion to the Level they open at. Re-check after the March grounds and Tempering.
+
+### F13 P3 · Another hero's away card opens over the fight
+- Repro: switch to Corwen hunting at the Ford while Ilsa has a return line; "While you were away (24 h 1 min), Ilsa hunted ..." opens center-screen over Corwen (`art/review/audit-2026-11-15/018-ford-2min.png`). Same class as F1: overlays dock where the hero stands.

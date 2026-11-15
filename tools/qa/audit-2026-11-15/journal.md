@@ -46,3 +46,13 @@ Krell's Hold 85-110 (+ Krell's hall). Training yards (4 skills) and house dummie
 - House: Hearthside Homestead bought (400 gp + 20 Copper Ore + 30 Normal Log), Millrace Crate built (+20 stacks). Next: Farmstead (2,500 gp, 40 Oak Log, 4 Wolf Pelt, 25 Copper Ore, 10 Cooked Shrimp), Kitchen (40,000 gp + 60 Iron Bar + 60 Oak Plank + 50 Cooked Trout), Garden (600 gp + 20 Wheat).
 - Glade Normal from 15: watched 30 min = 79.7k XP/h, +7.3k gp/h, 29 meals (food finally matters). 8 h: 15 -> 17. 12 h: 17 -> 24 (74.4k XP/h, +8.8k gp/h, 19 Iron Platebody). 12 h: 24 -> 28 (77.2k XP/h, +9.4k gp/h).
 - **Hunted ~59 h by Level 28.** Practice Shield still worn at 28 (Equip upgrades never offers the shop's Bronze-Rimmed +3 or Smithing's Ironbound +5).
+- Crafting: Normal Plank x11,250 in 12 h, Crafting 1 -> 41 (one recipe, no choices). Iron Rock 12 h: +6,000 Iron Ore, Mining 35 -> 51.
+- Glade to 31 (12 h: 79.7k XP/h, +9.9k gp/h; summary: "Wear Steel Helm (+5 Defense). Your full set's +2% critical chance ends." — set bonuses are named, good).
+- Hero slot 2 bought at Level 31 with 321,736 gp (about 83 hunted h, ~7 days at 12 h/day: "about a week" holds). **Ilsa** (staff): bar auto-fills a healer setup (Greater Mend, Circle of Renewal, Green Sickness, Undertow, Spring Tide).
+- Party of own heroes: Ilsa invites Corwen by name, he joins at once. L1 Ilsa + L31 Corwen at the Glade: "You earn 1% of a full share of Level XP here, so far under Level 31" (no carry, good). Ilsa leaving sent Corwen home ("Ilsa left the hunt, so Corwen came home too.", end_reason party_member_left). **F7 (P1) found here.**
+- Solo healer, Mill Cellar 1 h: Level 1 -> 5, 8.5k XP/h, 0 deaths (the 10-18 solo-healer rule holds). Loot plan is per hero, no copy (F11).
+- Corwen solo Warrens 31 -> 36 in 11.5 h: 139k XP/h before bonuses, but only +4.7k gp/h: 2,710 store Salted Shrimp eaten (37,940 gp). Ilsa Thicket 6 -> 10 (17.3k XP/h as healer vs 21k as tank).
+- Days (12 h hunt + 12 h rest each): Corwen Warrens 36 -> 39 -> 42 -> 45; Ilsa Wickstead 10 -> 15, Glade 15 -> 23 -> 27.
+- **Hask's Ford at 45** (watched 2 min + 1 h): 191k XP/h, +10.7k gp/h, 35 store meals an hour, Mithril/Snakeskin/Warlock drops. Better than the Warrens alone on both XP and gold. Lore line reads as a story ("Captain Hask sold this river crossing to Lord Krell..."). Ford 45 -> 47.75 -> 49.99 in two days.
+- **Purse 1,010,859 gp at Level 50** (~150 hunted hero-hours, 2 heroes). Bought slot 3 (750,000): **Maren** (wand), mage bar auto-filled.
+- Party Corwen (49) + Ilsa (34) at the Warrens 12 h: 2,472,387 Level XP each (206k/h with bonuses; Corwen alone there was 160k/h), +8.1k gp/h each, no food bought (healer). Corwen 49 -> 52, Ilsa 34 -> 38. Maren solo Cellar 1 -> 9 (9.2k XP/h).

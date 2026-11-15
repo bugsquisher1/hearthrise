@@ -5159,6 +5159,9 @@ const SQL_MUTANTS = [
     find: "  if new.active_kind = 'combat' and old.active_kind is distinct from 'combat' then\n", replace: "  if new.active_kind = 'combat' then\n" },
   { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a bench with no count left may start',
     find: "    when p_left is null then jsonb_build_object('ok', false, 'why', 'no_count')\n", replace: '' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a job above the hero\'s level is picked up',
+    find: "                                  where sk.user_id = p_user and sk.slot = p_slot and sk.skill_id = a.req_skill), 1) < a.req_lv) then\n    v_why := 'level';\n",
+    replace: "                                  where sk.user_id = p_user and sk.slot = p_slot and sk.skill_id = a.req_skill), 1) < 0) then\n    v_why := 'level';\n" },
 ];
 
 /* PIN THE DICE: a fixed PRNG secret and a counting gen_random_uuid, so the same

@@ -750,8 +750,9 @@ end $$;
 
 -- ── §6 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe row rolled back ─────
 -- Fails on the pre-images: (b) no body counts what a bench's stock makes; (c) Enter remembers no count; (d) a stocked bench
--- running at Enter does not resume (panel-truth), and before it a resumed bench had no count. The settle's own call, on both
--- doors (the browser closed, the hunt viewed), and the engine spending exactly the count are tests/hunt-sessions-settle.mjs RESUME.
+-- running at Enter does not resume (panel-truth), and before it a resumed bench had no count; (e) no row said why. The settle's
+-- own call, on both doors (the browser closed, the hunt viewed), and the engine spending exactly the count are
+-- tests/hunt-sessions-settle.mjs RESUME.
 do $chk$
 declare
   c_u    constant uuid := '000000c0-0000-4000-a000-0000be7c0424';
@@ -759,7 +760,7 @@ declare
   c_hunt constant text := 'mill_cellar';
   c_am   constant text := 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)';
   v jsonb; v_s text; v_role text; v_src text; v_n int; v_i int := 0;
-  v_bench text; v_in text; v_need bigint; v_node text; v_sid uuid; v_st record; v_meta jsonb;
+  v_bench text; v_in text; v_need bigint; v_node text; v_lock text; v_sid uuid; v_st record; v_meta jsonb;
   r record;
 begin
   -- (a) THE SHAPE: no client or engine role runs a body of this file; each keeps a pinned search_path; the column is ranged
@@ -915,6 +916,29 @@ begin
         if v_n <> 1 or (v_meta->>'resumed') is distinct from 'false' or v_meta->>'why' is distinct from r.want_why or v_meta ? 'left' then
           raise exception 'bench-resume §6(d) (%): the refusal journalled % row(s): %, wanted why %', r.tag, v_n, v_meta, r.want_why; end if;
       end if;
+    end loop;
+
+    -- (e) WHAT THE OLD STEP REFUSED IS STILL REFUSED, and the row now says why: no remembered job; a kind with no catalogue row
+    --     (the reserved `training`); a job above the hero's level. Each through a real hunt that ends on its own.
+    select a.activity_id into v_lock from public.hr_activities a
+     where a.kind = 'gather' and a.req_skill is not null and a.req_lv > 1 order by a.req_lv desc, a.activity_id limit 1;
+    if v_lock is null then raise exception 'bench-resume §6-harness: no gathering node is level-locked'; end if;
+    for r in select * from (values ('no remembered job', null, null, 'none'), ('the reserved training kind', 'training', 'yard', 'gone'),
+                                   ('a node above the hero''s level', 'gather', v_lock, 'level')) t(tag, kind, id, want_why) loop
+      v_i := v_i + 1;
+      update public.player_state set active_kind = 'idle', active_id = null, active_left = null,
+                                     last_activity_kind = r.kind, last_activity_id = r.id, last_activity_left = null
+       where user_id = c_u and slot = 0;
+      delete from public.hr_rate_counters where user_id = c_u;
+      v := public.hr_hunt_enter(0, c_hunt, '[]'::jsonb, 0, null, (k || lpad(v_i::text, 4, '0'))::uuid);
+      if coalesce(v->>'ok', '') <> 'true' then raise exception 'bench-resume §6-harness (%): entering answered %', r.tag, v; end if;
+      select h.id into v_sid from public.hunt_sessions h where h.user_id = c_u and h.slot = 0 and h.ended_at is null;
+      perform public.hr_hunt_close(v_sid, 'stamina', now(), true);
+      perform public.hr_hunt_resume(c_u, 0, v_sid, 'stamina', 0);
+      select ps.active_kind, ps.active_id, ps.active_left into v_st from public.player_state ps where ps.user_id = c_u and ps.slot = 0;
+      select l.meta into v_meta from public.player_ledger l where l.session_id = v_sid and l.kind = 'hunt' and l.intent = 'resume';
+      if v_st.active_kind <> 'idle' or (v_meta->>'resumed') is distinct from 'false' or v_meta->>'why' is distinct from r.want_why then
+        raise exception 'bench-resume §6(e) (%): the end left the hero % and journalled %, wanted idle and why %', r.tag, v_st.active_kind, v_meta, r.want_why; end if;
     end loop;
     raise exception using errcode = 'HRB24', message = 'bench-resume §6 complete - rolling back';
   exception when sqlstate 'HRB24' then null;

@@ -41,13 +41,16 @@ import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.132';
 import { glyphSvg } from '../launcher.js?v=0.2.132';
 import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.132';
 import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.132';
-import { whole } from '../../render/format.js?v=0.2.132';
+import { whole, sepHtml } from '../../render/format.js?v=0.2.132';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
 const VIEW = new WeakMap();   // CharacterSession -> { tab, hover } (display scratch)
 const viewOf = (cs) => { let v = VIEW.get(cs); if (!v) { v = { tab: null, hover: null }; VIEW.set(cs, v); } return v; };
 const keyOf = (a) => (a && a.id ? a.type + ':' + a.id : '');
+/* Markup written only when it changed (paint.js's rule for text): the warning's lines carry the dot's spans. */
+const SAID = new WeakMap();
+const markup = (el, html) => { if (el && SAID.get(el) !== html) { SAID.set(el, html); el.innerHTML = html; } };
 /* The tab of the slot type the player last picked (an empty slot opens on it, else Spells: art spec §9). */
 const LAST_TAB = new WeakMap();
 
@@ -236,10 +239,13 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* (and the earlier slot it shares a cooldown with: the bar's hover no longer says it, Tyler 2026-11-08) */
   const wires = editBar(cs);
   if (wires) wires[s.open] = d.action.id ? d : null;
-  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).join('\n');
-  text(root.querySelector('.ca-warn'), warn);
+  const heal = healWarning(d, set, blow, vitalsOf(cs).hpMax);
+  const notes = [setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).map((n) => [n]);
+  /* A line's parts take the dot that never starts or ends a line (format.js sepHtml): "Max Hit 74 · Your HP 66". */
+  const warn = [...heal, ...notes].map((parts) => parts.map(esc).join(sepHtml())).join('\n');
+  markup(root.querySelector('.ca-warn'), warn);
   /* On a phone the sentence's warning is one line with an ellipsis; the detail pane says it whole. */
-  text(root.querySelector('.ca-d-warn'), warn);
+  markup(root.querySelector('.ca-d-warn'), warn);
   /* THE TABLE: runs of rows, the pick pinned at the top of the well */
   rows(root.querySelector('.ca-runs'), table.runs, {
     key: (run) => tab + ':' + run.kind,

@@ -23,22 +23,32 @@ const MIG = (root) => join(root, 'supabase', 'migrations');
  */
 export function renderFolded(fold, root = ROOT) {
   const dir = MIG(root);
-  const snap = new Map(readdirSync(dir).filter((f) => f.endsWith('.sql')).map((f) => [f, readFileSync(join(dir, f), 'utf8')]));
-  const after = new Map(), before = new Map();
-  try {
-    for (const g of COVERED) {
-      const r = spawnSync(process.execPath, [join(root, 'tools', g)], { cwd: root, encoding: 'utf8', env: { ...process.env, HR_PACK_FOLD_ADD: fold.join(',') } });
-      if (r.status !== 0) throw new Error('pack ship: ' + g + ' failed (' + r.status + '):\n' + (r.stderr || r.stdout).slice(-2000));
-    }
-    for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql'))) {
-      const now = readFileSync(join(dir, f), 'utf8');
-      if (snap.get(f) !== now) { after.set(f, now); before.set(f, snap.has(f) ? snap.get(f) : ''); }
-    }
-  } finally {
-    for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql'))) {
+  const sqls = () => readdirSync(dir).filter((x) => x.endsWith('.sql'));
+  const snap = new Map(sqls().map((f) => [f, readFileSync(join(dir, f), 'utf8')]));
+  const restore = () => {
+    for (const f of sqls()) {
       if (!snap.has(f)) rmSync(join(dir, f));
       else if (readFileSync(join(dir, f), 'utf8') !== snap.get(f)) writeFileSync(join(dir, f), snap.get(f));
     }
+  };
+  /* one render of every covered generator under `env`: each migration's text after it, the tree put back */
+  const render = (env) => {
+    try {
+      for (const g of COVERED) {
+        const r = spawnSync(process.execPath, [join(root, 'tools', g)], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
+        if (r.status !== 0) throw new Error('pack ship: ' + g + ' failed (' + r.status + '):\n' + (r.stderr || r.stdout).slice(-2000));
+      }
+      return new Map(sqls().map((f) => [f, readFileSync(join(dir, f), 'utf8')]));
+    } finally { restore(); }
+  };
+  /* BEFORE: the whole files WITHOUT these packs (a whole file the apply order already folds one into renders without it: the
+     training-gear catalogues carry the March packs), AFTER: with them. With no whole file folding them yet, BEFORE is the committed tree. */
+  const without = render({ HR_PACK_FOLD_DROP: fold.join(',') });
+  const withIt = render({ HR_PACK_FOLD_ADD: fold.join(',') });
+  const after = new Map(), before = new Map();
+  for (const f of new Set([...without.keys(), ...withIt.keys()])) {
+    const b0 = without.has(f) ? without.get(f) : '', a0 = withIt.has(f) ? withIt.get(f) : '';
+    if (b0 !== a0) { after.set(f, a0); before.set(f, b0); }
   }
   return { before, after };
 }

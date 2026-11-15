@@ -48,7 +48,10 @@ export function wholeViewOrRerun(scriptUrl, outName) {
   /* no pack: the data IS the whole view (a planted copy of the tree carries no apply order to read) */
   if (!ids.length) return true;
   /* a Set: a whole file that already folds a pack (the faction catalogue, after the March packs) is asked to fold it again by ship */
-  const folded = [...new Set([...foldedPacks(outName), ...(process.env.HR_PACK_FOLD_ADD || '').split(',').filter(Boolean)])];
+  /* HR_PACK_FOLD_DROP (comma ids) leaves these packs out even where the apply order folds them: ship's BEFORE render of a pack a later
+     whole file already carries (the training-gear catalogues fold the March packs), so the pack's rows read as what it adds */
+  const drop = (process.env.HR_PACK_FOLD_DROP || '').split(',').filter(Boolean);
+  const folded = [...new Set([...foldedPacks(outName), ...(process.env.HR_PACK_FOLD_ADD || '').split(',').filter(Boolean)])].filter((id) => !drop.includes(id));
   if (ids.every((id) => folded.includes(id))) return true;
   const r = spawnSync(process.execPath, ['--import', HOOK, fileURLToPath(scriptUrl), ...process.argv.slice(2)],
     { stdio: 'inherit', env: { ...process.env, HR_WHOLE_VIEW: '1', HR_WHOLE_PACKS: folded.join(',') } });

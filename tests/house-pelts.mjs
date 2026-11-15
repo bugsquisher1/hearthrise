@@ -340,6 +340,19 @@ async function wordsFails(root, fill = false) {
   if (!/^Dropped by Briarcoat Wolf and Old Grayjaw at Meadowbrook Thicket, and at /.test(pelt)) out.push('the Wolf Pelt\'s source reads: ' + pelt);
   const { MONSTERS } = await imp('src/data/monsters.js');
   const openIds = new Set(Object.values(G.OPEN_GROUNDS).flatMap((g) => g.pockets.flatMap((p) => (p.pack || p.spawns).concat(p.spawns).map((s) => s.monster))));
+  /* AN OPEN KEYED HALL'S BOSS is a creature a player can meet (src/data/boss-halls.js; lane/c-krell-uniques: before it every piece of Lord Krell's
+     prize read "grounds that aren't open yet"): his hall is where his pieces come from, named as the hall. A staged hall's boss is still unmet. */
+  const BH = await imp('src/data/boss-halls.js');
+  const HUNT_NAMES = (await imp('src/data/hunts.js')).HUNT_INDEX;
+  for (const g of Object.values(G.OPEN_HALL_GROUNDS)) {
+    const boss = BH.hallBossOf(g);
+    openIds.add(boss);
+    for (const d of MONSTERS[boss].drops || []) {
+      const said = F.dropWhereWords(d.id);
+      if (!said.includes('Dropped by ' + MONSTERS[boss].name + ' at ' + HUNT_NAMES[g.hunt].name)) out.push('an open hall\'s prize names no source a player can reach: ' + d.id + ' reads ' + JSON.stringify(said));
+    }
+  }
+  for (const [hid, g] of Object.entries(G.HALL_GROUNDS)) if (!G.OPEN_HALL_GROUNDS[hid] && openIds.has(BH.hallBossOf(g))) out.push('CONTROL: a staged hall\'s boss ' + BH.hallBossOf(g) + ' is counted as met');
   const openNames = new Set([...openIds].map((id) => MONSTERS[id].name));
   for (const [mid, m] of Object.entries(MONSTERS)) {
     if (openIds.has(mid) || openNames.has(m.name)) continue;
@@ -366,6 +379,7 @@ const WORD_MUTANTS = [
   { name: 'the source line links the hunt, not the creature it summons (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', ": best ? { kind: 'monster', id: best.id } : null;", ": best ? { kind: 'hunt', hunt: best.g.hunt } : null;"]] },
   { name: 'the House\'s short line drops the source', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", "const places = [];"]] },
   { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", 'const places = wherePlaces(it.id);']] },
+  { name: 'a hall boss\'s prize comes from nowhere again', edits: [['src/shell/hunt-ground-facts.js', "    if (boss && ((MONSTERS[boss] || {}).drops || []).some((d) => d && d.id === item)) standing.push({ g, names: [MONSTERS[boss].name] });\n", '']] },
   { name: 'the source names no ground', edits: [['src/shell/hunt-ground-facts.js', "' at ' + groundName(first.g) + (more.length", "(more.length"]] },
   { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "!isSpentMaterial(d.id)) continue;", "true) continue;"]] },
   { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "|| isRare(d) || !isSpentMaterial(d.id)) continue;", "|| isRare(d)) continue;"]] },

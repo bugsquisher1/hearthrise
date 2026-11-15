@@ -43,7 +43,8 @@ function unlocks() {
   for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list || []) add(skill, r.req, r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name, r.output ? itemUse(r.output) : '');
   for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) add(skill, n.req, n.name, nodeUse(skill));
   for (const c of Object.values(CROPS)) if (c) add('farming', c.req || c.lv, c.prod ? nameOf(c.prod) : c.name, nodeUse('farming'));
-  const reach = reachableSources();
+  /* (a call-only piece, src/data/boss-calls.js CALL_ITEMS, is a 1% chase off a called boss's win, never the next step up) */
+  const reach = new Map([...reachableSources()].filter(([, door]) => !/_called$/.test(door)));
   for (const [id, it] of Object.entries(ITEMS)) {
     if (it.reqSkill && (SKILLS_DEF[it.reqSkill] || it.reqSkill === LEVEL_REQ) && reach.has(id)) add(it.reqSkill, it.reqLv, it.n || id, itemUse(id), id);
   }

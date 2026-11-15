@@ -25,6 +25,11 @@ export const PULSE_LIMITS = Object.freeze({
      2026-11-10: renown_ratchet was 14.6 % of a week's rows and read by nothing (2027-03-30-dead-writes.sql stops it); the
      next such kind was 0.4 % (set_activity). A journal row a settle is the 229 MB game_events again, a kind at a time. */
   idleJournalShareMax: 0.05,
+  /* The ledger alone, at its retention line (the week's rows a day x retain_days x bytes a row), as a share of the disk.
+     The Disk line cannot see it: the journal only fills until its first row is retain_days old, so 24 h of growth says
+     "full in 800 days" while the line is already owed. Measured 2026-11-15, 6 accounts: 14.6k rows a day x 90 days x
+     621 B = 0.8 GB, 10 % of the 8.4 GB disk; ten times that play is the whole disk. Half leaves room for WAL and the rest. */
+  ledgerHorizonShareMax: 0.5,
 });
 
 const mb = (b) => `${Math.round(Number(b) / 1e6)} MB`;
@@ -73,6 +78,19 @@ export function pulseLines(p) {
   const share = day > 0 && Number.isFinite(idle) ? idle / day : NaN;
   out.push(`Journal: ${!Number.isFinite(idle) ? 'rows that move no value unknown' : idle > 0 ? `${p.idleKind} wrote ${idle} of the day's ${day} ledger rows and moved no value (${(share * 100).toFixed(1)} %)` : 'every ledger row of the day moved value'}`
     + `${share > L.idleJournalShareMax ? ` << DEAD JOURNAL: one kind over ${L.idleJournalShareMax * 100} % of the day's rows with no gold, XP, items or gems. Who reads it?` : ''}`);
+
+  /* The journal's horizon: what the ledger weighs once retain_days of this week's play are on disk (never under what it weighs
+     now). The week's rows are the ids between its first row (`id:age in s`, null = no row this week) and the newest: two index
+     probes, where a count would walk a week of rows on every --watch (2026-11-15: 90,771 by ids, 90,535 counted). A ledger
+     under a day old counts as one day. */
+  const led = n(p.ledgerBytes), keep = n(p.ledgerRetainDays), rowB = led / n(p.ledgerEstRows);
+  const [id0, ageS] = typeof p.ledgerWeekFirst === 'string' ? p.ledgerWeekFirst.split(':').map(Number) : [NaN, NaN];
+  const perDay = p.ledgerWeekFirst === null ? 0 : (n(p.ledgerLastId) - id0 + 1) / Math.max(1, ageS / 86400);
+  const owed = Math.max(led, perDay * keep * rowB);
+  const hShare = owed / cap;
+  out.push(`Horizon: ${!Number.isFinite(hShare) ? 'the ledger at its retention line unknown'
+    : `ledger ${mb(led)} now, ${(owed / 1e9).toFixed(1)} GB at the ${keep}-day line (${Math.round(perDay).toLocaleString('en-US')} rows/day this week x ${Math.round(rowB)} B), ${(hShare * 100).toFixed(0)} % of the disk`}`
+    + `${hShare > L.ledgerHorizonShareMax ? ` << JOURNAL HORIZON: the ledger alone is over ${L.ledgerHorizonShareMax * 100} % of the disk at its retention line. Fold the journal's rows or shorten retain_days` : ''}`);
   return out;
 }
 
@@ -80,7 +98,9 @@ function selftest() {
   const ok = { dbBytes: 3e8, dbBytes24h: 2.9e8, fsUsedBytes: 9e8, diskBytes: 8e9, conns: 21, maxConns: 90, engineConns: 2, engineCap: 20, active: 2, peakConns: 22,
     tickLastS: 4, fires10m: 60, edge5xx10m: 0, edgeTimedOut10m: 0, edgePosts10m: 40, openHunts: 50, stalledHunts: 0, worstLagS: 96,
     oldestFrameH: 0.8, cronFailed1h: 0, ledgerRows24h: 1300, frames1m: 12, frameKBs: 13, dbMsPerS: 350, edgeAll10m: 1200, edgeAll5xx10m: 0,
-    idleKind: 'admin', idleKindRows24h: 40 };
+    idleKind: 'admin', idleKindRows24h: 40,
+    /* 2026-11-15: 250 MB over 402,576 rows is 621 B a row; 102,200 ids in the week's 7 days is 14,600 rows a day */
+    ledgerBytes: 2.5e8, ledgerEstRows: 402576, ledgerRetainDays: 90, ledgerLastId: 500000, ledgerWeekFirst: '397801:604800' };
   const cases = [
     ['quiet', {}, null],
     ['disk over 70 %', { fsUsedBytes: 6e9 }, 'DISK'],
@@ -107,6 +127,13 @@ function selftest() {
     ['the same kind at 5 % exactly stays quiet', { idleKind: 'renown', idleKindRows24h: 65 }, null],
     ['a day nobody played', { ledgerRows24h: 0, idleKind: null, idleKindRows24h: 0 }, null],
     ['no idle-rows answer is not an alarm by itself', { idleKind: null, idleKindRows24h: null }, null],
+    ['ten times the play: the ledger at its 90-day line is the whole disk (2026-11-15)', { ledgerLastId: 1419800 }, 'JOURNAL HORIZON'],
+    ['the same play kept 500 days', { ledgerRetainDays: 500 }, 'JOURNAL HORIZON'],
+    ['a ledger already past half the disk in a week nobody played', { ledgerBytes: 4.5e9, ledgerEstRows: 7.2e6, ledgerWeekFirst: null }, 'JOURNAL HORIZON'],
+    ['a launch day: 60,000 rows in the ledger\'s first six hours count as one day, not four', { ledgerLastId: 60000, ledgerWeekFirst: '1:21600' }, null],
+    ['a line just under half the disk stays quiet', { ledgerLastId: 887800 }, null],
+    ['a week nobody played is not an alarm', { ledgerWeekFirst: null }, null],
+    ['no horizon answer is not an alarm by itself', { ledgerWeekFirst: undefined, ledgerLastId: undefined }, null],
   ];
   let bad = 0;
   for (const [name, patch, want] of cases) {

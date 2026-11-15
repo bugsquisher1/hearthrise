@@ -3,7 +3,8 @@
 //   node tools/hunt-health.local.mjs            open hunts, settle lag, rate counters, today's refusals
 //   node tools/hunt-health.local.mjs --watch 15 re-read every 15 s (Ctrl+C stops)
 //   node tools/hunt-health.local.mjs --all      every open hunt, not just the alarms and the 12 most behind
-//   Also prints the server's pulse (tools/lib/server-pulse.mjs): disk, connections, the tick, its edge answers, retention, frames.
+//   Also prints the server's pulse (tools/lib/server-pulse.mjs): disk, connections, the tick, its edge answers, retention, frames,
+//   the journal's dead rows and what the ledger will weigh at its retention line.
 //
 // SELECT-only through the Management API with ~/.supabase-token (read as bytes, never printed),
 // inside a READ ONLY transaction. Lag verdicts: tools/lib/hunt-lag.mjs (FREEZING = a WATCHED hunt past the
@@ -54,7 +55,12 @@ const PULSE_DB = `select pg_database_size(current_database()) db_bytes,
     (select kind || ':' || count(*) from public.player_ledger where at > now() - interval '24 hours' and item_id is null
         and coalesce(gold, 0) = 0 and coalesce(xp, 0) = 0 and coalesce(qty, 0) = 0 and coalesce(gems_in, 0) = 0
         and coalesce(gold_in, 0) = 0 and coalesce(xp_in, 0) = 0 and coalesce(qty_in, 0) = 0
-      group by kind order by count(*) desc limit 1) idle_kind`;
+      group by kind order by count(*) desc limit 1) idle_kind,
+    pg_total_relation_size('public.player_ledger') ledger_bytes,
+    (select reltuples from pg_class where oid = 'public.player_ledger'::regclass) ledger_est_rows,
+    (select retain_days from public.hr_ledger_config) ledger_retain_days,
+    (select id from public.player_ledger order by at desc, id desc limit 1) ledger_last_id,
+    (select id || ':' || extract(epoch from now() - at) from public.player_ledger where at >= now() - interval '7 days' order by at, id limit 1) ledger_week_first`;
 const PULSE_TICK = `select extract(epoch from now() - max(at)) last_s, count(*) fires from public.hr_tick_cron_log where at > now() - interval '10 minutes'`;
 const PULSE_NET = `select count(*) posts, count(*) filter (where status_code >= 500) e5xx, count(*) filter (where timed_out or status_code is null) timed_out
   from net._http_response where created > now() - interval '10 minutes'`;
@@ -91,7 +97,8 @@ async function pulse(hunts, stalled) {
   const idle = typeof d.idle_kind === 'string' ? d.idle_kind.split(':') : [null, 0];
   return pulseLines({ idleKind: idle[0], idleKindRows24h: Number(idle[1]), dbBytes: d.db_bytes, dbBytes24h: d.db_bytes_24h, fsUsedBytes: fs.fs_used_bytes, diskBytes: fs.fs_size_bytes, conns: d.conns, maxConns: d.max_conns, engineConns: d.engine_conns, engineCap: d.engine_cap,
     active: d.active, peakConns: d.peak_conns, ledgerRows24h: d.ledger_rows_24h, tickLastS: t.last_s, fires10m: t.fires, edgePosts10m: n.posts, edge5xx10m: n.e5xx, edgeTimedOut10m: n.timed_out,
-    openHunts: hunts.length, stalledHunts: stalled, worstLagS: Math.max(0, ...hunts.map((h) => Number(h.lag_s) || 0)), oldestFrameH: f.oldest_h, frames1m: f.frames_1m, frameKBs: f.kbs, cronFailed1h: c.failed, dbMsPerS, edgeAll10m: logs.n, edgeAll5xx10m: logs.e5xx });
+    openHunts: hunts.length, stalledHunts: stalled, worstLagS: Math.max(0, ...hunts.map((h) => Number(h.lag_s) || 0)), oldestFrameH: f.oldest_h, frames1m: f.frames_1m, frameKBs: f.kbs, cronFailed1h: c.failed, dbMsPerS, edgeAll10m: logs.n, edgeAll5xx10m: logs.e5xx,
+    ledgerBytes: d.ledger_bytes, ledgerEstRows: d.ledger_est_rows, ledgerRetainDays: d.ledger_retain_days, ledgerLastId: d.ledger_last_id, ledgerWeekFirst: d.ledger_week_first });
 }
 
 async function once() {

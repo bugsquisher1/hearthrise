@@ -1212,6 +1212,7 @@ function fightOf(sim, unitId, call) {
  *        xpFrac, hp, gold, equipment, inventory, deathsLifetimeBefore, perks,
  *        hearthfindReady) }]
  * @param inp.scale    { level } when the server scales this window (hr_scaled_hunt_of through the instance read), else absent
+ * @param inp.sessionMode  the instance's frozen session mode id (hunt_instances.session_mode through the instance read; src/data/session-modes.js)
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }], scaleLevel }
  */
@@ -1239,10 +1240,12 @@ export function accrueHunt(inp) {
   const scale = inp.scale && Number.isInteger(inp.scale.level) ? { level: inp.scale.level } : null;
   /* A LIVE EVENT (hr_live_xp_windows through the instance read): each member's own windows; none live, no hook, the hunt as it always ran. */
   const xpMultOf = xpMultFor(sides, (sd) => sd.mi.liveXp);
+  /* THE SESSION MODE (src/data/session-modes.js): the instance's, frozen by the server at its start (hunt-settle.js reads it back). A
+     death is priced at its share, so in a mode that costs nothing the proposal's death_xp is empty; the database bounds it again. */
   const sim = simulateHuntInstance(
     { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
     { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}),
-      ...(xpMultOf ? { xpMultOf } : {}) });
+      ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
 
   const out = [];

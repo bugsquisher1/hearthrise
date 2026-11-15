@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-14",
+ "generated": "2026-11-15",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -1287,6 +1287,11 @@
    "replay": 92,
    "note": "The RPCs a walled account may reach (2027-03-13-gm-tools.sql): a default-deny list, seeded whole by that file. A rebuild restores it exactly. 90 IN THE REPLAY SINCE 2027-03-26-signout-presence.sql listed hr_presence_leave (its own presence; an upsert, so a re-apply cannot double it). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it."
   },
+  "hr_ground_session_modes": {
+   "class": "seeded",
+   "replay": 0,
+   "note": "Generated catalogue (2027-04-23-session-modes-catalogue.generated.sql, tools/gen-session-modes.mjs from the ground rows' mode in src/data/hunt-grounds.js): each open ground that names a session mode. Empty: no ground names one (the Burning Tower is not built). Rebuilt from repo, never restored."
+  },
   "hr_ground_tiers": {
    "class": "seeded",
    "replay": 10,
@@ -1668,6 +1673,11 @@
    "class": "regenerated",
    "replay": 2,
    "note": "A REBUILD PRODUCES TWO ROWS, EACH WITH A DIFFERENT VALUE (prng; play_net since 2027-01-19-play-cap.sql, the play cap's network salt: a fresh one only makes every stored network hash stale, so heroes already playing go uncounted per network until they start again and each account's stamp is rewritten on its next hr_load). 2026-08-11-player-state.sql seeds it with sha256(gen_random_uuid()||gen_random_uuid()||clock_timestamp()), so the 256-bit PRNG secret is FRESH on every apply. A count-based census reports this table as reconstructed; it is not. What changes if the value changes: (1) hr_seed's accrual PRNG re-rolls, so a disputed drop can no longer be replayed deterministically from player_ledger — the stated reason the seed is deterministic at all; (2) the accrual idempotency key hr_seed(user,slot,'intent:accrue:<watermark>') moves, so an in-flight accrual retried across the boundary is no longer deduplicated and can pay twice — bounded, because accrued_to is restored with it and hr_apply re-validates against the restored watermark. Neither is fatal. Both are silent. A restore from a BACKUP keeps the real value; only a repo rebuild re-rolls it."
+  },
+  "hr_session_modes": {
+   "class": "seeded",
+   "replay": 2,
+   "note": "Generated catalogue (2027-04-23-session-modes-catalogue.generated.sql, tools/gen-session-modes.mjs from src/data/session-modes.js): hunt (the default, full death price) and tower (no death loss, Blessings kept, no coin or drops). Upserted: hunt_instances.session_mode points here. Rebuilt from repo, never restored."
   },
   "hr_settings": {
    "class": "operator_tunable",

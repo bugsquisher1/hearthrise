@@ -23,6 +23,9 @@ import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=
 import { conditionWords } from './bar-draft.js?v=0.2.132';
 import { reasonOf, holdingReason, aloneReason, aloneNote } from './action-facts.js?v=0.2.132';
 import { carryRows } from './carry-in.js?v=0.2.132';
+import { weakFoodWords } from './hunt-go.js?v=0.2.132';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.132';
+import { heroVitalsOf } from '../session/character-sections.js?v=0.2.132';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 /* The tests that mark a slot, and the glyph each marks it with. */
@@ -103,6 +106,10 @@ export function whyFacts(cs) {
   return {
     set: settingsOf(cs), bag: carriedOf(cs), hero, worn: /** @type {{ ammo?: string }} */ (equipmentOf(cs) || {}).ammo, skills: skillsOf(cs), pack: carryRows(cs),
     party: p ? p.members.length : 1,
+    /* the ground this hero hunts now, its Level and its full HP: what a weak store food is judged against (weakFood) */
+    ground: hero ? h.huntId : null, level: hero ? heroVitalsOf(cs).level : null, hpMax: hero ? heroVitalsOf(cs).hpMax : null,
+    /* a Healer on the bar or in the party: the store-food floors are a lone hero's (supplies.js storeFloorFor) */
+    healed: (settingsOf(cs) || {}).role === 'healer' || ((p || {}).members || []).some((m) => m.role === 'healer'),
     /* Does the hero hunt alone (an alone spell's gate)? The running prediction's own world when one runs (live-engine.js
        alone: the engine's aloneIn, so a party whose others went home reads alone, as the server does), else the server's party. */
     alone: hero && live && typeof live.alone === 'function' && live.alone(hero.unit) !== null ? live.alone(hero.unit) : !(p && p.members.length > 1),
@@ -124,5 +131,18 @@ export function slotWhy(sl, f) {
   if (a) return a;
   const w = waitReason(sl, f.party, f.test);
   if (w && !w.rest) return w;
-  return r || w || holdingReason(sl, f.holding);
+  return weakFood(sl, f) || r || w || holdingReason(sl, f.holding);
+}
+
+/* THE FOOD SLOT SAYS ITS FOOD IS TOO WEAK FOR THIS GROUND (designer 2026-11-15, lane/d-audit-balance-2, the audit's F14: a Level 56 hero died
+   twice in the Barrows on the start bar's Salted Shrimp, and the slot looked as it always had). A store food under the ground's measured
+   floor (supplies.js storeFloorFor), on the ground the hero hunts now, with no Healer: a marked wait on the slot and the Hunts page's own
+   sentence in its hover. The slot still fires; nothing is struck. It outranks a resting reason ("your HP is above 60%"), which is words
+   only, and never a strike or a real wait. */
+function weakFood(sl, f) {
+  const a = sl && !sl.empty ? sl.action : null;
+  const c = a && a.type === 'consume' ? CONSUMABLES[a.id] : null;
+  if (!c || c.kind !== 'food' || c.source !== 'store' || !f.ground || f.healed) return null;
+  const words = weakFoodWords('bar', f.set, f.ground, f.level, f.hpMax, a.id);
+  return words ? { code: 'food_weak', text: words, glyph: 'uiWarn', strike: false } : null;
 }

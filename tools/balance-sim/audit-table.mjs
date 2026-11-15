@@ -98,7 +98,7 @@ async function shield() {
 /* F14's rows: every open ground a hero walks to, at its floor and band middle. */
 const STORE_FOODS = ['salted_shrimp', 'salted_trout', 'salted_lobster', 'salted_swordfish', 'salted_shark'];
 const STORE_GROUNDS = { meadowbrook_thicket: [5, 10], wickstead: [8, 13], millrace_sewer: [8, 16], mosslight_glade: [16, 23], coppercap_warrens: [32, 41],
-  hasks_ford: [45, 52], the_slake: [50, 57], muster_barrows: [55, 65], pyre_field: [70, 80], krells_hold: [85, 97] };
+  hasks_ford: [45, 52], the_slake: [50, 57], muster_barrows: [55, 60, 65], pyre_field: [70, 80], krells_hold: [85, 97] };
 
 async function storefood() {
   const R = await loadCellRunner(ROOT);

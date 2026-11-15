@@ -25,7 +25,9 @@ import { rows, text, cls, prop, attr, style, element } from '../../render/paint.
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
 import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.132';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.132';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.132';
+import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.132';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.132';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.132';
 import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.132';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.132';
 import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.132';
@@ -246,7 +248,11 @@ export function patchGround(det, ctx, r, o) {
   });
   /* The picked ground's party rule, from ITS row (Tyler 10-19: the Rat King's note). */
   const note = det.querySelector('.hw-hunt-party');
-  const said = partyNote(r.hunt);
+  /* ...and what the ground is measured to ask for (designer 2026-11-15, the audit's F14: the Barrows said nothing of a healer). The
+     server's Level, the worn weapon's discipline and the party's roles; a Healer, or a party with one, is told nothing. */
+  const cs = ctx.character, set = settingsOf(cs) || {};
+  const healed = set.role === 'healer' || ((partyOf(cs) || {}).members || []).some((m) => m.role === 'healer');
+  const said = [partyNote(r.hunt), healerNote(r.hunt, heroVitalsOf(cs).level, set.discipline || null, healed)].filter(Boolean).join(' ');
   text(note, said);
   prop(note, 'hidden', !said);
   /* This hero's bests here (the server's hunt_bests): a line per mode it has, else one "No best here yet". */

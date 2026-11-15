@@ -1327,6 +1327,33 @@ async function planRules(base) {
   const fedReads = [fedAt('muster_barrows', 'salted_shrimp'), fedAt('muster_barrows', 'salted_trout'), fedAt('muster_barrows', 'salted_lobster'), fedAt('the_slake', 'salted_shrimp'), fedAt('millrace_sewer', 'salted_shrimp')];
   if (!fedReads[0].includes(weakLine) || !/^!Salted Trout heals too little/m.test(fedReads[1].split(' | ').find((x) => /heals too little/.test(x)) || '')
     || fedReads.slice(2).some((x) => /heals too little/.test(x))) fails.push('AW-27 store food too weak for the ground reads ' + JSON.stringify(fedReads));
+  /* ...AT THE HERO'S LEVEL, WITH ITS NUMBERS, ON THE SLOT TOO, AND THE GROUND SAYS IT EXPECTS A HEALER (lane/d-audit-balance-2, the playthrough
+     audit's F14: in range on Normal a hero died in 8 minutes and nothing said the food was too weak). The floor is the one measured for the
+     Level (Salted Lobster to 64, Salted Trout from 65); the server's HP is in the sentence; the bar's store food slot says it while the
+     hero hunts there and never to a party with a Healer; the Barrows' page asks melee and ranged heroes under 65 for a Healer. */
+  {
+    const { weakFoodWords } = await imp('src/shell/hunt-go.js');
+    const { slotWhy } = await imp('src/shell/slot-waits.js');
+    const { healerNote } = await imp('src/shell/hunt-list.js');
+    const bar = (id) => ({ slots: [slot('consume', id, null)] });
+    const prep = [weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 56, 850), weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 64, 990),
+      weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'the_slake', 50, 819)];
+    if (prep[0] !== 'Salted Shrimp heals 72 of your 850 HP, too little for the monsters here. Once your own food runs out, your hero can die. Press that slot on your bar and pick Salted Lobster.'
+      || !/^Salted Trout heals 120 of your 990 HP.*pick Salted Lobster\.$/.test(prep[1]) || prep[2] !== '' || !/^Salted Shrimp heals 72 of your 1,011 HP.*pick Salted Trout\.$/.test(prep[3]) || prep[4] !== '')
+      fails.push('AW-27 the weak store food at the hero\'s Level reads ' + JSON.stringify(prep));
+    const facts = (o) => Object.assign({ set: bar('salted_shrimp'), bag: [], hero: { mana: 0 }, worn: null, skills: {}, pack: null, party: 1, alone: true, holding: false, test: null,
+      ground: 'muster_barrows', level: 56, hpMax: 850, healed: false }, o);
+    const on = (id, o) => slotWhy(slot('consume', id, null), facts(o));
+    const why = [on('salted_shrimp'), on('salted_lobster'), on('salted_shrimp', { healed: true }), on('salted_shrimp', { ground: 'the_slake' }), on('salted_shrimp', { ground: null }), on('cooked_shrimp')];
+    if (!why[0] || why[0].code !== 'food_weak' || why[0].strike !== false || why[0].text !== 'Salted Shrimp heals 72 of your 850 HP, too little for the monsters here. Your hero can die on it. Press this slot and pick Salted Lobster.'
+      || why.slice(1).some((x) => x && x.code === 'food_weak')) fails.push('AW-27 the bar\'s weak food slot reads ' + JSON.stringify(why));
+    const notes = [healerNote('muster_barrows', 56, 'melee', false), healerNote('muster_barrows', 56, 'ranged', false), healerNote('muster_barrows', 56, 'magic', false),
+      healerNote('muster_barrows', 56, 'melee', true), healerNote('muster_barrows', 65, 'melee', false), healerNote('the_slake', 50, 'melee', false)];
+    if (notes[0] !== 'A Barrow Knight here hits harder than food can keep up with. Bring a Healer. Alone, you\'ll spend more on food than the hunt pays.' || notes[1] !== notes[0]
+      || notes.slice(2).some(Boolean)) fails.push('AW-27 the ground that expects a healer reads ' + JSON.stringify(notes));
+    /* no text anywhere tells a player to turn Challenge on or off (Tyler 2026-11-14) */
+    if (/challenge/i.test(prep.concat(notes, [why[0] && why[0].text]).join(' '))) fails.push('AW-27 a food or healer line names Challenge');
+  }
   /* A rune spell with none of its ticked runes and no store behind it (its slot set to "Leave the hunt": a slot that says nothing
      buys from the shop, Tyler 2026-11-08) loses that spell only (named, not a stop); no food is said. */
   const leaving = (id) => ({ action: { type: 'ability', id, onEmpty: 'leave' }, conditions: [], join: 'and', usable: true, count: 0 });

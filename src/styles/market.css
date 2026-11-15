@@ -108,10 +108,12 @@
   .hw-mk .hw-tab { padding: 4px 6px; white-space: nowrap; }
   /* The toolbar on a wider font: the search gives way, the sort keeps its select and drops its word. */
   .hw-mk .hw-search { flex: 1 1 0; min-width: 0; }
-  /* Refresh stands in the purse's row: four tabs and it never fit a 320 px sheet (panel 2026-11-01: cut in half). */
-  .hw-mk { position: relative; }
+  /* Refresh stands in the purse's row: four tabs and it never fit a 320 px sheet (panel 2026-11-01: cut in half).
+     The purse's row is the one under the tabs (they lead, order -1), so Refresh hangs from the tabs' foot, under
+     their 2 px rule and the 4 px gap as the row is: pinned to the window's top it lay on Browse (v0.2.131 gate). */
+  .hw-mk > .hw-tabs { position: relative; margin-bottom: 4px; }
   .hw-mk-greet { align-items: center; min-height: 40px; }
-  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }
+  .hw-mk-refresh { position: absolute; top: calc(100% + 6px); left: 0; margin: 0; }
   /* A PICKED STACK HAS THE SHEET (panel: 86 px of scroll, How many and Price each never on screen together): no purse, no
      tabs (its Back is the way out), its name small, and the two fields first, right above the pinned List; what it
      would fetch and the terms come after them, a scroll down. */

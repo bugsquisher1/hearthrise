@@ -3324,6 +3324,25 @@ tileset is paint --void plus kept face slices, read in region-kit.html (now read
 1.4-2.1:1 on the silt: measure with ring-contrast after the import, not from the note (3 and 4 steps pass at 4.25). Open: the gatehouse and 12
 Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no hook, the lurcher reads 2.72:1 by ring on ash (its outline carries it).
 
+## 2026-11-14 lane/a-phone-bits (three v0.2.131 gate bits)
+(1) Market Refresh on a phone was pinned at the top of `.hw-mk`, which was the purse row until the tabs moved first (order -1): it now
+hangs from the tabs' own foot. A moved row breaks anything absolutely pinned to its old place: grep for absolute children when reordering.
+(2) The phone sheet rule hid `.ht-ground` on every bar, so an ended hunt's plate was an empty box with Summary; it now hides only a running
+hunt's name (`:has(.ht-clock:not([hidden]))`). (3) A text dot cannot avoid both ends of a line. format.js sepHtml: the text dot
+(nbsp + dot, glued to the part before) is drawn at font-size 0 for readers and copy; the eye's dot is .hh-sep's 2 px fill on the one
+breakable space, so a break drops the space and the dot. NOT ::before (tally-window TW-18 bans CSS-drawn words), NOT absolute (innerText
+gets newlines); word-spacing inherits as px, so the 0 px text needs word-spacing 0. A <button> link is atomic: break before it is legal.
+Converted: creature cards, Hunts list band/sub/tally, page band, Go as line, Tally day/row/where; SEP is gone. Still built as text
+' · ' (can wrap on a dot), by file:line: app/boot 275, app/live-overlay 32, core/ammo 154,156,232, core/combat 124-129, core/perks
+53,73,80,150,214,313, data/item-authority 199-217, data/items 777-810, data/library2-items 73-286, data/start-kit 64-107, data/text/{bag,
+bar,farm,heroes,hunts,item,monster,prep,shop}, hunt-view/summary-model 191, shell/{alerts 295, cast-facts 140, item-lore 92,96,
+market-model 209-228, readiness 58, town-work 454}, widgets/{hunt-topbar 59,63, stamina-buy 76, tally-hud 48}, windows/{character/outfit
+117,150, character/titles 43, configure-action 205, friends 32, game-master-body 52,72, hallmark-pane 71, hunt-prep 124, hunt-prep/setups
+79, hunt-summary 207, inspect 28, inventory/advanced 57-97, inventory/elsewhere 50, inventory/grid 96-240, item-tip 67, market/browse
+112-198, market/ledger 47,56, market/sell 119,121, party-finder 52,106, party-roster 51, services 73-101, shop 124-187, skills 112,
+temper-pane 95,99, work 122-152}. Canvas text (hunt-view/scene 337,486, world/town-scene 35) and build-info 26 need no change.
+UPDATE after merging v0.2.131 (main aef9785c5): that list is gone. The only "·" left in src/**/*.js outside format.js sepHtml are
+32 inside comments (core/ammo, combat, perks, data/items, item-authority, library2-items, start-kit, a few shell quotes of old bugs).
 ## 2026-11-14 lane/b-hold-art (v0.2.130 gate opens: the Hold's hill and gate, the Slake's floor, the Pyre icons)
 Krell's Hold read as a castle's inside because every '#' was painted wall mass: the cart road climbed between black wall tops.
 barrow-grounds.mjs holdCastle splits the rock: castle = touches a castle floor, or two rows south of one (a south wall is two

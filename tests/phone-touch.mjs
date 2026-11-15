@@ -84,7 +84,7 @@
 //   PH-21 A TAPPED ITEM (touch, 667x375): its tip stands off the sheet, takes no press, the action is hit first time;
 //         no tip for an item nobody pressed
 //   PH-22 THE DOORS: Create account and Back to sign in on screen (667x375, 844x390); Enter town and its way back (667x375)
-//   PH-23 Refresh in the sheet; How many, Price each and List on screen together; Sort in the sheet (667x375)
+//   PH-23 Refresh in the sheet, in the purse's row and on no tab; How many, Price each and List on screen together; Sort in the sheet (667x375)
 //   PH-24 A PARTY ON A PHONE: an invite from the Party window, ONE hr_hunt_party_invite and its answer in words; an invite
 //         shows beside an open sheet (844x390), its Join clear of the town card; Also here at the sheet's top; the red count says what it wants; no mouse
 //         words and no press under 40 px in seven windows (667x375)
@@ -973,6 +973,11 @@ async function weighhouse(page, tag, fails) {
   await page.waitForTimeout(300);
   const re = await insideSheet(page, 'market', '.hw-mk-refresh');
   if (!re.length || !re[0].in || !re[0].on) fails.push('PH-23 [' + tag + '] Refresh is cut: ' + JSON.stringify(re));
+  /* ...and in the purse's row, on no tab (v0.2.131 gate, 922x423: the tabs lead now, and a Refresh pinned to the top lay on Browse). */
+  const lie = await page.evaluate(() => { const b = window.__r('[data-hs-win="market"] .hw-mk-refresh');
+    return { on: Array.from(document.querySelectorAll('[data-hs-win="market"] .hw-tab')).filter((t) => window.__cross(b, window.__r(t))).map((t) => t.textContent),
+      row: window.__cross(b, window.__r('[data-hs-win="market"] .hw-mk-greet')), hits: window.__hits(document.querySelector('[data-hs-win="market"] .hw-mk-refresh')) }; });
+  if (lie.on.length || !lie.row || !lie.hits) fails.push('PH-23 [' + tag + '] Refresh lies on a tab or out of the purse\'s row: ' + JSON.stringify(lie));
   await page.click('[data-hs-win="market"] .hw-tab[data-tab="sell"]', { timeout: 2500 }).catch(() => null);
   if (!(await wait(page, () => document.querySelector('.hw-mk-sell .hw-mk-row'), null, 4000))) { fails.push('PH-23 [' + tag + '] CONTROL: nothing to sell'); return; }
   await page.click('.hw-mk-sell .hw-mk-row', { timeout: 2500 }).catch(() => null);
@@ -1863,7 +1868,8 @@ const MUTANTS = [
   ['PH-21 a mouseout puts the tip away', 'src/shell/windows/item-tip.js', '  if (touching(doc) && !byPress) return;\n', ''],
   ['PH-22 Back to sign in falls off the screen', 'src/styles/app.css', '  .auth-card[data-auth="create"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }\n', ''],
   ['PH-22 How you fight loses its height', 'src/styles/app.css', 'overflow-y: auto; overscroll-behavior: contain; }\n  .auth-card.is-create .auth-message:empty', 'overflow-y: auto; overscroll-behavior: contain; max-height: 120px; }\n  .auth-card.is-create .auth-message:empty'],
-  ['PH-23 Refresh is cut in half', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }\n', ''],
+  ['PH-23 Refresh is cut in half', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: calc(100% + 6px); left: 0; margin: 0; }\n', ''],
+  ['PH-23 Refresh lies on Browse', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: calc(100% + 6px); left: 0; margin: 0; }\n', '  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }\n'],
   ['PH-23 the sell sheet keeps its purse and tabs', 'src/styles/market.css', '  .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }\n', ''],
   ['PH-23 what it would fetch comes first', 'src/styles/market.css', '  .hw-mk-sell .hw-mk-facts { order: 1; }\n', '  .hw-mk-sell .hw-mk-facts { order: -1; min-height: 80px; }\n'],
   ['PH-23 Sort is cut at the sheet\'s edge', 'src/styles/windows.css', '  .hw-find .hw-search { flex: 1 1 0; min-width: 0; }\n', '  .hw-find .hw-search { flex: none; width: 260px; }\n'],

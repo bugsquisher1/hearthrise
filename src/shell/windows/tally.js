@@ -30,7 +30,7 @@ import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.131';
 import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.131';
 import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.131';
 import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.131';
-import { whole, gold, SEP } from '../../render/format.js?v=0.2.131';
+import { whole, gold, sepHtml, SEP_PART } from '../../render/format.js?v=0.2.131';
 import { t } from '../../render/player-text.js?v=0.2.131';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.131';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.131';
@@ -127,7 +127,7 @@ export function keeperSay(tally, hunting, justPaid, firstMeet) {
 export function renderTally(ctx) {
   if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.stale = true; sc.collected = null; sc.paidNow = false; sc.pickOpen = false; sc.msg = ''; sc.firstMeet = null; sc.weightAsked = false; }
   return '<div class="hw-tally">'
-    + '<header class="ht-say"><b class="ht-who"></b><span class="ht-day"><span class="ht-day-paid"></span><span class="ht-day-sep" hidden>' + SEP + '</span><span class="ht-day-new"></span></span><p class="ht-voice"></p></header>'
+    + '<header class="ht-say"><b class="ht-who"></b><span class="ht-day"><span class="ht-day-paid"></span>' + sepHtml('ht-day-sep', true) + '<span class="ht-day-new"></span></span><p class="ht-voice"></p></header>'
     + '<h3 class="hw-ledger-head ht-head ht-mine-head"><span></span><small></small></h3><ul class="ht-mine"></ul>'
     + '<h3 class="hw-ledger-head is-on ht-head ht-board-head"><span></span></h3>'
     + '<p class="ht-board-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden></button></p>'
@@ -151,7 +151,7 @@ function entryHtml(h) {
 
 function rowHtml(r) {
   const task = esc(r.task);
-  return '<li class="ht-row" data-task="' + task + '" data-hs-find="' + task + '"><span class="ht-row-name"><b></b><small><span class="ht-row-go"></span><span class="ht-row-sep" hidden>' + SEP + '</span><span class="ht-row-lvl"></span></small></span>'
+  return '<li class="ht-row" data-task="' + task + '" data-hs-find="' + task + '"><span class="ht-row-name"><b></b><small><span class="ht-row-go"></span>' + sepHtml('ht-row-sep', true) + '<span class="ht-row-lvl"></span></small></span>'
     + '<span class="ht-pocket"></span><span class="ht-pay"><b></b><small class="ht-pay-name"></small></span>'
     + '<button type="button" class="hh-tool ht-take" data-hs-act="take" data-task="' + task + '"></button></li>';
 }
@@ -190,7 +190,7 @@ function patchEntry(li, h, st) {
   const next = !h.done ? '' : tally.paidToday >= tally.perDay ? t('tally.done_tomorrow') : h.wait === 'bag_full' ? t('tally.done_bag') : st.hunting ? t('tally.done_hunting') : t('tally.done_town');
   text(li.querySelector('.ht-get'), [next, getWords(offer)].filter(Boolean).join(' '));
   const here = st.hunting && st.huntId === h.hunt;
-  patchParts(li.querySelector('.ht-where'), here ? [t('tally.counting_here', { ground: huntName(h.hunt) })] : st.hunting ? [groundLink(h.hunt), SEP, t('tally.not_here')] : [groundLink(h.hunt)]);
+  patchParts(li.querySelector('.ht-where'), here ? [t('tally.counting_here', { ground: huntName(h.hunt) })] : st.hunting ? [groundLink(h.hunt), SEP_PART, t('tally.not_here')] : [groundLink(h.hunt)]);
   const keep = li.querySelector('[data-hs-act="keep"]');
   text(keep.nextElementSibling, t('controls.keep'));
   prop(keep, 'checked', h.keep);

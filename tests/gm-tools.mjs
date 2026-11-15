@@ -748,10 +748,10 @@ const ARMS = {
   },
   'GM-W-BOSS': async (W, say) => {
     const { k, hunt } = W;
-    const c = (await k.db.query(`select call_id, hunt_id, fee from public.hr_boss_calls order by call_id limit 1`)).rows[0];
+    const c = (await k.db.query(`select call_id, hunt_id, fight_fee from public.hr_boss_calls order by call_id limit 1`)).rows[0];
     if (!c) throw harness('no boss call in the catalogue');
     const before = await gold(k, GM);
-    const door = await k.call(GM, 'select public.hr_boss_call(0, $1, $2::bigint, $3::uuid)', [c.call_id, c.fee, key()], { door: true });
+    const door = await k.call(GM, 'select public.hr_boss_call(0, $1, 1, $2::bigint, $3::uuid)', [c.call_id, c.fight_fee, key()], { door: true });
     if (!door || door.raised !== 'hr_gm_walled') say('the door let a boss call through: ' + js(door).slice(0, 200));
     if (await gold(k, GM) !== before) say('the refused call took the gold');
     /* THE ROOM'S ROW, whatever path writes it: a walled hero's session in a called room is refused; a real hero's is not refused by the wall. */

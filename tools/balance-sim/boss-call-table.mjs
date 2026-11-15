@@ -363,7 +363,7 @@ for (const call of (HALL ? [hallRoom(HALL)] : Object.values(BOSS_CALLS))) {
     if (addlvl) m.level = Number(addlvl);
   }
   const row = ENGINE_MONSTERS[call.monster];
-  console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', fee ' + call.fee + ')');
+  console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', a fight ' + call.fight.fee + ' gp and ' + call.fight.staminaMs / 60000 + ' min of stamina)');
   console.log('win%  kill(s)  dead time  food/head  low HP%   party');
   for (const [label, c] of (RUNS[call.id] || hallRows(Number(arg('level', String(Math.round((HUNT_BAND(call)[0] + HUNT_BAND(call)[1]) / 2))))))) {
     if (process.argv.includes('--cliff') && !CLIFF.test(label)) continue;

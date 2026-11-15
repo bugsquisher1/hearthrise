@@ -781,7 +781,7 @@ const MUTANTS = [
   { name: 'the party stays on the room', fn: FN.closed, find: 'update public.hunt_parties p set hunt_id = v_from', repl: 'update public.hunt_parties p set hunt_id = p.hunt_id', arm: 'doors', want: /BD-PAID/ },
   { name: 'every hero posts a System line', fn: FN.felled, find: "and h.end_reason = 'boss_felled' and h.ended_at = new.ended_at", repl: 'and false', arm: 'doors', want: /BD-PRIZE/ },
   { name: 'a second apply splices again', fn: FN.closed, find: 'declare v_from text;', repl: 'declare v_from text; -- a body the second apply will move back', arm: 'again', want: /BD-AGAIN/ },
-  { name: 'the limit is not owed', fn: FN.settle, find: 'or exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id and v_to > coalesce(v_s.fight_from, v_s.hunt_from) + make_interval(secs => c.limit_ms / 1000.0) + c_skew) then', repl: 'then', arm: 'owed', want: /BD-OWED/ },
+  { name: 'the limit is not owed', fn: FN.settle, find: 'where c.hunt_id = v_s.hunt_id and v_to > coalesce(v_s.fight_from, v_s.hunt_from) + make_interval(secs => c.limit_ms / 1000.0) + c_skew) then', repl: 'where false) then', arm: 'owed', want: /BD-OWED/ },
   /* ── THE SERIES (2027-04-24-boss-call-series.sql) ── */
   { name: 'a forged count is taken', fn: FN.verb, find: 'if p_fights is null or p_fights < 1 or p_fights > v_c.max_fights then', repl: 'if false then', arm: 'verb', want: /BD-COUNT|THREW/ },
   { name: 'a forged count is clamped, not refused', fn: FN.verb, find: 'if p_fights is null or p_fights < 1 or p_fights > v_c.max_fights then', repl: 'p_fights := greatest(1, least(coalesce(p_fights, 1), v_c.max_fights));\n  if false then', arm: 'verb', want: /BD-COUNT/ },
@@ -812,7 +812,8 @@ const MUTANTS = [
   { name: 'a kill that ends nothing is taken', fn: FN.step, find: "if v_won and coalesce(v_held, v_end) is distinct from 'boss_felled' and v_end is distinct from 'died' then", repl: 'if false then', arm: 'forged', want: /BD-FORGED/ },
   { name: 'a win with no kill is taken', fn: FN.step, find: "if coalesce(v_held, v_end) = 'boss_felled' and not v_won then", repl: 'if false then', arm: 'forged', want: /BD-FORGED/ },
   { name: 'the engine\'s stamina number is the pool', fn: FN.apply, find: '    v_e := v_s0;\n', repl: "    v_e := coalesce((v_stam #>> '{}')::bigint, v_s0);\n", arm: 'forged', want: /BD-FORGED/ },
-  { name: 'the next fight keeps the old room', fn: FN.inst, find: "if coalesce((nullif(current_setting('hr.boss_plan', true), '')::jsonb->>'next')::boolean, false) then v_world := null; end if;", repl: '', arm: 'forged', want: /BD-FORGED/, equivalent: 'the engine already proposes no world once every hero has ended (accrual.js); the line is the server\'s own belt' },
+  /* (No mutant for hr_hunt_apply_instance's `v_world := null`: the engine already proposes no world once every hero has ended, accrual.js, so dropping
+     the server's own belt changes nothing a test can see. BD-FORGED still reads the instance's world after a win: null.) */
   { name: 'a second apply of the series moves something', fn: FN.plan, find: 'declare v_m record;', repl: 'declare v_m record; /* a body the second apply will move back */', arm: 'again2', want: /BD-AGAIN/ },
 ];
 

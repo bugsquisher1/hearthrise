@@ -39,10 +39,10 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('the_slake', 'mudlark', 11)
 on conflict (hunt_id, monster_id) do update set n = excluded.n;
 insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) values
-  ('bargeman', 69, 1139, '{"bones":1,"coal":1,"barge_nail":1,"mithril_platelegs":1,"snakeskin_pants":1,"warlock_pants":1,"mithril_warhammer":1,"mithril_belt":1,"snakeskin_belt":1,"warlock_belt":1}'::jsonb),
-  ('color_sergeant', 98, 1735, '{"big_bones":1,"grave_dust":1,"color_cord":1,"mithril_platebody":1,"snakeskin_body":1,"warlock_body":1,"maple_staff":1,"maple_wand":1,"maple_spellbook":1}'::jsonb),
-  ('greened_pikeman', 43, 638, '{"bones":1,"copper_ore":1,"green_rivet":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_sword":1}'::jsonb),
-  ('mudlark', 41, 733, '{"bone_chips":1,"grave_dust":1,"mudlark_hook":1,"mithril_helm":1,"snakeskin_helmet":1,"warlock_helmet":1,"maple_bow":1,"mithril_gauntlets":1,"snakeskin_gloves":1,"warlock_gloves":1}'::jsonb)
+  ('bargeman', 69, 1099, '{"bones":1,"coal":1,"barge_nail":1,"mithril_platelegs":1,"snakeskin_pants":1,"warlock_pants":1,"mithril_warhammer":1,"mithril_belt":1,"snakeskin_belt":1,"warlock_belt":1}'::jsonb),
+  ('color_sergeant', 98, 1673, '{"big_bones":1,"grave_dust":1,"color_cord":1,"mithril_platebody":1,"snakeskin_body":1,"warlock_body":1,"maple_staff":1,"maple_wand":1,"maple_spellbook":1}'::jsonb),
+  ('greened_pikeman', 43, 616, '{"bones":1,"copper_ore":1,"green_rivet":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_sword":1}'::jsonb),
+  ('mudlark', 41, 707, '{"bone_chips":1,"grave_dust":1,"mudlark_hook":1,"mithril_helm":1,"snakeskin_helmet":1,"warlock_helmet":1,"maple_bow":1,"mithril_gauntlets":1,"snakeskin_gloves":1,"warlock_gloves":1}'::jsonb)
 on conflict (monster_id) do update set gold_max = excluded.gold_max, xp_max = excluded.xp_max, drops = excluded.drops;
 insert into public.hr_hunt_roster (monster_id) values
   ('bargeman'),
@@ -96,10 +96,10 @@ begin
     or (hunt_id = 'the_slake' and monster_id = 'greened_pikeman' and n = 22)
     or (hunt_id = 'the_slake' and monster_id = 'mudlark' and n = 11);
   if v_n <> 4 then raise exception 'pack the_slake: hr_hunt_ground_spawns holds % of its 4 rows as written', v_n; end if;
-  select count(*) into v_n from public.hr_hunt_kill_bounds where (monster_id = 'bargeman' and gold_max = 69 and xp_max = 1139 and drops = '{"bones":1,"coal":1,"barge_nail":1,"mithril_platelegs":1,"snakeskin_pants":1,"warlock_pants":1,"mithril_warhammer":1,"mithril_belt":1,"snakeskin_belt":1,"warlock_belt":1}'::jsonb)
-    or (monster_id = 'color_sergeant' and gold_max = 98 and xp_max = 1735 and drops = '{"big_bones":1,"grave_dust":1,"color_cord":1,"mithril_platebody":1,"snakeskin_body":1,"warlock_body":1,"maple_staff":1,"maple_wand":1,"maple_spellbook":1}'::jsonb)
-    or (monster_id = 'greened_pikeman' and gold_max = 43 and xp_max = 638 and drops = '{"bones":1,"copper_ore":1,"green_rivet":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_sword":1}'::jsonb)
-    or (monster_id = 'mudlark' and gold_max = 41 and xp_max = 733 and drops = '{"bone_chips":1,"grave_dust":1,"mudlark_hook":1,"mithril_helm":1,"snakeskin_helmet":1,"warlock_helmet":1,"maple_bow":1,"mithril_gauntlets":1,"snakeskin_gloves":1,"warlock_gloves":1}'::jsonb);
+  select count(*) into v_n from public.hr_hunt_kill_bounds where (monster_id = 'bargeman' and gold_max = 69 and xp_max = 1099 and drops = '{"bones":1,"coal":1,"barge_nail":1,"mithril_platelegs":1,"snakeskin_pants":1,"warlock_pants":1,"mithril_warhammer":1,"mithril_belt":1,"snakeskin_belt":1,"warlock_belt":1}'::jsonb)
+    or (monster_id = 'color_sergeant' and gold_max = 98 and xp_max = 1673 and drops = '{"big_bones":1,"grave_dust":1,"color_cord":1,"mithril_platebody":1,"snakeskin_body":1,"warlock_body":1,"maple_staff":1,"maple_wand":1,"maple_spellbook":1}'::jsonb)
+    or (monster_id = 'greened_pikeman' and gold_max = 43 and xp_max = 616 and drops = '{"bones":1,"copper_ore":1,"green_rivet":1,"mithril_boots":1,"snakeskin_boots":1,"warlock_boots":1,"mithril_sword":1}'::jsonb)
+    or (monster_id = 'mudlark' and gold_max = 41 and xp_max = 707 and drops = '{"bone_chips":1,"grave_dust":1,"mudlark_hook":1,"mithril_helm":1,"snakeskin_helmet":1,"warlock_helmet":1,"maple_bow":1,"mithril_gauntlets":1,"snakeskin_gloves":1,"warlock_gloves":1}'::jsonb);
   if v_n <> 4 then raise exception 'pack the_slake: hr_hunt_kill_bounds holds % of its 4 rows as written', v_n; end if;
   select count(*) into v_n from public.hr_hunt_roster where (monster_id = 'bargeman')
     or (monster_id = 'color_sergeant')

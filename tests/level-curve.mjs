@@ -18,7 +18,8 @@
 //   C2  at the reference rate every target Level is within LEVEL_PACE.tolerance
 //   C3  the careers themselves (the real engine, not the per-Level model) reached
 //       every target Level they could reach within the tolerance, and Level
-//       LEVEL_PACE.early.level inside its hours (the tutorial's promise)
+//       LEVEL_PACE.early.level inside its hours (the tutorial's promise); every career reached the
+//       ceiling (one stopped short leaves the Levels past it to the faster styles alone)
 //   C4  every Level costs more XP than the one before (to Level 5,000), the first 1+
 //   C5  LEVEL_PACE.contract is today's ladder: at Levels 50, 100, 300 and 1,000 it
 //       pays within 10% of the measured ladder's own fit
@@ -85,7 +86,10 @@ function judge(w) {
     const e = h[L] / T - 1;
     if (!(Math.abs(e) <= pace.tolerance)) out.push(`C2: Level ${L} takes ${h[L].toFixed(1)} h at the reference rate, target ${T} h (${pct(e)}, tolerance ${pct(pace.tolerance)})`);
   }
-  /* C3 */
+  /* C3. EVERY CAREER REACHED THE CEILING (lane/d-open-march-balance): a career stopped short leaves the Levels past it to the faster styles
+     alone, so their rate and their median read fast (the March's first measure: 6 of 8 short of Level 100, which "took" 406 h) */
+  const short = Object.entries(snap.careers || {}).filter(([, c]) => !(Math.max(...(c.reached || [0])) >= snap.ceiling)).map(([s, c]) => s + ' ' + Math.max(...(c.reached || [0])));
+  if (short.length) out.push(`C3: ${short.length} career(s) stopped under the ceiling (Level ${snap.ceiling}): ${short.join(', ')}; the Levels past them are the faster styles' alone: re-measure to the ceiling`);
   for (const [L, T] of pace.targets) {
     if (L > snap.ceiling) continue;
     const m = snap.measuredHours[L];
@@ -160,6 +164,10 @@ const MUTANTS = [
   ['C1', 'a new ground opens under the ceiling (Levels 25-40)', { fingerprint: (w) => withGround(w, [25, 40]) }],
   ['C1', 'a new ground opens one Level under the ceiling', { fingerprint: (w) => withGround(w, [w.snap.ceiling - 1, w.snap.ceiling + 15]) }],
   ['C3', 'the careers took 20% longer to every Level', { snap: (w) => ({ ...w.snap, measuredHours: Object.fromEntries(Object.entries(w.snap.measuredHours).map(([L, x]) => [L, x * 1.2])) }) }],
+  ['C3', 'the slowest style stopped ten Levels under the ceiling (its Levels past there read the fast styles alone)', { snap: (w) => {
+    const [s, c] = Object.entries(w.snap.careers).sort((a, b) => a[1].hours - b[1].hours).pop();
+    return { ...w.snap, careers: { ...w.snap.careers, [s]: { ...c, reached: [w.snap.ceiling - 10] } } };
+  } }],
   ['C3', 'the Mill Cellar holds a new hero for an hour', { snap: (w) => ({ ...w.snap, measuredHours: { ...w.snap.measuredHours, [LEVEL_PACE.early.level]: 1 } }) }],
   ['C4', 'a flat Level (the same XP as the one before)', { xpFor: (L) => (L <= 40 ? XP.charXpForLevel(L) : XP.charXpForLevel(L) - (XP.charXpForLevel(41) - XP.charXpForLevel(40)) + (XP.charXpForLevel(40) - XP.charXpForLevel(39))) }],
   ['C5', 'the contract outpaces the ladder (b + 0.1)', { pace: (w) => ({ ...w.pace, contract: { ...w.pace.contract, b: w.pace.contract.b + 0.1 } }) }],

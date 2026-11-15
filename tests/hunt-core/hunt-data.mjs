@@ -123,7 +123,7 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', '  for (const i of ground.route) {\n    const pk', '  for (const i of ground.route.filter((j) => !ground.pockets[j].forParty)) {\n    const pk']] },
   /* the hall's written cap (designer 2026-11-14): held to it, never skipped, never past 60 */
   { name: 'Krell\'s Rake the Coals grows past his hall\'s written 55%', case: 'blow-share',
-    edits: [['src/data/grounds/krells_hold/pack.js', "shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200,", "shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1400,"]] },
+    edits: [['src/data/grounds/krells_hold/pack.js', "shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 960,", "shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1100,"]] },
   { name: 'Krell\'s hall drops its written cap (held to 35% again)', case: 'blow-share',
     edits: [['src/data/grounds/krells_hold/pack.js', 'blowCap: { pct: 55,', 'blowCapGone: { pct: 55,']] },
   { name: 'a hall writes itself a 70% cap', case: 'blow-share',

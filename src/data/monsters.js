@@ -63,10 +63,10 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.131';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.131';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.131';
-import { foldRows } from './grounds/shape.js?v=0.2.131';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.132';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.132';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
+import { foldRows } from './grounds/shape.js?v=0.2.132';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -822,8 +822,8 @@ export const MONSTERS = {
     hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },
   chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, boss: true,
     elements: { frost: 25, poison: -15 },
-    spells: ['slag_toss', 'slag_rain'],
-    hp: 3500, atk: 130, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800,
+    spells: ['slag_toss', 'slag_rain_called'],   // his own pulse (monster-spells.js slag_rain_called); the field Chief keeps slag_rain
+    hp: 6000, atk: 110, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800,
     /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): Chief Coppercap's ground rows at the ground's rates, then his call-only piece. */
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },

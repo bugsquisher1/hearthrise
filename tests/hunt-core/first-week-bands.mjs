@@ -258,7 +258,9 @@ cases['vs-alone'] = (R) => {
    at least +5%. Only where killing sets the pace: on the Thicket and Wickstead as built the walk does, and a 200/200 weapon moves XP only +1-4% there, so no row can answer and those grounds aren't asked. */
 cases['weapon-rungs'] = (R) => {
   const xp = (g, L, s, gear) => R.runCell({ id: 'wr:' + [g, L, s, gear ? 'behind' : 'worn'].join(':'), ground: g, party: [s], level: L, hours: HOURS, seeds: 2, windowMs: 120000, ...(gear ? { gear } : {}) }).heroes[0].levelXpPerH;
-  for (const [g, L] of [['mosslight_glade', 16], ['coppercap_warrens', 45]]) for (const s of ['hammer', 'axes']) {
+  /* the Warrens at 44, under the tier-4 rung's Level (45): since the Barrow March opened (lane/b-open-march) a hero at 45 wears the Ford's Mithril, so 45 measured
+     Mithril over Steel and a cut Steel rung read green; 44 is the Warrens' last Level whose best reachable weapon is still the Steel rung */
+  for (const [g, L] of [['mosslight_glade', 16], ['coppercap_warrens', 44]]) for (const s of ['hammer', 'axes']) {
     const behind = xp(g, L, s, { tierOffset: -1, only: 'weapon' }), worn = xp(g, L, s, null);
     if (worn < 1.05 * behind) return s + ' at L' + L + ' in ' + g + ': the rung pays ' + worn + ' Level XP/h against ' + behind + ' one tier behind (+' + Math.round((worn / behind - 1) * 1000) / 10 + '%, the bar is +5%)';
   }

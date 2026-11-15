@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.131';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.132';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -120,6 +120,19 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 });
 
 export const REFUSAL_WORDS = Object.freeze({
+  /* The factions (2027-04-22-faction-standing.sql, 2027-04-23-faction-section.sql). The ones with the server's numbers are
+     src/shell/faction-words.js's. */
+  feature_off: 'That isn\'t open yet.',
+  join_locked: 'You can pick a side after your first Lord Krell kill.',
+  already_joined: 'This hero already has a side.',
+  same_faction: 'This hero is already on that side.',
+  swap_open: 'A swap is already under way.',
+  swap_cooldown: 'You changed sides too recently to swap again.',
+  no_swap: 'There is no swap to finish.',
+  swap_short: 'Your swap needs more hunting on the new side\'s grounds.',
+  piece_owned: 'This hero already has that piece.',
+  standing_short: 'This hero needs more standing for that piece.',
+  not_member: 'This hero has no side yet.',
   /* The Game Master's wall and his tools (2027-03-13-gm-tools.sql). */
   gm_walled: 'The Game Master\'s account stays apart from other players, so that can\'t be done.',
   muted: 'The Game Master has muted you for now. You can still read chat.',

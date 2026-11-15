@@ -24,6 +24,8 @@
 //             the bestiary show (RARITY_LABEL), never above a commoner spawn's weight
 //     family  the dominant monster family, for the picker's grouping
 //     art     the monster id whose art represents the area
+//     region  the region it stands in (src/data/grounds/shape.js REGIONS); every row has one. A called room and the yard are Greenhaven's
+//     standingFor  (post-Krell grounds only) the faction its hunting minutes pay standing to (src/data/factions.js)
 //     travelS seconds of walking from town (Hunt Sessions, HR-2026-10-14): the
 //             session earns and spends nothing while walking. A multiple of
 //             the 10 s world tick, 0..300. EVERY ONE IS 0 (Tyler 2026-10-19:
@@ -63,32 +65,32 @@
 // GROUND PACKS (lane/b-ground-pack): a new ground is a folder under src/data/grounds, not a row here. HUNTS is the rows below
 // and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.131';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.131';
-import { SKILLS_DEF } from './skills.js?v=0.2.131';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.132';
+import { SKILLS_DEF } from './skills.js?v=0.2.132';
 
 const BASE_HUNTS = Object.freeze([
   {
-    id: 'mill_cellar', name: 'Mill Cellar', theme: 'Rats, slimes and wasps live in the damp cellar under the mill.',
+    id: 'mill_cellar', region: 'greenhaven', name: 'Mill Cellar', theme: 'Rats, slimes and wasps live in the damp cellar under the mill.',
     band: [1, 8],
     spawns: [{ monster: 'rat', w: 3, rarity: 'common' }, { monster: 'slime', w: 1, rarity: 'uncommon' },
       { monster: 'hive_wasp', w: 1, rarity: 'rare' }],
     family: 'Vermin', art: 'rat', travelS: 0, pull: 1, respawnMs: 60000,
   },
   {
-    id: 'bramble_edge', name: 'Bramble Edge', theme: 'Wolf cubs, boars and mandrakes live where the fields meet the brambles.',
+    id: 'bramble_edge', region: 'greenhaven', name: 'Bramble Edge', theme: 'Wolf cubs, boars and mandrakes live where the fields meet the brambles.',
     band: [0, 15],
     spawns: [{ monster: 'small_wolf', w: 4 }, { monster: 'wild_boar', w: 3 }, { monster: 'mandrake', w: 3 }],
     family: 'Mammal', art: 'small_wolf', travelS: 0, pull: 3, respawnMs: 42000,
   },
   {
-    id: 'goblin_warren', name: 'Goblin Warren', theme: 'Goblins and kobolds hide down here with all the pots they stole.',
+    id: 'goblin_warren', region: 'greenhaven', name: 'Goblin Warren', theme: 'Goblins and kobolds hide down here with all the pots they stole.',
     band: [0, 15],
     spawns: [{ monster: 'goblin', w: 6 }, { monster: 'kobold', w: 4 }],
     family: 'Humanoid', art: 'goblin', travelS: 0, pull: 5, respawnMs: 60000,
   },
   {
-    id: 'ridge_camp', name: 'Ridge Camp', theme: 'Hobgoblins and gnolls camp on the ridge, and stags graze right past them.',
+    id: 'ridge_camp', region: 'greenhaven', name: 'Ridge Camp', theme: 'Hobgoblins and gnolls camp on the ridge, and stags graze right past them.',
     band: [15, 99],
     spawns: [{ monster: 'hobgoblin', w: 4 }, { monster: 'gnoll', w: 4 }, { monster: 'stag', w: 2 }],
     family: 'Humanoid', art: 'hobgoblin', travelS: 0, pull: 5, respawnMs: 54000,
@@ -101,7 +103,7 @@ const BASE_HUNTS = Object.freeze([
      weighted spawn; he holds the last room). Floor 4: a fresh character (combat 3)
      earns the door in the Mill Cellar first. */
   {
-    id: 'millrace_sewer', name: 'The Sewer', theme: 'The mill race runs under town, and its rats follow the Rat King.',
+    id: 'millrace_sewer', region: 'greenhaven', name: 'The Sewer', theme: 'The mill race runs under town, and its rats follow the Rat King.',
     band: [8, 25],
     spawns: [{ monster: 'drain_rat', w: 6, rarity: 'common' }, { monster: 'culvert_bat', w: 4, rarity: 'uncommon' },
       { monster: 'sump_slime', w: 3, rarity: 'uncommon' }, { monster: 'kobold_tosher', w: 3, rarity: 'uncommon' },
@@ -115,7 +117,7 @@ const BASE_HUNTS = Object.freeze([
      first minutes (tests/hunt-core/forest-cave.mjs --play); the Mill Cellar teaches 1-5. Walked: src/data/hunt-grounds.js `meadowbrook_thicket`.
      Weights are the pockets' head-count at density 1; Old Grayjaw holds the den. */
   {
-    id: 'meadowbrook_thicket', name: 'Meadowbrook Thicket', theme: 'Gray wolves den in the thicket along the brook.',
+    id: 'meadowbrook_thicket', region: 'greenhaven', name: 'Meadowbrook Thicket', theme: 'Gray wolves den in the thicket along the brook.',
     band: [5, 15],
     spawns: [{ monster: 'gray_wolf', w: 10, rarity: 'common' }, { monster: 'gray_whelp', w: 8, rarity: 'common' },
       { monster: 'briarcoat_wolf', w: 4, rarity: 'uncommon' }, { monster: 'dire_gray', w: 1, rarity: 'rare' }],
@@ -126,7 +128,7 @@ const BASE_HUNTS = Object.freeze([
      ground. Walked: src/data/hunt-grounds.js `coppercap_warrens`. Weights are the
      pockets' head-count at density 1; Chief Coppercap holds the last hall. */
   {
-    id: 'coppercap_warrens', name: 'Coppercap Warrens', theme: 'Goblins dig copper here, and the pots on their heads are stolen.',
+    id: 'coppercap_warrens', region: 'greenhaven', name: 'Coppercap Warrens', theme: 'Goblins dig copper here, and the pots on their heads are stolen.',
     band: [32, 50],
     spawns: [{ monster: 'goblin_scavenger', w: 10, rarity: 'common' }, { monster: 'goblin_digger', w: 7, rarity: 'uncommon' },
       { monster: 'goblin_skulker', w: 5, rarity: 'uncommon' }, { monster: 'hobgoblin_foreman', w: 1, rarity: 'rare' }],
@@ -139,7 +141,7 @@ const BASE_HUNTS = Object.freeze([
      head-count at density 4; Rook the Poacher holds the ruined spring-house. OPEN since its style-1 art
      landed (lane b-mosslight-art, 2026-10-22: the painted ground and the five creatures). */
   {
-    id: 'mosslight_glade', name: 'Mosslight Glade', theme: 'The Meadowbrook rises here, and the copper water makes the moss glow.',
+    id: 'mosslight_glade', region: 'greenhaven', name: 'Mosslight Glade', theme: 'The Meadowbrook rises here, and the copper water makes the moss glow.',
     band: [16, 31],
     spawns: [{ monster: 'carrion_crow', w: 10, rarity: 'common' }, { monster: 'walking_vine', w: 5, rarity: 'uncommon' },
       { monster: 'glade_poacher', w: 4, rarity: 'uncommon' }, { monster: 'brook_bear', w: 2, rarity: 'uncommon' }, { monster: 'goblin_sluicer', w: 2, rarity: 'rare' }],
@@ -152,7 +154,7 @@ const BASE_HUNTS = Object.freeze([
      pockets' head-count at density 4; the Turncoats, the rare spawn, carry the jewellery. STAGED until its painted
      ground lands (its creatures reuse shipped units: src/data/world/maps/wickstead.js). */
   {
-    id: 'wickstead', name: 'Wickstead', theme: 'The Turncoats burned this farm and moved in. Rats took the granary.',
+    id: 'wickstead', region: 'greenhaven', name: 'Wickstead', theme: 'The Turncoats burned this farm and moved in. Rats took the granary.',
     band: [8, 18],
     spawns: [{ monster: 'granary_rat', w: 13, rarity: 'common' }, { monster: 'barn_spider', w: 4, rarity: 'uncommon' },
       { monster: 'barn_wasp', w: 3, rarity: 'uncommon' }, { monster: 'orchard_boar', w: 2, rarity: 'uncommon' }, { monster: 'turncoat', w: 2, rarity: 'rare' }],
@@ -176,9 +178,9 @@ export const OPEN_HUNTS = Object.freeze(HUNTS.filter((h) => h.staged !== true));
    advice line, tally task or spawn table reads them; only HUNT_INDEX below names them, for the top bar and the end card. The band is the ground's, so a server read
    ordered by floor finds the ground first. `spawns` names the called row for the facts; gen-hunts writes hr_hunts but no hr_hunt_spawns for it (a boss is never a spawn). */
 export const CALLED_HUNTS = Object.freeze([
-  Object.freeze({ id: 'millrace_sewer_called', name: 'The Rat King\'s Hall', theme: 'It\'s just you, the Rat King and a few of his rats in here.', called: true,
+  Object.freeze({ id: 'millrace_sewer_called', region: 'greenhaven', name: 'The Rat King\'s Hall', theme: 'It\'s just you, the Rat King and a few of his rats in here.', called: true,
     band: Object.freeze([8, 25]), spawns: Object.freeze([Object.freeze({ monster: 'rat_king_called', w: 1 }), Object.freeze({ monster: 'drain_rat_called', w: 1 })]), family: 'Vermin', art: 'rat_king_called', travelS: 0, pull: 1, respawnMs: 600000 }),
-  Object.freeze({ id: 'coppercap_warrens_called', name: 'Chief Coppercap\'s Hall', theme: 'Chief Coppercap sent his crew away so he can fight you himself.', called: true,
+  Object.freeze({ id: 'coppercap_warrens_called', region: 'greenhaven', name: 'Chief Coppercap\'s Hall', theme: 'Chief Coppercap sent his crew away so he can fight you himself.', called: true,
     band: Object.freeze([32, 50]), spawns: Object.freeze([Object.freeze({ monster: 'chief_coppercap_called', w: 1 }), Object.freeze({ monster: 'goblin_digger_called', w: 1 })]), family: 'Humanoid', art: 'chief_coppercap_called', travelS: 0, pull: 1, respawnMs: 600000 }),
 ]);
 
@@ -187,8 +189,10 @@ export const CALLED_HUNTS = Object.freeze([
    and the end card. A hall's id is its ground's id and `_hall` (the close trigger's cheap test). A HALL PAYS like any ground: `hall: true`, never
    `called`. The rows are a ground pack's `hall` (src/data/grounds/shape.js), folded here: its hunt row, its `spawns` the room's boss and each
    kind of add once (for the facts: a hall's rows are never a spawn table), and `staged` while the pack is (Krell's Hall, krells_hold). */
+/* A hall counts with its ground: its region, and the side its ground pays standing to (the board's Morrow Hills §5, "Counts with ground 6"). */
+const placeOf = (h) => Object.freeze({ region: h.region, ...(h.standingFor ? { standingFor: h.standingFor } : {}) });
 const hallSpawns = (g) => Object.freeze([...new Set(g.pockets.flatMap((p) => p.spawns.concat(p.adds)).map((s) => s.monster))].map((monster) => Object.freeze({ monster, w: 1 })));
-export const HALL_HUNTS = Object.freeze(GROUND_PACKS.filter((p) => p.hall).map((p) => Object.freeze({ id: p.id + '_hall', ...p.hall.hunt, hall: true,
+export const HALL_HUNTS = Object.freeze(GROUND_PACKS.filter((p) => p.hall).map((p) => Object.freeze({ id: p.id + '_hall', ...p.hall.hunt, ...placeOf(p.hunt), hall: true,
   spawns: hallSpawns(p.hall.ground), ...(p.status === 'staged' ? { staged: true } : {}) })));
 /** The halls a player can open: every row not `staged` (its pack is open). The server catalogue reads these. */
 export const OPEN_HALL_HUNTS = Object.freeze(HALL_HUNTS.filter((h) => h.staged !== true));
@@ -201,7 +205,7 @@ const TRAINING_WORDS = Object.freeze({
   house: Object.freeze({ name: 'House Dummy', theme: (s) => 'Train your ' + s + ' on your own dummy at home. It costs nothing to use.' }),
 });
 export const TRAINING_HUNTS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap((place) => TRAINING_SKILLS.map((skill) => Object.freeze({
-  id: trainingHuntId(place, skill), name: TRAINING_WORDS[place].name, theme: TRAINING_WORDS[place].theme(SKILLS_DEF[skill].name),
+  id: trainingHuntId(place, skill), region: 'greenhaven', name: TRAINING_WORDS[place].name, theme: TRAINING_WORDS[place].theme(SKILLS_DEF[skill].name),
   train: Object.freeze({ place, skill }), band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'yard_dummy', w: 1 })]),
   family: 'Dummy', art: 'yard_dummy', travelS: 0, pull: 1, respawnMs: 10000 }))));
 

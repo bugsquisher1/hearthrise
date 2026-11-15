@@ -7,6 +7,7 @@
 //   outfit.js   Outfit: the preview, the outfit grid, the dyes, Save (one intent)
 //   deaths.js   Deaths: the server's death log
 //   titles.js   Titles: what this hero has earned the right to be called
+//   faction.js  Faction: the hero's side, standing, swap and the pieces standing buys (only while the server sends its section)
 //   state.js    the window's display scratch
 // Built once per opening, patched in place on every envelope and display tick
 // (src/render/paint.js).
@@ -19,19 +20,20 @@
 // While open, a stale sheet is asked for once per record version. The answer
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.131';
-import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.131';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.131';
-import { attr, cls } from '../../../render/paint.js?v=0.2.131';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.131';
-import { outfitArt, outfitMasks, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.131';
-import { scratchOf } from './state.js?v=0.2.131';
-import { sheetHtml, patchSheet } from './sheet.js?v=0.2.131';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.131';
-import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.131';
-import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.131';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.132';
+import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.132';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.132';
+import { attr, cls, prop } from '../../../render/paint.js?v=0.2.132';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.132';
+import { outfitArt, outfitMasks, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.132';
+import { scratchOf } from './state.js?v=0.2.132';
+import { sheetHtml, patchSheet } from './sheet.js?v=0.2.132';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.132';
+import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.132';
+import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.132';
+import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js?v=0.2.132';
 
-const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['deaths', 'Deaths']]);
+const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['faction', FACTION_TAB], ['deaths', 'Deaths']]);
 const PORTRAIT_SCALE = 1;
 
 /* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in), and the color masks (null: the outfit draws as it is). */
@@ -50,10 +52,11 @@ export function renderCharacter(ctx) {
   wantArt(ctx.doc);
   if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; sc.price = null; sc.priceAskedAt = 0; }
   return '<div class="hw-cs">'
-    + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('') + '</div>'
+    + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="cs-tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (id === 'faction' ? ' hidden' : '') + '>' + esc(l) + '</button>').join('') + '</div>'
     + '<div class="hw-cs-pane" data-pane="sheet">' + sheetHtml() + '</div>'
     + '<div class="hw-cs-pane" data-pane="outfit">' + outfitHtml(ctx.glyphs) + '</div>'
     + '<div class="hw-cs-pane" data-pane="titles">' + titlesHtml() + '</div>'
+    + '<div class="hw-cs-pane" data-pane="faction">' + factionHtml() + '</div>'
     + '<div class="hw-cs-pane" data-pane="deaths">' + deathsHtml() + '</div>'
     + '</div>';
 }
@@ -83,6 +86,10 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-cs');
   wantArt(ctx.doc);
+  /* The Faction tab is the server's to offer (its switch): hidden, and left for the sheet if it was open, while the section is absent. */
+  const fx = factionShown(cs);
+  if (!fx && sc.tab === 'faction') sc.tab = 'sheet';
+  prop(root.querySelector('.hw-tab[data-tab="faction"]'), 'hidden', !fx);
   for (const b of root.querySelectorAll('.hw-tab[data-tab]')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hw-cs-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   askSheet(cs, sc);
@@ -96,6 +103,7 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
     patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes), () => renderCharacter.patch(body, ctx));
     paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyes);
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
+  else if (sc.tab === 'faction') patchFaction(body, ctx, sc);
   else patchDeaths(body, ctx, sc);
 };
 
@@ -107,6 +115,7 @@ renderCharacter.act = function actCharacter(ctx, body, action, ev, t) {
   if (action === 'cs-tab' && ev.type === 'click') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; repaint(); return true; }
   if (sc.tab === 'outfit' && actOutfit(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'titles' && actTitles(ctx, sc, action, ev, t, repaint)) return true;
+  if (sc.tab === 'faction' && actFaction(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'deaths' && actDeaths(sc, action, ev, t, repaint)) return true;
   return false;
 };

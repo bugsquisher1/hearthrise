@@ -291,6 +291,16 @@ async function rules(M) {
     const dodged = M.L.lineOf({ key: 'm3', type: 'miss', atMs: 1, u: 101, t: 1, dodge: true }, n);
     ok('LOG-4', dodged && dodged.type === 'taken' && dodged.text === 'Tyler dodges Giant Rat’s blow.', 'a dodge reads ' + JSON.stringify(dodged));
     ok('LOG-4', ['dealt', 'taken'].every((id) => M.CT.LOG_TYPES.find((r) => r.id === id).events.includes('miss')), 'the Dealt and Taken filters must read a miss');
+    // LOG-9 (lane/d-march-balance): a monster that shoots (monsters.js `range`, Hask's Lookout) reads as a shot, not a hit at arm's length
+    const s = { ...n, shoots: (u) => u === 101 };
+    const shotHit = M.L.lineOf({ key: 'r1', type: 'dmg', atMs: 1, u: 101, t: 1, amount: 30 }, s);
+    const shotMiss = M.L.lineOf({ key: 'r2', type: 'miss', atMs: 1, u: 101, t: 1 }, s);
+    const shotDodge = M.L.lineOf({ key: 'r3', type: 'miss', atMs: 1, u: 101, t: 1, dodge: true }, s);
+    const heroHit = M.L.lineOf({ key: 'r4', type: 'dmg', atMs: 1, u: 1, t: 101, amount: 9 }, s);
+    ok('LOG-9', shotHit && shotHit.type === 'taken' && shotHit.text === 'Giant Rat shoots Tyler for 30.', 'a shooter\'s blow reads ' + JSON.stringify(shotHit));
+    ok('LOG-9', shotMiss && shotMiss.quiet === true && shotMiss.text === 'Giant Rat shoots at Tyler and misses.', 'a shooter\'s miss reads ' + JSON.stringify(shotMiss));
+    ok('LOG-9', shotDodge && shotDodge.text === 'Tyler dodges Giant Rat’s shot.', 'a dodged shot reads ' + JSON.stringify(shotDodge));
+    ok('LOG-9', heroHit && heroHit.text === 'Tyler hits Giant Rat for 9.', 'a hero\'s blow on a shooter still reads as a hit: ' + JSON.stringify(heroHit));
   }
 
   { // LOG-6: a monster's spell (lane/b-area-client): the screen marks its windup (spell-marks.js), the log names it under Effects,
@@ -354,6 +364,7 @@ async function rules(M) {
 
 const MUTANTS = [
   ['the log names no spell (LOG-6)', 'src/hunt-view/combat-log.js', "    case 'spell': return line(", "    case 'spell_x': return line("],
+  ['a shooter\'s blow reads as a hit (LOG-9)', 'src/hunt-view/combat-log.js', "      if (!how && !n.isHero(ev.u) && shot(n, ev.u)) return line('taken', t('log.shot',", "      if (false) return line('taken', t('log.shot',"],
   ['a spell hit reads its id (LOG-6)', 'src/shell/widgets/bits.js', ' || (spellRow(id) || {}).n || spelled(id); }', ' || spelled(id); }'],
   ['an event is delivered twice', 'src/hunt-view/timeline.js', '      if (seen.has(k)) continue;\n', ''],
   ['the clock offset jumps to each batch', 'src/hunt-view/timeline.js', 'offset = offset === null ? m : offset + (m - offset) * cfg.skew;', 'offset = m;'],
@@ -374,7 +385,8 @@ const MUTANTS = [
   ['an ok is not re-read', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }", '{ return { ok: true }; }'],
   ['a live viewer never sees the server\'s rare roll', 'src/session/character-session.js', 'body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : []', '[] : []'],
   ['a monster hit reads as dealt', 'src/hunt-view/combat-log.js', "return line(n.isHero(ev.u) ? 'dealt' : 'taken',", "return line('dealt',"],
-  ['the log says nothing of a miss (LOG-4)', 'src/hunt-view/combat-log.js', "    case 'miss': return Object.assign(", "    case 'miss_': return Object.assign("],
+  ['the log says nothing of a miss (LOG-4)', 'src/hunt-view/combat-log.js', "    case 'miss': if (", "    case 'miss_': if ("],
+  ['a shooter\'s miss reads as a plain miss (LOG-9)', 'src/hunt-view/combat-log.js', "    case 'miss': if (!n.isHero(ev.u) && shot(n, ev.u)) return", "    case 'miss': if (false) return"],
   ['a monster\'s miss reads as dealt (LOG-4)', 'src/hunt-view/combat-log.js', ": line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses '", ": line('dealt', a + ' misses '"],
   ['a dodge reads as a plain miss (LOG-4)', 'src/hunt-view/combat-log.js', "Object.assign(ev.dodge === true ? line('taken',", "Object.assign(false ? line('taken',"],
   ['a miss wears the red of damage taken (LOG-4)', 'src/hunt-view/combat-log.js', "a + ' misses ' + b + '.'), { quiet: true });", "a + ' misses ' + b + '.'), {});"],

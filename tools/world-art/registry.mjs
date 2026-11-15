@@ -23,7 +23,8 @@ for (const id of ['great_hearth', 'hearth_fire', 'hearth_fire_verdigris', 'heart
   'westwood_ash', 'fishing_pier', 'rune_block', 'westwood_yew', 'ore_coal_rock']) D[id] = ['staged', 'on no map yet (Hearth Square, 2026-10-25); approved: art-director 2026-10-25, Tyler pending'];
 /* Barrow March gather nodes (lane/art-gen-2026-11-14, brief 20): the alder kind and its stump, the Emberstone vein and its worked-out twin.
    GROUND_NODE_KINDS rows and the packs' gather lines are the data lane's. */
-for (const id of ['alder', 'alder_b', 'alder_c', 'alder_stump', 'emberstone_rock', 'emberstone_rock_spent']) D[id] = ['staged', 'on no map yet (brief 20 gather nodes, 2026-11-14); approved: art-director 2026-11-14'];
+for (const id of ['alder', 'alder_stump']) D[id] = ['retain', 'the Barrow March kit\'s riverbank tree (region-kits.js), the willow gather node on the Ford, the Muster and the Slake; approved: art-director 2026-11-14, kit 2026-11-15'];
+for (const id of ['alder_b', 'alder_c', 'emberstone_rock', 'emberstone_rock_spent']) D[id] = ['staged', 'on no map yet (brief 20 gather nodes, 2026-11-14); approved: art-director 2026-11-14'];
 /* Hero outfit region masks (lane/c-hero-masks, 2026-11-05): data, never drawn; loaded on first need by the dye code. */
 for (const id of ['outfit_knight_mask', 'outfit_berserker_mask', 'outfit_brute_mask', 'outfit_ranger_mask', 'outfit_sorcerer_mask',
   'outfit_witch_mask', 'outfit_dawnward_mask']) D[id] = ['staged', 'region mask (dyes), tools/world-art/outfit-masks.mjs; HERO_DYES_SHOWN false'];

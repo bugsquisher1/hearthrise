@@ -588,6 +588,18 @@ async function check(M) {
       'a mill_cellar hunt or a rat training fight must show the cellar');
     ok('G1', S({ kind: 'combat', id: 'goblin' }, 'home').map === 'home_cottage' && S(null, 'town').map === 'town_common' && S({ kind: 'gather', id: 'rat' }, 'home').kind === 'home' && S(null, 'garbage').map === 'town_common',
       'anything else shows the viewer\'s choice of town or home');
+    /* G5 (Krell's Hall showed the town, 2026-11-14): every hunt, called room and keyed hall routes to the map its fight is
+       fought on (its ground row's `map`). An open one through WORLD_MAPS, the client's own table; a staged one through
+       WORLD_MAPS + STAGED_MAPS, so a pack's map lists all its rooms before the pack ships. */
+    const allIdx = M.route.huntMapIndex([...M.maps.WORLD_MAPS, ...M.maps.STAGED_MAPS], M.hunts.HUNT_INDEX);
+    const fought = [...Object.values(M.grounds.HUNT_GROUNDS), ...Object.values(M.grounds.CALLED_GROUNDS), ...Object.values(M.grounds.HALL_GROUNDS)];
+    const wrong = fought.filter((g) => {
+      const staged = !M.hunts.HUNT_INDEX[g.hunt] || M.hunts.HUNT_INDEX[g.hunt].staged === true;
+      const r = M.route.sceneFor({ kind: 'combat', id: g.hunt }, 'town', staged ? allIdx : idx, M.maps.SCENE_MAPS);
+      return r.kind !== 'hunt' || r.map !== g.map;
+    });
+    ok('G5', fought.length >= 10 && fought.some((g) => g.hall) && !wrong.length,
+      'every hunt, called room and hall must show its own map (' + fought.length + ' grounds; wrong: ' + wrong.map((g) => g.hunt + '->' + g.map).join(', ') + ')');
     const miss = book.frame('no_such_sprite');
     ok('G2', miss.set === '' && miss.w === M.bookm.STUB_SPRITE.frame[0] && book.sprite('no_such_sprite') === M.bookm.STUB_SPRITE, 'a sprite no atlas carries must resolve to the stub record and frame');
     const lost = M.bookm.createBook({ heroes: M.manifests.heroes });
@@ -779,6 +791,8 @@ const MUTANTS = [
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
+  ['G5', 'a keyed hall left off its map (Krell\'s Hall showed the town)', 'src/data/grounds/krells_hold/map.js', [["hunts: Object.freeze(['krells_hold', 'krells_hold_hall'])", "hunts: Object.freeze(['krells_hold'])"]]],
+  ['G5', 'a called room left off its map', 'src/data/world/maps/coppercap_warrens.js', [["hunts: Object.freeze(['coppercap_warrens', 'coppercap_warrens_called'])", "hunts: Object.freeze(['coppercap_warrens'])"]]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(Object.values(OUTFITS));', '  const ids = new Set();']]],
   ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],

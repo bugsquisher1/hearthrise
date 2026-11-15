@@ -41,7 +41,7 @@
 // one line to change if the sheet wins.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.131';
+import { MONSTERS } from './monsters.js?v=0.2.132';
 
 /** The retired direction — the 30 portraits that shipped before the wave. */
 export const PAINTED_DIR = 'assets/icons-bundle/painted/monsters/';
@@ -203,7 +203,9 @@ export const HEAD_ART_AHEAD = Object.freeze([
   'farmhand', 'hasks_lookout', 'grave_guard', 'gatekeeper', 'lord_krell', 'pyre_priest',
   'mudlark', 'wight', 'banded_pikeman', 'bannerman', 'barrow_knight', 'captain_hask', 'fordsunk',
   /* brief 32 (2026-11-14): the Slake's three and the Pyre Field's five */
-  'greened_pikeman', 'bargeman', 'color_sergeant', 'charred_pikeman', 'stoker', 'lurcher', 'pyre_wraith', 'provost']);
+  'greened_pikeman', 'bargeman', 'color_sergeant', 'charred_pikeman', 'stoker', 'lurcher', 'pyre_wraith', 'provost',
+  /* the Muster's own two, re-poured from the Ford's heads (2026-11-15) */
+  'barrow_pikeman', 'cairn_wight']);
 const HEAD_SET = new Set(HEAD_ART.concat(HEAD_ART_AHEAD));
 /** The head's path for a creature id, or null when the set has none (the caller draws nothing). A creature drawn as another
     (HUNT_ART_ALIAS below: a pack body that wears a kit body, a called boss) wears that one's head too: one face a sprite. */
@@ -226,9 +228,9 @@ export const HUNT_WALK_ART = Object.freeze({
 export const HUNT_ART_ALIAS = Object.freeze({ rat_king_called: 'rat_king', chief_coppercap_called: 'chief_coppercap', drain_rat_called: 'drain_rat', goblin_digger_called: 'goblin_digger',
   /* A PACK BODY WHOSE ID IS NOT ITS SPRITE'S: the Ford's Ledger Wight is drawn as the March kit's wight (art/world/march). */
   ledger_wight: 'wight',
-  /* The Muster Barrows' bodies are the March's (its pack header: a monster's numbers are its ground's, so each is the ground's own row
-     under its own id): the kit's pikeman and wight, and the Muster set's Barrow Knight (art/world/muster). Captain Hask wears his own. */
-  barrow_pikeman: 'banded_pikeman', cairn_wight: 'wight', muster_knight: 'barrow_knight',
+  /* The Muster Barrows' Barrow Knight is the Muster set's (art/world/muster). Its Barrow Pikeman and Cairn Wight wear their own
+     drawings (re-poured from the Ford's, tools/world-art/import-barrow-2026-11-14.mjs): a second wearer of one drawing is a [twin]. */
+  muster_knight: 'barrow_knight',
   /* Krell's Hall (src/data/grounds/krells_hold `hall`): Captain Hask stands up as himself. His row is the hall's own (he pays there); the
      drawing is the body everyone already met. Lord Krell wears his own. The two officers who stand up out of the hall floor are the Hold's
      Grave Guard (art/world/holdguard). */

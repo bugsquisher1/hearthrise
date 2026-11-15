@@ -88,9 +88,56 @@
 .hw-dl-more { display: none; margin: 0 2px 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-dl-row.is-open .hw-dl-more { display: block; }
 
+/* ── The Faction tab (windows/character/faction.js) and the join prompt (windows/faction-join.js) ──
+   The mark is a placeholder glyph in its side's color (antique gold, deep crimson) until the art lane's marks land. */
+.hw-tab[hidden], .hw-cs-faction .hh-tool[hidden] { display: none; }
+.hw-fx-who { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
+.hw-fx-id { display: flex; flex-direction: column; min-width: 0; }
+.hw-fx-side { font-family: var(--f-label); font-size: var(--t-lead); color: var(--ink); }
+.hw-fx-motto { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-fx-mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: var(--ink-3); }
+.hw-fx-mark:empty { display: none; }
+.hw-fx-mark .hw-fx-glyph { width: 24px; height: 24px; fill: currentColor; }
+.hw-fx-mark.is-first_flame { color: var(--gold-2); }
+.hw-fx-mark.is-last_ember { color: var(--red); }
+.hw-fx-neutral { display: none; }
+.hw-fx-neutral.is-on { display: block; }
+.hw-fx-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.hw-fx-acts:not(:has(.hh-tool:not([hidden]))) { display: none; }
+.hw-fx-swap { display: none; }
+.hw-fx-swap.is-on { display: block; }
+.hw-fx-line { margin: 0 2px 6px; font-size: var(--t-small); color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-fx-line:empty, .hw-fx-swap-to:not(.is-on), .hw-fx-swap-cost:not(.is-on) { display: none; }
+.hw-fx-said { display: none; margin: 6px 0 8px; padding: 2px 0 2px 12px; border-left: 3px solid var(--steel-rule); }
+.hw-fx-said.is-on { display: block; }
+.hw-fx-said p { margin: 0 0 2px; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
+.hw-fx-said cite { font-size: var(--t-micro); font-style: normal; color: var(--ink-2); }
+.hw-fx-stand, .hw-fx-piece { min-height: 44px; }
+.hw-fx-stand.is-current .hw-line-name b, .hw-fx-piece.is-current small { color: var(--gold-2); }
+.hfx-lead, .hfx-terms { margin: 2px 2px 8px; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
+.hfx-lead { color: var(--ink); }
+.hfx-swap-terms:not(.is-on) { display: none; }
+.hfx-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; margin: 0 0 8px; padding: 0; list-style: none; }
+.hfx-side { display: flex; flex-direction: column; min-width: 0; padding: 6px 2px; }
+.hfx-side + .hfx-side { padding-left: 20px; border-left: 2px solid var(--steel-sep); margin-left: -10px; }
+.hfx-head { display: flex; align-items: center; gap: 8px; }
+.hfx-head > span:last-child { display: flex; flex-direction: column; }
+.hfx-name { font-family: var(--f-label); font-size: var(--t-lead); color: var(--ink); }
+.hfx-motto { font-size: var(--t-micro); color: var(--ink-2); }
+.hfx-side .hw-fx-said { flex: 1; }
+.hfx-side .hh-tool { align-self: flex-start; min-height: 40px; }
+.hfx-foot { justify-content: space-between; }
+.hfx-later { flex: 1 1 200px; font-size: var(--t-micro); color: var(--ink-2); }
+
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hw-cs-vitals { flex-basis: 100%; }
   .hw-cs-cols { grid-template-columns: 1fr; }
   .hw-cs-outfit { grid-template-columns: 1fr; }
   .hw-dl-head { grid-template-columns: 1fr 1fr; }
+  /* the two sides stack on a phone sheet, each still read top to bottom; a press is a thumb tall */
+  /* five tabs share the 400 px sheet once the Faction tab shows: tighter padding keeps them on one row */
+  .hw-cs > .hw-tabs .hw-tab { padding: 4px 6px; }
+  .hfx-sides { grid-template-columns: 1fr; }
+  .hfx-side + .hfx-side { padding-left: 2px; margin-left: 0; border-left: 0; border-top: 2px solid var(--steel-sep); }
+  .hfx-side .hh-tool, .hw-cs-faction .hh-tool { min-height: 44px; }
 }

@@ -29,6 +29,34 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-14 Boss call drops (designer, lane/d-boss-call-drops; Tyler 2026-11-14 "it should definitely have a chance for an item drop otherwise there is no point", "for people [who] want the drops but don't want to burn stamina", then the slider "B with your adjustments")
+
+**Built (data + the engine's drop door + guard):** a called boss's KILL rolls his own table (his ground boss's rows at their ground rates) plus one call-only piece; a death or the limit pays nothing; no XP or coin on any route; adds pay nothing. Kingstooth (Rat King, 1%: Iron Sword stats +3% crit, Level 15) and Cauldron Lid (Chief Coppercap, 0.8%: Coppercap Shield guard, 5% less from every hit, Level 30), no jewelry. Staged: `2027-04-23-boss-call-drops-items-catalogue` and `-hunt-sessions-catalogue` (kill bounds carry the drops, the CHECK allows drops on a called row, never XP or coin). `tests/boss-call.mjs` guards it (40 mutants).
+
+**The series, as data for lane C (`boss-calls.js` `fight`, `BOSS_CALL_RULES.maxFights`):** a slider 1 to 100 fights in a row; each fight charges EVERY hero in the room his own stamina and fee as it starts, win or lose (Rat King 2 min + 50 gp, Chief 2.5 min + 100 gp); the room drains nothing more; ends at the count, a death, a hero who can't pay the next fight, or a leave; no daily cap. Labels: `BOSS_CALL_WORDS.series`.
+
+**The price, measured (real settle, 3 seeds x 2 h, per hero per stamina hour):**
+
+| | Boss kills a hero's stamina hour | Gold | Level XP | Notes |
+|---|---|---|---|---|
+| Sewer, four at L22 | 23.5 (one each 2.6 min) | +3,805 | 58,400 | plus the ground's other drops |
+| Sewer, pair at L25 | 13.2 (4.6 min) | +4,269 | 55,100 | |
+| Rat King call | 30 (2 min) | -1,500 fee, -2,100 food | 0 | 1.3x a four's boss kills, 2.3x a pair's; Kingstooth only here |
+| Warrens, four at L42 | 19.5 (3.1 min) | +6,134 | 176,500 | |
+| Warrens, pair at L48 | 11.8 (5.1 min) | +7,412 | 181,800 | |
+| Chief call | 24 (2.5 min) | -2,400 fee, about -30,000 food | 0 | 1.2x a four's, 2x a pair's; Cauldron Lid only here |
+
+His table's book value a win: Rat King about 35 g, Chief about 298 g (shared by the party). The ground stays the better all-round hour by a wide margin; the call buys more rolls at one boss and the call-only piece. Win rates (boss-call-table --ship, good bar): Rat King four 67%, Chief four 100%; a death ends the series and costs a death.
+
+**Lane C spec (systems-engineer; edge moves; one migration + the two staged catalogues):**
+1. `hr_boss_call_pays`: a window that carries the room's `ev:kill_monster:<called>` op (his kill) may also carry `items` (each id in his kill bound's drops, qty at most the bound), the matching `ev:loot:<id>` stats and `rare_drops`; every other window keeps today's allowlist. `hr_hunt_apply_member`'s generic item bound (v_kills x ground spawns) skips a called room, which this bound replaces. Journal kills stay 0 (no Bestiary, no kill_any).
+2. The series: `hr_boss_call(slot, call, fights, price, key)` starts N; per fight, at its start, the settle charges each hero `fight.stamina_ms` and `fight.fee` (ledger kind `shop`, intent `boss_call:<call>:<n>`), a hero who can't pay ends with `stamina`/`gold_out`; the room drains no stamina (training's null-stamina path); `boss_felled` respawns him for the next fight until N. hr_boss_calls: drop `per_day`, `fee` becomes `fight_fee`, add `fight_stamina_ms` and `max_fights` (gen-hunt-sessions emits them; the quote/view/verb restated first, then the catalogue, as call-out-alone did).
+3. Engine: combat-sim's called room proposes null stamina and respawns the boss per fight; `tests/boss-call.mjs` gains BC-STAMINA (each fight charges its stamina and fee once, win or lose; the room drains nothing else) and BC-SERIES (ends at N, a death, out of stamina, out of gold), with mutants for each.
+4. ORDER: items catalogue, hunt-sessions catalogue, lane C migration, THEN the hr-accrue carrying `hunt-rewards.js` (today's allowlist refuses every win the new engine pays: `called_pays`). The client half (slider pane) last.
+5. Open Halls (`live-events.js`): waives the fee only, never the stamina.
+
+**Open, designer next:** (a) the called bosses were tuned as a one-off exam (good bar 67-100%, the Chief's food about 1,250 g a hero a fight); a repeatable series wants a good bar near 97% and a food bill near the ground's, re-measured on boss-call-table before lane C ships. (b) Pre-EA Steam/legal review: a gold fee for a fight with random drops. Stamina is now the main cost, so it reads as a hunt, but it goes on the list.
+
 ### 2026-11-14 Krell's Hold design pass (designer, lane/d-hold-pass, the v0.2.130 visual gate's opens): RULED, BUILT as data, MEASURED on the real settle (`tools/balance-sim/boss-call-table.mjs --hall krells_hold`, Level 98, 200 tries a row unless named). Still STAGED. No migration (no catalogue carries Krell's rows). The edge bundle moves (pack.js, boss-calls.js)
 
 | Open | Ruling | Evidence |

@@ -25,7 +25,9 @@ export function hallWords(line, hall) {
   const row = room ? MONSTERS[room.monster] : null;
   const h = row && row.phases && row.phases.hasten;
   const sp = h ? spellRow(h.spell) : null;
-  return line.replace('{Boss}', hall.Boss).replace('{boss}', hall.boss).replace('{key}', itemName(hall.key))
+  const dropper = line.includes('{source}') ? Object.values(MONSTERS).find((m) => m && Array.isArray(m.drops) && m.drops.some((d) => d.id === hall.key)) : null;
+  return line.replace('{source}', dropper ? BOSS_HALL_WORDS.source.replace('{dropper}', dropper.name) : '')
+    .replace('{Boss}', hall.Boss).replace('{boss}', hall.boss).replace('{key}', itemName(hall.key))
     .replace('{hall}', (HUNT_INDEX[hall.hunt] || {}).name || hall.Boss).replace('{minutes}', String(BOSS_HALL_RULES.limitMs / 60000))
     .replace('{guard}', isGuarded(row) ? BOSS_HALL_WORDS.warnGuard : '').replace('{haste}', sp ? BOSS_HALL_WORDS.warnHaste.replace('{spell}', sp.n) : '');
 }
@@ -59,7 +61,7 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
   const open = keys > 0 && !v.now && !v.pending && !member;
   text(box.querySelector('.hw-hd-h'), BOSS_HALL_WORDS.heading);
   const W = BOSS_HALL_WORDS;
-  const said = v.now ? W.hunting : member ? W.refused.hall_leader : keys === 0 ? W.have.none : keys === 1 ? W.have.one : W.have.other.replace('{n}', String(keys));
+  const said = v.now ? W.hunting : member ? (keys > 0 ? W.memberKey : W.refused.hall_leader) : keys === 0 ? W.have.none : keys === 1 ? W.have.one : W.have.other.replace('{n}', String(keys));
   text(box.querySelector('.hw-call-line'), hallWords(said, hall));
   const press = box.querySelector('.hw-call-press');
   text(press, hallWords(W.press, hall));

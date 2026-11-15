@@ -87,7 +87,13 @@ export const BOSS_HALL_WORDS = Object.freeze({
   /* the confirm group's name for a screen reader (src/shell/windows/boss-hall-pane.js) */
   sure: 'Are you sure?',
   press: 'Open {hall}',
-  have: Object.freeze({ none: 'You don\'t have a {key}.', one: 'You have 1 {key}.', other: 'You have {n} keys.' }),
+  /* WHERE A KEY COMES FROM (designer 2026-11-14, lane/d-march-balance: the hand play found the page never said). {source} is `source` with
+     the monster whose drops name the hall's key, or nothing when no monster drops it. */
+  have: Object.freeze({ none: 'You don\'t have a {key}.{source}', one: 'You have 1 {key}.', other: 'You have {n} keys.' }),
+  source: ' The {dropper} drops them now and then.',
+  /* A key can drop to anyone in a party, and only the leader opens the hall (hr_boss_hall_enter takes the leader's key). Said plainly to a
+     member who holds one, until the open takes a key from any seat (the designer's ruling, handed to Systems the same day). */
+  memberKey: 'You have a {key}, but only your party\'s leader can open the hall. Give it to them first. Your own heroes can pass it through Storage.',
   warnTitle: 'Fight {boss}?',
   warn: Object.freeze([
     '{Boss} hits hard. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder.{haste} If anyone dies, the fight ends.',

@@ -59,7 +59,7 @@ import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../da
 import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.131';
 import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.131';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.131';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.131';
+import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.131';
 import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.131';
 import { openFinderOn } from './party-finder.js?v=0.2.131';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.131';
@@ -319,9 +319,10 @@ function patchPage(det, ctx, sc, v) {
   const setups = setupsOf(cs);
   const chosen = chosenOf(sc, setups);
   const other = (setups || []).find((p) => p.preset === chosen && !p.inUse);
+  const before = now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null });
   patchGo(det, ctx, {
     setups, chosen, off: sc.pending || !!now || follower,
-    before: now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null }),
+    before,
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
       why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r) + '.',
       find: party ? 'Open the party finder' : 'Find a party',
@@ -361,8 +362,9 @@ function patchPage(det, ctx, sc, v) {
     attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
   }
   text(det.querySelector('.hw-tier-read'), follower && tier ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + TIER_NAME[tier] : '');
-  /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks. */
-  const safe = rangeWords(r, level) ? '' : TIER_LINES.normal + ' ';
+  /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks, and with store food
+     too weak for the ground Before you go says the fix (hunt-go.js weakFoodLine: the hand play died twice under "Safe at your level"). */
+  const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + ' ';
   text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks the tier.'
     : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
 }

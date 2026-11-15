@@ -32,6 +32,8 @@ export const SHEET = Object.freeze({
   rules: Object.freeze([
     /* NORMAL IN RANGE IS SAFE (10-25 "Normal acceptance"; 11-04 "in range is safe") */
     { id: 'normal-deaths', why: '10-25: Normal, at most 1 death per 1,000 h', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'deathsPer1000h', max: 1, pooled: true, binding: true },
+    /* ...on the store food the Hunts page stays quiet about (lane/d-march-balance: grade.mjs's storefood cell, a lone tank at the floor) */
+    { id: 'normal-deaths-store-food', why: '10-25 + 11-04: Normal in range is safe on the store food the Hunts page calls enough', tiers: ['normal'], offsets: ['floor'], sizes: [1], gear: 'storefood', metric: 'deathsPer1000h', max: 1, pooled: true, binding: true },
     { id: 'normal-dips', why: '10-25: Normal, at most 1 serious dip under 25% HP per 12 h on average', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'dipsPer12h', max: 1, pooled: true, binding: true },
     { id: 'normal-low-point', why: '10-25: Normal, the typical encounter bottoms out at 60-80% HP (diagnostic: a defensive hero may stay above)', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'minHpP50', min: 60, binding: true },
     { id: 'normal-easy', why: '10-25: Normal is 60-80%, Easy 80-95% (Andy 11-06: "a cake walk")', tiers: ['normal'], offsets: ['floor'], metric: 'minHpP50', max: 80, binding: false },
@@ -80,6 +82,7 @@ export function sheetFromBalanceSheet(BS) {
     blows: BS.blows,
     rules: Object.freeze([
       { id: 'normal-deaths', why: why('normal.deathsPer1000h (RULED 10-25)'), ...floor1, metric: 'deathsPer1000h', max: N.deathsPer1000h, pooled: true, binding: true },
+      { id: 'normal-deaths-store-food', why: why('normal.deathsPer1000h on the store food the Hunts page calls enough (lane/d-march-balance)'), ...floor1, gear: 'storefood', metric: 'deathsPer1000h', max: N.deathsPer1000h, pooled: true, binding: true },
       { id: 'normal-dips', why: why('normal.closeCallsPer12h (RULED 10-25)'), ...floor1, metric: 'dipsPer12h', max: N.closeCallsPer12h, pooled: true, binding: true },
       { id: 'normal-low-point', why: why('normal.typicalMinHpPct, every way (RULED 10-25)'), ...floor1, metric: 'minHpP50', min: N.typicalMinHpPct, binding: true },
       { id: 'normal-xp-contract', why: why('normal.xpVsContract at the band middle, the median lone way on every ground (the contract is fitted on lone heroes)'), tiers: ['normal'], offsets: ['middle'], skip: contractIsEarly, aggregate: 'xpVsContract', min: N.xpVsContract.min, max: N.xpVsContract.max, binding: true },

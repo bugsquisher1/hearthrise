@@ -7,7 +7,7 @@
 //   node tests/boss-hall.mjs            the guard
 //   node tests/boss-hall.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrual.js tools/gen-hunt-sessions.mjs src/data/boss-halls.js src/data/hunts.js src/data/grounds/krells_hold/pack.js
+// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrual.js tools/gen-hunt-sessions.mjs src/data/boss-halls.js src/data/hunts.js src/data/grounds/krells_hold/pack.js src/core/hunt-rewards.js src/core/member.js src/core/drops.js
 //
 // The data holds no hall yet (a ground pack's `hall` folds in later), so the arms play a FIXTURE hall: the Rat King's hall on the Millrace map,
 // its boss, a named add and two plain adds written below as paying rows, with real spells (Slag Rain stands in for the Hall Fire).
@@ -17,6 +17,10 @@
 //              or one that would start again before it lands, a boss with no lines, a room not named <ground>_hall, a key that is no item,
 //              his rows on another ground, adds on a ground that is no room. The real tables: no hall, and a called room is still a call.
 //   HL-PAY     a hall's kill PAYS like any ground's: the boss's and his adds' Level XP, coin and drops reach every hero's delta
+//   HL-DAILY   (lane/c-krell-daily) his rows are the hall's DAILY PRIZE: each hero with the day's still to take (the server's read) rolls its
+//              own piece and sends its own claim beside the kill; a hero who took it today gets none, sends none, and takes the same Level XP
+//              and coin; never the party's rare roll; the same pieces however the windows are cut; the roll is one draw over exclusive slices;
+//              every hall's rows make at most one roll, Krell's 40% over 14 pieces. The generator refuses a boss row that is no slice (HL-ROW)
 //   HL-FELLED  his kill ends the fight `boss_felled` for everyone on one instant, however the windows are cut (the hunt viewed, the browser closed)
 //   HL-DEATH   a death ends it for everyone, box ticked or not
 //   HL-TIME    the limit ends a fight nobody can finish, for everyone, on the limit's instant
@@ -35,7 +39,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
-import { BOSS, NAMED, ADD, ROOM, FROM, KEY, FLARE, CONE, NAMED_SPELL, ROWS, hallGround, HALL_HUNT, HALL_ROW, hallSource } from './boss-hall-fixture.mjs';
+import { BOSS, NAMED, ADD, ROOM, FROM, KEY, FLARE, CONE, NAMED_SPELL, PRIZE, ROWS, hallGround, HALL_HUNT, HALL_ROW, hallSource } from './boss-hall-fixture.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(REPO, 'src/build-info.js'), 'utf8')) || [, ''])[1];
@@ -64,6 +68,7 @@ async function loadAll(root) {
     P: await import(u('src/core/hunt/boss-phases.js') + V),
     L: await import(u('src/core/hunt/leash.js') + V),
     R: await import(u('src/core/hunt/boss-room.js') + V),
+    DR: await import(u('src/core/drops.js') + V),
     GEN: await import(u('tools/gen-hunt-sessions.mjs')),
   };
   X.ground = hallGround(X.S.pocket);
@@ -86,6 +91,8 @@ function fight(X, roles, o = {}) {
   const windows = [];
   X.play.run(ROOM, o.L || STRONG.L, roles, { ground: X.ground, spanMs: X.BH.BOSS_HALL_RULES.limitMs + 2 * MINUTE, windowMs: o.cut || 30000,
     secret: o.secret || '-4611686018427387904', leaveTogether: o.box !== false,
+    /* the day's prize as the server's read says it: everyone's still to take, unless the arm says who has taken it (o.prizeLeft) */
+    ...(o.noRead ? {} : { prizeLeft: o.prizeLeft === undefined ? true : o.prizeLeft }),
     equipment: o.equipment || ((role) => (role === 'tank' ? SHIELDED : role === 'mage' ? { weapon: 'oak_wand' } : role === 'healer' ? { weapon: 'oak_staff' } : (o.kit || STRONG.kit))),
     ...(o.bar ? { bar: o.bar } : {}), onWindow: (w) => windows.push(w) });
   const members = windows.flatMap((w) => w.members);
@@ -126,6 +133,11 @@ const ARMS = {
       ['a hasten that speeds nothing', { monsters: { [BOSS]: { ...ROWS[BOSS], phases: { ...ROWS[BOSS].phases, hasten: { spell: FLARE, cdPm: 1000 } } } } }],
       ['a boss with no lines', { monsters: { [BOSS]: { ...ROWS[BOSS], phases: undefined } } }],
       ['a boss that is an add', { monsters: { [BOSS]: { ...ROWS[BOSS], add: true } } }],
+      /* his rows are the hall's daily prize (gen-hunt-sessions prizeRows): reveal rows only, slices of ONE roll, each named once */
+      ['a boss with an every-kill drop', { monsters: { [BOSS]: { ...ROWS[BOSS], drops: [{ id: 'big_bones', ch: 1, band: 'common' }] } } }],
+      ['prize slices that make more than one roll', { monsters: { [BOSS]: { ...ROWS[BOSS], drops: [{ id: PRIZE, ch: 0.7, band: 'rare' }, { id: 'kingsgrate', ch: 0.4, band: 'rare' }] } } }],
+      ['a prize row named twice', { monsters: { [BOSS]: { ...ROWS[BOSS], drops: [{ id: PRIZE, ch: 0.2, band: 'rare' }, { id: PRIZE, ch: 0.2, band: 'rare' }] } } }],
+      ['a prize row with no slice', { monsters: { [BOSS]: { ...ROWS[BOSS], drops: [{ id: PRIZE, ch: 0, band: 'rare' }] } } }],
       ['a room not named for its ground', { halls: { [FROM]: { ...HALL_ROW, hunt: 'fixture_room' } } }],
       ['a key that is no item', { halls: { [FROM]: { ...HALL_ROW, key: 'no_such_key' } } }],
       ['a hall on no open ground', { halls: { no_ground: { ...HALL_ROW, id: 'no_ground', hunt: 'no_ground_hall' } }, hallHunts: [{ ...HALL_HUNT, id: 'no_ground_hall' }], hallGrounds: { no_ground_hall: { ...X.ground, id: 'no_ground_hall', hunt: 'no_ground_hall', hall: 'no_ground' } } }],
@@ -223,7 +235,7 @@ const ARMS = {
     }
     if (!(lx >= ROWS[BOSS].xp)) bad.push('HL-PAY the party took ' + lx + ' Level XP, the boss alone is ' + ROWS[BOSS].xp);
     if (!(coin >= ROWS[BOSS].gp[0])) bad.push('HL-PAY the party took ' + coin + ' coin');
-    if (!(items.big_bones >= 1)) bad.push('HL-PAY the boss\'s sure drop never came: ' + JSON.stringify(items));
+    if (items[PRIZE] !== roles.length) bad.push('HL-PAY the boss\'s sure prize came ' + (items[PRIZE] || 0) + ' times for ' + roles.length + ' heroes with the day\'s to take: ' + JSON.stringify(items));
     if (!(items.bones >= 1)) bad.push('HL-PAY an add\'s sure drop never came: ' + JSON.stringify(items));
     const counted = f.members.flatMap((m) => m.delta.progress || []).filter((op) => op.key === 'ev:kill_monster:' + BOSS).length;
     if (counted < roles.length) bad.push('HL-PAY the boss\'s kill counter moved ' + counted + ' times for ' + roles.length + ' heroes');
@@ -234,6 +246,86 @@ const ARMS = {
     }
     const last = f.windows[f.windows.length - 1].members.map((m) => (m.analyzer && m.analyzer.fight ? m.analyzer.fight.boss_pm : null));
     if (!last.every((pm) => pm === 0)) bad.push('HL-RECORD the last window says he stood at ' + last.join());
+    return bad;
+  },
+
+  /* HL-DAILY: his rows are each hero's own roll, once a day (src/data/boss-halls.js; hunt-rewards.js payPrize; drops.js rollPrize). */
+  daily(X) {
+    const bad = [];
+    const roles = ['tank', 'healer', 'melee_dps', 'mage'];
+    const read = (f) => {
+      const by = {};
+      for (const m of f.members) {
+        const e = by[m.key] || (by[m.key] = { prize: 0, claims: 0, lx: 0, coin: 0, bossKills: 0 });
+        e.prize += (m.delta.items || {})[PRIZE] || 0;
+        e.claims += m.hunt.prize === true ? 1 : 0;
+        if ('prize' in m.hunt && m.hunt.prize !== true) bad.push('HL-DAILY a window of ' + m.key + ' carries prize ' + JSON.stringify(m.hunt.prize) + ' (true or absent)');
+        e.lx += m.delta.level_xp || 0; e.coin += m.delta.gold || 0;
+        e.bossKills += (((m.delta.journal || {}).meta || {}).km || {})[BOSS] || 0;
+        /* the claim and the kill it stands on leave in the same window: the database refuses a claim with no kill beside it */
+        if (m.hunt.prize === true && !((((m.delta.journal || {}).meta || {}).km || {})[BOSS] >= 1)) bad.push('HL-DAILY ' + m.key + ' claims in a window that journals no kill of the boss');
+      }
+      return by;
+    };
+    const took = (f, id) => eventsOf(f).filter((e) => e.type === id && e.item === PRIZE).length;
+    /* (1) everyone has today's to take: each hero its own piece, its own claim, and no party roll for it (nothing here is shared) */
+    const all = fight(X, roles);
+    const A = read(all);
+    for (const [key, e] of Object.entries(A)) if (e.prize !== 1 || e.claims !== 1) bad.push('HL-DAILY ' + key + ' with the day\'s to take got ' + e.prize + ' pieces and sent ' + e.claims + ' claims (one of each)');
+    if (Object.keys(A).length !== roles.length) bad.push('HL-DAILY CONTROL: ' + Object.keys(A).length + ' heroes settled');
+    if (took(all, 'rare_drop') !== roles.length) bad.push('HL-DAILY ' + took(all, 'rare_drop') + ' rare-drop moments for ' + roles.length + ' pieces');
+    if (took(all, 'rare_roll') !== 0) bad.push('HL-DAILY the prize went to the party\'s rare roll ' + took(all, 'rare_roll') + ' times');
+    /* (2) two took it today: they fight, share the kill's Level XP and coin, and get no piece and send no claim; the other two are untouched */
+    const gone = new Set([0, 2]);
+    const some = fight(X, roles, { prizeLeft: (role, seat) => !gone.has(seat) });
+    const S = read(some);
+    roles.forEach((role, seat) => {
+      const e = S[role + seat], a = A[role + seat];
+      if (!e) { bad.push('HL-DAILY CONTROL: ' + role + seat + ' never settled'); return; }
+      const want = gone.has(seat) ? 0 : 1;
+      if (e.prize !== want || e.claims !== want) bad.push('HL-DAILY ' + role + seat + (want ? ' with the day\'s to take' : ' who took it today') + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims');
+      if (!(e.bossKills >= 1)) bad.push('HL-DAILY ' + role + seat + ' was not at the kill, so its share was never read');
+      if (!(e.lx > 0 && e.coin > 0)) bad.push('HL-DAILY ' + role + seat + ' took ' + e.lx + ' Level XP and ' + e.coin + ' coin from the fight');
+      /* XP and coin are the kill's, prize or no prize: the same fight on the same seed pays each hero what it paid with the prize to take */
+      if (a && (e.lx !== a.lx || e.coin !== a.coin)) bad.push('HL-DAILY ' + role + seat + ' took ' + e.lx + ' Level XP / ' + e.coin + ' coin, and ' + a.lx + ' / ' + a.coin + ' with the day\'s prize to take');
+    });
+    /* (3) nobody has it left: no piece, no claim, the fight still ends on his kill */
+    const none = fight(X, roles, { prizeLeft: false });
+    for (const [key, e] of Object.entries(read(none))) if (e.prize || e.claims) bad.push('HL-DAILY ' + key + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims with nothing left to take');
+    if (!Object.values(none.ended).every((e) => e.reason === 'boss_felled') || Object.keys(none.ended).length !== roles.length) bad.push('HL-DAILY with nothing to take the fight ended ' + JSON.stringify(none.ended));
+    /* (3a) A READ THAT NEVER SAID (an older server, the browser's own prediction): the engine rolls no prize the database has not offered */
+    for (const [key, e] of Object.entries(read(fight(X, roles, { noRead: true })))) if (e.prize || e.claims) bad.push('HL-DAILY ' + key + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims on a read that never offered the prize');
+    /* (3b) THE ROLL IS THE DAY'S, piece or no piece: a roll that lands nothing still sends the hero's claim (what is once a day is the roll) */
+    X.setRow(BOSS, { drops: [{ id: PRIZE, ch: 1e-9, band: 'rare' }] });
+    try {
+      for (const [key, e] of Object.entries(read(fight(X, roles)))) {
+        if (e.prize !== 0 || e.claims !== 1) bad.push('HL-DAILY ' + key + ' on a roll that lands nothing got ' + e.prize + ' pieces and sent ' + e.claims + ' claims (none, and one)');
+      }
+    } finally { X.restore(); }
+    /* (4) both paths: the hunt viewed (short windows) and the browser closed (one long one) hand the same heroes the same pieces */
+    const sig = (f) => JSON.stringify(Object.entries(read(f)).map(([key, e]) => [key, e.prize, e.claims]).sort());
+    for (const cut of [10000, 4 * MINUTE]) {
+      const x = fight(X, roles, { cut, prizeLeft: (role, seat) => !gone.has(seat) });
+      if (sig(x) !== sig(some)) bad.push('HL-DAILY cut at ' + cut + ' ms the prizes read ' + sig(x) + ' against ' + sig(some));
+    }
+    /* (5) THE ROLL: one draw whatever lands, the rows exclusive slices of it, nothing past the last slice */
+    const rows = [{ id: 'a', ch: 0.25, band: 'rare' }, { id: 'b', ch: 0.25, band: 'rare' }, { id: 'c', ch: 0.1, band: 'trophy' }];
+    const at = (u) => { let n = 0; const ev = X.DR.rollPrize(rows, { next: () => { n += 1; return u; }, chance: () => { n += 1; return true; }, int: () => { n += 1; return 0; } }); return [ev ? ev.id : null, n, ev ? ev.rare : null]; };
+    for (const [u, want] of [[0, 'a'], [0.2499, 'a'], [0.25, 'b'], [0.4999, 'b'], [0.5, 'c'], [0.5999, 'c'], [0.6, null], [0.9999, null]]) {
+      const [id, draws, rare] = at(u);
+      if (id !== want || draws !== 1 || (id && rare !== true)) bad.push('HL-DAILY a roll of ' + u + ' landed ' + id + ' on ' + draws + ' draws (want ' + want + ' on one)');
+    }
+    if (Math.abs(X.DR.prizeChance(rows) - 0.6) > 1e-9) bad.push('HL-DAILY the table\'s whole roll reads ' + X.DR.prizeChance(rows));
+    /* (6) EVERY HALL IN THE DATA: its boss's rows are slices of one roll, reveal rows, and Krell's is the designer's 40% over his 14 pieces */
+    for (const h of Object.values(X.BH.BOSS_HALLS)) {
+      const boss = X.M.MONSTERS[X.BH.hallBossOf(X.G.HALL_GROUNDS[h.hunt])];
+      const sum = X.DR.prizeChance(boss.drops);
+      if (!(sum > 0 && sum <= 1 + 1e-9)) bad.push('HL-DAILY the hall ' + h.id + '\'s prize rows make ' + sum + ' of one roll');
+    }
+    const krell = X.M.MONSTERS.lord_krell;
+    if (krell && (krell.drops.length !== 14 || Math.abs(X.DR.prizeChance(krell.drops) - 0.4) > 1e-9 || new Set(krell.drops.map((d) => d.ch)).size !== 1)) {
+      bad.push('HL-DAILY Krell\'s prize reads ' + krell.drops.length + ' rows making ' + X.DR.prizeChance(krell.drops) + ' (the spec: 14 pieces, each as likely, 40% together)');
+    }
     return bad;
   },
 
@@ -359,7 +451,7 @@ async function guard(root) {
     const bad = [];
     const only = (process.argv.find((a) => a.startsWith('--arm=')) || '').slice(6);
     /* an arm that throws is that arm red (a planted engine that crashes on a hall is as broken as one that pays nothing) */
-    const TAG = { row: 'HL-ROW', win: 'HL-FELLED', ends: 'HL-TIME', reset: 'HL-RESET', named: 'HL-NAMED', haste: 'HL-HASTE' };
+    const TAG = { row: 'HL-ROW', win: 'HL-FELLED', daily: 'HL-DAILY', ends: 'HL-TIME', reset: 'HL-RESET', named: 'HL-NAMED', haste: 'HL-HASTE' };
     for (const [name, arm] of Object.entries(ARMS)) {
       if (only && name !== only) continue;
       try { bad.push(...await arm(X)); } catch (e) { bad.push(TAG[name] + ' threw: ' + String(e && e.message).slice(0, 160)); }
@@ -377,6 +469,16 @@ const MUTANTS = [
   { name: 'a hall resets', edits: [['src/core/hunt/leash.js', '  if (inst.ground && inst.ground.hall) return;\n', '']], want: /HL-RESET/ },
   { name: 'only a call\'s boss ends the fight', edits: [['src/core/combat-sim.js', 'if (room && r.events.some(', 'if (call && r.events.some(']], want: /HL-FELLED|HL-PAY/ },
   { name: 'a hall pays like a call', edits: [['src/core/combat-sim.js', 'hearthfind: ctx.hearthfind, call,', 'hearthfind: ctx.hearthfind, call: call || (room && room.kind === \'hall\' ? room : null),']], want: /HL-PAY/ },
+  /* THE DAILY PRIZE (lane/c-krell-daily) */
+  { name: 'a hero who took it today rolls again', edits: [['src/core/hunt-rewards.js', '    if (m.prizeLeft !== true) return;\n', '']], want: /HL-DAILY/ },
+  { name: 'his rows roll the shared way', edits: [['src/core/combat-sim.js', "...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ", '']], want: /HL-DAILY|HL-PAY/ },
+  { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrual.js', '    ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
+  { name: 'a roll that lands nothing sends no claim', edits: [['src/core/hunt-rewards.js', '    m.hs.prizeRolled = true;\n    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);', '    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) { m.hs.prizeRolled = true; giveDrop(m, ids[i], ev, ctx, atMs); }']], want: /HL-DAILY/ },
+  { name: 'the engine rolls a prize the read never offered', edits: [['src/core/member.js', '      prizeLeft: mi.prizeLeft === true,', '      prizeLeft: mi.prizeLeft !== false,']], want: /HL-DAILY/ },
+  { name: 'every prize row rolls for itself', edits: [['src/core/drops.js', '    if (u < edge) { const band', '    if (rng.next() < Number(d.ch)) { const band']], want: /HL-DAILY/ },
+  { name: 'a hall boss may drop every kill', edits: [['tools/gen-hunt-sessions.mjs', '    if (!REVEAL_BANDS.includes(d.band)) throw', '    if (false) throw']], want: /HL-ROW took a boss with an every-kill drop/ },
+  { name: 'prize slices may make more than one roll', edits: [['tools/gen-hunt-sessions.mjs', '  if (sum > 1 + 1e-9) throw', '  if (false) throw']], want: /HL-ROW took prize slices/ },
+  { name: 'Krell\'s rows are the old shared 3.5%', edits: [['src/data/grounds/krells_hold/pack.js', "({ id, ch: 0.4 / 14, band: 'rare' }))", "({ id, ch: 0.035, band: 'rare' }))"]], want: /HL-DAILY Krell/ },
   { name: 'the limit is a call\'s only', edits: [['src/core/combat-sim.js', '  if (room) {\n', '  if (call) {\n']], want: /HL-TIME|HL-DEATH/ },
   { name: 'the record is a call\'s only', edits: [['supabase/functions/hr-accrue/accrual.js', '} else if (inp.ground.hall && Number.isInteger(summary.unitIdEver)) {', '} else if (false) {']], want: /HL-RECORD/ },
   { name: 'the hasted spell waits its whole cooldown', edits: [['src/core/hunt/boss-phases.js', '  return hastened(cdMs, h);\n}', '  return cdMs;\n}']], want: /HL-HASTE/ },
@@ -423,7 +525,7 @@ async function main() {
   }
   const bad = await guard(REPO);
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? 'boss-hall: ' + bad.length + ' FAILED' : 'boss-hall: green (the rules, the pay, the three ends, no reset, the record, the named add, the hasted flare, every cut)');
+  console.log(bad.length ? 'boss-hall: ' + bad.length + ' FAILED' : 'boss-hall: green (the rules, the pay, the daily prize, the three ends, no reset, the record, the named add, the hasted flare, every cut)');
   process.exit(bad.length ? 1 : 0);
 }
 

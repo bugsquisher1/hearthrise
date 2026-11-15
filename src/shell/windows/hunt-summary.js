@@ -32,6 +32,7 @@ import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorde
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.132';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.132';
 import { endCardAfter } from '../after-hunt.js?v=0.2.132';
+import { afterDoneWords } from '../hunt-after.js?v=0.2.132';
 import { heldStep, glyphSvg } from '../launcher.js?v=0.2.132';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.132';
 import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.132';
@@ -153,7 +154,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     /* the newest hunt, none open: what the hero did after it, from the server's pointer (../after-hunt.js) */
-    const after = cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '';
+    /* ...or what came of the choice the hunt carried (a training session it opened is a hunt of its own, so this one is said either way) */
+    const after = afterDoneWords(cs, cur.id, nameOf(cs)) || (cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '');
     text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null) + (after ? ' ' + after : ''));
     /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
     text(root.querySelector('.hsum-loss'), cur.loss || '');

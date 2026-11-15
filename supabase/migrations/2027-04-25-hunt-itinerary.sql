@@ -42,8 +42,8 @@
 --   null. In town: the job it is on, or the bench it stopped within the grace, or its remembered gathering job. In a hunt: what
 --   Enter remembered.
 -- hr_hunt_after_section(user, slot) -> jsonb   the `hunt_after` envelope section (hr_state_sections): { choice, skill,
---   grace_s, job, last: { session, open, choice, skill, done } | null (the hero's newest hunt: its frozen choice and what came
---   of it) }. Every envelope replaces it.
+--   grace_s, job, now: { session, choice, skill } | null (the running hunt's frozen choice), last: { session, choice, skill,
+--   done } | null (the newest ENDED hunt's, and what came of it) }. Every envelope replaces it.
 -- hr_hunt_resume  RESTATED WHOLE (2027-04-24-bench-resume.sql's image; §0 pins it): the SAME signature, so
 --   hr_hunt_apply_member is NOT touched. It reads the hunt's frozen choice and does what the row `runs`: job (the by-kind
 --   plan, unchanged), nothing, or training (marks the hunt `pending`: the start is NOT run inside the settle, see below).
@@ -185,15 +185,20 @@ end $fn$;
 
 create or replace function public.hr_hunt_after_section(p_user uuid, p_slot int)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
-declare v_def text; v_grace int; v_choice text; v_skill text; v_last jsonb;
+declare v_def text; v_grace int; v_choice text; v_skill text; v_now jsonb; v_last jsonb;
 begin
   select r.default_choice, r.job_grace_s into v_def, v_grace from public.hr_hunt_after_rule r where r.id;
   select ps.after_choice, ps.after_skill into v_choice, v_skill from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot;
   if not found then return null; end if;
-  select jsonb_build_object('session', s.id, 'open', s.ended_at is null, 'choice', coalesce(s.after_choice, v_def), 'skill', s.after_skill, 'done', s.after_done)
-    into v_last from public.hunt_sessions s where s.user_id = p_user and s.slot = p_slot order by s.entered_at desc, s.id limit 1;
+  -- the running hunt's own plan (hunt_sessions_one_open), and the newest ENDED hunt's with what came of it (hunt_sessions_char_recent):
+  -- apart, because a training session the plan opened is itself the hero's newest hunt
+  select jsonb_build_object('session', s.id, 'choice', coalesce(s.after_choice, v_def), 'skill', s.after_skill)
+    into v_now from public.hunt_sessions s where s.user_id = p_user and s.slot = p_slot and s.ended_at is null;
+  select jsonb_build_object('session', s.id, 'choice', coalesce(s.after_choice, v_def), 'skill', s.after_skill, 'done', s.after_done)
+    into v_last from public.hunt_sessions s where s.user_id = p_user and s.slot = p_slot and s.ended_at is not null
+   order by s.entered_at desc, s.id limit 1;
   return jsonb_build_object('choice', coalesce(v_choice, v_def), 'skill', v_skill, 'grace_s', v_grace,
-                            'job', public.hr_hunt_after_job(p_user, p_slot), 'last', v_last);
+                            'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now, 'last', v_last);
 end $fn$;
 insert into public.hr_state_sections (key, fn, note) values
   ('hunt_after', 'hr_hunt_after_section', '2027-04-25-hunt-itinerary.sql: what this hero does when a hunt ends on its own (its choice, the job that means now, its newest hunt''s frozen choice and what came of it)')

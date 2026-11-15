@@ -46,7 +46,7 @@ export function validateAfter(choices = AFTER_CHOICES, def = AFTER_DEFAULT, grac
     if (!c || typeof c.id !== 'string' || !/^[a-z_]{1,24}$/.test(c.id)) { out.push('a choice has no plain id'); continue; }
     if (ids.has(c.id)) out.push(c.id + ': listed twice');
     ids.add(c.id);
-    if (!AFTER_RUNS.includes(c.runs)) out.push(c.id + ': runs ' + c.runs + ', which the server does not know');
+    if (!AFTER_RUNS.includes(c.runs)) out.push(c.id + ': runs ' + c.runs + ', which is no entry of AFTER_RUNS');
     if ((c.runs === 'training') !== (typeof c.place === 'string')) out.push(c.id + ': a place belongs to a training choice, and only to one');
     if (c.runs === 'training' && !places.includes(c.place)) out.push(c.id + ': ' + c.place + ' is no place a hero trains');
   }

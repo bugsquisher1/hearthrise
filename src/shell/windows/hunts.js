@@ -70,6 +70,7 @@ import { hallFromGround } from '../../data/boss-halls.js?v=0.2.132';
 import { rowLines } from '../live-events-view.js?v=0.2.132';
 import { patchParts } from '../goto.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
+import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -330,6 +331,8 @@ function patchPage(det, ctx, sc, v) {
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
+  /* WHEN THE HUNT ENDS: each hero's own choice, a party member's too (the leader picks the hunt, never where a friend goes after it). */
+  patchAfter(det, ctx, { off: sc.pending, now: !!now });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
@@ -371,6 +374,12 @@ function patchPage(det, ctx, sc, v) {
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, el) {
+  /* When the hunt ends: the one select on the page (its change, not a click). */
+  if (action === 'after') {
+    const sc0 = scratchOf(ctx.character);
+    const again = () => renderHunts.patch(body, ctx);
+    return actAfter(ctx, action, ev, el, (send) => runIntent(sc0, again, send, t('away.saving'), () => '', ctx.character));
+  }
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);

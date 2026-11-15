@@ -174,6 +174,9 @@
 .ha-analyzer.is-ended .ha-ended { display: block; color: var(--gold-2); }
 .ha-main { display: flex; flex-direction: column; min-height: 0; }
 .ha-clocks { display: flex; justify-content: space-around; margin-bottom: 6px; text-align: center; }
+/* Where the hero goes after this hunt: one quiet line, gone when there is nothing to say. */
+.ha-then { margin: 0 0 6px; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); text-align: center; }
+.ha-then:empty { display: none; }
 .ha-clocks small { display: block; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .ha-clocks b { font-variant-numeric: lining-nums tabular-nums; }
 .ha-tabs, .hc-tabs { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--line-soft); }
@@ -868,6 +871,8 @@ label.st-line { cursor: pointer; }
   .ha-sec[data-sec="totals"] { border-top: 0; }
   .ha-sec[data-sec="totals"] > .ha-sec-head { display: none; }
   .ha-analyzer .ha-wait, .ha-analyzer .ha-ended { grid-area: 3 / 1 / 4 / -1; }
+  /* the plan shares that row: it is said only while the hunt runs, the other two only before and after */
+  .ha-analyzer .ha-then { grid-area: 3 / 1 / 4 / -1; margin: 0; text-align: left; }
   .ha-scroll { grid-area: 4 / 1 / 5 / -1; align-self: stretch; }
   .ha-more { grid-area: 5 / 1 / 6 / -1; margin: 4px 0 0; }
   /* The session clock is the hunt bar's own; a premium hero keeps Next level in, on one line. */

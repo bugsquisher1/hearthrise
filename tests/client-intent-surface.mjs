@@ -79,6 +79,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_training_gear_buy: 'buy one training item from the Arms Master: the slot, the item id and the price the player saw, with a fresh key; the server prices it from its catalogue, refuses quote_changed, a bound row and past the account\'s day (training-intents.js buyGear; 2027-04-23-training-gear.sql)',
   hr_training_gear_open: 'open one sealed training item of the hero\'s into its bank for that skill: the slot and the item id, with a fresh key; the server takes it from the bag or Storage (training-intents.js openGear)',
   hr_training_gear_switch: 'the hero\'s own "Use the training item" switch for one skill: the slot, a skill id and on/off, with a fresh key; no value (training-intents.js useGear)',
+  hr_hunt_after_set: 'what the hero does when a hunt ends on its own: the slot, a choice id the data lists and, for training, a skill id, with a fresh key; no price, count or job is sent and no value moves (hunt-after-intents.js setHuntAfter)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',

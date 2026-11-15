@@ -103,7 +103,7 @@ function selftest() {
   try { catalogueRows(); } catch (e) { console.error('gen-hunt-after --selftest: the tree is not clean: ' + e.message); process.exit(2); }
   const base = AFTER_CHOICES.map((c) => ({ ...c }));
   const cases = [
-    ['an unknown runs', { choices: [...base, { id: 'nap', runs: 'sleep', place: null }] }, /does not know/],
+    ['an unknown runs', { choices: [...base, { id: 'nap', runs: 'sleep', place: null }] }, /no entry of AFTER_RUNS/],
     ['a training choice with no place', { choices: base.map((c) => (c.runs === 'training' ? { ...c, place: null } : c)) }, /a place belongs/],
     ['a place nobody trains at', { choices: base.map((c) => (c.runs === 'training' ? { ...c, place: 'moon' } : c)) }, /no place a hero trains/],
     ['a choice listed twice', { choices: [...base, { ...base[0] }] }, /listed twice/],

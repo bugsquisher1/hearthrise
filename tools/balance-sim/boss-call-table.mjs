@@ -257,6 +257,12 @@ const shipRows = (L) => [
   ['Ship: good bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good' }],
   ['Ship: bad bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'bad' }],
   ['Ship: good bar, one gear tier behind, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good', gear: under(-1) }],
+  /* THE SMALL PARTY ON THE DOOR'S BAR (the QA audit's F22, 2026-11-15: a tank and a healer with every change on the hall card timed out, a third
+     hero won): the card's own bar for two, and for three with each kind of third. Labels start "Size:" so the ship rows' readers pass them by. */
+  ["Size: the door's bar, tank + healer", { level: L, party: ['tank', 'healer'], bar: 'door' }],
+  ["Size: the door's bar, tank + healer + hammer", { level: L, party: ['tank', 'healer', 'hammer'], bar: 'door' }],
+  ["Size: the door's bar, tank + healer + mage", { level: L, party: ['tank', 'healer', 'mage'], bar: 'door' }],
+  ["Size: the door's bar, tank + healer + bow", { level: L, party: ['tank', 'healer', 'bow'], bar: 'door' }],
   ...[['noChallenge', 'no Challenge on the tank'], ['noArea', 'no area slot'], ['noTarget', 'damage stays on him'], ['noPeel', 'no Challenge and damage stays on him'], ['eatsLate', 'everyone eats at 40%'], ['healsLate', 'the healer waits for 40%, no party heal']]
     .map(([bar, words]) => ['Ship: good bar but ' + words + ', tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar }]),
 ];

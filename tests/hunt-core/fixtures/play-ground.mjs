@@ -121,6 +121,8 @@ export async function loadPlay(root) {
     /* opts.prizeLeft: a keyed hall's daily prize as the server's read says it (hr_hunt_instance_read `prize_left`): true for every hero, or
        (role, seat) -> whether that hero has today's still to take. Absent: nobody has (the engine rolls only on an explicit true). */
     if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });
+    /* opts.prizeFirst: whether that roll is the hero's first on the boss, ever (`prize_first`): true for everyone, or (role, seat) -> boolean */
+    if (opts.prizeFirst !== undefined) members.forEach((m, i) => { m.prizeFirst = typeof opts.prizeFirst === 'function' ? opts.prizeFirst(roles[i], i) === true : opts.prizeFirst === true; });
     /* opts.buffs: the server's timed buff rows for every hero, player_state.buffs as the settle reads them */
     if (typeof opts.buffs === 'function') for (const m of members) m.buffs = opts.buffs(m);
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */

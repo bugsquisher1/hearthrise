@@ -95,7 +95,9 @@ function payPrize(present, ids, row, ctx, atMs) {
     if (m.prizeLeft !== true) return;
     m.prizeLeft = false;
     m.hs.prizeRolled = true;
-    const ev = rollPrize(row.drops, ctx.rng);
+    /* A HERO'S FIRST ROLL ON THIS BOSS, EVER, IS A SURE ONE (the server's word, member.prizeFirst; drops.js prizeSlices): a piece always lands */
+    const ev = rollPrize(row.drops, ctx.rng, m.prizeFirst === true);
+    m.prizeFirst = false;
     if (ev) giveDrop(m, ids[i], ev, ctx, atMs);
   });
 }

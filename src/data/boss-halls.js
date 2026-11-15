@@ -108,6 +108,13 @@ export const BOSS_HALL_WORDS = Object.freeze({
     next: 'Next: {in}',
     party: 'Party loot: {n} of {m}',
     none: 'Loot: none today, the key is still used',
+    /* A HERO'S FIRST WIN ALWAYS PAYS A PIECE (2027-04-25-boss-daily.sql `first`): said while it is still ahead of this hero */
+    first: 'First win: one piece, guaranteed',
+    /* THE PRIZE TABLE, the numbers the server rolls (src/core/drops.js prizeSlices over the boss's own rows): `table` opens it, {n} its
+       pieces; `row` one piece and its share of a roll; `rowFirst` the same while this hero's first win is ahead, both numbers */
+    table: 'Loot table: {n} pieces, one roll a day',
+    row: '{item}: {pct}%',
+    rowFirst: '{item}: {pct}%, first win {first}%',
   }),
   warnTitle: 'Fight {boss}?',
   warn: Object.freeze([

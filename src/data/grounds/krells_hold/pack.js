@@ -243,7 +243,10 @@ export default definePack({
        loses most when it is taken away (Krell's row). */
     storeFloor: 'salted_lobster',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
-      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank and a healer'] },
+      /* THE PARTY LINES (the QA audit's F22, 2026-11-15; boss-call-table.mjs --hall krells_hold, the "Size:" rows, 40 tries a row on this bar):
+         a tank and a healer alone run out of the ten minutes under Level 88 (Level 85: 0 wins, 33 of 40 on time; 88: 78%; 98: 88%), and a
+         third hero wins (85: 65 to 90% by who it is; 88: 85 to 90%; 98: 90 to 95%). So the card asks for three, and says when two is enough. */
+      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and a third hero', 'Two heroes: Level 88 or higher'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
       /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals
@@ -283,9 +286,12 @@ export default definePack({
            the Tollgate 3% and the Banded Legguards 3% (special-attributes.js `source.pm`, read from there), and 54% nothing. A hero who
            kills him every day sees about 2.8 standard pieces a week and a given one about every 35 days, each unique about every 33 days
            and one of the two about every 17; trade shortens it. A hero who took it today can still fight: the kill's XP and coin are
-           everyone's, every time. The 0.035 a row below was the shared roll before the daily prize. */
+           everyone's, every time. The 0.035 a row below was the shared roll before the daily prize.
+           A HERO'S FIRST WIN ALWAYS PAYS A PIECE (the QA audit's F21, 2026-11-15: "I beat the last boss and got 174 gold"): the rows marked
+           `first` (the 14 standard pieces) share the empty 54% of a hero's first roll ever, 94% / 14 a row (about 6.7%), and the two unique
+           pieces keep their 3% (drops.js prizeSlices; the server says which roll is the first, player_boss_loot_day.first). */
         drops: [...['dawn_sword', 'dawn_warhammer', 'duskwood_bow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex', 'dawn_hatchets', 'duskwood_crossbow',
-          'dawn_platebody', 'dawnhide_body', 'duskweave_body', 'dawn_helm', 'dawnhide_helmet', 'duskweave_helmet'].map((id) => ({ id, ch: 0.4 / 14, band: 'rare' })),
+          'dawn_platebody', 'dawnhide_body', 'duskweave_body', 'dawn_helm', 'dawnhide_helmet', 'duskweave_helmet'].map((id) => ({ id, ch: 0.4 / 14, band: 'rare', first: true })),
           ...UNIQUES.map((id) => ({ id, ch: SPECIAL_SAMPLE[id].source.pm / 1000, band: 'rare' }))],
         /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
            the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row

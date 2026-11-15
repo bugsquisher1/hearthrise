@@ -485,7 +485,7 @@ const ARMS = {
         sections: await q(db, `select key, fn, note from public.hr_state_sections where key = 'boss_halls'`) });
       const before = await read();
       for (const f of files) {
-        try { await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8')); } catch (e) { bad.push('HD-AGAIN ' + f + ' refused a second apply: ' + String(e.message).split('\n')[0].slice(0, 200)); return bad; }
+        try { await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8')); } catch (e) { bad.push('HD-AGAIN ' + f + ' refused a second apply: ' + String(e.message).split('\n')[0].slice(0, 400)); return bad; }
       }
       const after = await read();
       for (const k of Object.keys(before)) if (JSON.stringify(after[k]) !== JSON.stringify(before[k])) bad.push('HD-AGAIN a second apply of ' + files.join(' + ') + ' moved ' + k + (k === 'inv' ? ': ' + Object.keys(before.inv).filter((c) => JSON.stringify(before.inv[c]) !== JSON.stringify(after.inv[c])).join() : ''));

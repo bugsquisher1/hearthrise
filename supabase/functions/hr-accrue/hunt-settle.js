@@ -644,6 +644,8 @@ async function memberInput(exec, m, inst) {
        server's own day table holds no row of this hero's for today on the hall's boss. A read without it (an older server, any other
        ground) is no roll: the engine never rolls a prize the database has not said is there to take. */
     prizeLeft: m.prize_left === true,
+    /* ...and whether that roll is this hero's first on the boss, ever (hr_boss_prize_first, `prize_first`): the engine makes it a sure one */
+    prizeFirst: m.prize_first === true,
   };
 }
 

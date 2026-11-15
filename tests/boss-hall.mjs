@@ -93,6 +93,8 @@ function fight(X, roles, o = {}) {
     secret: o.secret || '-4611686018427387904', leaveTogether: o.box !== false,
     /* the day's prize as the server's read says it: everyone's still to take, unless the arm says who has taken it (o.prizeLeft) */
     ...(o.noRead ? {} : { prizeLeft: o.prizeLeft === undefined ? true : o.prizeLeft }),
+    /* ...and whether that roll is the hero's first on the boss, ever (the server's `prize_first`); absent, it is not */
+    ...(o.prizeFirst === undefined ? {} : { prizeFirst: o.prizeFirst }),
     equipment: o.equipment || ((role) => (role === 'tank' ? SHIELDED : role === 'mage' ? { weapon: 'oak_wand' } : role === 'healer' ? { weapon: 'oak_staff' } : (o.kit || STRONG.kit))),
     ...(o.bar ? { bar: o.bar } : {}), onWindow: (w) => windows.push(w) });
   const members = windows.flatMap((w) => w.members);
@@ -306,6 +308,21 @@ const ARMS = {
         if (e.prize !== 0 || e.claims !== 1) bad.push('HL-DAILY ' + key + ' on a roll that lands nothing got ' + e.prize + ' pieces and sent ' + e.claims + ' claims (none, and one)');
       }
     } finally { X.restore(); }
+    /* (3c) A HERO'S FIRST WIN ALWAYS PAYS A PIECE (the QA audit's F21: "I beat the last boss and got 174 gold"): on a table whose `first` row is
+       one roll in a hundred, every hero the server calls first takes a piece and sends one claim, a hero it does not call first rolls the
+       plain odds (seat 1 here: nothing), and both paths agree. A read that never said first is no first. */
+    X.setRow(BOSS, { drops: [{ id: PRIZE, ch: 0.01, band: 'rare', first: true }] });
+    try {
+      const firsts = (o) => read(fight(X, roles, { prizeFirst: (role, seat) => seat !== 1, ...o }));
+      for (const cut of [undefined, 10000, 4 * MINUTE]) {
+        for (const [key, e] of Object.entries(firsts(cut ? { cut } : {}))) {
+          const seat = Number(key.slice(-1)), want = seat === 1 ? 0 : 1;
+          if (e.prize !== want || e.claims !== 1) bad.push('HL-DAILY first win' + (cut ? ' cut at ' + cut + ' ms' : '') + ': ' + key + (want ? ' on its first roll' : ' on a later roll') + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims (want ' + want + ' and one)');
+        }
+      }
+      for (const [key, e] of Object.entries(read(fight(X, roles)))) if (e.prize !== 0) bad.push('HL-DAILY ' + key + ' took a sure piece on a read that never said first');
+      for (const [key, e] of Object.entries(read(fight(X, roles, { prizeFirst: true, prizeLeft: false })))) if (e.prize || e.claims) bad.push('HL-DAILY ' + key + ' took a first piece with nothing left to take today');
+    } finally { X.restore(); }
     /* (4) both paths: the hunt viewed (short windows) and the browser closed (one long one) hand the same heroes the same pieces */
     const sig = (f) => JSON.stringify(Object.entries(read(f)).map(([key, e]) => [key, e.prize, e.claims]).sort());
     for (const cut of [10000, 4 * MINUTE]) {
@@ -320,6 +337,17 @@ const ARMS = {
       if (id !== want || draws !== 1 || (id && rare !== true)) bad.push('HL-DAILY a roll of ' + u + ' landed ' + id + ' on ' + draws + ' draws (want ' + want + ' on one)');
     }
     if (Math.abs(X.DR.prizeChance(rows) - 0.6) > 1e-9) bad.push('HL-DAILY the table\'s whole roll reads ' + X.DR.prizeChance(rows));
+    /* (5b) THE SURE ROLL (drops.js prizeSlices): the `first` rows share the roll's empty part by their own slices, a row not marked keeps its
+       odds, the whole roll is taken, still one draw; a table with no `first` row, or a roll that is not the first, is the plain roll */
+    const srows = [{ id: 'a', ch: 0.3, band: 'rare', first: true }, { id: 'b', ch: 0.1, band: 'rare', first: true }, { id: 'c', ch: 0.1, band: 'trophy' }];
+    const near = (x, y) => Math.abs(x - y) < 1e-9;
+    const sl = X.DR.prizeSlices(srows, true), pl = X.DR.prizeSlices(srows, false);
+    if (!near(sl[0].ch, 0.3 + 0.5 * 0.75) || !near(sl[1].ch, 0.1 + 0.5 * 0.25) || !near(sl[2].ch, 0.1) || !near(sl.reduce((t, d) => t + d.ch, 0), 1)) bad.push('HL-DAILY the sure roll\'s slices read ' + JSON.stringify(sl));
+    if (pl.map((d) => d.ch).join() !== '0.3,0.1,0.1' || X.DR.prizeSlices(rows, true).map((d) => d.ch).join() !== '0.25,0.25,0.1') bad.push('HL-DAILY a plain roll, or a table with no first row, moved its slices: ' + JSON.stringify(pl));
+    const sat = (u, first) => { let n = 0; const ev = X.DR.rollPrize(srows, { next: () => { n += 1; return u; } }, first); return [ev ? ev.id : null, n].join(); };
+    for (const [u, first, want] of [[0, true, 'a,1'], [0.6749, true, 'a,1'], [0.6751, true, 'b,1'], [0.8999, true, 'b,1'], [0.9001, true, 'c,1'], [0.9999999999, true, 'c,1'], [0.6, false, ',1'], [0.45, false, 'c,1'], [0.6, undefined, ',1']]) {
+      if (sat(u, first) !== want) bad.push('HL-DAILY a ' + (first ? 'first' : 'plain') + ' roll of ' + u + ' landed ' + sat(u, first) + ' (want ' + want + ')');
+    }
     /* (6) EVERY HALL IN THE DATA: its boss's rows are slices of one roll, reveal rows, and Krell's is the designer's 40% over his 14 pieces */
     for (const h of Object.values(X.BH.BOSS_HALLS)) {
       const boss = X.M.MONSTERS[X.BH.hallBossOf(X.G.HALL_GROUNDS[h.hunt])];
@@ -344,6 +372,14 @@ const ARMS = {
       for (const [u, want] of [[0, std[0] && std[0].id], [0.3999, std[13] && std[13].id], [0.4001, 'krells_tollgate'], [0.4299, 'krells_tollgate'], [0.4301, 'banded_legguards'], [0.4599, 'banded_legguards'], [0.4601, null], [0.9999, null]]) {
         if (lands(u) !== want) bad.push('HL-DAILY a roll of ' + u + ' on Krell\'s real rows lands ' + lands(u) + ' (want ' + want + ')');
       }
+      /* HIS FIRST-WIN ROLL: the 14 standard pieces share the empty 54%, 94% between them, and each unique piece keeps its 3% */
+      const fs = X.DR.prizeSlices(krell.drops, true);
+      const fstd = fs.filter((d) => !UNIQUE.includes(d.id)), funi = fs.filter((d) => UNIQUE.includes(d.id));
+      if (Math.abs(fs.reduce((t, d) => t + d.ch, 0) - 1) > 1e-9 || fstd.some((d) => Math.abs(d.ch - 0.94 / 14) > 1e-9) || funi.some((d) => Math.abs(d.ch - 0.03) > 1e-9)) {
+        bad.push('HL-DAILY Krell\'s first-win roll reads ' + JSON.stringify(fs.map((d) => [d.id, Math.round(d.ch * 10000) / 10000])) + ' (14 pieces at 94% / 14, the two unique at 3%, nothing empty)');
+      }
+      for (const u of [0, 0.5, 0.9399, 0.9401, 0.9701, 0.999999]) if (!X.DR.rollPrize(krell.drops, { next: () => u }, true)) bad.push('HL-DAILY a first roll of ' + u + ' on Krell\'s real rows lands nothing');
+      if ((X.DR.rollPrize(krell.drops, { next: () => 0.9401 }, true) || {}).id !== 'krells_tollgate' || (X.DR.rollPrize(krell.drops, { next: () => 0.9701 }, true) || {}).id !== 'banded_legguards') bad.push('HL-DAILY on a first roll the unique pieces left their 3% slices');
       /* each piece is a real item a hero can wear at 88 and trade, and every prize row is one */
       for (const d of krell.drops) if (!X.I.ITEMS[d.id]) bad.push('HL-DAILY Krell\'s prize row ' + d.id + ' is not an item');
       for (const id of UNIQUE) {
@@ -498,12 +534,18 @@ const MUTANTS = [
   { name: 'a hero who took it today rolls again', edits: [['src/core/hunt-rewards.js', '    if (m.prizeLeft !== true) return;\n', '']], want: /HL-DAILY/ },
   { name: 'his rows roll the shared way', edits: [['src/core/combat-sim.js', "...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ", '']], want: /HL-DAILY|HL-PAY/ },
   { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrual.js', '              ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
-  { name: 'a roll that lands nothing sends no claim', edits: [['src/core/hunt-rewards.js', '    m.hs.prizeRolled = true;\n    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);', '    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) { m.hs.prizeRolled = true; giveDrop(m, ids[i], ev, ctx, atMs); }']], want: /HL-DAILY/ },
+  { name: 'a roll that lands nothing sends no claim', edits: [['src/core/hunt-rewards.js', '    m.hs.prizeRolled = true;\n', ''], ['src/core/hunt-rewards.js', '    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);', '    if (ev) { m.hs.prizeRolled = true; giveDrop(m, ids[i], ev, ctx, atMs); }']], want: /HL-DAILY/ },
   { name: 'the engine rolls a prize the read never offered', edits: [['src/core/member.js', '      prizeLeft: mi.prizeLeft === true,', '      prizeLeft: mi.prizeLeft !== false,']], want: /HL-DAILY/ },
   { name: 'Krell\'s unique pieces are off his prize roll', edits: [['src/data/grounds/krells_hold/pack.js', "          ...UNIQUES.map((id) => ({ id, ch: SPECIAL_SAMPLE[id].source.pm / 1000, band: 'rare' }))],", '          ],']], want: /HL-DAILY Krell's unique pieces read/ },
   { name: 'Krell\'s unique pieces roll at 30% each', edits: [['src/data/grounds/krells_hold/pack.js', 'ch: SPECIAL_SAMPLE[id].source.pm / 1000,', 'ch: SPECIAL_SAMPLE[id].source.pm / 100,']], want: /HL-DAILY Krell's unique pieces read|HL-ROW|prize slices/ },
   { name: 'a unique piece takes a standard piece\'s share (the 14 make 34%)', edits: [['src/data/grounds/krells_hold/pack.js', ".map((id) => ({ id, ch: 0.4 / 14, band: 'rare' })),", ".map((id) => ({ id, ch: 0.34 / 14, band: 'rare' })),"]], want: /HL-DAILY Krell's standard prize reads/ },
-  { name: 'every prize row rolls for itself', edits: [['src/core/drops.js', '    if (u < edge) { const band', '    if (rng.next() < Number(d.ch)) { const band']], want: /HL-DAILY/ },
+  { name: 'a first win rolls the plain odds (the audit\'s 174 gold)', edits: [['src/core/hunt-rewards.js', 'const ev = rollPrize(row.drops, ctx.rng, m.prizeFirst === true);', 'const ev = rollPrize(row.drops, ctx.rng, false);']], want: /HL-DAILY first win/ },
+  { name: 'every roll is a sure one', edits: [['src/core/hunt-rewards.js', 'const ev = rollPrize(row.drops, ctx.rng, m.prizeFirst === true);', 'const ev = rollPrize(row.drops, ctx.rng, true);']], want: /HL-DAILY/ },
+  { name: 'the engine calls a roll first that the read never did', edits: [['src/core/member.js', '      prizeFirst: mi.prizeFirst === true,', '      prizeFirst: mi.prizeFirst !== false,']], want: /HL-DAILY .* took a sure piece on a read that never said first/ },
+  { name: 'the sure roll lifts the unique pieces too', edits: [['src/core/drops.js', "ch: d.sure && empty ? d.ch + (empty * d.ch) / sure : d.ch }));", "ch: empty ? d.ch + (empty * d.ch) / sum : d.ch }));"]], want: /HL-DAILY/ },
+  { name: 'the sure roll can land nothing', edits: [['src/core/drops.js', "  const empty = first === true && sure > 0 ? Math.max(0, 1 - sum) : 0;", "  const empty = 0;"], ['src/core/drops.js', "  if (first === true) for (let i = list.length - 1; i >= 0; i--) if (list[i] && list[i].first === true) return hit(list[i]);\n", '']], want: /HL-DAILY/ },
+  { name: 'Krell\'s standard pieces are not marked for the first win', edits: [['src/data/grounds/krells_hold/pack.js', "ch: 0.4 / 14, band: 'rare', first: true })),", "ch: 0.4 / 14, band: 'rare' })),"]], want: /HL-DAILY Krell's first-win roll reads/ },
+  { name: 'every prize row rolls for itself', edits: [['src/core/drops.js', '    if (u < edge) return hit(list[i]);', '    if (rng.next() < Number(list[i].ch)) return hit(list[i]);']], want: /HL-DAILY/ },
   { name: 'a hall boss may drop every kill', edits: [['tools/gen-hunt-sessions.mjs', '    if (!REVEAL_BANDS.includes(d.band)) throw', '    if (false) throw']], want: /HL-ROW took a boss with an every-kill drop/ },
   { name: 'prize slices may make more than one roll', edits: [['tools/gen-hunt-sessions.mjs', '  if (sum > 1 + 1e-9) throw', '  if (false) throw']], want: /HL-ROW took prize slices/ },
   { name: 'Krell\'s rows are the old shared 3.5%', edits: [['src/data/grounds/krells_hold/pack.js', "({ id, ch: 0.4 / 14, band: 'rare' }))", "({ id, ch: 0.035, band: 'rare' }))"]], want: /HL-DAILY Krell/ },

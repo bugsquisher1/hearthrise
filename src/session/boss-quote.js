@@ -36,7 +36,7 @@ export function hallStateOf(cs, hall) {
   const at = typeof s.next_at === 'string' ? Date.parse(s.next_at) : NaN;
   const whole = (v) => (Number.isInteger(v) && v >= 0 && v <= 8 ? v : null);
   const k = s.key && typeof s.key === 'object' ? s.key : null;
-  return { taken: s.taken, nextAtMs: s.taken && Number.isFinite(at) ? at : null,
+  return { taken: s.taken, first: s.first === true, nextAtMs: s.taken && Number.isFinite(at) ? at : null,
     key: k ? { seat: whole(k.seat), own: k.own === true, name: typeof k.name === 'string' && k.name.trim() ? k.name.trim().slice(0, 40) : null } : null,
     seats: whole(s.seats), left: whole(s.left) };
 }

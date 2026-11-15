@@ -24,6 +24,14 @@
 -- prize: hr_hunt_kill_bounds.drops of that boss, the rows the engine rolls (tools/gen-hunt-sessions.mjs hallRows REFUSES a hall whose boss
 -- drops anything that is not a prize slice, so the two cannot drift; tests/boss-hall.mjs HL-GEN). An every-kill drop stands on an add.
 --
+-- ── A HERO'S FIRST WIN ALWAYS PAYS A PIECE (lane/c-krell-uniques, 2026-11-15; the QA audit's F21: "I beat the last boss and got 174 gold") ──
+-- The first prize roll a hero ever makes on a boss is a SURE one: the engine gives the roll's empty part to the rows the data marks `first`
+-- (his standard pieces; src/core/drops.js rollPrize), so a piece always lands, and every other row keeps its own odds. WHICH roll is the first
+-- is the SERVER's: player_boss_loot_day.first is true on the one row a hero's first roll stamped, and that row is never pruned.
+-- hr_boss_prize_first(p_user, p_slot, p_hunt) -> boolean (internal; NULL off a hall) says no such row exists yet; hr_hunt_instance_read carries
+-- it as `prize_first` beside `prize_left` (the same splice), and the engine makes the sure roll only on an explicit true. The section says it
+-- as `first` (this hero's first win is still ahead), and the ledger row of a stamped claim says `first` too. Nothing here is a client's word.
+--
 -- ── THE CONTRACT ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
 -- player_boss_loot_day (user_id, slot, boss, day date, session_id, at)   NEW. PRIMARY KEY (user_id, slot, boss, day): the one-a-day rule IS
 --   the key. A row = this hero made its prize roll on that boss on that UTC day. Written ONLY by hr_boss_prize_take (inside the settle).
@@ -95,7 +103,7 @@ begin
   -- Each body this file splices is exactly the image it was written against (production's, tests/live-hash-drift.baseline.json measured
   -- 2026-11-14, equal to the replay's), or this file's own (a second apply): md5 of pg_get_functiondef with every run of whitespace one space.
   for v_r in select * from (values
-    ('public.hr_hunt_instance_read(uuid,integer)', 'd0cb8c8ec3e038ff865ce81b05242d49', '0cf815c80beee22ab3a5bc65a6d14f67'),
+    ('public.hr_hunt_instance_read(uuid,integer)', 'd0cb8c8ec3e038ff865ce81b05242d49', 'ecfc173664cd1ae05b4ef72eed8df713'),
     ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '5786ead704f7d4230d49aff8921ed288', 'b3ea0f912ba761c7930c0a5b3e852cc4')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -112,6 +120,7 @@ create table if not exists public.player_boss_loot_day (
   day        date not null,
   session_id uuid,
   at         timestamptz not null default now(),
+  first      boolean not null default false,   -- this row is the hero's FIRST roll on this boss, ever: kept for good (never pruned)
   primary key (user_id, slot, boss, day),
   constraint player_boss_loot_day_char_fk foreign key (user_id, slot) references public.player_state (user_id, slot) on delete cascade
 );
@@ -135,6 +144,19 @@ begin
 end $$;
 revoke execute on function public.hr_boss_prize_left(uuid, int, text) from public, anon, authenticated, service_role;
 
+create or replace function public.hr_boss_prize_first(p_user uuid, p_slot int, p_hunt text)
+returns boolean language plpgsql stable set search_path = public, pg_catalog as $$
+declare v_boss text;
+begin
+  -- BOSS-DAILY, THE FIRST WIN: NULL on any hunt that is no keyed hall; else whether this hero has NEVER made a prize roll on the hall's boss
+  -- (no row marked `first`: that row is kept for good), so the roll the engine is about to make is the sure one.
+  if p_hunt is null or right(p_hunt, 5) <> '_hall' then return null; end if;
+  select h.monster_id into v_boss from public.hr_boss_halls h where h.hunt_id = p_hunt;
+  if not found then return null; end if;
+  return not exists (select 1 from public.player_boss_loot_day d where d.user_id = p_user and d.slot = p_slot and d.boss = v_boss and d.first);
+end $$;
+revoke execute on function public.hr_boss_prize_first(uuid, int, text) from public, anon, authenticated, service_role;
+
 -- ── §3 THE ENGINE'S READ (hr_hunt_instance_read, one splice beside the live event's; a second apply finds the marker) ─
 do $mig$
 declare v_def text; v_old text; v_new text; v_n int;
@@ -146,6 +168,8 @@ $a$;
     v_new := v_old || $a$                 -- BOSS-DAILY (2027-04-25-boss-daily.sql): in a keyed hall, whether this hero's daily prize is still to take today
                  -- (hr_boss_prize_left: no player_boss_loot_day row of today's); null on every other hunt. The engine rolls only on true.
                  'prize_left', public.hr_boss_prize_left(h.user_id, h.slot, v_i.hunt_id),
+                 -- ...and whether that roll is this hero's FIRST on the boss, ever (hr_boss_prize_first): the engine makes it a sure one.
+                 'prize_first', public.hr_boss_prize_first(h.user_id, h.slot, v_i.hunt_id),
 $a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
     if v_n <> 1 then raise exception 'hr_hunt_instance_read: the BOSS-DAILY anchor matched % times (need 1): the body moved', v_n; end if;
@@ -159,7 +183,7 @@ returns jsonb language plpgsql set search_path = public, pg_catalog as $$
 declare
   c_keep constant int := 7;   -- days of rows kept a hero and boss (the ledger row is the permanent record)
   v_hall text; v_boss text; v_rows jsonb; v_items jsonb; v_got jsonb; v_n bigint; v_km bigint; v_day date; v_ins int;
-  v_prize jsonb := p_delta #> '{journal,meta,prize}'; v_claim boolean;
+  v_prize jsonb := p_delta #> '{journal,meta,prize}'; v_claim boolean; v_first boolean;
 begin
   -- BOSS-DAILY (2027-04-25-boss-daily.sql): a keyed hall's boss pays his drops once a day per hero. See the file's header for the contract.
   select h.hall_id, h.monster_id into v_hall, v_boss from public.hr_boss_halls h where h.hunt_id = p_hunt;
@@ -187,16 +211,18 @@ begin
     v_km := case when jsonb_typeof(p_delta #> array['journal', 'meta', 'km', v_boss]) = 'number'
                  then (p_delta #>> array['journal', 'meta', 'km', v_boss])::numeric::bigint else 0 end;
     if v_km < 1 then perform public.hr_reject('bad_prize', jsonb_build_object('why', 'no_kill', 'boss', v_boss)); end if;
-    insert into public.player_boss_loot_day (user_id, slot, boss, day, session_id) values (p_user, p_slot, v_boss, v_day, p_session)
+    -- THE FIRST ROLL EVER on this boss is marked, and its row kept for good (the hero's lock serialises its claims).
+    v_first := not exists (select 1 from public.player_boss_loot_day d where d.user_id = p_user and d.slot = p_slot and d.boss = v_boss and d.first);
+    insert into public.player_boss_loot_day (user_id, slot, boss, day, session_id, first) values (p_user, p_slot, v_boss, v_day, p_session, v_first)
       on conflict (user_id, slot, boss, day) do nothing;
     get diagnostics v_ins = row_count;
     if v_ins = 1 then
       -- ONE ROLL LANDS ONE ROW AT MOST.
       if v_n > 1 then perform public.hr_reject('value_over', jsonb_build_object('what', 'prize', 'boss', v_boss, 'units', v_n)); end if;
-      delete from public.player_boss_loot_day d where d.user_id = p_user and d.slot = p_slot and d.boss = v_boss and d.day < v_day - c_keep;
+      delete from public.player_boss_loot_day d where d.user_id = p_user and d.slot = p_slot and d.boss = v_boss and d.day < v_day - c_keep and not d.first;
       insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id)
         values (p_user, p_slot, 'hunt', 'boss_daily',
-                jsonb_build_object('reason', 'boss_daily', 'hall', v_hall, 'boss', v_boss, 'day', v_day, 'took', true, 'items', v_got), p_session);
+                jsonb_build_object('reason', 'boss_daily', 'hall', v_hall, 'boss', v_boss, 'day', v_day, 'took', true, 'first', v_first, 'items', v_got), p_session);
       return p_delta;
     end if;
     -- TODAY'S IS TAKEN: the claim did not stand, so the window's own ledger row does not say it did.
@@ -266,6 +292,8 @@ begin
     v_out := v_out || jsonb_build_object(v_h.hall_id, jsonb_build_object(
       'boss', v_h.monster_id,
       'taken', v_taken,
+      -- this hero's first win here is still ahead: its roll will be the sure one
+      'first', not exists (select 1 from public.player_boss_loot_day d where d.user_id = p_user and d.slot = p_slot and d.boss = v_h.monster_id and d.first),
       'next_at', case when v_taken then ((v_day + 1)::timestamp at time zone 'utc') end,
       'key', case when v_key is null then null
                   else jsonb_build_object('seat', v_key->'seat', 'own', v_own,
@@ -301,7 +329,7 @@ begin
     if has_table_privilege('authenticated', 'public.player_boss_loot_day', v_s) or has_table_privilege('anon', 'public.player_boss_loot_day', v_s) then
       raise exception 'boss-daily §6(a): a client role can % player_boss_loot_day', v_s; end if;
   end loop;
-  foreach v_s in array array['public.hr_boss_prize_left(uuid,integer,text)', 'public.hr_boss_prize_take(uuid,integer,uuid,uuid,text,jsonb)',
+  foreach v_s in array array['public.hr_boss_prize_left(uuid,integer,text)', 'public.hr_boss_prize_first(uuid,integer,text)', 'public.hr_boss_prize_take(uuid,integer,uuid,uuid,text,jsonb)',
                              'public.hr_boss_halls_view(uuid,integer)', 'public.hr_hunt_instance_read(uuid,integer)',
                              'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'] loop
     if has_function_privilege('authenticated', v_s, 'execute') or has_function_privilege('anon', v_s, 'execute') then
@@ -311,6 +339,10 @@ begin
     raise exception 'boss-daily §6(a): the boss_halls section is not registered'; end if;
   if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure), '''prize_left'', public.hr_boss_prize_left(') = 0 then
     raise exception 'boss-daily §6(a): the engine''s read carries no prize_left'; end if;
+  if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure), '''prize_first'', public.hr_boss_prize_first(') = 0 then
+    raise exception 'boss-daily §6(a): the engine''s read carries no prize_first'; end if;
+  if public.hr_boss_prize_first('00000000-0000-4000-8000-000000000000'::uuid, 0, 'mill_cellar') is not null then
+    raise exception 'boss-daily §6(a): a ground that is no hall has a first win'; end if;
   if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), 'p_delta := public.hr_boss_prize_take(') = 0 then
     raise exception 'boss-daily §6(a): the commit has no prize step'; end if;
   -- the prize step stands BEFORE hr_apply, so nothing is written for a prize the day refuses
@@ -350,6 +382,7 @@ begin
     if v is null or v->>'boss' is distinct from v_boss or v->>'taken' <> 'false' or jsonb_typeof(v->'next_at') <> 'null'
        or v->'key'->>'own' <> 'true' or (v->>'seats')::int <> 1 or (v->>'left')::int <> 1 then
       raise exception 'boss-daily §6(b): the section reads %', v; end if;
+    if v->>'first' is distinct from 'true' then raise exception 'boss-daily §6(b): a hero who never rolled reads first %', v->'first'; end if;
     if (v->'key') ? 'user' or v::text like '%' || c_a::text || '%' then raise exception 'boss-daily §6(b): the section carries an account id: %', v; end if;
 
     -- (c) IN THE HALL the engine's read says today's is to take.
@@ -360,6 +393,8 @@ begin
     select h.id into v_sid from public.hunt_sessions h where h.user_id = c_a and h.slot = 0 and h.ended_at is null;
     if (public.hr_hunt_instance_read(c_a, 0)->'members'->0->>'prize_left') is distinct from 'true' then
       raise exception 'boss-daily §6(c): the engine reads prize_left %', public.hr_hunt_instance_read(c_a, 0)->'members'->0->'prize_left'; end if;
+    if (public.hr_hunt_instance_read(c_a, 0)->'members'->0->>'prize_first') is distinct from 'true' then
+      raise exception 'boss-daily §6(c): a hero who never rolled reads prize_first %', public.hr_hunt_instance_read(c_a, 0)->'members'->0->'prize_first'; end if;
 
     -- (d) ★ THE REFUSALS, each whole: a claim that is no `true`, a claim with no kill of the boss beside it, a claim on a ground that is no
     --     hall, a claim carrying two pieces. None stamps a day or writes a row.
@@ -407,6 +442,11 @@ begin
     if v->>'taken' <> 'true' or (v->>'left')::int <> 0
        or (v->>'next_at')::timestamptz is distinct from ((v_today + 1)::timestamp at time zone 'utc') then
       raise exception 'boss-daily §6(f): after the claim the section reads %', v; end if;
+    -- ★ THE FIRST ROLL IS MARKED, ONCE: its row and its ledger row say first, and from here the read and the section say it is behind this hero.
+    if (select count(*) from public.player_boss_loot_day where user_id = c_a and first) <> 1
+       or (select count(*) from public.player_ledger where user_id = c_a and intent = 'boss_daily' and meta->>'took' = 'true' and meta->>'first' = 'true') <> 1
+       or (public.hr_hunt_instance_read(c_a, 0)->'members'->0->>'prize_first') is distinct from 'false' or v->>'first' is distinct from 'false' then
+      raise exception 'boss-daily §6(f): the first roll was not marked once, or is still ahead: section %, read %', v, public.hr_hunt_instance_read(c_a, 0)->'members'->0->'prize_first'; end if;
 
     -- (g) ★ ONCE A DAY: a second claim the same day stamps nothing and loses its piece (the bones stay); a claim with no piece writes nothing more.
     v_out := public.hr_boss_prize_take(c_a, 0, v_sid, (k || '00000e05')::uuid, c_room, v_c);
@@ -430,13 +470,23 @@ begin
     v_out := public.hr_boss_prize_take(c_a, 0, v_sid, (k || '00000e07')::uuid, c_room, v_c);
     if v_out is distinct from v_c or (select array_agg(day order by day) from public.player_boss_loot_day where user_id = c_a) is distinct from array[v_today - 1, v_today] then
       raise exception 'boss-daily §6(h): the next day''s claim left days %', (select array_agg(day order by day) from public.player_boss_loot_day where user_id = c_a); end if;
+    -- ★ THE SECOND DAY'S ROLL IS NO FIRST, AND THE FIRST ROW OUTLIVES THE 7 DAYS: a month on, the next claim prunes the plain old row and keeps it.
+    if (select count(*) from public.player_boss_loot_day where user_id = c_a and first) <> 1 or (select first from public.player_boss_loot_day where user_id = c_a and day = v_today)
+       or (select count(*) from public.player_ledger where user_id = c_a and intent = 'boss_daily' and meta->>'first' = 'true') <> 1 then
+      raise exception 'boss-daily §6(h): a later roll was marked first'; end if;
+    update public.player_boss_loot_day set day = v_today - 40 where user_id = c_a and first;
+    update public.player_boss_loot_day set day = v_today - 20 where user_id = c_a and day = v_today;
+    v_out := public.hr_boss_prize_take(c_a, 0, v_sid, (k || '00000e09')::uuid, c_room, v_c);
+    if (select array_agg(day order by day) from public.player_boss_loot_day where user_id = c_a) is distinct from array[v_today - 40, v_today]
+       or (public.hr_hunt_instance_read(c_a, 0)->'members'->0->>'prize_first') is distinct from 'false' then
+      raise exception 'boss-daily §6(h): a month on the days read % (the first row is kept, the plain old one pruned)', (select array_agg(day order by day) from public.player_boss_loot_day where user_id = c_a); end if;
 
     -- (i) A KEY THAT ALREADY LANDED is returned untouched (hr_apply replays it): nothing stamped, nothing journalled, nothing taken off.
     delete from public.player_boss_loot_day where user_id = c_a;
     insert into public.player_intents (user_id, intent_id, slot, intent, result, at) values (c_a, (k || '00000e08')::uuid, 0, 'accrue', '{"ok":true}'::jsonb, now());
     v_out := public.hr_boss_prize_take(c_a, 0, v_sid, (k || '00000e08')::uuid, c_room, v_c);
     if v_out is distinct from v_c or exists (select 1 from public.player_boss_loot_day where user_id = c_a)
-       or (select count(*) from public.player_ledger where user_id = c_a and intent = 'boss_daily') <> 4 then
+       or (select count(*) from public.player_ledger where user_id = c_a and intent = 'boss_daily') <> 5 then
       raise exception 'boss-daily §6(i): a landed key was judged again'; end if;
     perform public.hr_hunt_close(h.id, 'boss_felled', now(), true) from public.hunt_sessions h where h.user_id = c_a and h.ended_at is null;
     raise exception using errcode = 'HRL24', message = 'boss-daily §6 complete - rolling back';

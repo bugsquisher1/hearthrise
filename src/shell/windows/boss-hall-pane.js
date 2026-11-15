@@ -24,6 +24,7 @@ import { storeFoodUnder } from '../hunt-go.js?v=0.2.132';
 import { storeName } from '../bar-draft.js?v=0.2.132';
 import { openHall } from '../../session/boss-intents.js?v=0.2.132';
 import { itemName } from '../widgets/bits.js?v=0.2.132';
+import { prizeSlices } from '../../core/drops.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { hall: null, warned: false }; SCRATCH.set(cs, s); } return s; };
@@ -57,10 +58,27 @@ function lootLines(cs, st) {
   const W = BOSS_HALL_WORDS.loot;
   /** @type {string[]} */
   const out = [st.taken ? W.taken : W.left];
+  /* the first win is still ahead of this hero (the server's word): its roll always lands a piece */
+  if (st.first) out.push(W.first);
   const now = serverNowOf(cs);
   if (st.taken && st.nextAtMs !== null && Number.isFinite(now) && st.nextAtMs > now) out.push(W.next.replace('{in}', hoursWords(st.nextAtMs - now)));
   if (st.seats !== null && st.seats > 1 && st.left !== null) out.push(W.party.replace('{n}', String(st.left)).replace('{m}', String(st.seats)));
   return out;
+}
+
+/** A share of one roll as the page says it: "2.9", "3", "6.7" (one decimal, no trailing zero). */
+const pctWords = (ch) => String(Math.round(ch * 1000) / 10);
+/**
+ * THE PRIZE TABLE of `hall`, one label a piece, in the rows' order: the numbers the server rolls (drops.js prizeSlices over the boss's own
+ * rows, the data the engine is built from), never a number typed here. `first`: the server says this hero's first win is ahead, so each
+ * line carries that roll's number too.
+ */
+export function prizeLines(hall, first) {
+  const room = hall ? roomOfHunt(hall.hunt) : null;
+  const rowsOf = room && MONSTERS[room.monster] ? MONSTERS[room.monster].drops || [] : [];
+  const every = prizeSlices(rowsOf, false), sure = prizeSlices(rowsOf, true);
+  const W = BOSS_HALL_WORDS.loot;
+  return every.map((d, i) => (first && sure[i].ch !== d.ch ? W.rowFirst.replace('{first}', pctWords(sure[i].ch)) : W.row).replace('{item}', itemName(d.id)).replace('{pct}', pctWords(d.ch)));
 }
 
 export function hallHtml() {
@@ -76,6 +94,8 @@ export function hallHtml() {
     + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div>'
     /* the day's prize, label lines under the door (the door itself stays where a 423 px phone shows it whole) */
     + '<ul class="hw-before hw-hall-loot" aria-label="' + BOSS_HALL_WORDS.loot.label + '"></ul>'
+    /* his prize table, folded: sixteen lines would push the tuning tips off a phone */
+    + '<details class="hw-hall-table"><summary class="hh-tool"></summary><ul class="hw-before hw-hall-drops"></ul></details>'
     + '<p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul></section>';
 }
 
@@ -99,6 +119,10 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
   const said = (v.now ? W.hunting : member ? (keys > 0 ? W.memberKey : held || W.refused.hall_leader) : keys === 0 ? held || W.have.none : keys === 1 ? W.have.one : W.have.other).replace('{n}', String(keys));
   text(box.querySelector('.hw-call-line'), hallWords(said, hall));
   rows(box.querySelector('.hw-hall-loot'), lootLines(cs, st), { key: (x) => x, build: () => element(box.ownerDocument, '<li class="hw-before-line"></li>'), patch: (li, x) => text(li, x) });
+  const table = prizeLines(hall, !!st && st.first);
+  prop(box.querySelector('.hw-hall-table'), 'hidden', !table.length);
+  text(box.querySelector('.hw-hall-table summary'), W.loot.table.replace('{n}', String(table.length)));
+  rows(box.querySelector('.hw-hall-drops'), table, { key: (x) => x, build: () => element(box.ownerDocument, '<li class="hw-before-line"></li>'), patch: (li, x) => text(li, x) });
   /* WHAT WINS HERE (the hall's measured food and bar line, boss-halls.js food and words.bars): said before the key is spent, red when this bar's food is under it */
   const advice = hall.storeFloor ? hallWords(W.food, hall).replace('{food}', storeName(hall.storeFloor)) + (hall.bars ? ' ' + W.tips : '') : hall.bars ? W.tips : '';
   const bars = box.querySelector('.hw-hall-bars');

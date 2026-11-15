@@ -19,6 +19,9 @@ export const COACH_TEXT = Object.freeze({
   rats_count: 'The tally on screen counts the {label} your hero kills. At {count}, Tamsin pays you in town.',
   tamsin_owes_title: 'Tamsin owes you',
   tamsin_owes: 'That\'s {count} rats. Leave the hunt and she pays you in town.',
+  /* a later task's count is done, the server's row says so ({count} {label}: "200 Gray Wolves"): while hunting, then back in town */
+  count_done: 'That\'s your {count} {label}. Leave the hunt and Tamsin pays you {gold} gp in town.',
+  count_done_town: 'That\'s your {count} {label}. Open Tamsin\'s tally and she pays you {gold} gp.',
   back_down_title: 'Back down for Level {level}',
   back_down: 'Send your hero back to the {ground}. Level {level} is about ten minutes away, and you don\'t have to watch. Close the game. Your hero keeps hunting.',
   back_down_in: 'Press the {ground}, then Enter. You don\'t have to watch. Close the game and your hero keeps hunting.',

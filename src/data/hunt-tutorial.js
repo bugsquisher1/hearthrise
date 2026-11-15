@@ -144,6 +144,10 @@ const step = (id, title, text, anchor, done, more) => Object.freeze({ id, title,
 const WOLVES = tallyTask('thicket_gray_wolves');
 /* The first place a new hero picks an armor weight: one sentence a weight (Tyler 2026-10-25, src/data/armour-weights.js). */
 const TAMSIN_WAY = 'Tamsin pays for kills. Open her tally and Take ' + WOLVES.count + ' ' + WOLVES.label + '. She pays in armor, so pick the armor weight that suits your style.';
+/* Her wolves' card while the count runs (the row's text), and the numbers its done line names (SAY.tamsin_pays). */
+const WOLVES_WAIT = 'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down. The tally on screen keeps count. When you get back to town, Tamsin pays you '
+  + WOLVES.gold + ' gp and a piece of armor you don\'t own yet, or materials if you already own them all.';
+const WOLVES_WORDS = Object.freeze({ label: WOLVES.label, count: WOLVES.count, gold: WOLVES.gold });
 const CELLAR = 'mill_cellar', THICKET = 'meadowbrook_thicket';
 /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes, played: the quit minute was 9, with nothing asked for five minutes and only junk in the bag).
    Her Cellar task is taken before the first hunt, counts inside it, and pays a helmet the hero wears at once. Its count and label are her row's. */
@@ -416,9 +420,7 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* ── D / E. The second hunt and the second return ─────────────────── */
   /* Done when Tamsin pays, or once the hero hunts PAST the Thicket (#58, Andy: the wolves still held, out of the
      Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
-  step('tamsin_pays', 'Paid in town',
-    'Hunt the Thicket until your ' + WOLVES.count + ' ' + WOLVES.label + ' are down. The tally on screen keeps count. When you get back to town, Tamsin pays you '
-      + WOLVES.gold + ' gp and a piece of armor you don\'t own yet, or materials if you already own them all.',
+  step('tamsin_pays', 'Paid in town', WOLVES_WAIT,
     'world', { kind: 'any', of: [{ kind: 'tally_paid', task: WOLVES.id }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
   step('go_below', 'Into the sewer, together',
     'The Sewer is a party hunt. Pick The Sewer and press Enter with party, and everyone walks in together. The Rat King holds the last room and only comes out for a party.',
@@ -850,6 +852,9 @@ const VOLLEY_TRADE = ' On free arrows at the Thicket it earns about 14% more Lev
 const SAY = Object.freeze({
   /* THE SECOND TRIP (back from Tamsin's pay): the invitation leads, and the wait is the shorter one the designer measured from Level 3. */
   earn_the_thicket: (f) => ({ text: FACTS.tally_paid_for({ task: RATS.id }, f) === true ? t('coach.keep_hunting', RATS_WORDS) : BROOK }),
+  /* THE COUNT IS THE SERVER'S (audit 2026-11-15 F3: "Hunt the Thicket until your 200 Gray Wolves are down" stood beside a tally reading 200/200): once her
+     task's row says done, the card says what is left to do. Read from each envelope's tally, like her rats' card (tamsin_owes). */
+  tamsin_pays: (f) => ({ text: FACTS.tally_counted({ task: WOLVES.id }, f) === true ? t(f.huntId ? 'coach.count_done' : 'coach.count_done_town', WOLVES_WORDS) : WOLVES_WAIT }),
   load_shot: (f) => {
     /* the bag's first stack the weapon can loose: the card names and rings it (none: the Hunts page's Ammo line says the rest) */
     const id = f.carried ? Object.keys(f.carried).find((x) => f.carried[x] > 0 && shootsItem(f.role, ITEMS[x])) : null;
@@ -919,8 +924,12 @@ const SAY = Object.freeze({
     const left = wasteAt(heal, to, max);
     const how = to === pct ? 'set it with − or +' : 'press − until it reads ' + to + '% (' + (left > 0 ? 'only ' + left + ' is wasted there, and you still eat before a big hit'
       : 'nothing is wasted there') + ')';
+    /* ONE CARD, BOTH SLOTS (audit 2026-11-15 F4: the kit's store food sits at the same HP, so lowering only the own slot made the store eat
+       first and raised "Your own food first" at once, a second card over the same few HP): a store food slot left above the new HP is named here. */
+    const j = to < pct ? f.slots.findIndex((x) => on(x) && isStore(x) && BASIC_INDEX[x.id].kind === 'heal' && hpBelow(x) !== null && hpBelow(x) > to) : -1;
+    const too = j >= 0 ? ' Then set ' + slotWords([j]) + ' (' + name(f.slots[j].id) + ') to ' + to + '% too, so the store\'s food never eats before your own.' : '';
     return { text: head + uc(anA(food)) + ' heals ' + heal + ', and at ' + pct + '% of your ' + max + ' HP you\'re missing ' + missing + ', so ' + lost
-      + ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.', barSlot: i, goal: to < pct ? to : null };
+      + ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.' + too, barSlot: i, goal: to < pct ? to : null };
   },
   food_order: (f) => {
     const p = storeFirst(f);

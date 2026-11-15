@@ -280,6 +280,7 @@ export function mountShell(root, o) {
     }
     roomForStack();
     stackWidgets();
+    dockCoach();
     clearPlates();
     publishInset();
     roomForCoach();
@@ -307,7 +308,9 @@ export function mountShell(root, o) {
   }
 
   /* Every panel ends above the floor and the screen's plates clear what they would cover (./hud-room.js). */
-  const { roomForStack, liftMoved, clearPlates } = createHudRoom({ hud, worldHud, screenHud, layer, isPhone: () => phoneMq.matches, gap: DOCK_EDGE });
+  /* Where the camera frames the hero in a hunt: the middle of the World the docked widgets leave (insetNow), in page px. */
+  const heroAt = () => { if (!fightOn(opts)) return null; const b = shell.getBoundingClientRect(), i = insetNow(); return { x: b.left + (i.left + b.width - i.right) / 2, y: b.top + (i.top + b.height - i.bottom) / 2 }; };
+  const { roomForStack, liftMoved, clearPlates, dockCoach } = createHudRoom({ hud, worldHud, screenHud, layer, isPhone: () => phoneMq.matches, gap: DOCK_EDGE, heroAt });
   /* A widget that stacks sits under the widgets it names (./widget-stack.js). */
   const stackWidgets = createWidgetStack({ hud, worldHud, screenHud });
 
@@ -364,11 +367,13 @@ export function mountShell(root, o) {
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: rel(r, left) });
     }
-    /* THE PHONE'S COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10): the open card under the hunt bar stands
-       at the bar's right end (shell.css) and the camera frames the World beside it, as it does beside a panel. */
-    const card = phoneMq.matches && worldHud.querySelector('[data-hs-widget="hunt-topbar"] > .hs-pointer:not(.is-min)');
-    const cr = card && card.getBoundingClientRect();
-    if (cr) widgets.push({ anchor: cr.left + cr.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr', rect: rel(cr) });
+    /* THE COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10; audit 2026-11-15 F1, F13): the phone's open card stands at the hunt bar's
+       right end (shell.css), the desktop's in the left column (hud-room.js dockCoach), and the camera frames the World beside it, as it does
+       beside a panel. A phone's alert in a hunt is framed beside the same way: it stands where the hero did. */
+    const side = (r) => (r.left + r.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr');
+    const beside = [worldHud.querySelector('[data-hs-widget="hunt-topbar"]' + (phoneMq.matches ? '' : '.is-coach-docked') + ' > .hs-pointer:not(.is-min)'),
+      phoneMq.matches && fightOn(opts) ? screenHud.querySelector('[data-hs-widget="alerts"] .hw-alerts:not(.is-empty) .hw-alert-list') : null];
+    for (const el of beside) { const r = el && el.getBoundingClientRect(); if (r && r.width > 0 && r.height > 0) widgets.push({ anchor: side(r), rect: rel(r) }); }
     return hudInsetOf(widgets, { width: b.width, height: b.height });
   }
   function publishInset() {

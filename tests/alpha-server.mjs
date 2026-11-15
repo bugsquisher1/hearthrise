@@ -461,8 +461,9 @@ async function blessArm(db, { H, M }, attended) {
    2027-03-25-death-share.sql §2 restated plus 2027-04-08-member-write-once.sql §1's splice (tests/patch-chain-guard.mjs PATCH-3,
    v0.2.121). Each restatement pins its pre-image, so a plant in any earlier file trips a pin and the chain never boots: a
    memberPlant mutant is planted into the live body (plantLive), the text that runs. Shared with tests/settle-hooks.mjs.
-   2027-04-16-combat-training.sql restates it WHOLE once more (04-12's text with the TRAINING arms), so it is the last author now. */
-export const MEMBER_LAST = '2027-04-16-combat-training.sql';
+   2027-04-16-combat-training.sql restates it WHOLE once more (04-12's text with the TRAINING arms), and 2027-04-24-bench-resume.sql
+   once more after it (combat-training's text; step (7), the resume, is one call of hr_hunt_resume), so that is the last author now. */
+export const MEMBER_LAST = '2027-04-24-bench-resume.sql';
 /* A PATCH IS AN AUTHOR: hr_hunt_section_view is restated last by READ_RESTATE_LAST and then spliced in place (anchored replaces of
    pg_get_functiondef) by READ_PATCH_LAST, so its last author is a patch. (Re-aimed 2026-11-14, lane/c-target-kind: the probe was
    hr_hunt_instance_read, which 2027-04-22-target-kind.sql restates WHOLE after its two splices, so it has no patch on top any more.) */

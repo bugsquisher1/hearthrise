@@ -52,14 +52,14 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('krells_hold_hall', 'lord_krell', 1)
 on conflict (hunt_id, monster_id) do update set n = excluded.n;
 insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) values
-  ('farmhand', 72, 1265, '{"bones":1,"wheat":1,"farmhands_tag":1,"ember_boots":1,"dragonhide_boots":1,"archmage_boots":1,"ember_sword":1}'::jsonb),
-  ('gatekeeper', 166, 3477, '{"big_bones":1,"gold_bar":1,"gatekeepers_chain":1,"ember_platebody":1,"dragonhide_body":1,"archmage_body":1,"hall_key":1}'::jsonb),
-  ('grave_guard', 115, 2246, '{"big_bones":1,"grave_dust":1,"barrow_nail":1,"ember_platelegs":1,"dragonhide_pants":1,"archmage_pants":1,"ember_warhammer":1,"ember_belt":1,"dragonhide_belt":1,"archmage_belt":1}'::jsonb),
+  ('farmhand', 72, 1299, '{"bones":1,"wheat":1,"farmhands_tag":1,"ember_boots":1,"dragonhide_boots":1,"archmage_boots":1,"ember_sword":1}'::jsonb),
+  ('gatekeeper', 166, 3574, '{"big_bones":1,"gold_bar":1,"gatekeepers_chain":1,"ember_platebody":1,"dragonhide_body":1,"archmage_body":1,"hall_key":1}'::jsonb),
+  ('grave_guard', 115, 2308, '{"big_bones":1,"grave_dust":1,"barrow_nail":1,"ember_platelegs":1,"dragonhide_pants":1,"archmage_pants":1,"ember_warhammer":1,"ember_belt":1,"dragonhide_belt":1,"archmage_belt":1}'::jsonb),
   ('hall_grave_guard', 115, 2246, '{}'::jsonb),
   ('hall_hask', 166, 4132, '{}'::jsonb),
-  ('hasks_lookout', 69, 1430, '{"bones":1,"iron_bar":1,"lookouts_whistle":1,"ember_helm":1,"dragonhide_helmet":1,"archmage_helmet":1,"runewood_bow":1,"ember_gauntlets":1,"dragonhide_gloves":1,"archmage_gloves":1}'::jsonb),
+  ('hasks_lookout', 69, 1470, '{"bones":1,"iron_bar":1,"lookouts_whistle":1,"ember_helm":1,"dragonhide_helmet":1,"archmage_helmet":1,"runewood_bow":1,"ember_gauntlets":1,"dragonhide_gloves":1,"archmage_gloves":1}'::jsonb),
   ('lord_krell', 753, 48720, '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb),
-  ('pyre_priest', 99, 1803, '{"bones":1,"coal":1,"priests_cord":1,"runewood_staff":1,"runewood_wand":1,"runewood_codex":1}'::jsonb)
+  ('pyre_priest', 99, 1853, '{"bones":1,"coal":1,"priests_cord":1,"runewood_staff":1,"runewood_wand":1,"runewood_codex":1}'::jsonb)
 on conflict (monster_id) do update set gold_max = excluded.gold_max, xp_max = excluded.xp_max, drops = excluded.drops;
 insert into public.hr_hunt_roster (monster_id) values
   ('farmhand'),
@@ -137,14 +137,14 @@ begin
     or (hunt_id = 'krells_hold_hall' and monster_id = 'hall_hask' and n = 1)
     or (hunt_id = 'krells_hold_hall' and monster_id = 'lord_krell' and n = 1);
   if v_n <> 8 then raise exception 'pack krells_hold: hr_hunt_ground_spawns holds % of its 8 rows as written', v_n; end if;
-  select count(*) into v_n from public.hr_hunt_kill_bounds where (monster_id = 'farmhand' and gold_max = 72 and xp_max = 1265 and drops = '{"bones":1,"wheat":1,"farmhands_tag":1,"ember_boots":1,"dragonhide_boots":1,"archmage_boots":1,"ember_sword":1}'::jsonb)
-    or (monster_id = 'gatekeeper' and gold_max = 166 and xp_max = 3477 and drops = '{"big_bones":1,"gold_bar":1,"gatekeepers_chain":1,"ember_platebody":1,"dragonhide_body":1,"archmage_body":1,"hall_key":1}'::jsonb)
-    or (monster_id = 'grave_guard' and gold_max = 115 and xp_max = 2246 and drops = '{"big_bones":1,"grave_dust":1,"barrow_nail":1,"ember_platelegs":1,"dragonhide_pants":1,"archmage_pants":1,"ember_warhammer":1,"ember_belt":1,"dragonhide_belt":1,"archmage_belt":1}'::jsonb)
+  select count(*) into v_n from public.hr_hunt_kill_bounds where (monster_id = 'farmhand' and gold_max = 72 and xp_max = 1299 and drops = '{"bones":1,"wheat":1,"farmhands_tag":1,"ember_boots":1,"dragonhide_boots":1,"archmage_boots":1,"ember_sword":1}'::jsonb)
+    or (monster_id = 'gatekeeper' and gold_max = 166 and xp_max = 3574 and drops = '{"big_bones":1,"gold_bar":1,"gatekeepers_chain":1,"ember_platebody":1,"dragonhide_body":1,"archmage_body":1,"hall_key":1}'::jsonb)
+    or (monster_id = 'grave_guard' and gold_max = 115 and xp_max = 2308 and drops = '{"big_bones":1,"grave_dust":1,"barrow_nail":1,"ember_platelegs":1,"dragonhide_pants":1,"archmage_pants":1,"ember_warhammer":1,"ember_belt":1,"dragonhide_belt":1,"archmage_belt":1}'::jsonb)
     or (monster_id = 'hall_grave_guard' and gold_max = 115 and xp_max = 2246 and drops = '{}'::jsonb)
     or (monster_id = 'hall_hask' and gold_max = 166 and xp_max = 4132 and drops = '{}'::jsonb)
-    or (monster_id = 'hasks_lookout' and gold_max = 69 and xp_max = 1430 and drops = '{"bones":1,"iron_bar":1,"lookouts_whistle":1,"ember_helm":1,"dragonhide_helmet":1,"archmage_helmet":1,"runewood_bow":1,"ember_gauntlets":1,"dragonhide_gloves":1,"archmage_gloves":1}'::jsonb)
+    or (monster_id = 'hasks_lookout' and gold_max = 69 and xp_max = 1470 and drops = '{"bones":1,"iron_bar":1,"lookouts_whistle":1,"ember_helm":1,"dragonhide_helmet":1,"archmage_helmet":1,"runewood_bow":1,"ember_gauntlets":1,"dragonhide_gloves":1,"archmage_gloves":1}'::jsonb)
     or (monster_id = 'lord_krell' and gold_max = 753 and xp_max = 48720 and drops = '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb)
-    or (monster_id = 'pyre_priest' and gold_max = 99 and xp_max = 1803 and drops = '{"bones":1,"coal":1,"priests_cord":1,"runewood_staff":1,"runewood_wand":1,"runewood_codex":1}'::jsonb);
+    or (monster_id = 'pyre_priest' and gold_max = 99 and xp_max = 1853 and drops = '{"bones":1,"coal":1,"priests_cord":1,"runewood_staff":1,"runewood_wand":1,"runewood_codex":1}'::jsonb);
   if v_n <> 8 then raise exception 'pack krells_hold: hr_hunt_kill_bounds holds % of its 8 rows as written', v_n; end if;
   select count(*) into v_n from public.hr_hunt_roster where (monster_id = 'farmhand')
     or (monster_id = 'gatekeeper')

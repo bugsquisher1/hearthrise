@@ -38,10 +38,10 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('muster_barrows', 'muster_knight', 14)
 on conflict (hunt_id, monster_id) do update set n = excluded.n;
 insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) values
-  ('barrow_pikeman', 64, 1282, '{"bones":1,"bone_chips":1,"coffin_nail":1,"rune_boots":1,"wyvernhide_boots":1,"sorcerer_boots":1,"rune_helm":1,"wyvernhide_helmet":1,"sorcerer_helmet":1,"rune_sword":1}'::jsonb),
-  ('cairn_wight', 63, 1481, '{"grave_dust":1,"urn_shard":1,"rune_platelegs":1,"wyvernhide_pants":1,"sorcerer_pants":1,"yew_staff":1,"yew_wand":1,"yew_spellbook":1}'::jsonb),
-  ('captain_hask', 520, 13187, '{"big_bones":1,"grave_dust":1,"hasks_coin":1,"rune_belt":1,"wyvernhide_belt":1,"sorcerer_belt":1,"yew_bow":1,"yew_crossbow":1}'::jsonb),
-  ('muster_knight', 147, 3455, '{"big_bones":1,"bone_chips":1,"sergeant_spur":1,"rune_platebody":1,"wyvernhide_body":1,"sorcerer_body":1,"rune_warhammer":1,"rune_gauntlets":1,"wyvernhide_gloves":1,"sorcerer_gloves":1,"rune_hatchets":1}'::jsonb)
+  ('barrow_pikeman', 64, 1347, '{"bones":1,"bone_chips":1,"coffin_nail":1,"rune_boots":1,"wyvernhide_boots":1,"sorcerer_boots":1,"rune_helm":1,"wyvernhide_helmet":1,"sorcerer_helmet":1,"rune_sword":1}'::jsonb),
+  ('cairn_wight', 63, 1560, '{"grave_dust":1,"urn_shard":1,"rune_platelegs":1,"wyvernhide_pants":1,"sorcerer_pants":1,"yew_staff":1,"yew_wand":1,"yew_spellbook":1}'::jsonb),
+  ('captain_hask', 520, 13901, '{"big_bones":1,"grave_dust":1,"hasks_coin":1,"rune_belt":1,"wyvernhide_belt":1,"sorcerer_belt":1,"yew_bow":1,"yew_crossbow":1}'::jsonb),
+  ('muster_knight', 147, 3638, '{"big_bones":1,"bone_chips":1,"sergeant_spur":1,"rune_platebody":1,"wyvernhide_body":1,"sorcerer_body":1,"rune_warhammer":1,"rune_gauntlets":1,"wyvernhide_gloves":1,"sorcerer_gloves":1,"rune_hatchets":1}'::jsonb)
 on conflict (monster_id) do update set gold_max = excluded.gold_max, xp_max = excluded.xp_max, drops = excluded.drops;
 insert into public.hr_hunt_roster (monster_id) values
   ('barrow_pikeman'),
@@ -93,10 +93,10 @@ begin
     or (hunt_id = 'muster_barrows' and monster_id = 'captain_hask' and n = 1)
     or (hunt_id = 'muster_barrows' and monster_id = 'muster_knight' and n = 14);
   if v_n <> 4 then raise exception 'pack muster_barrows: hr_hunt_ground_spawns holds % of its 4 rows as written', v_n; end if;
-  select count(*) into v_n from public.hr_hunt_kill_bounds where (monster_id = 'barrow_pikeman' and gold_max = 64 and xp_max = 1282 and drops = '{"bones":1,"bone_chips":1,"coffin_nail":1,"rune_boots":1,"wyvernhide_boots":1,"sorcerer_boots":1,"rune_helm":1,"wyvernhide_helmet":1,"sorcerer_helmet":1,"rune_sword":1}'::jsonb)
-    or (monster_id = 'cairn_wight' and gold_max = 63 and xp_max = 1481 and drops = '{"grave_dust":1,"urn_shard":1,"rune_platelegs":1,"wyvernhide_pants":1,"sorcerer_pants":1,"yew_staff":1,"yew_wand":1,"yew_spellbook":1}'::jsonb)
-    or (monster_id = 'captain_hask' and gold_max = 520 and xp_max = 13187 and drops = '{"big_bones":1,"grave_dust":1,"hasks_coin":1,"rune_belt":1,"wyvernhide_belt":1,"sorcerer_belt":1,"yew_bow":1,"yew_crossbow":1}'::jsonb)
-    or (monster_id = 'muster_knight' and gold_max = 147 and xp_max = 3455 and drops = '{"big_bones":1,"bone_chips":1,"sergeant_spur":1,"rune_platebody":1,"wyvernhide_body":1,"sorcerer_body":1,"rune_warhammer":1,"rune_gauntlets":1,"wyvernhide_gloves":1,"sorcerer_gloves":1,"rune_hatchets":1}'::jsonb);
+  select count(*) into v_n from public.hr_hunt_kill_bounds where (monster_id = 'barrow_pikeman' and gold_max = 64 and xp_max = 1347 and drops = '{"bones":1,"bone_chips":1,"coffin_nail":1,"rune_boots":1,"wyvernhide_boots":1,"sorcerer_boots":1,"rune_helm":1,"wyvernhide_helmet":1,"sorcerer_helmet":1,"rune_sword":1}'::jsonb)
+    or (monster_id = 'cairn_wight' and gold_max = 63 and xp_max = 1560 and drops = '{"grave_dust":1,"urn_shard":1,"rune_platelegs":1,"wyvernhide_pants":1,"sorcerer_pants":1,"yew_staff":1,"yew_wand":1,"yew_spellbook":1}'::jsonb)
+    or (monster_id = 'captain_hask' and gold_max = 520 and xp_max = 13901 and drops = '{"big_bones":1,"grave_dust":1,"hasks_coin":1,"rune_belt":1,"wyvernhide_belt":1,"sorcerer_belt":1,"yew_bow":1,"yew_crossbow":1}'::jsonb)
+    or (monster_id = 'muster_knight' and gold_max = 147 and xp_max = 3638 and drops = '{"big_bones":1,"bone_chips":1,"sergeant_spur":1,"rune_platebody":1,"wyvernhide_body":1,"sorcerer_body":1,"rune_warhammer":1,"rune_gauntlets":1,"wyvernhide_gloves":1,"sorcerer_gloves":1,"rune_hatchets":1}'::jsonb);
   if v_n <> 4 then raise exception 'pack muster_barrows: hr_hunt_kill_bounds holds % of its 4 rows as written', v_n; end if;
   select count(*) into v_n from public.hr_hunt_roster where (monster_id = 'barrow_pikeman')
     or (monster_id = 'cairn_wight')

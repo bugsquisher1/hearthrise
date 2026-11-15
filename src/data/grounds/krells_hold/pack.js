@@ -91,7 +91,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
-      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1094, gp: [24, 72], formula: true },
+      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1128, gp: [24, 72], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
@@ -104,7 +104,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1266, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
+      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1306, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -116,7 +116,7 @@ export default definePack({
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
         { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
-      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1973, gp: [38, 115], formula: true },
+      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2035, gp: [38, 115], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
@@ -126,7 +126,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
         { id: 'runewood_wand', ch: 0.0035, band: 'rare' }, { id: 'runewood_codex', ch: 0.0035, band: 'rare' }],
-      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1567, gp: [33, 99], formula: true },
+      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1617, gp: [33, 99], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
@@ -137,7 +137,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
-      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3082, gp: [55, 166], formula: true },
+      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3179, gp: [55, 166], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority
@@ -185,7 +185,10 @@ export default definePack({
   /* RE-FITTED (lane/b-barrow-numbers, 2026-11-14). With the Lookout shooting, the Priest mending and the Grave Guard's slam the bodies are
      slower to kill than the plain melee rows 0.90 was fitted on: the full grade as it ships read 0.90 of the contract at 98 (the median of 8
      lone ways, 476k against 529k). The mend was then cut to a quarter (`spells`), which gives some of that back, so 0.95. */
-  xpFit: { k: 0.95, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  /* RE-FITTED FOR THE CLIMB (lane/d-open-march-balance, 2026-11-15; tests/hunt-core/forest-cave.mjs harder-pays-more, Tyler 2026-11-04
+     "harder mobs grand better loot and more exp"). A lone tank at the floor (85) levelled slower here than on the Pyre Field (583k against 615k). 0.95 -> 0.98 (and the Pyre 0.89):
+     about 3% over. The full grade's median lone way at 98 read 1.04 of the contract, so about 1.07, inside 0.90-1.10. */
+  xpFit: { k: 0.98, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape; lane/d-packs-retune, 2026-11-12). With no row a party paid the even share, and on one pack for every
      group (Tyler 2026-11-11) a four of four classes read 0.43 / 0.40 of the median lone way at the floor and middle (quick grade), a tank and Healer
      pair 0.67 / 0.66. The Ford's method: the four's 1000 x 1.20 / 0.415 = 2890 (the three-class four 2880, the two-class 2600), the pair 1000 x 1.10
@@ -195,7 +198,10 @@ export default definePack({
      1.34 / 1.26 / 1.19, the pairs 1.15-1.23 at 1655, the threes 1.22-1.40 at 2300. A four falls 11% from the floor to the top of this 25-Level
      band, wider than the 8.7% band: centred on the middle, the four 2730 (about 1.285 / 1.20 / 1.145) over 2720, the pair 1540 (about 1.07-1.15),
      the threes 2025 and 1895 (about 1.07-1.23). The floor row reads over and the top a hair under, the Pyre Field's shape: Tyler's call. */
-  partyClassXp: { 2: [990, 1540], 3: [1150, 1895, 2025], 4: [1150, 2455, 2720, 2730] },
+  /* THE FOUR AT THE MIDDLE (lane/d-open-march-balance, 2026-11-15): the full grade as the March opened read the four of four classes 1.25 at the
+     floor, 1.13 at the middle (98) and 1.15 at floor+10, under the 1.15-1.25 line where it binds (on a 25-Level band the floor is a report line,
+     grade-sheet.mjs). 2730 x 1.19 / 1.133 = 2870: about 1.19 at the middle, 1.21 at 95 and 1.31 at the floor (reported). */
+  partyClassXp: { 2: [990, 1540], 3: [1150, 1895, 2025], 4: [1150, 2455, 2720, 2870] },
   /* DEADLY BRINGS SIX, not the table's eight (the Pyre Field's row; lane/d-packs-retune, 2026-11-12): on eight a four with no Healer died 82 times in
      16 hero-hours at the floor and the four with a Healer 10 (full grade, 2 seeds x 2 h), where the sheet allows 9. Six is the least Deadly may bring
      (never under Dangerous, tests/hunt-core/hunt-tiers.mjs rows). Measured on the re-grade below. */

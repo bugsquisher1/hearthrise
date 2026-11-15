@@ -351,16 +351,22 @@ export function beforeLines(cs, o) {
 export const FOOD_WEAK_ID = 'food_weak';
 function weakFoodLine(s, hunt) {
   const g = hunt && Object.prototype.hasOwnProperty.call(BAG_GUIDE_BY_HUNT, hunt) ? BAG_GUIDE_BY_HUNT[hunt] : null;
-  const want = g && g.storeFloor ? BASIC_SUPPLIES.find((b) => b.kind === 'heal' && b.id === g.storeFloor) : null;
-  if (!want) return null;
+  const best = g && g.storeFloor ? storeFoodUnder(s, g.storeFloor) : null;
+  return best ? { id: FOOD_WEAK_ID, text: t('prep.food_weak', { food: storeName(best), want: storeName(g.storeFloor) }), short: true } : null;
+}
+
+/** The store food bar `s` (settingsOf) buys at best, when it heals less than store row `floorId`; else null (no store food, or enough).
+    A keyed hall's door reads it too (boss-hall-pane.js, `storeFloor`). Display only. */
+export function storeFoodUnder(s, floorId) {
+  const want = BASIC_SUPPLIES.find((b) => b.kind === 'heal' && b.id === floorId);
+  if (!want || !s || !Array.isArray(s.slots)) return null;
   let best = null;
   for (const sl of s.slots) {
     if (!sl || sl.empty || sl.enabled === false || sl.why === 'store_off' || !sl.action || sl.action.type !== 'consume') continue;
     const c = CONSUMABLES[sl.action.id];
     if (c && c.kind === 'food' && c.source === 'store' && (!best || c.amount > best.amount)) best = c;
   }
-  if (!best || best.amount >= want.heals) return null;
-  return { id: FOOD_WEAK_ID, text: t('prep.food_weak', { food: storeName(best.id), want: storeName(want.id) }), short: true };
+  return best && best.amount < want.heals ? best.id : null;
 }
 
 /* WHAT A DEATH WOULD COST, said before the risk is taken: the Blessings on, or the next one and its price. A heads-up, never a stop. All the server's. */

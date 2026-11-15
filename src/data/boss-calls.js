@@ -36,6 +36,9 @@ const rows = Object.values(BOSS_CALLS);
 
 /** Do a called boss's adds shield him (his monsters.js row's `phases.guardPm`, core/hunt/boss-phases.js)? The words read it, never a second flag. */
 export const isGuarded = (row) => !!(row && row.phases && Number.isInteger(row.phases.guardPm) && row.phases.guardPm < 1000);
+/** Is Challenge the wrong press at this shielded boss? True unless his row says `challenge: 'keep'` (measured: it pulls his adds back and
+    loses nothing, Lord Krell in tier 6, lane/d-march-balance). Every Challenge line reads this, never isGuarded alone. */
+export const challengeOff = (row) => isGuarded(row) && row.challenge !== 'keep';
 
 /** The call whose room is hunt `huntId`, or null. */
 export function callOfHunt(huntId) { return rows.find((c) => c.hunt === huntId) || null; }
@@ -86,6 +89,9 @@ export const BOSS_CALL_WORDS = Object.freeze({
       /* The enrage of a boss whose adds shield him (isGuarded): Challenge is still the wrong press, and what he hits harder is the tank
          (Krell's Hall, March play-through 2026-11-14: the line talked about eating and never said Challenge). */
       enrageGuarded: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better armor on your tank, eating earlier and a healer who heals sooner all help. Keep Challenge off your tank\'s bar, so his adds don\'t pile on too.',
+      /* A shielded boss whose row keeps Challenge (challengeOff false: Lord Krell in tier 6, lane/d-march-balance, measured on and off). */
+      guardedKeep: 'His adds shield him until they fall. Keep Challenge on your tank\'s bar to pull them back, and kill them first with an area slot or Target on Lowest HP.',
+      enrageGuardedKeep: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better food, eating earlier and a healer who heals sooner all help.',
     }),
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */

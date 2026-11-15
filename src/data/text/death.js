@@ -19,6 +19,8 @@ export const DEATH_TEXT = Object.freeze({
   /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords). A boss room (a call or a hall) is one pull, so it never says to pull less. */
   why_in_range: 'Better armor, food eaten sooner or a smaller pull would help.',
   why_in_room: 'Better armor, food eaten sooner or a healer in your party would help.',
+  /* ...for a party that had a Healer (death-popup.js hasHealer): never suggest what it already has */
+  why_in_room_healed: 'Better armor, better food eaten sooner or a healer who heals sooner would help.',
   /* {gap} Levels under the ground's floor, {levels} "Level" or "Levels". */
   why_under: 'You were {gap} {levels} under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.',
 });

@@ -8,7 +8,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js?v=0.2.131';
 import { MONSTERS } from '../data/monsters.js?v=0.2.131';
-import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.131';
+import { BOSS_CALL_WORDS, isGuarded, challengeOff } from '../data/boss-calls.js?v=0.2.131';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.131';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
@@ -51,8 +51,10 @@ export function lossLine(o) {
   const W = BOSS_CALL_WORDS.loss;
   const lead = (o.reason === 'boss_time' ? W.time : W.fell)[phase].replace('{pct}', String(Math.max(1, Math.ceil(f.boss_pm / 10))));
   /* A boss whose adds shield him has his own answer to the wave (the designer's line) and to his enrage. */
-  const guarded = isGuarded(MONSTERS[call.monster]);
-  const answer = guarded && phase === 'adds' ? W.answer.guarded : guarded && phase === 'enrage' ? W.answer.enrageGuarded : W.answer[phase];
+  const row = MONSTERS[call.monster];
+  /* where Challenge is the wrong press (boss-calls.js challengeOff) the lines say take it off; a shielded boss whose row keeps it (Krell) has his own */
+  const guarded = challengeOff(row), kept = isGuarded(row) && !guarded;
+  const answer = guarded && phase === 'adds' ? W.answer.guarded : guarded && phase === 'enrage' ? W.answer.enrageGuarded : kept && phase === 'adds' ? W.answer.guardedKeep : kept && phase === 'enrage' ? W.answer.enrageGuardedKeep : W.answer[phase];
   /* two sentences, never a colon join (copy 11-06): the facts start lower-case in the table */
   const fact = factFor(phase, o.role, fired, guarded);
   return lead + '. ' + fact.charAt(0).toUpperCase() + fact.slice(1) + '. ' + answer;

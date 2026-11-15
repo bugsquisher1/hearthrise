@@ -463,10 +463,13 @@ async function blessArm(db, { H, M }, attended) {
    memberPlant mutant is planted into the live body (plantLive), the text that runs. Shared with tests/settle-hooks.mjs.
    2027-04-16-combat-training.sql restates it WHOLE once more (04-12's text with the TRAINING arms), so it is the last author now. */
 export const MEMBER_LAST = '2027-04-16-combat-training.sql';
-/* A PATCH IS AN AUTHOR: hr_hunt_instance_read is restated last by 2027-02-27-hunt-tiers.sql and then spliced in place (anchored
-   replaces of pg_get_functiondef) by 2027-03-21-scaled-hunts.sql and READ_PATCH_LAST, so its last author is a patch. */
-const READ_RESTATE_LAST = '2027-02-27-hunt-tiers.sql';
-const READ_PATCH_LAST = '2027-03-22-live-events.sql';
+/* A PATCH IS AN AUTHOR: hr_hunt_section_view is restated last by READ_RESTATE_LAST and then spliced in place (anchored replaces of
+   pg_get_functiondef) by READ_PATCH_LAST, so its last author is a patch. (Re-aimed 2026-11-14, lane/c-target-kind: the probe was
+   hr_hunt_instance_read, which 2027-04-22-target-kind.sql restates WHOLE after its two splices, so it has no patch on top any more.) */
+const READ_RESTATE_LAST = '2026-10-27-core-bodies.sql';
+const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
+/* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it. */
+const READ_LAST = '2027-04-22-target-kind.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
@@ -519,8 +522,8 @@ const MUTANTS = [
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2027-01-19-play-cap.sql (after 2026-12-07-party-finder.sql): the mutant is planted in the body that runs. */
   /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member.
-     hr_hunt_instance_read is RESTATED last by 2027-02-02-settle-cost.sql (its §0 pins the 12-18 image): planted there. */
-  { arm: 'A-PARTY', file: '2027-02-02-settle-cost.sql', why: "a kicked member's end sends the ticked leader home",
+     hr_hunt_instance_read is RESTATED last by READ_LAST (2027-04-22-target-kind.sql, whole): planted there, in the live body. */
+  { arm: 'A-PARTY', file: READ_LAST, why: "a kicked member's end sends the ticked leader home",
     find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'A-PARTY', file: '2027-01-19-play-cap.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
@@ -635,14 +638,21 @@ async function main() {
      2026-12-23-tally-tasks.sql) must be flagged: a body's end is read from its dollar quotes, not guessed. */
   const inBody = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '      if public.hr_purse_of(v_u) < v_f then\n' }]);
   if (!inBody.some((s) => s.includes('hr_hunt_apply_instance'))) { console.error('✗ ANCHOR selftest: a plant in 12-15\'s superseded hr_hunt_apply_instance was not flagged'); process.exit(1); }
-  /* ...and a plant in a body a later file PATCHES (2027-02-02-settle-cost.sql's hr_hunt_instance_read, restated whole by
-     READ_RESTATE_LAST, then spliced in place by two later files) must be flagged, naming the LAST author: a patch is an
+  /* ...and a plant in a body a later file PATCHES (2026-10-23-hunt-world-state.sql's hr_hunt_section_view, restated whole by
+     READ_RESTATE_LAST, then spliced in place by READ_PATCH_LAST) must be flagged, naming the LAST author: a patch is an
      author. Without `patches` the last author is the restatement. */
+  const SECTION = "  v_shape public.hr_hunt_world_shape%rowtype;\n  v_wj    jsonb;\n  v_uf    jsonb;\n  v_units jsonb := '[]'::jsonb;\n";
+  const patched = staleAnchors([{ arm: 'SELFTEST', file: '2026-10-23-hunt-world-state.sql', find: SECTION }], { patches: true });
+  if (!patched.some((s) => s.endsWith(`restated last by ${READ_PATCH_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: a plant in hunt-world-state\'s patched hr_hunt_section_view was not flagged as ' + READ_PATCH_LAST + '\'s: ' + JSON.stringify(patched)); process.exit(1); }
+  const unpatched = staleAnchors([{ arm: 'SELFTEST', file: '2026-10-23-hunt-world-state.sql', find: SECTION }]);
+  if (!unpatched.some((s) => s.endsWith(`restated last by ${READ_RESTATE_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: without patches, hunt-world-state\'s hr_hunt_section_view was not named as restated by ' + READ_RESTATE_LAST + ': ' + JSON.stringify(unpatched)); process.exit(1); }
+  /* ...and the A-PARTY kick line names hr_hunt_instance_read's last author, READ_LAST, with no author after it either way. */
   const KICKED = "                 'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)\n";
-  const patched = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }], { patches: true });
-  if (!patched.some((s) => s.endsWith(`restated last by ${READ_PATCH_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: a plant in settle-cost\'s patched hr_hunt_instance_read was not flagged as ' + READ_PATCH_LAST + '\'s: ' + JSON.stringify(patched)); process.exit(1); }
-  const unpatched = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }]);
-  if (!unpatched.some((s) => s.endsWith(`restated last by ${READ_RESTATE_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: without patches, settle-cost\'s hr_hunt_instance_read was not named as restated by ' + READ_RESTATE_LAST + ': ' + JSON.stringify(unpatched)); process.exit(1); }
+  for (const patches of [true, false]) {
+    const read = staleAnchors([{ arm: 'SELFTEST', file: READ_LAST, find: KICKED }], { patches });
+    const old = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }], { patches });
+    if (read.length || !old.some((s) => s.endsWith(`restated last by ${READ_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: hr_hunt_instance_read\'s last author is not ' + READ_LAST + ' (patches ' + patches + '): ' + JSON.stringify({ read, old })); process.exit(1); }
+  }
   /* ...and 12-15's hr_hunt_apply_member names its last restatement, MEMBER_LAST, either way. */
   for (const patches of [true, false]) {
     const restated = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }], { patches });

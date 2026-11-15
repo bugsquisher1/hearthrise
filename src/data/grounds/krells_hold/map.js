@@ -20,8 +20,11 @@
 // ART: DRAWN (lane/b-barrow-art-import 2026-11-14, set `hold`). The ground `krells_hold_ground` is painted from these rows on the kit's
 // hold family (cart road earth, cobble, flagstone, setts, the hall's boards, gravel) with the gray dressed stone wall slices laid over
 // the paint (a feature every 6 tiles: an arrow loop, a torch or a buttress). Placed: the two coal seams, and in the hall the Hall Fire
-// with its two banners. STILL TO PLACE, each needing cells from the pack (a solid piece moves the mask): the gatehouse and portcullis
-// at (27-31, 37), and the other props of the art brief (the board's section 7), all drawn in set `hold`. The Crypt wants an Emberstone Vein, which has no node kind or sprite yet (the Pyre Field's flag).
+// with its two banners. THE HILL (lane/b-hold-art): the rock outside the walls in the south half is painted as the March's grass and
+// gray hill rock (barrow-grounds.mjs holdCastle), so the cart road climbs a hill to the castle; it still blocks a step. THE GATE: the
+// road narrows to x28-30 at y38-39, the gatehouse (class gate) stands over it with its towers on (27,38-39) and (31,38-39), cells
+// lane/d-hold-pass may move. STILL TO PLACE, each needing cells from the pack (a solid piece moves the mask): the other props of the
+// art brief (the board's section 7), all drawn in set `hold`. The Crypt wants an Emberstone Vein, which has no node kind or sprite yet (the Pyre Field's flag).
 export default Object.freeze({
   id: 'krells_hold',
   name: 'Krell\'s Hold',
@@ -70,8 +73,8 @@ export default Object.freeze({
     '######################...............#######################',
     '######################...............#######################',
     '######################...............#######################',
-    '###########################:::::############################',
-    '###########################:::::############################',
+    '############################:::#############################', // 38 the gate: its towers on (27,38-39) and (31,38-39)
+    '############################:::#############################',
     '###########################:::::############################',
     '###########################:::::############################',
     '###########################:::::############################',
@@ -83,7 +86,10 @@ export default Object.freeze({
   objects: Object.freeze([{ id: 'cw_coal_seam', x: 28, y: 4 }, { id: 'cw_coal_seam', x: 35, y: 4 },
     /* Krell's Hall, off the route: the Hall Fire along the north wall behind his seat, his red on one side of it and the Banded
        Company's colors hung upside down on the other */
-    { id: 'kh_hall_fire', x: 47, y: 1 }, { id: 'kh_banner_stand', x: 45, y: 1 }, { id: 'kh_colors_upside_down', x: 52, y: 1 }]),
+    { id: 'kh_hall_fire', x: 47, y: 1 }, { id: 'kh_banner_stand', x: 45, y: 1 }, { id: 'kh_colors_upside_down', x: 52, y: 1 },
+    /* the cart gate (lane/b-hold-art): the gatehouse's anchor is the middle of its three-tile passage (class gate, open), its towers
+       on the rock cells (27,38-39) and (31,38-39); lane/d-hold-pass may move these cells */
+    { id: 'kh_gatehouse', x: 29, y: 39 }]),
   buildings: Object.freeze([]),
   /* the patrol loop, on the cart road below the gate */
   path: Object.freeze([[28, 39], [30, 39], [30, 41], [28, 41]]),
@@ -98,5 +104,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 29, y: 43, to: 'town_common' }]),
   start: Object.freeze([29, 42]),
-  maskHash: '6d6c1a7a',
+  maskHash: 'ad75fd7a',
 });

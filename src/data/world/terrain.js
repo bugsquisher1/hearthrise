@@ -57,7 +57,7 @@ export const MATERIALS = Object.freeze({
 
 /* 'span' and 'bridge' (laid over water or a gap) are walked ON: it never blocks the step it covers (2026-10-18:
    the Sewer's grate bridge sealed its own 1-tile choke in the client mask until this). */
-export const OPEN_CLASSES = Object.freeze(['decal', 'small', 'loot', 'hanging', 'roof', 'wallcap', 'span', 'bridge']);
+export const OPEN_CLASSES = Object.freeze(['decal', 'small', 'loot', 'hanging', 'roof', 'wallcap', 'span', 'bridge', 'gate']);
 export const TREE_CLASSES = Object.freeze(['tree', 'sapling']);
 
 const light = (radius, tint) => Object.freeze({ radius, tint });

@@ -262,7 +262,11 @@ or a `mend`, which puts the spell's number back on the most hurt monster of its
 own pack in range. The rules and their mutants are
 `tests/hunt-core/monster-kinds.mjs` and `monster-spells.mjs`. A hero's
 `target_kind` (an option the server overlays, one monster id) takes that kind
-first under any Target mode.
+first under any Target mode. The player picks it as the bar's **First target**,
+per hero and ground (`hunt_density.target_kind`, `hr_hunt_target_kind_set`,
+2027-04-22-target-kind.sql); the server takes only a monster its catalogue of
+that ground holds (`hr_hunt_ground_spawns`), so a new monster on a ground is
+offered there with no code.
 
 ### 6. A called boss (Call out) — data
 A paid fight in one room that pays nothing. One row in each of `src/data/boss-calls.js` (the fee, the press's ground), `monsters.js` (`called: true`, id ending `_called`, `xp: 0, gp: [0, 0], drops: []`), `hunts.js` `CALLED_HUNTS`, `hunt-grounds.js` `CALLED_GROUNDS`, `monster-art.js` `HUNT_ART_ALIAS`, its map's `hunts`, and a title in `titles.js`. Then `gen-hunts`, `gen-hunt-sessions`, `gen-title-catalogue`. The generator refuses a row that pays; `tests/boss-call.mjs` and `tests/boss-call-db.mjs` hold it. A boss row also carries `phases` (`addsPm`, `enragePm`, `enrageAtkPm`), and his room's pocket an `adds` list of called rows with `add: true`: both lines read in `src/core/hunt/boss-phases.js`, no stored field. Tune with `tools/balance-sim/boss-call-table.mjs` (`--ship`, the bad and good bars and each answer taken away): the rows' `hp`, `atk`, `baseAcc`, `level` and `phases` are the only dials.

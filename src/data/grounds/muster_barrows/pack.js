@@ -69,8 +69,8 @@
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box, gather, addRows } from '../shape.js?v=0.2.130';
-import map from './map.js?v=0.2.130';
+import { definePack, box, gather, addRows } from '../shape.js?v=0.2.131';
+import map from './map.js?v=0.2.131';
 
 const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'captain_hask';
 
@@ -81,7 +81,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
      on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {
-    name: 'The Muster Barrows', theme: "Lord Krell buried the Banded Company's officers here to make it look like they died in battle. Captain Hask sold them out, and he's buried here too.",
+    name: 'The Muster Barrows', theme: "Lord Krell gave Hask's officers a proper burial here so nobody would ask how they really died. Then he buried Hask with them to keep him quiet.",
     band: [55, 75],
     spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: CW, w: 6, rarity: 'uncommon' }, { monster: BK, w: 5, rarity: 'rare' }],
     family: 'Undead', art: BK, travelS: 0, pull: 4, respawnMs: 90000,
@@ -188,10 +188,10 @@ export default definePack({
     hasks_coin: { n: 'Hask\'s Coin', icon: '🪙', v: 150, raw: true, imbue: { kind: 'life_leech', tier: 2 } },
   },
   itemText: {
-    coffin_nail: 'Barrow Pikemen drop these iron nails from their coffins',
-    urn_shard: 'Cairn Wights drop these pieces of burial urns. The urns are older than the Banded Company',
-    sergeant_spur: 'Barrow Knights drop the spurs off their boots',
-    hasks_coin: 'Lord Krell paid Captain Hask in these coins to give up the ford. Hask was buried with all of them',
+    coffin_nail: 'An iron nail off a Barrow Pikeman\'s coffin. It came loose when he climbed out',
+    urn_shard: 'A piece of a burial urn from the old graves under the cairns. Those graves were here long before Hask\'s company came',
+    sergeant_spur: 'A spur off a Barrow Knight\'s boot. Krell buried the knights in their armor, spurs and all',
+    hasks_coin: 'Lord Krell paid Captain Hask in these coins to give up the ford. Hask got buried with every one of them',
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the March's store food and drink, and Chalked Fire Runes (the unburned dead
      take 15% more fire). */

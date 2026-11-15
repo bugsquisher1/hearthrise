@@ -13,10 +13,12 @@
 // account's Storage (2027-01-10-house-from-storage.sql). On ok the paying
 // character is re-read (its gold and bag), and so is every other open
 // character of the account: their `home`, `depot` and `bank` sections changed
-// too. A refusal re-reads nobody and carries the server's code and counts.
+// too. A refusal carries the server's code and counts; a chest's re-reads the
+// paying hero first (quoted-ask.js), so the `depot` price shown is the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.130';
-import { refusalOf } from './refusal.js?v=0.2.130';
+import { askVia } from './intent-ledger.js?v=0.2.131';
+import { quoted } from './quoted-ask.js?v=0.2.131';
+import { refusalOf } from './refusal.js?v=0.2.131';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const OFFER = /^(?:property|room)\.[a-z0-9_]{1,40}(?:\.[0-9]{1,2})?$/;
@@ -41,7 +43,7 @@ export async function buildChest(account, cs, chest, quotedGold) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !ID.test(String(chest))
     || !Number.isSafeInteger(quotedGold) || quotedGold < 1) return { ok: false, error: 'bad_intent' };
   return askVia(cs, 'storage_chest_build', async () => {
-    const ans = await account.server.rpc('hr_storage_chest_build', { p_slot: cs.slot, p_chest: chest, p_price: quotedGold, p_idem: newIdem() });
+    const ans = await quoted(cs, () => account.server.rpc('hr_storage_chest_build', { p_slot: cs.slot, p_chest: chest, p_price: quotedGold, p_idem: newIdem() }))();
     const b = ans && ans.body && typeof ans.body === 'object' ? ans.body : {};
     if (ans && ans.ok && b.ok === true) {
       await Promise.all([cs.load(), rereadOthers(account, cs)]);

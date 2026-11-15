@@ -37,7 +37,7 @@ export const HEROES_TEXT = Object.freeze({
   rename_today: '{name} changed name today. One change a day.',
   rename_cant: '{name} cannot change name right now.',
   rename_short: 'You have {gold}.',
-  rename_price: 'Rename · {price}',
+  rename_price: 'Rename for {price}',
   confirm_q: 'Change {name} to {typed} for {price}?',
   confirm_note: 'The gold is gone for good, and the name {name} is free for anyone to take.',
   pay: 'Pay {price}',
@@ -60,7 +60,7 @@ export const HEROES_TEXT = Object.freeze({
      with its Level and what it was last doing, and one press plays it. Tyler's voice (11-11): what the player can do, plain words. */
   strip_no_name: 'Hero {number}',
   strip_level: 'Level {level}',
-  strip_level_doing: 'Level {level} · {doing}',
+  strip_level_doing: 'Level {level}, {doing}',
   strip_play_title: 'Play {name} too. Your other heroes keep playing.',
   strip_full: { one: 'You can play one hero at a time. To play {name} instead, sign out and pick {name}.',
     other: 'You can play {count} heroes at once. To swap one for {name}, sign out and pick {name}.' },

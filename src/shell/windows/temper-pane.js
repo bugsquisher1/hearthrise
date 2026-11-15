@@ -10,15 +10,15 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.130';
-import { goldOf } from '../../session/item-sections.js?v=0.2.130';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.130';
-import { gold, whole, listWords } from '../../render/format.js?v=0.2.130';
-import { runIntent } from '../intent-words.js?v=0.2.130';
-import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.130';
-import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.130';
-import { patchParts, targetOf } from '../goto.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.131';
+import { goldOf } from '../../session/item-sections.js?v=0.2.131';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.131';
+import { gold, whole, listWords } from '../../render/format.js?v=0.2.131';
+import { runIntent } from '../intent-words.js?v=0.2.131';
+import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.131';
+import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.131';
+import { patchParts, targetOf } from '../goto.js?v=0.2.131';
+import { t } from '../../render/player-text.js?v=0.2.131';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'your blows and heals land', worse: 'harder', none: 'Wield a weapon to temper it.' },
@@ -92,11 +92,11 @@ export function patchTemperPane(root, ctx, sc) {
       const offer = r.ladder ? r.ladder.offer : null;
       const short = offer && purse !== null && purse < r.ladder.gold ? r.ladder.gold - purse : 0;
       const itemsShort = r.needs.some((n) => n.short > 0);
-      text(li.querySelector('b'), track.label + (r.piece ? ' · ' + r.piece : ''));
+      text(li.querySelector('b'), track.label + (r.piece ? ' (' + r.piece + ')' : ''));
       text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? ' You need ' + gold(short) + ' more.' : ''));
       text(li.querySelector('.hw-temper-need'), needWords(r.needs));
       const btn = li.querySelector('button');
-      text(btn, offer ? 'Temper · ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
+      text(btn, offer ? 'Temper for ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
       prop(btn, 'disabled', !offer || !!short || itemsShort || sc.pending || !!sc.ask);
     },
   });

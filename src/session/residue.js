@@ -11,10 +11,10 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.130';
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.130';
-import { FX_ALPHA_ROW } from '../data/fx-alpha.js?v=0.2.130';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.130';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.131';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.131';
+import { FX_ALPHA_ROW } from '../data/fx-alpha.js?v=0.2.131';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.131';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -76,8 +76,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.130';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.130';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.131';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.131';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -258,6 +258,7 @@ const SANITIZERS = Object.freeze({
   townZoom: sanitizeTownZoom,       // display preference: the viewer's town zoom, one for every hero (src/world/town-zoom.js); gates and spends nothing
   shareReplay: sanitizeSwitch,      // display preference: whether the screen may be recorded, one for every hero (src/session/replay-pref.js); gates and spends nothing
   idleMotion: sanitizeSwitch,       // display preference: whether standing units breathe, one for every hero (src/world/idle-motion.js); gates and spends nothing
+  monsterNames: sanitizeSwitch,     // display preference: whether every living monster in a hunt shows its name, one for every hero (src/data/world/monster-names.js); gates and spends nothing
   fxSelf: valuePick(FX_ALPHA_ROW.self),       // display preference: how strong the viewed hero's effects look, one for every hero (src/hunt-view/fx-prefs.js); gates and spends nothing
   fxPeer: valuePick(FX_ALPHA_ROW.peer),       // display preference: the same for every other hero in the hunt; gates and spends nothing
   fxMonster: valuePick(FX_ALPHA_ROW.monster), // display preference: the same for the monsters' hits and spells; gates and spends nothing

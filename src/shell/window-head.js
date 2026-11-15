@@ -19,10 +19,10 @@
 //
 // The shell (src/shell/shell.js) calls these; the pure parts (pickGold, helpLine) are tests/shell-core.mjs's.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.130';
-import { t } from '../render/player-text.js?v=0.2.130';
-import { attr, text, cls } from '../render/paint.js?v=0.2.130';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.130';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.131';
+import { t } from '../render/player-text.js?v=0.2.131';
+import { attr, text, cls } from '../render/paint.js?v=0.2.131';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.131';
 
 /** The gold plates (shell.css THE ONE PRIMARY). */
 export const GOLD = '.hw-primary, .hh-tool.is-primary';
@@ -37,17 +37,26 @@ export function helpLine(row, touch) {
   return t(row.help) + key;
 }
 
-/** The band every window wears, then its folded help line. */
+/** A window's keys under its help line (the row's helpKeys, none on a touch screen): one item a hint, the words before the
+    first " to " set apart as the key. The list wraps whole; the gap is the separator. Pure. */
+export function keysHtml(row, touch) {
+  if (!row || !row.helpKeys || !row.helpKeys.length || touch) return '';
+  const hint = (h) => { const at = h.indexOf(' to '); return at < 0 ? esc(h) : '<kbd>' + esc(h.slice(0, at)) + '</kbd>' + esc(h.slice(at)); };
+  return '<ul class="hs-help-keys">' + row.helpKeys.map((id) => '<li>' + hint(t(id)) + '</li>').join('') + '</ul>';
+}
+
+/** The band every window wears, then its folded help line (and its keys, when the row lists them). */
 export function headHtml(row, glyphs, touch) {
   const id = esc(row.id);
   const help = helpLine(row, touch);
+  const keys = help ? keysHtml(row, touch) : '';
   return '<header class="hs-win-head" data-hs-drag="' + id + '">' + glyphSvg(glyphs, row.glyph)
     + '<button type="button" class="hs-back" data-hs-back="' + id + '" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'
     + '<h2 class="hs-win-title"><span class="hs-win-crumb" hidden></span><span class="hs-win-name">' + esc(row.title || row.label) + '</span></h2>'
     + (help ? '<button type="button" class="hs-help" data-hs-help="' + id + '" aria-expanded="false" aria-label="' + esc(t('windows.help')) + '">?</button>' : '')
     + (row.key ? '<kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>' : '')
     + '<button type="button" class="hs-close" data-hs-close="' + id + '" aria-label="' + esc(t('controls.close') + ' ' + row.label) + '">' + glyphSvg(glyphs, 'uiClose') + '</button></header>'
-    + (help ? '<p class="hs-win-help" hidden>' + esc(help) + '</p>' : '');
+    + (keys ? '<div class="hs-win-help" hidden><p>' + esc(help) + '</p>' + keys + '</div>' : help ? '<p class="hs-win-help" hidden>' + esc(help) + '</p>' : '');
 }
 
 /** The frame's own body (never a page's). */

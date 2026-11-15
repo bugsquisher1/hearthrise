@@ -70,6 +70,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
   hr_hunt_tier_set: 'the hero’s tier on one hunt ground, a ground id and a tier word; the server checks that ground offers it and refuses a party member (CharacterSession.setHuntTier; 2027-02-27-hunt-tiers.sql)',
+  hr_hunt_target_kind_set: 'the hero’s First target on one hunt ground, a ground id and a monster id or none; the server checks the kind against its catalogue of that ground, refused not clamped, no value (target-intents.js setTargetKind; 2027-04-22-target-kind.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
   /* Combat training (the designer's 2026-11-13 spec; server half lane/c-combat-training). */

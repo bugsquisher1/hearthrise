@@ -97,7 +97,7 @@ export const PREP_TEXT = Object.freeze({
   carry_head: 'Carry into this hunt',
   carry_note: 'This hunt uses only the supplies it carries, then buys from the store. What you got after you set out waits in your backpack until you carry it in.',
   carry_none: 'Nothing in your backpack can be carried into a hunt.',
-  carry_line: '{have} in your backpack · {inHunt} in this hunt',
+  carry_line: '{have} in your backpack, {inHunt} in this hunt',
   carry_press: 'Carry {n}',
 
   /* BEFORE YOU GO, THE BLESSINGS (src/shell/hunt-go.js blessingWords). Every number is the server's Blessings section:
@@ -108,4 +108,8 @@ export const PREP_TEXT = Object.freeze({
   blessings_some: 'You have {on} of {of} Blessings on. You lose {pct}% less XP when you die. Get the rest in the Shop\'s Services tab.',
   blessings_some_cost: 'You have {on} of {of} Blessings on. You lose {pct}% less XP when you die. The next one costs {price} in the Shop\'s Services tab.',
   blessings_all: 'You have all {of} Blessings on. You lose {pct}% less XP when you die.',
+  /* How long the gold lasts (readiness.js): the gold, and the analyzer's supply spend an hour on the running hunt or, in town, the last one. */
+  gold_only: 'Gold: {gold} gp',
+  gold_spend_now: 'Gold: {gold} gp. Supplies cost about {spend} gp an hour on this hunt, so you have about {hours} h of gold',
+  gold_spend_last: 'Gold: {gold} gp. Supplies cost about {spend} gp an hour on your last hunt, so you have about {hours} h of gold',
 });

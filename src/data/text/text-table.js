@@ -8,32 +8,32 @@
 // tests/text-home.mjs keeps every call site honest and ratchets the text
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
-import { AWAY_TEXT } from './away.js?v=0.2.130';
-import { BAG_TEXT } from './bag.js?v=0.2.130';
-import { BAR_TEXT } from './bar.js?v=0.2.130';
-import { COACH_TEXT } from './coach.js?v=0.2.130';
-import { CONTROLS_TEXT } from './controls.js?v=0.2.130';
-import { CRIERS_TEXT } from './criers.js?v=0.2.130';
-import { DEATH_TEXT } from './death.js?v=0.2.130';
-import { EVENTS_TEXT } from './events.js?v=0.2.130';
-import { FARM_TEXT } from './farm.js?v=0.2.130';
-import { HEROES_TEXT } from './heroes.js?v=0.2.130';
-import { HOUSE_TEXT } from './house.js?v=0.2.130';
-import { HUNTS_TEXT } from './hunts.js?v=0.2.130';
-import { ITEM_TEXT } from './item.js?v=0.2.130';
-import { MONSTER_TEXT } from './monster.js?v=0.2.130';
-import { LOG_TEXT } from './log.js?v=0.2.130';
-import { PARTY_TEXT } from './party.js?v=0.2.130';
-import { PREP_TEXT } from './prep.js?v=0.2.130';
-import { SHOP_TEXT } from './shop.js?v=0.2.130';
-import { SLOTS_TEXT } from './slots.js?v=0.2.130';
-import { SUMMARY_TEXT } from './summary.js?v=0.2.130';
-import { TALLY_TEXT } from './tally.js?v=0.2.130';
-import { TEMPER_TEXT } from './temper.js?v=0.2.130';
-import { WINDOWS_TEXT } from './windows.js?v=0.2.130';
-import { WIKI_TEXT } from './wiki.js?v=0.2.130';
-import { WORK_TEXT } from './work.js?v=0.2.130';
-import { TRAINING_TEXT } from './training.js?v=0.2.130';
+import { AWAY_TEXT } from './away.js?v=0.2.131';
+import { BAG_TEXT } from './bag.js?v=0.2.131';
+import { BAR_TEXT } from './bar.js?v=0.2.131';
+import { COACH_TEXT } from './coach.js?v=0.2.131';
+import { CONTROLS_TEXT } from './controls.js?v=0.2.131';
+import { CRIERS_TEXT } from './criers.js?v=0.2.131';
+import { DEATH_TEXT } from './death.js?v=0.2.131';
+import { EVENTS_TEXT } from './events.js?v=0.2.131';
+import { FARM_TEXT } from './farm.js?v=0.2.131';
+import { HEROES_TEXT } from './heroes.js?v=0.2.131';
+import { HOUSE_TEXT } from './house.js?v=0.2.131';
+import { HUNTS_TEXT } from './hunts.js?v=0.2.131';
+import { ITEM_TEXT } from './item.js?v=0.2.131';
+import { MONSTER_TEXT } from './monster.js?v=0.2.131';
+import { LOG_TEXT } from './log.js?v=0.2.131';
+import { PARTY_TEXT } from './party.js?v=0.2.131';
+import { PREP_TEXT } from './prep.js?v=0.2.131';
+import { SHOP_TEXT } from './shop.js?v=0.2.131';
+import { SLOTS_TEXT } from './slots.js?v=0.2.131';
+import { SUMMARY_TEXT } from './summary.js?v=0.2.131';
+import { TALLY_TEXT } from './tally.js?v=0.2.131';
+import { TEMPER_TEXT } from './temper.js?v=0.2.131';
+import { WINDOWS_TEXT } from './windows.js?v=0.2.131';
+import { WIKI_TEXT } from './wiki.js?v=0.2.131';
+import { WORK_TEXT } from './work.js?v=0.2.131';
+import { TRAINING_TEXT } from './training.js?v=0.2.131';
 
 export const TEXT = Object.freeze({
   away: AWAY_TEXT,

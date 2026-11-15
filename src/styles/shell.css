@@ -295,6 +295,12 @@
 .hs-win-help { margin: 0; padding: 8px 12px; flex: none; background: var(--fill-0); border-bottom: 2px solid var(--steel-rule);
   color: var(--ink-2); font-size: var(--t-small); }
 .hs-win-help[hidden] { display: none; }
+.hs-win-help > p { margin: 0; }
+/* THE WINDOW'S KEYS (window-head.js keysHtml), under its help line: one item a hint, wrapping whole, the gap the separator and
+   the key in the brighter ink. Behind the ?, never in the body: in the bag's scroll its edge cut the third line at 1366x768. */
+.hs-help-keys { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.35; }
+.hs-help-keys li { white-space: nowrap; }
+.hs-help-keys kbd { font: inherit; font-weight: 700; color: var(--ink-2); }
 .hs-win-body { overflow: auto; padding: 10px 12px 12px; }
 /* A page (Monster facts in Hunts) takes its host's body's place; the host's own body waits, hidden. */
 .hs-shell .hs-win > .hs-win-body[hidden] { display: none; }

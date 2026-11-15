@@ -20,11 +20,11 @@
 // ref.player so a right-click opens the shared player menu for that account.
 // PURE: no DOM, no window, no G — the caller passes the walkers and the clock.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.130';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.130';
-import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.130';
-import { pickFacing } from './core/facing.js?v=0.2.130';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.130';
+import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.131';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.131';
+import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.131';
+import { pickFacing } from './core/facing.js?v=0.2.131';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.131';
 
 /** A tile coordinate on the whole art pixel of a `T` px grid. */
 const onPixelOf = (T) => (v) => Math.round(v * T) / T;
@@ -32,7 +32,7 @@ const onPixelOf = (T) => (v) => Math.round(v * T) / T;
 const sameSpot = (a, b) => a.x === b.x && a.y === b.y && a.gx === b.gx && a.gy === b.gy && a.dir === b.dir;
 /** A peer's plate, from what the server said: "Marlow · 18" with "the Wolfer" under it (Tyler 2026-11-08). A Game Master's
     plate says GM in words, and its gold repeats it (ART_DIRECTION: color is never the only cue). */
-export const plateOf = (w) => ({ text: (w.gm ? 'GM ' : '') + w.name + (w.level !== null ? ' · ' + w.level : ''), title: w.title || null, kind: w.gm ? 'gm' : 'peer' });
+export const plateOf = (w) => ({ text: (w.gm ? 'GM ' : '') + w.name + (w.level !== null ? ' (' + w.level + ')' : ''), title: w.title || null, kind: w.gm ? 'gm' : 'peer' });
 
 /**
  * The town's people, frame by frame, for ONE map. frame(walkers, now) → units.

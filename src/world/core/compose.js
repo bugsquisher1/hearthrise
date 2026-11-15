@@ -33,12 +33,12 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.130';
-import { heroBuilding } from './roofs.js?v=0.2.130';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.130';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.130';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.130';
-import { markShapes } from './mark-shapes.js?v=0.2.130';
+import { ySort } from './zsort.js?v=0.2.131';
+import { heroBuilding } from './roofs.js?v=0.2.131';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.131';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.131';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.131';
+import { markShapes } from './mark-shapes.js?v=0.2.131';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -449,7 +449,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   }
   /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
      walk chosen by distance), alpha, grey (0..1 toward its corpse tone), recoil ([dx, dy] art px), under (drawn
-     beneath the standing: a corpse), plate:{text,title?,kind,alpha?}, bar, barKind, mana, badge, target, dye }.
+     beneath the standing: a corpse), plate:{text,title?,kind,alpha?,yields? (gives way in a crowd: core/plates.js)}, bar, barKind, mana, badge, target, dye }.
      dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
     const anim = u.anim || 'idle';
@@ -462,7 +462,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     const { cx, foot, top } = head(d);
     /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
     if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }
-    if (u.plate) plates.push({ text: u.plate.text, title: u.plate.title || null, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
+    if (u.plate) plates.push({ text: u.plate.text, title: u.plate.title || null, kind: u.plate.kind, yields: u.plate.yields === true, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
       /* the plate names its owner, so a right-click on the NAME picks the unit too */ id: u.id, ref: u.ref || null });
     if (u.bar != null) {
       const pct = Math.max(0, Math.min(1, u.bar));

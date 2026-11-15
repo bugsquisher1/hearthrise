@@ -24,24 +24,24 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.130';
-import { STATUSES } from '../../data/statuses.js?v=0.2.130';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.130';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.130';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.130';
-import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.130';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.130';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.130';
-import { startSupply } from '../rune-supply.js?v=0.2.130';
-import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.130';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.130';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.130';
-import { glyphSvg } from '../launcher.js?v=0.2.130';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.130';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.130';
-import { whole } from '../../render/format.js?v=0.2.130';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.131';
+import { STATUSES } from '../../data/statuses.js?v=0.2.131';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.131';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.131';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.131';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.131';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.131';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.131';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.131';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.131';
+import { startSupply } from '../rune-supply.js?v=0.2.131';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.131';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.131';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.131';
+import { glyphSvg } from '../launcher.js?v=0.2.131';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.131';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.131';
+import { whole } from '../../render/format.js?v=0.2.131';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -202,7 +202,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const table = tableOf(tab, { discipline: set.discipline, role: set.role, bag, store: set.store, skills: facts.skills, set, picked: d.action });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
-  text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ' · tried first' : ' · tried after slot ' + s.open));
+  text(root.querySelector('.ca-rank'), 'Slot ' + (s.open + 1) + (s.open === 0 ? ', tried first' : ', tried after slot ' + s.open));
   /* Why this slot's action will not fire, as the bar's tooltip says it: a phone has no hover and a press on a slot opens
      this window, so the words are here, first (shown on a phone only, hunt.css). */
   const saved = hosted(cs) ? null : set.slots[s.open];

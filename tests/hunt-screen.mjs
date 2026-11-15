@@ -59,6 +59,10 @@
 //         10-25), the gold folded out from the bar's sliders (shut until pressed, then on top
 //         above the bar); each is ONE intent, shows the server value (the gold field keeps it
 //         while in flight and after a refusal), survives a reload; no Hunt settings window
+//   HS-29 THE FIRST TARGET (lane/c-target-kind): the fold offers None and the ground's own monsters at the server's pick;
+//         a change is ONE hr_hunt_target_kind_set (slot, ground, kind), the select off and on the server's pick until the
+//         re-read says otherwise; a refusal keeps it and says why; None sends no kind; a reload brings it back; on a phone
+//         (922x423, 667x375) the fight sheet starts at its head, holds it and the gold to keep, and scrolls to its Effects door
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
 //   HS-28 THE FIGHT STAYS CLEAR AT 1024x768 (designer 2026-11-11): a lone hero with a kill task; below the fold width
 //         (tokens.css --hud-fold-below) the analyzer, the Tally and the Party panel start folded and no widget crosses
@@ -236,10 +240,10 @@ async function driveSelfCheck() {
 
 /** A scripted server: `env` is what hr_load and hr-accrue answer (version bumped each call). */
 function scripted() {
-  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, tierReply: { ok: true }, waiting: {} };
+  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, tierReply: { ok: true }, kindReply: { ok: true }, waiting: {} };
   /* answer every held reply of a kind, and stop holding that kind */
   s.release = (kind) => {
-    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'tier') s.holdTier = false; else s.holdOptions = false;
+    if (kind === 'accrue') s.holdAccrue = false; else if (kind === 'tier') s.holdTier = false; else if (kind === 'firsts') s.holdKind = false; else s.holdOptions = false;
     for (const go of (s.waiting[kind] || []).splice(0)) go();
   };
   s.sent = (name) => s.calls.filter((c) => c.name === name);
@@ -288,6 +292,13 @@ async function stub(page, s) {
       if (s.holdTier) await hold(page, r, s, 'tier'); else await sleep(s.optionsDelayMs);
       if (s.onTier && s.tierReply.ok) s.onTier(body);
       return json(s.tierReply.ok ? Object.assign({ hunt: body.p_hunt, tier: body.p_tier }, s.tierReply) : s.tierReply);
+    }
+    /* The First target per ground (hr_hunt_target_kind_set, HS-29): held or answered like a settings save; the server saves it as it answers. */
+    if (name === 'hr_hunt_target_kind_set') {
+      if (s.holdKind) await hold(page, r, s, 'firsts'); else await sleep(s.optionsDelayMs);
+      if (s.kindReply.ok) s.env.hunt_target_kind = { picks: Object.assign({}, (s.env.hunt_target_kind || {}).picks, { [body.p_hunt]: body.p_kind }) };
+      if (s.kindReply.ok && body.p_kind === null) delete s.env.hunt_target_kind.picks[body.p_hunt];
+      return json(s.kindReply.ok ? Object.assign({ hunt: body.p_hunt, kind: body.p_kind }, s.kindReply) : s.kindReply);
     }
     if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
     /* `keepResidue`: the server keeps what hr_put_client_state sends and hands it back in every envelope (as hr_state_of does). */
@@ -730,6 +741,97 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (again.target !== 'weakest' || again.stance !== 'offensive' || again.distance !== String(d0 + 1)) fails.push('HS-12 after a reload the panel is not the server’s: ' + JSON.stringify(again));
         }
       } else fails.push('HS-3 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-29 THE FIRST TARGET (lane/c-target-kind, the Krell's Hold design's piece 4): in the fight settings' fold, the monster a hero
+      // goes for first on THIS ground (None, then the ground's own monsters), shown from the server's `hunt_target_kind` section only. A
+      // change sends ONE hr_hunt_target_kind_set naming the slot, the ground and the kind; the select is off and keeps the server's pick
+      // until the re-read envelope says otherwise (CLAUDE.md §6); a refusal keeps the server's pick and says why; None clears it; a
+      // reload brings the server's pick back.
+      const { ctx, page, s, up } = await open({ prep: (sv) => { sv.env.hunt_target_kind = { picks: {} }; } });
+      if (!up) fails.push('HS-29 the screen did not mount');
+      else {
+        const P = '.hb-plaque', SEL = '.hb-plaque .hb-pl-first select';
+        const read = () => page.evaluate((q) => { const e = document.querySelector(q); const box = e && e.closest('.hb-pl-first');
+          return e ? { v: e.value, off: e.disabled, hidden: box.hidden, opts: Array.from(e.options).map((o) => o.value).sort().join(), note: box.querySelector('.hb-pl-note').textContent,
+            msg: document.querySelector('.hb-plaque .hh-intent-msg').textContent } : null; }, SEL);
+        await page.click(P + ' .hb-more');
+        await wait(page, (q) => { const e = document.querySelector(q); return e && !e.disabled && !e.closest('.hb-pl-first').hidden; }, SEL);
+        const r0 = await read();
+        if (!r0 || r0.hidden || r0.opts !== ',hive_wasp,rat,slime' || r0.v !== '' || !/Mill Cellar/.test(r0.note))
+          fails.push('HS-29 the First target does not offer None and the Cellar\'s three monsters at the server\'s none: ' + JSON.stringify(r0));
+        s.holdKind = true;
+        const b0 = s.sent('hr_hunt_target_kind_set').length;
+        await page.selectOption(SEL, 'slime');
+        await until(() => s.sent('hr_hunt_target_kind_set').length > b0);
+        const mid = await read();
+        if (!mid || mid.v !== '' || !mid.off) fails.push('HS-29 the First target showed the pick (or stayed on) before the server confirmed: ' + JSON.stringify(mid));
+        s.release('firsts');
+        const done = await wait(page, (q) => { const e = document.querySelector(q); return e.value === 'slime' && !e.disabled; }, SEL);
+        const sent = s.sent('hr_hunt_target_kind_set').slice(b0).map((c) => c.body);
+        if (!done || sent.length !== 1 || sent[0].p_slot !== 0 || sent[0].p_hunt !== 'mill_cellar' || sent[0].p_kind !== 'slime' || !/^[0-9a-f-]{36}$/.test(String(sent[0].p_idem)))
+          fails.push('HS-29 one pick sent ' + JSON.stringify(sent) + ' and shows ' + JSON.stringify(await read()));
+        if (!/Slime/.test((await read()).note)) fails.push('HS-29 the line under the pick does not name the server\'s Slime: ' + JSON.stringify(await read()));
+        if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-first-target.png') });
+        /* Refused: the server's Slime stays, the line says why. */
+        s.kindReply = { ok: false, error: 'bad_kind' };
+        await page.selectOption(SEL, 'rat');
+        const back = await wait(page, (q) => { const e = document.querySelector(q); return !e.disabled && e.value === 'slime'
+          && /doesn.t live on this hunt/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent); }, SEL);
+        if (!back) fails.push('HS-29 a refused pick did not go back to the server\'s Slime with a reason: ' + JSON.stringify(await read()));
+        /* None clears it: one intent naming no kind. */
+        s.kindReply = { ok: true };
+        const b1 = s.sent('hr_hunt_target_kind_set').length;
+        await page.selectOption(SEL, '');
+        const none = await wait(page, (q) => { const e = document.querySelector(q); return !e.disabled && e.value === '' && !document.querySelector('.hb-plaque').classList.contains('is-pending'); }, SEL);
+        const sentNone = s.sent('hr_hunt_target_kind_set').slice(b1).map((c) => c.body.p_kind);
+        if (!none || sentNone.length !== 1 || sentNone[0] !== null) fails.push('HS-29 None sent ' + JSON.stringify(sentNone) + ' and shows ' + JSON.stringify(await read()));
+        /* After a reload the server's pick comes back. */
+        s.env.hunt_target_kind = { picks: { mill_cellar: 'hive_wasp' } };
+        await page.reload({ waitUntil: BOOTED });
+        if (!(await signInAndPlay(page, ''))) fails.push('HS-29 the screen did not mount after a reload');
+        else {
+          const again = await wait(page, (q) => { const e = document.querySelector(q); return e && e.value === 'hive_wasp'; }, SEL);
+          if (!again) fails.push('HS-29 after a reload the First target is not the server\'s Hive Wasp: ' + JSON.stringify(await read()));
+          /* A server that sends no picks (no hunt_target_kind section): the select is off and the line under it says why (say-why SW-2). */
+          delete s.env.hunt_target_kind;
+          await pushEnvelope(page, s);
+          const why = await wait(page, (q) => { const e = document.querySelector(q);
+            return e && e.disabled && /^Waiting for server$/.test(e.closest('.hb-pl-first').querySelector('.hb-pl-note').textContent); }, SEL);
+          if (!why) fails.push('HS-29 with no picks from the server the First target is not off with its reason: ' + JSON.stringify(await read()));
+        }
+      }
+      await ctx.close();
+    }
+
+    for (const vp of [{ width: 922, height: 423 }, { width: 667, height: 375 }]) { // HS-29 ON A PHONE (the gate's 922x423, the smallest
+      // landscape phone): the fight settings' sheet, open and done sliding in, starts at its head INSIDE the sheet (never cut above it),
+      // shows the First target (the server's Slime), the line naming the ground and the gold to keep, each on screen and not covered, and
+      // its last row (the Effects door) is reached by scrolling the sheet, never cut off below it.
+      const tag = vp.width + 'x' + vp.height;
+      const { ctx, page, up } = await open({ viewport: vp, prep: (sv) => { sv.env.hunt_target_kind = { picks: { mill_cellar: 'slime' } }; } });
+      if (!up) fails.push('HS-29 the screen did not mount at ' + tag);
+      else {
+        await wait(page, () => { const s = document.querySelector('.hb-pl-first select'); return s && !s.disabled && s.value === 'slime'; });
+        await page.click('.hb-plaque .hb-more');
+        const slid = await wait(page, () => { const p = document.querySelector('.hb-plaque'), c = getComputedStyle(p.querySelector('.hb-pl-more'));
+          return p.classList.contains('is-open') && c.visibility === 'visible' && c.transform === 'none'; });
+        const look = (scroll) => page.evaluate((last) => {
+          const sheet = document.querySelector('.hb-pl-more').getBoundingClientRect();
+          if (last) document.querySelector('.hb-plaque .hb-effects').scrollIntoView({ block: 'nearest' });
+          const whole = (q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return { h: Math.round(r.height), top: Math.round(r.top), bottom: Math.round(r.bottom), on: r.width > 0 && r.top >= sheet.top && r.bottom <= sheet.bottom && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth, hit: !!h && (h === e || e.contains(h)) }; };
+          return last ? { effects: whole('.hb-plaque .hb-effects') } : { head: whole('.hb-pl-head b'), first: whole('.hb-pl-first select'), note: whole('.hb-pl-first .hb-pl-note'),
+            gold: whole('.hb-plaque [data-opt="gold_floor"]'), value: document.querySelector('.hb-pl-first select').value };
+        }, scroll);
+        const got = await look(false);
+        const end = await look(true);
+        const ok = slid && got.value === 'slime' && got.first && got.first.h >= 36 && ['head', 'first', 'note', 'gold'].every((k) => got[k] && got[k].on && (k === 'note' || k === 'head' || got[k].hit))
+          && end.effects && end.effects.on && end.effects.hit;
+        if (!ok) fails.push('HS-29 at ' + tag + ' the fight sheet does not hold its head, the First target and the gold to keep, or its Effects door is out of reach: ' + JSON.stringify({ slid, ...got, ...end }));
+        if (shots) await page.screenshot({ path: join(shots, 'hunt-' + tag + '-first-target.png') });
+      }
       await ctx.close();
     }
 
@@ -1182,7 +1284,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
               picked: (document.querySelector('.ca-runs .ca-row.is-on .ca-name') || {}).textContent, tab: (document.querySelector('.ca-tab[aria-selected="true"]') || {}).textContent, mid };
           });
           if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
-          if (!/^Slot 3 · tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
+          if (!/^Slot 3, tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
           if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Food & drink') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
           /* AMMO HAS ITS OWN TAB (Tyler 2026-10-25): Spells | Food & drink | Ammo (Tyler 2026-11-08: the Runes tab merged into Spells,
              "why bother having a 'spells' and 'runes' section"); Food & drink lists food and drink only, and every shot is under Ammo. */
@@ -1479,7 +1581,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           }, hunt);
         };
         const a = await card('mill_cellar');
-        if (!a || a.line !== 'Best 12,400 Level XP/h' || a.page.join('|') !== 'Best alone: 12,400 Level XP per hour · balance 3,100 gp per hour' || !(a.px >= 12)) {
+        if (!a || a.line !== 'Best 12,400 Level XP/h' || a.page.join('|') !== 'Best alone: 12,400 Level XP and a balance of 3,100 gp per hour' || !(a.px >= 12)) {
           fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const none = await card('meadowbrook_thicket');
@@ -1488,7 +1590,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
         const b = await card('mill_cellar');
-        if (!b || b.line !== 'Best 20,500 Level XP/h' || b.page.join('|') !== 'Best in a party: 20,500 Level XP per hour · balance -450 gp per hour') {
+        if (!b || b.line !== 'Best 20,500 Level XP/h' || b.page.join('|') !== 'Best in a party: 20,500 Level XP and a balance of -450 gp per hour') {
           fails.push('HS-24 the picker is not replaced by the next envelope: ' + JSON.stringify(b));
         }
         if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -1948,6 +2050,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* lane/c-target-kind: the First target is the server's, and one press is one intent (HS-29) */
+  ['the First target shows the pick before the server confirms (HS-29)', 'src/shell/widgets/first-target.js', "  if (v !== null) prop(sel, 'value', v);", "  if (v !== null && !pending) prop(sel, 'value', v);"],
+  ['the First target is off with no reason on screen (HS-29)', 'src/shell/widgets/first-target.js', "v === null ? t('bar.first_target_unknown')", "false ? t('bar.first_target_unknown')"],
+  ['the First target sends nothing (HS-29)', 'src/shell/widgets/first-target.js', '  const r = await answerWithin(() => setTargetKind(ctx.account, cs, hunt, want));', "  const r = { ok: true };"],
+  ['the phone fight sheet is cut at both ends again (HS-29)', 'src/styles/hunt.css', '  .hb-pl-more { justify-content: safe center; overflow-y: auto; overscroll-behavior: contain; }\n', ''],
   /* playtest v0.2.127: the Effects door opens Settings, but not on Effects (HS-12) */
   ['the Effects door opens Settings on its first page (HS-12)', 'src/shell/windows/settings.js', "if (want && SETTING_CATEGORIES.some((c) => c.id === want))", 'if (false)'],
   /* Tyler 10-25: ammo on its own tab (HS-7). */

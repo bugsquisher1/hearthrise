@@ -5,7 +5,7 @@
 // formula's (`node tools/pack.mjs propose krells_hold --write`): tier 6, floor 85, fit both.
 //
 // STAGED UNTIL ITS ART LANDS. The three engine pieces its bodies wait on are built, and since lane/b-barrow-numbers (2026-11-14) the rows use
-// them: the Lookout shoots from 5 tiles (piece 2, `range`), the Pyre Priest mends the most hurt body in his pull (piece 3, the Pyre Rite) and
+// them: the Lookout shoots from 5 tiles (piece 2, `range`), the Pyre Priest mends the most hurt body in his pull (piece 3, Mend the Dead) and
 // the Grave Guard's Shield Slam is a marked hit on the two tiles in front of him (piece 1). The grader plays all three as written.
 //
 // NAMES (the Barrow March's): the monsters and items keep their names (Farmhand, Hask's Lookout, Grave Guard, Pyre Priest, Gatekeeper, Hall Key). THE PLAYER'S
@@ -34,8 +34,8 @@
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
 // GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's 0.45 to-hit and the Dangerous dmgPm 1300 that
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
-import { definePack, box, gather } from '../shape.js?v=0.2.130';
-import map from './map.js?v=0.2.130';
+import { definePack, box, gather } from '../shape.js?v=0.2.131';
+import map from './map.js?v=0.2.131';
 
 const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_priest', CS = 'gatekeeper';
 
@@ -45,7 +45,7 @@ export default definePack({
   sql: null,
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
-    name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up from the Barrows guard the cellar.',
+    name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up out of the Muster Barrows guard the crypt.',
     band: [85, 110],
     spawns: [{ monster: LV, w: 7, rarity: 'common' }, { monster: WD, w: 5, rarity: 'uncommon' },
       { monster: PK, w: 3, rarity: 'uncommon' }, { monster: BD, w: 3, rarity: 'uncommon' }, { monster: CS, w: 2, rarity: 'rare' }],
@@ -121,7 +121,7 @@ export default definePack({
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
          a knotted cord at his belt. Living, Human, no override. The pyre coal on his hands, his cord, the Runewood Staff, and the Pyre Priests' own
-         wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (the Pyre Rite, `spells` below). Kill him first. */
+         wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (Mend the Dead, `spells` below). Kill him first. */
       spells: ['pyre_rite'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
@@ -166,7 +166,7 @@ export default definePack({
     barrow_nail: 'A coffin nail from the Muster Barrows. Krell\'s men pulled it out when they dug the company\'s officers back up',
     priests_cord: 'Krell\'s priests tied this cord around the dead before they burned them. They put a knot in it for every name',
     gatekeepers_chain: 'A link off the Gatekeeper\'s key chain. He keeps every key in the castle, including the one to the toll box',
-    hall_key: 'Opens Krell\'s Hall once for you and your party. It\'s used up whether you win or lose',
+    hall_key: 'It opens Krell\'s Hall for you and your party. You get one fight out of it, win or lose',
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Pyre Field's store food, and Chalked Poison Runes in place of its ice. These are
      living men (poison does 15% more), and the dead in the cellar shrug poison off, so a caster brings a second family for the Crypt.
@@ -221,7 +221,15 @@ export default definePack({
     key: 'hall_key',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
-      band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000 },
+      band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
+      /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals
+         tops out at 541, 55% of a bare Level 85 hero. Every blow past 35% lands only on the tank or can be stepped out of: his swing goes
+         to the tank, and the Rake is marked (Tyler 11-08: the tank soaks the boss's hits, the casters dodge). The pulse that reaches
+         everyone, the Hall Fire, tops out at 25%. Held to 35%, measured (boss-call-table.mjs --hall, atk 157, the Rake at 1.0x): on the old
+         x1.25 enrage the bad bar won 95% (40 tries), at 10,000 HP still 85%, against Tyler's 30 (11-05). On x1.6 with the Hall Fire at
+         1.0x (120 tries) the pulse alone holds the bad bar at 25%, but one gear tier behind wins 99%, eating at 40% 97% and a healer who
+         waits 100%: nothing but the pulse asks anything. The tank's big blows are what make gear and the eat lines matter. */
+      blowCap: { pct: 55, why: 'Krell\'s biggest hits land on your tank or come with a warning you can step out of. The hit everyone takes is far smaller' } },
     ground: {
       /* in through the door off the Tower Stairs, Krell in his high seat across the hall, the fire behind him */
       start: [[48, 8], [47, 8], [49, 8], [48, 9]],
@@ -234,7 +242,7 @@ export default definePack({
       /* LORD KRELL, Level 110, Human: an old man in Dawnsteel plate. The fire at his back for years: fire does 25% less, poison 15% more (one
          override, the element axis). He started as the formula's boss row for the party fit at the floor (2,256 HP, atk 94, tier 6,
          21,720 XP, coin 251-753) and is fitted to the ship bar (Tyler 11-05: the same gear wins about 30% with a bad bar and 85% with a good
-         one, 40 tries a row; the numbers are on his row). His lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.25.
+         one, 40 tries a row; the numbers are on his row). His lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.6.
          HIS PRIZE (the design's section 4), each rare about 1 kill in 10: the first tier 7 in the game (worn from 88), the four weapons and the
          body and helm in three weights. They break the 5% row ceiling on purpose: the loot-band guard learns a per-kill boss with the fold.
          Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
@@ -252,9 +260,14 @@ export default definePack({
         /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
            the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row
            won in 70 s, the bad bar too. At 7,000 HP, atk 205, enrage x1.25 and the spells below: the good bar 95%, the bad bar 30%, the good
-           bar one gear tier behind 30%, about 200 s a kill. His XP and coin stay the formula's: his prize is his drops. */
+           bar one gear tier behind 30%, about 200 s a kill. His XP and coin stay the formula's: his prize is his drops.
+           RE-FITTED ON THE RIGHT ANSWER (designer 2026-11-14, lane/d-hold-pass; 200 tries a row). That fit's good bar had Challenge on, and
+           Challenge is the wrong press here (boss-calls.js warnGuard): taking it off, the good bar one gear tier behind won 96%, so gear
+           checked nothing. The gear check moved to his enrage, x1.25 to x1.6, and the Hall Fire down to 0.55x (below). With Challenge off:
+           the good bar 99%, one gear tier behind 54%, the bad bar 31%, eating at 40% 67%, a healer who waits 72%. With Challenge left on
+           the good bar still wins 95%, and a bar never touched 62%. */
         hp: 7000, atk: 205, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
-        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1250, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
+        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
          line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
@@ -277,7 +290,8 @@ export default definePack({
          Nearly off (0.1x) 98 / 65 / 83, at 2x 75 / 15 / 5: it is the tank's check, and 1.2x holds the bar.
        The Hall Fire: his pulse on every hero in the room, every 20 s, and every 10 s under a quarter (phases.hasten cdPm 500). 0.95x.
          At the old 0.4x a boss this size never troubled a healer who waits. At 0.7-0.85x the bad bar still won 43-46%. At 0.95x it is what
-         kills a bad bar: 17 of its 28 losses were the Healer, in the enrage.
+         kills a bad bar: 17 of its 28 losses were the Healer, in the enrage. NOW 0.55x (lane/d-hold-pass 2026-11-14): with the enrage at
+         x1.6 the tank's gear is what decides the finish, and at 0.55x the pulse everyone takes tops out at 248, 25% of a bare Level 85 hero.
        Cleave: Captain Hask's own marked blow, the two tiles in front of him. 1.5x. Nearly off 100 / 30 / 58, at 2.5x 90 / 30 / 13: it
          only reaches a tank in weak gear, which is its job.
        War Cry: his pulse while he stands, 0.4x every 20 s, no element. Nearly off 100 / 38 / 33, at 0.8x 95 / 28 / 20. Two pulses on
@@ -285,16 +299,16 @@ export default definePack({
      THE GROUND'S TWO (the same lane, graded with the ground on the full grade):
        Shield Slam: the Grave Guard's marked hit on the two tiles in front of him, on the Foreman's cone and at his number, 1.0x every 20 s. At 1.5x every
          16 s a lone sword at the floor read a typical low of 59.6% HP on Normal, under the sheet's 60, and at 1.2x every 20 s only 60.5.
-       The Pyre Rite: the Pyre Priest's mend. From 4 tiles, every 16 s, it puts up to half his own biggest hit back on the most hurt body
+       Mend the Dead: the Pyre Priest's mend. From 4 tiles, every 16 s, it puts up to half his own biggest hit back on the most hurt body
          in his pull. He never mends himself. At a full hit every 8 s a lone tank at Level 110 on Dangerous (three Priests in the Chapel's
          pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it. */
   spells: {
     rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
-    hall_fire: { n: 'The Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 950, element: 'ember' },
+    hall_fire: { n: 'Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 550, element: 'ember' },
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: null },
     hasks_war_cry: { n: 'War Cry', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: null },
     shield_slam: { n: 'Shield Slam', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },
-    pyre_rite: { n: 'Pyre Rite', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
+    pyre_rite: { n: 'Mend the Dead', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
   },
   map,
 });

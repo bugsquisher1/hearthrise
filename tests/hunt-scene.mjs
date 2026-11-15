@@ -43,6 +43,9 @@
 //         role's default — a druid-clad sword hero never flips to the knight
 //   SC-10 NO SPIN: a hero standing between swings keeps facing its target; it
 //         never turns back to its last walk heading and round again each swing
+//   SC-18 NO LOOK BACK (Tyler 2026-11-14: "the character faces away from the mob before starting to fight it"): a hero that
+//         killed one monster and walked to the next stands facing the foe its next blow is queued at, and with none queued
+//         its walk heading, never the body it walked away from (standing still by its kill, it keeps facing it: SC-10)
 //   SC-13 A SNAPSHOT AHEAD OF THE SCREEN NEVER CUTS A DEATH SHORT (scene.js S9): a monster the
 //         pose lists dead stands until its kill plays in the window behind it, then lies as its corpse
 //   SC-12 THE LEVEL-UP MOMENT: "Level N" rises over the viewed hero once when the
@@ -63,6 +66,10 @@
 //         (settings-model.js write) is put to the server with the residue, and a reload (a new session on the envelope whose
 //         client_state holds it) draws each effect at its OWNER's opacity: the viewed hero's, another hero's, a monster's (0 draws
 //         none); a reward is never dimmed; the Danger marks slider scales the mark's wash and never goes under half
+//   SC-19 MONSTER NAMES (Tyler 2026-11-14: "should be a toggle to turn on enemy names right?"): off by default, so only the boss
+//         is named; turned on in Settings it is put with the residue, and after a reload every LIVING monster wears its name
+//         (bits.js monsterName) as a plate that gives way in a crowd (core/plates.js), the boss keeps its own; a corpse is
+//         never named; turned off, no name from the next frame
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -365,6 +372,27 @@ async function rules(M) {
     ok('SC-10', seen.size === 1 && seen.has('e/null'), 'the tank stood by the rat it struck (east) but turned ' + JSON.stringify(Array.from(seen)));
   }
 
+  { // SC-18: the tank kills the rat east of it (14,9) at S0 + 300, walks SW then W to 11,10 (there by S0 + 1312), and the
+    // next rat (104) waits NORTH of it on 11,9. Its first blow at 104 lands at `blow`; the frames read stand before any wind-up.
+    const walkedOn = async (blow) => {
+      const body = envelope(7, S0);
+      body.hunt.pose.units = body.hunt.pose.units.map((x) => (x.u === 1 ? Object.assign({}, x, { x: 11, y: 10 }) : x))
+        .concat([{ u: 104, side: 'monster', kind: 'rat', x: 11, y: 9, hp: 30, hp_max: 30 }]);
+      body.hunt_track = body.hunt_track.concat([{ u: 1, x: 12, y: 10, atMs: S0 + 700 }, { u: 1, x: 11, y: 10, atMs: S0 + 1000 },
+        { u: 104, x: 11, y: 9, atMs: S0 - 1000 }]);
+      body.hunt_events = body.hunt_events.concat([{ id: 'n:1', type: 'dmg', atMs: blow, u: 1, t: 104, amount: 5, ability: 'basic', element: null }]);
+      const cs = session(M, { t: C0 }, [body]);
+      await cs.load();
+      const v = viewer(M, cs);
+      const seen = new Set();
+      for (let s = S0 + 1400; s <= S0 + 1900; s += 50) { const h = unitOf(v.at(at(s)), 1); if (h) seen.add(h.anim + ':' + h.dir + '/' + h.diag); }
+      return Array.from(seen);
+    };
+    const near = await walkedOn(S0 + 3000), far = await walkedOn(S0 + 7000);
+    ok('SC-18', near.length === 1 && near[0] === 'idle:n/null', 'standing before its first blow at the rat north of it, the tank faced ' + JSON.stringify(near));
+    ok('SC-18', far.length === 1 && far[0] === 'idle:w/null', 'no blow queued yet: the tank keeps its walk heading (west), never the body east of it, but faced ' + JSON.stringify(far));
+  }
+
   { // SC-7: a hidden type never shows
     const clock = { t: C0 };
     const body = envelope(7, S0);
@@ -622,6 +650,42 @@ async function rules(M) {
     const pf = viewer(M, plain).at(now).fx.find((x) => x.id === 'fx_power_strike');
     ok('SC-17', pf && pf.alpha === 1 && (!bolt || bolt.alpha === 1), 'with no pick every effect draws whole: ' + JSON.stringify([pf, bolt]));
   }
+
+  { // SC-19: Monster names, off by default, turned on in Settings, back on a reload, over the living only
+    const clock = { t: C0 };
+    const e = envelope(7, S0);
+    const puts = [];
+    const server = { rpc: async (fn, args) => { if (fn === 'hr_put_client_state') { puts.push(args.p_patch); return { ok: true, body: {} }; } return { ok: true, body: clone(e) }; }, accrue: async () => ({ ok: false }) };
+    const make = () => new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server, setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+    const row = M.SD.SETTINGS.find((r) => r.id === 'ui.monsterNames');
+    const view = { ox: 0, oy: 0, w: M.map.w * 32, h: M.map.h * 32 };
+    const named = (f, t) => M.K.composeFrame(M.map, M.book, Object.assign({ t, roofAlpha: {} }, f), view, M.tables, 32).plates;
+    const alive = at(S0 - 200), gone = at(S0 + 300 + 600);   // the rat standing, then 600 ms after its death
+    const before = make();
+    await before.load();
+    const off = named(viewer(M, before).at(alive), alive);
+    ok('SC-19', row && row.default === false && row.category === 'interface' && !off.some((p) => p.text === 'Giant Rat') && off.some((p) => p.text === 'Hive Queen' && p.kind === 'foe'),
+      'off by default: no regular monster is named and the boss still is: ' + JSON.stringify(off.map((p) => [p.text, p.kind])));
+    M.SM.write({ character: before, peers: () => [before], hud: { layoutOf: () => null, setVisible: () => true } }, row, true);
+    await before.flushResidue();
+    ok('SC-19', puts.length === 1 && puts[0].monsterNames && puts[0].monsterNames.on === true, 'the switch must be put with the residue: ' + JSON.stringify(puts));
+    e.client_state = Object.assign({}, puts[0]);   // the server keeps what was put: the reload's envelope carries it
+    const cs = make();
+    await cs.load();
+    const v = viewer(M, cs);
+    const on = named(v.at(alive), alive);
+    const rat = on.find((p) => p.text === 'Giant Rat');
+    ok('SC-19', rat && rat.kind === 'ambient' && rat.yields === true && on.some((p) => p.text === 'Hive Queen' && p.kind === 'foe' && !p.yields)
+      && on.filter((p) => p.kind === 'self' || p.kind === 'peer').length === 2,
+      'on after a reload: the living rat wears its name, the boss its own, the heroes theirs: ' + JSON.stringify(on.map((p) => [p.text, p.kind, p.yields])));
+    const sctx = { character: cs, peers: () => [cs], hud: { layoutOf: () => null, setVisible: () => true } };
+    M.SM.write(sctx, row, false);
+    const back = named(v.at(alive + 16), alive + 16);
+    ok('SC-19', !back.some((p) => p.text === 'Giant Rat') && back.some((p) => p.text === 'Hive Queen'), 'off again: no name from the next frame: ' + JSON.stringify(back.map((p) => p.text)));
+    M.SM.write(sctx, row, true);
+    const dead = named(v.at(gone), gone);
+    ok('SC-19', !dead.some((p) => p.text === 'Giant Rat') && dead.some((p) => p.text === 'Hive Queen'), 'a dead monster\'s name hides: ' + JSON.stringify(dead.map((p) => p.text)));
+  }
   return fails;
 }
 
@@ -637,6 +701,11 @@ const MUTANTS = [
   ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],
   ['an event type left unmapped', 'src/data/hunt-vfx.js', '  eat: null, drink: null,', '  drink: null,'],
   ['an effect the atlas lacks', 'src/data/hunt-vfx.js', "heal: row({ fx: 'fx_nature_heal_motes'", "heal: row({ fx: 'fx_heal_glow'"],
+  ['monster names are drawn with the switch off (SC-19)', 'src/hunt-view/scene.js', '        else if (read.names) {', '        else if (true) {'],
+  ['monster names never show (SC-19)', 'src/hunt-view/scene.js', '        else if (read.names) {', '        else if (false) {'],
+  ['the names pick is not kept in the residue (SC-19)', 'src/session/residue.js', '  monsterNames: sanitizeSwitch,', '  monsterNamesX: sanitizeSwitch,'],
+  ['a corpse keeps its name (SC-19)', 'src/hunt-view/scene.js', '      if (out.plate && !out.plate.text) delete out.plate;', '      if (out.plate && !out.plate.text) delete out.plate;\n    } else if (read.names && !hero) { out.plate = { text: monsterName(kindOf(u)), kind: \'ambient\', yields: true };'],
+  ['compose drops a name\'s yield (SC-19)', 'src/world/core/compose.js', 'yields: u.plate.yields === true, ', ''],
   ["a wand's basic hit shows nothing", 'src/data/hunt-vfx.js', "mage: 'fx_wand_bolt_impact'", 'mage: null'],
   ["a staff's bolt is missing", 'src/data/hunt-vfx.js', "healer: 'fx_staff_bolt' }", 'healer: null }'],
   ['the diagonal is dropped', 'src/hunt-view/scene-pose.js', 'const diag = ax && ay && ', 'const diag = false && '],
@@ -651,7 +720,9 @@ const MUTANTS = [
   ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
   ["only a ranger's shot flies (a caster's bolt is dropped)", 'src/hunt-view/scene.js', 'const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;', "const bolt = role === 'ranger' ? PROJECTILE.role.ranger : null;"],
   ['the hunt draws the role default, not the chosen outfit', 'src/hunt-view/scene.js', '    if (u === read.viewed && read.look) return read.look;', 'if (false) return read.look;'],
-  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', 'if (!p.moving && s && (act || now - s.at >= 0)) {', 'if (!p.moving && s && (act || now - s.at >= 0) && now - s.at < 700) {'],
+  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', '(was && now - was.at >= 0 && !(', '(was && now - was.at >= 0 && now - was.at < 700 && !('],
+  ['a standing hero turns back to the body it walked away from (SC-18)', 'src/hunt-view/scene.js', ' && !(tl.clientAt(p.since) > was.at) ? was : null', ' ? was : null'],
+  ['a standing hero ignores the foe it is about to fight (SC-18)', 'src/hunt-view/scene.js', 'act || hook.next(u) || (was', 'act || (was'],
   ['a corpse greys its idle instead of its death clip', 'src/hunt-view/scene.js', '          corpse = hook.fallAt(id, age, fell);', '          corpse = null;'],
   ['a Level rise plays no moment', 'src/hunt-view/scene.js', '    if (p) floats.push({ text: \'Level \' + lv,', '    if (false) floats.push({ text: \'Level \' + lv,'],
   ['a mount plays a level-up it never saw', 'src/hunt-view/scene.js', 'const up = lastLevel !== null && lv > lastLevel;', 'const up = lv > (lastLevel || 0);'],

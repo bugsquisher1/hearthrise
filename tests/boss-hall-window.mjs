@@ -103,7 +103,8 @@ async function checks(overrides) {
             off: q('.hw-call-press').disabled, warn: q('.hw-call-warn').classList.contains('is-on'), title: q('.hw-confirm-q').textContent,
             alone: q('.hw-hall-note-alone').hidden ? null : q('.hw-hall-note-alone').textContent, a: q('.hw-hall-note-a').textContent, b: q('.hw-hall-note-b').textContent,
             go: q('[data-hs-act="hall-go"]').textContent, loot: Array.from(det.querySelectorAll('.hw-hall-loot li'), (li) => li.textContent).join('|'),
-            lootNote: q('.hw-hall-note-loot').hidden ? null : q('.hw-hall-note-loot').textContent });
+            lootNote: q('.hw-hall-note-loot').hidden ? null : q('.hw-hall-note-loot').textContent,
+            tableHead: q('.hw-hall-table').hidden ? null : q('.hw-hall-table summary').textContent, table: Array.from(det.querySelectorAll('.hw-hall-drops li'), (li) => li.textContent) });
           return { det, ctx, vv, read, h };
         };
         const leader = { id: 'p', isLeader: true, seats: [{ seat: 0 }, { seat: 1 }] }, member = { id: 'p', isLeader: false, seats: [{ seat: 0 }, { seat: 1 }] };
@@ -157,7 +158,11 @@ async function checks(overrides) {
           taken: pane(1, { sec: takenSec, serverNow: NOW }).read(),
           left: pane(1, { sec: { ...takenSec, taken: false, next_at: null, left: 1 }, serverNow: NOW }).read(),
           noSection: pane(1).read(),
+          /* BH-7: the server says this hero's first win is still ahead */
+          firstAhead: pane(1, { sec: { ...takenSec, taken: false, next_at: null, left: 1, first: true }, serverNow: NOW }).read(),
         };
+        /* BH-7: Krell's own prize table as the page words it (the real rows), on a plain day and with the first win ahead */
+        const krellTable = { plain: P.prizeLines({ hunt: 'krells_hold_hall' }, false), first: P.prizeLines({ hunt: 'krells_hold_hall' }, true) };
         /* the warning names the seat whose key it uses up, and the confirm sends the one verb though this hero holds no key */
         const sp = pane(0, { party: leader, sec: seatSec, partySec });
         const before = calls.length;
@@ -226,6 +231,17 @@ async function checks(overrides) {
     if (d.noSection.loot !== '' || pn.one.loot !== '') fails.push('BH-6 with no word from the server the loot line reads ' + JSON.stringify([d.noSection.loot, pn.one.loot]));
     if (d.noneWarn.lootNote !== 'Loot: none today, the key is still used') fails.push('BH-6 with nobody able to take today\'s prize the confirm reads ' + JSON.stringify(d.noneWarn.lootNote));
     if (d.seatWarn.lootNote !== null || r.warned.lootNote !== null) fails.push('BH-6 the confirm says no loot when there is some, or the server has not said: ' + JSON.stringify([d.seatWarn.lootNote, r.warned.lootNote]));
+    /* BH-7 (lane/c-krell-uniques, the QA audit's F21): A FIRST WIN ALWAYS PAYS, SAID WHILE IT IS AHEAD, AND THE PRIZE TABLE IS ON THE PAGE with the
+       numbers the server rolls (drops.js prizeSlices over the boss's own rows): each piece and its share of a roll, and its first-win share */
+    if (d.firstAhead.loot !== 'Loot: available|First win: one piece, guaranteed') fails.push('BH-7 a hero whose first win is ahead reads ' + JSON.stringify(d.firstAhead.loot));
+    if (/First win/.test(d.left.loot + d.taken.loot + d.seatKey.loot)) fails.push('BH-7 a hero the server never called first is promised a piece: ' + JSON.stringify([d.left.loot, d.taken.loot, d.seatKey.loot]));
+    for (const [k, x] of [['a hall page', d.firstAhead], ['a hall page with no word from the server', d.noSection]]) {
+      const n = x.table.length;
+      if (!n || x.tableHead !== 'Loot table: ' + n + ' pieces, one roll a day' || x.table.some((t) => !/^.+: \d+(\.\d)?%(, first win \d+(\.\d)?%)?$/.test(t))) fails.push('BH-7 ' + k + ' lists its prize table as ' + JSON.stringify([x.tableHead, x.table]));
+    }
+    const kt = r.krellTable;
+    if (kt.plain.length !== 16 || kt.plain[0] !== 'Dawnsteel Sword: 2.9%' || kt.plain[14] !== 'Krell\'s Tollgate: 3%' || kt.plain[15] !== 'Banded Legguards: 3%') fails.push('BH-7 Krell\'s prize table reads ' + JSON.stringify(kt.plain));
+    if (kt.first.length !== 16 || kt.first[0] !== 'Dawnsteel Sword: 2.9%, first win 6.7%' || kt.first[14] !== 'Krell\'s Tollgate: 3%' || kt.first[15] !== 'Banded Legguards: 3%') fails.push('BH-7 with the first win ahead Krell\'s prize table reads ' + JSON.stringify(kt.first));
     for (const [k, x] of Object.entries(d)) if (!Array.isArray(x) && /[{}]/.test(Object.values(x).join(' '))) fails.push('BH-5 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
     for (const e of errors) fails.push('BH page error: ' + e.slice(0, 160));
     await ctx.close();
@@ -260,6 +276,11 @@ const MUTANTS = [
   { name: 'a claimed day reads as available', file: 'src/shell/windows/boss-hall-pane.js', from: 'const out = [st.taken ? W.taken : W.left];', to: 'const out = [W.left];', want: /BH-6/ },
   { name: 'the wait reads the browser\'s clock', file: 'src/shell/windows/boss-hall-pane.js', from: '  const now = serverNowOf(cs);\n  if (st.taken', to: '  const now = Date.now();\n  if (st.taken', want: /BH-6/ },
   { name: 'the loot line is made up with no word from the server', file: 'src/session/boss-quote.js', from: "  if (!s || typeof s !== 'object' || typeof s.taken !== 'boolean') return null;", to: "  if (!s || typeof s !== 'object' || typeof s.taken !== 'boolean') return { taken: false, nextAtMs: null, key: null, seats: 1, left: 1 };", want: /BH-6/ },
+  { name: 'the first win is never said', file: 'src/shell/windows/boss-hall-pane.js', from: '  if (st.first) out.push(W.first);\n', to: '', want: /BH-7/ },
+  { name: 'every hero is promised a first win', file: 'src/session/boss-quote.js', from: 'first: s.first === true,', to: 'first: true,', want: /BH-7|BH-6/ },
+  { name: 'the prize table is never shown', file: 'src/shell/windows/boss-hall-pane.js', from: "rows(box.querySelector('.hw-hall-drops'), table,", to: "rows(box.querySelector('.hw-hall-drops'), [],", want: /BH-7/ },
+  { name: 'the table never shows the first win\'s numbers', file: 'src/shell/windows/boss-hall-pane.js', from: 'first && sure[i].ch !== d.ch ? W.rowFirst', to: 'false ? W.rowFirst', want: /BH-7/ },
+  { name: 'the table shows the first win\'s numbers as every day\'s', file: 'src/shell/windows/boss-hall-pane.js', from: 'const every = prizeSlices(rowsOf, false), sure', to: 'const every = prizeSlices(rowsOf, true), sure', want: /BH-7/ },
   { name: 'nobody is told the key is still used with no loot to take', file: 'src/shell/windows/boss-hall-pane.js', from: 'const none = !!st && st.left === 0;', to: 'const none = false;', want: /BH-6/ },
   { name: 'a party is told it walks in alone', file: 'src/shell/windows/boss-hall-pane.js', from: "prop(a, 'hidden', !alone);", to: "prop(a, 'hidden', false);", want: /BH-2|BH-1/ },
 ];

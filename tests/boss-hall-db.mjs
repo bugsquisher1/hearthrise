@@ -333,7 +333,17 @@ async function bothDoors(door, boot, restore) {
       await state('the first kill of the day', { prize: 1, days: 1, took: 1 });
       const first = (await dailyRows(db, uids[0]))[0] || {};
       if (first.boss !== BOSS || first.hall !== FROM || first.day !== today || JSON.stringify(first.items) !== JSON.stringify({ [PRIZE]: 1 })) bad.push(`HD-DAILY ${door} ${job.name}: the claim's journal reads ${JSON.stringify(first)}`);
+      /* A HERO'S FIRST ROLL ON THE BOSS IS MARKED, ONCE (lane/c-krell-uniques, the audit's F21: the engine's sure roll reads this): the claim's
+         journal and its day row say first, and from then the engine's read and the page's section say the first win is behind the hero */
+      for (const uid of uids) {
+        const marked = Number(await one(db, `select count(*) from public.player_boss_loot_day where user_id = $1::uuid and slot = 0 and first`, [uid]));
+        const took = (await dailyRows(db, uid)).filter((r) => r.took === true);
+        if (marked !== 1 || took.length !== 1 || took[0].first !== true) bad.push(`HD-DAILY ${door} ${job.name}: the first roll is marked on ${marked} day rows and its journal says first ${JSON.stringify(took.map((r) => r.first))} (want 1 and [true])`);
+        const ahead = await one(db, `select public.hr_boss_prize_first($1::uuid, 0, $2)`, [uid, ROOM]);
+        if (ahead !== false) bad.push(`HD-DAILY ${door} ${job.name}: after its first roll the engine's read still says first: ${JSON.stringify(ahead)}`);
+      }
       const sec = await one(db, `select public.hr_state_of($1::uuid, 0)->'boss_halls'->$2`, [uids[0], FROM]);
+      if (sec && sec.first !== false) bad.push(`HD-DAILY ${door} ${job.name}: after its first roll the section says first ${JSON.stringify(sec.first)}`);
       const nextAt = sec && sec.next_at ? new Date(sec.next_at).getTime() : null;
       if (!sec || sec.taken !== true || sec.left !== 0 || sec.seats !== uids.length || nextAt !== Date.parse(today + 'T00:00:00Z') + 86400000) bad.push(`HD-DAILY ${door} ${job.name}: after the kill the section reads ${JSON.stringify(sec)}`);
       /* A SECOND KILL THE SAME DAY: the hero joins and fights, takes the kill's Level XP and coin, and no piece; no second stamp, and nothing
@@ -515,6 +525,8 @@ const MUTANTS = [
   /* THE DAILY PRIZE (2027-04-25-boss-daily.sql) */
   { name: 'the engine\'s read carries no prize', fn: FN.read, find: "'prize_left', public.hr_boss_prize_left(h.user_id, h.slot, v_i.hunt_id),", repl: "'prize_left', null,", arm: 'doors', want: /HD-DAILY/ },
   { name: 'the read offers a prize the day has taken', fn: FN.left, find: '  return not exists (select 1 from public.player_boss_loot_day d', repl: '  return true or not exists (select 1 from public.player_boss_loot_day d', arm: 'doors', want: /HD-DAILY .*a second kill the same day/ },
+  { name: 'the first roll is never marked', fn: FN.take, find: 'values (p_user, p_slot, v_boss, v_day, p_session, v_first)', repl: 'values (p_user, p_slot, v_boss, v_day, p_session, false)', arm: 'doors', want: /HD-DAILY .*the first roll is marked on 0 day rows/ },
+  { name: 'the first roll\'s journal does not say so', fn: FN.take, find: "'took', true, 'first', v_first, 'items', v_got)", repl: "'took', true, 'items', v_got)", arm: 'doors', want: /HD-DAILY .*its journal says first/ },
   { name: 'the prize step never runs', fn: FN.member, find: "  if right(v_s.hunt_id, 5) = '_hall' or coalesce(p_delta #> '{journal,meta}', '{}'::jsonb) ? 'prize' then", repl: '  if false then', arm: 'claim', want: /HD-CLAIM/ },
   { name: 'a refused claim stays in the window\'s own ledger row', fn: FN.take, find: "    p_delta := p_delta #- '{journal,meta,prize}';", repl: '    null;', arm: 'claim', want: /HD-CLAIM the window's own ledger row/ },
   { name: 'a second claim the same day passes', fn: FN.take, find: '    if v_ins = 1 then', repl: '    if true then', arm: 'claim', want: /HD-CLAIM a prize with taken_today|HD-CLAIM taken_today/ },

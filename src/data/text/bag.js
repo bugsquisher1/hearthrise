@@ -16,7 +16,7 @@ export const BAG_TEXT = Object.freeze({
   /* Deposit: ONE storage move of every selected stack, whole (all or nothing); the count is the server's. */
   putting_away: 'Putting them away…',
   put_away: { one: 'Put away {count} stack.', other: 'Put away {count} stacks.' },
-  storage_away: 'Storage is in town (leave the hunt to use it)',
+  storage_away: 'Out hunting, Storage is in town (leave the hunt to use it)',
   /* Lock and Unlock: ONE lock of every selected stack (all or nothing). */
   locking: 'Locking…',
   unlocking: 'Unlocking…',

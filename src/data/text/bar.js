@@ -23,6 +23,8 @@ export const BAR_TEXT = Object.freeze({
   first_target_on: 'First target on {ground}',
   first_target_note_on: 'On {ground} your hero goes for any {monster} first, then follows Target.',
   first_target_note_off: 'Pick who your hero attacks first on {ground} (like a healer)',
+  /* before the server has said this ground's pick: the select is off and the note says why */
+  first_target_reading: 'Loading First target…',
 
   /* What the worn weapon can shoot or cast. */
   shot_waits: '{need}. This slot waits until then, and your next ammo fires.',

@@ -39,8 +39,10 @@ import { whole, gold } from '../render/format.js?v=0.2.131';
 import { t } from '../render/player-text.js?v=0.2.131';
 
 const PACK_QTY_MAX = 100000;
-/* A line of several labels: each on its own line (the warning and advice elements keep line breaks, windows.css). */
+/* A line of several labels: each on its own line (the warning keeps line breaks, windows.css). */
 const LINES = '\n';
+/* The advice over the list stays one line (it shares the window's height with the page): its two labels as two fragments. */
+const ADVICE = '. ';
 
 /** "Recommended: 2+ players" for this hunt's ground (Tyler 2026-11-14: a label, not a sentence), or ''. */
 export function partyNote(hunt) {
@@ -204,12 +206,12 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
        with how we are planning the game"): the note says where the Levels are and what the tough ground costs, never who it is for. */
     const inBand = best(rows.filter((r) => !fitsGroup(r, partySize) && holds(r, lo, lo)));
     const easier = { easier: below.name, lo: below.band[0], hi: below.band[1] };
-    if (!inBand) return { row: below, note: [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })].join(LINES) };
+    if (!inBand) return { row: below, note: [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })].join(ADVICE) };
     const levels2 = holds(inBand, lo, hi) ? levelsWords(lo, hi) : levelsWords(lo, lo);
     const was = alone && bests && bests.grounds && bests.grounds[inBand.hunt] && bests.grounds[inBand.hunt].solo;
     const lost = was && Number.isFinite(was.balanceH) && was.balanceH < 0 ? gold(-was.balanceH) : null;
     const key = lost ? 'hunts.right_but_lost' : alone ? 'hunts.right_but_tough' : 'hunts.right_easier';
-    return { row: below, note: [t(key, { ground: inBand.name, levels: levels2, gold: lost }), t('hunts.easier', easier)].join(LINES) };
+    return { row: below, note: [t(key, { ground: inBand.name, levels: levels2, gold: lost }), t('hunts.easier', easier)].join(ADVICE) };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
 }

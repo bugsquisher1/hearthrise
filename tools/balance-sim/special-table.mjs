@@ -14,9 +14,10 @@
 //   node tools/balance-sim/special-table.mjs crit        [--seeds 3] [--hours 2]   Widow's Fang (+6% crit) on the Sewer and the Glade, and the crit ladder's upper rungs
 //   node tools/balance-sim/special-table.mjs skill       [--ground G --level L --tier T --who tank:defense,bow:ranged]   + skill on armor, +1 to +8
 //
-// TWO ATTRIBUTES HAVE NO ENGINE HOOK YET, so they are measured through a stand-in, named on every table:
-//   physical resistance  a PLANTED copy of the engine (tests/hunt-core/fixtures/h1.js plant): elements.js resistProfile and
-//                        heroElementPermille take `physical` (a blow with no element), under a 10% cap. The copy is deleted at exit.
+// ONE ATTRIBUTE HAS NO ENGINE HOOK YET, so it is measured through a stand-in, named on every table:
+//   (physical resistance was a planted copy of the engine until lane/c-krell-uniques built the hook: src/core/elements.js
+//    heroElementPermille reads `physical` for a blow with no element, under data/elements.js HERO_RESIST_PM.physicalMax. It is
+//    measured on the real engine now.)
 //   + skill              the hero's own skill raised by the bonus (cell.mjs skillsBySeat), as the Tower's table did. Combat reads
 //                        the same number either way; skill XP earned is not what is being read.
 // Exit 0 when every cell ran; 1 otherwise.
@@ -32,16 +33,6 @@ const k = (n) => (n === null || n === undefined ? '-' : Math.abs(n) >= 10000 ? (
 const pct = (a, b) => (b ? ((100 * (a - b)) / b >= 0 ? '+' : '') + ((100 * (a - b)) / b).toFixed(1) + '%' : '-');
 const u = (root, p) => pathToFileURL(join(root, p)).href;
 
-/* The planted physical hook (see the header). Three anchors, each exactly once. */
-const PHYSICAL_PLANT = [
-  ['src/data/elements.js', 'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400 });',
-    'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400, physicalMax: 100 });'],
-  ['src/core/elements.js', '  for (const e of ELEMENTS) {\n    const v = Object.prototype.hasOwnProperty.call(resistPm, e) ? Math.trunc(Number(resistPm[e])) : 0;\n    const pm = Number.isFinite(v) ? Math.min(HERO_RESIST_PM.max,',
-    '  for (const e of [...ELEMENTS, \'physical\']) {\n    const v = Object.prototype.hasOwnProperty.call(resistPm, e) ? Math.trunc(Number(resistPm[e])) : 0;\n    const pm = Number.isFinite(v) ? Math.min(e === \'physical\' ? HERO_RESIST_PM.physicalMax : HERO_RESIST_PM.max,'],
-  ['src/core/elements.js', '  if (!resistPm || !isElement(element) || !Object.prototype.hasOwnProperty.call(resistPm, element)) return 1000;',
-    '  if (!element) element = \'physical\';\n  if (!resistPm || !(isElement(element) || element === \'physical\') || !Object.prototype.hasOwnProperty.call(resistPm, element)) return 1000;'],
-];
-
 /* The engine of `root`, with the sample rows and any stand-in rows added to both ITEMS instances the fight can read. */
 async function engine(root, extra = {}) {
   const { loadCellRunner } = await import(u(root, 'tools/balance-sim/cell.mjs'));
@@ -54,9 +45,9 @@ async function engine(root, extra = {}) {
   for (const t of tables) for (const [id, row] of Object.entries(rows)) { if (t[id]) throw new Error('special-table: ' + id + ' is already an item'); t[id] = JSON.parse(JSON.stringify(row)); }
   return { R, tables, v, root };
 }
+/* The engine the physical tables play on: the real one (the hook is built; this was a planted copy before lane/c-krell-uniques). */
 async function planted() {
-  const { plant } = await import(u(ROOT, 'tests/hunt-core/fixtures/h1.js'));
-  return plant(PHYSICAL_PLANT, ['supabase/functions/hr-accrue', 'tests/hunt-core/fixtures', 'tools/balance-sim', 'src/shell']);
+  return { root: ROOT, done() {} };
 }
 
 /* One cell, read: the party's numbers and each hero's. */
@@ -157,7 +148,7 @@ async function legs() {
   try {
     const E = await engine(P.root, { whatif_legs_100: { n: 'what-if', type: 'armor', slot: 'pants', defB: 64, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32, resistPm: { physical: 100 }, tier: 7, reqSkill: 'level', reqLv: 88 } });
     const FOUR = ['tank', 'healer', 'hammer', 'mage'];
-    head('BANDED LEGGUARDS on Krell\'s Hold (the ground), Level 90. Physical resistance is a PLANTED hook. ' + SEEDS + ' seeds x ' + HOURS + ' h a cell, the same dice.',
+    head('BANDED LEGGUARDS on Krell\'s Hold (the ground), Level 90. ' + SEEDS + ' seeds x ' + HOURS + ' h a cell, the same dice.',
       ['Who', 'Tier', 'Legs', 'Tank damage taken / h', 'vs Emberforged', 'vs plain Dawnsteel', 'Tank supplies g / h', 'Deaths', 'Close calls / 12 h', 'Level XP / h']);
     for (const [who, party, tier] of [['Tank alone', ['tank'], 'normal'], ['Tank alone', ['tank'], 'dangerous'], ['Tank in a four', FOUR, 'dangerous'], ['Tank in a four', FOUR, 'deadly']]) {
       let ember = null, dawn = null;
@@ -173,7 +164,7 @@ async function legs() {
 
 /* ── A BOSS ROOM (a keyed hall or a called fight), tank + healer + hammer + mage, on boss-call-table.mjs's own secrets and two of its bars:
    'door' (default moves, eating at 75%, the healer's two heals: what a hall's hints build) and 'default' (default moves on the ground's food).
-   `wear` is a list of { seat: { slot: item } }. Planted engine (physical). Answers one row a variant. ── */
+   `wear` is a list of { seat: { slot: item } }. Answers one row a variant. ── */
 async function bossRoom(spec, variants) {
   const P = await planted();
   try {
@@ -228,7 +219,7 @@ async function bossRoom(spec, variants) {
     };
     const base = party.map((s) => gear.kitOf(s, L, {}));
     head(spec.title + ', Level ' + L + ', tank + healer + hammer + mage, the ' + (spec.bar === 'door' ? 'door\'s bar' : 'default moves on the ground\'s food') + ', ' + TRIES + ' tries a row on the same secrets. The tank today wears '
-      + base[0].shield + ' and ' + base[0].pants + '. Physical resistance is a PLANTED hook.',
+      + base[0].shield + ' and ' + base[0].pants + '.',
     ['Worn', 'Wins', 'Tries a death ended', 'Tries each died in (tank / healer / hammer / mage)', 'Tank damage taken a try', 'of it ' + spec.element, 'Back line taken a try', 'of it ' + spec.element, 'Food g a head']);
     for (const [name, wear, plus] of variants) {
       const t = []; for (let s = 0; s < TRIES; s++) t.push(tryOnce(wear, s, plus));

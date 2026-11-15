@@ -32,6 +32,10 @@ export const ITEM_TEXT = Object.freeze({
   kind_junk: 'Junk',
   kind_material: 'Material',
 
+  /* A piece's resistance, one stat line a kind (src/shell/bag-model.js statLines): {element} is the monster page's own word for it
+     (monster.el_ember "Fire", monster.el_physical "Physical"), and the number beside it is how much less the wearer takes. */
+  resist_taken: '{element} damage taken',
+
   /* A bane weapon: its damage against one kind of monster (src/core/bane.js). */
   bane_label: 'Bane',
   bane_more: '+{pct}% damage to {kind} monsters',

@@ -3,6 +3,8 @@
 //   node tools/ledger-fold.local.mjs            the fold's state, then THE DRY RUN: what the next runs would fold, at the
 //                                               server's own detail_days (3 while the tier is off). Nothing is changed.
 //   node tools/ledger-fold.local.mjs --days 5   the dry run at another number of days
+//   node tools/ledger-fold.local.mjs --rows 400000   read more of the waiting rows (default 200,000, the oldest: what the arm
+//                                               file reads; one statement, about twice as long for twice the rows)
 //
 // READ THIS BEFORE 2027-04-28-ledger-fold-arm.sql IS APPLIED. That file is the step that cannot be undone: from its next
 // 10-minute fire the rows counted under "Would fold" are summed into player_ledger_windows and deleted. What to read:
@@ -18,12 +20,16 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { HAS_WINDOWS, FOLD_STATE, foldLine, planSql, planLines } from './lib/ledger-journal.mjs';
+import { HAS_WINDOWS, FOLD_STATE, foldLine, planSql, planLines, PLAN_ROWS } from './lib/ledger-journal.mjs';
 
 const REF = 'nezapsylztqbbwuwembx';
 const at = process.argv.indexOf('--days');
 const days = at >= 0 ? Number(process.argv[at + 1]) : null;
-if (at >= 0 && !(Number.isInteger(days) && days >= 3 && days <= 3650)) { console.error('usage: node tools/ledger-fold.local.mjs [--days N]   (N a whole number, 3 or more)'); process.exit(2); }
+const rat = process.argv.indexOf('--rows');
+const rows = rat >= 0 ? Number(process.argv[rat + 1]) : PLAN_ROWS;
+if ((at >= 0 && !(Number.isInteger(days) && days >= 3 && days <= 3650)) || !(Number.isInteger(rows) && rows >= 1 && rows <= 1000000)) {
+  console.error('usage: node tools/ledger-fold.local.mjs [--days N] [--rows N]   (days a whole number, 3 or more; rows up to 1,000,000)'); process.exit(2);
+}
 
 const readOnly = (sql) => /^\s*(select|with)\b/i.test(sql) && !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do|copy|vacuum)\b/i.test(sql);
 let token = null;
@@ -47,7 +53,7 @@ async function main() {
   console.log(foldLine(state).text);
   /* While the tier is off the dry run needs a number: 3, the arm file's. */
   const ask = days ?? (state.detail_days === null ? 3 : null);
-  const [row] = await q(planSql(ask));
+  const [row] = await q(planSql(ask, rows));
   if (typeof row.plan === 'string') row.plan = JSON.parse(row.plan);
   for (const l of planLines(row)) console.log(l);
 }

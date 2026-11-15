@@ -12,8 +12,8 @@
 --   The kill switch (2027-04-28-ledger-fold-disarm.sql) stops further folding. It does not bring a folded row back.
 --
 -- ── WHAT IT DOES ───────────────────────────────────────────────────────────
--- 1. Reads what the first runs would fold: hr_ledger_fold_plan over the whole waiting ledger at 3 days (STABLE: it cannot
---    write). 2027-04-27-ledger-fold.sql's model was written from the engine's code, not from production's rows, so this is
+-- 1. Reads what the first runs would fold: hr_ledger_fold_plan at 3 days over the oldest 200,000 waiting rows (311,589
+--    waited on 2026-11-15; the read is bounded so the apply's one statement is a known size; STABLE: it cannot write). 2027-04-27-ledger-fold.sql's model was written from the engine's code, not from production's rows, so this is
 --    where the two meet: if under 900 in 1,000 of the folded-kind rows fit the model, the file REFUSES and prints the keys
 --    that did not (a row that does not fit is safe, it stays as detail; but a model that misses production is fixed first).
 -- 2. Records that answer in hr_ledger_fold_state.last (armed_at beside it): what was about to fold, kept.
@@ -21,7 +21,8 @@
 -- Already on (detail_days not NULL): a notice, nothing changed, whatever number an operator set stands.
 --
 -- EXPLOIT SURFACE DELTA: none of its own. It turns on the one delete path 2027-04-27-ledger-fold.sql describes.
--- COST: the dry run is one pass of the waiting rows (311,589 on 2026-11-15) through the (at, id) key, inside the apply.
+-- COST: the dry run is one pass of at most 200,000 waiting rows through the (at, id) key, inside the apply. PGlite reads
+--   2,400 of them a second; PostgreSQL 17 was not measured. If the apply times out, nothing has changed.
 -- ORDER: after 2027-04-27-ledger-fold.sql is APPLIED and its dry run has been read. EDGE: NONE. CLIENT: NONE.
 -- REVERSIBLE: forward only. 2027-04-28-ledger-fold-disarm.sql sets detail_days back to NULL.
 -- IDEMPOTENT: a second apply finds the tier on and changes nothing.
@@ -31,6 +32,7 @@ do $mig$
 declare
   c_days         constant int := 3;      -- how long a settle's own row is kept (Security's to set; the dial's CHECK refuses under 3)
   c_fit_permille constant int := 900;    -- under this share of the waiting rows fitting the model, the model is wrong about production
+  c_read         constant int := 200000; -- the oldest waiting rows the gate reads (node tools/ledger-fold.local.mjs --rows reads more)
   v_have int; v jsonb; v_seen bigint; v_fold bigint;
 begin
   if to_regprocedure('public.hr_ledger_fold_plan(integer,uuid,integer)') is null
@@ -50,12 +52,12 @@ begin
   end if;
 
   -- 1. THE READ, AND THE GATE
-  v := public.hr_ledger_fold_plan(1000000, null, c_days);
+  v := public.hr_ledger_fold_plan(c_read, null, c_days);
   if coalesce(v->>'ok', '') <> 'true' or v ? 'off' then raise exception 'ARM: the dry run did not answer: %', v; end if;
   v_seen := (v->>'seen')::bigint;
   v_fold := (v->>'folded')::bigint;
   if v_seen > 0 and v_fold * 1000 < v_seen * c_fit_permille then
-    raise exception 'ARM REFUSED: % of % folded-kind rows older than % days fit the model, under % in 1,000. The rows that do not: %',
+    raise exception 'ARM REFUSED: % of the % oldest folded-kind rows older than % days fit the model, under % in 1,000. The rows that do not: %',
       v_fold, v_seen, c_days, c_fit_permille, v->'left_by';
   end if;
 
@@ -73,6 +75,6 @@ begin
   if to_regclass('cron.job') is not null
      and not exists (select 1 from cron.job j where j.jobname = 'hr-ledger-fold' and j.command = 'select public.hr_ledger_fold(20000)') then
     raise exception 'VERIFY: the tier is on and no job runs it (hr-ledger-fold is not scheduled)'; end if;
-  raise notice 'ledger-fold-arm: ON at % days. Waiting: % rows, % fold into % windows, % stay as detail (%). First fire within 10 minutes.',
-    c_days, v_seen, v_fold, v->>'windows', v->>'left', v->'left_by';
+  raise notice 'ledger-fold-arm: ON at % days. Read: the oldest % waiting rows (more wait: %), % fold into % windows, % stay as detail (%). First fire within 10 minutes.',
+    c_days, v_seen, v->>'more', v_fold, v->>'windows', v->>'left', v->'left_by';
 end $mig$;

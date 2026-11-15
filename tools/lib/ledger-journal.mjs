@@ -81,8 +81,10 @@ export function ledgerQuietWaitMin(minute, foldOn) {
 }
 
 /* The dry run's question (tools/ledger-fold.local.mjs), one row: what hr_ledger_fold would do from here, read and not done
-   (hr_ledger_fold_plan is STABLE: it cannot write), with the journal's size beside it. `days`: an integer or nothing. */
-export const planSql = (days) => `select public.hr_ledger_fold_plan(1000000, null, ${Number.isInteger(days) ? days : 'null'}) as plan,
+   (hr_ledger_fold_plan is STABLE: it cannot write), with the journal's size beside it. `days`: an integer or nothing.
+   `rows`: how many waiting rows it reads, oldest first (the arm file reads 200,000: one statement of a known size). */
+export const PLAN_ROWS = 200000;
+export const planSql = (days, rows = PLAN_ROWS) => `select public.hr_ledger_fold_plan(${Number.isInteger(rows) && rows > 0 ? rows : PLAN_ROWS}, null, ${Number.isInteger(days) ? days : 'null'}) as plan,
        (select count(*) from public.player_ledger) as ledger_rows,
        pg_total_relation_size('public.player_ledger') as ledger_bytes,
        pg_database_size(current_database()) as db_bytes`;
@@ -110,6 +112,6 @@ export function planLines(r) {
   out.push(`  Would stay as detail (a key or a type the model does not list): ${left.toLocaleString('en-US')} rows`
     + (seen ? `, ${(1000 * fold / seen).toFixed(0)} in 1,000 fit (the arm file refuses under 900).` : '.'));
   for (const l of p.left_by || []) out.push(`    ${String(l.kind).padEnd(8)} ${String(l.intent).padEnd(11)} ${n(l.rows).toLocaleString('en-US').padStart(9)} rows  ${l.why}`);
-  if (p.more) out.push('  More than a million rows wait: this is the first million.');
+  if (p.more) out.push(`  More rows wait than this read took: these are the oldest ${seen.toLocaleString('en-US')} (--rows N reads more, in one longer statement).`);
   return out;
 }

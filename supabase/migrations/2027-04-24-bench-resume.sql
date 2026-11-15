@@ -107,7 +107,7 @@ begin
     ('public.hr_last_activity_note()', '7486863c27623617ddb85abf5a048338', 'c613f3e203cdb279f1b5830db8c32f84', '2026-10-22-hunt-sessions-settle.sql')
   ) p(sig, pre, post, src) loop
     if to_regprocedure(r.sig) is null then raise exception 'PIN: % is missing', r.sig; end if;
-    v_md5 := md5(regexp_replace(pg_get_functiondef(to_regprocedure(r.sig)), '[[:space:]]+', ' ', 'g'));
+    v_md5 := md5(regexp_replace(pg_get_functiondef(r.sig::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from r.pre and v_md5 is distinct from r.post then
       raise exception 'PIN: % is neither %''s image (%) nor this file''s (%) - md5 %: another file moved it; restate from the new image',
         r.sig, r.src, left(r.pre, 8), left(r.post, 8), v_md5; end if;
@@ -199,7 +199,7 @@ begin
   return new;
 end $$;
 
--- hr_hunt_apply_member's step (7), whole. Every line of the old step is here verbatim but the three marked BENCH-RESUME.
+-- hr_hunt_apply_member's step (7), whole: the same reads, checks and writes in the same order. BENCH-RESUME marks what is new.
 create or replace function public.hr_hunt_resume(p_user uuid, p_slot int, p_session uuid, p_end text, p_ev0 bigint)
 returns void language plpgsql set search_path = public, pg_catalog as $$
 declare
@@ -757,7 +757,7 @@ declare
   c_u    constant uuid := '000000c0-0000-4000-a000-0000be7c0424';
   k      constant text := '000000c0-0000-4000-b000-be7c0424';
   c_hunt constant text := 'mill_cellar';
-  c_am   constant regprocedure := 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure;
+  c_am   constant text := 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)';
   v jsonb; v_s text; v_role text; v_src text; v_n int; v_i int := 0;
   v_bench text; v_in text; v_need bigint; v_node text; v_sid uuid; v_st record; v_meta jsonb;
   r record;
@@ -782,7 +782,7 @@ begin
   if not exists (select 1 from pg_trigger t where t.tgrelid = 'public.player_state'::regclass and t.tgname = 'hr_last_activity_note'
                   and t.tgenabled = 'O' and t.tgfoid = 'public.hr_last_activity_note()'::regprocedure) then
     raise exception 'bench-resume §6(a): the trigger hr_last_activity_note is not on player_state'; end if;
-  select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = c_am;
+  select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = c_am::regprocedure;
   v_s := 'perform public.hr_hunt_resume(p_user, p_slot, p_session, v_h->>''ended'', v_ev0);';
   if (length(v_src) - length(replace(v_src, v_s, ''))) / length(v_s) <> 1 then
     raise exception 'bench-resume §6(a): hr_hunt_apply_member does not call hr_hunt_resume exactly once'; end if;
@@ -792,9 +792,9 @@ begin
      or strpos(v_src, 'perform public.hr_hunt_resume') < strpos(v_src, 'return jsonb_build_object(''ok'', true, ''replayed'', true);') then
     raise exception 'bench-resume §6(a): the resume runs before the value half or before a replayed key returns'; end if;
   -- the restated settle is the reviewed image, still the owner's SECURITY DEFINER body that no client role runs
-  if md5(regexp_replace(pg_get_functiondef(c_am), '[[:space:]]+', ' ', 'g')) is distinct from '77229c0210708cde8f16dc9e1533558f' then
+  if md5(regexp_replace(pg_get_functiondef(c_am::regprocedure), '[[:space:]]+', ' ', 'g')) is distinct from '77229c0210708cde8f16dc9e1533558f' then
     raise exception 'bench-resume §6(a): hr_hunt_apply_member is not the reviewed image'; end if;
-  if not exists (select 1 from pg_proc p where p.oid = c_am and p.prosecdef and p.proconfig @> array['search_path=public, pg_catalog'])
+  if not exists (select 1 from pg_proc p where p.oid = c_am::regprocedure and p.prosecdef and p.proconfig @> array['search_path=public, pg_catalog'])
      or has_function_privilege('anon', c_am, 'execute') or has_function_privilege('authenticated', c_am, 'execute') then
     raise exception 'bench-resume §6(a): hr_hunt_apply_member lost its definer shape or a client role can run it'; end if;
   perform public.hr_assert_grant_hygiene(true);

@@ -3154,7 +3154,8 @@ const DB_ARMS = {
         want: { choice: 'job', state: 'resumed', active: 'gather:shrimp_s' } },
       { tag: 'wait in town', hero: { ...DOOMED, lastActivity: { kind: 'gather', id: 'shrimp_s' } }, pick: ['wait', null],
         want: { choice: 'wait', state: 'waited', why: 'chose_wait', active: 'idle:' } },
-      { tag: 'train, gold for the hour', hero: { ...TEN, gold: 5000 }, pick: ['train', 'melee'],
+      /* this hero has a gathering job too: the choice is the yard, so the job is not what it goes back to */
+      { tag: 'train, gold for the hour', hero: { ...TEN, gold: 5000, lastActivity: { kind: 'gather', id: 'shrimp_s' } }, pick: ['train', 'melee'],
         want: { choice: 'train', skill: 'melee', state: 'started', active: 'combat:training_yard_melee' } },
       { tag: 'train, too little gold', hero: { ...TEN, gold: 0 }, pick: ['train', 'melee'],
         want: { choice: 'train', skill: 'melee', state: 'waited', why: 'insufficient_gold', active: 'idle:' } },

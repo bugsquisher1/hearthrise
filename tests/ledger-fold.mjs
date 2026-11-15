@@ -39,6 +39,8 @@
 //   LF-REPORTS   tools/vitals.mjs's day table and tools/economy-watch.local.mjs's three reads (their own SQL, lifted) return
 //                the same rows before and after; read WITHOUT the windows, the folded days go quiet (the control)
 //   LF-OBSERVE   the fold's line (tools/lib/ledger-journal.mjs) reads OK only when on, fresh and nothing behind
+//   LF-DRILL     every job that deletes journal rows fires on a minute ending in 7, and the restore drill's paged read of the
+//                ledger (100 s), started after the wait it is told, never has one fire under it: tier on or off, any second
 //   LF-PRUNE     past retain_days: fold then hr_ledger_windows_prune writes the rollup hr_ledger_prune writes from the same
 //                rows left as detail, column for column; a second prune moves nothing
 //   LF-KILL      the kill switch: the fold answers off, no window can be written, the windows stand; armed again it resumes
@@ -50,7 +52,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bootReplay, manifest, ROOT, LAST_PATCHED } from './schema-replay.mjs';
-import { journal, FOLD_STATE, foldLine, planSql, planLines } from '../tools/lib/ledger-journal.mjs';
+import { journal, FOLD_STATE, foldLine, planSql, planLines, ledgerQuietWaitMin } from '../tools/lib/ledger-journal.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -60,7 +62,9 @@ const ARM = '2027-04-28-ledger-fold-arm.sql';
 const OFF = '2027-04-28-ledger-fold-disarm.sql';
 const read = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const SRC = { file: read(FILE), arm: read(ARM), off: read(OFF) };
+/* js: what a red arm prints, cut to 700 characters. full: what a comparison reads, never cut. */
 const js = (v) => String(JSON.stringify(v === undefined ? null : v)).slice(0, 700);
+const full = (v) => String(JSON.stringify(v === undefined ? null : v));
 const harness = (m) => Object.assign(new Error(m), { harness: true });
 const ISO = `'YYYY-MM-DD"T"HH24:MI:SS".000Z"'`;
 const CRON_FOLD = 'select public.hr_ledger_fold(20000)';
@@ -294,7 +298,7 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
   const inert = await one(CRON_FOLD);
   const jobs = (await db.query(`select jobname, schedule, command from cron.job where jobname in ('hr-ledger-fold', 'hr-ledger-windows-prune') order by 1`)).rows;
   arm('LF-INERT', cfg0.detail_days === null && cfg0.window_minutes === 15 && inert && inert.ok === true && inert.off === true
-    && jobs.length === 2 && jobs[0].command === CRON_FOLD && jobs[0].schedule === '2-59/10 * * * *' && jobs[1].command === CRON_PRUNE,
+    && jobs.length === 2 && jobs[0].command === CRON_FOLD && jobs[0].schedule === '7-59/10 * * * *' && jobs[1].schedule === '57 * * * *' && jobs[1].command === CRON_PRUNE,
   'installed OFF: detail_days is NULL, the job\'s command answers off, both jobs are scheduled', js({ cfg0, inert, jobs }));
 
   /* A REAL HUNT (the tick's door, the shipped engine): two heroes, ten 90-second windows. Its rows are then dated back a
@@ -332,7 +336,7 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
   const eArm2 = await apply(src.arm);
   const armed2 = (await db.query('select c.detail_days, s.last, s.folded_to, s.runs from public.hr_ledger_config c, public.hr_ledger_fold_state s')).rows[0];
   arm('LF-ARM', eArm === null && armed.detail_days === 3 && armed.last && armed.last.dry_run === true && Boolean(armed.last.armed_at) && num(armed.last.folded) > 0
-    && eArm2 === null && js(armed2) === js(armed) && num(armed.runs) === 0,
+    && eArm2 === null && full(armed2) === full(armed) && num(armed.runs) === 0,
   `on at 3 days, the dry run it read is kept (${armed.last && armed.last.folded} rows into ${armed.last && armed.last.windows} windows), a second apply changes nothing`, js({ eArm, armed, eArm2 }));
 
   /* LF-DIAL */
@@ -353,25 +357,27 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
   for (const r of shouldFold) { const k = keyOf(r, r.at); if (!want.has(k)) want.set(k, emptyTotal()); addTo(want.get(k), r, false); }
 
   /* LF-DRY */
-  const stateBefore = js((await db.query('select * from public.hr_ledger_fold_state')).rows[0]);
+  const stateBefore = full((await db.query('select * from public.hr_ledger_fold_state')).rows[0]);
   await db.exec('begin read only');
-  let dry = null, dryVia = null, eDry = null, eWrite = null;
+  let dry = null, dryVia = null, toolRow = null, eDry = null, eWrite = null;
   try {
     dry = await one('select public.hr_ledger_fold_plan(1000000, null, null)');
     dryVia = await one('select public.hr_ledger_fold(1000000, true)');
+    toolRow = (await db.query(planSql(null))).rows[0];   /* tools/ledger-fold.local.mjs's own read */
   } catch (e) { eDry = String(e.message); }
   await db.exec('rollback');
   await db.exec('begin read only');
   try { await db.query(CRON_FOLD); } catch (e) { eWrite = String(e.message); }
   await db.exec('rollback');
-  const screen = planLines({ plan: dry, ledger_rows: before.length, ledger_bytes: 1048576, db_bytes: 2097152 }).join('\n');
+  const screen = planLines(toolRow || {}).join('\n');
   const leftKeys = dry ? [...new Set((dry.left_by || []).map((l) => l.why))].sort().join(' | ') : '';
   arm('LF-DRY', eDry === null && dry && dry.ok === true && dry.dry_run === true && num(dry.folded) === shouldFold.length && num(dry.left) === shouldLeave.length
     && dryVia && num(dryVia.folded) === num(dry.folded) && num(dryVia.windows) === num(dry.windows)
     && leftKeys === 'column item_id or skill_id | key zz_probe' && eWrite !== null && /read-only transaction/.test(eWrite)
     && (await ledgerRows(db)).length === before.length && num(await one('select count(*) from public.player_ledger_windows')) === 0
-    && js((await db.query('select * from public.hr_ledger_fold_state')).rows[0]) === stateBefore
-    && screen.includes(`Would fold: ${shouldFold.length.toLocaleString('en-US')} rows into ${num(dry.windows).toLocaleString('en-US')} windows`) && screen.includes('key zz_probe'),
+    && full((await db.query('select * from public.hr_ledger_fold_state')).rows[0]) === stateBefore
+    && screen.includes(`Would fold: ${shouldFold.length.toLocaleString('en-US')} rows into ${num(dry.windows).toLocaleString('en-US')} windows`) && screen.includes('key zz_probe')
+    && screen.includes(`The journal now: ${before.length.toLocaleString('en-US')} rows`),
   `inside a READ ONLY transaction (the real fold is refused there): ${dry && dry.folded} rows would fold into ${dry && dry.windows} windows, ${dry && dry.left} stay; nothing moved`,
   js({ eDry, eWrite, dry: dry && { folded: dry.folded, left: dry.left, windows: dry.windows, left_by: dry.left_by }, want: [shouldFold.length, shouldLeave.length], screen: screen.slice(0, 200) }));
 
@@ -381,7 +387,7 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
     const out = {};
     const ask = async (name, sql, params) => {
       await db.exec('savepoint rd');
-      try { out[name] = js((await db.query(sql, params)).rows); await db.exec('release savepoint rd'); }
+      try { out[name] = full((await db.query(sql, params)).rows); await db.exec('release savepoint rd'); }
       catch (e) { await db.exec('rollback to savepoint rd'); out[name] = 'REFUSED ' + String(e.message).split('\n')[0]; }
     };
     for (const [u, s] of heroes) {
@@ -397,7 +403,7 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
     return out;
   };
   const reports = async (w) => {
-    const rows = async (sql) => js((await db.query(sql)).rows.map((r) => JSON.stringify(r)).sort());
+    const rows = async (sql) => full((await db.query(sql)).rows.map((r) => JSON.stringify(r)).sort());
     const held = (await db.query(R.held(w))).rows[0];
     return { vitals: await rows(R.vitals(w)), flows: await rows(R.flows(w)), heroes: await rows(R.heroes(w)), journal: String(held.journal), rolled: String(held.rolled) };
   };
@@ -448,10 +454,10 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
 
   const held = windows.flatMap((w) => w.ids).sort();
   const wantIds = shouldFold.map((r) => r.id).sort();
-  const afterById = new Map(after.map((r) => [r.id, js(r)]));
-  const moved = before.filter((r) => !wantIds.includes(r.id) && afterById.get(r.id) !== js(r)).map((r) => r.id);
+  const afterById = new Map(after.map((r) => [r.id, full(r)]));
+  const moved = before.filter((r) => !wantIds.includes(r.id) && afterById.get(r.id) !== full(r)).map((r) => r.id);
   const lingering = wantIds.filter((id) => afterById.has(id));
-  arm('LF-EXACT', js(held) === js(wantIds) && new Set(held).size === held.length && !lingering.length && !moved.length && after.length === before.length - wantIds.length,
+  arm('LF-EXACT', full(held) === full(wantIds) && new Set(held).size === held.length && !lingering.length && !moved.length && after.length === before.length - wantIds.length,
     `the windows list the ${wantIds.length} folded rows, each once; those are gone and the other ${after.length} rows are byte for byte what they were`,
     js({ held: held.length, want: wantIds.length, lingering: lingering.length, moved: moved.slice(0, 5), after: after.length }));
 
@@ -554,10 +560,31 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
     && foldLine({ ...st, detail_days: null }).ok === true && foldLine(null).ok === true,
   `the fold's line alarms on the ${st.behind} rows it left as detail, on a job gone quiet, and reads OK with neither`, js({ lineNow, behind: st.behind, eightDays }));
 
+  /* LF-DRILL: the fires, read from cron.job; a 100-second read started at every second of the hour after its wait. */
+  const sched = (await db.query(`select jobname, schedule from cron.job where jobname in ('hr-ledger-prune', 'hr-ledger-fold', 'hr-ledger-windows-prune') order by 1`)).rows;
+  const minutesOf = (cron) => { const f = cron.split(' ')[0]; const m = /^(\d+)(?:-(\d+)\/(\d+))?$/.exec(f); if (!m) throw harness('a ledger job\'s schedule is not one this guard reads: ' + cron);
+    const out = []; for (let x = Number(m[1]); x <= Number(m[2] || m[1]); x += Number(m[3] || 60)) out.push(x); return out; };
+  const fires = { on: sched.flatMap((j) => minutesOf(j.schedule)), off: sched.filter((j) => j.jobname === 'hr-ledger-prune').flatMap((j) => minutesOf(j.schedule)) };
+  const hit = [];
+  let unwaited = 0;
+  const under = (tier, start) => fires[tier].some((f) => [f * 60, f * 60 + 3600].some((x) => x > start && x <= start + 100));
+  for (const tier of ['on', 'off']) {
+    for (let t = 0; t < 3600; t++) {
+      /* the drill reads the minute, then sleeps that many minutes from the second it is */
+      if (under(tier, t + ledgerQuietWaitMin(Math.floor(t / 60), tier === 'on') * 60)) hit.push(tier + ' ' + t);
+      if (under(tier, t)) unwaited++;   /* the control: started at once, some reads DO meet a fire */
+    }
+  }
+  arm('LF-DRILL', sched.length === 3 && fires.on.length === 8 && fires.on.every((f) => f % 10 === 7) && !hit.length && unwaited > 600
+    && ledgerQuietWaitMin(3, true) === 0 && ledgerQuietWaitMin(14, true) === 6
+    && ledgerQuietWaitMin(14, false) === 0 && ledgerQuietWaitMin(6, false) === 4,
+  'the three jobs that delete journal rows fire on a minute ending in 7; a 100-second read of the ledger, started when the drill is told, meets none of them',
+  js({ sched, fires, hit: hit.slice(0, 5) }));
+
   /* LF-PRUNE: P's rows folded, Q's left as detail; then both retention jobs, as cron calls them. */
   const pruneW = await one(CRON_PRUNE);
   const pruneR = await one('select public.hr_ledger_prune(20000)');
-  const roll = async (u) => js((await db.query(`select slot, month::text as month, kind, n::text as n, gold_in::text as gold_in, gold_out::text as gold_out, xp_in::text as xp_in, xp_out::text as xp_out,
+  const roll = async (u) => full((await db.query(`select slot, month::text as month, kind, n::text as n, gold_in::text as gold_in, gold_out::text as gold_out, xp_in::text as xp_in, xp_out::text as xp_out,
       qty_in::text as qty_in, qty_out::text as qty_out, gems_in::text as gems_in from public.player_ledger_rollup where user_id = $1 order by slot, month, kind`, [u])).rows);
   const rp = await roll(P), rq = await roll(Q);
   const pruneW2 = await one(CRON_PRUNE), pruneR2 = await one('select public.hr_ledger_prune(20000)');
@@ -633,6 +660,8 @@ const MUTANTS = [
     ['      check (detail_days is null or (detail_days >= 3 and detail_days < retain_days)); end if;', '      check (detail_days is null or (detail_days >= 1 and detail_days < retain_days)); end if;']] },
   { id: 'batch_splits_a_window', arm: 'LF-WINDOWS', why: 'a batch ends at its limit, mid-window', file: FILE, edits: [...SILENCE,
     ['  select date_bin(v_w, x.at, c_origin) + v_w into v_hi\n', '  select x.at + interval \'1 microsecond\' into v_hi\n']] },
+  { id: 'fold_fires_off_the_seven', arm: 'LF-DRILL', why: 'the fold fires on another minute of ten, under the restore drill\'s read of the ledger', file: FILE, edits: [...SILENCE,
+    ["  perform public.hr_cron_ensure('hr-ledger-fold', '7-59/10 * * * *',", "  perform public.hr_cron_ensure('hr-ledger-fold', '2-59/10 * * * *',"]] },
   { id: 'arm_gate_off', arm: 'LF-ARM-REFUSED', why: 'the arm file turns the tier on over a ledger the model misses', file: ARM, edits: [
     ['  if v_seen > 0 and v_fold * 1000 < v_seen * c_fit_permille then', '  if false then']] },
   { id: 'arm_records_nothing', arm: 'LF-ARM', why: 'the arm file keeps no record of what it read', file: ARM, edits: [

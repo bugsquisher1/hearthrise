@@ -41,6 +41,8 @@
 -- CRON  hr-ledger-fold, every 10 minutes, hr_ledger_fold(20000): 2.9M rows a day, 2.4 times a hundred times today's play, in
 --   batches a tenth the size an hourly job would need. While detail_days is NULL it answers "off" and reads nothing.
 --   hr-ledger-windows-prune, hourly, hr_ledger_windows_prune(20000): nothing to take until a window is retain_days old.
+--   Both fire on a minute ending in 7, as hr-ledger-prune does (:07): every job that deletes journal rows shares one minute
+--   of ten, so a paged read of the ledger (tools/restore-drill.local.mjs, about 80 s) has the minutes between to itself.
 --
 -- ── CONCURRENCY / IDEMPOTENCY ──────────────────────────────────────────────
 -- One fold at a time: the state row is taken FOR UPDATE SKIP LOCKED (a second caller answers busy). The batch's rows are
@@ -649,8 +651,8 @@ do $mig$
 begin
   if to_regprocedure('cron.schedule(text,text,text)') is null or to_regprocedure('public.hr_cron_ensure(text,text,text)') is null then
     raise notice 'ledger-fold §5: pg_cron absent here; hr-ledger-fold and hr-ledger-windows-prune are not scheduled'; return; end if;
-  perform public.hr_cron_ensure('hr-ledger-fold', '2-59/10 * * * *', 'select public.hr_ledger_fold(20000)');
-  perform public.hr_cron_ensure('hr-ledger-windows-prune', '22 * * * *', 'select public.hr_ledger_windows_prune(20000)');
+  perform public.hr_cron_ensure('hr-ledger-fold', '7-59/10 * * * *', 'select public.hr_ledger_fold(20000)');
+  perform public.hr_cron_ensure('hr-ledger-windows-prune', '57 * * * *', 'select public.hr_ledger_windows_prune(20000)');
 end $mig$;
 
 revoke all on function public.hr_ledger_fold_model(text, text) from public, anon, authenticated, service_role;
@@ -717,8 +719,8 @@ begin
   if (select p.provolatile from pg_proc p where p.oid = 'public.hr_ledger_fold_plan(integer,uuid,integer)'::regprocedure) <> 's' then
     raise exception 'VERIFY(a): hr_ledger_fold_plan is not STABLE: a dry run that may write is not a dry run'; end if;
   if to_regclass('cron.job') is not null and (select count(*) from cron.job j
-       where (j.jobname, j.schedule, j.command) in (('hr-ledger-fold', '2-59/10 * * * *', 'select public.hr_ledger_fold(20000)'),
-                                                  ('hr-ledger-windows-prune', '22 * * * *', 'select public.hr_ledger_windows_prune(20000)'))) <> 2 then
+       where (j.jobname, j.schedule, j.command) in (('hr-ledger-fold', '7-59/10 * * * *', 'select public.hr_ledger_fold(20000)'),
+                                                  ('hr-ledger-windows-prune', '57 * * * *', 'select public.hr_ledger_windows_prune(20000)'))) <> 2 then
     raise exception 'VERIFY(a): hr-ledger-fold or hr-ledger-windows-prune is not scheduled as this file states'; end if;
   select detail_days into v_detail0 from public.hr_ledger_config where only_row;
   select to_jsonb(s) into v_state0 from public.hr_ledger_fold_state s;

@@ -66,6 +66,20 @@ export function foldLine(r) {
   return { ok: true, text: head + ', nothing behind' };
 }
 
+/**
+ * How many minutes a paged read of the ledger waits before it starts, so no job deletes a journal row under it. PURE.
+ * hr-ledger-prune fires at :07; with the fold tier on, hr-ledger-fold fires every ten minutes on the 7 (:07, :17, ...) and
+ * hr-ledger-windows-prune at :57 (2027-04-27-ledger-fold.sql put all three on one minute of ten for this). The read takes
+ * about 80 s, so it starts only in the first four minutes after a ten (tier on) or outside :05 to :10 (tier off).
+ * @param {number} minute the UTC minute now, 0 to 59
+ * @param {boolean} foldOn hr_ledger_config.detail_days is not null (unread: say true, the longer wait)
+ */
+export function ledgerQuietWaitMin(minute, foldOn) {
+  const m = ((Math.floor(Number(minute)) % 60) + 60) % 60;
+  if (foldOn) return m % 10 >= 4 ? 10 - (m % 10) : 0;
+  return m >= 5 && m < 10 ? 10 - m : 0;
+}
+
 /* The dry run's question (tools/ledger-fold.local.mjs), one row: what hr_ledger_fold would do from here, read and not done
    (hr_ledger_fold_plan is STABLE: it cannot write), with the journal's size beside it. `days`: an integer or nothing. */
 export const planSql = (days) => `select public.hr_ledger_fold_plan(1000000, null, ${Number.isInteger(days) ? days : 'null'}) as plan,

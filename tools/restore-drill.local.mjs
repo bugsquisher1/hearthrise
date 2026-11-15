@@ -80,6 +80,7 @@ import { spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import { isMain } from '../tests/_is-main.mjs';
 import { bootReplay, ROOT } from '../tests/schema-replay.mjs';
+import { ledgerQuietWaitMin } from './lib/ledger-journal.mjs';
 
 /* --ref <project>: run every step against another project, e.g. the "Restore to a New Project" clone of a backup. Its
    proofs then judge the CLONE: its rows rebuilt from the repo, its envelopes, its grants, its census. Read-only, too. */
@@ -625,6 +626,20 @@ async function main() {
     await db.exec(`insert into auth.users (id) values ('${u}')`);
     await db.exec(`begin; select set_config('request.jwt.claim.sub', '${u}', true); set local role authenticated; select public.hr_create_character(0);`
       + ` select public.hr_character_name_set(0, 'Drill Hero', '000000d1-0000-4000-a000-0000000d00ff'); commit;`);
+    /* A JOURNAL WITH BOTH ITS TIERS (2027-04-27-ledger-fold.sql): forty settles nine days old, the tier on, the job's own
+       command. Its windows (their id lists, their folded meta, the cursor beside them) are then exported, paged on their
+       (window_from, id) key and restored like every other player table: V1 reads them back count for count, hash for hash. */
+    await db.exec(`set session_replication_role = replica;
+      insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, purse, gold_kind, meta, at)
+      select '${u}'::uuid, 0, 'gather', 'accrue', 0, 0, 25, 1, 0, 500, 'town_work',
+             jsonb_build_object('ms', 90000, 'ticks', 30, 'qty', 1, 'node', 'oak', 'skill', 'woodcutting', 'delta', jsonb_build_object('i', jsonb_build_object('oak_log', 1), 'x', jsonb_build_object('woodcutting', 25))),
+             now() - interval '9 days' + make_interval(mins => j * 4)
+        from generate_series(1, 40) j;
+      set session_replication_role = origin;
+      update public.hr_ledger_config set detail_days = 3 where only_row;`);
+    const folded = (await db.query('select public.hr_ledger_fold(20000) as r')).rows[0].r;
+    const held = Number((await db.query('select count(*) as n from public.player_ledger_windows')).rows[0].n);
+    if (!folded || Number(folded.folded) !== 40 || held < 8) throw new Error(`restore-drill --selftest: the stand-in's journal did not fold (${JSON.stringify(folded)}, ${held} windows): there is no second tier to restore`);
     src = replaySource(db);
   } else if (!from) src = liveSource();
 
@@ -632,8 +647,12 @@ async function main() {
   if (src?.live) {
     posture = await step('0 backups + prices (API)', () => backups(src));
     if (flag('backups')) { report(posture, null, [], [], null); process.exit(posture.healthy ? 0 : 1); }
-    const m = new Date().getUTCMinutes();
-    if (m >= 5 && m < 10) { console.log('waiting out hr-ledger-prune (:07) so the ledger pages and the snapshot agree…'); await new Promise((r) => setTimeout(r, (10 - m) * 60e3)); }
+    /* Every job that deletes journal rows fires on a minute ending in 7: hr-ledger-prune (:07) and, once the fold tier is on
+       (2027-04-28-ledger-fold-arm.sql), hr-ledger-fold every ten minutes. Unread reads as on: the longer wait is the safe one. */
+    let foldOn = true;
+    try { foldOn = (await src.read("select (to_jsonb(c) ->> 'detail_days') is not null as fold_on from public.hr_ledger_config c"))[0]?.fold_on !== false; } catch { /* as on */ }
+    const wait = ledgerQuietWaitMin(new Date().getUTCMinutes(), foldOn);
+    if (wait) { console.log(`waiting ${wait} min for the ledger's jobs (${foldOn ? 'the fold, every ten minutes, and ' : ''}hr-ledger-prune at :07) so the ledger pages and the snapshot agree…`); await new Promise((r) => setTimeout(r, wait * 60e3)); }
   }
   mkdirSync(dir, { recursive: true });
   if (!keep) TEMP_DIR = dir;

@@ -2335,7 +2335,7 @@ jobs:
       # every folded row's gold, units, XP, loot and kills are in a window to the unit (worked
       # out in JS, and against the hunt's own tally), a row with no window is refused deletion,
       # the dry run moves nothing, every server reader and both reports answer the same before
-      # and after, and fold-then-prune writes the rollup the prune writes. --mutate plants 15.
+      # and after, and fold-then-prune writes the rollup the prune writes. --mutate plants 16.
       - name: Ledger fold — every folded row is in a window to the unit and no reader moves
         if: ${{ !cancelled() }}
         run: |

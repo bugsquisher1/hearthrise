@@ -40,7 +40,8 @@
 --   catalogue_missing {what: session_mode}. None is a client RPC's answer.
 -- NOT HERE (phase 2, with the Tower's ground, engine and settle together): what a mode PAYS. Its coin, drops, Bestiary and xpPm
 --   columns are the data's ruled rows, held to the anti-farm rule by the catalogue's CHECK, and read by nothing yet: no ground names a
---   mode, so every instance pays as a hunt. That build makes the engine pay a mode's row (src/core/hunt-rewards.js) AND refuses a window
+--   mode, and tools/gen-session-modes.mjs refuses a ground naming one that pays less than a hunt, so every instance pays as a hunt
+--   (the CATALOGUE's mapping is the door: §6 and tests/mode-death.mjs map a ground to the Tower by hand). That build makes the engine pay a mode's row (src/core/hunt-rewards.js) AND refuses a window
 --   that pays what its mode does not here (the called room's rule, called_pays, for a mode), in one change, with the measured XP guard
 --   (the board's §7). Also phase 2: the death line in the popup and the wiki, the live view's prediction (hunt-settle.js huntLive).
 --
@@ -53,14 +54,14 @@
 -- ── EXPLOIT SURFACE DELTA ──────────────────────────────────────────────────
 -- No new client verb, argument or grant. The only way to a mode is a ground the SERVER's catalogue maps to it, frozen at start.
 -- A forged or buggy proposal in a no-loss mode can take no XP (bound 0) and use no Blessing (never called). In a hunt every bound
--- is exactly today's. Nothing crosses to
--- another player. Risk named for Security: hr_ground_session_modes is the whole door, so the generator's rule and its §4 are the
--- review surface (a free-death mode that pays is refused by the data, the generator and the table's CHECK).
+-- is exactly today's. Nothing crosses to another player. Risk named for Security: hr_ground_session_modes is the whole door, so the
+-- generator's rule and its §4 are the review surface (a free-death mode that pays is refused by the data, the generator and the
+-- table's CHECK). Until phase 2 wires what a mode pays, the generator maps no ground to a mode that pays less than a hunt (NOT HERE).
 --
 -- ── COST (rows and bytes at 100x players) ─────────────────────────────────
 -- One short text per instance row (the default's 4 bytes). Per settle: one primary-key join of hunt_instances and hr_session_modes
--- (2 rows) in each member's apply, and the instance read's extra key. Per instance start:
--- two primary-key probes. No new journal row, ever; a mode costs nothing at 100x.
+-- (2 rows) in each member's apply, and the instance read's extra key. Per instance start: two primary-key probes. No new journal
+-- row, ever; a mode costs nothing at 100x.
 --
 -- EDGE: MOVES (pack-edge --hash): src/data/session-modes.js, src/core/action-rules.js modeDeathShare, combat-sim.js die, accrual.js,
 --   hunt-settle.js (reads session_mode; mode_pending) and set-activity.js (a pending mode owes its window, OWED_WINDOW_REASONS).

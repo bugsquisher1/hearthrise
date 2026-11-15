@@ -19,8 +19,9 @@
 //   coin, drops  a kill pays coin / drops loot (no bones, no rare roll).                } What a mode PAYS is read from phase 2
 //   xpPm         a kill's Level and skill XP, in permille of the formula's.            } (the Tower's ground): the engine pays the
 //   bestiary     a kill counts for the Bestiary, tasks and Hearthfind.                  } row and the settle refuses a window that
-//   stamina      the session drains stamina as a hunt does.                             } pays more, in one change. No ground names
-//                                                                                        } a mode until then, so every one pays as a hunt.
+//   stamina      the session drains stamina as a hunt does.                             } pays more, in one change. Until then
+//                                                                                        } tools/gen-session-modes.mjs refuses a ground
+//                                                                                        } naming a mode that pays less than a hunt.
 //
 // THE LOAD-TIME RULE (it can't be farmed, and that is a rule on the table): a mode whose death costs less than the full price
 // must pay no coin, no drops and no Bestiary, or this module does not load (and so neither does the engine, the edge or the

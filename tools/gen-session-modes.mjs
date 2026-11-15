@@ -18,7 +18,7 @@
 // use refuses to go, loudly. hr_ground_session_modes is rewritten whole: a row for each open ground that names a mode (today none).
 // REFUSES (throws, nothing written): the table's problems (session-modes.js validateSessionModes, the load-time rule: a mode whose
 // death costs less than a hunt's pays no coin, drops or Bestiary, and the default is a full hunt); a ground naming no mode row; one
-// hunt with two modes.
+// hunt with two modes; and, until phase 2 wires what a mode pays, a ground naming a mode that pays less than a hunt (the Tower).
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +41,13 @@ export function catalogueRows({ modes = SESSION_MODES, def = DEFAULT_SESSION_MOD
   const problems = validateSessionModes(modes, def);
   const named = grounds.filter((g) => g.mode !== undefined).map((g) => ({ hunt: g.hunt, mode: g.mode }));
   for (const g of named) if (!Object.hasOwn(modes, String(g.mode))) problems.push(`${g.hunt} plays mode ${g.mode}, which is no row`);
+  /* PHASE 1 (lane/c-tower-mode): the engine and the settle honor what a mode's DEATH costs (deathLossPm, blessings) and nothing else
+     yet. What a mode PAYS (coin, drops, Bestiary, xpPm) lands with the Tower's ground (phase 2), engine and settle together. Until then
+     a ground may name only a mode that pays as a hunt does, or a free death would pay like one. Phase 2 lifts this line. */
+  for (const g of named) {
+    const m = modes[g.mode];
+    if (m && !(m.coin && m.drops && m.bestiary && m.xpPm === 1000)) problems.push(`${g.hunt} plays mode ${g.mode}, which pays less than a hunt, and nothing honors that pay yet (phase 2)`);
+  }
   if (new Set(named.map((g) => g.hunt)).size !== named.length) problems.push('a hunt names a mode twice');
   if (problems.length) throw new Error('gen-session-modes: ' + problems.join('; '));
   return {
@@ -160,14 +167,17 @@ function selftest() {
   bites('a default that is no row', 'is no row', { def: 'arena' });
   bites('a loss that is no permille', 'whole permille', { modes: { ...M, tower: { ...M.tower, deathLossPm: 0.5 } } });
   bites('a ground naming no mode row', 'which is no row', { grounds: [{ hunt: 'zz_tower', mode: 'arena' }] });
-  bites('one hunt naming two modes', 'names a mode twice', { grounds: [{ hunt: 'zz_tower', mode: 'tower' }, { hunt: 'zz_tower', mode: 'hunt' }] });
-  /* a ground that names a mode becomes a row, one that names none does not: the rows say what the input says */
-  const two = catalogueRows({ grounds: [{ hunt: 'zz_b', mode: 'tower' }, { hunt: 'zz_a', mode: 'hunt' }, { hunt: 'zz_c' }] }).grounds;
-  const ok = two.length === 2 && two[0].hunt === 'zz_a' && two[1].mode === 'tower';
+  bites('one hunt naming two modes', 'names a mode twice', { grounds: [{ hunt: 'zz_tower', mode: 'hunt' }, { hunt: 'zz_tower', mode: 'hunt' }] });
+  bites('a ground naming the Tower before its pay is honored', 'nothing honors that pay yet', { grounds: [{ hunt: 'zz_tower', mode: 'tower' }] });
+  /* a ground that names a mode becomes a row, one that names none does not: the rows say what the input says (a second mode that pays
+     as a hunt does, for the proof: phase 1 serves no other kind) */
+  const modes = { ...M, arena: { ...M.hunt, id: 'arena', stamina: false } };
+  const two = catalogueRows({ modes, grounds: [{ hunt: 'zz_b', mode: 'arena' }, { hunt: 'zz_a', mode: 'hunt' }, { hunt: 'zz_c' }] }).grounds;
+  const ok = two.length === 2 && two[0].hunt === 'zz_a' && two[1].mode === 'arena';
   console.log(`  ${ok ? 'CAUGHT' : 'MISSED'} named grounds become rows, in hunt order, and a ground that names none does not`);
   if (!ok) bad++;
-  const sql = build({ grounds: [{ hunt: 'zz_a', mode: 'tower' }] });
-  const row = sql.includes("insert into public.hr_ground_session_modes (hunt_id, mode_id) values\n  ('zz_a', 'tower');")
+  const sql = build({ modes, grounds: [{ hunt: 'zz_a', mode: 'arena' }] });
+  const row = sql.includes("insert into public.hr_ground_session_modes (hunt_id, mode_id) values\n  ('zz_a', 'arena');")
     && sql.includes("  ('tower', false, 0, false, 200, false, false, false, true)") && sql.includes("  ('hunt', true, 1000, true, 1000, true, true, true, true)");
   console.log(`  ${row ? 'CAUGHT' : 'MISSED'} the rows are the data's, one insert line each`);
   if (!row) bad++;

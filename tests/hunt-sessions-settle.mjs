@@ -4869,12 +4869,12 @@ const DB_MUTANTS = [
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
      character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,
-    find: "        if v_n > public.hr_death_xp_max('level', v_cur) then", replace: '        if false then' },
+    find: "        if v_n > public.hr_death_xp_mode_max('level', v_cur, v_mode.death_loss_pm) then", replace: '        if false then' },
   { arm: 'DEATHXP', name: 'the Level\'s death price is never debited', fn: AM,
     find: '        update public.player_state set level_xp = level_xp - v_n where user_id = p_user and slot = p_slot;', replace: '        null;' },
   { arm: 'DEATHXP-LEVEL', name: 'the settle puts the never-de-level floor back (a death that crosses a Level is refused)', fn: AM,
-    find: "        if v_n > public.hr_death_xp_max('level', v_cur) then",
-    replace: "        if v_n > public.hr_death_xp_max('level', v_cur) or public.hr_char_level(v_cur - v_n) < public.hr_char_level(v_cur) then" },
+    find: "        if v_n > public.hr_death_xp_mode_max('level', v_cur, v_mode.death_loss_pm) then",
+    replace: "        if v_n > public.hr_death_xp_mode_max('level', v_cur, v_mode.death_loss_pm) or public.hr_char_level(v_cur - v_n) < public.hr_char_level(v_cur) then" },
   { arm: 'DEATHXP-LEVEL', name: 'the death event does not name the Level it took', fn: AM,
     find: "'level_from', v_lfrom, 'level_to', v_lto)", replace: "'level_from', null::int, 'level_to', null::int)" },
   { arm: 'DEATHXP-LEVEL', name: 'the death log drops the Level pair', fn: 'public.hr_death_log_view(uuid,integer)',

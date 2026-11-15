@@ -358,8 +358,8 @@ function weakFoodLine(s, hunt) {
 /** The store food bar `s` (settingsOf) buys at best, when it heals less than store row `floorId`; else null (no store food, or enough).
     A keyed hall's door reads it too (boss-hall-pane.js, `storeFloor`). Display only. */
 export function storeFoodUnder(s, floorId) {
-  const want = BASIC_SUPPLIES.find((b) => b.kind === 'heal' && b.id === floorId);
-  if (!want || !s || !Array.isArray(s.slots)) return null;
+  const want = BASIC_SUPPLIES.find((b) => b.id === floorId);
+  if (!want || want.kind !== 'heal' || !s || !Array.isArray(s.slots)) return null;
   let best = null;
   for (const sl of s.slots) {
     if (!sl || sl.empty || sl.enabled === false || sl.why === 'store_off' || !sl.action || sl.action.type !== 'consume') continue;

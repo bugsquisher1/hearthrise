@@ -89,8 +89,8 @@ function whyWords(cs, d) {
   const at = d.row.levelFrom !== null && d.row.levelFrom !== undefined ? d.row.levelFrom : lv ? lv.level : null;
   if (!band || at === null || !h || h.sessionId !== d.session) return '';
   const gap = band[0] - at;
-  if (gap <= 0) return 'Better armor, food eaten sooner or a smaller pull would help.';
-  return 'You were ' + gap + (gap === 1 ? ' Level' : ' Levels') + ' under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.';
+  if (gap <= 0) return t('death.tip');
+  return t('death.under', { count: gap }) + '. ' + t('death.tip_under');
 }
 
 const xpName = (k) => (k === 'level' ? 'Level' : (SKILLS_DEF[k] && SKILLS_DEF[k].name) || k);
@@ -112,16 +112,16 @@ function savedWords(row) {
  * @returns {{title: string, killed: string, what: string, why: string, lost: string, level: string, saved: string, town: string}}
  */
 export function deathWords(cs, d) {
-  const who = nameOf(cs) || 'Your hero';
+  const who = nameOf(cs) || t('away.your_hero');
   const row = d.row;
   const story = summariesOf(cs).find((s) => s.id === d.session);
   return {
-    title: row.hunt ? who + ' died in ' + huntName(row.hunt) : who + ' died',
-    killed: row.monster ? 'Killed by ' + monsterName(row.monster) + '.' : '',
+    title: row.hunt ? t('death.title_in', { name: who, ground: huntName(row.hunt) }) : t('death.title', { name: who }),
+    killed: row.monster ? t('death.killed', { monster: monsterName(row.monster) }) : '',
     what: story && story.deaths.length ? story.deaths[0] : '',
     why: whyWords(cs, d),
     /* xp null: the server has not priced it (an older row); say nothing rather than guess. */
-    lost: Object.keys(row.xpLost).length ? 'Dying cost ' + xpWords(row.xpLost) + '.' : row.xp === null ? '' : 'Dying cost no XP.',
+    lost: Object.keys(row.xpLost).length ? t('death.lost', { xp: xpWords(row.xpLost) }) : row.xp === null ? '' : t('death.lost_none'),
     /* A death can take a Level (Tyler 2026-11-09): said only when the server's row shows the Level fell. */
     level: Number.isInteger(row.levelFrom) && Number.isInteger(row.levelTo) && row.levelTo < row.levelFrom
       ? t('death.level_dropped', { name: who, from: row.levelFrom, to: row.levelTo }) : '',
@@ -129,7 +129,7 @@ export function deathWords(cs, d) {
     saved: row.saved === undefined ? ''
       : row.saved === null ? t('death.no_blessing', { free: freeWords(cs) })
       : savedWords(row),
-    town: who + ' is back in town with full health and mana.',
+    town: t('death.town', { name: who }),
   };
 }
 

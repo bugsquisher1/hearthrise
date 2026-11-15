@@ -66,14 +66,14 @@ const ROW = { id: 777, at: '2026-10-17T12:29:58Z', hunt: 'millrace_sewer', sessi
   xp_lost: { melee: 40, level: 1200 }, saved: { level: 300 }, blessings: 2, level_from: FLOOR + 2, level_to: FLOOR + 1 };
 const WANT = {
   title: 'Tyler died in ' + HUNT_INDEX.millrace_sewer.name,
-  killed: 'Killed by ' + MONSTERS.rat_king.name + '.',
-  lost: 'Dying cost 1,200 Level XP and 40 ' + SKILLS_DEF.melee.name + ' XP.',
+  killed: 'Killed by ' + MONSTERS.rat_king.name,
+  lost: 'Death cost: 1,200 Level XP and 40 ' + SKILLS_DEF.melee.name + ' XP',
   level: 'Tyler: Level ' + (FLOOR + 2) + ' to Level ' + (FLOOR + 1),
   saved: '2 Blessings saved 300 Level XP (used up)',
-  town: 'Tyler is back in town with full health and mana.',
+  town: 'Tyler: back in town, full HP and mana',
 };
 /* The why reads the Level died at (the row's level_from, in range), not the hero's Level now (the fixture's is 1). */
-const WHY_IN_RANGE = 'Better armor, food eaten sooner or a smaller pull would help.';
+const WHY_IN_RANGE = 'Better armor, eating sooner or a smaller pull would help.';
 
 /* ── DP-0: the words, in node ── */
 async function pure(base) {
@@ -97,8 +97,8 @@ async function pure(base) {
     const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [BARE] : k === 'state' ? { level_xp: charXpForLevel(level) } : k === 'level' ? levelBlock(charXpForLevel(level)) : k === 'hunt' ? hunt : null), record: { residue: {} } };
     return deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why; };
   const under = whyAt(2, SESSION), floor = HUNT_INDEX[ROW.hunt].band[0];
-  if (under !== 'You were ' + (floor - 2) + ' Levels under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
-  if (whyAt(floor, SESSION) !== 'Better armor, food eaten sooner or a smaller pull would help.') fail(fails, 'DP-0 a death in range reads ' + JSON.stringify(whyAt(floor, SESSION)));
+  if (under !== (floor - 2) + ' Levels under this ground. Better armor, eating sooner, a healer or more Levels would help.') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
+  if (whyAt(floor, SESSION) !== 'Better armor, eating sooner or a smaller pull would help.') fail(fails, 'DP-0 a death in range reads ' + JSON.stringify(whyAt(floor, SESSION)));
   if (whyAt(2, 'an-older-hunt') !== '') fail(fails, 'DP-0 an older hunt\'s death guesses at its Level: ' + JSON.stringify(whyAt(2, 'an-older-hunt')));
   /* DP-0b A DEATH CAN TAKE A LEVEL (Tyler 2026-11-09; 2027-03-25-death-share.sql): the row's level_from / level_to say so, the
      why reads the Level the hero died at, and the Blessings line counts the tiers the death used. */
@@ -111,7 +111,7 @@ async function pure(base) {
   if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessings (they cut death loss, Shop, Services tab)') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
   const tookCs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [took] : k === 'state' ? { level_xp: charXpForLevel(2) } : k === 'level' ? levelBlock(charXpForLevel(2)) : k === 'hunt' ? { session_id: SESSION, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
   const tookWhy = deathWords(tookCs, { session: SESSION, row: deathLogOf(tookCs)[0] }).why;
-  if (tookWhy !== 'Better armor, food eaten sooner or a smaller pull would help.') fail(fails, 'DP-0b a hero who died in range and lost Levels is told it stood under the ground: ' + JSON.stringify(tookWhy));
+  if (tookWhy !== 'Better armor, eating sooner or a smaller pull would help.') fail(fails, 'DP-0b a hero who died in range and lost Levels is told it stood under the ground: ' + JSON.stringify(tookWhy));
   return fails;
 }
 function fail(list, msg) { list.push(msg); }
@@ -409,7 +409,7 @@ const MUTANTS = [
   ['a death teaches nothing: the card has no why', 'src/shell/death-popup.js', '    why: whyWords(cs, d),', "    why: '',"],
   ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
   ['the dismissal is not kept', 'src/shell/death-popup.js', '{ const s = showing; showing = null; dismissDeath(cs, s); }', '{ showing = null; }'],
-  ['the cost is not the row\'s', 'src/shell/death-popup.js', "'Dying cost ' + xpWords(row.xpLost)", "'Dying cost ' + xpWords({ level: row.xp })"],
+  ['the cost is not the row\'s', 'src/shell/death-popup.js', "t('death.lost', { xp: xpWords(row.xpLost) })", "t('death.lost', { xp: xpWords({ level: row.xp }) })"],
   ['the Blessing line ignores the row', 'src/shell/death-popup.js', "return Object.keys(row.saved).length ? t('death.blessing_kept'", "return false ? t('death.blessing_kept'"],
   ['the Blessings a death used are always one (DP-0b)', 'src/shell/death-popup.js', 'row.blessings > 1 ? row.blessings : 1;', 'false ? row.blessings : 1;'],
   ['a Level the death took is not said (DP-0b)', 'src/shell/death-popup.js', '&& row.levelTo < row.levelFrom', '&& false'],

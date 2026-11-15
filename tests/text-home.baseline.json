@@ -24,7 +24,7 @@
     "src/shell/carry-in.js": 9,
     "src/shell/command-model.js": 3,
     "src/shell/context-menu.js": 4,
-    "src/shell/death-popup.js": 12,
+    "src/shell/death-popup.js": 1,
     "src/shell/gear-gate.js": 1,
     "src/shell/hud.js": 5,
     "src/shell/hunt-go.js": 29,

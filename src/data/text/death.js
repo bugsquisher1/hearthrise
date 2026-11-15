@@ -8,6 +8,17 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const DEATH_TEXT = Object.freeze({
+  /* The popup's head and lines (src/shell/death-popup.js deathWords). {xp} "1,200 Level XP and 40 Melee XP". */
+  title: '{name} died',
+  title_in: '{name} died in {ground}',
+  killed: 'Killed by {monster}',
+  lost: 'Death cost: {xp}',
+  lost_none: 'Death cost: no XP',
+  town: '{name}: back in town, full HP and mana',
+  /* why: advice, kept as short sentences */
+  under: { one: '{count} Level under this ground', other: '{count} Levels under this ground' },
+  tip_under: 'Better armor, eating sooner, a healer or more Levels would help.',
+  tip: 'Better armor, eating sooner or a smaller pull would help.',
   /* Said only when the row's level_to is under its level_from. */
   level_dropped: '{name}: Level {from} to Level {to}',
   /* No Blessing was held. {free} is free_until while Blessings are free for this hero, else nothing. */

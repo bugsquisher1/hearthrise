@@ -88,7 +88,7 @@ async function checks(overrides) {
           det.innerHTML = P.hallHtml();
           const cs = csOf(keys);
           const account = { server: { rpc: async (name, args) => { calls.push({ name, args }); return { ok: true, body: { ok: true, alone: true } }; } }, characters: () => [cs] };
-          const ctx = { character: cs, account };
+          const ctx = { character: cs, account, peers: () => [cs].concat(v.peers || []) };
           const vv = Object.assign({ hunt: 'millrace_sewer', party: null, now: null, pending: false }, v);
           P.patchHall(det, ctx, vv, h);
           const q = (s) => det.querySelector(s);
@@ -102,11 +102,22 @@ async function checks(overrides) {
         const panes = { none: pane(0).read(), one: pane(1).read(), two: pane(2).read(), member: pane(1, { party: member }).read(), memberNone: pane(0, { party: member }).read(), hunting: pane(1, { now: { huntId: 'x' } }).read(),
           noHall: pane(1, {}, null).read(), leader: pane(1, { party: leader }).read() };
         /* WHAT WINS (lane/d-march-balance): a hall that names its store food and bar line says both; a bar buying Salted Shrimp reads red */
-        const fed = { ...hall, storeFloor: 'salted_lobster', bars: ['Tank: Challenge on', 'Everyone: Eat under 75%'] };
+        const fed = { ...hall, storeFloor: 'salted_lobster', bars: ['Healer: Greater Mend under 85%', 'Everyone: Eat under 75%'] };
         const adv = (slots) => { barNow = { preset: 0, presets: [], slots: slots.map((id) => ({ action: { type: 'consume', id }, conditions: [], join: 'and', usable: true })), store: [] };
           const p = pane(1, {}, fed); const q = (x) => p.det.querySelector(x); barNow = null;
           return { bars: q('.hw-hall-bars').hidden ? null : q('.hw-hall-bars').textContent, tips: Array.from(p.det.querySelectorAll('.hw-hall-tips li'), (li) => li.textContent).join('|'), food: q('.hw-hall-food').hidden ? null : q('.hw-hall-food').textContent }; };
         panes.shrimp = adv(['salted_shrimp']); panes.lobster = adv(['salted_lobster']);
+        /* ...and another hero of this account in the party on Salted Shrimp (the v0.2.133 check: the line read only the viewed hero's bar) */
+        {
+          const PID = '00000000-0000-4000-8000-0000000000a1';
+          const shrimpBar = { preset: 0, presets: [], slots: [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [], join: 'and', usable: true }], store: [] };
+          const peer = { slot: 1, status: 'open', read: (k) => (k === 'name' ? 'Mender' : k === 'hunt_settings' ? shrimpBar
+            : k === 'party' ? { id: PID, members: [{ seat: 0, weapon: 'sword' }, { seat: 1, weapon: 'staff', role_pick: 'healer' }], self_seat: 1, leader_seat: 0 } : null) };
+          barNow = { preset: 0, presets: [], slots: [{ action: { type: 'consume', id: 'salted_lobster' }, conditions: [], join: 'and', usable: true }], store: [] };
+          const p = pane(1, { party: { id: PID, isLeader: true, seats: [{ seat: 0 }, { seat: 1 }] }, peers: [peer] }, fed); barNow = null;
+          const q = p.det.querySelector('.hw-hall-food');
+          panes.peer = { food: q.hidden ? null : q.textContent };
+        }
         const plain = pane(1); panes.plainBars = plain.det.querySelector('.hw-hall-bars').hidden;
         /* the press: the first opens the warning and sends nothing; the confirm sends one */
         const p = pane(1);
@@ -150,7 +161,8 @@ async function checks(overrides) {
     if (pn.leader.off) fails.push('BH-1 a party\'s leader with a key is off');
     if (!pn.noHall.hidden) fails.push('BH-1 a ground with no hall shows the section');
     if (pn.shrimp.bars !== 'Every hero needs Salted Lobster or better on their bar. Salted Shrimp can\'t keep up with him. An untouched bar mostly loses here. The bars that win him make these changes.'
-      || pn.shrimp.tips !== 'Tank: Challenge on|Everyone: Eat under 75%' || pn.shrimp.food !== 'Your bar buys Salted Shrimp. Press that slot on your bar and pick Salted Lobster before you go in.') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
+      || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Your bar buys Salted Shrimp. Press that slot on your bar and pick Salted Lobster before you go in.') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
+    if (pn.peer.food !== 'Mender\'s bar buys Salted Shrimp. Change that slot to Salted Lobster before you go in.') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
     if (pn.lobster.food !== null || !pn.plainBars) fails.push('BH-1 the food line shows on Salted Lobster, or a hall with no advice shows a bar line: ' + JSON.stringify([pn.lobster, pn.plainBars]));
     for (const [k, x] of Object.entries(pn)) if (/[{}]/.test(Object.values(x).join(' '))) fails.push('BH-1 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
     /* BH-2 */
@@ -178,7 +190,8 @@ const MUTANTS = [
   { name: 'the press is on with no key', file: 'src/shell/windows/boss-hall-pane.js', from: 'const open = keys > 0 && !v.now && !v.pending && !member;', to: 'const open = !v.now && !v.pending && !member;', want: /BH-1/ },
   { name: 'a member may press', file: 'src/shell/windows/boss-hall-pane.js', from: 'const member = !!v.party && !v.party.isLeader;', to: 'const member = false;', want: /BH-1/ },
   { name: 'the first press opens the hall', file: 'src/shell/windows/boss-hall-pane.js', from: "if (action === 'hall-warn') { sc.warned = true; repaint(); return true; }", to: "if (action === 'hall-warn') { run(() => openHall(ctx.account, cs, sc.hall.id), '', () => ''); return true; }", want: /BH-2/ },
-  { name: 'a bar buying Salted Shrimp is never told at the hall door', file: 'src/shell/windows/boss-hall-pane.js', from: 'const under = hall.storeFloor ? storeFoodUnder(settingsOf(cs), hall.storeFloor) : null;', to: 'const under = null;', want: /BH-1/ },
+  { name: 'a bar buying Salted Shrimp is never told at the hall door', file: 'src/shell/windows/boss-hall-pane.js', from: '  const mine = storeFoodUnder(settingsOf(cs), floor);', to: '  const mine = null;', want: /BH-1/ },
+  { name: 'the food line reads only the viewed hero\'s bar', file: 'src/shell/windows/boss-hall-pane.js', from: "    if (have) out.push(say(W.foodShortPeer, have)", to: "    if (false) out.push(say(W.foodShortPeer, have)", want: /BH-1/ },
   { name: 'the hall lists none of the changes that win', file: 'src/shell/windows/boss-hall-pane.js', from: "rows(box.querySelector('.hw-hall-tips'), hall.bars || [],", to: "rows(box.querySelector('.hw-hall-tips'), [],", want: /BH-1/ },
   { name: 'the hall never says what wins', file: 'src/shell/windows/boss-hall-pane.js', from: "  prop(bars, 'hidden', !advice);", to: "  prop(bars, 'hidden', true);", want: /BH-1/ },
   { name: 'the page never says where a key comes from', file: 'src/data/boss-halls.js', from: "none: 'You don\\'t have a {key}.{source}'", to: "none: 'You don\\'t have a {key}.'", want: /BH-1/ },

@@ -8,11 +8,12 @@
 // ════════════════════════════════════════════════════════════════════════
 import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.131';
 import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.131';
-import { isGuarded, challengeOff } from '../../data/boss-calls.js?v=0.2.131';
+import { isGuarded } from '../../data/boss-calls.js?v=0.2.131';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.131';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.131';
 import { spellRow } from '../../data/monster-spells.js?v=0.2.131';
-import { bagOf } from '../../session/item-sections.js?v=0.2.131';
+import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.131';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.131';
 import { settingsOf } from '../../session/hunt-sections.js?v=0.2.131';
 import { storeFoodUnder } from '../hunt-go.js?v=0.2.131';
 import { storeName } from '../bar-draft.js?v=0.2.131';
@@ -32,7 +33,7 @@ export function hallWords(line, hall) {
   return line.replace('{source}', dropper ? BOSS_HALL_WORDS.source.replace('{dropper}', dropper.name) : '')
     .replace('{Boss}', hall.Boss).replace('{boss}', hall.boss).replace('{key}', itemName(hall.key))
     .replace('{hall}', (HUNT_INDEX[hall.hunt] || {}).name || hall.Boss).replace('{minutes}', String(BOSS_HALL_RULES.limitMs / 60000))
-    .replace('{guard}', isGuarded(row) ? (challengeOff(row) ? BOSS_HALL_WORDS.warnGuard : BOSS_HALL_WORDS.warnGuardKeep) : '').replace('{haste}', sp ? BOSS_HALL_WORDS.warnHaste.replace('{spell}', sp.n) : '');
+    .replace('{guard}', isGuarded(row) ? BOSS_HALL_WORDS.warnGuard : '').replace('{haste}', sp ? BOSS_HALL_WORDS.warnHaste.replace('{spell}', sp.n) : '');
 }
 /** The words for a refusal of this hall (the table's), or null: the status line's general reader takes the rest. */
 export function hallRefusal(r, hall) {
@@ -44,11 +45,14 @@ const keysOf = (cs, hall) => ((bagOf(cs) || []).find((x) => x.id === hall.key) |
 
 export function hallHtml() {
   return '<section class="hw-hd-call hw-hd-hall" aria-label="' + BOSS_HALL_WORDS.heading + '" hidden><h4 class="hw-hd-h"></h4>'
-    + '<p class="hw-call-line"></p><p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul><p class="hw-before-line is-short hw-hall-food" hidden></p>'
+    /* THE DOOR FIRST, THEN WHAT WINS: the key line, this bar's red food line and the press stand together under the head, so the
+       press and its warning are in view at once on a 423 px phone, never the press under Enter with its warning a screen above */
+    + '<p class="hw-call-line"></p><p class="hw-before-line is-short hw-hall-food" hidden></p>'
     + '<button type="button" class="hh-tool hw-call-press" data-hs-act="hall-warn"></button>'
     + '<div class="hw-confirm hw-call-warn" role="group" aria-label="' + BOSS_HALL_WORDS.sure + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-hall-note-alone" hidden></p><p class="hw-confirm-note hw-hall-note-a"></p><p class="hw-confirm-note hw-hall-note-b"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary is-on" data-hs-act="hall-go"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div></section>';
+    + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div>'
+    + '<p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul></section>';
 }
 
 /** Write the section for ground `v.hunt` ({ hunt, party, now, pending }); `hall` the hall its page opens (the data's, by default). */
@@ -71,12 +75,14 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
   const bars = box.querySelector('.hw-hall-bars');
   text(bars, advice);
   prop(bars, 'hidden', !advice);
-  /* the measured good bar as label lines, one change each ("Tank: Challenge on"): tuning is the way through (Tyler 2026-11-14) */
+  /* the measured good bar as label lines, one change each ("Everyone: Eat under 75%"): tuning is the way through (Tyler 2026-11-14) */
   rows(box.querySelector('.hw-hall-tips'), hall.bars || [], { key: (x) => x, build: () => element(box.ownerDocument, '<li class="hw-before-line"></li>'), patch: (li, x) => text(li, x) });
-  const under = hall.storeFloor ? storeFoodUnder(settingsOf(cs), hall.storeFloor) : null;
+  /* this hero's bar, then every hero of this account in the same party (their bars are in this browser; another account's are not projected
+     to it, CLAUDE.md §2 live-engine rule, so a seat of another account is the server's to flag: handed to Systems) */
+  const short = hall.storeFloor ? foodShortWords(cs, ctx, v.party, hall.storeFloor) : '';
   const food = box.querySelector('.hw-hall-food');
-  text(food, under ? W.foodShort.replace('{have}', storeName(under)).replace('{food}', storeName(hall.storeFloor)) : '');
-  prop(food, 'hidden', !under);
+  text(food, short);
+  prop(food, 'hidden', !short);
   const press = box.querySelector('.hw-call-press');
   text(press, hallWords(W.press, hall));
   prop(press, 'disabled', !open);
@@ -94,6 +100,22 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
     text(warn.querySelector('[data-hs-act="hall-go"]'), hallWords(W.confirm, hall));
     text(warn.querySelector('[data-hs-act="hall-no"]'), W.cancel);
   }
+}
+
+/* "Your bar buys Salted Shrimp. ..." and one line a short own hero in this party ("Mender's bar buys ..."), or ''. */
+function foodShortWords(cs, ctx, party, floor) {
+  const W = BOSS_HALL_WORDS, out = [];
+  const say = (line, have) => line.replace('{have}', storeName(have)).replace('{food}', storeName(floor));
+  const mine = storeFoodUnder(settingsOf(cs), floor);
+  if (mine) out.push(say(W.foodShort, mine));
+  const pid = party && party.id;
+  const peers = pid && typeof ctx.peers === 'function' ? ctx.peers() : [];
+  for (const p of peers || []) {
+    if (!p || p === cs || (partyMembershipOf(p) || {}).id !== pid) continue;
+    const have = storeFoodUnder(settingsOf(p), floor);
+    if (have) out.push(say(W.foodShortPeer, have).replace('{name}', nameOf(p) || W.someHero));
+  }
+  return out.join(' ');
 }
 
 /**

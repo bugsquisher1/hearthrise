@@ -206,11 +206,9 @@ async function checks(overrides) {
           none: L.lossLine({ hunt: room, reason: 'died', fight: null, role: 'tank' }),
           /* The Chief's diggers shield him (isGuarded): his add wave and his enrage have their own answers. */
           chiefAdds: line('died', 410, { fireball: 3 }, 'mage', 'coppercap_warrens_called'), chiefEnrage: line('died', 230, { eat: 2 }, 'tank', 'coppercap_warrens_called'),
-          /* the Chief's tank whose Challenge fired in his enrage is asked about Challenge, the wrong press there (Krell no longer is: he keeps it) */
+          /* a shielded boss's tank whose Challenge fired in his enrage is told how often (a fact, never advice) */
           chiefEnrageCh: line('died', 230, { eat: 2, challenge: 3 }, 'tank', 'coppercap_warrens_called'),
           /* KRELL'S HALL (March play-through 2026-11-14): his enrage line talked about eating and never Challenge, the wrong press there */
-          /* ...and since lane/d-march-balance his row KEEPS Challenge (measured on and off in tier 6; the v0.2.132 re-play read "take Challenge off"
-             over a fit measured with it on), so no line of his says take it off */
           krellEnrage: line('died', 230, { eat: 3, challenge: 4 }, 'tank', 'krells_hold_hall'), krellEnrageHealer: line('died', 230, { greater_mend: 5 }, 'healer', 'krells_hold_hall'),
           krellAdds: line('died', 410, { challenge: 2 }, 'tank', 'krells_hold_hall'),
         };
@@ -241,13 +239,14 @@ async function checks(overrides) {
       want('BW-6', 'addsMage', /^You lost while his adds were up, with him at 41%\. Your area slots fired 0 times\. .*Cleave or Fireball/);
       want('BW-6', 'addsHealer', /^You lost while his adds were up, with him at 41%\. Your heals fired 2 times\./);
       want('BW-6', 'addsTank', /^You lost while his adds were up, with him at 41%\. Your Challenge fired 1 time\. /);
-      want('BW-6', 'chiefAdds', /^You lost while his adds were up, with him at 41%\. Your area slots fired 3 times\. Your tank can't hold him and his adds at the same time\. Take Challenge off your tank's bar for this fight and let your healer look after whoever the adds go for\.$/);
-      want('BW-6', 'chiefEnrage', /^You lost after he got enraged, with him at 23%\. You ate 2 times\. Under a quarter of his health he hits far harder, and most of it lands on your tank\. .*Keep Challenge off your tank's bar/);
+      want('BW-6', 'chiefAdds', /^You lost while his adds were up, with him at 41%\. Your area slots fired 3 times\. His adds shield him until they fall\. Kill them first, and keep your healer on whoever they go for\.$/);
+      want('BW-6', 'chiefEnrage', /^You lost after he got enraged, with him at 23%\. You ate 2 times\. Under a quarter of his health he hits far harder, and most of it lands on your tank\. Better armor on your tank, eating earlier and a healer who heals sooner all help\.$/);
       want('BW-6', 'chiefEnrageCh', /^You lost after he got enraged, with him at 23%\. Your Challenge fired 3 times\. /);
-      want('BW-6', 'krellEnrage', /^You lost after he got enraged, with him at 23%\. You ate 3 times\. Under a quarter of his health he hits far harder, and most of it lands on your tank\. Better food, eating earlier and a healer who heals sooner all help\.$/);
+      want('BW-6', 'krellEnrage', /^You lost after he got enraged, with him at 23%\. Your Challenge fired 4 times\. Under a quarter of his health he hits far harder, and most of it lands on your tank\. Better armor on your tank, eating earlier and a healer who heals sooner all help\.$/);
       want('BW-6', 'krellEnrageHealer', /^You lost after he got enraged, with him at 23%\. Your heals fired 5 times\. Under a quarter .*heals sooner all help\.$/);
-      want('BW-6', 'krellAdds', /^You lost while his adds were up, with him at 41%\. Your Challenge fired 2 times\. His adds shield him until they fall\. Keep Challenge on your tank's bar/);
-      for (const k of ['krellEnrage', 'krellEnrageHealer', 'krellAdds']) if (/Challenge off/.test(l[k] || '')) fails.push('BW-6 ' + k + ' says take Challenge off, where it was measured to help: ' + JSON.stringify(l[k]));
+      want('BW-6', 'krellAdds', /^You lost while his adds were up, with him at 41%\. Your Challenge fired 2 times\. His adds shield him until they fall\. Kill them first/);
+      /* NO LINE TELLS A PLAYER TO TURN CHALLENGE ON OR OFF (Tyler 2026-11-14: "the player should decide whether or not challenge should be on") */
+      for (const [k, x] of Object.entries(l)) if (/Challenge (off|on)|off your tank|Keep Challenge|Take Challenge/.test(x || '')) fails.push('BW-6 ' + k + ' tells the player what to do with Challenge: ' + JSON.stringify(x));
       if (/Challenge/.test(l.enrageTank || '')) fails.push('BW-6 the King, whose rats shield nothing, is asked about Challenge in his enrage: ' + JSON.stringify(l.enrageTank));
       if (/shield/.test(l.addsMage || '')) fails.push('BW-6 the King, whose rats shield nothing, reads ' + JSON.stringify(l.addsMage));
       want('BW-6', 'first', /^You lost before his adds came, with him at 80%\. You ate 1 time\. /);
@@ -262,7 +261,7 @@ async function checks(overrides) {
       if (!b.half.wave || b.half.raging || b.half.state !== 'His adds are coming') fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
       /* A boss whose adds shield him says so, on the bar and in the warning; one whose adds don't, never (boss-calls.js isGuarded). */
       if (!b.chief.wave || b.chief.state !== 'His adds shield him') fails.push('BW-7 the Chief at his first line reads ' + JSON.stringify(b.chief));
-      if (!/They shield him until you kill them\. Your tank can't hold him and his adds at the same time, so take Challenge off your tank's bar for this fight\. At a quarter/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
+      if (!/They shield him until you kill them\. At a quarter/.test(r.warn.chief) || /Challenge/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
       if (b.quarter.wave || !b.quarter.raging || !/enraged/.test(b.quarter.state) || b.quarter.fill !== '24%') fails.push('BW-7 under the second line he reads ' + JSON.stringify(b.quarter));
       if (!b.played.raging || b.played.fill !== '24%') fails.push('BW-7 the bar does not read the instant shown: ' + JSON.stringify(b.played));
       if (!b.normal.quiet) fails.push('BW-7 a normal hunt has a boss bar');
@@ -288,10 +287,9 @@ const MUTANTS = [
   { name: 'a won fight gets a losing line', file: 'src/hunt-view/boss-loss.js', from: '|| !LOST.includes(o.reason)) return null;', to: ') return null;', want: /BW-6/ },
   { name: 'the line reads the wrong phase', file: 'src/hunt-view/boss-loss.js', from: "return bossPm <= ph.enragePm ? 'enrage' : bossPm <= ph.addsPm ? 'adds' : 'first';", to: "return bossPm <= ph.addsPm ? 'adds' : 'first';", want: /BW-6/ },
   { name: 'a shielded boss\'s wave reads the plain answer', file: 'src/hunt-view/boss-loss.js', from: "guarded && phase === 'adds' ? W.answer.guarded : ", to: '', want: /BW-6/ },
-  { name: 'a shielded boss\'s enrage never says Challenge (Krell\'s Hall, 2026-11-14)', file: 'src/hunt-view/boss-loss.js', from: "guarded && phase === 'enrage' ? W.answer.enrageGuarded : ", to: '', want: /BW-6/ },
+  { name: 'a shielded boss\'s enrage reads the plain answer', file: 'src/hunt-view/boss-loss.js', from: "guarded && phase === 'enrage' ? W.answer.enrageGuarded : ", to: '', want: /BW-6/ },
   { name: 'the tank is asked about his food', file: 'src/hunt-view/boss-loss.js', from: "if (role === 'tank' && (phase === 'adds' ||", to: "if (role === 'nobody' && (phase === 'adds' ||", want: /BW-6/ },
-  { name: 'Krell\'s wave reads the plain answer (he keeps Challenge, measured)', file: 'src/hunt-view/boss-loss.js', from: "kept && phase === 'adds' ? W.answer.guardedKeep : ", to: '', want: /BW-6/ },
-  { name: 'every shielded boss says take Challenge off again', file: 'src/data/boss-calls.js', from: "export const challengeOff = (row) => isGuarded(row) && row.challenge !== 'keep';", to: 'export const challengeOff = (row) => isGuarded(row);', want: /BW-6/ },
+  { name: 'the warning tells the player to turn Challenge off again', file: 'src/data/boss-calls.js', from: "  warnGuard: ' They shield him until you kill them.',", to: "  warnGuard: ' They shield him until you kill them. Take Challenge off your tank\\'s bar for this fight.',", want: /BW-7/ },
   { name: 'a shielded boss\'s tank is asked about his food once Challenge fired', file: 'src/hunt-view/boss-loss.js', from: "(guarded && sum(fired, ['challenge']) > 0)", to: 'false', want: /BW-6/ },
   { name: 'a mark in the wrong place', file: 'src/shell/widgets/boss-bar.js', from: "'left', (ph.enragePm / 10) + '%'", to: "'left', (ph.addsPm / 10) + '%'", want: /BW-7/ },
   { name: 'the bar reads the snapshot, not the instant shown', file: 'src/shell/widgets/boss-bar.js', from: 'const hp = played ? played.hp : x ? x.hp : NaN, max = played ? played.maxHp : x ? x.hpMax : 0;', to: 'const hp = x ? x.hp : NaN, max = x ? x.hpMax : 0;', want: /BW-7/ },

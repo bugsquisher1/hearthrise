@@ -100,15 +100,17 @@ export const BOSS_HALL_WORDS = Object.freeze({
     '{Boss} hits hard. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder.{haste} If anyone dies, the fight ends.',
     'It uses up your {key}, win or lose. The fight ends after {minutes} minutes.',
   ]),
-  /* the same rule as a called room's (boss-calls.js warnGuard: Challenge is the wrong press at a shielded boss, measured) */
-  warnGuard: ' They shield him until you kill them. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
-  /* ...and a shielded boss whose row says Challenge helps (boss-calls.js challengeOff, `challenge: 'keep'`; Lord Krell in tier 6, measured) */
-  warnGuardKeep: ' They shield him until you kill them. Keep Challenge on your tank\'s bar, it pulls them back to your tank.',
+  /* the same sentence as a called room's (boss-calls.js warnGuard): what his adds do, never a move to turn off */
+  warnGuard: ' They shield him until you kill them.',
   /* WHAT WINS (lane/d-march-balance, the v0.2.132 re-play: 0 of 6 on the bars a party is handed). A hall that names a store food (`storeFloor`)
      says it, and its bar line (`words.bars`, label style), under the key line; {food} the store food. `foodShort` is red: this hero's bar buys
      weaker food (src/shell/hunt-go.js storeFoodUnder). */
   food: 'Every hero needs {food} or better on their bar. Salted Shrimp can\'t keep up with him.',
   foodShort: 'Your bar buys {have}. Press that slot on your bar and pick {food} before you go in.',
+  /* ...for another hero of this account in the party (boss-hall-pane.js foodShortWords) */
+  foodShortPeer: '{name}\'s bar buys {have}. Change that slot to {food} before you go in.',
+  /* a hero whose name the envelope has not sent yet */
+  someHero: 'A hero',
   /* the lead-in to the hall's tips (its `words.bars`, label lines, each one change from the bar a party is handed) */
   tips: 'An untouched bar mostly loses here. The bars that win him make these changes.',
   /* the tips list's name for a screen reader */

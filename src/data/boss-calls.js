@@ -36,9 +36,6 @@ const rows = Object.values(BOSS_CALLS);
 
 /** Do a called boss's adds shield him (his monsters.js row's `phases.guardPm`, core/hunt/boss-phases.js)? The words read it, never a second flag. */
 export const isGuarded = (row) => !!(row && row.phases && Number.isInteger(row.phases.guardPm) && row.phases.guardPm < 1000);
-/** Is Challenge the wrong press at this shielded boss? True unless his row says `challenge: 'keep'` (measured: it pulls his adds back and
-    loses nothing, Lord Krell in tier 6, lane/d-march-balance). Every Challenge line reads this, never isGuarded alone. */
-export const challengeOff = (row) => isGuarded(row) && row.challenge !== 'keep';
 
 /** The call whose room is hunt `huntId`, or null. */
 export function callOfHunt(huntId) { return rows.find((c) => c.hunt === huntId) || null; }
@@ -55,11 +52,10 @@ export const BOSS_CALL_WORDS = Object.freeze({
     '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder. If anyone dies, the fight ends.',
     'You pay {fee} gp, win or lose. You get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
   ]),
-  /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. CHALLENGE IS THE WRONG
-     PRESS AT A SHIELDED BOSS (designer 2026-11-14, lane/d-hold-pass; boss-call-table.mjs, the good bar with one answer moved): his own blows
-     already fill the tank, so pulling the adds on too is what loses. Chief Coppercap, 100 tries: damage left on him 38% won with Challenge,
-     96% without. Krell's Hall, 200 tries: 66% against 99%, and the good bar 98% against 100%. Without Challenge the Target setting moves nothing. */
-  warnGuard: ' They shield him until you kill them. Your tank can\'t hold him and his adds at the same time, so take Challenge off your tank\'s bar for this fight.',
+  /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
+  /* NO PER-BOSS CHALLENGE ADVICE (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance re-fit
+     the Chief and Krell so Challenge on and off are both fair, measured in their rows). The sentence says what the adds do, nothing to turn off. */
+  warnGuard: ' They shield him until you kill them.',
   /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
   warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
   confirm: 'Call him out for {fee} gp',
@@ -82,16 +78,12 @@ export const BOSS_CALL_WORDS = Object.freeze({
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
       first: 'His normal hits were too much for your healing. Bring a healer, eat earlier, or come back in better gear.',
-      adds: 'His adds go for whoever isn\'t your tank. Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
+      adds: 'His adds go for whoever isn\'t your tank. An area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
-      guarded: 'Your tank can\'t hold him and his adds at the same time. Take Challenge off your tank\'s bar for this fight and let your healer look after whoever the adds go for.',
+      guarded: 'His adds shield him until they fall. Kill them first, and keep your healer on whoever they go for.',
       enrage: 'Under a quarter of his health he hits far harder. Eat earlier on every bar, and set your healer to heal sooner.',
-      /* The enrage of a boss whose adds shield him (isGuarded): Challenge is still the wrong press, and what he hits harder is the tank
-         (Krell's Hall, March play-through 2026-11-14: the line talked about eating and never said Challenge). */
-      enrageGuarded: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better armor on your tank, eating earlier and a healer who heals sooner all help. Keep Challenge off your tank\'s bar, so his adds don\'t pile on too.',
-      /* A shielded boss whose row keeps Challenge (challengeOff false: Lord Krell in tier 6, lane/d-march-balance, measured on and off). */
-      guardedKeep: 'His adds shield him until they fall. Keep Challenge on your tank\'s bar to pull them back, and kill them first with an area slot or Target on Lowest HP.',
-      enrageGuardedKeep: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better food, eating earlier and a healer who heals sooner all help.',
+      /* The enrage of a boss whose adds shield him (isGuarded): what he hits harder is the tank. */
+      enrageGuarded: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better armor on your tank, eating earlier and a healer who heals sooner all help.',
     }),
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */

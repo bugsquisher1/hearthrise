@@ -100,6 +100,11 @@ BARS.healsLate = without({ healer: [['greater_mend', [under_('ally_hp_pct', 40, 
 BARS.noPeel = { ...BARS.noChallenge, tmode: 'strongest' };
 /* The bad bar with Challenge first on the tank: does Challenge decide it at this boss (the hall's warning, boss-halls.js warnGuard)? */
 BARS.badChallenge = { ...BARS.bad, spells: { ...BARS.bad.spells, tank: [['challenge'], ['power_strike']] } };
+/* THE DOOR'S BAR (lane/d-march-balance, the v0.2.133 hands-on check): what a player builds from a hall's hints and nothing else. Every role keeps
+   its default moves (rule-subjects.js ROLE_RULES) and its default Target; the hints change eating (75%) and the healer's two heals. The "good"
+   bar above also re-orders the Mage and the Target, which no hint says, so a hall is fitted on this one. */
+BARS.door = { eat: 75, tmode: null, spells: { healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]] } };
+BARS.doorNoChallenge = { ...BARS.door, spells: { ...BARS.door.spells, tank: [['power_strike']] } };
 /* A role's slots on a bar, for this call (a list, or a list per call id). */
 const spellsOf = (named, style, callId) => { const v = named.spells[style]; return (Array.isArray(v) ? v : v && v[callId]) || []; };
 const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
@@ -164,7 +169,7 @@ function tryOnce(call, c, seed) {
   const out = play.run(call.hunt, c.level, roles, {
     ground, spanMs: (call.hall ? BOSS_HALL_RULES : BOSS_CALL_RULES).limitMs + 30000, windowMs: TRACE ? 10000 : 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
     bar, leaveTogether: true, ...(c.temper ? { temper: c.temper } : {}),
-    ...(named ? { options: (role) => (role === 'tank' || role === 'healer' ? {} : { target_mode: named.tmode }) } : {}),
+    ...(named ? { options: (role) => (role === 'tank' || role === 'healer' || !named.tmode ? {} : { target_mode: named.tmode }) } : {}),
     bag: (role, i) => (kits[i].ammo === 'bronze_arrows' ? { bronze_arrows: { loaded: 1 } } : {}),
     onWindow: (o) => {
       if (TRACE) traceWindow(o, roles);
@@ -243,6 +248,8 @@ const shipRows = (L) => [
   ['Ship: the start bar as handed out, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], starter: true }],
   ['Ship: default moves on the ground\'s food, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'] }],
   /* CHALLENGE ON AND OFF, on the default moves and on the bad bar (a hall's warning says which: boss-halls.js warnGuard) */
+  ["Ship: the door's bar, tank + healer + 2 dps", { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'door' }],
+  ["Ship: the door's bar but no Challenge on the tank, tank + healer + 2 dps", { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'doorNoChallenge' }],
   ['Ship: default moves but no Challenge on the tank, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], spells: { tank: ['power_strike'] } }],
   ['Ship: bad bar but Challenge on the tank, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'badChallenge' }],
   ['Ship: bad bar, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'bad' }],
@@ -330,7 +337,7 @@ for (const s of (arg('spell', '') || '').split(',').filter(Boolean)) {
 }
 /* --adds N: a what-if wave of N, the room's own rows round again (a second row on a spot takes the next free tile, pull-cycle.js placeRow). */
 const addsN = arg('adds', null), addlvl = arg('addlvl', null);
-const FOCUS = /^Ship: (the start bar as handed out|default moves on the ground's food|default moves but no Challenge on the tank|bad bar but Challenge on the tank|good bar|bad bar|good bar, one gear tier behind|good bar but no Challenge on the tank|good bar but no area slot), tank \+ healer \+ 2 dps|^Careless: four dps, no tank/;
+const FOCUS = /^Ship: (the door's bar|the door's bar but no Challenge on the tank|the start bar as handed out|default moves on the ground's food|default moves but no Challenge on the tank|bad bar but Challenge on the tank|good bar|bad bar|good bar, one gear tier behind|good bar but no Challenge on the tank|good bar but no area slot), tank \+ healer \+ 2 dps|^Careless: four dps, no tank/;
 const CLIFF = /Optimized|Under|gear tier|four dps, no tank|tank \+ dps, no healer/;
 const rows = [];
 for (const call of (HALL ? [hallRoom(HALL)] : Object.values(BOSS_CALLS))) {

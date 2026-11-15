@@ -113,8 +113,7 @@ function slotSupply(sl, s, carried) {
    without them is a fair choice, HP and mana come back between fights (designer 2026-10-29, Tyler's "0 food" report); food
    the bag carries but the bar does not name is said with the fix. A rune spell that cannot fire only loses that spell, and
    says which. Empty ammo leaves a hero that shoots unable to attack (shotLine's short line). */
-const BARE_WORDS = Object.freeze({ food: 'HP returns only between fights',
-  drink: 'Mana returns only between fights' });
+const BARE_WORDS = Object.freeze({ food: 'prep.go_bare_food', drink: 'prep.go_bare_drink' });
 /* The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
 const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
 
@@ -130,9 +129,9 @@ function spareWords(kind, rows, named) {
 }
 
 function bareWords(kind, parts, carried) {
-  if (kind !== 'rune') return spareWords(kind, carried, new Set(parts.map((p) => (p.own ? p.own.id : null)))) || BARE_WORDS[kind];
+  if (kind !== 'rune') return spareWords(kind, carried, new Set(parts.map((p) => (p.own ? p.own.id : null)))) || t(BARE_WORDS[kind]);
   const spells = Array.from(new Set(parts.map((p) => p.spell).filter(Boolean)));
-  if (!spells.length) return 'Nothing to cast';
+  if (!spells.length) return t('prep.go_no_cast');
   /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a slot the player set to Carried runes only, with none left
      (no default bar: rule-subjects.js); this line says the fix before the hunt */
   const fixes = Array.from(new Map(parts.filter((p) => p.spell && p.fix).map((p) => [p.fix.name, p.fix])).values());
@@ -255,7 +254,7 @@ function tallyElsewhere(cs, hunt) {
   const tally = tallyOf(cs);
   const open = tally && hunt ? tally.held.filter((h) => !h.done) : [];
   if (!open.length || open.some((h) => h.hunt === hunt)) return null;
-  return { id: 'tally', text: 'No Tamsin tasks count here. ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
+  return { id: 'tally', text: t('prep.go_no_tamsin') + ' ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
 }
 
 /**
@@ -295,7 +294,7 @@ export function supplyWords(s, cs, carried) {
     const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
     if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. ' + spare, short: false });
   }
-  if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Food and drink: none (HP and mana return only between fights)', short: false });
+  if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: t('prep.go_no_food_drink'), short: false });
   return { lines: out, paysStore };
 }
 
@@ -310,10 +309,10 @@ export function beforeLines(cs, o) {
   if (!s) return null;
   const out = [];
   let paysStore = false;
-  if (o && o.other) out.push({ id: 'other', text: 'Supplies: set by ' + o.other + '’s bar (shown once it’s on)', short: false });
+  if (o && o.other) out.push({ id: 'other', text: t('prep.go_other_setup', { setup: o.other }), short: false });
   else {
     const worn = equipmentOf(cs);
-    if (worn && !worn.weapon) out.push({ id: 'weapon', text: 'Weapon: none (bare-handed, equip one from your bag)', short: true });
+    if (worn && !worn.weapon) out.push({ id: 'weapon', text: t('prep.go_no_weapon'), short: true });
     const said = supplyWords(s, cs, carriedOf(cs) || []);
     out.push(...said.lines);
     paysStore = said.paysStore;
@@ -321,17 +320,16 @@ export function beforeLines(cs, o) {
   const tally = tallyElsewhere(cs, o && o.hunt);
   if (tally) out.push(tally);
   const st = staminaOf(cs);
-  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'Stamina: none (rest in town first)', short: true });
+  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: t('prep.go_no_stamina'), short: true });
   else if (st) {
     const m = Math.floor(st.msLeft / 60000);
     const left = (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min';
-    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? 'Stamina: ' + left + ' left (then the hunt ends)'
-      : 'Stamina: ' + left + ' (hunts that long, even with the game closed)', short: false });
+    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? t('prep.go_stamina_low', { left }) : t('prep.go_stamina', { left }), short: false });
   }
   const gp = goldOf(cs);
   if (paysStore && gp !== null) {
-    out.push(gp > 0 ? { id: 'gold', text: 'Gold: ' + gold(gp) + ' (pays the store as you go)', short: false }
-      : { id: 'gold', text: 'Gold: none (hunt ends when your supplies run out)', short: true });
+    out.push(gp > 0 ? { id: 'gold', text: t('prep.go_gold', { gold: gold(gp) }), short: false }
+      : { id: 'gold', text: t('prep.go_no_gold'), short: true });
   }
   const bless = blessingWords(blessingsOf(cs));
   if (bless) out.push({ id: 'blessings', text: bless, short: false });

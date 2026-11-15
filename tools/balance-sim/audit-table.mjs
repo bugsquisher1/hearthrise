@@ -7,6 +7,9 @@
 //   node tools/balance-sim/audit-table.mjs gold [--to 50] [--style tank]  F12: one hero's life where the game sends it, the gold it
 //                                                                         banks by Level (coin and sold loot, less the store bill)
 //
+//   node tools/balance-sim/audit-table.mjs shield [--hours 2]             F8: a lone tank on each March ground at its floor and middle,
+//                                                                         in the Coppercap Shield (the best there was) and in the tier's own
+//
 // Every number is read off the engine's own events (cell.mjs, career.mjs). Nothing here computes a combat or gold number.
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -66,6 +69,25 @@ async function gold() {
   console.log('reached ' + c.reached[0] + ' in ' + c.hours + ' h, ' + c.trace.reduce((n, t) => n + t.deaths[0], 0) + ' deaths, gold banked ' + Math.round(banked));
 }
 
+/* F8's rows: [ground, Level]. The tank wears the Level's best everything; `old` holds the off-hand at the Coppercap Shield (guard 7). */
+const SHIELD_ROWS = [['hasks_ford', 45], ['the_slake', 50], ['the_slake', 58], ['muster_barrows', 60], ['muster_barrows', 66], ['pyre_field', 70], ['pyre_field', 78], ['krells_hold', 85], ['krells_hold', 95]];
+
+async function shield() {
+  const R = await loadCellRunner(ROOT);
+  const hours = Number(arg('hours', 2));
+  console.log('ground | Level | shield | eats/h | store g/h | coin+loot g/h | taken/h | monsters land % | low HP p10 % | deaths | XP/h');
+  for (const [ground, level] of SHIELD_ROWS) for (const old of [true, false]) {
+    const cell = { id: ['F8', ground, level, old ? 'old' : 'new'].join(':'), ground, party: ['tank'], level, hours, seeds: 1,
+      gear: old ? { also: { shield: 'coppercap_shield' } } : {} };
+    let m;
+    try { m = R.runCell(cell); } catch (e) { console.log([ground, level, old ? 'old' : 'new', 'ERROR ' + e.message].join(' | ')); continue; }
+    const h = m.heroes[0];
+    console.log([ground, level, h.kit.shield, (h.eatsPerH.own + h.eatsPerH.store).toFixed(1), h.storePerH, h.incomePerH, h.takenPerH, h.landedPct,
+      h.encMinHpPct.p10, h.deaths, h.levelXpPerH].join(' | '));
+  }
+}
+
 if (mode === 'food') await food();
+else if (mode === 'shield') await shield();
 else if (mode === 'gold') await gold();
-else { console.error('usage: node tools/balance-sim/audit-table.mjs food|gold'); process.exit(2); }
+else { console.error('usage: node tools/balance-sim/audit-table.mjs food|gold|shield'); process.exit(2); }

@@ -137,7 +137,7 @@ function gearRow(doc, act, label) {
 }
 
 /* THE ITEM BOX for `skill` (the run's, else the picked one): the hours left, the switch, the sealed ones held, the Arms Master's rows. */
-function patchGear(root, cs, tr, skill, sc) {
+function patchGear(root, tr, skill, sc) {
   const box = root.querySelector('.tw-gear');
   prop(box, 'hidden', !tr.rate || !skill);
   if (!tr.rate || !skill) return;
@@ -147,15 +147,17 @@ function patchGear(root, cs, tr, skill, sc) {
   const name = gearName(tr, skill);
   text(root.querySelector('.tw-gear-left'), g && g.bankedMs > 0
     ? t(g.on ? 'training.gear_left_on' : 'training.gear_left', { item: name, time: timeWords(g.bankedMs) }) : '');
+  /* While the items are closed (the server's switch) nothing here presses: the note says so. Otherwise every press is on, and the
+     server judges it (a purse short of the price, hours still left, the day's buys): its refusal speaks with its own numbers. */
   const use = root.querySelector('.tw-gear-use');
-  prop(use, 'hidden', !(g && (g.bankedMs > 0 || g.bag.length)));
+  prop(use, 'hidden', !(shopOn && g && (g.bankedMs > 0 || g.bag.length)));
   const box2 = root.querySelector('.tw-gear-on');
   prop(box2, 'checked', !!(g && g.on));
-  prop(box2, 'disabled', sc.pending || !shopOn);
+  prop(box2, 'disabled', sc.pending);
   attr(box2, 'data-skill', skill);
   text(root.querySelector('.tw-gear-use-text'), t('training.gear_use', { item: name }));
   /* the sealed ones: the bag's, then Storage's; Open is off while an item of this skill still has hours */
-  const held = g ? g.bag.map((h) => ({ ...h, where: 'bag' })).concat(g.stored.map((h) => ({ ...h, where: 'storage' }))) : [];
+  const held = g && shopOn ? g.bag.map((h) => ({ ...h, where: 'bag' })).concat(g.stored.map((h) => ({ ...h, where: 'storage' }))) : [];
   rows(root.querySelector('.tw-gear-held'), held, {
     key: (h) => h.where + ':' + h.item,
     build: () => gearRow(doc, 'gear-open', t('training.press_open')),
@@ -164,11 +166,10 @@ function patchGear(root, cs, tr, skill, sc) {
       text(row.querySelector('.tw-gear-fig'), t(h.where === 'bag' ? 'training.gear_in_bag' : 'training.gear_in_storage', { count: h.qty }));
       const b = row.querySelector('.tw-gear-press');
       attr(b, 'data-item', h.item);
-      prop(b, 'disabled', sc.pending || !shopOn || !!(g && g.bankedMs > 0));
+      prop(b, 'disabled', sc.pending);
     },
   });
-  /* the Arms Master's rows, at the server's price; Buy is off when the purse can't reach it */
-  const purse = goldOf(cs);
+  /* the Arms Master's rows, at the server's price */
   rows(root.querySelector('.tw-gear-shop'), shopOn ? offersFor(tr, skill) : [], {
     key: (o) => o.item,
     build: () => gearRow(doc, 'gear-buy', t('training.press_buy')),
@@ -177,7 +178,7 @@ function patchGear(root, cs, tr, skill, sc) {
       text(row.querySelector('.tw-gear-fig'), t('training.gear_price', { gold: whole(o.price) }));
       const b = row.querySelector('.tw-gear-press');
       attr(b, 'data-item', o.item);
-      prop(b, 'disabled', sc.pending || (purse !== null && purse < o.price) || (tr.shop.max !== null && tr.shop.today >= tr.shop.max));
+      prop(b, 'disabled', sc.pending);
     },
   });
   text(root.querySelector('.tw-gear-note'), !shopOn ? t('training.gear_closed')
@@ -233,7 +234,7 @@ renderTraining.patch = function patchTraining(body, ctx) {
   text(root.querySelector('.tw-terms'), where === 'house' ? (tr.maxHours ? t('training.max_hours', { hours: tr.maxHours }) : '')
     : t('training.paid_ahead') + (tr.maxHours ? ' ' + t('training.max_hours', { hours: tr.maxHours }) : ''));
   for (const b of root.querySelectorAll('.tw-skill, .tw-place')) prop(b, 'disabled', sc.pending);
-  patchGear(root, cs, tr, run ? run.skill : skill, sc);
+  patchGear(root, tr, run ? run.skill : skill, sc);
 
   /* THE PRESS: Start while nothing runs (off, with why), Stop while one does */
   const block = run ? '' : startBlock(cs, tr, skill, where);

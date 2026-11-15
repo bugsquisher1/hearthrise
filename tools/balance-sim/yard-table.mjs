@@ -115,7 +115,7 @@ async function selftest() {
   const cases = [
     ['the clean tree reads green', [], false],
     ['a planted rate of 31,000 reads red', [['src/data/training.js', '  xpPerHour: 30000,', '  xpPerHour: 31000,']], true],
-    ['a per-blow pay reads red', [['src/core/hunt-rewards.js', '  if (ctx.train) return trainingSwing(members, events, unitOf, ctx);\n', '']], true],
+    ['a per-blow pay reads red', [['src/core/hunt-rewards.js', '  if (ctx.train) return trainingSwing(members, events, unitOf);\n', '']], true],
     ['an item\'s extra paid to another skill reads red', [['src/core/hunt/training.js', "  if (units > 0) call(m.fx, 'addFixedXp', train.skill, units / XP_FRAC_SCALE);",
       "  if (units > 0) call(m.fx, 'addFixedXp', hs.tally.boostMs > 0 && train.skill !== 'defense' ? 'defense' : train.skill, units / XP_FRAC_SCALE);"]], true],
   ];

@@ -104,12 +104,29 @@ export const TRAINING_GEAR = Object.freeze({
   names: Object.freeze({ melee: 'Training Sword', ranged: 'Training Bow', magic: 'Training Wand', defense: 'Training Shield' }),
   /* The id's word for each skill's item: training_<word>_<hours>h, and _bound after it for the Crowns store's copy. */
   words: Object.freeze({ melee: 'sword', ranged: 'bow', magic: 'wand', defense: 'shield' }),
-  /* One line each, the item's look (src/data/item-descriptions.js reads TRAINING_GEAR_DESC). */
+  /* One line an item, its look (src/data/item-descriptions.js reads TRAINING_GEAR_DESC): the designer's line for the skill (the Arms
+     Master's rack, the archery lane, the rune corner, a shield that takes a beating), the size, and on the bound copy the hero's name. */
   flavour: Object.freeze({
-    melee: 'From the Arms Master\'s own rack',
-    ranged: 'A heavy draw from the archery lane',
-    magic: 'Kept by the lectern in the rune corner',
-    defense: 'Takes a beating so you learn to take one',
+    melee: Object.freeze({
+      12: 'A blunt sword from the Arms Master\'s own rack. It\'ll take half a day of your swings',
+      24: 'A blunt sword from the Arms Master\'s own rack, weighted to last a full day of your swings',
+      '12b': 'A blunt sword from the Arms Master\'s rack with your name burned into the grip. Half a day of drills',
+      '24b': 'A blunt sword from the Arms Master\'s rack with your name burned into the grip. A full day of drills' }),
+    ranged: Object.freeze({
+      12: 'A heavy-draw bow from the archery lane. It\'ll take half a day of your shots before the string gives',
+      24: 'A heavy-draw bow from the archery lane with a spare string. It lasts a full day of your shots',
+      '12b': 'A heavy-draw bow from the archery lane with your name cut into the limb. Half a day of shots',
+      '24b': 'A heavy-draw bow from the archery lane with your name cut into the limb. A full day of shots' }),
+    magic: Object.freeze({
+      12: 'A practice wand kept by the lectern in the rune corner. It holds half a day of your casting',
+      24: 'A thick practice wand kept by the lectern in the rune corner. It holds a full day of your casting',
+      '12b': 'A practice wand from the rune corner with your name etched near the tip. Half a day of casting',
+      '24b': 'A practice wand from the rune corner with your name etched near the tip. A full day of casting' }),
+    defense: Object.freeze({
+      12: 'A dented practice shield that takes a beating so you learn to take one. Good for half a day',
+      24: 'A thick practice shield that takes a beating so you learn to take one. Good for a full day',
+      '12b': 'A practice shield with your name painted on the rim. It takes half a day of beatings for you',
+      '24b': 'A practice shield with your name painted on the rim. It takes a full day of beatings for you' }),
   }),
 });
 
@@ -132,7 +149,7 @@ export const TRAINING_GEAR_ITEM_ROWS = Object.freeze(Object.fromEntries(TRAINING
   ...(g.bound ? { bop: true } : {}), training: Object.freeze({ skill: g.skill, hours: g.hours, bound: g.bound }) })])));
 
 /** One flavour line an item (src/data/item-descriptions.js spreads it). */
-export const TRAINING_GEAR_DESC = Object.freeze(Object.fromEntries(TRAINING_GEAR_ITEMS.map((g) => [g.id, TRAINING_GEAR.flavour[g.skill]])));
+export const TRAINING_GEAR_DESC = Object.freeze(Object.fromEntries(TRAINING_GEAR_ITEMS.map((g) => [g.id, TRAINING_GEAR.flavour[g.skill][g.hours + (g.bound ? 'b' : '')]])));
 
 /** The skill XP one settled hour of training pays: the rate, or boostPermille of it while a training item's hours last. */
 export function trainingXpPerHour(boosted) {

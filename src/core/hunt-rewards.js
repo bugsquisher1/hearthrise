@@ -154,7 +154,7 @@ export function rewardSwing(members, events, world, ctx) {
   const presentIds = () => world.units.filter((u) => u.side === 'hero' && u.alive === true && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
   if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);
   /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
-  if (ctx.train) return trainingSwing(members, events, unitOf, ctx);
+  if (ctx.train) return trainingSwing(members, events, unitOf);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {

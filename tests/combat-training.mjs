@@ -149,7 +149,7 @@ async function guard(X) {
     if (units(got.ranged) !== Math.floor(5 * 2500000 / 3) + Math.floor(2 * 2500000 / 3) || m.hs.trainBoostMs !== 50 || m.hs.tally.boostMs !== 200) bad.push(`CT-TICK 250 ms of item time over five intervals paid ${units(got.ranged)} units, left ${m.hs.trainBoostMs}, claimed ${m.hs.tally.boostMs}`);
     const units9 = { 1: { id: 1, side: 'hero' }, 9: { id: 9, side: 'mon', kind: dId } };
     const deaths = X.TR.trainingSwing(new Map([[1, mk(0)]]), [{ type: 'dmg', u: 1, t: 9, amount: 100 }, { type: 'cast', u: 1, mana: 20, magicXpMult: 1600 }, { type: 'dmg', u: 9, t: 1, amount: 3 },
-      { type: 'kill', u: 9, t: 1, atMs: 5 }, { type: 'kill', u: 1, t: 9, atMs: 6 }], (id) => units9[id] || null, { train: { place: 'yard', skill: 'melee' } });
+      { type: 'kill', u: 9, t: 1, atMs: 5 }, { type: 'kill', u: 1, t: 9, atMs: 6 }], (id) => units9[id] || null);
     if (deaths.length !== 1 || deaths[0].unit !== 1 || deaths[0].monster !== dId) bad.push('CT-TICK a swing\'s deaths answered ' + JSON.stringify(deaths));
   }
 
@@ -223,7 +223,7 @@ async function guard(X) {
 }
 
 const MUTANTS = [
-  { name: 'the engine has no door: a training swing pays like a hunt\'s', edits: [['src/core/hunt-rewards.js', '  if (ctx.train) return trainingSwing(members, events, unitOf, ctx);\n', '']], want: /CT-PAY/ },
+  { name: 'the engine has no door: a training swing pays like a hunt\'s', edits: [['src/core/hunt-rewards.js', '  if (ctx.train) return trainingSwing(members, events, unitOf);\n', '']], want: /CT-PAY/ },
   { name: 'the sim forgets to hand the rewards the ground', edits: [['src/core/combat-sim.js', '...(train ? { train } : {}), emit:', 'emit:']], want: /CT-PAY/ },
   { name: 'the time is never paid', edits: [['src/core/combat-sim.js', '      if (train) trainingTick(m, train, tick);\n', '']], want: /CT-PAY/ },
   { name: 'each interval floors its own slice', edits: [['src/core/hunt/training.js', '  return (i) => K(i) - K(i - 1);', '  return () => Math.floor(num / den);']], want: /CT-PAY|CT-TICK/ },

@@ -1848,8 +1848,11 @@ function selftest() {
     'a free yard': () => ({ training: { ...S_TRAINING, places: { ...S_TRAINING.places, yard: { fee: false } } } }),
     'a session longer than an hours limit': () => ({ training: { ...S_TRAINING, rules: { ...S_TRAINING.rules, maxHours: 25 } } }),
   };
-  /* The fixture ground itself must pass (the arm proves the ground path is live). */
-  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens } });
+  /* The fixture ground itself must pass (the arm proves the ground path is live). It stands beside the grounds the catalogue's rooms hang off: each call's
+     press ground and each OPEN keyed hall's own ground. (Since the Barrow March opened Krell's Hold, a fixture without the hall's ground threw here, before one
+     refusal below was played: this selftest was red on set/v0.2.133, measured 2026-11-15, and green again with the hall's ground beside the two calls'.) */
+  const roomGrounds = Object.fromEntries([...Object.values(BOSS_CALLS).map((c) => c.from), ...Object.values(OPEN_BOSS_HALLS).map((h) => h.id)].map((id) => [id, OPEN_GROUNDS[id]]));
+  catalogueRows({ grounds: { ...fixtureGround, ...roomGrounds } });
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {
     let threw = false;

@@ -734,7 +734,8 @@
   "hero_tally_given",
   "hero_tally_tasks",
   "town_works_gifts",
-  "player_scaled_hours"
+  "player_scaled_hours",
+  "player_boss_loot_day"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -1730,7 +1731,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 44,
+   "replay": 45,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -2074,6 +2075,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE (2026-10-25-blessings.sql) — held blessing tiers, bought with gold (paid column), used up by a death. Losing a row loses gold a player spent; restoring it without the ledger is safe (a tier is held once)."
+  },
+  "player_boss_loot_day": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE, A BUDGET LEDGER (2027-04-25-boss-daily.sql) - a row = this hero made its daily prize roll on that keyed-hall boss on that UTC day; the primary key (user_id, slot, boss, day) IS the once-a-day rule. Written only by hr_boss_prize_take inside the hunt settle; 7 days kept a hero and boss (the boss_daily player_ledger row is the permanent record). LOSING TODAY'S ROWS RE-MINTS VALUE: every hero who took Lord Krell's prize today could roll it again. Older rows carry nothing a restore needs. RLS on, no policy, no client grant (read through the boss_halls section); FK cascade to player_state; on the character wipe's list."
   },
   "player_cosmetics": {
    "class": "restore_only",

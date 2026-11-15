@@ -409,7 +409,7 @@ async function claim(boot) {
     + (select coalesce(sum(qty), 0) from public.player_inventory where user_id = any($1::uuid[]) and item_id = $2)`, [uids, PRIZE]));
   for (let w = 1, n = Math.ceil(BOSS_HALL_RULES.limitMs / WINDOW) + 2; w <= n; w++) {
     let c = await propose(w);
-    if (!c.members.some((m) => m.hunt.prize === true)) {
+    if (!c.members.some((m) => ((m.delta.journal || {}).meta || {}).prize === true)) {
       const res = await send(c);
       if (!res || res.ok !== true) return ['HD-CLAIM harness: an honest window before the kill was refused: ' + JSON.stringify(res).slice(0, 200)];
       continue;
@@ -417,8 +417,9 @@ async function claim(boot) {
     /* THE KILL'S WINDOW: both heroes claim, each with its piece and the boss's kill journalled beside it */
     for (const uid of uids) {
       const m = of(c, uid);
-      if (!m || m.hunt.prize !== true || (m.delta.items || {})[PRIZE] !== 1 || !((((m.delta.journal || {}).meta || {}).km || {})[BOSS] >= 1)) {
-        return ['HD-CLAIM CONTROL: the kill\'s window does not carry both heroes\' claims: ' + JSON.stringify(c.members.map((x) => [x.hunt.prize, x.delta.items, ((x.delta.journal || {}).meta || {}).km])).slice(0, 300)];
+      const meta = m ? (m.delta.journal || {}).meta || {} : {};
+      if (!m || meta.prize !== true || 'prize' in m.hunt || (m.delta.items || {})[PRIZE] !== 1 || !((meta.km || {})[BOSS] >= 1)) {
+        return ['HD-CLAIM CONTROL: the kill\'s window does not carry both heroes\' claims in their journals: ' + JSON.stringify(c.members.map((x) => [((x.delta.journal || {}).meta || {}).prize, x.delta.items, ((x.delta.journal || {}).meta || {}).km])).slice(0, 300)];
       }
     }
     /* (1) two pieces on one claim; (2) a claim with no kill of the boss beside it; (3) a claim that is not `true`: each refused WHOLE */
@@ -426,7 +427,7 @@ async function claim(boot) {
       /* (the window says two kills, so the ground's own drop bound, kills x one a kill, would let two pieces by: only the claim's bound refuses) */
       ['two pieces on one claim', (m) => { m.delta.items[PRIZE] = 2; m.delta.journal.meta.kills = Math.max(2, m.delta.journal.meta.kills); }, 'value_over'],
       ['a claim with no kill of the boss beside it', (m) => { delete m.delta.journal.meta.km[BOSS]; }, 'bad_prize'],
-      ['a claim that is not true', (m) => { m.hunt.prize = 1; }, 'bad_prize'],
+      ['a claim that is not true', (m) => { m.delta.journal.meta.prize = 1; }, 'bad_prize'],
     ];
     for (const [name, tamper, want] of TAMPERS) {
       c = await propose(w);
@@ -439,7 +440,7 @@ async function claim(boot) {
        second hero's row for today is already there when its claim lands. Neither is refused: both pieces are taken off the window, each
        journalled once with its reason, the rest of the window (the kill's Level XP) paid. */
     c = await propose(w);
-    delete of(c, uids[0]).hunt.prize;
+    delete of(c, uids[0]).delta.journal.meta.prize;
     await db.query(`insert into public.player_boss_loot_day (user_id, slot, boss, day) values ($1, 0, $2, (now() at time zone 'utc')::date)`, [uids[1], BOSS]);
     const lx0 = await q(db, 'select user_id, level_xp from public.player_state where user_id = any($1::uuid[]) and slot = 0 order by user_id', [uids]);
     const res = await send(c);
@@ -450,6 +451,10 @@ async function claim(boot) {
       const rows = await dailyRows(db, uids[n2]);
       if (await prizeOf(db, uids[n2]) !== 0) bad.push('HD-CLAIM a prize with ' + why + ' reached the bag');
       if (rows.length !== 1 || rows[0].took !== false || rows[0].why !== why || JSON.stringify(rows[0].dropped) !== JSON.stringify({ [PRIZE]: 1 })) bad.push('HD-CLAIM ' + why + ' is journalled as ' + JSON.stringify(rows));
+    }
+    for (const uid of uids) {
+      const said = await one(db, `select count(*) from public.player_ledger where user_id = $1 and kind = 'combat' and intent = 'accrue' and meta ? 'prize'`, [uid]);
+      if (Number(said)) bad.push('HD-CLAIM the window\'s own ledger row still says a prize roll the day refused, or one never claimed');
     }
     if (await dayRows(db, uids[0]) !== 0 || await dayRows(db, uids[1]) !== 1) bad.push('HD-CLAIM the days read ' + await dayRows(db, uids[0]) + ' and ' + await dayRows(db, uids[1]) + ' (an unclaimed prize stamps none; a taken day stays one)');
     return bad;
@@ -491,7 +496,7 @@ const ARMS = {
 
 const FN = { admit: 'public.hr_hunt_admit(uuid,integer,text)', settle: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', verb: 'public.hr_boss_hall_enter(integer,text,uuid)',
   fight: 'public.hr_boss_fight_ok(jsonb,text)', closed: 'public.hr_boss_hall_closed()',
-  keyOf: 'public.hr_boss_hall_key_of(uuid,uuid,integer,text)', take: 'public.hr_boss_prize_take(uuid,integer,uuid,uuid,text,jsonb,jsonb)',
+  keyOf: 'public.hr_boss_hall_key_of(uuid,uuid,integer,text)', take: 'public.hr_boss_prize_take(uuid,integer,uuid,uuid,text,jsonb)',
   left: 'public.hr_boss_prize_left(uuid,integer,text)', read: 'public.hr_hunt_instance_read(uuid,integer)',
   member: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)' };
 const MUTANTS = [
@@ -510,12 +515,12 @@ const MUTANTS = [
   /* THE DAILY PRIZE (2027-04-25-boss-daily.sql) */
   { name: 'the engine\'s read carries no prize', fn: FN.read, find: "'prize_left', public.hr_boss_prize_left(h.user_id, h.slot, v_i.hunt_id),", repl: "'prize_left', null,", arm: 'doors', want: /HD-DAILY/ },
   { name: 'the read offers a prize the day has taken', fn: FN.left, find: '  return not exists (select 1 from public.player_boss_loot_day d', repl: '  return true or not exists (select 1 from public.player_boss_loot_day d', arm: 'doors', want: /HD-DAILY .*a second kill the same day/ },
-  { name: 'the prize step never runs', fn: FN.member, find: "  if right(v_s.hunt_id, 5) = '_hall' or p_hunt ? 'prize' then", repl: '  if false then', arm: 'claim', want: /HD-CLAIM/ },
-  { name: 'the claim reaches the session half', fn: FN.member, find: "- 'xp_event' - 'prize';", repl: "- 'xp_event';", arm: 'claim', want: /HD-CLAIM|THREW/ },
+  { name: 'the prize step never runs', fn: FN.member, find: "  if right(v_s.hunt_id, 5) = '_hall' or coalesce(p_delta #> '{journal,meta}', '{}'::jsonb) ? 'prize' then", repl: '  if false then', arm: 'claim', want: /HD-CLAIM/ },
+  { name: 'a refused claim stays in the window\'s own ledger row', fn: FN.take, find: "    p_delta := p_delta #- '{journal,meta,prize}';", repl: '    null;', arm: 'claim', want: /HD-CLAIM the window's own ledger row/ },
   { name: 'a second claim the same day passes', fn: FN.take, find: '    if v_ins = 1 then', repl: '    if true then', arm: 'claim', want: /HD-CLAIM a prize with taken_today|HD-CLAIM taken_today/ },
   { name: 'a claim needs no kill', fn: FN.take, find: '    if v_km < 1 then perform', repl: '    if false then perform', arm: 'claim', want: /HD-CLAIM a claim with no kill/ },
   { name: 'a claim may carry two pieces', fn: FN.take, find: '      if v_n > 1 then perform', repl: '      if false then perform', arm: 'claim', want: /HD-CLAIM two pieces/ },
-  { name: 'a claim may be anything', fn: FN.take, find: "  if p_prize is not null and p_prize is distinct from 'true'::jsonb then", repl: '  if false then', arm: 'claim', want: /HD-CLAIM a claim that is not true/ },
+  { name: 'a claim may be anything', fn: FN.take, find: "  if v_prize is not null and v_prize is distinct from 'true'::jsonb then", repl: '  if false then', arm: 'claim', want: /HD-CLAIM a claim that is not true/ },
   { name: 'an unclaimed prize passes', fn: FN.take, find: '  if v_n > 0 then\n    v_items := v_items - array(select jsonb_object_keys(v_got));', repl: '  if false then\n    v_items := v_items - array(select jsonb_object_keys(v_got));', arm: 'claim', want: /HD-CLAIM a prize with no_claim/ },
   { name: 'the key is never spent', fn: FN.verb, find: "jsonb_build_object('items', jsonb_build_object(v_h.key_item, -1),", repl: "jsonb_build_object('items', jsonb_build_object(v_h.key_item, 0),", arm: 'verb', want: /HD-KEY|HD-PARTY/ },
   { name: 'a refused start still spends the key', fn: FN.verb, find: "    if coalesce(v_r->>'ok', 'false') <> 'true' then\n      v_no := v_r;", repl: "    if false then\n      v_no := v_r;", arm: 'verb', want: /HD-PARTY|HD-WORDS/ },

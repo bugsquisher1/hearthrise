@@ -1368,6 +1368,11 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
       meta: { ms: settledTo - winFrom, ticks: summary.ticks, kills: summary.kills,
               mon: String(mi.huntId || '').slice(0, 64),
               ...(summary.kills > 0 ? { km: s.bestiary.counts() } : {}),
+              /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js; hunt-rewards.js payPrize): this hero's roll for today was made in this
+                 window, piece or no piece. Said only then, beside the boss's kill in `km`: hr_hunt_apply_member stamps the day on it
+                 (2027-04-25-boss-daily.sql hr_boss_prize_take) and lets the piece through only on that stamp. A database before that
+                 file never hears it: this engine rolls only on that file's `prize_left`. */
+              ...(hs.prizeRolled === true ? { prize: true } : {}),
               from: new Date(winFrom).toISOString(),
               to: new Date(settledTo).toISOString() },
     },
@@ -1468,10 +1473,6 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     unit_id: summary && Number.isInteger(summary.unitId) ? summary.unitId : null,
     tick_ms: tickMs,
     ...(xpEvent > 0 ? { xp_event: xpEvent } : {}),
-    /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js; hunt-rewards.js payPrize): this hero's roll for today was made in this window, piece
-       or no piece. Sent only then: hr_hunt_apply_member stamps the day on it (hr_boss_loot_day) and lets the prize through only on that
-       stamp (2027-04-25-boss-daily.sql). A database before that file never hears it: this engine rolls only on its `prize_left`. */
-    ...(hs.prizeRolled === true ? { prize: true } : {}),
   };
 }
 

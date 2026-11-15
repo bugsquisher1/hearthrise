@@ -258,12 +258,16 @@ const ARMS = {
       for (const m of f.members) {
         const e = by[m.key] || (by[m.key] = { prize: 0, claims: 0, lx: 0, coin: 0, bossKills: 0 });
         e.prize += (m.delta.items || {})[PRIZE] || 0;
-        e.claims += m.hunt.prize === true ? 1 : 0;
-        if ('prize' in m.hunt && m.hunt.prize !== true) bad.push('HL-DAILY a window of ' + m.key + ' carries prize ' + JSON.stringify(m.hunt.prize) + ' (true or absent)');
+        /* THE CLAIM: the window's own journal says the roll was made (accrual.js memberDelta journal.meta.prize), true or absent, and never
+           the session half (hr_hunt_settle_session refuses a key it does not know) */
+        const meta = (m.delta.journal || {}).meta || {};
+        e.claims += meta.prize === true ? 1 : 0;
+        if ('prize' in meta && meta.prize !== true) bad.push('HL-DAILY a window of ' + m.key + ' carries prize ' + JSON.stringify(meta.prize) + ' (true or absent)');
+        if ('prize' in m.hunt) bad.push('HL-DAILY a window of ' + m.key + ' carries the claim in its session half, which the database refuses whole');
         e.lx += m.delta.level_xp || 0; e.coin += m.delta.gold || 0;
         e.bossKills += (((m.delta.journal || {}).meta || {}).km || {})[BOSS] || 0;
         /* the claim and the kill it stands on leave in the same window: the database refuses a claim with no kill beside it */
-        if (m.hunt.prize === true && !((((m.delta.journal || {}).meta || {}).km || {})[BOSS] >= 1)) bad.push('HL-DAILY ' + m.key + ' claims in a window that journals no kill of the boss');
+        if (meta.prize === true && !((meta.km || {})[BOSS] >= 1)) bad.push('HL-DAILY ' + m.key + ' claims in a window that journals no kill of the boss');
       }
       return by;
     };
@@ -472,7 +476,7 @@ const MUTANTS = [
   /* THE DAILY PRIZE (lane/c-krell-daily) */
   { name: 'a hero who took it today rolls again', edits: [['src/core/hunt-rewards.js', '    if (m.prizeLeft !== true) return;\n', '']], want: /HL-DAILY/ },
   { name: 'his rows roll the shared way', edits: [['src/core/combat-sim.js', "...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ", '']], want: /HL-DAILY|HL-PAY/ },
-  { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrual.js', '    ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
+  { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrual.js', '              ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
   { name: 'a roll that lands nothing sends no claim', edits: [['src/core/hunt-rewards.js', '    m.hs.prizeRolled = true;\n    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);', '    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) { m.hs.prizeRolled = true; giveDrop(m, ids[i], ev, ctx, atMs); }']], want: /HL-DAILY/ },
   { name: 'the engine rolls a prize the read never offered', edits: [['src/core/member.js', '      prizeLeft: mi.prizeLeft === true,', '      prizeLeft: mi.prizeLeft !== false,']], want: /HL-DAILY/ },
   { name: 'every prize row rolls for itself', edits: [['src/core/drops.js', '    if (u < edge) { const band', '    if (rng.next() < Number(d.ch)) { const band']], want: /HL-DAILY/ },

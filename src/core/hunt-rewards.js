@@ -87,7 +87,7 @@ function giveDrop(m, unitId, ev, ctx, atMs) {
 /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js; Tyler 2026-11-14: "a daily kill"). The boss's rows are PERSONAL and ONCE A DAY:
    each hero there whose day's prize is still to take (member.prizeLeft: the server's own read, never a client value) rolls ONCE, in
    unit-id order, one draw a roll (drops.js rollPrize: the rows are slices of that one roll, no multiplier), and keeps what lands. The
-   roll is the day's whether a piece lands or not: `hs.prizeRolled` rides the member's proposal (accrual.js huntProposal `prize`) and the
+   roll is the day's whether a piece lands or not: `hs.prizeRolled` rides the member's journal (accrual.js memberDelta `journal.meta.prize`) and the
    database stamps the day and refuses a second (hr_hunt_apply_member). A hero who took it today rolls nothing and draws nothing, and
    still shares the kill's XP and coin like everyone there. No party rare roll: nothing here is shared. */
 function payPrize(present, ids, row, ctx, atMs) {

@@ -1651,7 +1651,7 @@
   },
   "hr_scaled_grounds": {
    "class": "seeded",
-   "replay": 5,
+   "replay": 10,
    "note": "Generated catalogue (2027-03-21-scaled-hunts-catalogue.generated.sql from src/data/scaled-hunts.js): the grounds a leader may scale and their bands. Empty, nothing scales and every purchase refuses not_scalable. Rebuilt from repo, never restored."
   },
   "hr_scaled_hunt_rule": {
@@ -1661,7 +1661,7 @@
   },
   "hr_scaled_kill_bounds": {
    "class": "seeded",
-   "replay": 153,
+   "replay": 663,
    "note": "Generated catalogue (2027-03-21-scaled-hunts-catalogue.generated.sql from src/data/scaled-hunts.js): per scalable ground and scaled Level, the most one scaled kill pays and the highest scaled monster Level, read by hr_hunt_apply_member on a window proved scaled. Empty, a scaled window is bounded by the ground's own kills (its honest XP refused value_over), never loosened. Rebuilt from repo, never restored."
   },
   "hr_server_secrets": {

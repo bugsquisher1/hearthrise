@@ -11,7 +11,8 @@
 //   boss-kits          a boss carries his marked heavy hit FIRST and his whole-group pulse second (Tyler 2026-11-08: "the tank
 //                      absorbing the boss hits and the casters dodging it", plus "so the whole party takes damage"; the engine
 //                      starts the first spell of the list that is ready, so the heavy hit leads); a called boss casts exactly
-//                      what his open row casts (boss-calls.js `of`); every other caster carries one spell
+//                      what his open row casts (boss-calls.js `of`), or its room's own copy of a spell (`<id>_called`, same name,
+//                      shape and element); every other caster carries one spell
 //   hero-area-rows     the hero area rows strike a shape (area, line, ring), each new slot's rule is one the server's slot check
 //                      takes, and the party heal: on the heal lane, its own rule holding "the fight is on" (never spent between
 //                      pulls) and "allies under X% at or above 2", dearer in mana and slower to come back than the top-up beside it
@@ -61,7 +62,10 @@ const cases = {
     }
     for (const c of Object.values(M.BC.BOSS_CALLS)) {
       const open = M.MS.spellsOf(M.MONSTERS[c.of]), called = M.MS.spellsOf(M.MONSTERS[c.monster]);
-      if (JSON.stringify(open) !== JSON.stringify(called)) return 'the called ' + c.monster + ' casts ' + JSON.stringify(called) + ', his open row ' + JSON.stringify(open);
+      /* the same kit, spell for spell: his open row's id, or its room's own copy (`<id>_called`: same name, shape and element, its own numbers, so a
+         room's fit never moves the open ground; lane/d-chief-spell, the Chief's Slag Rain) */
+      const same = (o, k) => k === o || (k === o + '_called' && ['n', 'shape', 'element'].every((x) => (M.MS.spellRow(k) || {})[x] === (M.MS.spellRow(o) || {})[x]));
+      if (open.length !== called.length || !open.every((o, i) => same(o, called[i]))) return 'the called ' + c.monster + ' casts ' + JSON.stringify(called) + ', his open row ' + JSON.stringify(open);
     }
     return null;
   },
@@ -105,6 +109,7 @@ const mutants = [
   { name: 'a spell on a monster no ground spawns', case: 'every-caster-plays',
     edits: [[MON, "  bog_vine: {", "  bog_vine: { spells: ['spore_cloud'],"]] },
   { name: 'the Rat King leads with his pulse', case: 'boss-kits', edits: [[MON, "party takes */\n    spells: ['tail_lash', 'squeal'],", "party takes */\n    spells: ['squeal', 'tail_lash'],"]] },
+  { name: 'the called Chief\'s own Slag Rain is another spell (a cone)', case: 'boss-kits', edits: [[MS, "  slag_rain_called: { n: 'Slag Rain', shape: 'group',", "  slag_rain_called: { n: 'Slag Rain', shape: 'cone', len: 2,"]] },
   { name: 'the called Rat King casts nothing', case: 'boss-kits', edits: [[MON, "    spells: ['tail_lash', 'squeal'],\n    hp: 2000,", '    hp: 2000,']] },
   { name: 'a regular carries two spells', case: 'boss-kits', edits: [[MON, "    spells: ['spore_cloud'],\n", "    spells: ['spore_cloud', 'venom_spray'],\n"]] },
   { name: 'Spring Tide fires between pulls', case: 'hero-area-rows',

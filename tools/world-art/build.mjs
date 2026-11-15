@@ -23,7 +23,9 @@
 //   The source sheet holds one row per (anim, dir), anims in sidecar order and dirs
 //   in FACINGS order (s,e,n,w, then se,sw,ne,nw), frames left to right at the frame size.
 // Terrain sidecar: { id, class: 'terrain', material, source, lower, upper,
-//   tiles: { NWNESWSE: [[col, row], …] }, pixellab } — T×T cells of the source.
+//   tiles: { NWNESWSE: [[col, row], …] }, shade?, pixellab } — T×T cells of the source.
+//   lift (a sprite) / shade (a terrain): whole value steps up a body's ramps or down a painted floor's, after the lock (lockOf),
+//   for the [ring] readability rule (tests/world-assets.mjs); never another hue.
 // THE SET'S GRID: art/world/<set>/_set.json { "grid": "hd64" } names the art grid the set is
 // drawn on (src/data/world/art-budget.js GRIDS); no file is the base grid. The grid's T, class
 // table, shadow rule and measuring bands build and validate the set, and the manifest records
@@ -37,7 +39,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, statSy
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePNG, encodeSheetPNG, crop, pixelHash, createImage } from './png.mjs';
-import { lock, regradeFinding } from './lock.mjs';
+import { lock, regradeFinding, liftBody, shadeGround } from './lock.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
 import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, MASK_PALETTE, REGRADE_KEPT } from './validate.mjs';
 import { pack } from './pack.mjs';
@@ -78,8 +80,15 @@ export function keyFrame(img) {
   return out;
 }
 
+/** The lock, then a body's `lift` (that many value steps up its ramps, lock.mjs liftBody) or a painted floor's `shade` (that many
+    down, shadeGround): the readability steps a sidecar declares (ART_DIRECTION section 4), done here so the source stays the drawing. */
+export function lockOf(sc, img) {
+  const locked = lock(img, sc.material);
+  return sc.lift ? liftBody(locked, sc.lift) : sc.shade ? shadeGround(locked, sc.shade) : locked;
+}
+
 /** Slice and lock a sprite's frames from its source sheet (`prep` replaces the lock: keyFrame for a mask set). */
-export function framesOf(sc, sheet, grid = gridOf(), prep = (img) => lock(img, sc.material)) {
+export function framesOf(sc, sheet, grid = gridOf(), prep = (img) => lockOf(sc, img)) {
   const cls = grid.classes[sc.class] || {};
   const [fw, fh] = sc.frame || cls.frame || [sheet.width, sheet.height];
   const frames = [];
@@ -140,7 +149,7 @@ export function buildSet(root, set) {
     if (regrade) findings.push(regrade);
     if (sc.class === 'terrain') {
       const tiles = {};
-      for (const [k, cells] of Object.entries(sc.tiles)) tiles[k] = cells.map(([c, r]) => lock(crop(sheet, c * T, r * T, T, T), sc.material));
+      for (const [k, cells] of Object.entries(sc.tiles)) tiles[k] = cells.map(([c, r]) => lockOf(sc, crop(sheet, c * T, r * T, T, T)));
       findings.push(...validateTerrain({ id: sc.id, kind: sc.kind, cycle: sc.cycle, tiles }, grid));
       terrains.push({ sc, tiles });
       continue;

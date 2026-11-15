@@ -15,7 +15,7 @@
 import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.132';
 import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.132';
 import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js?v=0.2.132';
-import { MONSTERS } from '../data/monsters.js?v=0.2.132';
+import { MONSTERS, monsterRangeOf } from '../data/monsters.js?v=0.2.132';
 import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.132';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.132';
 import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.132';
@@ -53,6 +53,11 @@ function namer(cs) {
       return x.name || (kind && monsterName(kind)) || 'Someone';
     },
     isHero: (u) => heroes.has(u) || (units.get(u) || {}).side === 'hero',
+    /* Does monster `u` shoot (monsters.js monsterRangeOf: Hask's Lookout)? Its blow reads as a shot (the hand play 2026-11-14: "hits for 30" from 5 tiles off). */
+    shoots(u) {
+      const kind = (units.get(u) || {}).kind || cs.timeline.kindOf(u);
+      return !!kind && monsterRangeOf(MONSTERS[kind]) > 0;
+    },
   };
 }
 
@@ -61,6 +66,9 @@ function unlockedBy(skill, level) {
   const rows = skill === 'level' ? [] : Object.values(ABILITIES).filter((r) => r.unlock === level && abilitySkill(r) === skill);
   return rows.length ? ' ' + t('log.unlocked', { moves: rows.map((r) => r.n).join(', ') }) : '';
 }
+
+/* Is unit `u` a monster that shoots? A namer with no `shoots` (a test's) reads every blow as a hit. */
+const shot = (n, u) => typeof n.shoots === 'function' && n.shoots(u);
 
 /**
  * One event as a line, or null when it is not a log line.
@@ -72,10 +80,13 @@ export function lineOf(ev, n) {
   switch (ev.type) {
     case 'dmg': {
       const how = ev.ability && ev.ability !== 'basic' ? ' with ' + abilityName(ev.ability) : '';
+      /* a shooter's plain blow is a shot from range, not a hit at arm's length */
+      if (!how && !n.isHero(ev.u) && shot(n, ev.u)) return line('taken', t('log.shot', { who: a, target: b, n: ev.amount }));
       return line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' hits ' + b + ' for ' + ev.amount + how + '.');
     }
     /* The screen shows a miss as a spark and no word (hunt-vfx.js GLANCE_FX, Tyler 2026-11-04: "the combat log can still say blah blah missed you"). */
-    case 'miss': return Object.assign(ev.dodge === true ? line('taken', b + ' dodges ' + a + '’s blow.') : line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses ' + b + '.'), { quiet: true });
+    case 'miss': if (!n.isHero(ev.u) && shot(n, ev.u)) return Object.assign(line('taken', t(ev.dodge === true ? 'log.shot_dodge' : 'log.shot_miss', { who: a, target: b })), { quiet: true });
+      return Object.assign(ev.dodge === true ? line('taken', b + ' dodges ' + a + '’s blow.') : line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' misses ' + b + '.'), { quiet: true });
     case 'heal': return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
     /* A kill's XP is LEVEL XP (xp-share.js); a skill's own level-up names the skill (Tyler 2026-10-22: say which XP). */
     case 'xp': return line('xp', a + ' gains ' + ev.amount + ' Level XP.');

@@ -187,16 +187,27 @@ export function cameHomeLine(h, hero) {
   return h ? cameHomeWords(h.endReason, h.endBy, h.endWhy, hero) : '';
 }
 
+/** This character's own unit in hunt `h`: the snapshot's, else the one an earlier read of the SAME session named
+    (`known`: { session, unit }; an ended hunt's section names no hero), else null. */
+function ownUnitOf(h, known) {
+  if (!h) return null;
+  if (Number.isInteger(h.hero.unit)) return h.hero.unit;
+  return known && known.session === h.sessionId && Number.isInteger(known.unit) ? known.unit : null;
+}
+
 /** The rare-drop alert for one arriving timeline event, or null. */
-function rareOf(cs, ev) {
+function rareOf(cs, ev, known) {
   if (!ev || ev.type !== 'rare_drop' || typeof ev.item !== 'string' || typeof ev.key !== 'string') return null;
   const h = huntOf(cs);
-  /* a party member's rare is theirs: only this character's own hero raises it */
-  if (h && h.hero && Number.isInteger(ev.u) && Number.isInteger(h.hero.unit) && ev.u !== h.hero.unit) return null;
+  /* A PARTY MEMBER'S RARE IS THEIRS: only this character's own hero raises it, and an owner it cannot prove raises nothing
+     (CLAUDE.md §6, one CharacterSession per hero). The kill that ended a party hunt reached a hero whose section no longer
+     named its unit, and "Rare drop for Tankard" named the wrong hero for Mender's staff (March play-through 2026-11-14). */
+  const me = ownUnitOf(h, known);
+  if (me === null || !Number.isInteger(ev.u) || ev.u !== me) return null;
   /* hero, place and at are the shareable card's facts (src/shell/share-card.js): display only. */
-  return { id: 'rare:' + (h ? h.sessionId : 'slot' + cs.slot) + ':' + ev.key.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 60), kind: 'rare',
-    session: h ? h.sessionId : null, item: ev.item, text: 'Rare drop for ' + who(cs) + ': ' + itemName(ev.item) + '!',
-    hero: who(cs), place: h ? huntName(h.huntId) : null, at: Number.isFinite(ev.atMs) ? ev.atMs : null };
+  return { id: 'rare:' + h.sessionId + ':' + ev.key.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 60), kind: 'rare',
+    session: h.sessionId, item: ev.item, text: 'Rare drop for ' + who(cs) + ': ' + itemName(ev.item) + '!',
+    hero: who(cs), place: huntName(h.huntId), at: Number.isFinite(ev.atMs) ? ev.atMs : null };
 }
 
 /** The run-out alert for one arriving `slot_dry` event of this character's hero, or null. */
@@ -219,6 +230,7 @@ export function createAlertCenter(account, opts) {
   const track = (opts && opts.track) || trackOnce;
   const sinceLoad = (opts && opts.clock) || (() => (typeof performance !== 'undefined' ? performance.now() : 0));
   const gearSeen = new Map();        // slot -> { session, ids: Set } the gear already in the open hunt's loot
+  const heroUnit = new Map();        // slot -> { session, unit } the hero's unit the last read of its hunt named (display state)
   const alerts = [];                 // newest first
   const seen = new Map();            // slot -> Set of ids shown on this page
   const watching = new Map();        // slot -> [unsubscribe]
@@ -290,6 +302,8 @@ export function createAlertCenter(account, opts) {
   function scan(cs) {
     let any = false;
     noteGear(cs);
+    const hu = huntOf(cs);
+    if (hu && Number.isInteger(hu.hero.unit)) heroUnit.set(cs.slot, { session: hu.sessionId, unit: hu.hero.unit });
     /* ON SCREEN: the viewed slot, or, while the first character is still loading (a reload, a sign-in), the one the
        account is opening, since it becomes the viewed one (AccountSession._open: `viewed === null` -> this slot).
        Without that a reload raised "has ended · Start again" over the hero on screen (QA2's Pellow, 10-25). */
@@ -333,7 +347,7 @@ export function createAlertCenter(account, opts) {
     if (!cs || watching.has(slot)) return;
     const offs = [cs.subscribe((s, why) => { if (why !== 'closed') scan(s); })];
     if (cs.timeline && typeof cs.timeline.onArrive === 'function') {
-      offs.push(cs.timeline.onArrive((ev) => { const c = rareOf(cs, ev) || runOutOf(cs, ev); if (c && fire(cs, c)) changed(); }));
+      offs.push(cs.timeline.onArrive((ev) => { const c = rareOf(cs, ev, heroUnit.get(cs.slot)) || runOutOf(cs, ev); if (c && fire(cs, c)) changed(); }));
     }
     watching.set(slot, offs);
     returning.add(slot);
@@ -344,6 +358,7 @@ export function createAlertCenter(account, opts) {
     watching.delete(slot);
     returning.delete(slot);
     gearSeen.delete(slot);
+    heroUnit.delete(slot);
     seen.delete(slot);
     for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].slot === slot) alerts.splice(i, 1);
     changed();

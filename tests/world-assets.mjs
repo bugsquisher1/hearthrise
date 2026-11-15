@@ -87,7 +87,8 @@ import { decodePNG, encodePNG, encodeSheetPNG, pixelHash, cloneImage, createImag
 import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, bodyOf, MASK_PALETTE } from '../tools/world-art/validate.mjs';
 import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
-import { CLASSES, MANIFEST_VERSION, FACINGS } from '../src/data/world/art-budget.js';
+import { CLASSES, MANIFEST_VERSION, FACINGS, READABLE } from '../src/data/world/art-budget.js';
+import { spawnFloorLuminance, frameRing, contrast } from '../tools/world-art/ring-contrast.mjs';
 import { PALETTE_ID } from '../tools/world-art/palette.mjs';
 import { style1Findings, reachableRefs, codeSets, RETIRED_SETS } from '../tools/world-art/style1.mjs';
 import { readSidecars, listSets, setGrid } from '../tools/world-art/build.mjs';
@@ -273,6 +274,44 @@ function twinFindings(monsters, sprites, atlasOf, worn = wornBy()) {
   return out;
 }
 
+/* [ring] READABLE (ART_DIRECTION section 4, src/data/world/art-budget.js READABLE): on a ground of a held region kit, every live
+   monster's four cardinal idle stills read READABLE.ring:1 against the floor under the map's spawn tiles (ring-contrast.mjs).
+   `floorOf(groundId)` is that floor's median luminance (null: the ground has no painted floor or no map, which [kit] names). */
+function ringFindings(monsters, sprites, atlasOf, floorOf, worn = wornBy(), kits = READABLE.kits, min = READABLE.ring) {
+  const held = new Set(kits.flatMap((k) => Object.keys((REGION_KITS[k] || {}).grounds || {})));
+  const out = [];
+  for (const [id, where] of monsters) {
+    const got = sprites[worn(id)];
+    if (!got) continue;
+    const atlas = atlasOf(got.set);
+    for (const g of where) {
+      if (!held.has(g)) continue;
+      const lf = floorOf(g);
+      if (lf === null || lf === undefined) continue;
+      for (const d of CARDINALS) {
+        const at = ((got.sprite.anims.idle || { dirs: {} }).dirs[d] || [])[0];
+        const lr = at && atlas ? frameRing(atlas, at, got.sprite.frame) : null;
+        const r = lr === null ? 0 : contrast(lr, lf);
+        if (r < min) out.push(`ring: ${id} on ${g} facing ${d} reads ${r.toFixed(2)}:1 off its floor (ring ${lr === null ? '-' : lr.toFixed(3)}, floor ${lf.toFixed(3)}), under ${min}:1: lift the body or shade the floor (build.mjs lockOf)`);
+      }
+    }
+  }
+  return out;
+}
+/** groundId → the median luminance of its map's painted floor under its spawn tiles, from the shipped atlases. */
+function floorsOf(atlases, maps = WORLD_MAPS) {
+  const terrains = new Map();
+  for (const a of atlases) for (const [id, t] of Object.entries(a.manifest.terrain || {})) if (!terrains.has(id)) terrains.set(id, { t, img: a.atlas, T: a.manifest.T || 32 });
+  const memo = new Map();
+  return (g) => {
+    if (!memo.has(g)) {
+      const map = maps.find((m) => m.id === g), ter = map && map.ground && terrains.get(map.ground);
+      memo.set(g, ter && ter.t.painted ? spawnFloorLuminance(map, ter) : null);
+    }
+    return memo.get(g);
+  };
+}
+
 /* [alias]: a body that wears another's sprite (HUNT_ART_ALIAS) names a unit sprite a loaded set carries, and the Hunts window's
    lineup finds it under the body's own id (src/render/creature-sprite.js withWorn: an empty portrait otherwise). */
 function aliasFindings(sprites, alias = HUNT_ART_ALIAS, worn = withWorn) {
@@ -409,6 +448,7 @@ function guard() {
   const atlasOf = (set) => (atlases.find((a) => a.manifest.set === set) || {}).atlas;
   for (const f of liveFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
   for (const f of twinFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
+  for (const f of ringFindings(liveMonsters(), seen, atlasOf, floorsOf(atlases))) fails.push(f);
   for (const f of aliasFindings(seen)) fails.push(f);
   for (const [id, set] of Object.entries(REQUIRED_TERRAIN)) {
     const m = atlases.find((a) => a.manifest.set === set);
@@ -698,7 +738,24 @@ function selftest(atlases) {
   const twins = twinFindings(monsters, { ...sprites, drain_rat: sprites.rat }, atlasOf);
   if (twins.some((f) => f.includes('drain_rat') && f.includes('rat'))) console.log('  ✓ the Drain Rat wearing the Giant Rat: caught by [twin]');
   else { escaped++; console.log(`  ✗ the Drain Rat wearing the Giant Rat: NOT caught by [twin] (${twins.join('; ') || 'silent'})`); }
-  const LIVE_MUTANTS = 14;
+  /* [ring]: the shipped March reads 3:1 off its floors; each planted dimming is named, and a ground outside the held kits is not judged */
+  const floors = floorsOf(atlases);
+  const ringShipped = ringFindings(monsters, sprites, atlasOf, floors);
+  if (ringShipped.length) { console.error('world-assets --selftest: harness — a held ground already reads under 3:1: ' + ringShipped.slice(0, 3).join('; ')); process.exit(2); }
+  const ringCase = (name, want, spr, floorOf) => {
+    const hits = ringFindings(monsters, spr, atlasOf, floorOf).filter((f) => f.includes(want));
+    if (hits.length) console.log(`  ✓ ${name}: caught by [ring] (${hits[0].slice(6, 80)}…)`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [ring] (wanted "${want}")`); }
+  };
+  ringCase('the Ford\'s floor as it shipped before its shade (median 0.077 under the spawns)', 'banded_pikeman on hasks_ford', sprites, (g) => (g === 'hasks_ford' ? 0.077 : floors(g)));
+  ringCase('the Barrow Pikeman in an unlifted dark drawing (the Provost\'s charred plate)', 'barrow_pikeman on muster_barrows', { ...sprites, barrow_pikeman: sprites.provost }, floors);
+  ringCase('a held monster with no west idle (never read as a pass)', 'captain_hask on muster_barrows facing w',
+    without('captain_hask', (sp) => ({ anims: { ...sp.anims, idle: { ...sp.anims.idle, dirs: { ...sp.anims.idle.dirs, w: [] } } } })), floors);
+  { const dark = ringFindings(new Map([['rat', new Set(['mill_cellar'])]]), sprites, atlasOf, floors);
+    const held = ringFindings(new Map([['rat', new Set(['hasks_ford'])]]), sprites, atlasOf, () => 0.3);
+    if (!dark.length && held.length) console.log('  ✓ the Giant Rat: silent on the Mill Cellar (a kit not yet held), caught by [ring] planted on the Ford over a bright floor');
+    else { escaped++; console.log('  ✗ [ring] scope: Cellar ' + dark.length + ' finding(s) (want 0), the Ford ' + held.length + ' (want some)'); } }
+  const LIVE_MUTANTS = 18;
 
   // The sheet encoding: the committed bytes pass, RGBA is red, and the encoder gives back every pixel, transparent ones
   // included, past 256 colours too (it falls back to RGBA there, so no sheet can lose a colour to a palette).

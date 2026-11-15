@@ -59,8 +59,8 @@ const BURNED = Object.freeze({ ember: 25, poison: 50 });
 
 export default definePack({
   id: 'pyre_field',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-pyre_field.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 9 Pikemen, 4 Stokers, 4 Lurchers, 4 Wraiths
      and 3 Provosts, two of them holding the Great Pyre. */
   hunt: {
@@ -122,7 +122,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_ferrule', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.0115, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.0115, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.0115, band: 'scarce' },
         { id: 'rune_sword', ch: 0.0115, band: 'scarce' }],
-      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 813, gp: [20, 58], formula: true },
+      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 770, gp: [20, 58], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Hold's woodmen who fed the pyres and forged in their heat. Worked in the
@@ -132,7 +132,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.029, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.029, band: 'scarce' },
         { id: 'rune_belt', ch: 0.0019, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0019, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0019, band: 'rare' }],
-      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1445, gp: [31, 92], formula: true },
+      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1368, gp: [31, 92], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
@@ -141,7 +141,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.2, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
-      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 955, gp: [19, 57], formula: true },
+      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 904, gp: [19, 57], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 3600,
       /* the regular: a dead man Krell's rite bound into the pyre smoke, still in his shroud. A spell undoes the binding and a blade goes
@@ -151,7 +151,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wraith_veil', ch: 0.2, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.028, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0019, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0019, band: 'rare' }],
-      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1138, gp: [26, 80], formula: true },
+      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1078, gp: [26, 80], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 80, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's provosts, who hanged its deserters (Wickstead's Turncoats ran from them), burned
@@ -165,7 +165,7 @@ export default definePack({
         { id: 'ember_sword', ch: 0.002, band: 'rare' }, { id: 'ember_warhammer', ch: 0.002, band: 'rare' }, { id: 'runewood_bow', ch: 0.002, band: 'rare' },
         { id: 'runewood_staff', ch: 0.002, band: 'rare' }, { id: 'runewood_wand', ch: 0.002, band: 'rare' }, { id: 'runewood_codex', ch: 0.002, band: 'rare' },
         { id: 'ember_hatchets', ch: 0.002, band: 'rare' }, { id: 'runewood_crossbow', ch: 0.002, band: 'rare' }],
-      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2248, gp: [45, 133], formula: true },
+      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2129, gp: [45, 133], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority
@@ -203,7 +203,11 @@ export default definePack({
   /* RE-FITTED (lane/d-packs-retune, 2026-11-12): under solo +15% (Tyler 2026-11-11) and the re-pinned, flatter contract (core-model.js LEVEL_PACE.contract,
      407k an hour at 80) the median lone way read 1.41 of the contract at the band middle at 1.14 (quick grade, 1 seed x 1 h). 1.14 / 1.41 = 0.81.
      On the full grade (the median of 8 lone ways) 0.81 read 0.86, so 0.94 (about 1.00). */
-  xpFit: { k: 0.94, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  /* RE-FITTED FOR THE CLIMB (lane/d-open-march-balance, 2026-11-15; tests/hunt-core/forest-cave.mjs harder-pays-more, Tyler 2026-11-04
+     "harder mobs grand better loot and more exp"). A lone tank at 85 levelled faster here, near the top of the band, than at Krell's Hold's floor (615k against 583k). The Pyre gives a
+     little back, 0.94 -> 0.89, and Krell's Hold takes a little (0.95 -> 0.98): the tank then levels about 3% faster at Krell's floor. The full
+     grade's median lone way at 80 read 1.07 of the contract, so about 1.01. */
+  xpFit: { k: 0.89, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   /* THE TIER PULLS (TIER_PULL_OVERRIDES' shape: ONE number a tier for every group), measured as opened, full grade. Dangerous brings six,
      one over the table's five: on five a Melee and Healer pair two Levels under the floor still netted gold on Dangerous, where the
      weight-class ruling (11-06) asks them to lose it. On six they lose 1.9k an hour, 3.4k three under and 7.5k five under. Deadly brings six
@@ -238,7 +242,10 @@ export default definePack({
   /* TIER-5 AND -6 HATCHETS AND CROSSBOW (lane/d-barrow-data, 2026-11-13): the axes and crossbow ways alone now wear those rungs, so the median
      lone way rose: on the full grade the fours read 1.11 (no Healer) and 1.13 at the middle and the tank and Healer pair 0.99 at the top. Each
      cell scaled to its target: the fours 2375 x 1.18 / 1.11 = 2525 and 2380 x 1.18 / 1.13 = 2485, the pair 1465 x 1.04 / 0.99 = 1540. */
-  partyClassXp: { 2: [990, 1540], 3: [1150, 1695, 1830], 4: [1120, 2130, 2525, 2530] },
+  /* THE THREE OF THREE CLASSES (lane/d-open-march-balance, 2026-11-15): on the full grade as the March opened a tank, Healer and bow at the band's
+     top (90) levelled 0.9996 of the median hero alone there (476k against 476k a head), a seat that would do better alone, and under the pair of
+     two classes (517k). 1830 x 1.06 = 1940: about 1.06 of alone at the top, 1.12 at the middle and 1.18 at the floor (the trio's 1.10-1.20). */
+  partyClassXp: { 2: [990, 1540], 3: [1150, 1695, 1940], 4: [1120, 2130, 2525, 2530] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.84-0.90, threes 0.83-0.94, fours 0.79-0.91 at 1150, times 1120/1150). Two of two is the

@@ -10,16 +10,16 @@
 // death popup's own dismissal list), so a reload or another device doesn't ask again; the tab still does.
 // The Join press is ONE intent (src/session/faction-intents.js); the side shows only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../../session/residue.js?v=0.2.131';
-import { factionOf } from '../../session/faction-sections.js?v=0.2.131';
-import { joinFaction } from '../../session/faction-intents.js?v=0.2.131';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.131';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.131';
-import { runIntent } from '../intent-words.js?v=0.2.131';
-import { t } from '../../render/player-text.js?v=0.2.131';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.131';
-import { sideName, sideMotto, faceOf, said, waitWords, spanWords } from '../faction-words.js?v=0.2.131';
-import { MARK_GLYPH } from './character/faction.js?v=0.2.131';
+import { ALERTS_SEEN_MAX } from '../../session/residue.js?v=0.2.132';
+import { factionOf } from '../../session/faction-sections.js?v=0.2.132';
+import { joinFaction } from '../../session/faction-intents.js?v=0.2.132';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.132';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
+import { runIntent } from '../intent-words.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
+import { glyphSvg } from '../widgets/bits.js?v=0.2.132';
+import { sideName, sideMotto, faceOf, said, waitWords, spanWords } from '../faction-words.js?v=0.2.132';
+import { MARK_GLYPH } from './character/faction.js?v=0.2.132';
 
 /** The dismissal id in the residue's alerts.seen. */
 const JOIN_SEEN = 'faction:join';

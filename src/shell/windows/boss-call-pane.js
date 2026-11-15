@@ -27,7 +27,7 @@ const QUOTE_STANDS_MS = 60000;
 const S = BOSS_CALL_WORDS.series;
 
 /* Milliseconds as minutes, the way a label says them: 2, 2.5, 10. */
-export const minutesOf = (ms) => { const m = ms / 60000; return Number.isInteger(m) ? String(m) : (Math.round(m * 10) / 10).toFixed(1); };
+const minutesOf = (ms) => { const m = ms / 60000; return Number.isInteger(m) ? String(m) : (Math.round(m * 10) / 10).toFixed(1); };
 
 /**
  * {Boss}, {boss} and {guard} (his adds shield him, or nothing) from the call; every number from `x`, the server's:
@@ -137,7 +137,6 @@ export function patchCall(det, ctx, v) {
     attr(slider, 'aria-label', S.pick);
     attr(slider, 'aria-valuetext', callWords(S.fights, call, bill));
     if (Number(slider.value) !== n) slider.value = String(n);
-    prop(slider, 'disabled', q.maxFights < 2);
     text(warn.querySelector('.hw-call-count'), callWords(S.fights, call, bill));
     text(warn.querySelector('.hw-call-f-stamina'), callWords(S.stamina, call, bill));
     text(warn.querySelector('.hw-call-f-cost'), callWords(free ? S.costFree : S.cost, call, bill));

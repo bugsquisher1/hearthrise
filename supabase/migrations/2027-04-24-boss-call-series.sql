@@ -71,7 +71,7 @@
 --
 -- ── CONCURRENCY AND IDEMPOTENCY ───────────────────────────────────────────────
 -- hr_boss_call: the party row, then hr:boss:<uid> (only this verb takes it), then inside the start each seat's character, bag and play
---   locks; then, seat by seat in (user, slot) order, the account purses. The settle takes characters then purses: the same order, no cycle.
+--   locks; then every seat's account purse in user order, before any charge. The settle takes characters then purses by user: the same order, no cycle.
 --   The key: hr_intent_replay first; the caller's hr_apply journals it and every other seat's charge is in the same transaction, so a
 --   replay answers once and charges once, every seat or none. A purse that moved between the quote and the charge raises inside the
 --   subtransaction: every seat rolls back out and nothing is charged.
@@ -561,7 +561,7 @@ returns jsonb language plpgsql security definer set search_path = public, pg_cat
 declare
   c_verb constant text := 'boss_call';
   v_uid uuid := auth.uid(); v_r jsonb; v_verb text; v_q jsonb; v_c public.hr_boss_calls%rowtype; v_party uuid; v_ver bigint; v_a jsonb; v_no jsonb;
-  v_room uuid; v_m record; v_fee bigint; v_pm int; v_stam bigint; v_g bigint; v_meta jsonb;
+  v_room uuid; v_m record; v_fee bigint; v_pm int; v_stam bigint; v_g bigint; v_meta jsonb; v_u uuid;
 begin
   -- CALL-SERIES (2027-04-24-boss-call-series.sql): N fights in a row. The count is bounded by the catalogue, the price compared with the
   -- server's quote; every seat pays the first fight, its own stamina and its own fee, or nobody enters.
@@ -604,6 +604,13 @@ begin
       v_no := v_r; raise exception using errcode = 'HR879', message = 'call_refused'; end if;
     select h.instance_id into v_room from public.hunt_sessions h where h.user_id = v_uid and h.slot = p_slot and h.hunt_id = v_c.hunt_id and h.ended_at is null;
     if v_room is null then v_no := jsonb_build_object('ok', false, 'error', 'no_hunt'); raise exception using errcode = 'HR879', message = 'call_refused'; end if;
+    -- EVERY SEAT'S ACCOUNT PURSE, locked in user order BEFORE any charge (the settle's own order, hr_hunt_apply_instance: characters, then
+    -- purses by user): the caller's charge below would otherwise take the caller's purse ahead of a smaller user id's, and a settle of
+    -- another room holding heroes of both accounts could wait on each in turn.
+    for v_u in select distinct h.user_id from public.hunt_sessions h
+                where h.instance_id = v_room and h.hunt_id = v_c.hunt_id and h.ended_at is null order by 1 loop
+      perform public.hr_purse_lock(v_u);
+    end loop;
     -- THE CALLER'S FIRST FIGHT: one hr_apply on the caller's key (a replay charges once). A free fight moves no gold and still journals its row.
     select version into v_ver from public.player_state where user_id = v_uid and slot = p_slot;
     v_a := public.hr_apply(v_uid, p_slot, v_ver, p_idem, (case when p_price > 0 then jsonb_build_object('gold', -p_price) else '{}'::jsonb end) || jsonb_build_object(

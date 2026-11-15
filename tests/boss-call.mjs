@@ -25,6 +25,7 @@
 //   BC-PHASE   (Tyler 2026-11-05: "phases") the two lines happen once each and at their HP, the adds come in full and go for whoever isn't the tank, Challenge takes them, the enrage raises his blows; the world's shape never moved
 //   BC-GUARD   while one of his adds stands he takes only his guard's share of a blow, all of it once they're down; a ground's own monster never hides
 //   BC-WAVE    a death in the add wave ends the fight for everyone, however the windows are cut: an add's kill pays nothing, a loss pays nothing, and no hunt stays open
+//   SHUT       while BOSS_CALL_RULES.dropsLive is false (the shipped switch, until lane C's server half lands) a win pays nothing; every arm above runs with it open
 //   BC-RECORD  the server's record of a fight: where he stood, read through a leader's death (a called room never resets), and what each hero's bar fired, the same however the windows are cut
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -454,6 +455,30 @@ async function guard(X) {
   return bad;
 }
 
+/* THE DROPS' SWITCH (boss-calls.js BOSS_CALL_RULES.dropsLive): shut until lane C's server half lands. The guard plays the rules on a tree with it OPEN
+   (the door as it will run), and SHUT holds the shipped tree to today's live line: a win pays nothing while it is shut. */
+const LIVE = [['src/data/boss-calls.js', '  dropsLive: false,\n', '  dropsLive: true,\n']];
+async function shut(X) {
+  if (X.B.BOSS_CALL_RULES.dropsLive === true) return [];
+  const bad = [];
+  const king = X.B.BOSS_CALLS.rat_king, add = X.G.CALLED_GROUNDS[king.hunt].pockets[0].adds[0].monster;
+  for (const id of [king.monster, add]) for (const inst of [X.EM[id], X.play.MONSTERS[id]]) Object.assign(inst, { hp: id === add ? 60 : 1600, atk: 1, baseAcc: 0 });
+  const f = fight(X, king, ['tank', 'healer', 'melee_dps', 'mage'], {});
+  if (!Object.values(f.ended).every((e) => e.reason === 'boss_felled')) bad.push('SHUT CONTROL: the four did not win: ' + JSON.stringify(f.ended));
+  for (const m of f.members) for (const p of paysOf(m.delta, king.monster)) bad.push('SHUT a win paid while the switch is shut: ' + m.key + ' ' + p);
+  return bad;
+}
+/* The rules on the open tree, then the switch on the shipped one (both with `edits` planted, a mutant's or none). */
+async function judge(edits) {
+  const bad = [];
+  for (const [arm, tree, fn] of [['open', edits.concat(LIVE), guard], ['shut', edits, shut]]) {
+    if (!tree.length) { bad.push(...await restoring(REPO, fn)); continue; }
+    const { root, done } = plant(tree, PLAY_TREES);
+    try { bad.push(...await restoring(root, fn)); } catch (e) { bad.push('THREW (' + arm + ') ' + String(e && e.message).slice(0, 160)); } finally { done(); }
+  }
+  return bad;
+}
+
 async function restoring(root, fn) {
   const X = await loadAll(root);
   const keep = Object.values(X.B.BOSS_CALLS).flatMap((c) => [c.monster, X.G.CALLED_GROUNDS[c.hunt] ? X.G.CALLED_GROUNDS[c.hunt].pockets[0].adds[0].monster : c.monster]).map((id) => [id, { ...X.EM[id] }]);
@@ -470,6 +495,8 @@ const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(
 const PAY_HERE = "{ const ids = livingIds(world, members); const row = (ctx.monsters || MONSTERS)[boss]; if (ids.length && row) payDrops(ids.map((id) => members.get(id)), ids, members.get(ids[0]), row, ctx, world, ev.atMs); }";
 const ROW_ADD = "hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
 const MUTANTS = [
+  /* THE SWITCH: shut, a win pays nothing (the live allowlist refuses an item) */
+  { name: 'the drop door ignores its switch', edits: [['src/core/hunt-rewards.js', 'if (BOSS_CALL_RULES.dropsLive === true && ids.length && row)', 'if (ids.length && row)']], want: /SHUT/ },
   /* HIS OWN TABLE, ONLY ON A WIN (Tyler 2026-11-14) */
   { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },
   { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace('ch: .00141', 'ch: .5')]], want: /BC-ROW/ },
@@ -518,16 +545,13 @@ const MUTANTS = [
 async function main() {
   if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) {
     if (process.env.HR_MUTANT_CONTROL) {
-      const bad = await restoring(REPO, guard);
+      const bad = await judge([]);
       console.log('boss-call --mutate: control ran the clean tree: ' + (bad.length ? bad.join('; ') : 'green'));
       process.exit(0);
     }
     let escaped = 0;
     for (const m of MUTANTS) {
-      const { root, done } = plant(m.edits, PLAY_TREES);
-      let got = [];
-      try { got = await restoring(root, guard); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 160)]; }
-      finally { done(); }
+      const got = await judge(m.edits);
       const hit = got.some((p) => m.want.test(p));
       if (!hit) escaped++;
       console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + String(got[0] || 'every check held').slice(0, 120));
@@ -535,7 +559,7 @@ async function main() {
     console.log(escaped ? 'boss-call --mutate: ' + escaped + ' ESCAPED' : 'boss-call --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' caught');
     process.exit(escaped ? 1 : 0);
   }
-  const bad = await restoring(REPO, guard);
+  const bad = await judge([]);
   for (const p of bad) console.log('FAIL  ' + p);
   console.log(bad.length ? 'boss-call: ' + bad.length + ' FAILED' : 'boss-call: green (the rows, the paths, the three ends, every cut)');
   process.exit(bad.length ? 1 : 0);

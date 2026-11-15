@@ -24,7 +24,8 @@
 // stamina minutes a hero, a pair every 4.6; on the Warrens a four meets Chief Coppercap every 3.1, a pair every 5.1. A call
 // fight costs 2 and 2.5: cheaper a boss kill, while the ground keeps its coin, its Level XP and its other drops, so the ground
 // stays the better all-round hour. The fee is a small sink, never the main cost.
-// UNTIL LANE C LANDS the live verb is ONE paid fight: `fee` and `perDay` are its server columns (hr_boss_calls) and retire with it.
+// UNTIL LANE C LANDS the live verb is ONE paid fight that pays nothing: `fee` and `perDay` are its server columns (hr_boss_calls) and
+// retire with it, and BOSS_CALL_RULES.dropsLive keeps the engine's drop door shut (the live allowlist refuses a window with an item).
 //
 // Postgres reads this table as hr_boss_calls (tools/gen-hunt-sessions.mjs). Fees are the designer's; a row moves them.
 //
@@ -38,6 +39,10 @@ export const BOSS_CALL_RULES = Object.freeze({
   limitMs: 10 * 60000,
   /* The slider's top: the most fights one series can queue. Stamina ends a series long before most players reach it. */
   maxFights: 100,
+  /* THE DROPS' SWITCH (hidden until its server half lands, CLAUDE.md §3.5): false, a win pays nothing, as the live settle's allowlist
+     (hr_boss_call_pays) still demands. Lane C flips it in the release that applies its migration; the words below flip with it
+     (warn[1] -> series). tests/boss-call.mjs plays the door both ways. */
+  dropsLive: false,
 });
 
 /* `id` the catalogue id the verb names; `hunt` the called room's hunt and ground (hunts.js CALLED_HUNTS, hunt-grounds.js
@@ -88,8 +93,8 @@ export const BOSS_CALL_WORDS = Object.freeze({
   warnTitle: 'Call out {boss}?',
   warn: Object.freeze([
     '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder. If anyone dies, the fight ends.',
-    /* LABELS, not a sentence (Tyler 2026-11-14's label rule): what it costs, what it pays, how long. */
-    'Cost: {fee} gp, win or lose · Drops on a win · No XP or coin · Time limit: {minutes} min',
+    /* the live one-fight verb's, true while `dropsLive` is false; lane C replaces it with the series' labels below */
+    'You pay {fee} gp, win or lose. You get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
   ]),
   /* THE SERIES' LABELS (lane C's slider; Tyler 2026-11-14). {n} fights picked, {stamina} and {gold} the series' whole bill, {fee} and {staminaMin} one fight's. */
   series: Object.freeze({

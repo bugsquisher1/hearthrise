@@ -300,7 +300,8 @@ const cases = {
   },
   'four-slots'(M) {
     const droppers = {};
-    for (const [mid, m] of Object.entries(M.MONSTERS)) for (const d of m.drops || []) (droppers[d.id] = droppers[d.id] || new Set()).add(mid);
+    /* (a called boss is his ground boss again, stronger: his win drops that boss's own table, src/data/boss-calls.js, so he is not a second dropper) */
+    for (const [mid, m] of Object.entries(M.MONSTERS)) if (m.called !== true) for (const d of m.drops || []) (droppers[d.id] = droppers[d.id] || new Set()).add(mid);
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       for (const id of rosterOf(ground)) {
         const m = M.MONSTERS[id], drops = m.drops || [];

@@ -175,7 +175,7 @@ async function checks(overrides) {
       r = await read(page);
       if (sent(s, 'hr_boss_call').length) fails.push('LW-PLAY the first press called');
       if (!r.warn || r.warn.q !== 'Call out the Rat King?' || r.warn.go !== 'Call him out for free'
-        || r.warn.b !== 'Open Halls is on, so it\'s free. Drops on a win · No XP or coin · Time limit: 10 min')
+        || r.warn.b !== 'Open Halls is on, so it\'s free. You still get no XP, coin or drops in his room. The fight ends after 10 minutes.')
         fails.push('LW-PLAY the warning reads ' + JSON.stringify(r.warn));
       /* the next answer (the load after the call) carries a moved dial: the plate shows the server's, not the data's */
       s.env.live_events = [HALLS(), XP({ pm: 1400 })];

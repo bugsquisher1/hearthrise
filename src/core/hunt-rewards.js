@@ -38,6 +38,7 @@
 // ============================================================
 
 import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.131';
+import { BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.131';
 import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.131';
 import { rollDropTable } from './drops.js?v=0.2.131';
 import { applyGoldFind } from './pacing.js?v=0.2.131';
@@ -130,7 +131,7 @@ function payDrops(present, ids, lead, row, ctx, world, atMs) {
    called row's own table (his ground table and his call-only piece) for the heroes alive at it, the same split as any kill, and moves of the kill counters
    only the boss's own `ev:kill_monster:<called row>`, the one number his title reads (the Bestiary's read leaves it out, and no kill is journalled). No XP on
    any route, no coin, no Hearthfind; a death or the limit ends the fight before any kill, so it rolls nothing; an add's kill pays nothing. The only
-   die drawn is the table's, on his kill. One door, so a route added above can't reach it. hr_hunt_apply_member holds a window to the same (tests/boss-call.mjs). */
+   die drawn is the table's, on his kill. SHUT while BOSS_CALL_RULES.dropsLive is false (the live allowlist still refuses an item). One door, so a route added above can't reach it. hr_hunt_apply_member holds a window to the same (tests/boss-call.mjs). */
 /* The heroes alive at a kill, in unit-id order: they share its gold, loot and rare roll, as its XP (xp-share.js). */
 const livingIds = (world, members) => world.units.filter((u) => u.side === 'hero' && u.alive === true && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
 
@@ -142,7 +143,7 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
     if (t && t.side === 'mon' && t.kind === boss) {
       const ids = livingIds(world, members);
       const row = (ctx.monsters || MONSTERS)[boss];
-      if (ids.length && row) { const present = ids.map((id) => members.get(id)); payDrops(present, ids, members.get(ev.u) || present[0], row, ctx, world, ev.atMs); }
+      if (BOSS_CALL_RULES.dropsLive === true && ids.length && row) { const present = ids.map((id) => members.get(id)); payDrops(present, ids, members.get(ev.u) || present[0], row, ctx, world, ev.atMs); }
       for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });
     } else if (members.has(ev.t)) {
       const k = unitOf(ev.u);

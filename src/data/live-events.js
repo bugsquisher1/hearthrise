@@ -60,7 +60,7 @@ export const WORDS = Object.freeze({
   open_halls: Object.freeze({
     name: 'Open Halls',
     soon: 'Open Halls starts {start}. You\'ll be able to call out the Rat King or Chief Coppercap for free.',
-    on: 'You can call out the Rat King or Chief Coppercap for free until {end}. Drops on a win, no XP or coin.',
+    on: 'You can call out the Rat King or Chief Coppercap for free until {end}. You still get no XP, coin or drops for the fight.',
     chip: 'Open Halls',
     start: 'The halls are open. Until {end}, calling out the Rat King or Chief Coppercap is free. Bring a friend or a second hero.',
     end: 'The halls are closed again. Calling out costs its usual fee.',
@@ -70,7 +70,7 @@ export const WORDS = Object.freeze({
     pageFree: 'You can call out {boss} for free.',
     callLine: 'Open Halls is on until {end}.',
     callEnding: 'Open Halls ends in {mins} min.',
-    warning: 'Open Halls is on, so it\'s free. Drops on a win · No XP or coin · Time limit: {minutes} min',
+    warning: 'Open Halls is on, so it\'s free. You still get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
     confirm: 'Call him out for free',
   }),
 });

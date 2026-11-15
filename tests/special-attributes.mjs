@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/special-attributes.mjs — A SPECIAL PIECE IS THE STANDARD PIECE PLUS ONE ATTRIBUTE, AND THE SAMPLE IS HIDDEN
+// tests/special-attributes.mjs — A SPECIAL PIECE IS THE STANDARD PIECE PLUS ONE ATTRIBUTE, AND THE SAMPLE IS HIDDEN UNTIL IT SHIPS AS WRITTEN
 // (designer, lane/d-special-attributes; PRIORITY_BOARD "2026-11-15 Special-attribute gear"; Tyler 2026-11-14: "sprinkle items
 //  like this throughout the game to be farmed to build better sets", "by unique i mean having a special attribute").
 //
-//   SA1  HIDDEN: no src/ file imports src/data/special-attributes.js, and a sample id is either absent from ITEMS or a wave-3 row
-//        still waiting for its roster (the re-fit hasn't shipped by accident).
+//   SA1  HIDDEN, OR SHIPPED AS WRITTEN: a row that is not `shipped` is absent from ITEMS (or a wave-3 row still waiting for its
+//        roster: the re-fit hasn't shipped by accident) and on no monster's drops. A `shipped` row (lane/c-krell-uniques: Krell's
+//        Tollgate and the Banded Legguards) IS the ITEMS row, field for field, its text is the item's description, and it is on
+//        its source monster's drops and nobody else's, at its `pm` when it is a daily prize. The only src/ file that imports
+//        src/data/special-attributes.js is a shipped row's home pack (src/data/grounds/<source.ground>/pack.js).
 //   SA2  THE STANDARD PIECE: a sample row with a `base` carries that row's slot, weight, tier, Level, rarity, value and every stat,
 //        so it is never a stat stick. One with no base sits on its ladder's next rung (a shield: +2 guard a tier).
 //   SA3  ONE ATTRIBUTE, AT ITS TIER'S SIZE: exactly one attribute field beyond the base, of the size the catalogue names for the
@@ -26,6 +29,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ITEMS, MONSTERS, AWAITING_ROSTER } from '../src/data/catalogue-coherence.js';
+import { ITEM_DESC } from '../src/data/item-descriptions.js';
 import { OPEN_GROUNDS, OPEN_HALL_GROUNDS } from '../src/data/hunt-grounds.js';
 import { hallOfHunt } from '../src/data/boss-halls.js';
 import { SPECIAL_ATTRIBUTES, SPECIAL_SAMPLE, SPECIAL_TIERS } from '../src/data/special-attributes.js';
@@ -66,14 +70,38 @@ function attributesOf(row, base) {
   return out;
 }
 
-/** Every broken rule, as strings. Empty = sound. `S` is the sample, `A` the catalogue, `open` what `importers()` and `homes()` answer. */
-export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = { importers: importers(), homes: homes() }) {
+/* who drops item `id`: [{ monster, ch }] over every monster row (SA1) */
+const droppers = (id, mons) => Object.entries(mons).flatMap(([m, row]) => (row && Array.isArray(row.drops) ? row.drops : []).filter((d) => d.id === id).map((d) => ({ monster: m, ch: d.ch })));
+const slash = (p) => String(p).replace(/\\/g, '/');
+
+/** Every broken rule, as strings. Empty = sound. `S` is the sample, `A` the catalogue, `open` what `importers()` and `homes()` answer, and
+    the items, their text and the monsters as the game holds them (a mutant plants a copy). */
+export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) {
+  open = { importers: importers(), homes: homes(), items: ITEMS, desc: ITEM_DESC, monsters: MONSTERS, ...open };
   const out = [];
-  for (const p of open.importers) out.push('SA1 ' + p.replace(ROOT, '') + ' imports special-attributes.js: the sample is hidden until it is approved');
+  const packs = new Set(Object.values(S).filter((s) => s.shipped === true).map((s) => 'src/data/grounds/' + s.source.ground + '/pack.js'));
+  for (const p of open.importers) {
+    const rel = slash(p).replace(slash(ROOT), '').replace(/^\//, '');
+    if (!packs.has(rel)) out.push('SA1 ' + rel + ' imports special-attributes.js: only a shipped row\'s home pack reads it, the rest of the sample is hidden until it is approved');
+  }
+  for (const [id, s] of Object.entries(S)) {
+    const it = open.items[id], who = droppers(id, open.monsters);
+    if (s.shipped !== true) {
+      if (s.shipped !== undefined) out.push('SA1 ' + id + ': shipped is true or absent');
+      if (who.length) out.push('SA1 ' + id + ' is on ' + who[0].monster + '\'s drops and is not shipped');
+      continue;
+    }
+    if (!it) { out.push('SA1 ' + id + ' is shipped and is not an item'); continue; }
+    if (JSON.stringify(it) !== JSON.stringify(s.row)) out.push('SA1 ' + id + ': the item is not the sample row, field for field (the pack reads the row from here)');
+    if (open.desc[id] !== String(s.text).replace(/\.$/, '')) out.push('SA1 ' + id + ': the item\'s description is not the sample\'s text');
+    if (who.length !== 1 || who[0].monster !== s.source.monster) out.push('SA1 ' + id + ' drops from ' + (who.map((w) => w.monster).join(', ') || 'nobody') + ', the sample says ' + s.source.monster + ' alone');
+    else if (s.source.how === 'daily' && Math.abs(who[0].ch * 1000 - s.source.pm) > 1e-6) out.push('SA1 ' + id + ': its slice of the daily roll is ' + who[0].ch + ', the sample says ' + s.source.pm + ' permille');
+    if (s.source.how === 'daily' && !(Number.isInteger(s.source.pm) && s.source.pm > 0)) out.push('SA1 ' + id + ': a daily prize names its slice, whole permille');
+  }
   const seenPiece = new Map(), seenGround = new Map();
   for (const [id, s] of Object.entries(S)) {
     const row = s.row, base = s.base ? ITEMS[s.base] : null;
-    if (ITEMS[id] && !AWAITING_ROSTER.includes(id)) out.push('SA1 ' + id + ' is already an item a catalogue can serve');
+    if (s.shipped !== true && open.items[id] && !AWAITING_ROSTER.includes(id)) out.push('SA1 ' + id + ' is already an item a catalogue can serve');
     if (s.base && !base) { out.push('SA2 ' + id + ': base ' + s.base + ' is not an item'); continue; }
     if (!SPECIAL_TIERS.includes(row.tier)) out.push('SA3 ' + id + ': tier ' + row.tier + ' carries no special piece');
     /* SA2 */
@@ -127,7 +155,15 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = { im
 
 /* ── THE MUTANTS: each plants one defect on a copy and names the rule that must catch it. ── */
 const MUTANTS = [
-  ['an importer appears', 'SA1', (S, A, o) => { o.importers = ['/src/data/items.js']; }],
+  ['an importer appears', 'SA1', (S, A, o) => { o.importers = [join(ROOT, 'src/data/items.js')]; }],
+  ['a hidden row\'s ground reads the file', 'SA1', (S, A, o) => { o.importers = [join(ROOT, 'src/data/grounds/the_slake/pack.js')]; }],
+  ['a hidden row becomes an item', 'SA1', (S, A, o) => { o.items = { ...o.items, mudlarks_mitts: structuredClone(S.mudlarks_mitts.row) }; }],
+  ['a hidden row lands on a drop table', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, mudlark: { ...o.monsters.mudlark, drops: [...o.monsters.mudlark.drops, { id: 'mudlarks_mitts', ch: 0.01, band: 'rare' }] } }; }],
+  ['the shipped Legguards drift from their row (5% in the game)', 'SA1', (S, A, o) => { o.items = { ...o.items, banded_legguards: { ...o.items.banded_legguards, resistPm: { physical: 50 } } }; }],
+  ['the shipped Tollgate is on no drop table', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, lord_krell: { ...o.monsters.lord_krell, drops: o.monsters.lord_krell.drops.filter((d) => d.id !== 'krells_tollgate') } }; }],
+  ['the Tollgate rolls at 10%, not its 3%', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, lord_krell: { ...o.monsters.lord_krell, drops: o.monsters.lord_krell.drops.map((d) => (d.id === 'krells_tollgate' ? { ...d, ch: 0.1 } : d)) } }; }],
+  ['a second monster drops the Legguards', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, gatekeeper: { ...o.monsters.gatekeeper, drops: [...o.monsters.gatekeeper.drops, { id: 'banded_legguards', ch: 0.01, band: 'rare' }] } }; }],
+  ['the Tollgate\'s card text drifts', 'SA1', (S, A, o) => { o.desc = { ...o.desc, krells_tollgate: 'A shield' }; }],
   ['a stat stick: the Legguards gain 6 armor', 'SA2', (S) => { S.banded_legguards.row.defB = 70; }],
   ['the Tollgate leaves its ladder rung', 'SA2', (S) => { S.krells_tollgate.row.defB = 17; }],
   ['a second attribute on the Mitts', 'SA3', (S) => { S.mudlarks_mitts.row.resistPm = { ember: 100 }; }],
@@ -148,7 +184,7 @@ function mutate() {
   if (clean.length) { console.error('special-attributes --mutate: the clean arm is RED, so no mutant proves anything:\n  ' + clean.join('\n  ')); return 1; }
   let escaped = 0;
   for (const [name, rule, plant] of MUTANTS) {
-    const S = structuredClone(SPECIAL_SAMPLE), A = structuredClone(SPECIAL_ATTRIBUTES), o = { importers: importers(), homes: homes() };
+    const S = structuredClone(SPECIAL_SAMPLE), A = structuredClone(SPECIAL_ATTRIBUTES), o = { importers: importers(), homes: homes(), items: ITEMS, desc: ITEM_DESC, monsters: MONSTERS };
     plant(S, A, o);
     const got = problems(S, A, o);
     const caught = got.some((p) => p.startsWith(rule + ' '));
@@ -163,5 +199,6 @@ if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) process.exit(mutate());
   const bad = problems();
   if (bad.length) { console.error('special-attributes: RED\n  ' + bad.join('\n  ')); process.exit(1); }
-  console.log('special-attributes: ' + Object.keys(SPECIAL_SAMPLE).length + ' sample rows, each the standard piece plus one attribute at its tier\'s size, hidden, with a home on an open ground');
+  console.log('special-attributes: ' + Object.keys(SPECIAL_SAMPLE).length + ' sample rows, each the standard piece plus one attribute at its tier\'s size, with a home on an open ground; '
+    + Object.values(SPECIAL_SAMPLE).filter((s) => s.shipped === true).length + ' shipped as written, the rest hidden');
 }

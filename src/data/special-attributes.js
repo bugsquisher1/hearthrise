@@ -1,15 +1,17 @@
 // ============================================================================
-// src/data/special-attributes.js — SPECIAL-ATTRIBUTE GEAR: THE ATTRIBUTE CATALOGUE AND A HIDDEN SAMPLE OF FIVE
+// src/data/special-attributes.js — SPECIAL-ATTRIBUTE GEAR: THE ATTRIBUTE CATALOGUE AND THE SAMPLE OF FIVE (TWO SHIPPED, THREE HIDDEN)
 // (designer, lane/d-special-attributes; the design is docs/planning/PRIORITY_BOARD.md "2026-11-15 Special-attribute gear").
 //
 // Tyler 2026-11-14: "I would like to sprinkle items like this throughout the game to be farmed to build better sets", after
 // "by unique i mean having a special attribute" and "maybe the legs have a % physical resistance". A special piece is the
 // standard piece of its slot and tier plus ONE attribute. It drops (armor, shields and weapons); high-end jewelry is crafted.
 //
-// HIDDEN. Nothing here is in ITEMS, in a monster's drops, in a recipe, in a catalogue or in a generator, and no src/ file
-// imports this one, so the edge bundle and every served catalogue are what they were. Its readers are the measuring tool
-// (tools/balance-sim/special-table.mjs) and its guard (tests/special-attributes.mjs). The build lane moves the five rows
-// into their catalogues when Tyler approves the sample (DESIGN_STANDARDS §9: sample, play, then expand).
+// TWO ARE SHIPPED, THREE ARE HIDDEN. Krell's Tollgate and the Banded Legguards (`shipped: true`; Tyler 2026-11-14: "a pair of
+// pally legs a tank shield") are real items since lane/c-krell-uniques: their home pack (src/data/grounds/krells_hold/pack.js)
+// reads the row, the text and the roll's slice FROM HERE, so this file stays the one place they are written. The other three
+// are in no ITEMS row, no monster's drops, no recipe, no catalogue and no generator until Tyler approves the sample
+// (DESIGN_STANDARDS §9: sample, play, then expand). The only src/ file that imports this one is a shipped row's home pack
+// (tests/special-attributes.mjs SA1). Its other readers are the measuring tool (tools/balance-sim/special-table.mjs).
 //
 // PURE ESM. Data only. Imports nothing.
 // ============================================================================
@@ -20,7 +22,7 @@ export const SPECIAL_TIERS = Object.freeze([2, 3, 4, 5, 6, 7]);
 /* ── THE ATTRIBUTES. One a piece. `field` is the item field the engine reads and `keys` what it may name; `at` is the
    strength at each gear tier (a tier the table doesn't name has no piece of that kind); `cap` is the most a hero gets from
    everything worn, and where that cap lives (NEW: the build lane adds it). `hook` is null when the engine reads the field
-   today. Every size was measured or is marked in the design (tools/balance-sim/special-table.mjs). ── */
+   today (physical resistance since lane/c-krell-uniques: src/core/elements.js heroElementPermille). Every size was measured or is marked in the design (tools/balance-sim/special-table.mjs). ── */
 export const SPECIAL_ATTRIBUTES = Object.freeze({
   /* 10% less damage from one element, the same at every tier. Linings (imbuements.js) share the cap, so a Sealed lining
      (30%) and one piece is the top, and so is a Stitched lining (20%) and two. Only fire has a job today (the bosses). */
@@ -34,8 +36,8 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
   resist_physical: Object.freeze({
     field: 'resistPm', keys: Object.freeze(['physical']), unit: 'permille',
     at: Object.freeze({ 5: 20, 6: 30, 7: 30 }),
-    cap: Object.freeze({ value: 100, where: 'NEW: src/data/elements.js HERO_RESIST_PM.physicalMax' }),
-    slots: Object.freeze(['pants', 'boots', 'belt', 'shield']), hook: 'physical',
+    cap: Object.freeze({ value: 100, where: 'src/data/elements.js HERO_RESIST_PM.physicalMax' }),
+    slots: Object.freeze(['pants', 'boots', 'belt', 'shield']), hook: null,
   }),
   /* + Defense while worn. One level is 4 to 6% less damage taken at Levels 40 to 90, so it is +1 at every tier and capped at +2. */
   defense: Object.freeze({
@@ -72,20 +74,21 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
    ship. `base` is the standard piece whose numbers it copies (null: the ladder has no piece there, the numbers are the
    ladder's next rung). `attr` names the attribute and its key. `source` is where it drops: `how` is the loot band
    (loot-bands.js), or 'daily' for Lord Krell's once-a-day prize roll (`pm` permille a hero). `use` is what
-   catalogue-coherence files it under. `text` is the item card's description. ── */
+   catalogue-coherence files it under. `text` is the item card's description. `shipped: true`: the row is a real item, read
+   from here by its home pack. ── */
 export const SPECIAL_SAMPLE = Object.freeze({
   krells_tollgate: Object.freeze({
     row: Object.freeze({ n: 'Krell\'s Tollgate', icon: '🛡️', v: 43200, type: 'offhand', slot: 'shield', offhand: 'shield', defB: 15,
       resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
     base: null, attr: Object.freeze(['resist_element', 'ember']),
-    source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn',
+    source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
     text: 'You take 10% less fire damage with this on your arm. Krell had his toll house gate cut down into a shield. Every coin that crossed the ford went through it.',
   }),
   banded_legguards: Object.freeze({
     row: Object.freeze({ n: 'Banded Legguards', icon: '🛡️', v: 79200, type: 'armor', slot: 'pants', defB: 64, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32,
       resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_physical', 'physical']),
-    source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn',
+    source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
     text: 'Swings, bites and arrows do 3% less to you. Krell\'s smith made these from the Banded Company\'s armor. He left the bronze bands on so everyone would know whose they were.',
   }),
   mudlarks_mitts: Object.freeze({

@@ -36,6 +36,12 @@
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
 import { definePack, box, gather } from '../shape.js?v=0.2.132';
 import map from './map.js?v=0.2.132';
+import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.132';
+
+/* KRELL'S TWO UNIQUE PIECES (Tyler 2026-11-14: "a pair of pally legs a tank shield ... just no weapon", "by unique i mean having a special
+   attribute"). Their rows and lines are the designer's sample rows (src/data/special-attributes.js: the standard piece plus ONE attribute),
+   read from there and written nowhere else; tests/special-attributes.mjs SA1 holds what ships to the row. */
+const UNIQUES = Object.freeze(['krells_tollgate', 'banded_legguards']);
 
 const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_priest', CS = 'gatekeeper';
 
@@ -159,6 +165,9 @@ export default definePack({
        moves only through Storage and trade (the ruling's rails, for the keyed-room lane). Book value 800: the shop pays that, and the market's
        ceiling is 100x book, so a player can ask up to 80,000 for one. PROPOSED, unmeasured. */
     hall_key: { n: 'Hall Key', icon: '🗝️', v: 800, opens: 'krells_hold' },
+    /* Krell's Tollgate (tier 7 tank shield, guard 15, 10% less fire damage) and the Banded Legguards (Dawnsteel Platelegs' numbers, 3% less
+       physical damage): on his daily prize roll only (`hall` below), 3% a hero a day each. They trade like any gear. */
+    ...Object.fromEntries(UNIQUES.map((id) => [id, SPECIAL_SAMPLE[id].row])),
   },
   itemText: {
     farmhands_tag: 'Krell\'s men gave this wooden tag to every farmhand they forced to guard his castle',
@@ -167,6 +176,8 @@ export default definePack({
     priests_cord: 'Krell\'s priests tied this cord around the dead before they burned them. They put a knot in it for every name',
     gatekeepers_chain: 'A link off the Gatekeeper\'s key chain. He keeps every key in the castle, including the one to the toll box',
     hall_key: 'It opens Krell\'s Hall for you and your party. You get one fight out of it, win or lose',
+    /* item text carries no closing full stop (item-descriptions.js) */
+    ...Object.fromEntries(UNIQUES.map((id) => [id, SPECIAL_SAMPLE[id].text.replace(/\.$/, '')])),
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Pyre Field's store food, and Chalked Poison Runes in place of its ice. These are
      living men (poison does 15% more), and the dead in the cellar shrug poison off, so a caster brings a second family for the Crypt.
@@ -265,15 +276,17 @@ export default definePack({
         elements: { ember: 25, poison: -15 },
         /* his marked hit first, then his pulse (monster-spells.js: castSpells starts the first one ready) */
         spells: ['rake_the_coals', 'hall_fire'],
-        /* HIS DAILY PRIZE (Tyler 2026-11-14: "a daily kill"; the designer's spec, PRIORITY_BOARD "The Barrow March hand play, ruled" 3; built by
-           lane/c-krell-daily). A hall's boss pays his rows ONCE A DAY PER HERO, each hero's own roll, never the party's shared one
-           (boss-halls.js; src/core/drops.js rollPrize; the server's day table hr_boss_loot_day). Every row is a SLICE of that one roll: a
-           standard tier 7 piece 40%, each of the 14 as likely (0.4 / 14 a row, about 2.9%), and 60% nothing. A hero who kills him every day
-           sees about 2.8 pieces a week and a given piece about every 35 days; trade shortens it. His two unique pieces (the Tollgate and
-           the Banded Legguards, 3% each, the same spec's item 4) join as two more slices when their rows land. A hero who took it today can
-           still fight: the kill's XP and coin are everyone's, every time. The 0.035 a row below was the shared roll before this. */
-        drops: ['dawn_sword', 'dawn_warhammer', 'duskwood_bow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex', 'dawn_hatchets', 'duskwood_crossbow',
+        /* HIS DAILY PRIZE (Tyler 2026-11-14: "a daily kill"; the designer's spec, PRIORITY_BOARD "The Barrow March hand play, ruled" 3 and 4; built
+           by lane/c-krell-daily and lane/c-krell-uniques). A hall's boss pays his rows ONCE A DAY PER HERO, each hero's own roll, never the
+           party's shared one (boss-halls.js; src/core/drops.js rollPrize; the server's day table player_boss_loot_day). Every row is a SLICE
+           of that one roll: a standard tier 7 piece 40%, each of the 14 as likely (0.4 / 14 a row, about 2.9%), then his two unique pieces,
+           the Tollgate 3% and the Banded Legguards 3% (special-attributes.js `source.pm`, read from there), and 54% nothing. A hero who
+           kills him every day sees about 2.8 standard pieces a week and a given one about every 35 days, each unique about every 33 days
+           and one of the two about every 17; trade shortens it. A hero who took it today can still fight: the kill's XP and coin are
+           everyone's, every time. The 0.035 a row below was the shared roll before the daily prize. */
+        drops: [...['dawn_sword', 'dawn_warhammer', 'duskwood_bow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex', 'dawn_hatchets', 'duskwood_crossbow',
           'dawn_platebody', 'dawnhide_body', 'duskweave_body', 'dawn_helm', 'dawnhide_helmet', 'duskweave_helmet'].map((id) => ({ id, ch: 0.4 / 14, band: 'rare' })),
+          ...UNIQUES.map((id) => ({ id, ch: SPECIAL_SAMPLE[id].source.pm / 1000, band: 'rare' }))],
         /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
            the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row
            won in 70 s, the bad bar too. At 7,000 HP, atk 205, enrage x1.25 and the spells below: the good bar 95%, the bad bar 30%, the good

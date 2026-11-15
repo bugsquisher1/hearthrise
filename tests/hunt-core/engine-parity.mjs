@@ -51,9 +51,8 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-13 (lane/d-no-profit-molds), DATA ONLY: glade-4's TALLY alone moved (world and timeline held, kills 536 as pinned). Cause, proved by
    putting the old row back alone (the bear's gp [13, 40]: every pin holds, exit 0): src/data/monsters.js brook_bear gp [13, 40] -> [11, 32], the purse
    back on the formula when the +10% floor it served was retired (NO PROFIT MOLDS). The Cellar's XP fit (rat 15 -> 16 XP) is on no pinned ground.
-   RE-PINNED 2026-11-15 (lane/a-open-march-scaled), DATA ONLY: warrens-4's world moved at settle 3 of 12 (kills 231 as pinned). Cause, proved by putting the
-   old value back alone on set/v0.2.132 (every pin holds, exit 0): src/data/monster-spells.js slag_rain hitPm 400 -> 800 (cf3fbb21d, lane/d-march-balance, the
-   Chief's Challenge on/off re-fit). The spell row is shared, so the field Chief Coppercap in the Warrens casts the 0.8x pulse too. Opening the March moves no pin. */
+   UN-PINNED 2026-11-15 (lane/d-chief-spell): warrens-4 is back on its 11-13 pin. lane/a-open-march-scaled had re-pinned it over cf3fbb21d's Slag Rain 400 -> 800,
+   a row the field Chief shared with the called one; the called Chief now casts his own slag_rain_called and the field row is 400 again. Opening the March moves no pin. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

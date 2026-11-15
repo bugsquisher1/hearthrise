@@ -117,7 +117,10 @@ export const MONSTER_SPELLS = {
   spore_cloud: { n: 'Spore Cloud', shape: 'group', range: 6, windupMs: 2000, cdMs: 32000, hitPm: 1000, element: 'poison' },   // the Walking Vine (the Glade)
   blasting_charge: { n: 'Blasting Charge', shape: 'group', range: 6, windupMs: 2000, cdMs: 32000, hitPm: 1000, element: 'ember' }, // the Goblin Digger (the Warrens): diggers blast the seams
   squeal: { n: 'Squeal', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'poison' },             // the Rat King's pulse. 4L
-  slag_rain: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 800, element: 'ember' },        // Chief Coppercap's pulse. 4L; 0.8x since lane/d-march-balance (Challenge on and off both fair, monsters.js his row)
+  slag_rain: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },        // Chief Coppercap's pulse in the Warrens. 4L
+  /* THE CALLED CHIEF'S OWN PULSE (lane/d-chief-spell): his room's Challenge on/off re-fit (lane/d-march-balance) raised it, and the row was shared with the
+     field Chief in the live Warrens (engine-parity warrens-4 moved). Same name and shape on screen; only the called room's Chief casts it. */
+  slag_rain_called: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 800, element: 'ember' },
   /* MARKED: the tiles fill first; Melee holds and takes it, a free ranged hero or caster steps off, a shield braces it. */
   venom_spray: { n: 'Venom Spray', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: 'poison' }, // the Barn Spider (Wickstead)
   tail_lash: { n: 'Tail Lash', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: null },     // the Rat King. Measured as a ring r2 (4F), not yet as this cone

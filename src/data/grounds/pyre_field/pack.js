@@ -120,7 +120,9 @@ export default definePack({
       elements: BURNED,
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_ferrule', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.0115, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.0115, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.0115, band: 'scarce' },
-        { id: 'rune_sword', ch: 0.0115, band: 'scarce' }],
+        { id: 'rune_sword', ch: 0.0115, band: 'scarce' },
+        /* the front rank's shield (shields.js, the audit's F8): a Rare beside his Scarce sword */
+        { id: 'runebound_shield', ch: 0.0008, band: 'rare' }],
       hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 770, gp: [20, 58], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
@@ -163,7 +165,9 @@ export default definePack({
         { id: 'yew_bow', ch: 0.029, band: 'scarce' },
         { id: 'ember_sword', ch: 0.002, band: 'rare' }, { id: 'ember_warhammer', ch: 0.002, band: 'rare' }, { id: 'runewood_bow', ch: 0.002, band: 'rare' },
         { id: 'runewood_staff', ch: 0.002, band: 'rare' }, { id: 'runewood_wand', ch: 0.002, band: 'rare' }, { id: 'runewood_codex', ch: 0.002, band: 'rare' },
-        { id: 'ember_hatchets', ch: 0.002, band: 'rare' }, { id: 'runewood_crossbow', ch: 0.002, band: 'rare' }],
+        { id: 'ember_hatchets', ch: 0.002, band: 'rare' }, { id: 'runewood_crossbow', ch: 0.002, band: 'rare' },
+        /* the tier-6 shield beside every tier-6 weapon (shields.js, the audit's F8) */
+        { id: 'ember_tower_shield', ch: 0.002, band: 'rare' }],
       hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2129, gp: [45, 133], formula: true },
   },
   roster: {

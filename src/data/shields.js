@@ -27,6 +27,15 @@
 //   Kingsgrate     the Rat King, RARE band 1.7%, after his Crown Shard (monsters.js)
 //   Coppercap      Smithing 30
 //   Steelgrate     Smithing 30, reforged from a Kingsgrate
+// THE BARROW MARCH'S RUNGS (designer 2026-11-15, lane/d-audit-balance-1; the playthrough audit's F8: no shield from Level 30 to
+// 110 while the sword ran to 95 and the spellbook to 88). One plain shield a tier, guard +2 a tier as tiers 1 to 3 climb
+// (3, 5, 7, then 9, 11, 13), no attack penalty. Each is a RARE on a body that carries a sword and a shield in its picture
+// (the packs' rows, src/data/grounds/*/pack.js), and tier 4 is also forged, as the tier's hatchets are (style-gear.js):
+//   Mithril-Faced           worn from 45: the Slake's Color Sergeant; Smithing 45
+//   Runebound               worn from 60: the Muster Barrows' Barrow Pikeman, the Pyre Field's Charred Pikeman
+//   Emberforged Tower       worn from 75: the Pyre Field's Provost, Krell's Hold's Grave Guard
+// Tier 7 is Krell's Tollgate (guard 15, Tyler 2026-11-14) and the Muster's Bier Shield is the Runebound with one attribute
+// (both in the special-attribute plan, src/data/special-attributes.js): neither is a row here.
 // Book value (`v`): a made shield is worth no more than the book of what goes
 // in (the bench is never a gold faucet: tests/style-gear.mjs SG-4's rule), the
 // Shop's at SHOP_PREMIUM x its book. Icons are placeholders until the Asset
@@ -49,6 +58,10 @@ export const SHIELD_ITEMS = Object.freeze({
   kingsgrate: shield('Kingsgrate', 300, 2, 15, 7, 4, 'rare'),
   coppercap_shield: shield('Coppercap Shield', 600, 3, 30, 7, 0, 'common'),
   steelgrate: shield('Steelgrate', 750, 3, 30, 9, 5, 'rare'),
+  /* book: about 0.75 of the tier's sword, as the Coppercap is of the Steel Sword (600 / 800) */
+  mithril_faced_shield: shield('Mithril-Faced Shield', 1100, 4, 45, 9, 0, 'epic'),
+  runebound_shield: shield('Runebound Shield', 3750, 5, 60, 11, 0, 'legendary'),
+  ember_tower_shield: shield('Emberforged Tower Shield', 9750, 6, 75, 13, 0, 'legendary'),
 });
 
 /* THE MADE SHIELDS' RECIPES (Smithing; the levels they are worn at). */
@@ -57,6 +70,8 @@ export const SHIELD_RECIPES = Object.freeze([
   r('forge_ironbound_shield', 'Forge Ironbound Shield', { iron_bar: 9, normal_plank: 3 }, 'ironbound_shield', 130, 15, 3400),
   r('forge_coppercap_shield', 'Forge Coppercap Shield', { steel_bar: 3, copper_bar: 4, normal_plank: 1 }, 'coppercap_shield', 300, 30, 4200),
   r('reforge_steelgrate', 'Reforge the Kingsgrate as Steelgrate', { kingsgrate: 1, steel_bar: 3 }, 'steelgrate', 320, 30, 4400),
+  /* tier 4, made as the tier's hatchets are: four bars and two planks book 1,130 against the shield's 1,100 (never a gold faucet) */
+  r('forge_mithril_faced_shield', 'Forge Mithril-Faced Shield', { mithril_bar: 4, maple_plank: 2 }, 'mithril_faced_shield', 450, 45, 4600),
 ]);
 
 /* Each shield's flavour line (item-descriptions.js spreads them). */
@@ -66,4 +81,7 @@ export const SHIELD_DESC = Object.freeze({
   kingsgrate: 'The Rat King\'s drain grate, bent into a small shield. It blocks hits but slows your swing a little',
   coppercap_shield: 'A steel shield with a copper cap, made the way the Warrens goblins make them. It\'s Chief Coppercap\'s own design',
   steelgrate: 'The Kingsgrate rebuilt on a steel frame. It blocks more and still slows your swing',
+  mithril_faced_shield: 'A maple shield with a sheet of mithril over the front. The Banded Company\'s sergeants carried these, and the river hasn\'t rusted them',
+  runebound_shield: 'A rune-metal shield the Banded Company gave its front rank. The pikemen in the barrows were buried holding theirs',
+  ember_tower_shield: 'A tall Emberforged shield from Krell\'s forges. It covers you from chin to knee, and it\'s still black from the pyres',
 });

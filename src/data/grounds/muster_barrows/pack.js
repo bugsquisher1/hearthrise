@@ -134,7 +134,9 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'coffin_nail', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
         { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
-        { id: 'rune_sword', ch: 0.016, band: 'scarce' }],
+        { id: 'rune_sword', ch: 0.016, band: 'scarce' },
+        /* the shield he was buried holding (shields.js, the audit's F8): a Rare beside his Scarce sword */
+        { id: 'runebound_shield', ch: 0.0011, band: 'rare' }],
       hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1060, gp: [21, 64], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,

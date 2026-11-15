@@ -49,7 +49,7 @@ import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0
 import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.130';
 import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.130';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.130';
-import { whole, SEP, sepHtml } from '../../render/format.js?v=0.2.130';
+import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.130';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
 import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.130';
 import { glyphSvg } from '../launcher.js?v=0.2.130';
@@ -68,6 +68,7 @@ import { callFromGround } from '../../data/boss-calls.js?v=0.2.130';
 import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.130';
 import { hallFromGround } from '../../data/boss-halls.js?v=0.2.130';
 import { rowLines } from '../live-events-view.js?v=0.2.130';
+import { patchParts } from '../goto.js?v=0.2.130';
 import { t } from '../../render/player-text.js?v=0.2.130';
 
 const SCRATCH = new WeakMap();
@@ -274,7 +275,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
       text(li.querySelector('.hw-hunt-bestline'), best);
       prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
-      text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(SEP));
+      patchParts(li.querySelector('.hw-hunt-tally'), withSeps(heldOn(tally, r.hunt).map(tallyLine)));
       /* A live event on this ground or its boss, the server's (live-events-view.js rowLines): Open Halls frees its call out. */
       rows(li.querySelector('.hw-hunt-events'), rowLines(cs, r.hunt), {
         key: (l) => l.id,

@@ -2775,9 +2775,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* AW-25 A SPACE BETWEEN THE PARTS (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the words apart, the
            eye a dot between them (format.js sepHtml), and the picked ground's page reads its band the same way */
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
-          const seen = (n) => { if (!n) return null; const c = n.cloneNode(true); c.querySelectorAll('.hh-sep').forEach((x) => x.replaceWith(x.hidden ? '' : ' · ')); return c.textContent; };
-          return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band')), li.querySelector('.hw-hunt-band').textContent]; }, W);
-        if (readLine[0] !== 'Level 1–8 · In your range' || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || '') || readLine[3] !== 'Level 1–8 In your range')
+          const seen = (n) => (n ? n.innerText.replace(/\u00a0/g, ' ') : null);
+          return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band'))]; }, W);
+        if (readLine[0] !== 'Level 1–8 · In your range' || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || ''))
           fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
@@ -2789,9 +2789,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rares: Array.from(d.querySelectorAll('.hw-hd-rares .hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
-              const how = li.querySelector('.hw-hd-mon-how'), seen = how.cloneNode(true);
-              seen.querySelectorAll('.hh-sep').forEach((x) => x.replaceWith(x.hidden ? '' : ' · '));
-              return { id: li.dataset.monster, how: seen.textContent, drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+              const how = li.querySelector('.hw-hd-mon-how');
+              return { id: li.dataset.monster, how: how.innerText.replace(/\u00a0/g, ' '), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
             bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
         }, W);
@@ -2812,19 +2811,20 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
               const r = document.createRange(); r.selectNodeContents(n); for (const b of r.getClientRects()) if (b.width) lines.push(b);
               for (let i = n.data.indexOf('\u00b7'); i >= 0; i = n.data.indexOf('\u00b7', i + 1)) { const d = document.createRange(); d.setStart(n, i); d.setEnd(n, i + 1);
                 const b = d.getBoundingClientRect(); if (b.width) out.push({ b, at: n.parentElement.parentElement.textContent }); } }
-            /* a 0 px separator is drawn unless its clip takes the dot (hunt.css .hh-sep) */
-            root.querySelectorAll('.hh-sep').forEach((s) => { const b = s.getBoundingClientRect();
-              if (s.getClientRects().length && (b.width > 0.5 || getComputedStyle(s).clipPath === 'none')) out.push({ b, at: s.parentElement.textContent }); });
+            root.querySelectorAll('.hh-sep').forEach((s) => { const b = s.getBoundingClientRect(); if (b.width > 0.5 && s.getClientRects().length) out.push({ b, at: s.parentElement.textContent }); });
             const same = (a, b) => Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < Math.min(a.height, b.height) / 2;
             return { n: out.length, alone: out.filter(({ b }) => !(lines.some((l) => same(l, b) && l.left < b.left - 1) && lines.some((l) => same(l, b) && l.right > b.right + 1))).map((x) => x.at) }; };
           lineup.style.gridTemplateColumns = 'repeat(auto-fill, 240px)'; const roomy = drawn(lineup).n;
           lineup.style.gridTemplateColumns = 'repeat(auto-fill, 72px)'; if (list) list.style.width = '150px';
+          const go = Array.from(win.querySelectorAll('.hw-go-what')); go.forEach((g) => { g.style.display = 'inline-block'; g.style.width = '70px'; });
+          const goDots = go.filter((g) => g.querySelector('.hh-sep')).length;
           const narrow = drawn(win), cards = Array.from(lineup.querySelectorAll('.hw-hd-mon-how')).filter((h) => h.getBoundingClientRect().height > 20).length;
-          lineup.style.gridTemplateColumns = ''; if (list) list.style.width = '';
-          return { roomy, cards, narrow };
+          lineup.style.gridTemplateColumns = ''; if (list) list.style.width = ''; go.forEach((g) => { g.style.display = ''; g.style.width = ''; });
+          return { roomy, cards, narrow, goDots };
         }, W);
         if (dots.roomy !== p.mons.length) fails.push('AW-25 with room, ' + dots.roomy + ' of ' + p.mons.length + ' creature cards draw their dot');
         if (!dots.cards) fails.push('AW-25 CONTROL: narrowed, no creature card wrapped');
+        if (!dots.goDots) fails.push('AW-25 CONTROL: no Go as line has a dot to measure');
         if (dots.narrow.alone.length) fails.push('AW-25 a wrapped line starts or ends on a dot: ' + JSON.stringify(dots.narrow.alone));
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon:carrier')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
@@ -4548,7 +4548,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
 const MUTANTS = [
   ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
-  ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep { position: relative; clip-path: inset(0); word-spacing: .45em; }', '.hh-sep { position: relative; word-spacing: .45em; }'],
+  ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],
   ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
   ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],

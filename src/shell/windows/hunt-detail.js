@@ -28,7 +28,7 @@ import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.130';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.130';
 import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.130';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.130';
-import { chance, listWords, SEP, sepHtml } from '../../render/format.js?v=0.2.130';
+import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.130';
 import { gotoAttr, patchParts } from '../goto.js?v=0.2.130';
 import { factsTarget } from './monster.js?v=0.2.130';
 import { t } from '../../render/player-text.js?v=0.2.130';
@@ -95,7 +95,7 @@ export function patchGo(det, ctx, v) {
       attr(b, 'aria-checked', String(on));
       cls(b, 'is-picked', on);
       text(b.querySelector('.hw-go-name'), p.name);
-      text(b.querySelector('.hw-go-what'), [p.roleWords, p.inUse ? 'on now' : null].filter(Boolean).join(SEP));
+      patchParts(b.querySelector('.hw-go-what'), withSeps([p.roleWords, p.inUse ? 'on now' : null].filter(Boolean)));
       const w = b.querySelector('.hw-go-weapon');
       if (w.getAttribute('data-item') !== String(p.weapon)) { w.innerHTML = p.weapon ? itemIconHtml(ctx.glyphs, p.weapon) : ''; w.setAttribute('data-item', String(p.weapon)); }
       const bar = b.querySelector('.hw-go-bar');

@@ -3313,6 +3313,16 @@ Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no 
 (1) Market Refresh on a phone was pinned at the top of `.hw-mk`, which was the purse row until the tabs moved first (order -1): it now
 hangs from the tabs' own foot. A moved row breaks anything absolutely pinned to its old place: grep for absolute children when reordering.
 (2) The phone sheet rule hid `.ht-ground` on every bar, so an ended hunt's plate was an empty box with Summary; it now hides only a running
-hunt's name (`:has(.ht-clock:not([hidden]))`). (3) A text dot cannot avoid both ends of a line. `.hh-sep` (hunt.css, format.js sepHtml)
-draws the dot on the one breakable space under a clip-path, so a break drops the space and clips the dot. Converted: creature cards, the
-Hunts list band/sub, the page band. Still text SEP (can lead a wrapped line): hunt-detail .hw-go-what, hunts .hw-hunt-tally, tally.js joins.
+hunt's name (`:has(.ht-clock:not([hidden]))`). (3) A text dot cannot avoid both ends of a line. format.js sepHtml: the text dot
+(nbsp + dot, glued to the part before) is drawn at font-size 0 for readers and copy; the eye's dot is .hh-sep's 2 px fill on the one
+breakable space, so a break drops the space and the dot. NOT ::before (tally-window TW-18 bans CSS-drawn words), NOT absolute (innerText
+gets newlines); word-spacing inherits as px, so the 0 px text needs word-spacing 0. A <button> link is atomic: break before it is legal.
+Converted: creature cards, Hunts list band/sub/tally, page band, Go as line, Tally day/row/where; SEP is gone. Still built as text
+' · ' (can wrap on a dot), by file:line: app/boot 275, app/live-overlay 32, core/ammo 154,156,232, core/combat 124-129, core/perks
+53,73,80,150,214,313, data/item-authority 199-217, data/items 777-810, data/library2-items 73-286, data/start-kit 64-107, data/text/{bag,
+bar,farm,heroes,hunts,item,monster,prep,shop}, hunt-view/summary-model 191, shell/{alerts 295, cast-facts 140, item-lore 92,96,
+market-model 209-228, readiness 58, town-work 454}, widgets/{hunt-topbar 59,63, stamina-buy 76, tally-hud 48}, windows/{character/outfit
+117,150, character/titles 43, configure-action 205, friends 32, game-master-body 52,72, hallmark-pane 71, hunt-prep 124, hunt-prep/setups
+79, hunt-summary 207, inspect 28, inventory/advanced 57-97, inventory/elsewhere 50, inventory/grid 96-240, item-tip 67, market/browse
+112-198, market/ledger 47,56, market/sell 119,121, party-finder 52,106, party-roster 51, services 73-101, shop 124-187, skills 112,
+temper-pane 95,99, work 122-152}. Canvas text (hunt-view/scene 337,486, world/town-scene 35) and build-info 26 need no change.

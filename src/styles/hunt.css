@@ -66,11 +66,12 @@
 .hh-intent-msg:empty { display: none; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
 .hh-empty { display: none; margin: 0; color: var(--ink-3); }
-/* THE DOT BETWEEN A LINE'S PARTS, drawn on the one space where the line may break (format.js SEP_HTML): a break
-   drops that space, the box goes to 0 px and the clip takes the dot with it, so no line starts or ends on one
-   (v0.2.131 gate: "Level 22" over "· uncommon"). The word spacing makes it as wide as " · " in the same font. */
-.hh-sep { position: relative; clip-path: inset(0); word-spacing: .45em; }
-.hh-sep::before { content: '\00b7'; position: absolute; inset: 0; text-align: center; }
+/* THE DOT BETWEEN A LINE'S PARTS (format.js sepHtml). Its text, glued to the part before it, is a reader's and a copy's
+   at 0 px; the eye's dot is a 2 px fill on the one space where the line may break. A break drops that space, the box
+   goes to 0 px and the dot with it, so no line starts or ends on one (v0.2.131 gate: "Level 22" over "· uncommon").
+   The word spacing makes the space as wide as " · " in the same font. */
+.hh-sep { word-spacing: .45em; background: linear-gradient(currentColor, currentColor) 50% 55% / 2px 2px no-repeat; }
+.hh-sep-t { font-size: 0; word-spacing: 0; }
 .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; display: inline-grid; place-items: center; flex: none; }
 .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; color: var(--ink-3); }
 

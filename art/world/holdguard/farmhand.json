@@ -3,6 +3,7 @@
   "class": "character",
   "style": "s1",
   "material": "native",
+  "lift": 1,
   "source": "farmhand.png",
   "anchor_px": [
     32,

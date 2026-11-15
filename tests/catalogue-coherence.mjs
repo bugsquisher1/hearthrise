@@ -191,8 +191,19 @@ export const PENDING_SOURCE = Object.freeze({
   stone_maul:        'cut: a stat copy of the Practice Club (merge rung 1 into the practice kit), systems-engineer',
   /* The loot bands took its one source, Old Grayjaw's equipment row (designer loot redesign 2026-10-23, lane b-loot-bands). */
   shortbow:          'cut: a stat copy of the Practice Bow (merge rung 1 into the practice kit), systems-engineer',
+  /* THE CROWNS STORE'S TRAINING ITEMS (Tyler 2026-11-14: "store bought items other than crowns are non tradable"): the bound copies of the
+     Arms Master's rows (src/data/training.js TRAINING_GEAR_ITEMS, bop). Their one door is hr_crown_store_buy, specified in
+     2027-04-23-training-gear.sql and unbuilt until the Crowns ledger exists; each row leaves the day that verb sells it (backend-architect). */
+  training_sword_12h_bound:  'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
+  training_sword_24h_bound:  'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
+  training_bow_12h_bound:    'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
+  training_bow_24h_bound:    'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
+  training_wand_12h_bound:   'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
+  training_wand_24h_bound:   'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
+  training_shield_12h_bound: 'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
+  training_shield_24h_bound: 'Crowns store (Tyler 2026-11-14) - hr_crown_store_buy after the Crowns ledger, backend-architect',
   /* (Tier 7's caster pair, hatchets and crossbow left: Lord Krell's hall row names them since the keyed hall folded, lane/b-barrow-integrate
-     2026-11-14. Staged with his pack, so they are src/data/catalogue-coherence.js UNREACHABLE.staged rows, proven by C11.) */
+     2026-11-14; reachable since the March opened, lane/b-open-march.) */
 });
 export const PENDING_CONSUMER = Object.freeze({
   /* (prayer's row left with the skill, 2026-10-27: Inner Flame's regen rate is an ENGINE_SKILL_CONSUMERS row) */

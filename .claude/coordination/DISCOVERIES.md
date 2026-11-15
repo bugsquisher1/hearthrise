@@ -3956,3 +3956,17 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   any committed `request.json` (PixelLab samples under art/world-src/ keep one) schedules 13 edge and intent tests and
   run-smoke for an art-only diff. I left that file out of this lane. Owner: reliability-engineer (match on the path, or skip
   art/world-src/**).
+- 2026-11-14 (art-director, lane/b-march-floors): atlas-slake is 2048x1924 of the 2048x2048 cap after the Slake's wear patches
+  (a painted ground packs every unique cell). The next Slake art (a body, a prop) will hit [atlas-size]: split the ground into its
+  own set, or coarsen the patches. Owner: asset-director.
+- 2026-11-14 (art-director, lane/b-march-floors): Krell's gatehouse is 156 px tall over a two-row passage, so a unit in the yard
+  just inside (rows 35-37) stands behind its towers. The arch is now see-through (units in the passage show); hiding behind the
+  towers needs an occluder fade like the roofs' (compose.js, a `gate` class rule). Owner: systems-engineer.
+- 2026-11-15 (art-director, lane/b-open-march-art): the Barrow March cast fails ART_DIRECTION §4's 3:1 ring on its own floors.
+  ring-contrast.mjs on the Muster's painted ground (median 0.074): Barrow Knight 1.11, Barrow Pikeman 1.60, Cairn Wight 1.34; on the
+  Ford mud ref (0.051) the shipped banded_pikeman and barrow_knight stills read 1.00. No guard measures it. The fix is a lit-rim on
+  the light-facing outline and a one-step body lift per body (§4), done once for the region. Owner: asset-director.
+  FIXED same day on lane/b-open-march-art: the Ford and Muster floors shaded 3 steps (0.077/0.089 -> 0.015 under the spawns),
+  bodies lifted (build.mjs `lift`/`shade`), every March monster now 3.06:1 or more on all four facings; world-assets [ring] holds it.
+  Left: lifted earth-ramp bodies (Barrow Knight, Captain Hask) read as one warm brown with less dark weight than their drawings; a
+  palette-born regen with a real lit rim would keep Hask's menace (gens, asset-director's call).

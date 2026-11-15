@@ -93,6 +93,10 @@ export const PREP_TEXT = Object.freeze({
   buying: 'Buying…',
   bought: 'Bought. You have {n} setup slots now.',
 
+  /* BEFORE YOU GO, STORE FOOD TOO WEAK FOR THE GROUND (src/shell/hunt-go.js weakFoodLine): {food} the bar's best store food, {want} the
+     store food this ground's bag guide names. */
+  food_weak: '{food} heals too little for the monsters here. Once your own food runs out, your hero can die. Press that slot on your bar and pick {want}.',
+
   /* CARRY IN, while this hero hunts (src/shell/carry-in.js). */
   carry_head: 'Carry into this hunt',
   carry_note: 'This hunt uses only the supplies it carries, then buys from the store. What you got after you set out waits in your backpack until you carry it in.',

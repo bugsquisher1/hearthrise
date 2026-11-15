@@ -1371,6 +1371,9 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
       meta: { ms: settledTo - winFrom, ticks: summary.ticks, kills: summary.kills,
               mon: String(mi.huntId || '').slice(0, 64),
               ...(summary.kills > 0 ? { km: s.bestiary.counts() } : {}),
+              /* A TRAINING WINDOW'S ITEM TIME (src/core/hunt/training.js trainingTick): the ms it played at the item's rate, the
+                 claim hr_training_window re-proves against the hero's bank and spends (2027-04-23-training-gear.sql). */
+              ...(hs.tally.boostMs > 0 ? { boost_ms: hs.tally.boostMs } : {}),
               from: new Date(winFrom).toISOString(),
               to: new Date(settledTo).toISOString() },
     },

@@ -8,9 +8,14 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const DASH = '–';
-/** The dot between a line's parts. It binds to the part AFTER it (a no-break space), so a wrapped line may start with
-    "· Level 5" but never ends on a lone dot ("Meadowbrook Thicket ·", the v0.2.130 visual gate). */
-export const SEP = ' \u00b7\u00a0';
+/** THE DOT BETWEEN A LINE'S PARTS, as markup between two spans: never at a line's start or end (v0.2.130, v0.2.131 gates).
+    Its text is glued to the part before it and drawn 0 px; the eye's dot is hunt.css .hh-sep's fill on the one space a break
+    drops. A reader and a copy get "Level 22 · uncommon". `cls` names it for a patch; `hidden` starts it off. */
+export const sepHtml = (cls = '', hidden = false) => '<span class="hh-sep' + (cls ? ' ' + cls : '') + '"' + (hidden ? ' hidden' : '')
+  + '><span class="hh-sep-t">\u00a0\u00b7</span> </span>';
+/** The same dot as a part for goto.js patchParts; withSeps puts one between each two parts. */
+export const SEP_PART = Object.freeze({ sep: true });
+export const withSeps = (parts) => parts.flatMap((p, i) => (i ? [SEP_PART, p] : [p]));
 const ok = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /* ONE formatter (perf lane 2026-10-29): toLocaleString('en-US') builds a new Intl.NumberFormat every call, 1.5% of a

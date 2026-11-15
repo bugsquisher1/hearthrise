@@ -420,10 +420,13 @@ export function newHuntSession(o) {
        stamina and proposes none, and the database refuses the settle). */
     staminaMs: s.staminaMs === null || s.staminaMs === undefined ? null : Math.max(0, int(s.staminaMs, 0)),
     staminaMaxMs: Math.max(0, int(s.staminaMaxMs, 0)),
+    /* A TRAINING SESSION'S ITEM HOURS (the server's read, hr_hunt_member_read train_boost_ms): the ms of the trained skill this
+       window may play at the item's rate (src/core/hunt/training.js trainingTick spends them); 0 on any other hunt. */
+    trainBoostMs: Math.max(0, int(s.trainBoostMs, 0)),
     leaveAtMs: s.leaveAtMs ?? null,
     changeAtMs: s.changeAtMs ?? null,
     stopAtMs: s.stopAtMs ?? null,
-    tally: Object.assign({ swings: 0, kills: 0, deaths: 0, paidMs: 0, coins: 0,
+    tally: Object.assign({ swings: 0, kills: 0, deaths: 0, paidMs: 0, coins: 0, boostMs: 0,
       xp: {}, loot: {}, supplies: {}, bought: {}, covered: {} }, s.tally || {}),
     endedReason: s.endedReason || null,
     endedAtMs: s.endedAtMs ?? null,

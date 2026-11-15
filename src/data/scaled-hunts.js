@@ -14,7 +14,7 @@
 //           its to-hit, its defense and its HP are the formula's at that Level, so a high party can't one-shot it.
 //   WHEN    Only once the leader has outgrown the ground (its Level past the band's top), and never past `topLevel`, the top of
 //           the highest open ground's band: past it there is no right-Level ground to stay under.
-//   PAYS    Level XP a kill: the formula's x `xpPm`. Coin a kill: the formula's x `coinPm` by the ground's fit. Item drops stay
+//   PAYS    Level XP a kill: the formula's x `xpPm`. Coin a kill: its own plus `coinPm` of the formula's rise, by the ground's fit. Item drops stay
 //           the ground's own rows at their own rates (early materials don't flood the market). Bestiary: a kill is a kill.
 //   NEVER THE BEST GRIND   at every tested gap a scaled hour pays less Level XP than the right-Level ground and less gold
 //           (before the fee) than the best free ground at that Level, so gold never buys faster leveling.
@@ -104,10 +104,15 @@ export const SCALED_HUNTS = Object.freeze({
      (scaledStats `partyPm`) through the engine's one door (damage.js rowOf -> xp-share.js), so the sim's what-if and the settle read the same.
      The number is measured below (fee-guard: a scaled four under the right-Level ground's four) and never falls under a hero alone. */
   partyPm: 700,
-  /* coin a kill, permille of the formula's at the scaled Level, by the ground's fit. A party ground already pays the party line
-     (x0.53 at full danger, balance-sheet STAT_FORMULA.fit.party); a solo ground's monsters have a solo HP, so at the formula's own
-     coin a scaled Glade's four netted 2,100-2,400 a head over the Warrens. 600 leaves about 1,000 or more a head under the best free gold before the fee */
-  coinPm: Object.freeze({ solo: 600, both: 600, party: 1000 }),
+  /* coin a kill: the monster's own (the formula at its own Level and floor) plus this permille of the formula's RISE to the scaled Level, by the
+     ground's fit (lane/a-open-march-scaled, 2026-11-15: as a permille of the whole it paid LESS coin than the ground unscaled wherever the gap is
+     small next to the floor, the Slake, Hask's Ford and the Pyre once the March opened, so the slider read "-22% gold". A cut of the rise is
+     never a fall). A party ground already pays the party line (x0.53 at full danger, balance-sheet STAT_FORMULA.fit.party); a solo ground's
+     monsters have a solo HP, so at the formula's own coin a scaled Glade's four netted 2,100-2,400 a head over the Warrens. 600 of the whole left
+     about 1,000 or more a head under the best free gold before the fee. 500 of the rise moves the nine fee-guard cells' scaled gold -15% to +30%
+     (the Glade most, its floor highest) and every cell stays 2,400 or more a head under the best free gold after the fee (tests/scaled-hunts.mjs,
+     2026-11-15); 600 of the rise put the Thicket's fee at Level 20 under 15% of the lone leader's gold */
+  coinPm: Object.freeze({ solo: 500, both: 500, party: 1000 }),
   /* the price of a banked hour: perLevel x the scaled Level, in gold. 40: a fifth to two fifths of what the lone leader's scaled
      hour makes before the fee, a tenth or less a head for a four */
   price: Object.freeze({ perLevel: 40 }),
@@ -138,11 +143,12 @@ function formulaOf(g, floor) {
 }
 
 /* A monster of `level`, `role` and art `tier` on ground `g` scaled to `to`: the formula at its Level + the gap on the scaled
-   floor, Level XP x xpPm, coin x coinPm (the roll kept on the formula's mean, STAT_FORMULA.gp.keepMean). */
+   floor, Level XP x xpPm, coin its own plus coinPm of the rise (the roll kept on the formula's mean, STAT_FORMULA.gp.keepMean). */
 function scaledStats(level, role, tier, g, groundId, to) {
   const gap = to - g.floor;
   const f = formulaStats({ level: level + gap, role, tier, floor: to, fit: g.fit, ground: groundId }, { formula: formulaOf(g, to), groundXp: xpFitAt(groundId) });
-  const mean = ((f.gp[0] + f.gp[1]) / 2) * (SCALED_HUNTS.coinPm[g.fit] / 1000);
+  const own = formulaStats({ level, role, tier, floor: g.floor, fit: g.fit, ground: groundId });
+  const ownMean = (own.gp[0] + own.gp[1]) / 2, mean = ownMean + Math.max(0, (f.gp[0] + f.gp[1]) / 2 - ownMean) * (SCALED_HUNTS.coinPm[g.fit] / 1000);
   const lo = Math.max(1, Math.round(mean * STAT_FORMULA.gp.lo));
   return { level: level + gap, hp: f.hp, atk: f.atk, baseAcc: f.baseAcc, def: f.def,
     xp: Math.max(1, Math.round((f.xp * SCALED_HUNTS.xpPm) / 1000)), gp: [lo, Math.max(lo, Math.round(2 * mean - lo))], partyPm: SCALED_HUNTS.partyPm };
@@ -150,7 +156,7 @@ function scaledStats(level, role, tier, g, groundId, to) {
 
 /**
  * A monster row as it fights on its ground scaled for a leader of `leaderLevel`: the formula at its Level + the gap, on the ground's
- * floor + the gap, its own role, art tier and fit; Level XP x xpPm and coin x coinPm. Drops and everything else stay the row's.
+ * floor + the gap, its own role, art tier and fit; Level XP x xpPm and coin its own plus coinPm of the rise. Drops and everything else stay the row's.
  * The row itself when the ground can't be scaled for that leader, or the monster is on no roster of the ground.
  */
 export function scaledRow(row, monsterId, groundId, leaderLevel) {

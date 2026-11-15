@@ -195,6 +195,12 @@ export const REASONS = Object.freeze({
   'src/shell/windows/boss-hall-pane.js': [
     { cond: '!open', words: "text(box.querySelector('.hw-call-line'), hallWords(said, hall))", where: 'Open the hall: the line above the press says why (out hunting, only the party leader can open it, no key in the bag), or how many keys the hero has' },
   ],
+  /* the Faction tab (lane/b-faction-ui): each press that waits on the server's clock or standing has its line beside it */
+  'src/shell/windows/character/faction.js': [
+    { cond: '!swapReady(f, now)', words: 'nextSwapWords(f, now)', where: 'Swap to the other side: the swap line above it says when the cooldown ends ("next swap in 3 days"), from the server\'s swap_ready_at' },
+    { cond: '!(f && f.swap && f.swap.ms >= f.swap.needMs)', words: 'swapLeftWords(f)', where: 'Finish the swap: the swap line above it says the hunting time still owed ("4 h 10 m left"), from the server\'s credited swap time' },
+    { cond: '!claimable(f, p)', words: "t('factions.piece_needs'", where: 'Claim a piece: its row says the hours of that side\'s standing it needs' },
+  ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },

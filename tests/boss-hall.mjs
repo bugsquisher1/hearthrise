@@ -368,6 +368,10 @@ async function guard(root) {
   });
 }
 
+/* re-stage Krell's Hold (its pack's status) for the staged-hall mutants. A staged hall served anywhere reads as served, or the generator refuses the
+   half that leaked (its hall without its room hunt, or its room hunt without its hall): either names Krell's hall */
+const STAGE_KRELL = Object.freeze(['src/data/grounds/krells_hold/pack.js', '  status: "open",', '  status: "staged",']);
+const STAGED_SERVED = /HL-ROW (the staged hall krells_hold is served|the real catalogue holds the halls|threw: hall (hunt )?krells_hold(_hall)? (names room|has no hall))/;
 const MUTANTS = [
   { name: 'a hall is no room', edits: [['src/core/hunt/boss-room.js', '  if (ground.hall) {', '  if (false) {']], want: /HL-FELLED|HL-TIME|HL-ROW/ },
   { name: 'a hall resets', edits: [['src/core/hunt/leash.js', '  if (inst.ground && inst.ground.hall) return;\n', '']], want: /HL-RESET/ },
@@ -385,11 +389,13 @@ const MUTANTS = [
   { name: 'a called row may stand in a hall', edits: [['tools/gen-hunt-sessions.mjs', "if (!a || a.add !== true || a.called === true) throw", "if (!a || a.add !== true) throw"], ['tools/gen-hunt-sessions.mjs', "      if (!g.call && S.monsters[id] && S.monsters[id].called === true) throw", "      if (!g.call && !g.hall && S.monsters[id] && S.monsters[id].called === true) throw"]], want: /HL-ROW/ },
   { name: 'a hall\'s rows may stand on another ground', edits: [['tools/gen-hunt-sessions.mjs', "if (mine.has(s.monster)) throw new Error(`hall ${h.id}'s ${s.monster} stands on ${o.id} too`);", "if (false) throw new Error('');"]], want: /HL-ROW/ },
   { name: 'an add\'s drops are no room\'s drops', edits: [['tools/gen-hunt-sessions.mjs', '.concat(p.spawns || [], p.adds || [])) mons.add(s.monster);', '.concat(p.spawns || [])) mons.add(s.monster);']], want: /HL-ROW/ },
-  /* THE REAL HALL (Krell's, staged with its pack): hidden while staged, and held to the generator's rules for the day it opens */
-  { name: 'a staged hall shows its door', edits: [['src/data/boss-halls.js', 'return Object.values(OPEN_BOSS_HALLS).find((h) => h.id === huntId) || null;', 'return rows().find((h) => h.id === huntId) || null;']], want: /HL-ROW the staged hall \w+ shows a door/ },
-  { name: 'a staged hall is among the served halls', edits: [['src/data/boss-halls.js', '.filter(([, h]) => !(HUNT_INDEX[h.hunt] && HUNT_INDEX[h.hunt].staged === true))', '.filter(() => true)']], want: /HL-ROW/ },
-  { name: 'a staged hall\'s room is a served hunt', edits: [['src/data/hunts.js', 'export const OPEN_HALL_HUNTS = Object.freeze(HALL_HUNTS.filter((h) => h.staged !== true));', 'export const OPEN_HALL_HUNTS = HALL_HUNTS;']], want: /HL-ROW/ },
-  { name: 'Krell hastens a spell that is not his', edits: [['src/data/grounds/krells_hold/pack.js', "hasten: { spell: 'hall_fire', cdPm: 500 }", "hasten: { spell: 'squeal', cdPm: 500 }"]], want: /HL-ROW the hall krells_hold would be refused/ },
+  /* THE REAL HALL (Krell's): hidden while its pack is staged, and held to the generator's rules. Since the Barrow March opened (set/v0.2.132) no hall
+     is staged, so each staged-hall mutant re-stages Krell's Hold first (STAGE_KRELL: staging alone is green) and plants its fault on top. */
+  { name: 'a staged hall shows its door', edits: [['src/data/boss-halls.js', 'return Object.values(OPEN_BOSS_HALLS).find((h) => h.id === huntId) || null;', 'return rows().find((h) => h.id === huntId) || null;'], STAGE_KRELL], want: /HL-ROW the staged hall \w+ shows a door/ },
+  { name: 'a staged hall is among the served halls', edits: [['src/data/boss-halls.js', '.filter(([, h]) => !(HUNT_INDEX[h.hunt] && HUNT_INDEX[h.hunt].staged === true))', '.filter(() => true)'], STAGE_KRELL], want: STAGED_SERVED },
+  { name: 'a staged hall\'s room is a served hunt', edits: [['src/data/hunts.js', 'export const OPEN_HALL_HUNTS = Object.freeze(HALL_HUNTS.filter((h) => h.staged !== true));', 'export const OPEN_HALL_HUNTS = HALL_HUNTS;'], STAGE_KRELL], want: STAGED_SERVED },
+  /* open, the real catalogue meets the generator's refusal at once (a staged pack met it only in the opened copy) */
+  { name: 'Krell hastens a spell that is not his', edits: [['src/data/grounds/krells_hold/pack.js', "hasten: { spell: 'hall_fire', cdPm: 500 }", "hasten: { spell: 'squeal', cdPm: 500 }"]], want: /HL-ROW.*hasted spell squeal is not one of his own spells/ },
   { name: 'Captain Hask brings a wave of his own in the hall', edits: [['src/data/grounds/krells_hold/pack.js', 'drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },', 'drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },']], want: /HL-ROW/ },
 ];
 

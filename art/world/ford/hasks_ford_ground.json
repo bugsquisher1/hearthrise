@@ -5,6 +5,7 @@
   "painted": true,
   "style": "s1",
   "material": "terrain",
+  "shade": 3,
   "source": "hasks_ford_ground.png",
   "lower": "painted",
   "upper": "painted",

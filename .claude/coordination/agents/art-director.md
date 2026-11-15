@@ -3324,6 +3324,25 @@ tileset is paint --void plus kept face slices, read in region-kit.html (now read
 1.4-2.1:1 on the silt: measure with ring-contrast after the import, not from the note (3 and 4 steps pass at 4.25). Open: the gatehouse and 12
 Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no hook, the lurcher reads 2.72:1 by ring on ash (its outline carries it).
 
+## 2026-11-14 lane/a-phone-bits (three v0.2.131 gate bits)
+(1) Market Refresh on a phone was pinned at the top of `.hw-mk`, which was the purse row until the tabs moved first (order -1): it now
+hangs from the tabs' own foot. A moved row breaks anything absolutely pinned to its old place: grep for absolute children when reordering.
+(2) The phone sheet rule hid `.ht-ground` on every bar, so an ended hunt's plate was an empty box with Summary; it now hides only a running
+hunt's name (`:has(.ht-clock:not([hidden]))`). (3) A text dot cannot avoid both ends of a line. format.js sepHtml: the text dot
+(nbsp + dot, glued to the part before) is drawn at font-size 0 for readers and copy; the eye's dot is .hh-sep's 2 px fill on the one
+breakable space, so a break drops the space and the dot. NOT ::before (tally-window TW-18 bans CSS-drawn words), NOT absolute (innerText
+gets newlines); word-spacing inherits as px, so the 0 px text needs word-spacing 0. A <button> link is atomic: break before it is legal.
+Converted: creature cards, Hunts list band/sub/tally, page band, Go as line, Tally day/row/where; SEP is gone. Still built as text
+' · ' (can wrap on a dot), by file:line: app/boot 275, app/live-overlay 32, core/ammo 154,156,232, core/combat 124-129, core/perks
+53,73,80,150,214,313, data/item-authority 199-217, data/items 777-810, data/library2-items 73-286, data/start-kit 64-107, data/text/{bag,
+bar,farm,heroes,hunts,item,monster,prep,shop}, hunt-view/summary-model 191, shell/{alerts 295, cast-facts 140, item-lore 92,96,
+market-model 209-228, readiness 58, town-work 454}, widgets/{hunt-topbar 59,63, stamina-buy 76, tally-hud 48}, windows/{character/outfit
+117,150, character/titles 43, configure-action 205, friends 32, game-master-body 52,72, hallmark-pane 71, hunt-prep 124, hunt-prep/setups
+79, hunt-summary 207, inspect 28, inventory/advanced 57-97, inventory/elsewhere 50, inventory/grid 96-240, item-tip 67, market/browse
+112-198, market/ledger 47,56, market/sell 119,121, party-finder 52,106, party-roster 51, services 73-101, shop 124-187, skills 112,
+temper-pane 95,99, work 122-152}. Canvas text (hunt-view/scene 337,486, world/town-scene 35) and build-info 26 need no change.
+UPDATE after merging v0.2.131 (main aef9785c5): that list is gone. The only "·" left in src/**/*.js outside format.js sepHtml are
+32 inside comments (core/ammo, combat, perks, data/items, item-authority, library2-items, start-kit, a few shell quotes of old bugs).
 ## 2026-11-14 lane/b-hold-art (v0.2.130 gate opens: the Hold's hill and gate, the Slake's floor, the Pyre icons)
 Krell's Hold read as a castle's inside because every '#' was painted wall mass: the cart road climbed between black wall tops.
 barrow-grounds.mjs holdCastle splits the rock: castle = touches a castle floor, or two rows south of one (a south wall is two
@@ -3344,3 +3363,29 @@ comma, a sentence or parentheses ("Mill Cellar (Deadly)", "Marlow (18)"); copy-l
 (Hunts list, hunt page, Tally), built at the v0.2.130 gate with no-break binding; a call for the designer if those should go too.
 Lessons: (1) help text inside a content scroll gets cut like content, and pinning it costs the content its rows: keys belong behind
 the ?; (2) the browser pane is shared with other sessions, so drive local-world through Playwright (world.play) for screenshots.
+
+## 2026-11-14 lane/b-march-floors (the Hold's and the Pyre's floors finished, the Slake's rows broken, Z3 green with the packs open)
+Z3 failed on krells_hold because its draw list held 7 sprites (decals are not sprites). Fixed with art, not a test change: Krell's red
+hung on three inner faces (kh_banner_hung, the banner stand's own crossbar and cloth, class `hanging`, open: maskHash unmoved). The
+floors: tools/world-art/ground-finish.mjs (ramp-step patches in rotated value noise, kept decals baked into the paint on a jittered
+grid, each on its own floor only), gravel and relaid-flag patches in the Hold's paint grid, burn scars on the ash, the hill on all four
+sides, the keep's mass a slate roof (15 gens) with a darker flagstone wall-walk, the gate's arch cut open. Lessons: (1) one axis-aligned
+value-noise lattice draws straight patch seams: rotate each octave; (2) a painted ground packs its UNIQUE cells, so wear costs atlas
+area (the Slake went 4096 wide until its blobs were coarsened; it now sits at 2048x1924); (3) the cart road's earth as worn patches on
+dark cobble read as bright square digs, the ash family's burnt grass fill is lime, the round shield decal reads as a cart wheel: cut;
+(4) local-world --site with junctions to src/ and assets/ serves tools/qa/region-kit.html from legal/ when python is absent.
+Open: a unit in the yard just north of the gatehouse (rows 35-37) still stands behind its towers, as behind any wall; a fade needs an
+engine rule (compose.js), filed for the systems engineer.
+
+## 2026-11-15 lane/b-open-march-art (over lane/b-open-march 36ae8e6d7)
+Opened packs turned world-assets red (29). Fixed at the art, guard untouched: (1) the Barrow Knight's and Captain Hask's 11-07 v3
+idles (35 gens already spent, never imported) imported with `port-pixellab.mjs idle --floor still` (new opt-in: the S/SE stills
+hold a sword tip under the anchor, so laying at the anchor lifted every frame, the pop the 11-07 note flagged); Hask's E from roll
+r1 (r2 flared the cape every other frame, a flap at 5 fps); the Provost re-pours the knight so idles too. (2) alder + alder_stump
+joined the barrow_march kit (brief 20 drew them as the March tree). (3) [twin] ruled: a new name gets a new drawing, so
+barrow_pikeman and cairn_wight are ramp re-pours (provost precedent) of the Ford bodies, heads too, and their HUNT_ART_ALIAS rows
+are gone; the guard's alias-is-a-twin selftest stays. Driver: tools/world-art/import-barrow-2026-11-14.mjs (IDLES, MUSTER_TWINS).
+Lesson: check art/world-src for held generations before spending; 35 gens of idles sat unimported for a week.
+Readability pass (same lane): [ring] added to world-assets (READABLE in art-budget.js, Barrow March kits only; selftest +4).
+Lesson: a 0.07-0.09 floor is a dead zone for the 3:1 ring (bright bodies wash out to tan, dark ones can't pass); pick dim or
+bright per ground first, then lift. A whole-ramp lift of 4-5 steps turns earth bodies to gingerbread: shade the floor instead.

@@ -1396,13 +1396,23 @@ async function run(mutate) {
     /* The forward catalogue carries columns this frozen slice's hr_items predates (the core rebuild's armour_weight and two_handed). */
     await db.exec('alter table pg_temp.g16_items add column if not exists armour_weight text, add column if not exists two_handed boolean not null default false');
     if (stmt) await db.exec(stmt.replace('insert into public.hr_items ', 'insert into pg_temp.g16_items '));
-    const rows = (await db.query('select item_id from pg_temp.g16_items')).rows.map((r) => r.item_id);
-    const known = new Set(rows);
-    ok(rows.length > 100, `G16-CONTROL: hr_items holds ${rows.length} rows — the catalogue is not the generated one`);
+    /* the pack file upserts on item_id, so the copy carries the key the real table has */
+    await db.exec('alter table pg_temp.g16_items add primary key (item_id)');
+    const whole = (await db.query('select count(*)::int n from pg_temp.g16_items')).rows[0].n;
+    ok(whole > 100, `G16-CONTROL: hr_items holds ${whole} rows — the catalogue is not the generated one`);
     /* A STAGED ground pack's rows (src/data/grounds, status staged) are in src/data and in no migration until tools/pack.mjs ship writes its file
-   (lane/d-packs-retune 2026-11-12, the pattern from lane/b-slake-and-ford): nobody can reach one, so the sweep leaves them out; an OPEN pack's are judged. */
+   (lane/d-packs-retune 2026-11-12, the pattern from lane/b-slake-and-ford): nobody can reach one, so the sweep leaves them out; an OPEN pack's are judged.
+   An OPEN pack's hr_items rows land in its OWN additive file (tools/pack/whole.mjs), applied after the whole catalogue, so production's
+   hr_items is the whole file plus each open pack's insert: loaded the same way here (v0.2.132 red: the March packs opened). */
     const { GROUND_PACKS } = await import('../src/data/grounds/index.js');
     const unserved = new Set(GROUND_PACKS.filter((p) => p.status === 'staged').flatMap((p) => Object.keys(p.items || {})));
+    for (const p of GROUND_PACKS.filter((g) => g.status === 'open')) {
+      const packSql = await readFile(join(ROOT, 'supabase', 'migrations', p.sql), 'utf8').catch(() => '');
+      const pat = packSql.indexOf('insert into public.hr_items ');
+      ok(pat >= 0 || !Object.keys(p.items || {}).length, `G16-CONTROL: the open pack ${p.id} names ${p.sql}, which carries no hr_items insert`);
+      if (pat >= 0) await db.exec(packSql.slice(pat, packSql.indexOf(';\n', pat) + 1).replace('insert into public.hr_items ', 'insert into pg_temp.g16_items '));
+    }
+    const known = new Set((await db.query('select item_id from pg_temp.g16_items')).rows.map((r) => r.item_id));
     const missing = Object.keys(ITEMS).filter((id) => !known.has(id) && !unserved.has(id)).slice(0, 5);
     ok(missing.length === 0,
       `G16: [${missing}] are priceable here and ABSENT from the generated hr_items, so a vendor_sell `

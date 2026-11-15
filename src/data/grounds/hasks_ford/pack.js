@@ -54,11 +54,12 @@ const PK = 'banded_pikeman', FS = 'fordsunk', LW = 'ledger_wight', BN = 'bannerm
 
 export default definePack({
   id: 'hasks_ford',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-hasks_ford.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Fordsunk, 4 Ledger Wights and
      the 2 Bannermen. */
   hunt: {
+    region: 'barrow_march',
     name: 'Hask\'s Ford', theme: 'Captain Hask sold this river crossing to Lord Krell. Krell\'s men killed Hask\'s soldiers here, and they came back as undead.',
     band: [45, 60],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: FS, w: 6, rarity: 'uncommon' },

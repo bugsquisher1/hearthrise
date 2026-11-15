@@ -67,7 +67,7 @@ export const CALL_ITEMS = Object.freeze({
 });
 export const CALL_ITEM_DESC = Object.freeze({
   kingstooth: 'The Rat King\'s long front tooth, set in an iron hilt. It hits like an Iron Sword and lands more critical hits',
-  cauldron_lid: 'The lid off the cauldron Chief Coppercap wears for a crown. It guards like a Coppercap Shield, and every hit you take lands a little softer',
+  cauldron_lid: 'The lid off the cauldron Chief Coppercap wears as a crown. It guards like a Coppercap Shield and softens every hit you take',
 });
 
 const rows = Object.values(BOSS_CALLS);

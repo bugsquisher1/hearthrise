@@ -1628,12 +1628,13 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
                        and a.disciplines = want.disciplines and a.rune is not distinct from want.rune and a.ammo = want.ammo)
    order by 1 limit 1;
   if v_t is not null then raise exception 'the area ability % is not in hr_hunt_abilities as the data names it', v_t; end if;` : '  -- (no area ability in the data)'}
-  -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay nothing, its rows reach no roster and no other ground, and it has its travel and its ground.
+  -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay no XP or coin, only its boss drops (his win's, Tyler 2026-11-14), its rows reach
+  -- no roster and no other ground, and it has its travel and its ground.
   if exists (select 1 from public.hr_boss_calls c
               where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = c.hunt_id)
                  or not exists (select 1 from public.hr_hunt_travel t where t.hunt_id = c.hunt_id and not t.training)
                  or exists (select 1 from public.hr_hunt_ground_spawns s join public.hr_hunt_kill_bounds b on b.monster_id = s.monster_id
-                             where s.hunt_id = c.hunt_id and (b.gold_max <> 0 or b.xp_max <> 0 or b.drops <> '{}'::jsonb))
+                             where s.hunt_id = c.hunt_id and (b.gold_max <> 0 or b.xp_max <> 0 or (b.drops <> '{}'::jsonb and s.monster_id <> c.monster_id)))
                  or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
     raise exception 'a called room pays, or its row reaches a normal hunt'; end if;

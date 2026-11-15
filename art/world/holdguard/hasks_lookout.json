@@ -3,6 +3,7 @@
   "class": "character",
   "style": "s1",
   "material": "native",
+  "lift": 1,
   "source": "hasks_lookout.png",
   "anchor_px": [
     32,

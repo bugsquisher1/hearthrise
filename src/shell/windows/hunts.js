@@ -49,7 +49,7 @@ import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0
 import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.132';
 import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.132';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.132';
-import { whole, SEP } from '../../render/format.js?v=0.2.132';
+import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.132';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
 import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.132';
 import { glyphSvg } from '../launcher.js?v=0.2.132';
@@ -59,7 +59,7 @@ import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../da
 import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.132';
 import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.132';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.132';
-import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.132';
+import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.132';
 import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.132';
 import { openFinderOn } from './party-finder.js?v=0.2.132';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.132';
@@ -68,6 +68,7 @@ import { callFromGround } from '../../data/boss-calls.js?v=0.2.132';
 import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.132';
 import { hallFromGround } from '../../data/boss-halls.js?v=0.2.132';
 import { rowLines } from '../live-events-view.js?v=0.2.132';
+import { patchParts } from '../goto.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
@@ -210,9 +211,9 @@ function lineHtml(r, glyphs) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-glyph" title="' + esc(heroWords(r)) + '">' + glyphSvg(glyphs, 'uiPeople') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
-    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-sep" hidden>' + SEP + '</span><span class="hw-hunt-fit"></span></small>'
-    /* the separators are text (a reader got "Level 1–8In range"); each binds to the part after it (format.js SEP) */
-    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-sep" hidden>' + SEP + '</span><span class="hw-hunt-bestline"></span></small>'
+    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></small>'
+    /* a reader gets a space between the parts (it got "Level 1–8In range"); the dot never starts or ends a line (format.js sepHtml) */
+    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-bestline"></span></small>'
     + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
 }
 
@@ -280,7 +281,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
       text(li.querySelector('.hw-hunt-bestline'), best);
       prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
-      text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(SEP));
+      patchParts(li.querySelector('.hw-hunt-tally'), withSeps(heldOn(tally, r.hunt).map(tallyLine)));
       /* A live event on this ground or its boss, the server's (live-events-view.js rowLines): Open Halls frees its call out. */
       rows(li.querySelector('.hw-hunt-events'), rowLines(cs, r.hunt), {
         key: (l) => l.id,
@@ -319,9 +320,10 @@ function patchPage(det, ctx, sc, v) {
   const setups = setupsOf(cs);
   const chosen = chosenOf(sc, setups);
   const other = (setups || []).find((p) => p.preset === chosen && !p.inUse);
+  const before = now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null });
   patchGo(det, ctx, {
     setups, chosen, off: sc.pending || !!now || follower,
-    before: now ? [] : beforeLines(cs, { hunt: r.hunt, other: other ? other.name : null }),
+    before,
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
       why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r) + '.',
       find: party ? 'Open the party finder' : 'Find a party',
@@ -361,8 +363,9 @@ function patchPage(det, ctx, sc, v) {
     attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
   }
   text(det.querySelector('.hw-tier-read'), follower && tier ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + TIER_NAME[tier] : '');
-  /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks. */
-  const safe = rangeWords(r, level) ? '' : TIER_LINES.normal + ' ';
+  /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks, and with store food
+     too weak for the ground Before you go says the fix (hunt-go.js weakFoodLine: the hand play died twice under "Safe at your level"). */
+  const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + ' ';
   text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks the tier.'
     : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
 }

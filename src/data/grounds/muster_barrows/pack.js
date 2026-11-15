@@ -76,11 +76,12 @@ const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'c
 
 export default definePack({
   id: 'muster_barrows',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-muster_barrows.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
      on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {
+    region: 'barrow_march',
     name: 'The Muster Barrows', theme: "Lord Krell gave Hask's officers a proper burial here so nobody would ask how they really died. Then he buried Hask with them to keep him quiet.",
     band: [55, 75],
     spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: CW, w: 6, rarity: 'uncommon' }, { monster: BK, w: 5, rarity: 'rare' }],
@@ -135,7 +136,7 @@ export default definePack({
         { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
         { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
         { id: 'rune_sword', ch: 0.016, band: 'scarce' }],
-      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 995, gp: [21, 64], formula: true },
+      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1060, gp: [21, 64], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -146,7 +147,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
         { id: 'yew_staff', ch: 0.048, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1199, gp: [21, 63], formula: true },
+      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1278, gp: [21, 63], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -158,7 +159,7 @@ export default definePack({
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' },
         { id: 'rune_hatchets', ch: 0.0033, band: 'rare' }],
-      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 2795, gp: [49, 147], formula: true },
+      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 2978, gp: [49, 147], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
@@ -171,7 +172,7 @@ export default definePack({
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
       /* HIS LINES ARE BACK with the ground-boss engine (lane/b-barrow-integrate 2026-11-14, from lane/b-muster-barrows 36a7a2d1b; carried as a
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
-      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 10853, gp: [173, 520], formula: true,
+      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 11567, gp: [173, 520], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {
@@ -195,7 +196,12 @@ export default definePack({
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the March's store food and drink, and Chalked Fire Runes (the unburned dead
      take 15% more fire). */
-  bagGuide: { tier: 4,
+  /* `storeFloor` (lane/d-march-balance 2026-11-14): the weakest store food a lone hero is safe on here, measured, and Before you go says so
+     to a bar under it (src/shell/hunt-go.js weakFoodLine). A Level 55 tank in tier 4 on the real settle, 12 h each: Salted Lobster 0
+     deaths, Salted Trout 1, Salted Shrimp after 100 Cooked Lobster 12 (the hand play died 2 of 2 on the start bar's Salted Shrimp). The
+     Barrow Knights are the first blows in the March that outrun the start bar: on the Ford, the Slake, the Pyre Field and the Hold a lone
+     tank at the floor on Salted Shrimp alone died 0 times in 8 h each, so no other ground names one. */
+  bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
@@ -211,7 +217,12 @@ export default definePack({
      RE-FITTED AGAIN (lane/b-barrow-numbers, 2026-11-14). The tier-5 hatchets and crossbow (11-13) lifted the axes and crossbow ways, so the
      median of the 8 lone ways rose and 0.84 read 1.10 on the full grade as it ships (the Ford and the Slake on the ladder), on the band's
      edge. 0.84 x 1.00 / 1.10 = 0.76, the Warrens' number. A fit scales a party and a hero alone alike, so no party cell moves. */
-  xpFit: { k: 0.76, why: 'Monsters here give less XP than the base formula, so a hero in the middle of the range levels at the usual speed. At 0.84 a hero alone leveled 10% faster than that' },
+  /* RE-FITTED FOR THE CLIMB (lane/d-open-march-balance, 2026-11-15; tests/hunt-core/forest-cave.mjs harder-pays-more, Tyler 2026-11-04
+     "harder mobs grand better loot and more exp"). At 0.76 a four at the floor (55) earned less a head here than on the Slake (581k against 626k): the harder ground paid less. 0.81
+     (and the Slake 0.93) puts the four about 3% over; the full grade's median lone way at 65 read 1.00 of the contract, so about 1.06, inside
+     the sheet's 0.90-1.10. A lone tank here still levels slower than on the Slake: this is a party-built ground, which the Hunts window never
+     sends a lone hero to (ONE DIFFICULTY, Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"). */
+  xpFit: { k: 0.81, why: 'Monsters here give less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
      the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
      weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two

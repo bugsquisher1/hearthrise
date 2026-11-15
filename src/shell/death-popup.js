@@ -19,11 +19,12 @@
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.132';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.132';
+import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.132';
 import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.132';
 import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.132';
 import { huntName } from '../session/party-sections.js?v=0.2.132';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.132';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
 import { whole } from '../render/format.js?v=0.2.132';
 import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.132';
@@ -89,9 +90,13 @@ function whyWords(cs, d) {
   const at = d.row.levelFrom !== null && d.row.levelFrom !== undefined ? d.row.levelFrom : lv ? lv.level : null;
   if (!band || at === null || !h || h.sessionId !== d.session) return '';
   const gap = band[0] - at;
-  if (gap <= 0) return 'Better armor, food eaten sooner or a smaller pull would help.';
-  return 'You were ' + gap + (gap === 1 ? ' Level' : ' Levels') + ' under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.';
+  /* a boss room never tells a party that HAS a healer to bring one (the v0.2.132 re-play: four with a Healer read it): it says heal sooner */
+  if (gap <= 0) return t(!roomOfHunt(d.row.hunt) ? 'death.why_in_range' : hasHealer(cs) ? 'death.why_in_room_healed' : 'death.why_in_room');
+  return t('death.why_under', { gap, levels: gap === 1 ? 'Level' : 'Levels' });
 }
+
+/* Did this hero's party (or the hero) fight with a Healer? The server's party section, else the hero's own role. */
+const hasHealer = (cs) => ((partyOf(cs) || {}).members || []).some((m) => m.role === 'healer') || (settingsOf(cs) || {}).role === 'healer';
 
 const xpName = (k) => (k === 'level' ? 'Level' : (SKILLS_DEF[k] && SKILLS_DEF[k].name) || k);
 /* "1,200 Level XP, 40 Melee XP and 12 Defense XP", Level first. */

@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-holdguard.png",
   "size": [2048,1236],
-  "pixels": "70da7c5fa15a93dde080d11dd9414cea22158b173c695cb11515ff0693539ac8",
+  "pixels": "67ab0e0c45c0745a95701e6c503612f921b28e5b7cf01b4984fcc37f1a8cb3d9",
   "sprites": {
     "farmhand": {
       "class": "character",

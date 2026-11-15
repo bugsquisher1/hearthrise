@@ -16,7 +16,7 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 100 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 108 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
 --     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
@@ -82,6 +82,8 @@ declare
     'player_training_gear',
     /* the live-event announcer's record of the window edges it passed (2027-03-22-live-events.sql), with the System lines the wipe clears */
     'hr_live_event_notices',
+    /* a hero's side, its standing, its days, its claims and the journal of them (2027-04-22-faction-standing.sql) */
+    'hr_faction_members', 'hr_faction_standing', 'hr_faction_days', 'hr_faction_claims', 'hr_faction_ledger',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
@@ -127,7 +129,9 @@ declare
     /* the training items' catalogue (2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql): skill, hours, bound, price */
     'hr_training_gear',
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
-    'hr_boss_halls'];
+    'hr_boss_halls',
+    /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */
+    'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

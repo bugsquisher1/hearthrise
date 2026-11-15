@@ -118,6 +118,7 @@
 import { mkdtempSync, cpSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { Worker, isMainThread, workerData, parentPort } from 'node:worker_threads';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
@@ -2641,10 +2642,29 @@ async function main() {
       const text = readFileSync(join(tmp, file), 'utf8');
       if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
+      console.log(report(name, await judge(() => rulesInWorker(tmp)), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
   console.log(exitOf(counts) ? 'session-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'session-core --mutate: ' + counts.caught + '/' + (onlyAt < 0 ? MUTANTS.length : counts.caught) + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
-main();
+
+/* ONE MUTANT, ONE WORKER (v0.2.132 release red, client-guards-2 run 43709464778). Each mutant imports a whole copy of the
+   session modules and their data from its own tree, and an ES module is never unloaded: run in this one process the heap
+   grew ~14 MB a mutant (measured: 68 MB after the first, 2.5 GB after 164) and Node 20's 2 GB runner died on whichever
+   mutant crossed it. A worker's heap goes when it ends, so the run stays at one mutant's size, and a mutant that does
+   spin dies alone at MUTANT_HEAP_MB as a named HARNESS line instead of taking the job. */
+const MUTANT_HEAP_MB = 512;
+function rulesInWorker(tree) {
+  return new Promise((resolve, reject) => {
+    const w = new Worker(new URL(import.meta.url), { workerData: { mutantTree: tree }, resourceLimits: { maxOldGenerationSizeMb: MUTANT_HEAP_MB } });
+    let done = false;
+    w.once('message', (fails) => { done = true; resolve(fails); w.terminate(); });
+    w.once('error', (e) => { done = true; reject(e); });
+    w.once('exit', (code) => { if (!done) reject(new Error('the mutant worker exited ' + code + ' with no verdict')); });
+  });
+}
+
+if (!isMainThread && workerData && workerData.mutantTree) parentPort.postMessage(await rules(await load(workerData.mutantTree)));
+else main();
+

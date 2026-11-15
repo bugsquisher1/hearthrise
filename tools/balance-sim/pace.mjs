@@ -273,7 +273,10 @@ async function main() {
   const measuredLevels = [...new Set([2, 5, 10, 15, 20, 25, 30, 40, 50, ...targetLevels])].filter((L) => L <= ceiling).sort((a, b) => a - b);
   const rate = ratesOf(careers);
   for (const k of Object.keys(rate)) if (Number(k) >= ceiling) delete rate[k];
-  const measured = Object.fromEntries(measuredLevels.map((L) => { const m = median(careers.map((c) => c.milestones['0:' + L])); return [L, m === null ? null : Math.round(m * 1000) / 1000]; }));
+  /* A CAREER THAT NEVER REACHED A LEVEL COUNTS AS SLOWER THAN EVERY ONE THAT DID (lane/d-open-march-balance): dropping it made Level 100's
+     "median" the two fastest of eight (406 h) while six careers were still short of it at 500 h. Past the middle style: no measurement. */
+  const censored = (v) => { const x = v.map((y) => (Number.isFinite(y) ? y : Infinity)).sort((a, b) => a - b); const m = x.length % 2 ? x[(x.length - 1) / 2] : (x[x.length / 2 - 1] + x[x.length / 2]) / 2; return Number.isFinite(m) ? m : null; };
+  const measured = Object.fromEntries(measuredLevels.map((L) => { const m = censored(careers.map((c) => c.milestones['0:' + L])); return [L, m === null ? null : Math.round(m * 1000) / 1000]; }));
   const ladderCells = readRows(resolve(arg('ladder', join(HERE, 'out', 'ladder'))));
   const ladder = ladderCells.length ? ladderOf(ladderCells) : null;
   const old = existsSync(SNAPSHOT) ? JSON.parse(readFileSync(SNAPSHOT, 'utf8')) : null;

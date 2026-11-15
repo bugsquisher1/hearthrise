@@ -77,6 +77,8 @@ export async function buildGrid(root, mode, opts = {}) {
   const G = await import(u('src/data/hunt-grounds.js'));
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const T = await import(u('src/data/hunt-tiers.js'));
+  const BAG = (await import(u('src/data/supplies.js'))).BAG_GUIDE_BY_HUNT;
+  const START_STORE_FOOD = (await import(u('src/data/start-kit.js'))).START_BAR.find((x) => x.id === 'd_food_store').action.id;
   const wi = opts.whatIf || null, tag = wi ? ',w=' + createHash('sha256').update(JSON.stringify(wi)).digest('hex').slice(0, 8) : '';
   const jobs = [];
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -103,6 +105,17 @@ export async function buildGrid(root, mode, opts = {}) {
         const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + og + tag;
         jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: windowFor(1), ...(wi ? { whatIf: wi } : {}),
           grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice' } });
+      }
+      /* THE STORE FOOD THE PAGE CALLS SAFE (lane/d-march-balance 2026-11-14). Every other cell eats the ground's guide food's store row, which
+         no bar names until the player picks it: the start bar buys Salted Shrimp, and a Level 55 tank on it died 2 of 2 in the Muster Barrows
+         under "Safe at your level" while this grader passed the ground. So a lone tank at the floor on Normal also plays the weakest store
+         food the Hunts page stays quiet about: the ground's bagGuide.storeFloor, or the start bar's (src/shell/hunt-go.js weakFoodLine). */
+      if (tier === 'normal') {
+        const guide = BAG[g.id] || null, storeFood = (guide && guide.storeFloor) || START_STORE_FOOD;
+        const { seeds, hours } = dice(mode, 1, tier, 'floor');
+        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=tank', 'L=' + band[0], 'food=' + storeFood, 's=' + seeds, 'h=' + hours].join(',') + og + tag;
+        jobs.push({ id, ground: g.id, party: ['tank'], level: band[0], ...(ogear ? { gear: ogear } : {}), bar: { storeFood }, hours, seeds, windowMs: windowFor(1), ...(wi ? { whatIf: wi } : {}),
+          grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset: 'floor', size: 1, comp: 'tank', gear: 'storefood' } });
       }
     }
   }
@@ -396,6 +409,9 @@ export function synthSet(mut = {}) {
     cells.push(synthCell({ tier, offset, size: 1, comp: 'tank' }, { ...base, ...(under && offset === 'under2' ? { store: 2000 } : {}) }));
     cells.push(synthCell({ tier, offset, size: 4, comp: 'four' }, { ...base, xp: base.xp * 1.2, income: 4500, store: under ? 6000 : 500, kills: 400 }));
   }
+  /* the lone tank at the floor on the store food the Hunts page calls enough (buildGrid's storefood cell) */
+  cells.push(synthCell({ tier: 'normal', offset: 'floor', size: 1, comp: 'tank', gear: 'storefood' }, { level: 16, hours: 2000, xp: 70000, income: 5000, store: 1500, hp: 70, coin: 3000 }));
+  if (mut.storeFood) cells[cells.length - 1].heroes[0].deaths = 12;
   const pick = (tier, offset, size) => cells.find((c) => c.cell.grade.tier === tier && c.cell.grade.offset === offset && c.cell.grade.size === size);
   if (mut.deaths) pick('normal', 'floor', 1).heroes[0].deaths = 12;
   if (mut.dips) pick('normal', 'floor', 1).heroes[0].closeCallsPer12h.k = 900;
@@ -424,7 +440,7 @@ if (isMain(import.meta.url)) {
     const good = gradeCells(synthSet(), SHEET, flat);
     const bad = [];
     if (good.verdicts.some((v) => v.verdict === 'FAIL')) bad.push('the good set fails: ' + ranked(good.verdicts).filter((v) => v.verdict === 'FAIL').map((v) => v.rule + ' ' + v.key).join('; '));
-    for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'], ['four', 'four-xp'], ['tier', 'tier-pays-more'], ['lowpoint', 'normal-low-point']]) {
+    for (const [mut, rule] of [['deaths', 'normal-deaths'], ['dips', 'normal-dips'], ['four', 'four-xp'], ['tier', 'tier-pays-more'], ['lowpoint', 'normal-low-point'], ['storeFood', 'normal-deaths-store-food']]) {
       const r = gradeCells(synthSet({ [mut]: true }), SHEET, flat);
       if (!r.verdicts.some((v) => v.rule === rule && v.verdict === 'FAIL')) bad.push('mutant ' + mut + ' did not FAIL ' + rule);
     }
@@ -456,7 +472,7 @@ if (isMain(import.meta.url)) {
     try { gradeCells(synthSet(), { ...SHEET, rules: [...SHEET.rules, { id: 'a-profit-floor', metric: 'margin', min: 0.25, binding: true }] }, flat); } catch (e) { refused = /NO PROFIT MOLDS/.test(e.message); }
     if (!refused) bad.push('a sheet with a profit rule (margin >= +25%) was not refused as a profit rule');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
-    console.log('grade --selftest: the good set passes, 5 mutants each FAIL their rule, the long-band and needs-a-Healer scopes hold, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused');
+    console.log('grade --selftest: the good set passes, 6 mutants each FAIL their rule, the long-band and needs-a-Healer scopes hold, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused');
     process.exit(0);
   }
   const mode = arg('mode', 'quick');

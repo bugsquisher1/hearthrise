@@ -11,8 +11,9 @@ import { spawnSync } from 'node:child_process';
 import { ROOT } from './files.mjs';
 import { rowsOf, diffRows, packSql, PACK_TABLES } from './sql.mjs';
 
-/* the whole generators whose tables carry a ground's rows (measured: a fixture pack moves these four and no other generator) */
-export const COVERED = Object.freeze(['gen-hunts.mjs', 'gen-hunt-sessions.mjs', 'gen-catalogues.mjs', 'gen-ground-tiers.mjs']);
+/* the whole generators whose tables carry a ground's rows (measured: a fixture pack moves the first four and no other generator; gen-factions
+   moves only for a ground that pays a faction standing, its standingFor, lane/c-faction-standing) */
+export const COVERED = Object.freeze(['gen-hunts.mjs', 'gen-hunt-sessions.mjs', 'gen-catalogues.mjs', 'gen-ground-tiers.mjs', 'gen-factions.mjs']);
 
 const MIG = (root) => join(root, 'supabase', 'migrations');
 
@@ -96,5 +97,8 @@ export function shipText(id, root = ROOT) {
   /* parents first: the order PACK_TABLES lists them in (items before their slots, a hunt before its spawns, a ground before its tiers) */
   const rank = Object.keys(PACK_TABLES);
   const tables = [...byTable.values()].sort((a, b) => rank.indexOf(a.table) - rank.indexOf(b.table));
-  return { sql: packSql(id, tables, COVERED), added: tables, moved, files: [...after.keys()] };
+  /* the header names the generators that carry THIS pack's rows: gen-factions only for a ground that pays a standing (an hr_faction_grounds
+     row), so a pack shipped before gen-factions joined COVERED renders byte-identical (tests/ground-pack.mjs GP-3) */
+  const sources = COVERED.filter((g) => g !== 'gen-factions.mjs' || tables.some((t) => t.table === 'hr_faction_grounds'));
+  return { sql: packSql(id, tables, sources), added: tables, moved, files: [...after.keys()] };
 }

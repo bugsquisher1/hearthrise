@@ -26,6 +26,8 @@ export const PACK_TABLES = Object.freeze({
   hr_ground_tiers: ['hunt_id', 'tier'],
   /* a pack's keyed hall (its `hall`, src/data/boss-halls.js): the one row that says which room its key opens. Krell's Hold is the first */
   hr_boss_halls: ['hall_id'],
+  /* a ground after Krell pays a faction standing (its standingFor, tools/gen-factions.mjs): the one row that says which side */
+  hr_faction_grounds: ['hunt_id'],
 });
 
 /** Split `s` at top-level commas (outside quotes, parentheses and brackets). */

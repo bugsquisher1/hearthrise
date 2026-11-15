@@ -3,6 +3,7 @@
   "class": "brute",
   "style": "s1",
   "material": "unit",
+  "lift": 3,
   "source": "bannerman.png",
   "anchor_px": [
     32,

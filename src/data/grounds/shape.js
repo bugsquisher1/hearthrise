@@ -50,7 +50,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      sql       the pack's additive server file (supabase/migrations/<date>-pack-<id>.generated.sql), written by
                `node tools/pack.mjs ship <id>`; null until then. The whole catalogue generators leave a pack out until a world
                move folds it (tools/pack/fold.mjs), so a pack never re-issues a whole catalogue.
-     hunt      a src/data/hunts.js row without its id
+     hunt      a src/data/hunts.js row without its id, its `region` one of REGIONS and `standingFor` (when present) one of STANDING_SIDES
      ground    a src/data/hunt-grounds.js row without its id and hunt
      map       the map row (src/data/world/maps' shape); ground.map names it
      monsters  { id: row }: the pack's NEW monsters, src/data/monsters.js rows (the numbers by `tools/pack.mjs propose --write`)
@@ -79,6 +79,12 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                one spell model: monster-spells.js folds them in (an id already taken is refused), validateSpell judges each row, and a row
                none of the pack's own monsters casts is refused (tools/pack.mjs lintFields) */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
+
+/* A HUNT ROW'S PLACE (lane/c-faction-standing; the board's "2026-11-14 The Morrow Hills" §6). `region`: the regions in the order the road
+   walks them, one per hunt row. `standingFor`: the side a ground pays standing to, on every ground of a region after Krell's and on no
+   other (src/data/factions.js; catalogue-coherence.js factionGroundProblems holds the rule, the server reads hr_faction_grounds). */
+export const REGIONS = Object.freeze(['greenhaven', 'barrow_march']);
+export const STANDING_SIDES = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
 const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
@@ -108,7 +114,7 @@ function spellsWhy(p) {
   }
   return null;
 }
-const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters']);
+const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters', 'storeFloor']);
 const isSpot = (s) => isObj(s) && ID.test(String(s.monster)) && Number.isInteger(s.x) && Number.isInteger(s.y);
 
 /** A pack's `hall`, checked for shape: answers why it is malformed, or null. The data half (the key item, the rows) is tools/pack.mjs lintHall. */
@@ -117,6 +123,7 @@ function hallWhy(p) {
   if (!isObj(h)) return 'hall is not an object';
   for (const k of Object.keys(h)) if (!HALL_KEYS.includes(k)) return 'hall has an unknown field ' + k;
   if (typeof h.key !== 'string' || !(p.items && h.key in p.items)) return 'hall.key is not one of the pack\'s own items';
+  if (h.storeFloor !== undefined && !/^salted_[a-z]+$/.test(String(h.storeFloor))) return 'hall.storeFloor is not a store food id (salted_...)';
   if (p.items[h.key].opens !== p.id) return 'hall.key ' + h.key + ' does not open ' + p.id + ' (its item\'s `opens`)';
   if (!isObj(h.words) || typeof h.words.boss !== 'string' || typeof h.words.Boss !== 'string') return 'hall.words is not { boss, Boss }';
   if (!isObj(h.hunt) || 'id' in h.hunt || 'called' in h.hunt || 'hall' in h.hunt || typeof h.hunt.name !== 'string') return 'hall.hunt is not a HALL_HUNTS row less its id and hall';
@@ -149,6 +156,8 @@ export function definePack(p) {
   if (p.sql != null && !new RegExp('^\\d{4}-\\d{2}-\\d{2}-pack-' + id + '(-\\d+)?\\.generated\\.sql$').test(p.sql)) no('sql is not <date>-pack-' + id + '[-N].generated.sql');
   if (p.status === 'open' && p.sql == null) no('an open pack is served, so it names its file (node tools/pack.mjs ship ' + id + ')');
   if (!isObj(p.hunt) || 'id' in p.hunt || 'staged' in p.hunt) no('hunt is not a hunts.js row without id and staged (status says staged)');
+  if (!REGIONS.includes(p.hunt.region)) no('hunt.region is not one of ' + REGIONS.join(' | '));
+  if ('standingFor' in p.hunt && !STANDING_SIDES.includes(p.hunt.standingFor)) no('hunt.standingFor is not one of ' + STANDING_SIDES.join(' | '));
   if (!isObj(p.ground) || 'id' in p.ground || 'hunt' in p.ground) no('ground is not a hunt-grounds.js row without id and hunt');
   if (!isObj(p.map) || p.map.id !== p.ground.map) no('map is not the row ground.map names');
   for (const k of ['monsters', 'roster', 'items', 'itemText']) if (p[k] !== undefined && !isObj(p[k])) no(k + ' is not an object');

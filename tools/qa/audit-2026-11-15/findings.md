@@ -78,3 +78,10 @@ Each: repro, server said vs screen said, likely file, and for fun/sense the evid
 
 ### F20 P2 (economy, F12 evidence) · The gold sinks can't take what one hero earns in a day
 - Measured: at Level 78 one hero nets +11k to +18k gp an hour (Pyre Field), ~200k+ a 12-hour day; the account had 4.49M with all 4 hero slots bought. Daily sinks open to it: Works 25,000 (one account), Rounds 3 x 5,000, Hearth powders 5 x 2,000 = 50,000 a day. Tempering has no ladder past Steel (F17). House tiers are gated by materials, not gold. So gold piles up from Level ~50 on with nothing to chase. Better: tempering tiers 4-6 (Mithril/Rune/Emberforged) priced by Level, Works caps per hero, and a House tier or two priced in the millions.
+
+### F21 P2 (fun) · Beating Lord Krell, the last boss, pays nothing you can see
+- As a player: four Hall Keys, three losses, ~105k gp of Shark and Graven runes, then "You beat Lord Krell." The summary: 8,924 Level XP, 174 gp, Loot value 0, no item, no trophy, no reveal (ledger: 7,240 Level XP and 132 gp a hero). The game's last fight ends on the quietest screen in the game.
+- Root cause (code, after logging): his drops are being reworked in flight (`origin/lane/c-krell-uniques`, `origin/lane/c-krell-daily`, `set/v0.2.133`). Better: the first win always pays something named (his trophy or a unique), with the super-rare reveal (DESIGN_STANDARDS §6), and the hall card lists what he can drop.
+
+### F22 P2 · The hall's own advice (tank + healer + the four bar changes) doesn't beat Krell
+- As a player: I made every change the hall card lists, with a tank (87, Emberforged) and a healer (84). Three tries: out of time at 17% and 15%, one death on Offensive. Adding a third hero (a mage 18 Levels under, with no warning) won in 7:54. The card says "Party: a tank and a healer"; what it takes is damage. Better: the card says how many heroes the wins had (the summary's line "Your Challenge fired 1 time" points at the tank, but the gap was damage), and the hall warns about an under-Level member as the ground does.

@@ -132,7 +132,7 @@ export const ITEM_DESC = {
   'bones': 'Fuel for the Great Hearth in Havora. Burning bones there raises your Inner Flame and lets the dead finally rest',
   /* THE GREAT HEARTH'S FUELS (src/data/hearth.js): what each is for, then where it comes from */
   'lamp_jelly': 'Fuel for the Great Hearth, burned like bones. A slime has no skeleton, but its jelly burns like lamp oil',
-  'dry_husk': 'Fuel for the Great Hearth, burned like bones. It\'s the papery shell a spider sheds, and it\'s dry as kindling',
+  'dry_husk': 'Fuel for the Great Hearth, burned like bones. It\'s the papery shell a spider or a wasp sheds, and it\'s dry as kindling',
   'pithwood': 'Fuel for the Great Hearth, burned like bones. It\'s the soft wood from inside a Walking Vine',
   'queens_comb': 'Burn it in the Great Hearth for a burst of Inner Flame, and Havora\'s fire turns honey-gold. It\'s wax from the Mill Cellar hive',
   'den_knot': 'Burn it in the Great Hearth for a burst of Inner Flame, and Havora\'s fire turns deep amber. It\'s pine resin from the Dire Gray\'s den',
@@ -398,7 +398,7 @@ export const ITEM_DESC = {
   'shark': 'A slab of raw shark from open water. Sear it and it\'s a big meal',
   'shortbow': 'A simple carved shortbow for shooting at close range',
   'shrimp': 'A pinch of pink shellfish pulled raw from the shallows. Cook it before you trust it',
-  'silk_thread': 'Fine thread spun from spider silk, woven into light cloth',
+  'silk_thread': 'Fine thread wound off spider webs and the silk caps on a wasp nest. It goes into cloth, wand grips and bowstrings',
   'silverfin': 'A quick silver fish from the shoals. It\'s slippery raw, so cook it first',
   'slagheart_core': 'A Hunt boss\'s molten heart, and it\'s still glowing',
   'slagheart_platebody': 'A chestplate forged around a slagheart core. You can only get it from the Hunt',

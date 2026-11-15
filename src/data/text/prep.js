@@ -104,11 +104,11 @@ export const PREP_TEXT = Object.freeze({
   /* BEFORE YOU GO, THE BLESSINGS (src/shell/hunt-go.js blessingWords). Every number is the server's Blessings section:
      {on} held of {of}, {pct} the cut they give now, {price} the next one's price, {level} the Level they stop being free at.
      `_free` while the next one costs nothing, `_cost` once it has a price, the bare row if the server hasn't said which. */
-  blessings_none: 'Blessings: none (they cut death XP loss, in the Shop)',
-  blessings_none_cost: 'Blessings: none (they cut death XP loss, first one {price} in the Shop)',
-  blessings_some: 'Blessings: {on} of {of}, {pct}% less death XP loss (more in the Shop)',
-  blessings_some_cost: 'Blessings: {on} of {of}, {pct}% less death XP loss (next one {price} in the Shop)',
-  blessings_all: 'Blessings: {of} of {of}, {pct}% less death XP loss',
+  blessings_none: 'Blessings: none (cut death XP loss, in the Shop)',
+  blessings_none_cost: 'Blessings: none (cut death XP loss, first one {price} in Shop)',
+  blessings_some: 'Blessings: {on} of {of}, -{pct}% death XP loss (more in Shop)',
+  blessings_some_cost: 'Blessings: {on} of {of}, -{pct}% death XP loss (next {price} in Shop)',
+  blessings_all: 'Blessings: {of} of {of}, -{pct}% death XP loss',
   /* How long the gold lasts (readiness.js): the gold, and the analyzer's supply spend an hour on the running hunt or, in town, the last one. */
   gold_only: 'Gold: {gold} gp',
   gold_spend_now: 'Gold: {gold} gp, about {hours} h at {spend} gp/h on this hunt',

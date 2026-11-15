@@ -460,7 +460,7 @@ async function pure() {
   const bones = usesOf('bones');
   if (!bones.some((l) => /^Burn it in the Great Hearth to train Inner Flame/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
   const knot = usesOf('den_knot');
-  if (!knot.some((l) => /^Burn it in the Great Hearth for a burst of Inner Flame XP, and the fire burns deep amber for all Havora/.test(l))) fails.push('AW-0 the Den Knot tooltip reads ' + JSON.stringify(knot));
+  if (!knot.some((l) => /^Great Hearth: Inner Flame XP burst, fire burns deep amber for Havora/.test(l))) fails.push('AW-0 the Den Knot tooltip reads ' + JSON.stringify(knot));
   /* AW-20: what cooks is read off the recipe rows (no id list); the bench refuses in words, from the server's level. */
   const { cookOf } = await imp('src/shell/bag-model.js');
   const { buryRecipeOf, buryBlock, buryLabel } = await imp('src/shell/windows/inventory/bury.js');
@@ -1080,7 +1080,7 @@ async function itemTruthRules(base) {
     if (kindWords(id) === 'Junk' && /^Used in /.test(said)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + said);
     if (it.type === 'tool') {
       const pc = Math.round(it.toolSpeed * 100) + '%';
-      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/while it's in your bag/.test(said) || !/it does nothing in Storage/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
+      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/from your bag/.test(said) || !/not from Storage/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
       if (kindWords(id) !== 'Tool') fails.push('AW-60 the tool ' + id + ' is headed ' + kindWords(id));
     }
     /* who buys it: the row's book value is what the server's bid and the market's rule read */
@@ -1417,10 +1417,10 @@ async function planRules(base) {
   const noneFree = blessed([], 0), oneOn = blessed([1], 450), allOn = blessed([1, 2, 3], 450);
   /* AW-97 while the Blessings are free, Before you go says nothing of them: the summary's Bless step is the one place (first-30 play 2026-11-12) */
   if (/Blessing/.test(noneFree)) fails.push('AW-97 no Blessings, free, still nags before you go: ' + JSON.stringify(noneFree));
-  if (!oneOn.endsWith("Blessings: 1 of 3, 25% less death XP loss (next one 450 gp in the Shop)")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
-  if (!allOn.endsWith('Blessings: 3 of 3, 75% less death XP loss')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
+  if (!oneOn.endsWith("Blessings: 1 of 3, -25% death XP loss (next 450 gp in Shop)")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
+  if (!allOn.endsWith('Blessings: 3 of 3, -75% death XP loss')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
   const nonePaid = blessed([], 450), oneFree = blessed([1], 0);
-  if (!nonePaid.endsWith("Blessings: none (they cut death XP loss, first one 450 gp in the Shop)")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
+  if (!nonePaid.endsWith("Blessings: none (cut death XP loss, first one 450 gp in Shop)")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
   if (/Blessing/.test(oneFree)) fails.push('AW-97 one Blessing, the rest free, still nags before you go: ' + JSON.stringify(oneFree));
   /* AW-27 A MOVE THE WORN WEAPON CAN'T USE SPENDS NOTHING: a club hero is not warned about Flame Volley's runes (QA 2026-11-04) */
   const clubSay = say(sess({ hunt_settings: { preset: 0, presets: [], discipline: 'club', slots: [slot('ability', 'flame_volley', 0), slot('ability', 'power_strike', 0)], store: RUNES } }));
@@ -1676,7 +1676,7 @@ async function planRules(base) {
   if (/critical chance ends/.test(UP.upgradeWords(stepOf({ weapon: 'bronze_sword', body: 'bronze_platebody' }, ['iron_platebody'])))) fails.push('AW-21 a step that ends no set says it ends one');
   /* A tie that stands says why the button is off (playtest 2026-10-29 #11: the line was hidden, nothing said). */
   const tieSaid = UP.upgradeWords(tieOf(null));
-  if (tieSaid !== 'No clear upgrade. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll or pick an armor weight at Tamsin\'s.')
+  if (tieSaid !== 'No clear upgrade. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll or at Tamsin\'s.')
     fails.push('AW-21 a standing tie reads ' + JSON.stringify(tieSaid));
   /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
      called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
@@ -1757,16 +1757,16 @@ async function planRules(base) {
     if (!big || big[0].max !== 100000 || big[0].have !== 250000) fails.push('AW-65 a stack past one carry offers ' + JSON.stringify(big));
     const pack = carryRows(hunting(open));
     const food = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, pack);
-    if (!food || !food.strike || food.text !== 'You have none in this hunt, and 40 Cooked Shrimp wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
+    if (!food || !food.strike || food.text !== 'None in this hunt. 40 Cooked Shrimp in your backpack (press this slot to carry them in)') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
     const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, null, pack);
-    if (!rune || rune.text !== 'Each cast uses a Fire rune. You have none in this hunt, and 14 wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
+    if (!rune || rune.text !== 'No Fire rune in this hunt (one each cast). 14 in your backpack (press this slot to carry them in)') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
     /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the server struck a spell whose runes are all above the hero's level: the slot says that, not "the server says". */
     const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null, null);
-    if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^You can’t cast with your Fire runes yet\./.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
+    if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Can't cast Fire runes yet/.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
     /* THE RUNE LADDER (2027-03-08-rune-ladder-slots.sql): a store rune above the hero's level says which rune and what it needs, not "the server says". */
     const SCORED = STORE.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 }]);
     const over = reasonOf({ ...spell, action: { ...spell.action, store: 'plain_scored_fire_rune' }, usable: false, why: 'store_level' }, { slots: bar, store: SCORED, discipline: 'destruction', supplySource: 'mine', onEmpty: 'switch' }, [], null, null, { magic: { xp: 1, level: 14 } }, null);
-    if (!over || over.code !== 'store_level' || !over.strike || !/^Scored Fire Rune needs Magic 15\. This slot waits until then/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
+    if (!over || over.code !== 'store_level' || !over.strike || !/^Scored Fire Rune requires Magic 15\. Pick a lower rune/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
     /* ...and a slot the server calls ready is not struck by the browser, whatever the backpack says (the hunt bag holds its runes). */
     const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, null, []);
     if (ready) fails.push('AW-65 a spell with runes in the hunt bag and none in the backpack reads ' + JSON.stringify(ready));
@@ -1783,7 +1783,7 @@ async function planRules(base) {
     const [atLevel] = carryFor(archer(45), waitSlot.action) || [];
     if (!atLevel || atLevel.wait !== null) fails.push('AW-65 a shot at its level still says it waits: ' + JSON.stringify(atLevel));
     const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 45 } }, carryRows(archer(45)));
-    if (!woke || woke.code !== 'stock' || woke.text !== 'You have none in this hunt, and 40 Mithril Arrows wait in your backpack. Press this slot to carry them in.') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
+    if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt. 40 Mithril Arrows in your backpack (press this slot to carry them in)') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
     const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, null);
     if (!none || none.text !== 'You’re out of Cooked Shrimp. Your next food or drink slot takes over.') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
   }

@@ -72,7 +72,7 @@ export function afterHuntWords(st, h, nowMs, name) {
   const a = afterHuntOf(st, h, nowMs);
   if (!a) return '';
   if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
-  const next = t(a.next, a.next === 'away.next_gather' ? { name } : undefined);
+  const next = t(a.next);
   return (a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) + ' ' : '') + next;
 }
 

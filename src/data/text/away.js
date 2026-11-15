@@ -16,7 +16,7 @@ export const AWAY_TEXT = Object.freeze({
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */
   after_waited: 'Then {name} waited in town for {time}.',
   /* The one next thing that would have filled the time, by what ended the hunt (after-hunt.js NEXT). */
-  next_gather: 'Start mining, chopping or fishing before a hunt and {name} goes back to it after.',
+  next_gather: 'Start mining, chopping or fishing before a hunt to resume it after.',
   next_longer: 'Set a longer hunt, up to your stamina.',
   next_food: 'Pack more food for a longer hunt.',
   next_ammo: 'Pack more ammo for a longer hunt.',

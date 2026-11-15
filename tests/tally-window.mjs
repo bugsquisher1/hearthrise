@@ -359,7 +359,7 @@ async function checks(overrides, shots) {
            gate: the note sat under 5 of 6 rows). sharedPieces read pick.pick while tally-intents.js hands it over as pick.kind, so it never showed. */
         const once = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]');
           return { notes: [...w.querySelectorAll('.ht-board-once')].filter((n) => n.getClientRects().length).map((n) => n.textContent), told: (w.textContent.match(/same piece/g) || []).length }; });
-        if (once.notes.length !== 1 || !/^When two tasks show the same piece, you get it once\./.test(once.notes[0]) || once.told !== 1) fails.push('TW-15 the once note reads ' + JSON.stringify(once));
+        if (once.notes.length !== 1 || !/^Shared piece: paid once/.test(once.notes[0]) || once.told !== 1) fails.push('TW-15 the once note reads ' + JSON.stringify(once));
         // TW-2: the visit hands the done task in, once
         await idle(page);
         const cl = sent(s, 'hr_tally_collect');
@@ -589,7 +589,7 @@ async function checks(overrides, shots) {
         const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-board-why');
           return { why: why.querySelector('span').textContent, off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), pick: w.querySelector('.ht-pick-line').textContent,
             pay: w.querySelector('.ht-row .ht-pay-name').textContent, toPicker: !w.querySelector('[data-hs-act="to-weight"]').hidden }; });
-        if (!seen.off || !/^Pick the armor weight she pays you in first/.test(seen.why) || seen.pay || /armor weight she pays/.test(seen.pick)) fails.push('TW-13 with no worn weight and no role her board reads ' + JSON.stringify(seen));
+        if (!seen.off || !/^Pick the armor weight she pays in first/.test(seen.why) || seen.pay || /armor weight she pays/.test(seen.pick)) fails.push('TW-13 with no worn weight and no role her board reads ' + JSON.stringify(seen));
         if (sent(s, 'hr_tally_set').length) fails.push('TW-13 with nothing to go on a weight was guessed');
         if (seen.toPicker) {
           await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');

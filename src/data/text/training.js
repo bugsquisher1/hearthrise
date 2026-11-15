@@ -9,7 +9,7 @@
 
 export const TRAINING_TEXT = Object.freeze({
   /* What the yard is, said once at the top. */
-  lead: 'Pick one combat skill and train it here. You pay by the hour and earn skill XP for that skill only. No Level XP, no loot, and no stamina used.',
+  lead: 'One skill, paid hourly. Skill XP only (no Level XP, loot, stamina)',
   your_hero: 'Your hero',
   purse: 'You have {gold} gold.',
 
@@ -41,7 +41,7 @@ export const TRAINING_TEXT = Object.freeze({
   run_paid: 'So far you have paid {gold} gold.',
 
   /* Why the last run ended (the section's last_stop.reason). */
-  ended_gold_out: '{name} stopped training {skill}. You ran out of gold for the next hour.',
+  ended_gold_out: '{name} stopped training {skill} (out of gold)',
   ended_hours: '{name} finished {skill} training. That was the longest one session can run.',
   ended_left: 'You stopped {name}\'s {skill} training.',
   ended_other: '{name} stopped training {skill}.',
@@ -49,13 +49,13 @@ export const TRAINING_TEXT = Object.freeze({
   /* Why Start is off, said before the press; the same words answer the server's refusal. */
   closed: 'The training yard is closed right now.',
   hunting: '{name} is out hunting. Come back to town to train.',
-  in_party: '{name} is in a party. Training is solo, so leave the party first.',
+  in_party: '{name} is in a party (training is solo)',
   short_gold: 'The first hour costs {fee} gold. You have {purse}.',
-  dummy_busy: '{who} is on your dummy at home right now. Only one hero can use it at a time.',
+  dummy_busy: 'Dummy in use by {who} (one hero at a time)',
 
   /* THE HOUSE DUMMY (the House window). */
   dummy_head: 'Training dummy',
-  dummy_lead: 'Your account gets one dummy. It trains as fast as the yard and costs no fee. Unlock one skill at a time. Each one costs more.',
+  dummy_lead: 'One per account: yard speed, no fee. Each skill unlock costs more',
   dummy_owned: 'Unlocked',
   dummy_locked: 'Locked',
   dummy_next: 'Next unlock: {price} gold',

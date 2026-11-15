@@ -990,7 +990,7 @@ async function runTests(mods) {
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
     ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
-      + 'Start mining, chopping or fishing before a hunt and Wrenna goes back to it after. Stamina now: 5 h 46 min.')
+      + 'Start mining, chopping or fishing before a hunt to resume it after. Stamina now: 5 h 46 min.')
       && !/ ago\./.test(night.text), 'the second night: ' + JSON.stringify(night && night.text));
     /* the line follows the record while the card is up: the wait grows, and it is the server's clock that says so */
     ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('waited in town for 5 h 56 min'), 'the wait is the record\'s now');
@@ -1015,9 +1015,9 @@ async function runTests(mods) {
   });
   t('R3d the hunt viewed: the summary card says what came after, from the server\'s pointer', () => {
     const atEnd = AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1');
-    eq(atEnd, 'Start mining, chopping or fishing before a hunt and Wrenna goes back to it after.', 'watched as it ends: the one next thing, no wait yet');
+    eq(atEnd, 'Start mining, chopping or fishing before a hunt to resume it after.', 'watched as it ends: the one next thing, no wait yet');
     const leftOpen = AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000)), 's-1');
-    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. Start mining, chopping or fishing before a hunt and Wrenna goes back to it after.', 'a page left open on the card');
+    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. Start mining, chopping or fishing before a hunt to resume it after.', 'a page left open on the card');
     eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');

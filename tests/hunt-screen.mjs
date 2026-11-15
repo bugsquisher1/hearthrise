@@ -1347,7 +1347,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const shown = await warn();
         /* A monster's biggest hit is "Max Hit" wherever the game shows it (Tyler 2026-11-11). */
-        const said = 'The ' + SEWER_BLOW.name + ' has a Max Hit of ' + SEWER_BLOW.hit + '. At ' + HS23_PCT + '% you have ' + HS23_AT + ' HP, so one hit can kill you before you eat.';
+        const said = SEWER_BLOW.name + ' Max Hit ' + SEWER_BLOW.hit + ' beats your ' + HS23_AT + ' HP at ' + HS23_PCT + '%. Eat sooner';
         if (safe !== '' || shown !== said) {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }
@@ -1509,7 +1509,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
-          [1, 'rune', /^Each cast uses a Fire rune, and you have none\. Pick the store’s rune/, true],
+          [1, 'rune', /^No Fire rune \(one each cast\)\. Pick the store's rune/, true],
           [2, 'none left', /^You’re out of Wheat Bread\. Your next food or drink slot takes over\.$/, true],
           [5, 'store off', /^You chose to leave the hunt instead of buying from the store\.$/, true],
           [7, 'server', /^This can’t fire right now\.$/, true],

@@ -281,7 +281,34 @@ export const LABEL_SENTENCE_RE = /^[A-Z][\w’'&-]*(?: [\w’'&-]+){0,2}: [a-z§
 export const PERSON_FIX = Object.freeze(Object.fromEntries([...PERSON_PHRASES.map(([r, , fix]) => [r, fix]),
   ['label-sentence', 'say it as a sentence: "Restores mana.", "Works with any weapon."'],
   ['no-verb', 'give it a verb: "Build the one before it first.", "You can buy this one next."'],
-  ['noun-stack', 'join the nouns with words: "the rune the store sells", "extra XP for a party"']]));
+  ['noun-stack', 'join the nouns with words: "the rune the store sells", "extra XP for a party"'],
+  ['label-long', 'outside lore a system line is the genre\'s label ("Recommended: 4+ players", "Requires Level 30", "Not enough gold"); a lore or '
+    + 'teaching row says so with @sentence in the comment over its block']]));
+
+/* ── THE LABELS (Tyler 2026-11-14) ────────────────────────────────────────────────────────────────────────────────────
+   "Captain Hask is built for a group of four or more. Alone, you still fight him, and he can kill you." was "not the voice for
+   stuff like that"; "Recommended: 4+ players" was "Perfect. Now do it like that for everything outside of actual lore." So a text
+   table row (src/data/text/*) of more than LABEL_MAX_WORDS words is red: warnings, hints, requirements, refusals, status lines,
+   page facts and tooltips are labels. LORE IS SENTENCES: the criers' table is lore, the coach cards and the wiki's pages teach,
+   and any other row that must stay a sentence (a help line that teaches its window) carries `@sentence: <why>` in a comment over
+   its block (rows up to the next blank line). Today's older rows are pinned in the voice baseline and only come off it. */
+export const LABEL_MAX_WORDS = 12;
+export const SENTENCE_TABLES_RE = /[\\/]src[\\/]data[\\/]text[\\/](?:criers|coach|wiki)\.js$/;
+/** The words a reader reads in a row (a {placeholder} or § is one word; a lone dash or plus sign is none). */
+export function wordCount(text) {
+  return (String(text).replace(/\{[a-z][A-Za-z0-9_]*\}/g, '§').match(/[A-Za-z0-9§][^\s]*/g) || []).length;
+}
+/** A row of labels breaks per line (a warning's "50% HP: …" lines): each line is one label, so the longest line is read. */
+export const longestLine = (text) => Math.max(0, ...String(text).split('\n').map(wordCount));
+/** Does a comment in the row's block (the lines above it, up to a blank line) carry @sentence? */
+export function sentenceTagged(src, at) {
+  const lines = src.slice(0, at).split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (i < lines.length - 1 && !lines[i].trim()) return false;
+    if (/@sentence\b/.test(lines[i])) return true;
+  }
+  return false;
+}
 
 /* A SENTENCE WITH NO VERB ("After the one before.", "The next home."): a sentence ending in . ! or ? with 3 or more words,
    none of them a verb. Read in the text table only, where every row is a whole sentence a window says: elsewhere a literal is
@@ -320,6 +347,8 @@ export function isVerb(word) {
   return VERBS.has(x) || /n't$|'(?:re|ll|ve|m|d)$/.test(x) || /^(?:it|that|there|here|what|who|he|she|let|where|how)'s$/.test(x)
     || (x.length >= 5 && /(?:ed|ing)$/.test(x));
 }
+/* 1 to 4 words, a colon, and a value: a label (the value may be a number, a placeholder or words). */
+const LABEL_VALUE_RE = /^[A-Z][\w’'&-]*(?: [\w’'&-]+){0,3}: \S/;
 const FRAGMENT_OPENER_RE = /^(?:No|Not|None|Nothing|More|Less|Still|Too|Already|Only|Best|Back|Plus|Never|Once|Same|Almost|Just|Yes|Thanks|Sorry|Up to|Out of)\b/;
 /** The sentences of `text` (a text table row, placeholders as §) that have no verb. */
 export function verbless(text) {
@@ -327,7 +356,8 @@ export function verbless(text) {
   for (const m of String(text).matchAll(/[^.!?]+[.!?](?=\s|$)/g)) {
     const s = m[0].trim();
     const words = s.match(/[A-Za-z][A-Za-z'’-]*/g) || [];
-    if (words.length < 3 || FRAGMENT_OPENER_RE.test(s) || words.some(isVerb)) continue;
+    /* a LABEL with its value ("Heroes at once: 1.", "Time limit: 10 min.") is the genre's own form, not a sentence (Tyler 2026-11-14) */
+    if (words.length < 3 || FRAGMENT_OPENER_RE.test(s) || LABEL_VALUE_RE.test(s) || words.some(isVerb)) continue;
     out.push(s);
   }
   return out;
@@ -565,6 +595,9 @@ export async function scan(root, opts = {}) {
       if (!rules.includes('em-dash') && /^\s+—\s+$/.test(text)) rules.push('em-dash');
       /* THE PERSON TEST: a pinned line (the voice baseline) is the debt the sweep pays down, anything else is red. */
       const person = prose(text) ? personRules(text, table) : [];
+      /* THE LABELS: a long row outside lore (src/data/text/*, the controls' glossary aside: control-long reads it) */
+      if (table && prose(text) && !CONTROLS_TABLE_RE.test(f) && !SENTENCE_TABLES_RE.test(f) && longestLine(text) > LABEL_MAX_WORDS
+        && !sentenceTagged(src, at)) person.push('label-long');
       /* THE CONTROLS: a controls.* row, a btn_/tab_/button_ row, or a static <button>/<summary> label in src/shell or src/app */
       const controls = [];
       if (table) {
@@ -858,6 +891,27 @@ async function selftest() {
       .filter((f) => PERSON.includes(f.rule));
     console.log(`  ${fine.length ? 'FALSE-POSITIVE' : 'ignored'}  PERSON rules on lines judged fine${fine.length ? ': ' + fine.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
     if (fine.length) bad++;
+    // THE LABELS (Tyler 2026-11-14): the rejected group warning is red as a table row; the same row in the criers' table (lore), under an
+    // @sentence comment, or outside the text table is quiet; a row after the tagged block's blank line is red again; the labels he
+    // approved ("Recommended: 4+ players", a line of labels with breaks, a label and its value) trip no rule at all.
+    const HASK = "'Captain Hask is built for a group of four or more. Alone, you still fight him, and he can kill you.'";
+    const labelHits = async (file, body) => { writeFileSync(file, body); return (await scan(HERE_ROOT, { files: [file] })).findings.filter((f) => f.rule === 'label-long').length; };
+    const criersPlant = join(tmp, 'src', 'data', 'text', 'criers.js');
+    const lr = [
+      ['a long system row in the table', await labelHits(tablePlant, 'export const T = Object.freeze({ party_boss: ' + HASK + ' });\n'), 1],
+      ['the same row in the criers\' table (lore)', await labelHits(criersPlant, 'export const T = Object.freeze({ party_boss: ' + HASK + ' });\n'), 0],
+      ['the same row under @sentence', await labelHits(tablePlant, 'export const T = Object.freeze({\n  /* her talk (@sentence: NPC talk is lore) */\n  a: ' + HASK + ',\n  b: ' + HASK + ',\n\n  c: ' + HASK + ',\n});\n'), 1],
+      ['the same line outside the table', await labelHits(plant, 'export const a = ' + HASK + ';\n'), 0],
+    ];
+    for (const [what, got, want] of lr) {
+      console.log(`  ${got === want ? (want ? 'caught' : 'ignored') : want ? 'MISSED' : 'FALSE-POSITIVE'}  label-long: ${what} (${got} of ${want})`);
+      if (got !== want) bad++;
+    }
+    writeFileSync(tablePlant, "export const T = Object.freeze({ a: 'Recommended: {n}+ players', b: 'Hits harder than on the ground\\n50% HP: adds attack your non-tanks\\n25% HP: hits even harder\\nEnds if anyone dies',"
+      + " c: 'Heroes at once: 1. Sign out to pick {name}', d: 'Cost: {fee} gp, win or lose\\nNo XP, coin or drops\\nTime limit: {minutes} min', e: 'Requires Level 30', f: 'Not enough gold' });\n");
+    const labelsFine = (await scan(HERE_ROOT, { files: [tablePlant] })).findings;
+    console.log(`  ${labelsFine.length ? 'FALSE-POSITIVE' : 'ignored'}  the genre labels Tyler approved${labelsFine.length ? ': ' + labelsFine.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
+    if (labelsFine.length) bad++;
     // The voice baseline: a pinned line is quiet, a pin shelters only its own file, and a pinned line that is gone is stale-voice.
     writeFileSync(plant, "export const a = 'The server says this cannot fire now.';\n");
     const unpinned = (await scan(HERE_ROOT, { files: [plant] })).findings.find((f) => f.rule === 'server-talk');

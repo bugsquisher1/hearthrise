@@ -14,5 +14,5 @@ export const PARTY_TEXT = Object.freeze({
   class_none: 'No extra Level XP in {place}',
   class_same: 'Level XP each: about the same as solo in {place}',
   class_more: 'Level XP each: about +{pct}% vs solo in {place}',
-  class_less: 'Level XP each: about -{pct}% vs solo in {place} (mix {classes} for more)',
+  class_less: 'Level XP each: about -{pct}% vs solo in {place} (mix {classes})',
 });

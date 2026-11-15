@@ -836,7 +836,7 @@ async function pureRules(M, base) {
     const L = M.PRO.classXpLine;
     const head = (k) => 'Classes: ' + k + ' of 4. ';
     const more = (k, vs, place) => head(k) + 'Level XP each: about +' + vs + '% vs solo in ' + place;
-    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + ' (mix Melee, Ranger, Mage and Healer for more)';
+    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + ' (mix Melee, Ranger, Mage and Healer)';
     for (const [roles, hunt, want] of [
       [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
@@ -890,7 +890,7 @@ async function pureRules(M, base) {
       members: [{ seat: 0, name: 'Bramwell', level: 6, weapon: w1, hunting: false }, { seat: 1, name: 'Wrenna', level: 6, weapon: w2, hunting: false }] });
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
-    if (before[0] !== 'tank,tank' || !/has 1 of 4 classes/.test(before[2])) return 'two shields read ' + JSON.stringify(before);
+    if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4\./.test(before[2])) return 'two shields read ' + JSON.stringify(before);
     if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/Classes: 2 of 4\. Level XP each: about \+45% vs solo in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');

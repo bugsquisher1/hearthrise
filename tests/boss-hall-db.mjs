@@ -510,7 +510,7 @@ const MUTANTS = [
   { name: 'another seat\'s key is never spent', fn: FN.verb, find: "      delete from public.player_inventory where user_id = v_ku and slot = v_ks and item_id = v_h.key_item and qty = 1;\n      get diagnostics v_n = row_count;\n      if v_n = 0 then", repl: "      v_n := 1;\n      if v_n = 0 then", arm: 'verb', want: /HD-SEAT/ },
   { name: 'the holder\'s ledger says nothing', fn: FN.verb, find: "        values (v_ku, v_ks, 'shop', v_verb, v_h.key_item, -1, 0, 0, 0, 0, 0, v_meta);", repl: "        select v_ku, v_ks, 'shop', v_verb, v_h.key_item, -1, 0, 0, 0, 0, 0, v_meta where false;", arm: 'verb', want: /HD-SEAT/ },
   { name: 'the key is read before the seats are locked', fn: FN.verb, find: '      perform public.hr_hunt_lock(v_m.user_id, v_m.slot);\n', repl: '      null;\n', arm: 'verb', want: /HD-SEAT the verb reads whose key before it locks/ },
-  { name: 'a member\'s locked key is taken', fn: FN.keyOf, find: 'or not public.hr_item_locked(m.user_id, m.slot, p_item))', repl: 'or true)', arm: 'verb', want: /HD-SEAT a member's locked key/ },
+  { name: 'a member\'s locked key is taken', fn: FN.keyOf, find: 'where r.user_id = m.user_id and r.slot = m.slot and r.item_id = p_item and r.locked))', repl: 'where false))', arm: 'verb', want: /HD-SEAT a member's locked key/ },
   { name: 'the leader\'s key is not first', fn: FN.keyOf, find: 'order by (m.user_id = p.leader_user and m.slot = p.leader_slot) desc, m.seat', repl: 'order by m.seat desc', arm: 'verb', want: /HD-PARTY/ },
   /* THE DAILY PRIZE (2027-04-25-boss-daily.sql) */
   { name: 'the engine\'s read carries no prize', fn: FN.read, find: "'prize_left', public.hr_boss_prize_left(h.user_id, h.slot, v_i.hunt_id),", repl: "'prize_left', null,", arm: 'doors', want: /HD-DAILY/ },

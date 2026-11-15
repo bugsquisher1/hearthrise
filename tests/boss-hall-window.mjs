@@ -102,7 +102,8 @@ async function checks(overrides) {
           const read = () => ({ hidden: q('.hw-hd-hall').hidden, line: q('.hw-call-line').textContent, press: q('.hw-call-press').textContent,
             off: q('.hw-call-press').disabled, warn: q('.hw-call-warn').classList.contains('is-on'), title: q('.hw-confirm-q').textContent,
             alone: q('.hw-hall-note-alone').hidden ? null : q('.hw-hall-note-alone').textContent, a: q('.hw-hall-note-a').textContent, b: q('.hw-hall-note-b').textContent,
-            go: q('[data-hs-act="hall-go"]').textContent, loot: q('.hw-hall-loot').textContent });
+            go: q('[data-hs-act="hall-go"]').textContent, loot: Array.from(det.querySelectorAll('.hw-hall-loot li'), (li) => li.textContent).join('|'),
+            lootNote: q('.hw-hall-note-loot').hidden ? null : q('.hw-hall-note-loot').textContent });
           return { det, ctx, vv, read, h };
         };
         const leader = { id: 'p', isLeader: true, seats: [{ seat: 0 }, { seat: 1 }] }, member = { id: 'p', isLeader: false, seats: [{ seat: 0 }, { seat: 1 }] };
@@ -192,7 +193,7 @@ async function checks(overrides) {
     if (pn.two.off || pn.two.line !== 'You have 2 keys.') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
     /* a member holding a key is told it counts: any seat's key opens the hall, the leader makes the press (lane/c-krell-daily; the hand play
        2026-11-14: a key dropped to seat 2 had to be walked to the leader) */
-    if (!pn.member.off || pn.member.line !== 'Goblin Totem: 1 · Your leader opens the hall') fails.push('BH-1 a member with a key reads ' + JSON.stringify(pn.member));
+    if (!pn.member.off || pn.member.line !== 'Goblin Totem: 1, your leader opens the hall') fails.push('BH-1 a member with a key reads ' + JSON.stringify(pn.member));
     if (!pn.memberNone.off || pn.memberNone.line !== 'Only your party\'s leader can open it.') fails.push('BH-1 a member with no key reads ' + JSON.stringify(pn.memberNone));
     if (!pn.hunting.off || !/^Not while you're hunting/.test(pn.hunting.line)) fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
     if (pn.leader.off) fails.push('BH-1 a party\'s leader with a key is off');
@@ -214,17 +215,17 @@ async function checks(overrides) {
     const d = r.daily;
     if (d.seatKey.off || d.seatKey.line !== 'Goblin Totem: held by Mender') fails.push('BH-5 a leader whose party holds the key in another seat reads ' + JSON.stringify(d.seatKey));
     if (!d.seatKeyNoParty.off || d.seatKeyNoParty.line !== pn.none.line) fails.push('BH-5 a lone hero reads another seat\'s key: ' + JSON.stringify(d.seatKeyNoParty));
-    if (!d.memberHolds.off || d.memberHolds.line !== 'Goblin Totem: 2 · Your leader opens the hall') fails.push('BH-5 a member holding two reads ' + JSON.stringify(d.memberHolds));
+    if (!d.memberHolds.off || d.memberHolds.line !== 'Goblin Totem: 2, your leader opens the hall') fails.push('BH-5 a member holding two reads ' + JSON.stringify(d.memberHolds));
     if (!d.memberSeat.off || d.memberSeat.line !== 'Goblin Totem: held by Mender') fails.push('BH-5 a member with none, the key in another seat, reads ' + JSON.stringify(d.memberSeat));
     if (!d.seatWarn.warn || !/^It uses up Mender's Goblin Totem, win or lose\./.test(d.seatWarn.b)) fails.push('BH-5 the warning for another seat\'s key reads ' + JSON.stringify(d.seatWarn.b));
     if (d.seatSent.join() !== 'hr_boss_hall_enter') fails.push('BH-5 the confirm for another seat\'s key sent ' + JSON.stringify(d.seatSent));
     /* BH-6: THE DAILY PRIZE (2027-04-25-boss-daily.sql), label lines, the wait on the server's clock */
-    if (d.seatKey.loot !== 'Loot: available · Party: 2 of 2') fails.push('BH-6 a party with the day\'s prize to take reads ' + JSON.stringify(d.seatKey.loot));
-    if (d.taken.loot !== 'Loot: claimed today · Next: 6 h 12 m') fails.push('BH-6 a hero who took it today reads ' + JSON.stringify(d.taken.loot));
+    if (d.seatKey.loot !== 'Loot: available|Party loot: 2 of 2') fails.push('BH-6 a party with the day\'s prize to take reads ' + JSON.stringify(d.seatKey.loot));
+    if (d.taken.loot !== 'Loot: claimed today|Next: 6 h 12 m') fails.push('BH-6 a hero who took it today reads ' + JSON.stringify(d.taken.loot));
     if (d.left.loot !== 'Loot: available') fails.push('BH-6 a hero with the day\'s to take reads ' + JSON.stringify(d.left.loot));
     if (d.noSection.loot !== '' || pn.one.loot !== '') fails.push('BH-6 with no word from the server the loot line reads ' + JSON.stringify([d.noSection.loot, pn.one.loot]));
-    if (!/ Loot: none today · Key: still used$/.test(d.noneWarn.b)) fails.push('BH-6 with nobody able to take today\'s prize the confirm reads ' + JSON.stringify(d.noneWarn.b));
-    if (/Loot: none/.test(d.seatWarn.b) || /Loot: none/.test(r.warned.b)) fails.push('BH-6 the confirm says no loot when there is some: ' + JSON.stringify([d.seatWarn.b, r.warned.b]));
+    if (d.noneWarn.lootNote !== 'Loot: none today, the key is still used') fails.push('BH-6 with nobody able to take today\'s prize the confirm reads ' + JSON.stringify(d.noneWarn.lootNote));
+    if (d.seatWarn.lootNote !== null || r.warned.lootNote !== null) fails.push('BH-6 the confirm says no loot when there is some, or the server has not said: ' + JSON.stringify([d.seatWarn.lootNote, r.warned.lootNote]));
     for (const [k, x] of Object.entries(d)) if (!Array.isArray(x) && /[{}]/.test(Object.values(x).join(' '))) fails.push('BH-5 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
     for (const e of errors) fails.push('BH page error: ' + e.slice(0, 160));
     await ctx.close();
@@ -255,11 +256,11 @@ const MUTANTS = [
   { name: 'the press reads another seat\'s key with no party', file: 'src/shell/windows/boss-hall-pane.js', from: 'const seatKeyOf = (st, party) => (party && st && st.key && st.key.own !== true ? st.key : null);', to: 'const seatKeyOf = (st) => (st && st.key ? st.key : null);', want: /BH-5/ },
   { name: 'the confirm never sends for another seat\'s key', file: 'src/shell/windows/boss-hall-pane.js', from: 'if (!hall || (keysOf(cs, hall) < 1 && !seatKeyOf(hallStateOf(cs, hall.id), partyMembershipOf(cs)))) return true;', to: 'if (!hall || keysOf(cs, hall) < 1) return true;', want: /BH-5/ },
   { name: 'the warning says the key is yours when it is a seat\'s', file: 'src/shell/windows/boss-hall-pane.js', from: "const whose = keys > 0 || !seatKey ? W.whose.own : W.whose.seat.replace('{name}', seatKey.name || W.someHero);", to: 'const whose = W.whose.own;', want: /BH-5/ },
-  { name: 'the loot line is never shown', file: 'src/shell/windows/boss-hall-pane.js', from: "  text(box.querySelector('.hw-hall-loot'), lootWords(cs, st));", to: "  text(box.querySelector('.hw-hall-loot'), '');", want: /BH-6/ },
-  { name: 'a claimed day reads as available', file: 'src/shell/windows/boss-hall-pane.js', from: 'out = [st.taken ? W.taken : W.left];', to: 'out = [W.left];', want: /BH-6/ },
+  { name: 'the loot line is never shown', file: 'src/shell/windows/boss-hall-pane.js', from: "rows(box.querySelector('.hw-hall-loot'), lootLines(cs, st),", to: "rows(box.querySelector('.hw-hall-loot'), [],", want: /BH-6/ },
+  { name: 'a claimed day reads as available', file: 'src/shell/windows/boss-hall-pane.js', from: 'const out = [st.taken ? W.taken : W.left];', to: 'const out = [W.left];', want: /BH-6/ },
   { name: 'the wait reads the browser\'s clock', file: 'src/shell/windows/boss-hall-pane.js', from: '  const now = serverNowOf(cs);\n  if (st.taken', to: '  const now = Date.now();\n  if (st.taken', want: /BH-6/ },
   { name: 'the loot line is made up with no word from the server', file: 'src/session/boss-quote.js', from: "  if (!s || typeof s !== 'object' || typeof s.taken !== 'boolean') return null;", to: "  if (!s || typeof s !== 'object' || typeof s.taken !== 'boolean') return { taken: false, nextAtMs: null, key: null, seats: 1, left: 1 };", want: /BH-6/ },
-  { name: 'nobody is told the key is still used with no loot to take', file: 'src/shell/windows/boss-hall-pane.js', from: "+ (st && st.left === 0 ? ' ' + W.loot.none : '')", to: '', want: /BH-6/ },
+  { name: 'nobody is told the key is still used with no loot to take', file: 'src/shell/windows/boss-hall-pane.js', from: 'const none = !!st && st.left === 0;', to: 'const none = false;', want: /BH-6/ },
   { name: 'a party is told it walks in alone', file: 'src/shell/windows/boss-hall-pane.js', from: "prop(a, 'hidden', !alone);", to: "prop(a, 'hidden', false);", want: /BH-2|BH-1/ },
 ];
 

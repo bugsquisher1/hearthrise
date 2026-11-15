@@ -96,17 +96,18 @@ export const BOSS_HALL_WORDS = Object.freeze({
   /* ANY SEAT'S KEY OPENS THE HALL (2027-04-24-hall-key-any-seat.sql: the leader's own first, else the first seat's that holds one it has not
      locked), and the leader still makes the press. So a member who holds one is told it counts, as a label (Tyler 2026-11-14: labels, never
      sentences, outside lore). {n} this hero's keys. */
-  memberKey: '{key}: {n} · Your leader opens the hall',
-  /* THE DAILY PRIZE (Tyler 2026-11-14 "a daily kill"; 2027-04-25-boss-daily.sql). Label lines, every one read from the server's own
-     `boss_halls` section (src/session/boss-quote.js hallStateOf), never from this browser's clock or bag. {in} the wait to the server's next
-     day ("6 h 12 m"), {n} of {m} the heroes this open marches in who can still take today's. `none` is the confirm's own line when nobody
-     would: the key is used all the same. */
+  memberKey: '{key}: {n}, your leader opens the hall',
+  /* THE DAILY PRIZE (Tyler 2026-11-14 "a daily kill"; 2027-04-25-boss-daily.sql). Label lines, one a line, every one read from the server's
+     own `boss_halls` section (src/session/boss-quote.js hallStateOf), never from this browser's clock or bag. {in} the wait to the server's
+     next day ("6 h 12 m"), {n} of {m} the heroes this open marches in who can still take today's. `none` is the confirm's own line when
+     nobody would: the key is used all the same. `label` names the list for a screen reader. */
   loot: Object.freeze({
+    label: 'Loot',
     left: 'Loot: available',
     taken: 'Loot: claimed today',
     next: 'Next: {in}',
-    party: 'Party: {n} of {m}',
-    none: 'Loot: none today · Key: still used',
+    party: 'Party loot: {n} of {m}',
+    none: 'Loot: none today, the key is still used',
   }),
   warnTitle: 'Fight {boss}?',
   warn: Object.freeze([

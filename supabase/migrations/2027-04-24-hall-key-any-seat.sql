@@ -16,7 +16,7 @@
 -- hr_boss_hall_key_of(p_party uuid, p_user uuid, p_slot int, p_item text) -> jsonb   (internal; no client role executes it)
 --   WHOSE KEY AN OPEN TAKES, the one rule the verb and the page's section both read, so the page can never name a key the press won't take:
 --   a hero in no party (p_party null): its own, if it holds one. A party: the LEADER's own first (as before), else the first seat's, in seat
---   order, that holds one NOT UNDER ITS OWN LOCK (the bag's lock, hr_item_locked: "nothing spends a locked item" is that hero's own word, and it
+--   order, that holds one NOT UNDER ITS OWN LOCK (the bag's lock, player_item_rules.locked: "nothing spends a locked item" is that hero's own word, and it
 --   is the only say a member has over a press it does not make). The leader's own key is taken locked or not: the press is the leader's own.
 --   -> { user, slot, seat } (seat null alone), or null when no seat holds a key the open may take.
 -- hr_boss_hall_enter(p_slot int, p_hall text, p_idem uuid) -> jsonb   authenticated, MONEY. RESTATED WHOLE (signature, grants and every refusal
@@ -67,7 +67,7 @@ declare v_md5 text;
 begin
   if to_regclass('public.hr_boss_halls') is null or to_regclass('public.player_item_rules') is null or to_regclass('public.hunt_party_members') is null then
     raise exception 'PRECONDITION: hr_boss_halls (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql), player_item_rules and hunt_party_members first'; end if;
-  if to_regprocedure('public.hr_boss_hall_enter(integer,text,uuid)') is null or to_regprocedure('public.hr_item_locked(uuid,integer,text)') is null
+  if to_regprocedure('public.hr_boss_hall_enter(integer,text,uuid)') is null or to_regclass('public.player_inventory') is null
      or to_regprocedure('public.hr_hunt_lock(uuid,integer)') is null or to_regprocedure('public.hr_hunt_party_start(integer,text,uuid)') is null
      or to_regprocedure('public.hr_hunt_enter_for(uuid,integer,text,jsonb,integer,integer)') is null
      or to_regprocedure('public.hr_apply(uuid,integer,bigint,uuid,jsonb)') is null or to_regprocedure('public.hr_intent_replay(uuid,integer,uuid,text)') is null
@@ -76,8 +76,8 @@ begin
   -- THE PIN: hr_boss_hall_enter is restated below from 2027-04-20-boss-hall.sql's image (production's, tests/live-hash-drift.baseline.json
   -- measured 2026-11-14, equal to the replay's), or is this file's own (a second apply). A body moved since must be re-read first.
   v_md5 := md5(regexp_replace(pg_get_functiondef('public.hr_boss_hall_enter(integer,text,uuid)'::regprocedure), '[[:space:]]+', ' ', 'g'));
-  if v_md5 not in ('e372397f32ca0f051259cb1af5dd6a32', 'c2cdf6179ab8fb1b5bfb5c45ce522d56') then
-    raise exception 'PIN: hr_boss_hall_enter is neither the image this file restates (e372397f32ca0f051259cb1af5dd6a32) nor its own (c2cdf6179ab8fb1b5bfb5c45ce522d56): md5 % - another file moved it', v_md5;
+  if v_md5 not in ('e372397f32ca0f051259cb1af5dd6a32', '0d1b1cd92450ca924a9653be67af13e4') then
+    raise exception 'PIN: hr_boss_hall_enter is neither the image this file restates (e372397f32ca0f051259cb1af5dd6a32) nor its own (0d1b1cd92450ca924a9653be67af13e4): md5 % - another file moved it', v_md5;
   end if;
 end $mig$;
 
@@ -100,7 +100,10 @@ begin
     join public.hunt_parties p on p.id = m.party_id
     join public.player_inventory i on i.user_id = m.user_id and i.slot = m.slot and i.item_id = p_item and i.qty >= 1
    where m.party_id = p_party
-     and ((m.user_id = p.leader_user and m.slot = p.leader_slot) or not public.hr_item_locked(m.user_id, m.slot, p_item))
+     and ((m.user_id = p.leader_user and m.slot = p.leader_slot)
+          -- the bag's lock, read as hr_item_locked reads it, inline: planned once with this query, never a call a row
+          or not exists (select 1 from public.player_item_rules r
+                          where r.user_id = m.user_id and r.slot = m.slot and r.item_id = p_item and r.locked))
    order by (m.user_id = p.leader_user and m.slot = p.leader_slot) desc, m.seat
    limit 1;
   if not found then return null; end if;
@@ -185,7 +188,7 @@ begin
         v_no := v_a || jsonb_build_object('ok', false); raise exception using errcode = 'HR879', message = 'hall_refused'; end if;
       -- A KEY THIS CALL DID NOT DECIDE (never reached while the read under the locks holds) opens nothing: its seats roll back out.
       if coalesce(v_a->>'replayed', 'false') = 'true' then
-        v_no := v_a || jsonb_build_object('ok', false, 'error', 'replayed'); raise exception using errcode = 'HR879', message = 'hall_refused'; end if;
+        v_no := v_a; raise exception using errcode = 'HR879', message = 'hall_refused'; end if;
     else
       -- ANOTHER SEAT'S: hr_apply acts for the signed-in caller only (forbidden_impersonation), so the one unit is written here, the way
       -- hr_market_buy writes a seller's side: under that hero's character lock (taken above, in seat order), exactly one, never below zero.

@@ -68,6 +68,7 @@ async function load(root) {
     maps: await imp('src/data/world/maps/index.js'), terrain: await imp('src/data/world/terrain.js'), mapc: await imp('src/world/core/map-compile.js'),
     sets: await imp('src/data/world/atlas-sets.js'), gathering: await imp('src/data/gathering.js'), budget: await imp('src/data/world/art-budget.js'),
     kit: await imp('src/data/start-kit.js'), packs: (await imp('src/data/grounds/index.js')).GROUND_PACKS,
+    art: await imp('src/data/monster-art.js'),
   };
 }
 
@@ -302,8 +303,9 @@ const cases = {
       const g = M.grounds.HUNT_GROUNDS[id];
       const kinds = new Set(g.pockets.flatMap((p, i) => packAt(M, g, i, 8).map((s) => s.monster)));
       for (const k of kinds) {
-        const s = spr[k];
-        if (!s) return id + ': ' + k + ' has no sprite in a loaded atlas';
+        /* the renderer's one rule (hunt-view/scene.js spriteOf): a kind drawn as another (HUNT_ART_ALIAS, the Ford's Ledger Wight as the March's wight) needs THAT sprite */
+        const worn = M.art.HUNT_ART_ALIAS[k] || k, s = spr[worn];
+        if (!s) return id + ': ' + k + (worn !== k ? ' (drawn as ' + worn + ')' : '') + ' has no sprite in a loaded atlas';
         for (const a of ['idle', 'walk']) for (const d of M.budget.FACINGS) if (!(s.anims[a] && s.anims[a].dirs[d] && s.anims[a].dirs[d].length)) return id + ': ' + k + ' has no ' + a + ' ' + d;
       }
     }
@@ -514,6 +516,9 @@ const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4
   ['src/data/world/maps/index.js', "meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64, ...packMaps('open')]);", "meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64, ...packMaps('open')]);"],
   ['src/data/world/maps/index.js', "export const STAGED_MAPS = Object.freeze([...packMaps('staged')]);", "export const STAGED_MAPS = Object.freeze([mosslightGlade, ...packMaps('staged')]);"]];
 const mutants = [
+  /* an open pack's body drawn as another (HUNT_ART_ALIAS) whose sprite no atlas carries: the renderer would draw nothing */
+  { name: 'the Ford\'s Ledger Wight drawn as a wight no atlas carries', case: 'walk-art',
+    edits: [['src/data/monster-art.js', "  ledger_wight: 'wight',", "  ledger_wight: 'wight_gone',"]] },
   /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */
   { name: 'the glade open on a ground no atlas carries', case: 'staged-until-art',
     edits: [['src/data/world/maps/mosslight_glade.js', "  ground: 'mosslight_ground',", "  ground: 'mosslight_ground_gone',"]] },

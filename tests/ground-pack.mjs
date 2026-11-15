@@ -258,13 +258,19 @@ async function main() {
   if (argv.includes('--fold')) {
     await gp7();
     gp8();
-    const grounds = childJson(`import { OPEN_GROUNDS } from './src/data/hunt-grounds.js'; console.log(JSON.stringify(Object.keys(OPEN_GROUNDS).filter((g) => !g.startsWith('${FIX}'))));`);
+    /* the BASE grounds (authored in the old files) are planted as packs; an open pack is a pack already, with no base path to
+       compare (GP-5) and rows that may name a lower pack's monsters (Muster Barrows' wave is the Ford's Pikemen), so it is not
+       re-planted: its own shipped file goes into GP-6 beside the planted ones, folded with them */
+    const grounds = childJson(`import { OPEN_GROUNDS } from './src/data/hunt-grounds.js'; import { GROUND_PACKS } from './src/data/grounds/index.js';
+      const packs = new Set(GROUND_PACKS.map((p) => p.id));
+      console.log(JSON.stringify(Object.keys(OPEN_GROUNDS).filter((g) => !g.startsWith('${FIX}') && !packs.has(g))));`);
+    const openPacks = packIds().filter((id) => packSqlOf(id) && !COVERED.every((g) => foldedPacks(outOf(g)).includes(id)));
     const planted = await plantAll(grounds);
     try {
       const ships = Object.fromEntries(planted.map((id) => [id, shipText(id)]));
       await gp5(grounds, ships);
-      const moved = await gp6(ships);
-      ok(!moved.length, 'GP-6 the whole files move ' + moved.join(', ') + ' over the six pack files: the additive path is not the whole one');
+      const moved = await gp6({ ...ships, ...Object.fromEntries(openPacks.map((id) => [id, shipText(id)])) });
+      ok(!moved.length, 'GP-6 the whole files move ' + moved.join(', ') + ' over the pack files: the additive path is not the whole one');
       const n = Object.values(ships).reduce((s, x) => s + x.sql.split('\n').length, 0);
       console.log('ground-pack --fold: ' + grounds.length + ' grounds as packs, ' + n + ' lines of additive SQL in all (' + Object.values(ships).map((x) => x.sql.split('\n').length).join(', ') + ')');
     } finally { unplant(planted); }

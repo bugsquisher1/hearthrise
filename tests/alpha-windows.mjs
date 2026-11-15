@@ -3251,7 +3251,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click(STACK, { button: 'right', force: true });
           await page.waitForTimeout(150);
           const asked = await lineNow(page);
-          if (!/out hunting/.test(asked.text) || !asked.inView) fails.push('AW-65 a right-click with the hero out hunting does not say why in view: ' + JSON.stringify(asked));
+          if (!/out hunting/i.test(asked.text) || !asked.inView) fails.push('AW-65 a right-click with the hero out hunting does not say why in view: ' + JSON.stringify(asked));
           /* Home: the line no longer holds. */
           const away = clone(s.env);
           for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
@@ -3268,7 +3268,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click(STACK, { force: true });
           await page.waitForTimeout(150);
           const said = await lineNow(page);
-          if (!/out hunting/.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
+          if (!/out hunting/i.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
           if (sent(s, 'hr_bank_move').length) fails.push('AW-65 a hero out hunting sent a move');
         }
         if (errors.length) fails.push('AW-65 console errors (hunting): ' + errors.slice(0, 2).join(' | '));

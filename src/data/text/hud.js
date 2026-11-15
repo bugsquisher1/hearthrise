@@ -20,7 +20,7 @@ export const HUD_TEXT = Object.freeze({
   medal: 'Level and experience',
   lv: 'Lv',
   level: 'Level',
-  level_xp: 'Level {level}: {pct}% to {next}',
+  level_to_next: 'Level {level}: {pct}% to {next}',
   stamina: 'Stamina: hunting time left',
   charm: 'Charm',
   charm_empty: 'Charm socket: empty',

@@ -118,7 +118,7 @@ export function patchHub(el, ctx) {
   text(el.querySelector('.hb-xp-v'), xp === null ? '' : Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '%');
   attr(el.querySelector('.hb-xp'), 'hidden', xp === null ? '' : null);
   attr(el.querySelector('.hb-medal'), 'title', level === null ? t('hud.level') : xp === null ? t('hud.level') + ' ' + level
-    : t('hud.level_xp', { level, pct: Math.floor(Math.max(0, Math.min(1, xp)) * 100), next: level + 1 }));
+    : t('hud.level_to_next', { level, pct: Math.floor(Math.max(0, Math.min(1, xp)) * 100), next: level + 1 }));
   text(el.querySelector('.hb-stam-v'), hoursMinutes(stam ? stam.msLeft : null));
   const food = foodOf(carriedOf(cs));
   const sock = el.querySelector('.hb-socket.is-food');

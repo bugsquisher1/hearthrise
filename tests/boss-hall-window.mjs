@@ -160,9 +160,10 @@ async function checks(overrides) {
     if (!pn.hunting.off || pn.hunting.line !== 'Not while hunting') fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
     if (pn.leader.off) fails.push('BH-1 a party\'s leader with a key is off');
     if (!pn.noHall.hidden) fails.push('BH-1 a ground with no hall shows the section');
-    if (pn.shrimp.bars !== 'Every hero needs Salted Lobster or better on their bar. Salted Shrimp can\'t keep up with him. An untouched bar mostly loses here. The bars that win him make these changes.'
-      || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Your bar buys Salted Shrimp. Press that slot on your bar and pick Salted Lobster before you go in.') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
-    if (pn.peer.food !== 'Mender\'s bar buys Salted Shrimp. Change that slot to Salted Lobster before you go in.') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
+    /* Labels (lane/d-labels-sweep, Tyler 2026-11-14 "Those are much better"): the food floor, then the "What wins" label over the tips. */
+    if (pn.shrimp.bars !== 'Requires Salted Lobster or better on every bar (Salted Shrimp can\'t keep up) What wins (default bars mostly lose here)'
+      || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Your bar buys Salted Shrimp. Pick Salted Lobster on that slot before you go in.') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
+    if (pn.peer.food !== 'Mender\'s bar buys Salted Shrimp. Change that slot to Salted Lobster.') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
     if (pn.lobster.food !== null || !pn.plainBars) fails.push('BH-1 the food line shows on Salted Lobster, or a hall with no advice shows a bar line: ' + JSON.stringify([pn.lobster, pn.plainBars]));
     for (const [k, x] of Object.entries(pn)) if (/[{}]/.test(Object.values(x).join(' '))) fails.push('BH-1 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
     /* BH-2 */

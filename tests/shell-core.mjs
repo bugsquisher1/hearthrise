@@ -1032,11 +1032,11 @@ async function runTests(mods) {
     eq(AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000), 'died', { hunt: 'krells_hold_hall' }), 's-1'), 'Then Wrenna waited in town for 2 h 0 min.', 'a hall lost, the page left open: the wait, no advice');
     const bar = { preset: 1, supply_source: 'mine', on_empty: 'switch', slots: [{ action: { type: 'consume', id: 'wheat_bread' } }] };
     const goldOut = (inventory) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'gold_out', { settings: bar, inventory }), 's-1');
-    eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Cooked Trout was in your bag but not on your bar, so Wrenna bought supplies until the gold ran out. Put it on your bar next time.', 'food in the bag, off the bar');
-    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.', 'only what the bar names: the old line');
-    eq(goldOut({}), 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.', 'nothing in the bag: the old line');
+    eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Tip: put Cooked Trout on your bar (Wrenna bought store supplies instead)', 'food in the bag, off the bar (the label, lane/d-labels-sweep)');
+    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'only what the bar names: the old line');
+    eq(goldOut({}), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'nothing in the bag: the old line');
     const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'gold_out', { settings: bar, inventory: { cooked_trout: 12 } })) || {}).text || '';
-    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Cooked Trout was in your bag but not on your bar'), 'the away card says it too: ' + away);
+    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Tip: put Cooked Trout on your bar'), 'the away card says it too: ' + away);
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
     ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
   });

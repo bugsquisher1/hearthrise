@@ -99,7 +99,7 @@ async function pure(base) {
     const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [BARE] : k === 'state' ? { level_xp: charXpForLevel(level) } : k === 'level' ? levelBlock(charXpForLevel(level)) : k === 'hunt' ? hunt : null), record: { residue: {} } };
     return deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why; };
   const under = whyAt(2, SESSION), floor = HUNT_INDEX[ROW.hunt].band[0];
-  if (under !== (floor - 2) + ' Levels under this ground. Better armor, eating sooner, a healer or more Levels would help.') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
+  if (under !== (floor - 2) + ' Levels under this ground (more Levels or better armor would help)') fail(fails, 'DP-0 a death under the floor reads ' + JSON.stringify(under));
   if (whyAt(floor, SESSION) !== 'Better armor, eating sooner or a smaller pull would help.') fail(fails, 'DP-0 a death in range reads ' + JSON.stringify(whyAt(floor, SESSION)));
   if (whyAt(2, 'an-older-hunt') !== '') fail(fails, 'DP-0 an older hunt\'s death guesses at its Level: ' + JSON.stringify(whyAt(2, 'an-older-hunt')));
   /* A BOSS ROOM IS ONE PULL (March play-through 2026-11-14: Krell's Hall said "a smaller pull would help"): a death in range in a hall or a called room never says it. */
@@ -107,12 +107,12 @@ async function pure(base) {
     const rr = Object.assign({}, BARE, { hunt: room }), lvl = HUNT_INDEX[room].band[0];
     const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [rr] : k === 'state' ? { level_xp: charXpForLevel(lvl) } : k === 'level' ? levelBlock(charXpForLevel(lvl)) : k === 'hunt' ? { session_id: SESSION, hunt_id: room, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
     const why = deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why;
-    if (why !== 'Better armor, food eaten sooner or a healer in your party would help.') fail(fails, 'DP-0 a death in ' + room + ' reads ' + JSON.stringify(why));
+    if (why !== 'Better armor, eating sooner or a healer in your party would help.') fail(fails, 'DP-0 a death in ' + room + ' reads ' + JSON.stringify(why));
     /* ...and a party that HAD a Healer is never told to bring one (the v0.2.132 re-play, a four with a Healer at Krell) */
     const party = { members: [{ seat: 0, weapon: 'sword', name: 'Tankard' }, { seat: 1, weapon: 'staff', role_pick: 'healer', name: 'Mender' }] };
     const healed = { read: (k) => (k === 'party' ? party : cs.read(k)), record: { residue: {} } };
     const why2 = deathWords(healed, { session: SESSION, row: deathLogOf(healed)[0] }).why;
-    if (why2 !== 'Better armor, better food eaten sooner or a healer who heals sooner would help.') fail(fails, 'DP-0 a death in ' + room + ' with a Healer in the party reads ' + JSON.stringify(why2));
+    if (why2 !== 'Better armor, better food or a healer who heals sooner would help.') fail(fails, 'DP-0 a death in ' + room + ' with a Healer in the party reads ' + JSON.stringify(why2));
   }
   /* DP-0b A DEATH CAN TAKE A LEVEL (Tyler 2026-11-09; 2027-03-25-death-share.sql): the row's level_from / level_to say so, the
      why reads the Level the hero died at, and the Blessings line counts the tiers the death used. */

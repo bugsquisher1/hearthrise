@@ -13,7 +13,7 @@
     "src/hunt-view/death-explain.js": 12,
     "src/hunt-view/live-engine.js": 3,
     "src/hunt-view/scene.js": 6,
-    "src/hunt-view/summary-model.js": 22,
+    "src/hunt-view/summary-model.js": 1,
     "src/hunt-view/summary-recorder.js": 2,
     "src/shell/alerts.js": 12,
     "src/shell/away-recap.js": 11,

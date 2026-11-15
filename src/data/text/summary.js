@@ -32,4 +32,28 @@ export const SUMMARY_TEXT = Object.freeze({
   sold: 'Sold for {gold}',
   sold_plain: 'Sold',
   deposited: { one: 'Deposited 1 stack', other: 'Deposited {count} stacks' },
+
+  /* WHY THE HUNT ENDED (src/hunt-view/summary-model.js END_WORDS, one per END_ORDER name): labels on the end card. */
+  end_died: 'Died (back in town)',
+  end_boss_felled: 'Boss defeated (new title: Character, Titles)',
+  end_party_member_died: 'Party member died (you came home too)',
+  end_party_member_left: 'Party member left (you came home too)',
+  end_heals_out: 'Out of healing supplies',
+  end_ammo_out: 'Out of ammunition',
+  end_gold_out: 'Out of gold for supplies',
+  end_rule: 'Stop rule met',
+  end_stamina: 'Out of stamina (refills hour for hour in town)',
+  end_hours: 'Time limit reached',
+  end_boss_time: 'Time ran out (10 min), party came home',
+  end_left: 'You left the hunt',
+  end_changed: 'Moved to another hunt',
+  end_server: 'Ended by the server',
+  end_plain: 'Hunt ended',
+  /* the server forfeited the hunt's last window (six refused in a row) */
+  forfeit_server: 'Stopped: last minutes not accepted, nothing from them counted',
+  forfeit_left: 'You left: last minutes not accepted, nothing from them counted',
+  stamina_now: '{why}. Stamina now: {left}',
+  /* Hunt again, off for a party member */
+  again_elsewhere: 'Party hunting elsewhere (only that ground)',
+  again_leader: 'Your party leader picks the hunt and starts it.',
 });

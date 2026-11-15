@@ -183,7 +183,7 @@ async function checks(overrides) {
       });
       if (r.room !== null) fails.push('BW-5 Hunt again has something to send from a called room');
       if (!r.ground) fails.push('BW-5 Hunt again is gone from a normal hunt');
-      if (r.felled === 'The hunt ended.' || r.time === 'The hunt ended.') fails.push('BW-5 an end has no words: ' + JSON.stringify(r));
+      if (r.felled === 'Hunt ended' || r.time === 'Hunt ended') fails.push('BW-5 an end has no words: ' + JSON.stringify(r));
       await ctx.close();
     }
     /* BW-6, BW-7: the modules as this page serves them. */

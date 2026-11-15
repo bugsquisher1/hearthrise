@@ -786,7 +786,7 @@ const cases = {
       const heal = M.consumables.CONSUMABLES.cooked_shrimp.amount;
       const lost = M.tut.wasteAt(heal, 60, fixed.hpMax);
       const line = wasteLine({ kind: 'food', amount: heal }, 60, fixed.hpMax);
-      if (lost > 0 ? !line.includes(lost + ' of its ' + heal) : line !== '') return set + ': the coach\'s waste (' + lost + ') is not Configure action\'s: "' + line + '"';
+      if (lost > 0 ? !line.includes(lost + ' of ' + heal + ' wasted') : line !== '') return set + ': the coach\'s waste (' + lost + ') is not Configure action\'s: "' + line + '"';
       if (!eat || eat.id !== 'food_when' || eat.barSlot !== food || !eat.text.startsWith('Slot ' + (food + 1) + ' eats your own Cooked Shrimp when your HP is below 60%. A Cooked Shrimp heals ' + heal)
         || !eat.text.includes(fixed.hpMax + ' HP') || (lost > 0 && !eat.text.includes(lost + ' of it is wasted'))) return set + ': the eat card reads ' + JSON.stringify(eat && eat.text);
       /* where it says to stop: Configure action's 5% steps down from 60 until nothing is wasted, never under 50% */

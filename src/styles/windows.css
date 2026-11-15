@@ -478,6 +478,15 @@
 .hw-call-facts { margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; }
 .hw-call-facts li[hidden] { display: none; }
 .hw-call-f-total { color: var(--ink); font-weight: 700; }
+/* WHAT A WIN CAN DROP (the server's list, each row its odds) and THE DANGER lines, above the press (audit F24) */
+.hw-call-drops-h { margin: 0 0 2px; font-size: var(--t-micro); font-weight: 700; color: var(--ink); }
+.hw-call-drops-h[hidden] { display: none; }
+.hw-call-drops { margin: 0 0 6px; padding: 0; list-style: none; columns: 2; column-gap: 12px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-drops:empty, .hw-call-danger:empty { display: none; }
+.hw-call-drop { display: flex; justify-content: space-between; gap: 8px; break-inside: avoid; line-height: 1.5; }
+.hw-call-drop b { font-weight: 400; color: var(--ink); }
+.hw-call-drop span { white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-call-danger { margin: 0 0 6px; padding: 0; list-style: none; }
 /* A keyed hall (boss-hall-pane.js): the door first, then what wins under it, a step apart from the press. */
 .hw-hall-bars { margin-top: var(--gap); }
 .hw-hd-foot { flex: none; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }

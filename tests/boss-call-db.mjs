@@ -13,6 +13,9 @@
 //
 //   BD-WORDS   a hero alone and a party of one are quoted, alone: one fight's price and stamina, the slider's top and its table, what the room covers; every
 //              refusal (a member, a stale or forged price, an unknown call) in its code, charging nothing and opening nothing
+//   BD-DROPS   (audit F24) the quote names what a win can drop: his table in its order, each row's odds as the catalogue holds them (the data's called row)
+//   BD-DANGER  (audit F24) the quote reads the room: his Level, the seats under it and the lowest, whether a tank and a healer stand in it (the worn set's
+//              role), and a bar that holds slots and no food; a bar that holds nothing runs the start kit's and is not counted
 //   BD-COUNT   a forged count (0, negative, past the catalogue's top, none) is refused bad_fights with the server's top, never clamped
 //   BD-ALONE   a hero in no party calls a series: the first fight's fee and stamina, one shop row, ONE seat on an instance of its own, the series on its session;
 //              a replay charges once; a hero already hunting, or already in the room, is refused uncharged
@@ -147,6 +150,37 @@ async function verbArms(db, M) {
   await db.query(`select public.hr_party_open($1::uuid, 0)`, [a]);
   quoted = await view(db, a);
   if (!alone(quoted)) bad.push('BD-WORDS a party of one is quoted ' + JSON.stringify(quoted && quoted.quote && { ...quoted.quote, totals: '...' }));
+  /* BD-DROPS and BD-DANGER (audit F24): what a win can drop, and the server's reading of the room, both in the quote the page lists */
+  {
+    const boss = PM[KING.monster];
+    const read = async () => (await view(db, a)).quote;
+    let t = await read();
+    const want = boss.drops.map((d) => [d.id, Math.round(d.ch * 1000000)]);
+    if (!t || JSON.stringify((t.drops || []).map((d) => [d.item, d.ppm])) !== JSON.stringify(want)) bad.push('BD-DROPS the quote names ' + JSON.stringify(t && t.drops).slice(0, 200) + ', want his table and its odds');
+    const lv = Number(await one(db, 'select public.hr_char_level((select level_xp from public.player_state where user_id = $1 and slot = 0))', [a]));
+    const roleOf = () => one(db, 'select public.hr_hunt_role_of($1::uuid, 0)', [a]);
+    const fits = async (q2, food, why) => {
+      const role = await roleOf();
+      const d = q2 && q2.danger;
+      if (!d || d.boss_level !== boss.level || d.lowest !== lv || d.under !== (lv < boss.level ? 1 : 0) || d.tank !== (role === 'tank') || d.healer !== (role === 'healer') || d.no_food !== food)
+        bad.push('BD-DANGER ' + why + ' reads ' + JSON.stringify(d) + ' (Level ' + lv + ', role ' + role + ', his Level ' + boss.level + ')');
+    };
+    if (!(lv < boss.level)) bad.push('BD-DANGER CONTROL: the probe hero is not under his Level');
+    await fits(t, 0, 'a fresh hero, its bar the start kit\'s');
+    /* the shield comes off: nobody in the room holds him */
+    const wasTank = (await roleOf()) === 'tank';
+    await db.query(`delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = 'shield'`, [a]);
+    if (wasTank && (await roleOf()) === 'tank') bad.push('BD-DANGER CONTROL: the hero is still a tank with no shield');
+    await fits(await read(), 0, 'a hero with no shield');
+    /* a bar that holds a slot and no food is counted; with food on it, it is not */
+    const preset = Number(await one(db, 'select public.hr_hunt_active_set($1::uuid, 0)', [a]));
+    await db.query(`insert into public.player_action_sets (user_id, slot, preset, name, slots) values ($1, 0, $2, 'Probe', '[{"action":{"type":"ability","id":"power_strike"}}]'::jsonb)
+        on conflict (user_id, slot, preset) do update set slots = excluded.slots`, [a, preset]);
+    await fits(await read(), 1, 'a bar with no food');
+    await db.query(`update public.player_action_sets set slots = slots || '[{"action":{"type":"consume","id":"salted_shrimp"}}]'::jsonb where user_id = $1 and slot = 0 and preset = $2`, [a, preset]);
+    await fits(await read(), 0, 'a bar that eats');
+    await db.query('delete from public.player_action_sets where user_id = $1 and slot = 0 and preset = $2', [a, preset]);
+  }
   let v;
   await bare(db, M, b);
   const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [a]);
@@ -155,6 +189,8 @@ async function verbArms(db, M) {
   if (v.error !== 'call_leader') bad.push('BD-WORDS a member answered ' + JSON.stringify(v));
   quoted = await view(db, a);
   if (!quoted.ok || quoted.quote.alone !== false || quoted.quote.seats !== 2 || quoted.quote.available !== true) bad.push('BD-WORDS the leader of two is quoted ' + JSON.stringify(quoted));
+  /* BD-DANGER: both seats are read, the member's Level too */
+  if (!quoted.ok || !quoted.quote.danger || quoted.quote.danger.under !== 2) bad.push('BD-DANGER a pair under his Level reads ' + JSON.stringify(quoted.ok && quoted.quote.danger));
   for (const price of [FEE + 1, FEE - 1, 1, 0]) {
     v = await call(db, a, 3, price);
     if (v.error !== 'quote_changed' || !v.boss_call || Number(v.boss_call.price) !== FEE) bad.push('BD-WORDS a price of ' + price + ' answered ' + JSON.stringify({ ...v, boss_call: v.boss_call && v.boss_call.price }));
@@ -789,6 +825,13 @@ const MUTANTS = [
   { name: 'every hero posts a System line', fn: FN.felled, find: "and h.end_reason = 'boss_felled' and h.ended_at = new.ended_at", repl: 'and false', arm: 'doors', want: /BD-PRIZE/ },
   { name: 'a second apply splices again', fn: FN.closed, find: 'declare v_from text;', repl: 'declare v_from text; -- a body the second apply will move back', arm: 'again', want: /BD-AGAIN/ },
   { name: 'the limit is not owed', fn: FN.settle, find: 'where c.hunt_id = v_s.hunt_id and v_to > coalesce(v_s.fight_from, v_s.hunt_from) + make_interval(secs => c.limit_ms / 1000.0) + c_skew) then', repl: 'where false) then', arm: 'owed', want: /BD-OWED/ },
+  /* ── WHAT A WIN EARNS AND WHAT THE ROOM RISKS (audit F24) ── */
+  { name: 'the quote names no drops', fn: FN.quote, find: "'drops', r.drops,", repl: "'drops', '[]'::jsonb,", arm: 'verb', want: /BD-DROPS/ },
+  { name: 'a hero under his Level is not counted', fn: FN.quote, find: 'if v_lv < v_boss then v_under := v_under + 1; end if;', repl: '', arm: 'verb', want: /BD-DANGER/ },
+  { name: 'only the caller is read for the danger', fn: FN.quote, find: 'v_lv := public.hr_char_level(coalesce((select ps.level_xp from public.player_state ps where ps.user_id = v_m.user_id and ps.slot = v_m.slot), 0));', repl: 'v_lv := public.hr_char_level(coalesce((select ps.level_xp from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot), 0)) + (case when v_m.user_id = p_user and v_m.slot = p_slot then 0 else 500 end);', arm: 'verb', want: /BD-DANGER/ },
+  { name: 'every room reads as holding a tank', fn: FN.quote, find: "v_tank := v_tank or v_role is not distinct from 'tank';", repl: 'v_tank := true;', arm: 'verb', want: /BD-DANGER/ },
+  { name: 'a bar with no food is not counted', fn: FN.quote, find: 'v_nofood := v_nofood + 1; end if;', repl: 'null; end if;', arm: 'verb', want: /BD-DANGER/ },
+  { name: 'a bar that holds nothing is counted as having no food', fn: FN.quote, find: "if (select bool_or(jsonb_typeof(sl.value->'action') = 'object')\n               and not bool_or(", repl: "if (select not coalesce(bool_or(", arm: 'verb', want: /BD-DANGER|THREW/ },
   /* ── THE SERIES (2027-04-24-boss-call-series.sql) ── */
   { name: 'a forged count is taken', fn: FN.verb, find: 'if p_fights is null or p_fights < 1 or p_fights > v_c.max_fights then', repl: 'if false then', arm: 'verb', want: /BD-COUNT|THREW/ },
   { name: 'a forged count is clamped, not refused', fn: FN.verb, find: 'if p_fights is null or p_fights < 1 or p_fights > v_c.max_fights then', repl: 'p_fights := greatest(1, least(coalesce(p_fights, 1), v_c.max_fights));\n  if false then', arm: 'verb', want: /BD-COUNT/ },

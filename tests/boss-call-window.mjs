@@ -15,6 +15,10 @@
 //         it moves; every number beside it is the quote's (one fight's stamina, gold and limit, what the room covers), and the total is the quote's own entry
 //         for the picked count, never a sum made in the browser; Not yet closes it; confirming sends ONE hr_boss_call with the id, the picked count and the QUOTED price
 //   BW-3  A MOVED PRICE: quote_changed shows the server's new price and the words say nothing was charged; the next press carries the new price and the same count
+//   BW-9  WHAT A WIN EARNS AND WHAT THE ROOM RISKS (audit F24, 2026-11-15: "Why would I pay to fight the Rat King for nothing?"): the section lists what a
+//         win can drop from the SERVER'S projection (its rows, its order, its odds: the quote here names odds the data does not hold), above the press;
+//         a weak party (a hero under his Level, no tank, no healer, a bar with no food) reads a line for each before the slider and beside it, and no
+//         line says a word about Challenge; a room that holds reads none; a server that says neither shows neither
 //   BW-8  THE SERIES ONCE IT RUNS: the boss bar says which fight of how many (the server's count), nothing on any other hunt; the summary says how many were won and
 //         what the server charged, through the residue's bounds; a series cut short says the hero could not pay another fight
 //   BW-4  NO ANSWER, NO PRESS, NO HAMMER: a server that won't quote leaves the press off and is not asked again on the repaint its own answer causes
@@ -41,7 +45,11 @@ const PARTY = (self, leader = 0) => ({ party: { id: PID, max: 4, hunt: null, ope
 const TOP = 40;
 const QUOTE = (o = {}) => {
   const q = Object.assign({ call: 'rat_king', available: true, why: null, who: null, price: 50, fight_fee: 50, fee_pm: 1000, event: null, fight_stamina_ms: 120000,
-    max_fights: TOP, limit_ms: 600000, stamina_ms: 28800000, covers: 12, heroes: 1, seats: 2, alone: false }, o);
+    max_fights: TOP, limit_ms: 600000, stamina_ms: 28800000, covers: 12, heroes: 1, seats: 2, alone: false,
+    /* what a win can drop, the server's: the Kingstooth at odds the data does not hold (1.23%, not its 1%), so a page that read monsters.js shows another list */
+    drops: [{ item: 'rat_tail', ppm: 1000000, band: 'common' }, { item: 'kingstooth', ppm: 12300, band: 'rare' }, { item: 'rat_kings_crown', ppm: 1410, band: 'trophy' }],
+    /* a room that holds: at his Level, a tank and a healer in it, food on every bar */
+    danger: { boss_level: 25, under: 0, lowest: 31, tank: true, healer: true, no_food: 0 } }, o);
   q.totals = o.totals || { fee: Array.from({ length: q.max_fights }, (_, i) => (i + 1) * q.price + (q.price ? 7 : 0)), stamina_ms: Array.from({ length: q.max_fights }, (_, i) => (i + 1) * q.fight_stamina_ms + 30000) };
   return q;
 };
@@ -206,6 +214,44 @@ async function checks(overrides) {
       const heroes = await page.evaluate(() => { const e = document.querySelector('.hw-call-f-heroes'); return e && e.offsetParent !== null ? e.textContent : null; });
       if (heroes !== 'Each of your 2 heroes pays its own stamina. The gold is for all of them.') fails.push('BW-2 two of this account\'s heroes read ' + JSON.stringify(heroes));
       await ctx.close();
+    }
+    /* BW-9: WHAT A WIN CAN DROP, FROM THE SERVER'S PROJECTION, and THE DANGER a weak party reads before the slider */
+    {
+      const dropsOf = (page) => page.evaluate(() => ({ head: (() => { const h = document.querySelector('.hw-call-drops-h'); return h && h.offsetParent !== null ? h.textContent : null; })(),
+        rows: Array.from(document.querySelectorAll('.hw-call-drops .hw-call-drop')).filter((li) => li.offsetParent !== null).map((li) => [li.querySelector('b').textContent, li.querySelector('span').textContent]) }));
+      const dangerOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll('.hw-call-danger li')).filter((li) => li.offsetParent !== null).map((li) => li.textContent));
+      const WEAK = { boss_level: 25, under: 2, lowest: 12, tank: false, healer: false, no_food: 1 };
+      const { ctx, page, s } = await open(PARTY(0), QUOTE({ danger: WEAK }));
+      const d = await dropsOf(page);
+      const want = [['Rat Tail', 'every win'], ['Kingstooth', '1.23% a win'], ['Rat King\'s Crown', '0.14% a win']];
+      if (d.head !== 'A win can drop' || JSON.stringify(d.rows) !== JSON.stringify(want)) fails.push('BW-9 the drops read ' + JSON.stringify(d) + ', want the server\'s three rows and odds');
+      const wantDanger = ['The Rat King is Level 25 and your lowest hero is Level 12. Expect to lose.', 'Nobody here can hold him. Bring a tank: a hero with a sword and a shield.',
+        'Nobody here heals. Bring a healer, or put your best food on every bar.', 'One hero here has no food on its bar. Put food on it first.'];
+      const before = await dangerOf(page);
+      if (JSON.stringify(before) !== JSON.stringify(wantDanger)) fails.push('BW-9 a weak party reads ' + JSON.stringify(before) + ' before the press');
+      await press(page, '[data-hs-act="call-warn"]', 'BW-9');
+      await page.waitForTimeout(150);
+      /* ...and still, with the slider on the page: the danger stands above it */
+      const beside = await page.evaluate(() => { const li = document.querySelector('.hw-call-danger li'), sl = document.querySelector('.hw-call-n');
+        return li && sl && li.offsetParent !== null && sl.offsetParent !== null ? li.getBoundingClientRect().top < sl.getBoundingClientRect().top : false; });
+      if (!beside || JSON.stringify(await dangerOf(page)) !== JSON.stringify(wantDanger)) fails.push('BW-9 with the slider up the danger reads ' + JSON.stringify(await dangerOf(page)) + (beside ? '' : ', not above the slider'));
+      const all = await page.evaluate(() => document.querySelector('.hw-hd-call').textContent);
+      if (/Challenge/.test(all)) fails.push('BW-9 the section says a word about Challenge: ' + JSON.stringify(all.slice(0, 200)));
+      if (sent(s, 'hr_boss_call').length) fails.push('BW-9 reading the page sent a call');
+      await ctx.close();
+    }
+    {
+      /* a room that holds reads no danger; a server that says neither (an older one) shows no list and no line */
+      const dangerOf = (page) => page.evaluate(() => Array.from(document.querySelectorAll('.hw-call-danger li')).filter((li) => li.offsetParent !== null).map((li) => li.textContent));
+      const fit = await open(PARTY(0), QUOTE({}));
+      if ((await dangerOf(fit.page)).length) fails.push('BW-9 a room that holds reads ' + JSON.stringify(await dangerOf(fit.page)));
+      await fit.ctx.close();
+      const q = QUOTE({}); delete q.drops; delete q.danger;
+      const old = await open(PARTY(0), q);
+      const shown2 = await old.page.evaluate(() => ({ rows: document.querySelectorAll('.hw-call-drops .hw-call-drop').length, head: (document.querySelector('.hw-call-drops-h') || {}).hidden, danger: document.querySelectorAll('.hw-call-danger li').length }));
+      if (shown2.rows || shown2.head !== true || shown2.danger) fails.push('BW-9 a server that names no drops and no danger shows ' + JSON.stringify(shown2));
+      if (await off(old.page) !== false) fails.push('BW-9 a quote with no drops list turned the press off');
+      await old.ctx.close();
     }
     /* BW-3 */
     {
@@ -385,6 +431,15 @@ const MUTANTS = [
   { name: 'what the room covers is never said', file: 'src/shell/windows/boss-call-pane.js', from: "text(warn.querySelector('.hw-call-f-covers'), callWords(q.covers === 0 ? S.covers.none : q.covers === 1 ? S.covers.one : S.covers.other, call, bill));", to: '', want: /BW-2/ },
   { name: 'a seat that can\'t pay is not named', file: 'src/shell/windows/boss-call-pane.js', from: 'const fightOf = (q) => (q ? { fee: q.price, staminaMs: q.staminaMs, limitMs: q.limitMs, max: q.maxFights, who: q.who, heroes: q.heroes } : {});', to: 'const fightOf = (q) => (q ? { fee: q.price, staminaMs: q.staminaMs, limitMs: q.limitMs, max: q.maxFights, heroes: q.heroes } : {});', want: /BW-1/ },
   { name: 'a refused count never says the server\'s top', file: 'src/shell/windows/boss-call-pane.js', from: "...(Number.isFinite(r.max) ? { max: r.max } : {}) });", to: '});', want: /BW-3/ },
+  /* WHAT A WIN EARNS AND WHAT THE ROOM RISKS (audit F24) */
+  { name: 'the drops are the data\'s table, not the server\'s', file: 'src/shell/windows/boss-call-pane.js', from: 'const drops = !v.now && q ? q.drops : [];', to: 'const drops = !v.now && q ? MONSTERS[call.monster].drops.map((x) => ({ item: x.id, ppm: Math.round(x.ch * 1000000) })) : [];', want: /BW-9/ },
+  { name: 'the page never says what a win can drop', file: 'src/shell/windows/boss-call-pane.js', from: 'const drops = !v.now && q ? q.drops : [];', to: 'const drops = [];', want: /BW-9/ },
+  { name: 'the odds are rounded to a whole percent', file: 'src/shell/windows/boss-call-pane.js', from: "String(Math.round(ppm / 100) / 100)", to: 'String(Math.round(ppm / 10000))', want: /BW-9/ },
+  { name: 'a weak party reads no warning', file: 'src/shell/windows/boss-call-pane.js', from: "rows(box.querySelector('.hw-call-danger'), v.now ? [] : dangerLines(q, call),", to: "rows(box.querySelector('.hw-call-danger'), [],", want: /BW-9/ },
+  { name: 'a room with no tank is not told', file: 'src/shell/windows/boss-call-pane.js', from: '  if (!d.tank) out.push(W.tank);\n', to: '', want: /BW-9/ },
+  { name: 'a hero under his Level is not told', file: 'src/shell/windows/boss-call-pane.js', from: 'if (d.under > 0 && d.lowest !== null) out.push(', to: 'if (false) out.push(', want: /BW-9/ },
+  { name: 'the warning tells the player what to do with Challenge', file: 'src/data/boss-calls.js', from: "    tank: 'Nobody here can hold him. Bring a tank: a hero with a sword and a shield.',", to: "    tank: 'Nobody here can hold him. Bring a tank with Challenge on.',", want: /BW-9/ },
+  { name: 'a room that holds is warned anyway', file: 'src/shell/windows/boss-call-pane.js', from: '  if (!d.healer) out.push(W.healer);\n', to: '  out.push(W.healer);\n', want: /BW-9/ },
   /* THE SERIES ONCE IT RUNS */
   { name: 'the bar never says which fight', file: 'src/shell/widgets/boss-bar.js', from: "h.call ? BOSS_CALL_WORDS.series.now.replace('{fight}', String(h.call.fight)).replace('{fights}', String(h.call.fights)) : ''", to: "''", want: /BW-8/ },
   { name: 'a series has no line on the summary', file: 'src/hunt-view/summary-model.js', from: 'series: seriesLine(s.call || null),', to: 'series: null,', want: /BW-8/ },

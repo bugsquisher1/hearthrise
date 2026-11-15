@@ -28,7 +28,10 @@
 -- hr_boss_call_quote(user, slot, call) RESTATED: { call, available, why, who, price (one fight's fee for this hero: hr_boss_calls.fight_fee x
 --   the account's live fee dial, rounded up), fight_fee, fee_pm, event, fight_stamina_ms, max_fights, limit_ms, stamina_ms (this hero's pool
 --   now), covers (the fights the room's stamina and gold pay for right now, at most max_fights), heroes (this account's heroes in the room),
---   seats, alone, totals { fee: [n fights' gold for this account, n = 1..max_fights], stamina_ms: [n fights' stamina a hero] } }. The pane
+--   seats, alone, totals { fee: [n fights' gold for this account, n = 1..max_fights], stamina_ms: [n fights' stamina a hero] },
+--   drops (WHAT A WIN CAN DROP, audit F24: his table in its order, [{ item, ppm, band }], hr_boss_calls.drops, generated from monsters.js),
+--   danger { boss_level (hr_boss_calls.boss_level, the called row's), under (seats below it), lowest (the lowest seat's Level), tank, healer
+--   (does the room hold one), no_food (seats whose own bar holds slots and no food switched on; an empty bar runs the start kit's) } }: the page names the drops and warns a weak room before the slider. The pane
 --   renders every number from it and sums nothing. `why`, in order: call_leader (in a party and not its leader), call_stamina (this hero's
 --   pool is under one fight's), insufficient_gold (the purse is under this account's first fight), party_stamina / party_gold (another
 --   seat can't pay the first fight; `who` is that hero's name from the server's own row). No daily cap: `used`, `per_day`, `left` are gone.
@@ -106,8 +109,9 @@ declare v_r record; v_m text;
 begin
   if to_regclass('public.hr_boss_calls') is null
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_boss_calls' and column_name = 'fight_stamina_ms')
+     or (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'hr_boss_calls' and column_name in ('drops', 'boss_level')) <> 2
      or exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_boss_calls' and column_name in ('fee', 'per_day')) then
-    raise exception 'PRECONDITION: apply 2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql first (hr_boss_calls: fight_fee, fight_stamina_ms, max_fights)'; end if;
+    raise exception 'PRECONDITION: apply 2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql first (hr_boss_calls: fight_fee, fight_stamina_ms, max_fights, drops, boss_level)'; end if;
   if exists (select 1 from public.hr_boss_calls c
               where not exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = c.monster_id and b.drops <> '{}'::jsonb)
                  or exists (select 1 from public.hr_hunt_kill_bounds b, jsonb_object_keys(b.drops) k
@@ -117,7 +121,9 @@ begin
      or to_regprocedure('public.hr_purse_move(uuid,bigint,bigint)') is null or to_regprocedure('public.hr_purse_of(uuid)') is null
      or to_regprocedure('public.hr_stamina_of(uuid,integer,timestamp with time zone)') is null or to_regprocedure('public.hr_hunt_supply_of(uuid,integer,integer)') is null
      or to_regprocedure('public.hr_hunt_active_set(uuid,integer)') is null or to_regprocedure('public.hr_character_name(uuid,integer)') is null
-     or to_regprocedure('public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)') is null then
+     or to_regprocedure('public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)') is null
+     or to_regprocedure('public.hr_hunt_role_of(uuid,integer)') is null
+     or to_regprocedure('public.hr_char_level(bigint)') is null then
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
   -- Each restated body is the image this file was written against (md5 of its source, carriage returns removed) or already this file's own.
   for v_r in select * from (values
@@ -497,6 +503,7 @@ declare
   r public.hr_boss_calls%rowtype; v_party uuid; v_p public.hunt_parties%rowtype; v_seats int := 1; v_why text; v_who text;
   v_fee jsonb; v_price bigint; v_stam bigint; v_mine int := 0; v_bill bigint := 0; v_covers bigint;
   v_m record; v_a record; v_pm int; v_ms bigint;
+  v_boss int; v_lv int; v_low int; v_under int := 0; v_tank boolean := false; v_healer boolean := false; v_nofood int := 0; v_role text;
 begin
   -- CALL-SERIES (2027-04-24-boss-call-series.sql): one fight's price for this hero, and what the room can pay right now. No daily cap.
   -- LIVE-EVENTS (2027-03-22-live-events.sql): the price is the row's fee x the account's live fee dial (Open Halls: 0), rounded up: gold only.
@@ -514,12 +521,31 @@ begin
   v_why := case when v_party is not null and not (v_p.leader_user = p_user and v_p.leader_slot = p_slot) then 'call_leader' end;
   -- EVERY SEAT'S FIRST FIGHT and what the room covers: each hero its own pool, each account its own purse for all its heroes in the room.
   v_covers := r.max_fights;
+  -- THE DANGER, SAID BEFORE THE PRESS (audit F24: a call killed a Level 44 hero whose page had warned of nothing): his Level beside every
+  -- seat's, whether the room holds a tank and a healer (the worn set's role, hr_hunt_role_of), and a bar with no food switched on.
+  v_boss := r.boss_level;
   for v_m in select s.user_id, s.slot from (
                select m.user_id, m.slot from public.hunt_party_members m where m.party_id = v_party
                union select p_user, p_slot) s order by (s.user_id = p_user and s.slot = p_slot) desc, s.user_id, s.slot loop
     v_ms := public.hr_stamina_of(v_m.user_id, v_m.slot, now());
     v_covers := least(v_covers, coalesce(v_ms, 0) / r.fight_stamina_ms);
     if v_m.user_id = p_user then v_mine := v_mine + 1; end if;
+    v_lv := public.hr_char_level(coalesce((select ps.level_xp from public.player_state ps where ps.user_id = v_m.user_id and ps.slot = v_m.slot), 0));
+    v_low := least(coalesce(v_low, v_lv), v_lv);
+    if v_lv < v_boss then v_under := v_under + 1; end if;
+    v_role := public.hr_hunt_role_of(v_m.user_id, v_m.slot);
+    v_tank := v_tank or v_role is not distinct from 'tank';
+    v_healer := v_healer or v_role is not distinct from 'healer';
+    -- A BAR WITH NO FOOD: the hero's own active bar holds a slot and none of its slots is food switched on. (A bar that holds nothing runs
+    -- the start kit's, which eats: src/core/hunt-spawn.js heroSetup.)
+    if (select bool_or(jsonb_typeof(sl.value->'action') = 'object')
+               and not bool_or(sl.value->'action'->>'type' = 'consume' and coalesce(sl.value->>'enabled', 'true') <> 'false'
+                               and (exists (select 1 from public.hr_hunt_supplies p where p.item_id = sl.value->'action'->>'id' and p.kind = 'heal')
+                                    or exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = sl.value->'action'->>'id' and q.kind = 'heal')))
+          from public.player_action_sets a
+         cross join lateral jsonb_array_elements(case when jsonb_typeof(a.slots) = 'array' then a.slots else '[]'::jsonb end) sl
+         where a.user_id = v_m.user_id and a.slot = v_m.slot and a.preset = public.hr_hunt_active_set(v_m.user_id, v_m.slot)) then
+      v_nofood := v_nofood + 1; end if;
     if v_why is null and coalesce(v_ms, 0) < r.fight_stamina_ms then
       if v_m.user_id = p_user and v_m.slot = p_slot then v_why := 'call_stamina';
       else v_why := 'party_stamina'; v_who := public.hr_character_name(v_m.user_id, v_m.slot); end if;
@@ -549,6 +575,8 @@ begin
                             'fight_fee', r.fight_fee, 'fee_pm', (v_fee->>'pm')::int, 'event', v_fee->'event',
                             'fight_stamina_ms', r.fight_stamina_ms, 'max_fights', r.max_fights, 'limit_ms', r.limit_ms,
                             'stamina_ms', v_stam, 'covers', greatest(0, v_covers), 'heroes', v_mine, 'seats', v_seats, 'alone', v_seats = 1,
+                            'drops', r.drops,
+                            'danger', jsonb_build_object('boss_level', v_boss, 'under', v_under, 'lowest', v_low, 'tank', v_tank, 'healer', v_healer, 'no_food', v_nofood),
                             'totals', jsonb_build_object(
                               'fee', (select jsonb_agg(v_bill * g order by g) from generate_series(1, r.max_fights) g),
                               'stamina_ms', (select jsonb_agg(r.fight_stamina_ms::bigint * g order by g) from generate_series(1, r.max_fights) g)));
@@ -761,6 +789,29 @@ begin
        or (v_q->'totals'->'stamina_ms'->>2)::bigint <> 3 * v_c.fight_stamina_ms::bigint
        or (v_q->>'covers')::int <> least(v_c.max_fights, v_stam / v_c.fight_stamina_ms, greatest(1, (100000 - v_keep) / v_c.fight_fee))::int then
       raise exception 'boss-call-series §6(c): a hero alone is quoted %', v_q - 'totals'; end if;
+    -- (c2) WHAT A WIN CAN DROP AND THE DANGER (audit F24): the quote names his table as the catalogue holds it, every id one the settle lets a win
+    --      carry, and says his Level beside the room's: a fresh hero is under it, and one who can't hold him is told so.
+    if v_q->'drops' is distinct from v_c.drops or jsonb_array_length(v_q->'drops') < 1
+       or exists (select 1 from jsonb_array_elements(v_q->'drops') d
+                   where not exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = v_c.monster_id and b.drops ? (d.value->>'item'))) then
+      raise exception 'boss-call-series §6(c2): the quote names drops %', v_q->'drops'; end if;
+    if (v_q->'danger'->>'boss_level')::int is distinct from v_c.boss_level or v_c.boss_level < 2 or (v_q->'danger'->>'under')::int <> 1
+       or (v_q->'danger'->>'lowest')::int <> public.hr_char_level((select level_xp from public.player_state where user_id = c_a and slot = 0))
+       or jsonb_typeof(v_q->'danger'->'tank') <> 'boolean' or jsonb_typeof(v_q->'danger'->'healer') <> 'boolean'
+       or (v_q->'danger'->>'tank')::boolean is distinct from (public.hr_hunt_role_of(c_a, 0) is not distinct from 'tank')
+       or (v_q->'danger'->>'no_food')::int <> 0 then
+      raise exception 'boss-call-series §6(c2): a fresh hero''s danger reads %', v_q->'danger'; end if;
+    -- a bar that holds a slot and no food is counted; one that eats is not
+    insert into public.player_action_sets (user_id, slot, preset, name, slots)
+      values (c_a, 0, public.hr_hunt_active_set(c_a, 0), 'probe', '[{"action":{"type":"ability","id":"power_strike"}}]'::jsonb)
+      on conflict (user_id, slot, preset) do update set slots = excluded.slots;
+    if (public.hr_boss_call_quote(c_a, 0, 'rat_king')->'danger'->>'no_food')::int <> 1 then
+      raise exception 'boss-call-series §6(c2): a bar with no food reads %', public.hr_boss_call_quote(c_a, 0, 'rat_king')->'danger'; end if;
+    update public.player_action_sets set slots = slots || '[{"action":{"type":"consume","id":"salted_shrimp"}}]'::jsonb
+     where user_id = c_a and slot = 0 and preset = public.hr_hunt_active_set(c_a, 0);
+    if (public.hr_boss_call_quote(c_a, 0, 'rat_king')->'danger'->>'no_food')::int <> 0 then
+      raise exception 'boss-call-series §6(c2): a bar that eats reads %', public.hr_boss_call_quote(c_a, 0, 'rat_king')->'danger'; end if;
+    delete from public.player_action_sets where user_id = c_a and slot = 0;
 
     -- (d) ★ A FORGED COUNT OR FEE IS REFUSED, charges nothing and opens nothing.
     perform set_config('request.jwt.claim.sub', c_a::text, true);

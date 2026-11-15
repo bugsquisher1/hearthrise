@@ -13,6 +13,24 @@ import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.132';
 
 const whole = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const table = (v, n) => (Array.isArray(v) && v.length === n && v.every((x) => Number.isSafeInteger(x) && x >= 0) ? v.slice() : null);
+const ITEM = /^[a-z0-9_]{1,64}$/;
+
+/* WHAT A WIN CAN DROP (audit F24): the server's list, in its order, each row's odds in parts per million. A row that isn't one is dropped. */
+function dropsOf(v) {
+  const out = [];
+  for (const d of Array.isArray(v) ? v.slice(0, 32) : []) {
+    if (d && typeof d === 'object' && typeof d.item === 'string' && ITEM.test(d.item) && Number.isSafeInteger(d.ppm) && d.ppm >= 1 && d.ppm <= 1000000) out.push({ item: d.item, ppm: d.ppm });
+  }
+  return out;
+}
+/* THE DANGER, the server's own reading of the room (hr_boss_call_quote `danger`), or null when it did not say: his Level, how many seats are under it and
+   the lowest, whether the room holds a tank and a healer, how many bars hold no food. Nothing here judges a hero. */
+function dangerOf(v) {
+  if (!v || typeof v !== 'object' || !Number.isInteger(v.boss_level) || v.boss_level < 1) return null;
+  const count = (n) => (Number.isInteger(n) && n >= 0 ? n : 0);
+  return { bossLevel: v.boss_level, under: count(v.under), lowest: Number.isInteger(v.lowest) && v.lowest >= 1 ? v.lowest : null,
+    tank: v.tank === true, healer: v.healer === true, noFood: count(v.no_food) };
+}
 
 /** A quote as the server sent it, bounded: whole numbers and a code, or null. A quote that can't draw the slider is no quote. */
 export function quoteOf(q) {
@@ -33,6 +51,8 @@ export function quoteOf(q) {
     heroes: Number.isInteger(q.heroes) && q.heroes >= 1 ? q.heroes : 1,
     /* the bill of n fights, n = 1..maxFights at index n - 1: gold for this account, stamina a hero */
     totals: { fee, staminaMs: stamina },
+    /* what a win can drop, and the room's danger: the page names both before the slider (audit F24) */
+    drops: dropsOf(q.drops), danger: dangerOf(q.danger),
     /* the room will hold this hero alone (2027-04-05-call-out-alone.sql): the warning's one more line; a server that doesn't say adds none */
     alone: q.alone === true,
     /* the live event whose fee dial set this price (the quote's `event`), or null: it picks the pane's words, never its number */

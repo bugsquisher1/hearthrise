@@ -8,11 +8,15 @@
 // is the quote's own entry for that count (`totals`), never a sum made here. The only number this pane holds is the count the
 // slider picked, sent as it is; the server bounds it and compares the price (a stale one only earns quote_changed). The press
 // stays off until a quote says yes, and says why when it doesn't. hunts.js owns the window, its status line and the run of the press.
+// WHAT A WIN EARNS AND WHAT THE ROOM RISKS, BEFORE THE PRESS (audit F24, 2026-11-15): the section lists what a win can drop, his table with
+// each row's odds as the quote hands them (`drops`; this file never reads monsters.js for it), and one line for each danger the server read
+// of the room (`danger`: a hero under his Level, no tank, no healer, a bar with no food). Food, a healer, a tank: never Challenge.
 // A LIVE EVENT (Open Halls, 2027-03-22-live-events.sql §4) moves only the server's quote: a fight that costs no gold reads the
 // no-gold labels, with the event's line before them (live-events-view.js callEventWords). It waives gold only: stamina stays.
 // The event coming on or going off on the server's clock reads the quote again (feeKey).
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, attr } from '../../render/paint.js?v=0.2.132';
+import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.132';
+import { itemName } from '../widgets/bits.js?v=0.2.132';
 import { whole } from '../../render/format.js?v=0.2.132';
 import { BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.132';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.132';
@@ -59,6 +63,21 @@ export function callRefusal(r, call) {
   return /\{[a-zA-Z]+\}/.test(said) ? null : said;
 }
 
+/* A row's odds as words: the server's parts per million as a percent of at most two decimals (1,000,000 is every win). */
+const oddsWords = (ppm) => (ppm >= 1000000 ? S.odds.always : S.odds.pct.replace('{pct}', String(Math.round(ppm / 100) / 100)));
+
+/** THE DANGER LINES for quote `q` (its `danger`, the server's reading of the room), in the order a player fixes them: Level, a tank, a healer, food. */
+function dangerLines(q, call) {
+  const d = q && q.danger;
+  if (!d) return [];
+  const W = BOSS_CALL_WORDS.danger, out = [];
+  if (d.under > 0 && d.lowest !== null) out.push(W.under.replace('{Boss}', call.Boss).replace('{bossLevel}', String(d.bossLevel)).replace('{lowest}', String(d.lowest)));
+  if (!d.tank) out.push(W.tank);
+  if (!d.healer) out.push(W.healer);
+  if (d.noFood > 0) out.push(d.noFood === 1 ? W.food.one : W.food.other.replace('{n}', String(d.noFood)));
+  return out;
+}
+
 /* Why the press is off, beside it (the quote's own `why`, before anything was pressed), or null for a code with no line or a number the server did not say. */
 function cantWords(q, call) {
   const line = Object.hasOwn(BOSS_CALL_WORDS.cant, q.why) ? BOSS_CALL_WORDS.cant[q.why] : null;
@@ -72,6 +91,9 @@ const pickOf = (sc, q) => Math.max(1, Math.min(q ? q.maxFights : 1, Number.isInt
 export function callHtml() {
   return '<section class="hw-hd-call" aria-label="Call out" hidden><h4 class="hw-hd-h">Call out</h4>'
     + '<p class="hw-call-line"></p>'
+    /* WHAT A WIN CAN DROP (the server's list and odds) and THE DANGER (the server's reading of the room): both stand above the press, so they are read before it */
+    + '<p class="hw-call-drops-h" hidden></p><ul class="hw-call-drops"></ul>'
+    + '<ul class="hw-before hw-call-danger" aria-label="' + BOSS_CALL_WORDS.danger.label + '"></ul>'
     + '<button type="button" class="hh-tool hw-call-press" data-hs-act="call-warn"></button>'
     + '<div class="hw-confirm hw-call-warn" role="group" aria-label="Are you sure?"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-call-note-alone" hidden></p><p class="hw-confirm-note hw-call-note-a"></p>'
     /* THE SLIDER: how many fights in a row, 1 to the server's top. It answers as it moves (hunts.js names `input` in its events) and sends nothing until the confirm. */
@@ -115,6 +137,17 @@ export function patchCall(det, ctx, v) {
     : q.available ? callWords(free ? S.eachFree : S.each, call, one) : (cantWords(q, call) || BOSS_CALL_WORDS.noQuote);
   /* No quote yet: the press names him, off, until the server has said; off, it always says why, beside it. */
   text(box.querySelector('.hw-call-line'), ev && ev.line ? ev.line + ' ' + said : said);
+  /* what a win can drop: the quote's rows, in its order, each with its odds; nothing while the server has not said */
+  const drops = !v.now && q ? q.drops : [];
+  const head = box.querySelector('.hw-call-drops-h');
+  text(head, drops.length ? S.dropsHead : '');
+  prop(head, 'hidden', !drops.length);
+  rows(box.querySelector('.hw-call-drops'), drops, { key: (x) => x.item,
+    build: () => element(box.ownerDocument, '<li class="hw-call-drop"><b></b><span></span></li>'),
+    patch: (li, x) => { text(li.querySelector('b'), itemName(x.item)); text(li.querySelector('span'), oddsWords(x.ppm)); } });
+  /* the danger: one red line a fact, above the press and still there while the slider shows */
+  rows(box.querySelector('.hw-call-danger'), v.now ? [] : dangerLines(q, call), { key: (x) => x,
+    build: () => element(box.ownerDocument, '<li class="hw-before-line is-short"></li>'), patch: (li, x) => text(li, x) });
   const press = box.querySelector('.hw-call-press');
   text(press, callWords(BOSS_CALL_WORDS.press, call));
   prop(press, 'disabled', !open);

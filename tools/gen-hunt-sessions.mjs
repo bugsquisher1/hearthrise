@@ -766,7 +766,18 @@ function calledRows(S) {
     if (!(whole(ft.fee) && ft.fee >= 1 && ft.fee <= 1000000000)) throw new Error(`call ${c.id} fight fee ${ft.fee} is not whole gold in 1..1e9`);
     if (!(whole(ft.staminaMs) && ft.staminaMs >= 1000 && ft.staminaMs <= 3600000)) throw new Error(`call ${c.id} fight stamina ${ft.staminaMs} is not 1 s to 1 h in whole ms: a fight that costs no stamina has no limit`);
     if ('fee' in c) throw new Error(`call ${c.id} still names the one-fight fee: a fight's price is its \`fight\``);
-    return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fightFee: ft.fee, fightStaminaMs: ft.staminaMs };
+    /* WHAT A WIN CAN DROP, AS THE PAGE SAYS IT (audit F24, 2026-11-15: "Why would I pay to fight the Rat King for nothing?"): his own table, in its order, each
+       row's odds in parts per million (hr_boss_calls.drops; the quote hands it to the page, which lists it and never reads monsters.js for it). Whole ppm only. */
+    const drops = (S.monsters[c.monster].drops || []).map((d) => {
+      const ppm = Math.round(d.ch * 1000000);
+      if (!(Number.isInteger(ppm) && ppm >= 1 && ppm <= 1000000 && Math.abs(d.ch * 1000000 - ppm) < 1e-6)) throw new Error(`call ${c.id}: ${d.id} drops at ${d.ch}, not whole parts per million in 1..1e6 (the page says the odds)`);
+      return { item: d.id, ppm, band: String(d.band || '') };
+    });
+    if (!drops.length) throw new Error(`call ${c.id}: a win drops nothing, so the page has nothing to name`);
+    /* HIS LEVEL, for the page's danger line (a called row is on no roster, so hr_monster_level knows none of it): the called row's own. */
+    const level = S.monsters[c.monster].level;
+    if (!(whole(level) && level >= 1 && level <= 999)) throw new Error(`call ${c.id}: ${c.monster} has no whole Level in 1..999 (the page warns a hero under it)`);
+    return { id: c.id, hunt: c.hunt, from: c.from, monster: c.monster, fightFee: ft.fee, fightStaminaMs: ft.staminaMs, drops, level };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
   /* A BOSS'S LINES, ON ANY ROW THAT HAS THEM (src/core/hunt/boss-phases.js plays a ground's boss as it plays a room's): only a boss carries
      them. A NAMED ADD (boss and add both; he stands in a keyed hall, hallRows) carries an enrage line at most; every other boss both lines, in
@@ -947,7 +958,7 @@ export function render(src) {
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
   const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee}, ${t.pm})`).join(',\n');
   const trainRule = r.training.rules;
-  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.limitMs}, ${c.fightFee}, ${c.fightStaminaMs}, ${c.maxFights})`).join(',\n');
+  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.limitMs}, ${c.fightFee}, ${c.fightStaminaMs}, ${c.maxFights}, ${sq(JSON.stringify(c.drops))}::jsonb, ${c.level})`).join(',\n');
   const hallValues = r.bossHalls.map((h) => `  (${sq(h.id)}, ${sq(h.hunt)}, ${sq(h.monster)}, ${sq(h.key)}, ${h.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
@@ -980,7 +991,8 @@ export function render(src) {
 -- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
 -- fee, no daily cap): hr_boss_calls carries one fight's price and the slider's top (fight_fee, fight_stamina_ms, max_fights) and loses the one-fight verb's
 -- fee and per_day. 2027-04-24-boss-call-series.sql restates every reader of those columns and applies RIGHT AFTER this file; between the two the old quote
--- names a column that is gone, so Call out answers an error and charges nothing.
+-- names a column that is gone, so Call out answers an error and charges nothing. hr_boss_calls also carries its drops column (audit F24): what a win can drop, his table
+-- with each row's odds in parts per million, for the ground's page (hr_boss_call_quote hands it over; the settle's bound stays hr_hunt_kill_bounds).
 --
 -- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
@@ -1411,13 +1423,17 @@ create table if not exists public.hr_boss_calls (
   limit_ms   int    not null check (limit_ms between 60000 and 3600000),
   fight_fee  bigint not null,
   fight_stamina_ms int not null,
-  max_fights int    not null
+  max_fights int    not null,
+  drops      jsonb  not null,
+  boss_level int    not null
 );
 -- A HERO ALONE MAY CALL (2027-04-05-call-out-alone.sql restates the quote that read it first): no party size.
 alter table public.hr_boss_calls drop column if exists party_min;
 -- THE SERIES (Tyler 2026-11-14: a slider of fights, each costing stamina and a small fee; no daily cap): one fight's price and the slider's top.
 -- The one-fight verb's fee and daily cap go. 2027-04-24-boss-call-series.sql restates every reader of them and applies RIGHT AFTER this file.
 alter table public.hr_boss_calls add column if not exists fight_fee bigint, add column if not exists fight_stamina_ms int, add column if not exists max_fights int;
+-- WHAT A WIN CAN DROP, for the page (audit F24): his table in its order, [{ item, ppm (odds in parts per million), band }], from monsters.js.
+alter table public.hr_boss_calls add column if not exists drops jsonb, add column if not exists boss_level int;
 alter table public.hr_boss_calls drop column if exists fee, drop column if exists per_day;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
@@ -1554,12 +1570,14 @@ delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights) values
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level) values
 ${callValues};
-alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null;
+alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,
+  alter column boss_level set not null;
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
-  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000);
+  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
+         and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
@@ -1658,6 +1676,13 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
                  or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
     raise exception 'a called room pays, or its row reaches a normal hunt'; end if;
+  -- WHAT THE PAGE SAYS A WIN CAN DROP IS WHAT THE SETTLE LETS IT DROP: each call's listed ids are exactly its kill bound's, each with whole odds.
+  if exists (select 1 from public.hr_boss_calls c join public.hr_hunt_kill_bounds b on b.monster_id = c.monster_id
+              where (select coalesce(jsonb_agg(d.value->>'item' order by d.value->>'item'), '[]'::jsonb) from jsonb_array_elements(c.drops) d)
+                    is distinct from (select coalesce(jsonb_agg(k order by k), '[]'::jsonb) from jsonb_object_keys(b.drops) k)
+                 or exists (select 1 from jsonb_array_elements(c.drops) d
+                             where jsonb_typeof(d.value->'ppm') is distinct from 'number' or (d.value->>'ppm') !~ '^[0-9]{1,7}$' or (d.value->>'ppm')::int not between 1 and 1000000)) then
+    raise exception 'a call lists a drop its kill bound does not hold, or odds that are not whole parts per million'; end if;
   -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
   -- pays no coin and no drop; no other ground fields it and no roster names it.
   if exists (select 1 from public.hr_training_grounds t
@@ -1829,6 +1854,11 @@ function selftest() {
     'the one-fight fee back on a call': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, fee: 10000 } } }),
     'a daily cap on the call (stamina is the limit)': () => ({ callRules: { ...BOSS_CALL_RULES, perDay: 3 } }),
     'a slider with no top': () => ({ callRules: { ...BOSS_CALL_RULES, maxFights: 0 } }),
+    /* the page says a win's odds: a row finer than one in a million (on his ground boss's row too, so only the odds' own rule can refuse it) */
+    'a called boss with no Level': () => ({ monsters: { ...MONSTERS, rat_king_called: { ...MONSTERS.rat_king_called, level: 0 } } }),
+    'odds finer than one in a million on a called table': () => ({ monsters: { ...MONSTERS,
+      rat_king: { ...MONSTERS.rat_king, drops: MONSTERS.rat_king.drops.map((d) => (d.id === 'crown_shard' ? { ...d, ch: 0.0140005 } : d)) },
+      rat_king_called: { ...MONSTERS.rat_king_called, drops: MONSTERS.rat_king_called.drops.map((d) => (d.id === 'crown_shard' ? { ...d, ch: 0.0140005 } : d)) } } }),
     'a party size on the call (a hero alone may call)': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 2 } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
     /* THE DEFENSE BOUND AND A MONSTER'S SPELL: the least windup x block_mult covers the swing interval, and no row winds up faster than the least */

@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-15",
- "digest": "2a9f36dbd41059dd735b9f9551c91786c32d7d227f724c288711d3e2d178b617",
+ "digest": "4ef98608b369bf40faa2bcdc2d13bc35d79764e6ed2c3de898402f09234b43c2",
  "counts": {
   "relations": 287,
   "functions": 729,
@@ -15,7 +15,7 @@
   "indexes": 404,
   "triggers": 97,
   "constraints": 1151,
-  "columns": 1637,
+  "columns": 1639,
   "rls": 259,
   "event_triggers": 1
  },
@@ -3148,7 +3148,9 @@
    "hr_blessing_tiers.per_level integer NOT NULL",
    "hr_blessing_tiers.permille integer NOT NULL",
    "hr_blessing_tiers.tier smallint NOT NULL",
+   "hr_boss_calls.boss_level integer NOT NULL",
    "hr_boss_calls.call_id text NOT NULL",
+   "hr_boss_calls.drops jsonb NOT NULL",
    "hr_boss_calls.fight_fee bigint NOT NULL",
    "hr_boss_calls.fight_stamina_ms integer NOT NULL",
    "hr_boss_calls.from_hunt text NOT NULL",

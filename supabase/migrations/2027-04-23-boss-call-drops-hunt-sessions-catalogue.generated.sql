@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: dcd2ca2ca4b4c43110e8ba84a1eb3970ed16f526edc02b247fe91d15dfc38692
+--   digest: 11863e81e281f5d8f1db585ba8cc9fbe94f7305604e07ca1ecdbad509123d491
 --   82 supplies, 165 hunts (named + training), 47 limits, 16 end reasons,
 --   592 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 22 hunt grounds
@@ -22,7 +22,8 @@
 -- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
 -- fee, no daily cap): hr_boss_calls carries one fight's price and the slider's top (fight_fee, fight_stamina_ms, max_fights) and loses the one-fight verb's
 -- fee and per_day. 2027-04-24-boss-call-series.sql restates every reader of those columns and applies RIGHT AFTER this file; between the two the old quote
--- names a column that is gone, so Call out answers an error and charges nothing.
+-- names a column that is gone, so Call out answers an error and charges nothing. hr_boss_calls also carries its drops column (audit F24): what a win can drop, his table
+-- with each row's odds in parts per million, for the ground's page (hr_boss_call_quote hands it over; the settle's bound stays hr_hunt_kill_bounds).
 --
 -- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
@@ -453,13 +454,17 @@ create table if not exists public.hr_boss_calls (
   limit_ms   int    not null check (limit_ms between 60000 and 3600000),
   fight_fee  bigint not null,
   fight_stamina_ms int not null,
-  max_fights int    not null
+  max_fights int    not null,
+  drops      jsonb  not null,
+  boss_level int    not null
 );
 -- A HERO ALONE MAY CALL (2027-04-05-call-out-alone.sql restates the quote that read it first): no party size.
 alter table public.hr_boss_calls drop column if exists party_min;
 -- THE SERIES (Tyler 2026-11-14: a slider of fights, each costing stamina and a small fee; no daily cap): one fight's price and the slider's top.
 -- The one-fight verb's fee and daily cap go. 2027-04-24-boss-call-series.sql restates every reader of them and applies RIGHT AFTER this file.
 alter table public.hr_boss_calls add column if not exists fight_fee bigint, add column if not exists fight_stamina_ms int, add column if not exists max_fights int;
+-- WHAT A WIN CAN DROP, for the page (audit F24): his table in its order, [{ item, ppm (odds in parts per million), band }], from monsters.js.
+alter table public.hr_boss_calls add column if not exists drops jsonb, add column if not exists boss_level int;
 alter table public.hr_boss_calls drop column if exists fee, drop column if exists per_day;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
@@ -1980,13 +1985,15 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('yew_staff', 148),
   ('yew_wand', 133);
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights) values
-  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 100, 150000, 100),
-  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 600000, 50, 120000, 100);
-alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null;
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level) values
+  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 100, 150000, 100, '[{"item":"big_bones","ppm":1000000,"band":"common"},{"item":"gold_ore","ppm":500000,"band":"common"},{"item":"goblin_totem","ppm":300000,"band":"common"},{"item":"coppercaps_tallow","ppm":150000,"band":"uncommon"},{"item":"steel_platebody","ppm":44000,"band":"scarce"},{"item":"boarhide_body","ppm":44000,"band":"scarce"},{"item":"scholar_body","ppm":44000,"band":"scarce"},{"item":"war_crown","ppm":14100,"band":"rare"},{"item":"willow_wand","ppm":11000,"band":"rare"},{"item":"willow_spellbook","ppm":11000,"band":"rare"},{"item":"willow_staff","ppm":11000,"band":"rare"},{"item":"verdigris_cake","ppm":11000,"band":"rare"},{"item":"coppercaps_cauldron","ppm":1220,"band":"trophy"},{"item":"cauldron_lid","ppm":8000,"band":"rare"}]'::jsonb, 52),
+  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 600000, 50, 120000, 100, '[{"item":"rat_tail","ppm":1000000,"band":"common"},{"item":"bones","ppm":1000000,"band":"common"},{"item":"knotted_tails","ppm":150000,"band":"uncommon"},{"item":"crown_shard","ppm":14000,"band":"rare"},{"item":"kingsgrate","ppm":16000,"band":"rare"},{"item":"rat_kings_knot","ppm":14000,"band":"rare"},{"item":"rat_kings_crown","ppm":1410,"band":"trophy"},{"item":"kingstooth","ppm":10000,"band":"rare"}]'::jsonb, 25);
+alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,
+  alter column boss_level set not null;
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
-  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000);
+  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
+         and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
@@ -2100,6 +2107,13 @@ begin
                  or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
     raise exception 'a called room pays, or its row reaches a normal hunt'; end if;
+  -- WHAT THE PAGE SAYS A WIN CAN DROP IS WHAT THE SETTLE LETS IT DROP: each call's listed ids are exactly its kill bound's, each with whole odds.
+  if exists (select 1 from public.hr_boss_calls c join public.hr_hunt_kill_bounds b on b.monster_id = c.monster_id
+              where (select coalesce(jsonb_agg(d.value->>'item' order by d.value->>'item'), '[]'::jsonb) from jsonb_array_elements(c.drops) d)
+                    is distinct from (select coalesce(jsonb_agg(k order by k), '[]'::jsonb) from jsonb_object_keys(b.drops) k)
+                 or exists (select 1 from jsonb_array_elements(c.drops) d
+                             where jsonb_typeof(d.value->'ppm') is distinct from 'number' or (d.value->>'ppm') !~ '^[0-9]{1,7}$' or (d.value->>'ppm')::int not between 1 and 1000000)) then
+    raise exception 'a call lists a drop its kill bound does not hold, or odds that are not whole parts per million'; end if;
   -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
   -- pays no coin and no drop; no other ground fields it and no roster names it.
   if exists (select 1 from public.hr_training_grounds t

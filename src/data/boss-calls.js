@@ -120,6 +120,10 @@ export const BOSS_CALL_WORDS = Object.freeze({
     ends: 'Ends on a death, or when stamina or gold runs out',
     confirm: 'Call him out {n} times',
     confirmOne: 'Call him out once',
+    /* WHAT A WIN CAN DROP (audit F24, 2026-11-15: "Why would I pay to fight the Rat King for nothing?"): the head of the list on the page, and how a row's
+       odds read. The list and the odds are the SERVER'S (the quote's `drops`: his table with each row's odds); {pct} is its odds as a percent. */
+    dropsHead: 'A win can drop',
+    odds: Object.freeze({ always: 'every win', pct: '{pct}% a win' }),
     /* While the fights run (the hunt's own line) and once they are over (the summary): the server's count of fights and wins, and what it charged. */
     now: 'Fight {fight} of {fights}',
     done: Object.freeze({ one: 'Won {won} of 1 fight', other: 'Won {won} of {fought} fights' }),
@@ -144,6 +148,16 @@ export const BOSS_CALL_WORDS = Object.freeze({
   answered: Object.freeze({ party: '{Boss} answers. Your party is on its way.', alone: '{Boss} answers. You\'re on your way.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
   noQuote: 'Checking if you can call him out.',
+  /* THE DANGER, SAID BEFORE THE PRESS (audit F24: a call killed a Level 44 hero whose page had warned of nothing; the keyed hall's card already says what
+     wins it). Each line is one fact the SERVER read of the room (the quote's `danger`): {bossLevel} his Level, {lowest} the lowest hero's, {n} the bars
+     with no food. Food, a healer, a tank: never a word about Challenge (Tyler 2026-11-14: the player decides). */
+  danger: Object.freeze({
+    label: 'Before you call him out',
+    under: '{Boss} is Level {bossLevel} and your lowest hero is Level {lowest}. Expect to lose.',
+    tank: 'Nobody here can hold him. Bring a tank: a hero with a sword and a shield.',
+    healer: 'Nobody here heals. Bring a healer, or put your best food on every bar.',
+    food: Object.freeze({ one: 'One hero here has no food on its bar. Put food on it first.', other: '{n} heroes here have no food on their bars. Put food on them first.' }),
+  }),
   /* Why the press is off, beside it, before anything was pressed (the quote's `why`, the server's; {who} the seat it names, {fee} and
      {staminaMin} one fight's price). The same codes answer a press in `refused` below, where they also say nobody was charged. */
   cant: Object.freeze({

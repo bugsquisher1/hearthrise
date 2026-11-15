@@ -1559,8 +1559,8 @@ const PURE_MUTANTS = [
   ['a warned ground stays up over the hunt it warned of (PR-TRUTH)', 'src/shell/alerts.js', "const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);", 'const stale = a.kind === \'partywarn\' && !!a.session && a.session !== open;'],
   ['the roster loses a seat\'s low stamina (PR-TRUTH)', 'src/shell/widgets/party-panel.js', 'seatMs: s.seatMs, staminaLowMs: s.staminaLowMs,', 'seatMs: s.seatMs,'],
   /* AL-LIVE (the full-game audit's F7, 2026-11-15): a live line is the envelope's. */
-  ['[F7] a live line stands after the server stopped saying it (AL-LIVE)', 'src/shell/alerts.js', 'if (stale || unsaid(a.id) || seenEnd ||', 'if (stale || seenEnd ||'],
-  ['a live line keeps the words of the read that raised it (AL-LIVE)', 'src/shell/alerts.js', ': said.has(a.id) ? said.get(a.id) : a.text;', ': a.text;'],
+  ['[F7] a live line stands after the server stopped saying it (AL-LIVE)', 'src/shell/alerts.js', '      if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }\n', ''],
+  ['a live line keeps the words of the read that raised it (AL-LIVE)', 'src/shell/alerts.js', '      if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }\n', ''],
   ['a live line the server stopped saying is never news again (AL-LIVE)', 'src/shell/alerts.js', '    forget(cs, unsaid);\n', ''],
   ['the saved list keeps a live id the server stopped saying: no news after a return (AL-LIVE)', 'src/shell/alerts.js',
     'if (Array.isArray(r.seen) && r.seen.some(unsaid)) cs.setResidue(', 'if (false) cs.setResidue('],

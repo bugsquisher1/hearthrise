@@ -354,9 +354,12 @@ export function createAlertCenter(account, opts) {
       const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
       /* AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary): the player closed the summary, or dismissed the death. */
       const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
-      if (stale || unsaid(a.id) || seenEnd || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
-      /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). A live line's words are this read's too. */
-      const line = a.kind === 'away' ? awayLineNow(cs, a) : said.has(a.id) ? said.get(a.id) : a.text;
+      /* A live line goes when the server stops saying it, and its words are this read's (LIVE, above). */
+      if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }
+      if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }
+      if (stale || seenEnd || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
+      /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
+      const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;
       if (line === null) { alerts.splice(i, 1); any = true; } else if (line !== a.text) { a.text = line; any = true; }
     }
     if (any) changed();

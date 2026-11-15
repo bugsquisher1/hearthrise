@@ -419,7 +419,7 @@ begin
       ('a count past the stock',              'artisan', true,  30,   4,  0, 50, false, 'stamina', 4,    true,  4,    null),
       ('dry at Enter, the hunt looted some',  'artisan', true,  null, 0,  0, 50, false, 'stamina', null, false, null, 'no_count'),
       ('stocked at Enter, gone by the end',   'artisan', true,  5,    5,  0,  0, true,  'stamina', 5,    false, null, 'dry'),
-      ('not running at Enter, a full bag',    'artisan', false, null, 20, 0,  0, false, 'stamina', null, false, null, 'no_count'),
+      ('not running at Enter, an old count',  'artisan', false, null, 20, 0,  0, false, 'stamina', null, false, null, 'no_count'),
       ('the player left the hunt',            'artisan', true,  7,    20, 0,  0, false, 'left',    7,    null,  null, null),
       ('gathering',                           'gather',  true,  null, 0,  0,  0, false, 'stamina', null, true,  null, null)
     ) t(tag, kind, run, cnt, bag, sto, loot, spent, why_end, want_enter, want_resumed, want_left, want_why) loop
@@ -434,7 +434,9 @@ begin
                                      active_left = r.cnt, active_since = now(), accrued_to = now()
        where user_id = c_u and slot = 0;
       if not r.run then
-        update public.player_state set active_kind = 'idle', active_id = null, active_left = null where user_id = c_u and slot = 0;
+        -- ...and an older hunt's start had remembered a count for it, which this Enter must void
+        update public.player_state set active_kind = 'idle', active_id = null, active_left = null, last_activity_left = 9
+         where user_id = c_u and slot = 0;
       end if;
       delete from public.hr_rate_counters where user_id = c_u;
       v := public.hr_hunt_enter(0, c_hunt, '[]'::jsonb, 0, null, (k || lpad(v_i::text, 4, '0'))::uuid);
@@ -446,6 +448,11 @@ begin
          or v_st.last_activity_left is distinct from r.want_enter then
         raise exception 'bench-resume §6(c) (%): Enter left the hero % remembering % % with % left, not %', r.tag, v_st.active_kind,
           v_st.last_activity_kind, v_st.last_activity_id, v_st.last_activity_left, r.want_enter; end if;
+      -- a change of ground keeps what the hunt's START remembered (hr_hunt_swap's own pointer write, hunt to hunt)
+      perform public.hr_hunt_point(c_u, 0, c_hunt);
+      if (select ps.last_activity_left from public.player_state ps where ps.user_id = c_u and ps.slot = 0) is distinct from r.want_enter then
+        raise exception 'bench-resume §6(c) (%): a change of ground moved the remembered count to %', r.tag,
+          (select ps.last_activity_left from public.player_state ps where ps.user_id = c_u and ps.slot = 0); end if;
       -- the hunt: loot lands in the bag; or the stock is spent
       if r.loot > 0 then
         insert into public.player_inventory as pi (user_id, slot, item_id, qty) values (c_u, 0, v_in, r.loot * v_need)

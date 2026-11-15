@@ -411,7 +411,9 @@ function main() {
     /* --clip DIR [--fps N] [--meta FILE]: a generated v3 idle (DIR holds <facing>/frame_NNN.png, the object ZIP's layout, frame_000
        the still it started from) on a creature that already ships: its idle rows take a ping-pong of 4 (idle-clip.mjs idleFrames).
        --flight [--fps N]: a flier's idle is its own flight clip, no generation (flightIdle). Either way frame 0 is the still, and
-       every other row of the sheet is left exactly as it is. */
+       every other row of the sheet is left exactly as it is.
+       --floor still: the floor is the still's own lowest row where it reaches under the anchor (a sword tip held below the feet, the
+       Barrow Knight's and Captain Hask's S and SE): laid at the anchor, every frame would lift off it and the loop would pop. */
     const sc = JSON.parse(readFileSync(join(dir, o.id + '.json'), 'utf8'));
     const cls = CLASSES[sc.class];
     if (!cls || !cls.frame) throw new Error(o.id + ': ' + sc.class + ' is not a unit class');
@@ -429,7 +431,8 @@ function main() {
       const still = cell(0, rows.indexOf(d));
       const { frames, audit } = o.flight
         ? flightIdle(still, Array.from({ length: walk.dirs[d] }, (_, i) => cell(i, rows.length + rows.indexOf(d))))
-        : idleFrames(still, readdirSync(join(o.clip, NAME[d])).filter((f) => f.endsWith('.png')).sort().map((f) => decodePNG(readFileSync(join(o.clip, NAME[d], f)))), cls.contact === 'flier' ? null : ay);
+        : idleFrames(still, readdirSync(join(o.clip, NAME[d])).filter((f) => f.endsWith('.png')).sort().map((f) => decodePNG(readFileSync(join(o.clip, NAME[d], f)))),
+          cls.contact === 'flier' ? null : o.floor === 'still' ? Math.max(ay, lowestRow(still)) : ay);
       laid[d] = frames; picked[d] = audit.picked;
       console.log('  ' + d.padEnd(2) + ' picked ' + audit.picked.join(',') + ' · body ' + audit.body + ' px · register ' + audit.register.join(',') + ' · feet off ' + (audit.feet || ['-']).join('/') + ' · over the floor ' + (audit.lifted || ['-']).join('/') + ' · changed a step ' + audit.steps.join('/') + (audit.missed ? ' · frame 0 missed the still by ' + audit.missed + ' px' : ''));
     }

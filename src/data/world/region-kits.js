@@ -147,14 +147,14 @@ export const REGION_KITS = Object.freeze({
       mu_bier_unburned mu_cairn mu_coffin_lid mu_crates mu_dead_hawthorn mu_drum_split mu_grave_goods mu_grave_open mu_horse_skull
       mu_kerbstones mu_shields_leaning mu_standard_fallen mu_sword_marker mu_urns mu_weapon_rack
       barrel_broken barrels bone_pile bones cart_wheel coins_scattered sack_pile skull
-      mb_fallen_log mb_reeds mb_stepping_stones westwood_ash
+      mb_fallen_log mb_reeds mb_stepping_stones westwood_ash alder alder_stump
       mr_drowned_pikes mr_eel_trap mr_green_harness mr_greened_shield mr_mooring_post mr_silt_ripples mr_silt_stain mr_silt_stain_small
       mr_stake_net_post mr_rope_coil mr_drowned_cart
       ma_fire_rake ma_log_stack ma_ash_barrow ma_charred_stake
       kh_high_seat kh_lectern kh_hall_table kh_hall_table_runner kh_banner_stand kh_colors_upside_down kh_pell kh_weapon_rack
       kh_woodpile kh_well kh_coffin_open kh_chapel_bench kh_toll_box kh_brazier kh_candle_stand kh_banner_hung
       cw_coal_seam cw_coal_seam_spent`),
-    units: ids(`banded_pikeman bannerman fordsunk wight barrow_knight mudlark greened_pikeman bargeman color_sergeant
+    units: ids(`banded_pikeman bannerman fordsunk wight barrow_knight barrow_pikeman cairn_wight mudlark greened_pikeman bargeman color_sergeant
       charred_pikeman stoker lurcher pyre_wraith provost farmhand hasks_lookout grave_guard pyre_priest gatekeeper lord_krell`),
     sets: ids('march ford muster slake pyre pyrefolk hold holdguard holdkeep'),
     grounds: Object.freeze({
@@ -170,7 +170,9 @@ export const REGION_KITS = Object.freeze({
        bodies (scripted from banded_pikeman, fordsunk and bannerman: new names, new pixels, no generation) and the river
        pieces the kit lacks (04: a mud flat needs wear, ART_DIRECTION §5). The Ford's brief places `oak`: it is not in this
        kit (its light round canopy reads as Greenhaven beside the March's alder and ash; read 2026-11-07), so the Ford's
-       import swaps it for westwood_ash or mu_dead_hawthorn. */
+       import swaps it for westwood_ash or mu_dead_hawthorn. The alder (art/world/common, brief 20: drawn on the palette as the
+       March's riverbank tree, the oaks' replacement) and its stump are the kit's: the Ford, the Muster and the Slake stand their
+       willow gather nodes in it (art director, 2026-11-15). */
     pending: ids(''),
   }),
 });

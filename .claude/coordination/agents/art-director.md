@@ -3376,3 +3376,13 @@ dark cobble read as bright square digs, the ash family's burnt grass fill is lim
 (4) local-world --site with junctions to src/ and assets/ serves tools/qa/region-kit.html from legal/ when python is absent.
 Open: a unit in the yard just north of the gatehouse (rows 35-37) still stands behind its towers, as behind any wall; a fade needs an
 engine rule (compose.js), filed for the systems engineer.
+
+## 2026-11-15 lane/b-open-march-art (over lane/b-open-march 36ae8e6d7)
+Opened packs turned world-assets red (29). Fixed at the art, guard untouched: (1) the Barrow Knight's and Captain Hask's 11-07 v3
+idles (35 gens already spent, never imported) imported with `port-pixellab.mjs idle --floor still` (new opt-in: the S/SE stills
+hold a sword tip under the anchor, so laying at the anchor lifted every frame, the pop the 11-07 note flagged); Hask's E from roll
+r1 (r2 flared the cape every other frame, a flap at 5 fps); the Provost re-pours the knight so idles too. (2) alder + alder_stump
+joined the barrow_march kit (brief 20 drew them as the March tree). (3) [twin] ruled: a new name gets a new drawing, so
+barrow_pikeman and cairn_wight are ramp re-pours (provost precedent) of the Ford bodies, heads too, and their HUNT_ART_ALIAS rows
+are gone; the guard's alias-is-a-twin selftest stays. Driver: tools/world-art/import-barrow-2026-11-14.mjs (IDLES, MUSTER_TWINS).
+Lesson: check art/world-src for held generations before spending; 35 gens of idles sat unimported for a week.

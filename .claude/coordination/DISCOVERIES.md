@@ -3962,3 +3962,7 @@ row. Give the head cells the rows' data-c and hide both with one selector.
 - 2026-11-14 (art-director, lane/b-march-floors): Krell's gatehouse is 156 px tall over a two-row passage, so a unit in the yard
   just inside (rows 35-37) stands behind its towers. The arch is now see-through (units in the passage show); hiding behind the
   towers needs an occluder fade like the roofs' (compose.js, a `gate` class rule). Owner: systems-engineer.
+- 2026-11-15 (art-director, lane/b-open-march-art): the Barrow March cast fails ART_DIRECTION §4's 3:1 ring on its own floors.
+  ring-contrast.mjs on the Muster's painted ground (median 0.074): Barrow Knight 1.11, Barrow Pikeman 1.60, Cairn Wight 1.34; on the
+  Ford mud ref (0.051) the shipped banded_pikeman and barrow_knight stills read 1.00. No guard measures it. The fix is a lit-rim on
+  the light-facing outline and a one-step body lift per body (§4), done once for the region. Owner: asset-director.

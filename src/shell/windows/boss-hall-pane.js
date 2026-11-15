@@ -5,6 +5,9 @@
 // replaces it), the press, then the warning with its one confirm (the 11-04 risk ruling: a warned choice, one confirm press). The press
 // stays off with no key, while the hero hunts and for a party's member; the server decides the rest (hr_boss_hall_enter) and its refusal
 // keeps the key. hunts.js owns the window, its status line and the run of the press. A ground with no hall shows nothing.
+// ANY SEAT'S KEY OPENS IT, AND THE PRIZE IS ONCE A DAY (lane/c-krell-daily): the server's `boss_halls` section (boss-quote.js hallStateOf)
+// says whose key an open would take and whether this hero, and how many of its party, can still take today's prize. The press comes on for
+// a leader whose party holds a key in another seat, and one label line says the loot. A server that has not said shows neither.
 // ════════════════════════════════════════════════════════════════════════
 import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.132';
 import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.132';
@@ -14,7 +17,9 @@ import { MONSTERS } from '../../data/monsters.js?v=0.2.132';
 import { spellRow } from '../../data/monster-spells.js?v=0.2.132';
 import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.132';
 import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.132';
-import { settingsOf } from '../../session/hunt-sections.js?v=0.2.132';
+import { settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.132';
+import { hallStateOf } from '../../session/boss-quote.js?v=0.2.132';
+import { hoursWords } from '../../render/format.js?v=0.2.132';
 import { storeFoodUnder } from '../hunt-go.js?v=0.2.132';
 import { storeName } from '../bar-draft.js?v=0.2.132';
 import { openHall } from '../../session/boss-intents.js?v=0.2.132';
@@ -42,6 +47,19 @@ export function hallRefusal(r, hall) {
 }
 /* This hero's keys for `hall`, from the server's bag. */
 const keysOf = (cs, hall) => ((bagOf(cs) || []).find((x) => x.id === hall.key) || { qty: 0 }).qty;
+/* ANOTHER SEAT'S KEY the open would take (the server's own rule, the `boss_halls` section): { name } in a party whose key is not this
+   hero's own, else null. Never read from another hero's bag here: another account's is not in this browser. */
+const seatKeyOf = (st, party) => (party && st && st.key && st.key.own !== true ? st.key : null);
+/* THE LOOT LINE, labels only (boss-halls.js loot): this hero's own day, the wait to the next when taken (the server's clock), and in a
+   party how many of the heroes walking in can still take today's. '' when the server has not said. */
+function lootWords(cs, st) {
+  if (!st) return '';
+  const W = BOSS_HALL_WORDS.loot, out = [st.taken ? W.taken : W.left];
+  const now = serverNowOf(cs);
+  if (st.taken && st.nextAtMs !== null && Number.isFinite(now) && st.nextAtMs > now) out.push(W.next.replace('{in}', hoursWords(st.nextAtMs - now)));
+  if (st.seats !== null && st.seats > 1 && st.left !== null) out.push(W.party.replace('{n}', String(st.left)).replace('{m}', String(st.seats)));
+  return out.join(' · ');
+}
 
 export function hallHtml() {
   return '<section class="hw-hd-call hw-hd-hall" aria-label="' + BOSS_HALL_WORDS.heading + '" hidden><h4 class="hw-hd-h"></h4>'
@@ -52,6 +70,8 @@ export function hallHtml() {
     + '<div class="hw-confirm hw-call-warn" role="group" aria-label="' + BOSS_HALL_WORDS.sure + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-hall-note-alone" hidden></p><p class="hw-confirm-note hw-hall-note-a"></p><p class="hw-confirm-note hw-hall-note-b"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary is-on" data-hs-act="hall-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div>'
+    /* the day's prize, one label line under the door (the door itself stays where a 423 px phone shows it whole) */
+    + '<p class="hw-call-line hw-hall-loot"></p>'
     + '<p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul></section>';
 }
 
@@ -65,11 +85,16 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
   if (sc.hall !== hall) { sc.hall = hall; sc.warned = false; }
   const keys = keysOf(cs, hall);
   const member = !!v.party && !v.party.isLeader;
-  const open = keys > 0 && !v.now && !v.pending && !member;
+  /* the server's own word on this door (the `boss_halls` section): whose key, and the day's prize */
+  const st = hallStateOf(cs, hall.id);
+  const seatKey = seatKeyOf(st, v.party);
+  const open = (keys > 0 || !!seatKey) && !v.now && !v.pending && !member;
   text(box.querySelector('.hw-hd-h'), BOSS_HALL_WORDS.heading);
   const W = BOSS_HALL_WORDS;
-  const said = v.now ? W.hunting : member ? (keys > 0 ? W.memberKey : W.refused.hall_leader) : keys === 0 ? W.have.none : keys === 1 ? W.have.one : W.have.other.replace('{n}', String(keys));
-  text(box.querySelector('.hw-call-line'), hallWords(said, hall));
+  const held = seatKey ? W.have.party.replace('{name}', seatKey.name || W.someHero) : null;
+  const said = v.now ? W.hunting : member ? (keys > 0 ? W.memberKey : held || W.refused.hall_leader) : keys === 0 ? held || W.have.none : keys === 1 ? W.have.one : W.have.other;
+  text(box.querySelector('.hw-call-line'), hallWords(said, hall).replace('{n}', String(keys)));
+  text(box.querySelector('.hw-hall-loot'), lootWords(cs, st));
   /* WHAT WINS HERE (the hall's measured food and bar line, boss-halls.js food and words.bars): said before the key is spent, red when this bar's food is under it */
   const advice = hall.storeFloor ? hallWords(W.food, hall).replace('{food}', storeName(hall.storeFloor)) + (hall.bars ? ' ' + W.tips : '') : hall.bars ? W.tips : '';
   const bars = box.querySelector('.hw-hall-bars');
@@ -96,7 +121,9 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
     prop(a, 'hidden', !alone);
     text(a, alone ? hallWords(W.warnAlone, hall) : '');
     text(warn.querySelector('.hw-hall-note-a'), hallWords(W.warn[0], hall));
-    text(warn.querySelector('.hw-hall-note-b'), hallWords(W.warn[1], hall));
+    /* whose key it uses up (this hero's own, or the seat's the server names), and when nobody walking in can take today's prize, that too */
+    const whose = keys > 0 || !seatKey ? W.whose.own : W.whose.seat.replace('{name}', seatKey.name || W.someHero);
+    text(warn.querySelector('.hw-hall-note-b'), hallWords(W.warn[1], hall).replace('{whose}', whose) + (st && st.left === 0 ? ' ' + W.loot.none : ''));
     text(warn.querySelector('[data-hs-act="hall-go"]'), hallWords(W.confirm, hall));
     text(warn.querySelector('[data-hs-act="hall-no"]'), W.cancel);
   }
@@ -129,7 +156,8 @@ export function actHall(ctx, action, repaint, run) {
   if (action === 'hall-warn') { sc.warned = true; repaint(); return true; }
   if (action === 'hall-no') { sc.warned = false; repaint(); return true; }
   const { hall } = sc;
-  if (!hall || keysOf(cs, hall) < 1) return true;
+  /* a key of this hero's own, or one the server says the open would take from another seat of its party */
+  if (!hall || (keysOf(cs, hall) < 1 && !seatKeyOf(hallStateOf(cs, hall.id), partyMembershipOf(cs)))) return true;
   sc.warned = false;
   run(() => openHall(ctx.account, cs, hall.id), hallWords(BOSS_HALL_WORDS.opening, hall),
     (r) => hallWords(r && r.alone === false ? BOSS_HALL_WORDS.opened.party : BOSS_HALL_WORDS.opened.alone, hall))

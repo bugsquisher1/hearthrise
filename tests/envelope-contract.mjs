@@ -115,6 +115,14 @@ function contract(R, cs, body, tl) {
   // hunt_target_kind (the bar's First target per ground, 2027-04-22-target-kind.sql): the hero's own Giant Rat on its ground
   const fk = R.HS.huntTargetKindOf(cs);
   need('hunt_target_kind', !!fk && fk.picks.mill_cellar === 'rat', 'huntTargetKindOf yields ' + JSON.stringify(fk) + ' from ' + JSON.stringify(body.hunt_target_kind));
+  // boss_halls (a keyed hall's door, 2027-04-25-boss-daily.sql): every OPEN hall in the data is said, with this hero's day (nothing taken),
+  // whose key an open would take (nobody here holds one) and the party walking in, both with today's prize to take
+  for (const hallId of Object.keys(R.BHL.OPEN_BOSS_HALLS)) {
+    const bh = R.BQ.hallStateOf(cs, hallId);
+    need('boss_halls', !!bh && bh.taken === false && bh.nextAtMs === null && bh.key === null && bh.seats === 2 && bh.left === 2,
+      'hallStateOf(' + hallId + ') yields ' + JSON.stringify(bh) + ' from ' + JSON.stringify(body.boss_halls));
+  }
+  need('boss_halls', Object.keys(R.BHL.OPEN_BOSS_HALLS).length > 0, 'CONTROL: the data holds no open hall, so the boss_halls reader was never read');
   // party (the hunt panel's and the party window's readers, one shape)
   const p = R.HS.partyOf(cs);
   need('party', !!p && p.members.length === 2, 'partyOf yields ' + (p ? p.members.length : 'no') + ' members: ' + JSON.stringify(body.party).slice(0, 240));
@@ -309,7 +317,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'boss_halls']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -369,6 +377,7 @@ async function readers(root) {
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')),
+    BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };
@@ -457,6 +466,8 @@ const DB_MUTANTS = [
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
   ['hunt_tier', 'public.hr_hunt_tier_view(uuid,integer)', "'playing', (select i.tier", "'playing_now', (select i.tier"],
   ['hunt_target_kind', 'public.hr_hunt_target_kind_view(uuid,integer)', "'picks', coalesce(", "'pick', coalesce("],
+  ['boss_halls', 'public.hr_boss_halls_view(uuid,integer)', "'taken', v_taken,", "'took', v_taken,"],
+  ['boss_halls', 'public.hr_boss_halls_view(uuid,integer)', "'left', v_left));", "'remaining', v_left));"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],

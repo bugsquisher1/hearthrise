@@ -19,6 +19,28 @@ export function quoteOf(q) {
     event: typeof q.event === 'string' && /^[a-z0-9_]{1,64}$/.test(q.event) ? q.event : null };
 }
 
+/**
+ * A KEYED HALL AS THIS HERO'S PAGE SHOWS ITS DOOR: the server's `boss_halls` section (2027-04-25-boss-daily.sql hr_boss_halls_view), or null
+ * when the server has not said (the page then shows no loot line, and only this hero's own bag turns the press on). Nothing here decides
+ * anything: the day table and the key rule are the server's.
+ *   taken     this hero made today's prize roll on the hall's boss (the server's UTC day)
+ *   nextAtMs  when it can next (the server's next midnight), null when today's is still to take
+ *   key       whose key an open would take (hr_boss_hall_key_of: the leader's own first, else the first seat's not under its lock):
+ *             { seat (null alone), own, name (that hero's, when not this one) }, or null when no seat holds one
+ *   seats     the heroes an open marches in (1 alone)        left   how many of them still have today's prize to take
+ */
+export function hallStateOf(cs, hall) {
+  const all = cs && typeof cs.read === 'function' ? cs.read('boss_halls') : null;
+  const s = all && typeof all === 'object' && typeof hall === 'string' && Object.hasOwn(all, hall) ? all[hall] : null;
+  if (!s || typeof s !== 'object' || typeof s.taken !== 'boolean') return null;
+  const at = typeof s.next_at === 'string' ? Date.parse(s.next_at) : NaN;
+  const whole = (v) => (Number.isInteger(v) && v >= 0 && v <= 8 ? v : null);
+  const k = s.key && typeof s.key === 'object' ? s.key : null;
+  return { taken: s.taken, nextAtMs: s.taken && Number.isFinite(at) ? at : null,
+    key: k ? { seat: whole(k.seat), own: k.own === true, name: typeof k.name === 'string' && k.name.trim() ? k.name.trim().slice(0, 40) : null } : null,
+    seats: whole(s.seats), left: whole(s.left) };
+}
+
 /** The server's quote for `call`, or null with no answer (the press stays off until there is one). */
 export async function readCall(account, cs, call) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || !Object.hasOwn(BOSS_CALLS, call)) return null;

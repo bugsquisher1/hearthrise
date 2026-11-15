@@ -423,7 +423,8 @@ async function claim(boot) {
     }
     /* (1) two pieces on one claim; (2) a claim with no kill of the boss beside it; (3) a claim that is not `true`: each refused WHOLE */
     const TAMPERS = [
-      ['two pieces on one claim', (m) => { m.delta.items[PRIZE] = 2; }, 'value_over'],
+      /* (the window says two kills, so the ground's own drop bound, kills x one a kill, would let two pieces by: only the claim's bound refuses) */
+      ['two pieces on one claim', (m) => { m.delta.items[PRIZE] = 2; m.delta.journal.meta.kills = Math.max(2, m.delta.journal.meta.kills); }, 'value_over'],
       ['a claim with no kill of the boss beside it', (m) => { delete m.delta.journal.meta.km[BOSS]; }, 'bad_prize'],
       ['a claim that is not true', (m) => { m.hunt.prize = 1; }, 'bad_prize'],
     ];

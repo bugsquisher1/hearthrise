@@ -78,6 +78,8 @@ declare
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
     /* scaled hunts' banked hours (2027-03-21-scaled-hunts.sql): a hero's, bought with gold the wipe also clears */
     'player_scaled_hours',
+    /* a keyed hall's daily prize, the days each hero made its roll (2027-04-25-boss-daily.sql): a hero's, gone with it */
+    'player_boss_loot_day',
     /* the live-event announcer's record of the window edges it passed (2027-03-22-live-events.sql), with the System lines the wipe clears */
     'hr_live_event_notices',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',

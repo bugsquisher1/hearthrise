@@ -90,16 +90,31 @@ export const BOSS_HALL_WORDS = Object.freeze({
   press: 'Open {hall}',
   /* WHERE A KEY COMES FROM (designer 2026-11-14, lane/d-march-balance: the hand play found the page never said). {source} is `source` with
      the monster whose drops name the hall's key, or nothing when no monster drops it. */
-  have: Object.freeze({ none: 'You don\'t have a {key}.{source}', one: 'You have 1 {key}.', other: 'You have {n} keys.' }),
+  /* `party`: nobody's own bag holds one here, and the server names the seat whose key the open takes ({name} that hero's; label style) */
+  have: Object.freeze({ none: 'You don\'t have a {key}.{source}', one: 'You have 1 {key}.', other: 'You have {n} keys.', party: '{key}: held by {name}' }),
   source: ' The {dropper} drops them now and then.',
-  /* A key can drop to anyone in a party, and only the leader opens the hall (hr_boss_hall_enter takes the leader's key). Said plainly to a
-     member who holds one, until the open takes a key from any seat (the designer's ruling, handed to Systems the same day). */
-  memberKey: 'You have a {key}, but only your party\'s leader can open the hall. Give it to them first. Your own heroes can pass it through Storage.',
+  /* ANY SEAT'S KEY OPENS THE HALL (2027-04-24-hall-key-any-seat.sql: the leader's own first, else the first seat's that holds one it has not
+     locked), and the leader still makes the press. So a member who holds one is told it counts, as a label (Tyler 2026-11-14: labels, never
+     sentences, outside lore). {n} this hero's keys. */
+  memberKey: '{key}: {n} · Your leader opens the hall',
+  /* THE DAILY PRIZE (Tyler 2026-11-14 "a daily kill"; 2027-04-25-boss-daily.sql). Label lines, every one read from the server's own
+     `boss_halls` section (src/session/boss-quote.js hallStateOf), never from this browser's clock or bag. {in} the wait to the server's next
+     day ("6 h 12 m"), {n} of {m} the heroes this open marches in who can still take today's. `none` is the confirm's own line when nobody
+     would: the key is used all the same. */
+  loot: Object.freeze({
+    left: 'Loot: available',
+    taken: 'Loot: claimed today',
+    next: 'Next: {in}',
+    party: 'Party: {n} of {m}',
+    none: 'Loot: none today · Key: still used',
+  }),
   warnTitle: 'Fight {boss}?',
   warn: Object.freeze([
     '{Boss} hits hard. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder.{haste} If anyone dies, the fight ends.',
-    'It uses up your {key}, win or lose. The fight ends after {minutes} minutes.',
+    'It uses up {whose} {key}, win or lose. The fight ends after {minutes} minutes.',
   ]),
+  /* {whose} in the line above: this hero's own key, or the seat's the server names (any seat's key opens the hall) */
+  whose: Object.freeze({ own: 'your', seat: '{name}\'s' }),
   /* the same sentence as a called room's (boss-calls.js warnGuard): what his adds do, never a move to turn off */
   warnGuard: ' They shield him until you kill them.',
   /* WHAT WINS (lane/d-march-balance, the v0.2.132 re-play: 0 of 6 on the bars a party is handed). A hall that names a store food (`storeFloor`)

@@ -63,10 +63,10 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.131';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.131';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.131';
-import { foldRows } from './grounds/shape.js?v=0.2.131';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.132';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.132';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
+import { foldRows } from './grounds/shape.js?v=0.2.132';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).

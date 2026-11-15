@@ -59,8 +59,8 @@ const BURNED = Object.freeze({ ember: 25, poison: 50 });
 
 export default definePack({
   id: 'pyre_field',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-pyre_field.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 9 Pikemen, 4 Stokers, 4 Lurchers, 4 Wraiths
      and 3 Provosts, two of them holding the Great Pyre. */
   hunt: {

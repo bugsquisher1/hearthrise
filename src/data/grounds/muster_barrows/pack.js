@@ -76,8 +76,8 @@ const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'c
 
 export default definePack({
   id: 'muster_barrows',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-muster_barrows.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
      on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {

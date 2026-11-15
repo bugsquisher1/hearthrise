@@ -45,8 +45,8 @@ const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_serge
 
 export default definePack({
   id: 'the_slake',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-the_slake.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Bargemen, 4 Mudlarks and the
      2 Sergeants who hold the barge. */
   hunt: {

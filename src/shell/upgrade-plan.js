@@ -27,7 +27,14 @@
 //                    better blade of the family goes on and a worn bane is never traded away unseen
 //                    (designer re-read 2026-11-11: Level 16 with the Practice Sword and 6 Bramble Blades);
 //                    a plain weapon that beats the worn bane on every number is a CHOICE the line says,
-//                    never a swap (designer small call 2, 2026-11-11: baneTrade below)
+//                    never a swap (designer small call 2, 2026-11-11: baneTrade below).
+//                    A BANE COUNTS ONLY WHERE IT WINS (audit 2026-11-15 F15: a Level 55 hero kept the Level 15 Bramble
+//                    Blade over 40 Mithril Swords, told "each piece is better at something", and died twice at the
+//                    Barrows, where nothing is a plant): two sets whose banes differ are compared by the blow each
+//                    lands (the engine's own accuracy x largest hit, combat.js playerCombatRolls, on the server's
+//                    skills) on every monster of that kind living on an open ground whose Level band holds the hero's
+//                    Level. No such monster, or the plain piece lands more on each: the bane is not a reason, and the
+//                    bigger numbers go on
 //   a tier step      a higher material tier of the weight worn is judged with the
 //                    set bonus left out of both sides, and the line says which set
 //                    bonus it ends (designer ruling 2026-10-31, played: Marlow, Level
@@ -39,8 +46,11 @@
 //                    hero wore the Practice Sword for 19 hunted hours over eight Iron Swords)
 // WHAT IT NEVER DOES (the decisions, 2026-10-22):
 //   · never changes the style: never another weapon family, never a weapon into empty
-//     hands, never the off-hand or the ammo: the hands set the style and the role
-//     (ruling 2026-10-16) and the player picks every supply (ruling 2026-10-21)
+//     hands, never a piece into an empty off-hand, never the ammo: the hands set the style
+//     and the role (ruling 2026-10-16) and the player picks every supply (ruling 2026-10-21).
+//     A WORN off-hand takes a better one of its own kind (a shield for a shield, a spellbook
+//     for a spellbook of its discipline; audit 2026-11-15 F8: a Level 31 tank still held the
+//     Practice Shield over better shields), the same rule as the weapon's family: the role never moves
 //   · never takes off a piece of another armour weight (the player chose heavy,
 //     medium or light), nor one carrying an effect the numbers do not price
 //     (an away effect); it fills EMPTY slots first, then upgrades within
@@ -57,8 +67,11 @@ import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.132'
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.132';
 import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.132';
 import { loadoutOf } from '../core/member.js?v=0.2.132';
-import { jewelPerksOf } from '../core/combat.js?v=0.2.132';
-import { baneIndex, baneMultFor, MONSTER_CLASSES } from '../core/bane.js?v=0.2.132';
+import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.132';
+import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.132';
+import { skillXpForLevel } from '../core/xp.js?v=0.2.132';
+import { MONSTERS } from '../data/monsters.js?v=0.2.132';
+import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.132';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.132';
 import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.132';
 import { itemName } from './widgets/bits.js?v=0.2.132';
@@ -71,6 +84,8 @@ import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.132';
 const STYLE_SLOTS = new Set(['shield', 'ammo']);
 /* Every other equip slot, in the catalogue's order (a new slot row joins with no code). */
 const UPGRADE_SLOTS = Object.freeze(Object.keys(EQUIP_SLOT_META).filter((s) => !STYLE_SLOTS.has(s)));
+/* The one style slot a press may touch, and only like for like (sameOffhand below). */
+const OFFHAND = 'shield';
 const EPS = 1e-9;
 /* The armor weights a player picks (Tamsin's tally: tally-sections.js), the same words ARMOUR_WEIGHT maps to. */
 const PREFER = new Set(['heavy', 'medium', 'light']);
@@ -89,9 +104,27 @@ function meets(it, skills, level) {
   return have !== null && have >= it.reqLv;
 }
 
-/* The numbers a worn set fights with, for the style its weapon sets; `set` false leaves the set bonus out. */
-function numbersOf(worn, level, set = true) {
+/* WHERE A BANE CAN MATTER: the monsters of each kind on the open grounds whose Level band holds this Level ({ kind: [monster id] }), one answer a Level. */
+const PREY = new Map();
+function preyAt(level) {
+  if (PREY.has(level)) return PREY.get(level);
+  const out = {};
+  for (const h of OPEN_HUNTS) {
+    if (!Array.isArray(h.band) || level < h.band[0] || level > h.band[1]) continue;
+    for (const s of h.spawns || []) { const c = classOfMonster(MONSTERS[s.monster]); if (c && !(out[c] || (out[c] = [])).includes(s.monster)) out[c].push(s.monster); }
+  }
+  PREY.set(level, out);
+  return out;
+}
+/* The server's skills as the engine reads them ({ skill: xp }); a row with no xp reads from its level. */
+const xpOf = (skills) => Object.fromEntries(Object.entries(skills || {}).map(([k, r]) => [k, r && Number.isFinite(r.xp) ? r.xp : skillXpForLevel(k, (r && r.level) || 1)]));
+
+/* The numbers a worn set fights with, for the style its weapon sets; `set` false leaves the set bonus out. `prey`: the blow it lands
+   (accuracy x largest hit, the engine's) on each monster a bane could matter against (preyAt), by kind. */
+function numbersOf(worn, level, set = true, skills = null) {
   const { eq, setBonus, profile } = loadoutOf(worn, ITEMS);
+  const at = preyAt(level), xp = xpOf(skills), prey = {};
+  for (const c of Object.keys(at)) prey[c] = at[c].map((id) => { const r = playerCombatRolls(MONSTERS[id], { equipment: worn, items: ITEMS, eq, profile, setBonus: null, skills: xp }); return r.accuracy * r.maxHit; });
   let acc = 0, dmg = 0;
   for (const id of Object.values(worn)) {
     const it = ITEMS[id];
@@ -101,7 +134,7 @@ function numbersOf(worn, level, set = true) {
   }
   const w = armourWeights(worn, ITEMS);
   return { acc, dmg, def: num(eq.defB), steady: num(eq.steadyPm), crit: num(eq.critB) + (set && setBonus ? num(setBonus.critB) : 0),
-    hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill, perks: jewelPerksOf(worn, ITEMS) || {}, banes: banesOf(worn) };
+    hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill, perks: jewelPerksOf(worn, ITEMS) || {}, banes: banesOf(worn), prey };
 }
 
 /* A worn armour piece, and in the bag one of its weight from a higher material tier. */
@@ -111,18 +144,26 @@ const DIMS = Object.freeze(['acc', 'dmg', 'def', 'steady', 'crit', 'hp', 'mana']
 /* The perks either side plays, in the catalogue's order, and one side's size of one (permille, 0 when it plays none). */
 const perksIn = (a, b) => Object.keys(JEWEL_PERKS).filter((p) => p in a.perks || p in b.perks);
 const perkOf = (n, p) => num(n.perks[p]);
-/* `banes` false judges the plain numbers only (the bane trade below): a worn bane is still never traded away by this. */
+/* A BANE IS WEIGHED WHERE IT PLAYS (the header): for a kind the two sets' banes differ on, the blow each lands on that kind's monsters in the hero's
+   range: -1 `a` lands less on one, 1 it lands more on one and less on none, 0 neither (or no such monster: the bane is no reason either way). */
+function baneSide(a, b, c) {
+  if (Math.abs(a.banes[c] - b.banes[c]) < EPS || !a.prey[c] || !b.prey[c]) return 0;
+  let more = false;
+  for (let i = 0; i < a.prey[c].length; i++) { if (a.prey[c][i] < b.prey[c][i] - EPS) return -1; if (a.prey[c][i] > b.prey[c][i] + EPS) more = true; }
+  return more ? 1 : 0;
+}
+/* `banes` false judges the plain numbers only (the bane trade below): a worn bane that wins in range is still never traded away by this. */
 function dominates(a, b, banes = true) {
   let more = false;
   for (const k of DIMS) { if (a[k] < b[k] - EPS) return false; if (a[k] > b[k] + EPS) more = true; }
   for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }
-  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }
+  if (banes) for (const c of MONSTER_CLASSES) { const side = baneSide(a, b, c); if (side < 0) return false; if (side > 0) more = true; }
   return more;
 }
-/* The monster kinds a swap would lose a bane against, each with the worn piece's own clamped number (the set's best for that kind is the worn piece's, since the swap drops it). */
-const banesLost = (now, after) => MONSTER_CLASSES.filter((c) => after.banes[c] < now.banes[c] - EPS).map((c) => ({ cls: c, pct: Math.round((now.banes[c] - 1) * 100) }));
+/* The monster kinds a swap would lose a bane against WHERE THAT BANE WINS, each with the worn piece's own clamped number (the set's best for that kind is the worn piece's, since the swap drops it). */
+const banesLost = (now, after) => MONSTER_CLASSES.filter((c) => after.banes[c] < now.banes[c] - EPS && baneSide(after, now, c) < 0).map((c) => ({ cls: c, pct: Math.round((now.banes[c] - 1) * 100) }));
 const same = (a, b) => DIMS.every((k) => Math.abs(a[k] - b[k]) < EPS) && perksIn(a, b).every((p) => perkOf(a, p) === perkOf(b, p))
-  && MONSTER_CLASSES.every((c) => Math.abs(a.banes[c] - b.banes[c]) < EPS);
+  && MONSTER_CLASSES.every((c) => baneSide(a, b, c) === 0);
 
 const STYLE_WORDS = Object.freeze({ melee: 'Melee', ranged: 'Ranged', magic: 'Magic' });
 /* What one pick adds, in words, in reading order: [{ label, text }]. */
@@ -146,6 +187,9 @@ function gainsOf(before, after) {
    their family, and a crossbow can hold a shield), and the worn set's role unmoved. Empty hands have no family, so they stay the player's choice of style. */
 const sameHands = (id, cur, worn) => roleWeaponOf(ITEMS[id]) === roleWeaponOf(ITEMS[cur]) && !!ITEMS[id].twoHanded === !!ITEMS[cur].twoHanded
   && wornRoleKey(Object.assign({}, worn, { weapon: id }), ITEMS) === wornRoleKey(worn, ITEMS);
+/* An off-hand that plays what the worn one plays: its kind (a shield, a spellbook), its discipline, and the worn set's role unmoved. An empty off-hand stays the player's choice. */
+const sameOffhand = (id, cur, worn) => !!cur && !!ITEMS[cur] && !!ITEMS[id].offhand && ITEMS[id].offhand === ITEMS[cur].offhand && (ITEMS[id].discipline || null) === (ITEMS[cur].discipline || null)
+  && wornRoleKey(Object.assign({}, worn, { [OFFHAND]: id }), ITEMS) === wornRoleKey(worn, ITEMS);
 
 /* A WORN BANE AGAINST A PLAIN STRONGER WEAPON IS THE PLAYER'S CALL, SAID (designer 2026-11-11 small call 2: Iron Sword +7/+6 everywhere against
    a worn Bramble Blade +6/+5 and +40% on plant monsters; where the hero hunts next decides it). Nothing goes on, and the slot is named as a
@@ -156,7 +200,7 @@ function baneTrade(slot, cur, now, fits, worn, o, set) {
   if (slot !== 'weapon' || !cur) return null;
   const plain = [];
   for (const id of fits) {
-    const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level, set);
+    const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level, set, o.skills);
     const lost = banesLost(now, after);
     if (lost.length && dominates(after, now, false)) plain.push({ id, after, lost });
   }
@@ -176,14 +220,15 @@ function bestFor(slot, worn, left, o) {
     if (n < 1 || !it || !it.slot || !expandItemSlot(it.slot).includes(slot) || unpriced(it) || !meets(it, o.skills, o.level)) continue;
     if (curIt && weightOf(it) !== weightOf(curIt)) continue;
     if (slot === 'weapon' && !sameHands(id, cur, worn)) continue;
+    if (STYLE_SLOTS.has(slot) && !sameOffhand(id, cur, worn)) continue;
     fits.push(id);
   }
   /* A tier step in the bag: every piece for this slot is judged with the set bonus out of both sides (the header). */
   const set = !fits.some((id) => tierStep(ITEMS[id], curIt));
-  const now = numbersOf(worn, o.level, set);
+  const now = numbersOf(worn, o.level, set, o.skills);
   const better = [];
   for (const id of fits) {
-    const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level, set);
+    const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level, set, o.skills);
     if (dominates(after, now)) better.push({ id, after });
   }
   let front = better.filter((c) => !better.some((x) => x !== c && dominates(x.after, c.after)));
@@ -228,7 +273,7 @@ export function upgradePlan(o) {
   const ops = {}, picks = [], choices = [];
   /* Empty slots first (the second ring goes beside the first, never over it), then same-weight upgrades. */
   for (const pass of [(s) => !worn[s], (s) => !!worn[s] && !(s in ops)]) {
-    for (const slot of UPGRADE_SLOTS) {
+    for (const slot of UPGRADE_SLOTS.concat(OFFHAND)) {
       if (!pass(slot)) continue;
       const b = bestFor(slot, worn, left, ctx);
       if (!b) continue;

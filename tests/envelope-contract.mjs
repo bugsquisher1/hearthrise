@@ -112,6 +112,9 @@ function contract(R, cs, body, tl) {
   // hunt_tier (the hunt picker's pick per ground and the tier the running hunt froze, 2027-02-27-hunt-tiers.sql): the hero's own Dangerous on its ground
   const dm = R.HS.huntTierOf(cs);
   need('hunt_tier', !!dm && dm.picks.mill_cellar === 'dangerous' && dm.playing === 'dangerous', 'huntTierOf yields ' + JSON.stringify(dm) + ' from ' + JSON.stringify(body.hunt_tier));
+  // hunt_target_kind (the bar's First target per ground, 2027-04-22-target-kind.sql): the hero's own Giant Rat on its ground
+  const fk = R.HS.huntTargetKindOf(cs);
+  need('hunt_target_kind', !!fk && fk.picks.mill_cellar === 'rat', 'huntTargetKindOf yields ' + JSON.stringify(fk) + ' from ' + JSON.stringify(body.hunt_target_kind));
   // party (the hunt panel's and the party window's readers, one shape)
   const p = R.HS.partyOf(cs);
   need('party', !!p && p.members.length === 2, 'partyOf yields ' + (p ? p.members.length : 'no') + ' members: ' + JSON.stringify(body.party).slice(0, 240));
@@ -311,7 +314,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
@@ -389,6 +392,9 @@ async function realBody(db, M, H) {
     /* Tamsin's cellar task, taken at her board in town (2026-12-23-tally-tasks.sql): the settles count its rats. */
     const tt = await H.one(db, "select public.hr_tally_accept(0, 'cellar_giant_rats', 'light', gen_random_uuid())");
     if (!tt || tt.ok !== true) throw new Error('S2 seed refused: the tally take in town -> ' + JSON.stringify(tt));
+    /* The First target on the Cellar (2027-04-22-target-kind.sql), named in town: the Giant Rat (the fixture ground's rows: rats and a wolf). */
+    const fk = await H.one(db, "select public.hr_hunt_target_kind_set(0, 'mill_cellar', 'rat', gen_random_uuid())");
+    if (!fk || fk.ok !== true) throw new Error('S2 seed refused: the First target in town -> ' + JSON.stringify(fk));
   } });
   /* Monsters are units only mid-pull: sample the pose after every tick so the monster path is proven. */
   const poses = [];
@@ -458,6 +464,7 @@ const DB_MUTANTS = [
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'discipline', v_disc,", "'disc', v_disc,"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
   ['hunt_tier', 'public.hr_hunt_tier_view(uuid,integer)', "'playing', (select i.tier", "'playing_now', (select i.tier"],
+  ['hunt_target_kind', 'public.hr_hunt_target_kind_view(uuid,integer)', "'picks', coalesce(", "'pick', coalesce("],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],

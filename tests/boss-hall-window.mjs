@@ -132,7 +132,7 @@ async function checks(overrides) {
     const pn = r.panes;
     if (pn.none.hidden || !pn.none.off || pn.none.line !== 'You don\'t have a Goblin Totem.') fails.push('BH-1 with no key the pane reads ' + JSON.stringify(pn.none));
     if (pn.one.off || pn.one.line !== 'You have 1 Goblin Totem.' || !/^Open /.test(pn.one.press)) fails.push('BH-1 with a key the pane reads ' + JSON.stringify(pn.one));
-    if (pn.two.off || pn.two.line !== 'You have 2 of them.') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
+    if (pn.two.off || pn.two.line !== 'You have 2 keys.') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
     if (!pn.member.off || pn.member.line !== 'Only your party\'s leader can open it.') fails.push('BH-1 a member reads ' + JSON.stringify(pn.member));
     if (!pn.hunting.off || !/^Not while you're hunting/.test(pn.hunting.line)) fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
     if (pn.leader.off) fails.push('BH-1 a party\'s leader with a key is off');

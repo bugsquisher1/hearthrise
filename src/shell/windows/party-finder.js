@@ -15,17 +15,17 @@
 // server's answer held as window scratch — never the record, and nothing can
 // spend them: Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.130';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.130';
-import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.130';
-import { roleOf } from '../../session/item-sections.js?v=0.2.130';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
-import { refusalWords, runIntent } from '../intent-words.js?v=0.2.130';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.130';
-import { listParty } from '../../session/party-intents.js?v=0.2.130';
-import { huntRows } from '../hunt-list.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
+import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.131';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.131';
+import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.131';
+import { roleOf } from '../../session/item-sections.js?v=0.2.131';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.131';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.131';
+import { refusalWords, runIntent } from '../intent-words.js?v=0.2.131';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.131';
+import { listParty } from '../../session/party-intents.js?v=0.2.131';
+import { huntRows } from '../hunt-list.js?v=0.2.131';
+import { t } from '../../render/player-text.js?v=0.2.131';
 
 const SCRATCH = new WeakMap();
 
@@ -49,7 +49,7 @@ function weaponOption(w) {
   const role = HUNT_ROLES[WEAPON_ROLES[w][0]];
   const word = (WEAPON_WORDS[w] || w).toLowerCase();
   const what = 'Needs ' + (/s$/.test(word) ? '' : 'a ') + word;
-  return role.label.toLowerCase().includes(word) ? what : what + ' · ' + role.label;
+  return role.label.toLowerCase().includes(word) ? what : what + ' (' + role.label + ')';
 }
 
 export function finderHtml() {
@@ -103,7 +103,7 @@ export function patchFinder(root, ctx, sc) {
     build: (r) => foundRow(ctx, r),
     patch: (li, r) => {
       text(li.querySelector('b'), r.hunt ? 'Last hunted ' + huntName(r.hunt) : 'Party of ' + r.seats.length);
-      text(li.querySelector('small'), r.seats.map((s) => s.name).join(', ') + ' · ' + r.seats.length + (r.max ? ' of ' + r.max : ''));
+      text(li.querySelector('small'), r.seats.map((s) => s.name).join(', ') + ' (' + r.seats.length + (r.max ? ' of ' + r.max : '') + ')');
       rows(li.querySelector('.hw-found-roles'), r.seats, {
         key: (s) => String(s.seat),
         build: () => element(ctx.doc, '<span class="hw-ico hw-roleglyph" aria-hidden="true"></span>'),

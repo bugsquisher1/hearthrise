@@ -24,11 +24,11 @@ export const ITEM_TEXT = Object.freeze({
   type_gear: 'Gear',
   type_item: 'Item',
   tier: 'Tier {tier}',
-  kind_drink: 'Drink · restores {mana} mana',
+  kind_drink: 'Drink that restores {mana} mana',
   kind_rune: 'Rune',
   kind_whetstone: 'Whetstone',
   kind_ammo: 'Ammo',
-  kind_food: 'Food · heals {heals} health',
+  kind_food: 'Food that heals {heals} health',
   kind_junk: 'Junk',
   kind_material: 'Material',
 

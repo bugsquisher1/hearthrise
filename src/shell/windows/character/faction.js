@@ -9,14 +9,14 @@
 // intents.js) and stays off until the server's own numbers allow it; the row changes only from the re-read envelope.
 // PLACEHOLDER ART: the mark and the pieces draw a glyph (uiFlame, uiFire) until the art lane's marks and outfit icons land.
 // ════════════════════════════════════════════════════════════════════════
-import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.130';
-import { claimPiece, startSwap, finishSwap } from '../../../session/faction-intents.js?v=0.2.130';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.130';
-import { runIntent } from '../../intent-words.js?v=0.2.130';
-import { t } from '../../../render/player-text.js?v=0.2.130';
-import { glyphSvg } from '../../widgets/bits.js?v=0.2.130';
-import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.130';
+import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.131';
+import { claimPiece, startSwap, finishSwap } from '../../../session/faction-intents.js?v=0.2.131';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.131';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.131';
+import { runIntent } from '../../intent-words.js?v=0.2.131';
+import { t } from '../../../render/player-text.js?v=0.2.131';
+import { glyphSvg } from '../../widgets/bits.js?v=0.2.131';
+import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.131';
 
 /** The placeholder mark of a side (a glyph, until the art lane's 16 px marks land). */
 export const MARK_GLYPH = Object.freeze({ first_flame: 'uiFlame', last_ember: 'uiFire' });

@@ -10,13 +10,13 @@
 // title and fold to it (src/shell/widget-move.js, Tyler 2026-10-25). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.130';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.130';
-import { huntName } from '../../session/party-sections.js?v=0.2.130';
-import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.130';
-import { rows, text, cls, attr, style, element } from '../../render/paint.js?v=0.2.130';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
+import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.131';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.131';
+import { huntName } from '../../session/party-sections.js?v=0.2.131';
+import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.131';
+import { rows, text, cls, attr, style, element } from '../../render/paint.js?v=0.2.131';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.131';
+import { t } from '../../render/player-text.js?v=0.2.131';
 
 /** The skeleton (built once). Its title opens her window on a press and drags the widget on a drag. */
 export function renderTallyHud() {
@@ -45,7 +45,7 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
     build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span><small class="hs-tally-wait"></small></li>'),
     patch: (li, x) => {
       const elsewhere = hunting && !x.done && x.hunt !== h.huntId;
-      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' · Done' : elsewhere ? ' · Not here' : ''));
+      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' (done)' : elsewhere ? ' (not here)' : ''));
       attr(li, 'title', elsewhere ? 'Counts only in ' + huntName(x.hunt) + '.' : null);
       /* A done task says how it gets paid (lane/b-first-hour: "200/200 · Done" never said to come home): back in town,
          or why it waits (the tally window's own words, tally-sections.js waitWords). */

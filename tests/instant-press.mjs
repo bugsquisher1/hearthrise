@@ -363,7 +363,7 @@ async function checks(overrides) {
         await sleep(1100);
         const lines = await page.evaluate(() => [...document.querySelectorAll('[data-live-overlay] p')].map((p) => p.textContent));
         const all = lines.join(' | ');
-        if (!/^env v\d+ · [\d.]+ s ago$/.test(lines[0] || '')) fails.push('IP-5 the envelope line reads ' + JSON.stringify(lines[0]));
+        if (!/^env v\d+, [\d.]+ s ago$/.test(lines[0] || '')) fails.push('IP-5 the envelope line reads ' + JSON.stringify(lines[0]));
         if (!/^ask blessing_buy \d+ ms ok$/.test(lines[1] || '')) fails.push('IP-5 the ask line reads ' + JSON.stringify(lines[1]));
         if (lines[2] !== 'open 0') fails.push('IP-5 the in-flight line reads ' + JSON.stringify(lines[2]));
         if (!/^fps \d+$/.test(lines[4] || '')) fails.push('IP-5 the fps line reads ' + JSON.stringify(lines[4]));

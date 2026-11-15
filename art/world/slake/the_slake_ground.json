@@ -4,7 +4,7 @@
   "kind": "fill",
   "painted": true,
   "style": "s1",
-  "material": "terrain",
+  "material": "native",
   "source": "the_slake_ground.png",
   "lower": "painted",
   "upper": "painted",
@@ -9618,8 +9618,8 @@
   },
   "pixellab": {
     "tool": "create-tileset (pro), dual-grid paint",
-    "tileset": "168be062-a561-4e5a-bf4f-8fb1964dd0ba,ec6c96ef-8da7-4437-ab0c-a7b38cd44755",
-    "grid": "art/briefs/the-slake-grid-2026-11-10.txt"
+    "tileset": "7442c425-c417-4486-92fd-4c0f5b60d65a,5730601c-af79-4b9f-9eea-6cf5b8df42d0",
+    "grid": "art/briefs/the-slake-grid-2026-11-14.txt"
   },
-  "notes": "Painted from art/briefs/the-slake-grid-2026-11-10.txt with the tiles of 2 PixelLab pro tilesets on the dual grid by tools/world-art/port-pixellab.mjs paint; pixels unscaled."
+  "notes": "Painted from art/briefs/the-slake-grid-2026-11-14.txt with the tiles of 2 PixelLab pro tilesets on the dual grid by tools/world-art/port-pixellab.mjs paint; pixels unscaled."
 }

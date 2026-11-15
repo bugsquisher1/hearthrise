@@ -90,12 +90,17 @@ const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-gr
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
 /* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
 const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
+const { BOSS_CALLS } = await import(pathToFileURL(join(ROOT, 'src/data/boss-calls.js')).href);
+/* the boss as a sentence opens on him: a called boss's words ("The Rat King"), else his own name ("Captain Hask", never "The Captain Hask") */
+const bossWords = (id) => (Object.values(BOSS_CALLS).find((c) => c.of === id) || { Boss: MONSTERS[id].name }).Boss;
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   const p = g.pockets.find((q) => q.forParty);
-  const boss = p && p.spawns.map((x) => MONSTERS[x.monster]).find((m) => m && m.boss);
-  return [g.hunt, p && boss ? 'The ' + boss.name + ' is built for a group of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
+  const boss = p && p.spawns.map((x) => x.monster).find((m) => MONSTERS[m] && MONSTERS[m].boss);
+  return [g.hunt, p && boss ? bossWords(boss) + ' is built for a group of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
+/* lane/d-march-text: the Barrows' note read "The Captain Hask is built for a group of four or more." A named man takes no "The". */
+if (!/^Captain Hask is built for a group of four or more\./.test(PARTY_NOTES.muster_barrows || '')) throw new Error('party-ui: UI-5 the Barrows\' note reads ' + JSON.stringify(PARTY_NOTES.muster_barrows));
 const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
   'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_list', 'hr_hunt_party_warn'];
 
@@ -1346,7 +1351,7 @@ async function pageRules(overrides, shots) {
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
           if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
-          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
+          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
           const lv = sent(s, 'hr_hunt_party_leave').length;
@@ -1475,7 +1480,7 @@ const PAGE_MUTANTS = [
   ['Leave party stays on while in flight', 'src/shell/windows/party-roster.js', "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', sc.pending);", "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', false);"],
   ["a member is offered the leader's hunt pick", 'src/styles/windows.css', '.hw-party-acts [hidden] { display: none; }', ''],
   ['Your party has no Leave', 'src/shell/windows/party-roster.js', "  return leaveOrDisband(ctx, ctx.character, sc, repaint, action);", "  return false;"],
-  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' · ' + role.label;", "  return 'No ' + word + ' yet (' + role.label + ')';"],
+  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' (' + role.label + ')';", "  return 'No ' + word + ' yet (' + role.label + ')';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
   ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "  return mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "  return '';"],

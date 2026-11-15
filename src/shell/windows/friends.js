@@ -14,22 +14,22 @@
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.130';
-import { huntName } from '../../session/party-sections.js?v=0.2.130';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.130';
-import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.130';
-import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.130';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
+import { refusalWords } from '../intent-words.js?v=0.2.131';
+import { huntName } from '../../session/party-sections.js?v=0.2.131';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.131';
+import { entriesFor, markPlayer, playerTargetOf } from '../context-menu.js?v=0.2.131';
+import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.131';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.131';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.131';
+import { t } from '../../render/player-text.js?v=0.2.131';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false }; STATE.set(body, s); } return s; };
 
 /** What a friend is doing, in words. Pure. */
 export function doingWords(f) {
-  const where = f.doing && f.doing.kind === 'hunting' ? 'Hunting in ' + huntName(f.doing.hunt) : f.doing ? 'In town' : '';
-  return (f.online ? 'Online' : 'Offline') + (where ? ' · ' + where : '');
+  const where = f.doing && f.doing.kind === 'hunting' ? 'hunting in ' + huntName(f.doing.hunt) : f.doing ? 'in town' : '';
+  return (f.online ? 'Online' : 'Offline') + (where ? ', ' + where : '');
 }
 
 export function renderFriends() {

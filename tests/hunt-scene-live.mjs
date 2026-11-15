@@ -322,7 +322,7 @@ async function nodeRules(M) {
         if (s < T0 - 200) {
           travelFrames++;
           if (h && h.anim === 'walk' && firstWalk === null) firstWalk = s - entered;
-          if (h && h.plate && /^Walking to Mill Cellar · \d+ s$/.test(h.plate.text)) travelPlate++;
+          if (h && h.plate && /^Walking to Mill Cellar \(\d+ s\)$/.test(h.plate.text)) travelPlate++;
           return;
         }
         if (s < T0) return;

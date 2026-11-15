@@ -1,6 +1,7 @@
-KRELL'S HOLD'S PAINT GRID (lane/b-barrow-art-import, 2026-11-14): src/data/grounds/krells_hold/map.js rows as they stand.
-. cobble, : the cart road's earth, f flagstone, s setts, = the Hall's boards, g gravel, # wall mass (no floor: the walls are
-laid over the paint by tools/world-art/barrow-grounds.mjs). Painted by port-pixellab.mjs paint from brief 29's six pairs.
+KRELL'S HOLD'S PAINT GRID (lane/b-barrow-art-import, 2026-11-14; the hill lane/b-hold-art): src/data/grounds/krells_hold/map.js rows,
+their rock split by holdGrid in tools/world-art/barrow-grounds.mjs. . cobble, : the cart road's earth, f flagstone, s setts, = the Hall's
+boards, g gravel, # the castle's wall mass (no floor: the walls are laid over the paint), h the hill's grass, k the hill's rock.
+Painted by port-pixellab.mjs paint from brief 29's six pairs and the hill's three (gen-2026-11-14/33-hold-hill).
 
 PAINT
 ############################################################
@@ -24,26 +25,26 @@ PAINT
 ####.....................#################fffffffffffff#####
 ####.....................#################fffffffffffff#####
 ####.....................#################ffffgggggffff#####
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####################.....#####################ggggg#########
-####################................ggggggggggggggg#########
-####################................ggggggggggggggg#########
-######################..............ggggggggggggggg#########
-######################..............ggggggggggggggg#########
-######################..............ggggggggggggggg#########
-######################...............#######################
-######################...............#######################
-######################...............#######################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
+hhk#.....................#####################ggggg#####kkkk
+hhk#.....................#####################ggggg#####khhh
+hhk#.....................#####################ggggghkhhhkhhh
+hhh#.....................#####################ggggghhhhhhhhh
+hhh#.....................#####################ggggghhhhhhhhh
+hhh#.....................#####################ggggghhhhhhhhh
+hhh#.....................#####################ggggghhhhhhhhk
+hhh#.....................#####################ggggghhhhhhhhk
+hhh#################.....#####################ggggghhhhhhkkh
+hhh#################................ggggggggggggggghkhhhkkkh
+hhhhhhhkkkkkkkkhhhh#................ggggggggggggggghhhhhhhhh
+hhhhhhhhkkkhhhhhhhh###..............ggggggggggggggghhhhhhhhh
+hhhhhhhhkkhhhhhhhhh###..............ggggggggggggggghhhhhhhhh
+hhhhhhhhhkhhhhhhhhhhh#..............ggggggggggggggghhhhhhhhh
+hhhhhhhhhhhhhhhhhhhhh#...............#hhhhhhhhhhhhhhhhhhhhhk
+hhhhhhhhhhhhhhhkhhhhh#...............#kkhhhhhhhhhhhhhhhhhkkk
+hhhhhhhhhhhhhhhkhhhhh#...............#khhhhhhhhhhhhhhhhhhkkh
+hhhhhhhhhhhhhhhkkkhhk#######:::#######hhhhhhhhhhhhhhhhhhhkhh
+hhhhhhhhhhhhhhkkkkkkk#######:::#######hhhhkhhhhhhhhhhhhhkkhh
+hhhhhhhhhhhhhhhhkkkkkkkkhhh:::::hhhhhhhhhhkhhhhhhhhhhhhhhhhh
+hhhhhhhhhhhhhhhhhhkkhhhhhhh:::::hhhhhhhhhhhhhhhhhhhhhhhhhhhh
+hhhhhhkkkkkkkhhhhhkhhhhhhhh:::::hkhhhhhhhhhhhhhhhhhhhhhhhhhh
+hhhhhhkkkkhhhhhhhhhhhhhhhhh:::::hkhhhhhhhhhhhhhhhhhhhhhhhhhh

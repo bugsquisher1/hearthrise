@@ -21,15 +21,14 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.130';
-import { whole, gold } from '../../../render/format.js?v=0.2.130';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.130';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.130';
-import { stateOf } from './state.js?v=0.2.130';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.130';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.130';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.130';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.130';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.131';
+import { whole, gold } from '../../../render/format.js?v=0.2.131';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.131';
+import { stateOf } from './state.js?v=0.2.131';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.131';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.131';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.131';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.131';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -38,7 +37,7 @@ export function renderInventory(ctx) {
   return '<div class="hw-inv" tabindex="0" data-hs-act="inv" aria-label="Inventory">'
     + toolbarHtml(g)
     + '<div class="hw-inv-scroll"><div class="hw-inv-cols">' + dollHtml(g) + '<div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
-    + weightsHtml() + '<p class="hw-keys">' + esc(KEYS) + '</p></div>'
+    + weightsHtml() + '</div>'
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
     + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
     + '<b class="hw-gold"></b></div><p class="hw-why hw-over"></p>'

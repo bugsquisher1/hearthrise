@@ -29,6 +29,39 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-14 Krell's Hold design pass (designer, lane/d-hold-pass, the v0.2.130 visual gate's opens): RULED, BUILT as data, MEASURED on the real settle (`tools/balance-sim/boss-call-table.mjs --hall krells_hold`, Level 98, 200 tries a row unless named). Still STAGED. No migration (no catalogue carries Krell's rows). The edge bundle moves (pack.js, boss-calls.js)
+
+| Open | Ruling | Evidence |
+|---|---|---|
+| 1. Challenge in the hall | **The text was wrong. Challenge is the wrong press at a boss whose adds shield him.** He already fills the tank, so pulling the wave on too is what loses. The warning (hall and called room) and the losing line now say "take Challenge off your tank's bar for this fight". Then the fit had to move: it was made on a good bar WITH Challenge, so the trap was doing the gear check. Krell's enrage x1.25 to x1.6, the Hall Fire 0.95x to 0.55x | Krell, damage left on him: 66% with Challenge, 99% without. The good bar 98 vs 100. Chief Coppercap (100 tries) the same: 38 vs 96. Played right on the old fit, one gear tier behind won 96%. On the new fit, Challenge off: good 99, one tier behind 54, bad 31, eat at 40% 67, a healer who waits 72. Challenge on: good 95, untouched bar 62 |
+| 2. Hall blow share 55% | **A deliberate exception, written in data.** The hall's hunt row carries `blowCap { pct: 55, why }`. `hunt-data` blow-share holds the hall to it (was a bare skip), refuses a cap at or under 35 or over 60, and a hall with no cap is held to 35. Three new mutants (Rake past 55, cap dropped, a 70 cap) | Every blow over 35% is the tank's (his swing 451, 46%) or marked (the Rake 541, 55%). The Hall Fire everyone takes is 248, 25%. Held to 35%: on x1.25 the bad bar won 95% (85% at 10,000 HP), on x1.6 the pulse alone holds the bad bar at 25 but one tier behind wins 99, eating late 97, healing late 100. Nothing but the pulse asks anything |
+| 3. Grave Guard's Shield Slam | **Keep, as is.** A heavy behind a door-sized shield, a marked hit the tank holds and the back line steps off. The hall's two Grave Guard adds stay slam-free (the hall already has four spells) | Top 171, 17% of the floor hero (the regular cap is 30), every 20 s, no to-hit roll, so about 1.7x his average swing. 1.2x read a typical low of 60.5% and 1.5x 59.6%, at the sheet's 60 line (lane/b-barrow-numbers) |
+| 4. Gatehouse cells | See the list below. Not placed here: lane/b-hold-art places it and re-pins the mask | Checked on the rows: no choke (every open tile in an open 3x3), all 1,147 open tiles reached from the start, the patrol corners and the four seats open |
+| Text bug found | "his The Hall Fire comes faster" in the hall's warning. The spell is now named `Hall Fire` | `boss-hall-pane.js` puts the spell's name after "his" |
+
+**The gatehouse, for lane/b-hold-art** (`src/data/grounds/krells_hold/map.js`):
+- Turn four road cells to rock `#`: (27,39), (27,40), (31,39), (31,40). Rows 39 and 40 become `########:::#########` at x20-39. The road through the gate is x28-30, three wide.
+- Place `{ id: 'kh_gatehouse', x: 27, y: 40 }` with the manifest's `anchor_px` moved from `[112, 155]` to `[48, 155]`. Its 1x1 footprint then sits on the rock at (27,40) and the 224 px art covers x26-32, base on row 40, top near row 36. With today's centred anchor it would have to stand on (29,40), the middle of the road, and shut it.
+- Then `node tests/world-core.mjs --hashes` for the new `maskHash`.
+
+**Before the March opens** (all five grounds, the hall last):
+1. Played by hand on `tools/qa/local-world.mjs`: each ground walked once on Normal in range, the Hold to a Hall Key, the key's door on the ground page, the warning read, Krell beaten once and lost once with Challenge left on, and the losing line read. Nobody has played any of it yet.
+2. Text read in Tyler's voice: every theme, item line, monster line, the hall's warning and losing lines, and the 20 lines player-read misses (lane/b-krells-hold-pack's note).
+3. Art: the gatehouse placed (above) and the Slake floor (both lane/b-hold-art).
+4. Server, one lane C batch in apply order: the staged items and hunt-session catalogues, the tier 7 Tally names, then the edge deploy. Read live bags for `voidhide_*` / `voidweave_*` before the items file.
+5. Not blockers, said plainly in the note: the Roster Page and Krell's Toll Box have no rows yet, and nothing in the game promises them.
+
+**Walk-through: a party's first Krell fight**, every name grepped in `src/data`:
+
+| Step | The player | Holds, from the steps before | Doable, checked against |
+|---|---|---|---|
+| 1 | Hunts the Hold to the Tower Stairs | Tier 6 from the Hold's own drops, Level 85+ | `krells_hold` route [0..4], P4 has the Gatekeeper |
+| 2 | Gets a Hall Key | Kills Gatekeepers | `gatekeeper` drops `hall_key` ch 0.026 (`key` band) |
+| 3 | Opens the ground page, presses "Open Krell's Hall" | The key in the bag | `BOSS_HALL_WORDS.press` 'Open {hall}', hall name 'Krell\'s Hall', door only once the pack is open (`hallFromGround`) |
+| 4 | Reads the warning, takes Challenge off the tank's bar | A tank whose default bar has Challenge | `rule-subjects.js` tank `[challenge, power_strike]`, `warnGuard` names it, the bar is set up in town (ruling BAR IN TOWN) |
+| 5 | Presses "Use the Hall Key" | One confirm | `BOSS_HALL_WORDS.confirm` |
+| 6 | Wins (tier 7 at 1 in 10 a piece) or reads the losing line | | `lord_krell` drops, `lossLine` guarded answer |
+
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.
 - **The Brook Bear's purse is back on the formula** ([13, 40] -> [11, 32]). It was kept by hand only for the +10% floor. The bear stays a heavy, the slow bruiser it reads as. drop-tables Glade value pin 6364 -> 6214, cause named.
@@ -1436,7 +1469,7 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | Phase | What happens | What the bar answers with |
 |---|---|---|
 | 100% to 50% | He swings at the tank. **Rake the Coals** is a marked cone of coals out of the Hall Fire. **The Hall Fire flares** every 20 s and hits every hero in the room. Nobody steps out of that one | A shield takes 30% off the cone. Ranged heroes step off it. The flare wants a party heal, food rules and ember resistance |
-| 50% | **He reads the Roster.** Captain Hask and two Grave Guards stand up out of the floor. They go for whoever isn't the tank and they shield Krell while they stand | Challenge, an area slot, and Target set to take them first |
+| 50% | **He reads the Roster.** Captain Hask and two Grave Guards stand up out of the floor. They go for whoever isn't the tank and they shield Krell while they stand | ~~Challenge, an area slot, and Target set to take them first~~ **RULED 2026-11-14 (lane/d-hold-pass): take Challenge OFF the tank.** He already fills the tank, so pulling the wave on too is what loses. The healer carries whoever they hit |
 | 25% | He is enraged and hits harder. The Hall Fire flares twice as often | The eat lines and the healer's slots decide the finish |
 | Dead | The Hall Fire goes out | |
 
@@ -1458,7 +1491,7 @@ Level 110, Human, an old man in Dawnsteel plate who has sat with that fire at hi
 | 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | BUILT (same lane): `phases.hasten` { spell, cdPm } (boss-phases.js spellCdOf); the bar counts it down. The Art Director owes a look at the bar's two new lines | Systems, Art Director for the bar line |
 | 2 | A monster that attacks from range | Engine built (lane/b-barrow-monster-kinds): a monster row's `range`, whole tiles 2 to 6 (`MONSTER_RANGE`), played by `src/core/hunt/shooters.js`. It aims at the hero farthest from it in its pack's area, stands where it can shoot and takes no slot. No row has a range yet | Designer: the Lookout's `range` |
 | 3 | A monster that heals its pull | Engine built (same lane): a `shape: 'mend'` row in `monster-spells.js` (range, windup, cooldown, `hitPm` is the heal). It mends the most hurt monster of its own pack in range, never itself and never a boss with phases | Designer: the Pyre Priest's row |
-| 4 | A Target mode that names a kind first | Engine built (same lane): a hero's `target_kind` takes that kind first under any Target mode. Nothing stores or shows it yet | Backend (lane C): `hunt_density.target_kind`, its setter, the instance read's overlay. Then the bar's choice |
+| 4 | A Target mode that names a kind first | Engine built (same lane): a hero's `target_kind` takes that kind first under any Target mode. BUILT, STAGED (lane/c-target-kind, 2026-11-14): `hunt_density.target_kind` per hero and ground, `hr_hunt_target_kind_set` (refused `bad_kind` against the ground's catalogue), the `hunt_target_kind` section, the instance read's overlay (2027-04-22-target-kind.sql); the bar's First target in the fight settings' fold. No edge change | Coordinator: apply, then the client half rides the next release. On the EA Security list |
 | 5 | A keyed boss room that pays XP and drops | `boss-phases.js` reads only in a called room, and `tests/boss-call.mjs` holds that a called room pays nothing. This is a new room kind. That guard is not loosened | Systems, Backend. A money surface, so it is on the Security list |
 | 6 | Adds that are a named boss with his own kit | Adds are plain rows marked `add` | Systems |
 | 7 | A spell that speeds up under a phase line, and its countdown on the boss bar | None | Systems, Art Director for the bar line |

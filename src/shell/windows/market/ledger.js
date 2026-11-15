@@ -7,15 +7,15 @@
 // came back and Buy again on anything bought. The other party is never named: the server's
 // rows hold no name to show.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.130';
-import { whole } from '../../../render/format.js?v=0.2.130';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.130';
-import { nameOf } from '../../../session/item-sections.js?v=0.2.130';
-import { listingWords, historyWords } from '../../market-model.js?v=0.2.130';
-import { offerForSale, readItem, setView } from './state.js?v=0.2.130';
-import { cancelListing } from './browse.js?v=0.2.130';
-import { t } from '../../../render/player-text.js?v=0.2.130';
+import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.131';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.131';
+import { whole } from '../../../render/format.js?v=0.2.131';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.131';
+import { nameOf } from '../../../session/item-sections.js?v=0.2.131';
+import { listingWords, historyWords } from '../../market-model.js?v=0.2.131';
+import { offerForSale, readItem, setView } from './state.js?v=0.2.131';
+import { cancelListing } from './browse.js?v=0.2.131';
+import { t } from '../../../render/player-text.js?v=0.2.131';
 
 /** The two ledger panes' skeletons. */
 export function ledgerHtml() {
@@ -44,7 +44,7 @@ export function patchLedger(v) {
         + '<button type="button" class="hh-tool" data-hs-act="mk-cancel" data-listing="' + esc(l.id) + '">' + t('controls.cancel') + '</button></li>'),
       patch: (li, l) => {
         const by = heroName(ctx, l.hero);
-        text(li.querySelector('small'), listingWords(l, now) + (by ? ' · listed by ' + by : ''));
+        text(li.querySelector('small'), listingWords(l, now) + (by ? ', listed by ' + by : ''));
         prop(li.querySelector('button'), 'disabled', sc.pending);
       },
     });
@@ -53,7 +53,7 @@ export function patchLedger(v) {
     cls(root.querySelector('.hw-mk-none-p'), 'is-on', bare);
     text(root.querySelector('.hw-mk-none-p'), 'You have nothing listed. Anything you list stays here until it sells, and you can take it back any time.');
     const today = mine ? mine.today : {};
-    text(root.querySelector('.hw-mk-caps'), !mine || !sc.rules ? '' : whole(list.length) + ' of ' + whole(sc.rules.maxListings) + ' listings up · ' + whole(Number(today.listed) || 0) + ' of ' + whole(sc.rules.maxListsPerDay) + ' listed today');
+    text(root.querySelector('.hw-mk-caps'), !mine || !sc.rules ? '' : whole(list.length) + ' of ' + whole(sc.rules.maxListings) + ' listings up, ' + whole(Number(today.listed) || 0) + ' of ' + whole(sc.rules.maxListsPerDay) + ' listed today');
     return;
   }
   const hist = mine ? mine.history : [];

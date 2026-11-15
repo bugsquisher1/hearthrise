@@ -122,15 +122,19 @@ export const REGION_KITS = Object.freeze({
       }),
       /* THE HOLD FAMILY (brief 29, 2026-11-14): Krell's castle floors, each material born once on the palette and chained, all at
          a median luminance of 0.027 or under so a lifted body reads 3:1 on them. Flagstone is the hub (it meets cobble, setts,
-         planks and gravel); the cart road's earth meets cobble only. The walls are slices laid over the paint, not a tileset. */
+         planks and gravel); the cart road's earth meets cobble only. The walls are slices laid over the paint, not a tileset.
+         The hill outside the walls (gen-2026-11-14/33-hold-hill, lane/b-hold-art) is the March's grass (the ash family's, chained)
+         meeting the road's earth and the gravel path, and a gray hill rock that meets the grass only. */
       hold: Object.freeze({
         terrains: Object.freeze({
           earth: '6c769ec4-df9e-4ea6-ac56-22f35910d764', cobble: 'c5ce4639-040a-4e9b-84a7-98c29893063b',
           flagstone: '456e148f-3322-47f1-84e6-8efbad93a87c', setts: '9c3260b1-616c-4c44-b735-f5ebaae8fe39',
           planks: '6f4ca2d8-bc8a-4811-8448-c7ad1c38c123', gravel: '11bf114e-b2bf-449a-b74e-fb2556a41312',
+          grass: '9e1580b2-3178-4872-8f45-c28befe2c460', rock: 'c5e4eabb-fb65-4d54-80c5-b95208f44e94',
         }),
         tilesets: ids(`b2844c51-0965-47e7-8127-13e5867d7496 a828894c-b4ec-4d85-b12d-68d732738b48 dc901b7b-2852-4a9d-965b-504fc22cff0c
-          a24a289a-6755-4014-9466-a08fa2b358e0 c7ab981f-32d2-4c72-987d-6c3a54999ac8 72391b8e-2fd0-4c03-884c-05c3a95238f0`),
+          a24a289a-6755-4014-9466-a08fa2b358e0 c7ab981f-32d2-4c72-987d-6c3a54999ac8 72391b8e-2fd0-4c03-884c-05c3a95238f0
+          8552f1bf-4e1f-4265-b09a-bbe2710d5f9a dbb59875-0f09-406a-a4a9-79c23558a447 fc57725c-6167-42be-a7ff-9dc7020753a1`),
         maps: ids(''),
       }),
     }),
@@ -156,7 +160,7 @@ export const REGION_KITS = Object.freeze({
       the_slake: Object.freeze({ family: 'march', signature: ids('sl_grounded_barge sl_stake_nets') }),
       /* the burnt pyres stand on the two pyre rows, which block a step: they are in the field's paint, and the sprites wait for an open cell */
       pyre_field: Object.freeze({ family: 'ash', signature: ids('pf_great_pyre pf_burnt_pyre') }),
-      /* the gatehouse is drawn and not yet placed: it needs the pack's cells at the cart gate (a solid piece on the road would shut it) */
+      /* the gatehouse stands over the cart gate (class gate, open: its towers on the map's rock either side of a three-tile passage) */
       krells_hold: Object.freeze({ family: 'hold', signature: ids('kh_gatehouse kh_hall_fire') }),
     }),
     /* art/briefs/gen-2026-11-07/: the Slake's two signature pieces (03, 04), its one new body (01), the three re-poured

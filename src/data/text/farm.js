@@ -70,7 +70,7 @@ export const FARM_TEXT = Object.freeze({
   /* No seed and the Shop sells it: the second sentence is the link to the Shop's row for that seed (src/shell/goto.js). */
   why_no_seeds_head: 'No seeds.',
   shop_sells_seeds: 'The Shop sells them for {price}.',
-  seed_line: '{hours} h · {status}',
+  seed_line: 'Grows in {hours} h. {status}',
   seeds_in_bag: { one: '{held} seed in your bag', other: '{held} seeds in your bag' },
   seeds_in_bag_storage: { one: '{held} seed in your bag and Storage', other: '{held} seeds in your bag and Storage' },
   sow_all: 'Plant {n} empty plots',
@@ -81,7 +81,7 @@ export const FARM_TEXT = Object.freeze({
   tier_next: 'Tier {tier} adds {crops}: {price}, at Farming {level}.',
   tier_top: 'Your plots are at the top tier.',
   tier_crop_needs: '{crop} (Farming {level} to plant)',
-  improve: 'Improve the soil · {price}',
+  improve: 'Improve the soil for {price}',
   improve_top: 'Top tier',
 
   /* What a press says, from the server's answer. */

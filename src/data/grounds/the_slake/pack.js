@@ -38,8 +38,8 @@
 //
 // THE BARGEMAN'S SPELL: Cold Bilge (whole group, frost; the area spells board's seed row) is this pack's own `spells` row
 // (lane/b-pack-fields, engine piece 10), cast now that the area spells are live.
-import { definePack, box, gather } from '../shape.js?v=0.2.130';
-import map from './map.js?v=0.2.130';
+import { definePack, box, gather } from '../shape.js?v=0.2.131';
+import map from './map.js?v=0.2.131';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
 
@@ -51,7 +51,7 @@ export default definePack({
      2 Sergeants who hold the barge. */
   hunt: {
     region: 'barrow_march',
-    name: 'The Slake', theme: 'The Meadowbrook drops its copper here, and the Banded Company\'s dead with it.',
+    name: 'The Slake', theme: 'The river slows down here and drops its copper in the mud, along with the dead soldiers it carried down from Hask\'s Ford.',
     band: [50, 65],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: BG, w: 6, rarity: 'uncommon' },
       { monster: ML, w: 4, rarity: 'uncommon' }, { monster: CS, w: 2, rarity: 'rare' }],
@@ -176,9 +176,9 @@ export default definePack({
   },
   itemText: {
     green_rivet: 'A copper rivet off a Greened Pikeman\'s harness. The river silt turned it green',
-    barge_nail: 'A long iron nail a Bargeman worked loose from the grounded supply barge',
-    mudlark_hook: 'The short iron boathook a Mudlark picked the drowned dead with. It is green at the point',
-    color_cord: 'The cord a Color Sergeant tied the company\'s colors to the staff with',
+    barge_nail: 'A long iron nail a Bargeman pried loose from the wrecked supply barge',
+    mudlark_hook: 'A Mudlark used this iron hook to rob the dead in the river. The copper turned the point green',
+    color_cord: 'The cord a Color Sergeant used to tie Hask\'s flag to its pole',
   },
   /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes): better only with different
      classes (Tyler 10-31), and since one difficulty the mixed cells are the lever (Tyler 11-08, "Same monsters, re-tune"). Measured

@@ -13,15 +13,15 @@
 //                   absent, never an empty placeholder.
 // Read only; every number is the envelope's.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.130';
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.130';
-import { BUFFS_DEF } from '../../../core/buffs.js?v=0.2.130';
-import { buffsOf, imbuementsOf, roleOf } from '../../../session/item-sections.js?v=0.2.130';
-import { partyOf } from '../../../session/hunt-sections.js?v=0.2.130';
-import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.130';
-import { itemName } from '../../widgets/bits.js?v=0.2.130';
-import { DOLL } from './doll.js?v=0.2.130';
+import { ITEMS } from '../../../data/items.js?v=0.2.131';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.131';
+import { BUFFS_DEF } from '../../../core/buffs.js?v=0.2.131';
+import { buffsOf, imbuementsOf, roleOf } from '../../../session/item-sections.js?v=0.2.131';
+import { partyOf } from '../../../session/hunt-sections.js?v=0.2.131';
+import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.131';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.131';
+import { itemName } from '../../widgets/bits.js?v=0.2.131';
+import { DOLL } from './doll.js?v=0.2.131';
 
 const TOTALS = Object.freeze([['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'], ['rangeAtkB', 'Ranged'], ['magicAtkB', 'Magic']]);
 const IMBUE_WORDS = Object.freeze({ keen: 'Keen', life_leech: 'Life Leech', mana_leech: 'Mana Leech', ward: 'Ward', element_ward: 'Element Ward' });
@@ -54,7 +54,7 @@ function roleWords(cs, eq) {
     id = me ? me.role : null;
   }
   const w = eq.weapon ? itemName(eq.weapon) : null;
-  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ' · from your ' + w : '');
+  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ', from your ' + w : '');
   return w ? 'Role: the server has not named a role for your ' + w + ' yet' : 'No weapon worn: wear one to take a hunt role';
 }
 
@@ -62,7 +62,7 @@ function buffWords(b) {
   const d = BUFFS_DEF[b.type];
   const label = d ? d.label : b.type.replace(/_/g, ' ');
   const amount = d && d.isPercent ? '+' + b.magnitude + '%' : '+' + b.magnitude;
-  return [label, amount + ' · ' + timeLeft(b.msLeft) + ' left'];
+  return [label, amount + ', ' + timeLeft(b.msLeft) + ' left'];
 }
 
 /** Patch the section; it is hidden (and left alone) while the Advanced view is off. */
@@ -94,7 +94,7 @@ export function patchAdvanced(root, st, ctx) {
       text(li.querySelector('b'), SLOT_LABEL.get(l.slot) + ': ' + itemName(l.item));
       const filled = l.v.filled.map((f) => IMBUE_WORDS[f.kind] + ' (' + timeLeft(f.msLeft) + ')');
       const free = l.v.slots - filled.length;
-      text(li.querySelector('small'), filled.concat(free > 0 ? [free + (free === 1 ? ' empty slot' : ' empty slots')] : []).join(' · '));
+      text(li.querySelector('small'), filled.concat(free > 0 ? [free + (free === 1 ? ' empty slot' : ' empty slots')] : []).join(', '));
     },
   });
 }

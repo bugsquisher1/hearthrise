@@ -16,18 +16,18 @@
 // Every input is the server's: the bag (carriedOf), the store rows (hunt_settings.store), the skills (skillsOf)
 // and the supply setting (hunt_settings). Display only: nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.130';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.130';
-import { RUNE_FAMILIES, runeTierOf, versionLevel } from '../data/runes.js?v=0.2.130';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.130';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.130';
-import { ITEMS } from '../data/items.js?v=0.2.130';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.130';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.130';
-import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.130';
-import { itemName, skillName } from './widgets/bits.js?v=0.2.130';
-import { whole } from '../render/format.js?v=0.2.130';
-import { t } from '../render/player-text.js?v=0.2.130';
+import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.131';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.131';
+import { RUNE_FAMILIES, runeTierOf, versionLevel } from '../data/runes.js?v=0.2.131';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.131';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.131';
+import { ITEMS } from '../data/items.js?v=0.2.131';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.131';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.131';
+import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.131';
+import { itemName, skillName } from './widgets/bits.js?v=0.2.131';
+import { whole } from '../render/format.js?v=0.2.131';
+import { t } from '../render/player-text.js?v=0.2.131';
 
 /* The store's share in permille, as the engine rounds it (abilities.js BASIC_PM). */
 const STORE_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -137,7 +137,7 @@ export function costLine(a, ctx) {
     if (!k) return '';
     const parts = (k.mana ? [t('bar.cost_mana', { mana: k.mana })] : [])
       .concat(k.rune ? [supplyPart(k.rune.name, k.rune.source, k.rune.have, k.rune.price, false)] : [], k.row.ammo ? [t('bar.cost_ammo', { ammo: k.row.ammo })] : []);
-    return parts.length ? t('bar.cost_line', { parts: parts.join(' · ') }) : t('bar.cost_no_mana');
+    return parts.length ? t('bar.cost_line', { parts: parts.join(', ') }) : t('bar.cost_no_mana');
   }
   const s = stockOf(a, c, c.worn);
   return s ? t('bar.cost_line', { parts: supplyPart(s.name, s.source, s.have, s.price, s.shot) }) : '';

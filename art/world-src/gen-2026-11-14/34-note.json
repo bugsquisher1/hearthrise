@@ -1,0 +1,10 @@
+{
+  "brief": "lane/b-march-floors: Krell's Hold and the Pyre Field floors still read as placeholder (one fill tile end to end), the inner keep's top was a black hole, the Slake's silt showed its chevron in rows",
+  "call": "create_topdown_tileset pro 32 px, high top-down, transition 0, palette hr-world-56-v2 + max_colors 12; request in 1-flagstone-roof/tileset-request.json",
+  "kept": {
+    "1-flagstone-roof": "473b8931: the Hold's flagstone (456e148f, chained) meets a new slate roof (51645f5f): the keep's mass where it is wall on all sides; the flagstone half one value step down is the wall-walk"
+  },
+  "derived (0 gens)": "kh_banner_hung (the banner stand's crossbar and cloth, class hanging); the gatehouse's arch opened (barrow-grounds.mjs openArch); every floor's wear (tools/world-art/ground-finish.mjs: ramp-step patches and kept decals baked into the paint)",
+  "read": "x2 in tools/qa/region-kit.html (served by local-world --site): art/review/march-floors-2026-11-14 before-*/after-*",
+  "gens": "1 x 15 = 15. Balance 8610 before the call, 8595 after, credits $0"
+}

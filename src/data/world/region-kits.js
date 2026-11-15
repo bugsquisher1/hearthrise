@@ -131,10 +131,13 @@ export const REGION_KITS = Object.freeze({
           flagstone: '456e148f-3322-47f1-84e6-8efbad93a87c', setts: '9c3260b1-616c-4c44-b735-f5ebaae8fe39',
           planks: '6f4ca2d8-bc8a-4811-8448-c7ad1c38c123', gravel: '11bf114e-b2bf-449a-b74e-fb2556a41312',
           grass: '9e1580b2-3178-4872-8f45-c28befe2c460', rock: 'c5e4eabb-fb65-4d54-80c5-b95208f44e94',
+          /* the keep's slate roof over the shut-in wall mass (lane/b-march-floors, gen-2026-11-14/34-march-floors) */
+          roof: '51645f5f-dc70-43f1-9ca8-e78a61d1d1ed',
         }),
         tilesets: ids(`b2844c51-0965-47e7-8127-13e5867d7496 a828894c-b4ec-4d85-b12d-68d732738b48 dc901b7b-2852-4a9d-965b-504fc22cff0c
           a24a289a-6755-4014-9466-a08fa2b358e0 c7ab981f-32d2-4c72-987d-6c3a54999ac8 72391b8e-2fd0-4c03-884c-05c3a95238f0
-          8552f1bf-4e1f-4265-b09a-bbe2710d5f9a dbb59875-0f09-406a-a4a9-79c23558a447 fc57725c-6167-42be-a7ff-9dc7020753a1`),
+          8552f1bf-4e1f-4265-b09a-bbe2710d5f9a dbb59875-0f09-406a-a4a9-79c23558a447 fc57725c-6167-42be-a7ff-9dc7020753a1
+          473b8931-ad81-48ae-b5c5-3b2996b995c2`),
         maps: ids(''),
       }),
     }),
@@ -149,7 +152,7 @@ export const REGION_KITS = Object.freeze({
       mr_stake_net_post mr_rope_coil mr_drowned_cart
       ma_fire_rake ma_log_stack ma_ash_barrow ma_charred_stake
       kh_high_seat kh_lectern kh_hall_table kh_hall_table_runner kh_banner_stand kh_colors_upside_down kh_pell kh_weapon_rack
-      kh_woodpile kh_well kh_coffin_open kh_chapel_bench kh_toll_box kh_brazier kh_candle_stand
+      kh_woodpile kh_well kh_coffin_open kh_chapel_bench kh_toll_box kh_brazier kh_candle_stand kh_banner_hung
       cw_coal_seam cw_coal_seam_spent`),
     units: ids(`banded_pikeman bannerman fordsunk wight barrow_knight mudlark greened_pikeman bargeman color_sergeant
       charred_pikeman stoker lurcher pyre_wraith provost farmhand hasks_lookout grave_guard pyre_priest gatekeeper lord_krell`),

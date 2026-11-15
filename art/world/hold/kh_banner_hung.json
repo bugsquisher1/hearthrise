@@ -1,0 +1,35 @@
+{
+  "id": "kh_banner_hung",
+  "class": "hanging",
+  "style": "s1",
+  "material": "native",
+  "source": "kh_banner_hung.png",
+  "frame": [
+    23,
+    48
+  ],
+  "anchor_px": [
+    11,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "derived (0 gens)",
+    "from": "kh_banner_stand",
+    "image": "3d9dadd3"
+  },
+  "notes": "Krell's red hung on a wall face: rows 3-42 of kh_banner_stand (its crossbar and cloth) by tools/world-art/barrow-grounds.mjs hungBanner; pixels unscaled, nothing drawn."
+}

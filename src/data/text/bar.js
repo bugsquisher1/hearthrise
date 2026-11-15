@@ -23,6 +23,8 @@ export const BAR_TEXT = Object.freeze({
   first_target_on: 'First target on {ground}',
   first_target_note_on: 'On {ground} your hero goes for any {monster} first, then follows Target.',
   first_target_note_off: 'Pick a monster your hero goes for first on {ground}, like one that heals the others.',
+  /* the select is off until the server sends this hero's picks (say-why SW-2) */
+  first_target_unknown: 'The First target can\'t be set yet. It opens once the server sends your picks.',
 
   /* What the worn weapon can shoot or cast. */
   shot_waits: '{need}. This slot waits until then, and your next ammo fires.',

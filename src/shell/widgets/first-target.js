@@ -81,7 +81,9 @@ export function patchFirstTarget(root, ctx) {
   if (v !== null) prop(sel, 'value', v);
   attr(sel, 'aria-label', t('bar.first_target_on', { ground: huntName(hunt) }));
   const named = v ? kinds.find((k) => k.id === v) : null;
-  text(box.querySelector('.hb-pl-note'), named ? t('bar.first_target_note_on', { ground: huntName(hunt), monster: named.name })
+  /* off with no pick from the server (no `hunt_target_kind` section): the line under it says so, never a silent grey select */
+  text(box.querySelector('.hb-pl-note'), v === null ? t('bar.first_target_unknown')
+    : named ? t('bar.first_target_note_on', { ground: huntName(hunt), monster: named.name })
     : t('bar.first_target_note_off', { ground: huntName(hunt) }));
 }
 

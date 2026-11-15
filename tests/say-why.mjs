@@ -363,6 +363,9 @@ export const REASONS = Object.freeze({
   'src/shell/widgets/action-bar.js': [
     { cond: '!s', words: '!s', where: 'the rename box before the settings load' },
   ],
+  'src/shell/widgets/first-target.js': [
+    { cond: 'v === null', words: "t('bar.first_target_unknown')", where: 'the First target before the server sends the hunt_target_kind section: the line under the select says it cannot be set yet' },
+  ],
 });
 
 /** The condition of each `disabled` site: [{ at, file, cond }]. */

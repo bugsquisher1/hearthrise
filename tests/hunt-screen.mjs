@@ -794,6 +794,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         else {
           const again = await wait(page, (q) => { const e = document.querySelector(q); return e && e.value === 'hive_wasp'; }, SEL);
           if (!again) fails.push('HS-29 after a reload the First target is not the server\'s Hive Wasp: ' + JSON.stringify(await read()));
+          /* A server that sends no picks (no hunt_target_kind section): the select is off and the line under it says why (say-why SW-2). */
+          delete s.env.hunt_target_kind;
+          await pushEnvelope(page, s);
+          const why = await wait(page, (q) => { const e = document.querySelector(q);
+            return e && e.disabled && /can.t be set yet/.test(e.closest('.hb-pl-first').querySelector('.hb-pl-note').textContent); }, SEL);
+          if (!why) fails.push('HS-29 with no picks from the server the First target is not off with its reason: ' + JSON.stringify(await read()));
         }
       }
       await ctx.close();
@@ -2046,6 +2052,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 const MUTANTS = [
   /* lane/c-target-kind: the First target is the server's, and one press is one intent (HS-29) */
   ['the First target shows the pick before the server confirms (HS-29)', 'src/shell/widgets/first-target.js', "  if (v !== null) prop(sel, 'value', v);", "  if (v !== null && !pending) prop(sel, 'value', v);"],
+  ['the First target is off with no reason on screen (HS-29)', 'src/shell/widgets/first-target.js', "v === null ? t('bar.first_target_unknown')", "false ? t('bar.first_target_unknown')"],
   ['the First target sends nothing (HS-29)', 'src/shell/widgets/first-target.js', '  const r = await answerWithin(() => setTargetKind(ctx.account, cs, hunt, want));', "  const r = { ok: true };"],
   ['the phone fight sheet is cut at both ends again (HS-29)', 'src/styles/hunt.css', '  .hb-pl-more { justify-content: safe center; overflow-y: auto; overscroll-behavior: contain; }\n', ''],
   /* playtest v0.2.127: the Effects door opens Settings, but not on Effects (HS-12) */

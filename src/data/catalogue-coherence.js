@@ -45,6 +45,7 @@ import { TEMPER_OFFERS } from './temper.js?v=0.2.131';
 import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.131';
 import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.131';
 import { HUNT_INDEX } from './hunts.js?v=0.2.131';
+import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.131';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js?v=0.2.131';
@@ -285,6 +286,8 @@ export function reachableSources(opts = {}) {
   for (const id of Object.keys(START_INVENTORY)) put(id, 'start kit');
   for (const id of Object.values(START_EQUIPMENT)) put(id, 'start kit');
   for (const id of gatherProductIds()) put(id, 'gathered');
+  /* the Arms Master sells the gold rows of the training items (hr_training_gear_buy); the bound rows are the Crowns store's */
+  for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) put(g.id, 'the Arms Master');
   for (const id of Object.keys(CODED_SOURCES)) put(id, CODED_SOURCES[id].label);
   if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
   for (const t of HEARTHFIND_TABLE) if (t.kind === 'node' || met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
@@ -355,6 +358,9 @@ export function itemSources() {
   addSet(m, HEARTHFIND_ITEMS, 'hearthfind');
   /* The premium daily login claim (hr_login_claim pays this row, generated from premium.js). */
   if (PREMIUM_LOGIN_REWARD.item) push(m, PREMIUM_LOGIN_REWARD.item, 'premium login reward');
+  /* The training items' gold rows: the Arms Master (src/data/training.js; hr_training_gear_buy, 2027-04-23-training-gear.sql). The bound
+     rows' door is the Crowns store, which waits on the Crowns ledger (tests/catalogue-coherence.mjs PENDING_SOURCE). */
+  for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) push(m, g.id, 'the Arms Master');
   for (const id of Object.keys(CODED_SOURCES)) push(m, id, CODED_SOURCES[id].label);
   return m;
 }
@@ -385,6 +391,8 @@ export function itemUses() {
     if (Number(it.mana) > 0) push(m, id, 'drunk for mana on a hunt');
   }
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
+  /* a training item is opened into its hero's training hours for its skill (hr_training_gear_open; the settle opens the next by itself) */
+  for (const g of TRAINING_GEAR_ITEMS) push(m, g.id, 'opened into training hours');
   /* a named fuel is burnt alone in the Great Hearth (src/data/hearth.js; hr_hearth_burn, 2027-01-31-inner-flame.sql) */
   for (const id of Object.keys(NAMED_FUELS)) push(m, id, 'burnt in the Great Hearth (a named fuel)');
   return m;

@@ -16,7 +16,7 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 99 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 100 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
 --     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
@@ -78,6 +78,8 @@ declare
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
     /* scaled hunts' banked hours (2027-03-21-scaled-hunts.sql): a hero's, bought with gold the wipe also clears */
     'player_scaled_hours',
+    /* a hero's training-item hours (2027-04-23-training-gear.sql): bought with gold or Crowns the wipe also clears */
+    'player_training_gear',
     /* the live-event announcer's record of the window edges it passed (2027-03-22-live-events.sql), with the System lines the wipe clears */
     'hr_live_event_notices',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
@@ -122,6 +124,8 @@ declare
     'hr_live_event_types', 'hr_live_events',
     /* combat training's catalogues (2027-04-16-combat-training-hunt-sessions-catalogue.generated.sql): the rules and the grounds */
     'hr_training_rules', 'hr_training_grounds',
+    /* the training items' catalogue (2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql): skill, hours, bound, price */
+    'hr_training_gear',
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
     'hr_boss_halls'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';

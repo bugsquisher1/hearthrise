@@ -37,6 +37,7 @@ export function endedWords(last, name) {
 
 /** A training refusal that carries the server's numbers, in a sentence, or null (the shared table then says it). */
 export function trainingRefusal(r, name) {
+  if (r && (r.verb === 'training_gear_buy' || r.verb === 'training_gear_open' || r.verb === 'training_gear_switch')) return gearRefusal(r);
   if (!r || (r.verb !== 'training_start' && r.verb !== 'house_dummy')) return null;
   const who = nameWord(name);
   if (r.error === 'insufficient_gold' && num(r.fee) && num(r.purse)) return t('training.short_gold', { fee: whole(r.fee), purse: whole(r.purse) });
@@ -45,5 +46,15 @@ export function trainingRefusal(r, name) {
   if (r.error === 'hunt_open') return t('training.hunting', { name: who });
   if (r.error === 'in_party') return t('training.in_party', { name: who });
   if (r.error === 'dummy_max') return t('training.dummy_all');
+  return null;
+}
+
+/* The training items' refusals (2027-04-23-training-gear.sql), with the server's own numbers where it sends them. */
+function gearRefusal(r) {
+  if (r.error === 'insufficient_gold' && num(r.price) && num(r.purse)) return t('training.gear_short', { price: whole(r.price), purse: whole(r.purse) });
+  if (r.error === 'buy_limit' && num(r.max)) return t('training.gear_limit', { max: r.max });
+  if (r.error === 'still_open') return t('training.gear_still_open', { item: t('training.gear_head') });
+  if (r.error === 'none_held') return t('training.gear_none_held');
+  if (r.error === 'feature_off' || r.error === 'not_for_sale') return t('training.gear_closed');
   return null;
 }

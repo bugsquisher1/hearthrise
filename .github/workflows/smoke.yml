@@ -3739,10 +3739,11 @@ jobs:
 
       # BALANCE TOOLS THAT RAN NOWHERE (lane/a-guard-proofs-2, 2026-11-14). The Balance Lab (Tyler's simulator) must answer
       # tools/balance-sim's numbers digit for digit: it had been red since 2026-11-08 (cell.mjs gained `spellsIn` with the
-      # area spells, lab-core.mjs did not) and nothing ran it. The yard's 0.40x pace gate (the designer's, src/data/training.js
-      # xpPermille) and its proof, whose anchor had gone stale the day the dial moved. No database. Measured locally: parity
-      # 10 s + --mutate 9 s, yard-table 13 s + --selftest 2 s.
-      - name: Balance tools — the Lab plays the sim's game, the training yard pays at most 0.40x a fitting hunt
+      # area spells, lab-core.mjs did not) and nothing ran it. The training gate (lane/c-training-gear, Tyler 2026-11-14: one fixed rate
+      # for every skill and Level, 2:1 with the item): every skill, place and point pays exactly 30,000 an hour and 60,000 with an item's
+      # hours, on the real settle with the server's xp carry, and its proof. No database. Measured locally: parity 10 s + --mutate 9 s,
+      # yard-table 24 s + --selftest 4 s.
+      - name: Balance tools — the Lab plays the sim's game, training pays one fixed rate
         if: ${{ !cancelled() }}
         run: |
           node tools/balance-lab/parity.mjs
@@ -6207,13 +6208,17 @@ jobs:
 
       # COMBAT TRAINING (Tyler 2026-11-08, lane/c-combat-training): the yard by the hour and the house dummy, on the one engine. tests/combat-training.mjs is the
       # engine's half on the real settle; tests/combat-training-db.mjs the server's (the verbs, the one door, the hourly charge and gold_out through both doors).
-      - name: Combat training - one engine, one skill, the hour's fee, both paths
+      # THE TRAINING ITEMS (Tyler 2026-11-14, lane/c-training-gear): tests/training-gear-db.mjs, the Arms Master's buy, the open, the switch, the
+      # Level gate, the exact rate and the item time through both doors, the next item opening itself, forged claims, bound never listed.
+      - name: Combat training - one engine, one skill, the hour's fee, the items, both paths
         if: ${{ !cancelled() }}
         run: |
           node tests/combat-training.mjs
           node tools/mutant-gate.mjs node tests/combat-training.mjs --mutate
           node tests/combat-training-db.mjs
           node tools/mutant-gate.mjs node tests/combat-training-db.mjs --mutate
+          node tests/training-gear-db.mjs
+          node tools/mutant-gate.mjs node tests/training-gear-db.mjs --mutate
       # A GROUND'S BOSS (lane/b-muster-barrows, Tyler 2026-11-05 boss rules): Captain Hask's two lines on the one engine, his wave, his reset, every cut.
       - name: Ground boss - his lines, his wave, his reset, both paths
         if: ${{ !cancelled() }}

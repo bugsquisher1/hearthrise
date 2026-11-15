@@ -273,6 +273,9 @@ export function huntSessionFromRead(h, instanceId) {
        database's own hr_stamina_of / hr_stamina_cap, never a client value. */
     staminaMs: num(h.stamina_ms),
     staminaMaxMs: num(h.stamina_max_ms),
+    /* A TRAINING SESSION'S ITEM HOURS (2027-04-23-training-gear.sql hr_hunt_member_read train_boost_ms): the ms of the trained skill
+       this window may play at the item's rate, the server's own bank and the sealed items in the bag; absent = none. */
+    trainBoostMs: num(h.train_boost_ms),
     /* THE STORE (hr_hunt_basic_supplies) — catalogue rows; newHuntSession keeps
        well-formed ones. The hero's bar slots choose the row a use buys. */
     basics: (h.basics && typeof h.basics === 'object') ? h.basics : {},

@@ -170,7 +170,7 @@ export function renderHeroCreate(card, o) {
     msg.textContent = '';
     if (made) { enter(); return; }
     const name = input.value.trim().replace(/\s+/g, ' ');
-    if (name.length < 3) { msg.textContent = NAME_REASON.short; input.focus(); return; }
+    if (name.length < 3) { msg.textContent = t(NAME_REASON.short); input.focus(); return; }
     hold(t('heroes.creating'));   // stays off until the server answers
     if (!tried || tried.name !== name) tried = { name, key: globalThis.crypto.randomUUID() };
     const r = await o.create(name, Object.assign({}, colors), tried.key);

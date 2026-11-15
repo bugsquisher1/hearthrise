@@ -220,7 +220,7 @@ function grade(o) {
      && o.at1.html.includes('Buy a hero slot for 300,000 gold'),
     `HS-3: at one hero the offer reads ${js(o.at1.html)}`);
   ok(o.at1.line === 'Hero slots: 1 (up to 4 play at once, more cost gold)', `HS-3: at one hero the line reads ${js(o.at1.line)}`);
-  ok(o.at2.html.includes('A third hero slot costs 750,000 gold.') && !o.at2.html.includes('Most players can buy a second hero'),
+  ok(o.at2.html.includes('Third hero slot: 750,000 gold') && !o.at2.html.includes('Most players can buy a second hero'),
     `HS-3: at two heroes the offer reads ${js(o.at2.html)} (the third at 750,000, no one-hero note)`);
 
   ok(js(o.fullAfter) === js(o.fullBefore) && o.fullAfter.length === 3, `HS-4: the live account's heroes moved: ${js(o.fullBefore)} -> ${js(o.fullAfter)}`);

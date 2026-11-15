@@ -10,6 +10,12 @@
 //   node tools/balance-sim/audit-table.mjs shield [--hours 2]             F8: a lone tank on each March ground at its floor and middle,
 //                                                                         in the Coppercap Shield (the best there was) and in the tier's own
 //
+//   node tools/balance-sim/audit-table.mjs storefood [--hours 2] [--ground id] [--styles tank,hammer] [--with healer]
+//                                                                         F14: a lone hero on Normal at each ground's floor and middle,
+//                                                                         every way to fight, on each store food and nothing carried:
+//                                                                         deaths, the food bill, what the hunt pays. `--with healer`
+//                                                                         adds that seat beside the hero (a pair)
+//
 // Every number is read off the engine's own events (cell.mjs, career.mjs). Nothing here computes a combat or gold number.
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -53,8 +59,10 @@ async function gold() {
   const { recommendedHunt } = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-list.js')).href + '?v=' + BUILD.version);
   const recommend = (levels, n) => recommendedHunt(levels, n).hunt;
   const to = Number(arg('to', 50)), style = arg('style', 'tank');
-  const c = runCareer(R, { id: 'F12:' + style, party: [style], startLevel: 1, targetLevel: to, maxHours: 400, chunkH: 1,
+  const c = runCareer(R, { id: 'F12:' + style, party: [style], startLevel: 1, targetLevel: to, maxHours: Number(arg('max', 400)), chunkH: 1,
     chunkByLevel: [[1, 0.25], [8, 0.5], [12, 1]], seed: 0, recommend });
+  /* `--json file`: the career's trace kept, so `sinks` can spend it without hunting it again */
+  if (arg('json', '')) (await import('node:fs')).writeFileSync(arg('json', ''), JSON.stringify({ style, to, hours: c.hours, reached: c.reached, trace: c.trace }));
   let banked = 0, last = 0, prevH = 0;
   console.log('Level | hours | ground | net g/h (with rares) | store g/h | gold banked');
   for (const t of c.trace) {
@@ -87,7 +95,43 @@ async function shield() {
   }
 }
 
+/* F14's rows: every open ground a hero walks to, at its floor and band middle. */
+const STORE_FOODS = ['salted_shrimp', 'salted_trout', 'salted_lobster', 'salted_swordfish', 'salted_shark'];
+const STORE_GROUNDS = { meadowbrook_thicket: [5, 10], wickstead: [8, 13], millrace_sewer: [8, 16], mosslight_glade: [16, 23], coppercap_warrens: [32, 41],
+  hasks_ford: [45, 52], the_slake: [50, 57], muster_barrows: [55, 65], pyre_field: [70, 80], krells_hold: [85, 97] };
+
+async function storefood() {
+  const R = await loadCellRunner(ROOT);
+  const hours = Number(arg('hours', 2)), only = arg('ground', ''), styles = arg('styles', FOOD_STYLES.join(',')).split(','), mate = arg('with', '');
+  const foods = arg('foods', STORE_FOODS.join(',')).split(',');
+  console.log('ground | Level | way | store food | max HP | eats/h | store g/h | coin+loot g/h | net g/h | low HP p10 % | deaths | XP/h');
+  for (const [ground, levels] of Object.entries(STORE_GROUNDS)) if (!only || only.split(',').includes(ground)) for (const level of levels) for (const s of styles) for (const storeFood of foods) {
+    const cell = { id: ['F14', ground, level, s, storeFood, mate].join(':'), ground, party: mate ? [s, mate] : [s], level, hours, seeds: 1, bar: { storeFood } };
+    let m;
+    try { m = R.runCell(cell); } catch (e) { console.log([ground, level, s, storeFood, 'ERROR ' + e.message].join(' | ')); continue; }
+    const h = m.heroes[0];
+    console.log([ground, level, s + (mate ? '+' + mate : ''), storeFood, h.maxHp, (h.eatsPerH.own + h.eatsPerH.store).toFixed(1), h.storePerH, h.incomePerH, h.profitPerH,
+      h.encMinHpPct.p10, m.heroes.map((x) => x.deaths).join('+'), h.levelXpPerH].join(' | '));
+  }
+}
+
+/* F28's rows: the March grounds at their floor. Kills an hour by monster and the coin an hour, for Tamsin's counts and gold
+   (tally-tasks.js: a count is about an hour at the floor, the gold about 35% of that hour's coin). */
+async function tally() {
+  const R = await loadCellRunner(ROOT);
+  const hours = Number(arg('hours', 2));
+  console.log('ground | Level | party | kills/h | by monster | coin g/h a head | coin+loot g/h a head | deaths');
+  for (const ground of ['hasks_ford', 'the_slake', 'muster_barrows', 'pyre_field', 'krells_hold']) for (const party of [['tank'], ['mage'], ['tank', 'bow', 'mage', 'healer']]) {
+    const level = STORE_GROUNDS[ground][0];
+    const m = R.runCell({ id: ['F28', ground, party.join('+')].join(':'), ground, party, level, hours, seeds: 1 });
+    console.log([ground, level, party.join('+'), m.party.killsPerH, Object.entries(m.party.killsByPerH).map(([k, n]) => k + ' ' + n).join(', '),
+      m.heroes.map((h) => h.coinPerH).join('/'), m.heroes.map((h) => h.incomePerH).join('/'), m.heroes.map((h) => h.deaths).join('+')].join(' | '));
+  }
+}
+
 if (mode === 'food') await food();
+else if (mode === 'tally') await tally();
+else if (mode === 'storefood') await storefood();
 else if (mode === 'shield') await shield();
 else if (mode === 'gold') await gold();
-else { console.error('usage: node tools/balance-sim/audit-table.mjs food|gold|shield'); process.exit(2); }
+else { console.error('usage: node tools/balance-sim/audit-table.mjs food|gold|shield|storefood|tally'); process.exit(2); }

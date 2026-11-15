@@ -320,12 +320,13 @@ const ARMS = {
 const FN = { window: 'public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)',
   buy: 'public.hr_training_gear_buy(integer,text,bigint,uuid)', open: 'public.hr_training_gear_open(integer,text,uuid)',
   quote: 'public.hr_training_quote(uuid,integer,text,text)', budget: 'public.hr_training_gear_budget(uuid,integer,text)',
-  read: 'public.hr_hunt_member_read(public.hunt_sessions)', take: 'public.hr_training_gear_take(uuid,integer,text,text,boolean,uuid)' };
+  read: 'public.hr_hunt_member_read(public.hunt_sessions)', take: 'public.hr_training_gear_take(uuid,integer,text,text,boolean,uuid)',
+  spend: 'public.hr_training_gear_spend(uuid,integer,text,bigint)' };
 const MUTANTS = [
   { name: 'the claim is never held to the server\'s item time', fn: FN.window, find: '  if v_claim > public.hr_training_gear_budget(p_user, p_slot, v_t.skill) then', repl: '  if false then', arm: 'forged', want: /TG-FORGED/ },
   { name: 'the time bound counts every ms as item time', fn: FN.window, find: '* (v_r.boost_pm - 1000) / 1000 * v_claim) / 3600000) + 1;', repl: '* (v_r.boost_pm - 1000) / 1000 * v_win) / 3600000) + 1;', arm: 'forged', want: /TG-FORGED/ },
-  { name: 'the item time is never spent', fn: FN.window, find: 'set banked_ms = banked_ms - v_claim, spent_ms = spent_ms + v_claim,', repl: 'set banked_ms = banked_ms, spent_ms = spent_ms,', arm: 'doors', want: /TG-DOORS/ },
-  { name: 'the next sealed item never opens itself', fn: FN.window, find: "else public.hr_training_gear_take(p_user, p_slot, v_item, 'bag', true, v_sid) end;", repl: 'else v_claim end;', arm: 'doors', want: /TG-DOORS/ },
+  { name: 'the item time is never spent', fn: FN.spend, find: 'set banked_ms = banked_ms - p_claim, spent_ms = spent_ms + p_claim,', repl: 'set banked_ms = banked_ms, spent_ms = spent_ms,', arm: 'doors', want: /TG-DOORS/ },
+  { name: 'the next sealed item never opens itself', fn: FN.spend, find: "else public.hr_training_gear_take(p_user, p_slot, v_item, 'bag', true, v_sid) end;", repl: 'else p_claim end;', arm: 'doors', want: /TG-DOORS/ },
   { name: 'the read gives no item time', fn: FN.read, find: "'train_boost_ms', (select public.hr_training_gear_budget(", repl: "'train_boost_ms', 0 * (select public.hr_training_gear_budget(", arm: 'doors', want: /TG-DOORS/ },
   { name: 'the buy charges the client\'s number', fn: FN.buy, find: "           'gold', -v_g.price,", repl: "           'gold', -least(v_g.price, 1),", arm: 'verb', want: /TG-VERB/ },
   { name: 'a stale price is taken', fn: FN.buy, find: '  if v_g.price <> p_price_seen then', repl: '  if false then', arm: 'verb', want: /TG-VERB/ },

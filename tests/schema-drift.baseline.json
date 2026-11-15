@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-15",
- "digest": "e7d834031bb332dffb674d65407c4b39be211f9cb5e344cc77bcf740824bdc9f",
+ "digest": "c21a13504061fb12576d747e7f3e643116163f5c631f4d3f8964822e2e98b9cd",
  "counts": {
   "relations": 289,
-  "functions": 733,
+  "functions": 734,
   "policies": 121,
   "indexes": 406,
   "triggers": 97,
@@ -1008,6 +1008,7 @@
    "hr_training_gear_buy(p_slot integer, p_item text, p_price_seen bigint, p_idem uuid)",
    "hr_training_gear_open(p_slot integer, p_item text, p_idem uuid)",
    "hr_training_gear_sealed_ms(p_user uuid, p_slot integer, p_skill text)",
+   "hr_training_gear_spend(p_user uuid, p_slot integer, p_skill text, p_claim bigint)",
    "hr_training_gear_switch(p_slot integer, p_skill text, p_on boolean, p_idem uuid)",
    "hr_training_gear_take(p_user uuid, p_slot integer, p_item text, p_from text, p_auto boolean, p_session uuid)",
    "hr_training_hour(p_user uuid, p_slot integer, p_session uuid, p_to timestamp with time zone, p_cost bigint, p_floor bigint, p_h jsonb)",

@@ -106,7 +106,7 @@
 --
 -- REVERSIBILITY: restate hr_training_quote, hr_training_window, hr_training_section and hr_hunt_member_read from their pre-images (§0's
 -- md5s are production's, tests/live-hash-drift.baseline.json; the images are in 2027-04-16-combat-training.sql and
--- 2026-11-07-store-by-slot.sql), drop the three verbs, the three helpers, player_training_gear (its rows go with the character wipe),
+-- 2026-11-07-store-by-slot.sql), drop the three verbs, the four helpers, player_training_gear (its rows go with the character wipe),
 -- the three baseline rows, the wall row and the switch row; the two catalogues' rows are replaced by the next generated files. No
 -- begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
@@ -130,7 +130,7 @@ begin
     raise exception 'PRECONDITION: a helper or table this file calls is missing'; end if;
   for v_r in select * from (values
     ('public.hr_training_quote(uuid,integer,text,text)', '2bbfea96fad5c835318f5a257ced5d7e', '96f6ff5050f6b80466ca802da5f1ec7c'),
-    ('public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)', 'a396047961d1fccbd116c392c8bbc3db', 'f946c6985e9d5ef43831489646ac9cc9'),
+    ('public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)', 'a396047961d1fccbd116c392c8bbc3db', 'a18bad4f4a26d4243b4e2c6e712f0b5a'),
     ('public.hr_training_section(uuid,integer)', '24b243ffdf16736de5f987eced185a86', '6bc2a9f36cc4142dd6a8116020723d81'),
     ('public.hr_hunt_member_read(public.hunt_sessions)', '14cd77882a9bfba0be7624652017aaf6', 'a34a1041fb1d9762d4eaac94d9b91c48')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -228,9 +228,34 @@ begin
   return v_bank;
 end $fn$;
 
+-- THE SPEND: p_claim ms of the hero's item time for p_skill, the next sealed item in the bag opening itself while the bank can't cover it
+-- (the bound copy first, then the smaller). False when the bag runs out first (the caller refuses session_moved, which rolls this back).
+-- Runs inside the settle, under the hero's lock. Its own function so hr_training_window, which names the delta's xp_frac only to allow it,
+-- writes nothing itself (tests/delta-key-allowlists.mjs KW: a registered reader of the remainder never writes; this one never names it).
+create or replace function public.hr_training_gear_spend(p_user uuid, p_slot int, p_skill text, p_claim bigint)
+returns boolean language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare v_bank bigint; v_item text; v_sid uuid;
+begin
+  select id into v_sid from public.hunt_sessions where user_id = p_user and slot = p_slot and ended_at is null;
+  select g.banked_ms into v_bank from public.player_training_gear g where g.user_id = p_user and g.slot = p_slot and g.skill = p_skill for update;
+  v_bank := coalesce(v_bank, 0);
+  while v_bank < p_claim loop
+    select g.item_id into v_item from public.hr_training_gear g
+      join public.player_inventory i on i.user_id = p_user and i.slot = p_slot and i.item_id = g.item_id and i.qty > 0
+     where g.skill = p_skill order by g.bound desc, g.hours_ms, g.item_id limit 1;
+    v_bank := case when v_item is null then null else public.hr_training_gear_take(p_user, p_slot, v_item, 'bag', true, v_sid) end;
+    if v_bank is null then return false; end if;
+    v_item := null;
+  end loop;
+  update public.player_training_gear set banked_ms = banked_ms - p_claim, spent_ms = spent_ms + p_claim, updated_at = now()
+   where user_id = p_user and slot = p_slot and skill = p_skill;
+  return true;
+end $fn$;
+
 revoke execute on function public.hr_training_gear_sealed_ms(uuid, int, text) from public, anon, authenticated, service_role;
 revoke execute on function public.hr_training_gear_budget(uuid, int, text) from public, anon, authenticated, service_role;
 revoke execute on function public.hr_training_gear_take(uuid, int, text, text, boolean, uuid) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_training_gear_spend(uuid, int, text, bigint) from public, anon, authenticated, service_role;
 
 -- ── §3 THE RESTATED BODIES ───────────────────────────────────────────────────
 -- (a) THE QUOTE (2027-04-16-combat-training.sql's, with the Level gate first and the fixed rate where the share was).
@@ -274,7 +299,7 @@ end $fn$;
 create or replace function public.hr_training_window(p_user uuid, p_slot int, p_hunt text, p_from timestamptz, p_to timestamptz, p_delta jsonb)
 returns void language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_t public.hr_training_grounds%rowtype; v_r public.hr_training_rules%rowtype; v_k text; v_win bigint; v_cap numeric; v_xp numeric;
-  v_claim bigint := 0; v_bank bigint; v_item text; v_sid uuid;
+  v_claim bigint := 0;
 begin
   select * into v_t from public.hr_training_grounds where hunt_id = p_hunt;
   if not found then return; end if;
@@ -317,20 +342,10 @@ begin
   -- THE CLAIM IS THE SERVER'S TO GIVE: at most the item time it holds now (the switches on, the bank and the sealed items in the bag).
   if v_claim > public.hr_training_gear_budget(p_user, p_slot, v_t.skill) then
     perform public.hr_reject('session_moved', jsonb_build_object('why', 'training_gear', 'boost_ms', v_claim)); end if;
-  -- THE SPEND: the next sealed item opens itself while the bank can't cover the claim (the bound copy first, then the smaller).
-  select id into v_sid from public.hunt_sessions where user_id = p_user and slot = p_slot and ended_at is null;
-  select g.banked_ms into v_bank from public.player_training_gear g where g.user_id = p_user and g.slot = p_slot and g.skill = v_t.skill for update;
-  v_bank := coalesce(v_bank, 0);
-  while v_bank < v_claim loop
-    select g.item_id into v_item from public.hr_training_gear g
-      join public.player_inventory i on i.user_id = p_user and i.slot = p_slot and i.item_id = g.item_id and i.qty > 0
-     where g.skill = v_t.skill order by g.bound desc, g.hours_ms, g.item_id limit 1;
-    v_bank := case when v_item is null then null else public.hr_training_gear_take(p_user, p_slot, v_item, 'bag', true, v_sid) end;
-    if v_bank is null then perform public.hr_reject('session_moved', jsonb_build_object('why', 'training_gear', 'boost_ms', v_claim)); end if;
-    v_item := null;
-  end loop;
-  update public.player_training_gear set banked_ms = banked_ms - v_claim, spent_ms = spent_ms + v_claim, updated_at = now()
-   where user_id = p_user and slot = p_slot and skill = v_t.skill;
+  -- THE SPEND (hr_training_gear_spend): the next sealed item opens itself while the bank can't cover the claim; a bag that runs out first
+  -- is refused, and the refusal rolls the spend back.
+  if not public.hr_training_gear_spend(p_user, p_slot, v_t.skill, v_claim) then
+    perform public.hr_reject('session_moved', jsonb_build_object('why', 'training_gear', 'boost_ms', v_claim)); end if;
 end $fn$;
 
 -- (c) THE ENGINE'S READ OF A MEMBER (2026-11-07-store-by-slot.sql's image, pg_get_functiondef's own text, with ONE key: train_boost_ms).
@@ -644,7 +659,8 @@ begin
       raise exception 'training-gear §6(a): the grants on % are wrong', v_s; end if;
   end loop;
   foreach v_s in array array['public.hr_training_gear_sealed_ms(uuid,integer,text)', 'public.hr_training_gear_budget(uuid,integer,text)',
-                             'public.hr_training_gear_take(uuid,integer,text,text,boolean,uuid)', 'public.hr_training_quote(uuid,integer,text,text)',
+                             'public.hr_training_gear_take(uuid,integer,text,text,boolean,uuid)', 'public.hr_training_gear_spend(uuid,integer,text,bigint)',
+                             'public.hr_training_quote(uuid,integer,text,text)',
                              'public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)',
                              'public.hr_training_section(uuid,integer)', 'public.hr_hunt_member_read(public.hunt_sessions)'] loop
     if has_function_privilege('authenticated', v_s, 'execute') or has_function_privilege('anon', v_s, 'execute') then

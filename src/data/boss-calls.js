@@ -83,6 +83,9 @@ export const BOSS_CALL_WORDS = Object.freeze({
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
       guarded: 'Your tank can\'t hold him and his adds at the same time. Take Challenge off your tank\'s bar for this fight and let your healer look after whoever the adds go for.',
       enrage: 'Under a quarter of his health he hits far harder. Eat earlier on every bar, and set your healer to heal sooner.',
+      /* The enrage of a boss whose adds shield him (isGuarded): Challenge is still the wrong press, and what he hits harder is the tank
+         (Krell's Hall, March play-through 2026-11-14: the line talked about eating and never said Challenge). */
+      enrageGuarded: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better armor on your tank, eating earlier and a healer who heals sooner all help. Keep Challenge off your tank\'s bar, so his adds don\'t pile on too.',
     }),
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */

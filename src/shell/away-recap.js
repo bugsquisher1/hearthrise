@@ -55,7 +55,7 @@ import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './awa
 import { bestFind } from '../hunt-view/summary-model.js?v=0.2.131';
 import { itemName } from './widgets/bits.js?v=0.2.131';
 import { t } from '../render/player-text.js?v=0.2.131';
-import { afterHuntOf, afterHuntWords, spanWords, WAITED_FROM_MS } from './after-hunt.js?v=0.2.131';
+import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.131';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.131';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
@@ -164,7 +164,8 @@ function nowWords(cs, h, now) {
   const after = h.ended ? afterHuntOf(state, h, now) : null;
   const waited = !!after && after.kind === 'waited' && after.idleMs >= WAITED_FROM_MS;
   const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
-  const then = after ? ' ' + afterHuntWords(state, h, now, name) : '';
+  const said = after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '';
+  const then = said ? ' ' + said : '';
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
     ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')

@@ -848,6 +848,15 @@ jobs:
           node tests/honor-window.mjs
           node tools/mutant-gate.mjs node tests/honor-window.mjs --mutate
 
+      # THE FACTIONS ON SCREEN (lane/b-faction-ui, Tyler 2026-11-14): hidden with the `factions` switch off; the join prompt asks
+      # once with both sides drawn the same and "Not now" kept; ONE join naming a side, the side shown from the re-read; claims and
+      # swaps off until the server's numbers allow; a sheet on the phone. --mutate plants eleven.
+      - name: Faction window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/faction-window.mjs
+          node tools/mutant-gate.mjs node tests/faction-window.mjs --mutate
+
       # A MONSTER'S PAGE (lane/b-monster-facts, Tyler 2026-11-09: every monster's stats are
       # visible): a creature on a hunt's page opens it beside Hunts; every number equals its
       # data row, worked out in the test with plain arithmetic; uses link to their windows;

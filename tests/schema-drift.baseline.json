@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-15",
- "digest": "d131de42a60a26bb258c02ef2a1aaccd0c64a96d48aeb27cce0c39d6627591b4",
+ "digest": "7b3f6ad3078617be31dab6bdecba143b3961e219fb67ec8872a72032ad948ace",
  "counts": {
   "relations": 287,
-  "functions": 726,
+  "functions": 727,
   "policies": 120,
   "indexes": 404,
   "triggers": 97,
@@ -510,6 +510,7 @@
    "hr_faction_locked(p_verb text, p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
    "hr_faction_outfit_claim(p_slot integer, p_piece text, p_idem uuid)",
    "hr_faction_raise_only()",
+   "hr_faction_section(p_user uuid, p_slot integer)",
    "hr_faction_swap_finish(p_slot integer, p_idem uuid)",
    "hr_faction_swap_start(p_slot integer, p_faction text, p_idem uuid)",
    "hr_faction_view(p_user uuid, p_slot integer)",

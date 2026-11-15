@@ -121,7 +121,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Duskwood Wand and Codex), and tier 7 leather and cloth RENAMED, ids and names (Tyler 2026-11-14: Dawnhide and Duskweave, voidhide_ -> dawnhide_, voidweave_ ->
    duskweave_; the designer's 11-10 Slakehide and Shroudweave never applied; twelve rows of each table; no hero can hold one, no ground or recipe a player reaches gives it), in ONE forward file, the same full
    delete+insert replace. Staged, never applied before this rename joined it. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-17-barrow-data-items-catalogue.generated.sql');
+/* BOSS CALL DROPS (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: a called boss's win drops his table plus one call-only piece):
+   2027-04-17-barrow-data-items-catalogue is APPLIED history; the two call-only pieces (hr_items, hr_item_slots: the Kingstooth, a weapon, and the
+   Cauldron Lid, a shield; src/data/boss-calls.js CALL_ITEMS) land in ONE forward file, the same full delete+insert replace. No hero holds one until
+   lane C's call-drops migration lets a felled window carry them. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-23-boss-call-drops-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

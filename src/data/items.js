@@ -11,6 +11,7 @@ import { CHAMPION_ITEMS } from './champions.js?v=0.2.131';
 import { DRINK_ITEMS } from './drinks.js?v=0.2.131';
 import { IMBUE_ITEMS } from './imbuements.js?v=0.2.131';
 import { SHIELD_ITEMS } from './shields.js?v=0.2.131';
+import { CALL_ITEMS } from './boss-calls.js?v=0.2.131';
 import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.131';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.131';
 import { foldRows } from './grounds/shape.js?v=0.2.131';
@@ -53,6 +54,8 @@ export const ITEMS={
   ...IMBUE_ITEMS,
   /* The five shields (src/data/shields.js, Tyler 2026-10-23): the Shop's, two made, a drop and its reforge. New ids only. */
   ...SHIELD_ITEMS,
+  /* The call-only pieces (src/data/boss-calls.js, Tyler 2026-11-14): a called boss's win drops them, nothing else. New ids only. */
+  ...CALL_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool

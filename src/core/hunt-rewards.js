@@ -88,6 +88,17 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
     if (g > 0) { m.state.gold = (m.state.gold || 0) + g; call(m.fx, 'onLoot', g, row); }
   });
   const lead = killer || present[0];
+  payDrops(present, ids, lead, row, ctx, world, atMs);
+  for (const m of present) countKill(m, kind);
+  /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
+     who landed it. The grant is hr_apply's, from its own catalogue. */
+  const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind };
+  resolveHearthfind(lead.state, 'monster', kind, roll);
+}
+
+/* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll. */
+function payDrops(present, ids, lead, row, ctx, world, atMs) {
+  const rng = ctx.rng;
   const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate') }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
@@ -113,22 +124,25 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
     }
     call(m.fx, 'onDrop', ev);
   }
-  for (const m of present) countKill(m, kind);
-  /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
-     who landed it. The grant is hr_apply's, from its own catalogue. */
-  const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind };
-  resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 
-/* A CALLED FIGHT PAYS NOTHING (Tyler 2026-11-04; src/data/boss-calls.js): no XP on any route, no coin, no drop, no Hearthfind, no die drawn, and of the kill counters only the boss's own
-   `ev:kill_monster:<called row>`, the one number his title reads (the Bestiary's read leaves it out, and no kill is journalled, so a tally can't see it). One door, so a route added above
-   can't reach it. hr_hunt_apply_member refuses a window that says otherwise (tests/boss-call.mjs). */
-function calledSwing(members, events, unitOf, boss) {
+/* A CALLED FIGHT PAYS ONLY HIS DROPS, ON A WIN (Tyler 2026-11-14, superseding 11-04's nothing; src/data/boss-calls.js). His kill is the win: it rolls the
+   called row's own table (his ground table and his call-only piece) for the heroes alive at it, the same split as any kill, and moves of the kill counters
+   only the boss's own `ev:kill_monster:<called row>`, the one number his title reads (the Bestiary's read leaves it out, and no kill is journalled). No XP on
+   any route, no coin, no Hearthfind; a death or the limit ends the fight before any kill, so it rolls nothing; an add's kill pays nothing. The only
+   die drawn is the table's, on his kill. One door, so a route added above can't reach it. hr_hunt_apply_member holds a window to the same (tests/boss-call.mjs). */
+/* The heroes alive at a kill, in unit-id order: they share its gold, loot and rare roll, as its XP (xp-share.js). */
+const livingIds = (world, members) => world.units.filter((u) => u.side === 'hero' && u.alive === true && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
+
+function calledSwing(members, events, world, unitOf, boss, ctx) {
   const deaths = [];
   for (const ev of events) {
     if (ev.type !== 'kill') continue;
     const t = unitOf(ev.t);
     if (t && t.side === 'mon' && t.kind === boss) {
+      const ids = livingIds(world, members);
+      const row = (ctx.monsters || MONSTERS)[boss];
+      if (ids.length && row) { const present = ids.map((id) => members.get(id)); payDrops(present, ids, members.get(ev.u) || present[0], row, ctx, world, ev.atMs); }
       for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });
     } else if (members.has(ev.t)) {
       const k = unitOf(ev.u);
@@ -144,15 +158,15 @@ function calledSwing(members, events, unitOf, boss) {
  *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the hunt's hunt-tiers.js row), hearthfind? (the indexed table; the catalogue's when absent),
- *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays nothing),
+ *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays only his drops, on his kill),
  *   train? (a training ground's { place, skill }: it pays that skill only, src/core/hunt/training.js) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
   /* The heroes alive at the kill share its gold, loot and rare roll, as its XP (xp-share.js): one who died in the same sub-step does not. */
-  const presentIds = () => world.units.filter((u) => u.side === 'hero' && u.alive === true && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
-  if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);
+  const presentIds = () => livingIds(world, members);
+  if (ctx.call) return calledSwing(members, events, world, unitOf, ctx.call.monster, ctx);
   /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
   if (ctx.train) return trainingSwing(members, events, unitOf, ctx);
   const deaths = [];

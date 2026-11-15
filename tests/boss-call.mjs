@@ -1,23 +1,30 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/boss-call.mjs — CALL OUT PAYS NOTHING, AND ENDS (Tyler 2026-11-04; src/data/boss-calls.js). The money line's standing guard: data and the real settle, no database.
+// tests/boss-call.mjs — CALL OUT PAYS ONLY HIS DROPS, ONLY ON A WIN, AND ENDS (Tyler 2026-11-04; src/data/boss-calls.js). The money line's standing guard: data and the real settle, no database.
 // tests/boss-call-db.mjs holds the server's half: the verb, the one door, the settle's refusal, both doors.
+//
+// TYLER'S RULING, 2026-11-14 (supersedes 11-04's "no drops from a paid call", which this guard held until then): "it should definitely have a chance for an
+// item drop otherwise there is no point". So a called boss's KILL (the fight's `boss_felled`) rolls his own table (his ground boss's rows at their rates and
+// one call-only piece); a death or the limit pays nothing; no route pays XP or coin; his adds pay nothing. The guard changed from "pays nothing" to "pays only
+// on boss_felled, only from his own table, never on a loss or at the limit". (The series and its stamina per fight are lane C's: boss-calls.js `fight`.)
 //
 //   node tests/boss-call.mjs            the guard
 //   node tests/boss-call.mjs --mutate   every planted defect must turn it red
 //
 // mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrual.js
 //
-//   BC-ROW     a called row is xp 0, gp [0, 0], no drops, no yield trick; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
+//   BC-ROW     a called row is xp 0, gp [0, 0], no yield trick; a called boss drops only his ground boss's rows at their rates and his call-only piece (worn, no jewelry,
+//              dropped by nothing else), an add drops nothing; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
 //   BC-TIER    a difficulty tier can't reach the room (when src/data/hunt-tiers.js is on the tree)
-//   BC-PAY     a kill pays nothing by any path: a lone seat, a pair, a four, Tempering, a bestiary boost: every window's delta is the settle's allowlist, and the kill reaches only the title's counter
+//   BC-PAY     a win pays only items from his own table, in the window he fell in, by any path: a lone seat, a pair, a four, Tempering, a bestiary boost; every
+//              other window is the settle's allowlist; no XP or coin ever; his table is rolled once a win (his call-only piece at certain odds lands once)
 //   BC-HP      the boss's one spawn is his row's HP for any party that walks in (no party scale since 2026-11-08)
 //   BC-FELLED  the kill ends the fight for everyone, the same instant however the windows are cut (the hunt viewed, the browser closed)
-//   BC-DEATH   a death ends it for everyone, box ticked or not, and costs what a death costs
-//   BC-TIME    the limit ends a fight nobody can finish, for everyone, and no hunt is left open, with his adds standing too
+//   BC-DEATH   a death ends it for everyone, box ticked or not, costs what a death costs, and pays nothing
+//   BC-TIME    the limit ends a fight nobody can finish, for everyone, pays nothing, and no hunt is left open, with his adds standing too
 //   BC-PHASE   (Tyler 2026-11-05: "phases") the two lines happen once each and at their HP, the adds come in full and go for whoever isn't the tank, Challenge takes them, the enrage raises his blows; the world's shape never moved
 //   BC-GUARD   while one of his adds stands he takes only his guard's share of a blow, all of it once they're down; a ground's own monster never hides
-//   BC-WAVE    a death in the add wave ends the fight for everyone, however the windows are cut: an add's kill pays nothing, and no hunt stays open
+//   BC-WAVE    a death in the add wave ends the fight for everyone, however the windows are cut: an add's kill pays nothing, a loss pays nothing, and no hunt stays open
 //   BC-RECORD  the server's record of a fight: where he stood, read through a leader's death (a called room never resets), and what each hero's bar fired, the same however the windows are cut
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -48,6 +55,8 @@ async function loadAll(root) {
     H: await import(u('src/data/hunts.js')),
     M: await import(u('src/data/monsters.js')),
     BE: await import(u('src/data/bestiary.js')),
+    I: await import(u('src/data/items.js')),
+    ID: await import(u('src/data/item-descriptions.js')),
     /* the engine's own instances (src/core imports with ?v=): the rows the fight reads */
     EM: (await import(u('src/data/monsters.js') + V)).MONSTERS,
     D: await import(u('src/core/hunt/damage.js') + V),
@@ -77,15 +86,30 @@ function fight(X, call, roles, o = {}) {
   return { res, windows, members, ended };
 }
 
-/* Every way a delta can pay, as the settle's allowlist reads it (hr_boss_call_pays). */
-function paysOf(delta, monster) {
+/* Is this member window the one his kill fell in (the title's counter moved, the settle's one witness of `boss_felled`)? */
+const felledIn = (delta, monster) => (delta.progress || []).some((op) => op.kind === 'stat' && op.key === 'ev:kill_monster:' + monster && op.period === '' && op.add === 1);
+
+/* Every way a delta can pay, as the settle's allowlist reads it (hr_boss_call_pays). `table` (the called row's drops) only for the window he fell in:
+   that window may also carry `items`, each one of his table's ids, at most one of each a win (rollDropTable: one unit a row). */
+function paysOf(delta, monster, table) {
   const out = [];
-  for (const k of Object.keys(delta)) if (!ALLOWED.has(k)) out.push(k + '=' + JSON.stringify(delta[k]).slice(0, 40));
+  const win = Array.isArray(table) && felledIn(delta, monster);
+  for (const k of Object.keys(delta)) if (!ALLOWED.has(k) && !(win && k === 'items')) out.push(k + '=' + JSON.stringify(delta[k]).slice(0, 40));
+  if (win && delta.items) {
+    const per = {};
+    for (const d of table) per[d.id] = (per[d.id] || 0) + 1;
+    for (const [id, n] of Object.entries(delta.items)) if (!(id in per) || !(Number(n) >= 1 && Number(n) <= per[id])) out.push('item ' + id + ' x' + n + ' off his table');
+  }
   const meta = (delta.journal && delta.journal.meta) || {};
   if (Number(meta.kills) !== 0) out.push('journal kills ' + meta.kills);
   if (meta.km) out.push('km');
   for (const op of delta.progress || []) {
     if (op.kind === 'stat' && (op.key === 'deaths' || (op.key === 'ev:kill_monster:' + monster && op.period === '' && op.add === 1))) continue;
+    /* a win's drop counts on its own loot counter (the collection's read), as any drop does, and only for an item this window carries */
+    if (win && op.kind === 'stat' && /^ev:loot:/.test(op.key) && delta.items && Number(delta.items[op.key.slice(8)]) >= Number(op.add)) continue;
+    /* ...and a rare one on the lifetime rare count, at most once for each rare or trophy row of his this window carries */
+    if (win && op.kind === 'stat' && op.key === 'rare_drops' && Number(op.add) >= 1
+      && Number(op.add) <= table.filter((d) => (d.band === 'rare' || d.band === 'trophy') && delta.items && Number(delta.items[d.id]) > 0).length) continue;
     out.push('progress ' + op.key);
   }
   return out;
@@ -114,9 +138,29 @@ async function guard(X) {
   for (const [id, m] of rows) {
     if (m.xp !== 0) bad.push('BC-ROW ' + id + ' pays XP ' + m.xp);
     if (!(m.gp && m.gp[0] === 0 && m.gp[1] === 0)) bad.push('BC-ROW ' + id + ' pays coin ' + JSON.stringify(m.gp));
-    if (!(Array.isArray(m.drops) && m.drops.length === 0)) bad.push('BC-ROW ' + id + ' drops ' + JSON.stringify(m.drops));
+    if (!Array.isArray(m.drops)) bad.push('BC-ROW ' + id + ' has no drop list');
+    else if (m.add === true && m.drops.length) bad.push('BC-ROW the add ' + id + ' drops ' + JSON.stringify(m.drops));
+    else if (m.boss === true) {
+      /* HIS OWN TABLE (Tyler 2026-11-14): his ground boss's rows at their ground rates, and his call's one call-only piece. */
+      const c = calls.find((x) => x.monster === id);
+      const own = c && M.MONSTERS[c.of] ? M.MONSTERS[c.of].drops : [];
+      for (const d of m.drops) {
+        const at = own.find((o) => o.id === d.id);
+        if (!c || !((at && at.ch === d.ch && at.band === d.band) || (d.id === c.callOnly && d.ch > 0 && d.ch <= 0.02))) bad.push('BC-ROW ' + id + ' drops ' + d.id + ' at ' + d.ch + ', off ' + (c ? c.of : 'his ground boss') + '\'s table');
+      }
+      if (c && !m.drops.some((d) => d.id === c.callOnly)) bad.push('BC-ROW ' + id + ' never drops his call-only piece ' + (c && c.callOnly));
+    }
+    if (m.dropBonus !== undefined) bad.push('BC-ROW ' + id + ' carries a drop bonus');
     if (!/_called$/.test(id)) bad.push('BC-ROW ' + id + ' id does not end _called');
     if (id in BE.BESTIARY) bad.push('BC-ROW ' + id + ' has a Bestiary entry');
+  }
+  /* THE CALL-ONLY PIECE: a worn piece (never jewelry: high-end jewelry is crafted, Tyler 2026-11-14), on no other table, with words and a book value. */
+  for (const c of calls) {
+    const it = X.I.ITEMS[c.callOnly];
+    if (!it) { bad.push('BC-ROW ' + c.id + '\'s call-only piece ' + c.callOnly + ' is no item'); continue; }
+    if (!it.slot || /ring|necklace|amulet/.test(it.slot) || it.type === 'jewelry') bad.push('BC-ROW ' + c.callOnly + ' is not a worn piece, or is jewelry: ' + it.slot);
+    if (!(it.v > 0) || !X.ID.ITEM_DESC[c.callOnly]) bad.push('BC-ROW ' + c.callOnly + ' has no book value or no words');
+    for (const [mid, mon] of Object.entries(M.MONSTERS)) if (mid !== c.monster && (mon.drops || []).some((d) => d.id === c.callOnly)) bad.push('BC-ROW ' + c.callOnly + ' drops from ' + mid + ': it is his call\'s only');
   }
   for (const c of calls) {
     const g = G.CALLED_GROUNDS[c.hunt];
@@ -132,9 +176,13 @@ async function guard(X) {
   const reach = G.reachableOf(G.OPEN_GROUNDS, H.HUNT_INDEX).monsters;
   for (const [id] of rows) if (reach.includes(id)) bad.push('BC-ROW ' + id + ' is on the reachable roster');
   for (const g of Object.values(G.HUNT_GROUNDS)) for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) if (M.MONSTERS[s.monster] && M.MONSTERS[s.monster].called === true) bad.push('BC-ROW ground ' + g.id + ' fields ' + s.monster);
-  const sql = readFileSync(join(X.root === REPO ? REPO : REPO, 'supabase/migrations/2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql'), 'utf8');
-  for (const [id] of rows) {
-    if (!sql.includes(`('${id}', 0, 0, '{}'::jsonb)`)) bad.push('BC-ROW the catalogue\'s kill bound of ' + id + ' is not nothing');
+  /* The newest catalogue's kill bound (tools/gen-hunt-sessions.mjs OUT_NAME): no coin and no XP; the boss's drops his table's ids, an add's none. */
+  const { OUT_NAME: CAT } = await import(pathToFileURL(join(REPO, 'tools/gen-hunt-sessions.mjs')).href);
+  const sql = readFileSync(join(REPO, 'supabase/migrations', CAT), 'utf8');
+  for (const [id, m] of rows) {
+    const per = {};
+    for (const d of m.drops || []) per[d.id] = (per[d.id] || 0) + 1;
+    if (!sql.includes(`('${id}', 0, 0, '${Object.keys(per).length ? JSON.stringify(per) : '{}'}'::jsonb)`)) bad.push('BC-ROW the catalogue\'s kill bound of ' + id + ' is not no coin, no XP and his table');
     if (new RegExp(`delete from public.hr_hunt_roster;[\\s\\S]*?\\('${id}'\\)[\\s\\S]*?delete from public.hr_hunt_weapons`).test(sql)) bad.push('BC-ROW ' + id + ' is in hr_hunt_roster');
   }
 
@@ -161,17 +209,23 @@ async function guard(X) {
   for (const [name, c, roles, o] of PATHS) {
     const f = fight(X, c, roles, o);
     if (Object.keys(f.ended).length !== roles.length) bad.push('BC-PAY ' + name + ': ' + Object.keys(f.ended).length + ' of ' + roles.length + ' ended');
-    let kills = 0;
+    let kills = 0, items = 0;
+    const table = X.EM[c.monster].drops;
     for (const m of f.members) {
-      for (const p of paysOf(m.delta, c.monster)) bad.push('BC-PAY ' + name + ': ' + m.key + ' ' + p);
+      for (const p of paysOf(m.delta, c.monster, table)) bad.push('BC-PAY ' + name + ': ' + m.key + ' ' + p);
       kills += (m.delta.progress || []).filter((op) => op.key === 'ev:kill_monster:' + c.monster).length;
+      items += Object.values(m.delta.items || {}).reduce((a, n) => a + Number(n), 0);
       if (m.hunt.raw_xp && Object.keys(m.hunt.raw_xp).length) bad.push('BC-PAY ' + name + ': the tally reads XP ' + JSON.stringify(m.hunt.raw_xp));
-      if (m.events && m.events.some((e) => e.type === 'rare_drop')) bad.push('BC-PAY ' + name + ': a rare drop');
+      if (m.events && m.events.some((e) => e.type === 'rare_drop' && !table.some((d) => d.id === e.item))) bad.push('BC-PAY ' + name + ': a rare drop off his table');
     }
     if (kills !== roles.length) bad.push('BC-PAY ' + name + ': the title\'s counter moved ' + kills + ' times for ' + roles.length + ' heroes');
+    /* his certain rows (ch 1) land on every win: the drop is paid, once */
+    const sure = table.filter((d) => d.ch >= 1).length;
+    if (items < sure) bad.push('BC-PAY ' + name + ': a win paid ' + items + ' items, his table lands ' + sure + ' for certain');
     /* (A pair's tank stays on him and its healer heals: nobody there kills an add; the others read an add's kill.) */
     if (name !== 'a pair') { const k = kinds(f); if (!eventsOf(f).some((e) => e.type === 'kill' && k[e.t] === addOf(c))) bad.push('BC-PAY ' + name + ': CONTROL: no add fell, so an add\'s pay was never read'); }
-    for (const w of f.windows) for (const e of w.events || []) if (e.type === 'xp' || e.type === 'xp_group' || e.type === 'rare_roll') bad.push('BC-PAY ' + name + ': a ' + e.type + ' event');
+    /* (a party's rare roll is a win's, for a rare row of his own table only) */
+    for (const w of f.windows) for (const e of w.events || []) if (e.type === 'xp' || e.type === 'xp_group' || (e.type === 'rare_roll' && !table.some((d) => d.id === e.item))) bad.push('BC-PAY ' + name + ': a ' + e.type + ' event');
     if (!Object.values(f.ended).every((e) => e.reason === 'boss_felled')) bad.push('BC-PAY ' + name + ': ended ' + JSON.stringify(f.ended));
   }
   /* A bestiary boost and a relic reach no payout: the same pair, a relic row for the boss, the same zero. */
@@ -180,8 +234,24 @@ async function guard(X) {
     const run = X.play.run;
     const f = run(king.hunt, STRONG.L, ['tank', 'melee_dps'], { ground: G.CALLED_GROUNDS[king.hunt], spanMs: 5 * MINUTE, windowMs: 30000, leaveTogether: true, equipment: () => STRONG.kit,
       session: () => ({}), onWindow: (w, members) => { for (const m of members) m.relicMults = { [king.monster]: 1.25, [king.of]: 1.25 }; for (const p of w.members) seen.push(p); } });
-    for (const p of seen) for (const w of paysOf(p.delta, king.monster)) bad.push('BC-PAY a relic on the boss: ' + w);
+    for (const p of seen) for (const w of paysOf(p.delta, king.monster, X.EM[king.monster].drops)) bad.push('BC-PAY a relic on the boss: ' + w);
     if (f.totals.levelXp || f.totals.xp || f.totals.coin) bad.push('BC-PAY a relic on the boss paid ' + JSON.stringify(f.totals));
+  }
+  /* HIS OWN ROW, ROLLED ONCE A WIN: his call-only piece at certain odds, alone on his row, lands exactly once for a four, in the window he fell in.
+     (Rolled off the ground boss's row, it never lands; rolled on an add's kill or twice, it lands more than once.) */
+  for (const c of [king, chief]) {
+    const table = X.EM[c.monster].drops;
+    setRow(c.monster, { drops: [{ id: c.callOnly, ch: 1, band: 'rare' }] });
+    const f = fight(X, c, ['tank', 'healer', 'melee_dps', 'mage'], {});
+    let n = 0;
+    for (const m of f.members) {
+      const got = Number((m.delta.items || {})[c.callOnly]) || 0;
+      if (got && !felledIn(m.delta, c.monster)) bad.push('BC-PAY ' + c.id + ': his piece landed in a window he did not fall in');
+      n += got;
+    }
+    if (!Object.values(f.ended).every((e) => e.reason === 'boss_felled')) bad.push('BC-PAY CONTROL ' + c.id + ': the four did not win: ' + JSON.stringify(f.ended));
+    else if (n !== 1) bad.push('BC-PAY ' + c.id + ': his own row at certain odds paid ' + n + ' of his piece for one win, want 1');
+    setRow(c.monster, { drops: table });
   }
 
   /* BC-HP: the one spawn is his row's HP for a party of 2, 3 or 4, read from the first window's unit book. */
@@ -351,6 +421,8 @@ async function guard(X) {
     if (reasons !== 'died,party_member_died') bad.push('BC-DEATH ended ' + (reasons || 'nothing') + ', want died and party_member_died');
     const lost = f.members.flatMap((m) => (m.summary.deathLog || []).map((d) => d.xpLost));
     if (lost.length !== 1 || !lost[0] || !(lost[0].level > 0)) bad.push('BC-DEATH the death cost ' + JSON.stringify(lost));
+    /* A LOSS PAYS NOTHING (Tyler 2026-11-14: drops only on a win): no item, no coin, no XP in any window of it. */
+    for (const m of f.members) for (const p of paysOf(m.delta, king.monster)) bad.push('BC-DEATH a loss paid: ' + m.key + ' ' + p);
     if (f.res.playedMs >= B.BOSS_CALL_RULES.limitMs) bad.push('BC-DEATH ran to the limit');
   }
 
@@ -390,13 +462,25 @@ async function restoring(root, fn) {
   }
 }
 
-const ROW_KING = "hp: 2000, atk: 42, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600 } },";
+const ROW_KING = "hp: 2000, atk: 42, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800,\n    /* A WIN PAYS HIS OWN TABLE";
+const KING_TAIL = "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' },\n      { id: 'kingstooth', ch: .01, band: 'rare' }],";
+/* the drop door's own lines (src/core/hunt-rewards.js calledSwing) */
+const DOOR_KILL = "    if (ev.type !== 'kill') continue;\n    const t = unitOf(ev.t);\n    if (t && t.side === 'mon' && t.kind === boss) {\n";
+const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(ev.u);\n      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });\n    }\n  }\n  return deaths;\n}\n\n/**";
+const PAY_HERE = "{ const ids = livingIds(world, members); const row = (ctx.monsters || MONSTERS)[boss]; if (ids.length && row) payDrops(ids.map((id) => members.get(id)), ids, members.get(ids[0]), row, ctx, world, ev.atMs); }";
 const ROW_ADD = "hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
 const MUTANTS = [
-  { name: 'a drop row planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('drops: []', "drops: [{ id: 'bones', ch: 1, band: 'common' }]")]], want: /BC-ROW/ },
+  /* HIS OWN TABLE, ONLY ON A WIN (Tyler 2026-11-14) */
+  { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },
+  { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace('ch: .00141', 'ch: .5')]], want: /BC-ROW/ },
+  { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' }],"]], want: /BC-ROW/ },
+  { name: 'a loss that pays: his table rolled on a hero\'s death', edits: [['src/core/hunt-rewards.js', DOOR_DEATH, DOOR_DEATH.replace('      const k = unitOf(ev.u);\n', '      ' + PAY_HERE + '\n      const k = unitOf(ev.u);\n')]], want: /BC-DEATH|BC-WAVE|BC-RECORD/ },
+  { name: 'a timeout that pays: his table rolled on his blows taken, not his kill', edits: [['src/core/hunt-rewards.js', DOOR_KILL, "    if (ev.type === 'dmg' && unitOf(ev.t) && unitOf(ev.t).kind === boss) " + PAY_HERE + "\n" + DOOR_KILL]], want: /BC-TIME|BC-PAY|BC-DEATH/ },
+  { name: 'the win rolls the ground boss\'s row, not his own', edits: [['src/core/hunt-rewards.js', 'const row = (ctx.monsters || MONSTERS)[boss];', 'const row = (ctx.monsters || MONSTERS)[ctx.call.of];']], want: /BC-PAY/ },
+  { name: 'a win pays coin', edits: [['src/core/hunt-rewards.js', DOOR_KILL, DOOR_KILL + "      for (const m of members.values()) { m.state.gold = (m.state.gold || 0) + 5; call(m.fx, 'onLoot', 5, (ctx.monsters || MONSTERS)[boss]); }\n"]], want: /BC-PAY/ },
   { name: 'XP planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('xp: 0', 'xp: 500')]], want: /BC-ROW/ },
   { name: 'coin planted on a called row', edits: [['src/data/monsters.js', ROW_KING, ROW_KING.replace('gp: [0, 0]', 'gp: [1, 5]')]], want: /BC-ROW/ },
-  { name: 'the engine has no door: a called swing pays like any other', edits: [['src/core/hunt-rewards.js', '  if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);\n', '']], want: /BC-PAY/ },
+  { name: 'the engine has no door: a called swing pays like any other', edits: [['src/core/hunt-rewards.js', '  if (ctx.call) return calledSwing(members, events, world, unitOf, ctx.call.monster, ctx);\n', '']], want: /BC-PAY/ },
   { name: 'the sim forgets to hand the rewards the call', edits: [['src/core/combat-sim.js', 'hearthfind: ctx.hearthfind, call,', 'hearthfind: ctx.hearthfind,']], want: /BC-PAY/ },
   { name: 'a called kill counts as a kill', edits: [['src/core/hunt-rewards.js', "for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });", "for (const m of members.values()) { m.hs.tally.kills += 1; call(m.fx, 'updateQuest', 'kill_any', 1, { target: t.kind }); call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind }); }"]], want: /BC-PAY/ },
   { name: 'the kill never reaches the title', edits: [['src/core/hunt-rewards.js', "for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });", '']], want: /BC-PAY/ },

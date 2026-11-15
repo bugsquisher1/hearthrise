@@ -3,6 +3,7 @@
   "class": "brute",
   "style": "s1",
   "material": "unit",
+  "lift": 2,
   "source": "banded_pikeman.png",
   "anchor_px": [
     32,

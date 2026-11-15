@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-14",
+ "generated": "2026-11-15",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -1036,7 +1036,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 354,
+   "replay": 379,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1066,7 +1066,7 @@
   },
   "hr_boss_halls": {
    "class": "seeded",
-   "replay": 0,
+   "replay": 1,
    "note": "Generated catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql from src/data/boss-halls.js): the keyed halls, the key each spends and its limit. Empty today (no hall in the data). Empty with a hall in the data, hr_boss_hall_enter refuses every hall (hall_unknown), hr_hunt_admit no longer shuts the room's other doors, and the settle can't prove a hall's ends. Rebuilt from repo, never restored."
   },
   "hr_bounty_board_monsters": {
@@ -1289,7 +1289,7 @@
   },
   "hr_ground_tiers": {
    "class": "seeded",
-   "replay": 10,
+   "replay": 20,
    "note": "Catalogue (2027-02-27-hunt-tiers.sql; tests/hunt-core/hunt-tiers.mjs holds it equal to src/data/hunt-tiers.js): the harder tiers each ground offers, each one's pull per party size, power and XP. A rebuild restores it; empty, every pick plays Normal and hr_hunt_tier_set refuses a harder tier (bad_tier)."
   },
   "hr_hallmark_offers": {
@@ -1390,17 +1390,17 @@
   },
   "hr_hunt_ground_spawns": {
    "class": "seeded",
-   "replay": 42,
+   "replay": 67,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): each ground's monsters and counts, the kill bound's spawn term. Since 2027-02-10-drop-bounds: every monster in a pocket's whole pack (the Glade's Brook Bear, 29 -> 30), the settle's value bound. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_grounds": {
    "class": "seeded",
-   "replay": 16,
+   "replay": 22,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): one row per hunt ground (pockets, spawns, respawn, seats) from src/data/hunt-grounds.js; empty until the content lane ships a ground, and every enter answers no_ground until then. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_kill_bounds": {
    "class": "seeded",
-   "replay": 145,
+   "replay": 170,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the most one kill of each monster can pay (gold, XP, drops), read by the value bound (2026-10-22-hunt-sessions-value-bound.sql). Rebuilt from repo, never restored."
   },
   "hr_hunt_lanes": {
@@ -1430,7 +1430,7 @@
   },
   "hr_hunt_roster": {
    "class": "seeded",
-   "replay": 30,
+   "replay": 55,
    "note": "Generated catalogue (2026-11-21-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data/hunt-grounds.js reachableOf): every monster a player can meet on the open grounds. Empty = the Bestiary total reads 0 and every monster milestone refuses roster_too_small. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_set_options": {
@@ -1445,7 +1445,7 @@
   },
   "hr_hunt_spawns": {
    "class": "seeded",
-   "replay": 34,
+   "replay": 55,
    "note": "Generated catalogue (2026-10-20-hunts-catalogue.generated.sql, tools/gen-hunts.mjs --check from src/data/hunts.js): which monsters each named hunt spawns and their weights. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_stances": {
@@ -1466,12 +1466,12 @@
   },
   "hr_hunt_travel": {
    "class": "seeded",
-   "replay": 138,
+   "replay": 165,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): every hunt a session may be entered on: the 4 named hunts and the 94 non-boss, non-champion training monsters, with their walk time. An EMPTY rebuild refuses every enter (unknown_hunt, fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 567,
+   "replay": 590,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1491,7 +1491,7 @@
   },
   "hr_hunts": {
    "class": "seeded",
-   "replay": 19,
+   "replay": 25,
    "note": "Generated catalogue (2026-10-20-hunts-catalogue.generated.sql, tools/gen-hunts.mjs --check from src/data/hunts.js): the named hunts and their level bands, read by hr_hunt_gate. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_import_marker": {
@@ -1511,7 +1511,7 @@
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 592,
+   "replay": 615,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1651,7 +1651,7 @@
   },
   "hr_scaled_grounds": {
    "class": "seeded",
-   "replay": 5,
+   "replay": 10,
    "note": "Generated catalogue (2027-03-21-scaled-hunts-catalogue.generated.sql from src/data/scaled-hunts.js): the grounds a leader may scale and their bands. Empty, nothing scales and every purchase refuses not_scalable. Rebuilt from repo, never restored."
   },
   "hr_scaled_hunt_rule": {
@@ -1661,7 +1661,7 @@
   },
   "hr_scaled_kill_bounds": {
    "class": "seeded",
-   "replay": 153,
+   "replay": 663,
    "note": "Generated catalogue (2027-03-21-scaled-hunts-catalogue.generated.sql from src/data/scaled-hunts.js): per scalable ground and scaled Level, the most one scaled kill pays and the highest scaled monster Level, read by hr_hunt_apply_member on a window proved scaled. Empty, a scaled window is bounded by the ground's own kills (its honest XP refused value_over), never loosened. Rebuilt from repo, never restored."
   },
   "hr_server_secrets": {

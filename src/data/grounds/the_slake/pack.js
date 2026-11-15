@@ -38,15 +38,15 @@
 //
 // THE BARGEMAN'S SPELL: Cold Bilge (whole group, frost; the area spells board's seed row) is this pack's own `spells` row
 // (lane/b-pack-fields, engine piece 10), cast now that the area spells are live.
-import { definePack, box, gather } from '../shape.js?v=0.2.131';
-import map from './map.js?v=0.2.131';
+import { definePack, box, gather } from '../shape.js?v=0.2.132';
+import map from './map.js?v=0.2.132';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
 
 export default definePack({
   id: 'the_slake',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-the_slake.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Bargemen, 4 Mudlarks and the
      2 Sergeants who hold the barge. */
   hunt: {
@@ -104,7 +104,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'copper_ore', ch: 0.4, band: 'common' }, { id: 'green_rivet', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.0057, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0057, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0057, band: 'scarce' },
         { id: 'mithril_sword', ch: 0.0057, band: 'scarce' }],
-      hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 536, gp: [14, 43], formula: true },
+      hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 514, gp: [14, 43], formula: true },
     bargeman: {
       name: 'Bargeman', icon: '🧟', tier: 4, level: 54, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the flat: the barge's crew. Where the Fordsunk's bloat swallows arrows, the crew's cracked
@@ -115,7 +115,7 @@ export default definePack({
         { id: 'mithril_platelegs', ch: 0.0475, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0475, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0475, band: 'scarce' },
         { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
         { id: 'mithril_belt', ch: 0.0032, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0032, band: 'rare' }, { id: 'warlock_belt', ch: 0.0032, band: 'rare' }],
-      hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 975, gp: [23, 69], formula: true },
+      hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 935, gp: [23, 69], formula: true },
     mudlark: {
       name: 'Mudlark', icon: '🪝', tier: 4, level: 52, cls: 'undead', family: 'Undead', speed: 4400,
       /* the skirmisher: the river scavengers who picked the dead and drowned among them. Small, crouched and quick enough to catch
@@ -126,7 +126,7 @@ export default definePack({
         { id: 'mithril_helm', ch: 0.021, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.021, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.021, band: 'scarce' },
         { id: 'maple_bow', ch: 0.021, band: 'scarce' },
         { id: 'mithril_gauntlets', ch: 0.0014, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0014, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0014, band: 'rare' }],
-      hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 634, gp: [14, 41], formula: true },
+      hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 608, gp: [14, 41], formula: true },
     color_sergeant: {
       name: 'Color Sergeant', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier, who holds the grounded barge with the company's colors. No override: the one body on the
@@ -135,7 +135,7 @@ export default definePack({
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' },
         { id: 'maple_staff', ch: 0.05, band: 'scarce' },
         { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1501, gp: [33, 98], formula: true },
+      hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1439, gp: [33, 98], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (58) for 0.90-1.10 of the
      pace contract (288,135 an hour at 58). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.05 the middle
@@ -146,7 +146,11 @@ export default definePack({
   /* RE-FITTED UNDER SOLO +15% AND THE FLATTER CONTRACT (lane/d-packs-retune, 2026-11-12; the Ford's note says why the numbers moved). At 1.22 the
      median lone way read 1.26 of the contract at the band middle (58: 268k an hour; quick grade, the Ford's armor on the ladder, 1 seed x 1 h).
      1.22 x 1.00 / 1.26 = 0.97. The Ford fell by the same factor, so the Slake still pays about a tenth more than the Ford at the same Level. */
-  xpFit: { k: 0.97, why: 'at 1.22 the median lone way read 1.26 of the pace contract at the band middle (58) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 0.97 it reads about 1.00, still about a tenth over the Ford at the same Level' },
+  /* RE-FITTED FOR THE CLIMB (lane/d-open-march-balance, 2026-11-15; tests/hunt-core/forest-cave.mjs harder-pays-more, Tyler 2026-11-04
+     "harder mobs grand better loot and more exp"). With the March open the Muster above it paid a four at its floor (55) less a head than the Slake did (581k against 626k), so the
+     Slake gives a little back: 0.97 -> 0.93 (the full grade's median lone way at 58 read 0.98 of the contract, so about 0.94; a lone tank at 50 still
+     levels about 7% faster here than on the Ford). */
+  xpFit: { k: 0.93, why: 'Monsters here give a little less XP than the base formula, so the Muster Barrows above pay a party more' },
   /* DANGEROUS BRINGS SIX, one more than the table's five, for every group (TIER_PULL_OVERRIDES' shape: one number). On five a Melee
      and Healer pair two or three Levels under the floor made 2.3k to 5.5k gold an hour a head on Dangerous, and 1.2k five under,
      where the weight-class ruling (11-06) asks them to lose gold. On six they lose 2.2k, 3.1k and 5.7k (as opened, 2 seeds x 1 h).

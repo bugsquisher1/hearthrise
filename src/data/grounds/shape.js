@@ -108,7 +108,7 @@ function spellsWhy(p) {
   }
   return null;
 }
-const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters']);
+const HALL_KEYS = Object.freeze(['key', 'words', 'hunt', 'ground', 'monsters', 'storeFloor']);
 const isSpot = (s) => isObj(s) && ID.test(String(s.monster)) && Number.isInteger(s.x) && Number.isInteger(s.y);
 
 /** A pack's `hall`, checked for shape: answers why it is malformed, or null. The data half (the key item, the rows) is tools/pack.mjs lintHall. */
@@ -117,6 +117,7 @@ function hallWhy(p) {
   if (!isObj(h)) return 'hall is not an object';
   for (const k of Object.keys(h)) if (!HALL_KEYS.includes(k)) return 'hall has an unknown field ' + k;
   if (typeof h.key !== 'string' || !(p.items && h.key in p.items)) return 'hall.key is not one of the pack\'s own items';
+  if (h.storeFloor !== undefined && !/^salted_[a-z]+$/.test(String(h.storeFloor))) return 'hall.storeFloor is not a store food id (salted_...)';
   if (p.items[h.key].opens !== p.id) return 'hall.key ' + h.key + ' does not open ' + p.id + ' (its item\'s `opens`)';
   if (!isObj(h.words) || typeof h.words.boss !== 'string' || typeof h.words.Boss !== 'string') return 'hall.words is not { boss, Boss }';
   if (!isObj(h.hunt) || 'id' in h.hunt || 'called' in h.hunt || 'hall' in h.hunt || typeof h.hunt.name !== 'string') return 'hall.hunt is not a HALL_HUNTS row less its id and hall';

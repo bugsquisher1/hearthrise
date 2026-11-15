@@ -134,6 +134,33 @@ export function liftBody(img, steps) {
   return out;
 }
 
+/**
+ * A painted floor `steps` value steps DOWN its own ramps (ART_DIRECTION sections 3 and 4: a hunting ground is dim, and an actor
+ * reads 3:1 off its floor). Every pixel, the tile's edge too; water, the shadow ramp and the accents keep their value, so a bank,
+ * a torch's pool and a ford still read as what they are. Never another hue.
+ */
+const UNSHADED = Object.freeze([...UNLIFTED, 'water']);
+/* a ramp too short to shade continues down the nearest ramp of its own material: moss (two olive steps) into the leaf ramp's
+   darker greens, so a grassy floor can dim without leaving the vegetation family */
+const SHADES_INTO = Object.freeze({ moss: 'leaf' });
+const lumHex = (h) => { const [r, g, b] = hexRgb(h); return 0.2126 * LIN[r] + 0.7152 * LIN[g] + 0.0722 * LIN[b]; };
+export function shadeGround(img, steps) {
+  const at = {};
+  for (const [name, ramp] of Object.entries(RAMPS)) {
+    const into = SHADES_INTO[name] ? RAMPS[SHADES_INTO[name]].filter((c) => lumHex(c) < lumHex(ramp[0])) : [];
+    const chain = [...into, ...ramp];
+    ramp.forEach((c, k) => { at[c] = UNSHADED.includes(name) ? c : chain[Math.max(0, into.length + k - steps)]; });
+  }
+  const out = createImage(img.width, img.height);
+  out.data.set(img.data);
+  for (let i = 0; i < out.data.length; i += 4) {
+    if (out.data[i + 3] < ALPHA_CUT) continue;
+    const hex = '#' + [0, 1, 2].map((k) => out.data[i + k].toString(16).padStart(2, '0')).join('');
+    if (at[hex]) out.data.set(hexRgb(at[hex]), i);
+  }
+  return out;
+}
+
 /** Grade by material class and snap to the palette. Returns a new image. */
 export function lock(img, material) {
   const gr = GRADE[material];

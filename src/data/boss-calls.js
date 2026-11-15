@@ -53,11 +53,10 @@ export const BOSS_CALL_WORDS = Object.freeze({
     'Hits harder than on the ground\n50% HP: adds attack your non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
     'Cost: {fee} gp, win or lose\nNo XP, coin or drops\nTime limit: {minutes} min',
   ]),
-  /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. CHALLENGE IS THE WRONG
-     PRESS AT A SHIELDED BOSS (designer 2026-11-14, lane/d-hold-pass; boss-call-table.mjs, the good bar with one answer moved): his own blows
-     already fill the tank, so pulling the adds on too is what loses. Chief Coppercap, 100 tries: damage left on him 38% won with Challenge,
-     96% without. Krell's Hall, 200 tries: 66% against 99%, and the good bar 98% against 100%. Without Challenge the Target setting moves nothing. */
-  warnGuard: ' and shield him until killed\nTip: take Challenge off your tank\'s bar',
+  /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
+  /* NO PER-BOSS CHALLENGE ADVICE (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance re-fit
+     the Chief and Krell so Challenge on and off are both fair, measured in their rows). The label says what the adds do, nothing to turn off. */
+  warnGuard: ' and shield him until killed',
   /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`): the ground's own
      "Recommended: N+ players" (hunt-list.js partyNote), this row only where the ground names no size. */
   warnAlone: 'Recommended: party',
@@ -82,10 +81,12 @@ export const BOSS_CALL_WORDS = Object.freeze({
     /* What answers each part of the fight, short. */
     answer: Object.freeze({
       first: 'Bring a healer, eat earlier or upgrade your gear.',
-      adds: 'Challenge pulls adds to your tank, an area slot (Cleave, Fireball) clears them, Target on Lowest HP kills them first.',
+      adds: 'Adds attack non-tanks. An area slot (Cleave, Fireball) or Target on Lowest HP clears them.',
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
-      guarded: 'Take Challenge off your tank\'s bar and let your healer cover whoever the adds attack.',
+      guarded: 'His adds shield him. Kill them first and keep your healer on whoever they attack.',
       enrage: 'Under 25% HP he hits far harder. Eat earlier and set your healer to heal sooner.',
+      /* The enrage of a boss whose adds shield him (isGuarded): what he hits harder is the tank. */
+      enrageGuarded: 'Under 25% HP he hits far harder, mostly your tank. Better tank armor, eating earlier and faster heals help.',
     }),
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). Each says it charged nothing. */

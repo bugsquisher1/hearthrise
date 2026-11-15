@@ -9,17 +9,17 @@
 // close lands, and a plain "still processing" line if it is late.
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.131';
-import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.131';
-import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.131';
-import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.131';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.131';
-import { clock } from '../../render/format.js?v=0.2.131';
-import { track } from '../../net/observability.js?v=0.2.131';
-import { refusalText } from '../intent-words.js?v=0.2.131';
-import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.131';
-import { connection } from '../../net/connection.js?v=0.2.131';
-import { t } from '../../render/player-text.js?v=0.2.131';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.132';
+import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.132';
+import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.132';
+import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.132';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.132';
+import { clock } from '../../render/format.js?v=0.2.132';
+import { track } from '../../net/observability.js?v=0.2.132';
+import { refusalText } from '../intent-words.js?v=0.2.132';
+import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.132';
+import { connection } from '../../net/connection.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'hud.leaving', now: 'hud.leaving_now', late: 'hud.leaving_late' });

@@ -110,9 +110,12 @@ export function buildPlan(name, axes, scale = 1) {
     /* THE LEVEL PACE (balance layer 1, tools/balance-sim/pace.mjs): every solo style's life from Level 1 to the last
        ground's top, where the game recommends, as built (the reference: the median style); 15-minute chunks while
        Levels come in minutes. 'pacebounds' adds the bounds the reference is not: the full box (density 8) and a party
-       of four own heroes. */
+       of four own heroes.
+       EVERY STYLE TO THE TOP (lane/d-open-march-balance, 2026-11-15): with the March open (top 110) a 500 h cap stopped six of eight
+       styles short of Level 100, so the Level's "median" was the two fastest careers' (406 h) and its rate the fast styles' alone. A
+       career stops at the top; the cap only stops a career that is stuck (tests/level-curve.mjs C3 reds a career short of the top). */
     const top = Math.max(...G.map((g) => g.band[1]));
-    const life = { kind: 'career', startLevel: 1, targetLevel: top, maxHours: pick(500, 800), chunkH: 1, chunkByLevel: [[1, 0.25], [10, 1]], seed: 0 };
+    const life = { kind: 'career', startLevel: 1, targetLevel: top, maxHours: 1500, chunkH: 1, chunkByLevel: [[1, 0.25], [10, 1]], seed: 0 };
     if (name === 'pace') for (const s of SOLO_STYLES) out.push({ ...life, id: 'P:pace:' + s + ':s0', party: [s] });
     if (name === 'pacebounds') {
       for (const s of ['tank', 'hammer', 'bow', 'mage']) out.push({ ...life, id: 'P:box:' + s + ':s0', party: [s], density: 8 });

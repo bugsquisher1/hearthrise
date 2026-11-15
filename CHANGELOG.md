@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.132 — 2026-11-15 (The Barrow March)
+
+**The Barrow March is open.** Five new hunting grounds from Level 45 to 110 up the old road north: Hask's Ford, the Slake, Muster Barrows, the Pyre Field and Krell's Hold. New monsters shoot from range and mend each other, so use First target to drop the menders first.
+
+**Krell's Hall.** Get a Hall Key in Krell's Hold and take your party in to face Lord Krell. Recommended: 4+ players. Bring Salted Lobster or better.
+
+**Chief Coppercap.** His called fight is retuned so it plays fair with Challenge on or off.
+
+**Fixes.** The rare drop alert always names the hero who got it. The Market's Refresh button no longer covers the Browse tab on a phone. The Last hunt box no longer shows up empty while a window is open. Tag lines on the Hunts page never start with a dot.
+
 ## v0.2.131 — 2026-11-14 (First Target)
 
 **First target.** You can now pick which monster your hero goes after first. Open More fight settings on the hunt bar and choose one from First target. Each hero keeps its own pick, even in a party.

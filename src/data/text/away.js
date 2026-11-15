@@ -22,4 +22,6 @@ export const AWAY_TEXT = Object.freeze({
   next_ammo: 'Pack more ammo for a longer hunt.',
   next_runes: 'Pack more runes for a longer hunt.',
   next_gold: 'Lower your gold reserve, carry more gold, or pack your own supplies.',
+  /* gold_out with food or drink in the bag that no slot of the bar uses (after-hunt.js spareSupplyOf): {item} its name. */
+  next_bar: 'Tip: put {item} on your bar ({name} bought store supplies instead)',
 });

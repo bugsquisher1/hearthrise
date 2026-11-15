@@ -18,10 +18,11 @@
 //   ownsKey(ev)              Enter on a focused link presses it (the shell's Enter opens Chat everywhere else)
 // Display only: a link sends nothing; the window it opens reads the server's numbers as it always does.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.131';
-import { revealInWindow } from './widgets/bits.js?v=0.2.131';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.131';
-import { GATHER_INDEX, BENCH_INDEX } from './town-work.js?v=0.2.131';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.132';
+import { sepHtml } from '../render/format.js?v=0.2.132';
+import { revealInWindow } from './widgets/bits.js?v=0.2.132';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
+import { GATHER_INDEX, BENCH_INDEX } from './town-work.js?v=0.2.132';
 
 const ATTR = 'data-hs-goto';
 const FIND = 'data-hs-find';
@@ -77,7 +78,7 @@ const LAST = new WeakMap();
 /** Write a line of words and links into `el`, only when it differs from what it holds (an idle repaint writes nothing). */
 export function patchParts(el, parts) {
   if (!el) return;
-  const html = (parts || []).map((p) => (typeof p === 'string' ? esc(p) : linkHtml(p.words, p.target))).join('');
+  const html = (parts || []).map((p) => (typeof p === 'string' ? esc(p) : p.sep ? sepHtml() : linkHtml(p.words, p.target))).join('');
   if (LAST.get(el) === html) return;
   LAST.set(el, html);
   el.innerHTML = html;

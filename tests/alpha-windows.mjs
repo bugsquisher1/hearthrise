@@ -1318,6 +1318,15 @@ async function planRules(base) {
   /* before a hero walks away: how long this stamina lasts, game closed or not (panel 2026-11-01: 5 h 46 idle with no word before leaving) */
   const lasts = say(sess({ stamina: { ms: 3 * 3600000 + 17 * 60000, max_ms: 43200000 } }));
   if (!lasts.includes('Stamina: 3 h 17 min (hunts that long, even with the game closed)')) fails.push('AW-27 a long stamina reads ' + JSON.stringify(lasts));
+  /* STORE FOOD TOO WEAK FOR THE GROUND (lane/d-march-balance: a Level 55 tank on the start bar's Salted Shrimp died 2 of 2 in the Muster
+     Barrows under "Safe at your level"): under the store food the ground names as its floor (bagGuide.storeFloor), a red line with the
+     fix; Salted Trout (1 death in 12 h there) is under it too; a ground that names no floor (the Slake: Salted Shrimp 0 deaths in 8 h) says nothing */
+  const fedAt = (hunt, store) => say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_lobster', 100), slot('consume', store, null)], store: STORE },
+    inventory: { cooked_lobster: 100 } }), { hunt });
+  const weakLine = '!Salted Shrimp heals too little here (death risk). Pick Salted Lobster on that slot.';
+  const fedReads = [fedAt('muster_barrows', 'salted_shrimp'), fedAt('muster_barrows', 'salted_trout'), fedAt('muster_barrows', 'salted_lobster'), fedAt('the_slake', 'salted_shrimp'), fedAt('millrace_sewer', 'salted_shrimp')];
+  if (!fedReads[0].includes(weakLine) || !/^!Salted Trout heals too little/m.test(fedReads[1].split(' | ').find((x) => /heals too little/.test(x)) || '')
+    || fedReads.slice(2).some((x) => /heals too little/.test(x))) fails.push('AW-27 store food too weak for the ground reads ' + JSON.stringify(fedReads));
   /* A rune spell with none of its ticked runes and no store behind it (its slot set to "Leave the hunt": a slot that says nothing
      buys from the shop, Tyler 2026-11-08) loses that spell only (named, not a stop); no food is said. */
   const leaving = (id) => ({ action: { type: 'ability', id, onEmpty: 'leave' }, conditions: [], join: 'and', usable: true, count: 0 });
@@ -2772,17 +2781,21 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
           'wickstead::Level 8–18:above:Above your level::No best yet:Players: 1 to 4',
           'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Players: 1 to 4',
-          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Players: 1 to 4'];
+          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Players: 1 to 4',
+          /* the Barrow March's five grounds (v0.2.132: their packs opened, src/data/grounds status open) */
+          'hasks_ford::Level 45–60:far:Far above your level::No best yet:Players: 1 to 4',
+          'the_slake::Level 50–65:far:Far above your level::No best yet:Players: 1 to 4',
+          'muster_barrows::Level 55–75:far:Far above your level::No best yet:Players: 1 to 4',
+          'pyre_field::Level 70–90:far:Far above your level::No best yet:Players: 1 to 4',
+          'krells_hold::Level 85–110:far:Far above your level::No best yet:Players: 1 to 4'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
-        /* AW-25 THE DOTS ARE TEXT (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the line as it looks, and the
-           picked ground's page reads its band the same way */
+        /* AW-25 A SPACE BETWEEN THE PARTS (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the words apart, the
+           eye a dot between them (format.js sepHtml), and the picked ground's page reads its band the same way */
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
-          return [li.querySelector('.hw-hunt-band').innerText, li.querySelector('.hw-hunt-sub').innerText, document.querySelector(w + '.hw-hd-band')?.innerText]; }, W);
-        /* and each dot binds to the words after it (format.js SEP, a no-break space), so no wrapped line ends on one (the v0.2.130 gate) */
-        const NBSP = String.fromCharCode(160), bound = (x) => String(x || '').split('·').slice(1).every((rest) => rest[0] === NBSP);
-        if (!readLine.every(bound)) fails.push('AW-25 a dot in the Hunts lines can end a line: ' + JSON.stringify(readLine));
-        readLine.forEach((x, i) => { readLine[i] = String(x || '').split(NBSP).join(' '); });
-        if (readLine[0] !== 'Level 1–8 · In your range' ||!/^Right for your level[ \u00a0]· No best yet$/.test(readLine[1]) || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || '')) fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
+          const seen = (n) => (n ? n.innerText.replace(/\u00a0/g, ' ') : null);
+          return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band'))]; }, W);
+        if (readLine[0] !== 'Level 1–8 · In your range' || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || ''))
+          fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
           const d = document.querySelector(w + '.hw-hunt-detail');
@@ -2793,8 +2806,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rares: Array.from(d.querySelectorAll('.hw-hd-rares .hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
-              const how = li.querySelector('.hw-hd-mon-how').textContent;
-              return { id: li.dataset.monster, how: how.split(String.fromCharCode(160)).join(' '), bound: how.split('\u00b7').slice(1).every((x) => x[0] === String.fromCharCode(160)), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+              const how = li.querySelector('.hw-hd-mon-how');
+              return { id: li.dataset.monster, how: how.innerText.replace(/\u00a0/g, ' '), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
             bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
         }, W);
@@ -2803,8 +2816,33 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
         if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
-        /* a creature card's dot binds to its share ("Level 2 ·" / "uncommon" was the v0.2.130 gate) */
-        if (p.mons.some((m) => !m.bound)) fails.push('AW-25 a creature card\'s dot can end its line: ' + JSON.stringify(p.mons.map((m) => m.how)));
+        /* AW-25 NO LINE STARTS OR ENDS ON A DOT (v0.2.131 gate: "Level 22" over "· uncommon"; v0.2.130: "Meadowbrook Thicket ·"). Measured:
+           in 240 px cards every card draws its dot; narrowed until the cards and the list lines wrap, every dot still drawn has words
+           on its own line on both sides. */
+        const dots = await page.evaluate((w) => {
+          const win = document.querySelector(w.trim()), lineup = win.querySelector('.hw-hd-lineup'), list = win.querySelector('.hw-hunt-list');
+          const drawn = (root) => { const lines = [], out = [];
+            const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+              if (!n.data.trim() || !n.parentElement.getClientRects().length) continue;
+              const r = document.createRange(); r.selectNodeContents(n); for (const b of r.getClientRects()) if (b.width) lines.push(b);
+              for (let i = n.data.indexOf('\u00b7'); i >= 0; i = n.data.indexOf('\u00b7', i + 1)) { const d = document.createRange(); d.setStart(n, i); d.setEnd(n, i + 1);
+                const b = d.getBoundingClientRect(); if (b.width) out.push({ b, at: n.parentElement.parentElement.textContent }); } }
+            root.querySelectorAll('.hh-sep').forEach((s) => { const b = s.getBoundingClientRect(); if (b.width > 0.5 && s.getClientRects().length) out.push({ b, at: s.parentElement.textContent }); });
+            const same = (a, b) => Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < Math.min(a.height, b.height) / 2;
+            return { n: out.length, alone: out.filter(({ b }) => !(lines.some((l) => same(l, b) && l.left < b.left - 1) && lines.some((l) => same(l, b) && l.right > b.right + 1))).map((x) => x.at) }; };
+          lineup.style.gridTemplateColumns = 'repeat(auto-fill, 240px)'; const roomy = drawn(lineup).n;
+          lineup.style.gridTemplateColumns = 'repeat(auto-fill, 72px)'; if (list) list.style.width = '150px';
+          const go = Array.from(win.querySelectorAll('.hw-go-what')); go.forEach((g) => { g.style.display = 'inline-block'; g.style.width = '70px'; });
+          const goDots = go.filter((g) => g.querySelector('.hh-sep')).length;
+          const narrow = drawn(win), cards = Array.from(lineup.querySelectorAll('.hw-hd-mon-how')).filter((h) => h.getBoundingClientRect().height > 20).length;
+          lineup.style.gridTemplateColumns = ''; if (list) list.style.width = ''; go.forEach((g) => { g.style.display = ''; g.style.width = ''; });
+          return { roomy, cards, narrow, goDots };
+        }, W);
+        if (dots.roomy !== p.mons.length) fails.push('AW-25 with room, ' + dots.roomy + ' of ' + p.mons.length + ' creature cards draw their dot');
+        if (!dots.cards) fails.push('AW-25 CONTROL: narrowed, no creature card wrapped');
+        if (!dots.goDots) fails.push('AW-25 CONTROL: no Go as line has a dot to measure');
+        if (dots.narrow.alone.length) fails.push('AW-25 a wrapped line starts or ends on a dot: ' + JSON.stringify(dots.narrow.alone));
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon:carrier')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
@@ -2842,9 +2880,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const g0 = (await goAs()).join('|');
         if (g0 !== '0:true:Hunt:Melee · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
-        const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        /* The Before you go list itself: the boss hall's door (boss-hall-pane.js, v0.2.132) wears the same line class for its food line and
+           tips, hidden on a ground with no hall, so a window-wide read took its hidden empty red line as "| !" (v0.2.132 release red). */
+        const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + 'ul.hw-before:not(.hw-hall-tips) > .hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        /* ...and no warning row the player can SEE is empty, wherever in the window it is drawn */
+        const emptyShown = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).filter((n) => n.getClientRects().length && !n.textContent.trim()).length, W);
         /* Flame Strike's slot names its store rune: carried runes first, then the store's a cast, and the gold pays it. */
         const b0 = await before();
+        if (await emptyShown()) fails.push('AW-27 the Hunts window draws an empty Before you go row');
         if (b0 !== 'Runes: 40 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 14 Wheat Bread of yours. You carry 5 Cooked Shrimp. Put it on the bar to eat it | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left (then the hunt ends) | Gold: 5,200 gp (pays the store as you go)')
           fails.push('AW-27 Before you go reads ' + JSON.stringify(b0));
         if (await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-ready, [data-hs-win="hunts"] .hw-checks'))) fails.push('AW-27 the Hunts window still carries the readiness checklist');
@@ -4550,11 +4593,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
-  ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "'Level ' + m.level + SEP : ''", "'Level ' + m.level + ' · ' : ''"],
+  ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
+  ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],
   ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
   ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],
-  ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "(m.boss ? 'boss' : m.band);", "(m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : '');"],
+  ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "'.hw-hd-mon-band'), m.boss ? 'boss' : m.band);", "'.hw-hd-mon-band'), (m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : ''));"],
   ['AW-25 the casters note is never shown', 'src/shell/windows/hunt-detail.js', "prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);", "prop(det.querySelector('.hw-hd-casts'), 'hidden', true);"],
   ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
   ['AW-95 a window rises over the action bar in a hunt again', 'src/shell/window-fit.js', 'if (cap !== null && !hunt && overBar(cap, Infinity)) {', 'if (cap !== null && overBar(cap, Infinity)) {'],
@@ -4737,6 +4781,8 @@ const MUTANTS = [
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],
   ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/shell/upgrade-plan.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
+  ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt);\n    if (weak) out.push(weak);\n', ''],
+  ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/hunt-go.js', 'return best && best.amount < want.heals ? best.id : null;', 'return best && best.amount * 2 < want.heals ? best.id : null;'],
   ['plans: AW-27 a club hero is warned about another weapon', 'src/shell/hunt-go.js', 'if (moveOffWeapon(s.discipline, a.id)) return null;', ''],
   ['plans: AW-27 three spells read as a fallback ("then")', 'src/shell/hunt-go.js', "+ ' gp a cast').join('. ');", "+ ' gp a cast').join(', then ');"],
   ['plans: AW-27 each store rune is said on its own', 'src/shell/hunt-go.js', "    if (same) same.names.push(p.store.name);\n    else spends.push(", "    spends.push("],

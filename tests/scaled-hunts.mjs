@@ -9,9 +9,9 @@
 // bow and mage. Every number is Level XP or net gold (coin + commons - the store bill) a hero an hour, Normal.
 //
 //   derived      pure: the scalable grounds and topLevel are READ from the ground data, never typed in scaled-hunts.js. A test-only
-//                ground opened above the top is picked up (it becomes the top, the Warrens becomes scalable), and the module's
+//                ground opened above the top is picked up (it becomes the top, the old top becomes scalable), and the module's
 //                source restates no band (the ground-pack lane must open a ground without a row there; CONFLICTS.md 2026-11-07)
-//   rules        pure: when a ground scales (past its band's top, never past topLevel, the Warrens never), SCALABLE_GROUNDS agrees with
+//   rules        pure: when a ground scales (past its band's top, never past topLevel, the top ground never), SCALABLE_GROUNDS agrees with
 //                hunts.js and hunt-grounds.js, scaledRow is the formula at the scaled Level with the dials, its drops are the row's,
 //                scaledMonsters is the roster's rows, the tier rows are the sheet's at the scaled floor (no Deadly), the slider's words are the rows'
 //                ratios, the price is whole and climbs, the buy's catalogue refuses a bad number of hours
@@ -50,6 +50,8 @@ const BAR = Object.freeze({ xpUnderRight: 1, xpOverOwn: 1.25, feeShare: [0.15, 0
 
 const band = (gid) => HUNT_INDEX[G.OPEN_GROUNDS[gid].hunt].band;
 const fitOf = (gid) => (G.HUNT_GROUNDS[gid].pockets.some((p) => p.forParty) ? 'party' : G.HUNT_GROUNDS[gid].groupFit || 'both');
+/* the top open ground from the data: the band that ends highest, the higher floor on a tie */
+const topOfData = () => Object.keys(G.OPEN_GROUNDS).sort((a, b) => band(b)[1] - band(a)[1] || band(b)[0] - band(a)[0])[0];
 const compsOf = (size) => (size === 4 ? FOUR : SOLO);
 const rightOf = (L) => Object.keys(G.OPEN_GROUNDS).filter((g) => band(g)[0] <= L && L <= band(g)[1]).sort((a, b) => band(b)[0] - band(a)[0])[0];
 const freeOf = (L) => Object.keys(G.OPEN_GROUNDS).filter((g) => band(g)[0] <= L);
@@ -143,14 +145,16 @@ function derived(S) {
   if (JSON.stringify(now.grounds) !== JSON.stringify(S.SCALABLE_GROUNDS) || now.topLevel !== S.SCALED_HUNTS.topLevel) {
     bad.push('the module\'s table is not the ground data\'s: ' + JSON.stringify(Object.keys(S.SCALABLE_GROUNDS)) + ' top ' + S.SCALED_HUNTS.topLevel + ', the data ' + JSON.stringify(Object.keys(now.grounds)) + ' top ' + now.topLevel);
   }
-  /* a test-only party ground opened above the Warrens, its band 50-65, with a roster */
-  const warrens = G.OPEN_GROUNDS.coppercap_warrens, extra = { ...warrens, id: 'test_slake', hunt: 'test_slake' };
-  const opened = S.scaleLadderOf({ ...G.OPEN_GROUNDS, test_slake: extra }, { ...HUNT_INDEX, test_slake: { ...HUNT_INDEX[warrens.hunt], band: [50, 65] } },
-    { ...B.GROUND_ROSTER, test_slake: B.GROUND_ROSTER.coppercap_warrens });
-  const w = opened.grounds.coppercap_warrens;
-  if (opened.topLevel !== 65) bad.push('a ground opened at 50-65 leaves the top Level at ' + opened.topLevel);
-  if (!w || w.floor !== 32 || w.top !== 50 || w.fit !== 'party') bad.push('a ground opened above the Warrens leaves the Warrens unscalable (' + JSON.stringify(w) + ')');
-  if (opened.grounds.test_slake) bad.push('the new top ground scales');
+  /* a test-only ground opened above today's top ground (read from the data: the Warrens until the Barrow March opened, Krell's Hold since),
+     its band from that top's end to 15 Levels past it, with the top's roster */
+  const topId = topOfData(), topBand = band(topId), past = [topBand[1], topBand[1] + 15];
+  const extra = { ...G.OPEN_GROUNDS[topId], id: 'test_above', hunt: 'test_above' };
+  const opened = S.scaleLadderOf({ ...G.OPEN_GROUNDS, test_above: extra }, { ...HUNT_INDEX, test_above: { ...HUNT_INDEX[G.OPEN_GROUNDS[topId].hunt], band: past } },
+    { ...B.GROUND_ROSTER, test_above: B.GROUND_ROSTER[topId] });
+  const w = opened.grounds[topId];
+  if (opened.topLevel !== past[1]) bad.push('a ground opened at ' + past.join('-') + ' leaves the top Level at ' + opened.topLevel);
+  if (!w || w.floor !== topBand[0] || w.top !== topBand[1] || w.fit !== fitOf(topId)) bad.push('a ground opened above ' + topId + ' leaves it unscalable (' + JSON.stringify(w) + ')');
+  if (opened.grounds.test_above) bad.push('the new top ground scales');
   for (const id of Object.keys(now.grounds)) if (JSON.stringify(opened.grounds[id]) !== JSON.stringify(now.grounds[id])) bad.push(id + ' moved when a ground opened above the top');
   /* the source: no band typed (a restated table reads `floor: 1`, `top: 8`, `topLevel: 50`) */
   const typed = (S.__src || SRC).match(/\b(?:floor|top|topLevel)\s*:\s*\d+/g);
@@ -162,7 +166,7 @@ function derived(S) {
 function rules(S) {
   const bad = [], H = S.SCALED_HUNTS;
   /* the restated ground facts are hunts.js's and hunt-grounds.js's; the scalable set is every open ground under the top one */
-  const top = Object.keys(G.OPEN_GROUNDS).sort((a, b) => band(b)[1] - band(a)[1])[0];
+  const top = topOfData();
   if (H.topLevel !== band(top)[1]) bad.push('topLevel ' + H.topLevel + ', the top open ground\'s band ends at ' + band(top)[1]);
   for (const gid of Object.keys(G.OPEN_GROUNDS)) {
     const g = S.SCALABLE_GROUNDS[gid];
@@ -187,12 +191,14 @@ function rules(S) {
         /* the XP fit is the TOP ground's (scaled-hunts.js topGroundOf), never the home ground's (designer 2026-11-11): one number for every scaled Level */
         const topG = S.topGroundOf(), f = B.formulaStats({ level: m.level + gap, role, tier: m.tier, floor: to, fit: g.fit, ground: gid }, { formula: F, groundXp: { [gid]: B.GROUND_XP_FIT[topG] || 1 } });
         if (topG !== Object.keys(G.OPEN_GROUNDS).sort((a, b) => band(b)[1] - band(a)[1] || band(b)[0] - band(a)[0])[0]) bad.push(gid + ' L' + L + ': topGroundOf says ' + topG);
-        const mean = ((f.gp[0] + f.gp[1]) / 2) * (H.coinPm[g.fit] / 1000), got = (r.gp[0] + r.gp[1]) / 2;
+        /* coin: the row's own (the formula at its own Level and floor) plus coinPm of the rise, so a scaled kill never pays less coin than unscaled */
+        const o = B.formulaStats({ level: m.level, role, tier: m.tier, floor: g.floor, fit: g.fit, ground: gid }), oMean = (o.gp[0] + o.gp[1]) / 2;
+        const mean = oMean + Math.max(0, (f.gp[0] + f.gp[1]) / 2 - oMean) * (H.coinPm[g.fit] / 1000), got = (r.gp[0] + r.gp[1]) / 2;
         const k = gid + ' L' + L + ' ' + id;
         if (r.level !== m.level + gap) bad.push(k + ': Level ' + r.level + ', want ' + (m.level + gap));
         for (const f2 of ['hp', 'atk', 'baseAcc', 'def']) if (r[f2] !== f[f2]) bad.push(k + ': ' + f2 + ' ' + r[f2] + ', the formula ' + f[f2]);
         if (r.xp !== Math.max(1, Math.round((f.xp * H.xpPm) / 1000))) bad.push(k + ': xp ' + r.xp + ', the formula x ' + H.xpPm + ' permille');
-        if (Math.abs(got - mean) > 1) bad.push(k + ': coin mean ' + got + ', the formula x ' + H.coinPm[g.fit] + ' permille ' + mean.toFixed(1));
+        if (Math.abs(got - mean) > 1) bad.push(k + ': coin mean ' + got + ', its own ' + oMean.toFixed(1) + ' + ' + H.coinPm[g.fit] + ' permille of the rise ' + mean.toFixed(1));
         if (r.drops !== m.drops) bad.push(k + ': its drops are not the row\'s');
         if (!table[id] || JSON.stringify(table[id]) !== JSON.stringify(r)) bad.push(k + ': scaledMonsters is not scaledRow');
       }
@@ -215,8 +221,10 @@ function rules(S) {
       was = p;
     }
     if (S.pricePerHour(gid, g.top) !== null) bad.push(gid + ': a price for a leader it still fits');
-    for (const h of [0, 25, 1.5, -1, '3']) if (S.priceFor(gid, 41, h) !== null) bad.push(gid + ': the buy prices ' + JSON.stringify(h) + ' hours');
-    if (S.priceFor(gid, 41, H.maxHours) !== S.pricePerHour(gid, 41) * H.maxHours) bad.push(gid + ': 24 hours do not cost 24 x the hour');
+    /* at a Level the ground scales to (its band's top + 1: every scalable ground's top is under topLevel) */
+    const at = g.top + 1;
+    for (const h of [0, 25, 1.5, -1, '3']) if (S.priceFor(gid, at, h) !== null) bad.push(gid + ': the buy prices ' + JSON.stringify(h) + ' hours');
+    if (S.pricePerHour(gid, at) === null || S.priceFor(gid, at, H.maxHours) !== S.pricePerHour(gid, at) * H.maxHours) bad.push(gid + ': 24 hours do not cost 24 x the hour');
   }
   for (const [k, v] of [['minHours', 1], ['maxHours', 24], ['bankMaxHours', 24]]) if (H[k] !== v) bad.push(k + ' ' + H[k] + ', ruled ' + v + ' (Tyler 11-07 "up to 24 hours")');
   if (!(Number.isInteger(H.buyMaxHoursPerDay) && H.buyMaxHoursPerDay >= H.bankMaxHours)) bad.push('the per-day clamp ' + H.buyMaxHoursPerDay + ' is under one bank');
@@ -236,7 +244,8 @@ const MUTANTS = [
   ['derived', 'the list typed back in (the derivation ignores a new ground)', () => plant({ scaleLadderOf: () => OLD_TABLE })],
   ['derived', 'the top Level typed back in the source', () => plant({ __src: SRC.replace('topLevel: LADDER.topLevel,', 'topLevel: 50,') })],
   ['derived', 'a band restated in the source', () => plant({ __src: SRC + '\nconst THICKET = { floor: 5, top: 15 };\n' })],
-  ['rules', 'the Warrens scale', () => plant({ SCALABLE_GROUNDS: { ...REAL.SCALABLE_GROUNDS, coppercap_warrens: { floor: 32, top: 50, fit: 'party' } } })],
+  ['rules', 'the top ground scales', () => { const t = topOfData(); return plant({ SCALABLE_GROUNDS: { ...REAL.SCALABLE_GROUNDS, [t]: { floor: band(t)[0], top: band(t)[1], fit: fitOf(t) } } }); }],
+  ['rules', 'coin cut by a fifth off the party line (a scaled March kill pays less coin than unscaled)', () => rowPatch((r, row, g) => (REAL.SCALABLE_GROUNDS[g].fit === 'party' ? r : { ...r, gp: r.gp.map((x) => Math.max(1, Math.round(x * 0.8))) }))],
   ['rules', 'a ground scales for a leader it still fits', () => plant({ scaleLevelFor: (g, L) => (REAL.SCALABLE_GROUNDS[g] ? Math.min(Math.max(1, Math.floor(L)), 50) : null) })],
   ['rules', 'no cap at topLevel', () => plant({ scaleLevelFor: (g, L) => { const r = REAL.scaleLevelFor(g, L); return r === null ? null : Math.floor(L); } })],
   ['rules', 'the monsters keep their own Level', () => rowPatch((r, row) => ({ ...r, level: row.level }))],

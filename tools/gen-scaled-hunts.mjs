@@ -36,7 +36,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    floor fit and coin line) moves the scaled rows' most-a-kill bounds, so they are a new dated file. */
 /* 2027-03-23-one-difficulty-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.114). Solo +15% (lane/d-solo-fifteen, 2026-11-11) re-dialed the Sewer's,
    the Glade's and the Warrens' XP fits (balance-sheet.js GROUND_XP_FIT), so the Sewer's scaled kill bounds move: a new dated file. */
-export const OUT_NAME = '2027-04-08-solo-fifteen-scaled-hunts-catalogue.generated.sql';
+/* 2027-04-08-solo-fifteen-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.122). The Barrow March opened (lane/b-open-march, 2026-11-15): Krell's
+   Hold is the top ground, the top Level 110, the Warrens and four March grounds scale, and a scaled kill's coin is its own plus coinPm of the rise
+   (lane/a-open-march-scaled): a new dated file, applied AFTER the five 2027-04-22-pack-*.generated.sql (its self-check reads hr_hunt_grounds). */
+export const OUT_NAME = '2027-04-23-open-march-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;
@@ -235,7 +238,9 @@ async function selftest() {
   expectThrow('a bank under one purchase', plant(() => ({ SCALED_HUNTS: { ...H, bankMaxHours: 12 } })));
   expectThrow('a day under one bank', plant(() => ({ SCALED_HUNTS: { ...H, buyMaxHoursPerDay: 20 } })));
   expectThrow('a free hour', plant(() => ({ SCALED_HUNTS: { ...H, price: { perLevel: 0 } } })));
-  expectThrow('the Warrens offered (no right-Level ground above it)', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, coppercap_warrens: { floor: 32, top: 50, fit: 'party' } } })));
+  /* the TOP ground offered (no right-Level ground above it to scale to): the Warrens until the Barrow March opened, Krell's Hold since (read from the data) */
+  { const top = D.S.topGroundOf(), band = D.HUNT_INDEX[D.OPEN_GROUNDS[top].hunt].band;
+    expectThrow('the top ground (' + top + ') offered (no right-Level ground above it)', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, [top]: { floor: band[0], top: band[1], fit: D.OPEN_GROUNDS[top].groupFit } } }))); }
   expectThrow('a band restated wrong', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, wickstead: { ...S.SCALABLE_GROUNDS.wickstead, top: 20 } } })));
   expectThrow('a ground nobody can open', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, nowhere: { floor: 1, top: 5, fit: 'solo' } } })));
   expectThrow('a scaled Dangerous past the value bound', plant((S) => ({ scaledTierRow: (g, t, L) => { const r = S.scaledTierRow(g, t, L); return r && t === 'dangerous' ? { ...r, xpPm: 3500 } : r; } })));

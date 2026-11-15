@@ -29,25 +29,25 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.131';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.131';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.131';
-import { SKILLS_DEF } from './skills.js?v=0.2.131';
-import { SHOP_OFFERS } from './shops.js?v=0.2.131';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.131';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.131';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.131';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.131';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.131';
-import { MONSTERS } from './monsters.js?v=0.2.131';
-import { NAMED_FUELS } from './hearth.js?v=0.2.131';
-import { TEMPER_OFFERS } from './temper.js?v=0.2.131';
-import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.131';
-import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.131';
-import { HUNT_INDEX } from './hunts.js?v=0.2.131';
+import { ITEMS } from './items.js?v=0.2.132';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.132';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.132';
+import { SKILLS_DEF } from './skills.js?v=0.2.132';
+import { SHOP_OFFERS } from './shops.js?v=0.2.132';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.132';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.132';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.132';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.132';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.132';
+import { MONSTERS } from './monsters.js?v=0.2.132';
+import { NAMED_FUELS } from './hearth.js?v=0.2.132';
+import { TEMPER_OFFERS } from './temper.js?v=0.2.132';
+import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.132';
+import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.132';
+import { HUNT_INDEX } from './hunts.js?v=0.2.132';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.131';
+} from './item-authority.js?v=0.2.132';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -150,7 +150,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
   /* tier 7 leather and cloth, Dawnhide and Duskweave (Tyler 2026-11-14), renamed from voidhide_ and voidweave_. Their bodies and helmets are Lord Krell's
-     prize (UNREACHABLE.staged); the other four slots of each have no source yet */
+     prize (his hall opened with the March); the other four slots of each have no source yet */
   'duskweave_belt', 'duskweave_boots', 'duskweave_gloves', 'duskweave_pants',
   'dawnhide_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
@@ -181,7 +181,7 @@ export const AWAITING_ROSTER = Object.freeze([
    planned ground or system, (b) needed now (its source is a listing away), (c) no home in
    Early Access, listed for Tyler's keep-or-cut. */
 export const UNREACHABLE_FATES = Object.freeze({
-  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens, and its keyed hall with it (Hask\'s Ford, the Slake, the Muster Barrows, the Pyre Field and Krell\'s Hold and Hall, waiting on their art)', open: Object.freeze({ grounds: Object.freeze({ ...HUNT_GROUNDS, ...HALL_GROUNDS }) }) }),
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens, and its keyed hall with it (the Barrow March opened 2026-11-14, and a later staged pack files its rows here)', open: Object.freeze({ grounds: Object.freeze({ ...HUNT_GROUNDS, ...HALL_GROUNDS }) }) }),
   premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
   greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
   later:      Object.freeze({ bucket: 'c', door: 'none in Early Access, kept for a later region or cut (Tyler)' }),
@@ -192,35 +192,10 @@ export const UNREACHABLE_FATES = Object.freeze({
    Only `staged` may grow, and only with a ground whose opening the guard proves; every
    other fate is held under UNREACHABLE_CEILING. */
 export const UNREACHABLE = Object.freeze({
-  /* THE BARROW MARCH'S FIVE STAGED PACKS (lane/d-packs-retune, 2026-11-12, folding the five pack lanes' rows; each staged until its art lands). C11
-     proves their opening sources every one.
-     Hask's Ford and the Slake (tier 4): the set in three weights, its weapons, gloves, belts and the caster's pair, Grave Dust, eight imbuement items.
-     The Muster Barrows and the Pyre Field (tier 5): the set in three weights and all six slots, its weapons and off-hand, the six tier-6 weapons as the
-     Field's Rares, Razor Claw and Wraith Veil, nine imbuement items.
-     Krell's Hold (tier 6): the set in three weights, four weapons, the Pyre Priests' wand and codex, five imbuement items and the Hall Key.
-     Krell's Hall (lane/b-barrow-integrate, 2026-11-14: the keyed hall folded, staged with its pack): Lord Krell's prize, the first tier 7 in the game,
-     eight weapons and the body and helm in three weights. They were AWAITING_ROSTER and PENDING_SOURCE rows until his row named them. */
-  staged: Object.freeze([
-    'mithril_sword', 'mithril_warhammer', 'maple_staff', 'mithril_helm', 'mithril_platebody', 'mithril_platelegs',
-    'snakeskin_body', 'snakeskin_helmet', 'snakeskin_pants', 'warlock_body', 'warlock_pants', 'mithril_boots',
-    'mithril_gauntlets', 'mithril_belt', 'snakeskin_boots', 'snakeskin_gloves', 'snakeskin_belt', 'warlock_helmet',
-    'warlock_boots', 'warlock_gloves', 'warlock_belt', 'maple_bow', 'maple_wand', 'maple_spellbook', 'grave_dust',
-    'green_rivet', 'barge_nail', 'mudlark_hook', 'color_cord', 'pike_band', 'ford_weed', 'ledger_leaf', 'toll_token',
-    'rune_helm', 'rune_platebody', 'rune_platelegs', 'rune_boots', 'rune_gauntlets', 'rune_belt',
-    'wyvernhide_helmet', 'wyvernhide_body', 'wyvernhide_pants', 'wyvernhide_boots', 'wyvernhide_gloves', 'wyvernhide_belt',
-    'sorcerer_helmet', 'sorcerer_body', 'sorcerer_pants', 'sorcerer_boots', 'sorcerer_gloves', 'sorcerer_belt',
-    'rune_sword', 'rune_warhammer', 'yew_bow', 'yew_staff', 'yew_wand', 'yew_spellbook',
-    'coffin_nail', 'urn_shard', 'sergeant_spur', 'hasks_coin',
-    'ember_sword', 'ember_warhammer', 'runewood_bow', 'runewood_staff', 'runewood_wand', 'runewood_codex',
-    'rune_hatchets', 'yew_crossbow', 'ember_hatchets', 'runewood_crossbow',
-    'razor_claw', 'wraith_veil', 'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
-    'archmage_belt', 'archmage_body', 'archmage_boots', 'archmage_gloves', 'archmage_helmet', 'archmage_pants', 'dragonhide_belt',
-    'dragonhide_body', 'dragonhide_boots', 'dragonhide_gloves', 'dragonhide_helmet', 'dragonhide_pants', 'ember_belt', 'ember_boots',
-    'ember_gauntlets', 'ember_helm', 'ember_platebody', 'ember_platelegs',
-    'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'hall_key',
-    'dawn_sword', 'dawn_warhammer', 'dawn_hatchets', 'duskwood_bow', 'duskwood_crossbow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex',
-    'dawn_platebody', 'dawn_helm', 'dawnhide_body', 'dawnhide_helmet', 'duskweave_body', 'duskweave_helmet',
-  ]),
+  /* THE BARROW MARCH OPENED (lane/b-open-march, 2026-11-14): the five packs shipped (tools/pack.mjs ship), so every row the five staged packs
+     held (lane/d-packs-retune 2026-11-12, lane/b-barrow-integrate 2026-11-14: the tier 4-7 sets, weapons, imbuement items, Grave Dust, Razor Claw,
+     Wraith Veil, the Hall Key and Lord Krell's prize) is reachable and left this list. Only a ground whose opening C11 proves may add rows here. */
+  staged: Object.freeze([]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */

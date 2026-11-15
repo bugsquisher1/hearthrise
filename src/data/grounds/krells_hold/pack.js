@@ -34,15 +34,15 @@
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
 // GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's 0.45 to-hit and the Dangerous dmgPm 1300 that
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
-import { definePack, box, gather } from '../shape.js?v=0.2.131';
-import map from './map.js?v=0.2.131';
+import { definePack, box, gather } from '../shape.js?v=0.2.132';
+import map from './map.js?v=0.2.132';
 
 const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_priest', CS = 'gatekeeper';
 
 export default definePack({
   id: 'krells_hold',
-  status: "staged",
-  sql: null,
+  status: "open",
+  sql: "2027-04-22-pack-krells_hold.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
     name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up out of the Muster Barrows guard the crypt.',
@@ -91,7 +91,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
-      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1094, gp: [24, 72], formula: true },
+      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1128, gp: [24, 72], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
@@ -104,7 +104,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1266, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
+      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1306, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -116,7 +116,7 @@ export default definePack({
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
         { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
-      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1973, gp: [38, 115], formula: true },
+      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2035, gp: [38, 115], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
@@ -126,7 +126,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
         { id: 'runewood_wand', ch: 0.0035, band: 'rare' }, { id: 'runewood_codex', ch: 0.0035, band: 'rare' }],
-      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1567, gp: [33, 99], formula: true },
+      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1617, gp: [33, 99], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
@@ -137,7 +137,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
-      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3082, gp: [55, 166], formula: true },
+      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3179, gp: [55, 166], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority
@@ -185,7 +185,10 @@ export default definePack({
   /* RE-FITTED (lane/b-barrow-numbers, 2026-11-14). With the Lookout shooting, the Priest mending and the Grave Guard's slam the bodies are
      slower to kill than the plain melee rows 0.90 was fitted on: the full grade as it ships read 0.90 of the contract at 98 (the median of 8
      lone ways, 476k against 529k). The mend was then cut to a quarter (`spells`), which gives some of that back, so 0.95. */
-  xpFit: { k: 0.95, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  /* RE-FITTED FOR THE CLIMB (lane/d-open-march-balance, 2026-11-15; tests/hunt-core/forest-cave.mjs harder-pays-more, Tyler 2026-11-04
+     "harder mobs grand better loot and more exp"). A lone tank at the floor (85) levelled slower here than on the Pyre Field (583k against 615k). 0.95 -> 0.98 (and the Pyre 0.89):
+     about 3% over. The full grade's median lone way at 98 read 1.04 of the contract, so about 1.07, inside 0.90-1.10. */
+  xpFit: { k: 0.98, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape; lane/d-packs-retune, 2026-11-12). With no row a party paid the even share, and on one pack for every
      group (Tyler 2026-11-11) a four of four classes read 0.43 / 0.40 of the median lone way at the floor and middle (quick grade), a tank and Healer
      pair 0.67 / 0.66. The Ford's method: the four's 1000 x 1.20 / 0.415 = 2890 (the three-class four 2880, the two-class 2600), the pair 1000 x 1.10
@@ -195,7 +198,10 @@ export default definePack({
      1.34 / 1.26 / 1.19, the pairs 1.15-1.23 at 1655, the threes 1.22-1.40 at 2300. A four falls 11% from the floor to the top of this 25-Level
      band, wider than the 8.7% band: centred on the middle, the four 2730 (about 1.285 / 1.20 / 1.145) over 2720, the pair 1540 (about 1.07-1.15),
      the threes 2025 and 1895 (about 1.07-1.23). The floor row reads over and the top a hair under, the Pyre Field's shape: Tyler's call. */
-  partyClassXp: { 2: [990, 1540], 3: [1150, 1895, 2025], 4: [1150, 2455, 2720, 2730] },
+  /* THE FOUR AT THE MIDDLE (lane/d-open-march-balance, 2026-11-15): the full grade as the March opened read the four of four classes 1.25 at the
+     floor, 1.13 at the middle (98) and 1.15 at floor+10, under the 1.15-1.25 line where it binds (on a 25-Level band the floor is a report line,
+     grade-sheet.mjs). 2730 x 1.19 / 1.133 = 2870: about 1.19 at the middle, 1.21 at 95 and 1.31 at the floor (reported). */
+  partyClassXp: { 2: [990, 1540], 3: [1150, 1895, 2025], 4: [1150, 2455, 2720, 2870] },
   /* DEADLY BRINGS SIX, not the table's eight (the Pyre Field's row; lane/d-packs-retune, 2026-11-12): on eight a four with no Healer died 82 times in
      16 hero-hours at the floor and the four with a Healer 10 (full grade, 2 seeds x 2 h), where the sheet allows 9. Six is the least Deadly may bring
      (never under Dangerous, tests/hunt-core/hunt-tiers.mjs rows). Measured on the re-grade below. */
@@ -219,17 +225,24 @@ export default definePack({
      2026-11-14; the numbers are on Krell's row and on `spells`). A key holder has cleared the Tower Stairs, so the middle is who walks in. */
   hall: {
     key: 'hall_key',
-    words: { boss: 'Lord Krell', Boss: 'Lord Krell' },
+    /* WHAT WINS, SAID AT THE DOOR (lane/d-march-balance, the v0.2.132 re-play lost 0 of 6 on the bars a party is handed). The start bar's Salted
+       Shrimp is the loss (0 to 5% at every Level, 40 tries a row). `storeFloor` is said to every hero and in red to a bar under it
+       (boss-hall-pane.js). `words.bars` are the tuned bar's changes from the one a party is handed, one label line each (Tyler 2026-11-14: a good
+       bar is one a person spent time tuning, and an untouched one should mostly lose): each is a "good bar but" row of boss-call-table.mjs that
+       loses most when it is taken away (Krell's row). */
+    storeFloor: 'salted_lobster',
+    words: { boss: 'Lord Krell', Boss: 'Lord Krell',
+      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank and a healer'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
       /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals
-         tops out at 541, 55% of a bare Level 85 hero. Every blow past 35% lands only on the tank or can be stepped out of: his swing goes
+         tops out at 521 and his swing at 543, 55% of a bare Level 85 hero (lane/d-march-balance; it was 541). Every blow past 35% lands only on the tank or can be stepped out of: his swing goes
          to the tank, and the Rake is marked (Tyler 11-08: the tank soaks the boss's hits, the casters dodge). The pulse that reaches
-         everyone, the Hall Fire, tops out at 25%. Held to 35%, measured (boss-call-table.mjs --hall, atk 157, the Rake at 1.0x): on the old
+         everyone, the Hall Fire, tops out at 36% since the door's-bar fit (lane/d-march-balance; 25% before), under his own swing and fire gear's to cut. Held to 35%, measured (boss-call-table.mjs --hall, atk 157, the Rake at 1.0x): on the old
          x1.25 enrage the bad bar won 95% (40 tries), at 10,000 HP still 85%, against Tyler's 30 (11-05). On x1.6 with the Hall Fire at
          1.0x (120 tries) the pulse alone holds the bad bar at 25%, but one gear tier behind wins 99%, eating at 40% 97% and a healer who
          waits 100%: nothing but the pulse asks anything. The tank's big blows are what make gear and the eat lines matter. */
-      blowCap: { pct: 55, why: 'Krell\'s biggest hits land on your tank or come with a warning you can step out of. The hit everyone takes is far smaller' } },
+      blowCap: { pct: 55, why: 'Krell\'s biggest hits land on your tank or come with a warning you can step out of. The fire that reaches everyone is smaller, and fire resistance cuts it' } },
     ground: {
       /* in through the door off the Tower Stairs, Krell in his high seat across the hall, the fire behind him */
       start: [[48, 8], [47, 8], [49, 8], [48, 9]],
@@ -243,20 +256,22 @@ export default definePack({
          override, the element axis). He started as the formula's boss row for the party fit at the floor (2,256 HP, atk 94, tier 6,
          21,720 XP, coin 251-753) and is fitted to the ship bar (Tyler 11-05: the same gear wins about 30% with a bad bar and 85% with a good
          one, 40 tries a row; the numbers are on his row). His lines: adds at half, shielded to 80% while they stand, enraged at a quarter, x1.6.
-         HIS PRIZE (the design's section 4), each rare about 1 kill in 10: the first tier 7 in the game (worn from 88), the four weapons and the
-         body and helm in three weights. They break the 5% row ceiling on purpose: the loot-band guard learns a per-kill boss with the fold.
+         HIS PRIZE (the design's section 4), each rare about 1 kill in 28 since lane/d-march-balance (Krell's row): the first tier 7 in the game (worn from 88), the four weapons and the
+         body and helm in three weights. Each row sits under the 5% row ceiling.
          Two prizes wait on their own rows: the Roll Page (a named Hearth fuel, piece 10) and Krell's Toll Box (his Trophy, 100-150 h). */
       lord_krell: { name: 'Lord Krell', icon: '👑', tier: 6, level: 110, cls: 'human', family: 'Human', boss: true,
+        /* CHALLENGE IS THE PLAYER'S CALL (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance).
+           At the x1.8 / 0.9x fit an untouched bar without Challenge won 0% at 85, so the fight was re-fitted until both are fair (his row below). */
         elements: { ember: 25, poison: -15 },
         /* his marked hit first, then his pulse (monster-spells.js: castSpells starts the first one ready) */
         spells: ['rake_the_coals', 'hall_fire'],
         drops: [
-          { id: 'dawn_sword', ch: 0.1, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.1, band: 'rare' },
-          { id: 'duskwood_bow', ch: 0.1, band: 'rare' }, { id: 'duskwood_staff', ch: 0.1, band: 'rare' },
-          { id: 'duskwood_wand', ch: 0.1, band: 'rare' }, { id: 'duskwood_codex', ch: 0.1, band: 'rare' },
-          { id: 'dawn_hatchets', ch: 0.1, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.1, band: 'rare' },
-          { id: 'dawn_platebody', ch: 0.1, band: 'rare' }, { id: 'dawnhide_body', ch: 0.1, band: 'rare' }, { id: 'duskweave_body', ch: 0.1, band: 'rare' },
-          { id: 'dawn_helm', ch: 0.1, band: 'rare' }, { id: 'dawnhide_helmet', ch: 0.1, band: 'rare' }, { id: 'duskweave_helmet', ch: 0.1, band: 'rare' }],
+          { id: 'dawn_sword', ch: 0.035, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.035, band: 'rare' },
+          { id: 'duskwood_bow', ch: 0.035, band: 'rare' }, { id: 'duskwood_staff', ch: 0.035, band: 'rare' },
+          { id: 'duskwood_wand', ch: 0.035, band: 'rare' }, { id: 'duskwood_codex', ch: 0.035, band: 'rare' },
+          { id: 'dawn_hatchets', ch: 0.035, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.035, band: 'rare' },
+          { id: 'dawn_platebody', ch: 0.035, band: 'rare' }, { id: 'dawnhide_body', ch: 0.035, band: 'rare' }, { id: 'duskweave_body', ch: 0.035, band: 'rare' },
+          { id: 'dawn_helm', ch: 0.035, band: 'rare' }, { id: 'dawnhide_helmet', ch: 0.035, band: 'rare' }, { id: 'duskweave_helmet', ch: 0.035, band: 'rare' }],
         /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
            the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row
            won in 70 s, the bad bar too. At 7,000 HP, atk 205, enrage x1.25 and the spells below: the good bar 95%, the bad bar 30%, the good
@@ -265,9 +280,33 @@ export default definePack({
            Challenge is the wrong press here (boss-calls.js warnGuard): taking it off, the good bar one gear tier behind won 96%, so gear
            checked nothing. The gear check moved to his enrage, x1.25 to x1.6, and the Hall Fire down to 0.55x (below). With Challenge off:
            the good bar 99%, one gear tier behind 54%, the bad bar 31%, eating at 40% 67%, a healer who waits 72%. With Challenge left on
-           the good bar still wins 95%, and a bar never touched 62%. */
-        hp: 7000, atk: 205, baseAcc: 0.72, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
-        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1600, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
+           the good bar still wins 95%, and a bar never touched 62%.
+           RE-FITTED IN THE GEAR HIS KEY HOLDERS WEAR (designer 2026-11-14, lane/d-march-balance). Both fits above were played in tier 3 steel:
+           the table dressed its party from the open grounds only, and every March ground is staged (boss-call-table.mjs now plays a hall on
+           the ladder it ships on). In the Hold's own tier 6 at 98 he fell in 108 s and every row won, the bad bar 85% and four dps with no
+           tank 95%, which is what the hand play found (5 of 5, two minutes, Challenge made no difference). Now 14,000 HP, atk 247 (his
+           swing tops out at 543, his hall's written 55% of a bare Level 85 hero's 990 HP), to-hit 0.95 and enrage x1.8, 40 tries a row in tier 6: at 98 the good bar 100%,
+           a bar never touched 88%, the bad bar 43%, a tank and Healer pair 85% good and 15% bad, four dps with no tank 3%, about 200 s a
+           kill. At 88, the first Level tier 7 is worn: the good bar 100%, the bad bar 30%, one gear tier behind 90%. The four's gear check
+           is soft (tier 5 still wins 95% at 98); the pair's is real (one tier behind 45%).
+           RE-FITTED FOR A TUNED BAR (the same lane, after the v0.2.132 re-play: 0 of 6 on the bars a party is handed; Tyler 2026-11-14: a good bar
+           is one a person spent time tuning; the Coordinator: an untouched bar wins about 20-30% at the floor). That fit (x1.8, the Hall Fire 0.9x)
+           made Challenge a trap the other way: an untouched bar without it won 0% at 85, its Healer dead to the hastened Hall Fire with the adds on
+           her. FITTED ON THE DOOR'S BAR (the v0.2.133 hands-on check: the "good" bar also re-ordered the Mage, which no hint says; Tyler: "the player
+           should decide whether or not challenge should be on"): every role on its default moves and Target, eating at 75% and the healer's two heals,
+           what the door's hints alone build (boss-call-table.mjs BARS.door). 18,000 HP, enrage x1.8, the Hall Fire 0.65x. 40 tries a row, Challenge
+           on / off: the door's bar 90 / 88 at 85, 90 / 80 at 88, 90 / 90 at 98; an untouched bar on Salted Lobster 68 / 65, 80 / 60, 90 / 73; the bad
+           bar 8 / 0, 20 / 3, 30 / 20; the start bar's Salted Shrimp 0. General hints (eat, heal) can't open more than about 25 points over an untouched
+           bar here without making one Challenge choice a trap. The start bar can't be fitted without making him nothing on real food, so the door
+           says the food (hall.storeFloor) and the hints (hall.words.bars: food, eating, healing, party, never a move). His enraged swing tops out at 977, past a bare floor hero's HP: the hall's blow
+           cap reads his row, not his enrage (tests/hunt-core/hunt-data.mjs blow-share), and it lands on the tank.
+           HIS PRIZE CUT TO 0.035 A ROW (the same lane). At 0.1 a row a kill dropped 1.4 tier 7 pieces, and a four at 98 gets a key about
+           every 48 min (the real settle: 0.67 keys an hour, 3 x 2 h), so a party saw about 1.7 tier 7 pieces an hour, the rate tier 6 Scarce
+           drops at. Tier 7 is the last standard tier (Tyler 2026-11-14), so it is the chase: at 0.035 a kill drops about one piece in two,
+           a four sees one of a given piece about every 23 h, and a hero's own weapon, body and helm come in about 40 h if the party passes
+           them round. */
+        hp: 18000, atk: 247, baseAcc: 0.95, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
+        phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1800, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
          line, the Barrows' (a quarter, x1.15); never a wave or a guard of his own. Not the Barrows' own Hask row: the two never share an id. */
@@ -275,8 +314,9 @@ export default definePack({
         /* a boss's kit, the marked hit then the pulse (Tyler 2026-11-08; tests/hunt-core/spell-rows.mjs boss-kits) */
         spells: ['hasks_cleave', 'hasks_war_cry'],
         /* fitted with the hall (2026-11-14): on the elite's 263 HP he fell in seconds and nobody met him. At 700 HP and atk 135 he is the
-           wave's question. His attack is the hall's most sensitive number: at 110 the bad bar won 58%, at 150 the good bar lost its tank. */
-        hp: 700, atk: 135, baseAcc: 0.6, def: 72, xp: 3082, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
+           wave's question. His attack is the hall's most sensitive number: at 110 the bad bar won 58%, at 150 the good bar lost its tank
+           (both in tier 3 steel, see Krell's row). In tier 6 at 98, 170 (his Cleave held to 1.4x, under the written 55%). */
+        hp: 700, atk: 170, baseAcc: 0.6, def: 72, xp: 3082, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
       /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92), paying a kill as there */
       hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', add: true,
         hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1973, gp: [38, 115], speed: 2400, drops: [] },
@@ -285,12 +325,13 @@ export default definePack({
   /* THE HOLD'S SPELLS (src/data/monster-spells.js rows; the design's sections 2 and 3).
      THE HALL'S FOUR, MEASURED (lane/b-barrow-numbers 2026-11-14; boss-call-table.mjs --hall krells_hold --seeds 40 --spell <row>.hitPm=N, the
      ship rows at Level 98 with Krell's and Hask's fitted rows: win % on the good bar / the bad bar / the good bar one gear tier behind).
-     As set: 95 / 30 / 30.
+     As set then, in tier 3 steel: 95 / 30 / 30. Re-fitted in tier 6 (Krell's row, lane/d-march-balance): the Rake 0.96x and Hask's Cleave 1.4x, under the hall's written 55% at his and Hask's new attack.
        Rake the Coals: Krell's marked cone, the tank's to stand in and a ranged hero's to step off. 1.2x, Chief Coppercap's Slag Toss.
          Nearly off (0.1x) 98 / 65 / 83, at 2x 75 / 15 / 5: it is the tank's check, and 1.2x holds the bar.
        The Hall Fire: his pulse on every hero in the room, every 20 s, and every 10 s under a quarter (phases.hasten cdPm 500). 0.95x.
          At the old 0.4x a boss this size never troubled a healer who waits. At 0.7-0.85x the bad bar still won 43-46%. At 0.95x it is what
-         kills a bad bar: 17 of its 28 losses were the Healer, in the enrage. NOW 0.55x (lane/d-hold-pass 2026-11-14): with the enrage at
+         kills a bad bar: 17 of its 28 losses were the Healer, in the enrage. NOW 0.65x (lane/d-march-balance, the door's-bar fit on Krell's row: an
+         untouched healer and late eating lose to it, a tuned one does not). Before that 0.55x (lane/d-hold-pass 2026-11-14): with the enrage at
          x1.6 the tank's gear is what decides the finish, and at 0.55x the pulse everyone takes tops out at 248, 25% of a bare Level 85 hero.
        Cleave: Captain Hask's own marked blow, the two tiles in front of him. 1.5x. Nearly off 100 / 30 / 58, at 2.5x 90 / 30 / 13: it
          only reaches a tank in weak gear, which is its job.
@@ -303,9 +344,9 @@ export default definePack({
          in his pull. He never mends himself. At a full hit every 8 s a lone tank at Level 110 on Dangerous (three Priests in the Chapel's
          pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it. */
   spells: {
-    rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
-    hall_fire: { n: 'Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 550, element: 'ember' },
-    hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: null },
+    rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 960, element: 'ember' },
+    hall_fire: { n: 'Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 650, element: 'ember' },
+    hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1400, element: null },
     hasks_war_cry: { n: 'War Cry', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: null },
     shield_slam: { n: 'Shield Slam', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },
     pyre_rite: { n: 'Mend the Dead', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },

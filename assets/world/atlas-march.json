@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-march.png",
   "size": [2048,1236],
-  "pixels": "a2d6648c58c0cf1482a5c5b2118b66643c32f88a9c3c3f9705f61b75a21b341f",
+  "pixels": "bffc08094ad690ddc2b2e818d94808f9368fe64320cfbc62a6fcc23a7ae54103",
   "sprites": {
     "banded_pikeman": {
       "class": "brute",

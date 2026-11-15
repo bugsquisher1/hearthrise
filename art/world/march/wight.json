@@ -3,6 +3,7 @@
   "class": "character",
   "style": "s1",
   "material": "unit",
+  "lift": 4,
   "source": "wight.png",
   "anchor_px": [
     32,

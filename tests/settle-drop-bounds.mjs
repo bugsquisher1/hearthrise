@@ -57,21 +57,23 @@ function valuesOf(sql, table) {
 async function check(root, sql) {
   const G = await imp(root, 'src/data/hunt-grounds.js');
   const { MONSTERS } = await imp(root, 'src/data/monsters.js');
-  const bounds = {};
+  const bounds = {}, spawns = {};
   for (const [id, gold, xp, drops] of valuesOf(sql, 'hr_hunt_kill_bounds')) bounds[id] = { gold, xp, drops: JSON.parse(drops) };
-  /* A GROUND PACK's bounds ship in its own additive file until a whole file folds it (tools/pack/whole.mjs, lane/b-ground-pack): the
-     settle reads both, so this does too. An open pack with no file on disk has no bounds, and reads red here (and in tests/ground-pack.mjs GP-2). */
+  for (const [hunt, monster] of valuesOf(sql, 'hr_hunt_ground_spawns')) (spawns[hunt] = spawns[hunt] || new Set()).add(monster);
+  /* A GROUND PACK's bounds AND spawn rows ship in its own additive file until a whole file folds it (tools/pack/whole.mjs, lane/b-ground-pack):
+     the settle reads both tables whole, so this reads both files. An open pack with no file on disk has neither, and reads red here (and in
+     tests/ground-pack.mjs GP-2). (The spawn rows were missed until the Barrow March opened, lane/b-open-march: every open pack read unreached.) */
   const { packIds } = await imp(root, 'tools/pack/files.mjs'), { packSqlOf } = await imp(root, 'tools/pack/whole.mjs'), { rowsOf } = await imp(root, 'tools/pack/sql.mjs');
   for (const pid of packIds(root)) {
     const f = packSqlOf(pid, root), path = f && join(root, 'supabase', 'migrations', f);
     if (!path || !existsSync(path)) continue;
-    for (const s of rowsOf(readFileSync(path, 'utf8')).filter((x) => x.table === 'hr_hunt_kill_bounds')) for (const r of s.rows) {
-      const v = (c) => r[s.cols.indexOf(c)], str = (x) => x.replace(/^'|'(::jsonb)?$/g, '').replace(/''/g, "'");
-      bounds[str(v('monster_id'))] = { gold: Number(v('gold_max')), xp: Number(v('xp_max')), drops: JSON.parse(str(v('drops'))) };
+    const str = (x) => x.replace(/^'|'(::jsonb)?$/g, '').replace(/''/g, "'");
+    for (const s of rowsOf(readFileSync(path, 'utf8'))) for (const r of s.rows) {
+      const v = (c) => r[s.cols.indexOf(c)];
+      if (s.table === 'hr_hunt_kill_bounds') bounds[str(v('monster_id'))] = { gold: Number(v('gold_max')), xp: Number(v('xp_max')), drops: JSON.parse(str(v('drops'))) };
+      else if (s.table === 'hr_hunt_ground_spawns') (spawns[str(v('hunt_id'))] = spawns[str(v('hunt_id'))] || new Set()).add(str(v('monster_id')));
     }
   }
-  const spawns = {};
-  for (const [hunt, monster] of valuesOf(sql, 'hr_hunt_ground_spawns')) (spawns[hunt] = spawns[hunt] || new Set()).add(monster);
   const out = [];
   const grounds = Object.values(G.OPEN_GROUNDS);
   if (!grounds.length) out.push('no open ground: nothing proved');
@@ -111,11 +113,19 @@ const MUTANTS = [
   { name: 'a kill bound of one unit whatever the rows', want: /^item-bound: .*\(2 a kill\), the settle's bound is 1/,
     edits: [['tools/gen-hunt-sessions.mjs', 'drops[d.id] = (drops[d.id] || 0) + 1;', 'drops[d.id] = 1;'],
       ['src/data/monsters.js', "{ id: 'raw_bear_meat', ch: .6, band: 'common' },", "{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'raw_bear_meat', ch: .2, band: 'common' },"]] },
+  /* an open pack's file without one of its spawn rows (the pack files are read as the settle reads its tables) */
+  { name: 'the Pyre Field\'s pack file loses its Charred Pikeman spawn row', want: /^reach: pyre_field: the engine spawns charred_pikeman/, committed: true,
+    edits: [['supabase/migrations/2027-04-22-pack-pyre_field.generated.sql', "  ('pyre_field', 'charred_pikeman', 23),\n", '']] },
   { name: 'the gold bound read off the low roll', want: /^value-bound: /,
     edits: [['tools/gen-hunt-sessions.mjs', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[1]) || 0));', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[0]) || 0));']] },
 ];
 /* What a planted generator needs beside src/core and src/data (its imports). */
-const TREES = ['src/session', 'supabase/functions/hr-accrue', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs'];
+const TREES = ['src/session', 'supabase/functions/hr-accrue', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs', 'tests/schema-apply-order.json',
+  /* the open packs' own files: the settle reads their rows too */
+  ...(await (async () => { const { packIds } = await imp(ROOT, 'tools/pack/files.mjs'), { packSqlOf } = await imp(ROOT, 'tools/pack/whole.mjs');
+    return packIds(ROOT).map((id) => packSqlOf(id, ROOT)).filter(Boolean).map((f) => 'supabase/migrations/' + f); })()),
+  /* the committed whole file a `committed` mutant reads (GEN.render() of a tree with open packs folds them in, which would hide a pack file's edit) */
+  'supabase/migrations/' + (await imp(ROOT, 'tools/gen-hunt-sessions.mjs')).OUT_NAME];
 
 if (process.argv.includes('--mutate')) {
   const clean = await check(ROOT, readFileSync((await imp(ROOT, 'tools/gen-hunt-sessions.mjs')).OUT, 'utf8'));
@@ -126,7 +136,7 @@ if (process.argv.includes('--mutate')) {
     let fails;
     try {
       const GEN = await imp(p.root, 'tools/gen-hunt-sessions.mjs');
-      fails = await check(p.root, GEN.render());
+      fails = await check(p.root, mu.committed ? readFileSync(GEN.OUT, 'utf8') : GEN.render());
     } catch (e) { fails = ['threw ' + (e && e.message)]; } finally { p.done(); }
     const caught = fails.some((f) => mu.want.test(f));
     console.log(`  ${caught ? 'caught' : 'MISSED'}: ${mu.name}${caught ? ' (' + fails.find((f) => mu.want.test(f)).slice(0, 110) + ')' : ' (fails: ' + (fails.join(' | ') || 'none') + ')'}`);

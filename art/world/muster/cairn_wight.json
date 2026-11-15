@@ -1,0 +1,99 @@
+{
+  "id": "cairn_wight",
+  "class": "character",
+  "style": "s1",
+  "material": "native",
+  "source": "cairn_wight.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
+        "ne": 4,
+        "nw": 4
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 10,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "attack",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "death",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6
+      }
+    },
+    {
+      "name": "corpse",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "ramp re-pour of wight (0 generations)",
+    "from": "march/wight",
+    "object": "68b66de1-bf39-482d-83c5-60f9c95d225d",
+    "onto": [
+      "#3a3a3e",
+      "#4f4e52",
+      "#6a6865",
+      "#8a867d",
+      "#aaa49a",
+      "#c9bfa0"
+    ]
+  },
+  "notes": "The Cairn Wight is the Ford's wight in the grey of the cairn stones: every earth pixel of march/wight's locked frames, by luminance rank, onto #3a3a3e #4f4e52 #6a6865 #8a867d #aaa49a #c9bfa0 by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn.",
+  "lift": 3
+}

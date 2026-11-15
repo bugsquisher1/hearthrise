@@ -37,6 +37,27 @@ export function floorLuminance(im) {
 
 export const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 
+/**
+ * The floor a ground's monsters stand on: the median luminance of the painted ground (a terrain with `painted`, its tiles['1111']
+ * cycle) over the tiles of the map's `spawns`, the cells a pack is placed on. Read from the shipped atlas.
+ * @param {{spawns: number[][]}} map  @param {{t: object, img: object, T: number}} ter  the ground's terrain row, its atlas, its grid
+ */
+export function spawnFloorLuminance(map, { t, img, T }) {
+  const [cols, crow] = t.cycle || [1, 1];
+  const all = [];
+  for (const [cx, cy] of map.spawns || []) {
+    const [sx, sy] = t.tiles['1111'][(cy % crow) * cols + (cx % cols)];
+    for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
+      const i = ((sy + y) * img.width + sx + x) * 4;
+      if (img.data[i + 3] >= 128) all.push(lum(img.data, i));
+    }
+  }
+  return all.length ? median(all) : null;
+}
+
+/** The ring of one frame of a shipped atlas sprite: `frame` is its [w, h], `at` the frame's [x, y] on the atlas. */
+export const frameRing = (img, at, frame) => ringLuminance(img, [at[0], at[1], frame[0], frame[1]]);
+
 if (isMain(import.meta.url)) {
   const [floorFile, ...specs] = process.argv.slice(2);
   if (!floorFile || !specs.length) { console.error('usage: ring-contrast.mjs FLOOR.png SPRITE.png[:x,y,w,h] …'); process.exit(2); }

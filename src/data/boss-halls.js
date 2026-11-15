@@ -26,11 +26,11 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from './boss-calls.js?v=0.2.131';
-import { HUNT_INDEX } from './hunts.js?v=0.2.131';
-import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.131';
-import { MONSTERS } from './monsters.js?v=0.2.131';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.131';
+import { BOSS_CALLS } from './boss-calls.js?v=0.2.132';
+import { HUNT_INDEX } from './hunts.js?v=0.2.132';
+import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.132';
+import { MONSTERS } from './monsters.js?v=0.2.132';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
 
 export const BOSS_HALL_RULES = Object.freeze({
   /* The fight's limit from the first swing, the called rooms' ten minutes (the design: "a 10 minute limit"). */
@@ -39,7 +39,8 @@ export const BOSS_HALL_RULES = Object.freeze({
 
 /* Every pack's hall (see the header), staged or open. A row: Object.freeze({ id, hunt: id + '_hall', key, boss, Boss }). */
 export const BOSS_HALLS = Object.freeze(Object.fromEntries(GROUND_PACKS.filter((p) => p.hall).map((p) => [p.id,
-  Object.freeze({ id: p.id, hunt: p.id + '_hall', key: p.hall.key, boss: p.hall.words.boss, Boss: p.hall.words.Boss })])));
+  Object.freeze({ id: p.id, hunt: p.id + '_hall', key: p.hall.key, boss: p.hall.words.boss, Boss: p.hall.words.Boss,
+    ...(p.hall.storeFloor ? { storeFloor: p.hall.storeFloor } : {}), ...(p.hall.words.bars ? { bars: p.hall.words.bars } : {}) })])));
 /** The halls a player can open: every row whose room is not `staged` (its pack is open). The server catalogue reads these. */
 export const OPEN_BOSS_HALLS = Object.freeze(Object.fromEntries(Object.entries(BOSS_HALLS).filter(([, h]) => !(HUNT_INDEX[h.hunt] && HUNT_INDEX[h.hunt].staged === true))));
 
@@ -87,15 +88,34 @@ export const BOSS_HALL_WORDS = Object.freeze({
   /* the confirm group's name for a screen reader (src/shell/windows/boss-hall-pane.js) */
   sure: 'Are you sure?',
   press: 'Open {hall}',
-  have: Object.freeze({ none: 'Requires {key}', one: '{key}: 1', other: '{key}: {n}' }),
+  /* WHERE A KEY COMES FROM (designer 2026-11-14, lane/d-march-balance: the hand play found the page never said). {source} is `source` with
+     the monster whose drops name the hall's key, or nothing when no monster drops it. Labels (Tyler 2026-11-14). */
+  have: Object.freeze({ none: 'Requires {key}{source}', one: '{key}: 1', other: '{key}: {n}' }),
+  source: ' (drops from the {dropper})',
+  /* A key can drop to anyone in a party, and only the leader opens the hall (hr_boss_hall_enter takes the leader's key). Said plainly to a
+     member who holds one, until the open takes a key from any seat (the designer's ruling, handed to Systems the same day). */
+  memberKey: 'Party leader only. Give them your {key} (your heroes can pass it through Storage).',
   warnTitle: 'Fight {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14), the same shape as a called room's (boss-calls.js warn). */
   warn: Object.freeze([
     'Hits hard\n50% HP: adds attack your non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
     'Uses your {key}, win or lose\nTime limit: {minutes} min',
   ]),
-  /* the same rule as a called room's (boss-calls.js warnGuard: Challenge is the wrong press at a shielded boss, measured) */
-  warnGuard: ' and shield him until killed\nTip: take Challenge off your tank\'s bar',
+  /* the same label as a called room's (boss-calls.js warnGuard): what his adds do, never a move to turn off */
+  warnGuard: ' and shield him until killed',
+  /* WHAT WINS (lane/d-march-balance, the v0.2.132 re-play: 0 of 6 on the bars a party is handed). A hall that names a store food (`storeFloor`)
+     says it, and its bar line (`words.bars`, label style), under the key line; {food} the store food. `foodShort` is red: this hero's bar buys
+     weaker food (src/shell/hunt-go.js storeFoodUnder). */
+  food: 'Requires {food} or better on every bar (Salted Shrimp can\'t keep up)',
+  foodShort: 'Your bar buys {have}. Pick {food} on that slot before you go in.',
+  /* ...for another hero of this account in the party (boss-hall-pane.js foodShortWords) */
+  foodShortPeer: '{name}\'s bar buys {have}. Change that slot to {food}.',
+  /* a hero whose name the envelope has not sent yet */
+  someHero: 'A hero',
+  /* the lead-in to the hall's tips (its `words.bars`, label lines, each one change from the bar a party is handed) */
+  tips: 'What wins (default bars mostly lose here)',
+  /* the tips list's name for a screen reader */
+  tipsLabel: 'What wins',
   /* the boss row's phases.hasten: the spell that speeds up under his enrage line */
   warnHaste: ', {spell} comes faster',
   /* the ground's own "Recommended: N+ players" (hunt-list.js partyNote) speaks first; this row only where the ground names no size */

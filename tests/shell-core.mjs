@@ -982,8 +982,9 @@ async function runTests(mods) {
     setResidue(f, v) { this.writes.push([f, v]); return true; },
     serverNow: () => now,
     read: (k) => ({ name: 'Wrenna', state, level: { xp: XP.charXpForLevel(11), level: 11, into: 0, need: 1 }, stamina: { ms: now - END, max_ms: 8 * H },
-      hunt: { session_id: o.session || 's-1', hunt_id: 'meadowbrook_thicket', ended: o.open !== true,
+      hunt: { session_id: o.session || 's-1', hunt_id: o.hunt || 'meadowbrook_thicket', ended: o.open !== true,
         session: o.open ? {} : { end_reason: reason, ended_at: iso(END) }, hero: {}, pose: { units: [] } },
+      inventory: o.inventory || null, hunt_settings: o.settings || null,
       hunt_analyzer: { hero: { kills: 900, coins: 0 } } })[k],
   }, o);
   const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
@@ -1021,6 +1022,23 @@ async function runTests(mods) {
     eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
+  });
+  /* R3e (Barrow March play-through 2026-11-14): each card's next line fits its end. A boss room is one fight: the Krell win card
+     said "Start mining, chopping or fishing before you hunt". A purse run dry with food in the bag the bar never named said
+     "pack your own": it was packed, just not on the bar. */
+  t('R3e the next line fits the end: a boss room says none, a purse run dry with food off the bar says to put it on', () => {
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'boss_felled', { hunt: 'krells_hold_hall' }), 's-1'), '', 'Krell\'s Hall won, watched as it ends');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'boss_felled', { hunt: 'millrace_sewer_called' }), 's-1'), '', 'a called room won');
+    eq(AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000), 'died', { hunt: 'krells_hold_hall' }), 's-1'), 'Then Wrenna waited in town for 2 h 0 min.', 'a hall lost, the page left open: the wait, no advice');
+    const bar = { preset: 1, supply_source: 'mine', on_empty: 'switch', slots: [{ action: { type: 'consume', id: 'wheat_bread' } }] };
+    const goldOut = (inventory) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'gold_out', { settings: bar, inventory }), 's-1');
+    eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Cooked Trout was in your bag but not on your bar, so Wrenna bought supplies until the gold ran out. Put it on your bar next time.', 'food in the bag, off the bar');
+    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.', 'only what the bar names: the old line');
+    eq(goldOut({}), 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.', 'nothing in the bag: the old line');
+    const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'gold_out', { settings: bar, inventory: { cooked_trout: 12 } })) || {}).text || '';
+    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Cooked Trout was in your bag but not on your bar'), 'the away card says it too: ' + away);
+    const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
+    ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
   });
 
   return fails;
@@ -1199,6 +1217,10 @@ const MUTANTS = [
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (st.active_kind !== 'idle') return null;", to: '' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "hours: 'away.next_longer', ", to: '' },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
+  { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };\n", to: '' },
+  { test: 'R3e', file: 'src/shell/after-hunt.js', from: "if (h.endReason === 'gold_out' && typeof spare === 'string')", to: 'if (false)' },
+  { test: 'R3e', file: 'src/shell/after-hunt.js', from: ' && !named.has(r.id));', to: ');' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'afterHuntWords(state, h, now, name, spareSupplyOf(cs))', to: 'afterHuntWords(state, h, now, name)' },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: '|| h.sessionId !== id ||', to: '||' },
 ];
 

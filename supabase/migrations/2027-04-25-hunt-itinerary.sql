@@ -472,7 +472,6 @@ begin
     end loop;
   end loop;
 end $grants$;
-delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_hunt_after_set';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_hunt_after_set', 'p_slot integer, p_choice text, p_skill text, p_idem uuid', 'authenticated',
    'added 2027-04-25 (lane/c-hunt-itinerary): stores what the caller''s own hero does when a hunt ends on its own (a row of hr_hunt_after_choices and, for training, a skill its place trains); moves no value; the paid start is hr_training_start at the server''s price, later, once; pre-EA Security list')

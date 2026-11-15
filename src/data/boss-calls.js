@@ -23,7 +23,8 @@
 // WHO DECIDES WHAT: the engine plays ONE fight (src/core/combat-sim.js: his kill ends it `boss_felled`, a death or the limit ends it);
 // the SERVER owns the series. When every hero in the room won and fights are left, the settle charges each hero the next fight
 // (the fee as the server quoted it at the press, kept for the whole series) and starts it on the same instant, or ends the series:
-// `stamina` or `gold_out` for a hero who can't pay it, the win's `boss_felled` for everyone else. The engine never counts a fight.
+// `stamina` or `gold_out` for a hero who can't pay it, `party_member_left` for everyone else (the card names that hero and why). The
+// engine never counts a fight.
 // THE PRICE (designer 2026-11-14, the real settle, 3 seeds x 2 h a cell): on the Sewer a four meets the Rat King every 2.6
 // stamina minutes a hero, a pair every 4.6; on the Warrens a four meets Chief Coppercap every 3.1, a pair every 5.1. A call
 // fight costs 2 and 2.5: cheaper a boss kill, while the ground keeps its coin, its Level XP and its other drops, so the ground

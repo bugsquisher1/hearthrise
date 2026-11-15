@@ -30,7 +30,8 @@
 //   BD-SERIES  N fights in a row through both doors: each win rolls his table once, each fight is charged once to each hero (stamina and fee), the room's time
 //              drains and rests nothing, it ends at its count; a pair the same; the session shows the server's count
 //   BD-LOSS    a death in the second fight ends the series there: two fights charged, one won, no third
-//   BD-STAM    out of stamina ends it `stamina` on the last win it could pay for, uncharged for the next; in a pair it ends for both, and only the short hero says stamina
+//   BD-STAM    out of stamina ends it `stamina` on the last win it could pay for, uncharged for the next; in a pair it ends for both: the short hero says stamina,
+//              the other comes home with it (`party_member_left`) and its session names who ran out of what
 //   BD-GOLD    out of gold (the purse under the fee over the hero's "Keep at least") ends it `gold_out` the same way
 //   BD-LIMIT2  the second fight's limit runs from ITS start, to the millisecond
 //   BD-PRIZE   the kill reaches the title's counter for each hero present, once a win; one System line a room (alone: it says so); nothing without the kill
@@ -465,7 +466,7 @@ const SERIES = [
   { name: 'three wins, a pair', fights: 3, uids: [17, 18], want: ['boss_felled', 'boss_felled'], paid: [3, 3], won: 3 },
   { name: 'a loss in the second fight', arm: 'BD-LOSS', fights: 3, uids: [19], lone: true, after1: { hp: 100000000, atk: 60000, baseAcc: 5, spells: [] }, want: ['died'], paid: [2], won: 1 },
   { name: 'out of stamina alone', arm: 'BD-STAM', fights: 5, uids: [20], lone: true, pools: [2], want: ['stamina'], paid: [2], won: 2 },
-  { name: 'a pair, one out of stamina', arm: 'BD-STAM', fights: 5, uids: [21, 22], pools: [null, 1], want: ['boss_felled', 'stamina'], paid: [1, 1], won: 1 },
+  { name: 'a pair, one out of stamina', arm: 'BD-STAM', fights: 5, uids: [21, 22], pools: [null, 1], want: ['party_member_left', 'stamina'], paid: [1, 1], won: 1, by: [1, 'stamina'] },
   { name: 'out of gold', arm: 'BD-GOLD', fights: 5, uids: [23], lone: true, purse: 3, want: ['gold_out'], paid: [2], won: 2 },
   { name: 'the second fight\'s limit', arm: 'BD-LIMIT2', fights: 2, uids: [24], lone: true, after1: { hp: 100000000, atk: 1, baseAcc: 0, spells: [] }, want: ['boss_time'], paid: [2], won: 1 },
 ];
@@ -567,6 +568,12 @@ async function seriesDoors(door, boot) {
     for (const g of got) {
       const loot = Object.entries(g.loot || {}).filter(([id]) => id !== '*').map(([id, x]) => [id, Number(x)]).sort();
       if (JSON.stringify(Object.entries(bag[g.user_id] || {}).sort()) !== JSON.stringify(loot)) bad.push(`${tag}: a bag gained ${JSON.stringify(bag[g.user_id] || {})}, its tally says ${JSON.stringify(g.loot)}`);
+    }
+    /* SAY WHY: a hero sent home because another could not pay reads who, and what it ran out of (hr_hunt_view end_by / end_by_why, the server's rows) */
+    if (job.by) {
+      const seen = await one(db, 'select public.hr_hunt_view($1::uuid)', [by.get(uids[0]).id]);
+      const who = await one(db, 'select public.hr_character_name($1::uuid, 0)', [uids[job.by[0]]]);
+      if (!seen || seen.end_by !== who || seen.end_by_why !== job.by[1]) bad.push(`${tag}: the hero sent home reads end_by ${JSON.stringify(seen && seen.end_by)} (${JSON.stringify(seen && seen.end_by_why)}), want ${who} (${job.by[1]})`);
     }
     /* every hero's end is the room's one instant */
     if (new Set(got.map((g) => new Date(g.ended_at).getTime())).size !== 1) bad.push(`${tag}: the room ended at ${got.map((g) => g.ended_at)}`);
@@ -801,7 +808,8 @@ const MUTANTS = [
   { name: 'stamina never stops the series', fn: FN.plan, find: "if public.hr_stamina_of(v_m.user_id, v_m.slot, v_m.settled_to) < v_m.call_stamina_ms then v_short := 'stamina'; end if;", repl: '', arm: 'series', want: /BD-STAM|THREW/ },
   { name: 'gold never stops the series', fn: FN.plan, find: "if coalesce(v_p, 0) - v_b - v_f < v_floor then v_short := 'gold_out'; end if;", repl: '', arm: 'series', want: /BD-GOLD|THREW/ },
   { name: 'the series spends the hero\'s "Keep at least"', fn: FN.plan, find: "v_floor := greatest(0, coalesce((public.hr_hunt_supply_of(v_m.user_id, v_m.slot, v_m.preset)->>'gold_floor')::bigint, 0));", repl: 'v_floor := 0;', arm: 'series', want: /BD-GOLD/ },
-  { name: 'a hero who can pay is told he can\'t', fn: FN.step, find: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'boss_felled');", repl: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'stamina');", arm: 'series', want: /BD-STAM/ },
+  { name: 'a hero who can pay is told he can\'t', fn: FN.step, find: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'party_member_left');", repl: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'stamina');", arm: 'series', want: /BD-STAM/ },
+  { name: 'a hero sent home by another\'s empty pool reads only that he won', fn: FN.step, find: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'party_member_left');", repl: "v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'boss_felled');", arm: 'series', want: /BD-STAM/ },
   { name: 'a death beside the win goes on to the next fight', fn: FN.plan, find: "where e.value->'hunt'->'ended'->>'reason' is distinct from 'boss_felled'", repl: "where e.value->'hunt'->'ended'->>'reason' is null", arm: 'forged', want: /BD-LOSS/ },
   { name: 'the second fight\'s limit runs from the first', fn: FN.read, find: 'coalesce(p_s.fight_from, p_s.hunt_from)', repl: 'p_s.hunt_from', arm: 'series', want: /BD-LIMIT2|THREW/ },
   { name: 'the second fight\'s limit is proved from the first', fn: FN.settle, find: 'and v_end_at >= coalesce(v_s.fight_from, v_s.hunt_from) + make_interval(secs => c.limit_ms / 1000.0) - c_skew)', repl: 'and v_end_at >= v_s.hunt_from + make_interval(secs => c.limit_ms / 1000.0) - c_skew + interval \'1 hour\')', arm: 'series', want: /BD-LIMIT2|THREW/ },

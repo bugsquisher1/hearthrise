@@ -29,6 +29,33 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-15 Boss call, the series: BUILT, STAGED, not applied (backend-architect, lane/c-boss-call-b; Tyler 2026-11-14 "BOSS CALL = option B with your adjustments")
+
+**What a player gets.** On a boss ground's page, Call out opens a warning with a slider: how many fights in a row, 1 to 100. Each fight costs every hero in the room its own stamina (Rat King 2 min, Chief Coppercap 2.5 min) and its own fee (50 gp, 100 gp), win or lose. A win rolls the boss's own table once (and his call-only piece). No XP, no coin. It runs with the browser closed like any hunt. It ends at the count, on a death, at a fight's 10 minute limit, on a leave, or when a hero can't pay the next fight. No daily cap.
+
+**Who decides what.** The engine plays one fight and counts none (`combat-sim.js` changed by one line: a called room spends no stamina). The server owns the series: the count, the fight in progress, each fight's charge, whether the next may start. Contract and reasoning: the header of `supabase/migrations/2027-04-24-boss-call-series.sql` and `docs/design/ARCHITECTURE_CONTRACTS.md` §M.
+
+| Piece | Where | State |
+|---|---|---|
+| Catalogue: `hr_boss_calls` carries `fight_fee`, `fight_stamina_ms`, `max_fights`; loses `fee`, `per_day` | `2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql` (regenerated on set/v0.2.133) | STAGED |
+| Items: the two call-only pieces | `2027-04-23-boss-call-drops-items-catalogue.generated.sql` (regenerated on set/v0.2.133) | STAGED |
+| The series: `hunt_sessions` columns under a CHECK (a win is always a paid fight's), `hr_boss_call(slot, call, fights, price, key)`, the quote, the plan, the step, 15 anchored splices | `2027-04-24-boss-call-series.sql` | STAGED, self-check green on the replay |
+| Engine: `dropsLive: true`; a called room proposes no stamina | `src/data/boss-calls.js`, `src/core/combat-sim.js` | on the branch; deploys AFTER the migration |
+| Client: the slider, every number the server's quote; "Fight 3 of 5" on the boss bar; "Won 2 of 3 fights. Paid 6 min of stamina and 150 gp." on the summary | `boss-call-pane.js`, `boss-quote.js`, `boss-intents.js`, `boss-bar.js`, `summary-model.js` | on the branch; ships after the edge |
+
+**Apply order (Coordinator).** The items catalogue, the hunt-sessions catalogue, then `2027-04-24-boss-call-series.sql`, back to back, all three AFTER set/v0.2.133's files (the series is spliced onto that set's `hr_hunt_settle_session`). Then the edge. Then the client. Between the catalogue and the series file the old quote names a dropped column, so Call out answers an error and charges nothing; after the series file and until the client ships, the old client's press names a verb that is gone and charges nothing.
+
+**Three rulings the build needed, made here, for the designer to overrule.**
+1. **The fee is fixed at the press for the whole series.** Each seat's fee is its own account's price when the leader pressed (Open Halls: 0). A series started in Open Halls stays free of gold to its last fight; a price change mid-series never charges a number the player did not see.
+2. **A later fight never takes the purse under the hero's "Keep at least"** (300 gp until a player moves it). The press itself may. So a hero on the default with 320 gp can press, and the series ends `gold_out` after its first win. The pane says how many fights the room's stamina and gold cover right now.
+3. **One hero who can't pay ends the series for everyone**, on the win: that hero's hunt ends `stamina` or `gold_out`, and everyone else comes home with it (`party_member_left`), so each card says who ran out of what ("Mira ran out of stamina, so Oren came home too."). The win is counted and paid all the same. Nobody is charged for a fight that does not happen.
+
+**Open, for others.**
+- **Designer:** (a) the System line "called out the Rat King and brought him down" now posts once a ROOM that ends on a win, not once a fight; a series that ends on stamina posts none. Keep, reword or cut. (b) The win-rate note from 11-14 stands: the bosses were tuned as a one-off exam (Rat King four 67%); a series wants about 97% with a good bar. Not re-measured here. (c) `END_WORDS.boss_felled` still says "There's a title for you" on every win.
+- **Designer and Coordinator:** Open Halls' two SERVER announcer lines (`live-events.js` `start`, `end`: "calling out ... is free") are false now, since a fight still costs stamina. They are in the generated live-events catalogue, so they were left; the client's own Open Halls lines were fixed. The switch is off. Fix both lines and regenerate before it goes on.
+- **Security (the EA list):** a gold fee for a fight with random drops; the leader's press charges every ready seat its own fee and stamina; `rare_drops` on a win is bounded by the kinds the window carries, not their rarity.
+- **Found, fixed here:** `gen-hunt-sessions --selftest` was red on set/v0.2.133 itself (its fixture had no ground for Krell's Hold once the March opened). It is green with the hall's ground in the fixture.
+
 ### 2026-11-14 Boss call drops (designer, lane/d-boss-call-drops; Tyler 2026-11-14 "it should definitely have a chance for an item drop otherwise there is no point", "for people [who] want the drops but don't want to burn stamina", then the slider "B with your adjustments")
 
 **Built (data + the engine's drop door + guard):** a called boss's KILL rolls his own table (his ground boss's rows at their ground rates) plus one call-only piece; a death or the limit pays nothing; no XP or coin on any route; adds pay nothing. Kingstooth (Rat King, 1%: Iron Sword stats +3% crit, Level 15) and Cauldron Lid (Chief Coppercap, 0.8%: Coppercap Shield guard, 5% less from every hit, Level 30), no jewelry. Staged: `2027-04-23-boss-call-drops-items-catalogue` and `-hunt-sessions-catalogue` (kill bounds carry the drops, the CHECK allows drops on a called row, never XP or coin). `tests/boss-call.mjs` guards it (40 mutants).

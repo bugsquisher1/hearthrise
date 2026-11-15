@@ -64,7 +64,8 @@
 --     CHECK). A held end then follows the plan: `next` charges THIS hero the next fight (stamina, the fee, ONE ledger row kind shop, intent
 --     boss_call:<call>:fight, the session named in meta) and moves the session to it (call_fight + 1, fight_from and the session clock on
 --     the room's instant); otherwise the session closes here: the plan's reason for a hero who can't pay
---     (`stamina`, `gold_out`), the win's `boss_felled` for everyone else.
+--     (`stamina`, `gold_out`), and everyone else comes home with it (`party_member_left`: hr_hunt_view names that hero and why, so each
+--     card says who ran out of what; the win itself is counted and paid all the same).
 --   hr_hunt_view: a session of a series shows `call` { fights, fight, won, fee, stamina_ms, paid_gold, paid_stamina_ms }; no other hunt's
 --     section gains a key.
 --
@@ -294,8 +295,9 @@ begin
     return (p_h - 'held') || jsonb_build_object('fight', jsonb_build_object('n', v_s.call_fight + 1, 'of', v_s.call_fights,
                                                                            'fee', v_s.call_fee, 'stamina_ms', v_s.call_stamina_ms));
   end if;
-  -- THE SERIES ENDS HERE, on the win: a hero who can't pay the next fight for that reason, everyone else `boss_felled`.
-  v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'boss_felled');
+  -- THE SERIES ENDS HERE, on the win: a hero who can't pay the next fight ends for that reason (`gold_out`, `stamina`); everyone else comes home
+  -- with it (`party_member_left`: hr_hunt_view's end_by names that hero and what it ran out of, so the card says why the fights stopped).
+  v_why := coalesce(v_plan->'stop'->>(p_user::text || ':' || p_slot::text), 'party_member_left');
   perform public.hr_hunt_close(p_session, v_why, v_at, true);
   return (p_h - 'held') || jsonb_build_object('ended', v_why);
 end $fn$;

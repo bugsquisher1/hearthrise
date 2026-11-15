@@ -340,7 +340,7 @@ export const REASONS = Object.freeze({
     { cond: 'row.removable', words: 'hs-hudset-show', where: 'a fixed widget\'s box (cannot be hidden by design; the row is labelled)' },
   ],
   'src/app/slot-offer.js': [
-    { cond: 'short > 0', words: "You need ' + whole(short) + ' more gold.", where: 'the offer block' },
+    { cond: 'short > 0', words: "t('slots.short', { gold: whole(short) })", where: 'the offer block' },
   ],
   /* Other lanes own these files right now (lane/a-v0246-followups); listed as they stand, see the report. */
   'src/shell/windows/farm.js': [

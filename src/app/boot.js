@@ -252,7 +252,7 @@ function startApp(win) {
       obs.screen('characters');
       root.className = 'app is-auth';
       root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
-        + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
+        + '<p class="auth-lead" role="status">Loading characters…</p></div></main>';
     }
     const a = account;
     const seq = paneSeq;
@@ -320,7 +320,7 @@ function startApp(win) {
     drawSlotOffer();
     const r = await a.buySlot(slotId, actor);
     if (a !== account || a.closedGame) { slotBuying = false; return; }
-    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought. Create your new hero in it.', null, true); return; }
+    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought', null, true); return; }
     slotBuying = false;
     drawSlotOffer();
     const m = root.querySelector('.auth-message');
@@ -349,8 +349,8 @@ function startApp(win) {
     const r = await a.open(slot);
     if (!r.ok) {
       const m = root.querySelector('.auth-message');
-      if (m) m.textContent = r.reason === 'limit' ? 'Close a character first: ' + (r.limit > 1 ? r.limit + ' are' : 'one is') + ' already playing.'
-        : 'That character could not be loaded. Try again in a minute.';
+      if (m) m.textContent = r.reason === 'limit' ? 'Heroes at once: ' + r.limit + '. Close one first.'
+        : 'Character didn\'t load. Try again in a minute.';
       return false;
     }
     if (a !== account) return false;

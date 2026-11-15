@@ -65,4 +65,31 @@ export const HEROES_TEXT = Object.freeze({
   strip_full: { one: 'Heroes at once: 1. Sign out to pick {name}',
     other: 'Heroes at once: {count}. Sign out to swap in {name}' },
   strip_open_failed: '{name} didn’t load. Try again in a minute.',
+
+  /* THE STRIP'S TOOLS (src/app/character-strip.js) */
+  strip_all: 'All characters',
+  strip_all_title: 'All characters on one screen (O)',
+  strip_all_short: 'Heroes',
+  strip_characters: 'Characters',
+
+  /* HERO CREATION (src/app/hero-create.js): the step's labels, the name rules, the answers. */
+  create_title: 'Create your hero',
+  create_preview: 'Your hero',
+  create_preview_in: 'Your hero in the {outfit}',
+  create_name: 'Name',
+  create_name_hint: '3 to 20 letters',
+  create_go: 'Enter town',
+  create_how: 'How you fight',
+  create_more: 'More below',
+  /* {outfit} the starting outfit, {parts} the parts the colors change ("hood and tunic") */
+  create_start: 'Starting outfit: {outfit} (colors change its {parts}, kept on every outfit)',
+  name_short: 'Name: at least 3 letters',
+  name_long: 'Name: at most 20 letters',
+  name_charset: 'Letters, numbers, spaces, hyphens and apostrophes only',
+  name_reserved: 'Name reserved, try another',
+  name_blocked: 'Name not allowed, try another',
+  create_failed: 'Hero not created. Try again in a minute.',
+  creating: 'Creating your hero…',
+  entering: 'Entering town…',
+  enter_failed: 'Hero created, but town didn’t open. Press Enter town again.',
 });

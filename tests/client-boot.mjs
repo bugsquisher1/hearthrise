@@ -1051,8 +1051,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         step.destroy(); card.remove();
         return out;
       });
-      if (!press.working[0] || press.working[1] !== 'Making your hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
-        || !press.entering[0] || press.entering[1] !== 'Entering town…' || press.entering[2] !== 1 || !press.noAsk || press.stuck[0] || !/hero is made/.test(press.stuck[1]) || !press.again) fails.push('B-9 the Enter town press: ' + JSON.stringify(press));
+      if (!press.working[0] || press.working[1] !== 'Creating your hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
+        || !press.entering[0] || press.entering[1] !== 'Entering town…' || press.entering[2] !== 1 || !press.noAsk || press.stuck[0] || !/Hero created/.test(press.stuck[1]) || !press.again) fails.push('B-9 the Enter town press: ' + JSON.stringify(press));
       /* Sign-up sent: the fields stand aside for the message and the way back (phone panel 2026-11-01: Back half off a 390 px screen). */
       const sent = await page.evaluate(async () => {
         const { renderAuthScreen } = await import(location.origin + '/src/app/sign-in.js');
@@ -1194,7 +1194,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       if (!/Hero slots: 2 \(up to 4 play at once, more cost gold\)/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
-        || b0.purse !== 'Your gold: 14,100' || !/^You need 900 more gold./.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');
+        || b0.purse !== 'Your gold: 14,100' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');
       else {
         o.purse = 80000; o.goldV = 8; o.lag = null;
         await page.reload({ waitUntil: 'load' });
@@ -1206,7 +1206,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
         /* The yes is on screen at once, over the list, with the button still off: "Reading your characters…" alone for 2.5 s let a player press again (board 11-04). */
         const told = await wait(page, () => /Hero slot bought/.test((document.querySelector('.auth-message') || {}).textContent || ''));
-        const between = await page.evaluate(() => ({ rows: document.querySelectorAll('.char-row').length, reading: /Reading your characters/.test(document.body.textContent),
+        const between = await page.evaluate(() => ({ rows: document.querySelectorAll('.char-row').length, reading: /Loading characters/.test(document.body.textContent),
           off: !!(document.querySelector('[data-app="buy-slot"]') || {}).disabled }));
         if (!told || between.rows !== 2 || between.reading || !between.off) fails.push('B-11 between the yes and the re-read: ' + JSON.stringify({ told: !!told, ...between }));
         o.slowReread = 0;
@@ -1376,7 +1376,7 @@ const MUTANTS = [
   ['a script that fails before the store is up is lost (B-19)', 'src/platform/load-shell.js', "if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', failedNow); else failedNow();", 'failedNow();'],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
   ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
-  ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold('Entering town…');\n", ''],
+  ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold(t('heroes.entering'));\n", ''],
   ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name) tried =", '    tried ='],
   ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],

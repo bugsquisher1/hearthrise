@@ -36,17 +36,17 @@ export const START_OUTFIT = ROLE_OUTFIT.tank;
 export const OTHER_OUTFITS = Object.freeze(['berserker', 'ranger', 'sorcerer']);
 
 const NAME_REASON = Object.freeze({
-  short: 'A name needs at least 3 letters.',
-  long: 'A name can have at most 20 letters.',
-  charset: 'Use letters, numbers, spaces, hyphens or apostrophes.',
-  reserved: 'That name is reserved. Try another.',
-  blocked: 'That name is not allowed. Try another.',
+  short: 'heroes.name_short',
+  long: 'heroes.name_long',
+  charset: 'heroes.name_charset',
+  reserved: 'heroes.name_reserved',
+  blocked: 'heroes.name_blocked',
 });
 
-/** The sentence a refusal shows, from the one refusal table (src/data/refusal-words.js). Pure. */
+/** The words a refusal shows, from the one refusal table (src/data/refusal-words.js). Pure. */
 export function refusalText(r) {
-  if (!r) return 'The hero could not be made. Try again in a minute.';
-  if (r.reason === 'bad_name') return NAME_REASON[r.nameReason] || 'That name is not allowed. Try another.';
+  if (!r) return t('heroes.create_failed');
+  if (r.reason === 'bad_name') return t(NAME_REASON[r.nameReason] || 'heroes.name_blocked');
   return refusalWords(r.reason);
 }
 
@@ -62,17 +62,16 @@ export function previewDyes(colors, colorOf) {
 /** What the picks change on the outfit a new hero starts in, and that the rest show elsewhere. Pure. */
 export function startWords() {
   const row = OUTFIT_ROWS[START_OUTFIT];
-  return 'You start in the ' + row.label + ': your colors change its ' + row.regions.map((g) => row.parts[g].toLowerCase()).join(' and ')
-    + '. The other outfits show the rest. Your colors stay with you on every outfit.';
+  return t('heroes.create_start', { outfit: row.label, parts: row.regions.map((g) => row.parts[g].toLowerCase()).join(' and ') });
 }
 
 /** The "How you fight" column: the rule, then one line per way to fight. Pure. */
 export function howYouFightHtml() {
-  return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">How you fight</h2>'
+  return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">' + t('heroes.create_how') + '</h2>'
     + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + ' <span class="hero-how-slots">' + HOW_YOU_FIGHT_SLOTS + '</span></p>'
     + '<ul class="hero-how-list">'
     + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hero-how-uses">' + r.uses + '</span></li>').join('')
-    + '</ul><p class="hero-how-more" hidden>More below</p></section>';
+    + '</ul><p class="hero-how-more" hidden>' + t('heroes.create_more') + '</p></section>';
 }
 
 /* While words wait below the step's fold, its cue says so: a phone's scrollbar shows only during a swipe (phone panel v0.2.83: "nothing shows that it scrolls"). Returns the detach. */
@@ -130,20 +129,20 @@ export function renderHeroCreate(card, o) {
     }
     return h;
   };
-  card.innerHTML = '<h1 class="auth-title">Create your hero</h1>'
+  card.innerHTML = '<h1 class="auth-title">' + t('heroes.create_title') + '</h1>'
     /* a phone's step shows one thing at a time: its own layout of the same step (Tyler 2026-10-25), not a smaller desktop */
     + (dyes ? '<button type="button" class="hh-tool hero-pick" aria-pressed="false">' + t('controls.pick_colors') + '</button>' : '')
     + '<div class="hero-body">'
-    + (dyes ? '<div class="hero-look"><canvas class="hero-preview" width="' + 64 * PREVIEW_SCALE + '" height="' + 64 * PREVIEW_SCALE + '" role="img" aria-label="Your hero"></canvas>'
-      + '<div class="hero-others">' + OTHER_OUTFITS.map((id) => '<canvas class="hero-other" data-hero-outfit="' + id + '" width="64" height="64" role="img" aria-label="Your hero in the ' + OUTFIT_ROWS[id].label + '"></canvas>').join('') + '</div>'
+    + (dyes ? '<div class="hero-look"><canvas class="hero-preview" width="' + 64 * PREVIEW_SCALE + '" height="' + 64 * PREVIEW_SCALE + '" role="img" aria-label="' + t('heroes.create_preview') + '"></canvas>'
+      + '<div class="hero-others">' + OTHER_OUTFITS.map((id) => '<canvas class="hero-other" data-hero-outfit="' + id + '" width="64" height="64" role="img" aria-label="' + t('heroes.create_preview_in', { outfit: OUTFIT_ROWS[id].label }) + '"></canvas>').join('') + '</div>'
       + '<p class="hero-note">' + startWords() + '</p></div>' : '')
     + '<div class="hero-form">'
-    + '<label class="auth-field">Name<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
+    + '<label class="auth-field">' + t('heroes.create_name') + '<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="' + t('heroes.create_name_hint') + '"></label>'
     + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>' : '')
     + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<div class="auth-foot"><button type="button" class="auth-link hero-back">' + t('controls.back') + '</button>'
-    + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">Enter town</button></div>';
+    + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">' + t('heroes.create_go') + '</button></div>';
   const input = card.querySelector('.hero-name');
   const msg = card.querySelector('.auth-message');
   const confirm = card.querySelector('.hero-confirm');
@@ -157,12 +156,12 @@ export function renderHeroCreate(card, o) {
   const hold = (words) => { busy = true; confirm.disabled = true; confirm.textContent = words; };
   const release = () => { busy = false; confirm.disabled = false; confirm.textContent = pressWords; };
   async function enter() {
-    hold('Entering town…');
+    hold(t('heroes.entering'));
     let went;
     try { went = await o.done(); } catch (e) { went = false; }
     if (gone || went !== false) return;
     release();
-    msg.textContent = 'Your hero is made, but town did not open. Press Enter town to try again.';
+    msg.textContent = t('heroes.enter_failed');
   }
   const repaint = previewer(card, colors, o.colorOf);
 
@@ -172,7 +171,7 @@ export function renderHeroCreate(card, o) {
     if (made) { enter(); return; }
     const name = input.value.trim().replace(/\s+/g, ' ');
     if (name.length < 3) { msg.textContent = NAME_REASON.short; input.focus(); return; }
-    hold('Making your hero…');   // stays off until the server answers
+    hold(t('heroes.creating'));   // stays off until the server answers
     if (!tried || tried.name !== name) tried = { name, key: globalThis.crypto.randomUUID() };
     const r = await o.create(name, Object.assign({}, colors), tried.key);
     if (gone) return;
@@ -198,7 +197,7 @@ export function renderHeroCreate(card, o) {
     if (pick) {
       const on = card.classList.toggle('is-picking');
       pick.setAttribute('aria-pressed', String(on));
-      pick.textContent = on ? 'How you fight' : 'Pick colors';
+      pick.textContent = on ? t('heroes.create_how') : t('controls.pick_colors');
       return;
     }
     if (e.target.closest('.hero-confirm')) submit();

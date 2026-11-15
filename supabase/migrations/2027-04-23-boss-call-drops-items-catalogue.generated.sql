@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: d1062cad87b1cd6ecb840046cb82765dcd983ed69df81ed7aa9db1794767c8fc
---   rows: 594 items (6 untradeable) ·
+--   catalogue digest: 5f6c815b406681f546a9a7559515d4cdb2d71116bbe5b593f27886fd3bf6411a
+--   rows: 617 items (6 untradeable) ·
 --         349 item-slot pairs · 14 equip slots ·
---         13 skills · 9 crops · 354 activities ·
+--         13 skills · 9 crops · 379 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -236,7 +236,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('banded_signet_surge','Banded Signet (Surge)',true,'jewelry',260,'level',15,null,false,null,false),
   ('banded_signet_surge_follow','Hallmarked Banded Signet (Surge, Follow-through)',true,'jewelry',260,'level',15,null,false,null,false),
   ('barbed_arrows','Barbed Arrows',true,'ammo',1,'ranged',15,null,false,null,false),
+  ('barge_nail','Barge Nail',true,null,108,null,null,null,false,null,false),
   ('barn_wasp_sting','Barn Wasp Sting',true,null,22,null,null,null,false,null,false),
+  ('barrow_nail','Barrow Nail',true,null,184,null,null,null,false,null,false),
   ('barrowking_mantle','Barrow-King''s Mantle',true,'armor',1700,'level',52,null,false,null,false),
   ('bat_wing','Bat Wing',true,null,12,null,null,null,false,null,false),
   ('bear_claw','Bear Claw',true,null,180,null,null,null,false,null,false),
@@ -304,6 +306,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('cistern_venom_gland','Cistern Venom Gland',true,null,40,null,null,null,false,null,false),
   ('coal','Coal',true,null,10,null,null,null,false,null,false),
   ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'melee',1,null,false,null,false),
+  ('coffin_nail','Coffin Nail',true,null,114,null,null,null,false,null,false),
+  ('color_cord','Color Cord',true,null,116,null,null,null,false,null,false),
   ('cooked_bear_meat','Cooked Bear Meat',true,null,42,null,null,156,true,null,false),
   ('cooked_copper_crab','Steamed Copper Crab',true,null,10,null,null,216,true,null,false),
   ('cooked_frostfin','Frostfin Supper',true,null,35,null,null,456,true,null,false),
@@ -427,13 +431,16 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('etched_water_rune','Etched Water Rune',true,'ammo',3,'magic',30,null,false,null,false),
   ('fang_studs','Fang Studs',true,'jewelry',130,'level',15,null,false,null,false),
   ('fangdart_recurve','Fangdart Recurve',true,'weapon',7200,'level',36,null,false,null,true),
+  ('farmhands_tag','Farmhand''s Tag',true,null,172,null,null,null,false,null,false),
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
   ('fine_temper_salts','Fine Tempering Salts',true,null,60,null,null,null,false,null,false),
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,408,false,null,false),
   ('flux_salt','Fluxsalt',true,null,15,null,null,null,false,null,false),
+  ('ford_weed','Ford Weed',true,null,100,null,null,null,false,null,false),
   ('foremans_lash','Foreman''s Lash',true,null,92,null,null,null,false,null,false),
   ('frostfin','Raw Frostfin',true,null,70,null,null,216,true,null,false),
+  ('gatekeepers_chain','Gatekeeper''s Chain',true,null,200,null,null,null,false,null,false),
   ('giant_rat_hide','Giant Rat Hide',true,null,4,null,null,null,false,null,false),
   ('glowing_copper_fleck','Glowing Copper Fleck',true,null,68,null,null,null,false,null,false),
   ('goblin_ear','Goblin Ear',true,null,8,null,null,null,false,null,false),
@@ -459,6 +466,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('grayjaw_whisker','Grayjaw Whisker',true,null,30,null,null,null,false,null,false),
   ('grayjaws_ruff','Grayjaw''s Ruff',true,'armor',310,'level',12,null,false,null,false),
   ('graypelt_cloak','Graypelt Cloak',true,'armor',150,'level',8,null,false,null,false),
+  ('green_rivet','Green Rivet',true,null,100,null,null,null,false,null,false),
+  ('hall_key','Hall Key',true,null,800,null,null,null,false,null,false),
+  ('hasks_coin','Hask''s Coin',true,null,150,null,null,null,false,null,false),
   ('heartgarnet','Heartgarnet',true,null,30,null,null,null,false,null,false),
   ('heartgarnet_maul','Heartgarnet Maul',true,'weapon',990,'level',42,null,false,null,false),
   ('hearth_token','Hearth Token',true,null,25000,null,null,null,false,null,false),
@@ -489,6 +499,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('iron_whetstone','Iron Whetstone',true,'ammo',3,'melee',30,null,false,null,false),
   ('ironbound_shield','Ironbound Shield',true,'offhand',200,'level',15,null,false,null,false),
   ('jarls_rimetorc','Jarl''s Collar',true,'jewelry',3300,'level',66,null,false,null,false),
+  ('kennel_tag','Kennel Tag',true,null,144,null,null,null,false,null,false),
   ('keystone','Keystone',true,null,3000,null,null,null,false,null,false),
   ('kingsgrate','Kingsgrate',true,'offhand',300,'level',15,null,false,null,false),
   ('kingstooth','Kingstooth',true,'weapon',600,'level',15,null,false,null,false),
@@ -503,12 +514,14 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('leather_gloves','Leather Gloves',true,'armor',80,'level',1,null,false,'medium',false),
   ('leather_helmet','Leather Hood',true,'armor',50,'level',1,null,false,'medium',false),
   ('leather_pants','Leather Chaps',true,'armor',90,'level',1,null,false,'medium',false),
+  ('ledger_leaf','Ledger Leaf',true,null,102,null,null,null,false,null,false),
   ('lexarch_seal','Archivist Seal',true,'trophy',2200,null,null,null,false,null,false),
   ('lich_soul','Lich Soul',true,null,800,null,null,null,false,null,false),
   ('lich_soul_soup','Lich Soul Soup',true,null,1100,null,null,600,false,null,false),
   ('lobster','Raw Lobster',true,null,25,null,null,144,true,null,false),
   ('loft_web','Loft Web',true,null,26,null,null,null,false,null,false),
   ('longbow','Longbow',true,'weapon',135,'level',15,null,false,null,true),
+  ('lookouts_whistle','Lookout''s Whistle',true,null,176,null,null,null,false,null,false),
   ('magic_essence','Magic Essence',true,null,50,null,null,null,false,null,false),
   ('maple_bow','Maple Bow',true,'weapon',1575,'level',45,null,false,null,true),
   ('maple_crossbow','Maple Crossbow',true,'weapon',1500,'level',45,null,false,null,false),
@@ -541,6 +554,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('moonfish','Raw Moonfish',true,null,110,null,null,288,true,null,false),
   ('mosslight_clump','Mosslight Clump',true,null,180,null,null,null,false,null,false),
   ('mosslight_tendril','Mosslight Tendril',true,null,44,null,null,null,false,null,false),
+  ('mudlark_hook','Mudlark Hook',true,null,104,null,null,null,false,null,false),
   ('night_fang','Night Fang',true,null,90,null,null,null,false,null,false),
   ('nightstalker_pelt','Nightstalker''s Pelt',true,'armor',12400,'level',62,null,false,'medium',false),
   ('normal_log','Normal Log',true,null,8,null,null,null,false,null,false),
@@ -556,6 +570,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('orchard_boar_tusk','Orchard Boar Tusk',true,null,24,null,null,null,false,null,false),
   ('packlord_band','Packlord''s Band',true,'jewelry',420,'level',22,null,false,null,false),
   ('panthers_eye_pendant','Panther''s Eye Pendant',true,'jewelry',13600,'level',68,null,false,null,false),
+  ('pike_band','Pike Band',true,null,90,null,null,null,false,null,false),
+  ('pike_ferrule','Pike Ferrule',true,null,140,null,null,null,false,null,false),
   ('pikeperch','Raw Pikeperch',true,null,15,null,null,96,true,null,false),
   ('pithwood','Pithwood',true,null,1,null,null,null,false,null,false),
   ('plague_ichor','Plague Ichor',true,null,180,null,null,null,false,null,false),
@@ -571,12 +587,14 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('practice_staff','Practice Staff',true,'weapon',0,'level',1,null,false,null,true),
   ('practice_sword','Practice Sword',true,'weapon',0,'level',1,null,false,null,false),
   ('practice_wand','Practice Wand',true,'weapon',0,'level',1,null,false,null,false),
+  ('priests_cord','Priest''s Cord',true,null,190,null,null,null,false,null,false),
   ('pumpkin','Pumpkin',true,null,150,null,null,96,true,null,false),
   ('pumpkin_cider','Pumpkin Cider',true,null,50,null,null,null,false,null,false),
   ('pumpkin_pie','Pumpkin Pie',true,null,420,null,null,420,false,null,false),
   ('pumpkin_seed','Pumpkin Seed',true,null,50,null,null,null,false,null,false),
   ('queens_comb','Queen''s Comb',true,null,60,null,null,null,false,null,false),
   ('quiet_coat','Quiet Coat',true,'armor',27300,'level',75,null,false,'light',false),
+  ('rake_tine','Rake Tine',true,null,148,null,null,null,false,null,false),
   ('rat_incisor','Drain Rat Incisor',true,null,20,null,null,null,false,null,false),
   ('rat_kings_crown','Rat King''s Crown',true,'trophy',4000,null,null,null,false,null,false),
   ('rat_kings_knot','Rat King''s Knot',true,null,150,null,null,null,false,null,false),
@@ -638,12 +656,14 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('scored_poison_rune','Scored Poison Rune',true,'ammo',3,'magic',15,null,false,null,false),
   ('scored_rupture_rune','Scored Rupture Rune',true,'ammo',3,'magic',15,null,false,null,false),
   ('scored_water_rune','Scored Water Rune',true,'ammo',3,'magic',15,null,false,null,false),
+  ('sergeant_spur','Sergeant''s Spur',true,null,132,null,null,null,false,null,false),
   ('shadow_pelt','Shadow Pelt',true,null,480,null,null,null,false,null,false),
   ('shadow_thread','Shadow Thread',true,null,320,null,null,null,false,null,false),
   ('shadowsilk_cape','Shadowsilk Cape',true,'armor',10800,'level',63,null,false,null,false),
   ('shark','Raw Shark',true,null,100,null,null,240,true,null,false),
   ('shortbow','Shortbow',true,'weapon',90,'level',1,null,false,null,true),
   ('shrimp','Raw Shrimp',true,null,5,null,null,36,true,null,false),
+  ('shroud_pin','Shroud Pin',true,null,152,null,null,null,false,null,false),
   ('silk_thread','Silk Thread',true,null,55,null,null,null,false,null,false),
   ('silverfin','Raw Silverfin',true,null,20,null,null,120,true,null,false),
   ('skulkers_shiv','Skulker''s Shiv',true,null,76,null,null,null,false,null,false),
@@ -702,6 +722,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('temper_salts','Tempering Salts',true,null,35,null,null,null,false,null,false),
   ('tidecallers_pearl','Tidecaller''s Pearl',false,'trophy',0,null,null,null,false,null,false),
   ('timber_beam','Timber Beam',true,null,230,null,null,null,false,null,false),
+  ('toll_token','Toll Token',true,null,112,null,null,null,false,null,false),
   ('tomato','Tomato',true,null,90,null,null,48,true,null,false),
   ('tomato_juice','Tomato Juice',true,null,30,null,null,null,false,null,false),
   ('tomato_seed','Tomato Seed',true,null,30,null,null,null,false,null,false),
@@ -716,6 +737,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('turnip_mash','Turnip Mash',true,null,14,null,null,60,true,null,false),
   ('turnip_seed','Turnip Seed',true,null,5,null,null,null,false,null,false),
   ('tusker_charm','Tusker''s Charm',true,'jewelry',140,'level',8,null,false,null,false),
+  ('urn_shard','Urn Shard',true,null,120,null,null,null,false,null,false),
   ('vamp_dust','Vampire Dust',true,null,120,null,null,null,false,null,false),
   ('vegetable_stew','Vegetable Stew',true,null,140,null,null,288,false,null,false),
   ('venom_sac','Venom Sac',true,null,75,null,null,null,false,null,false),
@@ -747,6 +769,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('warlock_pants','Warlock Robe Bottom',true,'armor',2310,'level',45,null,false,'light',false),
   ('warlord_badge','Warlord Badge',true,null,350,null,null,null,false,null,false),
   ('warlords_torc','Warlord''s Necklace',true,'jewelry',3000,'level',52,null,false,null,false),
+  ('warrant_seal','Warrant Seal',true,null,160,null,null,null,false,null,false),
   ('wartusk_cleaver','Wartusk Cleaver',true,'weapon',4500,'level',35,null,false,null,false),
   ('watchknight_belt','Watchknight Belt',true,'armor',3600,'level',60,null,false,'heavy',false),
   ('watchknight_body','Watchknight Cuirass',true,'armor',13500,'level',60,null,false,'heavy',false),
@@ -1362,25 +1385,33 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','archmage',null,null,215,false,90),
   ('combat','ashwing',null,null,472,true,130),
   ('combat','astrologer',null,null,196,false,90),
+  ('combat','banded_pikeman',null,null,61,false,45),
   ('combat','bandit_lord',null,null,212,false,90),
+  ('combat','bannerman',null,null,151,false,56),
+  ('combat','bargeman',null,null,109,false,54),
   ('combat','barn_spider',null,null,25,false,13),
   ('combat','barn_wasp',null,null,17,false,11),
   ('combat','barrow_king',null,null,205,false,60),
   ('combat','barrow_knight',null,null,148,false,60),
+  ('combat','barrow_pikeman',null,null,191,false,57),
   ('combat','bear',null,null,140,false,60),
   ('combat','bog_vine',null,null,70,false,35),
   ('combat','briarcoat_wolf',null,null,21,false,10),
   ('combat','broodmother',null,null,402,true,130),
   ('combat','brook_bear',null,null,51,false,24),
+  ('combat','cairn_wight',null,null,188,false,60),
+  ('combat','captain_hask',null,null,1556,true,75),
   ('combat','carnivorous_plant',null,null,138,false,60),
   ('combat','carrion_crow',null,null,30,false,16),
   ('combat','carrion_swarm',null,null,198,false,90),
   ('combat','cave_wyrm',null,null,158,false,60),
   ('combat','centipede',null,null,60,false,35),
   ('combat','chained_demon',null,null,240,false,90),
+  ('combat','charred_pikeman',null,null,93,false,70),
   ('combat','chief_coppercap',null,null,1096,true,52),
   ('combat','cistern_spider',null,null,110,false,20),
   ('combat','clay_golem',null,null,78,false,35),
+  ('combat','color_sergeant',null,null,156,false,58),
   ('combat','conjurer',null,null,110,false,60),
   ('combat','culvert_bat',null,null,53,false,15),
   ('combat','cutpurse',null,null,11,false,5),
@@ -1399,12 +1430,15 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','earth_elemental',null,null,74,false,35),
   ('combat','elder_cinder',null,null,440,true,130),
   ('combat','elk_king',null,null,466,true,130),
+  ('combat','farmhand',null,null,114,false,86),
   ('combat','fire_devil',null,null,56,false,35),
   ('combat','fire_elemental',null,null,12,false,5),
+  ('combat','fordsunk',null,null,101,false,50),
   ('combat','frost_giant',null,null,248,false,90),
   ('combat','frost_jarl',null,null,360,false,90),
   ('combat','fury',null,null,202,false,90),
   ('combat','gargoyle',null,null,254,false,90),
+  ('combat','gatekeeper',null,null,263,false,100),
   ('combat','ghoul',null,null,52,false,35),
   ('combat','giant_bat',null,null,24,false,15),
   ('combat','giant_boar',null,null,252,false,90),
@@ -1421,10 +1455,15 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','goblin_warlord',null,null,125,false,60),
   ('combat','granary_rat',null,null,15,false,9),
   ('combat','grave_banshee',null,null,194,false,90),
+  ('combat','grave_guard',null,null,182,false,92),
   ('combat','gray_whelp',null,null,10,false,5),
   ('combat','gray_wolf',null,null,17,false,8),
   ('combat','grayjaw',null,null,34,false,15),
+  ('combat','greened_pikeman',null,null,68,false,50),
   ('combat','grim_reaper',null,null,388,true,130),
+  ('combat','hall_grave_guard',null,null,182,false,92),
+  ('combat','hall_hask',null,null,700,true,100),
+  ('combat','hasks_lookout',null,null,109,false,88),
   ('combat','hellhound',null,null,122,false,60),
   ('combat','hive_wasp',null,null,8,false,4),
   ('combat','hobgoblin',null,null,34,false,15),
@@ -1434,9 +1473,12 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','iron_colossus',null,null,518,true,130),
   ('combat','kobold',null,null,12,false,5),
   ('combat','kobold_tosher',null,null,63,false,13),
+  ('combat','ledger_wight',null,null,65,false,51),
   ('combat','lesser_demon',null,null,150,false,60),
   ('combat','lich',null,null,350,true,130),
   ('combat','locust_swarm',null,null,25,false,15),
+  ('combat','lord_krell',null,null,18000,true,110),
+  ('combat','lurcher',null,null,90,false,72),
   ('combat','lynx',null,null,55,false,35),
   ('combat','magma_elemental',null,null,226,false,90),
   ('combat','mammoth',null,null,258,false,90),
@@ -1445,6 +1487,8 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','mire_witch',null,null,115,false,35),
   ('combat','mountain_ram',null,null,66,false,35),
   ('combat','mountain_troll',null,null,165,false,60),
+  ('combat','mudlark',null,null,66,false,52),
+  ('combat','muster_knight',null,null,440,false,66),
   ('combat','necromancer',null,null,356,true,130),
   ('combat','nightmare',null,null,28,false,15),
   ('combat','ogre',null,null,160,false,60),
@@ -1453,6 +1497,9 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','orchard_boar',null,null,24,false,12),
   ('combat','panther',null,null,205,false,90),
   ('combat','plague_swarm',null,null,100,false,60),
+  ('combat','provost',null,null,212,false,80),
+  ('combat','pyre_priest',null,null,157,false,95),
+  ('combat','pyre_wraith',null,null,126,false,76),
   ('combat','rat',null,null,6,false,2),
   ('combat','rat_king',null,null,556,true,25),
   ('combat','revenant',null,null,448,false,130),
@@ -1467,6 +1514,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','small_wolf',null,null,16,false,5),
   ('combat','stag',null,null,26,false,15),
   ('combat','starhusk',null,null,208,false,90),
+  ('combat','stoker',null,null,147,false,74),
   ('combat','stone_golem',null,null,35,false,15),
   ('combat','stonejaw',null,null,478,true,130),
   ('combat','storm_elemental',null,null,392,false,130),
@@ -2092,7 +2140,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'd1062cad87b1cd6ecb840046cb82765dcd983ed69df81ed7aa9db1794767c8fc', now())
+  values (true, '5f6c815b406681f546a9a7559515d4cdb2d71116bbe5b593f27886fd3bf6411a', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2120,11 +2168,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 594 then raise exception 'hr_items has % rows, generator emitted 594', v_n; end if;
+  if v_n <> 617 then raise exception 'hr_items has % rows, generator emitted 617', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '2179ac906fca70c2daf33fd6d2093688' then
-    raise exception 'hr_items names differ from src/data (expected digest 2179ac906fca70c2daf33fd6d2093688)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '17ee71503aa0b7834496d3a2a6c6346b' then
+    raise exception 'hr_items names differ from src/data (expected digest 17ee71503aa0b7834496d3a2a6c6346b)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2138,7 +2186,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 6', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 354 then raise exception 'hr_activities has % rows, expected 354', v_n; end if;
+  if v_n <> 379 then raise exception 'hr_activities has % rows, expected 379', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -2146,8 +2194,8 @@ begin
   -- does not fail — it makes hr_apply's carried-fight clamp ADMIT ANYTHING,
   -- which is the "assertion that asserts nothing" family in SQL form.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and max_hp is not null;
-  if v_n <> 140 then
-    raise exception 'combat activities with a max_hp: %, generator emitted 140 — '
+  if v_n <> 165 then
+    raise exception 'combat activities with a max_hp: %, generator emitted 165 — '
       'hr_apply''s carried-fight clamp would be vacuous for the rest', v_n;
   end if;
   -- ...and the converse, so a non-combat row can never acquire a fight ceiling
@@ -2159,8 +2207,8 @@ begin
   -- a database that created hr_activities before is_boss existed must not leave
   -- every combat row FALSE, which would silently zero the renown bossKill term.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and is_boss;
-  if v_n <> 16 then
-    raise exception 'combat activities flagged is_boss: %, generator emitted 16 — '
+  if v_n <> 19 then
+    raise exception 'combat activities flagged is_boss: %, generator emitted 19 — '
       'the renown bossKill term would be mis-scored', v_n;
   end if;
   -- ...and no non-combat row may be a boss (a gather node flagged boss would
@@ -2324,7 +2372,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d1062cad87b1cd6ecb840046cb82765dcd983ed69df81ed7aa9db1794767c8fc',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5f6c815b406681f546a9a7559515d4cdb2d71116bbe5b593f27886fd3bf6411a',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

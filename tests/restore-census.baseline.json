@@ -565,7 +565,9 @@
    "hr-hunt-party-sweep | * * * * * | select public.hr_hunt_party_sweep(200)",
    "hr-intents-prune | 17 * * * * | select public.hr_intents_prune()",
    "hr-kill-credit-prune | 40 4 * * * | select public.hr_kill_credit_prune()",
+   "hr-ledger-fold | 2-59/10 * * * * | select public.hr_ledger_fold(20000)",
    "hr-ledger-prune | 7 * * * * | select public.hr_ledger_prune(20000)",
+   "hr-ledger-windows-prune | 22 * * * * | select public.hr_ledger_windows_prune(20000)",
    "hr-live-events-announce | * * * * * | select public.hr_live_events_announce()",
    "hr-market-expire | */5 * * * * | select public.hr_market_expire(200)",
    "hr-market-sales-prune | 45 3 * * * | select public.market_sales_prune()",
@@ -734,7 +736,8 @@
   "hero_tally_given",
   "hero_tally_tasks",
   "town_works_gifts",
-  "player_scaled_hours"
+  "player_scaled_hours",
+  "player_ledger_windows"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -1536,7 +1539,12 @@
      }
     ]
    },
-   "note": "The ledger retention window hr_ledger_prune enforces. Seeded `insert … values (true) on conflict do nothing` (2026-08-11-player-state.sql:446), so the row is created with the column DEFAULT and a rebuild can never reproduce an operator's change. retain_days is the single number deciding how much of the append-only audit trail exists at all — shortening it destroys history permanently, lengthening it is the largest single driver of disk (player_ledger is already the biggest table in the database). It matches its default today; the class records the mechanism, not the coincidence."
+   "note": "The ledger retention window hr_ledger_prune enforces. Seeded `insert … values (true) on conflict do nothing` (2026-08-11-player-state.sql:446), so the row is created with the column DEFAULT and a rebuild can never reproduce an operator's change. retain_days is the single number deciding how much of the append-only audit trail exists at all — shortening it destroys history permanently, lengthening it is the largest single driver of disk (player_ledger is already the biggest table in the database). It matches its default today; the class records the mechanism, not the coincidence. Since 2027-04-27-ledger-fold.sql the row also carries detail_days (NULL = the fold tier is off, which is what a rebuild gives back: 2027-04-28-ledger-fold-arm.sql sets 3 and must be applied again after a rebuild from the repo) and window_minutes (15). The live_value above was measured before both columns existed."
+  },
+  "hr_ledger_fold_state": {
+   "class": "operational",
+   "replay": 1,
+   "note": "hr_ledger_fold's cursor (folded_to), its running totals and its last answer: one row, seeded empty by 2027-04-27-ledger-fold.sql and written by every fold. Losing it costs the counters and the cursor only: with folded_to NULL the next runs read the ledger again from its first row, 20,000 a run, find nothing left to fold and move on. No player value, and nothing a rebuild must re-apply."
   },
   "hr_level_curve": {
    "class": "seeded",
@@ -2119,6 +2127,11 @@
   "player_ledger_rollup": {
    "class": "operational",
    "note": "Aggregates written by hr_ledger_prune as it deletes aged ledger rows. Derived — but NOT re-derivable once the source rows are pruned. Losing it loses history beyond the ledger window, never live state. Empty today because nothing has aged past 90 days yet."
+  },
+  "player_ledger_windows": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE AND THE AUDIT TRAIL, PAST THREE DAYS. What hr_ledger_fold leaves of player_ledger's accrue and hunt supply rows once they are older than hr_ledger_config.detail_days (2027-04-27-ledger-fold.sql): one row per hero, kind, intent, hunt session, gold_kind, label set and 15 minutes, proved equal to the rows it lists before they were deleted. Those detail rows are GONE, so this table is the only record of that gold, XP, loot and those kills until hr_ledger_windows_prune sums it into player_ledger_rollup at retain_days. Restore it with player_ledger or not at all: tools/economy-watch.local.mjs reconciles the purses against detail + windows + rollup, and a ledger restored without its windows reads as gold that moved with no journal row. Empty until 2027-04-28-ledger-fold-arm.sql is applied."
   },
   "player_outfits": {
    "class": "restore_only",

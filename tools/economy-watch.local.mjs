@@ -6,7 +6,8 @@
 //                                                  --mutate is the same proof.
 //
 // WHAT IT READS. public.player_ledger, the append-only journal every value movement writes (CLAUDE.md §6): gold > 0 entered a
-// purse, gold < 0 left one. Beside it public.account_wallet (the purses), player_state.level_xp (each active hero's Level) and
+// purse, gold < 0 left one. Past hr_ledger_config.detail_days a hunt's, a gatherer's and a bench's rows are summed in
+// public.player_ledger_windows (2027-04-27-ledger-fold.sql), so every read below is over both (tools/lib/ledger-journal.mjs). Beside it public.account_wallet (the purses), player_state.level_xp (each active hero's Level) and
 // the ledger's own kind CHECK. SELECT-only through the Management API with ~/.supabase-token (read as file bytes, never printed,
 // never in argv) inside a READ ONLY transaction, as tools/hunt-health.local.mjs does. The walled game master accounts
 // (hr_gm_accounts) are left out of every figure. Only 8-character account prefixes leave the database (the repo is public).
@@ -56,6 +57,7 @@ import { fileURLToPath } from 'node:url';
 import { formulaStats, contractXpPerH, BALANCE_SHEET, MONSTER_ROLES, GROUND_XP_FIT } from '../src/data/balance-sheet.js';
 import { SINK_RULES } from '../src/data/gold-sinks.js';
 import { charLevelFromXp } from '../src/core/xp.js';
+import { HAS_WINDOWS, journal } from './lib/ledger-journal.mjs';
 
 const REF = 'nezapsylztqbbwuwembx';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -291,41 +293,43 @@ function sheetInputs() {
 // NO BACKTICKS in the SQL below (they end the JS template literal), and no write keyword even in a comment: readOnly() reads words.
 const FROM = "((((now() at time zone 'UTC')::date) - 7)::timestamp at time zone 'UTC')";
 const NOT_GM = 'not exists (select 1 from public.hr_gm_accounts gm where gm.user_id = x.user_id)';
-const FLOWS = `
+/* Each read is built for the database it meets: w = public.player_ledger_windows is there (HAS_WINDOWS). x.n is the ledger rows
+   a line stands for, x.gold_pos and x.gold_neg its gold in and out (a window never crosses a UTC day or nets the two). */
+const FLOWS = (w) => `
 select (x.at at time zone 'UTC')::date::text as day, x.kind, split_part(coalesce(x.intent, ''), ':', 1) as verb,
        case when split_part(coalesce(x.intent, ''), ':', 1) in (${FAMILY_VERBS.map((v) => `'${v}'`).join(', ')})
             then split_part(split_part(x.intent, ':', 2), '.', 1) else '' end as fam,
        coalesce(x.meta ->> 'transfer', '') = 'true' as xfer,
-       count(*) as n,
-       coalesce(sum(x.gold) filter (where x.gold > 0), 0) as g_in,
-       coalesce(sum(-x.gold) filter (where x.gold < 0), 0) as g_out
-  from public.player_ledger x
+       sum(x.n)::bigint as n,
+       coalesce(sum(x.gold_pos), 0) as g_in,
+       coalesce(sum(x.gold_neg), 0) as g_out
+  from ${journal(w)} x
  where x.at >= ${FROM} and ${NOT_GM}
  group by 1, 2, 3, 4, 5`;
-const HEROES = `
+const HEROES = (w) => `
 with h as (
   select (x.at at time zone 'UTC')::date as d, x.user_id, x.slot,
-         coalesce(sum(x.gold) filter (where x.gold > 0), 0) as g_in,
-         coalesce(sum(-x.gold) filter (where x.gold < 0), 0) as g_out,
+         coalesce(sum(x.gold_pos), 0) as g_in,
+         coalesce(sum(x.gold_neg), 0) as g_out,
          coalesce(sum(case when x.kind = 'combat' and (x.meta ->> 'ms') ~ '^[0-9]{1,9}$' then (x.meta ->> 'ms')::bigint end), 0) as hunted_ms,
-         coalesce(sum(x.gold) filter (where x.kind = 'combat' and x.gold > 0), 0) as coin
-    from public.player_ledger x
+         coalesce(sum(x.gold_pos) filter (where x.kind = 'combat'), 0) as coin
+    from ${journal(w)} x
    where x.at >= ${FROM} and ${NOT_GM}
    group by 1, 2, 3)
 select h.d::text as day, left(h.user_id::text, 8) as acct, h.slot, h.g_in, h.g_out, h.hunted_ms, h.coin, coalesce(ps.level_xp, 0) as level_xp
   from h left join public.player_state ps on ps.user_id = h.user_id and ps.slot = h.slot`;
-const HELD = `
+const HELD = (w) => `
 select (now() at time zone 'UTC')::date::text as today,
        (select coalesce(sum(w.gold), 0) from public.account_wallet w
          where not exists (select 1 from public.hr_gm_accounts gm where gm.user_id = w.user_id)) as held,
        (select count(*) from public.account_wallet w
          where not exists (select 1 from public.hr_gm_accounts gm where gm.user_id = w.user_id)) as accounts,
        (select coalesce(sum(w.gold), 0) from public.account_wallet w) as held_all,
-       (select coalesce(sum(x.gold), 0) from public.player_ledger x
+       (select coalesce(sum(x.gold_pos - x.gold_neg), 0) from ${journal(w)} x
          where exists (select 1 from public.account_wallet w where w.user_id = x.user_id)) as journal,
        (select coalesce(sum(r.gold_in - r.gold_out), 0) from public.player_ledger_rollup r
          where exists (select 1 from public.account_wallet w where w.user_id = r.user_id)) as rolled,
-       pg_total_relation_size('public.player_ledger') as journal_bytes,
+       pg_total_relation_size('public.player_ledger')${w ? " + pg_total_relation_size('public.player_ledger_windows')" : ''} as journal_bytes,
        (select pg_get_constraintdef(c.oid) from pg_constraint c
          where c.conrelid = 'public.player_ledger'::regclass and c.conname = 'player_ledger_kind_check') as kind_check`;
 const RPCS = [...new Set(Object.values(GOLD_KEYS).map((k) => k.rpc).filter(Boolean))];
@@ -334,7 +338,8 @@ select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
  where n.nspname = 'public' and p.proname in (${RPCS.map((r) => `'${r}'`).join(', ')})`;
 
 const readOnly = (sql) => /^\s*(select|with)\b/i.test(sql) && !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do|copy|vacuum)\b/i.test(sql);
-for (const sql of [FLOWS, HEROES, HELD, LIVE_RPCS]) if (!readOnly(sql)) throw new Error('economy-watch: a query is not SELECT-only');
+const QUERIES = [FLOWS(true), FLOWS(false), HEROES(true), HEROES(false), HELD(true), HELD(false), HAS_WINDOWS, LIVE_RPCS];
+for (const sql of QUERIES) if (!readOnly(sql)) throw new Error('economy-watch: a query is not SELECT-only');
 if (!RPCS.every((r) => /^[a-z_]+$/.test(r))) throw new Error('economy-watch: an rpc name is not a plain identifier');
 
 let token = null;
@@ -364,7 +369,9 @@ const line = (label, cells) => console.log('  ' + label.slice(0, LW).padEnd(LW) 
 
 async function live() {
   const t0 = Date.now();
-  const [flows, heroRows, [held], rpcRows] = await Promise.all([q(FLOWS), q(HEROES), q(HELD), q(LIVE_RPCS)]);
+  /* before 2027-04-27-ledger-fold.sql is applied the journal is the ledger alone */
+  const w = (await q(HAS_WINDOWS))[0].has_windows === true;
+  const [flows, heroRows, [held], rpcRows] = await Promise.all([q(FLOWS(w)), q(HEROES(w)), q(HELD(w)), q(LIVE_RPCS)]);
   const readS = (Date.now() - t0) / 1000;
   const today = held.today;
   const days = Array.from({ length: 8 }, (_, i) => new Date(Date.parse(today + 'T00:00:00Z') - (7 - i) * 86400000).toISOString().slice(0, 10));
@@ -602,10 +609,17 @@ async function selftest() {
   for (const s of Object.keys(SINK_RULES)) ct(`D1 gold-sinks.js row "${s}" has a journal key the watch knows`, !!(SINK_RULE_KEYS[s] && GOLD_KEYS[SINK_RULE_KEYS[s]]), `add it to SINK_RULE_KEYS and GOLD_KEYS in ${'tools/economy-watch.local.mjs'}`);
   const L0 = lift(RULES), SI = sheetInputs();
   for (const lv of [1, 25, 50]) { const c = L0.sheetCoinPerH(lv, SI); ct(`D2 the real sheet's coin an hour at Level ${lv} is a positive number (${Math.round(c)})`, Number.isFinite(c) && c > 0); }
-  ct('D3 every query is SELECT-only', [FLOWS, HEROES, HELD, LIVE_RPCS].every(readOnly));
-  const finalSel = HEROES.slice(HEROES.lastIndexOf('\nselect'), HEROES.indexOf('\n  from h'));
-  ct('D4 the per-hero query returns 8-character account prefixes, never a whole account id',
-    (finalSel.match(/user_id/g) || []).length === 1 && finalSel.includes('left(h.user_id::text, 8) as acct') && !/user_id/.test(FLOWS.slice(0, FLOWS.indexOf('from public.player_ledger'))));
+  ct('D3 every query is SELECT-only', QUERIES.every(readOnly));
+  /* D4 reads each query's OWN select list (up to its from): the journal subquery carries user_id inside the database, for the
+     game master filter and the per-hero grouping, and only what the outer list names leaves it. Both builds of each query. */
+  const d4 = [true, false].every((w) => {
+    const H = HEROES(w), F = FLOWS(w);
+    const finalSel = H.slice(H.lastIndexOf('\nselect'), H.indexOf('\n  from h'));
+    const flowsSel = F.slice(0, F.indexOf('\n  from '));
+    return H.indexOf('\n  from h') > 0 && F.indexOf('\n  from ') > 0 && /^\s*select\b/.test(flowsSel)
+      && (finalSel.match(/user_id/g) || []).length === 1 && finalSel.includes('left(h.user_id::text, 8) as acct') && !/user_id/.test(flowsSel);
+  });
+  ct('D4 the per-hero query returns 8-character account prefixes, never a whole account id', d4);
   for (const c of contract) console.log(`  ${c.ok ? 'ok  ' : 'FAIL'} ${c.id}${c.ok ? '' : (c.why ? ', ' + c.why : '')}`);
   const realRed = real.filter((c) => !c.ok).length + contract.filter((c) => !c.ok).length;
 

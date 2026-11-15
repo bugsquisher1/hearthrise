@@ -51,35 +51,39 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { HAS_WINDOWS, FOLD_STATE, journal, foldLine } from './lib/ledger-journal.mjs';
 
 // Read lazily, on the first query, so --selftest runs with no token at all.
 let token = null;
 const URL_Q = 'https://api.supabase.com/v1/projects/nezapsylztqbbwuwembx/database/query';
 
-const QUERY = `
+/* THE DAY TABLE. Counted over the journal's two tiers (tools/lib/ledger-journal.mjs): past hr_ledger_config.detail_days a
+   fight, a gather and a craft are rows of player_ledger_windows, each standing for n ledger rows, so every count is sum(n).
+   tests/ledger-fold.mjs LF-REPORTS lifts this query and requires the same table before and after a fold. */
+const QUERY = (hasWindows) => `
 with days as (
   select generate_series(((now() at time zone 'UTC')::date - 7)::timestamp, (now() at time zone 'UTC')::date::timestamp, interval '1 day')::date as day),
 led as (
   select (l.at at time zone 'UTC')::date as day,
-         count(*) filter (where l.kind = 'farm'   and l.intent = 'farm_plant')             as plants,
-         count(*) filter (where l.kind = 'farm'   and l.intent = 'farm_water')             as waters,
-         count(*) filter (where l.kind = 'farm'   and l.intent = 'farm_harvest')           as harvests,
-         count(*) filter (where l.kind = 'combat' and l.intent in ('xp_credit','accrue'))  as fights,
-         count(*) filter (where l.kind = 'combat' and l.intent = 'death')                  as deaths,
-         count(*) filter (where l.kind = 'gather')                                         as gathers,
-         count(*) filter (where l.kind = 'craft')                                          as crafts,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'shop_buy:%')          as buys,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'unlock_buy:room.%')   as rooms,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'setup\\_slot\\_buy:%')  as setup_slots,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'title\\_buy:%')       as titles,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'hero\\_colors\\_set:%') as hero_colors,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'town_show:%' and l.intent not like 'town_show:round:%') as powders,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'town_show:round:%')   as rounds,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'crier:%')             as cries,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'boss\\_call:%')       as boss_calls,
-         count(*) filter (where l.kind = 'shop'   and l.intent like 'town_works:%')        as gifts,
+         (sum(l.n) filter (where l.kind = 'farm'   and l.intent = 'farm_plant'))::bigint             as plants,
+         (sum(l.n) filter (where l.kind = 'farm'   and l.intent = 'farm_water'))::bigint             as waters,
+         (sum(l.n) filter (where l.kind = 'farm'   and l.intent = 'farm_harvest'))::bigint           as harvests,
+         (sum(l.n) filter (where l.kind = 'combat' and l.intent in ('xp_credit','accrue')))::bigint  as fights,
+         (sum(l.n) filter (where l.kind = 'combat' and l.intent = 'death'))::bigint                  as deaths,
+         (sum(l.n) filter (where l.kind = 'gather'))::bigint                                         as gathers,
+         (sum(l.n) filter (where l.kind = 'craft'))::bigint                                          as crafts,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'shop_buy:%'))::bigint          as buys,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'unlock_buy:room.%'))::bigint   as rooms,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'setup\\_slot\\_buy:%'))::bigint  as setup_slots,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'title\\_buy:%'))::bigint       as titles,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'hero\\_colors\\_set:%'))::bigint as hero_colors,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'town_show:%' and l.intent not like 'town_show:round:%'))::bigint as powders,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'town_show:round:%'))::bigint   as rounds,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'crier:%'))::bigint             as cries,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'boss\\_call:%'))::bigint       as boss_calls,
+         (sum(l.n) filter (where l.kind = 'shop'   and l.intent like 'town_works:%'))::bigint        as gifts,
          count(distinct l.user_id)                                                         as users
-  from public.player_ledger l where l.at >= now() - interval '8 days' group by 1),
+  from ${journal(hasWindows)} l where l.at >= now() - interval '8 days' group by 1),
 mk as (select (posted_at at time zone 'UTC')::date as day, count(*) as listings from public.market_listings where posted_at >= now() - interval '8 days' group by 1),
 ms as (select (at at time zone 'UTC')::date as day, count(*) as sales from public.market_sales where at >= now() - interval '8 days' group by 1),
 rf as (select day, sum(n) as refused from public.hr_rejections where day >= ((now() at time zone 'UTC')::date - 8) group by 1),
@@ -568,13 +572,13 @@ const armedLines = (rows) => {
 const refusalsMode = process.argv.includes('--refusals');
 const worldTickMode = process.argv.includes('--world-tick');
 const selftestMode = process.argv.includes('--selftest');
-const chosen = refusalsMode ? REFUSALS : worldTickMode ? WORLD_TICK : QUERY;
+const chosen = refusalsMode ? REFUSALS : worldTickMode ? WORLD_TICK : null;   // null: the day table, built once the journal's tiers are known
 
 // The secret guard is the contract (CLAUDE.md s2): EVERY query this tool can
 // send is checked, not just the one the flag selected. A second query added
 // later must not be able to ride in unchecked behind the first one's clearance.
 const selectOnly = (sql) => !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do)\b/i.test(sql);
-for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE, SLOT_HEALTH, ARMED_TICK, ARMED_LAG, PARTY_STALE]) {
+for (const sql of [QUERY(true), QUERY(false), HAS_WINDOWS, FOLD_STATE, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE, SLOT_HEALTH, ARMED_TICK, ARMED_LAG, PARTY_STALE]) {
   if (!selectOnly(sql)) {
     console.error('vitals: refusing — query is not SELECT-only'); process.exitCode = 2; throw new Error('not select-only');
   }
@@ -794,7 +798,9 @@ if (selftestMode) {
   try { for (const l of lagLines(await ask(ARMED_LAG, { soft: true }))) console.log(l); }
   catch (e) { console.log(`armed lag: UNREAD — ${e.message}`); process.exitCode = 1; }
 } else {
-  const rows = await ask(chosen);
+  /* The journal's tiers on THIS database: before 2027-04-27-ledger-fold.sql is applied there is the ledger alone. */
+  const hasWindows = chosen === null && (await ask(HAS_WINDOWS))[0]?.has_windows === true;
+  const rows = await ask(chosen || QUERY(hasWindows));
 
 
   if (refusalsMode) {
@@ -874,6 +880,15 @@ if (selftestMode) {
       for (const l of lagLines(await ask(ARMED_LAG))) console.log(l);
     } catch (e) {
       console.log(`armed lag: UNREAD — ${e.message} (the exit code says so)`);
+    }
+    // The ledger's fold tier (2027-04-27-ledger-fold.sql): on, running, and nothing it should have taken still sitting as detail.
+    try {
+      const f = foldLine(hasWindows ? (await ask(FOLD_STATE, { soft: true }))[0] : null);
+      console.log(f.text);
+      if (!f.ok) process.exitCode = 1;
+    } catch (e) {
+      console.log(`ledger fold: UNREAD — ${e.message} (the exit code says so)`);
+      process.exitCode = 1;
     }
     // Security PD1: a party hunt nobody can tick. Must read 0.
     try {

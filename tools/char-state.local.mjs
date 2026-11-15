@@ -60,3 +60,12 @@ for (const [label, table, where, order] of [['Outfit', 'player_outfits', W, ''],
   console.log(`${label}: ${r.length ? '' : 'none'}`);
   for (const x of r) console.log('  ' + short(x));
 }
+/* THE JOURNAL'S SECOND TIER (2027-04-27-ledger-fold.sql): past hr_ledger_config.detail_days a hunt's, a gatherer's and a bench's
+   rows are summed per run and 15 minutes, so a hero who last played days ago has its history here, not in the five rows above. */
+try {
+  const ws = await q(`select to_char(window_from at time zone 'UTC', 'MM-DD HH24:MI') as at_utc, kind, intent, n as ledger_rows, gold_pos - gold_neg as gold,
+    coalesce(meta->>'mon', meta->>'node', meta->>'recipe') as run, meta->>'ms' as ms, meta->>'kills' as kills
+    from public.player_ledger_windows where ${W} order by window_from desc, id desc limit 5`);
+  console.log(`Ledger windows (older rows, summed; last 5): ${ws.length ? '' : 'none'}`);
+  for (const x of ws) console.log('  ' + short(x));
+} catch { console.log('Ledger windows: not installed (2027-04-27-ledger-fold.sql is not applied)'); }

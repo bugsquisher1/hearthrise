@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 2027-04-27-ledger-fold.sql — THE LEDGER'S FOLD TIER, INSTALLED OFF (file 1 of 2; 2027-04-28-ledger-fold-arm.sql turns it on)
+-- 2027-04-27-ledger-fold.sql — THE LEDGER'S FOLD TIER, INSTALLED OFF (2027-04-28-ledger-fold-arm.sql turns it on, on a go)
 --   (lane/c-ledger-fold, reliability-engineer, 2026-11-15; designed on lane/c-restore-drill-fixes 8d53f9d34).
 --   STAGED: tools/apply-migration.mjs, one file, never inside begin/commit. Pre-EA (CLAUDE.md §2): applies on its passing §6.
 --   ON THE EA SECURITY LIST (§3.7): a money journal surface. It is the one path that deletes player_ledger rows inside retention.
@@ -14,7 +14,8 @@
 --
 -- ── THE CONTRACT ───────────────────────────────────────────────────────────
 -- hr_ledger_config.detail_days  int NULL  NEW. NULL = no fold tier: every row keeps its detail for retain_days, as before this
---   file. Set by the arm file. CHECK: >= 3 (a server reader looks back 48 hours; 3 days clears it) and < retain_days.
+--   file, and that is how this file leaves it. Set by the arm file. CHECK: >= 3 (a server reader looks back 48 hours; 3 days
+--   clears it) and < retain_days.
 -- hr_ledger_config.window_minutes  int  NEW, 15. A divisor of 1440 from 5 up, so a window never crosses a UTC day or month.
 -- player_ledger_windows  NEW, append-only, no client grant, RLS on with no policy. One row = every folded row of one
 --   (hero, kind, intent, hunt session, gold_kind, label set, window). It states: n and ids (every folded player_ledger.id),
@@ -30,11 +31,16 @@
 -- hr_ledger_fold(p_limit, p_dry_run, p_only, p_detail_days) -> jsonb  NEW (postgres only). Folds whole windows from its
 --   cursor up to detail_days ago, at least p_limit rows when that many wait. A row whose meta carries a key or type the model
 --   does not list is LEFT as detail (it ages out through hr_ledger_prune as before) and counted in the answer by key.
---   p_dry_run: reads and reports the same figures, takes no lock, writes nothing (it runs in a READ ONLY transaction) and may
---   name p_detail_days while the tier is off. p_only: one account's rows only, its own cursor (the self-check's scope).
+--   p_only: one account's rows only, from its first row, the cursor untouched (the self-check's scope).
+-- hr_ledger_fold_plan(p_limit, p_only, p_detail_days) -> jsonb  NEW (postgres only). THE DRY RUN, and what p_dry_run calls:
+--   the same figures, read and not done. It is STABLE, so PostgreSQL refuses a write or a row lock inside it, and it runs in
+--   a READ ONLY transaction. p_detail_days asks what N days would fold while the tier is off.
 -- hr_ledger_windows_prune(p_limit, p_only) -> int  NEW (postgres only). Windows past retain_days go to player_ledger_rollup
 --   with the same sums hr_ledger_prune writes from detail, then are deleted. hr_ledger_prune is NOT touched.
 -- hr_ledger_fold_state  NEW, one row: the cursor (folded_to), running totals and the last run's answer.
+-- CRON  hr-ledger-fold, every 10 minutes, hr_ledger_fold(20000): 2.9M rows a day, 2.4 times a hundred times today's play, in
+--   batches a tenth the size an hourly job would need. While detail_days is NULL it answers "off" and reads nothing.
+--   hr-ledger-windows-prune, hourly, hr_ledger_windows_prune(20000): nothing to take until a window is retain_days old.
 --
 -- ── CONCURRENCY / IDEMPOTENCY ──────────────────────────────────────────────
 -- One fold at a time: the state row is taken FOR UPDATE SKIP LOCKED (a second caller answers busy). The batch's rows are
@@ -51,13 +57,16 @@
 --
 -- ── COST (rows and bytes at 100x players) ─────────────────────────────────
 -- The 90-day line: about 100 MB today, 1.0 GB at ten times, 10 GB at a hundred (was 0.75, 7.4 and 74 GB); 2.5 GB of the last
--- is the 3 days of detail. The ids cost 8 bytes a folded row (7% of a window). The fold reads one hour of rows through the
+-- is the 3 days of detail. The ids cost 8 bytes a folded row (7% of a window). The fold reads ten minutes of rows through the
 -- (at, id) key and deletes them through (user_id, slot, at); the delete's trigger reads at most one day of that hero's windows.
+-- These are the design lane's measurements scaled by the windows' own width; production was not read again in this lane.
 --
+-- APPLYING THIS FILE FOLDS NOTHING AND DELETES NOTHING: detail_days stays NULL, so every lock answers as it did before.
 -- EDGE: NONE. CLIENT: NONE. hr_apply, the hunt settle, the day budget and hr_ledger_prune are not touched.
 -- ORDER: after 2027-04-23-open-march-scaled-hunts-catalogue.generated.sql (the chain's tip); it depends on nothing staged.
--- REVERSIBLE: re-apply 2026-08-11-player-state.sql §6a's hr_ledger_immutable; drop the six functions, the two tables and the
---   two config columns. Windows already written are the only record of the detail they replaced: keep the table if any exist.
+-- REVERSIBLE: hr_cron_drop both jobs; re-apply 2026-08-11-player-state.sql §6a's hr_ledger_immutable; drop the eleven new
+--   functions, the two tables and the two config columns. Windows already written are the only record of the detail they
+--   replaced: keep that table if it holds a row.
 -- IDEMPOTENT: a second apply finds the columns, tables, triggers and rows, restates every body byte-identical, and §6 rolls
 --   back its probes.
 -- WIPE: player_ledger_windows is on the character wipe's list (2027-02-25-character-wipe.sql, edited in this lane).
@@ -443,47 +452,52 @@ begin
 end $$;
 
 -- ── §5 THE FOLD AND THE WINDOWS' PRUNE ───────────────────────────────────────
-create or replace function public.hr_ledger_fold(p_limit int default 20000, p_dry_run boolean default false,
-                                                 p_only uuid default null, p_detail_days int default null)
-returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
+-- Where a run starts and stops: {off} while the tier is off, {error}, or {detail_days, window_minutes, cut, lo, hi}.
+-- lo is the cursor (one account's run reads that account from its first row); hi is a window boundary at or before
+-- detail_days ago, so a window is folded whole or not at all, and the window the limit lands in is taken whole.
+create or replace function public.hr_ledger_fold_range(p_limit int, p_only uuid, p_detail_days int)
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
   c_origin constant timestamptz := timestamptz '2000-01-01 00:00:00+00';
-  v_dry    constant boolean := coalesce(p_dry_run, false);
   v_limit  constant int := greatest(1, least(1000000, coalesce(p_limit, 20000)));
-  v_t0     constant timestamptz := clock_timestamp();
   v_cfg public.hr_ledger_config%rowtype;
-  v_detail int; v_w interval; v_cut timestamptz; v_lo timestamptz; v_hi timestamptz; v_wmin timestamptz;
-  v_seen bigint := 0; v_ok bigint := 0; v_windows bigint := 0; v_rows bigint := 0; v_del bigint := 0;
-  v_wids bigint[] := '{}'; v_left jsonb := '[]'::jsonb; v_by jsonb := '[]'::jsonb; v_out jsonb;
+  v_detail int; v_w interval; v_cut timestamptz; v_lo timestamptz; v_hi timestamptz;
 begin
   select * into v_cfg from public.hr_ledger_config where only_row;
-  -- A dry run may ask what N days would fold while the tier is off. A real run reads the config and nothing else.
-  v_detail := case when v_dry then coalesce(p_detail_days, v_cfg.detail_days) else v_cfg.detail_days end;
-  if v_detail is null then
-    return jsonb_build_object('ok', true, 'off', true, 'dry_run', v_dry); end if;
+  v_detail := coalesce(p_detail_days, v_cfg.detail_days);
+  if v_detail is null then return jsonb_build_object('off', true); end if;
   if v_detail < 3 or v_detail >= v_cfg.retain_days then
-    return jsonb_build_object('ok', false, 'error', 'bad_detail_days', 'min', 3, 'below', v_cfg.retain_days); end if;
+    return jsonb_build_object('error', 'bad_detail_days', 'min', 3, 'below', v_cfg.retain_days); end if;
   v_w := make_interval(mins => v_cfg.window_minutes);
-  -- The cut is a window boundary at or before detail_days ago: a window is folded whole or not at all.
   v_cut := date_bin(v_w, now() - make_interval(days => v_detail), c_origin);
   if p_only is null then
-    if not v_dry then
-      perform 1 from public.hr_ledger_fold_state where only_row for update skip locked;
-      if not found then return jsonb_build_object('ok', true, 'busy', true); end if;
-    end if;
     select s.folded_to into v_lo from public.hr_ledger_fold_state s where s.only_row;
   end if;
   v_lo := coalesce(v_lo, '-infinity'::timestamptz);
-
-  -- THE BATCH ENDS ON A WINDOW BOUNDARY: the window the limit lands in is taken whole.
   select date_bin(v_w, x.at, c_origin) + v_w into v_hi
     from (select l.at from public.player_ledger l
            where l.at >= v_lo and l.at < v_cut and (p_only is null or l.user_id = p_only)
              and public.hr_ledger_fold_model(l.kind, l.intent) is not null
            order by l.at, l.id offset v_limit - 1 limit 1) x;
-  v_hi := least(coalesce(v_hi, v_cut), v_cut);
+  v_hi := greatest(least(coalesce(v_hi, v_cut), v_cut), v_lo);
+  return jsonb_build_object('detail_days', v_detail, 'window_minutes', v_cfg.window_minutes, 'cut', v_cut, 'lo', v_lo, 'hi', v_hi);
+end $$;
 
-  if v_hi > v_lo and v_dry then
+-- THE DRY RUN. What hr_ledger_fold would do with the same arguments, read and not done. STABLE: PostgreSQL itself refuses a
+-- write or a row lock in it, so "changes nothing" is the function's class, not its promise; it runs in a READ ONLY transaction.
+-- p_detail_days asks "what would N days fold" while the tier is off.
+create or replace function public.hr_ledger_fold_plan(p_limit int default 20000, p_only uuid default null, p_detail_days int default null)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
+declare
+  v_t0 constant timestamptz := clock_timestamp();
+  r jsonb; v_lo timestamptz; v_hi timestamptz; v_w interval;
+  v_seen bigint := 0; v_ok bigint := 0; v_windows bigint := 0; v_left jsonb := '[]'::jsonb; v_by jsonb := '[]'::jsonb;
+begin
+  r := public.hr_ledger_fold_range(p_limit, p_only, p_detail_days);
+  if r ? 'off' then return jsonb_build_object('ok', true, 'off', true, 'dry_run', true); end if;
+  if r ? 'error' then return jsonb_build_object('ok', false, 'dry_run', true) || r; end if;
+  v_lo := (r->>'lo')::timestamptz; v_hi := (r->>'hi')::timestamptz; v_w := make_interval(mins => (r->>'window_minutes')::int);
+  if v_hi > v_lo then
     with c as materialized (select * from public.hr_ledger_fold_candidates(v_lo, v_hi, p_only, v_w)),
     g as (select c.kind, c.intent, count(*) as n from c where c.ok
            group by c.user_id, c.slot, c.kind, c.intent, c.session_id, c.gold_kind, c.wf, c.model, c.labels)
@@ -495,8 +509,35 @@ begin
                                       order by y.kind, y.intent), '[]'::jsonb)
               from (select g.kind, g.intent, sum(g.n) as n, count(*) as w from g group by 1, 2) y)
       into v_seen, v_ok, v_windows, v_left, v_by;
-    v_rows := v_ok;
-  elsif v_hi > v_lo then
+  end if;
+  return jsonb_build_object('ok', true, 'dry_run', true, 'detail_days', r->'detail_days', 'window_minutes', r->'window_minutes',
+    'from', case when v_lo = '-infinity'::timestamptz then null else v_lo end, 'to', v_hi, 'cut', r->'cut',
+    'more', v_hi < (r->>'cut')::timestamptz, 'seen', v_seen, 'folded', v_ok, 'windows', v_windows, 'left', v_seen - v_ok,
+    'left_by', v_left, 'by', v_by, 'ms', round(extract(epoch from clock_timestamp() - v_t0) * 1000));
+end $$;
+
+create or replace function public.hr_ledger_fold(p_limit int default 20000, p_dry_run boolean default false,
+                                                 p_only uuid default null, p_detail_days int default null)
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
+declare
+  v_t0 constant timestamptz := clock_timestamp();
+  r jsonb; v_lo timestamptz; v_hi timestamptz; v_w interval; v_wmin timestamptz;
+  v_seen bigint := 0; v_ok bigint := 0; v_windows bigint := 0; v_rows bigint := 0; v_del bigint := 0;
+  v_wids bigint[] := '{}'; v_left jsonb := '[]'::jsonb; v_by jsonb := '[]'::jsonb; v_out jsonb;
+begin
+  if coalesce(p_dry_run, false) then return public.hr_ledger_fold_plan(p_limit, p_only, p_detail_days); end if;
+  -- One fold at a time, and the cursor is read under that lock. One account's run has its own range and takes none.
+  if p_only is null then
+    perform 1 from public.hr_ledger_fold_state where only_row for update skip locked;
+    if not found then return jsonb_build_object('ok', true, 'busy', true); end if;
+  end if;
+  -- A real run reads the config and nothing else: p_detail_days is the dry run's question.
+  r := public.hr_ledger_fold_range(p_limit, p_only, null);
+  if r ? 'off' then return jsonb_build_object('ok', true, 'off', true, 'dry_run', false); end if;
+  if r ? 'error' then return jsonb_build_object('ok', false, 'dry_run', false) || r; end if;
+  v_lo := (r->>'lo')::timestamptz; v_hi := (r->>'hi')::timestamptz; v_w := make_interval(mins => (r->>'window_minutes')::int);
+
+  if v_hi > v_lo then
     -- Locked before they are read: hr_ledger_prune (skip locked) passes them by, and nothing else writes a row this old.
     perform 1 from public.player_ledger l
       where l.at >= v_lo and l.at < v_hi and (p_only is null or l.user_id = p_only)
@@ -547,13 +588,13 @@ begin
         using errcode = 'check_violation'; end if;
   end if;
 
-  v_out := jsonb_build_object('ok', true, 'dry_run', v_dry, 'detail_days', v_detail, 'window_minutes', v_cfg.window_minutes,
-    'from', case when v_lo = '-infinity'::timestamptz then null else v_lo end, 'to', greatest(v_hi, v_lo), 'cut', v_cut,
-    'more', v_hi < v_cut, 'seen', v_seen, 'folded', v_rows, 'windows', v_windows, 'left', v_seen - v_ok,
+  v_out := jsonb_build_object('ok', true, 'dry_run', false, 'detail_days', r->'detail_days', 'window_minutes', r->'window_minutes',
+    'from', case when v_lo = '-infinity'::timestamptz then null else v_lo end, 'to', v_hi, 'cut', r->'cut',
+    'more', v_hi < (r->>'cut')::timestamptz, 'seen', v_seen, 'folded', v_rows, 'windows', v_windows, 'left', v_seen - v_ok,
     'left_by', v_left, 'by', v_by, 'ms', round(extract(epoch from clock_timestamp() - v_t0) * 1000));
-  if p_only is null and not v_dry then
+  if p_only is null then
     update public.hr_ledger_fold_state s
-       set folded_to = greatest(v_hi, v_lo), runs = s.runs + 1, rows_folded = s.rows_folded + v_rows,
+       set folded_to = v_hi, runs = s.runs + 1, rows_folded = s.rows_folded + v_rows,
            windows = s.windows + v_windows, rows_left = s.rows_left + (v_seen - v_ok), last_at = now(), last = v_out
      where s.only_row;
   end if;
@@ -603,6 +644,15 @@ begin
   return v_n;
 end $$;
 
+-- The jobs, in the file that makes the tables (the game_events rule: retention is scheduled where the table is born).
+do $mig$
+begin
+  if to_regprocedure('cron.schedule(text,text,text)') is null or to_regprocedure('public.hr_cron_ensure(text,text,text)') is null then
+    raise notice 'ledger-fold §5: pg_cron absent here; hr-ledger-fold and hr-ledger-windows-prune are not scheduled'; return; end if;
+  perform public.hr_cron_ensure('hr-ledger-fold', '2-59/10 * * * *', 'select public.hr_ledger_fold(20000)');
+  perform public.hr_cron_ensure('hr-ledger-windows-prune', '22 * * * *', 'select public.hr_ledger_windows_prune(20000)');
+end $mig$;
+
 revoke all on function public.hr_ledger_fold_model(text, text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_ledger_meta_plan(jsonb, jsonb, text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_ledger_meta_merge(jsonb, jsonb, jsonb) from public, anon, authenticated, service_role;
@@ -611,6 +661,8 @@ revoke all on function public.hr_ledger_fold_candidates(timestamptz, timestamptz
 revoke all on function public.hr_ledger_window_proved() from public, anon, authenticated, service_role;
 revoke all on function public.hr_ledger_windows_immutable() from public, anon, authenticated, service_role;
 revoke all on function public.hr_ledger_immutable() from public, anon, authenticated, service_role;
+revoke all on function public.hr_ledger_fold_range(int, uuid, int) from public, anon, authenticated, service_role;
+revoke all on function public.hr_ledger_fold_plan(int, uuid, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_ledger_fold(int, boolean, uuid, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_ledger_windows_prune(int, uuid) from public, anon, authenticated, service_role;
 
@@ -641,6 +693,8 @@ begin
      or has_function_privilege('service_role', 'public.hr_ledger_fold(integer,boolean,uuid,integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_ledger_windows_prune(integer,uuid)', 'execute')
      or has_function_privilege('service_role', 'public.hr_ledger_windows_prune(integer,uuid)', 'execute')
+     or has_function_privilege('authenticated', 'public.hr_ledger_fold_plan(integer,uuid,integer)', 'execute')
+     or has_function_privilege('service_role', 'public.hr_ledger_fold_plan(integer,uuid,integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_ledger_fold_candidates(timestamptz,timestamptz,uuid,interval)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_ledger_meta_fold(jsonb,jsonb)', 'execute') then
     raise exception 'VERIFY(a): a fold function is client-executable'; end if;
@@ -659,6 +713,13 @@ begin
           or (tgrelid = 'public.player_ledger'::regclass and tgname in ('hr_ledger_immutable', 'hr_ledger_no_truncate')))) <> 5 then
     raise exception 'VERIFY(a): one of the five ledger locks is missing or disabled'; end if;
   if (select count(*) from public.hr_ledger_fold_state) <> 1 then raise exception 'VERIFY(a): hr_ledger_fold_state must hold one row'; end if;
+  -- the dry run cannot write: its volatility class is what refuses, not its body
+  if (select p.provolatile from pg_proc p where p.oid = 'public.hr_ledger_fold_plan(integer,uuid,integer)'::regprocedure) <> 's' then
+    raise exception 'VERIFY(a): hr_ledger_fold_plan is not STABLE: a dry run that may write is not a dry run'; end if;
+  if to_regclass('cron.job') is not null and (select count(*) from cron.job j
+       where (j.jobname, j.schedule, j.command) in (('hr-ledger-fold', '2-59/10 * * * *', 'select public.hr_ledger_fold(20000)'),
+                                                  ('hr-ledger-windows-prune', '22 * * * *', 'select public.hr_ledger_windows_prune(20000)'))) <> 2 then
+    raise exception 'VERIFY(a): hr-ledger-fold or hr-ledger-windows-prune is not scheduled as this file states'; end if;
   select detail_days into v_detail0 from public.hr_ledger_config where only_row;
   select to_jsonb(s) into v_state0 from public.hr_ledger_fold_state s;
 

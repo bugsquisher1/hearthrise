@@ -84,6 +84,8 @@ declare
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
     'player_intents', 'player_inventory', 'player_item_rules', 'player_ledger', 'player_ledger_rollup', 'player_outfits', 'player_progress',
+    /* the ledger's fold tier (2027-04-27-ledger-fold.sql): what is left of journal detail past detail_days, a hero's, gone with the journal */
+    'player_ledger_windows',
     'player_skills', 'player_state', 'player_workers',
     'session_claims', 'social_presence', 'town_bodies', 'town_moves', 'town_positions', 'town_seen', 'town_snapshot', 'world_finds'];
   -- hr_account_deletions is lane/c-account-delete's, if it lands first: a waiting deletion belongs to the account, which stays.
@@ -104,7 +106,7 @@ declare
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',
     'hr_hunt_stances', 'hr_hunt_supplies', 'hr_hunt_target_modes', 'hr_hunt_travel', 'hr_hunt_vendor_value', 'hr_hunt_weapon_roles', 'hr_hunt_weapons',
-    'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_level_curve', 'hr_market_config',
+    'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_ledger_fold_state', 'hr_level_curve', 'hr_market_config',
     'hr_market_premium_items', 'hr_name_blocklist', 'hr_outfit_dyes', 'hr_outfits', 'hr_players_online_cache', 'hr_plot_tier', 'hr_premium_login_reward',
     'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
     'hr_stamina_refill_rule', 'hr_start_equipment', 'hr_start_inventory', 'hr_start_kit', 'hr_start_skill_xp', 'hr_state_sections', 'hr_storage_chests',
@@ -213,8 +215,12 @@ begin
   lock table public.hunt_parties, public.hunt_instances, public.hunt_sessions, public.player_state, public.account_wallet, public.account_bank, public.player_ledger in access exclusive mode;
   -- One statement; RESTRICT, so a kept table that still referenced a wiped one refuses rather than cascades. The ledger's guard is lifted for it alone.
   alter table public.player_ledger disable trigger hr_ledger_no_truncate;
+  if to_regclass('public.player_ledger_windows') is not null then
+    alter table public.player_ledger_windows disable trigger hr_ledger_windows_no_truncate; end if;
   execute 'truncate table ' || (select string_agg(format('public.%I', x), ', ') from unnest(v_present) x) || ' continue identity restrict';
   alter table public.player_ledger enable trigger hr_ledger_no_truncate;
+  if to_regclass('public.player_ledger_windows') is not null then
+    alter table public.player_ledger_windows enable trigger hr_ledger_windows_no_truncate; end if;
 
   -- A fresh signup's shape: no name, no clan.
   update public.profiles
@@ -265,6 +271,10 @@ begin
   if (select count(*) from pg_trigger where tgrelid = 'public.player_ledger'::regclass and not tgisinternal and tgenabled = 'O'
        and tgname in ('hr_ledger_immutable', 'hr_ledger_no_truncate')) <> 2 then
     raise exception 'wipe k4: a player_ledger immutability trigger is missing or disabled'; end if;
+  if to_regclass('public.player_ledger_windows') is not null
+     and (select count(*) from pg_trigger where tgrelid = 'public.player_ledger_windows'::regclass and not tgisinternal and tgenabled = 'O'
+           and tgname in ('hr_ledger_window_proved', 'hr_ledger_windows_immutable', 'hr_ledger_windows_no_truncate')) <> 3 then
+    raise exception 'wipe k4: a player_ledger_windows lock is missing or disabled'; end if;
   -- k5 the boards and the cursors describe nobody; no hold has an owner.
   if exists (select 1 from public.leaderboard_ranked) then raise exception 'wipe k5: leaderboard_ranked still ranks someone'; end if;
   if exists (select 1 from public.hr_tick_shard_cursor where cursor_user is not null) or exists (select 1 from public.hr_tick_config where cursor_user is not null) then

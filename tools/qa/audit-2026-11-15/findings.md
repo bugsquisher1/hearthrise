@@ -71,3 +71,10 @@ Each: repro, server said vs screen said, likely file, and for fun/sense the evid
 
 ### F18 P2 · No way to sell outclassed gear in bulk; the loot plan only sees the last hunt
 - As a player at Level 60: the bag held 145 stacks, most of them gear I'd outgrown (Bronze to Mithril, every weight). The This hunt tab only lists what the last hunt picked up, so older stacks can't get a plan there; the Shop's Sell tab sells one stack per press. It took 114 presses for Corwen and 73 for Ilsa. Better (11-11 #8, still open): one "Sell gear below what you wear" press, and the loot plan reachable from any stack in the bag (item menu: Keep / Deposit / Sell).
+
+### F19 P3 · The Weighhouse says "isn't trading right now" while Havora's Works says it's being built
+- As a player: the Market window: "The Weighhouse isn't trading right now. Your listings are safe, and you can still take them back." Havora > Works: "Havora is raising the Weighhouse on the east bank ... 0 of 1,000,000 gp". Two windows, two stories, and the Market one sounds like an outage. Better: the Market window points at the Works ("Havora is still building the Weighhouse. Give in Havora > Works."), with the bar.
+- (Local chain ships the market OFF by design; live state unchecked: the pane is signed out and Chrome isn't connected.)
+
+### F20 P2 (economy, F12 evidence) · The gold sinks can't take what one hero earns in a day
+- Measured: at Level 78 one hero nets +11k to +18k gp an hour (Pyre Field), ~200k+ a 12-hour day; the account had 4.49M with all 4 hero slots bought. Daily sinks open to it: Works 25,000 (one account), Rounds 3 x 5,000, Hearth powders 5 x 2,000 = 50,000 a day. Tempering has no ladder past Steel (F17). House tiers are gated by materials, not gold. So gold piles up from Level ~50 on with nothing to chase. Better: tempering tiers 4-6 (Mithril/Rune/Emberforged) priced by Level, Works caps per hero, and a House tier or two priced in the millions.

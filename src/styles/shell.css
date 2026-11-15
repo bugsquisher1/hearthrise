@@ -68,6 +68,9 @@
 .hs-boss-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .hs-boss-name { color: var(--gold-2); }
 .hs-boss-state { color: var(--ink-2); }
+/* a Call out series: "Fight 2 of 5" beside his name (boss-bar.js), the state kept at the right */
+.hs-boss-series { margin-right: auto; font-size: var(--t-micro); color: var(--ink-2); }
+.hs-boss-series:empty { display: none; }
 .hs-boss.is-raging .hs-boss-state, .hs-boss.is-wave .hs-boss-state { color: var(--gold-2); font-weight: 700; }
 .hs-boss-track { position: relative; height: 12px; background: var(--world-shadow); }
 .hs-boss-fill { position: absolute; inset: 0 auto 0 0; background: var(--gold); }

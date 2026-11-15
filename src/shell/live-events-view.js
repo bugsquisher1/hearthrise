@@ -6,7 +6,7 @@
 //   plateLines(cs)            the plate over the World (widgets/event-plate.js): an event on now, or starting within a day
 //   rowLines(cs, hunt)        a Hunts line: Open Halls on a ground whose boss it frees; an XP event only where it names the ground
 //   groundLines(cs, hunt)     the ground's page: every event on now that reaches this ground or its boss
-//   callEventWords(cs, call, quote)   Call out's line, press, warning and confirm while the SERVER'S QUOTE says an event set its price
+//   callEventWords(cs, call, quote)   Call out's event line while the SERVER'S QUOTE says an event set its price (no gold; stamina the same)
 //   feeKey(cs, call)          which fee events are on for this call now: a change reads the quote again (boss-call-pane.js)
 //
 // THE SERVER DECIDES EVERYTHING. The events are the envelope's `live_events` (null when every switch is off: then every reader
@@ -130,17 +130,16 @@ export function groundLines(cs, hunt) {
 }
 
 /**
- * CALL OUT WHILE AN EVENT SET THE PRICE: the words for the SERVER'S quote, or null for today's. Only a quote that names its event
- * (`event`) and quotes 0 reads as free; the line names the event's end when the section lists it. Every number stays the quote's:
- * { line, press, warn, confirm } are words (boss-call-pane.js fills {boss} and {minutes} through callWords).
+ * CALL OUT WHILE AN EVENT SET THE PRICE: the event's line for the SERVER'S quote, or null for today's. Only a quote that names its
+ * event (`event`) and quotes 0 gold reads it; the line names the event's end when the section lists it. Every number stays the
+ * quote's, and what a fight costs is the section's own labels (boss-call-pane.js: no gold, its stamina the same): { line }.
  */
 export function callEventWords(cs, call, quote) {
   if (!call || !quote || quote.price !== 0 || !quote.event || !Object.hasOwn(LIVE_EVENTS, quote.event)) return null;
   const w = LIVE_EVENTS[quote.event].words;
-  if (!w.hunts || !w.warning || !w.confirm) return null;
+  if (!w.callLine || !w.callEnding) return null;
   const x = eventsNow(cs).find((y) => y.e.id === quote.event && ON.has(y.state)) || null;
-  const line = !x ? '' : ending(x) ? fill(w.callEnding, x) : fill(w.callLine, x);
-  return { line, press: w.hunts, warn: w.warning, confirm: w.confirm };
+  return { line: !x ? '' : ending(x) ? fill(w.callEnding, x) : fill(w.callLine, x) };
 }
 
 /** Which fee events are on for `call` now, as one key: when it changes the quote is read again, since the price may have moved. */

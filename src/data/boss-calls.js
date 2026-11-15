@@ -123,6 +123,13 @@ export const BOSS_CALL_WORDS = Object.freeze({
     now: 'Fight {fight} of {fights}',
     done: Object.freeze({ one: 'Won {won} of 1 fight', other: 'Won {won} of {fought} fights' }),
     paid: 'Paid {stamina} min of stamina and {gold} gp',
+    paidFree: 'Paid {stamina} min of stamina',
+    /* Why a series ended short of its count when the hero could not pay another fight (the session's own end reason, the server's:
+       src/hunt-view/summary-model.js endWords reads it for a called room). */
+    ended: Object.freeze({
+      stamina: 'You didn\'t have the stamina for another fight, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
+      gold_out: 'You didn\'t have the gold for another fight, so your hero came home.',
+    }),
   }),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
   /* NO PER-BOSS CHALLENGE ADVICE (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance re-fit
@@ -136,6 +143,15 @@ export const BOSS_CALL_WORDS = Object.freeze({
   answered: Object.freeze({ party: '{Boss} answers. Your party is on its way.', alone: '{Boss} answers. You\'re on your way.' }),
   hunting: 'Not while you\'re hunting. Come back to town first.',
   noQuote: 'Checking if you can call him out.',
+  /* Why the press is off, beside it, before anything was pressed (the quote's `why`, the server's; {who} the seat it names, {fee} and
+     {staminaMin} one fight's price). The same codes answer a press in `refused` below, where they also say nobody was charged. */
+  cant: Object.freeze({
+    call_leader: 'Only your party\'s leader can call him out.',
+    call_stamina: 'You need {staminaMin} min of stamina for a fight.',
+    insufficient_gold: 'You need {fee} gp for a fight.',
+    party_stamina: '{who} doesn\'t have the stamina for a fight.',
+    party_gold: '{who} doesn\'t have the gold for a fight.',
+  }),
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
   bar: Object.freeze({ adds: 'His adds are coming', guarded: 'His adds shield him', enrage: 'He is enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */

@@ -64,6 +64,12 @@ export function leaveAtOf(h) {
   return Number.isFinite(ms) ? ms : null;
 }
 
+/* A session's Call out series as the server wrote it: whole numbers, or null. */
+export function callOf(c) {
+  if (!isObj(c) || int(c.fights) === null || int(c.fight) === null || int(c.won) === null || c.fights < 1 || c.fight < 1 || c.won < 0) return null;
+  return { fights: c.fights, fight: c.fight, won: c.won, paidGold: int(c.paid_gold), paidStaminaMs: int(c.paid_stamina_ms) };
+}
+
 /** `hunt`: the session (and why it ended), the viewed hero's vitals and the instance's units (who is who). */
 export function huntOf(cs) {
   const h = section(cs, 'hunt');
@@ -82,6 +88,8 @@ export function huntOf(cs) {
     endWhy: isObj(h.session) ? str(h.session.end_by_why) : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
+    /* A CALL OUT SERIES (hr_hunt_view `call`, 2027-04-24-boss-call-series.sql): the server's own count of fights and wins and what it charged; null on every other hunt. */
+    call: callOf(isObj(h.session) ? h.session.call : null),
     units: unitsOf(h.pose),
     /* the server instant the pose's units stand at (its last commit), or null */
     poseAtMs: isObj(h.pose) ? int(h.pose.at_ms) : null,

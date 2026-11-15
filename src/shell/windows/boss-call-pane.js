@@ -59,6 +59,13 @@ export function callRefusal(r, call) {
   return /\{[a-zA-Z]+\}/.test(said) ? null : said;
 }
 
+/* Why the press is off, beside it (the quote's own `why`, before anything was pressed), or null for a code with no line or a number the server did not say. */
+function cantWords(q, call) {
+  const line = Object.hasOwn(BOSS_CALL_WORDS.cant, q.why) ? BOSS_CALL_WORDS.cant[q.why] : null;
+  const said = line ? callWords(line, call, fightOf(q)) : null;
+  return said && !/\{[a-zA-Z]+\}/.test(said) ? said : null;
+}
+
 /* How many fights the slider holds for quote `q`: the pick, inside the server's range. */
 const pickOf = (sc, q) => Math.max(1, Math.min(q ? q.maxFights : 1, Number.isInteger(sc.fights) ? sc.fights : 1));
 
@@ -105,7 +112,7 @@ export function patchCall(det, ctx, v) {
   /* The quote's event, when it set the price (null: today's words). Its line goes first; what a fight costs still follows it. */
   const ev = v.now ? null : callEventWords(cs, call, q);
   const said = v.now ? BOSS_CALL_WORDS.hunting : !q ? BOSS_CALL_WORDS.noQuote
-    : q.available ? callWords(free ? S.eachFree : S.each, call, one) : (callRefusal({ error: q.why, quote: q, who: q.who }, call) || BOSS_CALL_WORDS.noQuote);
+    : q.available ? callWords(free ? S.eachFree : S.each, call, one) : (cantWords(q, call) || BOSS_CALL_WORDS.noQuote);
   /* No quote yet: the press names him, off, until the server has said; off, it always says why, beside it. */
   text(box.querySelector('.hw-call-line'), ev && ev.line ? ev.line + ' ' + said : said);
   const press = box.querySelector('.hw-call-press');

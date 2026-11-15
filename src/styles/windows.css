@@ -470,6 +470,14 @@
 .hw-call-line:empty { display: none; }
 .hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-call-press[hidden] { display: none; }
+/* THE SERIES (boss-call-pane.js): the slider that picks how many fights in a row, its count beside it, then what a fight costs as a short list.
+   The track and its gold plate are the windows' one slider (shell.css). */
+.hw-call-pick { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-pick input[type="range"] { flex: 1; min-width: 80px; }
+.hw-call-count { min-width: 76px; text-align: right; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-call-facts { margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; }
+.hw-call-facts li[hidden] { display: none; }
+.hw-call-f-total { color: var(--ink); font-weight: 700; }
 /* A keyed hall (boss-hall-pane.js): the door first, then what wins under it, a step apart from the press. */
 .hw-hall-bars { margin-top: var(--gap); }
 .hw-hd-foot { flex: none; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }

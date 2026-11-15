@@ -386,6 +386,9 @@ export function newHuntSession(o) {
     /* CALL OUT (src/data/boss-calls.js), both set by combat-sim.js from the ground, never stored: the called boss is down; the instant the fight's limit falls. */
     bossFelled: s.bossFelled === true,
     callEndsAtMs: s.callEndsAtMs ?? null,
+    /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js): this hero's roll for today was made this span (hunt-rewards.js payPrize), whether
+       a piece landed or not; a flag of the span, never stored: the member's proposal carries it and the database stamps the day. */
+    prizeRolled: s.prizeRolled === true,
     /* The leader removed this member (the server's read: still hunting in its party's instance, no longer seated):
        its end sends nobody home (Coordinator ruling 2026-10-23; combat-sim.js cascadeFrom). */
     kicked: s.kicked === true,

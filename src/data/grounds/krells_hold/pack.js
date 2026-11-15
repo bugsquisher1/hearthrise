@@ -265,13 +265,15 @@ export default definePack({
         elements: { ember: 25, poison: -15 },
         /* his marked hit first, then his pulse (monster-spells.js: castSpells starts the first one ready) */
         spells: ['rake_the_coals', 'hall_fire'],
-        drops: [
-          { id: 'dawn_sword', ch: 0.035, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.035, band: 'rare' },
-          { id: 'duskwood_bow', ch: 0.035, band: 'rare' }, { id: 'duskwood_staff', ch: 0.035, band: 'rare' },
-          { id: 'duskwood_wand', ch: 0.035, band: 'rare' }, { id: 'duskwood_codex', ch: 0.035, band: 'rare' },
-          { id: 'dawn_hatchets', ch: 0.035, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.035, band: 'rare' },
-          { id: 'dawn_platebody', ch: 0.035, band: 'rare' }, { id: 'dawnhide_body', ch: 0.035, band: 'rare' }, { id: 'duskweave_body', ch: 0.035, band: 'rare' },
-          { id: 'dawn_helm', ch: 0.035, band: 'rare' }, { id: 'dawnhide_helmet', ch: 0.035, band: 'rare' }, { id: 'duskweave_helmet', ch: 0.035, band: 'rare' }],
+        /* HIS DAILY PRIZE (Tyler 2026-11-14: "a daily kill"; the designer's spec, PRIORITY_BOARD "The Barrow March hand play, ruled" 3; built by
+           lane/c-krell-daily). A hall's boss pays his rows ONCE A DAY PER HERO, each hero's own roll, never the party's shared one
+           (boss-halls.js; src/core/drops.js rollPrize; the server's day table hr_boss_loot_day). Every row is a SLICE of that one roll: a
+           standard tier 7 piece 40%, each of the 14 as likely (0.4 / 14 a row, about 2.9%), and 60% nothing. A hero who kills him every day
+           sees about 2.8 pieces a week and a given piece about every 35 days; trade shortens it. His two unique pieces (the Tollgate and
+           the Banded Legguards, 3% each, the same spec's item 4) join as two more slices when their rows land. A hero who took it today can
+           still fight: the kill's XP and coin are everyone's, every time. The 0.035 a row below was the shared roll before this. */
+        drops: ['dawn_sword', 'dawn_warhammer', 'duskwood_bow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex', 'dawn_hatchets', 'duskwood_crossbow',
+          'dawn_platebody', 'dawnhide_body', 'duskweave_body', 'dawn_helm', 'dawnhide_helmet', 'duskweave_helmet'].map((id) => ({ id, ch: 0.4 / 14, band: 'rare' })),
         /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
            the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row
            won in 70 s, the bad bar too. At 7,000 HP, atk 205, enrage x1.25 and the spells below: the good bar 95%, the bad bar 30%, the good

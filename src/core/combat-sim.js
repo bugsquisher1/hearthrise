@@ -401,8 +401,9 @@ export function simulateHuntInstance(inst, ctx) {
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
+      /* A KEYED HALL'S BOSS pays his rows as the hall's DAILY PRIZE (boss-halls.js; hunt-rewards.js payPrize): the room names him. */
       const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
-        ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
+        ...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
       /* THE ROOM'S BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
       if (room && r.events.some((e) => e.type === 'kill' && kinds[e.t] === room.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
       for (const f of deaths) {

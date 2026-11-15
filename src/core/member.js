@@ -334,6 +334,10 @@ export function memberSide(mi, ctx) {
         const v = r && Object.prototype.hasOwnProperty.call(r, kind) ? Number(r[kind]) : NaN;
         return Number.isFinite(v) ? Math.min(RELIC_MULT_MAX, Math.max(1, v)) : 1;
       },
+      /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js): the server's own read says this hero has today's still to take
+         (hr_hunt_instance_read `prize_left`: no hr_boss_loot_day row for today). Anything but an explicit true rolls nothing: the
+         browser's prediction, an older server, any other ground. hunt-rewards.js payPrize reads it and clears it once rolled. */
+      prizeLeft: mi.prizeLeft === true,
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, tier: h.tier || null, lead: h.lead === true,

@@ -87,3 +87,27 @@ export function rollDropTable(drops, mods, rng) {
   }
   return { dropped, events };
 }
+
+/** A prize table's whole roll: the sum of its rows' slices (src/data/boss-halls.js: at most 1; the generator refuses more). */
+export function prizeChance(rows) {
+  let sum = 0;
+  for (const d of Array.isArray(rows) ? rows : []) sum += Math.max(0, Number(d && d.ch) || 0);
+  return sum;
+}
+
+/**
+ * A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js): ONE roll over the boss's rows. Each row's `ch` is its SLICE of that one roll, so
+ * the rows are exclusive (a hero takes one piece or none) and no multiplier moves them: what a row says is what a hero's roll is.
+ * ALWAYS ONE DRAW, whatever lands, so the seeded stream after it never depends on the table.
+ *
+ * @returns the row's event { type: 'drop', id, band, rare }, or null when the roll lands past the last slice
+ */
+export function rollPrize(rows, rng) {
+  const u = rng.next();
+  let edge = 0;
+  for (const d of Array.isArray(rows) ? rows : []) {
+    edge += Math.max(0, Number(d && d.ch) || 0);
+    if (u < edge) { const band = bandOf(d); return { type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) }; }
+  }
+  return null;
+}

@@ -39,6 +39,8 @@ import { ownCount } from './rune-supply.js?v=0.2.131';
 import { shortOf } from './item-lore.js?v=0.2.131';
 import { whole, gold } from '../render/format.js?v=0.2.131';
 import { t } from '../render/player-text.js?v=0.2.131';
+import { BAG_GUIDE_BY_HUNT } from '../data/supplies.js?v=0.2.131';
+import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.131';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -317,6 +319,8 @@ export function beforeLines(cs, o) {
     const said = supplyWords(s, cs, carriedOf(cs) || []);
     out.push(...said.lines);
     paysStore = said.paysStore;
+    const weak = weakFoodLine(s, o && o.hunt);
+    if (weak) out.push(weak);
   }
   const tally = tallyElsewhere(cs, o && o.hunt);
   if (tally) out.push(tally);
@@ -336,6 +340,27 @@ export function beforeLines(cs, o) {
   const bless = blessingWords(blessingsOf(cs));
   if (bless) out.push({ id: 'blessings', text: bless, short: false });
   return out;
+}
+
+/* STORE FOOD TOO WEAK FOR THE GROUND (designer 2026-11-14, lane/d-march-balance). The start bar's store slot is Salted Shrimp, and a slot
+   names one item until the player changes it (Tyler 2026-10-21), so a hero who never touched it walked into the Muster Barrows on 72 HP
+   heals and died 2 of 2 under "Safe at your level". A ground whose blows outrun a weak store food names the weakest one measured safe for
+   a lone hero (its pack's bagGuide.storeFloor, supplies.js BAG_GUIDE_BY_HUNT); a bar whose best store food heals less is told the fix, and
+   the page drops "Safe at your level" (hunts.js). A ground that names none says nothing: the start bar is measured safe there. A heads-up,
+   never a stop. { id, text, short } or null. */
+export const FOOD_WEAK_ID = 'food_weak';
+function weakFoodLine(s, hunt) {
+  const g = hunt && Object.prototype.hasOwnProperty.call(BAG_GUIDE_BY_HUNT, hunt) ? BAG_GUIDE_BY_HUNT[hunt] : null;
+  const want = g && g.storeFloor ? BASIC_SUPPLIES.find((b) => b.kind === 'heal' && b.id === g.storeFloor) : null;
+  if (!want) return null;
+  let best = null;
+  for (const sl of s.slots) {
+    if (!sl || sl.empty || sl.enabled === false || sl.why === 'store_off' || !sl.action || sl.action.type !== 'consume') continue;
+    const c = CONSUMABLES[sl.action.id];
+    if (c && c.kind === 'food' && c.source === 'store' && (!best || c.amount > best.amount)) best = c;
+  }
+  if (!best || best.amount >= want.heals) return null;
+  return { id: FOOD_WEAK_ID, text: t('prep.food_weak', { food: storeName(best.id), want: storeName(want.id) }), short: true };
 }
 
 /* WHAT A DEATH WOULD COST, said before the risk is taken: the Blessings on, or the next one and its price. A heads-up, never a stop. All the server's. */

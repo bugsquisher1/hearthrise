@@ -195,7 +195,12 @@ export default definePack({
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the March's store food and drink, and Chalked Fire Runes (the unburned dead
      take 15% more fire). */
-  bagGuide: { tier: 4,
+  /* `storeFloor` (lane/d-march-balance 2026-11-14): the weakest store food a lone hero is safe on here, measured, and Before you go says so
+     to a bar under it (src/shell/hunt-go.js weakFoodLine). A Level 55 tank in tier 4 on the real settle, 12 h each: Salted Lobster 0
+     deaths, Salted Trout 1, Salted Shrimp after 100 Cooked Lobster 12 (the hand play died 2 of 2 on the start bar's Salted Shrimp). The
+     Barrow Knights are the first blows in the March that outrun the start bar: on the Ford, the Slake, the Pyre Field and the Hold a lone
+     tank at the floor on Salted Shrimp alone died 0 times in 8 h each, so no other ground names one. */
+  bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },

@@ -97,7 +97,7 @@ async function checks(overrides) {
           return { det, ctx, vv, read, h };
         };
         const leader = { id: 'p', isLeader: true, seats: [{ seat: 0 }, { seat: 1 }] }, member = { id: 'p', isLeader: false, seats: [{ seat: 0 }, { seat: 1 }] };
-        const panes = { none: pane(0).read(), one: pane(1).read(), two: pane(2).read(), member: pane(1, { party: member }).read(), hunting: pane(1, { now: { huntId: 'x' } }).read(),
+        const panes = { none: pane(0).read(), one: pane(1).read(), two: pane(2).read(), member: pane(1, { party: member }).read(), memberNone: pane(0, { party: member }).read(), hunting: pane(1, { now: { huntId: 'x' } }).read(),
           noHall: pane(1, {}, null).read(), leader: pane(1, { party: leader }).read() };
         /* the press: the first opens the warning and sends nothing; the confirm sends one */
         const p = pane(1);
@@ -130,10 +130,13 @@ async function checks(overrides) {
     if (b.capEarly.add !== null) fails.push('BH-4 a named add shows before the wave: ' + b.capEarly.add);
     /* BH-1 */
     const pn = r.panes;
-    if (pn.none.hidden || !pn.none.off || pn.none.line !== 'You don\'t have a Goblin Totem.') fails.push('BH-1 with no key the pane reads ' + JSON.stringify(pn.none));
+    /* where a key comes from: the monster whose drops name it (designer 2026-11-14, lane/d-march-balance) */
+    if (pn.none.hidden || !pn.none.off || pn.none.line !== 'You don\'t have a Goblin Totem. The Goblin drops them now and then.') fails.push('BH-1 with no key the pane reads ' + JSON.stringify(pn.none));
     if (pn.one.off || pn.one.line !== 'You have 1 Goblin Totem.' || !/^Open /.test(pn.one.press)) fails.push('BH-1 with a key the pane reads ' + JSON.stringify(pn.one));
     if (pn.two.off || pn.two.line !== 'You have 2 keys.') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
-    if (!pn.member.off || pn.member.line !== 'Only your party\'s leader can open it.') fails.push('BH-1 a member reads ' + JSON.stringify(pn.member));
+    /* a member holding a key is told plainly it must go to the leader (the hand play 2026-11-14: a key dropped to seat 2) */
+    if (!pn.member.off || pn.member.line !== 'You have a Goblin Totem, but only your party\'s leader can open the hall. Give it to them first. Your own heroes can pass it through Storage.') fails.push('BH-1 a member with a key reads ' + JSON.stringify(pn.member));
+    if (!pn.memberNone.off || pn.memberNone.line !== 'Only your party\'s leader can open it.') fails.push('BH-1 a member with no key reads ' + JSON.stringify(pn.memberNone));
     if (!pn.hunting.off || !/^Not while you're hunting/.test(pn.hunting.line)) fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
     if (pn.leader.off) fails.push('BH-1 a party\'s leader with a key is off');
     if (!pn.noHall.hidden) fails.push('BH-1 a ground with no hall shows the section');
@@ -163,6 +166,8 @@ const MUTANTS = [
   { name: 'the press is on with no key', file: 'src/shell/windows/boss-hall-pane.js', from: 'const open = keys > 0 && !v.now && !v.pending && !member;', to: 'const open = !v.now && !v.pending && !member;', want: /BH-1/ },
   { name: 'a member may press', file: 'src/shell/windows/boss-hall-pane.js', from: 'const member = !!v.party && !v.party.isLeader;', to: 'const member = false;', want: /BH-1/ },
   { name: 'the first press opens the hall', file: 'src/shell/windows/boss-hall-pane.js', from: "if (action === 'hall-warn') { sc.warned = true; repaint(); return true; }", to: "if (action === 'hall-warn') { run(() => openHall(ctx.account, cs, sc.hall.id), '', () => ''); return true; }", want: /BH-2/ },
+  { name: 'the page never says where a key comes from', file: 'src/data/boss-halls.js', from: "none: 'You don\\'t have a {key}.{source}'", to: "none: 'You don\\'t have a {key}.'", want: /BH-1/ },
+  { name: 'a member holding a key is not told to give it to the leader', file: 'src/shell/windows/boss-hall-pane.js', from: '(keys > 0 ? W.memberKey : W.refused.hall_leader)', to: 'W.refused.hall_leader', want: /BH-1/ },
   { name: 'a party is told it walks in alone', file: 'src/shell/windows/boss-hall-pane.js', from: "prop(a, 'hidden', !alone);", to: "prop(a, 'hidden', false);", want: /BH-2|BH-1/ },
 ];
 

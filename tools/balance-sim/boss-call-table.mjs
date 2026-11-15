@@ -45,6 +45,12 @@ const await_hunts = await import(u('src/data/hunts.js'));
 const ENGINE_MONSTERS = (await import(u('src/data/monsters.js') + v)).MONSTERS;
 const COND = await import(u('src/core/hunt/conditions.js') + v);
 
+/* A KEYED HALL IS FITTED IN THE GEAR ITS KEY HOLDER WEARS (designer 2026-11-14, lane/d-march-balance). Its ground is staged until the
+   region ships, and so are the grounds that drop that region's gear, so the open-ground ladder dressed the Level 98 party at Krell's
+   Hall in tier 3 steel: he was fitted to the ship bar in gear nobody who holds his key wears, and in the Hold's own tier 6 he was a
+   two-minute fight the hand play won 5 of 5. A hall plays every staged ground as open (gear.mjs openAlso), the ladder it ships on. */
+const STAGED = Object.keys(G.HUNT_GROUNDS).filter((g) => !Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g));
+const gearOpts = (call) => (call.hall ? { openAlso: STAGED } : {});
 const secretOf = (seed) => {
   let h = 2166136261 >>> 0;
   for (const c of 'bosscall:' + seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
@@ -143,7 +149,7 @@ const inRoom = (k) => /_called$/.test(k) || (!!ROOM_KINDS && ROOM_KINDS.has(k));
 /** One try: { how: 'felled' | 'death' | 'time' | 'other', ms, deaths, store, hpMinPct }. */
 function tryOnce(call, c, seed) {
   const ground = groundOf(call);
-  const kits = c.party.map((s, i) => (c.gear ? c.gear(s, c.level, i) : gear.kitOf(s, c.level)));
+  const kits = c.party.map((s, i) => (c.gear ? c.gear(s, c.level, i, gearOpts(call)) : gear.kitOf(s, c.level, gearOpts(call))));
   const roles = c.party.map((s) => STYLES[s].role);
   const named = c.bar ? BARS[c.bar] : null;
   const bar = (role, seat) => (named
@@ -227,7 +233,7 @@ function cell(call, c, seeds) {
 }
 
 /* THE CELLS: who walks in, and with what. `gear` absent = the style's best at its Level (gear.mjs); `starter` = the bar a hero who never touched it plays. */
-const under = (off) => (s, L) => gear.kitOf(s, L, { tierOffset: off, only: 'all' });
+const under = (off) => (s, L, i, o) => gear.kitOf(s, L, { ...(o || {}), tierOffset: off, only: 'all' });
 const shipRows = (L) => [
   ['Ship: good bar, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar: 'good' }],
   ['Ship: bar never touched, tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'] }],

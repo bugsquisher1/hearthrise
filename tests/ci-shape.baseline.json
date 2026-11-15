@@ -400,6 +400,8 @@
     "node tools/mutant-gate.mjs node tests/faction-ground-balance.mjs --mutate": "db-replay-12",
     "node tests/faction-standing-db.mjs": "db-replay-12",
     "node tools/mutant-gate.mjs node tests/faction-standing-db.mjs --mutate": "db-replay-12",
+    "node tools/gen-hunt-after.mjs --check": "db-replay-12",
+    "node tools/mutant-gate.mjs node tools/gen-hunt-after.mjs --selftest": "db-replay-12",
     "node tests/hunt-carry-race.mjs": "pg17",
     "node tools/mutant-gate.mjs node tests/hunt-carry-race.mjs --mutate": "pg17",
     "node tests/town-shows-race.mjs": "pg17",

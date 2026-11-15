@@ -376,7 +376,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         if (!(await wait(page, () => /Still hunting, with 5 h 0 min of stamina left\./.test(document.querySelector('.hw-alert-text')?.textContent || ''), null, 5000))) fails.push('HR-7 the card keeps the stamina it came up with: ' + JSON.stringify(await line()));
         if ((await line() || '').replace(/Still hunting.*$/, '') !== (first || '').replace(/Still hunting.*$/, '')) fails.push('HR-7 what happened while away changed: ' + JSON.stringify([first, await line()]));
-        /* the hunt ends: no line says it is still hunting; the summary is the notice now */
+        /* the hunt ends ten minutes into the visit (past the return's own settle, away-recap.js endedOnReturn): no line says it is still hunting; the summary is the notice now */
+        s.env.hunt_server_now_ms += 10 * 60000;
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: Object.assign({}, s.env.hunt.session, { end_reason: 'stamina', ended_at: new Date(s.env.hunt_server_now_ms).toISOString() }) });
         await pushEnvelope(page, s);
         if (!(await wait(page, () => !/While you were away/.test(Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' ')), null, 5000))) fails.push('HR-7 the hunt ended and the card still says: ' + JSON.stringify(await line()));
@@ -529,7 +530,7 @@ const MUTANTS = [
   ['the alerts ignore the windows in their row (HR-6)', 'src/shell/hud-room.js', "return panels.concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)'))).map(rel);", 'return panels.map(rel);'],
   ['the card with no room stays over the window (HR-6)', 'src/shell/hud-room.js', "alerts.classList.toggle('is-under-dock', left === null);", ''],
   ['the away card keeps the line it came up with (HR-7)', 'src/shell/alerts.js', 'const line = a.kind === \'away\' ? awayLineNow(cs, a) : a.text;', 'const line = a.text;'],
-  ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
+  ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended && !endedOnReturn(h, a))) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
   ['a hunt in view is judged as an absence (HR-9)', 'src/shell/alerts.js', 'if (judged && awaySettled(cs)) returning.delete(cs.slot);', ''],
   ['the desktop\'s room reaches the phone (HR-8)', 'src/shell/hud-room.js', 'if (phone) { if (!room.has(e)) room.set(e, null); continue; }', ''],
   ['the launcher row stays at the top of the page, over the banner (HR-10)', 'src/styles/app.css', '.client-page.has-new-version .app { position: relative; flex: 1;', '.client-page.has-new-version .app { flex: 1;'],

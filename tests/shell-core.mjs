@@ -843,6 +843,12 @@ async function runTests(mods) {
     const up = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000));
     ok(AR.awayLineNow(withStamina(env(T0 + H2), 2 * 3600000), up) === up.said + ' Still hunting, with 2 h 0 min of stamina left.', 'the stamina is the record\'s now');
     ok(AR.awayLineNow(env(T0 + H2, true), up) === null && AR.awayLineNow(env(T0 + H2, false, 's-2'), up) === null, 'the hunt over, or another one open: the card goes');
+    /* AN END THAT IS PART OF THE RETURN KEEPS THE CARD (audit 2026-11-15 F9: stamina ran out as the player came back, the settle ended the hunt seconds after the card came up, and "Level 17 to 24" went with it):
+       dated by the server within two minutes of the card, the card stays, says the hunt ended and keeps what happened; dated later, the player watched it end and the card goes. */
+    const endedNow = (ms) => withStamina(env(T0 + H2 + ms, true), 0, new Date(T0 + H2 + ms).toISOString());
+    const settled = AR.awayLineNow(endedNow(27000), up);
+    ok(typeof settled === 'string' && settled.startsWith(up.said) && /The hunt has ended/.test(settled) && !/Still hunting/.test(settled), 'a hunt the settle ended 27 s after the return keeps its card and its numbers: ' + JSON.stringify(settled));
+    ok(AR.awayLineNow(endedNow(10 * MIN), up) === null, 'a hunt that ended ten minutes into the visit takes the card');
     const upEnded = AR.awayRecapOf(env(T0 + H2, true));
     ok(typeof AR.awayLineNow(env(T0 + H2, true), upEnded) === 'string', 'a card about a hunt that ended while away stays');
   });
@@ -1172,7 +1178,7 @@ const MUTANTS = [
   { test: 'R3e', file: 'src/session/residue.js', from: '  if (out.back && Number.isSafeInteger(v.backAt) && v.backAt >= 0) out.backAt = v.backAt;\n', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: '(leaving ? -1 : STAMP_EVERY_MS)' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;\n', to: '' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;', to: 'if (!h || h.sessionId !== a.session) return null;' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended && !endedOnReturn(h, a))) return null;', to: 'if (!h || h.sessionId !== a.session) return null;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: 'return paid > was.at && now - paid < SETTLED_WITHIN_MS;', to: 'return true;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "const still = !!goes && keyOf(goes) === was.s;", to: 'const still = true;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "if (!parts.length) return null;", to: '' },

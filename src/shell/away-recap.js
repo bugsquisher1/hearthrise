@@ -31,6 +31,9 @@
 // THE CARD NEVER OUTLIVES ITS LAST WORDS (friends' panel 2026-11-01: "Still hunting" in town, hours after the hunt ended). What
 // happened while away is history and stays as it came up. What the hunt is doing now is read from each new envelope (awayLineNow,
 // src/shell/alerts.js scan), and a hunt that ends with the card up takes the card: its summary or its own alert is the notice now.
+// EXCEPT AN END THAT IS PART OF THE RETURN (audit 2026-11-15 F9: 12 h of stamina, 12 h away; the first envelope still showed the hunt, the settle ended it seconds
+// later, and the card went with "Level 17 to 24", the best line of the return, twice in a row). A hunt whose end the server dates no later than RETURN_SETTLE_MS after
+// the card came up (both the server's clock) ended while the player was away or as they walked in: the card stays and says it ended, as a card raised after the end does.
 //
 // ONLY A RETURN IS JUDGED (src/shell/alerts.js): this page's first read of the hero, or its first after the page was left. A hunt on
 // screen past the stamp's age is being watched, not missed: it renews the stamp and says nothing.
@@ -66,6 +69,9 @@ export const FIRST_AWAY_MIN_MS = 3 * 60 * 1000;
 const NEW_HERO_BELOW = HUNT_INDEX.meadowbrook_thicket.band[0];
 /* How often the last-seen stamp is renewed while a hunt runs on screen, for a tab that dies with no goodbye. */
 export const STAMP_EVERY_MS = AWAY_MIN_MS;
+/* An end the server dates within this of the card coming up is the return's own (the settle catching up with a hunt that ran out while away), not one the player watched. */
+const RETURN_SETTLE_MS = 2 * 60 * 1000;
+const endedOnReturn = (h, a) => Number.isFinite(h.endedAtMs) && Number.isFinite(a.cameAt) && h.endedAtMs <= a.cameAt + RETURN_SETTLE_MS;
 /* The most often leaving writes (one residue put per character): a page that flickers in and out of view is no absence. */
 export const LEAVE_EVERY_MS = 60 * 1000;
 
@@ -148,7 +154,7 @@ export function awayRecapOf(cs) {
   const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) : '');
   /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does) */
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
-    at: was.at, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
+    at: was.at, cameAt: now, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
@@ -176,12 +182,12 @@ function nowWords(cs, h, now) {
 
 /**
  * The away alert `a` (awayRecapOf's) as the record says it now, or null when it is over: another hunt is the character's now, or
- * the hunt was running when the card came up and has ended since. Pure.
+ * the hunt was running when the card came up and has ended since (past the return's own settle, endedOnReturn). Pure.
  */
 export function awayLineNow(cs, a) {
   const h = huntOf(cs);
   if (a.work) { const w = workStampOf(cs); return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text; }
-  if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;
+  if (!h || h.sessionId !== a.session || (h.ended && !a.ended && !endedOnReturn(h, a))) return null;
   const now = serverNowOf(cs);
   return Number.isFinite(now) ? (a.said + nowWords(cs, h, now)).trim() : a.text;
 }

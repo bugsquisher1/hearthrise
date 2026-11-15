@@ -29,7 +29,7 @@ export default Object.freeze({
   id: 'krells_hold',
   name: 'Krell\'s Hold',
   kind: 'hunt',
-  hunts: Object.freeze(['krells_hold']),
+  hunts: Object.freeze(['krells_hold', 'krells_hold_hall']),
   outdoor: true,
   light: 'day',
   ground: 'krells_hold_ground',

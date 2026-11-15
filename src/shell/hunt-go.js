@@ -113,8 +113,8 @@ function slotSupply(sl, s, carried) {
    without them is a fair choice, HP and mana come back between fights (designer 2026-10-29, Tyler's "0 food" report); food
    the bag carries but the bar does not name is said with the fix. A rune spell that cannot fire only loses that spell, and
    says which. Empty ammo leaves a hero that shoots unable to attack (shotLine's short line). */
-const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten, so HP comes back only between fights',
-  drink: 'Nothing will be drunk, so mana comes back only between fights' });
+const BARE_WORDS = Object.freeze({ food: 'HP returns only between fights',
+  drink: 'Mana returns only between fights' });
 /* The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
 const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
 
@@ -255,7 +255,7 @@ function tallyElsewhere(cs, hunt) {
   const tally = tallyOf(cs);
   const open = tally && hunt ? tally.held.filter((h) => !h.done) : [];
   if (!open.length || open.some((h) => h.hunt === hunt)) return null;
-  return { id: 'tally', text: 'Tamsin\'s tasks: nothing here counts toward them. ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
+  return { id: 'tally', text: 'No Tamsin tasks count here. ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
 }
 
 /**
@@ -295,7 +295,7 @@ export function supplyWords(s, cs, carried) {
     const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
     if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. ' + spare, short: false });
   }
-  if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
+  if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Food and drink: none (HP and mana return only between fights)', short: false });
   return { lines: out, paysStore };
 }
 
@@ -310,10 +310,10 @@ export function beforeLines(cs, o) {
   if (!s) return null;
   const out = [];
   let paysStore = false;
-  if (o && o.other) out.push({ id: 'other', text: 'Supplies: as ' + o.other + '’s own bar sets them. It shows here once that setup is on.', short: false });
+  if (o && o.other) out.push({ id: 'other', text: 'Supplies: set by ' + o.other + '’s bar (shown once it’s on)', short: false });
   else {
     const worn = equipmentOf(cs);
-    if (worn && !worn.weapon) out.push({ id: 'weapon', text: 'Weapon: none on, so your hero fights bare-handed. Put one on from your bag.', short: true });
+    if (worn && !worn.weapon) out.push({ id: 'weapon', text: 'Weapon: none (bare-handed, equip one from your bag)', short: true });
     const said = supplyWords(s, cs, carriedOf(cs) || []);
     out.push(...said.lines);
     paysStore = said.paysStore;
@@ -321,17 +321,17 @@ export function beforeLines(cs, o) {
   const tally = tallyElsewhere(cs, o && o.hunt);
   if (tally) out.push(tally);
   const st = staminaOf(cs);
-  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'No stamina left. Rest in town before you go.', short: true });
+  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'Stamina: none (rest in town first)', short: true });
   else if (st) {
     const m = Math.floor(st.msLeft / 60000);
     const left = (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min';
-    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? 'Stamina: ' + left + ' left, then the hunt ends.'
-      : 'Stamina: ' + left + '. Your hero hunts that long, even with the game closed, then comes home.', short: false });
+    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? 'Stamina: ' + left + ' left (then the hunt ends)'
+      : 'Stamina: ' + left + ' (hunts that long, even with the game closed)', short: false });
   }
   const gp = goldOf(cs);
   if (paysStore && gp !== null) {
-    out.push(gp > 0 ? { id: 'gold', text: 'Gold: ' + gold(gp) + ' pays the store as you use it.', short: false }
-      : { id: 'gold', text: 'No gold for the store, so the hunt ends when your own supplies run out.', short: true });
+    out.push(gp > 0 ? { id: 'gold', text: 'Gold: ' + gold(gp) + ' (pays the store as you go)', short: false }
+      : { id: 'gold', text: 'Gold: none (hunt ends when your supplies run out)', short: true });
   }
   const bless = blessingWords(blessingsOf(cs));
   if (bless) out.push({ id: 'blessings', text: bless, short: false });

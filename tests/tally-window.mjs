@@ -358,7 +358,7 @@ async function checks(overrides, shots) {
         /* TW-15 SHE GIVES IT ONCE (the mock lane 2026-11-11): the Adept Hat is on two rows, so her board says so, ONCE under it (the v0.2.130
            gate: the note sat under 5 of 6 rows). sharedPieces read pick.pick while tally-intents.js hands it over as pick.kind, so it never showed. */
         const once = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]');
-          return { notes: [...w.querySelectorAll('.ht-board-once')].filter((n) => n.getClientRects().length).map((n) => n.textContent), told: (w.textContent.match(/same piece/g) || []).length }; });
+          return { notes: [...w.querySelectorAll('.ht-board-once')].filter((n) => n.getClientRects().length).map((n) => n.textContent), told: (w.textContent.match(/Shared piece/g) || []).length }; });
         if (once.notes.length !== 1 || !/^Shared piece: paid once/.test(once.notes[0]) || once.told !== 1) fails.push('TW-15 the once note reads ' + JSON.stringify(once));
         // TW-2: the visit hands the done task in, once
         await idle(page);
@@ -398,7 +398,7 @@ async function checks(overrides, shots) {
         await press(page, W + '.ht-row[data-task="glade_poachers"] .ht-take', 'TW-4');
         await idle(page);
         const line = await txt(page, W + '.hh-intent-msg');
-        if (!/as many of her tasks as she gives at once/.test(line || '')) fails.push('TW-4 a refused take reads ' + JSON.stringify(line));
+        if (!/^Max tasks from Tamsin/.test(line || '')) fails.push('TW-4 a refused take reads ' + JSON.stringify(line));
       }
       await ctx.close();
     }

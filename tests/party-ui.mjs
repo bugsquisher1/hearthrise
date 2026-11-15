@@ -1448,7 +1448,7 @@ const PURE_MUTANTS = [
   ['a low-stamina warning outlives its hunt (PR-TRUTH)', 'src/shell/alerts.js', "const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);", 'const stale = a.kind === \'partywarn\' && !a.session && !!open;'],
   ['a warned ground stays up over the hunt it warned of (PR-TRUTH)', 'src/shell/alerts.js', "const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);", 'const stale = a.kind === \'partywarn\' && !!a.session && a.session !== open;'],
   ['the roster loses a seat\'s low stamina (PR-TRUTH)', 'src/shell/widgets/party-panel.js', 'seatMs: s.seatMs, staminaLowMs: s.staminaLowMs,', 'seatMs: s.seatMs,'],
-  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'You are on a hunt of your own. Leave it, and once you are back in town you can invite.' }),", ''],
+  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'On your own hunt. Leave it, then invite from town.' }),", ''],
   ['a hero sent home by a leave raises a plain end line', 'src/shell/alerts.js', "  else if (h.ended && h.endReason === 'party_member_left') out.push(", '  else if (false) out.push('],
   ['the summary says the hunt ended (no member, no hero)', 'src/hunt-view/summary-model.js', "  if (typeof by === 'string' && by && (reason === 'party_member_left'", "  if (false && (reason === 'party_member_left'"],
   ['the summary forgets who sent the hero home', 'src/hunt-view/summary-model.js', "    by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,", '    by: null,'],

@@ -133,7 +133,7 @@ async function checks(overrides) {
       else {
         if (errors.length) fails.push('HW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const head = (await txt(page, '.hw-house-name')) + ' / ' + (await txt(page, '.hw-house-note'));
-        if (!/Hearthside Homestead/.test(head) || !/all your characters/.test(head)
+        if (!/Hearthside Homestead/.test(head) || !/Shared house\./.test(head)
           || !/Gold: shared purse\. Materials: Tyler's bag, then Storage/.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
         // HW-2
         const deed = await lines(page, '.hw-deed');

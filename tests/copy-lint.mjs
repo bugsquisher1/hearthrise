@@ -293,6 +293,8 @@ export const PERSON_FIX = Object.freeze(Object.fromEntries([...PERSON_PHRASES.ma
    and any other row that must stay a sentence (a help line that teaches its window) carries `@sentence: <why>` in a comment over
    its block (rows up to the next blank line). Today's older rows are pinned in the voice baseline and only come off it. */
 export const LABEL_MAX_WORDS = 12;
+/* Every refusal a player can be answered with (src/shell/intent-words.js reads it) is a system line too. */
+export const LABEL_HOMES_RE = /[\\/]src[\\/]data[\\/]refusal-words\.js$/;
 export const SENTENCE_TABLES_RE = /[\\/]src[\\/]data[\\/]text[\\/](?:criers|coach|wiki)\.js$/;
 /** The words a reader reads in a row (a {placeholder} or § is one word; a lone dash or plus sign is none). */
 export function wordCount(text) {
@@ -596,7 +598,7 @@ export async function scan(root, opts = {}) {
       /* THE PERSON TEST: a pinned line (the voice baseline) is the debt the sweep pays down, anything else is red. */
       const person = prose(text) ? personRules(text, table) : [];
       /* THE LABELS: a long row outside lore (src/data/text/*, the controls' glossary aside: control-long reads it) */
-      if (table && prose(text) && !CONTROLS_TABLE_RE.test(f) && !SENTENCE_TABLES_RE.test(f) && longestLine(text) > LABEL_MAX_WORDS
+      if ((table || LABEL_HOMES_RE.test(f)) && prose(text) && !CONTROLS_TABLE_RE.test(f) && !SENTENCE_TABLES_RE.test(f) && longestLine(text) > LABEL_MAX_WORDS
         && !sentenceTagged(src, at)) person.push('label-long');
       /* THE CONTROLS: a controls.* row, a btn_/tab_/button_ row, or a static <button>/<summary> label in src/shell or src/app */
       const controls = [];
@@ -902,6 +904,7 @@ async function selftest() {
       ['the same row in the criers\' table (lore)', await labelHits(criersPlant, 'export const T = Object.freeze({ party_boss: ' + HASK + ' });\n'), 0],
       ['the same row under @sentence', await labelHits(tablePlant, 'export const T = Object.freeze({\n  /* her talk (@sentence: NPC talk is lore) */\n  a: ' + HASK + ',\n  b: ' + HASK + ',\n\n  c: ' + HASK + ',\n});\n'), 1],
       ['the same line outside the table', await labelHits(plant, 'export const a = ' + HASK + ';\n'), 0],
+      ['the same line as a refusal (src/data/refusal-words.js)', await labelHits(join(tmp, 'src', 'data', 'refusal-words.js'), 'export const W = { party_size: ' + HASK + ' };\n'), 1],
     ];
     for (const [what, got, want] of lr) {
       console.log(`  ${got === want ? (want ? 'caught' : 'ignored') : want ? 'MISSED' : 'FALSE-POSITIVE'}  label-long: ${what} (${got} of ${want})`);

@@ -375,7 +375,8 @@ export function mountShell(root, o) {
        camera keeps the hero in what is left. */
     const side = (r) => (r.left + r.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr');
     const shown = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? r : null; };
-    const card = shown(worldHud.querySelector('[data-hs-widget="hunt-topbar"]' + (phoneMq.matches ? '' : '.is-coach-docked') + ' > .hs-pointer:not(.is-min)'));
+    const bar = worldHud.querySelector('[data-hs-widget="hunt-topbar"]');
+    const card = bar && (phoneMq.matches || bar.classList.contains('is-coach-docked')) ? shown(bar.querySelector(':scope > .hs-pointer:not(.is-min)')) : null;
     if (card) widgets.push({ anchor: side(card), rect: rel(card) });
     const box = { width: b.width, height: b.height };
     const alert = alertToo && fightOn(opts) ? shown(screenHud.querySelector('[data-hs-widget="alerts"]:not(.is-under-dock) .hw-alerts:not(.is-empty) .hw-alert-list')) : null;

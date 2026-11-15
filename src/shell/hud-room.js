@@ -122,7 +122,6 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
   /* THE HUNT'S COACH CARD, DOCKED (see the header). --coach-x / --coach-y: the card's place from its host's corner (it is drawn inside the hunt
      bar's widget, hunt-topbar.js); --coach-h its room down to the bar. Reads no height of the card. */
   const coachHost = () => worldHud.querySelector('[data-hs-widget="hunt-topbar"]');
-  const put = (el, k, v) => { if (el.style.getPropertyValue(k) !== v) { if (v) el.style.setProperty(k, v); else el.style.removeProperty(k); } };
   function dockCoach() {
     const host = coachHost();
     if (!host) return;
@@ -144,9 +143,9 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
       if (floor - top >= COACH_MIN_ROOM) at = { x: Math.round(left - hb.left), y: Math.round(top - hb.top), h: Math.floor(floor - top) };
       else tight = true;
     }
-    put(host, '--coach-x', at ? at.x + 'px' : '');
-    put(host, '--coach-y', at ? at.y + 'px' : '');
-    put(host, '--coach-h', at ? at.h + 'px' : '');
+    const was = [host.style.getPropertyValue('--coach-x'), host.style.getPropertyValue('--coach-y'), host.style.getPropertyValue('--coach-h')].join();
+    if (!at) { if (was !== ',,') for (const k of ['--coach-x', '--coach-y', '--coach-h']) host.style.removeProperty(k); }
+    else if (was !== [at.x + 'px', at.y + 'px', at.h + 'px'].join()) { host.style.setProperty('--coach-x', at.x + 'px'); host.style.setProperty('--coach-y', at.y + 'px'); host.style.setProperty('--coach-h', at.h + 'px'); }
     host.classList.toggle('is-coach-docked', !!at);
     host.classList.toggle('is-coach-tight', tight);
   }

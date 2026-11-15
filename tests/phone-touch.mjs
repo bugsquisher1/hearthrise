@@ -1864,7 +1864,7 @@ const MUTANTS = [
   ['PH-9 Buy stays on while the refill is in flight', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', !!why);"],
   ['PH-9 the stamina panel is wider than a phone', 'src/styles/hunt.css', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px;', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 900px;'],
   ['PH-10 the phone card hangs at the hunt bar\'s left end, over the hero', 'src/styles/shell.css', '  .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }\n', ''],
-  ['PH-10 the camera frames the fight under the card', 'src/shell/shell.js', '    const card = phoneMq.matches && worldHud', '    const card = false && worldHud'],
+  ['PH-10 the camera frames the fight under the card', 'src/shell/shell.js', '    if (card) widgets.push({ anchor: side(card), rect: rel(card) });\n', ''],
   ['PH-11 the icon row keeps its 44 px at 667, over the strip\'s word', 'src/styles/shell.css', '  .hs-launchers { padding-left: 4px; max-width: calc(100vw - 60px); }', '  .hs-launchers { padding-left: 4px; }'],
   ['PH-11 the tabs squash to a sliver', 'src/styles/app.css', '  @container char-strip (max-width: 150px) { .char-tabs { display: none; } }\n', '  .char-tab { min-width: 0; width: 12px; padding: 0; }\n'],
   ['PH-11 the three words stay in the strip', 'src/styles/app.css', '  .char-tool:not(.is-all), .char-tool-wide { display: none; }', '  .char-tool-wide { display: none; }'],

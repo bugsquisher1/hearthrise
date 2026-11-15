@@ -23,7 +23,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat', 'hall_grave_guard', null, null, 182, false, 92),
   ('combat', 'hall_hask', null, null, 700, true, 100),
   ('combat', 'hasks_lookout', null, null, 109, false, 88),
-  ('combat', 'lord_krell', null, null, 14000, true, 110),
+  ('combat', 'lord_krell', null, null, 18000, true, 110),
   ('combat', 'pyre_priest', null, null, 157, false, 95)
 on conflict (kind, activity_id) do update set req_skill = excluded.req_skill, req_lv = excluded.req_lv, max_hp = excluded.max_hp, is_boss = excluded.is_boss, level = excluded.level;
 insert into public.hr_hunts (hunt_id, band_min, band_max) values
@@ -58,7 +58,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('hall_grave_guard', 115, 2246, '{}'::jsonb),
   ('hall_hask', 166, 4132, '{}'::jsonb),
   ('hasks_lookout', 69, 1430, '{"bones":1,"iron_bar":1,"lookouts_whistle":1,"ember_helm":1,"dragonhide_helmet":1,"archmage_helmet":1,"runewood_bow":1,"ember_gauntlets":1,"dragonhide_gloves":1,"archmage_gloves":1}'::jsonb),
-  ('lord_krell', 753, 42720, '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb),
+  ('lord_krell', 753, 48720, '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb),
   ('pyre_priest', 99, 1803, '{"bones":1,"coal":1,"priests_cord":1,"runewood_staff":1,"runewood_wand":1,"runewood_codex":1}'::jsonb)
 on conflict (monster_id) do update set gold_max = excluded.gold_max, xp_max = excluded.xp_max, drops = excluded.drops;
 insert into public.hr_hunt_roster (monster_id) values
@@ -113,7 +113,7 @@ begin
     or (kind = 'combat' and activity_id = 'hall_grave_guard' and req_skill is null and req_lv is null and max_hp = 182 and is_boss = false and level = 92)
     or (kind = 'combat' and activity_id = 'hall_hask' and req_skill is null and req_lv is null and max_hp = 700 and is_boss = true and level = 100)
     or (kind = 'combat' and activity_id = 'hasks_lookout' and req_skill is null and req_lv is null and max_hp = 109 and is_boss = false and level = 88)
-    or (kind = 'combat' and activity_id = 'lord_krell' and req_skill is null and req_lv is null and max_hp = 14000 and is_boss = true and level = 110)
+    or (kind = 'combat' and activity_id = 'lord_krell' and req_skill is null and req_lv is null and max_hp = 18000 and is_boss = true and level = 110)
     or (kind = 'combat' and activity_id = 'pyre_priest' and req_skill is null and req_lv is null and max_hp = 157 and is_boss = false and level = 95);
   if v_n <> 8 then raise exception 'pack krells_hold: hr_activities holds % of its 8 rows as written', v_n; end if;
   select count(*) into v_n from public.hr_hunts where (hunt_id = 'krells_hold' and band_min = 85 and band_max = 110)
@@ -143,7 +143,7 @@ begin
     or (monster_id = 'hall_grave_guard' and gold_max = 115 and xp_max = 2246 and drops = '{}'::jsonb)
     or (monster_id = 'hall_hask' and gold_max = 166 and xp_max = 4132 and drops = '{}'::jsonb)
     or (monster_id = 'hasks_lookout' and gold_max = 69 and xp_max = 1430 and drops = '{"bones":1,"iron_bar":1,"lookouts_whistle":1,"ember_helm":1,"dragonhide_helmet":1,"archmage_helmet":1,"runewood_bow":1,"ember_gauntlets":1,"dragonhide_gloves":1,"archmage_gloves":1}'::jsonb)
-    or (monster_id = 'lord_krell' and gold_max = 753 and xp_max = 42720 and drops = '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb)
+    or (monster_id = 'lord_krell' and gold_max = 753 and xp_max = 48720 and drops = '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb)
     or (monster_id = 'pyre_priest' and gold_max = 99 and xp_max = 1803 and drops = '{"bones":1,"coal":1,"priests_cord":1,"runewood_staff":1,"runewood_wand":1,"runewood_codex":1}'::jsonb);
   if v_n <> 8 then raise exception 'pack krells_hold: hr_hunt_kill_bounds holds % of its 8 rows as written', v_n; end if;
   select count(*) into v_n from public.hr_hunt_roster where (monster_id = 'farmhand')

@@ -250,9 +250,9 @@ export function patchGround(det, ctx, r, o) {
   const note = det.querySelector('.hw-hunt-party');
   /* ...and what the ground is measured to ask for (designer 2026-11-15, the audit's F14: the Barrows said nothing of a healer). The
      server's Level, the worn weapon's discipline and the party's roles; a Healer, or a party with one, is told nothing. */
-  const cs = ctx.character, set = settingsOf(cs) || {};
-  const healed = set.role === 'healer' || ((partyOf(cs) || {}).members || []).some((m) => m.role === 'healer');
-  const said = [partyNote(r.hunt), healerNote(r.hunt, heroVitalsOf(cs).level, set.discipline || null, healed)].filter(Boolean).join(' ');
+  const cs = ctx.character, set = settingsOf(cs), crew = partyOf(cs);
+  const healed = (!!set && set.role === 'healer') || (!!crew && crew.members.some((m) => m.role === 'healer'));
+  const said = [partyNote(r.hunt), healerNote(r.hunt, heroVitalsOf(cs).level, (set && set.discipline) || null, healed)].filter(Boolean).join(' ');
   text(note, said);
   prop(note, 'hidden', !said);
   /* This hero's bests here (the server's hunt_bests): a line per mode it has, else one "No best here yet". */

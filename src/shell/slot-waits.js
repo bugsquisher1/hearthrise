@@ -109,7 +109,7 @@ export function whyFacts(cs) {
     /* the ground this hero hunts now, its Level and its full HP: what a weak store food is judged against (weakFood) */
     ground: hero ? h.huntId : null, level: hero ? heroVitalsOf(cs).level : null, hpMax: hero ? heroVitalsOf(cs).hpMax : null,
     /* a Healer on the bar or in the party: the store-food floors are a lone hero's (supplies.js storeFloorFor) */
-    healed: (settingsOf(cs) || {}).role === 'healer' || ((p || {}).members || []).some((m) => m.role === 'healer'),
+    healed: (!!settingsOf(cs) && settingsOf(cs).role === 'healer') || (!!p && p.members.some((m) => m.role === 'healer')),
     /* Does the hero hunt alone (an alone spell's gate)? The running prediction's own world when one runs (live-engine.js
        alone: the engine's aloneIn, so a party whose others went home reads alone, as the server does), else the server's party. */
     alone: hero && live && typeof live.alone === 'function' && live.alone(hero.unit) !== null ? live.alone(hero.unit) : !(p && p.members.length > 1),

@@ -367,7 +367,8 @@ export function weakFoodWords(home, s, hunt, level, hpMax, only) {
   const best = floor ? (only ? (healsOf(only) < healsOf(floor) ? only : null) : storeFoodUnder(s, floor)) : null;
   if (!best) return '';
   const vars = { food: storeName(best), want: storeName(floor), heal: whole(healsOf(best)), hp: hpMax > 0 ? whole(hpMax) : '' };
-  return t(home + (hpMax > 0 ? '.food_weak_hp' : '.food_weak'), vars);
+  if (home === 'bar') return hpMax > 0 ? t('bar.food_weak_hp', vars) : t('bar.food_weak', vars);
+  return hpMax > 0 ? t('prep.food_weak_hp', vars) : t('prep.food_weak', vars);
 }
 /* What one store food heals (supply-basics.js), 0 for anything else. */
 const healsOf = (id) => { const b = BASIC_SUPPLIES.find((x) => x.id === id); return b && b.kind === 'heal' ? b.heals : 0; };

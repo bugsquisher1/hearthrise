@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════════════════
 export const BOSS = 'hall_boss_fixture', NAMED = 'hall_captain_fixture', ADD = 'hall_guard_fixture';
 export const ROOM = 'millrace_sewer_hall', FROM = 'millrace_sewer', KEY = 'goblin_totem';
-export const FLARE = 'slag_rain', CONE = 'slag_toss', NAMED_SPELL = 'tail_lash';
+export const FLARE = 'squeal', CONE = 'slag_toss', NAMED_SPELL = 'tail_lash';   // the King's pulse (0.4x): the Chief's Slag Rain rose to 0.8x (lane/d-march-balance)
 
 export const ROWS = Object.freeze({
   [BOSS]: { name: 'Hall Boss', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,

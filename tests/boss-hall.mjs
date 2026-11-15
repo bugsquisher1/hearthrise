@@ -121,7 +121,7 @@ const ARMS = {
       ['a named add with a wave', { monsters: { [NAMED]: { ...ROWS[NAMED], phases: { addsPm: 500, enragePm: 400, enrageAtkPm: 1300 } } } }],
       ['a named add with a guard', { monsters: { [NAMED]: { ...ROWS[NAMED], phases: { enragePm: 400, enrageAtkPm: 1300, guardPm: 800 } } } }],
       ['a plain add with lines', { monsters: { [ADD]: { ...ROWS[ADD], phases: { enragePm: 400, enrageAtkPm: 1300 } } } }],
-      ['a hasted spell he does not cast', { monsters: { [BOSS]: { ...ROWS[BOSS], phases: { ...ROWS[BOSS].phases, hasten: { spell: 'squeal', cdPm: 500 } } } } }],
+      ['a hasted spell he does not cast', { monsters: { [BOSS]: { ...ROWS[BOSS], phases: { ...ROWS[BOSS].phases, hasten: { spell: 'slag_rain', cdPm: 500 } } } } }],
       ['a hasted spell that starts again before it lands', { monsters: { [BOSS]: { ...ROWS[BOSS], phases: { ...ROWS[BOSS].phases, hasten: { spell: FLARE, cdPm: 100 } } } } }],
       ['a hasten that speeds nothing', { monsters: { [BOSS]: { ...ROWS[BOSS], phases: { ...ROWS[BOSS].phases, hasten: { spell: FLARE, cdPm: 1000 } } } } }],
       ['a boss with no lines', { monsters: { [BOSS]: { ...ROWS[BOSS], phases: undefined } } }],

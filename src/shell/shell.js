@@ -367,12 +367,10 @@ export function mountShell(root, o) {
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: rel(r, left) });
     }
-    /* THE COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10; audit 2026-11-15 F1, F13): the phone's open card stands at the hunt bar's
-       right end (shell.css), the desktop's in the left column (hud-room.js dockCoach), and the camera frames the World beside it, as it does
-       beside a panel. An alert in a hunt is framed beside the same way (`alertToo`; heroAt asks without it, or the alert would be placed by its own
-       shadow): the phone's stands where the hero did; the desktop's slid past the panels and windows into the World (hud-room.js clearPlates), so it
-       covers the SIDE that costs the World less (anchor 'm.': a side, never the top strip hudInsetOf may trade a top-corner panel for), and the
-       camera keeps the hero in what is left. */
+    /* THE COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10; audit 2026-11-15 F1, F13): the phone's open card stands at the hunt bar's right end, the
+       desktop's in the left column (hud-room.js dockCoach), and the camera frames the World beside it, as beside a panel. An alert in a hunt is framed beside too
+       (`alertToo`: heroAt asks without it, or the alert would be placed by its own shadow): the phone's by its half; the desktop's, slid into the World (hud-room.js
+       clearPlates), covers the SIDE that costs the World less (anchor 'm.': never the top strip hudInsetOf may trade a top-corner panel for). */
     const side = (r) => (r.left + r.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr');
     const shown = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? r : null; };
     const bar = worldHud.querySelector('[data-hs-widget="hunt-topbar"]');

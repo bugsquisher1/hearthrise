@@ -6,15 +6,15 @@
 // stays off with no key, while the hero hunts and for a party's member; the server decides the rest (hr_boss_hall_enter) and its refusal
 // keeps the key. hunts.js owns the window, its status line and the run of the press. A ground with no hall shows nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls } from '../../render/paint.js?v=0.2.131';
-import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.131';
-import { isGuarded } from '../../data/boss-calls.js?v=0.2.131';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.131';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.131';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.131';
-import { bagOf } from '../../session/item-sections.js?v=0.2.131';
-import { openHall } from '../../session/boss-intents.js?v=0.2.131';
-import { itemName } from '../widgets/bits.js?v=0.2.131';
+import { text, prop, cls } from '../../render/paint.js?v=0.2.132';
+import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.132';
+import { isGuarded } from '../../data/boss-calls.js?v=0.2.132';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.132';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.132';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.132';
+import { bagOf } from '../../session/item-sections.js?v=0.2.132';
+import { openHall } from '../../session/boss-intents.js?v=0.2.132';
+import { itemName } from '../widgets/bits.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { hall: null, warned: false }; SCRATCH.set(cs, s); } return s; };

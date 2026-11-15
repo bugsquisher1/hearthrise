@@ -3389,3 +3389,13 @@ Lesson: check art/world-src for held generations before spending; 35 gens of idl
 Readability pass (same lane): [ring] added to world-assets (READABLE in art-budget.js, Barrow March kits only; selftest +4).
 Lesson: a 0.07-0.09 floor is a dead zone for the 3:1 ring (bright bodies wash out to tan, dark ones can't pass); pick dim or
 bright per ground first, then lift. A whole-ramp lift of 4-5 steps turns earth bodies to gingerbread: shade the floor instead.
+
+## 2026-11-15 lane/a-phone-bits-2 (the three v0.2.131 gate phone bugs, re-checked on main e11afdb10: none reproduce)
+All three were fixed by lane/a-phone-bits (d8f3f2e4b), shipped in v0.2.132, each with its rule: Refresh hangs from the tabs'
+foot (market.css, PH-23), only a RUNNING hunt hides the plate's name (hunt.css, DP-9), the Hunts dot is .hh-sep on the breakable
+space (format.js sepHtml, AW-25). Re-measured on the real play.html (local-world, Playwright, touch) at 922x423 and 667x375:
+Refresh overlaps no tab; no "·" starts or ends a line in the list or on any of the 11 grounds' pages; the plate behind the death
+popup reads "Last hunt: The Sewer". The mutants re-caught on main. No code change. Lessons: (1) run `git log -L` on the cited
+lines before reproducing: a brief written from a gate note can trail its fix by a release; (2) the "Last hunt" plate stands only
+in a death (a gold_out or left end walks the hero home and the bar leaves town), so death-popup.mjs's fixture is the quick repro;
+(3) a summary shot taken the moment its title appears catches the slide-in over the action bar: let the transition finish.

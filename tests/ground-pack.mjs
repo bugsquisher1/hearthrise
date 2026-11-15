@@ -19,9 +19,10 @@
 //   GP-7  (--fold) a new ground at a new band takes the formula's numbers from tools/pack.mjs propose --write, in its own file only
 //   GP-8  (--fold) a staged pack with a keyed hall rehearses its ship clean: its file holds the hall's own hr_boss_halls row
 //         (a table a pack may write, GP-4) and the room's hunt, and moves no schema or function body
-//   GP-6  THE ADDITIVE FILE EQUALS THE WHOLE ONE on a real PostgreSQL (the replayed chain, tests/schema-replay.mjs): the six
-//         planted packs' files applied in turn (twice: idempotent), then the whole files with all six folded: no row of a
-//         pack table moves. So a world move that folds the packs later re-states them, and packs commute.
+//   GP-6  THE ADDITIVE FILE EQUALS THE WHOLE ONE on a real PostgreSQL (the replayed chain, tests/schema-replay.mjs): the
+//         planted packs' files and every shipped, unfolded pack's own file applied in turn (twice: idempotent), then the whole
+//         files with all of them folded: no row of a pack table moves. So a world move that folds the packs later re-states
+//         them, and packs commute. (GP-5 plants the BASE grounds only: an open pack has no base path to compare.)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';

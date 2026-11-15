@@ -36,8 +36,83 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 4. **Krell's two unique pieces (spec; rows wait on icons, tests/pixel-icons).** Tollgate, tier 7 tank shield, worn from 88: guard 15 (the shield ladder's +2 a tier), plus 10% less fire damage (`resistPm: { ember: 100 }`, an existing field, no hook). "Krell had his toll house gate cut down into a shield. Every coin that crossed the ford went through it." Banded Legguards, tier 7 plate legs, Dawnsteel Platelegs' stats (defense 64) plus 3% less physical damage. HOOK NEEDED: `resistPm.physical` (elements.js resistProfile accepts PHYSICAL, damage.js landHit applies it when the blow has no element, under HERO_RESIST_PM's 40% cap). Proxy measured (Krell atk -3%, which credits the whole party, so an upper bound): at 88 the bad bar stays 25%, one gear tier behind 83 -> 98%. "Krell's smith made these from the Banded Company's armor. He left the bronze bands on so everyone would know whose they were." Both trade like any gear. Art: two icons, the shield on the hero's off hand, the legs as an outfit layer (bronze bands on dark plate).
 5. **Hall Key: any member's key should open it** (a key dropping to seat 2 means a hand move every key, the first principle). Handed to Systems: hr_boss_hall_enter takes the leader's key, else the first seat's that holds one. Until then the page says it plainly (BUILT): "You have a Hall Key, but only your party's leader can open the hall. Give it to them first. Your own heroes can pass it through Storage." and with none "You don't have a Hall Key. The Gatekeeper drops them now and then."
 6. **Mend the Dead fires and reads** ("Pyre Priest is casting Mend the Dead.", then "heals Grave Guard for N"). A lone hammer saw 10 casts an hour, a four 6; a lone tank 0, because the default pick kills the Priest first, the fight's right answer. KEEP. Backlog: if it should matter, stand the Priest behind his Guard.
-7. **Smaller.** Tank shields above tier 3 (none from 45 to 110): FIX, backlog, tiers 4-6 as March drops with icons (Tollgate is tier 7). Power Strike flat 7-13 (8 a cast at 85 against a swing's 15): FIX, backlog to a balance lane with a full re-grade (Power Strike, Precision Shot and Cleave onto `hitPm` like Turning Cut). 22 March imbuement items sell only: BACKLOG, imbuing is their promised use (catalogue-coherence VENDOR_TRASH). 2 Levels on one death at 85: the 6% rule working (6% of total XP is 1.55 Levels at 85, 1.89 at 98, 4.5 at 200). Lookout shots: BUILT ("Hask's Lookout shoots Tester for 30."). No XP an hour before a best: BACKLOG, show the grader's measured median for the hero's Level, never a formula.
+7. **Smaller.** Tank shields above tier 3 (none from 45 to 110): FIX, backlog, tiers 4-6 as March drops with icons (Tollgate is tier 7) BUILT as rows 2026-11-15 (the audit section below: three plain shields, guard 9 / 11 / 13). Power Strike flat 7-13 (8 a cast at 85 against a swing's 15): FIX, backlog to a balance lane with a full re-grade (Power Strike, Precision Shot and Cleave onto `hitPm` like Turning Cut). 22 March imbuement items sell only: BACKLOG, imbuing is their promised use (catalogue-coherence VENDOR_TRASH). 2 Levels on one death at 85: the 6% rule working (6% of total XP is 1.55 Levels at 85, 1.89 at 98, 4.5 at 200). Lookout shots: BUILT ("Hask's Lookout shoots Tester for 30."). No XP an hour before a best: BACKLOG, show the grader's measured median for the hero's Level, never a formula.
 
+### 2026-11-15 The audit's balance findings: F2, F5 (and F4), F8, F12 (designer, lane/d-audit-balance-1; the full-game playthrough audit, `origin/claude/qa-full-audit-9712be:tools/qa/audit-2026-11-15/findings.md`). MEASURED on the real settle (`tools/balance-sim/audit-table.mjs food | gold | shield`, `boss-call-table.mjs`). F2, F5 and F8 BUILT as data; F12 RULED, nothing built. **The three shields are data rows only: the items, recipes and hunt-sessions catalogues and four packs' drop rows are NOT regenerated here (they collide with set/v0.2.133), so nothing is served until that step**
+**F2 (Hive Wasp drops "spider silk"): BUILT.** Silk Thread reads "Fine thread wound off spider webs and the silk caps on a wasp nest. It goes into cloth, wand grips and bowstrings", and Dry Husk names the wasp beside the spider. The class is held: `tests/item-flavour-coverage.mjs` FLV-10 fails a line that names the creature a drop comes from while another creature on an open ground drops it too.
+
+**F5 (food has no stakes from Level 1 to 12 on Normal): RULED, the lessons move; Normal stays safe.** Normal at a ground's Level is near-zero risk by Tyler's 10-25 §3 and 11-06 rulings, so the fix is not harder monsters. Measured with the start bar as shipped (eat under 60%), 2 x 1 h a row, four ways to fight, meals an hour:
+
+| Where | In the Level's gear | In the practice kit, no armor |
+|---|---|---|
+| Mill Cellar, Normal, 1 and 3 | 0 | 0 |
+| Thicket, Normal, 5 / 8 / 12 | 0 to 0.5 | tank 31.5 / 22.5 / 4.5, hammer 22 / 11 / 1.5, bow and mage 0 to 5.5 |
+| Wickstead, Normal, 8 / 12 / 15 | 0 | 0 to 6.5 |
+| Thicket, Dangerous, 5 / 8 / 12 | tank 96 / 74.5 / 36, hammer 73 / 53 / 20.5, bow 63.5 / 53 / 31, mage 8.5 / 1 / 2 | 22 and 24 deaths in 2 h at 5 for a tank and a hammer |
+| Wickstead, Dangerous, 8 / 12 / 15 | tank 59.5 / 21 / 1, bow 71 / 44.5 / 11, mage 36 / 23.5 / 3 | tank 298 / 186 / 110 |
+
+So food has stakes in two places a new player really reaches: the Thicket before the hero wears armor, and the first Dangerous run, where a tank at 5 in full gear pays 1,434 g/h of Salted Shrimp out of 2,423 g/h earned for +6% XP. Nowhere else under 15. **The rule: a food lesson shows only to a hero who is spending food.** BUILT (`src/data/hunt-tutorial.js` `SPENDING_FOOD`): "Eat on time" and "Your own food first" wait for 6 meals in the hunt at 12 an hour or more (they came after 3 meals in a hunt of any length: the audit's 8 in two hours). The audit's hero on Normal in armor never sees them. A hero in the practice kit or on a first Dangerous run sees them within about ten minutes. The cards are not cut: Tyler's 10-25 ruling asks the tutorial to teach conditions on the real control, and this is the moment the control matters.
+**F4 with it: one visit sets both.** "Eat on time" told the player to lower their own food to 55% and so made the next card (the store food at 60% now ate first). The card now ends "Then set slot 4 (Salted Shrimp) to 55% too, so your own food eats first." Guards: `tests/hunt-core/sewer.mjs` first-hour-never-walls (three meals is not the lesson, 8 in 2 h is not, 6 in 10 min is) and tutorial-bar-chain (the card names the store slot; none named when there is none), 3 new mutants, 160 of 160 caught.
+**Not taken from the audit:** "Cooking's first goal should be mana". Reported only: a mage's bill at 5 to 15 is drinks and runes (630 to 1,360 g/h, 38 to 100 drinks an hour), so Turnip Juice from the farm is already the craft that pays a caster, and the farm card comes in the Cellar. Still open for the coach lane: a card that offers the first Dangerous run at about Level 8 (the Level 10 "How hard can you hunt?" card names the tiers but does not send anyone).
+
+**F8 (no shield from Level 30 to 110): BUILT as rows, three plain shields, guard +2 a tier as tiers 1 to 3 climb.** This re-rules item 7 of the 11-14 hand play ("tiers 4-6 as March drops") to drops and one forge. The special-attribute plan (11-15, `origin/lane/d-special-attributes`) already places the Bier Shield (tier 5, the Barrow Knight) and Krell's Tollgate (tier 7). Neither is placed again: the Runebound Shield is the plain piece the Bier Shield adds its 2% to (its `base`, which that plan left null), and tier 7 stays the Tollgate alone.
+
+| Shield (id) | Tier, worn from | Guard | Book | Where it comes from | Use |
+|---|---|---|---|---|---|
+| Mithril-Faced Shield (`mithril_faced_shield`) | 4, Level 45 | 9 | 1,100 | Rare 0.33% on the Slake's Color Sergeant, beside the Mage's spellbook. Forged at Smithing 45 from 4 Mithril Bars and 2 Maple Planks | worn |
+| Runebound Shield (`runebound_shield`) | 5, Level 60 | 11 | 3,750 | Rare 0.11% on the Muster's Barrow Pikeman and 0.08% on the Pyre Field's Charred Pikeman, beside their Scarce Rune Sword | worn |
+| Emberforged Tower Shield (`ember_tower_shield`) | 6, Level 75 | 13 | 9,750 | Rare 0.2% on the Pyre Field's Provost (with every tier-6 weapon) and 0.12% on the Hold's Grave Guard | worn |
+
+Rare and not Scarce because the Mage's off-hand is a Rare on the same grounds and a monster carries one Scarce weapon (`SLOT_LIMITS`). Every Rare still reads 13 to 18 h a piece at each floor (`tests/hunt-core/drop-tables.mjs`, green). No attack penalty: the heavy line (Kingsgrate, Steelgrate) ends at tier 3 and special attributes take its place. Icons by pixel script, 0 generations (`tools/world-art/march-shield-icons.mjs`; `tests/pixel-icons.mjs` `drawn` holds them). The Art Director may replace them.
+**What it does, measured (a lone tank, 2 h a row, the Coppercap Shield against the tier's own):**
+
+| Ground, Level | Monsters land | Damage taken an hour | Food bill g/h | Deaths |
+|---|---|---|---|---|
+| Hask's Ford 45 | 56.7% to 53% | 27,273 to 26,035 | 4,320 to 3,690 | 0 / 0 |
+| The Slake 58 | 41.1% to 35.2% | 23,629 to 20,428 | 450 to 180 | 0 / 0 |
+| Muster Barrows 60 | 28.6% to 20.8% | 34,593 to 26,043 | 17,370 to 12,060 | 0 / 0 |
+| Pyre Field 70 | 61.6% to 53.5% | 49,901 to 43,526 | 10,980 to 7,110 | 0 / 0 |
+| Pyre Field 78 | 43.8% to 32.5% | 32,344 to 24,255 | 630 to 90 | 0 / 0 |
+| Krell's Hold 85 | 65.9% to 54% | 57,036 to 49,101 | 13,230 to 9,810 | 0 / 0 |
+
+It is a food-bill upgrade worth 3,000 to 5,000 g/h where a tank eats, and it changes no death count and no XP. Krell's fit holds (Level 88, 40 tries a row, before to after): the door's bar 93 to 93, without Challenge 83 to 83, default moves 78 to 80, the bad bar with Challenge 35 to 40, the start bar 0 to 0.
+**Walk-through (each step from the steps before and real rows):**
+
+| Step | What the hero holds | Proof the step can be done |
+|---|---|---|
+| 1. Level 30, Coppercap Shield | Smithing 30 or a smith on the account | `forge_coppercap_shield`, on main |
+| 2. Level 45, forge the Mithril-Faced | Mithril Bars (`smelt_mithril`, Smithing 45, Mithril Rock at Mining 60) and Maple Planks (`saw_maple`, Crafting 45) | recipe `forge_mithril_faced_shield`, Smithing 45; inputs book 1,130 against 1,100 (style-gear SG-4 green) |
+| 3. Level 50 to 65, the Slake | nothing needed | the Slake is open, band 50 to 65; the Color Sergeant is its rare carrier |
+| 4. Level 60, the Runebound | nothing needed | Muster Barrows open, band 55 to 75; the Barrow Pikeman is its common body |
+| 5. Level 75, the Tower Shield | nothing needed | Pyre Field open, band 70 to 90 (Provost); Krell's Hold 85 to 110 (Grave Guard) |
+| 6. Level 88, Krell's Tollgate | a Hall Key | the special-attribute plan's row, not built here |
+
+A hero with no smith on the account waits for the Rare at tier 4 (about 15 h on the Slake). That is the same wait a Mage has for its wand and book. **The audit's second half, "Equip upgrades never names the Shop's Bronze-Rimmed Shield over the Practice Shield": HANDED to the shell lane** (the Back-in-town line should name a Shop gear row that beats what is worn in an empty or practice slot; `supply-basics.js` holds the row at 140 gp).
+
+**F12 (a million gold by Level 50 with little to spend it on): MEASURED and RULED. No new system.** One hero's life where the game sends it, every drop sold (`audit-table.mjs gold`):
+
+| Level | Tank: hours, gold banked | Mage: hours, gold banked |
+|---|---|---|
+| 20 | 32 h, 139k | 24 h, 134k |
+| 30 | 62 h, 386k | 46 h, 374k |
+| 40 | 119 h, 931k | 84 h, 895k |
+| 50 | 187 h, 1.57M | 128 h, 1.58M |
+| 60, 65, 74 (tank only) | 258 h 2.39M, 304 h 3.05M, 400 h 3.90M | |
+
+The audit's 1.01M after 150 hero-hours agrees. A hero nets 9,000 to 10,000 g/h from 25 to 45 and 11,000 to 15,000 on the Slake.
+1. **"Little to spend it on" is wrong as a count and right as a read.** One-time sinks open before 50, from the data rows: hero slots 300k / 750k / 1.5M; house rooms 1.27M for the first three rungs of eight rooms (5.37M for all five) plus materials; Tempering 558k a hero for tiers 2 and 3; the house dummy 1.4M; chests 122k; Storage rungs 141k for ten; setup slots 55k. That is about 3.9M counting only the first extra hero slot, against 1.57M earned by 50. The audit's hero had bought the slots and then was told nothing: the Back-in-town line names a hero slot, a deed and the first Tempering rung, and never a room rung, the dummy or a chest. **HANDED to the shell lane:** when the purse covers it, that line names the next room rung (it also ends that skill's bench tax) and then the dummy.
+2. **Training gear absorbs what is left, and it is enough.** A 12-hour item is 250,000, which is 26 hunted hours at the Glade. A hero that trains with an item in its 12 resting hours every day spends 250k a day against about 114k earned in its 12 hunted hours. It repeats, it has no cap, and a player who wants skill levels will always want it. The yard's own fee (50 + 6 a skill level, about 350 g/h at 50) is nothing beside it.
+3. **The Tower absorbs none.** It pays no coin and costs food and stamina, so an hour there is 9,000 to 15,000 g not earned. Its Salts make Tempering's gold easier to spend.
+4. **The one real hole is Tempering above tier 3.** Tempering is the sink that scales with Level ("gold is asked again at every tier", 11-05), and it has no rows for tiers 4 to 6, which the March has worn since v0.2.132. From 45 to 88 the only sink that grows with the hero is the stamina refill. **PROPOSED rows, not built** (they need one crafted salt a tier, icons, and the next-tier-wins measure in `tests/hunt-core/temper-play`):
+
+| Gear tier, Levels | Rungs 1 to 5, gold | A track | Both tracks | Tank's measured income in the band |
+|---|---|---|---|---|
+| 4, 45 to 60 | 8k / 16k / 32k / 64k / 128k | 248k | 496k | 1.04M |
+| 5, 60 to 75 | 12k / 24k / 48k / 96k / 192k | 372k | 744k | about 1.5M (60 to 74) |
+| 6, 75 to 88 | 16k / 32k / 64k / 128k / 256k | 496k | 992k | not measured |
+
+Tiers 2 and 3 take 40% and 45% of their band's income, and these take about half. Same 1% a rung and 5% a track, so the next tier still wins.
+5. **Reported, not graded (no profit molds):** a lone tank sent to the Pyre Field at 70 pays 11,000 to 20,000 g/h for food in the Coppercap Shield and nets -3,600 to +3,400 g/h in the career. The Runebound Shield takes about a third off that bill.
 ### 2026-11-14 Krell's Hold design pass (designer, lane/d-hold-pass, the v0.2.130 visual gate's opens): RULED, BUILT as data, MEASURED on the real settle (`tools/balance-sim/boss-call-table.mjs --hall krells_hold`, Level 98, 200 tries a row unless named). Still STAGED. No migration (no catalogue carries Krell's rows). The edge bundle moves (pack.js, boss-calls.js)
 
 | Open | Ruling | Evidence |

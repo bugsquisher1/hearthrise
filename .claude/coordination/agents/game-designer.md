@@ -898,3 +898,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-15 lane/d-audit-balance-1 (the playthrough audit's F2, F5, F8, F12)
+- "Nothing to spend gold on" is usually a reading finding. Sum the one-time sinks from the data rows before proposing one (3.9M open before Level 50 against 1.57M earned); then look for where the ladder that scales with Level stops (Tempering had no rows for the tiers the March wears).
+- A lesson card gated on a count fires on any long hunt. Gate it on a rate measured on the settle, with the line between the heroes it should miss (0 to 6.5 meals an hour) and the ones it is for (20 and up).
+- A card whose advice creates the next card's trigger is one card. Check each lesson's fix against the next lesson's `when`.
+- A new shield is a world move: hr_hunt_shields (gen-hunt-sessions) decides what the server treats as a shield, and tests/ground-pack.mjs reds on it as "not additive". Items + recipes + hunt-sessions + every pack whose drops changed all regenerate together.
+- The sim's tank picks the best reachable shield by itself (gear.mjs), so new shields re-dress every March measurement. Hold the old piece with `gear: { also: { shield } }` for the before row, and re-run the boss table from a scratch `git worktree` of the commit before.
+- This shell's heredocs eat one backslash level even when quoted: a script that writes `\'` must be made with the Write tool, or use sed with `.` for the quote.
+- `cd X && (A) & (B)` backgrounds the cd with A: B runs in the session's folder. Run two background jobs as two commands.

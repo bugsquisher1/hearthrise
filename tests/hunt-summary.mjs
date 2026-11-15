@@ -137,7 +137,7 @@ async function runTests(M) {
 
   await t('S1 every END_ORDER reason has a plain sentence', () => {
     eq(Object.keys(MD.END_WORDS), [...END_ORDER], 'END_WORDS covers END_ORDER, in order');
-    for (const r of END_ORDER) ok(/^[A-Z].*\.$/.test(MD.endWords(r)), r + ' is a sentence');
+    for (const r of END_ORDER) ok(/^[A-Z][^]*\S$/.test(MD.endWords(r)) && MD.endWords(r) !== 'Hunt ended', r + ' has its own words (a label, Tyler 2026-11-14)');
     ok(MD.endWords('nonsense') === 'Hunt ended', 'an unknown reason still reads');
     /* out of stamina: why, how it comes back, and what the hero has now (panel 2026-11-01: "Your stamina ran out." and nothing else) */
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + '. Stamina now: 5 h 46 min', 'the stamina end says what is rested');
@@ -223,7 +223,7 @@ async function runTests(M) {
     const plain = card(sess({ forfeit: false }));
     eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
     const left = card(sess({ end_reason: 'left' }));
-    ok(/^You left the hunt\. .*nothing from them was counted\.$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
+    ok(/^You left: .*nothing from them counted$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
   });

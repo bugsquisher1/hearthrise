@@ -795,6 +795,10 @@ const cases = {
       let stop = 60;
       while (stop - 5 >= 50 && M.tut.wasteAt(heal, stop, fixed.hpMax) > 0) stop -= 5;
       if (lost > 0 && !eat.text.includes('press − until it reads ' + stop + '%')) return set + ': the eat card does not stop at ' + stop + '%: ' + eat.text;
+      /* ONE CARD FOR BOTH FOOD SLOTS (audit 2026-11-15 F4: lowering only the own slot raised "Your own food first" at once, a second card over the same few HP): the kit's store food
+         eats at the same HP, so the card that lowers the own slot names the store slot and the same number */
+      const storeAt = T.slots.findIndex((s) => s.type === 'consume' && s.id === 'salted_shrimp');
+      if (lost > 0 && stop < 60 && storeAt >= 0 && !eat.text.includes('slot ' + (storeAt + 1) + ' (Salted Shrimp) to ' + stop + '% too')) return set + ': the eat card lowers the own food to ' + stop + '% and leaves the store food at 60% for a second card: ' + eat.text;
       /* REGRESSION ("Tell your hero when" never showed, PRIORITY_BOARD 2026-10-25 #2): any Save restates the whole bar, so the
          kit's own 60% food slot comes back STORED; that is not the player choosing when to eat. */
       const kitStored = { ...fixed, stored: T.slots.map((s) => ({ type: s.type, id: s.id, conditions: s.conditions })) };
@@ -976,6 +980,16 @@ const cases = {
     if ((M.tut.currentCard({ ...held, huntId: 'mosslight_glade' }) || {}).id === 'tamsin_pays') return 'hunting the Glade, the coach still says to hunt the Thicket';
     /* back below it (the Cellar), the card waits too: it is about the Thicket, never shown while hunting elsewhere */
     if ((M.tut.currentCard({ ...held, huntId: 'mill_cellar' }) || {}).id === 'tamsin_pays') return 'hunting the Cellar, the coach still says to hunt the Thicket';
+    /* THE COUNT IS THE SERVER'S (audit 2026-11-15 F3: "Hunt the Thicket until your 200 Gray Wolves are down" beside a tally reading 200/200): her row done, the card says what is left, in the hunt and in town */
+    const WOLVES = 'thicket_gray_wolves', RATS = 'cellar_giant_rats';
+    const down = { ...held, tally: tallyFact([[WOLVES, 200, true]], [RATS]) };
+    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt'], ['in town', { ...down, huntId: null }, 'Open Tamsin']]) {
+      /* in the Thicket it is the card up; in town another card may lead, so her card's words are read from its own row */
+      const step = facts.huntId ? M.tut.currentCard(facts) : M.tut.HUNT_TUTORIAL.find((s) => s.id === 'tamsin_pays'), c = step && Object.assign({ id: step.id }, M.tut.cardFor(step, facts));
+      if (!c || c.id !== 'tamsin_pays' || /until your/.test(c.text) || !c.text.includes('200 Gray Wolves') || !c.text.includes(next)) return 'her wolves counted, ' + where + ' the paid card reads ' + JSON.stringify(c && { id: c.id, text: c.text });
+    }
+    const left = { ...held, huntId: 'meadowbrook_thicket', tally: tallyFact([[WOLVES, 12]], [RATS]) };
+    if (!/until your 200 Gray Wolves are down/.test((M.tut.currentCard(left) && M.tut.cardFor(M.tut.currentCard(left), left).text) || '')) return 'CONTROL: with wolves left the paid card does not say to hunt on';
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
     if (!cash || /when you do/.test(cash.text) || !cash.text.includes('already in your bag')) return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);

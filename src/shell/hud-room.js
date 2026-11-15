@@ -130,12 +130,16 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
     let at = null, tight = false;
     if (card && !isPhone() && host.offsetWidth) {
       const rel = relTo(worldHud), hb = rel(host);
-      const col = worldEls().filter((e) => e !== host && e.offsetWidth && !hud.isMoved(idOf(e)) && hud.layoutOf(idOf(e)).anchor === 'tl' && !e.classList.contains('is-under-dock')).map(rel);
+      const inCol = (e) => !hud.isMoved(idOf(e)) && hud.layoutOf(idOf(e)).anchor === 'tl';
+      const shown = worldEls().filter((e) => e !== host && e.offsetWidth && !isBar(e) && !e.classList.contains('is-under-dock'));
+      const col = shown.filter(inCol).map(rel);
       const left = col.length ? Math.min(...col.map((q) => q.left)) : gap;
       const top = col.length ? Math.max(...col.map((q) => q.top + q.height)) + gap : hb.top;
       const bars = barsAtHome().filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left);
-      /* a window standing in the column is the card's floor (Chat opens there): the card never lies behind one */
-      const wins = Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)')).map(rel).filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left && q.top + q.height > top);
+      /* whatever else stands in the column is the card's floor: a window (Chat opens there), a panel the player moved there, the players-online line. The card never lies on or behind one. */
+      const online = screenHud.querySelector('[data-hs-widget="online"]:not(.is-under-dock)');
+      const wins = shown.filter((e) => !inCol(e)).concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)')), online && online.offsetWidth ? [online] : []).map(rel)
+        .filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left && q.top + q.height > top);
       const floor = Math.min(bars.length ? Math.min(...bars.map((q) => q.top)) : worldHud.clientHeight, ...wins.map((q) => q.top)) - gap;
       if (floor - top >= COACH_MIN_ROOM) at = { x: Math.round(left - hb.left), y: Math.round(top - hb.top), h: Math.floor(floor - top) };
       else tight = true;

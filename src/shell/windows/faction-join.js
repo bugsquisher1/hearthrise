@@ -78,7 +78,9 @@ renderFactionJoin.patch = function patchFactionJoin(body, ctx) {
       text(li.querySelector('cite'), face ? face.name : '');
       const b = li.querySelector('button');
       text(b, t('factions.join_press', { side: sideName(s) }));
-      prop(b, 'disabled', sc.pending || !f || !f.canJoin);
+      /* no offer (the server's section gone, or a side already joined): no Join press at all, never an off one with no reason */
+      prop(b, 'hidden', !f || !f.canJoin);
+      prop(b, 'disabled', sc.pending);
     },
   });
   const swapTerms = root.querySelector('.hfx-swap-terms');

@@ -83,14 +83,35 @@ export function pulseLines(p) {
      now). The week's rows are the ids between its first row (`id:age in s`, null = no row this week) and the newest: two index
      probes, where a count would walk a week of rows on every --watch (2026-11-15: 90,771 by ids, 90,535 counted). A ledger
      under a day old counts as one day. */
-  const led = n(p.ledgerBytes), keep = n(p.ledgerRetainDays), rowB = led / n(p.ledgerEstRows);
+  /* A row's weight: the newest rows' own bytes with the table's index share on top (ledgerRowBytes), when hunt-health read it.
+     The file over its rows is the same number only while the table is compact: the first fold deletes most of its rows and
+     PostgreSQL keeps the pages (they are reused, never handed back), so that ratio then reads several rows' weight as one. */
+  const led = n(p.ledgerBytes), keep = n(p.ledgerRetainDays), rowB = n(p.ledgerRowBytes) > 0 ? n(p.ledgerRowBytes) : led / n(p.ledgerEstRows);
   const [id0, ageS] = typeof p.ledgerWeekFirst === 'string' ? p.ledgerWeekFirst.split(':').map(Number) : [NaN, NaN];
   const perDay = p.ledgerWeekFirst === null ? 0 : (n(p.ledgerLastId) - id0 + 1) / Math.max(1, ageS / 86400);
-  const owed = Math.max(led, perDay * keep * rowB);
+  /* THE FOLD TIER (2027-04-27-ledger-fold.sql; ledgerDetailDays is hr_ledger_config.detail_days, null or absent = off). On, a
+     row keeps its detail for detail_days and most are then summed into player_ledger_windows, so the line is three parts:
+     detail_days of everything; the rows the fold does not take, for the rest (the ledger's rows past detail_days over the days
+     they span); and the windows at their own measured weight a day. Until the fold has a day of windows behind it there is
+     nothing to measure, and the line is the whole ledger's (an upper bound, said so). All of it from index probes. */
+  const detail = n(p.ledgerDetailDays), winB = n(p.windowBytes) || 0;
+  const foldOn = Number.isFinite(detail) && detail > 0 && detail < keep;
+  const winDays = Math.min(n(p.windowFirstAgeS) / 86400, keep) - detail;
+  const measured = foldOn && winDays >= 1 && Number.isFinite(n(p.ledgerFirstAgeS));
+  let owed = Math.max(led, perDay * keep * rowB), how = `${Math.round(perDay).toLocaleString('en-US')} rows/day this week x ${Math.round(rowB)} B`;
+  if (measured) {
+    const span = Math.max(1, Math.min(n(p.ledgerFirstAgeS) / 86400, keep) - detail);
+    const kept = Math.min(perDay, Math.max(0, (n(p.ledgerEstRows) - detail * perDay) / span));
+    /* each table is never under what its file weighs now: the ledger's file does not shrink when its rows are folded */
+    owed = Math.max(led, (detail * perDay + (keep - detail) * kept) * rowB) + Math.max(winB, (winB / winDays) * (keep - detail));
+    how += `; folded past ${detail} days: ${Math.round(kept).toLocaleString('en-US')} rows/day keep their detail, the windows weigh ${mb(winB / winDays)} a day`;
+  } else if (foldOn) how += `; the fold is on with under a day of windows to measure: an upper bound`;
   const hShare = owed / cap;
   out.push(`Horizon: ${!Number.isFinite(hShare) ? 'the ledger at its retention line unknown'
-    : `ledger ${mb(led)} now, ${(owed / 1e9).toFixed(1)} GB at the ${keep}-day line (${Math.round(perDay).toLocaleString('en-US')} rows/day this week x ${Math.round(rowB)} B), ${(hShare * 100).toFixed(0)} % of the disk`}`
-    + `${hShare > L.ledgerHorizonShareMax ? ` << JOURNAL HORIZON: the ledger alone is over ${L.ledgerHorizonShareMax * 100} % of the disk at its retention line. Fold the journal's rows or shorten retain_days` : ''}`);
+    : `ledger ${mb(led)}${winB ? ` + windows ${mb(winB)}` : ''} now, ${(owed / 1e9).toFixed(1)} GB at the ${keep}-day line (${how}), ${(hShare * 100).toFixed(0)} % of the disk`}`
+    + `${hShare > L.ledgerHorizonShareMax ? ` << JOURNAL HORIZON: the ledger alone is over ${L.ledgerHorizonShareMax * 100} % of the disk at its retention line. `
+      + (foldOn ? 'The fold is on: read node tools/ledger-fold.local.mjs for the rows it leaves as detail before shortening retain_days'
+        : 'Turn the fold tier on (2027-04-28-ledger-fold-arm.sql, after its dry run) or shorten retain_days') : ''}`);
   return out;
 }
 
@@ -134,6 +155,27 @@ function selftest() {
     ['a line just under half the disk stays quiet', { ledgerLastId: 887800 }, null],
     ['a week nobody played is not an alarm', { ledgerWeekFirst: null }, null],
     ['no horizon answer is not an alarm by itself', { ledgerWeekFirst: undefined, ledgerLastId: undefined }, null],
+    /* THE FOLD TIER ON (2027-04-27-ledger-fold.sql). Ten times the play, a month in: 146,000 rows a day, 3 days of them whole
+       (438,000) and 27 days of the 31,244 a day the fold does not take: 1,281,588 rows x 621 B; 114,756 folded rows a day
+       are about 6,750 windows, 6.1 MB a day. The line: 1.96 GB of ledger and 0.53 GB of windows, 31 % of the disk. */
+    ['ten times the play, the fold tier off: the advice is to turn it on', { ledgerLastId: 1419800 }, 'Turn the fold tier on'],
+    ['ten times the play, the fold on a month: a third of the disk, quiet', { ledgerLastId: 1419800, ledgerDetailDays: 3, ledgerEstRows: 1281588, ledgerBytes: 7.96e8,
+      ledgerFirstAgeS: 2592000, windowBytes: 1.64e8, windowFirstAgeS: 2592000 }, null],
+    ['today\'s play, the fold on a month', { ledgerDetailDays: 3, ledgerEstRows: 128159, ledgerBytes: 7.96e7, ledgerFirstAgeS: 2592000, windowBytes: 1.64e7, windowFirstAgeS: 2592000 }, null],
+    ['the fold on, but most rows keep their detail (120,000 a day the model does not take)', { ledgerLastId: 1419800, ledgerDetailDays: 3, ledgerEstRows: 3678000, ledgerBytes: 2.284e9,
+      ledgerFirstAgeS: 2592000, windowBytes: 3e7, windowFirstAgeS: 2592000 }, 'The fold is on'],
+    ['the fold on, its windows as heavy as the rows they replaced', { ledgerLastId: 1419800, ledgerDetailDays: 3, ledgerEstRows: 1281588, ledgerBytes: 7.96e8,
+      ledgerFirstAgeS: 2592000, windowBytes: 2.2e9, windowFirstAgeS: 2592000 }, 'JOURNAL HORIZON'],
+    ['the fold just turned on, no window a day old: the whole ledger\'s line, an upper bound', { ledgerLastId: 1419800, ledgerDetailDays: 3, ledgerFirstAgeS: 2592000,
+      windowBytes: 0, windowFirstAgeS: null }, 'The fold is on'],
+    /* The day after the first fold at ten times the play, 27 days in: the file is still its 2.5 GB, 1.19M rows are left in it
+       (2,100 B of file a row), and a row weighs 621 B. The line is the file plus 87 days of windows, 38 % of the disk. */
+    ['the day after the first fold: the file is mostly free pages, and a row is weighed by itself', { ledgerLastId: 1419800, ledgerDetailDays: 3, ledgerBytes: 2.5e9, ledgerEstRows: 1188000,
+      ledgerRowBytes: 621, ledgerFirstAgeS: 2332800, windowBytes: 1.46e8, windowFirstAgeS: 2332800 }, null],
+    ['the same day, weighed by the file over its rows: a false alarm, which is why hunt-health reads the row', { ledgerLastId: 1419800, ledgerDetailDays: 3, ledgerBytes: 2.5e9, ledgerEstRows: 1188000,
+      ledgerFirstAgeS: 2332800, windowBytes: 1.46e8, windowFirstAgeS: 2332800 }, 'JOURNAL HORIZON'],
+    ['the fold on over a ledger whose file is already past half the disk: folding its rows does not hand the pages back', { ledgerDetailDays: 3, ledgerBytes: 4.5e9, ledgerEstRows: 300000,
+      ledgerRowBytes: 621, ledgerFirstAgeS: 2592000, windowBytes: 1e7, windowFirstAgeS: 2592000 }, 'The fold is on'],
   ];
   let bad = 0;
   for (const [name, patch, want] of cases) {

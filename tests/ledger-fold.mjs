@@ -53,6 +53,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bootReplay, manifest, ROOT, LAST_PATCHED } from './schema-replay.mjs';
 import { journal, FOLD_STATE, foldLine, planSql, planLines, ledgerQuietWaitMin } from '../tools/lib/ledger-journal.mjs';
+import { pulseLines } from '../tools/lib/server-pulse.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -555,10 +556,24 @@ async function scenario(db, src, { real = true, quiet = false } = {}) {
   const st = (await db.query(FOLD_STATE)).rows[0];
   const lineNow = foldLine(st);
   const eightDays = shouldLeave.filter((r) => r.at >= new Date(Date.now() - 8 * 86400000 + 60000).toISOString()).length;
+  /* hunt-health's own read of the fold (lifted), into the Horizon line: the ledger at its retention line, the fold counted */
+  const pf = /\nconst PULSE_FOLD = `([\s\S]*?)`;\n/.exec(readFileSync(join(ROOT, 'tools', 'hunt-health.local.mjs'), 'utf8').replace(/\r\n/g, '\n'));
+  if (!pf) throw harness('cannot lift PULSE_FOLD: tools/hunt-health.local.mjs moved');
+  const pulse = (await db.query(pf[1])).rows[0];
+  const probe = (await db.query(`select pg_total_relation_size('public.player_ledger') as bytes, (select count(*) from public.player_ledger) as n,
+      (select id from public.player_ledger order by at desc, id desc limit 1) as last_id,
+      (select id || ':' || extract(epoch from now() - at) from public.player_ledger where at >= now() - interval '7 days' order by at, id limit 1) as week_first`)).rows[0];
+  const horizon = (p) => pulseLines({ diskBytes: 8e9, ledgerBytes: probe.bytes, ledgerEstRows: probe.n, ledgerRetainDays: 90, ledgerLastId: probe.last_id, ledgerWeekFirst: probe.week_first,
+    ledgerDetailDays: pulse.detail_days, windowBytes: pulse.window_bytes, windowFirstAgeS: pulse.window_first_age_s, ledgerFirstAgeS: pulse.ledger_first_age_s,
+    ledgerRowBytes: pulse.ledger_row_b, ...p }).find((l) => l.startsWith('Horizon:')) || '';
   arm('LF-OBSERVE', lineNow.ok === false && /still detail/.test(lineNow.text) && num(st.behind) > 0 && num(st.behind) <= shouldLeave.length && num(st.behind) >= eightDays - 12
     && foldLine({ ...st, behind: 0 }).ok === true && foldLine({ ...st, behind: 0, last_age_s: 4000 }).ok === false
-    && foldLine({ ...st, detail_days: null }).ok === true && foldLine(null).ok === true,
-  `the fold's line alarms on the ${st.behind} rows it left as detail, on a job gone quiet, and reads OK with neither`, js({ lineNow, behind: st.behind, eightDays }));
+    && foldLine({ ...st, detail_days: null }).ok === true && foldLine(null).ok === true
+    && num(pulse.detail_days) === 3 && num(pulse.window_bytes) > 0 && num(pulse.window_first_age_s) > 3 * 86400 && num(pulse.ledger_first_age_s) > 100 * 86400
+    && num(pulse.ledger_row_b) > 150 && num(pulse.ledger_row_b) < 5000
+    && /folded past 3 days/.test(horizon({})) && /\+ windows/.test(horizon({})) && !horizon({}).includes('<<') && !/folded past/.test(horizon({ ledgerDetailDays: null })),
+  `the fold's line alarms on the ${st.behind} rows it left as detail, on a job gone quiet, and reads OK with neither; hunt-health's Horizon line counts the fold`,
+  js({ lineNow, behind: st.behind, eightDays, pulse, horizon: horizon({}) }));
 
   /* LF-DRILL: the fires, read from cron.job; a 100-second read started at every second of the hour after its wait. */
   const sched = (await db.query(`select jobname, schedule from cron.job where jobname in ('hr-ledger-prune', 'hr-ledger-fold', 'hr-ledger-windows-prune') order by 1`)).rows;

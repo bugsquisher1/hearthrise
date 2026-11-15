@@ -74,7 +74,7 @@
 --
 -- EDGE: none in code (the engine already reads player_state.active_left as bench_run.left and counts it down, accrual.js
 -- accrueArtisan). The hr-accrue bundle moves by a comment in src/data/hunt-sessions.js only. CLIENT: words only
--- (src/data/how-to-play.js, src/data/text/away.js); "Then {name} went back to working on X" already reads the pointer.
+-- (src/data/how-to-play.js, the Help page's `town` note); "Then {name} went back to working on X" already reads the pointer.
 -- A hunt open across the apply was entered before the capture existed: its bench is not resumed, as before this file.
 -- REVERSIBILITY: re-apply hr_resume_has_inputs from 2027-02-15-panel-truth.sql, hr_last_activity_note from
 -- 2026-10-22-hunt-sessions-settle.sql and hr_hunt_apply_member from 2027-04-16-combat-training.sql, drop the four new

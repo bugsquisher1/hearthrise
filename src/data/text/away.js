@@ -4,8 +4,9 @@
 //
 // One row per sentence, read by t('away.<key>'). Every fact behind a row is the server's: the hunt's end
 // reason and time, and the hero's activity pointer (player_state.active_kind / active_id / active_since).
-// An automatic end sends the hero back to its last gathering job (src/data/hunt-sessions.js RESUME_AFTER_END,
-// hr_resume_has_inputs: a bench is never resumed), so the gathering line is true after every one of them.
+// An automatic end sends the hero back to its last gathering job (src/data/hunt-sessions.js RESUME_AFTER_END), so the
+// gathering line is true after every one of them. A bench that was running goes back too, but only for the count it
+// had left when the hunt started (2027-04-24-bench-resume.sql), so it is gathering that fills a night.
 // ════════════════════════════════════════════════════════════════════════
 
 export const AWAY_TEXT = Object.freeze({

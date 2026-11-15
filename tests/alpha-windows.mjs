@@ -3218,7 +3218,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click(STACK);
           await page.waitForTimeout(150);
           const waiting = await lineNow(page);
-          if (!/^Putting it away/.test(waiting.text) || !waiting.inView || !waiting.sending) fails.push('AW-65 a press in a scrolled bag, while it waits: ' + JSON.stringify(waiting));
+          if (!/^Depositing/.test(waiting.text) || !waiting.inView || !waiting.sending) fails.push('AW-65 a press in a scrolled bag, while it waits: ' + JSON.stringify(waiting));
           await wait(page, (w) => /^Put away/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 4000);
           await page.waitForTimeout(150);
           const done = await lineNow(page);
@@ -3556,7 +3556,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const label = await page.evaluate((w) => { const li = document.querySelector(w + '[data-side="bank"] .hw-pocket[data-item="bronze_arrows"]'); return li ? li.getAttribute('aria-label') : null; }, W18);
           if (!/, 12,000: /.test(String(label)) || (await sc('bag', 'bronze_arrows')) !== null) fails.push('AW-18b after 12,000 arrows went in, storage reads ' + JSON.stringify(label) + ' and the bag ' + (await sc('bag', 'bronze_arrows')));
           const done = await msgSeen();
-          if (!done || !/^Put away 12,000 /.test(done.text) || !done.shown) fails.push('AW-18b the 12,000-arrow deposit says ' + JSON.stringify(done));
+          if (!done || !/^Deposited 12,000 /.test(done.text) || !done.shown) fails.push('AW-18b the 12,000-arrow deposit says ' + JSON.stringify(done));
           await page.click(W18 + '[data-side="bank"] .hw-pocket[data-item="bronze_arrows"]', { modifiers: ['Shift'] });
           await page.waitForTimeout(800);
           if ((await sc('bag', 'bronze_arrows')) === null) fails.push('AW-18b the 12,000 arrows did not come back out');

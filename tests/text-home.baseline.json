@@ -104,7 +104,7 @@
     "src/shell/windows/settings.js": 4,
     "src/shell/windows/shop.js": 34,
     "src/shell/windows/skills.js": 7,
-    "src/shell/windows/storage.js": 12,
+    "src/shell/windows/storage.js": 2,
     "src/shell/windows/temper-pane.js": 32,
     "src/shell/windows/work.js": 26,
     "src/social/chat-lines.js": 4,

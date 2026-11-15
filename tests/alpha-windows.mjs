@@ -2781,7 +2781,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
           'wickstead::Level 8–18:above:Above your level::No best yet:Alone or with up to 3 more',
           'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Alone or with up to 3 more',
-          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Alone or with up to 3 more'];
+          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Alone or with up to 3 more',
+          /* the Barrow March's five grounds (v0.2.132: their packs opened, src/data/grounds status open) */
+          'hasks_ford::Level 45–60:far:Far above your level::No best yet:Alone or with up to 3 more',
+          'the_slake::Level 50–65:far:Far above your level::No best yet:Alone or with up to 3 more',
+          'muster_barrows::Level 55–75:far:Far above your level::No best yet:Alone or with up to 3 more',
+          'pyre_field::Level 70–90:far:Far above your level::No best yet:Alone or with up to 3 more',
+          'krells_hold::Level 85–110:far:Far above your level::No best yet:Alone or with up to 3 more'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
         /* AW-25 A SPACE BETWEEN THE PARTS (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the words apart, the
            eye a dot between them (format.js sepHtml), and the picked ground's page reads its band the same way */
@@ -2874,9 +2880,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const g0 = (await goAs()).join('|');
         if (g0 !== '0:true:Hunt:Melee · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-26 Go as reads ' + JSON.stringify(g0));
         /* AW-27 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
-        const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        /* The Before you go list itself: the boss hall's door (boss-hall-pane.js, v0.2.132) wears the same line class for its food line and
+           tips, hidden on a ground with no hall, so a window-wide read took its hidden empty red line as "| !" (v0.2.132 release red). */
+        const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + 'ul.hw-before:not(.hw-hall-tips) > .hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        /* ...and no warning row the player can SEE is empty, wherever in the window it is drawn */
+        const emptyShown = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).filter((n) => n.getClientRects().length && !n.textContent.trim()).length, W);
         /* Flame Strike's slot names its store rune: carried runes first, then the store's a cast, and the gold pays it. */
         const b0 = await before();
+        if (await emptyShown()) fails.push('AW-27 the Hunts window draws an empty Before you go row');
         if (b0 !== 'Runes: 40 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 14 Wheat Bread of yours. You carry 5 Cooked Shrimp. Put it on the bar to eat it | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
           fails.push('AW-27 Before you go reads ' + JSON.stringify(b0));
         if (await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-ready, [data-hs-win="hunts"] .hw-checks'))) fails.push('AW-27 the Hunts window still carries the readiness checklist');

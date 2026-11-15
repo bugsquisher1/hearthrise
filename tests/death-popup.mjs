@@ -6,7 +6,7 @@
 //   node tests/death-popup.mjs --mutate       every planted defect must turn a rule RED (--only TEXT: just the mutants whose name holds it)
 //   node tests/death-popup.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js src/styles/app.css src/world/world-boot.js src/hunt-view/summary-recorder.js
+// mutant-anchors: src/shell/death-popup.js src/shell/windows/death.js src/shell/alerts.js src/session/character-sections.js src/shell/widgets/hunt-topbar.js src/shell/shell.js src/styles/app.css src/world/world-boot.js src/hunt-view/summary-recorder.js src/styles/hunt.css
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs), on
@@ -37,6 +37,8 @@
 //   DP-6 HERO SWITCH  the summary closed, or still up, when the viewed hero changes: on the way back the "Last hunt"
 //                  bar stays out of town and the summary stays shut (a switch remounts the shell)
 //   DP-8 OK STAYS ON SCREEN  at 667x375 with the longest why line the card scrolls, its answers do not (risk ruling, 2026-11-04 UTC).
+//   DP-9 THE PLATE BEHIND A WINDOW  with the popup up (a phone's sheet rule hides a RUNNING hunt's name), the bar
+//                  still reads "Last hunt: ..." beside Summary, never an empty box (v0.2.131 visual gate, 922x423)
 //   DP-7 AN END ALREADY SEEN IS OVER  (party panel 2026-11-03) "Pip left the hunt, so Kell came home too" stands over the hero on screen with
 //                  that hunt's summary, and goes when the summary is closed, with no new answer from the server
 // ════════════════════════════════════════════════════════════════════════
@@ -225,6 +227,10 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
           const side = await a.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-widget="alerts"] li')).map((li) => li.textContent).filter((t) => /died/.test(t)));
           if (side.length) fails.push('DP-1 [' + tag + '] the death also raised a side line: ' + side.join(' | '));
           if (shots) await a.page.screenshot({ path: join(shots, 'death-popup-' + tag + '.png') });
+          /* DP-9 THE PLATE BEHIND A WINDOW (v0.2.131 gate, 922x423: an empty box with only Summary in it): over, the bar keeps its name. */
+          const plate = await a.page.evaluate(() => { const g = document.querySelector('.ht-bar .ht-ground'), r = g && g.getClientRects().length ? g.getBoundingClientRect() : null;
+            return { words: g ? g.textContent : null, w: r ? Math.round(r.width) : 0 }; });
+          if (!/^Last hunt: \S/.test(plate.words || '') || plate.w < 40) fails.push('DP-9 [' + tag + '] behind the popup the hunt bar names nothing: ' + JSON.stringify(plate));
           /* DP-8 OK STAYS ON SCREEN: the smallest phone the game plays on, the longest why line (the card scrolls; its answers do not). */
           if (vp.height < 500) {
             await a.page.setViewportSize({ width: 667, height: 375 });
@@ -428,7 +434,8 @@ const MUTANTS = [
   ['a closed summary waits out the residue debounce', 'src/hunt-view/summary-recorder.js', "if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});", 'void 0;'],
   ['the hunt bar alone hides the Town / Home row', 'src/styles/app.css', '.app.is-game #panel-world[data-scene="hunt"]:has(.ht-bar) .world-chrome', '.app.is-game:has(.ht-bar) #panel-world .world-chrome'],
   ['the pane never names its scene', 'src/world/world-boot.js', "    panel.setAttribute('data-scene', sc.kind);", '    void 0;'],
-  ['the summary opens over the popup', 'src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],
+  ['the plate behind a window names nothing (DP-9)', 'src/styles/hunt.css', '  .app:has(.hs-win:not(.is-leaving)) .ht-bar:has(.ht-clock:not([hidden])) .ht-ground { display: none; }', '  .app:has(.hs-win:not(.is-leaving)) .ht-ground { display: none; }'],
+  ['the summary opens over the popup','src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],
 ];
 
 async function main() {

@@ -66,6 +66,11 @@
 .hh-intent-msg:empty { display: none; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
 .hh-empty { display: none; margin: 0; color: var(--ink-3); }
+/* THE DOT BETWEEN A LINE'S PARTS, drawn on the one space where the line may break (format.js SEP_HTML): a break
+   drops that space, the box goes to 0 px and the clip takes the dot with it, so no line starts or ends on one
+   (v0.2.131 gate: "Level 22" over "· uncommon"). The word spacing makes it as wide as " · " in the same font. */
+.hh-sep { position: relative; clip-path: inset(0); word-spacing: .45em; }
+.hh-sep::before { content: '\00b7'; position: absolute; inset: 0; text-align: center; }
 .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; display: inline-grid; place-items: center; flex: none; }
 .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; color: var(--ink-3); }
 
@@ -809,8 +814,10 @@ label.st-line { cursor: pointer; }
   .ht-bar { gap: 6px; padding: 2px 4px; }
   /* The side sheet halves the stage: the top bar (anchored right) would run
      under the party board, so it drops the ground's name and keeps the clock
-     and its two commands. The sheet's own world is the name. */
-  .app:has(.hs-win:not(.is-leaving)) .ht-ground { display: none; }
+     and its two commands. The sheet's own world is the name. A hunt that is over
+     (no clock, hunt-topbar.js) keeps "Last hunt: ...", given way to an ellipsis:
+     it is all the plate says beside Summary (v0.2.131 gate: an empty box). */
+  .app:has(.hs-win:not(.is-leaving)) .ht-bar:has(.ht-clock:not([hidden])) .ht-ground { display: none; }
   .ht-bar .hh-tool { padding: 0 8px; }
   /* THE HUNT BAR ON A PHONE: one line, never over the Party panel (QA 10-24: "Leaving in 32s" ran 88 px over it).
      It keeps the World's width less the panel's column (200 px, its 4 px inset, 20 px clear); the ground's name

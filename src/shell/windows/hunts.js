@@ -49,7 +49,7 @@ import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0
 import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.130';
 import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.130';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.130';
-import { whole, SEP } from '../../render/format.js?v=0.2.130';
+import { whole, SEP, sepHtml } from '../../render/format.js?v=0.2.130';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
 import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.130';
 import { glyphSvg } from '../launcher.js?v=0.2.130';
@@ -204,9 +204,9 @@ function lineHtml(r, glyphs) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-glyph" title="' + esc(heroWords(r)) + '">' + glyphSvg(glyphs, 'uiPeople') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
-    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span><span class="hw-hunt-sep" hidden>' + SEP + '</span><span class="hw-hunt-fit"></span></small>'
-    /* the separators are text (a reader got "Level 1–8In range"); each binds to the part after it (format.js SEP) */
-    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span><span class="hw-hunt-sep" hidden>' + SEP + '</span><span class="hw-hunt-bestline"></span></small>'
+    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></small>'
+    /* a reader gets a space between the parts (it got "Level 1–8In range"); the dot never starts or ends a line (format.js sepHtml) */
+    + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-bestline"></span></small>'
     + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
 }
 

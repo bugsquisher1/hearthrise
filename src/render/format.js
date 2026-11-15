@@ -11,6 +11,9 @@ export const DASH = '–';
 /** The dot between a line's parts. It binds to the part AFTER it (a no-break space), so a wrapped line may start with
     "· Level 5" but never ends on a lone dot ("Meadowbrook Thicket ·", the v0.2.130 visual gate). */
 export const SEP = ' \u00b7\u00a0';
+/** The dot as markup, between two spans: never at a line's start or end (hunt.css .hh-sep draws it on the one space a
+    break drops). A reader gets the parts with a space between them. `cls` names it for a patch; `hidden` starts it off. */
+export const sepHtml = (cls = '', hidden = false) => '<span class="hh-sep' + (cls ? ' ' + cls : '') + '"' + (hidden ? ' hidden' : '') + '> </span>';
 const ok = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /* ONE formatter (perf lane 2026-10-29): toLocaleString('en-US') builds a new Intl.NumberFormat every call, 1.5% of a

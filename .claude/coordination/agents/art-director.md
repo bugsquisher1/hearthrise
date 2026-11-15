@@ -3308,3 +3308,11 @@ or use cells no pack reads; (3) pairs rolled unchained give one material three b
 tileset is paint --void plus kept face slices, read in region-kit.html (now reads staged maps); (5) the notes' lift 1 left the Slake bodies at
 1.4-2.1:1 on the silt: measure with ring-contrast after the import, not from the note (3 and 4 steps pass at 4.25). Open: the gatehouse and 12
 Hold props are drawn and unplaced (need pack cells), Krell's roster clip has no hook, the lurcher reads 2.72:1 by ring on ash (its outline carries it).
+
+## 2026-11-14 lane/a-phone-bits (three v0.2.131 gate bits)
+(1) Market Refresh on a phone was pinned at the top of `.hw-mk`, which was the purse row until the tabs moved first (order -1): it now
+hangs from the tabs' own foot. A moved row breaks anything absolutely pinned to its old place: grep for absolute children when reordering.
+(2) The phone sheet rule hid `.ht-ground` on every bar, so an ended hunt's plate was an empty box with Summary; it now hides only a running
+hunt's name (`:has(.ht-clock:not([hidden]))`). (3) A text dot cannot avoid both ends of a line. `.hh-sep` (hunt.css, format.js sepHtml)
+draws the dot on the one breakable space under a clip-path, so a break drops the space and clips the dot. Converted: creature cards, the
+Hunts list band/sub, the page band. Still text SEP (can lead a wrapped line): hunt-detail .hw-go-what, hunts .hw-hunt-tally, tally.js joins.

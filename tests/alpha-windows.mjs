@@ -2772,15 +2772,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Alone or with up to 3 more',
           'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Alone or with up to 3 more'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
-        /* AW-25 THE DOTS ARE TEXT (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the line as it looks, and the
-           picked ground's page reads its band the same way */
+        /* AW-25 A SPACE BETWEEN THE PARTS (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the words apart, the
+           eye a dot between them (format.js sepHtml), and the picked ground's page reads its band the same way */
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
-          return [li.querySelector('.hw-hunt-band').innerText, li.querySelector('.hw-hunt-sub').innerText, document.querySelector(w + '.hw-hd-band')?.innerText]; }, W);
-        /* and each dot binds to the words after it (format.js SEP, a no-break space), so no wrapped line ends on one (the v0.2.130 gate) */
-        const NBSP = String.fromCharCode(160), bound = (x) => String(x || '').split('·').slice(1).every((rest) => rest[0] === NBSP);
-        if (!readLine.every(bound)) fails.push('AW-25 a dot in the Hunts lines can end a line: ' + JSON.stringify(readLine));
-        readLine.forEach((x, i) => { readLine[i] = String(x || '').split(NBSP).join(' '); });
-        if (readLine[0] !== 'Level 1–8 · In your range' ||!/^Right for your level[ \u00a0]· No best yet$/.test(readLine[1]) || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || '')) fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
+          const seen = (n) => { if (!n) return null; const c = n.cloneNode(true); c.querySelectorAll('.hh-sep').forEach((x) => x.replaceWith(x.hidden ? '' : ' · ')); return c.textContent; };
+          return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band')), li.querySelector('.hw-hunt-band').textContent]; }, W);
+        if (readLine[0] !== 'Level 1–8 · In your range' || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || '') || readLine[3] !== 'Level 1–8 In your range')
+          fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
           const d = document.querySelector(w + '.hw-hunt-detail');
@@ -2791,8 +2789,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             rares: Array.from(d.querySelectorAll('.hw-hd-rares .hw-hd-rare')).map((n) => n.querySelector('.hw-hd-rare-name').textContent + ' / ' + n.querySelector('.hw-hd-rare-by').textContent + (n.classList.contains('is-trophy') ? ' (trophy)' : '')),
             raresShown: (() => { const h = d.querySelector('.hw-hd-rares'), head = h && h.previousElementSibling; return !!head && head.getClientRects().length > 0; })(),
             mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
-              const how = li.querySelector('.hw-hd-mon-how').textContent;
-              return { id: li.dataset.monster, how: how.split(String.fromCharCode(160)).join(' '), bound: how.split('\u00b7').slice(1).every((x) => x[0] === String.fromCharCode(160)), drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+              const how = li.querySelector('.hw-hd-mon-how'), seen = how.cloneNode(true);
+              seen.querySelectorAll('.hh-sep').forEach((x) => x.replaceWith(x.hidden ? '' : ' · '));
+              return { id: li.dataset.monster, how: seen.textContent, drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
                 w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
             bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
         }, W);
@@ -2801,8 +2800,32 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || Math.abs(m.cw - m.w) > 0.5 || Math.abs(m.ch - m.h) > 0.5)) fails.push('AW-25 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
         if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-25 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
         const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
-        /* a creature card's dot binds to its share ("Level 2 ·" / "uncommon" was the v0.2.130 gate) */
-        if (p.mons.some((m) => !m.bound)) fails.push('AW-25 a creature card\'s dot can end its line: ' + JSON.stringify(p.mons.map((m) => m.how)));
+        /* AW-25 NO LINE STARTS OR ENDS ON A DOT (v0.2.131 gate: "Level 22" over "· uncommon"; v0.2.130: "Meadowbrook Thicket ·"). Measured:
+           in 240 px cards every card draws its dot; narrowed until the cards and the list lines wrap, every dot still drawn has words
+           on its own line on both sides. */
+        const dots = await page.evaluate((w) => {
+          const win = document.querySelector(w.trim()), lineup = win.querySelector('.hw-hd-lineup'), list = win.querySelector('.hw-hunt-list');
+          const drawn = (root) => { const lines = [], out = [];
+            const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+              if (!n.data.trim() || !n.parentElement.getClientRects().length) continue;
+              const r = document.createRange(); r.selectNodeContents(n); for (const b of r.getClientRects()) if (b.width) lines.push(b);
+              for (let i = n.data.indexOf('\u00b7'); i >= 0; i = n.data.indexOf('\u00b7', i + 1)) { const d = document.createRange(); d.setStart(n, i); d.setEnd(n, i + 1);
+                const b = d.getBoundingClientRect(); if (b.width) out.push({ b, at: n.parentElement.parentElement.textContent }); } }
+            /* a 0 px separator is drawn unless its clip takes the dot (hunt.css .hh-sep) */
+            root.querySelectorAll('.hh-sep').forEach((s) => { const b = s.getBoundingClientRect();
+              if (s.getClientRects().length && (b.width > 0.5 || getComputedStyle(s).clipPath === 'none')) out.push({ b, at: s.parentElement.textContent }); });
+            const same = (a, b) => Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < Math.min(a.height, b.height) / 2;
+            return { n: out.length, alone: out.filter(({ b }) => !(lines.some((l) => same(l, b) && l.left < b.left - 1) && lines.some((l) => same(l, b) && l.right > b.right + 1))).map((x) => x.at) }; };
+          lineup.style.gridTemplateColumns = 'repeat(auto-fill, 240px)'; const roomy = drawn(lineup).n;
+          lineup.style.gridTemplateColumns = 'repeat(auto-fill, 72px)'; if (list) list.style.width = '150px';
+          const narrow = drawn(win), cards = Array.from(lineup.querySelectorAll('.hw-hd-mon-how')).filter((h) => h.getBoundingClientRect().height > 20).length;
+          lineup.style.gridTemplateColumns = ''; if (list) list.style.width = '';
+          return { roomy, cards, narrow };
+        }, W);
+        if (dots.roomy !== p.mons.length) fails.push('AW-25 with room, ' + dots.roomy + ' of ' + p.mons.length + ' creature cards draw their dot');
+        if (!dots.cards) fails.push('AW-25 CONTROL: narrowed, no creature card wrapped');
+        if (dots.narrow.alone.length) fails.push('AW-25 a wrapped line starts or ends on a dot: ' + JSON.stringify(dots.narrow.alone));
         if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon|hive_wasp:Level 4 · uncommon:carrier')
           fails.push('AW-25 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
@@ -4524,11 +4547,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
-  ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "'Level ' + m.level + SEP : ''", "'Level ' + m.level + ' · ' : ''"],
+  ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
+  ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep { position: relative; clip-path: inset(0); word-spacing: .45em; }', '.hh-sep { position: relative; word-spacing: .45em; }'],
   ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
   ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],
-  ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "(m.boss ? 'boss' : m.band);", "(m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : '');"],
+  ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "'.hw-hd-mon-band'), m.boss ? 'boss' : m.band);", "'.hw-hd-mon-band'), (m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : ''));"],
   ['AW-25 the casters note is never shown', 'src/shell/windows/hunt-detail.js', "prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);", "prop(det.querySelector('.hw-hd-casts'), 'hidden', true);"],
   ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
   ['AW-95 a window rises over the action bar in a hunt again', 'src/shell/window-fit.js', 'if (cap !== null && !hunt && overBar(cap, Infinity)) {', 'if (cap !== null && overBar(cap, Infinity)) {'],

@@ -636,7 +636,7 @@ async function staminaBuy(open, fails, done) {
   a.s.onRefill = () => { a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 410, n: 3 }); return { ok: false, error: 'quote_changed', stamina_refill: a.s.env.stamina_refill }; };
   a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 });
   await askThenBuy();   // the question reads 520 (the server's then); the server moves to 410 under the second press
-  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp\.$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
+  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
   if (!moved) fails.push('PH-9 [' + tag + '] after quote_changed (the server quotes 410 gp) the panel reads ' + JSON.stringify(await panelOf(a.page)));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: 28800000 }); a.s.env.stamina_refill = { available: false, why: 'stamina_full', n: 3, per_day: 6 };
     return { ok: false, error: 'stamina_full', stamina_refill: a.s.env.stamina_refill }; };

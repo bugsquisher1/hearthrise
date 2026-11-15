@@ -945,7 +945,7 @@ async function pureRules(M, base) {
     if (centre.list().some((a) => a.id === stam.id)) return 'the low-stamina line outlived its hunt';
     /* (5) WORDS A DEAD END CANNOT HIDE IN. */
     if (M.FR.answerWords({ done: 'Invite sent to Mira.' }, '') !== 'Invite sent to Mira.') return 'a friends-row invite that worked reads ' + JSON.stringify(M.FR.answerWords({ done: 'Invite sent to Mira.' }, ''));
-    if (!/Leave it, and once you are back in town you can invite/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
+    if (!/Leave it, then invite from town/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
     if (!/Press Leave party in the Party window/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
     return true;
   });

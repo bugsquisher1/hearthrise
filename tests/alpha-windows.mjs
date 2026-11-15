@@ -1236,7 +1236,7 @@ async function panelLeftovers(base) {
   /* AW-63 the panels' round 3 (2026-11-01). */
   const { enterOffWords } = await imp('src/shell/windows/hunts.js');
   if (enterOffWords(null) !== '' || enterOffWords({ isLeader: true }) !== '') fails.push('AW-63 Enter off reads ' + enterOffWords(null));
-  if (!/^You're in Mira's party/.test(enterOffWords({ isLeader: false, leaderName: 'Mira' }))) fails.push('AW-63 a member\'s Enter reads ' + enterOffWords({ isLeader: false, leaderName: 'Mira' }));
+  if (!/^Party: Mira picks the hunt/.test(enterOffWords({ isLeader: false, leaderName: 'Mira' }))) fails.push('AW-63 a member\'s Enter reads ' + enterOffWords({ isLeader: false, leaderName: 'Mira' }));
   const { overBagWords } = await imp('src/shell/windows/inventory/index.js');
   if (overBagWords(99, 100) !== '' || !/Hunts still pick up loot/.test(overBagWords(114, 100))) fails.push('AW-63 a bag past its spaces says ' + overBagWords(114, 100));
   /* THE NEWCOMER'S PANEL (2026-11-01). */

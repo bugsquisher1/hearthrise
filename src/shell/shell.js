@@ -309,7 +309,7 @@ export function mountShell(root, o) {
 
   /* Every panel ends above the floor and the screen's plates clear what they would cover (./hud-room.js). */
   /* Where the camera frames the hero in a hunt: the middle of the World the docked widgets leave (insetNow), in page px. */
-  const heroAt = () => { if (!fightOn(opts)) return null; const b = shell.getBoundingClientRect(), i = insetNow(); return { x: b.left + (i.left + b.width - i.right) / 2, y: b.top + (i.top + b.height - i.bottom) / 2 }; };
+  const heroAt = () => { if (!fightOn(opts)) return null; const b = shell.getBoundingClientRect(), i = insetNow(false); return { x: b.left + (i.left + b.width - i.right) / 2, y: b.top + (i.top + b.height - i.bottom) / 2 }; };
   const { roomForStack, liftMoved, clearPlates, dockCoach } = createHudRoom({ hud, worldHud, screenHud, layer, isPhone: () => phoneMq.matches, gap: DOCK_EDGE, heroAt });
   /* A widget that stacks sits under the widgets it names (./widget-stack.js). */
   const stackWidgets = createWidgetStack({ hud, worldHud, screenHud });
@@ -357,7 +357,7 @@ export function mountShell(root, o) {
   /* The World edges the docked HUD widgets cover ({left, right, top, bottom}),
      published only when they change, so the camera frames the playable area beside them. */
   let lastInset = '';
-  function insetNow() {
+  function insetNow(alertToo = true) {
     const b = shell.getBoundingClientRect();
     const widgets = [];
     const rel = (r, left = r.left - b.left) => ({ left, top: r.top - b.top, width: r.width, height: r.height });
@@ -369,12 +369,22 @@ export function mountShell(root, o) {
     }
     /* THE COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10; audit 2026-11-15 F1, F13): the phone's open card stands at the hunt bar's
        right end (shell.css), the desktop's in the left column (hud-room.js dockCoach), and the camera frames the World beside it, as it does
-       beside a panel. A phone's alert in a hunt is framed beside the same way: it stands where the hero did. */
+       beside a panel. An alert in a hunt is framed beside the same way (`alertToo`; heroAt asks without it, or the alert would be placed by its own
+       shadow): the phone's stands where the hero did; the desktop's slid past the panels and windows into the World (hud-room.js clearPlates), so it
+       covers the SIDE that costs the World less (anchor 'm.': a side, never the top strip hudInsetOf may trade a top-corner panel for), and the
+       camera keeps the hero in what is left. */
     const side = (r) => (r.left + r.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr');
-    const beside = [worldHud.querySelector('[data-hs-widget="hunt-topbar"]' + (phoneMq.matches ? '' : '.is-coach-docked') + ' > .hs-pointer:not(.is-min)'),
-      phoneMq.matches && fightOn(opts) ? screenHud.querySelector('[data-hs-widget="alerts"] .hw-alerts:not(.is-empty) .hw-alert-list') : null];
-    for (const el of beside) { const r = el && el.getBoundingClientRect(); if (r && r.width > 0 && r.height > 0) widgets.push({ anchor: side(r), rect: rel(r) }); }
-    return hudInsetOf(widgets, { width: b.width, height: b.height });
+    const shown = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? r : null; };
+    const card = shown(worldHud.querySelector('[data-hs-widget="hunt-topbar"]' + (phoneMq.matches ? '' : '.is-coach-docked') + ' > .hs-pointer:not(.is-min)'));
+    if (card) widgets.push({ anchor: side(card), rect: rel(card) });
+    const box = { width: b.width, height: b.height };
+    const alert = alertToo && fightOn(opts) ? shown(screenHud.querySelector('[data-hs-widget="alerts"]:not(.is-under-dock) .hw-alerts:not(.is-empty) .hw-alert-list')) : null;
+    if (alert && phoneMq.matches) widgets.push({ anchor: side(alert), rect: rel(alert) });
+    else if (alert) {
+      const clear = hudInsetOf(widgets, box), q = rel(alert);
+      widgets.push({ anchor: q.left + q.width - clear.left <= b.width - clear.right - q.left ? 'ml' : 'mr', rect: q });
+    }
+    return hudInsetOf(widgets, box);
   }
   function publishInset() {
     const inset = insetNow();

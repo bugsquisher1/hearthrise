@@ -15,7 +15,8 @@
 // leave (shell.js insetNow), so a card hung under the centred hunt bar lay on the hero, and an alert slid past the Party panel landed there:
 //   the hunt's coach card stands in the LEFT COLUMN under the top-left panels (dockCoach), a column the camera already frames beside; with
 //     no room there it keeps only its title under the hunt bar, and an alert that needs the column's room folds it to its title the same way;
-//   an alert takes a place clear of the hero's spot whenever one clears, and is never hidden for it.
+//   an alert takes a place clear of the hero's spot whenever one clears, and is never hidden for it; where none clears (a laptop with Chat
+//     open), the camera frames the World beside the alert, as it does beside a panel (shell.js insetNow).
 // DOM reads and style writes only. Each writes only what changed, and reads no height of its own to set its room,
 // so the size change a write causes settles in the next pass (shell.js's observer).
 // ════════════════════════════════════════════════════════════════════════
@@ -133,7 +134,9 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
       const left = col.length ? Math.min(...col.map((q) => q.left)) : gap;
       const top = col.length ? Math.max(...col.map((q) => q.top + q.height)) + gap : hb.top;
       const bars = barsAtHome().filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left);
-      const floor = (bars.length ? Math.min(...bars.map((q) => q.top)) : worldHud.clientHeight) - gap;
+      /* a window standing in the column is the card's floor (Chat opens there): the card never lies behind one */
+      const wins = Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)')).map(rel).filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left && q.top + q.height > top);
+      const floor = Math.min(bars.length ? Math.min(...bars.map((q) => q.top)) : worldHud.clientHeight, ...wins.map((q) => q.top)) - gap;
       if (floor - top >= COACH_MIN_ROOM) at = { x: Math.round(left - hb.left), y: Math.round(top - hb.top), h: Math.floor(floor - top) };
       else tight = true;
     }

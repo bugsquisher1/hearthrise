@@ -192,7 +192,8 @@ function patchEntry(li, h, st) {
   const here = st.hunting && st.huntId === h.hunt;
   patchParts(li.querySelector('.ht-where'), here ? [t('tally.counting_here', { ground: huntName(h.hunt) })] : st.hunting ? [groundLink(h.hunt), SEP_PART, t('tally.not_here')] : [groundLink(h.hunt)]);
   const keep = li.querySelector('[data-hs-act="keep"]');
-  text(keep.nextElementSibling, t('controls.keep'));
+  text(keep.nextElementSibling, t('tally.keep'));
+  attr(keep.parentElement, 'title', t('tally.keep_why'));
   prop(keep, 'checked', h.keep);
   prop(keep, 'disabled', st.sc.pending);
   const drop = li.querySelector('[data-hs-act="drop"]');

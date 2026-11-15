@@ -54,7 +54,7 @@
 //   PH-10 THE COACH NEVER LIES ON THE FIGHT (922x423, 844x390; first-hour playtest 10-29 #10: the card covered the hero
 //        mid-fight): in a hunt, the open card under the hunt bar crosses neither the viewed hero nor a party member
 //        (each figure's tile and the name plate over it), nor does the camera push them under the Party panel to
-//        make room; the card stays on screen. At 1440x900 it is on screen
+//        make room; the card stays on screen. At 1440x900 too (audit 2026-11-15 F1): the card stands in the left column
 //   A phone player's three days (2026-10-31, art/review/player-feedback-2026-10-31/phone.txt on lane/f-phone):
 //   PH-11 THE STRIP (667x375, 844x390, 922x423): "Heroes" a 40 px press clear of the icon row, every icon on screen and
 //         at least 40 px wide, a shown hero tab at least 44 px wide and clear of the row, the strip no taller than 40 px;
@@ -450,7 +450,18 @@ async function coachFits(page, tag, fails, phone) {
   const c = await coachState(page);
   if (!c) { fails.push('PH-6 [' + tag + '] CONTROL: no open coach card'); return; }
   if (c.chars < 300) { fails.push('PH-6 [' + tag + '] CONTROL: the coach (' + c.id + ') says only ' + c.chars + ' characters, so it proves nothing'); return; }
-  if (!phone) { if (c.maxH !== 'none' || c.end > 0) fails.push('PH-6 [' + tag + '] the desktop coach is capped (' + c.maxH + ', ' + c.end + ' px to scroll)'); return; }
+  if (!phone) {
+    /* THE DESKTOP'S HUNT CARD STANDS IN THE LEFT COLUMN (hud-room.js dockCoach; audit 2026-11-15 F1: under the hunt bar it lay on the hero): whole where the column has the room,
+       else it ends above the action bar with its fold in reach and its words scroll to their end under a wheel. The town's card is never capped. */
+    if (!/hunt/.test(tag)) { if (c.maxH !== 'none' || c.end > 0) fails.push('PH-6 [' + tag + '] the desktop coach is capped (' + c.maxH + ', ' + c.end + ' px to scroll)'); return; }
+    if (!c.hub || !window_onScreen(c.card, page.viewportSize()) || c.card.bottom > c.hub.top + 0.5) { fails.push('PH-6 [' + tag + '] the desktop coach card runs over the action bar or off the screen: ' + JSON.stringify(c.card)); return; }
+    if (!c.dash) { fails.push('PH-6 [' + tag + '] the fold of the desktop coach is off screen or covered'); return; }
+    await page.mouse.move(c.text.left + c.text.width / 2, c.text.top + c.text.height / 2);
+    let d = c;
+    for (let i = 0; i < 20 && d.top < d.end - 1; i++) { await page.mouse.wheel(0, 120); await page.waitForTimeout(40); d = await coachState(page); }
+    if (d.top < d.end - 1) fails.push('PH-6 [' + tag + '] the words of the desktop coach never scroll to their end (' + Math.round(d.top) + ' of ' + Math.round(d.end) + ' px)');
+    return;
+  }
   if (!c.hub) { fails.push('PH-6 [' + tag + '] CONTROL: no action bar'); return; }
   if (!window_onScreen(c.card, page.viewportSize()) || c.card.bottom > c.hub.top + 0.5) {
     fails.push('PH-6 [' + tag + '] the coach card runs ' + Math.round(c.card.bottom - c.hub.top) + ' px over the action bar (' + Math.round(c.card.top) + '..' + Math.round(c.card.bottom) + ', the bar at ' + Math.round(c.hub.top) + ')');
@@ -513,7 +524,7 @@ async function coachOffFight(page, tag, fails, phone, crew) {
   if (!f.card) { fails.push('PH-10 [' + tag + '] CONTROL: no open coach card under the hunt bar'); return; }
   if (f.figures.length !== crew.length) { fails.push('PH-10 [' + tag + '] CONTROL: ' + f.figures.length + ' figures drawn, want the hero and ' + (crew.length - 1) + ' party member(s)'); return; }
   if (!window_onScreen(f.card, page.viewportSize())) { fails.push('PH-10 [' + tag + '] the coach card runs off the screen: ' + JSON.stringify(f.card)); return; }
-  if (!phone) return;
+  /* the desktop too (audit 2026-11-15 F1: at 1280x720 the card under the centred hunt bar lay on the hero the camera centres) */
   const hit = f.figures.filter(([, b]) => window_cross(f.card, b)).map(([n, b]) => n + ' at ' + Math.round(b.left) + '..' + Math.round(b.right));
   if (hit.length) fails.push('PH-10 [' + tag + '] the coach card (' + f.id + ', ' + Math.round(f.card.left) + '..' + Math.round(f.card.right) + ' x '
     + Math.round(f.card.top) + '..' + Math.round(f.card.bottom) + ') lies on ' + hit.join(', '));
@@ -1481,7 +1492,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       if (!got) fails.push('PH-6 [' + tag + ' first card] inside the tally its Got it is off screen or covered');
       await done(o, tag);
     }
-    for (const vp of run('fight') ? [{ width: 922, height: 423 }, { width: 844, height: 390 }, { width: 1440, height: 900 }] : []) { // PH-10
+    for (const vp of run('fight') ? [{ width: 922, height: 423 }, { width: 844, height: 390 }, { width: 1440, height: 900 }, { width: 1280, height: 720 }] : []) { // PH-10
       const tag = tagOf(vp);
       const o = await open(vp, HUNT, (env) => { env.state = Object.assign({}, env.state, { level_xp: 0 }); }, { settle: 1500 });
       if (!o.up) { fails.push('PH-10 [' + tag + '] the hunt did not mount'); await o.ctx.close(); continue; }

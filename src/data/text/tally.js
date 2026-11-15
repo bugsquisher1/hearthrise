@@ -42,6 +42,9 @@ export const TALLY_TEXT = Object.freeze({
   done_bag: 'Done. Make room in your bag and I\'ll pay you.',
   counting_here: 'Counting here in {ground}.',
   not_here: 'Not here',
+  /* the box on a held task (audit 2026-11-15 F6: it read "Keep" beside Abandon, and nothing said keep what): its label, and its hover */
+  keep: 'Take again when paid',
+  keep_why: 'Ticked: you get this task again as soon as she pays for it. Not ticked: it ends when she pays.',
   keep_on: 'You get this task again as soon as she pays for it.',
   keep_off: 'Once she pays for it, it won\'t come back by itself.',
   given_up: 'You gave up the {label}. Its count is gone.',

@@ -45,11 +45,14 @@ const keysOf = (cs, hall) => ((bagOf(cs) || []).find((x) => x.id === hall.key) |
 
 export function hallHtml() {
   return '<section class="hw-hd-call hw-hd-hall" aria-label="' + BOSS_HALL_WORDS.heading + '" hidden><h4 class="hw-hd-h"></h4>'
-    + '<p class="hw-call-line"></p><p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul><p class="hw-before-line is-short hw-hall-food" hidden></p>'
+    /* THE DOOR FIRST, THEN WHAT WINS: the key line, this bar's red food line and the press stand together under the head, so the
+       press and its warning are in view at once on a 423 px phone, never the press under Enter with its warning a screen above */
+    + '<p class="hw-call-line"></p><p class="hw-before-line is-short hw-hall-food" hidden></p>'
     + '<button type="button" class="hh-tool hw-call-press" data-hs-act="hall-warn"></button>'
     + '<div class="hw-confirm hw-call-warn" role="group" aria-label="' + BOSS_HALL_WORDS.sure + '"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-hall-note-alone" hidden></p><p class="hw-confirm-note hw-hall-note-a"></p><p class="hw-confirm-note hw-hall-note-b"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary is-on" data-hs-act="hall-go"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div></section>';
+    + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div>'
+    + '<p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul></section>';
 }
 
 /** Write the section for ground `v.hunt` ({ hunt, party, now, pending }); `hall` the hall its page opens (the data's, by default). */

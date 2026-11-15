@@ -68,3 +68,6 @@ Each: repro, server said vs screen said, likely file, and for fun/sense the evid
 
 ### F17 P3 · Tempering stops at Steel and says "can't be tempered yet" with no reason
 - As a player at Level 55 in Mithril: Shop > Services > Tempering: "Your Mithril Sword can't be tempered yet." No reason, no when. Earlier at Level 12: "Gear worn from Level 15 can." (good). Tyler 10-25 SAY WHY. Better: say there is no Mithril ladder yet, or build tiers 4+ (also the gold sink F12 needs).
+
+### F18 P2 · No way to sell outclassed gear in bulk; the loot plan only sees the last hunt
+- As a player at Level 60: the bag held 145 stacks, most of them gear I'd outgrown (Bronze to Mithril, every weight). The This hunt tab only lists what the last hunt picked up, so older stacks can't get a plan there; the Shop's Sell tab sells one stack per press. It took 114 presses for Corwen and 73 for Ilsa. Better (11-11 #8, still open): one "Sell gear below what you wear" press, and the loot plan reachable from any stack in the bag (item menu: Keep / Deposit / Sell).

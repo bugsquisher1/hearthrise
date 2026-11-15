@@ -175,7 +175,10 @@ async function dumpTables(db) {
   return out;
 }
 
-async function gp6(ships, mutate = null) {
+/* every shipped pack no whole file folds yet: its own file is part of the chain end, so GP-6 applies it and folds it with the planted ones */
+const openPacks = () => packIds().filter((id) => packSqlOf(id) && !COVERED.every((g) => foldedPacks(outOf(g)).includes(id)));
+async function gp6(planted, mutate = null) {
+  const ships = { ...planted, ...Object.fromEntries(openPacks().filter((id) => !(id in planted)).map((id) => [id, shipText(id)])) };
   const { bootReplay } = await import('./schema-replay.mjs');
   const { db } = await bootReplay();
   const sqls = Object.values(ships).map((s) => s.sql);
@@ -265,12 +268,11 @@ async function main() {
     const grounds = childJson(`import { OPEN_GROUNDS } from './src/data/hunt-grounds.js'; import { GROUND_PACKS } from './src/data/grounds/index.js';
       const packs = new Set(GROUND_PACKS.map((p) => p.id));
       console.log(JSON.stringify(Object.keys(OPEN_GROUNDS).filter((g) => !g.startsWith('${FIX}') && !packs.has(g))));`);
-    const openPacks = packIds().filter((id) => packSqlOf(id) && !COVERED.every((g) => foldedPacks(outOf(g)).includes(id)));
     const planted = await plantAll(grounds);
     try {
       const ships = Object.fromEntries(planted.map((id) => [id, shipText(id)]));
       await gp5(grounds, ships);
-      const moved = await gp6({ ...ships, ...Object.fromEntries(openPacks.map((id) => [id, shipText(id)])) });
+      const moved = await gp6(ships);
       ok(!moved.length, 'GP-6 the whole files move ' + moved.join(', ') + ' over the pack files: the additive path is not the whole one');
       const n = Object.values(ships).reduce((s, x) => s + x.sql.split('\n').length, 0);
       console.log('ground-pack --fold: ' + grounds.length + ' grounds as packs, ' + n + ' lines of additive SQL in all (' + Object.values(ships).map((x) => x.sql.split('\n').length).join(', ') + ')');

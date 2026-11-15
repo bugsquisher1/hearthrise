@@ -1354,7 +1354,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const shown = await warn();
         /* A monster's biggest hit is "Max Hit" wherever the game shows it (Tyler 2026-11-11). */
         /* Tyler 2026-11-14: "Max Hit {hit} · Your HP {hp}", then "Eat earlier" */
-        const said = 'Max Hit ' + SEWER_BLOW.hit + ' · Your HP ' + HS23_AT + '\nEat earlier';
+        const said = 'Max Hit ' + SEWER_BLOW.hit + '\nYour HP ' + HS23_AT + '\nEat earlier';
         if (safe !== '' || shown !== said) {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }

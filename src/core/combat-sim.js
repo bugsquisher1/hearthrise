@@ -265,9 +265,13 @@ export function simulateHuntInstance(inst, ctx) {
   let fresh = false;
   /* A BOSS ROOM (src/core/hunt/boss-room.js: a called room or a keyed hall): its limit from the party's first swing (one instant for every member however the windows were cut), and ONE
      FIGHT: whatever ends one hero's ends everyone's, box ticked or not (the box is the hero's own word for a hunt, and this isn't one). CALL OUT (src/data/boss-calls.js) alone pays
-     nothing: only a called room hands the rewards its call (hunt-rewards.js calledSwing); a hall pays like any ground. */
+     only his drops, on his kill: only a called room hands the rewards its call (hunt-rewards.js calledSwing); a hall pays like any ground. */
   const room = roomOf(ctx.ground);
   const call = ctx.ground && ctx.ground.call ? BOSS_CALLS[ctx.ground.call] : null;
+  /* A CALLED ROOM'S TIME SPENDS NO STAMINA (Tyler 2026-11-14: each FIGHT costs stamina, charged by the server as it starts,
+     2027-04-24-boss-call-series.sql): no pool is drained or proposed here, so none can end a fight; the same for every member, never stored.
+     THE SERIES IS THE SERVER'S: this span plays one fight, his kill ends it `boss_felled`, and the settle starts the next or ends the series. */
+  if (call) for (const m of members) m.hs.staminaMs = null;
   if (room) {
     const ends = Math.min(...members.map((m) => Number(m.hs.huntFromMs) || 0)) + room.limitMs;
     for (const m of members) { m.hs.callEndsAtMs = ends; m.hero = Object.assign({}, m.hero, { leaveTogether: true }); }

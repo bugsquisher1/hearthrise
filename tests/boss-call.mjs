@@ -6,7 +6,8 @@
 // TYLER'S RULING, 2026-11-14 (supersedes 11-04's "no drops from a paid call", which this guard held until then): "it should definitely have a chance for an
 // item drop otherwise there is no point". So a called boss's KILL (the fight's `boss_felled`) rolls his own table (his ground boss's rows at their rates and
 // one call-only piece); a death or the limit pays nothing; no route pays XP or coin; his adds pay nothing. The guard changed from "pays nothing" to "pays only
-// on boss_felled, only from his own table, never on a loss or at the limit". (The series and its stamina per fight are lane C's: boss-calls.js `fight`.)
+// on boss_felled, only from his own table, never on a loss or at the limit". THE SERIES IS THE SERVER'S (2027-04-24-boss-call-series.sql; tests/boss-call-db.mjs
+// plays it): the engine plays one fight, counts none, and spends no stamina in the room (BC-STAMINA).
 //
 //   node tests/boss-call.mjs            the guard
 //   node tests/boss-call.mjs --mutate   every planted defect must turn it red
@@ -25,7 +26,9 @@
 //   BC-PHASE   (Tyler 2026-11-05: "phases") the two lines happen once each and at their HP, the adds come in full and go for whoever isn't the tank, Challenge takes them, the enrage raises his blows; the world's shape never moved
 //   BC-GUARD   while one of his adds stands he takes only his guard's share of a blow, all of it once they're down; a ground's own monster never hides
 //   BC-WAVE    a death in the add wave ends the fight for everyone, however the windows are cut: an add's kill pays nothing, a loss pays nothing, and no hunt stays open
-//   SHUT       while BOSS_CALL_RULES.dropsLive is false (the shipped switch, until lane C's server half lands) a win pays nothing; every arm above runs with it open
+//   BC-STAMINA the room's time costs no stamina (each fight is charged by the server as it starts): a thin pool fights to the kill, no window proposes a pool,
+//              nothing ends on stamina; a normal ground still drains
+//   SHUT       with BOSS_CALL_RULES.dropsLive planted false a win pays nothing (the switch still closes the door); every arm above runs on the shipped tree, open
 //   BC-RECORD  the server's record of a fight: where he stood, read through a leader's death (a called room never resets), and what each hero's bar fired, the same however the windows are cut
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -80,7 +83,7 @@ function fight(X, call, roles, o = {}) {
   const windows = [];
   const res = X.play.run(call.hunt, o.L || STRONG.L, roles, { ground: X.G.CALLED_GROUNDS[call.hunt], spanMs: X.B.BOSS_CALL_RULES.limitMs + 2 * MINUTE, windowMs: o.cut || 30000,
     secret: o.secret || '-4611686018427387904', leaveTogether: o.box !== false, ...(o.temper ? { temper: o.temper } : {}), ...(o.start ? { start: o.start } : {}), equipment: (role) => o.kit || (role === 'mage' ? { weapon: 'oak_wand' } : role === 'healer' ? { weapon: 'oak_staff' } : STRONG.kit),
-    ...(o.bar ? { bar: o.bar } : {}), onWindow: (w) => windows.push(w) });
+    ...(o.bar ? { bar: o.bar } : {}), ...(o.session ? { session: o.session } : {}), onWindow: (w) => windows.push(w) });
   const members = windows.flatMap((w) => w.members);
   const ended = {};
   for (const m of members) if (m.hunt.ended) ended[m.key] = m.hunt.ended;
@@ -200,6 +203,21 @@ async function guard(X) {
   soft(king, 1600); soft(chief, 1600);
   const kinds = (f) => { const out = {}; for (const w of f.windows) for (const [u, r] of Object.entries(w.units || {})) out[u] = r[0]; return out; };
   const eventsOf = (f) => f.windows.flatMap((w) => w.events || []);
+  /* BC-STAMINA (Tyler 2026-11-14: each FIGHT costs stamina, charged by the server as it starts, 2027-04-24-boss-call-series.sql; the room's own time costs
+     none): a pair with one swing of stamina left fights to the kill, no window proposes a pool, nothing ends on stamina, and the pool moves nothing. */
+  {
+    const thin = fight(X, king, ['tank', 'healer'], { session: { staminaMs: 2000 } });
+    const full = fight(X, king, ['tank', 'healer'], {});
+    const ends = Object.values(thin.ended);
+    if (ends.length !== 2 || !ends.every((e) => e.reason === 'boss_felled')) bad.push('BC-STAMINA a pair with one swing of stamina ended ' + JSON.stringify(thin.ended) + ', want the kill');
+    const pools = thin.members.concat(full.members).filter((m) => m.hunt.stamina !== null).map((m) => m.hunt.stamina);
+    if (pools.length) bad.push('BC-STAMINA a called window proposed a stamina pool: ' + JSON.stringify(pools.slice(0, 4)));
+    if (JSON.stringify(Object.entries(thin.ended).sort()) !== JSON.stringify(Object.entries(full.ended).sort())) bad.push('BC-STAMINA the pool moved the fight: ' + JSON.stringify(thin.ended) + ' against ' + JSON.stringify(full.ended));
+    /* CONTROL: a normal ground still walks its pool down, swing by swing. */
+    const seen = [];
+    X.play.run('mill_cellar', 6, ['tank'], { spanMs: 60000, windowMs: 30000, onWindow: (w) => { for (const m of w.members) seen.push(m.hunt.stamina); } });
+    if (!seen.length || !seen.every((n) => Number.isInteger(n) && n < 12 * 3600000)) bad.push('BC-STAMINA CONTROL: a normal hunt proposed ' + JSON.stringify(seen.slice(0, 4)));
+  }
   const PATHS = [
     ['a lone seat', king, ['tank'], {}],
     ['a pair', king, ['tank', 'healer'], {}],
@@ -455,11 +473,11 @@ async function guard(X) {
   return bad;
 }
 
-/* THE DROPS' SWITCH (boss-calls.js BOSS_CALL_RULES.dropsLive): shut until lane C's server half lands. The guard plays the rules on a tree with it OPEN
-   (the door as it will run), and SHUT holds the shipped tree to today's live line: a win pays nothing while it is shut. */
-const LIVE = [['src/data/boss-calls.js', '  dropsLive: false,\n', '  dropsLive: true,\n']];
+/* THE DROPS' SWITCH (boss-calls.js BOSS_CALL_RULES.dropsLive): OPEN since its server half (2027-04-24-boss-call-series.sql). The guard plays the rules on the
+   shipped tree (the door as it runs), and SHUT plants the switch off: a win pays nothing while it is shut, so the switch still closes the door. */
+const OFF = [['src/data/boss-calls.js', '  dropsLive: true,\n', '  dropsLive: false,\n']];
 async function shut(X) {
-  if (X.B.BOSS_CALL_RULES.dropsLive === true) return [];
+  if (X.B.BOSS_CALL_RULES.dropsLive === true) return ['SHUT CONTROL: the planted switch is still open'];
   const bad = [];
   const king = X.B.BOSS_CALLS.rat_king, add = X.G.CALLED_GROUNDS[king.hunt].pockets[0].adds[0].monster;
   for (const id of [king.monster, add]) for (const inst of [X.EM[id], X.play.MONSTERS[id]]) Object.assign(inst, { hp: id === add ? 60 : 1600, atk: 1, baseAcc: 0 });
@@ -468,10 +486,10 @@ async function shut(X) {
   for (const m of f.members) for (const p of paysOf(m.delta, king.monster)) bad.push('SHUT a win paid while the switch is shut: ' + m.key + ' ' + p);
   return bad;
 }
-/* The rules on the open tree, then the switch on the shipped one (both with `edits` planted, a mutant's or none). */
+/* The rules on the shipped tree (the door open), then the switch planted shut (both with `edits` planted, a mutant's or none). */
 async function judge(edits) {
   const bad = [];
-  for (const [arm, tree, fn] of [['open', edits.concat(LIVE), guard], ['shut', edits, shut]]) {
+  for (const [arm, tree, fn] of [['open', edits, guard], ['shut', edits.concat(OFF), shut]]) {
     if (!tree.length) { bad.push(...await restoring(REPO, fn)); continue; }
     const { root, done } = plant(tree, PLAY_TREES);
     try { bad.push(...await restoring(root, fn)); } catch (e) { bad.push('THREW (' + arm + ') ' + String(e && e.message).slice(0, 160)); } finally { done(); }
@@ -495,7 +513,9 @@ const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(
 const PAY_HERE = "{ const ids = livingIds(world, members); const row = (ctx.monsters || MONSTERS)[boss]; if (ids.length && row) payDrops(ids.map((id) => members.get(id)), ids, members.get(ids[0]), row, ctx, world, ev.atMs); }";
 const ROW_ADD = "hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
 const MUTANTS = [
-  /* THE SWITCH: shut, a win pays nothing (the live allowlist refuses an item) */
+  /* THE ROOM'S TIME COSTS NO STAMINA (each fight is charged by the server as it starts) */
+  { name: 'a called room drains the pool and ends on it', edits: [['src/core/combat-sim.js', '  if (call) for (const m of members) m.hs.staminaMs = null;\n', '']], want: /BC-STAMINA/ },
+  /* THE SWITCH: shut, a win pays nothing */
   { name: 'the drop door ignores its switch', edits: [['src/core/hunt-rewards.js', 'if (BOSS_CALL_RULES.dropsLive === true && ids.length && row)', 'if (ids.length && row)']], want: /SHUT/ },
   /* HIS OWN TABLE, ONLY ON A WIN (Tyler 2026-11-14) */
   { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },

@@ -1631,6 +1631,14 @@ async function planRules(base) {
       if (BM.statLines('dawn_platelegs').some((s) => /^resistPm/.test(s.key))) fails.push('AW-21 a piece with no resistance shows a resistance line');
       const cmp = JSON.stringify(BM.compare('banded_legguards', 'dawn_platelegs'));
       if (cmp !== '[{"label":"Physical damage taken","delta":30,"text":"−3%"}]') fails.push('AW-21 the Banded Legguards against Dawnsteel Platelegs read ' + cmp + ', not the 3% alone');
+      /* WHERE THEY COME FROM (found on the card at runtime, lane/c-krell-uniques: every one of Krell's pieces read "Dropped by creatures on grounds that
+         aren't open yet", his 14 standard pieces too): an open hall's boss is a place a player can reach, and the link opens the ground his door is on. */
+      const LORE = await imp('src/shell/item-lore.js'), GF = await imp('src/shell/hunt-ground-facts.js');
+      for (const id of ['krells_tollgate', 'banded_legguards', 'dawn_helm']) {
+        if (LORE.sourcesOf(id).join(' | ') !== 'Dropped by Lord Krell at Krell\'s Hall') fails.push('AW-21 the ' + id + ' card\'s Comes from reads ' + JSON.stringify(LORE.sourcesOf(id)) + ', not Dropped by Lord Krell at Krell\'s Hall');
+        if (JSON.stringify(GF.dropPlaceOf(id)) !== '{"kind":"hunt","hunt":"krells_hold"}') fails.push('AW-21 the ' + id + ' card\'s source link opens ' + JSON.stringify(GF.dropPlaceOf(id)) + ', not Krell\'s Hold (the hall\'s door)');
+      }
+      if (LORE.sourcesOf('hall_key').join() !== 'Dropped by Gatekeeper at Krell\'s Hold') fails.push('AW-21 the Hall Key\'s source moved: ' + LORE.sourcesOf('hall_key'));
       const back = BM.compare('dawn_platelegs', 'banded_legguards');
       if (back.length !== 1 || back[0].delta !== -30 || back[0].text !== '+3%') fails.push('AW-21 taking the Banded Legguards off for Dawnsteel Platelegs does not read as +3% physical damage taken: ' + JSON.stringify(back));
     }
@@ -4790,6 +4798,8 @@ const MUTANTS = [
   ['plans: AW-21 the card reads a resistance as a tenth of itself', 'src/shell/bag-model.js', "    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });", "    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v / 10) });"],
   ['plans: AW-21 the comparison never names a resistance', 'src/shell/bag-model.js', "    if (d) out.push({ label: resistLabel(k), delta: d, text: (d > 0 ? '−' : '+') + cutWords(d) });\n", ''],
   ['plans: AW-21 the card calls every resistance by one name', 'src/shell/bag-model.js', "const resistLabel = (k) => t('item.resist_taken', { element: t('monster.el_' + k) });", "const resistLabel = (k) => t('item.resist_taken', { element: t('monster.el_ember') });"],
+  ['plans: AW-21 a hall boss\'s piece comes from nowhere a player can reach', 'src/shell/hunt-ground-facts.js', "    if (boss && ((MONSTERS[boss] || {}).drops || []).some((d) => d && d.id === item)) standing.push({ g, names: [MONSTERS[boss].name] });\n", ''],
+  ['plans: AW-21 a hall piece\'s link opens a hunt page that does not exist', 'src/shell/hunt-ground-facts.js', "  return standing.length ? { kind: 'hunt', hunt: pageOf(standing[0].g) }", "  return standing.length ? { kind: 'hunt', hunt: standing[0].g.hunt }"],
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
   ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
   ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],

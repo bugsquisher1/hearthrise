@@ -85,3 +85,82 @@ Each: repro, server said vs screen said, likely file, and for fun/sense the evid
 
 ### F22 P2 · The hall's own advice (tank + healer + the four bar changes) doesn't beat Krell
 - As a player: I made every change the hall card lists, with a tank (87, Emberforged) and a healer (84). Three tries: out of time at 17% and 15%, one death on Offensive. Adding a third hero (a mage 18 Levels under, with no warning) won in 7:54. The card says "Party: a tank and a healer"; what it takes is damage. Better: the card says how many heroes the wins had (the summary's line "Your Challenge fired 1 time" points at the tank, but the gap was damage), and the hall warns about an under-Level member as the ground does.
+
+### F23 P3 · The Sewer card says "Play one from Characters" when every hero is already playing
+- As a player (Bryn, all four heroes in the strip, three of them in Corwen's party): "Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once." They were playing; they were in another party. Better: "Corwen, Ilsa and Maren are in Corwen's party. Leave it from their Party window to bring them."
+
+### F24 P2 · A boss call costs 10,000 gp and, by its own words, pays nothing
+- As a player: Sewer card > "Call out the Rat King for 10,000 gp". Confirm: "You get no XP, coin or drops in his room." I called him with Bryn (Level 44 on a Level 8-25 ground): killed by a Drain Rat in the room, dropped to 43. From the screen there is no reason to call. Better: say what a win earns (a title, a bestiary stage, a guaranteed trophy), or cut the call until it has one.
+
+### F25 P3 · The Training Yard's view says it "isn't in the World yet"
+- As a player: Training > Ranged > Start training. The hunt view reads "Training Yard isn't in the World yet. The Mill Cellar is. Hunt in the Mill Cellar". Training works (1 h = +11,663 Ranged XP for 368 gp, no stamina) but the screen calls it unfinished. Better: a yard scene, or a still card saying what is training and how fast.
+
+### F26 P3 (info) · Scaled hunts can't be found from the screen
+- As a player I looked on all 11 Hunts cards and the Shop's Buy and Services tabs: no scaled hunt. Root cause (code, after logging): data and server exist (`src/data/scaled-hunts.js`), no client window reads them, so it is hidden, as §3.5 asks of a half-built feature. Not played.
+
+### F27 P3 · Phone layouts: the sheet cuts the bar at 922x423; Configure action shows one row at 667x375
+- 922x423 (touch): the bag and Hunts sheets slide in from the right and read well; the action bar is cut behind the sheet after slot 8, and the Hunts list's first visible row is clipped under its advice line (shots 025, 026, local only). 667x375: the hunt screen keeps HP, bar, stance and Chase in view; Configure action shows one spell row of the table at a time (shot 028).
+
+### F28 P2 · Tamsin's board stops at Level 32
+- As a player at Level 87: the board offers only Gray Wolves (5), Turncoats (8), the Rat King (8, party), Glade Poachers (16) and Goblin Diggers (32, party), paying 480-1,090 gp plus a few Silk Thread or Copper Ore. Nothing for the Ford, the Slake, the Barrows, the Pyre Field or the Hold, so from about Level 35 her daily pick of a ground is gone. Better: one task a March ground, paid in that ground's tier armor in the hero's weight (her armor pick already exists).
+
+### Harness notes (tools/qa/local-world.mjs, not game bugs)
+- A skip moves hunt clocks back but not `player_blessings.bought_at`; `hr_blessing_take` counts only Blessings with `bought_at <= settled_to`, so after many skips a death can ignore held Blessings (seen once at the Barrows; a fresh Bless before entering applies correctly).
+- A wait never crosses a UTC day, so Tamsin's 3 a day and the 6 refills a day never reset in a long local run (the header says so).
+- A skip's settle can lag about 60 s; the screen then showed a boss at 77% after the server had ended the fight at 17%.
+
+---
+## FINAL (2026-11-15): where the run ended
+Corwen (sword and shield) reached **Krell's Hold at Level 85 after about 415 hunted hours** (Level 50 at about 157 h), hunted it to 87, and **beat Lord Krell** on the fourth Hall Key with three heroes. Every ground was played: Cellar, Thicket, Wickstead, Glade, Warrens, the Sewer (boss room), Ford, Slake, Barrows, Pyre Field, Hold, the hall. 4 heroes, 8.4M gp. Not reached: the Weighhouse (closed on the local chain), scaled hunts (hidden), v0.2.133 (factions, training gear, the Burning Tower: not on origin/main by the end), and every live real-time check (the built-in pane is signed out on hearthrise.net and Claude in Chrome was never connected).
+
+### Top 10 changes by player value
+| # | What the player feels now | Change | Findings |
+|---|---|---|---|
+| 1 | "I pressed Equip upgrades for 40 Levels and still swing a Level-15 sword." | A bane counts only where it wins; the bigger numbers go on. | F15 (P1) |
+| 2 | "It says my friend has 1 minute of stamina and we're all going home." | The party roster reads the real pool; a stale alert leaves with the next envelope. | F7 (P1, in flight) |
+| 3 | "I'm in range on Normal and I die in 8 minutes." | Every hunt card and bar slot says when your food heals too little for your HP, and the Barrows card says it expects a healer, the way Krell's hall card already teaches its fight. | F14, F22, F5 |
+| 4 | "8 million gold and nothing to spend it on." | Tempering tiers past Steel priced by Level, House tiers priced in the millions, Works caps per hero; the Weighhouse window points at the Works. | F12, F20, F17, F19 |
+| 5 | "I beat the last boss and got 174 gold." | Krell's first win always pays something named, with a reveal; the hall lists his drops. | F21 (lanes in flight) |
+| 6 | "The coach and the alerts cover my hero, even during Krell." | Hunt-time cards dock away from the hero and the boss; alerts for other heroes stay in the strip. | F1, F13 |
+| 7 | "114 presses to sell my old armor, and my second hero starts the loot plan from zero." | "Sell gear below what you wear" in one press; the loot plan from any bag stack; copy a plan from another hero. | F18, F11 |
+| 8 | "Tamsin has nothing for me after Level 32." | One task per March ground, paid in that tier's armor. | F28 |
+| 9 | "Still the Practice Shield at Level 87." | Shields every 15 Levels to 90, and Equip upgrades names a better shop piece. | F8 (in flight) |
+| 10 | "Why would I pay 10,000 to fight the Rat King for nothing?" | Give boss calls a reward the screen names, or cut them. | F24 |
+
+### Keep / fix / merge / cut, every system played
+| System | Verdict | Evidence (this run) |
+|---|---|---|
+| Sign-up, hero creation | KEEP | Clear "How you fight"; first kill in seconds |
+| Coach (first hour) | KEEP, fix F3/F4 | Level 5 at 22 min; every step named the next; it stops teaching after Level 12 (food, runes) |
+| Hunts list and cards, tiers | KEEP, fix F14 | "In your range / Next step up", best XP/h per ground; the Barrows card under-warns |
+| Away and return | KEEP (best moment) | "Level 8 to 12 ... then went back to mining"; fix F9 |
+| Action bar, Configure action | KEEP | g-per-HP tables, rune tiers with damage; cramped on phones (F27) |
+| Rune ladder | KEEP | Carved vs Plain at the Slake: +18% XP for -28% gold, a real trade |
+| Food and drink | FIX | Unused L1-12 (F5); decides life or death at 55+ with no nudge (F14) |
+| Equip upgrades | FIX | Weapon trap (F15), shield never offered (F8) |
+| Loot plan, Dispatch | FIX | Works and is honest; per hero and last hunt only (F11, F18) |
+| Shop (Buy, Sell, Services) | KEEP | Sell all junk, Bless all, refills: one press each |
+| Stamina refill | KEEP | Always pays for itself; price scales with Level |
+| Death and Blessings | KEEP | Death card names the killer, the cost and the save |
+| Tamsin's tally | FIX | Great at Levels 1-30 (skips a helm you wear); empty after 32 (F28) |
+| Mining, Woodcutting, Fishing | KEEP | Town job resumes after a hunt; fills rest time |
+| Cooking | KEEP | Wolf Meat at 1; bench tax shown and exact |
+| Smithing | KEEP | Bars, tools, shields, House fittings |
+| Crafting | FIX | Planks and two cloaks: a one-press grind with no decisions |
+| Runecrafting | KEEP, unproven | Essence to blanks to Chalked runes works; value against 1-24 g store runes not measured |
+| Farming | KEEP, small | Plant, water, harvest and replant; 4 plots |
+| Hearth (Inner Flame) | KEEP | One press burns 11,574 bones; regen +34% |
+| House | FIX | Homestead at 400 gp is trivial; tiers gated by materials, not gold (F12) |
+| Storage, bag rows | KEEP | The over-cap bag is explained |
+| Party | KEEP, fix F16 | +29% a head at the Warrens; a healer removes the food bill |
+| Hero slots | KEEP | Slot 2 at about 83 hunted h ("about a week" holds) |
+| Leaderboards, Havora sinks | KEEP, small | Works plaque, powders, rounds: about 50k a day at most (F20) |
+| Boss calls | FIX or CUT | No reward on screen; killed a Level 44 hero (F24) |
+| Krell's Hold and hall | KEEP, fix F21/F22 | Best teaching card in the game; the win pays nothing |
+| Training Yard | KEEP, fix F25 | Stamina-free and cheap; the view says unfinished |
+| Tempering | FIX | Stops at Steel (F17) |
+| Weighhouse | not reached | Closed on the local chain (F19) |
+| Scaled hunts | not reachable | Hidden (F26) |
+
+### Against the 11-11 designer re-read (read after the first pass)
+Landed and seen in play: #1 (Equip took the Bramble Blade, but see F15), #2 (away card names the town job), #3 (Tamsin skips worn slots), #4 (Cook Wolf Meat at 1), #5 ("then Spells"; "Waits for Power Strike"), #6 (best find on the away card), #9 (Dispatch line), #10 (Bless all). Still open: #7 (Dangerous bite on the first grounds: not measured here beyond one Glade death at 4 under), #8 (one-press sell of outgrown gear, now F18). New since: everything past Level 32 (F14, F15, F17, F20-F28).

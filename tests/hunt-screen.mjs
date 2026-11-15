@@ -798,7 +798,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           delete s.env.hunt_target_kind;
           await pushEnvelope(page, s);
           const why = await wait(page, (q) => { const e = document.querySelector(q);
-            return e && e.disabled && /can.t be set yet/.test(e.closest('.hb-pl-first').querySelector('.hb-pl-note').textContent); }, SEL);
+            return e && e.disabled && /^Waiting for server$/.test(e.closest('.hb-pl-first').querySelector('.hb-pl-note').textContent); }, SEL);
           if (!why) fails.push('HS-29 with no picks from the server the First target is not off with its reason: ' + JSON.stringify(await read()));
         }
       }

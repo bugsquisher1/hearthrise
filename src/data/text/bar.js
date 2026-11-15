@@ -17,14 +17,14 @@ export const BAR_TEXT = Object.freeze({
   effects_door: 'Effects',
   effects_door_label: 'Effect settings: how strongly spells, hits and danger marks show',
   /* The First target (src/shell/widgets/first-target.js; the Krell's Hold design's piece 4): the monster a hero goes for first on
-     one ground, remembered per ground, so the line under it names the ground. */
+     one ground, remembered per ground, so the line under it names the ground. Labels, not sentences (Tyler 2026-11-14). */
   first_target: 'First target',
   first_target_none: 'None',
   first_target_on: 'First target on {ground}',
-  first_target_note_on: 'On {ground} your hero goes for any {monster} first, then follows Target.',
-  first_target_note_off: 'Pick a monster your hero goes for first on {ground}, like one that heals the others.',
+  first_target_note_on: '{ground}: {monster} first',
+  first_target_note_off: '{ground}: none set',
   /* the select is off until the server sends this hero's picks (say-why SW-2) */
-  first_target_unknown: 'The First target can\'t be set yet. It opens once the server sends your picks.',
+  first_target_unknown: 'Waiting for server',
 
   /* What the worn weapon can shoot or cast. */
   shot_waits: '{need}. This slot waits until then, and your next ammo fires.',

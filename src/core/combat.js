@@ -178,9 +178,10 @@ export function equipmentStats(equipment, items) {
   /* CRAFTED JEWELRY'S PERKS (src/data/jewelry.js): present only on a hero that wears one, so every other hero's stats are what they were. */
   const jewel = jewelPerksOf(equipment, items);
   if (jewel) Object.assign(s, { jewel });
-  /* ELEMENTAL RESISTANCE (Tyler 2026-11-08: gear and imbuements answer a monster's group spell): the worn pieces' `resistPm`
-     { element: permille less taken }, summed and bounded (elements.js resistProfile); present only on a hero whose gear
-     carries any, which no item does yet, so every hero's stats are what they were. */
+  /* RESISTANCE (Tyler 2026-11-08: gear and imbuements answer a monster's group spell; 2026-11-14: "maybe the legs have a %
+     physical resistance"): the worn pieces' `resistPm` { element | physical: permille less taken }, summed and bounded, each
+     key under its own cap (elements.js resistProfile); present only on a hero whose gear carries any (Krell's Tollgate and the
+     Banded Legguards are the first), so every other hero's stats are what they were. */
   const resist = resistOf(equipment, items);
   if (resist) Object.assign(s, { resistPm: resist });
   return s;

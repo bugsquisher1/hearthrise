@@ -326,9 +326,30 @@ const ARMS = {
       const sum = X.DR.prizeChance(boss.drops);
       if (!(sum > 0 && sum <= 1 + 1e-9)) bad.push('HL-DAILY the hall ' + h.id + '\'s prize rows make ' + sum + ' of one roll');
     }
+    /* KRELL'S PRIZE TABLE AS IT SHIPS (the designer's spec 3 and 4; lane/c-krell-daily, lane/c-krell-uniques): 14 standard tier 7 pieces, each as
+       likely, 40% together, then his two unique pieces, Krell's Tollgate 3% and the Banded Legguards 3%, and 54% nothing. Read through the
+       engine's own roll over his real rows: where a roll lands is what a hero gets. */
     const krell = X.M.MONSTERS.lord_krell;
-    if (krell && (krell.drops.length !== 14 || Math.abs(X.DR.prizeChance(krell.drops) - 0.4) > 1e-9 || new Set(krell.drops.map((d) => d.ch)).size !== 1)) {
-      bad.push('HL-DAILY Krell\'s prize reads ' + krell.drops.length + ' rows making ' + X.DR.prizeChance(krell.drops) + ' (the spec: 14 pieces, each as likely, 40% together)');
+    if (krell) {
+      const UNIQUE = ['krells_tollgate', 'banded_legguards'];
+      const std = krell.drops.filter((d) => !UNIQUE.includes(d.id)), uni = krell.drops.filter((d) => UNIQUE.includes(d.id));
+      if (std.length !== 14 || Math.abs(X.DR.prizeChance(std) - 0.4) > 1e-9 || new Set(std.map((d) => d.ch)).size !== 1) {
+        bad.push('HL-DAILY Krell\'s standard prize reads ' + std.length + ' rows making ' + X.DR.prizeChance(std) + ' (the spec: 14 pieces, each as likely, 40% together)');
+      }
+      if (uni.map((d) => d.id).join() !== UNIQUE.join() || uni.some((d) => Math.abs(d.ch - 0.03) > 1e-9 || d.band !== 'rare')) {
+        bad.push('HL-DAILY Krell\'s unique pieces read ' + JSON.stringify(uni) + ' (the spec: the Tollgate 3%, the Banded Legguards 3%, Rare rows)');
+      }
+      if (krell.drops.length !== 16 || Math.abs(X.DR.prizeChance(krell.drops) - 0.46) > 1e-9) bad.push('HL-DAILY Krell\'s whole prize roll reads ' + krell.drops.length + ' rows making ' + X.DR.prizeChance(krell.drops) + ' (16 rows, 46%)');
+      const lands = (u) => { const ev = X.DR.rollPrize(krell.drops, { next: () => u }); return ev ? ev.id + (ev.rare ? '' : ' (no reveal)') : null; };
+      for (const [u, want] of [[0, std[0] && std[0].id], [0.3999, std[13] && std[13].id], [0.4001, 'krells_tollgate'], [0.4299, 'krells_tollgate'], [0.4301, 'banded_legguards'], [0.4599, 'banded_legguards'], [0.4601, null], [0.9999, null]]) {
+        if (lands(u) !== want) bad.push('HL-DAILY a roll of ' + u + ' on Krell\'s real rows lands ' + lands(u) + ' (want ' + want + ')');
+      }
+      /* each piece is a real item a hero can wear at 88 and trade, and every prize row is one */
+      for (const d of krell.drops) if (!X.I.ITEMS[d.id]) bad.push('HL-DAILY Krell\'s prize row ' + d.id + ' is not an item');
+      for (const id of UNIQUE) {
+        const it = X.I.ITEMS[id];
+        if (it && (it.tier !== 7 || it.reqLv !== 88 || it.bop || !it.resistPm)) bad.push('HL-DAILY ' + id + ' is not a tradeable tier 7 piece worn from 88 with its attribute: ' + JSON.stringify(it));
+      }
     }
     return bad;
   },
@@ -479,6 +500,9 @@ const MUTANTS = [
   { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrual.js', '              ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
   { name: 'a roll that lands nothing sends no claim', edits: [['src/core/hunt-rewards.js', '    m.hs.prizeRolled = true;\n    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);', '    const ev = rollPrize(row.drops, ctx.rng);\n    if (ev) { m.hs.prizeRolled = true; giveDrop(m, ids[i], ev, ctx, atMs); }']], want: /HL-DAILY/ },
   { name: 'the engine rolls a prize the read never offered', edits: [['src/core/member.js', '      prizeLeft: mi.prizeLeft === true,', '      prizeLeft: mi.prizeLeft !== false,']], want: /HL-DAILY/ },
+  { name: 'Krell\'s unique pieces are off his prize roll', edits: [['src/data/grounds/krells_hold/pack.js', "          ...UNIQUES.map((id) => ({ id, ch: SPECIAL_SAMPLE[id].source.pm / 1000, band: 'rare' }))],", '          ],']], want: /HL-DAILY Krell's unique pieces read/ },
+  { name: 'Krell\'s unique pieces roll at 30% each', edits: [['src/data/grounds/krells_hold/pack.js', 'ch: SPECIAL_SAMPLE[id].source.pm / 1000,', 'ch: SPECIAL_SAMPLE[id].source.pm / 100,']], want: /HL-DAILY Krell's unique pieces read|HL-ROW|prize slices/ },
+  { name: 'a unique piece takes a standard piece\'s share (the 14 make 34%)', edits: [['src/data/grounds/krells_hold/pack.js', ".map((id) => ({ id, ch: 0.4 / 14, band: 'rare' })),", ".map((id) => ({ id, ch: 0.34 / 14, band: 'rare' })),"]], want: /HL-DAILY Krell's standard prize reads/ },
   { name: 'every prize row rolls for itself', edits: [['src/core/drops.js', '    if (u < edge) { const band', '    if (rng.next() < Number(d.ch)) { const band']], want: /HL-DAILY/ },
   { name: 'a hall boss may drop every kill', edits: [['tools/gen-hunt-sessions.mjs', '    if (!REVEAL_BANDS.includes(d.band)) throw', '    if (false) throw']], want: /HL-ROW took a boss with an every-kill drop/ },
   { name: 'prize slices may make more than one roll', edits: [['tools/gen-hunt-sessions.mjs', '  if (sum > 1 + 1e-9) throw', '  if (false) throw']], want: /HL-ROW took prize slices/ },

@@ -48,7 +48,7 @@ const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_prie
 export default definePack({
   id: 'krells_hold',
   status: "open",
-  sql: "2027-04-22-pack-krells_hold.generated.sql",
+  sql: "2027-04-25-pack-krells_hold-2.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
     name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up out of the Muster Barrows guard the crypt.',

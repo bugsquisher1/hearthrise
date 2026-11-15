@@ -4,7 +4,7 @@
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on its
 -- passing §3. MONEY SURFACE (an item spent, now possibly ANOTHER PLAYER'S): ON THE EA SECURITY LIST (§3.7).
--- ORDER: after 2027-04-23-open-march-scaled-hunts-catalogue.generated.sql (the chain's tip); independent of 2027-04-25-boss-daily.sql (either order).
+-- ORDER: after 2027-04-23-open-march-scaled-hunts-catalogue.generated.sql (the chain's tip); BEFORE 2027-04-25-boss-daily.sql (its section reads hr_boss_hall_key_of; its §0 refuses without it).
 -- EDGE: none (no engine body reads the key). CLIENT: src/shell/windows/boss-hall-pane.js reads whose key the open takes from the `boss_halls`
 -- section (2027-04-25-boss-daily.sql); until that ships the page still asks the leader to hold the key, which this verb still honours first.
 --

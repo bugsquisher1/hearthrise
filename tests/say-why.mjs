@@ -253,7 +253,7 @@ export const REASONS = Object.freeze({
     { cond: '!show || !!opt.locked', words: 'GEAR_HUNT_WORDS.upgrades', where: 'the upgrade line\'s why' },
   ],
   'src/shell/windows/hunts.js': [
-    { cond: 'follower', words: "'Your party leader picks the hunt and starts it.", where: 'the page lead for a party member' },
+    { cond: 'follower', words: "t('hunts.lead_follower')", where: 'the page lead for a party member' },
     { cond: '!tiersOf(groundOf(hunt).id).includes(want)', words: 'tierWords(r, tier, size)', where: 'a ground offers its tiers as buttons, and the note says what each does' },
     { cond: '!!now', words: 'carriedWords(carried)', where: 'a running hunt: the page says what it carries; the top bar has Leave' },
   ],

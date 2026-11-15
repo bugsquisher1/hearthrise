@@ -942,10 +942,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!(await wait(page, () => !document.querySelector('[data-hs-win="hunts"]:not(.is-leaving)'), null, 4000))) fails.push('HS-9b the Hunts window stayed open over the hunt it entered');
         await page.keyboard.press('h');
         await wait(page, () => !/On the way/.test(document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent)
-          && /You are hunting in/.test(document.querySelector('[data-hs-win="hunts"] .hw-hunts-now').textContent));
+          && /Hunting in/.test(document.querySelector('[data-hs-win="hunts"] .hw-hunts-now').textContent));
         const w = await page.evaluate(() => ({ msg: document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent,
           now: document.querySelector('[data-hs-win="hunts"] .hw-hunts-now').textContent }));
-        if (/On the way/.test(w.msg) || !/You are hunting in/.test(w.now)) fails.push('HS-9 the Hunts window does not follow the server’s hunt: ' + JSON.stringify(w));
+        if (/Heading to/.test(w.msg) || !/Hunting in/.test(w.now)) fails.push('HS-9 the Hunts window does not follow the server’s hunt: ' + JSON.stringify(w));
         /* HS-10: the server says the hunt is over: the top bar keeps the summary, never Leave hunt. Judged on a DEATH,
            the one ended hunt whose bar a player sees (v0.2.66 shell.js huntUp: an ordinary end opens its summary at
            once and the bar leaves with it; a death holds the summary back behind the death popup, followSummary). */

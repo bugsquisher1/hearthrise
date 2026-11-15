@@ -2883,7 +2883,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Another setup: ONE apply, then ONE enter as it, one press; every control off while it is in flight. */
         await page.click(W + '.hw-go[data-preset="1"]');
         const note = await page.evaluate((w) => document.querySelector(w + '.hw-go-note').textContent, W);
-        if (note !== 'Enter puts Bow on first: its gear and its bar.' || !/^Supplies: set by Bow’s bar/.test(await before())) fails.push('AW-26 choosing Bow says ' + JSON.stringify([note, await before()]));
+        if (note !== 'Enter equips Bow first (gear and bar)' || !/^Supplies: set by Bow’s bar/.test(await before())) fails.push('AW-26 choosing Bow says ' + JSON.stringify([note, await before()]));
         e0 = enters(); a0 = applies();
         const mark = s.calls.length;
         await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
@@ -2989,7 +2989,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const closed = await wait(page, () => !document.querySelector('[data-hs-win="hunts"]:not(.is-leaving)'), null, 4000);
         if (!closed) fails.push('AW-29 the Hunts window stayed over the hunt it entered');
         await openWin(page, 'h', 'hunts');
-        const hunting = await wait(page, (w) => /You are hunting in Meadowbrook Thicket/.test(document.querySelector(w + '.hw-hunts-now').textContent)
+        const hunting = await wait(page, (w) => /Hunting in Meadowbrook Thicket/.test(document.querySelector(w + '.hw-hunts-now').textContent)
           && document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled, W, 4000);
         /* Back in town (the hunt ended): the window still holds the Thicket, ready to go again; after a close and reopen too. */
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
@@ -4239,7 +4239,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (await openWin(page, 'h', 'hunts')) {
             await page.waitForTimeout(200);
             const foot = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'), l = w.querySelector('[data-hs-act="leave-party"]'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent, leave: !l.hidden && l.getClientRects().length > 0 }; });
-            if (!foot.off || !/^You're in Bramwell's party, and they pick the hunt\./.test(foot.why) || !foot.leave) fails.push('AW-63 a member\'s Hunts foot reads ' + JSON.stringify(foot));
+            if (!foot.off || !/^Party: Bramwell picks the hunt/.test(foot.why) || !foot.leave) fails.push('AW-63 a member\'s Hunts foot reads ' + JSON.stringify(foot));
             const mk = s.calls.length;
             await page.click('[data-hs-win="hunts"] [data-hs-act="leave-party"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] [data-hs-act=\"leave-party\"]'"));
             await page.waitForTimeout(300);
@@ -4296,7 +4296,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             await page.click('[data-hs-win="hunts"] .hw-hunt-enter');
             await page.waitForTimeout(200);
             const armed = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'); return { label: w.querySelector('.hw-hunt-enter').textContent, said: w.querySelector('.hh-intent-msg').textContent }; });
-            if (armed.label !== 'Enter anyway' || armed.said !== 'Press Enter anyway to go.' || s.calls.filter((c) => c.name === 'hr_hunt_enter').length !== sentBefore) fails.push('AW-63 the first press of Enter under the floor reads ' + JSON.stringify(armed));
+            if (armed.label !== 'Enter anyway' || armed.said !== 'Press Enter anyway to go' || s.calls.filter((c) => c.name === 'hr_hunt_enter').length !== sentBefore) fails.push('AW-63 the first press of Enter under the floor reads ' + JSON.stringify(armed));
           }
         }
       }

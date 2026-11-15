@@ -6,10 +6,10 @@
 // accrual.js fightOf); nothing here counts. Null for a fight won, one with no record, or one a hero walked out of.
 // PURE.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.130';
-import { MONSTERS } from '../data/monsters.js?v=0.2.130';
-import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.130';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.130';
+import { ABILITIES } from '../data/abilities.js?v=0.2.132';
+import { MONSTERS } from '../data/monsters.js?v=0.2.132';
+import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.132';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.132';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
 /* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */
@@ -28,9 +28,10 @@ export function phaseAt(monster, bossPm) {
 
 /* The one fact this hero's bar can be asked about, in this part of the fight: what the table says decides it (tools/balance-sim/boss-call-table.mjs, the "good bar but"
    rows). In the add wave a tank is asked about Challenge and a damage dealer about its area slots (Tyler's own example: "your area slot fired 0 times"). */
-function factFor(phase, role, fired) {
+function factFor(phase, role, fired, guarded) {
   const W = BOSS_CALL_WORDS.loss.fact;
-  if (phase === 'adds' && role === 'tank') return W.challenge.replace('{times}', times(sum(fired, ['challenge'])));
+  /* a boss whose adds shield him asks the tank about Challenge in every part of the fight (the wrong press there), once it fired */
+  if (role === 'tank' && (phase === 'adds' || (guarded && sum(fired, ['challenge']) > 0))) return W.challenge.replace('{times}', times(sum(fired, ['challenge'])));
   if (role === 'healer') return W.heals.replace('{times}', times(sum(fired, HEALS)));
   if (phase === 'adds') return W.area.replace('{times}', times(sum(fired, AREAS)));
   return W.ate.replace('{times}', times(sum(fired, ['eat'])));
@@ -49,9 +50,10 @@ export function lossLine(o) {
   const phase = phaseAt(call.monster, f.boss_pm);
   const W = BOSS_CALL_WORDS.loss;
   const lead = (o.reason === 'boss_time' ? W.time : W.fell)[phase].replace('{pct}', String(Math.max(1, Math.ceil(f.boss_pm / 10))));
-  /* A boss whose adds shield him has his own answer to the wave (the designer's line). */
-  const answer = phase === 'adds' && isGuarded(MONSTERS[call.monster]) ? W.answer.guarded : W.answer[phase];
+  /* A boss whose adds shield him has his own answer to the wave (the designer's line) and to his enrage. */
+  const guarded = isGuarded(MONSTERS[call.monster]);
+  const answer = guarded && phase === 'adds' ? W.answer.guarded : guarded && phase === 'enrage' ? W.answer.enrageGuarded : W.answer[phase];
   /* two sentences, never a colon join (copy 11-06): the facts start lower-case in the table */
-  const fact = factFor(phase, o.role, fired);
+  const fact = factFor(phase, o.role, fired, guarded);
   return lead + '. ' + fact.charAt(0).toUpperCase() + fact.slice(1) + '. ' + answer;
 }

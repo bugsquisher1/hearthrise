@@ -16,13 +16,13 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.130';
-import { composeFrame } from '../core/compose.js?v=0.2.130';
-import { layPlates } from '../core/plates.js?v=0.2.130';
-import { castBox } from '../core/shadows.js?v=0.2.130';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.130';
-import { createFrameSig } from './frame-sig.js?v=0.2.130';
-import { paintStub } from '../stub-atlas.js?v=0.2.130';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.132';
+import { composeFrame } from '../core/compose.js?v=0.2.132';
+import { layPlates } from '../core/plates.js?v=0.2.132';
+import { castBox } from '../core/shadows.js?v=0.2.132';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.132';
+import { createFrameSig } from './frame-sig.js?v=0.2.132';
+import { paintStub } from '../stub-atlas.js?v=0.2.132';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
@@ -315,7 +315,10 @@ export function createCanvasBackend(o) {
     r.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  const platesOf = (list) => list.plates.slice().sort((a, b) => (b.kind === 'self') - (a.kind === 'self'));
+  /* the order plates are laid in: yours, then every other name, then the monsters' names that give way in a crowd (core/plates.js) */
+  const plateRank = (p) => (p.kind === 'self' ? 0 : p.yields ? 2 : 1);
+  const plateWidths = new Map();   // font|text -> px wide (overlay's measure), cleared past 512
+  const platesOf = (list) => list.plates.slice().sort((a, b) => plateRank(a) - plateRank(b));
 
   /* Screen-resolution marks: the target square, HP bars, damage floats, then
      nameplates on top. Sizes scale with the zoom so they track the art. */
@@ -382,14 +385,20 @@ export function createCanvasBackend(o) {
        each plate that would touch one already placed steps up a line until it is clear). */
     plateHits = [];
     const plateFont = (px) => '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
-    const laid = layPlates(platesOf(list).map((p) => { const [x, y] = at(p.x, p.y - 3); return Object.assign({}, p, { x, y }); }), {
-      measure: (s, px) => { ctx.font = plateFont(px); return ctx.measureText(s).width; },
+    const laid = layPlates(platesOf(list).map((p, n) => { const [x, y] = at(p.x, p.y - 3); return Object.assign({}, p, { x, y, n }); }), {
+      measure: (s, px) => {
+        /* a name's width at a size is kept: a hunt with Monster names on lays dozens of plates every painted frame */
+        const f = plateFont(px), k = f + '|' + s;
+        let w = plateWidths.get(k);
+        if (w === undefined) { if (plateWidths.size >= 512) plateWidths.clear(); ctx.font = f; w = ctx.measureText(s).width; plateWidths.set(k, w); }
+        return w;
+      },
       px: (kind) => font(kind === 'self' ? 5 : 4.5), width: W, edge: 16 * zs });
     for (const { plate: p, x, px, lines, box } of laid) {
       ctx.font = plateFont(px);
       ctx.lineWidth = Math.max(2, Math.round(px / 6));
       ctx.globalAlpha = p.alpha == null ? 1 : p.alpha;
-      if (p.ref) plateHits.push(Object.assign({ id: p.id, ref: p.ref }, box));
+      if (p.ref) plateHits.push(Object.assign({ id: p.id, ref: p.ref, n: p.n }, box));   // n: its place in platesOf (a plate that gave way is not laid)
       ctx.strokeStyle = tone('plate-line');
       for (const l of lines) ctx.strokeText(l.text, x, l.y);
       ctx.fillStyle = tone('plate-' + (p.kind || 'self'));
@@ -515,8 +524,8 @@ export function createCanvasBackend(o) {
     lastView = fv;
     if (!changed && t0 - paintedAt < HEAL_MS) {
       /* the same picture: nothing is painted, and what a press on a name finds is this frame's record */
-      let i = 0;
-      for (const p of platesOf(list)) if (p.ref) plateHits[i++].ref = p.ref;
+      const ps = platesOf(list);
+      for (const q of plateHits) q.ref = ps[q.n].ref;
       kept.held++;
       return;
     }

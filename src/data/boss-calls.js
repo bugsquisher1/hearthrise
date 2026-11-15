@@ -53,7 +53,9 @@ export const BOSS_CALL_WORDS = Object.freeze({
     'You pay {fee} gp, win or lose. You get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
   ]),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
-  warnGuard: ' They shield him until they fall.',
+  /* NO PER-BOSS CHALLENGE ADVICE (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance re-fit
+     the Chief and Krell so Challenge on and off are both fair, measured in their rows). The sentence says what the adds do, nothing to turn off. */
+  warnGuard: ' They shield him until you kill them.',
   /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
   warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
   confirm: 'Call him out for {fee} gp',
@@ -67,7 +69,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
   bar: Object.freeze({ adds: 'His adds are coming', guarded: 'His adds shield him', enrage: 'He is enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */
-  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank.', guarded: 'calls his adds. They go for whoever isn\'t your tank and shield him while they stand.', enrage: 'is enraged, and hits harder.' }),
+  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank.', guarded: 'calls his adds. They go for whoever isn\'t your tank and shield him until you kill them.', enrage: 'is enraged, and hits harder.' }),
   shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
   /* THE LOSING LINE (src/hunt-view/boss-loss.js): where it was lost, what this hero's bar did there, what answers it. {pct} his HP at the end; {times} the server's count. */
   loss: Object.freeze({
@@ -75,11 +77,13 @@ export const BOSS_CALL_WORDS = Object.freeze({
     time: Object.freeze({ first: 'Time ran out before his adds came, with him at {pct}%', adds: 'Time ran out while his adds were up, with him at {pct}%', enrage: 'Time ran out after he got enraged, with him at {pct}%' }),
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
     answer: Object.freeze({
-      first: 'His plain blows beat your healing. Bring a healer, eat earlier, or come back a gear tier up.',
-      adds: 'His adds go for whoever isn\'t your tank. Challenge brings them to your tank, an area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
-      /* The add wave of a boss whose adds shield him (isGuarded; designer ruling 2026-11-05, the board): the one answer the table says decides it. */
-      guarded: 'His adds shield him while they stand. Set your damage dealers\' Target to Lowest HP so they kill the adds before him.',
+      first: 'His normal hits were too much for your healing. Bring a healer, eat earlier, or come back in better gear.',
+      adds: 'His adds go for whoever isn\'t your tank. An area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
+      /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
+      guarded: 'His adds shield him until they fall. Kill them first, and keep your healer on whoever they go for.',
       enrage: 'Under a quarter of his health he hits far harder. Eat earlier on every bar, and set your healer to heal sooner.',
+      /* The enrage of a boss whose adds shield him (isGuarded): what he hits harder is the tank. */
+      enrageGuarded: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better armor on your tank, eating earlier and a healer who heals sooner all help.',
     }),
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */

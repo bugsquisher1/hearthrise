@@ -21,17 +21,17 @@
 // payout (src/shell/town-ticker.js) as a pending segment: the level stays the
 // server's and the bar fills no further than its level.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.130';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.130';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.130';
-import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.130';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.130';
-import { whole } from '../../render/format.js?v=0.2.130';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
-import { glyphSvg } from '../launcher.js?v=0.2.130';
-import { tickOf } from '../town-work.js?v=0.2.130';
-import { aheadXp } from '../town-ticker.js?v=0.2.130';
-import { characterSheetOf } from '../../session/character-sections.js?v=0.2.130';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.132';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.132';
+import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.132';
+import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.132';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.132';
+import { whole } from '../../render/format.js?v=0.2.132';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
+import { glyphSvg } from '../launcher.js?v=0.2.132';
+import { tickOf } from '../town-work.js?v=0.2.132';
+import { aheadXp } from '../town-ticker.js?v=0.2.132';
+import { characterSheetOf } from '../../session/character-sections.js?v=0.2.132';
 
 /* Is this the skill's last level? The server says so: no XP across it (need 0, a capped skill at 99). */
 const mastered = (r) => r.need === 0;
@@ -109,7 +109,7 @@ function skillsWindow(groups) {
           /* Inner Flame's payoff on its own line (lane/b-first-hour): the recovery the server's sheet says it gives now,
              before its next fuel; nothing until the server has said. */
           const flame = id === 'inner_flame' && regen !== null && regen > 100 ? 'Recovery +' + Math.round((regen - 100) * 10) / 10 + '%' : '';
-          const next = [flame, nextUnlock(id, r.level)].filter(Boolean).join(' · ');
+          const next = [flame, nextUnlock(id, r.level)].filter(Boolean).join('. ');
           const nx = li.querySelector('.hw-skill-next');
           text(nx, next);
           attr(nx, 'title', next || null);

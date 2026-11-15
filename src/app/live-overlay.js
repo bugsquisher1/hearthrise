@@ -29,7 +29,7 @@ const secs = (ms) => (ms < 10000 ? (ms / 1000).toFixed(1) : String(Math.round(ms
 function overlayLines(v) {
   const last = v.last;
   return [
-    'env ' + (v.version === null ? '—' : 'v' + v.version + (v.ageMs === null ? '' : ' · ' + secs(v.ageMs) + ' ago')),
+    'env ' + (v.version === null ? '—' : 'v' + v.version + (v.ageMs === null ? '' : ', ' + secs(v.ageMs) + ' ago')),
     'ask ' + (last ? last.verb + ' ' + last.ms + ' ms ' + (last.ok ? 'ok' : (last.error || 'refused')) : '—'),
     'open ' + v.open,
     'settle ' + (v.lagMs === null ? '—' : secs(Math.max(0, v.lagMs)) + ' behind'),

@@ -66,6 +66,12 @@
 .hh-intent-msg:empty { display: none; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
 .hh-empty { display: none; margin: 0; color: var(--ink-3); }
+/* THE DOT BETWEEN A LINE'S PARTS (format.js sepHtml). Its text, glued to the part before it, is a reader's and a copy's
+   at 0 px; the eye's dot is a 2 px fill on the one space where the line may break. A break drops that space, the box
+   goes to 0 px and the dot with it, so no line starts or ends on one (v0.2.131 gate: "Level 22" over "· uncommon").
+   The word spacing makes the space as wide as " · " in the same font. */
+.hh-sep { word-spacing: .45em; background: linear-gradient(currentColor, currentColor) 50% 55% / 2px 2px no-repeat; }
+.hh-sep-t { font-size: 0; word-spacing: 0; }
 .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; display: inline-grid; place-items: center; flex: none; }
 .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; color: var(--ink-3); }
 
@@ -270,6 +276,9 @@
 .hb-pl-head { display: flex; align-items: center; justify-content: space-between; min-height: 30px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .hb-pl-note { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+/* The First target (first-target.js): its row and the line naming the ground, gone where the ground offers no choice. */
+.hb-pl-first { display: flex; flex-direction: column; gap: 4px; }
+.hb-pl-first[hidden] { display: none; }
 /* The setup in use is the panel's title: its name in gold, set as a heading (Forged Steel's Cinzel). */
 .hb-set { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-2); font-family: var(--f-display); font-weight: 700; letter-spacing: .04em; }
 .hb-pl-row .hh-select { flex: 1; min-width: 0; }
@@ -756,6 +765,8 @@ label.st-line { cursor: pointer; }
     background: var(--modal-bg); border: 0 solid transparent; border-left-width: 4px; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated;
     transform: translateX(100%); visibility: hidden; transition: transform 160ms ease-out, visibility 0s linear 160ms; }
   .hb-plaque.is-open .hb-pl-more { transform: none; visibility: visible; transition: transform 160ms ease-out; }
+  /* Taller than the space under the hunt bar (667x375 with the First target row): it starts at its head and scrolls, never cut at both ends. */
+  .hb-pl-more { justify-content: safe center; overflow-y: auto; overscroll-behavior: contain; }
   .hb-pl-fold { display: contents; }
   .hb-pl-head { order: -1; color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); letter-spacing: 0; }
   .hb-pl-more .hb-pl-row, .hb-pl-more .hh-seg, .hb-pl-more .hh-select { min-height: 40px; }
@@ -809,8 +820,10 @@ label.st-line { cursor: pointer; }
   .ht-bar { gap: 6px; padding: 2px 4px; }
   /* The side sheet halves the stage: the top bar (anchored right) would run
      under the party board, so it drops the ground's name and keeps the clock
-     and its two commands. The sheet's own world is the name. */
-  .app:has(.hs-win:not(.is-leaving)) .ht-ground { display: none; }
+     and its two commands. The sheet's own world is the name. A hunt that is over
+     (no clock, hunt-topbar.js) keeps "Last hunt: ...", given way to an ellipsis:
+     it is all the plate says beside Summary (v0.2.131 gate: an empty box). */
+  .app:has(.hs-win:not(.is-leaving)) .ht-bar:has(.ht-clock:not([hidden])) .ht-ground { display: none; }
   .ht-bar .hh-tool { padding: 0 8px; }
   /* THE HUNT BAR ON A PHONE: one line, never over the Party panel (QA 10-24: "Leaving in 32s" ran 88 px over it).
      It keeps the World's width less the panel's column (200 px, its 4 px inset, 20 px clear); the ground's name

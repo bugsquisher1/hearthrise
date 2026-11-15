@@ -10,11 +10,12 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.130';
-import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.130';
-import { itemName } from './widgets/bits.js?v=0.2.130';
-import { whole, hoursWords } from '../render/format.js?v=0.2.130';
-import { supplyWords } from './hunt-go.js?v=0.2.130';
+import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.132';
+import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.132';
+import { itemName } from './widgets/bits.js?v=0.2.132';
+import { whole, hoursWords } from '../render/format.js?v=0.2.132';
+import { supplyWords } from './hunt-go.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 
 /**
  * @param {object} cs a CharacterSession
@@ -54,8 +55,8 @@ export function readinessOf(cs) {
     /* The analyzer stays on the LAST hunt once it ends: in town it is "your last hunt", never "this hunt" (core-loop
        play 2026-10-30: Corliss in Havora read "on this hunt"). */
     const h = huntOf(cs);
-    const which = h && !h.ended ? 'this hunt' : 'your last hunt';
-    checks.push({ id: 'gold-now', ok: true, text: 'Gold: ' + whole(gp) + ' gp' + (spend ? ' · supplies about ' + whole(spend) + ' gp an hour on ' + which + ', about ' + (Math.floor((gp / spend) * 10) / 10) + ' h of gold' : '') });
+    const vars = { gold: whole(gp), spend: whole(spend), hours: Math.floor((gp / spend) * 10) / 10 };
+    checks.push({ id: 'gold-now', ok: true, text: !spend ? t('prep.gold_only', vars) : t(h && !h.ended ? 'prep.gold_spend_now' : 'prep.gold_spend_last', vars) });
   }
   return { name, ready: short.length === 0, checks, short };
 }

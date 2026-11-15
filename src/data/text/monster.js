@@ -13,12 +13,12 @@ export const MONSTER_TEXT = Object.freeze({
   open_hunts: 'Open Hunts',
 
   /* Under the name. */
-  kind: '{family} · Level {level}',
-  kind_boss: '{family} · Level {level} · Boss',
+  kind: '{family}, Level {level}',
+  kind_boss: '{family} boss, Level {level}',
 
   /* Where it lives. */
   h_homes: 'Where it lives',
-  home: 'Level {lo} to {hi} · {how}',
+  home: 'Level {lo} to {hi}, {how}',
   how_common: 'common',
   how_uncommon: 'uncommon',
   how_rare: 'rare',

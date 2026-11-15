@@ -20,12 +20,13 @@
 //   H4 A FUNCTION OF THE CLOCK: each clip's frame is (now - its start) x fps, its start fixed
 //      by its event's instant, so 30 fps and 144 fps draw the same frame at the same instant.
 // ════════════════════════════════════════════════════════════════════════
-import { clipFacing, asDirDiag } from '../world/core/facing.js?v=0.2.130';
+import { clipFacing, asDirDiag } from '../world/core/facing.js?v=0.2.132';
 
 export const CLIP_RULES = Object.freeze({
   reach: 1,           // a swing or flinch may turn its unit one 45° step at most (to the nearest facing it has)
   fallReach: 4,       // a fall lies in the nearest facing it has, however far round
   leadCapMs: 1000,    // the longest wind-up drawn before a blow
+  aimMs: 4000,        // a standing unit faces the foe its next blow is queued at, this far ahead (two 2 s swings)
   recoilMs: 120,      // where no flinch can play: the struck sprite gives 1 art px for this long (ART_DIRECTION §11)
   hitFrame: 3,        // a swing's blow frame when its clip declares none (every attack is laid with its reach on index 3)
 });
@@ -63,6 +64,7 @@ export function createClipHook(o) {
   const faced = new Map();     // unit -> { t, at }: the last unit it acted on, a friend it healed too (what it faces)
   const struck = new Map();    // unit -> { at, dx, dy }: the last blow that landed on it
   let ahead = new Map();       // unit -> [{ t, at }]: its blows still queued within leadCapMs (this frame's look)
+  let aim = new Map();         // unit -> { t, at }: its NEXT blow queued within aimMs (this frame's look): the foe it is about to fight
 
   const clipOf = (id, name) => { const s = book.sprite(id); const c = s && s.anims && s.anims[name]; return c && c.fps > 0 ? c : null; };
   /* sprite id -> its swing's { lead, span, fps } (or null): read once from the book, not per unit per frame */
@@ -95,6 +97,7 @@ export function createClipHook(o) {
     /** Once per frame, before any unit: the blows still queued close enough to wind up (H1). */
     look(now) {
       ahead = new Map();
+      aim = new Map();
       if (typeof tl.upcoming !== 'function') return;
       for (const ev of tl.upcoming(now, CLIP_RULES.leadCapMs)) {
         const u = swingerOf(ev, o.foes);
@@ -102,6 +105,12 @@ export function createClipHook(o) {
         if (at === null) continue;
         if (!ahead.has(u)) ahead.set(u, []);
         ahead.get(u).push({ t: ev.t, at });
+      }
+      for (const ev of tl.upcoming(now, CLIP_RULES.aimMs)) {
+        const u = swingerOf(ev, o.foes);
+        if (u === null || aim.has(u)) continue;
+        const at = tl.clientAt(ev.atMs);
+        if (at !== null) aim.set(u, { t: ev.t, at });
       }
     },
     /**
@@ -122,6 +131,8 @@ export function createClipHook(o) {
     },
     /** The last unit `u` acted on (it keeps facing it between swings), or undefined. */
     last: (u) => faced.get(u),
+    /** The foe `u`'s next queued blow is at (this frame's look), or undefined: the one it walked up to and is about to fight. */
+    next: (u) => aim.get(u),
     /**
      * The one-shot clip a STANDING unit plays at `now` (H2, H3), or a recoil, or null (its idle):
      *   { anim, frame, dir, diag }  a swing ('attack') or a flinch ('hit') on a facing the clip has

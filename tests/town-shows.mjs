@@ -989,7 +989,7 @@ const ARMS = {
 
     /* the title under the name (Tyler 2026-11-08: "Fingerguns / The Rat catcher") */
     const plates = [X.TS.plateOf(X.TP.walkerOf(W({ title: 'the Wolfer' }))), X.TS.plateOf(X.TP.walkerOf(W({ id: B, name: 'Tamsel' })))];
-    if (plates[0].text !== 'Marlow · 18' || plates[0].title !== 'the Wolfer' || plates[1].text !== 'Tamsel · 18' || plates[1].title !== null) out.push('the plates read ' + JSON.stringify(plates));
+    if (plates[0].text !== 'Marlow (18)' || plates[0].title !== 'the Wolfer' || plates[1].text !== 'Tamsel (18)' || plates[1].title !== null) out.push('the plates read ' + JSON.stringify(plates));
 
     const row = (o) => ({ id: 'aaaaaaaa-0000-4000-8000-0000000000a1', channel: 'global', from_id: A, from_name: 'Marlow', from_slot: 0, from_level: 18, from_weapon: null, from_role: null, body: 'hi', created_at: '2026-11-04T09:00:00Z', ...o });
     const line = X.CL.lineOf(row({ from_title: 'the Wolfer' }), { tz: 'utc' });

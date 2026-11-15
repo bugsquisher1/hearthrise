@@ -12,23 +12,23 @@
 // next plan is on screen before any more gold moves. A lost answer keeps the plan and its
 // keys: the next press resends them and the server replays what it already did.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.130';
-import { whole } from '../../../render/format.js?v=0.2.130';
-import { glyphSvg } from '../../launcher.js?v=0.2.130';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.130';
-import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.130';
-import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.130';
-import { BAG_CATS } from '../../bag-model.js?v=0.2.130';
-import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.130';
-import { refusalText } from '../../intent-words.js?v=0.2.130';
-import { notListableWords } from '../../market-words.js?v=0.2.130';
-import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.130';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.130';
-import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.130';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.130';
-import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.130';
-import { t } from '../../../render/player-text.js?v=0.2.130';
+import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.132';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.132';
+import { whole } from '../../../render/format.js?v=0.2.132';
+import { glyphSvg } from '../../launcher.js?v=0.2.132';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.132';
+import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.132';
+import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.132';
+import { BAG_CATS } from '../../bag-model.js?v=0.2.132';
+import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.132';
+import { refusalText } from '../../intent-words.js?v=0.2.132';
+import { notListableWords } from '../../market-words.js?v=0.2.132';
+import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.132';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.132';
+import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.132';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.132';
+import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.132';
+import { t } from '../../../render/player-text.js?v=0.2.132';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer from the Weighhouse. Press again. It won\'t buy twice.';
@@ -109,7 +109,7 @@ function patchAsks(root, ctx, sc, page, off) {
       const key = mine.map((l) => l.id).join(',');
       if (own.getAttribute('data-keys') !== key) {
         attr(own, 'data-keys', key);
-        own.innerHTML = mine.map((l) => '<span class="hw-mk-yours">Yours · ' + whole(l.qty) + '</span> <button type="button" class="hh-tool" data-hs-act="mk-cancel" data-listing="' + esc(l.id) + '">Cancel</button>').join(' ');
+        own.innerHTML = mine.map((l) => '<span class="hw-mk-yours">Yours: ' + whole(l.qty) + '</span> <button type="button" class="hh-tool" data-hs-act="mk-cancel" data-listing="' + esc(l.id) + '">Cancel</button>').join(' ');
       }
       for (const b of own.querySelectorAll('button')) prop(b, 'disabled', off);
     },
@@ -175,7 +175,7 @@ function patchLine(root, ctx, page) {
   rows(root.querySelector('.hw-mk-sales'), recent, {
     key: (r) => String(r.at) + ':' + r.qty,
     build: () => element(ctx.doc, '<li class="hw-mk-sale"></li>'),
-    patch: (li, r) => text(li, whole(Number(r.qty)) + ' at ' + whole(Number(r.each)) + ' each · ' + ageWords(Date.parse(r.at), now)),
+    patch: (li, r) => text(li, whole(Number(r.qty)) + ' at ' + whole(Number(r.each)) + ' each, ' + ageWords(Date.parse(r.at), now)),
   });
 }
 
@@ -189,13 +189,13 @@ function patchPage(root, v) {
   if (ico.getAttribute('data-item') !== id) { attr(ico, 'data-item', id); ico.innerHTML = itemIconHtml(ctx.glyphs, id); }
   text(root.querySelector('.hw-mk-name'), itemName(id));
   text(root.querySelector('.hw-mk-kind'), kindWords(id));
-  text(root.querySelector('.hw-mk-lore'), [flavourOf(id), sourcesOf(id)[0]].filter(Boolean).join(' · '));
+  text(root.querySelector('.hw-mk-lore'), [flavourOf(id), sourcesOf(id)[0]].filter(Boolean).join(' '));
   const page = sc.page && sc.page.id === id ? sc.page : null;
   const s = page ? page.item : sc.known.get(id) || null;
   const sample = page ? priceSample(page) : null;
   const now = Date.now();
   text(root.querySelector('.hw-mk-price'), !s ? 'Reading the market…' : !s.listable ? notListableWords(s.why)
-    : [s.typical !== null ? 'Usually ' + whole(s.typical) + ' each' : '', s.lastEach !== null ? 'last sold ' + whole(s.lastEach) + ', ' + ageWords(s.lastAt, now) : '', sample && sample.sales7d ? sample.line : ''].filter(Boolean).join(' · '));
+    : [s.typical !== null ? 'Usually ' + whole(s.typical) + ' each' : '', s.lastEach !== null ? 'Last sold for ' + whole(s.lastEach) + ', ' + ageWords(s.lastAt, now) : '', sample && sample.sales7d ? sample.line : ''].filter(Boolean).join('. '));
   patchAsks(root, ctx, sc, page, v.off);
   const none = root.querySelector('.hw-mk-asks-none');
   const empty = page && !page.asks.length;

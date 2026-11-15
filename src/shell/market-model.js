@@ -17,11 +17,11 @@
 //   rowWords · noneWords · ageWords · sellRowWords · listingWords · historyWords   the plain-English lines
 //   noticesSince(history, seenAt)   the sold and returned rows a player has not been told
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.130';
-import { whole } from '../render/format.js?v=0.2.130';
-import { kindOf } from './bag-model.js?v=0.2.130';
-import { itemName } from './widgets/bits.js?v=0.2.130';
-import { t } from '../render/player-text.js?v=0.2.130';
+import { ITEMS } from '../data/items.js?v=0.2.132';
+import { whole } from '../render/format.js?v=0.2.132';
+import { kindOf } from './bag-model.js?v=0.2.132';
+import { itemName } from './widgets/bits.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 
 const int = (v) => (Number.isSafeInteger(v) ? v : null);
 const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : 0);
@@ -203,11 +203,11 @@ function leftWords(at, now) {
   return Math.round(d / DAY) + ' days left';
 }
 
-/** A Browse row's line: "from 13 each · 320 for sale · last sold 13, 2 h ago". */
+/** A Browse row's line: "From 13 each, 320 for sale. Last sold for 13, 2 h ago". */
 export function rowWords(s, now) {
   if (!s.forSale) return noneWords(s, now);
-  const last = s.lastEach !== null ? ' · last sold ' + whole(s.lastEach) + ', ' + ageWords(s.lastAt, now) : '';
-  return 'from ' + whole(s.lowest) + ' each · ' + whole(s.forSale) + ' for sale' + last;
+  const last = s.lastEach !== null ? '. Last sold for ' + whole(s.lastEach) + ', ' + ageWords(s.lastAt, now) : '';
+  return 'From ' + whole(s.lowest) + ' each, ' + whole(s.forSale) + ' for sale' + last;
 }
 
 /** "No one is selling this. Last sold 2 days ago for 12 each." */
@@ -219,13 +219,13 @@ export function noneWords(s, now) {
 export function sellRowWords(s, bid, qty) {
   const shop = bid === undefined || bid === null ? 'The shop does not buy this' : 'The shop pays ' + whole(bid);
   const market = !s ? 'Reading the market…' : s.forSale ? 'Market: from ' + whole(s.lowest) : 'No one is selling these';
-  return '×' + whole(qty) + ' · ' + shop + ' · ' + market;
+  return '×' + whole(qty) + '. ' + shop + '. ' + market;
 }
 
-/** My listings' line: "2 of 3 left · 240 each · 6 days left · received 230". */
+/** My listings' line: "2 of 3 left, 240 each, 6 days left, received 230". */
 export function listingWords(l, now) {
-  return whole(l.qty) + ' of ' + whole(l.listed) + ' left · ' + whole(l.each) + ' each · ' + leftWords(l.expiresAt, now)
-    + (l.received ? ' · received ' + whole(l.received) : '');
+  return whole(l.qty) + ' of ' + whole(l.listed) + ' left, ' + whole(l.each) + ' each, ' + leftWords(l.expiresAt, now)
+    + (l.received ? ', received ' + whole(l.received) : '');
 }
 
 /** History's line for one row, in the design's words. */

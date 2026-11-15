@@ -36,11 +36,11 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.130';
-import { isElement } from './elements.js?v=0.2.130';
-import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.130';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
-import { foldRows } from './grounds/shape.js?v=0.2.130';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.132';
+import { isElement } from './elements.js?v=0.2.132';
+import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.132';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
+import { foldRows } from './grounds/shape.js?v=0.2.132';
 
 /* The shapes a monster may cast (a 'square' is an aimed footprint, a hero's); every one but 'group' and 'mend' is MARKED. A 'mend'
    is no shapes.js shape: it lands on one packmate, never on ground. */
@@ -117,7 +117,10 @@ export const MONSTER_SPELLS = {
   spore_cloud: { n: 'Spore Cloud', shape: 'group', range: 6, windupMs: 2000, cdMs: 32000, hitPm: 1000, element: 'poison' },   // the Walking Vine (the Glade)
   blasting_charge: { n: 'Blasting Charge', shape: 'group', range: 6, windupMs: 2000, cdMs: 32000, hitPm: 1000, element: 'ember' }, // the Goblin Digger (the Warrens): diggers blast the seams
   squeal: { n: 'Squeal', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'poison' },             // the Rat King's pulse. 4L
-  slag_rain: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },        // Chief Coppercap's pulse. 4L
+  slag_rain: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 400, element: 'ember' },        // Chief Coppercap's pulse in the Warrens. 4L
+  /* THE CALLED CHIEF'S OWN PULSE (lane/d-chief-spell): his room's Challenge on/off re-fit (lane/d-march-balance) raised it, and the row was shared with the
+     field Chief in the live Warrens (engine-parity warrens-4 moved). Same name and shape on screen; only the called room's Chief casts it. */
+  slag_rain_called: { n: 'Slag Rain', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 800, element: 'ember' },
   /* MARKED: the tiles fill first; Melee holds and takes it, a free ranged hero or caster steps off, a shield braces it. */
   venom_spray: { n: 'Venom Spray', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: 'poison' }, // the Barn Spider (Wickstead)
   tail_lash: { n: 'Tail Lash', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 12000, hitPm: 2000, element: null },     // the Rat King. Measured as a ring r2 (4F), not yet as this cone

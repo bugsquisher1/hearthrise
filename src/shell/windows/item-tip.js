@@ -9,16 +9,16 @@
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
-import { whole, gold } from '../../render/format.js?v=0.2.130';
-import { itemName } from '../widgets/bits.js?v=0.2.130';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.130';
-import { planWords } from '../loot-dispatch.js?v=0.2.130';
-import { pieceWords } from '../../data/armour-weights.js?v=0.2.130';
-import { ITEMS } from '../../data/items.js?v=0.2.130';
-import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.130';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
+import { whole, gold } from '../../render/format.js?v=0.2.132';
+import { itemName } from '../widgets/bits.js?v=0.2.132';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.132';
+import { planWords } from '../loot-dispatch.js?v=0.2.132';
+import { pieceWords } from '../../data/armour-weights.js?v=0.2.132';
+import { ITEMS } from '../../data/items.js?v=0.2.132';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.132';
 
 const GAP = 10;
 
@@ -64,7 +64,7 @@ function tipHtml(id, o) {
      item the bag doesn't hold (a Buy row) just has no value line. */
   const sale = saleWords(id);
   if (opt.bid !== undefined && opt.bid !== null) {
-    h += '<p class="hw-tip-line"><small>Value</small>' + esc('The shop pays ' + gold(opt.bid) + ' each' + (opt.qty > 1 ? ' · ' + gold(opt.bid * opt.qty) + ' for ' + whole(opt.qty) : '')) + '</p>';
+    h += '<p class="hw-tip-line"><small>Value</small>' + esc('The shop pays ' + gold(opt.bid) + ' each' + (opt.qty > 1 ? ', ' + gold(opt.bid * opt.qty) + ' for ' + whole(opt.qty) : '')) + '</p>';
   }
   if (sale) h += '<p class="hw-tip-line"><small>' + (opt.bid === undefined || opt.bid === null ? 'Value' : 'Market') + '</small>' + esc(sale) + '</p>';
   if (opt.locked) h += '<p class="hw-tip-line"><small>Locked</small>Bulk sales never take it.</p>';

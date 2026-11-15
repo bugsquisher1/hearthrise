@@ -59,12 +59,12 @@ export async function loadCellRunner(root) {
   const ITEMS = play.ITEMS, MONSTERS = play.MONSTERS, vendor = (id) => play.vendorPriceOf(ITEMS, id), basics = play.basics;
 
   /* THE BAR a cell names: the reference bar (the start bar's three slots naming the ground's guide food and drink,
-     play-ground.mjs refBar) with its HP threshold moved (`eatPct`) and/or its drink threshold (`drinkPct`). */
+     play-ground.mjs refBar) with its HP threshold moved (`eatPct`) and/or its drink threshold (`drinkPct`), and/or its store food (`storeFood`, a store row id: grade.mjs's start-bar cell). */
   const storeOf = (kind, cooked) => (SB.BASIC_SUPPLIES.find((b) => b.kind === kind && b.partner === cooked) || {}).id;
   const guideOf = (huntId) => BAG_GUIDE_BY_HUNT[huntId] || null;
   const barFor = (huntId, bar) => {
     const g = guideOf(huntId);
-    const item = g ? { d_food: g.melee.heal.id, d_food_store: storeOf('heal', g.melee.heal.id), d_drink: storeOf('mana', g.magic.mana.id) } : {};
+    const item = g ? { d_food: g.melee.heal.id, d_food_store: bar.storeFood || storeOf('heal', g.melee.heal.id), d_drink: storeOf('mana', g.magic.mana.id) } : {};
     return START_BAR.map((x) => {
       const y = JSON.parse(JSON.stringify(x));
       if (item[y.id]) y.action.id = item[y.id];

@@ -78,15 +78,16 @@ export default Object.freeze({
     { id: 'pine', x: 5, y: 35 }, { id: 'pine', x: 21, y: 35 }, { id: 'pine', x: 12, y: 37 },
     /* the yard's scatter: a pine in the open rick yard */
     { id: 'pine', x: 18, y: 23 },
-    /* the crossings: the farm's footbridge (the one 1-tile choke) and the ford stones */
-    { id: 'cw_plank_bridge', x: 29, y: 8 }, { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 30 },
+    /* the crossings: the ford stones. The footbridge row (the one 1-tile choke) is painted as an earth causeway: a plank
+       bridge stood on it running north-south, along the river, and was taken off 2026-11-14 */
+    { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 30 },
     /* P0 the Rick Yard: the hay the rats nest in */
     { id: 'hay_bale', x: 8, y: 16 }, { id: 'hay_bale', x: 9, y: 16 }, { id: 'straw', x: 19, y: 24 }, { id: 'sack_pile', x: 20, y: 17 },
     { id: 'grain_spill', x: 10, y: 24 },
     /* P1 the Granary: split sacks and spilled grain */
     { id: 'sack_stack', x: 8, y: 3 }, { id: 'sack_pile', x: 10, y: 3 }, { id: 'grain_spill', x: 18, y: 7 }, { id: 'crates', x: 7, y: 8 },
-    /* P2 the Barn: the loft the spiders took */
-    { id: 'web', x: 37, y: 3 }, { id: 'web', x: 54, y: 3 }, { id: 'hay_bale', x: 38, y: 10 }, { id: 'straw', x: 53, y: 10 },
+    /* P2 the Barn: the loft the spiders took (its two corner webs, drawn on a wall corner, stood in the open meadow: off 2026-11-14) */
+    { id: 'hay_bale', x: 38, y: 10 }, { id: 'straw', x: 53, y: 10 },
     /* P3 the Orchard: old trees, and the wasps' nests in them */
     { id: 'wasp_nest', x: 52, y: 16 }, { id: 'mb_leaf_litter', x: 42, y: 22 }, { id: 'mb_flowers', x: 54, y: 22 },
     /* P4 the Burned House: the turncoats sleep in what is left of it */

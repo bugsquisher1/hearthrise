@@ -144,7 +144,7 @@ async function checks(overrides) {
     if (!(await signIn(page, 'http://127.0.0.1:' + port)) || !(await openPrep(page))) throw new Error('the shell or Hunt prep did not open');
     // PN-7 (the fixture's hero is on set 0)
     const use7 = await page.evaluate((sels) => sels.map((sel) => { const li = document.querySelector(sel); return li && { cur: li.classList.contains('is-current'), small: li.querySelector('small').textContent }; }), [ROW(0), ROW(3)]);
-    if (!use7[0] || !use7[0].cur || !/^In use · /.test(use7[0].small) || use7[1].cur || /In use/.test(use7[1].small)) fails.push('PN-7 the setup in use is not marked: ' + JSON.stringify(use7));
+    if (!use7[0] || !use7[0].cur || !/^In use, /.test(use7[0].small) || use7[1].cur || /In use/.test(use7[1].small)) fails.push('PN-7 the setup in use is not marked: ' + JSON.stringify(use7));
     await page.click(ROW(3) + ' small');
     await page.waitForTimeout(120);
     if (await page.isVisible(ROW(0) + ' .hw-del') || !(await page.isVisible(ROW(3) + ' .hw-del'))) fails.push('PN-7 Delete is offered on the setup in use (or not on the picked other)');

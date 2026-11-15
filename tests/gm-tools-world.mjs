@@ -112,7 +112,7 @@ async function main() {
     const stopByWindow = async (name) => {
       await gm.page.fill(WIN + ' .gm-find', name);
       await gm.page.click(WIN + ' [data-hs-act="gm-look"]');
-      await gm.page.waitForFunction(([w, nm]) => new RegExp(nm + ' .*(Cellar|Sewer|Thicket)').test((document.querySelector(w + ' .gm-facts') || {}).textContent || ''), [WIN, name]);
+      await gm.page.waitForFunction(([w, nm]) => new RegExp(nm + ', .*(Cellar|Sewer|Thicket)').test((document.querySelector(w + ' .gm-facts') || {}).textContent || ''), [WIN, name]);
       await gm.page.fill(WIN + ' .gm-why', 'a hunt to stop');
       await gm.page.click(WIN + ' [data-hs-act="gm-stop"]');
       await gm.page.waitForSelector(WIN + ' .gm-confirm:not([hidden])');

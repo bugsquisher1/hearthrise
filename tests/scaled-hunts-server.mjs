@@ -59,7 +59,9 @@ function shPlay(M) {
   const bad = [];
   const plain = CSx.huntPlayOf('mill_cellar', null);
   if (plain.level !== null || plain.monsters !== null || plain.tierOf('normal') !== T.tierRowOf('mill_cellar', 'normal')) bad.push('no scale does not play the catalogue');
-  for (const [g, L, why] of [['mill_cellar', 8, 'a Level the band still holds'], ['mill_cellar', 60, 'past the top Level'], ['coppercap_warrens', 50, 'the top ground']]) {
+  /* past the top Level and the top ground, read from the data (the Warrens' 50 until the Barrow March opened, Krell's Hold's 110 since) */
+  const past = S.SCALED_HUNTS.topLevel + 10;
+  for (const [g, L, why] of [['mill_cellar', 8, 'a Level the band still holds'], ['mill_cellar', past, 'past the top Level'], [S.topGroundOf(), past, 'the top ground']]) {
     if (CSx.huntPlayOf(g, { level: L }).level !== null) bad.push(g + ' at ' + L + ' plays scaled (' + why + ')');
   }
   const p = CSx.huntPlayOf('mill_cellar', { level: 20 });
@@ -77,7 +79,7 @@ function shPlay(M) {
   return bad;
 }
 
-function shPlan(HS) {
+function shPlan(HS, S) {
   const bad = [];
   const where = { ground: { id: 'mill_cellar' } };
   const inst = (o) => ({ settled_to_ms: 1e12, next_swing_at_ms: 1e12, world: '{"w":1}', scale_level: null, ...o });
@@ -91,8 +93,9 @@ function shPlan(HS) {
   if (d.level !== null || d.restart !== false || d.stopMs !== Infinity) bad.push('a read with no scale (a database before the file) plans ' + JSON.stringify(d));
   const e = HS.scalePlanOf(inst({ scale: { level: 20, banked_ms: 1999 } }), where);
   if (e.level !== null) bad.push('less than one swing banked plays scaled');
-  const f = HS.scalePlanOf(inst({ scale: { level: 60, banked_ms: HOUR } }), where);
-  if (f.level !== null) bad.push('a Level this engine\'s data can\'t play (60) plays scaled');
+  const past = S.SCALED_HUNTS.topLevel + 1;
+  const f = HS.scalePlanOf(inst({ scale: { level: past, banked_ms: HOUR } }), where);
+  if (f.level !== null) bad.push('a Level this engine\'s data can\'t play (' + past + ') plays scaled');
   return bad;
 }
 
@@ -197,7 +200,8 @@ const DB_ARMS = {
     if (await purseOf(db, UID) !== g0 - 4800 || await bankOf(db, UID) !== 6 * HOUR) bad.push('a replay of the key charged again: ' + JSON.stringify(again));
     const refusals = [
       [['mill_cellar', 6, { price: 4801 }], 'quote_changed'], [['mill_cellar', 25, { price: 800 * 25 }], 'bad_hours'],
-      [['mill_cellar', 0, { price: 800 }], 'bad_hours'], [['coppercap_warrens', 1, { price: 800 }], 'not_scalable'],
+      /* the top ground never scales (read from the data: the Warrens until the Barrow March opened, Krell's Hold since) */
+      [['mill_cellar', 0, { price: 800 }], 'bad_hours'], [[M.S.topGroundOf(), 1, { price: 800 }], 'not_scalable'],
       [['millrace_sewer', 1, { price: 1040 }], 'scale_level'], [['mill_cellar', 19, {}], 'scaled_bank_full'],
     ];
     for (const [[hunt, hours, o], want] of refusals) {
@@ -381,7 +385,7 @@ async function runArms(db, M, only) {
   for (const name of ARMS) {
     if (only && !only.includes(name)) continue;
     if (name === 'SH-PLAY') { out[name] = shPlay(M); continue; }
-    if (name === 'SH-PLAN') { out[name] = shPlan(M.HS); continue; }
+    if (name === 'SH-PLAN') { out[name] = shPlan(M.HS, M.S); continue; }
     try {
       out[name] = await inTx(db, async () => {
         if (name !== 'SH-FEATURE') await db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'scaled_hunts'");

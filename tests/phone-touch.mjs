@@ -8,9 +8,9 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js
+// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js
 // mutant-writes-tree: no — page mutants are served overrides
-// mutant-rule-functions: bagReach configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule rules
+// mutant-rule-functions: bagReach configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor rules
 // mutant-runner-functions: main
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -47,8 +47,9 @@
 //        every filled slot's icon 64 px (x2), the fight controls and the stamina "+" in view and pressable without
 //        opening anything, the ring's words inside its disc, no pixel medallion
 //   PH-9 THE STAMINA "+" (844x390; Tyler 10-25): a panel wholly on screen with the server's quote and Buy in reach;
-//        ONE hr_stamina_refill at that price, Buy off until the answer, the stamina from the re-read; a refusal in
-//        words; refills used up or too little gold turn Buy off with the reason and keep the "+"; the premium note
+//        ONE hr_stamina_refill at that price, Buy off until the answer, the stamina from the re-read; the question asks
+//        the price the server quotes at the press; a refusal in words, and one that brings new state (quote_changed,
+//        already full) replaces what the panel offers (lane/a-quote-changed); refills used up or too little gold turn Buy off with the reason and keep the "+"; the premium note
 //        for a hero without premium only
 //   PH-10 THE COACH NEVER LIES ON THE FIGHT (922x423, 844x390; first-hour playtest 10-29 #10: the card covered the hero
 //        mid-fight): in a hunt, the open card under the hunt bar crosses neither the viewed hero nor a party member
@@ -83,7 +84,7 @@
 //   PH-21 A TAPPED ITEM (touch, 667x375): its tip stands off the sheet, takes no press, the action is hit first time;
 //         no tip for an item nobody pressed
 //   PH-22 THE DOORS: Create account and Back to sign in on screen (667x375, 844x390); Enter town and its way back (667x375)
-//   PH-23 Refresh in the sheet; How many, Price each and List on screen together; Sort in the sheet (667x375)
+//   PH-23 Refresh in the sheet, in the purse's row and on no tab; How many, Price each and List on screen together; Sort in the sheet (667x375)
 //   PH-24 A PARTY ON A PHONE: an invite from the Party window, ONE hr_hunt_party_invite and its answer in words; an invite
 //         shows beside an open sheet (844x390), its Join clear of the town card; Also here at the sheet's top; the red count says what it wants; no mouse
 //         words and no press under 40 px in seven windows (667x375)
@@ -99,6 +100,9 @@
 //   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop from 1280 px starts open with its dash (narrower: HS-28)
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
 //   PH-31 AFTER CREATE ACCOUNT: only the answer and the way back, no word left from the form
+//   PH-32 A KEYED HALL'S DOOR (922x423; the Krell hall check 2026-11-14: its red food line under the fold, Open Krell's Hall half under
+//         Enter): with the hall's head at the top of a ground's page, its red food line and its press are whole inside the page, clear of
+//         Enter's foot and pressable; at the page's end the press is still clear of the foot
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -607,11 +611,13 @@ async function staminaBuy(open, fails, done) {
   if (!p0.on || !p0.whole || !p0.reach || !/\+4 h for 1,880 gp/.test(p0.quote) || p0.off || p0.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] the "+" did not open the server\'s quote whole on screen: ' + JSON.stringify(p0));
   if (!p0.premium) fails.push('PH-9 [' + tag + '] a hero without premium is not told premium raises the cap');
   a.s.holdRefill = true;
-  /* The first press asks, in the Shop's words; nothing is sent until the second. */
+  /* The first press asks, in the Shop's words, at the price the server quotes NOW (town rest moved it while the panel stood open, QA 11-14);
+     nothing is sent until the second. */
+  a.s.env.stamina_refill = Object.assign({}, QUOTE, { price: 1840 });
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
-  await a.page.waitForTimeout(150);
+  await wait(a.page, () => /\?$/.test(document.querySelector('.hb-buy-quote').textContent), null, 4000);
   const asked = await panelOf(a.page);
-  if (!/^Buy 4 h of stamina for 1,880 gp\?$/.test(asked.quote) || a.s.calls.some((c) => c.name === 'hr_stamina_refill')) fails.push('PH-9 [' + tag + '] the first press on Buy: ' + JSON.stringify(asked));
+  if (!/^Buy 4 h of stamina for 1,840 gp\?$/.test(asked.quote) || a.s.calls.some((c) => c.name === 'hr_stamina_refill')) fails.push('PH-9 [' + tag + '] the first press on Buy (the server quotes 1,840 gp now): ' + JSON.stringify(asked));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: a.s.env.stamina.ms + H4 }); a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 }); return { ok: true }; };
   await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
   for (let i = 0; i < 40 && !a.s.calls.some((c) => c.name === 'hr_stamina_refill'); i++) await a.page.waitForTimeout(50);
@@ -621,13 +627,25 @@ async function staminaBuy(open, fails, done) {
   if (a.s.releaseRefill) a.s.releaseRefill();
   const bought = await wait(a.page, () => document.querySelector('.hb-buy-now').textContent === '7 h 12 m of 8 h' && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored.', null, 6000);
   const sent = a.s.calls.filter((c) => c.name === 'hr_stamina_refill');
-  if (sent.length !== 1 || sent[0].body.p_price !== 1880 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
+  if (sent.length !== 1 || sent[0].body.p_price !== 1840 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
   if (!bought) fails.push('PH-9 [' + tag + '] after the server answered the panel reads ' + JSON.stringify(await panelOf(a.page)));
-  a.s.onRefill = () => ({ ok: false, error: 'quote_changed' });
-  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
-  await a.page.waitForTimeout(100);
-  await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
-  if (!(await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent), null, 6000))) fails.push('PH-9 [' + tag + '] a refused refill reads ' + JSON.stringify(await panelOf(a.page)));
+  /* A refusal that brings new server state replaces what the panel offers (lane/a-quote-changed; live 11-14: 197 gp shown, 169 quoted, every
+     retry refused; "+1 m for 31 gp" offered at 11:59 h after the server said full): the price moved, then the bar filled. */
+  const askThenBuy = async () => {
+    await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+    await wait(a.page, () => /\?$/.test(document.querySelector('.hb-buy-quote').textContent), null, 4000);
+    await a.page.click('.hb-buy-go', { timeout: 2500 }).catch(() => null);
+  };
+  a.s.onRefill = () => { a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 410, n: 3 }); return { ok: false, error: 'quote_changed', stamina_refill: a.s.env.stamina_refill }; };
+  a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 });
+  await askThenBuy();   // the question reads 520 (the server's then); the server moves to 410 under the second press
+  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp\.$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
+  if (!moved) fails.push('PH-9 [' + tag + '] after quote_changed (the server quotes 410 gp) the panel reads ' + JSON.stringify(await panelOf(a.page)));
+  a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: 28800000 }); a.s.env.stamina_refill = { available: false, why: 'stamina_full', n: 3, per_day: 6 };
+    return { ok: false, error: 'stamina_full', stamina_refill: a.s.env.stamina_refill }; };
+  await askThenBuy();
+  const full = await wait(a.page, () => document.querySelector('.hb-buy-go').disabled && /^Your stamina is already full\.$/.test(document.querySelector('.hb-buy-why').textContent), null, 6000);
+  if (!full) fails.push('PH-9 [' + tag + '] after the server said the bar is full the panel still offers a refill: ' + JSON.stringify(await panelOf(a.page)));
   await done(a, tag);
   /* Cannot be bought: Buy off with the server's words, the "+" still there; a premium hero is not told about premium. */
   for (const [label, prep, words, premium] of [
@@ -833,6 +851,28 @@ async function groundPage(page, tag, fails, floor) {
   await page.waitForTimeout(200);
   if (!(await page.evaluate(() => !!window.__r('.hw-hunt-list')))) fails.push('PH-25 [' + tag + '] the way back did not bring the list');
 }
+/* ── PH-32 ── A KEYED HALL'S DOOR ON A PHONE. The data opens no hall yet (every hall's pack is staged), so the page is served a
+   boss-halls.js whose hallFromGround hands every ground Krell's hall (open() o.route); the hero holds its key and eats Salted Shrimp. */
+async function hallDoor(page, tag, fails) {
+  await page.click('.hs-launch[data-hs-open="hunts"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('.hw-hunt b'), null, 4000))) { fails.push('PH-32 [' + tag + '] CONTROL: no list in Hunts'); return; }
+  await page.click('.hw-hunt', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => { const h = document.querySelector('.hw-hd-hall'), f = h && h.querySelector('.hw-hall-food'), b = h && h.querySelector('.hw-call-press');
+    return !!h && !h.hidden && !!f && !f.hidden && !!b && !b.disabled; }, null, 4000))) { fails.push('PH-32 [' + tag + '] CONTROL: no hall door with its red food line and an open press'); return; }
+  const at = async (where) => {
+    await page.evaluate((w) => { const s = document.querySelector('.hw-hd-page');
+      s.scrollTop = w === 'end' ? s.scrollHeight : s.scrollTop + document.querySelector('.hw-hd-hall .hw-hd-h').getBoundingClientRect().top - s.getBoundingClientRect().top; }, where);
+    await page.waitForTimeout(150);
+    return page.evaluate(() => { const s = window.__r('.hw-hd-page'), foot = window.__r('.hw-hd-foot'), press = document.querySelector('.hw-hd-hall .hw-call-press');
+      const inside = (r) => !!r && r.top >= s.top - 0.5 && r.bottom <= s.bottom + 0.5 && !window.__cross(r, foot);
+      return { food: inside(window.__r('.hw-hd-hall .hw-hall-food')), press: inside(window.__r(press)) && window.__hits(press) }; });
+  };
+  const head = await at('head');
+  if (!head.food) fails.push('PH-32 [' + tag + '] with the hall\'s head at the page\'s top, its red food line is under the fold or under Enter');
+  if (!head.press) fails.push('PH-32 [' + tag + '] with the hall\'s head at the page\'s top, its press is cut off or under Enter');
+  const end = await at('end');
+  if (!end.press) fails.push('PH-32 [' + tag + '] at the page\'s end the hall\'s press is cut off or under Enter');
+}
 /* Mid-hunt Enter is off, and the way back is not. */
 async function groundBackHunting(page, tag, fails) {
   await page.click('.hs-launch[data-hs-open="hunts"]', { timeout: 2500 }).catch(() => null);
@@ -958,6 +998,11 @@ async function weighhouse(page, tag, fails) {
   await page.waitForTimeout(300);
   const re = await insideSheet(page, 'market', '.hw-mk-refresh');
   if (!re.length || !re[0].in || !re[0].on) fails.push('PH-23 [' + tag + '] Refresh is cut: ' + JSON.stringify(re));
+  /* ...and in the purse's row, on no tab (v0.2.131 gate, 922x423: the tabs lead now, and a Refresh pinned to the top lay on Browse). */
+  const lie = await page.evaluate(() => { const b = window.__r('[data-hs-win="market"] .hw-mk-refresh');
+    return { on: Array.from(document.querySelectorAll('[data-hs-win="market"] .hw-tab')).filter((t) => window.__cross(b, window.__r(t))).map((t) => t.textContent),
+      row: window.__cross(b, window.__r('[data-hs-win="market"] .hw-mk-greet')), hits: window.__hits(document.querySelector('[data-hs-win="market"] .hw-mk-refresh')) }; });
+  if (lie.on.length || !lie.row || !lie.hits) fails.push('PH-23 [' + tag + '] Refresh lies on a tab or out of the purse\'s row: ' + JSON.stringify(lie));
   await page.click('[data-hs-win="market"] .hw-tab[data-tab="sell"]', { timeout: 2500 }).catch(() => null);
   if (!(await wait(page, () => document.querySelector('.hw-mk-sell .hw-mk-row'), null, 4000))) { fails.push('PH-23 [' + tag + '] CONTROL: nothing to sell'); return; }
   await page.click('.hw-mk-sell .hw-mk-row', { timeout: 2500 }).catch(() => null);
@@ -1325,6 +1370,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     const s = scripted(fixture, (env) => { if (prep) prep(env);
       if (!o.back && env.hunt && !env.hunt.ended && !(env.client_state && env.client_state.awaySeen)) env.client_state = Object.assign({}, env.client_state, { awaySeen: { s: env.hunt.session_id, at: Date.parse(env.now) - 60000, xp: env.state.level_xp } }); });
     await stub(page, s, !!shots);
+    if (o.route) await o.route(page);
     const up = await play(page, base, fixture === ALPHA, o.crew);
     await page.evaluate(RECT);
     await page.waitForTimeout(o.settle || 400);
@@ -1617,6 +1663,16 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const o = await open(vp, ALPHA, (env) => reading(env, 'to_the_cellar', 0));
       if (o.up) { await groundPage(o.page, tag, fails, vp.width === 844 ? 200 : 190); await shot(o.page, 'ground-page-' + tag); await done(o, tag); } else fails.push('PH-25 [' + tag + '] the town did not mount');
     }
+    for (const vp of run('hall') ? [{ width: 922, height: 423 }] : []) { // PH-32
+      const tag = tagOf(vp);
+      const HALL_FROM = 'export function hallFromGround(huntId) { return Object.values(OPEN_BOSS_HALLS).find((h) => h.id === huntId) || null; }';
+      const route = (page) => page.route('**/src/data/boss-halls.js*', async (r) => { const res = await r.fetch(), body = await res.text();
+        if (body.split(HALL_FROM).length !== 2) throw new Error('PH-32: the hallFromGround anchor moved');
+        return r.fulfill({ response: res, body: body.replace(HALL_FROM, () => 'export function hallFromGround() { return BOSS_HALLS.krells_hold || null; }') }); });
+      const o = await open(vp, ALPHA, (env) => { townOnly(env); env.inventory = Object.assign({}, env.inventory, { hall_key: 1 });
+        for (const sl of env.hunt_settings.slots) if (sl && sl.action && sl.action.id === 'wheat_bread') sl.action.id = 'salted_shrimp'; }, { route });
+      if (o.up) { await hallDoor(o.page, tag, fails); await shot(o.page, 'hall-door-' + tag); await done(o, tag); } else fails.push('PH-32 [' + tag + '] the town did not mount');
+    }
     if (run('ground')) {
       const tag = tagOf(SMALLEST);
       const o = await open(SMALLEST, HUNT);
@@ -1752,7 +1808,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'], 'PH-11': ['strip'], 'PH-12': ['strip'], 'PH-13': ['slots'], 'PH-14': ['meaning'], 'PH-15': ['stack'], 'PH-16': ['waits'], 'PH-17': ['door'], 'PH-18': ['coachsheet'], 'PH-19': ['apart'], 'PH-20': ['partyacts'], 'PH-21': ['tapped'], 'PH-22': ['doors'], 'PH-23': ['market'], 'PH-24': ['partyphone'], 'PH-25': ['ground'], 'PH-26': ['details'], 'PH-27': ['cards', 'coach'], 'PH-28': ['doors'], 'PH-29': ['partyfold'], 'PH-30': ['bar'], 'PH-31': ['doors'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'], 'PH-11': ['strip'], 'PH-12': ['strip'], 'PH-13': ['slots'], 'PH-14': ['meaning'], 'PH-15': ['stack'], 'PH-16': ['waits'], 'PH-17': ['door'], 'PH-18': ['coachsheet'], 'PH-19': ['apart'], 'PH-20': ['partyacts'], 'PH-21': ['tapped'], 'PH-22': ['doors'], 'PH-23': ['market'], 'PH-24': ['partyphone'], 'PH-25': ['ground'], 'PH-26': ['details'], 'PH-27': ['cards', 'coach'], 'PH-28': ['doors'], 'PH-29': ['partyfold'], 'PH-30': ['bar'], 'PH-31': ['doors'], 'PH-32': ['hall'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -1848,7 +1904,8 @@ const MUTANTS = [
   ['PH-21 a mouseout puts the tip away', 'src/shell/windows/item-tip.js', '  if (touching(doc) && !byPress) return;\n', ''],
   ['PH-22 Back to sign in falls off the screen', 'src/styles/app.css', '  .auth-card[data-auth="create"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }\n', ''],
   ['PH-22 How you fight loses its height', 'src/styles/app.css', 'overflow-y: auto; overscroll-behavior: contain; }\n  .auth-card.is-create .auth-message:empty', 'overflow-y: auto; overscroll-behavior: contain; max-height: 120px; }\n  .auth-card.is-create .auth-message:empty'],
-  ['PH-23 Refresh is cut in half', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }\n', ''],
+  ['PH-23 Refresh is cut in half', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: calc(100% + 6px); left: 0; margin: 0; }\n', ''],
+  ['PH-23 Refresh lies on Browse', 'src/styles/market.css', '  .hw-mk-refresh { position: absolute; top: calc(100% + 6px); left: 0; margin: 0; }\n', '  .hw-mk-refresh { position: absolute; top: 0; left: 0; margin: 0; }\n'],
   ['PH-23 the sell sheet keeps its purse and tabs', 'src/styles/market.css', '  .hw-mk:has(.hw-mk-sell.is-on.is-paged) > :is(.hw-mk-greet, .hw-tabs) { display: none; }\n', ''],
   ['PH-23 what it would fetch comes first', 'src/styles/market.css', '  .hw-mk-sell .hw-mk-facts { order: 1; }\n', '  .hw-mk-sell .hw-mk-facts { order: -1; min-height: 80px; }\n'],
   ['PH-23 Sort is cut at the sheet\'s edge', 'src/styles/windows.css', '  .hw-find .hw-search { flex: 1 1 0; min-width: 0; }\n', '  .hw-find .hw-search { flex: none; width: 260px; }\n'],
@@ -1899,6 +1956,7 @@ const MUTANTS = [
   ['PH-30 the setup\'s name stays a line of text', 'src/styles/hunt.css', '  .hb-set .hs-name { width: 100%; height: 100%; }\n', ''],
   ['PH-30 the name runs under its neighbour', 'src/styles/hunt.css', '  .hb-set { grid-area: set; align-self: stretch;', '  .hb-set { grid-area: set; align-self: stretch; min-width: 90px;'],
   ['PH-30 the name reads Pre...', 'src/styles/hunt.css', '  .hb-set .hs-name-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }\n', ''],
+  ['PH-32 the hall\'s door stands under what wins, a screen below its head', 'src/shell/windows/boss-hall-pane.js', '\'<p class="hw-call-line"></p><p class="hw-before-line is-short hw-hall-food" hidden></p>\'', '\'<p class="hw-call-line"></p><p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips"></ul><p class="hw-before-line is-short hw-hall-food" hidden></p>\''],
   ['PH-31 the form\'s words stay after Create account', 'src/styles/app.css', '.auth-card.is-sent .auth-lead { display: none; }\n', ''],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
 ];

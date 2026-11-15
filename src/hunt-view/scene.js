@@ -40,22 +40,24 @@
 //      flinches on a blow that landed on it, and a dead one falls, each only on a facing its
 //      clip has; no clip ever plays without the event that caused it.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.130';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.130';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.130';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.130';
-import { floatShown } from './float-prefs.js?v=0.2.130';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.130';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.130';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.130';
-import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.130';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.130';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.130';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.130';
-import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.130';
-import { createSpellMarks } from './spell-marks.js?v=0.2.130';
-import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.130';
-import { createClipHook, struckBy } from './clip-hook.js?v=0.2.130';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.132';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.132';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.132';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.132';
+import { floatShown } from './float-prefs.js?v=0.2.132';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.132';
+import { abilityName, itemName, monsterName } from '../shell/widgets/bits.js?v=0.2.132';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.132';
+import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.132';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.132';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.132';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
+import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.132';
+import { createSpellMarks } from './spell-marks.js?v=0.2.132';
+import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.132';
+import { createClipHook, struckBy } from './clip-hook.js?v=0.2.132';
+import { switchOn } from '../session/player-switch.js?v=0.2.132';
+import { MONSTER_NAMES } from '../data/world/monster-names.js?v=0.2.132';
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
@@ -92,6 +94,12 @@ function ownLooks(cs, peers, people) {
   }
   return out;
 }
+
+/* The account's open heroes with `cs` among them: who a player switch's newest pick is read from (player-switch.js). */
+const openHeroes = (cs, peers) => {
+  const all = typeof peers === 'function' ? peers() || [] : [];
+  return !cs || all.includes(cs) ? all : all.concat(cs);
+};
 
 /**
  * What the scene reads from ONE character, every frame (the snapshot, never cached).
@@ -138,6 +146,8 @@ export function readHunt(cs, peers) {
     /* the viewed hero's worn title, under its name (Tyler 2026-11-08); the party section carries no member's title yet */
     title: wornTitleOf(cs),
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
+    /* the Monster names switch (src/data/world/monster-names.js): the newest pick any open hero holds, read each frame */
+    names: switchOn(openHeroes(cs, peers), MONSTER_NAMES),
   };
 }
 
@@ -174,14 +184,14 @@ export function createHuntScene(o) {
   const serverDead = (u) => {
     const r = read.units.get(u);
     return !!r && r.alive === false && r.side !== 'hero' && shownAt !== null && Number.isFinite(read.poseAtMs) && shownAt >= read.poseAtMs;
-  };
-  const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
+  };  const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
   /* A monster's kind: the snapshot's, else the timeline's unit book (a corpse played after the
      snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
+  const kindOf = (u) => (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
   const spriteOf = (u) => {
     if (u === read.viewed && read.look) return read.look;
     if (isHero(u)) { const m = read.heroes.get(u); return (m && m.look) || outfitSprite(m && m.outfit, m && m.role); }
-    const kind = (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
+    const kind = kindOf(u);
     /* A called boss wears his own art (monster-art.js): the one place a kind becomes a sprite. */
     return (kind && HUNT_ART_ALIAS[kind]) || kind;
   };
@@ -334,7 +344,7 @@ export function createHuntScene(o) {
     return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false, dye: read.dye,
       anim: walking ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : 'walk',
       frame: walking ? Math.floor((now / 1000) * walk.fps) : 0,
-      plate: { text: left > 0 ? 'Walking to ' + name + ' · ' + Math.ceil(left / 1000) + ' s' : (m && m.name) || 'Hero', kind: 'self' } };
+      plate: { text: left > 0 ? 'Walking to ' + name + ' (' + Math.ceil(left / 1000) + ' s)' : (m && m.name) || 'Hero', kind: 'self' } };
   }
 
   /** One unit's draw record at `now`, or null when it is gone (`at`: a stand-in position). */
@@ -350,13 +360,15 @@ export function createHuntScene(o) {
     const m = read.heroes.get(u);
     const sp = book.sprite(id);
     const clips = sp.anims || {};
-    /* Facing: the way it walks; standing, toward the blow it is winding up or swinging, else what it last acted on (no
-       turning back between swings); else its last heading. */
+    /* Facing: the way it walks; standing, toward the blow it is winding up or swinging, else the foe its next blow is
+       queued at (the one it walked up to), else what it last acted on since its last move (no turning back between
+       swings, never toward the body it walked away from: Tyler 11-14); else its last heading. */
     let hx = p.hx, hy = p.hy;
     const act = p.moving ? null : hook.swingAt(u, id, now);
-    const s = act || hook.last(u);
-    if (!p.moving && s && (act || now - s.at >= 0)) {
-      const q = tl.positionAt(s.t, now);
+    if (!p.moving) {
+      const was = hook.last(u);
+      const s = act || hook.next(u) || (was && now - was.at >= 0 && !(tl.clientAt(p.since) > was.at) ? was : null);
+      const q = s && tl.positionAt(s.t, now);
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
     let { dir, diag } = facingOf(hx, hy);
@@ -421,6 +433,8 @@ export function createHuntScene(o) {
         const kind = spriteOf(u);
         if (kind) out.ref = { monster: kind };
         if (isBoss(u)) out.plate = { text: (read.units.get(u) || {}).name || null, kind: 'foe' };
+        /* Monster names on: a living monster wears its name in the bystander tone, and gives way in a crowd (core/plates.js) */
+        else if (read.names) { const k = kindOf(u); if (k) out.plate = { text: monsterName(k), kind: 'ambient', yields: true }; }
       }
       if (out.plate && !out.plate.text) delete out.plate;
       const stacks = bleed.get(u) || 0;

@@ -33,24 +33,25 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.130';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.130';
-import { LiveLink } from './live-link.js?v=0.2.130';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.130';
-import { SESSION_CONFIG } from './config.js?v=0.2.130';
-import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.130';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.130';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.130';
-import { AskPacer } from './ask-pacer.js?v=0.2.130';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.130';
-import { ReadGate } from './read-gate.js?v=0.2.130';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.130';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.130';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.130';
-import { pageAway } from './page-away.js?v=0.2.130';
-import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.130';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.130';
-import { observeSessions, announceSession } from './session-observers.js?v=0.2.130';
+import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.132';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.132';
+import { LiveLink } from './live-link.js?v=0.2.132';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.132';
+import { SESSION_CONFIG } from './config.js?v=0.2.132';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.132';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.132';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.132';
+import { AskPacer } from './ask-pacer.js?v=0.2.132';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.132';
+import { ReadGate } from './read-gate.js?v=0.2.132';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.132';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.132';
+import { quoted } from './quoted-ask.js?v=0.2.132';
+import { catchUpLink, newIdem } from './catch-up.js?v=0.2.132';
+import { pageAway } from './page-away.js?v=0.2.132';
+import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.132';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.132';
+import { observeSessions, announceSession } from './session-observers.js?v=0.2.132';
 
 export const FRAME_EVENT = 'frame';
 
@@ -400,27 +401,26 @@ export class CharacterSession {
     return this._ask('hunt_restart', () => this._server.rpc('hr_hunt_restart', { p_slot: this.slot, p_session: session, p_idem: newIdem() }));
   }
 
-  /* ── Services (lane S2): each sends the QUOTE the player was shown (the server's own price from
-     the `stamina_refill` / `blessings` sections); the server refuses `quote_changed` rather than
-     charge another sum. Never a price of the client's own. ── */
+  /* ── Services (lane S2): each sends the QUOTE the player was shown (the server's section price, never one of the client's own); the server
+     refuses `quote_changed` rather than charge another sum, and any refusal re-reads the hero first (quoted-ask.js): the next press is at its price. ── */
 
   /** Buy the next stamina refill at the server's quoted price. */
   async buyStamina(quotedPrice) {
     if (this._closed || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
-    return this._ask('stamina_refill', () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
+    return this._ask('stamina_refill', quoted(this, () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() })));
   }
 
   /** Buy one blessing tier at the server's quoted price (0 under the free level). */
   async buyBlessing(tier, quotedPrice) {
     if (this._closed || !Number.isInteger(tier) || tier < 1 || tier > 9 || !Number.isSafeInteger(quotedPrice) || quotedPrice < 0) return { ok: false, error: 'bad_intent' };
-    return this._ask('blessing_buy', () => this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() }));
+    return this._ask('blessing_buy', quoted(this, () => this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() })));
   }
 
   /** Activate a bestiary stage for one monster kind at the server's quoted fee (refused `quote_changed` otherwise). */
   async activateBestiaryStage(monster, stage, quotedFee) {
     if (this._closed || !ITEM.test(String(monster)) || !Number.isInteger(stage) || stage < 1 || stage > 4
       || !Number.isSafeInteger(quotedFee) || quotedFee < 0) return { ok: false, error: 'bad_intent' };
-    return this._ask('bestiary_activate', () => this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
+    return this._ask('bestiary_activate', quoted(this, () => this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() })));
   }
 
   /** Change this hero's name at the price the `rename` section quoted (Tyler 10-22: the first name is free,
@@ -430,7 +430,7 @@ export class CharacterSession {
     const n = String(name || '').trim().replace(/\s+/g, ' ');
     if (this._closed || n.length < 3 || n.length > 20) return { ok: false, error: 'bad_name' };
     if (!Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
-    return this._ask('hero_rename', () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() }));
+    return this._ask('hero_rename', quoted(this, () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() })));
   }
 
   /** Wear an outfit (or null: the role's own look). ONE intent (hr_outfit_set): the server checks ownership; the window shows the

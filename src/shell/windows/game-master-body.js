@@ -6,11 +6,11 @@
 // until the server answers. A stop, a mute and a ban ask once more, naming the target. Refusals read through refusalText, never a code.
 // One component, shown as a window on a desktop and a sheet on a phone (CLAUDE.md §1).
 // ════════════════════════════════════════════════════════════════════════
-import { attr, cls, element, prop, rows, text } from '../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
-import { huntFor } from '../../core/hunt-spawn.js?v=0.2.130';
-import { refusalText } from '../intent-words.js?v=0.2.130';
-import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline, gmSay, gmStop, gmUnban, gmUnmute } from '../../session/gm-intents.js?v=0.2.130';
+import { attr, cls, element, prop, rows, text } from '../../render/paint.js?v=0.2.132';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
+import { huntFor } from '../../core/hunt-spawn.js?v=0.2.132';
+import { refusalText } from '../intent-words.js?v=0.2.132';
+import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline, gmSay, gmStop, gmUnban, gmUnmute } from '../../session/gm-intents.js?v=0.2.132';
 
 const MUTE_MINUTES = Object.freeze([[15, '15 minutes'], [60, '1 hour'], [1440, '1 day'], [10080, '1 week']]);
 const STATES = new WeakMap();
@@ -49,7 +49,7 @@ const LINE = (v) => (v === null || v === undefined ? '' : String(v));
 
 function factsOf(h) {
   const open = h.hunt ? { hunt: h.hunt.id, leaving: h.hunt.leaving } : { job: h.job, job_id: h.job_id, online: true };
-  return [h.name + ' · Level ' + h.level, where(open), LINE(h.gold) + ' gold', flags(h)].filter(Boolean).join(' · ');
+  return [h.name + ', Level ' + h.level, where(open), LINE(h.gold) + ' gold', flags(h)].filter(Boolean).join(', ');
 }
 function moreOf(h) {
   const out = [];
@@ -69,7 +69,7 @@ export function patchBody(el, ctx) {
   rows(root.querySelector('.gm-list'), st.heroes || [], {
     key: (h) => h.id + ':' + h.slot,
     build: (h) => element(ctx.doc, '<li><button type="button" class="hh-tool gm-pick" data-hs-act="gm-pick" data-id="' + esc(h.id) + '" data-slot="' + esc(h.slot) + '"></button></li>'),
-    patch: (li, h) => { text(li.querySelector('button'), [h.name + ' · ' + h.level, where(h), flags(h)].filter(Boolean).join(' · ')); },
+    patch: (li, h) => { text(li.querySelector('button'), [h.name + ' (' + h.level + ')', where(h), flags(h)].filter(Boolean).join(', ')); },
   });
   cls(root.querySelector('.gm-none'), 'is-on', !st.heroes || !st.heroes.length);
   if (st.heroes) text(root.querySelector('.gm-none'), 'Nobody is online or playing.');

@@ -68,6 +68,8 @@
 //          create is ONE hr_create_hero with the name, the four colours and an idem key
 //   ACC-6  the roster reads every other owned slot AT ONCE after slot 0's answer (two round trips for
 //          four heroes), and the account's other heroes open at once after Play, within the limit
+//   QUOTE-1 a priced press the server refused (quote_changed, the bar already full) re-reads the hero before it resolves: the quote
+//          shown is the server's, for every verb that sends a quoted price; an answer that is no refusal reads nothing
 //   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
 //          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
 //          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
@@ -116,6 +118,7 @@
 import { mkdtempSync, cpSync, readFileSync, readdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { Worker, isMainThread, workerData, parentPort } from 'node:worker_threads';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
@@ -153,6 +156,9 @@ async function load(base) {
     TT: await import(u('src/shell/town-ticker.js')),
     RCP: (await import(u('src/data/recipes.js'))).ARTISAN_RECIPES,
     ARTISAN: await import(u('src/core/artisan.js')),
+    /* the priced presses outside the session (QUOTE-1) */
+    TI: await import(u('src/session/training-intents.js')),
+    HI: await import(u('src/session/home-intents.js')),
     BASE: base,
   };
 }
@@ -202,7 +208,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
-  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN } = M;
+  const { E, R, C, A, S, AU, NB, AR, SI, CFG, TP, TW, PS, HB, I, FI, FS, XP, CS, GG, AWAY, ITEMS, LEVEL_REQ, SW, TT, RCP, ARTISAN, TI, HI } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -1169,7 +1175,22 @@ async function rules(M) {
   const mkAccount = (srv, o = {}) => {
     const tab = memStore();
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { auth.out = true; } };
-    return new A.AccountSession({ auth, server: srv, tab, channel: fakeHub().channel, timers, config: o.config });
+    const acc = new A.AccountSession({ auth, server: srv, tab, channel: fakeHub().channel, timers, config: o.config });
+    /* Heroes re-rendering each other with no new answer (ACC-STORE-TIE's mutant) recurse until the stack overflows; each
+       frame's listener loop then re-enters it and Node 20 printed/allocated a 2 GB CI runner out of heap (client-guards-2,
+       runs 43392845828, 43593490462). Bound the nesting: past PINGPONG_DEPTH cross-hero re-renders a hero stops forwarding
+       and the account records it (acc.pingPong), so every rule stays shallow and ACC-STORE-TIE reads the flag. */
+    const PINGPONG_DEPTH = 8; let depth = 0;
+    acc.pingPong = 0;
+    acc._chars.set = (slot, cs) => {
+      const real = cs.noteStorage.bind(cs);
+      cs.noteStorage = () => {
+        if (depth >= PINGPONG_DEPTH) { acc.pingPong++; return; }
+        depth++; try { real(); } finally { depth--; }
+      };
+      return Map.prototype.set.call(acc._chars, slot, cs);
+    };
+    return acc;
   };
   const said = (n) => ({ account: { max_concurrent: n } });
   await t('ACC-1', async () => {
@@ -1548,6 +1569,45 @@ async function rules(M) {
     if (!srv.calls.some((c) => c[0] === 'hr_load' && c[1].p_slot === 0)) return 'the paying hero was not re-read after the purchase';
     return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":75000,"max":4}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
   });
+  /* QUOTE-1 (lane/a-quote-changed, QA 2026-11-14: the stamina panel kept 197 gp after the server answered quote_changed at 169, every retry
+     refused until a reload): a priced press the SERVER refused re-reads the hero before it resolves, so the section's price is the server's;
+     a dropped network reads nothing. Every CharacterSession service that sends a quoted price. */
+  await t('QUOTE-1', async () => {
+    const quote = (price) => ({ stamina_refill: { available: true, why: null, price, restore_ms: 14400000, n: 1, per_day: 6 } });
+    const FULL = { available: false, why: 'stamina_full', n: 1, per_day: 6 };   // live play gate 11-14: 11:59 h shown, the server says full
+    for (const [verb, press, error] of [['hr_stamina_refill', (cs) => cs.buyStamina(197)], ['hr_blessing_buy', (cs) => cs.buyBlessing(2, 197)],
+      ['hr_bestiary_activate', (cs) => cs.activateBestiaryStage('rat', 1, 197)], ['hr_hero_rename', (cs) => cs.renameHero('Fennick', 197)],
+      ['hr_training_start', (cs, srv) => TI.startTraining({ server: srv }, cs, { skill: 'melee', where: 'yard', feeSeen: 197 })],
+      ['hr_house_dummy_unlock', (cs, srv) => TI.unlockDummy({ server: srv, characters: () => [cs] }, cs, 'melee', 197)],
+      ['hr_storage_chest_build', (cs, srv) => HI.buildChest({ server: srv, characters: () => [cs] }, cs, 'chest_1', 197)],
+      ['hr_stamina_refill', (cs) => cs.buyStamina(197), 'stamina_full']]) {
+      const bySlot = { 0: env(1, quote(197)) };
+      const srv = fakeServer(bySlot);
+      const base = srv.rpc;
+      let drop = true;
+      srv.rpc = async (name, args) => {
+        if (name !== verb) return base(name, args);
+        srv.calls.push([name, args]);
+        if (drop) return { ok: false, status: 503, body: { ok: false, error: 'unavailable' }, error: 'http_503', closed: false };   // no answer to the quote
+        /* town rest moved the price on the server, or filled the bar */
+        bySlot[0] = env(2, error ? { stamina_refill: FULL } : quote(169));
+        return { ok: true, status: 200, body: { ok: false, error: error || 'quote_changed', stamina_refill: error ? FULL : quote(169).stamina_refill }, closed: false };
+      };
+      const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: fakeHub().channel, ...timers });
+      await cs.load();
+      const loads = srv.calls.filter((c) => c[0] === 'hr_load').length;
+      await press(cs, srv);
+      if (srv.calls.filter((c) => c[0] === 'hr_load').length !== loads) return verb + ': an answer that is no refusal of the quote was re-read';
+      drop = false;
+      const r = await press(cs, srv);
+      if (r.ok || r.error !== (error || 'quote_changed')) return verb + ' answered ' + JSON.stringify(r);
+      const q = I.staminaRefillOf(cs);
+      if (error ? !(q && q.available === false && q.why === error) : !(q && q.price === 169)) {
+        return verb + ' refused ' + r.error + ' and the hero still offers ' + JSON.stringify(q) + ' (the server: ' + (error || '169 gp') + ')';
+      }
+    }
+    return true;
+  });
   /* ONE ACCOUNT DEPOT on a fake server (hr_bank_move / hr_state_of keep one for every slot): each envelope states it
      with the server's clock (`now`, hr_state_of's transaction instant); `spend` is a town skill on some hero drawing
      on it (2027-01-24-skills-from-storage.sql); `loads(slot)` counts the full reads sent. */
@@ -1628,11 +1688,11 @@ async function rules(M) {
     const a = acc.character(0), b = acc.character(1);
     let painted = 0; b.subscribe((s, why) => { if (why === 'storage') painted++; });
     srv.spend('iron_ore', 1);
-    /* a ping-pong (the mutant) overflows the stack, and printing that error's stack frames ran a 2 GB CI runner out of heap
-       (client-guards-2, run 43392845828): count the listener failures instead of printing them */
+    /* a ping-pong (the mutant) is cut at a shallow depth by mkAccount's bound and recorded in acc.pingPong */
     const err = console.error; let failed = 0;
     console.error = (...a0) => { if (String(a0[0]).includes('a listener failed')) failed++; else err(...a0); };
     try { await a.load(); } finally { console.error = err; }
+    if (acc.pingPong) return 'the heroes re-render each other back and forth (cut ' + acc.pingPong + ' time(s) at the depth bound)';
     if (failed) return failed + ' listener(s) failed: the heroes re-render each other until the stack overflows';
     if (shows(b) !== '{"iron_ore":3}') return 'B shows ' + shows(b) + ' after A read 3 ore at the same instant';
     return (painted >= 1 && painted <= 2) || 'B re-rendered ' + painted + ' times for one answer of A';
@@ -2341,6 +2401,20 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['a refused priced press leaves the stale quote on screen (lane/a-quote-changed)', 'src/session/quoted-ask.js', 'if (refusedByServer(ans) && cs', 'if (false && cs'],
+  ['the stamina refill keeps its quote after quote_changed (lane/a-quote-changed)', 'src/session/character-session.js',
+    "this._ask('stamina_refill', quoted(this, () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() })));",
+    "this._ask('stamina_refill', () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));"],
+  ['a dropped network is read as a refusal (lane/a-quote-changed)', 'src/session/quoted-ask.js', '!!ans && ans.ok === true && !!ans.body', '!!ans'],
+  ['a refused training start keeps the stale fee (lane/a-quote-changed)', 'src/session/training-intents.js',
+    "await quoted(cs, () => account.server.rpc('hr_training_start', { p_slot: cs.slot, p_skill: skill, p_where: where, p_fee_seen: feeSeen, p_idem: newIdem() }))();",
+    "await account.server.rpc('hr_training_start', { p_slot: cs.slot, p_skill: skill, p_where: where, p_fee_seen: feeSeen, p_idem: newIdem() });"],
+  ['a refused dummy unlock keeps the stale price (lane/a-quote-changed)', 'src/session/training-intents.js',
+    "await quoted(cs, () => account.server.rpc('hr_house_dummy_unlock', { p_slot: cs.slot, p_skill: skill, p_price: priceSeen, p_idem: newIdem() }))();",
+    "await account.server.rpc('hr_house_dummy_unlock', { p_slot: cs.slot, p_skill: skill, p_price: priceSeen, p_idem: newIdem() });"],
+  ['a refused chest build keeps the stale price (lane/a-quote-changed)', 'src/session/home-intents.js',
+    "await quoted(cs, () => account.server.rpc('hr_storage_chest_build', { p_slot: cs.slot, p_chest: chest, p_price: quotedGold, p_idem: newIdem() }))();",
+    "await account.server.rpc('hr_storage_chest_build', { p_slot: cs.slot, p_chest: chest, p_price: quotedGold, p_idem: newIdem() });"],
   ['the strip lists a hero this tab has open as not open (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => r.exists)'],
   ['the strip lists a slot still to be named as a hero (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'filter((r) => r.exists && !this._chars.has(r.slot))', 'filter((r) => !this._chars.has(r.slot))'],
   ['a hero not open here shows no Level (lane/a-strip-all-heroes)', 'src/session/account-session.js', 'level: r.level, doing: r.doing }));', 'level: null, doing: r.doing }));'],
@@ -2568,10 +2642,29 @@ async function main() {
       const text = readFileSync(join(tmp, file), 'utf8');
       if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
+      console.log(report(name, await judge(() => rulesInWorker(tmp)), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
   console.log(exitOf(counts) ? 'session-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'session-core --mutate: ' + counts.caught + '/' + (onlyAt < 0 ? MUTANTS.length : counts.caught) + ' mutants caught, each by a named rule');
   process.exit(exitOf(counts));
 }
-main();
+
+/* ONE MUTANT, ONE WORKER (v0.2.132 release red, client-guards-2 run 43709464778). Each mutant imports a whole copy of the
+   session modules and their data from its own tree, and an ES module is never unloaded: run in this one process the heap
+   grew ~14 MB a mutant (measured: 68 MB after the first, 2.5 GB after 164) and Node 20's 2 GB runner died on whichever
+   mutant crossed it. A worker's heap goes when it ends, so the run stays at one mutant's size, and a mutant that does
+   spin dies alone at MUTANT_HEAP_MB as a named HARNESS line instead of taking the job. */
+const MUTANT_HEAP_MB = 512;
+function rulesInWorker(tree) {
+  return new Promise((resolve, reject) => {
+    const w = new Worker(new URL(import.meta.url), { workerData: { mutantTree: tree }, resourceLimits: { maxOldGenerationSizeMb: MUTANT_HEAP_MB } });
+    let done = false;
+    w.once('message', (fails) => { done = true; resolve(fails); w.terminate(); });
+    w.once('error', (e) => { done = true; reject(e); });
+    w.once('exit', (code) => { if (!done) reject(new Error('the mutant worker exited ' + code + ' with no verdict')); });
+  });
+}
+
+if (!isMainThread && workerData && workerData.mutantTree) parentPort.postMessage(await rules(await load(workerData.mutantTree)));
+else main();
+

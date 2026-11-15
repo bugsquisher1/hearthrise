@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-14 · art-director (lane/b-map-audit) · a unit's feet land on its tile's SOUTH pixel row, so a bridge drawn on the tile rows misses them
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 player-visible, fixed in data · compose.js puts a unit's contact row on the tile's south pixel row. The crossings had been placed by the rows they span, so the feet fell off them: the Glade's sluice boards and the Warrens' Drop (one 75 px deck over 91 px of water), the Thicket's log raft (6 px above the feet and 23 px short), the Sewer's grate (17 px above the feet). Rule [wet] in tests/world-assets.mjs now reads the painted pixels under every open tile's foot. | every hunting map's `objects` crossings, tools/world-art/crossings.mjs | Any lane placing a bridge: read it in tools/qa/region-kit.html with `at=` on each crossing tile, then run world-assets. |
+| 2 | P2 art · The Glade's and the Thicket's fords are three open columns of painted deep water. Nine stepping stones (one a tile) now hold every foot, but a 3x3 lattice of one sprite reads as placed by a script. | mosslight_ground, meadowbrook_ground | Asset Director: paint both fords as shallows or a gravel bar (Wickstead's ford is painted dry and reads right), then thin the stones. |
+| 3 | P3 class, not fixed · The engine's grid is materials only (src/core/hunt-ground.js): a hunter walks through every solid prop (carts, trees, barrels) the client draws on an open tile. Known since S1. | hunt-ground.js, every hunting map | Systems: export the compiled object mask to the engine (maskHash is the contract) when a ground is next reworked. |
+
 ## 2026-11-14 · game-designer (lane/b-barrow-numbers) · Krell's Hall measured, a mend that froze a fight, the March's tree, and a renamed id the Tally table still held
 
 | # | Found | Affected | Action |
@@ -3948,3 +3956,17 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   any committed `request.json` (PixelLab samples under art/world-src/ keep one) schedules 13 edge and intent tests and
   run-smoke for an art-only diff. I left that file out of this lane. Owner: reliability-engineer (match on the path, or skip
   art/world-src/**).
+- 2026-11-14 (art-director, lane/b-march-floors): atlas-slake is 2048x1924 of the 2048x2048 cap after the Slake's wear patches
+  (a painted ground packs every unique cell). The next Slake art (a body, a prop) will hit [atlas-size]: split the ground into its
+  own set, or coarsen the patches. Owner: asset-director.
+- 2026-11-14 (art-director, lane/b-march-floors): Krell's gatehouse is 156 px tall over a two-row passage, so a unit in the yard
+  just inside (rows 35-37) stands behind its towers. The arch is now see-through (units in the passage show); hiding behind the
+  towers needs an occluder fade like the roofs' (compose.js, a `gate` class rule). Owner: systems-engineer.
+- 2026-11-15 (art-director, lane/b-open-march-art): the Barrow March cast fails ART_DIRECTION §4's 3:1 ring on its own floors.
+  ring-contrast.mjs on the Muster's painted ground (median 0.074): Barrow Knight 1.11, Barrow Pikeman 1.60, Cairn Wight 1.34; on the
+  Ford mud ref (0.051) the shipped banded_pikeman and barrow_knight stills read 1.00. No guard measures it. The fix is a lit-rim on
+  the light-facing outline and a one-step body lift per body (§4), done once for the region. Owner: asset-director.
+  FIXED same day on lane/b-open-march-art: the Ford and Muster floors shaded 3 steps (0.077/0.089 -> 0.015 under the spawns),
+  bodies lifted (build.mjs `lift`/`shade`), every March monster now 3.06:1 or more on all four facings; world-assets [ring] holds it.
+  Left: lifted earth-ramp bodies (Barrow Knight, Captain Hask) read as one warm brown with less dark weight than their drawings; a
+  palette-born regen with a real lit rim would keep Hask's menace (gens, asset-director's call).

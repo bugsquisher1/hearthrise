@@ -13,17 +13,17 @@
 // ============================================================
 
 export const BUILD = Object.freeze({
-  version:   '0.2.130',   // semver: patch per release, minor per milestone, 1.0.0 = full release
-  cache:     '0.2.130',   // cache-buster = the version string; must match every ?v=
+  version:   '0.2.132',   // semver: patch per release, minor per milestone, 1.0.0 = full release
+  cache:     '0.2.132',   // cache-buster = the version string; must match every ?v=
   channel:   'beta',                // 'dev' | 'beta' | 'live'
-  date: '2026-11-14',         // build date
+  date: '2026-11-15',         // build date
   // Set this to your latest commit SHA after each push if you want
   // bug reports to include it. Optional.
   commit:    null,
 });
 
 export function buildString() {
-  const c = BUILD.commit ? ' · ' + BUILD.commit.slice(0, 7) : '';
+  const c = BUILD.commit ? ' (' + BUILD.commit.slice(0, 7) + ')' : '';
   return `v${BUILD.version}${c}`;
 }
 

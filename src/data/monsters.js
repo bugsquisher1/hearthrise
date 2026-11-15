@@ -63,10 +63,10 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.130';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.130';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.130';
-import { foldRows } from './grounds/shape.js?v=0.2.130';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.132';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.132';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
+import { foldRows } from './grounds/shape.js?v=0.2.132';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -818,8 +818,8 @@ export const MONSTERS = {
     hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },
   chief_coppercap_called: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, boss: true,
     elements: { frost: 25, poison: -15 },
-    spells: ['slag_toss', 'slag_rain'],
-    hp: 3500, atk: 130, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
+    spells: ['slag_toss', 'slag_rain_called'],   // his own pulse (monster-spells.js slag_rain_called); the field Chief keeps slag_rain
+    hp: 6000, atk: 110, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800, drops: [], phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },
   /* His adds, the Warrens' own diggers: called too, no boss, as the King's. His crew, under him: lower Level, softer, surer blows. While one stands he takes 80% of a blow
      (`guardPm`, boss-phases.js): burning him through them lost to the careless four (53% before), and Target on Lowest HP is the add wave's answer (board, 2026-11-05). */
   goblin_digger_called: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true, called: true, add: true,

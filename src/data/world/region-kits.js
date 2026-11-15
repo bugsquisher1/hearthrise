@@ -122,15 +122,22 @@ export const REGION_KITS = Object.freeze({
       }),
       /* THE HOLD FAMILY (brief 29, 2026-11-14): Krell's castle floors, each material born once on the palette and chained, all at
          a median luminance of 0.027 or under so a lifted body reads 3:1 on them. Flagstone is the hub (it meets cobble, setts,
-         planks and gravel); the cart road's earth meets cobble only. The walls are slices laid over the paint, not a tileset. */
+         planks and gravel); the cart road's earth meets cobble only. The walls are slices laid over the paint, not a tileset.
+         The hill outside the walls (gen-2026-11-14/33-hold-hill, lane/b-hold-art) is the March's grass (the ash family's, chained)
+         meeting the road's earth and the gravel path, and a gray hill rock that meets the grass only. */
       hold: Object.freeze({
         terrains: Object.freeze({
           earth: '6c769ec4-df9e-4ea6-ac56-22f35910d764', cobble: 'c5ce4639-040a-4e9b-84a7-98c29893063b',
           flagstone: '456e148f-3322-47f1-84e6-8efbad93a87c', setts: '9c3260b1-616c-4c44-b735-f5ebaae8fe39',
           planks: '6f4ca2d8-bc8a-4811-8448-c7ad1c38c123', gravel: '11bf114e-b2bf-449a-b74e-fb2556a41312',
+          grass: '9e1580b2-3178-4872-8f45-c28befe2c460', rock: 'c5e4eabb-fb65-4d54-80c5-b95208f44e94',
+          /* the keep's slate roof over the shut-in wall mass (lane/b-march-floors, gen-2026-11-14/34-march-floors) */
+          roof: '51645f5f-dc70-43f1-9ca8-e78a61d1d1ed',
         }),
         tilesets: ids(`b2844c51-0965-47e7-8127-13e5867d7496 a828894c-b4ec-4d85-b12d-68d732738b48 dc901b7b-2852-4a9d-965b-504fc22cff0c
-          a24a289a-6755-4014-9466-a08fa2b358e0 c7ab981f-32d2-4c72-987d-6c3a54999ac8 72391b8e-2fd0-4c03-884c-05c3a95238f0`),
+          a24a289a-6755-4014-9466-a08fa2b358e0 c7ab981f-32d2-4c72-987d-6c3a54999ac8 72391b8e-2fd0-4c03-884c-05c3a95238f0
+          8552f1bf-4e1f-4265-b09a-bbe2710d5f9a dbb59875-0f09-406a-a4a9-79c23558a447 fc57725c-6167-42be-a7ff-9dc7020753a1
+          473b8931-ad81-48ae-b5c5-3b2996b995c2`),
         maps: ids(''),
       }),
     }),
@@ -140,14 +147,14 @@ export const REGION_KITS = Object.freeze({
       mu_bier_unburned mu_cairn mu_coffin_lid mu_crates mu_dead_hawthorn mu_drum_split mu_grave_goods mu_grave_open mu_horse_skull
       mu_kerbstones mu_shields_leaning mu_standard_fallen mu_sword_marker mu_urns mu_weapon_rack
       barrel_broken barrels bone_pile bones cart_wheel coins_scattered sack_pile skull
-      mb_fallen_log mb_reeds mb_stepping_stones westwood_ash
+      mb_fallen_log mb_reeds mb_stepping_stones westwood_ash alder alder_stump
       mr_drowned_pikes mr_eel_trap mr_green_harness mr_greened_shield mr_mooring_post mr_silt_ripples mr_silt_stain mr_silt_stain_small
       mr_stake_net_post mr_rope_coil mr_drowned_cart
       ma_fire_rake ma_log_stack ma_ash_barrow ma_charred_stake
       kh_high_seat kh_lectern kh_hall_table kh_hall_table_runner kh_banner_stand kh_colors_upside_down kh_pell kh_weapon_rack
-      kh_woodpile kh_well kh_coffin_open kh_chapel_bench kh_toll_box kh_brazier kh_candle_stand
+      kh_woodpile kh_well kh_coffin_open kh_chapel_bench kh_toll_box kh_brazier kh_candle_stand kh_banner_hung
       cw_coal_seam cw_coal_seam_spent`),
-    units: ids(`banded_pikeman bannerman fordsunk wight barrow_knight mudlark greened_pikeman bargeman color_sergeant
+    units: ids(`banded_pikeman bannerman fordsunk wight barrow_knight barrow_pikeman cairn_wight mudlark greened_pikeman bargeman color_sergeant
       charred_pikeman stoker lurcher pyre_wraith provost farmhand hasks_lookout grave_guard pyre_priest gatekeeper lord_krell`),
     sets: ids('march ford muster slake pyre pyrefolk hold holdguard holdkeep'),
     grounds: Object.freeze({
@@ -156,14 +163,16 @@ export const REGION_KITS = Object.freeze({
       the_slake: Object.freeze({ family: 'march', signature: ids('sl_grounded_barge sl_stake_nets') }),
       /* the burnt pyres stand on the two pyre rows, which block a step: they are in the field's paint, and the sprites wait for an open cell */
       pyre_field: Object.freeze({ family: 'ash', signature: ids('pf_great_pyre pf_burnt_pyre') }),
-      /* the gatehouse is drawn and not yet placed: it needs the pack's cells at the cart gate (a solid piece on the road would shut it) */
+      /* the gatehouse stands over the cart gate (class gate, open: its towers on the map's rock either side of a three-tile passage) */
       krells_hold: Object.freeze({ family: 'hold', signature: ids('kh_gatehouse kh_hall_fire') }),
     }),
     /* art/briefs/gen-2026-11-07/: the Slake's two signature pieces (03, 04), its one new body (01), the three re-poured
        bodies (scripted from banded_pikeman, fordsunk and bannerman: new names, new pixels, no generation) and the river
        pieces the kit lacks (04: a mud flat needs wear, ART_DIRECTION §5). The Ford's brief places `oak`: it is not in this
        kit (its light round canopy reads as Greenhaven beside the March's alder and ash; read 2026-11-07), so the Ford's
-       import swaps it for westwood_ash or mu_dead_hawthorn. */
+       import swaps it for westwood_ash or mu_dead_hawthorn. The alder (art/world/common, brief 20: drawn on the palette as the
+       March's riverbank tree, the oaks' replacement) and its stump are the kit's: the Ford, the Muster and the Slake stand their
+       willow gather nodes in it (art director, 2026-11-15). */
     pending: ids(''),
   }),
 });

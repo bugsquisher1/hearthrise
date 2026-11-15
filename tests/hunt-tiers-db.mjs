@@ -17,7 +17,8 @@
 // The mutants are SQL patched into the booted replay; their anchors are FILE's text.
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
-import { wholeViewOrRerun } from '../tools/pack/whole.mjs';
+import { wholeViewOrRerun, applyOrder, packSqlOf } from '../tools/pack/whole.mjs';
+import { packIds } from '../tools/pack/files.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
 import { decodeStored } from '../src/core/hunt/world-state.js';
 import { tierRowOf, pullOfTier, GROUND_TIERS } from '../src/data/hunt-tiers.js';
@@ -155,6 +156,12 @@ async function dialsTwice(db, again) {
   if (JSON.stringify(JSON.parse(once).rows) !== JSON.stringify(want)) problems.push('HT-6 the server holds ' + JSON.stringify(JSON.parse(once).rows).slice(0, 300) + ', the data ' + JSON.stringify(want).slice(0, 300));
   const sql = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'supabase', 'migrations', DIALS_FILE), 'utf8');
   try { await db.exec(again ? again(sql) : sql); } catch (e) { problems.push('HT-6 ' + DIALS_FILE + ' does not apply a second time: ' + String(e && e.message).slice(0, 200)); return problems; }
+  /* a ground pack shipped after the dials file holds its tier rows in its own file (tools/pack/whole.mjs: the whole file's delete + re-insert
+     carries only the packs before it), so the chain's second pass re-applies those files after it, in apply order, as a replay would */
+  const order = applyOrder(), at = order.indexOf(DIALS_FILE);
+  for (const f of packIds().map((id) => packSqlOf(id)).filter((x) => x && order.indexOf(x) > at).sort((x, y) => order.indexOf(x) - order.indexOf(y))) {
+    await db.exec(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'supabase', 'migrations', f), 'utf8'));
+  }
   if (await print() !== once) problems.push('HT-6 a second apply of ' + DIALS_FILE + ' moved the table');
   return problems;
 }

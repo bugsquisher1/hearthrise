@@ -16,16 +16,16 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.130';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.130';
-import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.130';
-import { recommendation } from '../hunt-list.js?v=0.2.130';
-import { huntName } from '../../session/party-sections.js?v=0.2.130';
-import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.130';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.130';
-import { glyphSvg } from '../launcher.js?v=0.2.130';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
+import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.132';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.132';
+import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.132';
+import { recommendation } from '../hunt-list.js?v=0.2.132';
+import { huntName } from '../../session/party-sections.js?v=0.2.132';
+import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.132';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.132';
+import { glyphSvg } from '../launcher.js?v=0.2.132';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {
@@ -48,7 +48,7 @@ function seatHtml(glyphs) {
 /** One seat's second line: "Lv 12 · Melee (shield)" (no weapon worn: "No weapon"). */
 function seatFacts(m) {
   const role = m.role && HUNT_ROLES[m.role] ? HUNT_ROLES[m.role].label : 'No weapon';
-  return (m.level === null ? '' : 'Lv ' + m.level + ' · ') + role;
+  return (m.level === null ? '' : 'Lv ' + m.level + ', ') + role;
 }
 
 /** Where a seat is, in words: away (its seat kept), hunting, or in town. */

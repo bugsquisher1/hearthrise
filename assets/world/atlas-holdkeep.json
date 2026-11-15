@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-holdkeep.png",
   "size": [2048,1172],
-  "pixels": "ed4c832246af56c658200bf09963a45fbd1fd566caec2dd310f4a338a6a53754",
+  "pixels": "f15cc70f2ff6ba35b3f5b220911fccdcd1a764cafc8fa7ab01a46cd9aead0f06",
   "sprites": {
     "gatekeeper": {
       "class": "brute",

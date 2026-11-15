@@ -32,11 +32,12 @@
 // place (src/render/paint.js) on any character's change, a switch, or an
 // alert. Every number is the server's (src/shell/command-model.js).
 // ════════════════════════════════════════════════════════════════════════
-import { summaryOf } from '../shell/command-model.js?v=0.2.130';
-import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.130';
-import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.130';
-import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.130';
-import { t } from '../render/player-text.js?v=0.2.130';
+import { summaryOf } from '../shell/command-model.js?v=0.2.132';
+import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.132';
+import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.132';
+import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
+import { lowerFirst } from '../render/format.js?v=0.2.132';
 
 /** The menu target under a strip event: one of this account's own characters (its tab), or null. */
 export function stripTargetOf(e) {
@@ -97,7 +98,7 @@ const heroName = (x) => x.name || t('heroes.strip_no_name', { number: x.slot + 1
     before it, the missing bars and the dashed foot say it isn't playing here, so no words do (Tyler's voice, 11-11). */
 function unopenedLine(x) {
   if (!Number.isInteger(x.level)) return x.doing || '';
-  return x.doing ? t('heroes.strip_level_doing', { level: x.level, doing: x.doing }) : t('heroes.strip_level', { level: x.level });
+  return x.doing ? t('heroes.strip_level_doing', { level: x.level, doing: lowerFirst(x.doing) }) : t('heroes.strip_level', { level: x.level });
 }
 
 /** Why a not-open hero can't play now: as many heroes play as the server allows at once. */

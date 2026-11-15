@@ -90,12 +90,17 @@ const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-gr
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
 /* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
 const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
+const { BOSS_CALLS } = await import(pathToFileURL(join(ROOT, 'src/data/boss-calls.js')).href);
+/* the boss as a sentence opens on him: a called boss's words ("The Rat King"), else his own name ("Captain Hask", never "The Captain Hask") */
+const bossWords = (id) => (Object.values(BOSS_CALLS).find((c) => c.of === id) || { Boss: MONSTERS[id].name }).Boss;
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   const p = g.pockets.find((q) => q.forParty);
-  const boss = p && p.spawns.map((x) => MONSTERS[x.monster]).find((m) => m && m.boss);
-  return [g.hunt, p && boss ? 'The ' + boss.name + ' is built for a group of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
+  const boss = p && p.spawns.map((x) => x.monster).find((m) => MONSTERS[m] && MONSTERS[m].boss);
+  return [g.hunt, p && boss ? bossWords(boss) + ' is built for a group of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
+/* lane/d-march-text: the Barrows' note read "The Captain Hask is built for a group of four or more." A named man takes no "The". */
+if (!/^Captain Hask is built for a group of four or more\./.test(PARTY_NOTES.muster_barrows || '')) throw new Error('party-ui: UI-5 the Barrows\' note reads ' + JSON.stringify(PARTY_NOTES.muster_barrows));
 const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
   'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_list', 'hr_hunt_party_warn'];
 
@@ -298,6 +303,25 @@ async function pureRules(M, base) {
     const n = centre.list().length;
     cs.timeline.ingest({ events: [{ id: 's1:300', type: 'rare_drop', atMs: 1760702399990, u: 2, item: 'crown_shard' }] }, 0);
     if (centre.list().length !== n || centre.list().some((x) => x.item === 'crown_shard')) return "a party member's rare raised a line (and its Share) for this hero";
+    /* THE KILL THAT ENDS A PARTY HUNT (March play-through 2026-11-14: "Rare drop for Tankard: Duskwood Staff!", the staff Mender's):
+       the ended hunt's section names no hero, so its unit is the one an earlier read of the same session named. A member's rare
+       still raises nothing; the hero's own still raises its line. */
+    srv.env[0].hunt.ended = true;
+    srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: 'boss_killed', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+    delete srv.env[0].hunt.hero;
+    await cs.load();
+    if (!cs.read('hunt') || cs.read('hunt').ended !== true || cs.read('hunt').hero) return 'the fixture did not end the hunt without a hero';
+    cs.timeline.ingest({ events: [{ id: 's1:301', type: 'rare_drop', atMs: 1760702399995, u: 2, item: 'crown_shard' }] }, 0);
+    if (centre.list().some((x) => x.kind === 'rare' && x.item === 'crown_shard')) return "after the hunt ended, a party member's rare raised \"" + centre.list().find((x) => x.item === 'crown_shard').text + '" for this hero';
+    cs.timeline.ingest({ events: [{ id: 's1:302', type: 'rare_drop', atMs: 1760702399996, u: 1, item: 'rat_tail' }] }, 0);
+    if (!centre.list().some((x) => x.kind === 'rare' && x.id.endsWith(':s1:302'))) return "after the hunt ended, the hero's own rare raised no line: " + JSON.stringify(centre.list().map((x) => x.id));
+    /* A page whose first read is the ended hunt never learned the hero's unit: an owner it cannot prove raises nothing. */
+    const acc2 = account(M, srv);
+    const centre2 = M.AL.createAlertCenter(acc2);
+    const cs2 = (await acc2.open(0)).session;
+    const before = centre2.list().length;
+    cs2.timeline.ingest({ events: [{ id: 's1:303', type: 'rare_drop', atMs: 1760702399997, u: 2, item: 'crown_shard' }] }, 0);
+    if (centre2.list().length !== before) return 'a page that never saw the hero\'s unit raised "' + centre2.list()[0].text + '" for a rare it cannot prove is this hero\'s';
     return true;
   });
 
@@ -1346,7 +1370,7 @@ async function pageRules(overrides, shots) {
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
           if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
-          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword · Melee') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
+          if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
           const lv = sent(s, 'hr_hunt_party_leave').length;
@@ -1383,13 +1407,15 @@ const PURE_MUTANTS = [
   ['a slot item in the bag reads as out of stock', 'src/shell/alerts.js', 'const stock = (id) => have.get(id) || 0;', 'const stock = () => 0;'],
   ['the run-out line names no takeover', 'src/shell/alerts.js', "  const then = typeof ev.next === 'string' && Number.isInteger(ev.slot)", '  const then = false'],
   ['another hero raises the run-out line', 'src/shell/alerts.js', ' || ev.u !== h.hero.unit) return null;', ') return null;'],
-  ["a party member's rare drop alerts this hero", 'src/shell/alerts.js', '  if (h && h.hero && Number.isInteger(ev.u) && Number.isInteger(h.hero.unit) && ev.u !== h.hero.unit) return null;\n', ''],
-  ['the run-out event raises nothing', 'src/shell/alerts.js', 'const c = rareOf(cs, ev) || runOutOf(cs, ev);', 'const c = rareOf(cs, ev);'],
+  ["a party member's rare drop alerts this hero", 'src/shell/alerts.js', '  if (me === null || !Number.isInteger(ev.u) || ev.u !== me) return null;\n', '  if (!h) return null;\n'],
+  ['a rare whose owner is unproven alerts this hero (the ended party hunt, March 2026-11-14)', 'src/shell/alerts.js', 'if (me === null || !Number.isInteger(ev.u) || ev.u !== me) return null;', 'if (!h || (me !== null && Number.isInteger(ev.u) && ev.u !== me)) return null;'],
+  ["the ended hunt forgets the hero's unit (its own rare raises nothing)", 'src/shell/alerts.js', 'return known && known.session === h.sessionId && Number.isInteger(known.unit) ? known.unit : null;', 'return null;'],
+  ['the run-out event raises nothing', 'src/shell/alerts.js', 'const c = rareOf(cs, ev, heroUnit.get(cs.slot)) || runOutOf(cs, ev);', 'const c = rareOf(cs, ev, heroUnit.get(cs.slot));'],
   ['an alert fires on every read', 'src/shell/alerts.js', '    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;\n', ''],
   ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });\n", ''],
   ['a switched-off kind still alerts', 'src/shell/alerts.js', '    if (!alertShown(cs, c.kind)) return false;\n', ''],
   ['the rare alert has no Share', 'src/data/alerts.js', ", button: 'Open your inventory', share: 'Share' })", ", button: 'Open your inventory' })"],
-  ['the rare alert forgets where it was found', 'src/shell/alerts.js', 'place: h ? huntName(h.huntId) : null,', 'place: null,'],
+  ['the rare alert forgets where it was found', 'src/shell/alerts.js', 'place: huntName(h.huntId),', 'place: null,'],
   ['the card names no hero', 'src/shell/share-card.js', "f.hero && { text: 'Found by ' + f.hero,", "false && { text: 'Found by ' + f.hero,"],
   ['the icon is smoothed to a fractional scale', 'src/shell/share-card.js', 'size: icon * iconScale });', 'size: icon * iconScale + 3 });'],
   ['the card paints a literal colour', 'src/shell/share-card.js', "{ op: 'rect', x: 0, y: 0, w, h, fill: '--bg-2' },", "{ op: 'rect', x: 0, y: 0, w, h, fill: '#1a1d23' },"],
@@ -1475,7 +1501,7 @@ const PAGE_MUTANTS = [
   ['Leave party stays on while in flight', 'src/shell/windows/party-roster.js', "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', sc.pending);", "for (const b of root.querySelectorAll('.hw-party-acts button')) prop(b, 'disabled', false);"],
   ["a member is offered the leader's hunt pick", 'src/styles/windows.css', '.hw-party-acts [hidden] { display: none; }', ''],
   ['Your party has no Leave', 'src/shell/windows/party-roster.js', "  return leaveOrDisband(ctx, ctx.character, sc, repaint, action);", "  return false;"],
-  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' · ' + role.label;", "  return 'No ' + word + ' yet (' + role.label + ')';"],
+  ['the finder says Melee (shield) in brackets', 'src/shell/windows/party-finder.js', "  return role.label.toLowerCase().includes(word) ? what : what + ' (' + role.label + ')';", "  return 'No ' + word + ' yet (' + role.label + ')';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
   ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "  return mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "  return '';"],

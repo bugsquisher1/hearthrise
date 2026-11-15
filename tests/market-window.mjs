@@ -75,7 +75,7 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
   ok('W2', M.evenAskOf(RULES, 7) === 8 && M.netEachOf(RULES, M.evenAskOf(RULES, 7)) >= 7 && M.netEachOf(RULES, 7) < 7, 'the ask that matches a bid of 7: ' + M.evenAskOf(RULES, 7));
   ok('W2', M.evenAskOf(RULES, 0) === 1, 'a bid of nothing asks 1: ' + M.evenAskOf(RULES, 0));
   const FRESH = Date.parse('2026-10-31T10:00:00Z');
-  ok('W2', /· 7 days left$/.test(M.listingWords({ qty: 1, listed: 1, each: 35, expiresAt: FRESH + 7 * 86400000 - 60000, received: 0 }, FRESH)), 'a listing made a minute ago: ' + M.listingWords({ qty: 1, listed: 1, each: 35, expiresAt: FRESH + 7 * 86400000 - 60000, received: 0 }, FRESH));
+  ok('W2', /, 7 days left$/.test(M.listingWords({ qty: 1, listed: 1, each: 35, expiresAt: FRESH + 7 * 86400000 - 60000, received: 0 }, FRESH)), 'a listing made a minute ago: ' + M.listingWords({ qty: 1, listed: 1, each: 35, expiresAt: FRESH + 7 * 86400000 - 60000, received: 0 }, FRESH));
 
   /* W3 what the purse covers */
   ok('W3', M.mostAffordable(ASKS, 44) === 4, 'two at 10 and two at 12 for 44 gold: ' + M.mostAffordable(ASKS, 44));

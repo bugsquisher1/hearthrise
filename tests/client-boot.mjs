@@ -1010,7 +1010,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]'));
       const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
-      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/^Runner Level 10 · Hunting in Mill Cellar ?Play$/.test(rows[1]))
+      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/^Runner Level 10, hunting in Mill Cellar ?Play$/.test(rows[1]))
         fails.push('B-9h the picker does not say which hero is hunting: ' + JSON.stringify(rows));
       await ctx.close();
     }

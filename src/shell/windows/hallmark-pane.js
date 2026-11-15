@@ -8,16 +8,16 @@
 // the shown price; confirming sends ONE hr_hallmark naming the two pieces and that price, and the server re-quotes it under its own lock.
 // The new piece shows only from the re-read envelope.
 // ════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.130';
-import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.130';
-import { hallmarkOf, jewelLevelOf, heldForHallmark } from '../../session/jewelry-sections.js?v=0.2.130';
-import { hallmarkPiece } from '../../session/hallmark-intents.js?v=0.2.130';
-import { goldOf } from '../../session/item-sections.js?v=0.2.130';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.130';
-import { gold, whole } from '../../render/format.js?v=0.2.130';
-import { itemName } from '../widgets/bits.js?v=0.2.130';
-import { runIntent } from '../intent-words.js?v=0.2.130';
-import { whereToGet } from '../item-lore.js?v=0.2.130';
+import { ITEMS } from '../../data/items.js?v=0.2.132';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.132';
+import { hallmarkOf, jewelLevelOf, heldForHallmark } from '../../session/jewelry-sections.js?v=0.2.132';
+import { hallmarkPiece } from '../../session/hallmark-intents.js?v=0.2.132';
+import { goldOf } from '../../session/item-sections.js?v=0.2.132';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.132';
+import { gold, whole } from '../../render/format.js?v=0.2.132';
+import { itemName } from '../widgets/bits.js?v=0.2.132';
+import { runIntent } from '../intent-words.js?v=0.2.132';
+import { whereToGet } from '../item-lore.js?v=0.2.132';
 
 const keyOf = (o) => o.from + '>' + o.to;
 
@@ -68,7 +68,7 @@ export function patchHallmarkPane(root, ctx, sc) {
       text(li.querySelector('.hw-hallmark-what'), 'Your ' + itemName(o.from) + (it && it.jewelPerks ? ' gains: ' + perkWords(o.perk, it.jewelPerks[o.perk] || 0) + '.' : '.'));
       text(li.querySelector('.hw-hallmark-need'), why || ('Uses it and 1 ' + itemName(o.gem) + ' (' + holdWords(cs, o.gem) + ').'));
       const btn = li.querySelector('button');
-      text(btn, 'Hallmark · ' + gold(o.gold));
+      text(btn, 'Hallmark for ' + gold(o.gold));
       prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);
     },
   });

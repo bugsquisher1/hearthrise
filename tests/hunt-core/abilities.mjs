@@ -277,7 +277,7 @@ const cases = {
     for (const t of M.runes.RUNE_TIERS) {
       const id = t.tier === 1 ? 'plain_fire_rune' : 'plain_' + M.runes.runeId('fire', t.tier);
       const cost = SHELL.facts.factsOf({ type: 'ability', id: 'flame_strike', store: id }, { store: M.SB.BASIC_SUPPLIES, bag: [], skills: { melee: { level: t.level } } }).cost;
-      if (cost !== 'Cost: ' + M.AD.versionOf(fs, t.tier).mana + ' mana · 1 ' + M.SB.BASIC_INDEX[id].n + ' (' + M.SB.BASIC_INDEX[id].price + ' g)') return 'the cost line does not name ' + id + ' at its price and its version\'s mana: ' + cost;
+      if (cost !== 'Cost: ' + M.AD.versionOf(fs, t.tier).mana + ' mana, 1 ' + M.SB.BASIC_INDEX[id].n + ' (' + M.SB.BASIC_INDEX[id].price + ' g)') return 'the cost line does not name ' + id + ' at its price and its version\'s mana: ' + cost;
     }
     const foreign = melee(M, [], { mana: 500, maxMana: 500 }, { hs: foreignHs, skills: skills(60), slots: past });
     M.abilities.castAbilities(foreign.inst, foreign.sc);
@@ -318,7 +318,7 @@ const cases = {
     const ctx = { bag: [], store, skills: { magic: { xp: M.XP.skillXpForLevel('magic', lv), level: lv } }, set: { supplySource: 'mine', onEmpty: 'switch' } };
     const lo = Math.floor((fb.dmg[0] * cast.power) / 1000), hi = Math.floor((fb.dmg[1] * cast.power) / 1000);
     if (row.n !== 'Scored Fire Rune') return 'the store\'s tier-2 Fire rune is named ' + JSON.stringify(row.n) + ', not by its tier ("Scored Fire Rune")';
-    const want = ['Cost: ' + cast.mana + ' mana · 1 Scored Fire Rune (' + row.price + ' g)', 'Deals ' + lo + '–' + hi + ' ember damage to each monster hit.',
+    const want = ['Cost: ' + cast.mana + ' mana, 1 Scored Fire Rune (' + row.price + ' g)', 'Deals ' + lo + '–' + hi + ' ember damage to each monster hit.',
       (fb.cdMs / 1000) + ' s cooldown', 'When it would hit at least 2 monsters.'];
     const said = M.shell.facts.hoverLines(slot, ctx, null, null).map((l) => l.text);
     if (JSON.stringify(said) !== JSON.stringify(want)) return 'the hover reads ' + JSON.stringify(said) + ', the engine cast ' + JSON.stringify(want);
@@ -746,7 +746,7 @@ const cases = {
     if (!f('rend').effect.includes('Causes bleed for 6 s.') || !f('green_sickness').effect.includes('Causes sickness for 6 s, so it takes 10% more from every blow.')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
     /* a shot spell's cost line says what each cast shoots (Raking Shot looses two of the bar's ammo), a plain one only mana */
     const src = ['raking_shot', 'power_strike'].map((id) => f(id).cost);
-    if (src.join('|') !== 'Cost: 10 mana · 2 ammo|Cost: 6 mana') return 'the cost lines read ' + JSON.stringify(src);
+    if (src.join('|') !== 'Cost: 10 mana, 2 ammo|Cost: 6 mana') return 'the cost lines read ' + JSON.stringify(src);
     const blind = Object.keys(M.AD.ABILITIES).filter((id) => !f(id).type);
     if (blind.length) return 'abilities with no target line: ' + blind;
     /* the slot under its unlock waits, in the same words, from the server's skills; at the level it does not */

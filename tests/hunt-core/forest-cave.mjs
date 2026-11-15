@@ -21,7 +21,7 @@
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party -> the glade solo in its four plate pieces -> the
 //                       Warrens' party, each step pays more net gold OR more Level XP, never less of both (Tyler 2026-11-09)
-//   harder-pays-more    a kill's expected gold climbs with hp x attack, and the same hero at one Level earns more an hour on the ground above (Tyler 2026-11-03)
+//   harder-pays-more    a kill's expected gold climbs with hp x attack, and the same hero at one Level levels faster on the ground above (Tyler 2026-11-03/04; its hour's gold arm retired by NO PROFIT MOLDS 11-13)
 //   wickstead-solo-floor  (Wickstead, lane b-greenhaven-6; staged, played on its fitted grid) a ladder-kit Melee alone at
 //                       its floor (L8) lives the hour on the six seeds and levels no worse than the Thicket at the
 //                       Thicket's floor; its net gold and the start kit's hour are printed (evidence)
@@ -68,6 +68,7 @@ async function load(root) {
     maps: await imp('src/data/world/maps/index.js'), terrain: await imp('src/data/world/terrain.js'), mapc: await imp('src/world/core/map-compile.js'),
     sets: await imp('src/data/world/atlas-sets.js'), gathering: await imp('src/data/gathering.js'), budget: await imp('src/data/world/art-budget.js'),
     kit: await imp('src/data/start-kit.js'), packs: (await imp('src/data/grounds/index.js')).GROUND_PACKS,
+    art: await imp('src/data/monster-art.js'),
   };
 }
 
@@ -302,8 +303,9 @@ const cases = {
       const g = M.grounds.HUNT_GROUNDS[id];
       const kinds = new Set(g.pockets.flatMap((p, i) => packAt(M, g, i, 8).map((s) => s.monster)));
       for (const k of kinds) {
-        const s = spr[k];
-        if (!s) return id + ': ' + k + ' has no sprite in a loaded atlas';
+        /* the renderer's one rule (hunt-view/scene.js spriteOf): a kind drawn as another (HUNT_ART_ALIAS, the Ford's Ledger Wight as the March's wight) needs THAT sprite */
+        const worn = M.art.HUNT_ART_ALIAS[k] || k, s = spr[worn];
+        if (!s) return id + ': ' + k + (worn !== k ? ' (drawn as ' + worn + ')' : '') + ' has no sprite in a loaded atlas';
         for (const a of ['idle', 'walk']) for (const d of M.budget.FACINGS) if (!(s.anims[a] && s.anims[a].dirs[d] && s.anims[a].dirs[d].length)) return id + ': ' + k + ' has no ' + a + ' ' + d;
       }
     }
@@ -439,9 +441,10 @@ cases['glade-between'] = async (M) => {
 
 /* HARDER PAYS MORE (Tyler 2026-11-03: harder monsters give better loot and more reward; nothing rewards staying on a weak ground; lane/c-gold-matters).
    PER KILL, the rows: a monster's expected gold (its coin roll, every drop at its chance and the shop's bid), meaned over the open grounds' monsters in bands
-   of hp x attack, climbs band by band. PER HOUR, played: the same hero in the same kit at one Level earns more on the ground above, everything sold, the bill
-   paid. Expected values on the played kills, so a lucky hour reads the same. The Sewer is not on this list: a lone hero there is the known exception, on the board. */
+   of hp x attack, climbs band by band. PER HOUR, played: the same hero in the same kit at one Level levels faster on the ground above (its gold, everything
+   sold and the bill paid, is printed: NO PROFIT MOLDS 11-13). Expected values on the played kills, so a lucky hour reads the same. The Sewer is not on this list: a lone hero there is the known exception, on the board. */
 const HARDNESS_BANDS = Object.freeze([100, 500, 1500, 10000]);
+const FOUR = Object.freeze(['tank', 'ranger', 'mage', 'healer']);
 const CLIMB = Object.freeze([[13, ['tank'], 'meadowbrook_thicket', 'wickstead', false], [25, ['tank'], 'wickstead', GLADE, false], [45, ['tank'], GLADE, 'coppercap_warrens', true],
   [41, ['tank', 'ranger', 'mage', 'healer'], GLADE, 'coppercap_warrens', true]]);
 cases['harder-pays-more'] = async (M) => {
@@ -461,8 +464,10 @@ cases['harder-pays-more'] = async (M) => {
   const means = sum.map((b) => (b.n ? b.g / b.n : 0));
   console.log('    a kill\'s gold by hp x attack, under ' + HARDNESS_BANDS.join(' / ') + ' / above: ' + means.map((v) => Math.round(v)).join(' -> '));
   for (let i = 1; i < means.length; i++) if (!(means[i] > means[i - 1])) bad.push('a kill past hp x attack ' + HARDNESS_BANDS[i - 1] + ' pays ' + Math.round(means[i]) + ' g, not above ' + Math.round(means[i - 1]) + ' g below it');
-  /* AN HOUR ABOVE PAYS MORE GOLD OR MORE XP (Tyler 2026-11-09: "it doesn't all need to be uniform, people should figure out which hunts are good for exp and
-     which are good for gold"; a ruled bar, not a loosened one): staying on the weaker ground may pay more gold, never more of both. */
+  /* AN HOUR ABOVE PAYS MORE LEVEL XP (Tyler 2026-11-04: "harder mobs grand better loot and more exp"; 2026-11-09: "people should figure out which
+     hunts are good for exp and which are good for gold"). Its GOLD ARM IS RETIRED (Tyler 2026-11-13, NO PROFIT MOLDS: profit is printed, never
+     graded): an hour's gold is coin and loot less the store bill, a profit number, so a harder ground netting less gold than the one under it is
+     the player's to discover. Better loot stays a rule on the KILL (the climb above, no bill in it). Gold an hour is printed beside the XP. */
   const hour = (gid, L, roles, fullSet) => {
     const x = P.run(gid, L, roles, { spanMs: 1800000, fullSet, secret: STARTER_SEEDS[0] });
     const h = x.playedMs / 3600000;
@@ -470,16 +475,20 @@ cases['harder-pays-more'] = async (M) => {
     for (const [id, k] of Object.entries(x.killsBy)) g += k * kill(M.MONSTERS[id]);
     return { gold: Math.round((g - x.totals.store) / roles.length / h), xp: Math.round(x.levelXp / h) };
   };
-  /* a ground pack climbs from the open ground under it by floor (band order, from the data), a lone tank in its own-tier set at its floor */
+  /* a ground pack climbs from the open ground under it by floor (band order, from the data) at its floor, in the own-tier set, played by the group
+     it is BUILT for: a lone tank, or on a party-built pack (groupFit 'party') the four of four classes, as the Warrens' rows above (lane/d-open-march-balance).
+     ONE DIFFICULTY (Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"): a party-built ground is the
+     same fight for a lone hero, who kills its 2.5x bodies slowest of all as a tank, and the Hunts window never sends a lone hero there (the pace
+     careers never hunt the Muster), so its climb is the four's. */
   const floorOf = (g) => M.hunts.HUNT_INDEX[M.grounds.OPEN_GROUNDS[g].hunt].band[0];
   const climbs = [...CLIMB, ...M.packs.filter((p) => M.grounds.OPEN_GROUNDS[p.id]).map((p) => {
     const below = Object.keys(M.grounds.OPEN_GROUNDS).filter((g) => g !== p.id && floorOf(g) < floorOf(p.id)).sort((a, b) => floorOf(b) - floorOf(a))[0];
-    return below ? [floorOf(p.id), ['tank'], below, p.id, true] : null;
+    return below ? [floorOf(p.id), M.grounds.OPEN_GROUNDS[p.id].groupFit === 'party' ? FOUR : ['tank'], below, p.id, true] : null;
   }).filter(Boolean)];
   for (const [L, roles, low, high, fullSet] of climbs) {
     const a = hour(low, L, roles, fullSet), b = hour(high, L, roles, fullSet), who = roles.length > 1 ? 'a party of ' + roles.length : 'a lone ' + roles[0];
     console.log('    ' + who + ' at L' + L + ', gold an hour, all sold | Level XP an hour: ' + low + ' ' + a.gold + ' | ' + a.xp + ' -> ' + high + ' ' + b.gold + ' | ' + b.xp);
-    if (!(b.gold > a.gold || b.xp > a.xp)) bad.push(who + ' at L' + L + ' earns ' + a.gold + ' g/h and ' + a.xp + ' XP/h on ' + low + ', ' + b.gold + ' and ' + b.xp + ' on ' + high + ': staying on the weaker ground pays more of both');
+    if (!(b.xp > a.xp)) bad.push(who + ' at L' + L + ' earns ' + a.xp + ' Level XP/h on ' + low + ', ' + b.xp + ' on ' + high + ': staying on the weaker ground levels faster');
   }
   return bad.length ? bad.join('; ') : null;
 };
@@ -514,6 +523,9 @@ const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4
   ['src/data/world/maps/index.js', "meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64, ...packMaps('open')]);", "meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64, ...packMaps('open')]);"],
   ['src/data/world/maps/index.js', "export const STAGED_MAPS = Object.freeze([...packMaps('staged')]);", "export const STAGED_MAPS = Object.freeze([mosslightGlade, ...packMaps('staged')]);"]];
 const mutants = [
+  /* an open pack's body drawn as another (HUNT_ART_ALIAS) whose sprite no atlas carries: the renderer would draw nothing */
+  { name: 'the Ford\'s Ledger Wight drawn as a wight no atlas carries', case: 'walk-art',
+    edits: [['src/data/monster-art.js', "  ledger_wight: 'wight',", "  ledger_wight: 'wight_gone',"]] },
   /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */
   { name: 'the glade open on a ground no atlas carries', case: 'staged-until-art',
     edits: [['src/data/world/maps/mosslight_glade.js', "  ground: 'mosslight_ground',", "  ground: 'mosslight_ground_gone',"]] },
@@ -552,6 +564,13 @@ const mutants = [
       ['src/data/monsters.js', 'xp: 6603, gp: [122, 366]', 'xp: 1321, gp: [61, 183]']] },
   { name: 'the Thicket\'s Gray Wolf pays three times the coin and five times the XP (staying in the wood pays more of both)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6]', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 200, gp: [6, 18]']] },
+  /* the party-built pack's climb is the four's (lane/d-open-march-balance): the Muster's rows back at the 0.76 fit, where a four at 55 levelled faster on the Slake */
+  { name: 'the Muster Barrows back on their 0.76 XP rows (a four levels faster on the Slake under them)', case: 'harder-pays-more',
+    edits: [['src/data/grounds/muster_barrows/pack.js', 'def: 21, xp: 1060,', 'def: 21, xp: 995,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 22, xp: 1278,', 'def: 22, xp: 1199,'],
+      ['src/data/grounds/muster_barrows/pack.js', 'def: 44, xp: 2978,', 'def: 44, xp: 2795,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 52, xp: 11567,', 'def: 52, xp: 10853,']] },
+  /* and a solo-built pack's is a lone tank's: Krell's Hold's commons a fifth leaner, under the Pyre Field at 85 */
+  { name: "Krell's Hold's Farmhands and Grave Guards pay a fifth less XP (a lone tank levels faster on the Pyre at 85)", case: 'harder-pays-more',
+    edits: [['src/data/grounds/krells_hold/pack.js', 'def: 36, xp: 1128,', 'def: 36, xp: 902,'], ['src/data/grounds/krells_hold/pack.js', 'def: 58, xp: 2035,', 'def: 58, xp: 1628,']] },
   { name: 'a whelp pays like a Chief (a kill stops climbing with the monster)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [1, 3]', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [3000, 4167]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
@@ -566,7 +585,7 @@ const mutants = [
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',
-    edits: [['src/data/world/maps/coppercap_warrens.js', "{ id: 'cw_plank_bridge', x: 51, y: 22 },", "{ id: 'cw_plank_bridge', x: 51, y: 22 }, { id: 'mushrooms', x: 38, y: 9 },"]] },
+    edits: [['src/data/world/maps/coppercap_warrens.js', "{ id: 'cw_plank_bridge', x: 51, y: 23 },", "{ id: 'cw_plank_bridge', x: 51, y: 23 }, { id: 'mushrooms', x: 38, y: 9 },"]] },
   { name: 'the Drop bridged two wide', case: 'one-choke',
     edits: [['src/data/world/maps/coppercap_warrens.js', "'#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',",
       "'#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',"]] },

@@ -1,49 +1,50 @@
-KRELL'S HOLD'S PAINT GRID (lane/b-barrow-art-import, 2026-11-14): src/data/grounds/krells_hold/map.js rows as they stand.
-. cobble, : the cart road's earth, f flagstone, s setts, = the Hall's boards, g gravel, # wall mass (no floor: the walls are
-laid over the paint by tools/world-art/barrow-grounds.mjs). Painted by port-pixellab.mjs paint from brief 29's six pairs.
+KRELL'S HOLD'S PAINT GRID (lane/b-barrow-art-import, 2026-11-14; the hill lane/b-hold-art): src/data/grounds/krells_hold/map.js rows,
+their rock split by holdGrid in tools/world-art/barrow-grounds.mjs. . cobble, : the cart road's earth, f flagstone, s setts, = the Hall's
+boards, g gravel, # the castle's wall mass (no floor: the walls are laid over the paint), h the hill's grass, k the hill's rock.
+Painted by port-pixellab.mjs paint from brief 29's six pairs and the hill's three (gen-2026-11-14/33-hold-hill).
 
 PAINT
-############################################################
-#########################################================###
-#########################################================###
-####fffffffffffffff######################================###
-####fffffffffffffff#####sssssssssssssss##================###
-####fffffffffffffff#####sssssssssssssss##================###
-####fffffffffffffffffffffssssssssssssss##================###
-####fffffffffffffffffffffssssssssssssss########===##########
-####fffffffffffffffffffffssssssssssssssssss####===##########
-####fffffffffffffffffffffssssssssssssssssss####===##########
-####fffffffffffffff#####sssssssssssssssssssffff===fffff#####
-####fffffffffffffff#####sssssssssssssssssssffffffffffff#####
-#########fffff##########sssssssssssssss###fffffffffffff#####
-#########fffff############################fffffffffffff#####
-####.....fffff...........#################fffffffffffff#####
-####.....................#################fffffffffffff#####
-####.....................#################fffffffffffff#####
-####.....................#################fffffffffffff#####
-####.....................#################fffffffffffff#####
-####.....................#################fffffffffffff#####
-####.....................#################ffffgggggffff#####
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####.....................#####################ggggg#########
-####################.....#####################ggggg#########
-####################................ggggggggggggggg#########
-####################................ggggggggggggggg#########
-######################..............ggggggggggggggg#########
-######################..............ggggggggggggggg#########
-######################..............ggggggggggggggg#########
-######################...............#######################
-######################...............#######################
-######################...............#######################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
-###########################:::::############################
+hhhhhhkkkhkkkkhhhhhhhhhhhhhhhhhhhhhhhhhh##################kk
+hhhhhkkkkkkkkkkhkkkkkhhhhhhhhhhhhhhhhhhk#================#kh
+hhh#################khkkkkkkkkhkkkhhhhkk#================#hh
+khh#fffffffffffffff#kkk##################================#hh
+hhh#fffffffffffffff#kkk#ssssfffssssssss##================#hh
+hhh#fffffffffffffff#####sssssssssssssss##================#kh
+hhh#fffffffffffffffffffffssssssssssssss##================#kh
+hhh#fffffffgfffffffffffffssssssssssssff########===########kh
+hhh#gffffffffffffffffffffsssssssssssffffssf####===########kk
+hhh#gffgfffffffffffffffffssssssssssssssssss####===######kkkk
+hhh#fffgfffffffffff#####sssssssssssssssssssffff===fffff#khhh
+hhh#fffffffffffffff#####sssssssssssssssssssffffffffffff#hhhh
+hhh######fffff##########sssssssssssfsss###ffggfffffffff#hhhh
+hhh######fffff############################fffffffffffff#hhhh
+hhh#.....fffff......ggg..#################fffffffffffff#hhhh
+hhh#................ggg..#################fffffffffffff#hhhh
+hhh#........gg.....ggg...#################fffffffffffff#hhhh
+kkk#................g..g.#################fffffffgfffff#hhhh
+kkk#.................g.g.#################fffffffgfffff#hhhh
+hhk#.....................#################ffffffgffffff#hhhh
+hhk#....................g#################ffffgggggffff#hhhh
+hhk#....................g#####################ggggg#####kkkk
+hhk#.....................#####################ggggg#####khhh
+hhk#.....................#####################ggggghkhhhkhhh
+hhh#.....................#####################ggggghhhhhhhhh
+hhh#.....................#####################ggggghhhhhhhhh
+hhh#.....................#####################ggggghhhhhhhhh
+hhh#.....................#####################ggggghhhhhhhhk
+hhh#.....................#####################ggggghhhhhhhhk
+hhh#################.....#####################ggggghhhhhhkkh
+hhh#################................ggggggggggggggghkhhhkkkh
+hhhhhhhkkkkkkkkhhhh#................ggggggggggggggghhhhhhhhh
+hhhhhhhhkkkhhhhhhhh###.g............ggggggggggggggghhhhhhhhh
+hhhhhhhhkkhhhhhhhhh###ggg...........ggggggggggggggghhhhhhhhh
+hhhhhhhhhkhhhhhhhhhhh#gg.......ggg..ggggggggggggggghhhhhhhhh
+hhhhhhhhhhhhhhhhhhhhh#.........g..g..#hhhhhhhhhhhhhhhhhhhhhk
+hhhhhhhhhhhhhhhkhhhhh#..........ggg..#kkhhhhhhhhhhhhhhhhhkkk
+hhhhhhhhhhhhhhhkhhhhh#..........gg...#khhhhhhhhhhhhhhhhhhkkh
+hhhhhhhhhhhhhhhkkkhhk#######:::#######hhhhhhhhhhhhhhhhhhhkhh
+hhhhhhhhhhhhhhkkkkkkk#######:::#######hhhhkhhhhhhhhhhhhhkkhh
+hhhhhhhhhhhhhhhhkkkkkkkkhhh:::::hhhhhhhhhhkhhhhhhhhhhhhhhhhh
+hhhhhhhhhhhhhhhhhhkkhhhhhhh:::::hhhhhhhhhhhhhhhhhhhhhhhhhhhh
+hhhhhhkkkkkkkhhhhhkhhhhhhhh:::::hkhhhhhhhhhhhhhhhhhhhhhhhhhh
+hhhhhhkkkkhhhhhhhhhhhhhhhhh:::::hkhhhhhhhhhhhhhhhhhhhhhhhhhh

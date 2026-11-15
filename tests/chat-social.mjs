@@ -396,8 +396,8 @@ async function pureRules(M) {
     const list = f.friends();
     const words = list.length ? M.fwin.doingWords(list[0]) : '';
     const away = list.find((x) => x.name === 'Away');
-    if (!away || M.fwin.doingWords(away) !== 'Offline · In town') fail('FR-1 an offline friend reads ' + JSON.stringify(away && M.fwin.doingWords(away)));
-    if (list.length !== 2 || !/^Online · Hunting in /.test(words) || f.incoming().length !== 1) fail('FR-1 friends read ' + JSON.stringify(list) + ' "' + words + '"');
+    if (!away || M.fwin.doingWords(away) !== 'Offline, in town') fail('FR-1 an offline friend reads ' + JSON.stringify(away && M.fwin.doingWords(away)));
+    if (list.length !== 2 || !/^Online, hunting in /.test(words) || f.incoming().length !== 1) fail('FR-1 friends read ' + JSON.stringify(list) + ' "' + words + '"');
     /* The person is ONE hero: the server's slot rides it (the menu targets that hero); a malformed one is no slot. */
     f.apply({ friends: [{ id: OTHER, name: 'Wren Ashby', slot: 1, online: true, doing: { kind: 'town' } }], incoming: [{ id: UID, name: 'Me', slot: 'x' }] });
     if (f.friends()[0].slot !== 1 || f.incoming()[0].slot !== null) fail('FR-1 a person slot reads ' +JSON.stringify([f.friends()[0], f.incoming()[0]]));

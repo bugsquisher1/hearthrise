@@ -17,16 +17,21 @@
 // touches no stamina, and nothing starts a hunt by itself, so "a Blessing or a rest would have let the next hunt
 // start" is false and is not said. What fills idle time after ANY automatic end is a gathering job, because that is
 // what the server resumes (a bench never is: hr_resume_has_inputs). A limit the player set (`hours`) is filled by a
-// longer hunt; a bag that ran dry by packing more; a purse that ran dry by keeping gold or packing your own.
+// longer hunt; a bag that ran dry by packing more; a purse that ran dry by keeping gold or packing your own, and when the bag
+// held food or drink of a kind the bar eats that no slot named, by putting THAT on the bar (the store sold what the bag had).
+// A BOSS ROOM (a call or a hall: boss-halls.js roomOfHunt) is one fight, not a night: no next line, only what the hero did.
 //
 // Display only: nothing here is spendable or gates an intent (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.130';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.130';
-import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.130';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.130';
-import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.130';
-import { nameOf } from '../session/item-sections.js?v=0.2.130';
+import { t } from '../render/player-text.js?v=0.2.132';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
+import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.132';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.132';
+import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.132';
+import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.132';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.132';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.132';
+import { itemName } from './widgets/bits.js?v=0.2.132';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;
@@ -47,11 +52,28 @@ export function spanWords(ms) {
 }
 
 /**
- * What the hero did after hunt `h` (huntOf's shape) ended, from the server's `state` section, or null when the server
- * does not say. Pure.
- * @returns {{kind: 'went', went: string}|{kind: 'waited', idleMs: number, next: string}|null}
+ * Food or drink in the hero's bag (the server's) of a kind the bar eats, that no slot of the bar names: the one to put on the
+ * bar after a purse ran dry, or null. The first in the bag's order. Pure.
  */
-export function afterHuntOf(st, h, nowMs) {
+export function spareSupplyOf(cs) {
+  const s = settingsOf(cs), bag = carriedOf(cs);
+  if (!s || !bag) return null;
+  const named = new Set(), kinds = new Set();
+  for (const sl of s.slots) {
+    if (sl.empty || sl.action.type !== 'consume') continue;
+    named.add(sl.item);
+    if (CONSUMABLES[sl.item]) kinds.add(CONSUMABLES[sl.item].kind);
+  }
+  const spare = bag.find((r) => r.qty > 0 && CONSUMABLES[r.id] && kinds.has(CONSUMABLES[r.id].kind) && !named.has(r.id));
+  return spare ? spare.id : null;
+}
+
+/**
+ * What the hero did after hunt `h` (huntOf's shape) ended, from the server's `state` section, or null when the server
+ * does not say. `spare`: spareSupplyOf's item, or null. Pure.
+ * @returns {{kind: 'went', went: string}|{kind: 'waited', idleMs: number, next: string|null, item?: string}|null}
+ */
+export function afterHuntOf(st, h, nowMs, spare) {
   if (!h || !h.ended || !Number.isFinite(h.endedAtMs) || !Number.isFinite(nowMs) || !RESUME_AFTER_END.includes(h.endReason)) return null;
   if (!st || typeof st !== 'object') return null;
   const ground = HUNT_INDEX[h.huntId];
@@ -64,16 +86,21 @@ export function afterHuntOf(st, h, nowMs) {
   /* player_state.active_kind is NOT NULL DEFAULT 'idle' (2026-08-11-player-state.sql): a section without it has not said */
   if (st.active_kind !== 'idle') return null;
   if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;
-  return { kind: 'waited', idleMs: Math.max(0, nowMs - home), next: NEXT[h.endReason] || 'away.next_gather' };
+  const idleMs = Math.max(0, nowMs - home);
+  if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };
+  if (h.endReason === 'gold_out' && typeof spare === 'string') return { kind: 'waited', idleMs, next: 'away.next_bar', item: spare };
+  return { kind: 'waited', idleMs, next: NEXT[h.endReason] || 'away.next_gather' };
 }
 
-/** The after-the-hunt sentences for `name`, or '' when the server does not say (afterHuntOf). Pure. */
-export function afterHuntWords(st, h, nowMs, name) {
-  const a = afterHuntOf(st, h, nowMs);
+/** The after-the-hunt sentences for `name`, or '' when the server does not say (afterHuntOf). `spare` as afterHuntOf's. Pure. */
+export function afterHuntWords(st, h, nowMs, name, spare) {
+  const a = afterHuntOf(st, h, nowMs, spare);
   if (!a) return '';
   if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
-  const next = t(a.next, a.next === 'away.next_gather' ? { name } : undefined);
-  return (a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) + ' ' : '') + next;
+  const next = a.next === null ? ''
+    : t(a.next, a.next === 'away.next_gather' ? { name } : a.next === 'away.next_bar' ? { name, item: itemName(a.item) } : undefined);
+  const waited = a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) : '';
+  return waited && next ? waited + ' ' + next : waited || next;
 }
 
 /**
@@ -83,5 +110,5 @@ export function afterHuntWords(st, h, nowMs, name) {
 export function endCardAfter(cs, id) {
   const h = huntOf(cs);
   if (!h || !h.ended || h.sessionId !== id || typeof cs.read !== 'function') return '';
-  return afterHuntWords(cs.read('state'), h, serverNowOf(cs), nameOf(cs) || t('away.your_hero'));
+  return afterHuntWords(cs.read('state'), h, serverNowOf(cs), nameOf(cs) || t('away.your_hero'), spareSupplyOf(cs));
 }

@@ -39,20 +39,28 @@ const cases = {
      every party size since 2026-11-08), the HP vitals.js maxHpFor at band[0], no armour. Read as
      a WHOLE percent, the precision the ruling was given in (the Warrens' 162 of 460 is its 35%). */
   'blow-share': (M) => {
-    const MAX_PCT = 35;
+    /* HALL_MAX_PCT: a hero over 40% HP never falls to one of a hall boss's blows, written cap or not */
+    const MAX_PCT = 35, HALL_MAX_PCT = 60;
     const out = [];
     for (const h of Object.values(M.HUNTS)) {
       /* A called room's blow is the warned exam (src/data/boss-calls.js), not a hunt's floor: its Level-ready bands are tests/boss-call.mjs's table. */
       if (h.called === true) continue;
-      /* A keyed hall is the same warned exam (src/data/boss-halls.js: a key, a confirm that says he hits hard, one fight): its boss is fitted to
-         the ship bar at the band's middle (tools/balance-sim/boss-call-table.mjs --hall), not held to a walked ground's floor. The ground the key
-         drops on is still read here like any other. */
-      if (h.hall === true) continue;
+      /* A KEYED HALL MAY PASS 35% ONLY IN WRITING (designer 2026-11-14, lane/d-hold-pass): its hunt row's `blowCap` { pct, why } names
+         the cap and the reason, the hall is held to that cap, and no cap passes HALL_MAX_PCT. A hall with no written cap is held to 35%
+         like any ground. The ground the key drops on is read here like any other. */
+      let max = MAX_PCT;
+      if (h.hall === true && h.blowCap !== undefined) {
+        const c = h.blowCap;
+        if (!c || !Number.isInteger(c.pct) || c.pct <= MAX_PCT || c.pct > HALL_MAX_PCT || typeof c.why !== 'string' || c.why.length < 40) {
+          out.push(h.id + ': its blowCap is not { pct over ' + MAX_PCT + ' and at most ' + HALL_MAX_PCT + ', why in a sentence }'); continue;
+        }
+        max = c.pct;
+      }
       const b = M.hunt['pull-cycle'].biggestBlowOn(h.id);
       const hp = M.vitals.maxHpFor(h.band[0], 0);
       if (!b) { out.push(h.id + ' has no blow to read'); continue; }
       const pct = Math.round((100 * b.hit) / hp);
-      if (pct > MAX_PCT) out.push(h.id + ': ' + b.monster + ' hits ' + b.hit + ' = ' + pct + '% of the floor hero\'s ' + hp + ' HP (max ' + MAX_PCT + '%)');
+      if (pct > max) out.push(h.id + ': ' + b.monster + ' hits ' + b.hit + ' = ' + pct + '% of the floor hero\'s ' + hp + ' HP (max ' + max + '%)');
     }
     /* every hero meets the King (Tyler 2026-11-08): the monsters a hunt can meet on the Sewer include its hall's boss */
     const sewerGrounds = Object.values(M.grounds.HUNT_GROUNDS).filter((g) => g.hunt === 'millrace_sewer');
@@ -113,6 +121,13 @@ const mutants = [
     edits: [['src/data/monsters.js', 'hp: 1096, atk: 28, baseAcc: 0.88, def: 33,', 'hp: 1096, atk: 69, baseAcc: 0.88, def: 33,']] },
   { name: 'the King\'s hall is left off the monsters a hunt meets', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '  for (const i of ground.route) {\n    const pk', '  for (const i of ground.route.filter((j) => !ground.pockets[j].forParty)) {\n    const pk']] },
+  /* the hall's written cap (designer 2026-11-14): held to it, never skipped, never past 60 */
+  { name: 'Krell\'s Rake the Coals grows past his hall\'s written 55%', case: 'blow-share',
+    edits: [['src/data/grounds/krells_hold/pack.js', "shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 960,", "shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1100,"]] },
+  { name: 'Krell\'s hall drops its written cap (held to 35% again)', case: 'blow-share',
+    edits: [['src/data/grounds/krells_hold/pack.js', 'blowCap: { pct: 55,', 'blowCapGone: { pct: 55,']] },
+  { name: 'a hall writes itself a 70% cap', case: 'blow-share',
+    edits: [['src/data/grounds/krells_hold/pack.js', 'blowCap: { pct: 55,', 'blowCap: { pct: 70,']] },
   { name: 'the client says per hour after 5 min (the server waits 10)', case: 'analyzer-rate-window',
     edits: [['src/data/hunt-sessions.js', 'export const ANALYZER_RATE_AFTER_MS = 10 * 60000;', 'export const ANALYZER_RATE_AFTER_MS = 5 * 60000;']] },
   { name: 'spawns are not checked against their room', case: 'grounds-refuse-bad-rows',

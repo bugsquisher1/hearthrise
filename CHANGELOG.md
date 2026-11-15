@@ -5,6 +5,24 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.132 — 2026-11-15 (The Barrow March)
+
+**The Barrow March is open.** Five new hunting grounds from Level 45 to 110 up the old road north: Hask's Ford, the Slake, Muster Barrows, the Pyre Field and Krell's Hold. New monsters shoot from range and mend each other, so use First target to drop the menders first.
+
+**Krell's Hall.** Get a Hall Key in Krell's Hold and take your party in to face Lord Krell. Recommended: 4+ players. Bring Salted Lobster or better.
+
+**Chief Coppercap.** His called fight is retuned so it plays fair with Challenge on or off.
+
+**Fixes.** The rare drop alert always names the hero who got it. The Market's Refresh button no longer covers the Browse tab on a phone. The Last hunt box no longer shows up empty while a window is open. Tag lines on the Hunts page never start with a dot.
+
+## v0.2.131 — 2026-11-14 (First Target)
+
+**First target.** You can now pick which monster your hero goes after first. Open More fight settings on the hunt bar and choose one from First target. Each hero keeps its own pick, even in a party.
+
+**Monster names.** Turn on Monster names in Settings, under Interface, and every living monster in a hunt shows its name.
+
+**Fixes.** Your hero now faces the monster it's about to fight, not the one it just killed. Heroes cross every bridge and ford on the bridge or the stones instead of walking through the water. The doubled mine tracks in Mosslight Glade are now one track to the cart, and a few props that made no sense are gone. The stamina refill always shows the price the server will really charge, and when your stamina is already full it says so. The same goes for blessings, training and the other things you pay for. The bag's key hints no longer get cut off and now show when you press ? on the window. A lot of game text is easier to read now.
+
 ## v0.2.130 — 2026-11-14 (Clear Views)
 
 **Fixes.** An open window no longer covers Leave hunt, Setup, stance or Target when a hunt starts. On a phone, the tip card under the hunt bar keeps its buttons below the words, so the title fits on one line. Tamsin’s board shows the reward she will really pay before your first task, and says the armor weight once. The hero screen and the bag both call the starter weapons Hatchets or a club. The Tally no longer gets squeezed when the hunt analyzer is docked. Closing a window and pressing Enter right away opens Chat again like it should.

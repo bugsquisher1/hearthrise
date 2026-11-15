@@ -26,15 +26,15 @@
 // Built once per opening (a fresh opening starts from the server's row, never a stale draft), patched in
 // place; every control is off while an intent is in flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.130';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.130';
-import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.130';
-import { itemName } from '../widgets/bits.js?v=0.2.130';
-import { whole } from '../../render/format.js?v=0.2.130';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
-import { setupsHtml, patchSetups, actSetups } from './hunt-prep/setups.js?v=0.2.130';
-import { builderHtml, patchBuilder, actBuilder, dropDraft } from './hunt-prep/builder.js?v=0.2.130';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.132';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.132';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.132';
+import { itemName } from '../widgets/bits.js?v=0.2.132';
+import { whole } from '../../render/format.js?v=0.2.132';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
+import { setupsHtml, patchSetups, actSetups } from './hunt-prep/setups.js?v=0.2.132';
+import { builderHtml, patchBuilder, actBuilder, dropDraft } from './hunt-prep/builder.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
 /* The window's state for one character: `pending` and `msg` (intent-words.js runIntent), `naming` the setup whose name
@@ -121,7 +121,7 @@ function patchCarry(root, ctx, cs, sc, hunting) {
       + '<button type="button" class="hh-tool" data-hs-act="carry" data-item="' + r.id + '"></button></li>'),
     patch: (li, r) => {
       text(li.querySelector('b'), itemName(r.id));
-      text(li.querySelector('small'), t('prep.carry_line', { have: whole(r.have), inHunt: whole(r.inHunt) }) + (r.wait ? ' · ' + r.wait : ''));
+      text(li.querySelector('small'), t('prep.carry_line', { have: whole(r.have), inHunt: whole(r.inHunt) }) + (r.wait ? ', ' + r.wait : ''));
       const b = li.querySelector('button');
       text(b, t('prep.carry_press', { n: whole(r.max) }));
       attr(b, 'aria-label', carryWords(r));

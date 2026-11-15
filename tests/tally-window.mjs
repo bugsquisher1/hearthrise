@@ -6,7 +6,7 @@
 //   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
-// mutant-anchors: src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widget-stack.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css src/styles/shell.css src/render/format.js
+// mutant-anchors: src/styles/hunt.css src/render/format.js src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widget-stack.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css src/styles/shell.css src/render/format.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `tally` section
@@ -195,34 +195,29 @@ const FIRST_LINE = 'I kept the mill\'s rats down myself for thirty years. Then t
 const OLD_WORDS = /half of the stick|piece for your back|tally-keeper|picks for|her pick for you|tallies a day|you hold no tally|loads from the server|Tamsin has work/i;
 const COPY_FILES = ['src/data/tally-tasks.js', 'src/data/text/tally.js', 'src/shell/windows/tally.js', 'src/session/tally-sections.js', 'src/shell/widgets/tally-hud.js',
   'src/data/refusal-words.js', 'src/data/alerts.js', 'src/shell/alerts.js', 'src/hunt-view/combat-log.js'];
-/* TW-18 (page side): every dot drawn in `root` binds to what follows it (a no-break space, src/render/format.js SEP) and sits on the
-   same line as the next word, with the window as drawn or squeezed to `px`. [] when none dangles. */
+/* TW-18 (page side): every dot DRAWN in `root` (a text dot wider than 0 px, or a src/render/format.js sepHtml dot: hunt.css
+   .hh-sep's fill on its space) has words on its own line on both sides: no line starts or ends on one (the v0.2.130 gate
+   "Meadowbrook Thicket ·" / "Level 5", the v0.2.131 gate "Level 22" / "· uncommon"), with `root` as drawn or squeezed to `px`. */
 const DANGLING_DOTS = ({ root, px }) => {
   const w = document.querySelector(root);
   if (!w) return ['no ' + root];
   const was = w.style.width;
   if (px) w.style.width = px + 'px';
-  const nodes = [];
-  for (let it = document.createTreeWalker(w, NodeFilter.SHOW_TEXT), n; (n = it.nextNode());) nodes.push(n);
-  const shown = (n) => !!n.parentElement && n.parentElement.getClientRects().length > 0;
-  const rect = (n, k) => { const r = document.createRange(); r.setStart(n, k); r.setEnd(n, k + 1); return r.getBoundingClientRect(); };
-  const after = (i, k) => {
-    for (let a = i; a < nodes.length; a++) {
-      if (!shown(nodes[a])) continue;
-      for (let b = a === i ? k : 0; b < nodes[a].data.length; b++) if (!/\s/.test(nodes[a].data[b])) return rect(nodes[a], b);
-    }
-    return null;
-  };
-  const out = [];
-  nodes.forEach((n, i) => {
-    if (!shown(n)) return;
+  const lines = [], dots = [];
+  const say = (e) => (e.closest('li, p, header, small') || e).textContent.replace(/\u00a0/g, ' ').trim().slice(0, 60);
+  for (let it = document.createTreeWalker(w, NodeFilter.SHOW_TEXT), n; (n = it.nextNode());) {
+    if (!n.data.trim() || !n.parentElement || !n.parentElement.getClientRects().length) continue;
+    const r = document.createRange(); r.selectNodeContents(n);
+    for (const b of r.getClientRects()) if (b.width) lines.push(b);
     for (let k = n.data.indexOf('·'); k >= 0; k = n.data.indexOf('·', k + 1)) {
-      const say = (n.parentElement.closest('li, p, header, small') || n.parentElement).textContent.trim().slice(0, 60);
-      if (n.data[k + 1] !== '\u00a0') { out.push('breaks after the dot: ' + say); continue; }
-      const dot = rect(n, k), next = after(i, k + 2);
-      if (next && next.top - dot.top > dot.height / 2) out.push('dangles: ' + say);
+      const d = document.createRange(); d.setStart(n, k); d.setEnd(n, k + 1);
+      const b = d.getBoundingClientRect(); if (b.width) dots.push([b, say(n.parentElement)]);
     }
-  });
+  }
+  w.querySelectorAll('.hh-sep').forEach((e) => { const b = e.getBoundingClientRect(); if (b.width > 0.5 && e.getClientRects().length) dots.push([b, say(e)]); });
+  const same = (x, y) => Math.abs((x.top + x.bottom) / 2 - (y.top + y.bottom) / 2) < Math.min(x.height, y.height) / 2;
+  const out = dots.filter(([d]) => !(lines.some((l) => same(l, d) && l.left < d.left - 1) && lines.some((l) => same(l, d) && l.right > d.right + 1)))
+    .map(([, words]) => 'dangles: ' + words);
   w.style.width = was;
   return out;
 };
@@ -379,13 +374,18 @@ async function checks(overrides, shots) {
         /* a done task says how it is paid, under its line (lane/b-first-hour: "· Done" never said to come home); one
            still counting says nothing more */
         const rowsSaid = await page.evaluate(() => [...document.querySelectorAll('.hs-tally-row')].map((li) => [li.querySelector('span').textContent, (li.querySelector('.hs-tally-wait') || {}).textContent || '']));
-        const doneRow = rowsSaid.find(([l]) => / · Done$/.test(l));
+        const doneRow = rowsSaid.find(([l]) => / \(done\)$/.test(l));
         if (!doneRow || !/Tamsin|bag/.test(doneRow[1]) || /^Done/.test(doneRow[1])) fails.push('TW-6 the HUD\'s done task says how it is paid: ' + JSON.stringify(rowsSaid));
-        if (rowsSaid.some(([l, w]) => !/ · Done$/.test(l) && w)) fails.push('TW-6 a task still counting has a pay line: ' + JSON.stringify(rowsSaid));
+        if (rowsSaid.some(([l, w]) => !/ \(done\)$/.test(l) && w)) fails.push('TW-6 a task still counting has a pay line: ' + JSON.stringify(rowsSaid));
         await page.keyboard.press('h');
         await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]'), null, 4000);
         const card = await txt(page, '[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"] .hw-hunt-tally');
         if (card !== 'Gray Wolves 112/200') fails.push('TW-6 the Thicket\'s hunt line reads ' + JSON.stringify(card));
+        /* TW-18 the Hunts list too (its tally line, band and advice): as drawn and squeezed to a phone's 300 px */
+        for (const px of [0, 300]) {
+          const dangling = await page.evaluate(DANGLING_DOTS, { root: '[data-hs-win="hunts"] .hw-hunt-list', px });
+          if (dangling.length) fails.push('TW-18 at ' + (px || 'full') + ' width a Hunts line starts or ends on a dot: ' + JSON.stringify(dangling.slice(0, 3)));
+        }
       }
       await ctx.close();
     }
@@ -879,7 +879,8 @@ const MUTANTS = [
   ['the day count hides its reset', 'src/shell/windows/tally.js', "text(root.querySelector('.ht-day-new'), left ? t('tally.day_resets', { left }) : '');", "text(root.querySelector('.ht-day-new'), '');"],
   ['the day count and its reset run together in text', 'src/shell/windows/tally.js', "prop(root.querySelector('.ht-day-sep'), 'hidden', !tally || !left);", "prop(root.querySelector('.ht-day-sep'), 'hidden', true);"],
   /* TW-18 a dot that lets the line break after it ("Meadowbrook Thicket ·" / "Level 5"), TW-19 a coach body left to end on one word */
-  ['a dot can end a line again', 'src/render/format.js', "export const SEP = '", "export const SEP = ' · ' || '"],
+  ['a dot can end a line again', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],
+  ['a dot can start a line again', 'src/render/format.js', '<span class="hh-sep-t">\\u00a0\\u00b7</span> </span>', '<span class="hh-sep-t"></span> \\u00b7\\u00a0</span>'],
   ['a coach card can end on one word again', 'src/styles/shell.css', ':is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }', ''],
   /* TW-18: a separator drawn by CSS again (the old .hw-hunt-fit dot) */
   ['a CSS content draws a separator again', 'src/styles/windows.css', '.hw-hunt-sep { font-weight: 400; color: var(--ink-3); }', ".hw-hunt-sep { font-weight: 400; color: var(--ink-3); }\n.hw-hunt-fit:not(:empty)::before { content: ' · '; }"],
@@ -893,7 +894,7 @@ const MUTANTS = [
   ['take carries a count', 'src/session/tally-intents.js', "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_idem: newIdem() }", "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_count: 1, p_idem: newIdem() }"],
   ['the HUD shows one more kill than the server', 'src/session/tally-sections.js', "return label + ' ' + h.kills + '/' + h.target;", "return label + ' ' + (h.kills + 1) + '/' + h.target;"],
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
-  ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-tally'), heldOn(tally, r.hunt).map(tallyLine).join(SEP));", "text(li.querySelector('.hw-hunt-tally'), '');"],
+  ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "patchParts(li.querySelector('.hw-hunt-tally'), withSeps(heldOn(tally, r.hunt).map(tallyLine)));", "patchParts(li.querySelector('.hw-hunt-tally'), []);"],
   ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
   ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : '';"],
   ['every Take stays grey until a weight is picked', 'src/shell/windows/tally.js', "st.hunting || !tally || (!tally.weight && !st.suggest));", "st.hunting || !tally || !tally.weight);"],

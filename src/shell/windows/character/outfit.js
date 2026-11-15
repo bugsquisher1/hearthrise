@@ -14,19 +14,19 @@
 // scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
 // the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.130';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.130';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.130';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.130';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.130';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.130';
-import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.130';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.130';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.130';
-import { gold } from '../../../render/format.js?v=0.2.130';
-import { glyphSvg } from '../../launcher.js?v=0.2.130';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.130';
-import { t } from '../../../render/player-text.js?v=0.2.130';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.132';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.132';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.132';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.132';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.132';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.132';
+import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.132';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.132';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.132';
+import { gold } from '../../../render/format.js?v=0.2.132';
+import { glyphSvg } from '../../launcher.js?v=0.2.132';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.132';
+import { t } from '../../../render/player-text.js?v=0.2.132';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));
@@ -114,7 +114,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const d = draftOf(cs, sc);
   const row = OUTFIT_ROWS[d.outfit];
   const owned = !!o && o.owned.has(d.outfit);
-  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ' · Premium' : '') + (o && !owned ? ' · not owned' : ''));
+  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ' (Premium' + (o && !owned ? ', not owned)' : ')') : o && !owned ? ' (not owned)' : ''));
   const shown = colorsShown(cs, d);
   const changedColors = !!d.colors && !!o && dyeKeyOf(d.colors) !== dyeKeyOf(o.base);
   /* The picker: this outfit's parts, by their names, once the masks are here. The druid's row says why it has none. */
@@ -147,7 +147,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
       cls(b, 'is-worn', !!o && o.worn === id);
       const have = !!o && o.owned.has(id);
       cls(b, 'is-locked', !!o && !have);
-      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? (have ? 'Premium' : 'Premium · not owned') : '');
+      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? (have ? 'Premium' : 'Premium, not owned') : '');
       drawTile(b.querySelector('canvas'), id);
     },
   });

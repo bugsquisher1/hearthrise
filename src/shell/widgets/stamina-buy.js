@@ -7,7 +7,9 @@
 // SERVER's quote (the `stamina_refill` section, item-sections.js staminaRefillOf),
 // and a Buy that sends ONE hr_stamina_refill carrying that quoted price
 // (CharacterSession.buyStamina, the Services window's own path; the server refuses
-// quote_changed rather than charge another sum). Buy asks first, in the Shop's words (the panel 2026-11-01: 2,040 gp
+// quote_changed rather than charge another sum, and the refusal re-reads the hero, so the
+// next press is at the server's price). The quote is read again when the panel opens and
+// before the question is asked: town rest lowers it while the panel sits open. Buy asks first, in the Shop's words (the panel 2026-11-01: 2,040 gp
 // on one press here, a confirmation there; both read this one quote, which rises with Level and with each refill today). Buy stays off until the server
 // answers (bar-draft.js answerWithin bounds the wait); the stamina shown changes
 // only with the re-read envelope (CLAUDE.md §6). When it cannot be bought (full,
@@ -17,13 +19,13 @@
 // raises your stamina cap by 4 hours." (Tyler's words; the 4 is STAMINA_MAX_MS's
 // premium cap less the free one). Nothing here prices or adds stamina.
 // ════════════════════════════════════════════════════════════════════════
-import { STAMINA_MAX_MS } from '../../data/hunt-sessions.js?v=0.2.130';
-import { staminaOf, isPremium } from '../../session/hunt-sections.js?v=0.2.130';
-import { staminaRefillOf, goldOf } from '../../session/item-sections.js?v=0.2.130';
-import { text, cls, attr, prop } from '../../render/paint.js?v=0.2.130';
-import { whole, gold, hoursWords } from '../../render/format.js?v=0.2.130';
-import { refusalWords } from '../intent-words.js?v=0.2.130';
-import { answerWithin } from '../bar-draft.js?v=0.2.130';
+import { STAMINA_MAX_MS } from '../../data/hunt-sessions.js?v=0.2.132';
+import { staminaOf, isPremium } from '../../session/hunt-sections.js?v=0.2.132';
+import { staminaRefillOf, goldOf } from '../../session/item-sections.js?v=0.2.132';
+import { text, cls, attr, prop } from '../../render/paint.js?v=0.2.132';
+import { whole, gold, hoursWords } from '../../render/format.js?v=0.2.132';
+import { refusalWords } from '../intent-words.js?v=0.2.132';
+import { answerWithin } from '../bar-draft.js?v=0.2.132';
 
 const PREMIUM_HOURS = Math.round((STAMINA_MAX_MS.premium - STAMINA_MAX_MS.free) / 3600000);
 const STATE = new WeakMap();   // the bar element -> { open, pending, msg, off }
@@ -73,7 +75,7 @@ export function patchStaminaBuy(el, ctx) {
   text(box.querySelector('.hb-buy-why'), why || '');
   cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));
   const go = box.querySelector('.hb-buy-go');
-  text(go, !(q && q.available) ? 'Buy' : s.asking ? 'Buy for ' + gold(q.price) : 'Buy +' + hoursWords(q.restoreMs) + ' · ' + gold(q.price));
+  text(go, !(q && q.available) ? 'Buy' : s.asking ? 'Buy for ' + gold(q.price) : 'Buy +' + hoursWords(q.restoreMs) + ' for ' + gold(q.price));
   prop(box.querySelector('.hb-buy-no'), 'hidden', !s.asking);
   prop(go, 'disabled', !!why || s.pending);
   attr(go, 'title', why);
@@ -90,6 +92,8 @@ function setOpen(ctx, el, open, repaint) {
   s.asking = false;
   if (open) {
     s.msg = '';
+    /* the quote is the hero's last read, and town rest lowers it by the minute: opening reads it again (one hr_load, single-flight) */
+    if (ctx.character && typeof ctx.character.load === 'function') answerWithin(() => ctx.character.load()).then(() => { if (s.open) repaint(); });
     const doc = ctx.doc, box = el.querySelector('.hb-buy'), plus = el.querySelector('.hb-stam-buy');
     const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(ctx, el, false, repaint); } };
     const onDown = (e) => { if (!box.contains(e.target) && !plus.contains(e.target)) setOpen(ctx, el, false, repaint); };
@@ -110,7 +114,12 @@ export function actStaminaBuy(ctx, el, action, ev, repaint) {
   if (action !== 'stam-go') return false;
   const cs = ctx.character, q = staminaRefillOf(cs);
   if (s.pending || whyNot(q, goldOf(cs))) { repaint(); return true; }
-  if (!s.asking) { s.asking = true; s.msg = ''; repaint(); return true; }
+  /* The question is asked at the price the server quotes NOW: town rest moves it while the panel sits open (QA 2026-11-14) */
+  if (!s.asking) {
+    s.pending = true; s.msg = ''; repaint();
+    answerWithin(() => cs.load()).then(() => { s.pending = false; s.asking = s.open; repaint(); });
+    return true;
+  }
   s.asking = false;
   s.pending = true;
   s.msg = 'Buying stamina…';

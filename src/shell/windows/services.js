@@ -18,16 +18,16 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.130';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.130';
-import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.130';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.130';
-import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.130';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.130';
-import { runIntent } from '../intent-words.js?v=0.2.130';
-import { t } from '../../render/player-text.js?v=0.2.130';
-import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.130';
-import { blessAll } from '../bless-all.js?v=0.2.130';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.132';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.132';
+import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.132';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.132';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.132';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
+import { runIntent } from '../intent-words.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
+import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.132';
+import { blessAll } from '../bless-all.js?v=0.2.132';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();
@@ -70,7 +70,7 @@ export function patchServicesPane(body, ctx) {
   } else {
     text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '. Each one costs more.'
       + (purse !== null && purse < q.price ? ' You need ' + gold(q.price - purse) + ' more.' : ''));
-    text(ask, 'Buy ' + hoursText(q.restoreMs) + ' · ' + gold(q.price));
+    text(ask, 'Buy ' + hoursText(q.restoreMs) + ' for ' + gold(q.price));
   }
   const canStam = !!q && q.available && !sc.pending && (purse === null || purse >= q.price);
   prop(ask, 'disabled', !canStam || sc.confirm);
@@ -95,10 +95,10 @@ export function patchServicesPane(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + r.tier + '"></button></li>'),
     patch: (li, r) => {
       const short = !r.held && next && next.tier === r.tier && purse !== null && purse < r.price ? r.price - purse : 0;
-      text(li.querySelector('small'), Math.round(r.permille / 10) + '% less XP lost' + (r.tier > 1 ? ' with ' + (r.tier > 2 ? 'I and II' : 'I') : '') + ' · ' + (r.held ? 'owned' : r.price ? gold(r.price) : 'free')
-        + (short ? ' · You need ' + gold(short) + ' more.' : ''));
+      text(li.querySelector('small'), Math.round(r.permille / 10) + '% less XP lost' + (r.tier > 1 ? ' with ' + (r.tier > 2 ? 'I and II' : 'I') : '') + ', ' + (r.held ? 'owned' : r.price ? gold(r.price) : 'free')
+        + (short ? '. You need ' + gold(short) + ' more.' : ''));
       const btn = li.querySelector('button');
-      text(btn, r.held ? 'Owned' : next && next.tier === r.tier ? (r.price ? 'Bless · ' + gold(r.price) : 'Bless · free') : 'Needs ' + ROMAN[r.tier - 1]);
+      text(btn, r.held ? 'Owned' : next && next.tier === r.tier ? (r.price ? 'Bless for ' + gold(r.price) : 'Bless for free') : 'Needs ' + ROMAN[r.tier - 1]);
       prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending || (purse !== null && purse < r.price));
     },
   });

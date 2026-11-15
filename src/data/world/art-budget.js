@@ -76,6 +76,9 @@ export const CLASSES = Object.freeze({
   // A whole building drawn as one style-1 sprite, roof and front wall (a closed facade: the
   // smithy, the mill, a neighbour's cottage). Its footprint is the ground it covers.
   building: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // A gatehouse the road runs through (Krell's Hold's cart gate): drawn like a building, but its anchor tile is the gate's
+  // passage, so it never blocks a step (terrain.js OPEN_CLASSES); its towers stand on the map's own rock either side.
+  gate: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   // A town's one monument, larger than any building (the Great Hearth of Hearth Square: footprint
   // 11 x 4, art 11 x 11 tiles). Drawn like a building: one closed sprite, its anchor bottom-centre.
   // A big town hall-sized building round a plaza (Hearth Square's general store, depot, bank, guild
@@ -161,6 +164,13 @@ export const GRIDS = Object.freeze({
 });
 /** The grid profile named `id` (missing or unknown: the base grid). */
 export const gridOf = (id) => GRIDS[id] || GRIDS.base;
+
+// ── READABILITY (ART_DIRECTION section 4, law for new art) ─────────────────
+// A live monster's ring (the body pixels just inside its outline, median luminance) reads at least `ring`:1 against the floor
+// it stands on (the painted ground's median under its map's spawn tiles), in its four cardinal idle stills. Held by
+// tests/world-assets.mjs rule [ring] on the grounds of these region kits: the shipped grounds before them fail it today (the
+// Giant Rat 2.36:1), and are held when their art is redone. Pass with a body's `lift` or a floor's `shade` (build.mjs lockOf).
+export const READABLE = Object.freeze({ ring: 3, kits: Object.freeze(['barrow_march']) });
 
 // ── THE ATLAS MANIFEST (assets/world/atlas-<set>.json) ──────────────────────
 // The contract between tools/world-art/build.mjs and the world renderer.

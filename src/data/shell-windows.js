@@ -29,6 +29,8 @@
 //            rowOffered, the icon row, a place's tap); hidden, it never opens
 //   orElse   with `section`: while the server hides it, a tap in the world that names it opens this window instead
 //   help     the text row of the window's one help line, behind the header's ? (src/data/text/windows.js)
+//   helpKeys [text ids]: the window's keys, listed under its help line behind the same ? (never on a touch screen),
+//            one hint a row read as "<key> to <what it does>" (window-head.js keysHtml)
 //
 // THE COEXISTENCE TABLE (UX flow audit 2026-11-11, src/shell/window-manager.js): which windows stay open together.
 //   beside   [ids]: windows that dock side by side past the dock's 60% (the bag and the window a bag task needs:
@@ -49,11 +51,13 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.130';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.132';
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain', over: true, help: 'windows.help_hunts' }),
   Object.freeze({ id: 'inventory', label: 'Inventory', key: 'b', glyph: 'navInventory', width: 560, object: 'satchel', help: 'windows.help_inventory',
+    helpKeys: Object.freeze(['bag.key_search', 'bag.key_move', 'bag.key_use', 'bag.key_select', 'bag.key_range', 'bag.key_all', 'bag.key_clear',
+      'bag.key_sell', 'bag.key_lock']),
     beside: Object.freeze(['storage', 'shop', 'character']) }),
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
   Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger', help: 'windows.help_skills' }),

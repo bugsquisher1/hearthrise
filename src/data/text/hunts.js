@@ -28,12 +28,13 @@ export const HUNTS_TEXT = Object.freeze({
   /* The band, and a ground above the hero. */
   band: 'Level {lo} to {hi}',
   band_you: 'Level {lo} to {hi} (you: {level})',
-  above_level: 'Stronger monsters: more supplies, death risk, more XP, better loot',
-  far_above_level: 'Much stronger monsters: far more supplies, death risk, more XP, better loot',
-  range_under: { one: '{count} Level under this ground', other: '{count} Levels under this ground' },
-  range_die: 'On death: hunt ends, lose {loss}% Level XP',
+  /* Three lines (Tyler 2026-11-14): "{n} Levels under" / "Higher risk, better loot" / "Death: −6% Level XP" */
+  above_level: 'Higher risk, better loot',
+  far_above_level: 'Much higher risk, better loot',
+  range_under: { one: '{count} Level under', other: '{count} Levels under' },
+  range_die: 'Death: −{loss}% Level XP',
   /* the same, with Blessings on: the share a death would really take, the server's held cut (hr_blessing_view permille) */
-  range_die_blessed: 'On death: hunt ends, lose {loss}% Level XP (Blessings on)',
+  range_die_blessed: 'Death: −{loss}% Level XP (Blessings on)',
   /* The away card: the hunt's best find, gear or a Rare (src/shell/away-recap.js). */
   away_best: 'Best find: {item}',
   seat_level: '{name} (Level {level})',

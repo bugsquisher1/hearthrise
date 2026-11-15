@@ -236,7 +236,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* (and the earlier slot it shares a cooldown with: the bar's hover no longer says it, Tyler 2026-11-08) */
   const wires = editBar(cs);
   if (wires) wires[s.open] = d.action.id ? d : null;
-  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).join(' ');
+  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).join('\n');
   text(root.querySelector('.ca-warn'), warn);
   /* On a phone the sentence's warning is one line with an ellipsis; the detail pane says it whole. */
   text(root.querySelector('.ca-d-warn'), warn);

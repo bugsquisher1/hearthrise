@@ -32,7 +32,7 @@ import { ownCount } from './rune-supply.js?v=0.2.131';
 import { shortOf } from './item-lore.js?v=0.2.131';
 import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.131';
 import { castOf, costLine, landed } from './cast-facts.js?v=0.2.131';
-import { listWords, whole } from '../render/format.js?v=0.2.131';
+import { listWords, whole, SEP } from '../render/format.js?v=0.2.131';
 import { t } from '../render/player-text.js?v=0.2.131';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -264,7 +264,9 @@ export function healWarning(w, set, blow, hpMax) {
   const c = w.conditions.find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
   if (!c) return '';
   const at = Math.floor((hpMax * c.value) / 100);
-  return at < blow.hit ? t(w.action.type === 'consume' ? 'bar.heal_warning_eat' : 'bar.heal_warning_heal', { monster: blow.name, hit: blow.hit, pct: c.value, hp: at }) : '';
+  /* Tyler 2026-11-14: "Max Hit {hit} · Your HP {hp}", then "Eat earlier" on its own line */
+  return at < blow.hit ? t('bar.heal_warning_hit', { hit: blow.hit }) + SEP + t('bar.heal_warning_hp', { hp: at }) + '\n'
+    + t(w.action.type === 'consume' ? 'bar.heal_warning_eat' : 'bar.heal_warning_heal') : '';
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A is On, ignores no monster B fights, and A's conditions are all among B's

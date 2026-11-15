@@ -43,11 +43,11 @@ async function run(base) {
   ok('W1', !('belowRangeRefuse' in SESSION_LIMITS), 'the data still holds a refuse margin: ' + SESSION_LIMITS.belowRangeRefuse);
   const row = { band: [40, 60] };
   /* LABELS, one a line (Tyler 2026-11-14: everything outside lore reads like "Recommended: 4+ players") */
-  const lost = 'On death: hunt ends, lose ' + Math.round(DEATH_XP_LOSS * 100) + '% Level XP';
+  const lost = 'Death: −' + Math.round(DEATH_XP_LOSS * 100) + '% Level XP';
   const one = HL.rangeWords(row, 39), near = HL.rangeWords(row, 34), far = HL.rangeWords(row, 28), at = HL.rangeWords(row, 40);
-  ok('W1', typeof one === 'string' && one.startsWith('1 Level under this ground\n'), 'one Level under reads ' + JSON.stringify(one));
-  ok('W1', near === '6 Levels under this ground\n' + HL.ABOVE_LEVEL_WORDS + '\n' + lost && /more XP, better loot/.test(near) && !/expect losses/.test(near), 'six Levels under reads ' + JSON.stringify(near));
-  ok('W1', typeof far === 'string' && far.startsWith('12 Levels under this ground\n') && /^Much stronger monsters/m.test(far) && /far more supplies, death risk/.test(far) && /more XP, better loot/.test(far) && far.endsWith(lost), 'twelve Levels under reads ' + JSON.stringify(far));
+  ok('W1', typeof one === 'string' && one.startsWith('1 Level under\n'), 'one Level under reads ' + JSON.stringify(one));
+  ok('W1', near === '6 Levels under\n' + HL.ABOVE_LEVEL_WORDS + '\n' + lost && /^Higher risk, better loot$/m.test(near) && !/expect losses/.test(near), 'six Levels under reads ' + JSON.stringify(near));
+  ok('W1', typeof far === 'string' && far.startsWith('12 Levels under\n') && /^Much higher risk, better loot$/m.test(far) && far.endsWith(lost), 'twelve Levels under reads ' + JSON.stringify(far));
   ok('W1', ![one, near, far].some((w) => /hit (you )?(far )?harder|\d+% harder/.test(w)), 'the warning claims a penalty: ' + near);
   ok('W1', at === null && HL.rangeWords(row, 70) === null && HL.rangeWords(row, null) === null, 'at / over the floor or with no level must say nothing');
   ok('W1', HL.fitWords(row, 34).tone === 'above' && HL.fitWords(row, 28).tone === 'far', 'the list line reads ' + JSON.stringify([HL.fitWords(row, 34), HL.fitWords(row, 28)]));
@@ -202,7 +202,7 @@ const MUTANTS = [
   ['the words forget what dying costs', 'src/shell/hunt-list.js', ",\n    cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })]", "]"],
   ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],
   ['a gap row comes back in the data (S2)', 'src/data/hunt-tuning.js', '  partyShareRangePm: 667,', '  partyShareRangePm: 667,\n  underFloorAtkPm: 50,'],
-  ['the warning claims a penalty again', 'src/data/text/hunts.js', "'Stronger monsters: more supplies, death risk, more XP, better loot'", "'More XP and better loot, but its monsters hit harder'"],
+  ['the warning claims a penalty again', 'src/data/text/hunts.js', "above_level: 'Higher risk, better loot'", "above_level: 'More XP and better loot, but its monsters hit harder'"],
   ['a margin comes back in the data', 'src/data/hunt-sessions.js', '  bagLines: 10,\n', '  bagLines: 10,\n  belowRangeRefuse: 15,\n'],
   ['a lone hero walks in with no confirm press', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['the tier says nothing of what it costs', 'src/data/hunt-tiers.js', "The most XP for each kill. Bring plenty of food. You can die here.' }),", "The most XP for each kill.' }),"],

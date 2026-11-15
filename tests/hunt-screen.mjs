@@ -1353,7 +1353,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const shown = await warn();
         /* A monster's biggest hit is "Max Hit" wherever the game shows it (Tyler 2026-11-11). */
-        const said = SEWER_BLOW.name + ' Max Hit ' + SEWER_BLOW.hit + ' beats your ' + HS23_AT + ' HP at ' + HS23_PCT + '%. Eat sooner';
+        /* Tyler 2026-11-14: "Max Hit {hit} · Your HP {hp}", then "Eat earlier" */
+        const said = 'Max Hit ' + SEWER_BLOW.hit + ' · Your HP ' + HS23_AT + '\nEat earlier';
         if (safe !== '' || shown !== said) {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }
@@ -1384,7 +1385,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           return { warn: inView(w), save: inView(document.querySelector('.ca-foot [data-x="save"]')), text: w && w.textContent,
             whole: whole && whole.getClientRects().length ? whole.textContent : '' };
         });
-        if (!seen.warn || !seen.save || !/Eat sooner$/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view with Save: ' + JSON.stringify(seen));
+        if (!seen.warn || !seen.save || !/Eat earlier$/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view with Save: ' + JSON.stringify(seen));
         if (seen.whole !== seen.text) fails.push('HS-23 at 922x423 the detail pane does not say the whole warning: ' + JSON.stringify(seen));
       } else fails.push('HS-23 the screen did not mount at 922x423');
       await ctx.close();

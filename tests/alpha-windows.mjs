@@ -1296,9 +1296,9 @@ async function planRules(base) {
   {
     const HL = await imp('src/shell/hunt-list.js');
     const glade = HL.huntRows().find((r) => r.band[0] > 6);
-    const die = (pm) => (HL.rangeWords(glade, 1, pm) || '').replace(/^[^]*?On death/, 'On death');
+    const die = (pm) => (HL.rangeWords(glade, 1, pm) || '').replace(/^[^]*\n(?=Death)/, '');
     const said = [die(0), die(250), die(750)];
-    if (said.join(' | ') !== 'On death: hunt ends, lose 6% Level XP | On death: hunt ends, lose 4.5% Level XP (Blessings on) | On death: hunt ends, lose 1.5% Level XP (Blessings on)') fails.push('AW-25 the death line with Blessings reads ' + JSON.stringify(said));
+    if (said.join(' | ') !== 'Death: −6% Level XP | Death: −4.5% Level XP (Blessings on) | Death: −1.5% Level XP (Blessings on)') fails.push('AW-25 the death line with Blessings reads ' + JSON.stringify(said));
   }
   /* A PLAN THAT HAS RUN IS NOT "NOTHING SET" (designer re-read 2026-11-11: "Nothing is set to Deposit or Sell yet." right under "Sold 17 for 5,407 gp."). */
   const { dispatchBlock } = await imp('src/shell/loot-dispatch.js');
@@ -4291,7 +4291,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="coppercap_warrens"]').catch(() => fails.push('AW-63 could not press ' + "'[data-hs-win=\"hunts\"] .hw-hunt[data-hunt=\"coppercap_warrens\"]'"));
             await page.waitForTimeout(200);
             const far = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'), e = w.querySelector('.hw-hunt-enter'); return { off: e.disabled, why: w.querySelector('.hw-enter-why').textContent, warn: w.querySelector('.hw-hunt-warn').textContent, label: e.textContent }; });
-            if (far.off || far.why !== '' || far.label !== 'Enter' || !/^31 Levels under this ground\n[^]*On death: hunt ends, lose 6% Level XP$/.test(far.warn)) fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
+            if (far.off || far.why !== '' || far.label !== 'Enter' || !/^31 Levels under\n[^]*Death: −6% Level XP$/.test(far.warn)) fails.push('AW-63 Coppercap far under its floor reads ' + JSON.stringify(far));
             const sentBefore = s.calls.filter((c) => c.name === 'hr_hunt_enter').length;
             await page.click('[data-hs-win="hunts"] .hw-hunt-enter');
             await page.waitForTimeout(200);

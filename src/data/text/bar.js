@@ -130,8 +130,10 @@ export const BAR_TEXT = Object.freeze({
   setup_any: 'Any of: {conditions}.',
   setup_when: 'When {conditions}.',
   /* A monster's biggest hit is called Max Hit wherever the game shows it, as on its page (Tyler 2026-11-11). */
-  heal_warning_eat: '{monster} Max Hit {hit} beats your {hp} HP at {pct}%. Eat sooner',
-  heal_warning_heal: '{monster} Max Hit {hit} beats your {hp} HP at {pct}%. Heal sooner',
+  heal_warning_hit: 'Max Hit {hit}',
+  heal_warning_hp: 'Your HP {hp}',
+  heal_warning_eat: 'Eat earlier',
+  heal_warning_heal: 'Heal earlier',
   blocked_by: 'Never fires: {action} in slot {slot} does the same and goes first',
   shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',
   holding: 'You’re holding the pack, so there’s nothing to Challenge.',

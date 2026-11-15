@@ -15,7 +15,7 @@
 //   CW-D2 src/data/outfits.js validate() is clean (the server rows are GENERATED
 //         from it and the --dye-N tokens: tools/gen-outfits.mjs --check)
 //   CW-1  C opens the Character window from the key and the launcher, with zero
-//         console errors; its four tabs are Character, Outfit, Titles and Deaths
+//         console errors; its four tabs are Character, Outfit, Titles and Deaths (Faction shows only with the server's `factions` section: tests/faction-window.mjs)
 //   CW-2  STATS ONLY FROM THE SERVER: the combat lines show exactly the
 //         section's numbers, and a new envelope replaces them on the same nodes
 //   CW-3  NOTHING THAT DOES NOT EXIST: each opening asks the engine ONCE and
@@ -183,7 +183,7 @@ async function checks(overrides, shots) {
         if (!launchers.includes('character') || launchers.includes('skills-combat')) fails.push('CW-1 the launcher row is ' + launchers.join(','));
         if (!(await openWin(page, 'c', 'character'))) fails.push('CW-1 the C key did not open the Character window');
         await waitCombat(page);
-        const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-tab[data-tab]')).map((b) => b.textContent));
+        const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-tab[data-tab]')).filter((b) => !b.hidden && b.getClientRects().length).map((b) => b.textContent));
         if (tabs.join('|') !== 'Character|Outfit|Titles|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);

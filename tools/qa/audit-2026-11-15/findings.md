@@ -25,3 +25,19 @@ Each: repro, server said vs screen said, likely file, and for fun/sense the evid
 
 ### F6 P3 · Tally "Keep" is an unexplained checkbox beside Abandon
 - `<label class="ht-keep"><input type=checkbox data-hs-act=keep>Keep</label>` next to the Abandon button; nothing says keep what (repeat the task after she pays?). Better: a label a player reads ("Take it again after she pays") or the glossary word with a hover.
+
+### F7 P1 · Party warning "Corwen has 1 min of stamina left ... Ilsa comes home too" while the server holds 11 h 30 — SENT to the Coordinator
+- Repro (local world): Corwen hunts until stamina 0 (end_reason stamina), rests 12 h in town (mining), Ilsa (new hero, same account) invites him, Enter with party at the Glade. Right after entry the party read sends `stamina_low_ms` = 0 for Corwen; the alert "Corwen has 1 min of stamina left. Their hunt ends then, and Ilsa comes home too." appears and stays.
+- Server: `player_state` slot 0 stamina 689.6 min (after the first settle); the hunt ran on. Screen: the warning stayed after a 30-min skip; gone only after a reload.
+- Cause (code): `supabase/migrations/2027-02-27-hunt-tiers.sql:360` reads raw `ps.stamina_ms <= 900000`, not `public.hr_stamina_of(user, slot, now())` (the rest since `stamina_at` is ignored until a settle writes the pool). Client: `src/shell/alerts.js:177` keeps a `lowstam:` alert once shown, after the server stops sending it.
+- Why it matters: an actionable number the server disagrees with; a player may buy a refill or pull the party out.
+
+### F8 P2 · No shield past Level 30 for the default (sword and shield) hero
+- Data (`src/data/items.js`): shields Practice 2, Bronze-Rimmed 3 (shop), Ironbound 5 (Smithing, L15), Kingsgrate 7 (Rat King), Coppercap 7 and Steelgrate 9 (L30). Nothing from 30 to 110, while swords run to 95, spellbooks (the mage off-hand) to 88. A tank's off-hand freezes for 80 Levels through the Barrow March.
+- Also: Equip upgrades never offers the shop's Bronze-Rimmed Shield (140 gp, +3) over the Practice Shield (+2); Corwen still wore the Practice Shield at Level 31 with 230k gp. Better: a shield rung every 15 Levels (Smithing or March drops), and the Back-in-town card can name a shop piece better than what's worn.
+
+### F9 P3 · The away card is taken back when the hunt ends at the moment of return
+- Repro: enter with exactly 12 h stamina, close the page, `wait 720 --away`, return. The first envelope shows the hunt still settling (lag ~27 s); when it ends in view the card is withdrawn ("a hunt that ends with the card up takes the card", `src/shell/away-recap.js`). The summary stays, but "Level 17 to 24" (the best line of the return) is gone. Twice in a row. Better: when the card is taken by the hunt's end, the summary carries the Level span of the absence.
+
+### F10 P3 · Only gathering resumes after a hunt; a bench job does not
+- Repro: start Normal Plank (Crafting, 1,249 logs left), enter the Glade, stamina runs out. Summary: "Start mining, chopping or fishing before you hunt, and Corwen will go back to it when the hunt ends." The bench job is dropped. Tyler 10-14: "resumes the last non-hunt activity". The copy is honest; the rule is narrower than the ruling. Coordinator call: resume the bench with its remaining materials, or record the narrower rule.

@@ -405,7 +405,6 @@ async function forgedArm(db, M) {
     await db.query(`insert into public.chest_opens (user_id, slot, n, chest_id, key_id, stokes, cinders_spent, dry, chance_ppm, roll, intent_id)
       select $1, 0, 1000 + g, 'great_hearth', 'bronze', 0, 0, 0, 0, 999999, $2::uuid from generate_series(1, $3) g`, [UID, idem(), per - 1]);
     out.day = await open(db, 'bronze', 1, 0);
-    await db.query('delete from public.chest_opens where user_id = $1 and n > 1000', [UID]);
     /* the switch off */
     await db.query("update public.hr_feature_switches set scope = 'off' where switch_id = 'burning_tower'");
     out.off = await open(db, 'bronze', 1, 0);

@@ -50,7 +50,8 @@
 -- chest_luck (user_id, slot) NEW: dry (keys since the last weapon), opens (keys used, ever: the roll's index and the Turnkey title's count),
 --   stokes (default stokes a key). chest_opens NEW, append-only: one row a key used. Both: RLS on, the owner reads its own rows, NO client
 --   write (no policy, no grant but select).
--- Owner-only helpers: hr_chest_chance_ppm, hr_chest_roll, hr_chest_held, hr_chest_section, hr_tower_key_mint.
+-- Owner-only helpers: hr_chest_chance_ppm, hr_chest_roll, hr_chest_held, hr_chest_section, hr_tower_key_mint, hr_chest_opens_immutable (the
+--   trigger that refuses any UPDATE or DELETE of a chest_opens row).
 --
 -- ── CONCURRENCY / IDEMPOTENCY ──────────────────────────────────────────────
 -- The mint runs inside the settle's transaction (hr_tower_write under the hero's lock and the run row's): the landing row's key makes a mint
@@ -86,7 +87,7 @@
 -- CLIENT: none (the window lane wires both verbs and projects hr_chest_section; the words are src/data/text/tower.js and refusal-words.js).
 -- ORDER: after 2027-04-24-tower-climb-hunts-catalogue.generated.sql: 2027-04-27-tower-chest-items-catalogue.generated.sql, then
 --   2027-04-27-tower-chest-session-modes-catalogue.generated.sql, then 2027-04-27-tower-chest-catalogue.generated.sql, then THIS file.
--- REVERSIBLE: drop the trigger first (no key is minted after it), then the two verbs and their baseline rows, the five helpers, the two
+-- REVERSIBLE: drop the mint trigger first (no key is minted after it), then the two verbs and their baseline rows, the six helpers, the two
 --   tables. Keys and Cinders already in bags stay as items (bound, no value: they move nothing); the wipe empties them.
 -- IDEMPOTENT: a second apply finds the tables, restates every body byte-identical, re-creates the trigger and the baseline rows, and §9
 --   rolls back its probes.
@@ -155,6 +156,16 @@ begin
     execute format('create policy %I on public.%I for select to authenticated using (user_id = (select auth.uid()))', t || ' own read', t);
   end loop;
 end $mig$;
+-- APPEND-ONLY: a row of chest_opens is never changed or removed (the character wipe's TRUNCATE is a statement, not a row; no client holds it).
+create or replace function public.hr_chest_opens_immutable()
+returns trigger language plpgsql set search_path = public, pg_catalog as $fn$
+begin
+  -- TOWER-CHEST (2027-04-27-tower-chest.sql)
+  raise exception 'chest_opens is append-only (attempted %)', tg_op using errcode = 'check_violation';
+end $fn$;
+drop trigger if exists hr_chest_opens_immutable on public.chest_opens;
+create trigger hr_chest_opens_immutable before update or delete on public.chest_opens
+  for each row execute function public.hr_chest_opens_immutable();
 comment on table public.chest_luck is '2027-04-27-tower-chest.sql: each hero''s Hearth warmth (dry: keys since its last tower weapon), its lifetime key count (the roll''s index) and its default stokes a key. Written only by hr_chest_open and hr_chest_stoke_default. RLS: own rows readable, no client write.';
 comment on table public.chest_opens is '2027-04-27-tower-chest.sql: append-only, one row a key used at the Hearth Chest: its index, chance, roll, warmth, stokes and weapon. The audit a dispute is replayed from, and the Turnkey title''s count. Written only by hr_chest_open. RLS: own rows readable, no client write.';
 
@@ -437,6 +448,7 @@ revoke all on function public.hr_chest_roll(uuid, int, bigint, int, text, text[]
 revoke all on function public.hr_chest_held(uuid, int, text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_section(uuid, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_tower_key_mint() from public, anon, authenticated, service_role;
+revoke all on function public.hr_chest_opens_immutable() from public, anon, authenticated, service_role;
 revoke execute on function public.hr_chest_open(int, text, text, int, int, uuid) from public;
 revoke execute on function public.hr_chest_open(int, text, text, int, int, uuid) from anon, service_role;
 grant  execute on function public.hr_chest_open(int, text, text, int, int, uuid) to authenticated;
@@ -473,7 +485,8 @@ begin
   -- (a) PRIVILEGES AND SHAPE: every helper the owner's alone; the verbs the signed-in client's alone and on the baseline; the tables
   --     readable by their owner and written by no client; the mint's trigger on tower_landings.
   foreach v_sig in array array['public.hr_chest_chance_ppm(integer,integer,integer)', 'public.hr_chest_roll(uuid,integer,bigint,integer,text,text[])',
-                               'public.hr_chest_held(uuid,integer,text)', 'public.hr_chest_section(uuid,integer)', 'public.hr_tower_key_mint()'] loop
+                               'public.hr_chest_held(uuid,integer,text)', 'public.hr_chest_section(uuid,integer)', 'public.hr_tower_key_mint()',
+                               'public.hr_chest_opens_immutable()'] loop
     foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
       if has_function_privilege(v_role, v_sig, 'execute') then raise exception 'tower-chest §9(a): % can execute %', v_role, v_sig; end if;
     end loop;
@@ -495,6 +508,8 @@ begin
   end loop;
   if not exists (select 1 from pg_trigger where tgname = 'hr_tower_key_mint' and tgrelid = 'public.tower_landings'::regclass and not tgisinternal) then
     raise exception 'tower-chest §9(a): the mint is not on tower_landings'; end if;
+  if not exists (select 1 from pg_trigger where tgname = 'hr_chest_opens_immutable' and tgrelid = 'public.chest_opens'::regclass and not tgisinternal) then
+    raise exception 'tower-chest §9(a): chest_opens is not append-only'; end if;
   perform public.hr_assert_grant_hygiene(true);
   -- (b) THE DESIGN'S NUMBERS (the board's §5 warmth and stoke tables, Tyler 2026-11-14), read back through the server's own sum.
   if public.hr_chest_chance_ppm(160, 0, 0) <> 160000 or public.hr_chest_chance_ppm(160, 5, 0) <> 192000
@@ -564,6 +579,12 @@ begin
     v2 := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '0000000a')::uuid);
     if v2->'opens' is distinct from v->'opens' or (select count(*) from public.chest_opens where user_id = v_u) <> 1 then
       raise exception 'tower-chest §9(c): a replay answered % (or opened again)', v2; end if;
+    -- the journal of keys used is append-only
+    begin
+      update public.chest_opens set roll = 0 where user_id = v_u;
+      raise exception 'tower-chest §9(c): a chest_opens row was changed';
+    exception when check_violation then null;
+    end;
     -- a key used is gone: the next press has none
     v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '0000000b')::uuid);
     if v->>'error' is distinct from 'no_key' then raise exception 'tower-chest §9(c): a used key answered %', v; end if;

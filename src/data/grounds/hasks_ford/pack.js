@@ -30,6 +30,15 @@
 // a smith's and a fletcher's (style-gear.js). MEASURED (tests/hunt-core/drop-tables.mjs, a lone tank at the floor in the full
 // set, one played hour): each Scarce piece every 0.99-1.05 h, each Rare every 15.2 h, coin 7,403 g, commons 951 g, gear 1,931 g
 // (26% of the coin, the cap is 50%) at the tier-4 sale rate of 0.075. That tank clears +40% over its store bill.
+// THE ARMOR GROUND, THE SLAKE THE WEAPON GROUND (designer 2026-11-16, lane/d-andy-march-feedback; Andy: "the Slake and Hask's are
+// essentially the same, with Slake dropping the same plus more equipment options, so I'd never choose Hask's"; Tyler 11-09: grounds
+// should differ). Measured as it stood, the Slake beat the Ford for every way alone on Normal at the same Level: +1-12% XP, +0.6-3.2k
+// gold an hour, the same armor and the weapons too. The XP order stays (the Slake is harder: forest-cave harder-pays-more), so the
+// Ford takes the armor: boots, helmets and legs x1.25 (0.0064 -> 0.008, 0.026 -> 0.0325) and the gloves and belts x1.27 (0.0033 ->
+// 0.0042), while the Slake's armor rows go x0.75. The bodies stay at the 5% ceiling here. Re-measured the same way: each Scarce
+// piece every 0.79-1.05 h (the bodies 1.05), each Rare every 11.9 h, gear 2,222 g (30% of the coin), total 10,576 g (+3% on the pin).
+// The Slake's armor now comes every 1.21-1.44 h, so a set fills about 1.6 times as fast here. The Ford's other reason was already
+// there: no group spell, so a party on Deadly spends about a third of the Slake's supplies (Andy's four at 55: 8k against 21k a head).
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, a Material that
 // only sells until linings are built (the board, "2026-11-10 Resistance and imbuements"). Ford Weed is the element piece: the
 // ground before sells the lining for the ground after, and the Slake's Bargemen will throw cold river water.
@@ -109,8 +118,8 @@ export default definePack({
          words). Their boots and helmets, their bones for the Hearth. */
       weaponResist: ['sword'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_band', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_boots', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0064, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0064, band: 'scarce' },
-        { id: 'mithril_helm', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0064, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0064, band: 'scarce' }],
+        { id: 'mithril_boots', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.008, band: 'scarce' }, { id: 'warlock_boots', ch: 0.008, band: 'scarce' },
+        { id: 'mithril_helm', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.008, band: 'scarce' }],
       hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 485, gp: [13, 38], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
@@ -118,7 +127,7 @@ export default definePack({
          legs, and the weed that grew through them. */
       weaponResist: ['ranged'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platelegs', ch: 0.026, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.026, band: 'scarce' }, { id: 'warlock_pants', ch: 0.026, band: 'scarce' }],
+        { id: 'mithril_platelegs', ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0325, band: 'scarce' }],
       hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 921, gp: [21, 64], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
@@ -135,8 +144,8 @@ export default definePack({
          and belts. */
       weaponResist: ['ranged'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'toll_token', ch: 0.1, band: 'uncommon' },
-        { id: 'mithril_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0033, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0033, band: 'rare' },
-        { id: 'mithril_belt', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0033, band: 'rare' }, { id: 'warlock_belt', ch: 0.0033, band: 'rare' }],
+        { id: 'mithril_gauntlets', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0042, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0042, band: 'rare' },
+        { id: 'mithril_belt', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0042, band: 'rare' }, { id: 'warlock_belt', ch: 0.0042, band: 'rare' }],
       hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1507, gp: [32, 95], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the

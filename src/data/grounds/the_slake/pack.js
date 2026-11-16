@@ -32,6 +32,11 @@
 // smith and a fletcher make them (style-gear.js). MEASURED (tests/hunt-core/drop-tables.mjs, a lone tank at the floor in the
 // full set, one played hour): each Scarce piece every 0.91-1.08 h, each Rare every 13.8-16.2 h, coin 8,679 g, commons 943 g, gear
 // 2,539 g (29% of the coin, the cap is 50%) at the tier-4 sale rate of 0.075.
+// THE WEAPON GROUND, THE FORD THE ARMOR GROUND (designer 2026-11-16, lane/d-andy-march-feedback; the Ford's header says why). The
+// weapons stay as they are; the armor rows go x0.75 (boots 0.0057 -> 0.0043, legs 0.0475 -> 0.0356, helmets 0.021 -> 0.0158, bodies
+// 0.05 -> 0.0375) and the gloves and belts x0.85 (0.0014 -> 0.0012, 0.0032 -> 0.0027). Re-measured the same way: each armor piece
+// every 1.21-1.44 h, the weapons every 0.91-1.08 h, each Rare every 13.8-18.9 h, gear 2,033 g (23% of the coin), total 11,717 g
+// (-4% on the pin). The Slake keeps its other two reasons: about a tenth more XP than the Ford at the same Level, and the weapons.
 // Commons feed the Hearth (Grave Dust at 46, Bone Chips at 40, Big Bones) and the forge (Coal, Copper Ore). Each body drops its own
 // imbuement item, a Material that only sells until linings are built (the board, "2026-11-10 Resistance and imbuements"). The
 // Color Cord is the fire lining's piece for the Pyre Field.
@@ -103,7 +108,7 @@ export default definePack({
          weapon: weak to the sword, where every Ford body breaks to a hammer). Its boots and its sidearm. */
       weaponWeak: 'sword', weaponResist: ['hammer'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'copper_ore', ch: 0.4, band: 'common' }, { id: 'green_rivet', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_boots', ch: 0.0057, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0057, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0057, band: 'scarce' },
+        { id: 'mithril_boots', ch: 0.0043, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0043, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0043, band: 'scarce' },
         { id: 'mithril_sword', ch: 0.0057, band: 'scarce' }],
       hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 514, gp: [14, 43], formula: true },
     bargeman: {
@@ -113,9 +118,9 @@ export default definePack({
          about 21 an hour, so its Scarce rows sit near the 5% ceiling. */
       weaponWeak: 'ranged', weaponResist: [], spells: ['cold_bilge'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.4, band: 'common' }, { id: 'barge_nail', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platelegs', ch: 0.0475, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0475, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0475, band: 'scarce' },
+        { id: 'mithril_platelegs', ch: 0.0356, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0356, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0356, band: 'scarce' },
         { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
-        { id: 'mithril_belt', ch: 0.0032, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0032, band: 'rare' }, { id: 'warlock_belt', ch: 0.0032, band: 'rare' }],
+        { id: 'mithril_belt', ch: 0.0027, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0027, band: 'rare' }, { id: 'warlock_belt', ch: 0.0027, band: 'rare' }],
       hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 935, gp: [23, 69], formula: true },
     mudlark: {
       name: 'Mudlark', icon: '🪝', tier: 4, level: 52, cls: 'undead', family: 'Undead', speed: 4400,
@@ -124,16 +129,16 @@ export default definePack({
          dead, and a bow, and the Grave Dust goes in the sack with them. */
       weaponWeak: 'magic', weaponResist: ['ranged'],
       drops: [{ id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'mudlark_hook', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_helm', ch: 0.021, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.021, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.021, band: 'scarce' },
+        { id: 'mithril_helm', ch: 0.0158, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0158, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0158, band: 'scarce' },
         { id: 'maple_bow', ch: 0.021, band: 'scarce' },
-        { id: 'mithril_gauntlets', ch: 0.0014, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0014, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0014, band: 'rare' }],
+        { id: 'mithril_gauntlets', ch: 0.0012, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0012, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0012, band: 'rare' }],
       hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 608, gp: [14, 41], formula: true },
     color_sergeant: {
       name: 'Color Sergeant', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier, who holds the grounded barge with the company's colors. No override: the one body on the
          flat a hammer breaks. The bodies, the staff, and the caster's prizes. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'color_cord', ch: 0.1, band: 'uncommon' },
-        { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' },
+        { id: 'mithril_platebody', ch: 0.0375, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.0375, band: 'scarce' }, { id: 'warlock_body', ch: 0.0375, band: 'scarce' },
         { id: 'maple_staff', ch: 0.05, band: 'scarce' },
         { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' }],
       hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1439, gp: [33, 98], formula: true },

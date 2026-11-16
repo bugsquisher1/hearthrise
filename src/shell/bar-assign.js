@@ -83,7 +83,7 @@ export async function assignToBar(cs, id, at) {
  * ok with no intent; fewer empty slots than moves answers { ok:false, error:'bar_full' } and sends nothing (the caller
  * opens Hunt prep instead).
  */
-export async function assignMoves(cs, ids) {
+async function assignMoves(cs, ids) {
   const s = settingsOf(cs);
   if (!s || !s.discipline) return { ok: false, error: 'no_bar' };
   const wire = Array.from({ length: SLOTS }, (_, i) => wireSlot(s.slots[i]));

@@ -15,7 +15,7 @@
 //            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite,
 //            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window,
-//            'addspell' puts the new spells on the bar (src/shell/bar-assign.js assignMoves)
+//            'addspell' puts the new spells on the bar (src/shell/bar-assign.js addMovesOrOpen)
 //   decline  a second button's words (the invite's Decline), or none
 //   share    a Share button's words: the rare find's card (src/shell/share-card.js)
 //   button   the button's words

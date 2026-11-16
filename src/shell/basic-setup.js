@@ -2,7 +2,7 @@
 // src/shell/basic-setup.js — A WEAPON TYPE'S BASIC BAR, RESOLVED AGAINST WHAT THE SERVER SAYS THE HERO HAS.
 //
 // PURE. The Hunt prep builder's Basic setup (windows/hunt-prep/builder.js) and the new spell prompt's Add to bar
-// (bar-assign.js assignMoves) write moves the same way, from the one row of src/data/basic-setups.js:
+// (bar-assign.js addMovesOrOpen) write moves the same way, from the one row of src/data/basic-setups.js:
 //   basicBar(o)            twenty slots in the wire shape for the setup's discipline (the server's), or null
 //   moveSlot(id, d)        one move's slot: its role rule set's own trigger and rune supply (rule-subjects.js
 //                          ROLE_RULES), else its suggested trigger (conditions.js suggestedConditions)

@@ -17,7 +17,7 @@
 //                                §1.3: the toast reaches a player anywhere)
 //   Add to bar                   a new spell (src/shell/spell-news.js): that
 //                                character's ONE bar intent (bar-assign.js
-//                                assignMoves), the same way; with the bar full
+//                                addMovesOrOpen), the same way; with the bar full
 //                                it opens Hunt prep on that hero instead
 // ════════════════════════════════════════════════════════════════════════
 import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.133';

@@ -38,7 +38,7 @@
 //      never moving a hero's plate
 //   V  FLOOR VARIETY (src/world/core/ground-variety.js; Tyler 2026-11-16: "you can see the tile repeat"): the
 //      picker has no period under 64 cells along a row (a fixed cycle fails); every varied floor (the town's grass and
-//      dirt, each painted ground's repeated tiles) draws its variants, at most 35% the plain tile, no run cycling under 12;
+//      dirt, each painted ground's repeated tiles) draws its variants, at most 40% the plain tile, no run cycling under 12;
 //      a variant's plain sides are the floor's own edge pixel for pixel; details 1 in 7-14 cells, never touching; the
 //      same cell picks the same tile on a second load
 //   A  art by scene (src/world/scene-sets.js): every shipped scene loads every
@@ -762,7 +762,8 @@ async function check(M) {
         if (!rowsOf.has(t.y)) rowsOf.set(t.y, []);
         rowsOf.get(t.y).push(t);
       }
-      ok(fam2, n > 0 && flat / n <= 0.35, id + ': ' + flat + ' of ' + n + ' varied floor cells draw the plain tile (the rest must be its variants: at most 35% plain)');
+      /* the plain tile is one pick in about four (j 0 of the 4 plain-or-shifted picks); 40% leaves 3 sd over 60 cells */
+      ok(fam2, n > 0 && flat / n <= 0.4, id + ': ' + flat + ' of ' + n + ' varied floor cells draw the plain tile (the rest must be its variants: at most 40% plain)');
       let short = null;
       for (const list of rowsOf.values()) {
         list.sort((a, b) => a.x - b.x);

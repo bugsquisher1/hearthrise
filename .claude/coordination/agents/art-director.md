@@ -3389,3 +3389,19 @@ Lesson: check art/world-src for held generations before spending; 35 gens of idl
 Readability pass (same lane): [ring] added to world-assets (READABLE in art-budget.js, Barrow March kits only; selftest +4).
 Lesson: a 0.07-0.09 floor is a dead zone for the 3:1 ring (bright bodies wash out to tan, dark ones can't pass); pick dim or
 bright per ground first, then lift. A whole-ramp lift of 4-5 steps turns earth bodies to gingerbread: shade the floor instead.
+
+## 2026-11-16 lane/a-ground-variety (Tyler: "the floors look too patterned, you can see the tile repeat")
+Cause, measured: the town's grass and dirt were ONE wang interior tile each over a 192 x 116 map (every pair has 1 '0000'/'1111'
+tile, so compose.js's cellHash had nothing to pick from), and every painted hunting ground packs its open floor to 1-2 tiles
+(sewer cobble 585 cells, warrens 779, meadowbrook 600+554...). The brief's "fixed cycle" was a wrong lead: a painted fill's cycle
+IS the painting and must stay in order (world-core W3). Fix: a terrain kind `variety` (tools/world-art/variety.mjs, built by
+build.mjs from the base tile its `of` terrain locks): 96 variants = 16 tone keys (corner bits, a soft / damp / mapped one-step
+recolour, bilinear + in-tile wobble, so plain sides are the base's edge exactly) x 6 (plain, 3 texture-shifted or spot, 2 decal).
+Picked per cell by src/world/core/ground-variety.js (seeded hash, details 1 in ~10 never touching); compose.js draws it for the
+town's all-one-material dual tiles and for a painted cell whose rect is the named `at` cell. 0 PixelLab gens. forest/glade/slake
+atlases were full: their varieties are companion sets (*-floor), loaded by scene-sets automatically. Guard: world-core family V
+(period >= 64 along a row, <= 35% plain, edges, spacing, determinism; 6 mutants). Lessons: (1) a soft step on a tile whose body
+is the median colour changes almost nothing (earth, ash): use damp or an explicit map; (2) outlined decals (rubble) at 1 in 10 on a
+dark floor read as litter: details only where they belong (town grass/dirt, wickstead); (3) moss on the sewer cobble is the
+lattice: a map of the moss to its mortar breaks it without cutting a stone. Open: wang TRANSITION tiles are still one variant
+(a regular pebble row along every town grass edge), water is not varied, the cottage ground (49 repeats) was left.

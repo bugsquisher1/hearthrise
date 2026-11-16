@@ -24,6 +24,7 @@
 //   --lines      every ground's Party window line, measured, beside what the data says
 //   --write      writes the measured lines into the rows (the default cut only, so what the guard reads is what is written)
 //   --seed-base N   plays seeds N.. instead of 0.. (the designer's read of how far fresh dice move a line; never with --write)
+//   --middle     plays the band's middle Level instead of its floor (the designer's read of how a line moves through the band; never with --write)
 //
 // THE PARTY WINDOW'S LINE IS MEASURED TOO (lane/d-party-lines, 2026-11-15). Before a hunt the Party window says "Each of you gets about
 // N% more (or less) Level XP than hunting alone" (party-class-xp.js PARTY_VS_ALONE, a pack's partyVsAlone). The same cells answer it, by
@@ -84,6 +85,9 @@ const { STYLES } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/gear
 
 const groundIds = Object.keys(G.HUNT_GROUNDS);
 const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
+/* --middle: the band's middle Level instead of its floor (a designer's read; never with --write) */
+const MIDDLE = process.argv.includes('--middle');
+const levelOf = (g) => { const b = HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band; return MIDDLE ? Math.round((b[0] + b[1]) / 2) : b[0]; };
 /* A STAGED ground (a pack not yet open) is played as it ships, its own drops on the gear ladder (tools/balance-sim/gear.mjs openAlso,
    the grader's rule): otherwise a ground whose tier drops only there is played a tier under. With it, every staged ground at or under its
    floor: packs ship in road order, so the Pauper Vaults (165) is reached in the Morrow's Dawnsteel (tools/pack.mjs check --with, its board
@@ -92,7 +96,7 @@ const isOpen = (g) => Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g);
 const stagedGear = (g) => (isOpen(g) ? {} : { gear: { openAlso: groundIds.filter((x) => !isOpen(x) && floorOf(x) <= floorOf(g)) } });
 
 const cellOf = (g, arm, seed, party, name) => ({
-  id: [g, arm.id, seed, name].join(':'), ground: g, party, level: floorOf(g), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: SEED_BASE + seed,
+  id: [g, arm.id, seed, name].join(':'), ground: g, party, level: levelOf(g), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: SEED_BASE + seed,
   ...(arm.density === null ? {} : { density: arm.density }), ...stagedGear(g),
 });
 
@@ -281,6 +285,8 @@ async function lineCellOn(root, [g, n, k]) {
 }
 
 async function mutate() {
+  /* red until a verdict is reached: a sweep that stops short never exits 0 */
+  process.exitCode = 2;
   let escaped = 0;
   /* THE LINE'S CONTROL, then its mutants: on this tree each line a mutant reads stands within LINE_TOL, so a mutant's red is the mutant's. */
   for (const key of new Set(LINE_MUTANTS.map((mu) => mu.line.join(':')))) {
@@ -289,7 +295,8 @@ async function mutate() {
     if (!(Math.abs(c.got - c.said) <= LINE_TOL)) { console.log('  ✗ CONTROL: on this tree ' + key + ' says ' + c.said + '% and measures ' + c.got.toFixed(1) + '%'); escaped++; }
   }
   for (const mu of LINE_MUTANTS) {
-    const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
+    /* the pool's workers load the Hunts list's advice (tools/balance-sim/worker.mjs recommendedHunt), so the planted tree carries it */
+    const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures', 'src/shell/hunt-list.js', 'src/render']);
     try {
       const c = await lineCellOn(p.root, mu.line);
       const hit = !(Math.abs(c.got - c.said) <= LINE_TOL);
@@ -329,8 +336,10 @@ async function main() {
   if (bad.length) { for (const b of bad) console.log('  ✗ ' + b); process.exitCode = 1; return; }
   if (!groundIds.length) { console.log('  ✗ no grounds to play'); process.exitCode = 1; return; }
   const seeds = argOf('--seeds', 3), workers = argOf('--workers', 4);
+  /* red until a verdict is reached: a sweep that stops short never exits 0 */
+  process.exitCode = 2;
   const writing = process.argv.includes('--write');
-  if (writing && (WIDE || seeds !== 3 || SEED_BASE !== 0)) { console.log('  ✗ --write reads the guard\'s own cut only (no --wide, --seeds or --seed-base): what is written is what the guard measures'); process.exitCode = 1; return; }
+  if (writing && (WIDE || MIDDLE || seeds !== 3 || SEED_BASE !== 0)) { console.log('  ✗ --write reads the guard\'s own cut only (no --wide, --middle, --seeds or --seed-base): what is written is what the guard measures'); process.exitCode = 1; return; }
   const jobs = planOf(seeds);
   const mixedNames = Object.keys(MIXED);
   const t0 = Date.now();

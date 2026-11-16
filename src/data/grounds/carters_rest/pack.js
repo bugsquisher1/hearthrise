@@ -5,7 +5,7 @@
 //
 // STAGED, A SAMPLE. The map is still Wickstead's layout under a new id (map.js): the inn is not drawn and there is no art. The three spells are
 // stand-ins from rows that exist (the Slate Thrower's Poacher's Volley, the Stable Troll's Lash Sweep, the Troll Brewer's Blasting Charge), so the
-// grader plays something close to the design. The Slate Thrower and the Brewer throw from range (`range` 6, lane/c-late-kits). The ground's own
+// grader plays something close to the design. The Slate Thrower and the Landlord throw from range (`range` 6, lane/c-late-kits). The ground's own
 // spell rows and its drop chances fitted on drop-tables are the pack lane's. Nothing here is served or listed.
 //
 // THE PLACE. Carter's Rest was the halfway inn on the road from Krell's Hold up to Morrow. Krell shut the road years ago, the carters stopped
@@ -91,15 +91,16 @@ export default definePack({
     troll_brewer: {
       name: 'Troll Brewer', icon: '🧌', tier: 6, level: 119, cls: 'humanoid', family: 'Troll', speed: 3000,
       /* the regular: she kept the inn's kettles going and throws the boiling mash over everyone. Blasting Charge stands in for it, a group fire
-         spell. She stays back by her kettles and throws the mugs too (`range` 6, as the Slate Thrower: lane/c-late-kits). The tongs came off a priest
-         of Krell's who came through with a live coal. */
-      range: 6,
+         spell. The tongs came off a priest of Krell's who came through with a live coal. */
       spells: ['blasting_charge'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'coal_tongs', ch: 0.08, band: 'uncommon' }],
       hp: 195, atk: 122, baseAcc: 0.64, def: 59, xp: 2153, gp: [41, 123], formula: true },
     the_landlord: {
       name: 'The Landlord', icon: '🧌', tier: 6, level: 123, cls: 'humanoid', family: 'Troll', speed: 2800,
-      /* the elite and the rare carrier: the biggest troll, in the innkeeper's apron, sitting on the cellar. He has the last ore wagon's Dawnstone. */
+      /* the elite and the rare carrier: the biggest troll, in the innkeeper's apron, sitting on the cellar. He has the last ore wagon's Dawnstone.
+         He won't get off his cellar door: he throws casks at whoever stands farthest back, from 6 tiles (`range`, as the Slate Thrower:
+         lane/c-late-kits). The Brewer stays in melee: two throwers on her row put a lone bow on Normal into close calls (3.5 in 12 h). */
+      range: 6,
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally', ch: 0.1, band: 'uncommon' },
         { id: 'dawn_belt', ch: 0.0048, band: 'rare' }, { id: 'dawnhide_belt', ch: 0.0048, band: 'rare' }, { id: 'duskweave_belt', ch: 0.0048, band: 'rare' }],
       hp: 322, atk: 125, baseAcc: 0.66, def: 91, xp: 4142, gp: [68, 202], formula: true },

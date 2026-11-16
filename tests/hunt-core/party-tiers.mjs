@@ -17,8 +17,8 @@
 //            THE KITING MAGE (lane/c-late-kits, the board's "2026-11-15 The late grounds' throwers"): a party's tier threatens a lone caster
 //            standing back too (Tyler 2026-11-06, "Yes, make it risky": "you're gonna waste money ... and possibly die a few times"). Where
 //            Dangerous is named, a lone Mage at the FLOOR spends more on supplies than it earns there (its store bill over its income), and
-//            the named grounds' floor Mages die at least once a ground between them. Before the throwers two of the four paid a lone Mage
-//            28-37k gold an hour there, and the four floors' Mages died once in 8 h. The line's words name Melee and Ranger heroes only:
+//            the named grounds' floor Mages die at least once every two grounds between them. Before the throwers two of the four paid a lone Mage
+//            28-37k gold an hour there, and the four floors' Mages died once in 8 h (4 after). The line's words name Melee and Ranger heroes only:
 //            a Mage is threatened there, never told it dies fast.
 //
 // Measured when written (2 seeds x 2 h): named, at the top of the band the hammer died 46-207 times, the sword 34-213, the bow 14-52 and the
@@ -40,7 +40,7 @@ const FOUR = Object.freeze(['tank', 'healer', 'bow', 'mage']);
 /* "die here fast": at least once an hour, alone at the top of the band; "holds": at most one death in the cell */
 const FAST_PER_H = 1, HOLDS_MAX = 1;
 /* the kiting Mage on a named tier, at the floor: "possibly die a few times", at least this many deaths a named ground on average (2 h a ground) */
-const MAGE_DEATHS_PER_GROUND = 1;
+const MAGE_DEATHS_PER_GROUND = 0.5;
 const bandOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band;
 const isOpen = (g) => Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g);
 /* a staged ground is played as it ships, with every staged ground at or under its floor (packs ship in road order: party-class-xp-line's rule) */
@@ -109,7 +109,7 @@ const mutants = [
   /* the kiting Mage: the late grounds' throwers come down to melee (their `range` gone), and a lone Mage standing back holds again */
   { name: 'Carter\'s Rest\'s throwers come down to melee: a lone Mage profits there on Dangerous', case: 'claims', grounds: ['carters_rest'],
     edits: [[PACK('carters_rest'), "      range: 6,\n      spells: ['poachers_volley'],", "      spells: ['poachers_volley'],"],
-      [PACK('carters_rest'), "      range: 6,\n      spells: ['blasting_charge'],", "      spells: ['blasting_charge'],"]] },
+      [PACK('carters_rest'), "      range: 6,\n      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally'", "      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally'"]] },
   { name: 'the Vaults\' Night Carter comes down to melee: a lone Mage at the floor never dies there', case: 'claims', grounds: ['pauper_vaults'],
     edits: [[PACK('pauper_vaults'), "      range: 6,\n      spells: ['lime_sack'],", "      spells: ['lime_sack'],"]] },
   /* the page: the line is never added */

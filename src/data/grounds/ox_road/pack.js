@@ -78,10 +78,7 @@ export default definePack({
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: one of Gault's living runners, carrying live coals in a tin from one of his fires to the next. He throws one at you, and
-         it splashes the tiles around where it lands (Hot Coal, `spells`). Between coals he throws stones, from 6 tiles
-         (`range`, src/core/hunt/shooters.js: lane/c-late-kits, the board's "2026-11-15 The late grounds' throwers"), so a Mage standing back at
-         its 6 is in reach. Human, no override. Gault's caster pieces: the wand and the codex. */
-      range: 6,
+         it splashes the tiles around where it lands (Hot Coal, `spells`). Human, no override. Gault's caster pieces: the wand and the codex. */
       spells: ['hot_coal'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'runners_tin', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_wand', ch: 0.026, band: 'scarce' }, { id: 'duskwood_codex', ch: 0.00256, band: 'rare' }],
@@ -98,8 +95,8 @@ export default definePack({
       name: 'Drover', icon: '🦯', tier: 6, level: 121, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: Gault's living man who walks the dead teams up the road. He jabs a fallen one with his goad, says the words, and it gets
          back up a bit healthier (Goad, a mend, `spells`). Kill him first, or kill the ox first. A drover walks behind his teams, and he does: he
-         stays back and throws stones at whoever stands farthest back, from 6 tiles (`range`, as the Coal Runner: lane/c-late-kits). Human, no
-         override. The staff off his wagon. */
+         stays back and throws stones at whoever stands farthest back, from 6 tiles (`range`, src/core/hunt/shooters.js: lane/c-late-kits, the
+         board's "2026-11-15 The late grounds' throwers"), so a Mage standing back at its 6 is in reach. Human, no override. The staff off his wagon. */
       range: 6,
       spells: ['goad'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'dawnstone_ore', ch: 0.2, band: 'common' }, { id: 'drovers_goad', ch: 0.08, band: 'uncommon' },
@@ -107,8 +104,10 @@ export default definePack({
       hp: 198, atk: 124, baseAcc: 0.64, def: 60, xp: 2086, gp: [42, 124], formula: true },
     wagonmaster: {
       name: 'Wagonmaster', icon: '📜', tier: 6, level: 125, cls: 'undead', family: 'Undead', speed: 2800,
-      /* the elite: the man who ran the convoy, dead on the box of the lead wagon and still holding the waybill. No trick, just the hardest
-         thing on the road. Undead, no override. The lead wagon's Dawnstone and the Dawnsteel sword. */
+      /* the elite: the man who ran the convoy, dead on the box of the lead wagon and still holding the waybill. No spell, just the hardest
+         thing on the road. He doesn't get down off the box: he throws what's in the wagon at whoever stands farthest back, from 6 tiles
+         (`range`, as the Drover: lane/c-late-kits). Undead, no override. The lead wagon's Dawnstone and the Dawnsteel sword. */
+      range: 6,
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'waybill', ch: 0.1, band: 'uncommon' },
         { id: 'dawn_sword', ch: 0.0056, band: 'rare' }],
       hp: 327, atk: 127, baseAcc: 0.66, def: 93, xp: 4013, gp: [69, 206], formula: true },

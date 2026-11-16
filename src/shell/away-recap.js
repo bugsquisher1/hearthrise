@@ -44,20 +44,20 @@
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.132';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.132';
-import { nameOf } from '../session/item-sections.js?v=0.2.132';
-import { huntName } from '../session/party-sections.js?v=0.2.132';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.132';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.132';
-import { whole } from '../render/format.js?v=0.2.132';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.132';
-import { bestFind } from '../hunt-view/summary-model.js?v=0.2.132';
-import { itemName } from './widgets/bits.js?v=0.2.132';
-import { t } from '../render/player-text.js?v=0.2.132';
-import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.132';
-import { afterDoneWords } from './hunt-after.js?v=0.2.132';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
+import { levelOf } from '../session/character-sections.js?v=0.2.134';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.134';
+import { nameOf } from '../session/item-sections.js?v=0.2.134';
+import { huntName } from '../session/party-sections.js?v=0.2.134';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
+import { whole } from '../render/format.js?v=0.2.134';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.134';
+import { bestFind } from '../hunt-view/summary-model.js?v=0.2.134';
+import { itemName } from './widgets/bits.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
+import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.134';
+import { afterDoneWords } from './hunt-after.js?v=0.2.134';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;

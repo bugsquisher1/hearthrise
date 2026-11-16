@@ -422,6 +422,7 @@ const MUTANTS = [
   ['the Havora door shows with the switch off', 'src/shell/windows/havora/index.js', "  prop(root.querySelector('.hv-tower'), 'hidden', !towerOf(cs));", "  prop(root.querySelector('.hv-tower'), 'hidden', false);"],
   ['the parser keeps a forged floor', 'src/session/tower-sections.js', '  const out = v.slice(0, max).map(pos);', '  const out = v.slice(0, max).map((f) => f);'],
   ['a dropped floor is still sent', 'src/shell/windows/tower.js', '  return sc.floor !== null && tw.starts.includes(sc.floor) ? sc.floor : tw.starts[tw.starts.length - 1];', '  return sc.floor !== null ? sc.floor : tw.starts[tw.starts.length - 1];'],
+  ['the Start Floor picker defaults below the best', 'src/shell/windows/tower.js', '  return sc.floor !== null && tw.starts.includes(sc.floor) ? sc.floor : tw.starts[tw.starts.length - 1];', '  return sc.floor !== null && tw.starts.includes(sc.floor) ? sc.floor : tw.starts[0];'],
   ['Enter is on while hunting', 'src/shell/windows/tower.js', "  if (h && !h.ended) return t(h.huntId === tw.hunt ? 'tower.off_climbing' : 'tower.off_hunting');", '  if (false) return \'\';'],
   ['a refusal is not re-read', 'src/session/tower-intents.js', "const RE_READS = Object.freeze(['bad_floor', ", "const RE_READS = Object.freeze(['nope', "],
   ['Use sends a stoke count of its own', 'src/session/tower-intents.js', 'p_count: count, p_stokes: null, p_idem: newIdem()', 'p_count: count, p_stokes: 1, p_idem: newIdem()'],

@@ -18,7 +18,8 @@ import { goldOf } from '../../../session/item-sections.js?v=0.2.132';
 import { MARKET_TABS } from '../../market-model.js?v=0.2.132';
 import { lockedWords } from '../../market-words.js?v=0.2.132';
 import { hideTip } from '../item-tip.js?v=0.2.132';
-import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.132';
+import { marketScratch, rereadAll, readMine, readItem, MARKET_WORKS, buildingWorks } from './state.js?v=0.2.132';
+import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.132';
 import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.132';
 import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.132';
 import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.132';
@@ -37,7 +38,11 @@ export function renderMarket(ctx) {
 }
 
 /* What stands between this account and a trade, in the server's own terms ('' = nothing). */
-function blockWords(sc) {
+export function blockWords(sc) {
+  if (sc.closed && buildingWorks(sc.works)) {
+    const w = sc.works;
+    return t('shop.market_being_built', { building: TOWN_WORKS[MARKET_WORKS].name, total: whole(w.total), goal: whole(w.goal) });
+  }
   if (sc.closed) return 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.';
   if (sc.locked && sc.rules && sc.rules.minLevel) return lockedWords(sc.rules.minLevel, sc.rules.minSkillLevel) + ' Until then, have a look around.';
   return '';

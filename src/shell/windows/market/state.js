@@ -11,6 +11,7 @@ import { marketBrowse, marketItem, marketMine } from '../../../session/market-in
 import { marketKey } from '../../../session/market-gesture.js?v=0.2.132';
 import { rulesOf, summaryOf, asksOf, listingOf, historyRowOf } from '../../market-model.js?v=0.2.132';
 import { refusalText } from '../../intent-words.js?v=0.2.132';
+import { readWorks } from '../../../session/town-intents.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
 /* Items for sale are a page of at most 50 a read, keyset by id: the whole catalogue is about a dozen pages. */
@@ -18,13 +19,17 @@ const MAX_PAGES = 16;
 const NAMED_CHUNK = 50;
 const NAMED_CHUNKS = 4;
 const SEARCH_WAIT_MS = 250;
+/** The Works project that raises the building this window is named for (src/data/town-works.js: the Weighhouse). */
+export const MARKET_WORKS = 'weighhouse';
+/** The server's Works read says the Market's building is still going up (its own project, not finished). Pure. */
+export const buildingWorks = (w) => !!w && w.project === MARKET_WORKS && w.finished !== true;
 const FRESH_MS = 60000;
 
 /** The window's scratch for one character. */
 export function marketScratch(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
-    s = { fresh: true, tab: 'browse', query: '', pick: null, paged: false, known: new Map(), knownAt: new Map(), forSale: null, rules: null, closed: false,
+    s = { fresh: true, tab: 'browse', query: '', pick: null, paged: false, known: new Map(), knownAt: new Map(), forSale: null, rules: null, closed: false, works: null,
       mine: null, locked: false, page: null, want: 1, pending: false, msg: '', readMsg: '', gesture: null, cancels: new Map(), busy: new Set(), timer: 0,
       sell: { source: null, pick: null, qty: '', ask: '', filled: null, msg: '' } };
     SCRATCH.set(cs, s);
@@ -132,12 +137,23 @@ export function readMine(ctx, cs, sc) {
   });
 }
 
+/** Trading off: Havora's Works read once (hr_town_works_view, never in the envelope), so the closed line tells the Works' own story. */
+function readBuilding(ctx, cs, sc) {
+  if (!sc.closed) return Promise.resolve();
+  return once(sc, 'works', async () => {
+    let r;
+    try { r = await readWorks(ctx.account, cs); } catch (e) { r = { ok: false }; }
+    sc.works = r && r.ok ? r.works : null;
+    ctx.refresh('market');
+  });
+}
+
 /** Everything the open window shows, read again. */
 export function rereadAll(ctx, cs, sc) {
   const out = [readMine(ctx, cs, sc), readForSale(ctx, cs, sc)];
   const id = sc.tab === 'sell' ? sc.sell.pick : sc.pick;
   if (id) out.push(readItem(ctx, cs, sc, id));
-  return Promise.all(out);
+  return Promise.all(out).then(() => readBuilding(ctx, cs, sc));
 }
 
 /** The press's outcome read off a list of plain steps: `go` runs with the gesture held until a definite answer. */

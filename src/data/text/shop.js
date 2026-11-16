@@ -8,6 +8,10 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const SHOP_TEXT = Object.freeze({
+  /* The Market window (src/shell/windows/market/index.js) while trading is off AND Havora's Works is still raising the building the
+     Market is named for: the Works' own story, with its numbers from the server, and where to give (audit 2026-11-15 F19: the Market
+     read "isn't trading right now", an outage, while the Works said it was being built). Two facts side by side, no promise of when. */
+  market_being_built: '{building} isn\'t open yet. Havora is still building it, {total} of {goal} gp so far. Give in Havora > Works. Your listings are safe, and you can still take them back.',
   /* What a seed still needs before it can be planted: the hero's Farming and the account's plot tier, from the server. */
   seed_needs_farming: 'Needs Farming {level} to plant',
   seed_needs_tier: 'Needs plot tier {tier} to plant',

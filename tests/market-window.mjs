@@ -21,6 +21,7 @@
 //   W10 the residue fields are on the allowlist, and bounded
 //   W11 a graded jewelry piece's Suggested is what it cost in fixed gold (Fine 3,000, Hallmarked 28,200), never the book every grade shares
 //   W12 the Sell sheet keeps the picked name on screen: its head holds the top of the scroller, and a long name wraps
+//   W13 trading off while Havora's Works still raises the Weighhouse: the window tells the Works' story with its numbers (audit F19), else the plain closed line
 //
 // The selftest copies src/ to a temp tree, plants one defect per arm and requires the
 // named test to fail. No ?v= on imports here (tests/**).
@@ -43,7 +44,8 @@ async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
   await import(u(WORDS));   // parsed even when intent-words.js is the only caller
   return { M: await import(u(MODEL)), I: await import(u(INTENTS)), G: await import(u(GESTURE)), C: await import(u(CATCH)),
-    F: await import(u(REFUSAL)), R: await import(u('src/session/residue.js')), T: await import(u('src/shell/intent-words.js')), S: await import(u(SELL)), base };
+    F: await import(u(REFUSAL)), R: await import(u('src/session/residue.js')), T: await import(u('src/shell/intent-words.js')), S: await import(u(SELL)),
+    W: await import(u('src/shell/windows/market/index.js')), base };
 }
 
 const ASKS = [
@@ -53,7 +55,7 @@ const ASKS = [
 ];
 const RULES = { feeBp: 100, feeMin: 1, cutBp: 400, ttlH: 168 };
 
-async function runTests({ M, I, G, C, F, R, T, S, base }) {
+async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
   const fails = [];
   const ok = (test, cond, msg) => { if (!cond) fails.push(test + ' ' + msg); };
 
@@ -172,6 +174,15 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
   ok('W12', !!head && /position:\s*sticky/.test(head[1]) && /top:\s*0/.test(head[1]) && /background:\s*var\(--/.test(head[1]), "the Sell sheet's head does not hold the top of its scroller with a token fill: " + (head ? head[1] : 'no rule'));
   ok('W12', !!name && /overflow-wrap:\s*anywhere/.test(name[1]) && /font-size:\s*var\(--t-/.test(name[1]), 'a long picked name does not wrap at a token size: ' + (name ? name[1] : 'no rule'));
 
+  /* W13 (audit 2026-11-15 F19): the Market read "isn't trading right now" (an outage) while Havora > Works said the Weighhouse was going up. Trading off with
+     the Works' own read unfinished: one story, the server's numbers, where to give. Finished, unread or another project: the plain closed line. */
+  const built = { project: 'weighhouse', total: 125000, goal: 1000000, finished: false };
+  const closedLine = "The Weighhouse isn't trading right now. Your listings are safe, and you can still take them back.";
+  ok('W13', W.blockWords({ closed: true, works: built }) === "The Weighhouse isn't open yet. Havora is still building it, 125,000 of 1,000,000 gp so far. Give in Havora > Works. Your listings are safe, and you can still take them back.",
+    'trading off while the Works builds it reads ' + JSON.stringify(W.blockWords({ closed: true, works: built })));
+  ok('W13', W.blockWords({ closed: true, works: { ...built, finished: true } }) === closedLine && W.blockWords({ closed: true, works: null }) === closedLine
+    && W.blockWords({ closed: true, works: { ...built, project: 'bridge' } }) === closedLine && W.blockWords({ closed: false, works: built }) === '', 'the plain closed line is not kept for a standing building, an unread Works or another project');
+
   /* W10 the residue */
   ok('W10', R.RESIDUE_FIELDS.includes('marketView') && R.RESIDUE_FIELDS.includes('marketSeen'), 'the two fields are not on the allowlist');
   const v = R.sanitizeResidueField('marketView', { cat: 'gear', sort: 'most', deliver: 'bag', source: 'storage', gold: 500, price: 3 });
@@ -197,6 +208,7 @@ const MUTANTS = [
   { test: 'W9', file: MODEL, from: "return { id: raw.item_id, listable: raw.listable === true,", to: "return { ...raw, id: raw.item_id, listable: raw.listable === true,", why: 'the row keeps whatever the read carried' },
   { test: 'W11', file: SELL, from: 'const book = jewelSuggestedAsk(id, ITEMS) ?? (ITEMS[id] && Number(ITEMS[id].v));', to: 'const book = ITEMS[id] && Number(ITEMS[id].v);', why: 'a Hallmarked ring suggests its 260 book' },
   { test: 'W12', file: 'src/styles/market.css', from: '.hw-mk-sell .hw-mk-head { position: sticky; top: 0; z-index: 1; background: var(--fill-1); }', to: '', why: 'the price field scrolls the picked name out of sight' },
+  { test: 'W13', file: 'src/shell/windows/market/index.js', from: '  if (sc.closed && buildingWorks(sc.works)) {', to: '  if (false) {', why: 'the Market says an outage while the Works says it is being built' },
   { test: 'W10', file: 'src/session/residue.js', from: "  if (v.deliver === 'storage' || v.deliver === 'bag') out.deliver = v.deliver;", to: '  if (v.deliver) out.deliver = v.deliver;', why: 'a junk delivery survives' },
 ];
 

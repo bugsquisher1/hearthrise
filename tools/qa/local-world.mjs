@@ -21,7 +21,7 @@
 //
 //   import { openWorld } from './tools/qa/local-world.mjs';
 //   const world = await openWorld();                     // { url, db, skip, tick, play, close }; one world per process
-//   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
+//   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x', scale: 1.25 });
 //   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
 //   await world.cron('hr-account-purge');                // run a scheduled job's own command (the pg_cron shim runs nothing by itself)
@@ -623,10 +623,11 @@ async function browserOf() {
   return driver.browser;
 }
 
-async function play(world, { account, viewport = { width: 1280, height: 720 }, touch = false, shots = null } = {}) {
+async function play(world, { account, viewport = { width: 1280, height: 720 }, touch = false, shots = null, scale = 1 } = {}) {
   if (!/^[a-z0-9_-]{1,40}$/i.test(String(account || ''))) throw new Error('local-world: play({ account }) wants a plain name');
   const browser = await browserOf();
-  const ctx = await browser.newContext({ viewport, hasTouch: !!touch, isMobile: !!touch });
+  /* scale: the display's devicePixelRatio (Windows laptops run 125-150 %: viewport 1536x864 at scale 1.25 is a 1920x1080 panel) */
+  const ctx = await browser.newContext({ viewport, deviceScaleFactor: Number(scale) > 0 ? Number(scale) : 1, hasTouch: !!touch, isMobile: !!touch });
   driver.contexts.add(ctx);
   const errors = [], offsite = [];
   const local = new URL(world.origin).host;

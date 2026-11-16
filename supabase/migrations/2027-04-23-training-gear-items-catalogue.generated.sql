@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: e646e563547936d39b09c12f88d300abfeabdd33d16109d9a44a18ec245bc13f
+--   catalogue digest: 56480a3c4d90f8d902cc7b7ac3f0a227fbfbf3b359c761fa8d9bf501a24c059f
 --   rows: 631 items (14 untradeable) ·
 --         347 item-slot pairs · 14 equip slots ·
---         13 skills · 9 crops · 379 activities ·
+--         13 skills · 9 crops · 382 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -1361,6 +1361,9 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','saw_willow','crafting',30,null,false,null),
   ('artisan','saw_yew','crafting',60,null,false,null),
   ('artisan','set_banded_signet','crafting',15,null,false,null),
+  ('artisan','set_crown_shard_banded_signet','crafting',15,null,false,null),
+  ('artisan','set_crown_shard_rat_kings_crown_banded_signet','crafting',15,null,false,null),
+  ('artisan','set_rat_kings_crown_banded_signet','crafting',15,null,false,null),
   ('artisan','sew_adept_body','crafting',22,null,false,null),
   ('artisan','sew_adept_boots','crafting',15,null,false,null),
   ('artisan','sew_adept_helmet','crafting',17,null,false,null),
@@ -2152,7 +2155,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'e646e563547936d39b09c12f88d300abfeabdd33d16109d9a44a18ec245bc13f', now())
+  values (true, '56480a3c4d90f8d902cc7b7ac3f0a227fbfbf3b359c761fa8d9bf501a24c059f', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2198,7 +2201,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 14', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 379 then raise exception 'hr_activities has % rows, expected 379', v_n; end if;
+  if v_n <> 382 then raise exception 'hr_activities has % rows, expected 382', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -2384,7 +2387,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest e646e563547936d39b09c12f88d300abfeabdd33d16109d9a44a18ec245bc13f',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 56480a3c4d90f8d902cc7b7ac3f0a227fbfbf3b359c761fa8d9bf501a24c059f',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

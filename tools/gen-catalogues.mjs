@@ -1295,7 +1295,8 @@ const { ARTISAN_RECIPES_EVERY: BENCH_RECIPES } = await imp('src/data/recipes.js'
 /* TEMPERING'S MATERIAL (lane/c-temper-craft, 2026-11-05): 2027-02-25-houndskin is APPLIED history; the mixes' bars and bones. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, 2026-11-05): 2027-02-28-temper-craft is APPLIED history; the two rolled jobs' inputs. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-14-jewelry-bench-inputs is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches land in ONE forward file. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-bench-inputs.generated.sql');
+/* THE GUARANTEE JOBS (lane/c-crafted-jewelry, 2026-11-15): 2027-03-27-phase0-tier4-bench-inputs is APPLIED history; the three dark jobs' inputs (a resume reads them). */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-04-24-jewel-guarantees-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

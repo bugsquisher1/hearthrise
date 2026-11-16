@@ -563,8 +563,9 @@ export function mountShell(root, o) {
   const offMoves = mountWidgetMoves({ boxes: [worldHud, screenHud], hud, host, isPhone: () => phoneMq.matches, place: placeWidgets, refresh });
   paintWidgets();
   coach();
-  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own. */
-  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh);
+  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own,
+     and the server's first offer of a side opens the join prompt (windows/faction-join.js). */
+  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh), offFaction = WINDOW_RENDERERS['faction-join'].follow(ctx);
 
   return {
     wm, hud,
@@ -583,7 +584,7 @@ export function mountShell(root, o) {
     destroy() {
       /* a switch of the viewed hero takes the windows with it: the summary on screen has been seen, and the bar must not stand in for it on the way back */
       if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);
-      offDeaths(); offPlayCap(); offWm(); offHud(); offMoves();
+      offDeaths(); offPlayCap(); offFaction(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

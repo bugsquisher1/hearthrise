@@ -16,22 +16,22 @@
 
 import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.132';
 
-export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
+export const REFUSAL_FALLBACK = 'Didn\'t go through, nothing changed. Try again in a moment.';
 
 /* The Weighhouse's refusals (2027-01-12-market-account.sql's taxonomy; the design's words: PRIORITY_BOARD "Marketplace design").
    One with the server's number or the hero's name is src/shell/market-words.js's. */
 const MARKET_WORDS = Object.freeze({
-  market_closed: 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.',
+  market_closed: 'Weighhouse closed (your listings are safe and can be taken back)',
   rate_limited: 'Too fast. Wait a moment and try again.',
-  not_tradeable: 'This can\'t be sold to other players. Pick it in the Weighhouse\'s Sell tab to see why.',
+  not_tradeable: 'Can\'t be sold to players (see why in the Weighhouse Sell tab)',
   item_locked: 'This is locked. Unlock it in your bag to list it.',
   gone: 'Someone bought those first.',
   expired: 'That listing just ran out.',
-  own_listing: 'That\'s your own listing. Cancel it in My listings to take it back.',
-  storage_full: 'Your storage is full. Send it to a hero\'s bag, or make room.',
-  market_spend_daily_cap: 'That\'s the most the market lets you spend in one day. Try again after the daily reset.',
+  own_listing: 'Your own listing (cancel it in My listings to take it back)',
+  storage_full: 'Storage full. Send it to a hero\'s bag, or make room.',
+  market_spend_daily_cap: 'Daily market spending limit reached. Try again after the reset.',
   market_proceeds_daily_cap: 'This listing can\'t be bought right now. Try the next one.',
-  price_above_max: 'That listing costs more than the price you agreed to, so nothing was bought.',
+  price_above_max: 'Listing costs more than your agreed price, nothing bought',
   listing_too_large: 'That\'s too much gold for one listing. List fewer, or ask less.',
   trade_too_large: 'That\'s too much gold for one purchase. Buy fewer.',
   not_yours: 'That isn\'t one of your listings.',
@@ -48,19 +48,19 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   market_mine: MARKET_WORDS,
   equip: Object.freeze({ hunt_open: 'Leave the hunt to change gear.' }),
   /* A solo hunt can't grow a party, and a pending Leave is still a hunt until the hero is home (panel 2026-11-01). */
-  party_invite: Object.freeze({ hunt_open: 'You are on a hunt of your own. Leave it, and once you are back in town you can invite.' }),
-  party_join: Object.freeze({ hunt_open: 'You are on a hunt. Leave it, and once you are back in town press Join.' }),
+  party_invite: Object.freeze({ hunt_open: 'On your own hunt. Leave it, then invite from town.' }),
+  party_join: Object.freeze({ hunt_open: 'On a hunt. Leave it, then press Join from town.' }),
   /* Dispatch loot (2027-01-23-loot-dispatch.sql): Storage is at home and the shop in town. */
   loot_dispatch: Object.freeze({
     hunting: 'Your hero is out hunting. Dispatch loot works in town.',
-    storage_full: 'Storage is full, so nothing was stored. Storage chests in the House (E) make more room.',
+    storage_full: 'Storage full, nothing stored (storage chests in the House, E)',
   }),
   /* Many stacks in one press (2027-04-13-bank-move-many.sql): all of them went, or none did. */
   bank_move_many: Object.freeze({
-    hunt_open: 'Your hero is out hunting. Storage is at home, so nothing was put away.',
-    bank_full: 'Your storage is full, so nothing was put away. Storage chests in the House (E) make more room.',
+    hunt_open: 'Out hunting, Storage is in town. Nothing put away.',
+    bank_full: 'Storage full, nothing put away (storage chests in the House, E)',
     bag_full: 'Your bag is full, so nothing was taken out. Make room first.',
-    item_locked: 'One of those is locked, so nothing was put away. Unlock it first.',
+    item_locked: 'One of those is locked, nothing put away',
     too_many_items: 'That is too many stacks for one press. Pick fewer.',
   }),
   item_lock_many: Object.freeze({
@@ -73,9 +73,9 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   }),
   /* Carrying supplies into a running hunt (2027-02-21-hunt-carry-in.sql hr_hunt_restock). */
   hunt_restock: Object.freeze({
-    no_hunt: 'Your hero isn\'t hunting right now, so there is nothing to carry it into.',
-    hunt_leaving: 'Your hero is on the way back to town, so nothing more can be carried in.',
-    too_many_lines: 'This hunt already carries 10 kinds of supplies. You can carry more of a kind it has.',
+    no_hunt: 'Not hunting, nothing to carry into',
+    hunt_leaving: 'On the way back to town, can\'t carry in more',
+    too_many_lines: 'Max 10 supply kinds per hunt (add more of one it has)',
     unknown_supply: 'Only food, drinks, ammo and runes can be carried into a hunt.',
     bad_qty: 'You can carry 1 to 100,000 at a time.',
   }),
@@ -87,7 +87,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   /* What gold buys in town (2027-02-27-town-shows.sql hr_town_show): src/shell/sink-words.js says those with a number. */
   town_powder: Object.freeze({
     hunting: 'Your hero is out hunting. The Great Hearth is in town.',
-    show_limit: 'Havora takes 5 powders a day from one account. More after midnight UTC.',
+    show_limit: 'Daily limit: 5 powders per account. Resets at midnight UTC.',
     show_busy: 'The Hearth\'s powders are booked for now. You weren\'t charged.',
   }),
   /* The Town Crier (2027-02-27-town-crier.sql hr_crier_send): a mute is refused before the charge (2027-03-16-crier-muted.sql). */
@@ -96,18 +96,39 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   }),
   town_round: Object.freeze({
     hunting: 'Your hero is out hunting. The Tavern is in town.',
-    show_limit: 'Havora takes 3 rounds a day from one account. More after midnight UTC.',
+    show_limit: 'Daily limit: 3 rounds per account. Resets at midnight UTC.',
     show_busy: 'Someone\'s round is still going. You weren\'t charged.',
   }),
   /* Combat training (lane/c-combat-training hr_training_start, hr_house_dummy_unlock). The ones with the server's numbers are
      src/shell/training-words.js's. */
   training_start: Object.freeze({
-    quote_changed: 'The price changed before you started. Look at the new price and press Start training again.',
+    quote_changed: 'Price changed. Check it and press Start training again.',
+    low_level: 'Training opens at Level 10. Hunt a little longer first.',
     hunt_open: 'Your hero is out hunting. Come back to town to train.',
     in_party: 'Training is solo. Leave the party first.',
     insufficient_gold: 'You don\'t have enough gold for the first hour.',
-    not_owned: 'Your dummy at home doesn\'t train that skill yet. Unlock it in the House.',
+    not_owned: 'Your dummy can\'t train that skill yet (unlock it in the House)',
     dummy_busy: 'Another hero is on your dummy at home right now.',
+    bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
+  }),
+  /* The training items (2027-04-23-training-gear.sql). The ones with the server's numbers are src/shell/training-words.js's. */
+  training_gear_buy: Object.freeze({
+    quote_changed: 'The price changed. Look at the new price and press Buy again.',
+    feature_off: 'Training items aren\'t for sale yet.',
+    not_for_sale: 'The Arms Master doesn\'t sell that one.',
+    bad_item: 'That isn\'t a training item.',
+    buy_limit: 'Daily limit reached. The Arms Master sells more tomorrow',
+    insufficient_gold: 'You don\'t have enough gold for that.',
+    bag_full: 'Your bag is full. Make room and buy it again.',
+  }),
+  training_gear_open: Object.freeze({
+    feature_off: 'Training items aren\'t open yet.',
+    bad_item: 'That isn\'t a training item.',
+    still_open: 'That skill\'s item still has hours left (next opens after it)',
+    none_held: 'You don\'t have one in your bag or Storage.',
+  }),
+  training_gear_switch: Object.freeze({
+    feature_off: 'Training items aren\'t open yet.',
     bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
   }),
   house_dummy: Object.freeze({
@@ -120,25 +141,38 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 });
 
 export const REFUSAL_WORDS = Object.freeze({
+  /* The factions (2027-04-22-faction-standing.sql, 2027-04-23-faction-section.sql). The ones with the server's numbers are
+     src/shell/faction-words.js's. feature_off is every switched-off feature's line (the training items' too), written once. */
+  feature_off: 'That isn\'t open yet.',
+  join_locked: 'You can pick a side after your first Lord Krell kill.',
+  already_joined: 'This hero already has a side.',
+  same_faction: 'This hero is already on that side.',
+  swap_open: 'A swap is already under way.',
+  swap_cooldown: 'You changed sides too recently to swap again.',
+  no_swap: 'There is no swap to finish.',
+  swap_short: 'Your swap needs more hunting on the new side\'s grounds.',
+  piece_owned: 'This hero already has that piece.',
+  standing_short: 'This hero needs more standing for that piece.',
+  not_member: 'This hero has no side yet.',
   /* The Game Master's wall and his tools (2027-03-13-gm-tools.sql). */
-  gm_walled: 'The Game Master\'s account stays apart from other players, so that can\'t be done.',
-  muted: 'The Game Master has muted you for now. You can still read chat.',
+  gm_walled: 'Can\'t do that with the Game Master\'s account',
+  muted: 'Muted by the Game Master (you can still read chat)',
   needs_reason: 'Write a few words saying why first.',
   nothing_to_stop: 'That hero isn\'t doing anything to stop.',
-  hero_busy: 'Stop this hero first. It can\'t be given anything while it hunts or works.',
+  hero_busy: 'Stop this hero first (busy hunting or working)',
   target_is_gm: 'That is a Game Master account.',
   already_there: 'This hero is already at or past that Level.',
   day_limit: 'That is today\'s limit.',
   /* The Weighhouse: market-words.js says these with the server's numbers. */
   market_closed: MARKET_WORDS.market_closed,
-  market_locked: 'The Weighhouse trades with heroes of a higher Level, or with a higher bench skill.',
+  market_locked: 'Weighhouse requires a higher Level or bench skill',
   market_spend_daily_cap: MARKET_WORDS.market_spend_daily_cap,
   market_proceeds_daily_cap: MARKET_WORDS.market_proceeds_daily_cap,
-  price_below_shop: 'That\'s less than the shop pays. Ask at least that, or sell it at the shop.',
+  price_below_shop: 'Below the shop price (ask more, or sell at the shop)',
   price_above_cap: 'That\'s more than this can be listed for.',
   price_above_max: MARKET_WORDS.price_above_max,
-  storage_no_room: 'Unsold items come back to your storage, and it has no room for a new kind.',
-  list_daily_cap: 'That\'s the most listings for one day. You can list again after the daily reset.',
+  storage_no_room: 'Storage has no room for a new kind (unsold items return there)',
+  list_daily_cap: 'Daily listing limit reached. List again after the reset.',
   listing_too_large: MARKET_WORDS.listing_too_large,
   trade_too_large: MARKET_WORDS.trade_too_large,
   /* The connection and the session. */
@@ -147,11 +181,11 @@ export const REFUSAL_WORDS = Object.freeze({
   not_a_fuel: 'The Great Hearth does not burn that as a named fuel.',
   no_item: 'You do not have that in your bag.',
   flame_too_low: 'Your Inner Flame is too low for that fuel yet.',
-  hearth_limit: 'The Great Hearth takes only so many named fuels a day from one hero. Try again tomorrow.',
-  hearth_busy: 'The Great Hearth is already burning named fuels. Try again in a few minutes.',
+  hearth_limit: 'Daily limit of named fuels reached. Try again tomorrow.',
+  hearth_busy: 'Great Hearth already burning named fuels. Try again in a few minutes.',
   /* What gold buys in town (2027-02-27-town-shows.sql, -town-crier.sql). Every one of these leaves the purse alone. */
   not_a_show: 'Havora doesn\'t sell that.',
-  show_limit: 'Havora takes only so many of those a day from one account. More after midnight UTC.',
+  show_limit: 'Daily limit reached for your account. Resets at midnight UTC.',
   show_busy: 'The town is booked for now. You weren\'t charged.',
   crier_off: 'The Crier is off duty right now. You weren\'t charged.',
   crier_word: 'The Crier won\'t shout that word. Change it. You weren\'t charged.',
@@ -159,12 +193,12 @@ export const REFUSAL_WORDS = Object.freeze({
   crier_links: 'The Crier shouts one item link at most. You weren\'t charged.',
   crier_long: 'The Crier shouts 120 letters at most. You weren\'t charged.',
   crier_level: 'The Crier takes words from Level 10 heroes and up.',
-  crier_limit: 'The Crier takes 5 lines a day from one account. More after midnight UTC.',
-  crier_busy: 'The Crier is shouting someone else\'s line. Try again in a moment. You weren\'t charged.',
+  crier_limit: 'Daily limit: 5 Crier lines per account. Resets at midnight UTC.',
+  crier_busy: 'Crier busy, not charged. Try again in a moment.',
   /* The Town Works (2027-03-04-town-works.sql hr_town_works_give): src/shell/sink-words.js says those with a number. */
   not_a_project: 'Havora isn\'t building that.',
   bad_amount: 'Give a whole number of gold pieces.',
-  works_limit: 'Havora takes 25,000 gp a day from one account, and you\'ve given yours. More after midnight UTC.',
+  works_limit: 'Daily limit: 25,000 gp given per account. Resets at midnight UTC.',
   works_over: 'That\'s more than you can give today.',
   works_short: 'That\'s more than the Works still needs.',
   works_small: 'The smallest gift is 100 gp.',
@@ -173,7 +207,7 @@ export const REFUSAL_WORDS = Object.freeze({
   network: 'No connection. Nothing was changed.',
   timeout: 'The server has not answered. The game shows what it last confirmed.',
   busy: 'Still saving the last change. Try again in a moment.',
-  town_full: 'There is no free spot to stand here right now. Try again in a moment.',
+  town_full: 'No free spot here. Try again in a moment.',
   no_token: 'You are signed out. Sign in again to keep playing.',
   not_signed_in: 'You are signed out. Sign in again to keep playing.',
   unauthenticated: 'You are signed out. Sign in again to keep playing.',
@@ -199,9 +233,9 @@ export const REFUSAL_WORDS = Object.freeze({
   /* The work bench tax (2027-02-19-bench-tax.sql): the engine read something that moved. The next try reads it fresh. */
   bench_tax_purse: 'Your gold changed while that bench settled. Try again.',
   bench_tax_changed: 'The bench fee changed while that settled. Try again.',
-  bench_tax_missing: 'The bench fee could not be settled just now. Try again in a moment.',
-  bench_tax_short: 'The bench fee could not be settled just now. Try again in a moment.',
-  bench_tax_bad: 'The bench fee could not be settled just now. Try again in a moment.',
+  bench_tax_missing: 'Bench fee not settled. Try again in a moment.',
+  bench_tax_short: 'Bench fee not settled. Try again in a moment.',
+  bench_tax_bad: 'Bench fee not settled. Try again in a moment.',
   cannot_afford: 'Not enough gold.',
   gold_short: 'Not enough gold.',
   item_locked: 'That item is locked. Unlock it first.',
@@ -222,10 +256,10 @@ export const REFUSAL_WORDS = Object.freeze({
   insufficient_bank: 'Your storage no longer has that many.',
   /* The loot plan and Dispatch loot (2027-01-23-loot-dispatch.sql). */
   nothing_to_dispatch: 'Nothing in your bag has a Deposit or Sell plan.',
-  start_kit: 'The shop does not buy back your starting kit. You can still deposit it in Storage.',
+  start_kit: 'Shop doesn\'t buy starting kit (you can deposit it in Storage)',
   /* The House window (2026-11-29-house-home.sql, hr_unlock_buy) and the storage chests (hr_storage_chest_build). */
   already_owned: 'You already have that.',
-  prereq_property_tier: 'Your house is too small for that yet. Buy the next home first.',
+  prereq_property_tier: 'House too small. Buy the next home first.',
   prereq_item: 'That needs a plan you do not carry.',
   unlock_daily_cap: 'That is enough building for today. Try again tomorrow.',
   already_built: 'That chest is already built.',
@@ -248,7 +282,7 @@ export const REFUSAL_WORDS = Object.freeze({
   unknown_equip_slot: 'That item does not go in that slot.',
   not_equippable: 'That item cannot be worn.',
   wrong_slot: 'That item does not go in that slot.',
-  two_handed: 'A two-handed weapon cannot be worn with an off-hand. Take one off first.',
+  two_handed: 'Two-handed weapon: unequip the off-hand first',
   would_confiscate: 'Finish what your hero is doing first.',
   /* Services. */
   stamina_full: 'Your stamina is already full.',
@@ -262,7 +296,7 @@ export const REFUSAL_WORDS = Object.freeze({
   needs_name: 'Name this hero first.',
   /* A new name (2026-12-04-hero-rename.sql): the first name is free, a change costs gold. */
   same_name: 'That is already this hero’s name.',
-  already_named: 'This hero already has a name. A new one costs gold: Characters, Rename.',
+  already_named: 'Already named. Rename costs gold (Characters, Rename).',
   not_named: 'Name this hero first. The first name is free.',
   renamed_today: 'This hero changed name today. One change a day.',
   /* not a server code: the words for bad_name with reason reserved / blocked (intent-words.js refusalText) */
@@ -291,14 +325,14 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_store: 'That store item does not fit this slot.',
   bad_own: 'Those runes do not fit this spell.',
   bad_on_empty: 'Choose what happens when your runes run out.',
-  choose_item: 'Pick the food or drink this slot uses. The game never chooses one for you.',
+  choose_item: 'Pick the food or drink for this slot (never chosen for you)',
   none_left: 'None left, so the next food or drink slot fires instead.',
   too_many_slots: 'The bar is full.',
   too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
   bad_enabled: 'A slot is either on or off.',
   bad_ignore: 'Pick each monster to ignore once, from the ones in the game.',
   too_many_ignored: 'A slot ignores at most ' + MAX_IGNORED + ' monsters.',
-  store_off: 'This hero is set to end the hunt rather than buy from the store.',
+  store_off: 'Set to end the hunt rather than buy from the store',
   /* Hunts. */
   hunt_open: 'Not while a hunt is running.',   // an equip's own line: REFUSAL_VERB_WORDS
   hunting: 'Not while a hunt is running.',
@@ -312,15 +346,19 @@ export const REFUSAL_WORDS = Object.freeze({
   same_hunt: 'You are already hunting there.',
   training_only: 'That spot is for training. Start it from the Training window.',
   dummy_max: 'Your dummy trains every skill already.',
+  /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
+  buy_limit: 'That is all you can buy today. Try again after midnight UTC.',
+  still_open: 'That skill\'s item still has hours left (next opens after it)',
+  none_held: 'You don\'t have one in your bag or Storage.',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
      internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
   /* These two open the centered popup (src/shell/windows/play-cap.js), never a window's foot line. */
-  too_many_playing: 'Four of your heroes are already playing. Stop one to start this one.',
-  too_many_playing_here: 'Four heroes are already playing from this internet connection. They can be on any account here. Stop one to start this one.',
+  too_many_playing: 'Four heroes already playing. Stop one to start this one.',
+  too_many_playing_here: 'Four heroes already playing on this connection (any account). Stop one first.',
   unknown_hunt: 'The server does not know that hunt.',
   unknown_preset: 'That setup is gone. Pick another under Saved setups.',
   /* hr_hunt_preset_apply: a piece the setup wears is no longer in the bag (Go as on the Hunts window stops there). */
-  missing_item: 'A piece of that setup’s gear is not in your bag, so nothing was put on.',
+  missing_item: 'Setup gear missing from your bag, nothing equipped',
   unknown_action_set: 'That action set is gone. Pick another under Saved setups.',
   /* Naming, saving and removing a setup (2026-11-15-preset-names.sql). */
   bad_preset_name: 'Names are 1 to 24 characters, and some words are not allowed.',
@@ -330,7 +368,7 @@ export const REFUSAL_WORDS = Object.freeze({
   setup_slots_max: 'This hero has every setup slot there is.',
   /* A hero's colors (2027-03-05-hero-colors.sql). With the server's number the limit reads from intent-words.js refusalText. */
   colors_same: 'Those are already this hero\'s colors. Nothing was charged.',
-  colors_limit: 'This hero has changed colors as often as a day allows. More after midnight UTC.',
+  colors_limit: 'Daily color change limit reached. Resets at midnight UTC.',
   title_kills: 'That title takes more kills first. Gold can\'t skip kills.',
   title_owned: 'This hero already has that title.',
   title_not_owned: 'This hero hasn\'t claimed that title yet.',
@@ -347,7 +385,7 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_weapon: 'The server does not know that weapon.',
   no_character: 'Pick a character first.',
   /* The party. */
-  already_in_party: 'You are already in a party with someone. Press Leave party in the Party window, then try again.',
+  already_in_party: 'Already in a party. Leave it in the Party window first.',
   party_full: 'That party is full.',
   no_party: 'That party is gone.',
   not_leader: 'Only the party leader can do that.',
@@ -356,10 +394,10 @@ export const REFUSAL_WORDS = Object.freeze({
   call_leader: 'Only your party\'s leader can call him out.',
   call_limit: 'You\'ve called 3 times today. More after midnight UTC.',
   call_unknown: 'Nobody here answers that call, so you weren\'t charged.',
-  call_only: 'He only comes when he is called. Press Call out on the ground\'s page.',
+  call_only: 'He only comes when called (Call out on the ground\'s page)',
   called_pays: 'That fight pays nothing, so nothing was paid.',
   /* A keyed hall (2027-04-20-boss-hall.sql). The press's own section reads src/data/boss-halls.js, with the key's name; these are the codes' lines anywhere else. */
-  hall_only: 'That hall only opens with its key. Use the key from the hunt\'s page.',
+  hall_only: 'Requires the hall\'s key (use it from the hunt\'s page)',
   hall_leader: 'Only your party\'s leader can open it.',
   hall_unknown: 'That hall isn\'t open, so nothing was used.',
   no_key: 'You need its key for that, so nothing was used.',
@@ -368,8 +406,8 @@ export const REFUSAL_WORDS = Object.freeze({
   member_hunting: 'Not while that member is hunting.',
   party_hunt_mismatch: 'Your party hunts somewhere else.',
   party_hunt: 'A party hunts one ground. Leave the party to change it.',
-  party_hunting: 'Not while your party is hunting. Wait until everyone is back in town.',
-  party_hunt_running: 'Not while your party is hunting. Wait until everyone is back in town.',
+  party_hunting: 'Party still hunting. Wait until everyone is back in town.',
+  party_hunt_running: 'Party still hunting. Wait until everyone is back in town.',
   no_such_name: 'No character goes by that name.',
   not_ready: 'Not everyone in the party is ready.',
   already_ready: 'You are already marked ready.',
@@ -380,7 +418,7 @@ export const REFUSAL_WORDS = Object.freeze({
   no_invite: 'That invite has gone.',
   already_hunting: 'Everyone in the party is already hunting.',
   away: 'They are away from the game.',
-  not_listed: 'That party is not open to join. Ask its leader for an invite.',
+  not_listed: 'Party not open. Ask its leader for an invite.',
   not_in_party: 'You are not in a party.',
   /* Chat and the social side. */
   empty: 'Type something first.',
@@ -396,8 +434,8 @@ export const REFUSAL_WORDS = Object.freeze({
   read_only: 'Nothing can be typed here.',
   /* Tamsin's tally (2026-12-23-tally-tasks.sql). */
   weight_needed: 'Pick the armor weight Tamsin pays you in first.',
-  tally_full: 'You\'ve got as many of her tasks as she gives at once. Finish one or give one up first.',
-  tally_in_town: 'Tamsin\'s board is on the Common. Take a task when you are back in town.',
+  tally_full: 'Max tasks from Tamsin. Finish or abandon one first.',
+  tally_in_town: 'Tamsin\'s board is on the Common (back in town)',
   tally_pays_in_town: 'Tamsin pays when you are back in town.',
   unknown_task: 'Tamsin has no such task.',
   not_held: 'You do not hold that task.',

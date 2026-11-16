@@ -305,7 +305,7 @@ async function runTests(mods) {
       ok((help > title && help < close) === !!row.help, row.id + ': its ? ' + (row.help ? 'is missing' : 'shows with no help'));
       if (row.help) {
         ok(WH.helpLine(row, false).length > 20 && h.includes('class="hs-win-help" hidden'), row.id + ': its help line is empty or not folded under the band');
-        ok(!/opens this window/.test(WH.helpLine(row, true)) && (!row.key || /opens this window/.test(WH.helpLine(row, false))), row.id + ': the key sentence follows the keyboard');
+        ok(!/Shortcut: /.test(WH.helpLine(row, true)) && (!row.key || /Shortcut: /.test(WH.helpLine(row, false))), row.id + ': the shortcut label follows the keyboard');
       }
     }
     eq(SW.filter((r) => r.help).map((r) => r.id).sort(), ['hunt-prep', 'hunts', 'inventory', 'shop', 'skills-trade', 'storage', 'wiki'], 'the windows with a help line');
@@ -775,7 +775,7 @@ async function runTests(mods) {
     const found = env(T0 + H2); const fr = found.read;
     found.read = (k) => (k === 'hunt_analyzer' ? { hero: { kills: 644, coins: 1956, loot: { bones: 900, iron_platebody: 1 } } } : fr(k));
     const finds = AR.awayRecapOf(found);
-    ok(finds && /544 kills\. Your best find this hunt was the Iron Platebody\. Still hunting\./.test(finds.text), 'the best find on the return line: ' + JSON.stringify(finds && finds.text));
+    ok(finds && /544 kills\. Best find: Iron Platebody\. Still hunting\./.test(finds.text), 'the best find on the return line: ' + JSON.stringify(finds && finds.text));
     /* a stamp from a build that kept no Level says the XP and names no Levels: never a Level worked out from the stamped XP */
     const old = env(T0 + H2); old.record = { residue: { awaySeen: { s: 's-1', at: T0, xp: stamp.xp, gold: 814, kills: 100 } } };
     const oldLine = AR.awayRecapOf(old);
@@ -997,7 +997,7 @@ async function runTests(mods) {
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
     ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
-      + 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends. Stamina now: 5 h 46 min.')
+      + 'Start mining, chopping or fishing before a hunt to resume it after. Stamina now: 5 h 46 min.')
       && !/ ago\./.test(night.text), 'the second night: ' + JSON.stringify(night && night.text));
     /* the line follows the record while the card is up: the wait grows, and it is the server's clock that says so */
     ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('waited in town for 5 h 56 min'), 'the wait is the record\'s now');
@@ -1007,12 +1007,12 @@ async function runTests(mods) {
       'a resumed job: ' + JSON.stringify(went && went.text));
     /* one next thing per end reason, by the rules (hunt-sessions.js RESUME_AFTER_END) */
     const nextOf = (reason) => (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
-    ok(nextOf('hours').includes('Set a longer hunt next time, up to the stamina you have.'), 'a set limit: ' + nextOf('hours'));
-    ok(nextOf('heals_out').includes('Pack more food next time, and the hunt can run longer.'), 'out of food: ' + nextOf('heals_out'));
-    ok(nextOf('ammo_out').includes('Pack more ammo next time'), 'out of ammo: ' + nextOf('ammo_out'));
-    ok(nextOf('runes_out').includes('Pack more runes next time'), 'out of runes: ' + nextOf('runes_out'));
-    ok(nextOf('gold_out').includes('Keep more gold on hand for the store\'s supplies, or pack your own'), 'out of gold: ' + nextOf('gold_out'));
-    ok(nextOf('died').includes('Start mining, chopping or fishing before you hunt'), 'a death resumes a job too: ' + nextOf('died'));
+    ok(nextOf('hours').includes('Set a longer hunt, up to your stamina.'), 'a set limit: ' + nextOf('hours'));
+    ok(nextOf('heals_out').includes('Pack more food for a longer hunt.'), 'out of food: ' + nextOf('heals_out'));
+    ok(nextOf('ammo_out').includes('Pack more ammo for a longer hunt'), 'out of ammo: ' + nextOf('ammo_out'));
+    ok(nextOf('runes_out').includes('Pack more runes for a longer hunt'), 'out of runes: ' + nextOf('runes_out'));
+    ok(nextOf('gold_out').includes('Lower your gold reserve, carry more gold, or pack your own supplies'), 'out of gold: ' + nextOf('gold_out'));
+    ok(nextOf('died').includes('Start mining, chopping or fishing before a hunt'), 'a death resumes a job too: ' + nextOf('died'));
     /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
     ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
     ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
@@ -1022,9 +1022,9 @@ async function runTests(mods) {
   });
   t('R3d the hunt viewed: the summary card says what came after, from the server\'s pointer', () => {
     const atEnd = AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1');
-    eq(atEnd, 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'watched as it ends: the one next thing, no wait yet');
+    eq(atEnd, 'Start mining, chopping or fishing before a hunt to resume it after.', 'watched as it ends: the one next thing, no wait yet');
     const leftOpen = AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000)), 's-1');
-    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a page left open on the card');
+    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. Start mining, chopping or fishing before a hunt to resume it after.', 'a page left open on the card');
     eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
@@ -1038,11 +1038,11 @@ async function runTests(mods) {
     eq(AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000), 'died', { hunt: 'krells_hold_hall' }), 's-1'), 'Then Wrenna waited in town for 2 h 0 min.', 'a hall lost, the page left open: the wait, no advice');
     const bar = { preset: 1, supply_source: 'mine', on_empty: 'switch', slots: [{ action: { type: 'consume', id: 'wheat_bread' } }] };
     const goldOut = (inventory) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'gold_out', { settings: bar, inventory }), 's-1');
-    eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Cooked Trout was in your bag but not on your bar, so Wrenna bought supplies until the gold ran out. Put it on your bar next time.', 'food in the bag, off the bar');
-    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.', 'only what the bar names: the old line');
-    eq(goldOut({}), 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.', 'nothing in the bag: the old line');
+    eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Tip: put Cooked Trout on your bar (Wrenna bought store supplies instead)', 'food in the bag, off the bar (the label, lane/d-labels-sweep)');
+    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'only what the bar names: the old line');
+    eq(goldOut({}), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'nothing in the bag: the old line');
     const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'gold_out', { settings: bar, inventory: { cooked_trout: 12 } })) || {}).text || '';
-    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Cooked Trout was in your bag but not on your bar'), 'the away card says it too: ' + away);
+    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Tip: put Cooked Trout on your bar'), 'the away card says it too: ' + away);
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
     ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
   });

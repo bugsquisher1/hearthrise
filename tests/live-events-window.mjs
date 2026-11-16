@@ -141,7 +141,7 @@ async function checks(overrides) {
       const lines = Object.entries(r.rows).filter(([, l]) => l.length);
       if (lines.length) fails.push('LW-OFF ' + label + ': Hunts lines say ' + JSON.stringify(lines));
       if (r.page.length) fails.push('LW-OFF ' + label + ': the page says ' + JSON.stringify(r.page));
-      if (r.press !== 'Call out the Rat King for 10,000 gp' || r.line !== 'You have 3 calls left today.' || r.off !== false) fails.push('LW-OFF ' + label + ': Call out reads ' + JSON.stringify({ line: r.line, press: r.press, off: r.off }));
+      if (r.press !== 'Call out the Rat King for 10,000 gp' || r.line !== 'Calls left today: 3' || r.off !== false) fails.push('LW-OFF ' + label + ': Call out reads ' + JSON.stringify({ line: r.line, press: r.press, off: r.off }));
       const set = await settingsLines(page);
       if (set.hud || set.settings) fails.push('LW-OFF ' + label + ': the plate\'s setting is listed ' + JSON.stringify(set));
       if (errors.length) fails.push('LW-OFF console errors: ' + errors.join(' | ').slice(0, 300));
@@ -167,7 +167,7 @@ async function checks(overrides) {
       if (others.length) fails.push('LW-PLAY a world-wide XP event writes on every line: ' + JSON.stringify(others));
       const pageWant = [{ text: 'Open Halls is on. You can call out the Rat King for free until 11:00 PM.', plain: true }, { text: 'You get 25% more Level XP this weekend. It ends Saturday 6:00 AM.', plain: false }];
       if (JSON.stringify(r.page) !== JSON.stringify(pageWant)) fails.push('LW-PLAY the page reads ' + JSON.stringify(r.page));
-      if (r.line !== 'Open Halls is on until 11:00 PM. You have 3 calls left today.') fails.push('LW-PLAY Call out\'s line reads ' + JSON.stringify(r.line));
+      if (r.line !== 'Open Halls is on until 11:00 PM. Calls left today: 3') fails.push('LW-PLAY Call out\'s line reads ' + JSON.stringify(r.line));
       if (r.press !== 'Call out the Rat King for free') fails.push('LW-PLAY the press reads ' + JSON.stringify(r.press));
       if (r.off !== false) fails.push('LW-FREE a free call\'s press is off');
       await press(page, '[data-hs-act="call-warn"]', 'LW-PLAY');
@@ -184,7 +184,7 @@ async function checks(overrides) {
       const calls = sent(s, 'hr_boss_call');
       if (calls.length !== 1 || calls[0].body.p_price !== 0 || calls[0].body.p_call !== 'rat_king') fails.push('LW-FREE the confirm sent ' + JSON.stringify(calls.map((c) => c.body)));
       r = await read(page);
-      if (!/The Rat King answers\. You're on your way\./.test(r.msg)) fails.push('LW-PLAY the answer reads ' + JSON.stringify(r.msg));
+      if (!/The Rat King answers, on your way/.test(r.msg)) fails.push('LW-PLAY the answer reads ' + JSON.stringify(r.msg));
       if (!r.plates.some((p) => p.head === '+40% Level XP')) fails.push('LW-PLAY the next answer\'s dial is not shown: ' + JSON.stringify(r.plates));
       const set = await settingsLines(page);
       if (!set.hud || !set.settings) fails.push('LW-PLAY switched on, the plate\'s setting is not listed ' + JSON.stringify(set));
@@ -243,7 +243,7 @@ async function checks(overrides) {
       await hunts(page);
       const r = await read(page);
       if (r.plates.length !== 2 || r.plates.some((p) => p.when !== 'ends in 42 min' || !p.ending)) fails.push('LW-CLOCK the last hour reads ' + JSON.stringify(r.plates));
-      if (r.line !== 'Open Halls ends in 42 min. You have 2 calls left today.') fails.push('LW-CLOCK Call out in the last hour reads ' + JSON.stringify(r.line));
+      if (r.line !== 'Open Halls ends in 42 min. Calls left today: 2') fails.push('LW-CLOCK Call out in the last hour reads ' + JSON.stringify(r.line));
       if (!r.page.some((p) => p.text === 'You get 25% more Level XP this weekend. It ends in 42 min.') || !r.page.some((p) => p.text === 'Open Halls is on. You can call out the Rat King for free. It ends in 42 min.'))
         fails.push('LW-CLOCK the page in the last hour reads ' + JSON.stringify(r.page));
       await ctx.close();

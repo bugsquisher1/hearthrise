@@ -16,14 +16,17 @@ import { CONTROLS_TEXT } from './controls.js?v=0.2.132';
 import { CRIERS_TEXT } from './criers.js?v=0.2.132';
 import { DEATH_TEXT } from './death.js?v=0.2.132';
 import { EVENTS_TEXT } from './events.js?v=0.2.132';
+import { FACTIONS_TEXT } from './factions.js?v=0.2.132';
 import { FARM_TEXT } from './farm.js?v=0.2.132';
 import { HEROES_TEXT } from './heroes.js?v=0.2.132';
 import { HOUSE_TEXT } from './house.js?v=0.2.132';
+import { HUD_TEXT } from './hud.js?v=0.2.132';
 import { HUNTS_TEXT } from './hunts.js?v=0.2.132';
 import { ITEM_TEXT } from './item.js?v=0.2.132';
 import { MONSTER_TEXT } from './monster.js?v=0.2.132';
 import { LOG_TEXT } from './log.js?v=0.2.132';
 import { PARTY_TEXT } from './party.js?v=0.2.132';
+import { PEOPLE_TEXT } from './people.js?v=0.2.132';
 import { PREP_TEXT } from './prep.js?v=0.2.132';
 import { SHOP_TEXT } from './shop.js?v=0.2.132';
 import { SLOTS_TEXT } from './slots.js?v=0.2.132';
@@ -44,14 +47,17 @@ export const TEXT = Object.freeze({
   criers: CRIERS_TEXT,
   death: DEATH_TEXT,
   events: EVENTS_TEXT,
+  factions: FACTIONS_TEXT,
   farm: FARM_TEXT,
   heroes: HEROES_TEXT,
   house: HOUSE_TEXT,
+  hud: HUD_TEXT,
   hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
   log: LOG_TEXT,
   monster: MONSTER_TEXT,
   party: PARTY_TEXT,
+  people: PEOPLE_TEXT,
   prep: PREP_TEXT,
   shop: SHOP_TEXT,
   slots: SLOTS_TEXT,

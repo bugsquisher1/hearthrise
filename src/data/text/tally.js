@@ -9,7 +9,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const TALLY_TEXT = Object.freeze({
-  /* HER LINE, one per state. {task} is "25 Giant Rats" or "The Rat King, 5 times"; {ground} the hunt's name. */
+  /* HER LINE, one per state (@sentence: Tamsin talking, and NPC talk is lore). {task} is "25 Giant Rats" or "The Rat King, 5 times"; {ground} the hunt's name. */
   say_first: 'I kept the mill\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.',
   say_none: 'Board\'s full of work. Take one and go hunt, and I\'ll pay you when you\'re back.',
   say_taken: '{task} in {ground}. Every kill counts, even while you\'re away, so off you go.',
@@ -35,7 +35,7 @@ export const TALLY_TEXT = Object.freeze({
 
   /* A held task's entry: what she pays for it (her board's own line), and a done one's next step. */
   get: 'You\'ll get {gold} and {pick}.',
-  once: 'When two tasks show the same piece, you get it once. Whichever she pays you for first comes with it, and the other moves on to her next piece.',
+  once: 'Shared piece: paid once, on the first task done',
   done_hunting: 'Done. I\'ll pay you when you\'re back in town.',
   done_town: 'Done. I\'ll pay you now.',
   done_tomorrow: 'Done. I\'ll pay you for this one tomorrow.',
@@ -44,7 +44,7 @@ export const TALLY_TEXT = Object.freeze({
   not_here: 'Not here',
   /* the box on a held task (audit 2026-11-15 F6: it read "Keep" beside Abandon, and nothing said keep what): its label, and its hover */
   keep: 'Take again when paid',
-  keep_why: 'Ticked: you get this task again as soon as she pays for it. Not ticked: it ends when she pays.',
+  keep_why: 'Ticked: repeats once she pays. Not ticked: ends when she pays',
   keep_on: 'You get this task again as soon as she pays for it.',
   keep_off: 'Once she pays for it, it won\'t come back by itself.',
   given_up: 'You gave up the {label}. Its count is gone.',
@@ -59,7 +59,7 @@ export const TALLY_TEXT = Object.freeze({
   board_level_party: 'Level {level}, party',
   board_party: 'Best with a party',
   take_held_why: 'You already have this task.',
-  no_weight: 'Pick the armor weight she pays you in first. You can change it later.',
+  no_weight: 'Pick the armor weight she pays in first (changeable later)',
 
   /* Her pick, folded to one line at the foot; Change opens the picker (Take, Abandon, Keep and Close are the glossary's, src/data/text/controls.js). */
   pick_label: 'The armor weight she pays you in',
@@ -74,9 +74,9 @@ export const TALLY_TEXT = Object.freeze({
   weight_medium: 'Medium',
   weight_light: 'Light',
   weight_set: 'She\'ll pay you in {weight} armor from now on.',
-  order_how: 'She fills your slots in this order. Tap one to have it first.',
+  order_how: 'Slot order she fills. Tap one to move it first',
   slot_first_why: 'This one already comes first.',
-  rule_worn: 'She skips a slot you already wear at that tier or better. Once she\'s out of pieces for a ground, she pays in materials.',
+  rule_worn: 'Skips slots worn at that tier or better. No pieces left: materials',
   slot_helmet: 'Head',
   slot_body: 'Body',
   slot_pants: 'Legs',

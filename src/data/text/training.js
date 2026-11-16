@@ -9,7 +9,7 @@
 
 export const TRAINING_TEXT = Object.freeze({
   /* What the yard is, said once at the top. */
-  lead: 'Pick one combat skill and train it here. You pay by the hour and earn skill XP for that skill only. No Level XP, no loot, and no stamina used.',
+  lead: 'Any skill, same rate, paid hourly. Skill XP only, no stamina',
   your_hero: 'Your hero',
   purse: 'You have {gold} gold.',
 
@@ -22,7 +22,8 @@ export const TRAINING_TEXT = Object.freeze({
   /* The picked skill's quote, every number the server's. */
   fee: '{gold} gold an hour',
   fee_house: 'No fee at home',
-  xp: 'About {xp} {skill} XP an hour',
+  xp: '{xp} {skill} XP/h',
+  xp_item: '{xp} {skill} XP/h (200%)',
   to_level: 'About {hours} to {skill} {level}',
   max_hours: 'Training stops after {hours} hours. Start it again to keep going.',
   paid_ahead: 'You pay each hour when it starts.',
@@ -41,7 +42,7 @@ export const TRAINING_TEXT = Object.freeze({
   run_paid: 'So far you have paid {gold} gold.',
 
   /* Why the last run ended (the section's last_stop.reason). */
-  ended_gold_out: '{name} stopped training {skill}. You ran out of gold for the next hour.',
+  ended_gold_out: '{name} stopped training {skill} (out of gold)',
   ended_hours: '{name} finished {skill} training. That was the longest one session can run.',
   ended_left: 'You stopped {name}\'s {skill} training.',
   ended_other: '{name} stopped training {skill}.',
@@ -49,13 +50,38 @@ export const TRAINING_TEXT = Object.freeze({
   /* Why Start is off, said before the press; the same words answer the server's refusal. */
   closed: 'The training yard is closed right now.',
   hunting: '{name} is out hunting. Come back to town to train.',
-  in_party: '{name} is in a party. Training is solo, so leave the party first.',
+  in_party: '{name} is in a party (training is solo)',
   short_gold: 'The first hour costs {fee} gold. You have {purse}.',
-  dummy_busy: '{who} is on your dummy at home right now. Only one hero can use it at a time.',
+  low_level: 'Training opens at Level {need}. You are Level {level}.',
+  dummy_busy: 'Dummy in use by {who} (one hero at a time)',
+
+  /* THE TRAINING ITEMS (2027-04-23-training-gear.sql, Tyler 2026-11-14): labels, the server's numbers, and one card line. */
+  gear_head: 'Training item',
+  gear_left: '{item} switched off, {time} left',
+  gear_left_on: '{item} at 200%, {time} left',
+  gear_use: 'Use {item}',
+  gear_held: '{item} ({hours} h)',
+  gear_bound: '{item} ({hours} h), bound',
+  gear_in_bag: '{count} in bag',
+  gear_in_storage: '{count} in Storage',
+  gear_price: '{gold} gold',
+  gear_today: '{today} of {max} bought today',
+  gear_card: '200% {skill} XP (yard or home dummy), hours run only while training',
+  gear_closed: 'Training items aren\'t for sale yet.',
+  press_buy: 'Buy',
+  press_open: 'Open',
+  busy_buy: 'Buying…',
+  busy_open: 'Opening…',
+  bought: 'You bought a {item}.',
+  opened: '{item} opened. Your {skill} training is at 200% while its hours last.',
+  gear_short: 'It costs {price} gold. You have {purse}.',
+  gear_limit: 'You bought {max} training items today. The Arms Master sells more tomorrow.',
+  gear_still_open: '{item} still has hours left (next one opens after it)',
+  gear_none_held: 'You don\'t have one in your bag or Storage.',
 
   /* THE HOUSE DUMMY (the House window). */
   dummy_head: 'Training dummy',
-  dummy_lead: 'Your account gets one dummy. It trains as fast as the yard and costs no fee. Unlock one skill at a time. Each one costs more.',
+  dummy_lead: 'One per account: yard speed, no fee. Each skill unlock costs more',
   dummy_owned: 'Unlocked',
   dummy_locked: 'Locked',
   dummy_next: 'Next unlock: {price} gold',

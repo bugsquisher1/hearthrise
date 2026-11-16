@@ -219,6 +219,11 @@
 //              both members the party panel draws: unit (= the session's world
 //              unit), name, role, HP / mana off the pose, dealt, DPS; leader and
 //              self are units; `account.max_concurrent` is the server config.
+//   PARTY-STAMINA-POOL (2027-04-26-party-stamina-truth.sql, the audit's F7) a seat's low
+//              stamina in the `party` section is its POOL, never the stored column: a seat
+//              rested since its last hunt warns of nothing at the Start; once low, the
+//              leader is shown the number the seat's own `stamina` section shows; the tick
+//              (browser closed) and a viewer's settles leave the same.
 //   TOWN-DEFAULTS the bar's unset options read the engine's pick (2027-01-25-town-defaults.sql):
 //              alone in town, a party in town, a hunt before its first settle == roles.js
 //              defaultSettings for the role and party, GOLD_FLOOR.default; the first settle's
@@ -3795,6 +3800,36 @@ const DB_ARMS = {
     if (soloEnv !== null) problems.push(`a character with no hunt and no party has a party section: ${JSON.stringify(soloEnv).slice(0, 200)}`);
     return problems;
   }),
+  /* A SEAT'S LOW STAMINA IS ITS POOL, BOTH PATHS (2027-04-26-party-stamina-truth.sql; the full-game audit's F7, 2026-11-15). Seat 1 ran
+     dry and rested 16 minutes before this hunt: nothing wrote its pool, so the stored column is 0 while the pool is 16 min. At the Start
+     its leader's envelope warns of nothing (the column read "1 min left" there). Two minutes hunted, settled by the world tick with the
+     browser closed and again by a viewer's instants: the pool is at the line or under, the leader's envelope warns with the number the
+     seat's own stamina section shows, and both doors say the same. */
+  'PARTY-STAMINA-POOL': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    await db.query(`update public.player_state set stamina_ms = 0, stamina_at = (select hunt_from - interval '16 minutes' from public.hunt_sessions where id = $2)
+                     where user_id = $1 and slot = 0`, [UIDS[1], h.sids[1]]);
+    const seat1 = async (reader) => ((((await one(db, `select public.hr_state_of($1::uuid, 0)->'party'`, [reader])) || {}).members) || []).find((m) => m.seat === 1) || {};
+    const atStart = await seat1(UIDS[0]);
+    if (atStart.hunting !== true || atStart.stamina_low_ms !== null) problems.push(`[F7] at the Start a seat with 16 min rested (stored pool 0) is shown to its leader with ${atStart.stamina_low_ms} ms left`);
+    const go = async (cuts) => {
+      await run(db, M, h.from, cuts);
+      return { party: (await seat1(UIDS[0])).stamina_low_ms, self: (await seat1(UIDS[1])).stamina_low_ms,
+        own: await one(db, `select public.hr_state_of($1::uuid, 0)->'stamina'`, [UIDS[1]]) };
+    };
+    await db.query('savepoint party_stamina');
+    const tick = await go(ticksOf(10000, 120000));
+    await db.query('rollback to savepoint party_stamina');
+    const viewed = await go((from) => [from + 7001, from + 33333, from + 120000]);
+    for (const [door, s] of [['the browser closed', tick], ['the hunt viewed', viewed]]) {
+      if (!s.own || s.own.hunting !== true || !(s.own.ms > 0 && s.own.ms <= 900000)) { problems.push(`CONTROL (${door}): after two minutes the seat's own stamina section reads ${JSON.stringify(s.own)}, want a hunting pool at 15 min or under`); continue; }
+      if (s.party !== s.own.ms) problems.push(`${door}: the leader is shown ${s.party} ms for a seat whose own stamina section says ${s.own.ms}`);
+      if (s.self !== s.own.ms) problems.push(`${door}: the seat's party row shows itself ${s.self} ms, its stamina section ${s.own.ms}`);
+    }
+    if (tick.party !== viewed.party) problems.push(`the tick left the seat's warning at ${tick.party} ms and a viewer's settles at ${viewed.party}`);
+    return problems;
+  }),
   /* TOWN-DEFAULTS (Tyler 2026-10-25: the whole bar is configurable in town; 2027-01-25-town-defaults.sql + its generated
      hr_hunt_role_defaults): an option the hero never set reads what the ENGINE would play (hunt-spawn.js heroSetup over
      roles.js defaultSettings for its role and party; GOLD_FLOOR.default for the gold to keep): alone in town, in a party
@@ -4356,7 +4391,7 @@ const MUTANTS = [
   { arm: 'DEPLOY', name: '[deploy v0.2.32] the edge proposes against a catalogue of another world shape', file: join(FN, 'hunt-settle.js'),
     from: '  if (worldShapePending(inst.world_shape)) {', to: '  if (false && worldShapePending(inst.world_shape)) {' },
   { arm: 'DEPLOY', name: '[deploy] a settle-before-mutate verb mutates ahead of the window a deploy gap owes', file: join(FN, 'set-activity.js'),
-    from: "    if ((v.outcome === 'nothing' && v.reason !== 'world_shape_pending') || v.outcome === 'none') {",
+    from: "    if ((v.outcome === 'nothing' && !OWED_WINDOW_REASONS.includes(v.reason)) || v.outcome === 'none') {",
     to: "    if (v.outcome === 'nothing' || v.outcome === 'none') {" },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
     from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS, inst.play.stopMs);', to: '  const toMs = Math.min(endMs, inst.play.stopMs);' },
@@ -4514,7 +4549,7 @@ const MUTANTS = [
   { arm: 'BOTH-PATH-MIDNIGHT', name: 'a death with no deathLog row', file: 'src/core/combat-sim.js',
     from: '  out.deathLog.push({ atMs: f.atMs, monster: f.monster, xpLost });\n', to: '' },
   { arm: 'DEATH', name: 'a death costs nothing', file: 'src/core/combat-sim.js',
-    from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
+    from: '  const xpLost = deathXpLoss(m.state, share);', to: '  const xpLost = {};' },
   { arm: 'DEATH', name: 'a dead hero gets back up (the hunt goes on)', file: 'src/core/hunt/pull-cycle.js',
     from: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", to: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;" },
   { arm: 'PARTY-DEATH', name: 'a party death leaves the survivor hunting', file: 'src/core/combat-sim.js',
@@ -4589,7 +4624,7 @@ const MUTANTS = [
   { arm: 'DEATHXP-RULE', name: 'a death takes more than the whole total (below Level 1)', file: 'src/core/action-rules.js',
     from: '  return Math.max(0, Math.min(Math.floor(x * f), x));', to: '  return Math.max(0, Math.floor(x * f) + 1);' },
   { arm: 'DEATHXP', name: 'a death prices nothing', file: 'src/core/combat-sim.js',
-    from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
+    from: '  const xpLost = deathXpLoss(m.state, share);', to: '  const xpLost = {};' },
   { arm: 'DEATHXP-BLESS', name: 'the Blessing cut row is the old 32 / 63 / 95', file: 'src/data/blessings.js',
     from: 'export const BLESSING_CUT_PERMILLE = Object.freeze([250, 500, 750]);', to: 'export const BLESSING_CUT_PERMILLE = Object.freeze([320, 630, 950]);' },
   { arm: 'END', name: 'a death ends nothing (the hunt runs on to another end)', file: 'src/core/action-rules.js',
@@ -4841,6 +4876,12 @@ const DB_MUTANTS = [
   /* (re-anchored on 2027-01-25-town-defaults.sql: a hunting member's mana falls back to its max mana) */
   { arm: 'PARTY-VIEW', name: 'the vitals are not read off the pose', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "        'mana', case when v_r.sid is not null then coalesce(v_v->'mana', v_mx->'max_mana') end,", replace: "        'mana', null::jsonb," },
+  /* PARTY-STAMINA-POOL (2027-04-26-party-stamina-truth.sql): the stored column again (F7), and a pool with no warning. */
+  { arm: 'PARTY-STAMINA-POOL', name: '[party stamina] the party section reads the stored column: a rested seat reads empty at the Start', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, v_r.settled_to) end;',
+    replace: 'then (select q.stamina_ms from public.player_state q where q.user_id = v_r.user_id and q.slot = v_r.slot) end;' },
+  { arm: 'PARTY-STAMINA-POOL', name: '[party stamina] a seat at the line warns nobody', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: 'case when v_stam <= 900000 then', replace: 'case when v_stam <= 0 then' },
   /* TOWN DEFAULTS (2027-01-25-town-defaults.sql): each leg goes red on its own defect. */
   { arm: 'TOWN-DEFAULTS', name: '[town defaults] an unset option reads null again (no role default)', fn: 'public.hr_hunt_settings_view(uuid,integer)',
     find: "    v_val := coalesce(nullif(v_opt->v_o.opt, 'null'::jsonb), v_unit->v_o.opt, v_o.dflt, v_rdef->v_o.opt);",
@@ -4869,12 +4910,12 @@ const DB_MUTANTS = [
   /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
      character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,
-    find: "        if v_n > public.hr_death_xp_max('level', v_cur) then", replace: '        if false then' },
+    find: "        if v_n > public.hr_death_xp_mode_max('level', v_cur, v_mode.death_loss_pm) then", replace: '        if false then' },
   { arm: 'DEATHXP', name: 'the Level\'s death price is never debited', fn: AM,
     find: '        update public.player_state set level_xp = level_xp - v_n where user_id = p_user and slot = p_slot;', replace: '        null;' },
   { arm: 'DEATHXP-LEVEL', name: 'the settle puts the never-de-level floor back (a death that crosses a Level is refused)', fn: AM,
-    find: "        if v_n > public.hr_death_xp_max('level', v_cur) then",
-    replace: "        if v_n > public.hr_death_xp_max('level', v_cur) or public.hr_char_level(v_cur - v_n) < public.hr_char_level(v_cur) then" },
+    find: "        if v_n > public.hr_death_xp_mode_max('level', v_cur, v_mode.death_loss_pm) then",
+    replace: "        if v_n > public.hr_death_xp_mode_max('level', v_cur, v_mode.death_loss_pm) or public.hr_char_level(v_cur - v_n) < public.hr_char_level(v_cur) then" },
   { arm: 'DEATHXP-LEVEL', name: 'the death event does not name the Level it took', fn: AM,
     find: "'level_from', v_lfrom, 'level_to', v_lto)", replace: "'level_from', null::int, 'level_to', null::int)" },
   { arm: 'DEATHXP-LEVEL', name: 'the death log drops the Level pair', fn: 'public.hr_death_log_view(uuid,integer)',

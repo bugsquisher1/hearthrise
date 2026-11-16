@@ -89,7 +89,7 @@ try {
   await sql("insert into public.player_ledger (user_id, slot, kind, intent, gold, meta) values ($1, 0, 'shop', 'town_show:borax:6000', -6000, '{\"probe\":true}'::jsonb)", [uid]);
   const purse6 = await purse();
   await page.click('[data-hs-win="havora"] [data-hs-act="powder"]');
-  const moved = await waitText('[data-hs-win="havora"] .hh-intent-msg', /The price moved to 8,000 gp\. You weren't charged\. Press again to pay it\./);
+  const moved = await waitText('[data-hs-win="havora"] .hh-intent-msg', /Price changed to 8,000 gp, not charged\. Press again to pay\./);
   step('SW-6 a stale price says so and charges nothing', moved && (await purse()) === purse6, JSON.stringify({ msg: await textOf('[data-hs-win="havora"] .hh-intent-msg'), purse: await purse(), was: purse6 }));
   const reread = await waitText('[data-hs-win="havora"] [data-hs-act="powder"]', /Throw Borax: 8,000 gp/);
   step('SW-6 the window shows the new price', reread, await textOf('[data-hs-win="havora"] [data-hs-act="powder"]'));

@@ -3,13 +3,15 @@
 //
 // Audit 2026-11-15 F12/F20: a hero banked a million gold by Level 50 and wore the Practice Shield to 87, and the
 // hunt summary's Back in town card said nothing once the bag was sorted. With gold to spend it now names ONE buy the
-// purse covers, never a wall of options, in this order (lane/a-next-steps; the order is the Systems call, the
-// designer may re-rank it):
+// purse covers, never a wall of options, in this order (lane/a-next-steps; the designer's handoff, board "2026-11-15 The audit's balance
+// findings" F8 and F12: a Shop piece over a practice one, then the next room rung, then the dummy; gear and Tempering ahead as power):
 //   gear     a Shop piece better than what is worn (upgrade-plan.js: the same "strictly better" every Equip press uses,
 //            over the worn set after the bag's own upgrades go on): a bare slot first, then the cheapest
 //   temper   the next Tempering rung of the worn weapon, then of the armor worn (temper-sections.js), gold and material in hand
+//   room     the cheapest next House room rung the house is ready for and the purse and materials cover (home-sections.js; the
+//            first rung of a bench's room also ends its tax, bench-tax.js BENCH_TAX_ROOMS)
 //   dummy    the next skill on the account's training dummy (training-sections.js), a house to put it in owned
-//   room     the cheapest next House room rung the house is ready for and the purse and materials cover (home-sections.js)
+// Its words are labels (Tyler 2026-11-14: "Recommended: 4+ players"), never sentences: "Buy Bronze-Rimmed Shield · 140 gp", "+1 Defense vs Practice Shield".
 // PURE (nextBuy) over the server's sections; nextBuyOf reads them from a CharacterSession. Every price, rung, gate and count
 // is the server's (CLAUDE.md §6): nothing here is a gate the server trusts, and the press only opens the window where the
 // buy is made (goto.js targetOf), where the server prices it again.
@@ -19,7 +21,7 @@ import { ROOM_PERKS } from '../data/perks.js?v=0.2.133';
 import { EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.133';
 import { upgradePlan, preferredWeight } from './upgrade-plan.js?v=0.2.133';
 import { itemName } from './widgets/bits.js?v=0.2.133';
-import { gold, listWords } from '../render/format.js?v=0.2.133';
+import { gold } from '../render/format.js?v=0.2.133';
 import { t } from '../render/player-text.js?v=0.2.133';
 import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.133';
 import { levelOf } from '../session/character-sections.js?v=0.2.133';
@@ -49,10 +51,10 @@ function gearBuy(o) {
   /* a bare slot first, then the cheapest, then by id (one answer for one envelope) */
   picks.sort((a, b) => (Number(!!a.replaces) - Number(!!b.replaces)) || (price.get(a.id) - price.get(b.id)) || (a.id < b.id ? -1 : 1));
   const p = picks[0];
-  const gains = listWords(p.gains.slice(0, 2).map((g) => g.text));
+  const gains = p.gains.slice(0, 2).map((g) => g.text).join(", ");
   return { kind: 'gear', title: t('summary.buy_gear', { item: itemName(p.id), price: gold(price.get(p.id)) }),
     words: gains ? (p.replaces ? t('summary.buy_gear_better', { gains, worn: itemName(p.replaces) })
-      : t('summary.buy_gear_empty', { gains, slot: ((EQUIP_SLOT_META[p.slot] || {}).label || p.slot).toLowerCase() })) : '',
+      : t('summary.buy_gear_empty', { gains, slot: (EQUIP_SLOT_META[p.slot] || {}).label || p.slot })) : '',
     icon: p.id, place: { kind: 'shop', item: p.id } };
 }
 
@@ -97,7 +99,7 @@ function roomBuy(o) {
  */
 export function nextBuy(o) {
   if (!o || !Number.isSafeInteger(o.purse) || o.purse <= 0) return null;
-  return gearBuy(o) || temperBuy(o) || dummyBuy(o) || roomBuy(o);
+  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);
 }
 
 /** This character's next buy, from what the server sent. `plan`: the bag's own Equip upgrades (upgrade-line.js upgradeOf), put on first. */

@@ -2425,7 +2425,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             words: li ? li.querySelector('small').textContent : null, verb: b ? b.textContent : null, gold: b ? b.classList.contains('is-primary') : null,
             go: b ? b.getAttribute('data-hs-goto') : null, inside: !!r && r.left >= body.left - 1 && r.right <= body.right + 1 };
         });
-        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Buy Bronze Belt for 110 gp' || row.words !== 'Your belt slot is empty. This adds +2 Defense and +8 health.'
+        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Buy Bronze Belt · 110 gp' || row.words !== 'Empty slot: Belt · +2 Defense, +8 health'
           || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|bronze_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
         if (shots) await shot(page, 'alpha-' + tag + '-back-in-town-buy');
         if (tag === '1440x900') {

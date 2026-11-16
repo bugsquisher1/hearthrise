@@ -19,5 +19,11 @@
     "tools/world-art/tower-flue.mjs: paint burning_tower_ground from src/data/world/maps/burning_tower.js rows (A ash, I iron, H hearthstone patches by noise away from iron, # void #0b0a0c) with port-pixellab.mjs paint over dirs 4 and 5; lay the wall faces (plain, ember-crack every 6th, piers) and capstones as barrow-grounds.mjs holdWalls does",
     "map row burning_tower.js is WRITTEN but NOT wired (not in maps/index.js; maskHash is a placeholder; objects empty): wire after the paint, set light/ATLAS_SETS 'tower', a region kit for it, take the_burning_tower off millrace_sewer's hunts",
     "then: in-game 1x read, the 5 props, the Hearth Chest, the Sweep's Coat"
-  ]
+  ],
+  "done (2026-11-16 resume, 0 gens)": {
+    "floor": "tools/world-art/tower-flue.mjs paints burning_tower_ground from the map rows (dirs 4 + 5; 13 hearthstone cells off the fight area; 8 soot/scorch decals), walls laid from the ember run (cracks every 6th, pier every 12th) and the plain run remapped. The runs' end cells carry 4-5 transparent columns: widened from their clean middle (a first pass left black gaps between faces)",
+    "wired": "maps/index.js WORLD_MAPS, atlas-sets.js tower, region-kits.js hearth_flue (family flue), the_burning_tower off millrace_sewer hunts, maskHash 9bcbdc0f. The engine still fights on the Sewer grid (TOWER_GROUNDS map unchanged: server catalogue, lane C)",
+    "props": "NOT new art: the kit reuses the Stokers' ash barrow, fire rake, charred stake, log stack, the Hold's brazier x2, the Sewer's hanging chains x3, the coal seam x2 (world-core Z3 wants more than 10 draws)",
+    "blocked": "the 5 new props, the big Hearth Chest and the Sweep's Coat need PixelLab generations: the PixelLab tools were not attached to this resumed run, so none were made. Read: art/review/tower-gen-2026-11-16/01-room-1440x900.png, 02-room-922x423.png"
+  }
 }

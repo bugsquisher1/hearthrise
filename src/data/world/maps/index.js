@@ -9,11 +9,12 @@ import coppercapWarrens from './coppercap_warrens.js?v=0.2.132';
 import mosslightGlade from './mosslight_glade.js?v=0.2.132';
 import sandboxHd64 from './sandbox_hd64.js?v=0.2.132';
 import wickstead from './wickstead.js?v=0.2.132';
+import burningTower from './burning_tower.js?v=0.2.132';
 import { GROUND_PACKS } from '../../grounds/index.js?v=0.2.132';
 
 /* a ground pack's map follows its status (src/data/grounds): an open pack's is drawn, a staged one's is staged below */
 const packMaps = (status) => GROUND_PACKS.filter((p) => p.status === status).map((p) => p.map);
-export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64, ...packMaps('open')]);
+export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, burningTower, sandboxHd64, ...packMaps('open')]);
 
 /* STAGED MAPS: a staged hunt's map (src/data/hunts.js `staged`): its grid is authored and walked by the
    engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);

@@ -72,7 +72,13 @@ export default Object.freeze({
     '############################################################',
   ]),
   faces: Object.freeze([]),
-  objects: Object.freeze([]),
+  /* the sweep's gear along the shaft's curves, clear of every cell the engine fights on (its pockets x51-57 y18-28, the way west) */
+  objects: Object.freeze([
+    { id: 'ma_ash_barrow', x: 52, y: 15 }, { id: 'ma_fire_rake', x: 55, y: 15 }, { id: 'cw_coal_seam', x: 53, y: 31 }, { id: 'ma_log_stack', x: 56, y: 31 },
+    { id: 'ma_charred_stake', x: 50, y: 17 }, { id: 'kh_brazier', x: 43, y: 21 },
+    { id: 'hanging_chains', x: 53, y: 14 }, { id: 'hanging_chains', x: 56, y: 14 }, { id: 'hanging_chains', x: 46, y: 20 },
+    { id: 'cw_coal_seam', x: 55, y: 32 }, { id: 'kh_brazier', x: 48, y: 21 },
+  ]),
   buildings: Object.freeze([]),
   /* the patrol loop round the room's middle */
   path: Object.freeze([[52, 20], [56, 20], [56, 27], [52, 27]]),
@@ -81,5 +87,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 42, y: 23, to: 'town_common' }]),
   start: Object.freeze([51, 23]),
-  maskHash: '00000000',
+  maskHash: '9bcbdc0f',
 });

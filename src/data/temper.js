@@ -19,9 +19,19 @@ export const TEMPER_RUNGS = 5;
 export const TEMPER_RUNG_PM = 10;
 export const TEMPER_TRACKS = Object.freeze(['blows', 'armor']);
 /* The gold of each rung, by gear tier (gear-tiers.js: Iron, Studded and Adept are tier 2, worn at Level 15; Steel, Boarhide and Scholar tier 3, at Level 30). */
+/* TIERS 4 TO 6, PRICED BY THE LEVEL THE GEAR IS WORN AT (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F17 and F20, on
+   lane/d-audit-balance-1's proposal). The Barrow March has worn Mithril, Rune and Emberforged since v0.2.132 and the smith had no rungs for
+   them, so from Level 45 to 88 no gold sink grew with the hero. MEASURED on one hero's life (`node tools/balance-sim/audit-table.mjs sinks`,
+   a sword and shield hero sent where the game sends it, every drop sold): it banks 1.10M from Level 45 to 60, 1.77M from 60 to 75 and
+   1.89M from 75 to 90. Both tracks of a tier ask 496k, 744k and 992k: 45%, 42% and 52% of the band's gold, where tiers 2 and 3 ask 40% and
+   45% of theirs. Same 1% a rung and 5% a track (TEMPER_RUNG_PM), so the next tier still wins (tests/hunt-core/temper-play.mjs). Tier 7
+   (Krell's pieces, worn at 88) has no ladder: his prize holds no weapon, so its Blows track would be a row nothing wears. */
 export const TEMPER_TIERS = Object.freeze({
   2: Object.freeze([2000, 4000, 8000, 16000, 32000]),
   3: Object.freeze([7000, 14000, 28000, 56000, 112000]),
+  4: Object.freeze([8000, 16000, 32000, 64000, 128000]),
+  5: Object.freeze([12000, 24000, 48000, 96000, 192000]),
+  6: Object.freeze([16000, 32000, 64000, 128000, 256000]),
 });
 
 /* WHAT EACH RUNG ALSO TAKES (Tyler 2026-11-05: "require some sort of crafting in order to temper gear"): a crafted material of that tier, bought with the gold in one sale
@@ -30,6 +40,11 @@ export const TEMPER_TIERS = Object.freeze({
 export const TEMPER_MATERIALS = Object.freeze({
   2: Object.freeze({ item: 'temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
   3: Object.freeze({ item: 'fine_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  /* One salt a tier, mixed at the Smithing level its metal opens at (45, 60, 75), from that metal and the March's Grave Dust: no coal in
+     any of them (src/data/recipes.js mix_mithril_temper_salts and its two sisters carry the why). */
+  4: Object.freeze({ item: 'mithril_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  5: Object.freeze({ item: 'rune_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  6: Object.freeze({ item: 'ember_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
 });
 
 export const temperUnlockId = (track, tier) => 'temper:' + track + ':' + tier;

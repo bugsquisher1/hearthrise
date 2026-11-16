@@ -207,6 +207,14 @@ const BASE_RECIPES = {
     /* Steel's tier takes no steel, ON PURPOSE (Andy: coal "has been a real slog and bottleneck for smithing"; board 2026-11-05): a Steel Bar eats 2 coal, 620 of these
        would be 1,240 coal, three hours at the Coal Rock, stacked on the band that is already half coal. Two Iron Bars and the Warrens' Big Bones ask for no coal at all. */
     {id:'mix_fine_temper_salts', name:'Mix Fine Tempering Salts', icon:'🧂', inputs:{iron_bar:2, big_bones:1}, output:'fine_temper_salts', xp:70, req:30, ms:3600},
+    /* THE MARCH'S THREE SALTS (designer 2026-11-15, lane/d-audit-balance-2; src/data/temper.js tiers 4 to 6). Each opens at the Smithing level its
+       metal does (45, 60, 75) and sits on that metal's own xp a second, never a new best. Grave Dust is the hardener: every March ground drops it
+       and its one use was the Great Hearth, so a hero now chooses between Inner Flame and the smith. NO COAL in any of them, as Steel's salt
+       has none: Rune's salt takes what a Rune Bar takes less its 4 coal, and Ember's takes the raw ore, unsmelted (a bar is 4 coal; 620 salts
+       would be 2,480). */
+    {id:'mix_mithril_temper_salts', name:'Mix Mithril Tempering Salts', icon:'🧂', inputs:{mithril_bar:1, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
+    {id:'mix_rune_temper_salts', name:'Mix Rune Tempering Salts', icon:'🧂', inputs:{mithril_bar:1, magic_essence:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
+    {id:'mix_ember_temper_salts', name:'Mix Ember Tempering Salts', icon:'🧂', inputs:{emberstone_ore:1, grave_dust:2}, output:'ember_temper_salts', xp:340, req:75, ms:6400},
     /* WHETSTONES — melee's ammo, moved here from the cut Stonemason bench
        (designer ruling, demolition 2026-10-14). xp, ms and the batch of 10 are
        unchanged; reqs and inputs are the ruling's (UNVERIFIED until a sim run). */

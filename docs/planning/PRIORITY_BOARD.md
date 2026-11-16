@@ -28,6 +28,98 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 - **The pre-rebuild board** (b1xx to b585, the scrapped old client and its systems) is archived whole at `docs/archive/planning/PRIORITY_BOARD_pre-rebuild.md`. None of its rows apply to the rebuilt game unless re-added here.
 
 ## Decisions
+### 2026-11-16 The weapon line past Dawnsteel: a power ceiling, five uniques that spend it five ways (designer, lane/d-weapon-line, on lane/d-morrow-cleanup. Tyler 2026-11-16: "yes" to a weapon line past Dawnsteel, the armor line's pattern, about x Level / 110, no tier 8; Tyler 2026-11-14: "after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades, more like tibia"; the Coordinator's reading the same day: a power BUDGET, not a stat template): RULED, a HIDDEN sample of five (`src/data/weapon-line.js`), its power measure (`tools/balance-sim/weapon-power.mjs`), its guard (`tests/weapon-line.mjs`, 27 of 27 mutants), the grader's `--uniques` wears it, MEASURED on the full grade on all four late grounds and A/B on the real settle. Nothing served, no art, no migration, the edge does not move
+**The rule: a budget, not a template.** The line is a CEILING on a weapon's power, never a stat sheet to copy. The line's weapon at Level R is the Dawnsteel weapon of its family with its attack and damage times max(1, R / 110). A weapon's power on a ground is what the engine's own rolls make of it there (`combat.js playerCombatRolls`: accuracy against each monster's defence, max hit, the weakness, the bane, the critical chance), read two ways over the ground's spawn: **pace** (each head weighted by how long it takes: kills an hour) and **safety** (each head weighted again by what it does to the hero meanwhile: the low point and the food bill). A unique worn from R may spend the budget any way it likes: more accuracy and less damage, a critical chance, a bane, and whatever the engine adds next. Three rules, all in the guard:
+1. **Never over the line.** On every ground whose band starts at 110 or later, at Level R, it sits at or under the line's weapon on pace and on safety. So it is under the line somewhere else, and that is its trade.
+2. **It wins somewhere.** On some late ground at its Level its score (pace and safety's mean) beats every other piece of its family a hero that Level can wear, and fully tempered Dawnsteel (x1.02, lane/d-temper-dawnsteel). Where two pieces of a family share a Level, neither wins everywhere.
+3. **Not a template.** A piece whose attack and damage are the line's own numbers fails the guard.
+
+**Why safety too (measured, not assumed).** The first sample's axes had a bane of the Undead. At the Vaults, A/B on the settle (a lone axes hero, 6 x 4 h, the same dice): Dawnsteel killed 197 an hour and bottomed out at 59.1, the bane axes 223 and 59.9, the line's own axes 226 and 62.1. Kills were the line's, the low point wasn't: the Undead are the soft heads, and the Leech and the Night Carter, which hit hardest, don't take the bane. Pace alone would have passed a piece that fails the bar. The re-tuned hooks (sure and keen, below) read 229 and 62.1.
+
+**Which stats scale.** The line scales attack and damage alike (the armor line's x R / 110), but a piece needn't copy the split: the power is what's bounded. Most of a weapon's power past 110 is its max hit. Accuracy is at the 95% cap against most heads (a Level 165 hero hits a Shrouded Pauper 95% of the time in Dawnsteel) and buys power only against the hard-skinned: Keeper Dunn 55% in Dawnsteel and 76% on the line, the Bone Wall 85% and 95%. So the precise pieces win the hard heads and the keen ones the soft. Melee moves are 5-18% of a Melee hero's damage and read the max hit only (no accuracy, crit or bane), so a keen or bane piece reads a little over what it plays: the ceiling errs safe.
+
+**Which families.** Every family has the line, so a ceiling stands the day any weapon ships past 110. The sample is Melee only, where the reds and the losses are. The bow, crossbow, wand and staff profit alone at every late floor and hold their low points, so nothing here adds one. **The Mage gap stays closed.** With the wand and the warhammer both on the line, a Mage's max hit over the warhammer's reads 1.25 at 88, 1.21 at 110, 1.18 at 125, 1.12 at 145, 1.09 at 165, 1.04 at 200 (style-gear SG-8's bar is 1.3): a warhammer's bigger damage grows more in points. With no wand piece in the sample, the Mage stays where lane/d-mage-110 left it and the hammer climbs toward it.
+
+**Tempering and the line's first Level** (lane/d-temper-dawnsteel: tier 7 tempers to +2%). The line beats fully tempered Dawnsteel on every late ground, both ways, from Level 117 for the sword, 119 the hatchets, 116 the warhammer, 115 the bow, 116 the crossbow, 114 the wand, 115 the staff (`weapon-power.mjs`). Tyler's x R / 110 stays the slope. A unique worn from under those Levels (Carter's Rest 110, the Ox Road 112) can't win on its numbers, so it has to win through its attribute on its own ground, and rule 2 holds it to that against tempered Dawnsteel. Every piece in this sample is worn from 125 or 165.
+
+#### 1. The sample of five (hidden)
+Pace / safety over the line's on each late ground at the piece's own Level. The ceiling is 1.000 on both.
+| Piece | Family, worn from | Attack / damage (the line's) | Attribute | Spends it on | Carter's Rest | Ox Road | Wyvern Roost | Pauper Vaults | From |
+|---|---|---|---|---|---|---|---|---|---|
+| **Wagon Guard's Sword** | sword, 125 | 43 / 32 (48 / 40) | 10% more to Dragons | All of it on wyverns: the line on the Roost, under tempered Dawnsteel anywhere else | 0.926 / 0.925 | 0.921 / 0.920 | **0.996 / 0.993** | 0.829 / 0.818 | Brood Wyvern, 0.93% |
+| **Watchman's Sword** | sword, 165 | 84 / 46 (63 / 53) | 10% more to Humans | Precise: a third more accuracy, an eighth less damage. The hard heads and the men | 0.959 / 0.959 | 0.981 / 0.985 | 0.955 / 0.955 | **0.986 / 0.992** | Shrouded Pauper, 0.07% |
+| **Limewashed Sword** | sword, 165 | 50 / 45 (63 / 53) | 10% more critical hits | Keen: less of both, and the crits. The soft heads | **0.990 / 0.990** | **0.991 / 0.991** | **0.991 / 0.991** | 0.966 / 0.960 | Bone Wall, 0.23% |
+| **Hoist Hooks** | dual axes, 165 | 76 / 47 (63 / 57) | 10% more critical hits | Sure and keen: a fifth more accuracy, a sixth less damage, and the crits. Best on the hard-skinned | 0.981 / 0.981 | 0.981 / 0.981 | 0.981 / 0.980 | **0.994 / 0.997** | Night Carter, 0.31% |
+| **Dunn's Mallet** | warhammer, 165 | 66 / 92 (48 / 102) | 10% more to Constructs | A hammer that lands: a third more accuracy, a tenth less damage, and the bone walls break | 0.949 / 0.949 | 0.950 / 0.950 | 0.949 / 0.949 | **0.989 / 0.996** | Keeper Dunn, 0.93% |
+
+**Each wins somewhere, and the two Vaults swords split the ground** (score; tempered Dawnsteel beside them). At 165 the Watchman's Sword is the better sword on the Vaults (41.2 against the Limewashed's 40.2 and tempered Dawnsteel's 34.8) and the Limewashed Sword on the other three (50.1 against 48.5 and 45.3 at Carter's Rest). Inside the Vaults it splits by head: the Limewashed lands the better blow on the Paupers, Bone Walls and Leeches, the Watchman's on the Night Carters and Keeper Dunn. At 185, the top of the Vaults, the grader picks the Limewashed there too: a higher Melee closes the accuracy gap. The Wagon Guard's Sword is a Roost piece: 30.9 there against tempered Dawnsteel's 29.5, under it everywhere else, a unique under the line as its trade. The hooks and the mallet are each their family's only unique at 165, so they beat Dawnsteel everywhere. A second piece of each family is where they'd start to trade.
+
+**Names and the cards.** Every name is from its ground's lore and was checked against every item name and the two other hidden samples. The Watchman's Sword drops beside the Watchman's Helm (the armor line's), so the old Havora Watch is one set. The Limewashed Sword comes out of the same wall as the Limewashed Plate. The Hoist Hooks are the Night Carters' (the Vaults' route goes back up their hoist shaft). Dunn's Mallet is the tool the Keepers walled the old bones up with, which is why it breaks Bone Walls. Each card leads with what the piece does:
+- Wagon Guard's Sword: "It hits Dragons 10% harder. The wagon guards who rode the pass ground their swords thin to slip under a wyvern's scales. One of them is still up in the nest."
+- Watchman's Sword: "It hits Humans 10% harder. The Havora Watch carried these against the town's thieves, and the Watchmen buried down here took theirs with them."
+- Limewashed Sword: "It lands a critical hit 10% more often. A hundred years in the ossuary lime ate its edge rough, and a rough edge bites deep."
+- Hoist Hooks: "It lands a critical hit 10% more often. The Night Carters dragged the dead up the hoist shaft on these, and a hook that's caught doesn't let go."
+- Dunn's Mallet: "It hits Constructs 10% harder. The Keepers packed the old bones into the walls with it to make room for the new dead, and Keeper Dunn never put it down."
+
+Each chance is about one every 15 hours for a lone hero at the floor (172 kills an hour, by the monster's share of the spawn, the armor line's method). Each book is the Dawnsteel weapon's times the line (54,000 a Vaults sword), so none sells under Dawnsteel. Each is `tier: 7`, `rarity: 'unique'`. A monster gives at most one weapon (the Pauper: a helm, a shroud and a sword).
+
+#### 2. The full grade (`node tools/pack.mjs check <g> --mode full --with <the other three> --uniques`, on this branch's tip, each exit code seen)
+| Ground | The cleanup's tip (Dawnsteel) | The first sample | This tip | `pack check` exit |
+|---|---|---|---|---|
+| Carter's Rest 110 | 0 fail | 0 fail | 0 fail (no unique is worn: the Wagon Guard's Sword ranks under Dawnsteel there) | **0** |
+| The Ox Road 112 | 0 fail | 0 fail | 0 fail (as Carter's Rest) | **0** |
+| Wyvern Roost 125 | a lone sword's Normal low point 58.8 FAIL | 59.5 FAIL | 59.5 FAIL (the Wagon Guard's Sword): armor's red, below | 1 -> **1** |
+| Pauper Vaults 165 | sword 58.7, axes 59.1 FAIL | sword 60.3, axes 59.9 FAIL (the hooks' bane) | sword 60.3 (the Watchman's), axes 61.2 (the Hoist Hooks); 0 fail | 1 -> **0** |
+
+**The Roost's sword is armor's red, not the weapon's.** A/B on the settle (lone sword, Wyvern Roost at 125, Normal, 6 x 4 h, the same dice), the low point:
+| Weapon | Dawnsteel plate (the grade's kit) | The armor line's plate at 125 (x1.14, all six slots) |
+|---|---|---|
+| Dawnsteel Sword | 58.8 | 59.4 |
+| Wagon Guard's Sword | 59.5 | 60.1 |
+| The line's own sword (48 / 40) | 59.8 | 61.1 |
+| The line anchored at 102 instead of 110 (51 / 43) | 60.0 | not run |
+
+Even the line's own weapon doesn't lift a lone sword over 60 at the Roost (59.8), and an 8% stronger line barely does (60.0). Plate is where it slides: Dawnsteel absorbs 58.2% at 125 against the 60% cap (the armor line's own table). With the armor line's plate the Wagon Guard's Sword reads 60.1 and the line's sword 61.1, the cleanup's what-if number, which must have dressed the armor line too. So the Roost's last red closes when the armor line's 125-band plate exists (its build list has plate at the Night Shift, 122, and leather at the Roost). Not built here: the armor line is another lane's file.
+
+#### 3. Gold on Normal, a hero alone, on the guide's food (thousands an hour, the floor / the middle; printed, never graded; the cleanup's number before the arrow)
+| Ground | Tank | Sword | Hammer | Axes |
+|---|---|---|---|---|
+| Wyvern Roost (125) | 9.2 -> 15.2 / 20.1 -> 21.6 | -19.8 -> -13.9 / 4.2 -> 6.9 | -3.4 / 15.3 (Dawnsteel) | -12.3 / 8.7 (Dawnsteel) |
+| Pauper Vaults (165) | -22.2 -> 12.4 / 14.2 -> 21.7 | -91.8 -> -46.4 / -29.8 -> -13.3 | -50.1 -> -4.9 / -1.3 -> 23.6 | -84.3 -> -45.5 / -25.0 -> 2.4 |
+
+Carter's Rest and the Ox Road don't move (no unique is worn there), and no bow, crossbow, Mage or Healer number moves anywhere. The tank and the hammer now pay at the Vaults' middle and the tank at its floor; the sword and axes alone still lose at the Vaults' floor (36k to 46k an hour back of the 92k and 84k). That's food against a slow kill, and the line is a ceiling, so a weapon won't close it: the armor line's pieces and the guide's food are the levers (NO PROFIT MOLDS: printed, never graded).
+
+#### 4. The armor line, re-read as a budget (for lane/d-armor-past-dawnsteel's owner; its files are not edited here)
+The armor line's rule says the line "moves ARMOR only. Every other number on a piece is the Dawnsteel piece's", plus one attribute. That's the template the Coordinator's reading rules out. What to change there:
+1. **The rule.** `src/data/armor-line.js`'s header and the board's "2026-11-15 Armor past Dawnsteel" call: the line is the CEILING on a piece's defence past Dawnsteel, not its armor number. A piece may give armor for its weight's style numbers (a leather body with less armor and more Ranged and crit), take more armor for a bigger penalty (plate that costs a caster more), or put some into its attribute.
+2. **The guard.** `tests/armor-line.mjs` AL3 (armor equals the line unless marked under) and AL4 (every other field is Dawnsteel's) are template rules. They become a measured ceiling as WL3 here (the piece's mitigation on every late ground at its Level, read through `mitigation.js` as `armor-line-table.mjs` does, at or under the line's), plus WL4's "wins somewhere" against same-slot pieces of its Level and tempered Dawnsteel.
+3. **The rows.** The five LINE_SAMPLE rows are Dawnsteel twins with one attribute each, and its section says so ("All three bodies at 165 differ only in their one attribute"). Each gets its own mix under the ceiling.
+4. **The anchor.** At 110 the line equals Dawnsteel, so a bare 110 unique has Dawnsteel's armor and tempered Dawnsteel beats it. Keep x R / 110 as the slope, as here, and measure the first Level where the line clears fully tempered Dawnsteel's mitigation on every late ground (for weapons it's 114-119). Under that Level a unique wins only through its attribute on its own ground (Carter's Rest's proposed five are that already).
+5. **A red already on this branch, not this lane's:** `node tests/armor-line.mjs` exits 1 on AL4, the Pauper's Shroud's `magicStrB` 36 against the Duskweave Robe Top's 10 since lane/d-mage-110's cloth row. Under the budget reading it's a caster's number the piece may not exceed.
+6. **The Roost's plate** (section 2): the 125-band plate is what closes the last Roost red.
+
+#### 5. Walk-through (a sword hero from 125 to 165)
+| Step | Does | Has from the earlier steps and the real kit | Doable? |
+|---|---|---|---|
+| 1 | Reaches 125 with the Dawnsteel Sword | `dawn_sword` is a Rare in Lord Krell's hall (3.5%, `krells_hold` is open) and on the Ox Road's Wagonmaster (0.56%, staged) | Yes, from Krell's hall |
+| 2 | Opens Hunts, sees Wyvern Roost 125-142 | Level 125 | **Not yet.** Staged |
+| 3 | Hunts the nest: Brood Wyverns, one head in 24 | Step 2 | Yes on the engine (`brood_wyvern`, the Roost's elite). Art owed |
+| 4 | A Brood Wyvern drops the Wagon Guard's Sword, about every 15 hours alone | Step 3 | **Not yet.** A hidden row, on no drop list |
+| 5 | Puts it on | Step 4, Level 125 | Yes once it's a row: gear is worn by Level |
+| 6 | Reads the card against the Dawnsteel Sword: 43 / 32 against 42 / 35, "It hits Dragons 10% harder" | Step 4 | **Partly, and it reads wrong.** The tooltip shows the numbers, and on numbers alone the unique looks worse; the bag's one-press upgrade (`upgrade-plan.js`, better on every number) offers it only as the player's choice. On the Roost it's 7% better (every head is a Dragon). A card line that says what a weapon does on the ground you're on is owed (handoff to the Art Director, with the Morrow's missing compare line, item 4) |
+| 7 | Reaches 165, opens the Pauper Vaults | Levels | **Not yet.** Staged |
+| 8 | Paupers drop the Watchman's Sword (0.07% a kill), Bone Walls the Limewashed Sword (0.23%) | Step 7 | **Not yet.** Hidden rows |
+| 9 | Picks one: 84 / 46 and Humans, or 50 / 45 and crits | Step 8 | **Partly.** The answer is the ground: the Watchman's at the Vaults at 165, the Limewashed everywhere else and at the Vaults by 185. Nothing in the game says so (step 6's line) |
+| 10 | Keeps both and wears the right one per ground, chosen once | Steps 8-9 | **No.** Gear setups remembered by ground are the Morrow's missing item 5. A budget line makes it matter more: picking the sword per ground by hand every trip is a repeated decision (the first principle) |
+
+Six of ten steps wait on something: the staged grounds, the rows, the card line and gear setups.
+
+**Regression coverage.** `tests/weapon-line.mjs` WL1-WL9 (the header lists them), 27 of 27 mutants caught, among them a template piece, a piece over the line on one ground, one sword winning everywhere, the Roost sword under Dawnsteel on its own ground, tempered Dawnsteel out-hitting it, and a wand line that would carry the Mage past 1.3. The grader's `--selftest` exits 0 (5 of 5 uniques mutants).
+
+**Exploit and economy review.** Nothing is served. When the rows ship they're Rare drops at about one every 15 hours a hero, sold at book times the line, so a farmer earns what the armor line's pieces earn. The ceiling is held per ground on two measures, so no piece is a better weapon anywhere than the published line.
+
+**Open, and for Tyler.** (1) Approve the rule and the sample. (2) The Roost's last red is armor (section 2): the armor line's 125-band plate, its owner's lane. (3) The armor line's re-read (section 4). (4) A later lane that adds attack speed or an element to weapons adds it to `weapon-power.mjs` first, so the ceiling reads it.
+
 
 ### 2026-11-16 The late grounds, cleaned up: the Ox Road re-fit, Keeper Dunn back at his lectern, the lone Healer and gold on Normal ruled, the one red left is the weapon line (designer, lane/d-morrow-cleanup, on lane/c-late-kits + lane/d-late-nearmisses): RULED, MEASURED on the full grade (`node tools/pack.mjs check <g> --mode full --with <the other three> --uniques`; every before and after in its own out folder), a guard EXTENDED. Staged packs only: no migration, no edge move, no live ground's numbers move (engine-parity's 4 pins hold, 10 mutants; `gen-catalogues --check` in sync)
 **The merge first.** The throwers (lane/c-late-kits) on the near-misses (lane/d-late-nearmisses): the four pack.js conflicts were the bag notes (the near-miss lane's Lobster and `healerTiers` kept, the throwers' Mage numbers kept); the board had interleaved the two sections and is put back whole. Graded on the merged tree: Carter's Rest passes; the Ox Road fails one line (four-xp 1.269 at the floor); Wyvern Roost one (a lone sword's Normal low point 58.8); the Vaults three (a sword's and axes' low point 58.7 / 59.1, and a Deadly four WITH a Healer 11 deaths in 16 hours, bar 9: Keeper Dunn's throw). The throwers lane's lone-bow losses (Carter's Rest -8k, the Ox Road -21k) were on its Swordfish bag: on the merged Lobster bag they read +7.4k and +2.6k.

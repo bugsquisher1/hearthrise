@@ -29,8 +29,6 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
-### 2026-11-15 The late grounds' throwers: Dangerous reaches the kiting Mage (systems, lane/c-late-kits, on lane/d-party-lines + lane/a-grader-uniques): SIX MONSTER ROWS on four STAGED packs (`range`), a guard EXTENDED, MEASURED on the real settle. No engine change, no migration, no live ground moved (engine-parity's four pins hold; `gen-catalogues --check` in sync). TWO STAGED-GRADE REDS ADDED on the Ox Road, handed to the designer (below)
-**The problem** (the section below, "For Tyler"): on Carter's Rest, the Ox Road, Wyvern Roost and the Pauper Vaults a lone Mage held Dangerous for profit. Monsters swing at whoever is in reach, and a Mage kites at 6 tiles, so it met a tenth of a hammer's damage there (27-81k an hour against 272-408k) and earned the most of any lone way. Tyler 2026-11-06: "Yes, make it risky" ... "you're gonna waste money but get more exp and possibly die a few times".
 ### 2026-11-16 The late grounds' near-misses: Deadly is a Healer's tier past 110, the Morrow's food back to Lobster, two pay rows re-fit, the bags measured (designer, lane/d-late-nearmisses, on lane/a-grader-uniques + lane/d-party-lines): RULED, MEASURED on the full grade (`node tools/pack.mjs check <ground> --mode full --with <the other three> --uniques`, every cell played twice: before and after), one card line ADDED with its guard. Staged packs and client words only: no migration, no edge move, no live ground's numbers move
 **The merge changed the numbers first.** On the merged tree (the Mage at 110's row is in) the grader lane's grade does not reproduce: Carter's Rest's and the Ox Road's four now clear (1.20 / 1.18 / 1.17 and 1.23 / 1.20 / 1.21), the Roost's four reads LOW (1.152 / 1.12 / 1.108) and eleven party seats sit under the median lone hero (Roost 8, Carter's Rest 3; 0.935-0.995), and Swordfish no longer saves a healerless Deadly four (Carter's Rest 15, the Ox Road 18 in 16 hero-hours; bar 9). And the two lanes collide: with the grader's Swordfish at Wyvern Roost, `tests/hunt-core/party-tiers.mjs` goes red (a lone bow at the top, 142, dies 6 times in 6 h on Dangerous and a crossbow once, so "Alone, Melee and Ranger heroes die here fast" stops being true).
 
@@ -61,8 +59,8 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 **Open.** (a) The weapon line past Dawnsteel, for Tyler (above). (b) Krell's Hold and the Muster Barrows already rule "bring a Healer" on Deadly but name no `healerTiers`, so their card does not say it; both are LIVE, so adding the line there is a live words change for the Coordinator to schedule. (c) On the ladder kit (no uniques) a four with a Healer still dies 30 times in 2 h on the Vaults' Deadly: the Vaults' Deadly needs the armor line shipped.
 
-### 2026-11-15 Armor past Dawnsteel: one armor line, carried by unique pieces (designer, lane/d-armor-past-dawnsteel. Tyler 2026-11-14: "There is no level cap, so technically there will always be better gear being released as long as the game is alive. I think after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades, more like tibia", "Boss gear to mix and match, rare drops from hunts"; the finding is lane/d-catacombs' DISCOVERIES 2026-11-15 and the Pauper Vaults' section 8 item 5): RULED by the designer, MEASURED on the real engine (`node tools/balance-sim/armor-line-table.mjs curve|vaults|roost`), a HIDDEN sample of five rows (`src/data/armor-line.js`) and its guard (`tests/armor-line.mjs`, 18 of 18 mutants caught). Nothing served, no art, no catalogue migration, the edge does not move
-**The call.** Past Dawnsteel the armor curve is ONE public line, and unique pieces carry it. A piece worn from Level R has the armor of the Dawnsteel piece of its slot and weight, times R / 110 (never less than Dawnsteel's): `armor = round(Dawnsteel's x max(1, R / 110))`. The line moves armor only. Every other number on the piece is its Dawnsteel twin's, and it adds one attribute from the special-attribute catalogue. A unique may sit under the line as its trade (Carter's Rest's proposed five do). None sits over it. No tier 8, no change to the stat formula.
+### 2026-11-15 The late grounds' throwers: Dangerous reaches the kiting Mage (systems, lane/c-late-kits, on lane/d-party-lines + lane/a-grader-uniques): SIX MONSTER ROWS on four STAGED packs (`range`), a guard EXTENDED, MEASURED on the real settle. No engine change, no migration, no live ground moved (engine-parity's four pins hold; `gen-catalogues --check` in sync). TWO STAGED-GRADE REDS ADDED on the Ox Road, handed to the designer (below)
+**The problem** (the section below, "For Tyler"): on Carter's Rest, the Ox Road, Wyvern Roost and the Pauper Vaults a lone Mage held Dangerous for profit. Monsters swing at whoever is in reach, and a Mage kites at 6 tiles, so it met a tenth of a hammer's damage there (27-81k an hour against 272-408k) and earned the most of any lone way. Tyler 2026-11-06: "Yes, make it risky" ... "you're gonna waste money but get more exp and possibly die a few times".
 
 **What moves it, one lever at a time** (2 seeds x 2 h, the best-piece kit `--uniques`, the bag's food, Dangerous at the floor; lone Mage deaths in 4 h, CR / Ox / Roost / Vaults):
 | Lever | Lone Mage deaths | Read |
@@ -95,6 +93,123 @@ No Normal cell died, before or after. The lone Mage's XP moves +1% to -9% (time 
 
 **Checks** (each exit code seen): party-tiers 0 (2 cases, 7 of 7 mutants), engine-parity 0 (4 pins, 10 mutants), spell-rows 0, monster-kinds 0, ground-pack 0, mutant-anchors 0, guard-hygiene 0, gen-catalogues --check 0, party-class-xp-line 0 (135 Party window lines, the four Morrow grounds' within 2.5 points of before, no row rewritten). `pack check --mode full --uniques` exit 1 on all four before and after (staged grades, red before this lane).
 
+### 2026-11-15 Armor past Dawnsteel: one armor line, carried by unique pieces (designer, lane/d-armor-past-dawnsteel. Tyler 2026-11-14: "There is no level cap, so technically there will always be better gear being released as long as the game is alive. I think after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades, more like tibia", "Boss gear to mix and match, rare drops from hunts"; the finding is lane/d-catacombs' DISCOVERIES 2026-11-15 and the Pauper Vaults' section 8 item 5): RULED by the designer, MEASURED on the real engine (`node tools/balance-sim/armor-line-table.mjs curve|vaults|roost`), a HIDDEN sample of five rows (`src/data/armor-line.js`) and its guard (`tests/armor-line.mjs`, 18 of 18 mutants caught). Nothing served, no art, no catalogue migration, the edge does not move
+**The call.** Past Dawnsteel the armor curve is ONE public line, and unique pieces carry it. A piece worn from Level R has the armor of the Dawnsteel piece of its slot and weight, times R / 110 (never less than Dawnsteel's): `armor = round(Dawnsteel's x max(1, R / 110))`. The line moves armor only. Every other number on the piece is its Dawnsteel twin's, and it adds one attribute from the special-attribute catalogue. A unique may sit under the line as its trade (Carter's Rest's proposed five do). None sits over it. No tier 8, no change to the stat formula.
+
+**Why only armor needs a line.** Every other defense is Level-free. A monster's to-hit is its base plus 2% for each point of attack over the hero's Defense and guard, and the formula fits that base to a same-Level hero, so a guard point is 2% at Level 30 or 300. Capes, Tempering and resistances are percentages. Weapons keep up on their own: the Vaults' median lone hero levels at 0.93 to 0.95 of the pace in Dawnsteel weapons (its section 8). Armor is the one thing that falls behind. Absorb and dodge are `P / (P + k x L)` against the attacker's Level, and a ward is a flat cut off a blow that grows with it (`src/core/mitigation.js`). So a set holds only if its armor grows with the Levels it faces. Full Dawnsteel holds plate at the 60% cap up to about Level 113 and then slides: 54.5% at 165, 51.6% at 200. The line holds it at the cap for good.
+
+**The three options.**
+| Option | Verdict | Why |
+|---|---|---|
+| Plain tiers 8, 9, 10 | No | Tyler ruled tier 7 the last standard tier on 2026-11-14 |
+| The formula reads the gear a hero can have (softer monsters past 113, so Dawnsteel keeps holding) | No | Armor would stop mattering at 110 for every Level after, which is the opposite of "there will always be better gear". It also puts a gear term in the one public formula and rewrites every staged Morrow row |
+| **Unique pieces carry one line** | **Yes** | The game already has the data: the Dawnsteel rows and the special-attribute catalogue. The measured tables below show it closes the armor gap with no per-ground exception |
+
+#### 1. The curve
+What a full set on the line does against a monster of its own Level + 5, beside full Dawnsteel there (`armor-line-table.mjs curve`, `mitigation.js` itself, no fights).
+
+| Worn from | Where | x | Plate set | absorbs | Dawnsteel absorbs | Leather set | dodges | Dawnhide dodges | Cloth set | wards a blow | Duskweave wards |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 110 | Carter's Rest (Dawnsteel itself) | 1.00 | 281 | 59.8% | 59.8% | 156 | 50.1% | 50.1% | 84 | 126 | 126 |
+| 122 | The Night Shift | 1.11 | 312 | 59.8% | 58.5% | 173 | 50.2% | 49.0% | 93 | 139 | 126 |
+| 125 | Wyvern Roost | 1.14 | 319 | 59.8% | 58.2% | 177 | 50.2% | 48.7% | 96 | 144 | 126 |
+| 138 | The Old Guard | 1.25 | 353 | 59.9% | 57.0% | 195 | 50.2% | 47.5% | 105 | 157 | 126 |
+| 145 | The Bellows, Father Gault | 1.32 | 371 | 59.9% | 56.3% | 205 | 50.2% | 46.9% | 111 | 166 | 126 |
+| 165 | The Pauper Vaults | 1.50 | 422 | 60% | 54.5% | 236 | 50.4% | 45.2% | 129 | 193 | 126 |
+| 185 | the next region | 1.68 | 472 | 60% | 52.8% | 263 | 50.4% | 43.7% | 141 | 211 | 126 |
+| 200 | Level 200 | 1.82 | 512 | 60% | 51.6% | 285 | 50.4% | 42.6% | 153 | 229 | 126 |
+
+By slot, the plate line reads helm 44 / body 90 / legs 64 / boots 30 / gloves 23 / belt 30 at 110, 50 / 102 / 73 / 34 / 26 / 34 at 125, 58 / 119 / 84 / 40 / 30 / 40 at 145 and 66 / 135 / 96 / 45 / 35 / 45 at 165. Leather is Dawnhide's 24 / 50 / 35 / 17 / 13 / 17 times the same number, cloth Duskweave's 13 / 27 / 19 / 9 / 7 / 9.
+
+#### 2. Measured, before and after
+`node tools/balance-sim/armor-line-table.mjs vaults`: the Pauper Vaults at its floor (165), the Morrow's three packs open on the ladder, 3 seeds x 2 h a cell, the same dice in every row. Each cell shows the tank's typical low (the sheet asks 60% on Normal) or deaths in 16 hero-hours (the sheet allows a Deadly four 9). "Today's kit" is what the gear ladder dresses a Level 165 hero in on this branch: Emberforged helm and body (Krell's Dawnsteel pair is a hall prize the ladder doesn't read) and the Coppercap Shield (main's shield ladder stops at tier 3). The Tollgate is Krell's tier-7 shield, guard 15 (special-attribute sample). The sample row wears the five rows below with Dawnsteel in every other slot.
+
+| Kit | Food | Normal: tank alone | hammer alone | bow alone | Mage alone | Dangerous: tank and Healer | Deadly: a four |
+|---|---|---|---|---|---|---|---|
+| Today's kit | Salted Lobster (the guide's) | 59% | 60% | 78% | 96% | 38.7 | 206.3 |
+| Full Dawnsteel, Coppercap | Salted Lobster | 60% | 62% | 79% | 96% | 14.7 | 127.9 |
+| Full Dawnsteel, the Tollgate | Salted Lobster | 70% | 62% | 79% | 96% | 14.7 | 127.9 |
+| The line one band behind (x1.27) | Salted Lobster | 72% | 65% | 81% | 96% | 2.7 | 62.5 |
+| **The line (x1.5)** | Salted Lobster | 74% | 67% | 81% | 96% | 2.7 | 39.6 |
+| **The sample** | Salted Lobster | 73% | 66% | 81% | 96% | 5.3 | 41.8 |
+| Today's kit | Salted Shark | 59% | 60% | 78% | 96% | 0 | 43.6 |
+| Full Dawnsteel, Coppercap | Salted Shark | 60% | 62% | 79% | 96% | 1.3 | 17.4 |
+| Full Dawnsteel, the Tollgate | Salted Shark | 70% | 62% | 79% | 96% | 1.3 | 17.4 |
+| The line one band behind (x1.27) | Salted Shark | 72% | 65% | 81% | 96% | 0 | 4 |
+| **The line (x1.5)** | Salted Shark | 74% | 67% | 81% | 96% | 0 | **2.7** |
+| **The sample** | Salted Shark | 73% | 66% | 81% | 96% | 0 | **2** |
+
+`node tools/balance-sim/armor-line-table.mjs roost`: Wyvern Roost's Deadly on the full box of 8 (the pack's `tierOverride` brings 6 because a four died there), Level 125, 4 seeds x 2 h.
+
+| Kit | Salted Lobster (the guide's) | Salted Swordfish |
+|---|---|---|
+| Full Dawnsteel, Coppercap | 9.5 | 3 |
+| Full Dawnsteel, the Tollgate | 11.5 | 2.5 |
+| **The line (x1.14)** | **6.5** | **1** |
+
+**What the numbers say.**
+1. **Three things stack at the Vaults, and armor is one of them.** On Normal the shield is the biggest lever: the Tollgate takes the lone tank from 60% to 70%, the line adds 4 more. The hammer has no shield, so armor is all it has: 60% today, 67% on the line. On Dangerous and Deadly every monster's to-hit is already at the 85% cap, so guard does nothing there (the Coppercap and Tollgate rows read the same) and armor and food are the levers.
+2. **The line is what Deadly needs.** On the Level's food, a Deadly four reads 17.4 in Dawnsteel, 4 one band behind and 2.7 on the line, against the sheet's 9. That is the pack's own Deadly with no per-ground exception. On the Roost the line lets Deadly bring the full 8 again (6.5 against 9), so the Roost's `tierOverride` can go once its pieces are in.
+3. **The guide's food is the other half, and that's the packs' data, not this line.** Every Morrow and Vaults pack copies Carter's Rest's Salted Lobster: 216 HP, 9% of a 2,291 HP tank at 165. On it, the line's Deadly four still reads 39.6. On Salted Shark (396) it reads 2.7. Handed to the packs' owners (handoff 1): the guide should name the Level's store food. My read is Swordfish from 120 and Shark from 150. Shark heals 14% of a Level 200 tank, so the store needs a bigger food somewhere past 200.
+4. **The sample alone holds the Vaults.** Its three heavy pieces plus Dawnsteel boots, gloves and belt read 73% on Normal and 2 deaths on Deadly on Salted Shark, against the full line's 74% and 2.7. The big three slots are 71% of a set's armor and plate is at its absorb cap by 59%, so a tank with those three is most of the way there. One band behind (x1.27) still holds Deadly on the Level's food (4), so a hero a band late is not locked out.
+5. **Gold, printed and not graded (NO PROFIT MOLDS).** Better armor eats less: the lone tank on Lobster eats 273 an hour in Dawnsteel with the Coppercap, 166 with the Tollgate and 116 on the line (about 49k, 30k and 21k g an hour at 180 g a bite). Salted Shark costs 693 g a bite, so the four that lives on it pays for it. A player's own cooked shark costs nothing a bite.
+6. **Deaths are noisy at this sample size.** The same Roost kit read 9.5 and 21 deaths in two harnesses earlier today. Every table above is one run on the same dice per row, so rows compare with each other. The full grade is owed when rows ship.
+
+#### 3. The sample of five (`src/data/armor-line.js` LINE_SAMPLE, hidden)
+The Pauper Vaults' rare drops, all worn from 165, the line's x1.5. The three heavy pieces are the big three a tank needs on the line. One body each for leather and cloth shows the line on the other weights. Each resistance is for an element cast on this ground: Lime Sack is poison, Snuff the Candles is ice. Names were checked against every item name in the game.
+
+| Piece | Slot, weight | Armor (Dawnsteel's) | Attribute | From | Chance a kill | The card says |
+|---|---|---|---|---|---|---|
+| **Watchman's Helm** | helm, plate | 66 (44) | 10% less ice | Shrouded Pauper | 0.07% | "Some of the paupers were old Havora Watch, buried in the one good thing they still owned." |
+| **Limewashed Plate** | body, plate | 135 (90) | 10% less poison | Bone Wall | 0.23% | "It went into the ossuary wall with whoever wore it, and a hundred years in the lime turned it white." |
+| **Limewashed Leg Plates** | legs, plate | 96 (64) | 3% less physical (the hook is owed) | Bone Wall | 0.23% | "They came out of the same wall as the plate, still set in a crust of lime and knucklebones." |
+| **Hauler's Jerkin** | body, leather | 75 (50) | 10% less poison | Night Carter | 0.31% | "The Night Carters carried the lime sacks on their backs, and this coat is stiff with it." |
+| **Pauper's Shroud** | body, cloth | 41 (27) | 10% less ice | Shrouded Pauper | 0.07% | "A gray sheet with a wooden tag still tied to it. Whoever it was is still owed a burning." |
+
+Each card leads with what the piece does ("You take 10% less ice damage."). Each chance is about one every 15 hours for a lone tank at the floor (172 kills an hour), by the monster's share of the spawn. The drop guard fits it when the rows go in. Each book value is its Dawnsteel twin's times 1.5, so a piece never sells under its twin. Each carries `tier: 7` and `rarity: 'unique'`. The Pauper's Shroud is the catacombs design's proposal, kept by name and moved onto the line (that draft had it under Duskweave). **Who gives up what.** Next to Dawnsteel there's no trade, and that's on purpose: Tyler asked for better gear. The choice is between uniques of the same Level. All three bodies at 165 differ only in their one attribute, so picking one is picking the danger you're dressing for. This replaces the Morrow section 9 line "a unique ... always gives something up" and its guard spec (missing item 6) past Level 110. That rule was written before anyone measured the slide, and it would keep every hero in Dawnsteel. The Havora Watch is a new line of lore: one sentence, and nobody has read it yet.
+
+**The guard (`tests/armor-line.mjs`).** AL1 the line's base is the generated Dawnsteel set. AL2 the rows are hidden and their names are free. AL3 each row is on the line, or marked under it with a reason, never over. AL4 the line moves armor only, the Level is the ground's floor, and the book is the base's times the line. AL5 one attribute at its tier-7 size. AL6 a home on the named ground, a Rare chance under 5%, at most two armor slots a monster, used by being worn. AL7 a resistance names an element cast on its ground. AL8 words. `--mutate`: 18 of 18 caught.
+
+#### 4. Walk-through (a Level 165 hero coming off the Bellows, on the line)
+| Step | Does | Has from the earlier steps and the real kit | Doable? |
+|---|---|---|---|
+| 1 | Reaches 165 in Dawnsteel: boots, legs, gloves and belt off Carter's Rest, the helm and body off Krell, the Tollgate off Krell's daily kill | The Morrow and the March | **Not yet.** Carter's Rest is staged (`dawn_boots`, `dawn_platelegs` Scarce, gloves and belt Rare), Krell's pair is a hall prize (`krells_hold` 3.5%), the Tollgate is a hidden sample row |
+| 2 | Opens Hunts, sees the Pauper Vaults 165-185 | Level 165 | **Not yet.** Staged |
+| 3 | Brings Salted Shark | Gold | Yes: `salted_shark`, a store row (`supply-basics.js`). Before you go names Salted Lobster today (handoff 1) |
+| 4 | Hunts the Gallery and the Bone Room: Shrouded Paupers, Bone Walls | Step 2 | Yes on the engine, measured. Art owed |
+| 5 | A Bone Wall drops the Limewashed Plate, about every 15 hours alone | Step 4 | **Not yet.** A hidden row, on no drop list. The rare reveal and the party's rare roll exist |
+| 6 | Puts it on | Step 5, Level 165 | Yes once it's a row: gear is worn by Level (`LEVEL_REQ`) |
+| 7 | Reads the card against the Dawnsteel Platebody: 135 armor against 90, 10% less poison | Step 5 | **Partly.** The tooltip shows the stats. A side-by-side line against the worn piece is the Morrow's missing item 4 |
+| 8 | Holds the Vaults' Deadly in a four with the helm, plate and legs | Steps 5-6 three times | Measured on the engine (table above). Not played by hand |
+| 9 | Sells the second plate that drops | Step 5 | Yes: book 162,000 |
+| 10 | Keeps the poison set for the Vaults and swaps back for the Roost | Steps 5-8 | **No.** Setups that remember gear by ground are the Morrow's missing item 5. The line makes that gap worse, because every band now has its own best pieces |
+
+Six of ten steps wait on something: two staged grounds, the rows, a compare line and gear setups.
+
+#### 5. The build list (after Tyler approves the sample; batches of 20 or fewer, CLAUDE.md §10)
+The rule for coverage: each weight finds its big three (helm, body, legs) on the line within one band of its Level (one band behind still holds: the x1.27 rows above), and boots, gloves and belt come from bosses to mix and match.
+
+| # | Where, worn from | Pieces | Why there |
+|---|---|---|---|
+| 1 | The Pauper Vaults, 165 | **This sample: 5** | Where the gap was measured |
+| 2 | The Pauper Vaults, 165 | Leather and cloth helms and legs: 4 | Finishes the Vaults' big three for every weight |
+| 3 | Wyvern Roost, 125 | Leather big three: 3 | The bow's ground. Its walk-through's step 8 ("wants a gear upgrade: no") is a dead moment today |
+| 4 | The Night Shift, 122 | Plate big three: 3 | The melee ground |
+| 5 | The Old Guard, 138 | Cloth big three: 3 | The casters' ground |
+| 6 | The Bellows and Father Gault, 145 | Boots, gloves and belts in three weights from Gault: 9. One big three of mixed weights from the Bellows: 3 | The party ground and the boss to mix from. The Morrow's Furnace Mitts become Gault's cloth gloves on the line. Gault's Stole stays a cape. The proposed Bellows Key Ring goes, since high-end jewelry is crafted (Tyler 2026-11-14) and Gault drops a gem for it instead |
+| 7 | Carter's Rest, 110 | Its five proposals, unchanged | All at or under the line already |
+| 8 | Each new region | The same pattern on the next band | |
+
+About 30 rows after the sample, in two batches. Weapons, shields and capes get no line, because they don't fall behind (the call above). A later shield may add a property, and the Tollgate's guard 15 stays the top.
+
+#### 6. Open, and for Tyler
+1. **Approve the line and the sample** (sections 1 and 3): armor = Dawnsteel's x Level / 110, armor only, carried by uniques.
+2. **Tempering past tier 7.** Tier 7 has no ladder (lane/d-audit-balance-2), so a line piece can't be tempered. The sink that grows with the hero stops at 88. A rung keyed on the band (110, 125, 145, 165) is the natural fit. That's a gold-sink call for Tyler, after the shield ladder and Tempering 4-6 land.
+3. Handoffs (HANDOFFS.md 2026-11-15): the guide's food for every post-110 pack, the Roost's override, Systems' gear with no tier and the grader playing uniques, the physical hook.
+
+**Done and verified.** The line's table is `mitigation.js` itself. Every measured row is the real settle through `cell.mjs`, with each variant's kit read back. The guard is green and 18 of 18 mutants are caught. `special-attributes`, `catalogue-coherence`, `guard-hygiene`, `cache-buster-guard` and `typecheck-ratchet` all exit 0. Every id named was read on this branch. **Not verified.** Nothing played by hand. No full grade (the grader can't wear a unique yet). The physical 3% is not in any measure. **Assumed.** The drop chances, the Bellows-and-Gault split in the build list, and that the shield ladder (lane/d-audit-balance-1) and the Tollgate land before any of this.
+
+**Files.** `src/data/armor-line.js` (new, hidden), `tests/armor-line.mjs` (new), `tools/balance-sim/armor-line-table.mjs` (new), `tests/guards-unregistered.json` (two entries), `.claude/coordination/DISCOVERIES.md`, `HANDOFFS.md`, the designer log. lane/d-catacombs and lane/d-special-attributes are merged in.
 ### 2026-11-15 The Party window's lines, re-measured and guarded; Dangerous on the Morrow is a party's tier (designer, lane/d-party-lines, on lane/d-mage-110): MEASURED on the real settle, every line WRITTEN BY ITS TOOL, a guard EXTENDED and one ADDED, one line of card text ADDED. Client data and text only: no migration, no edge move (`gen-catalogues --check` in sync; the party lines and `partyTiers` are in no server catalogue)
 **The finding held.** Read the documented way (`party-class-xp-line --table --mixed` at the floor, one class the mean of the five one-class parties, two of two the mean of three duo mixes, three of three of the two trios, four of four the four, the cells between the mix times the pay cell's ratio), 12 of 15 grounds' rows differed from a fresh measurement, and 27 of the 135 cells were more than 7.5 points off. The worst: Krell's Hold's four said +0 and measured +23, the Pyre Field's four +0 and +18, the Glade's four +30 and +41, Wyvern Roost's four +25 and +13.
 
@@ -298,123 +413,6 @@ The Rat King called out (set's row, 30 tries a row): a good-bar four at Level 25
 **For Tyler (three calls).** (1) C3: should "% physical resistance" become the one "less from every hit" stat the game already has? It also cuts fire. (2) C5: change the Tower's XP words, or add a second XP number under floor 32. (3) Krell's first-win guarantee stays, though it's the same idea he turned down for the Tower's first key.
 
 **Not verified.** None of the itinerary, the Tower past phase 1, boss call B, Krell or the special items was played, because none of them is on the set. Training items and factions weren't played either: their switches are off. The stamina line read 4:34 h after a 1 h training session where I expected about 5:06; the Character window read 5:07 h right after, so it looks like display lag, not checked further.
-### 2026-11-15 Armor past Dawnsteel: one armor line, carried by unique pieces (designer, lane/d-armor-past-dawnsteel. Tyler 2026-11-14: "There is no level cap, so technically there will always be better gear being released as long as the game is alive. I think after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades, more like tibia", "Boss gear to mix and match, rare drops from hunts"; the finding is lane/d-catacombs' DISCOVERIES 2026-11-15 and the Pauper Vaults' section 8 item 5): RULED by the designer, MEASURED on the real engine (`node tools/balance-sim/armor-line-table.mjs curve|vaults|roost`), a HIDDEN sample of five rows (`src/data/armor-line.js`) and its guard (`tests/armor-line.mjs`, 18 of 18 mutants caught). Nothing served, no art, no catalogue migration, the edge does not move
-**The call.** Past Dawnsteel the armor curve is ONE public line, and unique pieces carry it. A piece worn from Level R has the armor of the Dawnsteel piece of its slot and weight, times R / 110 (never less than Dawnsteel's): `armor = round(Dawnsteel's x max(1, R / 110))`. The line moves armor only. Every other number on the piece is its Dawnsteel twin's, and it adds one attribute from the special-attribute catalogue. A unique may sit under the line as its trade (Carter's Rest's proposed five do). None sits over it. No tier 8, no change to the stat formula.
-
-**Why only armor needs a line.** Every other defense is Level-free. A monster's to-hit is its base plus 2% for each point of attack over the hero's Defense and guard, and the formula fits that base to a same-Level hero, so a guard point is 2% at Level 30 or 300. Capes, Tempering and resistances are percentages. Weapons keep up on their own: the Vaults' median lone hero levels at 0.93 to 0.95 of the pace in Dawnsteel weapons (its section 8). Armor is the one thing that falls behind. Absorb and dodge are `P / (P + k x L)` against the attacker's Level, and a ward is a flat cut off a blow that grows with it (`src/core/mitigation.js`). So a set holds only if its armor grows with the Levels it faces. Full Dawnsteel holds plate at the 60% cap up to about Level 113 and then slides: 54.5% at 165, 51.6% at 200. The line holds it at the cap for good.
-
-**The three options.**
-| Option | Verdict | Why |
-|---|---|---|
-| Plain tiers 8, 9, 10 | No | Tyler ruled tier 7 the last standard tier on 2026-11-14 |
-| The formula reads the gear a hero can have (softer monsters past 113, so Dawnsteel keeps holding) | No | Armor would stop mattering at 110 for every Level after, which is the opposite of "there will always be better gear". It also puts a gear term in the one public formula and rewrites every staged Morrow row |
-| **Unique pieces carry one line** | **Yes** | The game already has the data: the Dawnsteel rows and the special-attribute catalogue. The measured tables below show it closes the armor gap with no per-ground exception |
-
-#### 1. The curve
-What a full set on the line does against a monster of its own Level + 5, beside full Dawnsteel there (`armor-line-table.mjs curve`, `mitigation.js` itself, no fights).
-
-| Worn from | Where | x | Plate set | absorbs | Dawnsteel absorbs | Leather set | dodges | Dawnhide dodges | Cloth set | wards a blow | Duskweave wards |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 110 | Carter's Rest (Dawnsteel itself) | 1.00 | 281 | 59.8% | 59.8% | 156 | 50.1% | 50.1% | 84 | 126 | 126 |
-| 122 | The Night Shift | 1.11 | 312 | 59.8% | 58.5% | 173 | 50.2% | 49.0% | 93 | 139 | 126 |
-| 125 | Wyvern Roost | 1.14 | 319 | 59.8% | 58.2% | 177 | 50.2% | 48.7% | 96 | 144 | 126 |
-| 138 | The Old Guard | 1.25 | 353 | 59.9% | 57.0% | 195 | 50.2% | 47.5% | 105 | 157 | 126 |
-| 145 | The Bellows, Father Gault | 1.32 | 371 | 59.9% | 56.3% | 205 | 50.2% | 46.9% | 111 | 166 | 126 |
-| 165 | The Pauper Vaults | 1.50 | 422 | 60% | 54.5% | 236 | 50.4% | 45.2% | 129 | 193 | 126 |
-| 185 | the next region | 1.68 | 472 | 60% | 52.8% | 263 | 50.4% | 43.7% | 141 | 211 | 126 |
-| 200 | Level 200 | 1.82 | 512 | 60% | 51.6% | 285 | 50.4% | 42.6% | 153 | 229 | 126 |
-
-By slot, the plate line reads helm 44 / body 90 / legs 64 / boots 30 / gloves 23 / belt 30 at 110, 50 / 102 / 73 / 34 / 26 / 34 at 125, 58 / 119 / 84 / 40 / 30 / 40 at 145 and 66 / 135 / 96 / 45 / 35 / 45 at 165. Leather is Dawnhide's 24 / 50 / 35 / 17 / 13 / 17 times the same number, cloth Duskweave's 13 / 27 / 19 / 9 / 7 / 9.
-
-#### 2. Measured, before and after
-`node tools/balance-sim/armor-line-table.mjs vaults`: the Pauper Vaults at its floor (165), the Morrow's three packs open on the ladder, 3 seeds x 2 h a cell, the same dice in every row. Each cell shows the tank's typical low (the sheet asks 60% on Normal) or deaths in 16 hero-hours (the sheet allows a Deadly four 9). "Today's kit" is what the gear ladder dresses a Level 165 hero in on this branch: Emberforged helm and body (Krell's Dawnsteel pair is a hall prize the ladder doesn't read) and the Coppercap Shield (main's shield ladder stops at tier 3). The Tollgate is Krell's tier-7 shield, guard 15 (special-attribute sample). The sample row wears the five rows below with Dawnsteel in every other slot.
-
-| Kit | Food | Normal: tank alone | hammer alone | bow alone | Mage alone | Dangerous: tank and Healer | Deadly: a four |
-|---|---|---|---|---|---|---|---|
-| Today's kit | Salted Lobster (the guide's) | 59% | 60% | 78% | 96% | 38.7 | 206.3 |
-| Full Dawnsteel, Coppercap | Salted Lobster | 60% | 62% | 79% | 96% | 14.7 | 127.9 |
-| Full Dawnsteel, the Tollgate | Salted Lobster | 70% | 62% | 79% | 96% | 14.7 | 127.9 |
-| The line one band behind (x1.27) | Salted Lobster | 72% | 65% | 81% | 96% | 2.7 | 62.5 |
-| **The line (x1.5)** | Salted Lobster | 74% | 67% | 81% | 96% | 2.7 | 39.6 |
-| **The sample** | Salted Lobster | 73% | 66% | 81% | 96% | 5.3 | 41.8 |
-| Today's kit | Salted Shark | 59% | 60% | 78% | 96% | 0 | 43.6 |
-| Full Dawnsteel, Coppercap | Salted Shark | 60% | 62% | 79% | 96% | 1.3 | 17.4 |
-| Full Dawnsteel, the Tollgate | Salted Shark | 70% | 62% | 79% | 96% | 1.3 | 17.4 |
-| The line one band behind (x1.27) | Salted Shark | 72% | 65% | 81% | 96% | 0 | 4 |
-| **The line (x1.5)** | Salted Shark | 74% | 67% | 81% | 96% | 0 | **2.7** |
-| **The sample** | Salted Shark | 73% | 66% | 81% | 96% | 0 | **2** |
-
-`node tools/balance-sim/armor-line-table.mjs roost`: Wyvern Roost's Deadly on the full box of 8 (the pack's `tierOverride` brings 6 because a four died there), Level 125, 4 seeds x 2 h.
-
-| Kit | Salted Lobster (the guide's) | Salted Swordfish |
-|---|---|---|
-| Full Dawnsteel, Coppercap | 9.5 | 3 |
-| Full Dawnsteel, the Tollgate | 11.5 | 2.5 |
-| **The line (x1.14)** | **6.5** | **1** |
-
-**What the numbers say.**
-1. **Three things stack at the Vaults, and armor is one of them.** On Normal the shield is the biggest lever: the Tollgate takes the lone tank from 60% to 70%, the line adds 4 more. The hammer has no shield, so armor is all it has: 60% today, 67% on the line. On Dangerous and Deadly every monster's to-hit is already at the 85% cap, so guard does nothing there (the Coppercap and Tollgate rows read the same) and armor and food are the levers.
-2. **The line is what Deadly needs.** On the Level's food, a Deadly four reads 17.4 in Dawnsteel, 4 one band behind and 2.7 on the line, against the sheet's 9. That is the pack's own Deadly with no per-ground exception. On the Roost the line lets Deadly bring the full 8 again (6.5 against 9), so the Roost's `tierOverride` can go once its pieces are in.
-3. **The guide's food is the other half, and that's the packs' data, not this line.** Every Morrow and Vaults pack copies Carter's Rest's Salted Lobster: 216 HP, 9% of a 2,291 HP tank at 165. On it, the line's Deadly four still reads 39.6. On Salted Shark (396) it reads 2.7. Handed to the packs' owners (handoff 1): the guide should name the Level's store food. My read is Swordfish from 120 and Shark from 150. Shark heals 14% of a Level 200 tank, so the store needs a bigger food somewhere past 200.
-4. **The sample alone holds the Vaults.** Its three heavy pieces plus Dawnsteel boots, gloves and belt read 73% on Normal and 2 deaths on Deadly on Salted Shark, against the full line's 74% and 2.7. The big three slots are 71% of a set's armor and plate is at its absorb cap by 59%, so a tank with those three is most of the way there. One band behind (x1.27) still holds Deadly on the Level's food (4), so a hero a band late is not locked out.
-5. **Gold, printed and not graded (NO PROFIT MOLDS).** Better armor eats less: the lone tank on Lobster eats 273 an hour in Dawnsteel with the Coppercap, 166 with the Tollgate and 116 on the line (about 49k, 30k and 21k g an hour at 180 g a bite). Salted Shark costs 693 g a bite, so the four that lives on it pays for it. A player's own cooked shark costs nothing a bite.
-6. **Deaths are noisy at this sample size.** The same Roost kit read 9.5 and 21 deaths in two harnesses earlier today. Every table above is one run on the same dice per row, so rows compare with each other. The full grade is owed when rows ship.
-
-#### 3. The sample of five (`src/data/armor-line.js` LINE_SAMPLE, hidden)
-The Pauper Vaults' rare drops, all worn from 165, the line's x1.5. The three heavy pieces are the big three a tank needs on the line. One body each for leather and cloth shows the line on the other weights. Each resistance is for an element cast on this ground: Lime Sack is poison, Snuff the Candles is ice. Names were checked against every item name in the game.
-
-| Piece | Slot, weight | Armor (Dawnsteel's) | Attribute | From | Chance a kill | The card says |
-|---|---|---|---|---|---|---|
-| **Watchman's Helm** | helm, plate | 66 (44) | 10% less ice | Shrouded Pauper | 0.07% | "Some of the paupers were old Havora Watch, buried in the one good thing they still owned." |
-| **Limewashed Plate** | body, plate | 135 (90) | 10% less poison | Bone Wall | 0.23% | "It went into the ossuary wall with whoever wore it, and a hundred years in the lime turned it white." |
-| **Limewashed Leg Plates** | legs, plate | 96 (64) | 3% less physical (the hook is owed) | Bone Wall | 0.23% | "They came out of the same wall as the plate, still set in a crust of lime and knucklebones." |
-| **Hauler's Jerkin** | body, leather | 75 (50) | 10% less poison | Night Carter | 0.31% | "The Night Carters carried the lime sacks on their backs, and this coat is stiff with it." |
-| **Pauper's Shroud** | body, cloth | 41 (27) | 10% less ice | Shrouded Pauper | 0.07% | "A gray sheet with a wooden tag still tied to it. Whoever it was is still owed a burning." |
-
-Each card leads with what the piece does ("You take 10% less ice damage."). Each chance is about one every 15 hours for a lone tank at the floor (172 kills an hour), by the monster's share of the spawn. The drop guard fits it when the rows go in. Each book value is its Dawnsteel twin's times 1.5, so a piece never sells under its twin. Each carries `tier: 7` and `rarity: 'unique'`. The Pauper's Shroud is the catacombs design's proposal, kept by name and moved onto the line (that draft had it under Duskweave). **Who gives up what.** Next to Dawnsteel there's no trade, and that's on purpose: Tyler asked for better gear. The choice is between uniques of the same Level. All three bodies at 165 differ only in their one attribute, so picking one is picking the danger you're dressing for. This replaces the Morrow section 9 line "a unique ... always gives something up" and its guard spec (missing item 6) past Level 110. That rule was written before anyone measured the slide, and it would keep every hero in Dawnsteel. The Havora Watch is a new line of lore: one sentence, and nobody has read it yet.
-
-**The guard (`tests/armor-line.mjs`).** AL1 the line's base is the generated Dawnsteel set. AL2 the rows are hidden and their names are free. AL3 each row is on the line, or marked under it with a reason, never over. AL4 the line moves armor only, the Level is the ground's floor, and the book is the base's times the line. AL5 one attribute at its tier-7 size. AL6 a home on the named ground, a Rare chance under 5%, at most two armor slots a monster, used by being worn. AL7 a resistance names an element cast on its ground. AL8 words. `--mutate`: 18 of 18 caught.
-
-#### 4. Walk-through (a Level 165 hero coming off the Bellows, on the line)
-| Step | Does | Has from the earlier steps and the real kit | Doable? |
-|---|---|---|---|
-| 1 | Reaches 165 in Dawnsteel: boots, legs, gloves and belt off Carter's Rest, the helm and body off Krell, the Tollgate off Krell's daily kill | The Morrow and the March | **Not yet.** Carter's Rest is staged (`dawn_boots`, `dawn_platelegs` Scarce, gloves and belt Rare), Krell's pair is a hall prize (`krells_hold` 3.5%), the Tollgate is a hidden sample row |
-| 2 | Opens Hunts, sees the Pauper Vaults 165-185 | Level 165 | **Not yet.** Staged |
-| 3 | Brings Salted Shark | Gold | Yes: `salted_shark`, a store row (`supply-basics.js`). Before you go names Salted Lobster today (handoff 1) |
-| 4 | Hunts the Gallery and the Bone Room: Shrouded Paupers, Bone Walls | Step 2 | Yes on the engine, measured. Art owed |
-| 5 | A Bone Wall drops the Limewashed Plate, about every 15 hours alone | Step 4 | **Not yet.** A hidden row, on no drop list. The rare reveal and the party's rare roll exist |
-| 6 | Puts it on | Step 5, Level 165 | Yes once it's a row: gear is worn by Level (`LEVEL_REQ`) |
-| 7 | Reads the card against the Dawnsteel Platebody: 135 armor against 90, 10% less poison | Step 5 | **Partly.** The tooltip shows the stats. A side-by-side line against the worn piece is the Morrow's missing item 4 |
-| 8 | Holds the Vaults' Deadly in a four with the helm, plate and legs | Steps 5-6 three times | Measured on the engine (table above). Not played by hand |
-| 9 | Sells the second plate that drops | Step 5 | Yes: book 162,000 |
-| 10 | Keeps the poison set for the Vaults and swaps back for the Roost | Steps 5-8 | **No.** Setups that remember gear by ground are the Morrow's missing item 5. The line makes that gap worse, because every band now has its own best pieces |
-
-Six of ten steps wait on something: two staged grounds, the rows, a compare line and gear setups.
-
-#### 5. The build list (after Tyler approves the sample; batches of 20 or fewer, CLAUDE.md §10)
-The rule for coverage: each weight finds its big three (helm, body, legs) on the line within one band of its Level (one band behind still holds: the x1.27 rows above), and boots, gloves and belt come from bosses to mix and match.
-
-| # | Where, worn from | Pieces | Why there |
-|---|---|---|---|
-| 1 | The Pauper Vaults, 165 | **This sample: 5** | Where the gap was measured |
-| 2 | The Pauper Vaults, 165 | Leather and cloth helms and legs: 4 | Finishes the Vaults' big three for every weight |
-| 3 | Wyvern Roost, 125 | Leather big three: 3 | The bow's ground. Its walk-through's step 8 ("wants a gear upgrade: no") is a dead moment today |
-| 4 | The Night Shift, 122 | Plate big three: 3 | The melee ground |
-| 5 | The Old Guard, 138 | Cloth big three: 3 | The casters' ground |
-| 6 | The Bellows and Father Gault, 145 | Boots, gloves and belts in three weights from Gault: 9. One big three of mixed weights from the Bellows: 3 | The party ground and the boss to mix from. The Morrow's Furnace Mitts become Gault's cloth gloves on the line. Gault's Stole stays a cape. The proposed Bellows Key Ring goes, since high-end jewelry is crafted (Tyler 2026-11-14) and Gault drops a gem for it instead |
-| 7 | Carter's Rest, 110 | Its five proposals, unchanged | All at or under the line already |
-| 8 | Each new region | The same pattern on the next band | |
-
-About 30 rows after the sample, in two batches. Weapons, shields and capes get no line, because they don't fall behind (the call above). A later shield may add a property, and the Tollgate's guard 15 stays the top.
-
-#### 6. Open, and for Tyler
-1. **Approve the line and the sample** (sections 1 and 3): armor = Dawnsteel's x Level / 110, armor only, carried by uniques.
-2. **Tempering past tier 7.** Tier 7 has no ladder (lane/d-audit-balance-2), so a line piece can't be tempered. The sink that grows with the hero stops at 88. A rung keyed on the band (110, 125, 145, 165) is the natural fit. That's a gold-sink call for Tyler, after the shield ladder and Tempering 4-6 land.
-3. Handoffs (HANDOFFS.md 2026-11-15): the guide's food for every post-110 pack, the Roost's override, Systems' gear with no tier and the grader playing uniques, the physical hook.
-
-**Done and verified.** The line's table is `mitigation.js` itself. Every measured row is the real settle through `cell.mjs`, with each variant's kit read back. The guard is green and 18 of 18 mutants are caught. `special-attributes`, `catalogue-coherence`, `guard-hygiene`, `cache-buster-guard` and `typecheck-ratchet` all exit 0. Every id named was read on this branch. **Not verified.** Nothing played by hand. No full grade (the grader can't wear a unique yet). The physical 3% is not in any measure. **Assumed.** The drop chances, the Bellows-and-Gault split in the build list, and that the shield ladder (lane/d-audit-balance-1) and the Tollgate land before any of this.
-
-**Files.** `src/data/armor-line.js` (new, hidden), `tests/armor-line.mjs` (new), `tools/balance-sim/armor-line-table.mjs` (new), `tests/guards-unregistered.json` (two entries), `.claude/coordination/DISCOVERIES.md`, `HANDOFFS.md`, the designer log. lane/d-catacombs and lane/d-special-attributes are merged in.
 ### 2026-11-15 The Pauper Vaults: a catacombs hunt deep under Havora (designer, lane/d-catacombs. Tyler 2026-11-14: "one of my favorite hunts in tibia is called 'catacombs' i would like a hunt like that", what he loves is "the map/atmosphere/rooms etc", "a later on hunt deep underneath havora or something"; "Havora is a neutral town"): DESIGNED, drafted as a STAGED pack with its own map, MEASURED on the real engine (quick grade). Nothing served, no art, no spend, no server work
 **The call.** Under the Great Hearth there are vaults where Havora put the dead it couldn't afford to burn. One ground, Levels 165-185, after the Morrow Hills. Six rooms joined by corridors and one plank bridge, each lit its own way: torches, a long row of candles, braziers, nothing at all over black water, then a ring of candles round the Keeper who stayed down there. It's undead again, so it's kept apart from the Barrow March on purpose: the March is soldiers murdered by a lord, out in the open. The Vaults are the town's own poor, under the town, and the villains are a couple of grave robbers and a debt.
 

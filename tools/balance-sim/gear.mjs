@@ -24,7 +24,8 @@
 // slot takes the best piece of its family the hero can get at its Level: the ladder's, any other gettable row of the same
 // family (slot, weight or weapon kind), and the STAGED GEAR rows (STAGED_GEAR below: hidden rows a design lane measured and
 // has not shipped), each gettable where its own row says it drops, as a staged ground is with `openAlso`. Best is the higher
-// tier, then more of the family's number (armor, a shield's guard; a weapon's power on the graded ground, weapon-power.mjs, the weapon line's
+// tier, then more of the family's number (armor, or on a graded ground a piece's score there, armor-power.mjs, the armor line's own measure;
+// a shield's guard; a weapon's power on the graded ground, weapon-power.mjs, the weapon line's
 // own measure, or its attack and strength off a ground), then an attribute that
 // answers this ground (a resistance to an element cast here, a bane of a class that lives here, + the style's own skill),
 // then the ladder's own piece. A staged row is put into the engine's ITEMS as it would ship (both module instances, the
@@ -35,6 +36,7 @@
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { weaponPower } from './weapon-power.mjs';
+import { armorPower, loadArmorPower } from './armor-power.mjs';
 
 /* THE STAGED GEAR CATALOGUES: [module, export]. Each export is { id: { row, source: { ground, monster, how }, attr } } (the
    design lanes' sample shape). A row whose id is already in ITEMS has shipped: the shipped row stands and the staged one is not read.
@@ -145,6 +147,10 @@ export async function loadGear(root) {
   const WP = weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS: { ...HUNT_GROUNDS }, HUNT_INDEX: (await import(u('src/data/hunts.js') + v)).HUNT_INDEX,
     combat: await import(u('src/core/combat.js')), deriveProfile: MEMBER.deriveProfile, skillXpForLevel: (await import(u('src/core/xp.js'))).skillXpForLevel,
     line: await import(u('src/data/weapon-line.js')) });
+  /* THE ARMOR LINE'S MEASURE (armor-power.mjs, lane/d-armor-line-v2): a piece's score on the graded ground, so the grader wears the piece the
+     guard (tests/armor-line.mjs) holds under the line */
+  const APL = await loadArmorPower(root);
+  const AP = armorPower(APL.mods), AP_WEIGHTS = new Set(Object.keys(APL.line.LINE_BASE)), AP_CACHE = new Map();
   const staged = new Map();
   for (const [file, name] of STAGED_GEAR) {
     const cat = (await import(u(file)))[name] || {};
@@ -213,8 +219,20 @@ export async function loadGear(root) {
      a critical chance, a bane), so attack plus damage no longer ranks it. On a graded ground a weapon's number is its power there at the
      hero's Level (weapon-power.mjs score: the mean of its pace and its safety), rounded to a tenth so two pieces a hair apart fall to the next key; anywhere else, or for a
      spellbook, the family's number as before */
+  /* A PIECE OF ARMOR'S NUMBER ON A GROUND (lane/d-armor-line-v2): past Dawnsteel a piece spends one budget its own way (more armor and a
+     lighter swing, less armor and an element, dodge over crit), so armor alone no longer ranks it. On a graded ground a piece of a weight
+     the line knows ranks by its score there at the hero's Level (armor-power.mjs scoreOnDawn: the mean of its pace and safety worn in
+     untempered Dawnsteel, its slot's Dawnsteel piece 1.000), to a thousandth; anywhere else its armor as before */
+  const armorScoreOf = (it, L, gid) => {
+    let m = AP_CACHE.get(it);
+    if (!m) AP_CACHE.set(it, (m = new Map()));
+    const k = L + '|' + gid;
+    if (!m.has(k)) m.set(k, AP.scoreOnDawn(it, gid, L, false));
+    return m.get(k);
+  };
   const rankOf = (it, L, gid) => {
     if (it.slot === 'weapon' && gid && Number.isFinite(L)) { const p = WP.score(it, gid, L); if (p !== null) return Math.round(p * 10); }
+    if (ARMOUR_SLOT_KEYS.includes(it.slot) && AP_WEIGHTS.has(it.armourClass) && gid && Number.isFinite(L)) { const p = armorScoreOf(it, L, gid); if (p !== null) return Math.round(p * 1000); }
     return powerOf(it);
   };
   /* rank: tier, the family's number, an attribute that answers the ground, the ladder's own piece, the id (a total order: no tie is left to the sort) */

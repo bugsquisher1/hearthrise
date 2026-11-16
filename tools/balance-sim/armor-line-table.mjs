@@ -79,7 +79,8 @@ function wearOf(variant, style, AL) {
   if (variant.kind === 'ladder') return w;
   if (style === 'tank' && variant.shield !== 'ladder') w.shield = 'sample_krells_tollgate';
   for (const k of SLOTS) w[k] = variant.kind === 'line' ? 'line_' + variant.m + '_' + cls + '_' + k : AL.LINE_BASE[cls].ids[k];
-  if (variant.kind === 'sample') for (const [id, s] of Object.entries(AL.LINE_SAMPLE)) if (s.row.armourClass === cls) w[s.row.slot] = 'sample_' + id;
+  /* the sample's pieces of the seat's weight, the latest Level last so it wins its slot (the Vaults' 165 over the Roost's 125) */
+  if (variant.kind === 'sample') for (const [id, s] of Object.entries(AL.LINE_SAMPLE).sort((a, b) => a[1].row.reqLv - b[1].row.reqLv)) if (s.row.armourClass === cls) w[s.row.slot] = 'sample_' + id;
   return w;
 }
 

@@ -123,12 +123,12 @@ export const LINE_SAMPLE = Object.freeze({
   }),
   /* ── THE PAUPER VAULTS, 165 ── */
   watchmans_helm: Object.freeze({
-    row: Object.freeze({ n: 'Watchman\'s Helm', icon: '🛡️', v: 64800, type: 'armor', slot: 'helmet', defB: 30, armourClass: 'plate', atkB: 4, rangeAtkB: -11, magicAtkB: -22,
+    row: Object.freeze({ n: 'Watchman\'s Helm', icon: '🛡️', v: 64800, type: 'armor', slot: 'helmet', defB: 46, armourClass: 'plate', atkB: 2, rangeAtkB: -11, magicAtkB: -22,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_helm', attr: null,
-    spend: 'sure: open-faced, under half the line\'s armor, and your Melee lands more often on the hard-skinned heads',
+    spend: 'sure: open-faced, 20 under the line\'s armor, and your Melee lands more often on the hard-skinned heads',
     source: Object.freeze({ monster: 'shrouded_pauper', ground: 'pauper_vaults', how: 'rare', ch: 0.0007 }), use: 'worn',
-    text: 'Your Melee counts 4 higher in it, and it carries 30 armor. The Havora Watch wore them open so they could see the knife coming, and some of the paupers were old Watch.',
+    text: 'Your Melee lands as if it were 2 higher in it, and it carries 46 armor. The Havora Watch wore them open so they could see the knife coming, and some of the paupers were old Watch.',
   }),
   limewashed_plate: Object.freeze({
     row: Object.freeze({ n: 'Limewashed Plate', icon: '🛡️', v: 162000, type: 'armor', slot: 'body', defB: 150, armourClass: 'plate', atkB: -1, rangeAtkB: -23, magicAtkB: -45,

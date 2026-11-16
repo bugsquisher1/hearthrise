@@ -180,6 +180,8 @@ export const PENDING_USE = Object.freeze({
   /* The designer's 11-10 Krell's Hold (ruling 6: it trades). Its use is the door of a keyed hall, a new room kind (that design's engine
      piece 5, on the pre-EA Security list); the row leaves the day that verb spends it (the Krell lane's row, carried by lane/d-packs-retune). */
   hall_key:         'Krell\'s Hold piece 5 — the keyed hall spends it on entry (systems-engineer, backend-architect)',
+  /* The Pauper Vaults' named fuel (lane/d-catacombs, staged): a pack's `fuel` is carried, not folded, so NAMED_FUELS burns it from the pack's ship */
+  dunns_candle:     'the Pauper Vaults ship folds its fuel into NAMED_FUELS (tools/pack.mjs ship, the pack lane)',
 });
 /* Items with NO source today, each with the ruling and the lane that closes it. SHRINK-ONLY like PENDING_USE: a
    row whose id gained a source or left ITEMS fails; no id may be added without a ruling and an owner. They are the

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules prepBuilderRules selectRules
-// mutant-runner-functions: main shardOf tickerMutant pureMutant
+// mutant-runner-functions: main shardOf mutantSeconds shardPlan tickerMutant pureMutant
 // ════════════════════════════════════════════════════════════════════════
 // tests/alpha-windows.mjs — THE ALPHA WINDOWS' RULES, IN A REAL CHROMIUM.
 //
@@ -9,6 +9,8 @@
 //   node tests/alpha-windows.mjs --pure         the pure rules only (no browser)
 //   node tests/alpha-windows.mjs --mutate --only=ticker:   just the mutants named so (the town
 //                                               ticker's run on a temp copy of src, in seconds)
+//   node tests/alpha-windows.mjs --mutate --shard=K/N   the Kth of N shards, balanced by measured seconds (CI splits them)
+//   node tests/alpha-windows.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
@@ -218,7 +220,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, ruleOf, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
-import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
+import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel, levelBlock } from './_server-level.mjs';
 
@@ -4949,6 +4951,7 @@ const COMPANION = { 'the doll wears the item before the server confirms': ['src/
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div></section>'`] };
 
 async function main() {
+  if (process.argv.includes('--shard-plan')) process.exit(await shardPlan());
   const at = process.argv.indexOf('--shots');
   const shots = at > 0 ? resolve(process.argv[at + 1] || 'alpha-shots') : null;
   if (shots) await mkdir(shots, { recursive: true });
@@ -4997,15 +5000,82 @@ async function main() {
   process.exit(exitOf(counts));
 }
 
-/* --shard=K/N: every Nth mutant from the Kth. Each mutant re-runs the whole check suite (~63 s on a runner), so CI
-   splits the --mutate over N jobs (smoke.yml in-page-10 / 11 / 12 / 17 / 18 / 19; ci-shape registers each shard, so a dropped
-   one goes red there). Null for a malformed shard. */
+/* --shard=K/N: the Kth of N shards, BALANCED BY MEASURED TIME (2026-11-15, lane a-133-ci-time). Round-robin by index
+   (every Nth mutant) booked equal COUNTS, never equal minutes: a page mutant costs 30-250 s (stopAtFirst: caught by its
+   first red rule), a pure one under a second. On release/v0.2.132 (run 43714997994, every mutant run) the six shards took
+   39 to 66 min and two were CANCELLED at 60 with nothing escaped. planShards (tools/lib/mutant-scope.mjs, hunt-screen's
+   planner) books each mutant at its seconds in tests/alpha-windows.mutant-times.json; checkShards proves the plan a
+   partition. --shard-plan checks the plan against smoke.yml without a browser. Null for a malformed shard. */
 function shardOf(list) {
   const a = process.argv.find((x) => x.startsWith('--shard='));
   if (!a) return list;
   const m = /^--shard=(\d+)\/(\d+)$/.exec(a);
   const k = m ? +m[1] : 0, n = m ? +m[2] : 0;
-  return k >= 1 && k <= n ? list.filter((_, i) => i % n === k - 1) : null;
+  if (!(k >= 1 && k <= n)) return null;
+  const names = list.map(([name]) => name);
+  const plan = planShards(names, n, mutantSeconds());
+  const broken = checkShards(names, plan);
+  if (broken.length) { console.log('  ✗ HARNESS: the shard plan is not a partition: ' + broken.join('; ')); return null; }
+  const mine = new Set(plan[k - 1].names);
+  console.log('  shard ' + k + '/' + n + ': ' + mine.size + ' mutant(s), ~' + Math.round(plan[k - 1].seconds / 60) + ' min booked');
+  return list.filter(([name]) => mine.has(name));
+}
+
+/* Seconds per mutant on a GitHub runner (tests/alpha-windows.mutant-times.json); none read = every mutant booked alike. */
+function mutantSeconds() {
+  try { return JSON.parse(readFileSync(join(ROOT, 'tests', 'alpha-windows.mutant-times.json'), 'utf8')).seconds || {}; } catch { return {}; }
+}
+
+/* A shard's booked mutant time. A shard job is ~0.6 min of setup (checkout to Chromium: 0.4-0.7 min on run 43714997994)
+   and ~4.1 min of clean control (231-249 s there) before its booked mutants; in-page-10 also pays the ~4.1 min plain run.
+   22 min booked keeps a shard job at ~26.7 min and in-page-10 at ~30.8 of their 60 (x2). Over it, add a shard (smoke.yml +
+   ci-shape --write); re-measure the times file from a run that proves every mutant (a nightly) when a shard nears it. */
+const SHARD_BUDGET_S = 22 * 60;
+
+/** --shard-plan (no browser): smoke.yml registers shards 1..N of one N, the plan for that N is a partition of MUTANTS,
+    and no shard is booked over SHARD_BUDGET_S. Then four planted defects must each be caught, so the check has been red.
+    Exit code. */
+async function shardPlan() {
+  const yml = await readFile(join(ROOT, '.github', 'workflows', 'smoke.yml'), 'utf8');
+  const names = MUTANTS.map(([name]) => name);
+  const seconds = mutantSeconds();
+  const judgePlan = (text, plan = planShards, budget = SHARD_BUDGET_S) => {
+    const out = [];
+    const reg = [...text.matchAll(/node tests\/alpha-windows\.mjs --mutate --shard=(\d+)\/(\d+)/g)].map((x) => [+x[1], +x[2]]);
+    const ns = [...new Set(reg.map(([, n]) => n))];
+    if (ns.length !== 1) return [`smoke.yml registers alpha-windows shards of ${ns.length} different N (${ns.join(', ') || 'none'})`];
+    const n = ns[0];
+    for (let k = 1; k <= n; k++) {
+      const c = reg.filter(([x]) => x === k).length;
+      if (c !== 1) out.push(`shard ${k}/${n} is registered ${c} time(s) in smoke.yml`);
+    }
+    const p = plan(names, n, seconds);
+    out.push(...checkShards(names, p));
+    p.forEach((s, i) => { if (s.seconds > budget) out.push(`shard ${i + 1}/${n} is booked ${Math.round(s.seconds / 60)} min > ${Math.round(budget / 60)} — add a shard`); });
+    return out;
+  };
+  const real = judgePlan(yml);
+  const reg = [...yml.matchAll(/node tests\/alpha-windows\.mjs --mutate --shard=\d+\/(\d+)/g)];
+  const n = reg.length ? +reg[0][1] : 0;
+  const unmeasured = names.filter((k) => !(Number.isFinite(seconds[k]) && seconds[k] > 0));
+  if (unmeasured.length) console.log(`  ${unmeasured.length} mutant(s) not in alpha-windows.mutant-times.json, booked at the slowest measured: ${unmeasured.join(' | ')}`);
+  if (n) planShards(names, n, seconds).forEach((s, i) => console.log(`  shard ${i + 1}/${n}: ${s.names.length} mutants, ~${Math.round(s.seconds / 6) / 10} min booked`));
+  for (const f of real) console.log('  ✗ ' + f);
+  const planted = [
+    ['a shard dropped from smoke.yml', judgePlan(yml.replace(`alpha-windows.mjs --mutate --shard=${n}/${n}`, 'alpha-windows.mjs --mutate --shard-dropped'))],
+    ['the old round-robin off by one (the last mutant runs nowhere)', judgePlan(yml, (ns, k) => Array.from({ length: k }, (_, i) => ({ names: ns.slice(0, -1).filter((_, j) => j % k === i), seconds: 0 })))],
+    ['a mutant planned twice', judgePlan(yml, (ns, k, s) => { const p = planShards(ns, k, s); p[0].names.push(p[1].names[0]); return p; })],
+    ['a shard booked over its budget', judgePlan(yml, planShards, 60)],
+  ];
+  let vacuous = 0;
+  for (const [label, found] of planted) {
+    if (!found.length) vacuous++;
+    console.log(`  ${found.length ? 'caught' : 'MISSED'}  planted: ${label}${found.length ? ' — ' + found[0] : ''}`);
+  }
+  const bad = real.length + vacuous;
+  console.log(bad ? `alpha-windows --shard-plan: ${real.length} problem(s), ${vacuous} planted defect(s) missed`
+    : `alpha-windows --shard-plan: ${names.length} mutants over ${n} shards, each exactly once, every shard within ${SHARD_BUDGET_S / 60} min; 4/4 planted defects caught`);
+  return bad ? 1 : 0;
 }
 
 /* A ticker mutant is judged by the pure AW-24 rules, run from a temp copy of src (minus the vendored SDK) with the

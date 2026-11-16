@@ -187,10 +187,11 @@ async function coverArm(db, { H, M }, forged) {
    Each hook is planted in the body that RUNS, the chain's last author of its function (staleAnchors refuses any
    other): hr_hunt_loot_rules is restated last by 2027-01-23-loot-dispatch.sql (the pickup filter only, md5-pinned to
    its pre-image, so a plant in an earlier file trips that pin); hr_hunt_apply_member's mutants are planted in its LIVE body
-   (memberPlant + plantLive, tests/alpha-server.mjs: restated last by MEMBER_LAST, 2027-04-12-tick-enrol-restated.sql); hr_hunt_member_read
-   by 2026-11-07-store-by-slot.sql (after the core rebuild, 2026-10-27-core-bodies.sql). */
+   (memberPlant + plantLive, tests/alpha-server.mjs: the body MEMBER_LAST holds whole, whichever file that is); hr_hunt_member_read
+   by 2027-04-23-training-gear.sql (whole: 2026-11-07-store-by-slot.sql's text plus train_boost_ms, md5-pinned to that pre-image, so a
+   plant in the older file trips the pin). */
 const LOOT = '2027-01-23-loot-dispatch.sql';
-const READ = '2026-11-07-store-by-slot.sql';
+const READ = '2027-04-23-training-gear.sql';
 const MUTANTS = [
   { arm: 'H-ALL', why: 'the settle skips the loot filter',
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
@@ -254,7 +255,7 @@ async function main() {
   }
   /* A mutant planted in a body a later file restates never runs (H-ALL/H-COVER, v0.2.30): refuse it up front. A member mutant
      (`fn`, memberPlant) is planted into the LIVE body after the whole chain, the way tests/alpha-server.mjs plants it: that body
-     is the one 2027-04-12-tick-enrol-restated.sql holds whole (MEMBER_LAST, tests/alpha-server.mjs). */
+     is the one MEMBER_LAST holds whole (tests/alpha-server.mjs). */
   const stale = staleAnchors(MUTANTS.filter((mu) => !mu.fn), { patches: true });
   for (const s of stale) console.error('✗ ANCHOR ' + s);
   let missed = stale.length;

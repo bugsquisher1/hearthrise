@@ -471,7 +471,7 @@ const MUTANTS = [
   { name: 'the checkpoint is not checked', arm: 'checkpoint', want: /^TC-CHECKPOINT a forged landing 60/, fn: 'public.hr_tower_start(integer,integer,uuid)',
     find: '    if v_cps is null or v_pick is null or v_pick <> all (v_cps) then', replace: '    if v_cps is null or v_pick is null then' },
   { name: 'a party climbs from its strongest seat', arm: 'checkpoint', want: /^TC-CHECKPOINT a party/, fn: 'public.hr_tower_record(uuid,integer)',
-    find: 'else (select min(coalesce(p.best_floor, 0))', replace: 'else (select max(coalesce(p.best_floor, 0))' },
+    find: '(select min(coalesce(p.best_floor, 0)) from public.hunt_party_members m', replace: '(select max(coalesce(p.best_floor, 0)) from public.hunt_party_members m' },
   { name: 'no pick starts at the bottom, not the best', arm: 'checkpoint', want: /^TC-CHECKPOINT (no pick|a party of)/, fn: 'public.hr_tower_start(integer,integer,uuid)',
     find: '    v_pick := coalesce(p_landing, v_cps[cardinality(v_cps)]);', replace: '    v_pick := coalesce(p_landing, 0);' },
   { name: 'a party start leaves the second seat runless', arm: 'checkpoint', want: /^TC-CHECKPOINT a party of/, fn: 'public.hr_tower_start(integer,integer,uuid)',

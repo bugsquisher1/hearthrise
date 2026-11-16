@@ -29,6 +29,81 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-16 Tempering Dawnsteel: tier 7 gets its own small ladder, Levels 88 to 110 (designer, lane/d-temper-dawnsteel. Tyler 2026-11-16 "yes" to the uniques section's open 1: Dawnsteel and the tier-7 pieces worn from 88 get their own Tempering ladder so the gold sink keeps growing from 88 to 110, small cap, sized with the simulator like the uniques ladder): SIZED and PRICED on the real engine (`node tools/balance-sim/temper-dawn-table.mjs gold | next | bars`), BUILT as data (`src/data/temper.js` TEMPER_TIERS[7], TEMPER_TIER_RUNG_PM, TEMPER_MATERIALS[7]), the fight reads it (`src/core/temper.js` Blows now reads its ladder's worth a rung), the smith says why the rungs are smaller, guarded. **Not sold until the Tempering catalogue is regenerated** (gen-temper, after set/v0.2.134, with balance-2's tiers 4-6): until then the server's ladders are what they were and every live fight is byte for byte the same (no hero holds a tier-7 rung)
+
+**The shape.** Both tracks, like tiers 2 to 6: Lord Krell drops a Dawnsteel or Duskwood weapon for every way to fight and the helm and body in every weight (`krells_hold` pack, 3.5% a row); Carter's Rest (staged) drops the boots, legs, gloves and belt. Five rungs of **0.4%, 2% a track** (`TEMPER_TIER_RUNG_PM` { 7: 4 }; tiers 2-6 stay 1% and 5%, the unique bands 0.5% and 2.5%). Same hooks, same 60% total cap. A mixed set reads piece by piece: Krell's helm and body over Emberforged, both ladders full, reads 3.3% (tier 6's pieces keep their 1% rungs).
+
+#### 1. The cap: why 2% (`temper-dawn-table.mjs next`, mitigation.js itself, no fights)
+Past Dawnsteel there is no tier 8; the next armor is the armor line's. The line at 110 IS Dawnsteel's armor (its anchor), so **no ladder at all keeps a fully tempered Dawnsteel set under a bare unique worn from 110**: there the unique wins by its attribute and, once tempered, by its bigger band ladder (2.5% > 2%, TU6). The first line piece that carries more armor is the Night Shift's, worn from 122 (x1.11). The rule, as TU2 reads the bands: whole Dawnsteel fully tempered lets more of a swing through than the line's bare set from 122, every weight, on every drafted ground at or past 122.
+
+| Weight | Ground | at 1% | at 1.5% | **at 2%** | at 2.5% | at 3% | at 5% |
+|---|---|---|---|---|---|---|---|
+| plate | Wyvern Roost | 2.22% | 1.72% | **1.22%** | 0.72% | 0.20% | -1.72% |
+| **leather** | **Wyvern Roost** | 1.46% | 0.96% | **0.45%** | **-0.06%** | -0.58% | -2.69% |
+| leather | the Vaults | 1.60% | 1.10% | **0.59%** | 0.08% | -0.43% | -2.54% |
+| cloth | the Vaults | 4.67% | 4.19% | **3.70%** | 3.20% | 2.70% | 0.66% |
+| plate | the Ox Road (112-128, floor under 122) | 0.74% | 0.30% | -0.06% | -0.33% | -0.56% | -0.99% |
+
+2% is the largest round step that holds; at 2.5% leather crosses at the Roost. Against the Roost's own 125 set the thinnest is leather 0.93%. The Ox Road row is the plate cap at work, not a ladder problem: there both plate sets sit at 59.8% against monsters of 112-128, so the 122 plate is worth 0.7% over bare Dawnsteel at any ladder, and at Krell's Hold plate is at the cap outright. **What a full ladder takes off where Dawnsteel is worn (Krell's Hold):** leather 2.0%, plate 1.0%, cloth 1.0% (at the Pyre Field cloth 0%: its ward already holds blows at the keep floor). **Blows** (what-if, the weapon line ruled 11-16, not built: damage stat x Level / 110, a Level 110 hero): a full 2% ladder is about the line's step from 110 to 117; every family's line weapon from 122 still out-hits a fully tempered Dawnsteel one, by 1.2% (hatchets, sword) to 2.9% (warhammer).
+
+#### 2. The gold (`temper-dawn-table.mjs gold`, as lane/d-audit-balance-2 and lane/d-temper-uniques priced theirs)
+A lone sword-and-shield tank on Normal where the game sends it (`recommendedHunt`: Krell's Hold at every Level from 85 to 110) in the gear ladder's kit (from 88 it reads Krell's drops: Dawnsteel helm, body and sword over Emberforged), 4 seeds x 2 h at 88, 95, 102, 109.
+
+| Level | Level XP/h | coin+loot g/h | store g/h | net g/h | deaths | low |
+|---|---|---|---|---|---|---|
+| 88 | 422,980 | 20,868 | 4,230 | 16,675 | 0 | 83% |
+| 95 | 442,843 | 21,600 | 787 | 20,946 | 0 | 90% |
+| 102 | 459,197 | 23,761 | 22 | 23,786 | 0 | 95% |
+| 109 | 476,802 | 23,819 | 0 | 23,935 | 0 | 97% |
+
+| Span | Hours | Gold banked | A track (5 rungs) | Both tracks | Share | Ember Tempering Salts |
+|---|---|---|---|---|---|---|
+| 88-110 | 260 | 5.66M | 40k / 80k / 160k / 320k / 640k = **1.24M** | **2.48M** | **44%** (46% with the salts at book) | 10 / 20 / 40 / 80 / 160 a track, 620 (146k) |
+
+Tiers 2-6 ask 40-52%, the bands 39-59%. A track is dearer than tier 6's (496k) and cheaper than the 110 band's ladder (1.86M): a later ladder never costs less. (Balance-2's -8,087 g/h at the Hold was Level 85 in tier 6; from 88 in Krell's kit the store bill falls to almost nothing.)
+
+**The material: Ember Tempering Salts**, tier 6's salt, no new item: Smithing 75 `mix_ember_temper_salts` (Emberstone Ore from `emberstone_rock`, Mining 75, and 2 Grave Dust) or Crafting 75 `pack_ember_temper_salts` (a Runewood Plank and a Grave Dust). Grave Dust drops at Krell's Hold itself. Both tracks take about 3 hours of a resting hero's mixing (TB-MATERIAL's 6-hour ceiling holds).
+
+#### 3. The bars don't move (`temper-dawn-table.mjs bars`, 3 seeds x 2 h, the same dice in both rows, every seat in its weight's whole Dawnsteel set and weapon)
+| Ground, Dawnsteel | Normal: tank / hammer / bow / Mage alone, low point | Dangerous, tank and Healer | Deadly, a four |
+|---|---|---|---|
+| Krell's Hold 98, bare | 92 / 89 / 92 / 100% | 0 deaths (tank low 71%) | 0 (68%) |
+| Krell's Hold 98, both tracks full | 93 / 89 / 92 / 100% | 0 (72%) | 0 (69%) |
+| the Pyre Field 89, bare | 97 / 93 / 99 / 100% | 0 (83%) | 0 (83%) |
+| the Pyre Field 89, both tracks full | 97 / 94 / 98 / 100% | 0 (83%) | 0 (84%) |
+
+XP an hour moves -0.4% to +1.7% (the hammer at the Pyre Field; the Mage's -0.4% is the dice: its blows read the rung's part of a point as a draw). No cell crosses a line. Every grade and the sheet are read at rung 0, which plays byte for byte as before (`hunt-core/temper-play` rung-zero), so no live grade moves.
+
+#### 4. The smith's words (`src/data/text/temper.js` small_row, said only on a ladder the server sells)
+- Blows, a Dawnsteel Sword at rung 2: "Rung 2 of 5: your blows and heals land 0.8% harder. Next rung 1.2%. The finest gear takes smaller rungs, 0.4% each."
+- Armor, full: "Rung 5 of 5: blows reach you 2% softer. The most this gear takes. The finest gear takes smaller rungs, 0.4% each."
+- Until the regeneration: "Your Dawnsteel Sword can't be tempered yet. The smith only has rungs for gear worn from Level 15 to Level 30." (the server's ladders; 75 once balance-2's rows ship, 88 with these). Read in Chromium: `tests/services-window.mjs` SV-7.
+
+#### 5. Walk-through (a Level 95 sword-and-shield hero; every id read on this branch)
+| Step | Does | Holds from the steps before and the real kit | Doable? |
+|---|---|---|---|
+| 1 | Wields a Dawnsteel Sword (`dawn_sword`, tier 7, Level 88) | a Krell's Hold hall kill (`lord_krell` drops, 3.5% a row) | Yes, live |
+| 2 | Shop, Services, Tempering: the Blows row names the Dawnsteel Sword and its rungs | step 1 | **Not yet**: the server sells tiers 2-3 until gen-temper runs (TB-IDEM red, inherited from balance-2) |
+| 3 | Mixes 10 Ember Tempering Salts | Smithing 75 + Emberstone Ore (`emberstone_rock`, Mining 75) + Grave Dust (drops at `krells_hold`), or Crafting 75 + Runewood Plank (`saw_runewood`) + Grave Dust | Yes: both recipes exist |
+| 4 | Buys rung 1: 40,000 g and 10 salts, bag then Storage | steps 2-3; the purse (about 21k g/h at the Hold) | Yes once sold: `hr_unlock_buy`, the existing sale |
+| 5 | Every blow lands 0.4% harder | step 4 | Yes: `blowsPmOf` reads the tier-7 ladder (hunt-core/temper dawnsteel-takes-smaller-rungs) |
+| 6 | Wears Krell's Dawnsteel helm and body; the Armor row offers the tier-7 ladder (the most armor), and the Emberforged pieces keep their tier-6 rungs | a Krell drop in its weight | Yes (`armorLineOf` tier 7; mixed set reads 1.1% on tier 7 alone, 3.3% with tier 6 full) |
+| 7 | At 110 moves to a unique; its band ladder starts at 0 and Dawnsteel's rungs still count on the Dawnsteel pieces it keeps | step 6 | Partly: the bands are shut (the uniques section) |
+
+#### 6. To sell it (the regeneration, after set/v0.2.134)
+1. `node tools/gen-temper.mjs --new <file>`: the catalogue then carries tiers 2-7 and TB-IDEM and `gen-temper --check` go green. Not done here, by the brief.
+2. With it: the Ember Tempering Salts' description (`item-descriptions.js`, today "Emberforged, Dragonhide and Archmage gear") adds Dawnsteel, Dawnhide, Duskweave and Duskwood, so it never names gear the smith won't take yet.
+3. Register `tests/temper-uniques.mjs` (plain and `--mutate`): TU6 now guards a ladder that will be sold (guards-unregistered.json still names it, for the bands).
+
+#### 7. Open, for Tyler and the Coordinator
+1. **A unique worn from 110 carries Dawnsteel's armor**, so a fully tempered Dawnsteel set out-armors a bare 110 unique by the ladder (2%) until that unique's band is tempered. That is the armor line's anchor, not this ladder; the unique's case is its attribute. If Tyler wants a bare 110 unique to always out-armor tempered Dawnsteel, the line's anchor moves (armor line lane), not this cap.
+2. **The weapon line** (ruled 11-16, not built): its first unique weapon worn from under about 118 does not out-hit a fully tempered Dawnsteel weapon on damage alone. Handed to the weapon-line lane: start the line's weapons at 122 or carry the attribute as the reason, or give the weapon bands a Blows ladder.
+3. Plate and cloth get about 1% of the 2% at Krell's Hold (the cap and the ward floor); the row prints the rung's 2%. Same handoff as the uniques section's open 3 (Systems and Art Director).
+
+**Done and verified.** EXIT 0, run here: `tests/temper-uniques.mjs` and `--mutate` (25 of 25: TU6 ten new), `tests/hunt-core/temper.mjs` (18 cases, 42 mutants: dawnsteel-takes-smaller-rungs five new), `hunt-core/temper-play`, `tests/services-window.mjs` and `--mutate` (SV-7: Dawnsteel's words, two new mutants), `town-criers`, `text-home`, `copy-lint`, `catalogue-coherence`, `armor-line`, `guard-hygiene`, `typecheck-ratchet`, `cache-buster-guard`, `client-module-size`, `envelope-contract`, `storage-view`, `say-why`, `gen-temper --selftest`. `tests/temper-buy.mjs` TB-MATERIAL now names tier 7 (green); **inherited reds, not this lane's**: TB-IDEM and `gen-temper --check` (the catalogue awaits the regeneration since balance-2), `mutant-anchors` (alpha-windows AW-27's anchor in hunt-go.js). **Not verified**: nothing bought by hand (no tier-7 rung is sold).
+
+**Files.** `src/data/temper.js`, `src/core/temper.js`, `src/session/temper-sections.js`, `src/shell/windows/temper-pane.js`, `src/data/text/temper.js`, `tools/balance-sim/temper-dawn-table.mjs` (new), `tests/temper-uniques.mjs`, `tests/hunt-core/temper.mjs`, `tests/temper-buy.mjs`, `tests/services-window.mjs`.
+
 ### 2026-11-15 Tempering past Dawnsteel: a small ladder for each band of unique armor (designer, lane/d-temper-uniques. Tyler 2026-11-15, "ok then yes" to the Coordinator's recommendation: a PURE GOLD SINK on the unique armor past Dawnsteel with a SMALL cap, about +2-3% at most, sized with the simulator before anything is built; on the pre-EA Security list. Why: Tempering stops at tier 7, so the sink stops growing at Level 88 while gold piles up, 8.4M by Level 87): SIZED and PRICED on the real engine (`node tools/balance-sim/temper-uniques-table.mjs next | gold | bars`), BUILT as data with every band SHUT, the fight reads it, guarded (`tests/temper-uniques.mjs` 15 of 15 mutants, `tests/hunt-core/temper.mjs` a-unique-reads-its-band 5 of 5). Nothing sold, no catalogue moves, the edge bundle moves (src/core/temper.js, src/data/temper.js) with every live hero's fight byte for byte the same
 **The shape.** Armor only (the line moves armor; weapons, shields and capes have no line). One ladder per BAND of the Level a piece is worn from, not per tier: every piece past Dawnsteel carries `tier: 7`, so a tier key would be one ladder from 110 to 200 and the sink would stall again. A piece worn from Level R reads the band at or under R: **110, 125, 145, 165** (the Night Shift's 122 pieces read 110, the Old Guard's 138 read 125); a new region is a new row. The key is the band's Level (`temper:armor:165`), a number no gear tier reaches, so hr_unlocks, hr_temper_view and the perks map read it as they read a tier (no server change). **Five rungs of 0.5%, 2.5% a ladder** (`TEMPER_UNIQUE_RUNG_PM` 5). Same hook as every rung: the chain's last step, under the 60% total cap. Standard Dawnsteel (worn from 88) and Krell's pieces read no band.
 
@@ -97,7 +172,7 @@ Two of six steps wait on the armor line's sample.
 4. Pre-EA Security list (§3.7): the band rungs are hr_unlock_buy rows like every rung; nothing new crosses to Postgres but the rows.
 
 #### 7. Open, for Tyler and the Coordinator
-1. **Levels 88 to 110 still have no growing sink.** Standard Dawnsteel and Krell's pieces (worn from 88) have no ladder, and this ruling covers only uniques past Dawnsteel. A tier-7 ladder (both tracks, 5%) is the obvious fill, priced the same way; Tyler's call, not built.
+1. **Levels 88 to 110 still have no growing sink.** Standard Dawnsteel and Krell's pieces (worn from 88) have no ladder, and this ruling covers only uniques past Dawnsteel. A tier-7 ladder (both tracks, 5%) is the obvious fill, priced the same way; Tyler's call, not built. **RULED 2026-11-16 ("yes") and BUILT at 2%, not 5%: the section "2026-11-16 Tempering Dawnsteel".**
 2. The 145 band's gold is read on the Roost held flat; re-measure when the Bellows is drafted. The 165 band's on the Vaults' guide food; re-measure when the guide names the Level's food.
 3. Plate on the line gets 1.5-2.1% of the 2.5% (the cap). The smith's row prints the rung's 2.5% for it; showing what a rung does against monsters of the hero's Level is a Systems and Art Director read, handed off.
 

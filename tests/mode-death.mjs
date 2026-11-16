@@ -12,7 +12,7 @@
 // mutant-anchors: src/core/combat-sim.js, src/data/session-modes.js, src/session/character-session.js,
 //   supabase/migrations/2027-04-23-session-modes.sql
 //
-//   MD-DATA    the two ruled rows (hunt: the full price, Blessings used, everything paid; tower: no loss, Blessings kept, 200 permille
+//   MD-DATA    the two ruled rows (hunt: the full price, Blessings used, everything paid; tower: no loss, Blessings kept, 375 permille
 //              XP, no coin, drops or Bestiary, stamina drains); the default is the full hunt; the load-time rule refuses a free death
 //              that pays coin, drops or Bestiary, a free death that spends a Blessing and a default that is not a full hunt; the
 //              engine's share is DEATH_XP_LOSS to the bit in a hunt and nothing in the Tower; the server's catalogue is the data,
@@ -69,7 +69,7 @@ async function dataArm(db, M) {
   const { SESSION_MODES: S, DEFAULT_SESSION_MODE: D, validateSessionModes: check } = M.SM;
   const row = (m) => m && [m.deathLossPm, m.blessings, m.xpPm, m.coin, m.drops, m.bestiary, m.stamina].join(',');
   if (row(S.hunt) !== '1000,true,1000,true,true,true,true') bad.push('MD-DATA the hunt row reads ' + row(S.hunt));
-  if (row(S.tower) !== '0,false,200,false,false,false,true') bad.push('MD-DATA the tower row reads ' + row(S.tower));
+  if (row(S.tower) !== '0,false,375,false,false,false,true') bad.push('MD-DATA the tower row reads ' + row(S.tower));
   if (D !== 'hunt') bad.push('MD-DATA the default mode is ' + D + ', not the full hunt');
   const refuses = (name, modes, def, want) => { const p = check(modes, def); if (!p.some((x) => x.includes(want))) bad.push('MD-DATA the load-time rule let through ' + name + ': ' + JSON.stringify(p)); };
   if (check(S, D).length) bad.push('MD-DATA the table itself does not pass its rule: ' + check(S, D).join('; '));
@@ -339,10 +339,10 @@ const MUTANTS = [
   { name: 'an intent carries a mode field', arm: 'intent', want: /^MD-INTENT/, file: 'src/session/character-session.js',
     from: "this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: hunt,", to: "this._server.rpc('hr_hunt_enter', { p_mode: 'tower', p_slot: this.slot, p_hunt: hunt," },
   { name: 'the table check: a no-loss mode with coin or drops on', arm: 'data', want: LOAD_REFUSED, file: 'src/data/session-modes.js',
-    from: "deathLossPm: 0, blessings: false, xpPm: 200, coin: false, drops: false,", to: "deathLossPm: 0, blessings: false, xpPm: 200, coin: true, drops: true," },
+    from: "deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false,", to: "deathLossPm: 0, blessings: false, xpPm: 375, coin: true, drops: true," },
   { name: 'the table check is gone and a no-loss mode pays', arm: 'data', want: /^MD-DATA/, file: 'src/data/session-modes.js',
     edits: [["    if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(", "    if (false) out.push("],
-            ["deathLossPm: 0, blessings: false, xpPm: 200, coin: false,", "deathLossPm: 0, blessings: false, xpPm: 200, coin: true,"]] },
+            ["deathLossPm: 0, blessings: false, xpPm: 375, coin: false,", "deathLossPm: 0, blessings: false, xpPm: 375, coin: true,"]] },
   { name: 'the freeze keeps a caller\'s value', arm: 'freeze', want: /^MD-FREEZE/, fn: 'public.hr_hunt_mode_freeze()',
     find: '  new.session_mode := public.hr_session_mode_of(new.hunt_id);', replace: '  new.session_mode := coalesce(new.session_mode, public.hr_session_mode_of(new.hunt_id));' },
   { name: 'the edge takes a mode from the request', arm: 'intent', want: /^MD-INTENT/, file: join(FN, 'hunt-settle.js'),

@@ -6,7 +6,7 @@
 //
 // ONE ENGINE (CLAUDE.md §6). A climb IS a hunt session on the Tower's ground (hunt-grounds.js TOWER_GROUNDS), settled by
 // src/core/combat-sim.js like any hunt, viewed or not, in the `tower` session mode (src/data/session-modes.js: a death costs nothing,
-// no coin, no drops, no Bestiary, 200 permille XP). src/core/hunt/tower.js is the floor's one door: which monsters stand in floor F's
+// no coin, no drops, no Bestiary, 375 permille XP). src/core/hunt/tower.js is the floor's one door: which monsters stand in floor F's
 // room and their rows (the stat formula at Level F), the stair to the next floor, and the floor's time.
 //
 // THE RULES (every number a row Tyler or the designer can move; the server reads them as hr_tower_rules and hr_tower_floors,

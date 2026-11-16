@@ -348,6 +348,13 @@ export const REFUSAL_WORDS = Object.freeze({
   /* The Burning Tower (2027-04-24-tower-climb.sql): its one door is hr_tower_start. Drafts: the window and art lane words the Tower. */
   tower_only: 'The Burning Tower is entered from the Great Hearth.',
   in_party: 'The Tower is climbed alone for now. Leave your party first.',
+  /* The Hearth Chest (2027-04-27-tower-chest.sql: hr_chest_open). Drafts, read when the window lane wires the chest. */
+  chest_not_ready: 'The chest won\'t take that key yet. Keep it, it\'ll open soon.',
+  in_hunt: 'Your hero is out on a hunt. The chest opens when they\'re back in town.',
+  bad_chest: 'That chest isn\'t here.',
+  bad_key: 'That isn\'t a key this chest takes.',
+  bad_count: 'Use between 1 and 20 keys at a time.',
+  bad_stokes: 'You can stoke the fire up to three times.',
   dummy_max: 'Your dummy trains every skill already.',
   /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
   buy_limit: 'That is all you can buy today. Try again after midnight UTC.',

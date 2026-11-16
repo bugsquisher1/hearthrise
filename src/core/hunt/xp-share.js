@@ -6,7 +6,7 @@
 //   hero XP    = floor(base share x party factor x that hero's multiplier)   (XP-02)
 //   on a SCALED hunt a party's factor is thinned by the row's partyPm (src/data/scaled-hunts.js, on every scaled row: the kill
 //   carries it from damage.js); a hero alone is never thinned
-//   in a SESSION MODE that pays part of a kill (src/data/session-modes.js xpPm; the Burning Tower's 200) the monster XP is that share
+//   in a SESSION MODE that pays part of a kill (src/data/session-modes.js xpPm; the Burning Tower's 375) the monster XP is that share
 //   of the row's before anything else (inst.xpPm, world-step.js; absent, the whole kill, exactly as before)
 // THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
 // src/data/party-class-xp.js, read from the living heroes at each kill, on the

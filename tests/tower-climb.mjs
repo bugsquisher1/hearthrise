@@ -16,7 +16,7 @@
 //              the same room every read (no dice), a floor past the top playing the top's rows; the rows pay no coin and drop nothing; the
 //              server's per-floor bound (hr_tower_floors) is the engine's own, row for row
 //   TC-ENGINE  the engine alone: a climb clears floors one after another from the server's floor, ends `died` with no XP lost, pays no coin,
-//              no item and no Bestiary or task count, pays Level XP at the mode's 200 permille of the kill and every skill route at the same
+//              no item and no Bestiary or task count, pays Level XP at the mode's share of the kill (session-modes.js xpPm) and every skill route at the same
 //              share; a room that stood its time ends the climb `floor_time` for everyone in it
 //   TC-DOORS   one hero from floor 1, the browser closed and the hunt viewed: the same floors land (the run's top, its floors and kills),
 //              landing 10's row this week once and its journal row, the hero's best, the end `died` with no death_xp row and the
@@ -111,7 +111,7 @@ async function engineArm(db, M) {
     if ((d.progress || []).some((o) => String(o.key).startsWith('ev:'))) { bad.push('TC-ENGINE a window counted ' + JSON.stringify(d.progress.filter((o) => String(o.key).startsWith('ev:')))); break; }
     if ((h.death_xp || []).some((x) => Object.keys(x).length)) { bad.push('TC-ENGINE a death in the Tower was priced ' + JSON.stringify(h.death_xp)); break; }
   }
-  /* THE MODE'S SHARE: the split pays 200 permille of the kill (one hero: the Tower's flat 1000 cell, no solo boost); a skill route the same share */
+  /* THE MODE'S SHARE: the split pays the mode's xpPm of the kill (one hero: the Tower's flat 1000 cell, no solo boost); a skill route the same share */
   const pm = M.SMD.SESSION_MODES.tower.xpPm;
   const hero = { id: 1, side: 'hero', alive: true, role: 'tank', heroLv: 10 };
   const evs = [];

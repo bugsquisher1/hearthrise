@@ -445,12 +445,16 @@ revoke execute on function public.hr_chest_stoke_default(int, text, int, uuid) f
 grant  execute on function public.hr_chest_stoke_default(int, text, int, uuid) to authenticated;
 
 -- ── §5 THE CLIENT BASELINE AND THE WALL ──────────────────────────────────────
-delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_chest_open', 'hr_chest_stoke_default');
+-- an older signature's row goes; the current two are upserted, so a second apply keeps their approved_at (byte-identical)
+delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_chest_open', 'hr_chest_stoke_default')
+  and (proname, identity_args) not in (('hr_chest_open', 'p_slot integer, p_chest text, p_key text, p_count integer, p_stokes integer, p_idem uuid'),
+                                        ('hr_chest_stoke_default', 'p_slot integer, p_key text, p_stokes integer, p_idem uuid'));
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_chest_open', 'p_slot integer, p_chest text, p_key text, p_count integer, p_stokes integer, p_idem uuid', 'authenticated',
    'added 2027-04-27 (lane/c-tower-chest): MONEY (a server roll that pays items; a weapon that will trade) - uses Burning Tower keys at the Hearth Chest, the stokes priced and the chance worked out by the server, rolled on hr_seed; behind the switch burning_tower (feature_off) and chest_not_ready; pre-EA Security list'),
   ('hr_chest_stoke_default', 'p_slot integer, p_key text, p_stokes integer, p_idem uuid', 'authenticated',
-   'added 2027-04-27 (lane/c-tower-chest): the hero''s own default stoke count for one kind of key; moves no value');
+   'added 2027-04-27 (lane/c-tower-chest): the hero''s own default stoke count for one kind of key; moves no value')
+on conflict (proname, identity_args, grantee) do update set note = excluded.note;
 do $mig$
 begin
   if to_regclass('public.hr_gm_wall_allow') is not null then

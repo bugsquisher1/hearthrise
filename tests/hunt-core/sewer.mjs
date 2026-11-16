@@ -303,7 +303,7 @@ function walkChain(M, T, extra) {
     tamsins_task: () => set({ tally: tallyFact([[WOLVES, 0]], [RATS]) }),
     /* in the Thicket the hero eats, and "Eat on time" comes (the two read-on-sight cards it meets on the way are read) */
     into_the_thicket: () => set({ huntId: 'meadowbrook_thicket', visited: new Set([...f.visited, 'meadowbrook_thicket']), sellable: null,
-      supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], read: f.read instanceof Set ? new Set([...f.read, 'first_eat', 'fight_settings']) : f.read }),
+      supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], read: f.read instanceof Set ? new Set([...f.read, 'first_eat', 'fight_settings']) : f.read }),
     help_page: () => read('help_page'),
     tamsin_pays: () => { L(7); set({ huntId: null, endReason: 'left', tally: tallyFact([], [RATS, WOLVES]), sellable: 0 }); },
     save_setup: () => set({ presets: 1 }),
@@ -508,8 +508,14 @@ const cases = {
     }
     /* the food sums wait until the hero has eaten; then they ask, and Got it moves on */
     if (seen.includes('food_when')) return 'Eat on time came before the hero ate';
-    const fed = (more) => fresh(floor - 1, { read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro']), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], ...(more || {}) });
-    if (id(fed()) !== 'food_when') return 'a hero who has eaten three times is on ' + id(fed());
+    const fed = (more) => fresh(floor - 1, { read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro']), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], ...(more || {}) });
+    if (id(fed()) !== 'food_when') return 'a hero who has eaten six times is on ' + id(fed());
+    /* THE FOOD LESSON WAITS FOR A HERO SPENDING FOOD (the playthrough audit 2026-11-15, F5): three meals is not six, and the audit's own hunt,
+       8 meals in 2 hours of the Thicket (4 an hour, in armor on Normal), is not twelve an hour; six in ten minutes is */
+    const meals = (n, ms) => fed({ supplies: [{ item: 'cooked_shrimp', source: 'own', count: n }], huntMs: ms });
+    if (id(meals(3, 0)) === 'food_when') return 'Eat on time came after three meals';
+    if (id(meals(8, 2 * 3600000)) === 'food_when') return 'Eat on time came at 8 meals in 2 hours (4 an hour): the audit\'s hero, who is not spending food';
+    if (id(meals(6, 10 * 60000)) !== 'food_when') return 'a hero eating 6 times in 10 minutes is on ' + id(meals(6, 10 * 60000)) + ', not Eat on time';
     if (id(fed({ read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro', 'food_when']) })) === 'food_when') return 'Got it does not pass Eat on time';
     /* the first card on a new hero is Tamsin's rats, then the Cellar: the style waits until home from that first hunt
        (designer 2026-11-12, first-30 play: before any hunt it sent the hero into the bag, not to the Cellar) */
@@ -783,7 +789,7 @@ const cases = {
         if (!noStore || noStore.id === 'spell_runes') return set + ': with no store rune to name, the rune card is ' + (noStore ? 'still up' : 'up with no words (the coach goes blank)');
       } else if (card && card.id === 'spell_runes') return set + ': no spell is struck, yet the rune card is up';
       /* Saved with the store's rune on that slot: the server now says it can fire */
-      const fixed = { ...read, slots: T.slots.map((s) => ({ ...s, usable: true })), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }],
+      const fixed = { ...read, slots: T.slots.map((s) => ({ ...s, usable: true })), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }],
         read: new Set([...(read.read || []), 'first_eat', 'fight_settings']) };
       const eat = say(fixed);
       const food = T.slots.findIndex((s) => s.type === 'consume' && s.id === 'cooked_shrimp');
@@ -797,10 +803,13 @@ const cases = {
       let stop = 60;
       while (stop - 5 >= 50 && M.tut.wasteAt(heal, stop, fixed.hpMax) > 0) stop -= 5;
       if (lost > 0 && !eat.text.includes('press − until it reads ' + stop + '%')) return set + ': the eat card does not stop at ' + stop + '%: ' + eat.text;
-      /* ONE CARD FOR BOTH FOOD SLOTS (audit 2026-11-15 F4: lowering only the own slot raised "Your own food first" at once, a second card over the same few HP): the kit's store food
-         eats at the same HP, so the card that lowers the own slot names the store slot and the same number */
-      const storeAt = T.slots.findIndex((s) => s.type === 'consume' && s.id === 'salted_shrimp');
-      if (lost > 0 && stop < 60 && storeAt >= 0 && !eat.text.includes('slot ' + (storeAt + 1) + ' (Salted Shrimp) to ' + stop + '% too')) return set + ': the eat card lowers the own food to ' + stop + '% and leaves the store food at 60% for a second card: ' + eat.text;
+      /* ONE VISIT SETS BOTH (the playthrough audit 2026-11-15, F4): the card that lowers the own food names the store food slot and the same line,
+         so its advice does not make the "Your own food first" card; a bar with no store food above the new line is told nothing more */
+      const storeSlot = T.slots.findIndex((x) => x.type === 'consume' && x.id === 'salted_shrimp');
+      const bothLine = 'Then set slot ' + (storeSlot + 1) + ' (Salted Shrimp) to ' + stop + '% too, so your own food eats first.';
+      if (stop < 60 && storeSlot >= 0 && !eat.text.endsWith(bothLine)) return set + ': the eat card lowers the own food and leaves the store food eating first: ' + eat.text;
+      const noStore = say({ ...fixed, slots: fixed.slots.filter((x) => x.id !== 'salted_shrimp') });
+      if (noStore && noStore.id === 'food_when' && noStore.text.includes('Then set slot')) return set + ': with no store food on the bar the eat card still names one: ' + noStore.text;
       /* REGRESSION ("Tell your hero when" never showed, PRIORITY_BOARD 2026-10-25 #2): any Save restates the whole bar, so the
          kit's own 60% food slot comes back STORED; that is not the player choosing when to eat. */
       const kitStored = { ...fixed, stored: T.slots.map((s) => ({ type: s.type, id: s.id, conditions: s.conditions })) };
@@ -854,7 +863,7 @@ const cases = {
     if (cardOn(env([]), { read: [] }) !== 'bar_intro') return 'through the envelope with a recorder the bar card is not up: ' + cardOn(env([]), { read: [] });
     if (cardOn(env([]), { read: ['bar_intro'] }) !== 'spell_runes') return 'through the envelope, read, the rune card is not up';
     const kitWire = T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and' }));
-    const fedEnv = { ...env(kitWire, true), hunt_analyzer: { hero: { supplies: { own: { cooked_shrimp: 3 } } } } };
+    const fedEnv = { ...env(kitWire, true), hunt_analyzer: { hero: { supplies: { own: { cooked_shrimp: 6 } } } } };
     const fedRead = { read: ['bar_intro', 'first_eat', 'fight_settings'] };
     if (cardOn(fedEnv, fedRead) !== 'food_when') return 'through the envelope, the kit bar restated by a Save finishes "Eat on time": ' + cardOn(fedEnv, fedRead);
     return null;
@@ -907,7 +916,7 @@ const cases = {
           return set + ': slot ' + (i + 1) + ' (' + K.slots[i].id + ') is struck and the card is ' + JSON.stringify(card && { id: card.id, barSlot: card.barSlot, text: card.text });
         f = { ...f, slots: f.slots.map((s, k) => (k === i ? { ...s, usable: true, store: st.id } : s)) };
       }
-      f = { ...f, supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], read: new Set([...f.read, 'first_eat', 'fight_settings']) };
+      f = { ...f, supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], read: new Set([...f.read, 'first_eat', 'fight_settings']) };
       const next = M.tut.currentCard(f);
       if ((next && next.id) !== 'food_when') return set + ': with every struck slot fixed the chain goes on at ' + (next && next.id) + ', not food_when';
       seen.push(set + ' ' + row);
@@ -1611,7 +1620,7 @@ const cases = {
     t += 600000;
     const food = (pct) => ({ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: pct }], join: 'and' });
     env.hunt_settings = { preset: 1, slots: [food(60)], bar: [] };
-    env.hunt_analyzer = { hero: { supplies: { own: { cooked_shrimp: 3 } } } };
+    env.hunt_analyzer = { hero: { supplies: { own: { cooked_shrimp: 6 } } } };
     if (shown() !== 'food_when') return 'with the kit\'s food slot on the bar the coach shows ' + shown();
     env.hunt_settings = { preset: 1, slots: [food(50)], bar: [food(50)] };
     if (shown() !== 'earn_the_thicket') return 'a saved bar is held over: ' + shown();
@@ -2033,6 +2042,12 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "{ gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },", "{ gotIt: true, when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' },"]] },
   { name: 'Decide once asks for every stack again', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "inWindow: 'Press This hunt, then set one thing you only ever sell to Sell.", "inWindow: 'Press This hunt, then set each thing to Sell."]] },
+  { name: 'Eat on time lowers the own food and leaves the store food eating first', case: 'tutorial-bar-chain',
+    edits: [['src/data/hunt-tutorial.js', "+ ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.' + both,", "+ ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.',"]] },
+  { name: 'Eat on time is back after three meals', case: 'first-hour-never-walls',
+    edits: [['src/data/hunt-tutorial.js', 'const FOOD_LESSON_EATS = 6;', 'const FOOD_LESSON_EATS = 3;']] },
+  { name: 'Eat on time reads a count again, not a rate (8 meals in 2 h)', case: 'first-hour-never-walls',
+    edits: [['src/data/hunt-tutorial.js', 'const FOOD_LESSON_PER_HOUR = 12;', 'const FOOD_LESSON_PER_HOUR = 0;']] },
   { name: 'a beating is a count again, not a rate (35 meals in 8.5 h)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'sum(r) >= p.n && sum(r) * 3600000 >= p.perHour * (f.huntMs || 0)', 'sum(r) >= p.n']] },
   { name: 'the "just now" cards speak over a return', case: 'tutorial-reactive',

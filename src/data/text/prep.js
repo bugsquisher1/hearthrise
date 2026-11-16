@@ -96,6 +96,8 @@ export const PREP_TEXT = Object.freeze({
   /* BEFORE YOU GO, STORE FOOD TOO WEAK FOR THE GROUND (src/shell/hunt-go.js weakFoodLine): {food} the bar's best store food, {want} the
      store food this ground's bag guide names. */
   food_weak: '{food} heals too little for the monsters here. Once your own food runs out, your hero can die. Press that slot on your bar and pick {want}.',
+  /* the same with the server's numbers, when it has sent this hero's HP: {heal} what one {food} heals, {hp} the hero's full HP */
+  food_weak_hp: '{food} heals {heal} of your {hp} HP, too little for the monsters here. Once your own food runs out, your hero can die. Press that slot on your bar and pick {want}.',
 
   /* CARRY IN, while this hero hunts (src/shell/carry-in.js). */
   carry_head: 'Carry into this hunt',

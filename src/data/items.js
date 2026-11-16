@@ -657,6 +657,11 @@ export const ITEMS={
      fighter's way to them, and a smith's market. */
   temper_salts: {n:'Tempering Salts', icon:'🧂', v:35, tag:'temper'},
   fine_temper_salts: {n:'Fine Tempering Salts', icon:'🧂', v:60, tag:'temper'},
+  /* Tiers 4 to 6 (designer 2026-11-15, lane/d-audit-balance-2): each bids just under what the forge's inputs bid (135, 185 and 245 of book),
+     as the two above do; the workbench's planks ask a little more (recipes.js pack_*_temper_salts). */
+  mithril_temper_salts: {n:'Mithril Tempering Salts', icon:'🧂', v:130, tag:'temper'},
+  rune_temper_salts: {n:'Rune Tempering Salts', icon:'🧂', v:180, tag:'temper'},
+  ember_temper_salts: {n:'Ember Tempering Salts', icon:'🧂', v:235, tag:'temper'},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT
@@ -927,7 +932,7 @@ const RAW_DROPS = [
 const BULK_GOODS = [
   'copper_bar', 'bronze_bar', 'iron_bar', 'gold_bar', 'steel_bar', 'verdite_bar', 'mithril_bar', 'rune_bar', 'ember_bar', 'dawn_bar',
   'normal_plank', 'oak_plank', 'willow_plank', 'maple_plank', 'yew_plank', 'runewood_plank', 'duskwood_plank',
-  'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts',
+  'rune_blank', 'timber_beam', 'iron_fitting', 'keystone', 'temper_salts', 'fine_temper_salts', 'mithril_temper_salts', 'rune_temper_salts', 'ember_temper_salts',
   'bronze_axe', 'iron_axe', 'steel_axe', 'mithril_axe', 'rune_axe', 'ember_axe', 'dawn_axe',
   'bronze_pickaxe', 'iron_pickaxe', 'steel_pickaxe', 'mithril_pickaxe', 'rune_pickaxe', 'ember_pickaxe', 'dawn_pickaxe',
 ];

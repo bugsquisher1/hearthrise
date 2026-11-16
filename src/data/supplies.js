@@ -241,6 +241,39 @@ export const BAG_GUIDE_BY_TIER = Object.freeze({
   6: Object.freeze({ tier: 6, melee: melee('cooked_shark', 110) }),
 });
 
+/**
+ * THE STORE FOOD A LONE HERO IS MEASURED SAFE ON, on this ground at this Level, or null when the ground names none (the start bar's Salted
+ * Shrimp is measured safe there). A ground's bag guide carries `storeFloor` (a store food id) and, where the answer changes inside its
+ * band, `storeFloorFrom` { Level: store food id }: from that Level up the weaker food is the floor. Both are MEASURED on the real settle
+ * (tools/balance-sim/audit-table.mjs storefood: every way to fight, alone, on each store food, nothing carried), never worked out from
+ * the hero's HP. `level` null or under the first step reads `storeFloor`. The Hunts page and the bar's food slot say it
+ * (src/shell/hunt-go.js weakFoodLine, src/shell/slot-waits.js); the grader plays it (tools/balance-sim/grade.mjs storefood).
+ */
+export function storeFloorFor(huntId, level) {
+  const g = Object.prototype.hasOwnProperty.call(BAG_GUIDE_BY_HUNT, huntId) ? BAG_GUIDE_BY_HUNT[huntId] : null;
+  if (!g || !g.storeFloor) return null;
+  let at = -1, floor = g.storeFloor;
+  for (const [from, id] of Object.entries(g.storeFloorFrom || {})) {
+    const n = Number(from);
+    if (Number.isInteger(level) && level >= n && n > at) { at = n; floor = id; }
+  }
+  return floor;
+}
+
+/**
+ * DOES THIS GROUND EXPECT A HEALER beside a hero who fights this way at this Level? A bag guide's `healerUnder` { level, ways } says so
+ * where it was MEASURED: under that Level a hero fighting one of those ways alone, on the store food it is safe on, spends more on food
+ * than the hunt pays, and with a Healer beside it the hunt pays (the row's own comment carries the table). `discipline` is the worn
+ * weapon's (hunt-roles.js ROLE_KEYS: melee, ranged, magic); unknown reads as wanted, since most ways are. A heads-up, never a gate
+ * (Tyler 2026-11-08: one difficulty for every group size).
+ */
+export function healerWanted(huntId, level, discipline) {
+  const g = Object.prototype.hasOwnProperty.call(BAG_GUIDE_BY_HUNT, huntId) ? BAG_GUIDE_BY_HUNT[huntId] : null;
+  const h = g && g.healerUnder;
+  if (!h || (Number.isInteger(level) && level >= h.level)) return false;
+  return !discipline || h.ways.includes(discipline);
+}
+
 /** The guide for a hunt id, or for a training fight's monster tier. */
 export function bagGuideFor(huntId, monsterTier) {
   if (Object.prototype.hasOwnProperty.call(BAG_GUIDE_BY_HUNT, huntId)) return BAG_GUIDE_BY_HUNT[huntId];

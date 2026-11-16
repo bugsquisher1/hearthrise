@@ -163,6 +163,9 @@ export const BAR_TEXT = Object.freeze({
   none_in_hunt: 'You have none in this hunt, and {waiting}',
   none_left: 'You’re out of {item}. Your next food or drink slot takes over.',
   store_off: 'You chose to leave the hunt instead of buying from the store.',
+  /* A store food under what this ground is measured safe on (supplies.js storeFloorFor), while the hero hunts there: the slot still fires. */
+  food_weak: '{food} heals too little for the monsters here, and your hero can die on it. Press this slot and pick {want}.',
+  food_weak_hp: '{food} heals {heal} of your {hp} HP, too little for the monsters here. Your hero can die on it. Press this slot and pick {want}.',
   out_store_off: 'You’re out, and you chose to leave the hunt instead of buying more.',
   out_no_store: 'You’re out, and the store doesn’t sell it.',
 

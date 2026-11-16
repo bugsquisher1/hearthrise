@@ -207,6 +207,14 @@ const BASE_RECIPES = {
     /* Steel's tier takes no steel, ON PURPOSE (Andy: coal "has been a real slog and bottleneck for smithing"; board 2026-11-05): a Steel Bar eats 2 coal, 620 of these
        would be 1,240 coal, three hours at the Coal Rock, stacked on the band that is already half coal. Two Iron Bars and the Warrens' Big Bones ask for no coal at all. */
     {id:'mix_fine_temper_salts', name:'Mix Fine Tempering Salts', icon:'🧂', inputs:{iron_bar:2, big_bones:1}, output:'fine_temper_salts', xp:70, req:30, ms:3600},
+    /* THE MARCH'S THREE SALTS (designer 2026-11-15, lane/d-audit-balance-2; src/data/temper.js tiers 4 to 6). Each opens at the Smithing level its
+       metal does (45, 60, 75) and sits on that metal's own xp a second, never a new best. Grave Dust is the hardener: every March ground drops it
+       and its one use was the Great Hearth, so a hero now chooses between Inner Flame and the smith. NO COAL in any of them, as Steel's salt
+       has none (Andy's slog, board 2026-11-05; tests/temper-buy.mjs TB-MATERIAL): each takes its metal's RAW ORE, unsmelted, since a Mithril Bar
+       already eats 3 coal (smelt_mithril's secondary) and a Rune or Emberforged Bar 4; 620 salts a tier would be 1,860 to 2,480. */
+    {id:'mix_mithril_temper_salts', name:'Mix Mithril Tempering Salts', icon:'🧂', inputs:{mithril_ore:1, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
+    {id:'mix_rune_temper_salts', name:'Mix Rune Tempering Salts', icon:'🧂', inputs:{mithril_ore:1, magic_essence:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
+    {id:'mix_ember_temper_salts', name:'Mix Ember Tempering Salts', icon:'🧂', inputs:{emberstone_ore:1, grave_dust:2}, output:'ember_temper_salts', xp:340, req:75, ms:6400},
     /* WHETSTONES — melee's ammo, moved here from the cut Stonemason bench
        (designer ruling, demolition 2026-10-14). xp, ms and the batch of 10 are
        unchanged; reqs and inputs are the ruling's (UNVERIFIED until a sim run). */
@@ -268,6 +276,16 @@ const BASE_RECIPES = {
        demolition 2026-10-14): id, inputs, xp and req unchanged, so every room
        and property offer that spends keystones still resolves. */
     {id:'craft_keystone', name:'Set Keystone', icon:'🧱', inputs:{timber_beam:3, iron_fitting:3, ancient_fragment:2, cracked_spellstone:1}, output:'keystone', outputQty:1, xp:900, req:60, ms:6500},
+    /* THE MARCH'S SALTS, PACKED AT THE WORKBENCH (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's verdict on Crafting:
+       "planks and two cloaks, a one-press grind with no decisions"). From 30 to 88 Crafting made planks, one crossbow and arrows. Now each
+       tempering salt of the March has a second way in: the old case-hardener's pack of charred wood and bone, at the same Crafting level as
+       its metal's Smithing level, the same xp and time as the forge's row (Smithing's mix_*_temper_salts). THE DECISION: feed Tempering from the
+       forge (raw ore: the Mithril Rock at Mining 60, the Emberstone Vein at 75) or from the workbench (a plank: the trees, Maple at Woodcutting
+       45), by whichever skill and stock the account has. A Level 45 hero with no Mining 60 tempers Mithril only from the workbench. Each
+       workbench row asks a little more book than the forge's (160 against 135, 230 against 185, 345 against 245): no route is free money. */
+    {id:'pack_mithril_temper_salts', name:'Pack Mithril Tempering Salts', icon:'🧂', inputs:{maple_plank:1, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
+    {id:'pack_rune_temper_salts', name:'Pack Rune Tempering Salts', icon:'🧂', inputs:{yew_plank:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
+    {id:'pack_ember_temper_salts', name:'Pack Ember Tempering Salts', icon:'🧂', inputs:{runewood_plank:1, grave_dust:1}, output:'ember_temper_salts', xp:340, req:75, ms:6400},
   ],
   /* ── INNER FLAME: FUEL THE HEARTH (Tyler 2026-10-25, replacing Prayer's burying rites) ──────────────
      One row per fuel, BUILT from src/data/hearth.js HEARTH_FUELS (the ladder lives there; this bench is its

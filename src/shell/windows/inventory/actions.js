@@ -474,7 +474,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'confirm-no': sc.confirm = null; repaint(); return true;
     case 'bury-stop': doStopBury(st, repaint); return true;
     case 'equip-upgrades': sc.menu = null; equipUpgrades(st.cs, sc, repaint, st.upgrade); return true;
-    case 'ring-unlock': unlockRing(st, send, repaint); return true;
+    case 'ring-unlock': unlockRing(st, repaint); return true;
     case 'inv': closeMenu(ctx, st); return false;
     default: break;
   }

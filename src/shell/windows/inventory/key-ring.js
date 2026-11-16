@@ -12,6 +12,7 @@ import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.1
 import { gold } from '../../../render/format.js?v=0.2.133';
 import { t } from '../../../render/player-text.js?v=0.2.133';
 import { keyRingOf } from '../../../session/item-sections.js?v=0.2.133';
+import { runIntent } from '../../intent-words.js?v=0.2.133';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.133';
 
 /** The tab (hidden until the server sends the section). */
@@ -41,17 +42,20 @@ export function patchRing(root, st, doc, glyphs) {
   const buy = pane.querySelector('[data-hs-act="ring-unlock"]');
   prop(pane.querySelector('.hw-ring-do'), 'hidden', ring.unlocked || !ring.offer);
   text(buy, ring.offer ? t('bag.ring_unlock', { gold: gold(ring.offer.gold) }) : '');
-  prop(buy, 'disabled', !!st.sc.pending || !ring.offer);
+  /* with no offer the whole row is hidden above; on screen it is off only while the press is out */
+  prop(buy, 'disabled', !!st.sc.pending);
 }
 
-/** ONE unlock_buy naming the server's offer; a refusal re-reads the envelope. `send`: the window's intent runner (actions.js). */
-export function unlockRing(st, send, repaint) {
+/** ONE unlock_buy naming the server's offer; its refusal is said by runIntent and re-reads the envelope (storage.js's Expand, the same). */
+export function unlockRing(st, repaint) {
   const ring = keyRingOf(st.cs);
   if (!ring || ring.unlocked || !ring.offer) return;
   const offer = ring.offer.offer;
-  return send(st, repaint, async () => {
+  st.sc.menu = null;
+  st.sc.msgAt = null;
+  return runIntent(st.sc, repaint, async () => {
     const r = await st.cs.edgeIntent('unlock_buy', { offer });
     if (!r.ok && r.error !== 'closed') await st.cs.resync();
     return r;
-  }, t('bag.ring_unlocking'), () => t('bag.ring_unlocked'));
+  }, t('bag.ring_unlocking'), () => t('bag.ring_unlocked'), st.cs);
 }

@@ -133,7 +133,7 @@ const climbView = (page) => page.evaluate(() => {
   return { sum: Array.from(w.querySelectorAll('.tt-sum li')).filter((l) => !l.hidden).map((l) => l.textContent),
     xp: w.querySelector('.tt-xp').textContent, starts: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.value + (o.selected ? '*' : '')),
     pickers: w.querySelectorAll('[data-pane="climb"] select, [data-pane="climb"] [role="radiogroup"]').length, optionText: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.textContent),
-    note: w.querySelector('.tt-start-note').textContent, pane: w.querySelector('[data-pane="climb"]').textContent,
+    note: w.querySelector('.tt-start-note') ? w.querySelector('.tt-start-note').textContent : null, pane: w.querySelector('[data-pane="climb"]').textContent,
     best: w.querySelector('.tt-best').textContent,
     limits: w.querySelector('.tt-limits').textContent, startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent,
     msg: w.querySelector('.hh-intent-msg').textContent };
@@ -151,8 +151,9 @@ const chestView = (page) => page.evaluate(() => {
   const tx = (q) => (w.querySelector(q) ? w.querySelector(q).textContent : null);
   const st = (q) => { const b = w.querySelector(q); return !b || b.hidden ? 'none' : b.disabled ? 'off' : 'on'; };
   return { cinders: tx('.tc-cinders'), picks: Array.from(w.querySelectorAll('.tc-pick')).map((b) => b.textContent), have: tx('.tc-have'), where: tx('.tc-where'),
-    base: tx('.tc-base'), warm: tx('.tc-warm'), stokes: Array.from(w.querySelectorAll('.tc-stoke')).map((b) => b.textContent + (b.getAttribute('aria-checked') === 'true' ? '*' : '')),
-    stoked: tx('.tc-stoked'), saved: tx('.tc-stoke-saved'), chance: tx('.tc-chance'),
+    base: tx('.tc-base'), warm: tx('.tc-warm'), stokes: Array.from(w.querySelectorAll('.tt-foot .tc-stoke-pick option')).map((o) => o.textContent + (o.selected ? '*' : '')),
+    stokeHeads: Array.from(w.querySelectorAll('h3, h4')).filter((h) => h.getClientRects().length && /Stokes/.test(h.textContent)).length,
+    chance: tx('.tc-chance'),
     resets: tx('.tc-resets'), fams: Array.from(w.querySelectorAll('.tc-fam')).map((d) => Array.from(d.querySelectorAll('h4, p')).filter((e) => !e.hidden && e.textContent).map((e) => e.textContent).join(' | ')), own: tx('.tc-own'), inside: tx('.tc-inside'), result: tx('.tt-result'),
     use: st('.tc-use'), all: st('.tc-use-all'), why: tx('.tc-off-why') };
 });
@@ -198,11 +199,13 @@ async function checks(overrides, shots) {
       else {
         const v = await climbView(page);
         /* no weekly EARN cap is said (Tyler 2026-11-16: the cap is chests opened per key family, the Chest tab's line) */
-        if (!v || v.sum.join(' | ') !== 'Floors: one room each, harder each floor | Party: solo or party | Kill XP: 37.5% | Gold and loot: none | Death penalty: none | Uses: stamina and supplies | Key drop: every 10th floor | Keys open: the Hearth Chest')
+        /* only what a player acts on (the Coordinator's read of Tyler, 2026-11-16: no rows that restate the design) */
+        if (!v || v.sum.join(' | ') !== 'Kill XP: 37.5% | Gold and loot: none | Death penalty: none | Uses: stamina and supplies | Key drop: every 10th floor'
+          || /Floors: one room|Party: solo|Keys open/.test(v.pane))
           fails.push('TW-2 the summary rows read ' + JSON.stringify(v && v.sum));
         if (!v || v.xp !== 'Kill XP: 37.5%') fails.push('TW-2 the XP line reads ' + JSON.stringify(v && v.xp));
         if (!v || v.starts.join() !== '0,10,20*' || v.pickers !== 1 || v.optionText.join() !== 'Floor 1,Floor 11,Floor 21') fails.push('TW-2 the Start Floor picker reads ' + JSON.stringify(v && [v.starts, v.pickers, v.optionText]));
-        if (!v || v.note !== 'Checkpoints: every 10th floor, up to Best Floor' || /under your best|cleared this week|60 floors/i.test(v.pane))
+        if (!v || v.note !== null || /Checkpoints|under your best|cleared this week|60 floors/i.test(v.pane))
           fails.push('TW-2 the start words read ' + JSON.stringify(v && v.note));
         if (!v || v.best !== 'Best Floor: 27' || v.limits !== 'Time limit: 3 min per floor, 10 min per landing' || /this week|Keys to claim|Next landing/.test(v.pane)) fails.push('TW-2 the week reads ' + JSON.stringify(v));
         if (!v || v.go !== 'on' || v.why || v.startOn !== 'Floor 21') fails.push('TW-2 Enter in town with a listed floor is ' + JSON.stringify(v && [v.go, v.why, v.startOn]));
@@ -255,7 +258,7 @@ async function checks(overrides, shots) {
       s.env.party = party(1);
       await replay(page); await openTower(page);
       v = await climbView(page);
-      if (!v || v.go !== 'off' || v.why !== 'Party leader only' || !/party's lowest Best Floor/.test(v.note)) fails.push('TW-3 a seat that does not lead reads ' + JSON.stringify(v && [v.go, v.why, v.note]));
+      if (!v || v.go !== 'off' || v.why !== 'Party leader only') fails.push('TW-3 a seat that does not lead reads ' + JSON.stringify(v && [v.go, v.why]));
       s.env.party = party(0);
       await replay(page); await openTower(page);
       v = await climbView(page);
@@ -286,14 +289,14 @@ async function checks(overrides, shots) {
       if (c.cinders !== 'Hearth Cinders: 400' || c.picks.join() !== 'Bronze Key 3' || c.have !== 'Bronze Key: 3' || c.where !== 'Bag: 2, Storage: 1')
         fails.push('TW-4 the key reads ' + JSON.stringify(c));
       if (c.base !== 'Weapon chance: 16%' || c.warm !== 'Hearth\'s Warmth: x1.2'
-        || c.stokes.join() !== 'None,Once*,Twice,3 times' || c.stoked !== 'Stoke cost: 150 Cinders (x1.7)' || c.saved !== 'Default for Bronze Key'
+        || c.stokes.join() !== 'None,Once: 150 Cinders*,Twice: 350 Cinders,3 times: 600 Cinders' || c.stokeHeads !== 0
         || c.chance !== 'Chance: 33%')
         fails.push('TW-4 the odds read ' + JSON.stringify(c));
       if (c.own !== 'Equipped type (Bow): 50%' || c.inside !== 'Contents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20')
         fails.push('TW-4 the inside reads ' + JSON.stringify([c.own, c.inside]));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-4 Use/Use all with keys in town read ' + JSON.stringify([c.use, c.all]));
       if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-chest-desktop-1440x900.png') }); }
-      await page.click('[data-hs-win="tower"] .tc-stoke[data-stokes="2"]');
+      await page.selectOption('[data-hs-win="tower"] .tc-stoke-pick', '2');
       const saved = await wait(page, () => /^Chance: 48%$/.test(document.querySelector('[data-hs-win="tower"] .tc-chance')?.textContent || ''));
       let sent = verbs(s);
       if (sent.length !== 1 || sent[0].name !== 'hr_chest_stoke_default' || Object.keys(sent[0].body).sort().join() !== 'p_idem,p_key,p_slot,p_stokes' || sent[0].body.p_stokes !== 2)
@@ -324,7 +327,7 @@ async function checks(overrides, shots) {
       if (sent.length !== 1 || sent[0].body.p_count !== 3 || sent[0].body.p_stokes !== null) fails.push('TW-4 Use all sent ' + JSON.stringify(sent));
       /* three keys, no weapon: the loot list only (TW-8), never "No weapon" */
       await wait(page, () => /Keys used: 3/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''));
-      const loot = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-result > *')).map((e) => e.textContent));
+      const loot = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-result > *')).map((e) => e.textContent).filter(Boolean));   /* the reveal is art, no words */
       if (loot.join(' | ') !== 'Loot | Keys used: 3 | Hearth Cinders x150 | Tempering Salts x45 | Cooked Shrimp x60') fails.push('TW-8 a press with no weapon reads ' + JSON.stringify(loot));
       const badChest = notLabels(await paneLines(page, 'chest'));
       if (badChest.length) fails.push('TW-8 the Chest tab says sentences: ' + JSON.stringify(badChest));

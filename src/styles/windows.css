@@ -1266,15 +1266,15 @@
 .tt-tower .hs-sub { margin-top: 10px; }
 .tt-line { margin: 0 0 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 .tt-line:empty, .tt-tower .hs-note:empty { display: none; }
-.tc-keys, .tc-stokes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
-.tc-pick, .tc-stoke { min-height: 36px; min-width: 48px; padding: 0 10px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink);
+.tc-keys { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.tc-pick { min-height: 36px; min-width: 48px; padding: 0 10px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink);
   font-family: var(--f-label); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; cursor: pointer; }
-.tc-pick:hover:not(:disabled), .tc-stoke:hover:not(:disabled) { color: var(--gold-2); }
-.tc-pick[aria-checked="true"], .tc-stoke[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold-2); }
-.tc-pick:focus-visible, .tc-stoke:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-.tc-pick:disabled, .tc-stoke:disabled { opacity: .5; cursor: default; }
+.tc-pick:hover:not(:disabled) { color: var(--gold-2); }
+.tc-pick[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold-2); }
+.tc-pick:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.tc-pick:disabled { opacity: .5; cursor: default; }
 .tc-key { margin: 4px 0 8px; }
-.tc-stoke-head, .tc-fam-name { margin: 8px 2px 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
+.tc-loot-head, .tc-fam-name { margin: 8px 2px 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
 .tc-chance { margin: 6px 2px 4px; font-weight: 700; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .tc-chance:empty { display: none; }
 .tt-result { margin: 0 0 8px; padding: 6px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }

@@ -16,13 +16,10 @@ export const TOWER_TEXT = Object.freeze({
   story_hide: 'Hide',
 
   /* What the Tower is: the first rows the Climb tab shows, each a label the server's own rows fill (the mode's pay, the rules). */
-  sum_floors: 'Floors: one room each, harder each floor',
-  sum_party: 'Party: solo or party',
   sum_death: 'Death penalty: none',
   sum_uses: 'Uses: stamina and supplies',
   sum_loot: 'Gold and loot: none',
   sum_keys: 'Key drop: every {every}th floor',
-  sum_chest: 'Keys open: the Hearth Chest',
   xp_rule: 'Kill XP: {pct}%',
 
   /* The story (LOCKED, Tyler 2026-11-14). */
@@ -40,8 +37,6 @@ export const TOWER_TEXT = Object.freeze({
   best_none: 'Best Floor: none',
   start_head: 'Start Floor',
   start_floor: 'Floor {floor}',
-  start_note: 'Checkpoints: every {every}th floor, up to Best Floor',
-  start_note_party: 'Checkpoints: every {every}th floor, up to the party\'s lowest Best Floor',
   limits: 'Time limit: {floor} min per floor, {landing} min per landing',
   week_resets: 'Week resets: {when}',
   run_now: 'Climbing: {name}, floor {floor}',
@@ -76,10 +71,8 @@ export const TOWER_TEXT = Object.freeze({
   stoke_1: 'Once',
   stoke_2: 'Twice',
   stoke_n: '{count} times',
-  stoked: 'Stoke cost: {cost} Cinders (x{mult})',
+  stoke_option: '{label}: {cost} Cinders',
   stoke_short: 'Not enough Cinders',
-  stoke_saved: 'Default for {key}',
-  stoke_off: 'Stokes: none',
   chance: 'Chance: {pct}',
   own: 'Equipped type ({family}): {pct}',
   own_none: 'Equipped type: none',

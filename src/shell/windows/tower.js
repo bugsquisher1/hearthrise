@@ -67,14 +67,13 @@ export function renderTower(ctx) {
     + '<section class="hw-pane tt-pane" data-pane="climb">'
     + '<p class="tt-now" hidden></p>'
     /* what the Tower is, one label a row: the mode's pay and the rules are the server's, each row hidden when its row does not say it */
-    + '<ul class="tt-sum"><li>' + esc(t('tower.sum_floors')) + '</li><li>' + esc(t('tower.sum_party')) + '</li>'
-    + '<li class="tt-xp"></li><li class="tt-sum-loot"></li><li class="tt-sum-death"></li><li class="tt-sum-uses"></li>'
-    + '<li class="tt-sum-keys"></li><li>' + esc(t('tower.sum_chest')) + '</li></ul>'
+    + '<ul class="tt-sum"><li class="tt-xp"></li><li class="tt-sum-loot"></li><li class="tt-sum-death"></li><li class="tt-sum-uses"></li>'
+    + '<li class="tt-sum-keys"></li></ul>'
     + '<p class="tt-line tt-best"></p><p class="hs-note tt-limits"></p>'
     /* the Start Floor picker stands on the foot beside Enter: the floor the press sends is never scrolled away from it */
     + '<div class="tt-foot"><label class="hr-pick tt-start-row"><span>' + esc(t('tower.start_head')) + '</span>'
     + '<select class="hh-select tt-start-pick" data-hs-act="floor"></select></label>'
-    + '<p class="hs-note tt-start-note"></p><p class="hw-why tt-off-why"></p>'
+    + '<p class="hw-why tt-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tt-go" data-hs-act="tower-enter">' + esc(t('controls.enter')) + '</button></div>'
     + '</section>'
     + '<section class="hw-pane tt-pane" data-pane="chest">' + chestHtml() + '</section>'
@@ -111,9 +110,6 @@ function patchClimb(root, cs, tw, sc) {
   row('.tt-xp', !!p, p ? t('tower.xp_rule', { pct: p.xpPm / 10 }) : '');
   const landing = landingPicked(sc, tw);
   patchStarts(root.querySelector('.tt-start-pick'), tw, landing, sc.pending);
-  /* in a party the list is its lowest seat's record (the server's), and the note says whose */
-  const party = partyMembershipOf(cs);
-  text(root.querySelector('.tt-start-note'), t(party ? 'tower.start_note_party' : 'tower.start_note', { every: tw.rules.landingEvery }));
   text(root.querySelector('.tt-best'), tw.bestFloor > 0 ? t('tower.best', { floor: tw.bestFloor }) : t('tower.best_none'));
   text(root.querySelector('.tt-limits'), t('tower.limits', { floor: tw.rules.floorLimitMs / 60000, landing: tw.rules.landingLimitMs / 60000 }));
   const block = enterBlock(cs, tw, landing);
@@ -156,6 +152,7 @@ renderTower.act = function actTower(ctx, body, action, ev, el) {
     if (ev.type === 'change') { const l = Number(el.value); if (tw.checkpoints.includes(l)) { sc.landing = l; sc.msg = ''; } repaint(); }
     return true;
   }
+  if (action === 'chest-stoke') return ev.type === 'change' ? actChest(ctx, cs, tw, sc, action, el, repaint) : true;
   if (ev.type !== 'click') return false;
   if (action === 'tab') { const id = el.getAttribute('data-tab'); if (TABS.includes(id)) { sc.tab = id; sc.msg = ''; body.scrollTop = 0; repaint(); } return true; }
   if (action === 'story') { sc.story = !sc.story; repaint(); return true; }

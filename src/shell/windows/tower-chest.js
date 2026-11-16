@@ -5,9 +5,10 @@
 // about it in a menu"). The server half is 2027-04-27-tower-chest.sql: hr_chest_section's numbers (the `tower` section's `chest`),
 // hr_chest_open and hr_chest_stoke_default.
 //   THE KEY you look at: one of the kinds you hold (a press on its name), with how many and where they are.
-//   ITS ODDS, every one the server's: the key's chance, the Hearth's warmth from your dry keys, the stokes and what each costs in Cinders,
-//   and "Your chance", the server's chance_ppm at your SAVED stokes. A press on a stoke count SAVES it (hr_chest_stoke_default) and the
-//   chance shown is re-read from the server, so Use (hr_chest_open with p_stokes null: the saved default) can only send what you saw.
+//   ITS ODDS, every one the server's: the key's chance, the Hearth's warmth from the hero's dry keys, and on the foot beside Use the Stokes
+//   select (each count with what it costs in Cinders) and "Chance", the server's chance_ppm at the SAVED stokes. A change of the select
+//   SAVES it (hr_chest_stoke_default) and the chance shown is re-read from the server, so Use (hr_chest_open with p_stokes null: the saved
+//   default) can only send what was on screen.
 //   What's always inside, the type you have equipped and how often it comes, the tower weapon's +skill.
 //   KEY FAMILIES (Tyler 2026-11-16): each family the server lists (tower, catacomb, later more) has its own week: "Chests opened: N / 6"
 //   and "Keys held: N / 30", both the server's numbers (tower-sections.js familyOf, hr_chest_section's families), and the instant the
@@ -79,13 +80,12 @@ export function chestHtml() {
     + '<section class="tc-key" hidden>'
     + '<h3 class="hs-sub tc-have"></h3><p class="hs-note tc-where"></p>'
     + '<p class="tt-line tc-base"></p><p class="tt-line tc-warm"></p>'
-    + '<h4 class="tc-stoke-head">' + esc(t('tower.stoke_head')) + '</h4>'
-    + '<div class="tc-stokes" role="radiogroup" aria-label="' + esc(t('tower.stoke_head')) + '"></div>'
-    + '<p class="hs-note tc-stoked"></p><p class="hs-note tc-stoke-short" hidden></p><p class="hs-note tc-stoke-saved"></p>'
     + '<p class="tt-line tc-own"></p><p class="tt-line tc-inside"></p><p class="hs-note tc-plus"></p>'
     + '</section>'
     /* the chance you'd use the key at stands on the foot beside Use: the number the press acts on is never scrolled away from it */
-    + '<div class="tt-foot"><p class="tc-chance"></p><p class="hw-why tc-off-why"></p>'
+    + '<div class="tt-foot"><label class="hr-pick tt-start-row tc-stoke-row" hidden><span>' + esc(t('tower.stoke_head')) + '</span>'
+    + '<select class="hh-select tc-stoke-pick" data-hs-act="chest-stoke"></select></label><p class="hs-note tc-stoke-short" hidden></p>'
+    + '<p class="tc-chance"></p><p class="hw-why tc-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tc-use" data-hs-act="chest-use">' + esc(t('controls.use')) + '</button>'
     + '<button type="button" class="hh-tool tc-use-all" data-hs-act="chest-use-all">' + esc(t('controls.use_all')) + '</button></div>';
 }
@@ -105,20 +105,16 @@ function patchKeys(host, held, picked, pending) {
   });
 }
 
-/* The stoke picker: None and each row the server lists; the saved one gold. */
-function patchStokes(host, k, pending) {
-  const list = [0].concat(k.stokes.map((s) => s.n));
-  rows(host, list.map((n) => ({ n })), {
+/* The stoke picker, ONE select: None and each row the server lists, each with its Cinders (the server's cost); the saved one selected. */
+function patchStokes(sel, k, pending) {
+  const list = [{ n: 0, cost: 0 }].concat(k.stokes);
+  rows(sel, list, {
     key: (r) => String(r.n),
-    build: () => { const b = host.ownerDocument.createElement('button'); b.type = 'button'; b.className = 'tc-stoke'; b.setAttribute('role', 'radio');
-      b.setAttribute('data-hs-act', 'chest-stoke'); return b; },
-    patch: (b, r) => {
-      attr(b, 'data-stokes', String(r.n));
-      attr(b, 'aria-checked', String(k.stokesDefault === r.n));
-      prop(b, 'disabled', pending);
-      text(b, stokeLabel(r.n));
-    },
+    build: () => sel.ownerDocument.createElement('option'),
+    patch: (o, r) => { attr(o, 'value', String(r.n)); text(o, r.n ? t('tower.stoke_option', { label: stokeLabel(r.n), cost: whole(r.cost) }) : stokeLabel(0)); },
   });
+  prop(sel, 'value', k.stokesDefault === null ? '' : String(k.stokesDefault));
+  prop(sel, 'disabled', pending);
 }
 
 /* Each key family's week, the server's rows in its order: the family's name (only when it lists more than one), chests opened this week
@@ -201,20 +197,18 @@ export function patchChest(pane, cs, tw, sc) {
     text(pane.querySelector('.tc-base'), k.basePm !== null ? t('tower.key_base', { pct: ppmWords(k.basePm * 1000) }) : '');
     const warm = c.dry !== null && c.dry > 0 && c.warmthPm !== null && c.warmthPm > 1000;
     text(pane.querySelector('.tc-warm'), warm ? t('tower.key_warm', { times: timesWords(c.warmthPm) }) : t('tower.key_cold'));
-    patchStokes(pane.querySelector('.tc-stokes'), k, sc.pending);
-    const st = k.stokesDefault ? stokeRow(k, k.stokesDefault) : null;
-    /* one label a line: the saved stokes and their Cinders, short of Cinders, saved for the key */
-    text(pane.querySelector('.tc-stoked'), st ? t('tower.stoked', { mult: timesWords(st.pm), cost: whole(st.cost) })
-      : k.stokesDefault === 0 ? t('tower.stoke_off') : '');
-    const short = !!st && c.cindersAll !== null && c.cindersAll < st.cost;
-    prop(pane.querySelector('.tc-stoke-short'), 'hidden', !short);
-    text(pane.querySelector('.tc-stoke-short'), short ? t('tower.stoke_short') : '');
-    text(pane.querySelector('.tc-stoke-saved'), st ? t('tower.stoke_saved', { key: k.name || itemName(k.item) }) : '');
     text(pane.querySelector('.tc-own'), c.ownFamily && c.ownPm !== null ? t('tower.own', { family: familyWord(c.ownFamily), pct: ppmWords(c.ownPm * 1000) })
       : c.ownFamily ? '' : t('tower.own_none'));
     text(pane.querySelector('.tc-inside'), Object.keys(k.inside).length ? t('tower.inside', { list: lootList(k.inside).join(', ') }) : '');
     text(pane.querySelector('.tc-plus'), k.skillPlus !== null ? t('tower.skill_plus', { plus: k.skillPlus }) : '');
   }
+  /* the stokes on the foot, beside the chance they move (shown with a key picked) */
+  prop(pane.querySelector('.tc-stoke-row'), 'hidden', !k);
+  if (k) patchStokes(pane.querySelector('.tc-stoke-pick'), k, sc.pending);
+  const st = k && k.stokesDefault ? stokeRow(k, k.stokesDefault) : null;
+  const short = !!st && c.cindersAll !== null && c.cindersAll < st.cost;
+  prop(pane.querySelector('.tc-stoke-short'), 'hidden', !short);
+  text(pane.querySelector('.tc-stoke-short'), short ? t('tower.stoke_short') : '');
   text(pane.querySelector('.tc-chance'), k && k.chancePpm !== null ? t('tower.chance', { pct: ppmWords(k.chancePpm) }) : '');
   patchResult(pane.querySelector('.tt-result'), sc.result);
   const block = useBlock(cs, tw, k);
@@ -237,7 +231,7 @@ export function actChest(ctx, cs, tw, sc, action, el, repaint) {
   const k = keyPicked(sc, tw);
   if (!k) { repaint(); return true; }
   if (action === 'chest-stoke') {
-    const n = Number(el.getAttribute('data-stokes'));
+    const n = Number(el.value);
     if (!(n === 0 || stokeRow(k, n)) || n === k.stokesDefault) return true;
     runIntent(sc, repaint, () => saveStokes(ctx.account, cs, k.key, n), t('tower.busy_stoke'), () => '', cs);
     return true;

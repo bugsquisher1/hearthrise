@@ -41,6 +41,7 @@ const unit = (x, y, seed) => vhash(x, y, seed) / 4294967296;
 /** Smooth value noise in [0, 1) at world point (x, y) in tiles: two octaves, each on its own rotated lattice, so a patch's
     edge never runs along the tile grid. */
 /* the two octaves' lattice turns (cos, sin), worked out once: the town asks for ~15k corners */
+/** @type {ReadonlyArray<[number, number]>} the two octaves' turns (cos, sin) */
 const TURN = Object.freeze([[Math.cos(0.52), Math.sin(0.52)], [Math.cos(1.31), Math.sin(1.31)]]);
 function octave(x, y, s, sd, [c, n]) {
   const fx = (x * c - y * n) / s + 0.37 * (sd & 15), fy = (x * n + y * c) / s - 0.21 * (sd & 15);

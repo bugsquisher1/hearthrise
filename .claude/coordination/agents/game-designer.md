@@ -944,3 +944,8 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Un-holding rows leaves their unreachable items with no use (C2). Check what else a held row was the only use of before re-costing it.
 - Two recipes for one output is the cheapest real decision a bench can get: same xp and time, different skills and stock, a little more book on the new route so neither is free money.
 - A paused lane's measurements live in its scratchpad (career-tank.txt): re-derive the board's numbers from them before re-running a 590-hour career.
+## 2026-11-16 lane/d-temper-dawnsteel (Tyler: tier 7 gets its own Tempering ladder, 88 to 110)
+- A "keep it under the next piece" rule needs the next piece to carry more of the stat. The armor line's anchor IS Dawnsteel's armor, so "under a bare 110 unique" can't hold at any cap; read it against the first piece that adds armor (122) and say the anchor case plainly.
+- Check what the gear ladder already dresses before adding `also`: from 88 the sim's kit reads Krell's drops, so the "with Krell's pieces" and "ladder kit" gold runs were the same run.
+- Python on Windows writes CRLF in text mode; mutant anchors with a newline then match nothing. Use the Edit tool, or open(..., newline='').
+- A regex guard that greps src/ for a file name (armor-line AL2) reads comments too: name the data, not the file.

@@ -1,0 +1,4 @@
+{
+  "about": "tests/copy-lint.mjs THE LABEL FORM: edge-bundled lines (EDGE_LABEL_DATA) that broke a label rule on 2026-11-16, \"<file>#<rule>#<text>\". They change only with an edge deploy. Only shrinks (--prune-labels).",
+  "hits": []
+}

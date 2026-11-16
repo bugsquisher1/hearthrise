@@ -88,6 +88,7 @@ import { join, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { playerParts, codeish } from './text-home.mjs';
 
 const HERE_ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const argv = process.argv.slice(2);
@@ -282,34 +283,129 @@ export const PERSON_FIX = Object.freeze(Object.fromEntries([...PERSON_PHRASES.ma
   ['label-sentence', 'say it as a sentence: "Restores mana.", "Works with any weapon."'],
   ['no-verb', 'give it a verb: "Build the one before it first.", "You can buy this one next."'],
   ['noun-stack', 'join the nouns with words: "the rune the store sells", "extra XP for a party"'],
-  ['label-long', 'outside lore a system line is the genre\'s label ("Recommended: 4+ players", "Requires Level 30", "Not enough gold"); a lore or '
-    + 'teaching row says so with @sentence in the comment over its block']]));
+  ['two-sentences', 'outside lore a line is a label ("Not enough gold", "Gold: 500 gp") or ONE instruction ("Shop → Sell all junk"): cut the second '
+    + 'sentence, or make it its own label'],
+  ['long-line', 'a label or an instruction is at most 12 words: say the label ("Recommended: 4+ players", "Requires Level 30")'],
+  ['parenthetical', 'no aside in brackets: cut it, or make it its own label (a count, a unit or a key may stay: "(3)", "(12 gp)", "(E)")'],
+  ['you-line', '"you"/"your" only inside one short instruction ("Pick your look"); a label drops it ("Gold: 500 gp", "Bag full", "In bag")'],
+  ['coach-card', 'a coach card is a title of at most 4 words and ONE line of at most 10 words that names the press: "Shop → Sell all junk"'],
+  ['unread-home', 'a src/data file with player sentences is read: add it to LABEL_DATA or EDGE_LABEL_DATA, or name it in NOT_LABEL_HOMES with why'],
+  ['stale-label-pin', 'an edge file\'s pinned line was rewritten: drop its row (--prune-labels)']]));
 
-/* ── THE LABELS (Tyler 2026-11-14) ────────────────────────────────────────────────────────────────────────────────────
-   "Captain Hask is built for a group of four or more. Alone, you still fight him, and he can kill you." was "not the voice for
-   stuff like that"; "Recommended: 4+ players" was "Perfect. Now do it like that for everything outside of actual lore." So a text
-   table row (src/data/text/*) of more than LABEL_MAX_WORDS words is red: warnings, hints, requirements, refusals, status lines,
-   page facts and tooltips are labels. LORE IS SENTENCES: the criers' table is lore, the coach cards and the wiki's pages teach,
-   and any other row that must stay a sentence (a help line that teaches its window) carries `@sentence: <why>` in a comment over
-   its block (rows up to the next blank line). Today's older rows are pinned in the voice baseline and only come off it. */
+/* ── THE LABEL FORM (Tyler 2026-11-14, 2026-11-16) ─────────────────────────────────────────────────────────────────────────────
+   2026-11-14: "Recommended: 4+ players" was "Perfect. Now do it like that for everything outside of actual lore." 2026-11-16, angry, at the live
+   coach card "Sell what only pays coin / Open the Shop and press Sell. Sell all junk sells what is only worth gold. Your Materials stay, like fuel
+   for the Great Hearth (it raises your Inner Flame), ..." and the bag's "None yet. Your outfit is only a look.", "Your gold 500 gp" and "You haven't
+   picked Deposit or Sell for anything yet. Pick one in an item's menu.": "Every time i read something in game i wonder how it slipped through." They
+   slipped because the coach and wiki tables were exempt, an @sentence comment let a whole block out, and words written in code or in a data file were
+   never read. So outside lore every line a player reads is a genre LABEL or ONE short instruction (the Huntera coach: a short title, one line, the press):
+     two-sentences  more than one sentence on a line ("Label: value" segments are labels: "Heroes at once: 1. Sign out to pick Mira" stays)
+     long-line      a line of more than LABEL_MAX_WORDS words (a row of labels breaks per line, so each line is read)
+     parenthetical  words in brackets ("(it raises your Inner Flame)"); a count, a unit or a key stays: "(3)", "(12 gp)", "(E)"
+     you-line       "you"/"your" outside one short instruction: "Pick your look" stays; "Your gold 500 gp" and "None yet. Your outfit is only a look." don't
+     coach-card     a coach line (every card the coach shows, as stated, and every src/data/text/coach.js row): one line, one sentence, at most
+                    COACH_MAX_WORDS words, opening on a verb, a path ("Shop → Sell all junk") or a label ("Next gear at Level 22: Houndskin Cloak");
+                    a card's title (a coach.js row keyed *_title, a card's `title`) is at most COACH_TITLE_MAX_WORDS words, with no period
+   READ ON: every row of src/data/text/*, every file in LABEL_DATA (the refusals, the coach, the UI data files), and every player piece written in
+   src/shell, src/app, src/hunt-view and src/social (tests/text-home.mjs playerParts). LORE IS SENTENCES, by an explicit allowlist, never a pattern or a
+   comment: LORE_ROWS names a file's lore rows (a key, or a key prefix ending in _). Every other src/data file that holds a sentence is named:
+   EDGE_LABEL_DATA (edge-bundled, so its words change only with an edge deploy: each shown line that breaks a rule is pinned in
+   tests/copy-lint-labels.baseline.json, which only shrinks, and a new one is red), or NOT_LABEL_HOMES with why (item flavor and a ground's story are
+   lore; design notes are never shown). A data file in none of the lists with a line that breaks a rule is red (unread-home): no home slips in unread. */
 export const LABEL_MAX_WORDS = 12;
-/* Every refusal a player can be answered with (src/shell/intent-words.js reads it) is a system line too. */
-export const LABEL_HOMES_RE = /[\\/]src[\\/]data[\\/]refusal-words\.js$/;
-export const SENTENCE_TABLES_RE = /[\\/]src[\\/]data[\\/]text[\\/](?:criers|coach|wiki)\.js$/;
-/** The words a reader reads in a row (a {placeholder} or § is one word; a lone dash or plus sign is none). */
+export const COACH_MAX_WORDS = 10;
+export const COACH_TITLE_MAX_WORDS = 4;
+/* The lore rows, by file: a key, or a key prefix ending in _ (a plural row is read by its own key). */
+export const LORE_ROWS = Object.freeze({
+  'src/data/text/criers.js': ['say_'],                    // the criers call out in Local chat: NPC talk is lore (Tyler 2026-11-14)
+  'src/data/text/factions.js': ['said_', 'join_lead'],    // Holly's and Venn's own words, and the March's story line
+  'src/data/text/tally.js': ['say_'],                     // Tamsin talking at her board
+  'src/data/town-works.js': ['about', 'aboutDone'],       // the Works' story: Havora raising the Weighhouse
+  'src/data/hunts.js': ['theme'],                         // a ground's story line
+});
+/* The src/data files read like the text table (outside src/data/text/): the refusals, the coach and the data files a window shows as they are. */
+export const LABEL_DATA = Object.freeze(['src/data/refusal-words.js', 'src/data/hunt-tutorial.js', 'src/data/armour-weights.js', 'src/data/party-words.js',
+  'src/data/alerts.js', 'src/data/honor-roll.js', 'src/data/settings.js', 'src/data/social-settings.js', 'src/data/chat-channels.js', 'src/data/town-works.js',
+  'src/data/hunt-after.js', 'src/data/outfits.js', 'src/data/shell-windows.js', 'src/data/combat-text.js', 'src/data/live-events.js', 'src/data/how-to-play.js',
+  'src/data/skill-guide.js', 'src/data/fx-alpha.js']);
+/* Edge-bundled (tools/pack-edge.mjs walks them into hr-accrue): read like LABEL_DATA, and a line that breaks a rule today is pinned until the next edge deploy. */
+export const EDGE_LABEL_DATA = Object.freeze(['src/data/hunt-sessions.js', 'src/data/training.js', 'src/data/boss-calls.js', 'src/data/boss-halls.js',
+  'src/data/hunt-tiers.js', 'src/data/session-modes.js', 'src/data/condition-metrics.js', 'src/data/supply-basics.js', 'src/data/party.js',
+  'src/data/scaled-hunts.js', 'src/data/hunt-roles.js', 'src/data/shops.js', 'src/data/elements.js', 'src/data/monster-classes.js', 'src/data/hunts.js']);
+/* Never read for labels, each with why (a prefix ending in / is a whole directory). */
+export const NOT_LABEL_HOMES = Object.freeze({
+  'src/data/item-descriptions.js': 'lore: item flavor',
+  'src/data/items.js': 'lore: item flavor (the burnt food\'s note)',
+  'src/data/library2-items.js': 'lore: item flavor', 'src/data/slot-ladders.js': 'lore: item flavor', 'src/data/style-gear.js': 'lore: item flavor',
+  'src/data/imbuements.js': 'lore: item flavor', 'src/data/champions.js': 'lore: item flavor', 'src/data/shields.js': 'lore: item flavor',
+  'src/data/drinks.js': 'lore: item flavor', 'src/data/boss-forge.js': 'lore: item flavor', 'src/data/wave3-uniques.js': 'lore: item flavor',
+  'src/data/jewelry.js': 'lore: item flavor', 'src/data/bosses.js': 'lore: a boss\'s story line',
+  'src/data/grounds/': 'lore: a ground\'s story and its loot\'s flavor, and design notes', 'src/data/world/': 'names and design notes of the pixel world',
+  'src/data/monster-art.js': 'design notes (the art review), never shown', 'src/data/catalogue-coherence.js': 'design notes, never shown',
+  'src/data/item-effects.js': 'design notes, never shown', 'src/data/balance-sheet.js': 'design notes, never shown',
+});
+const homeOf = (rel) => (/^src\/data\/text\/[^/]+\.js$/.test(rel) || LABEL_DATA.includes(rel) ? 'table'
+  : EDGE_LABEL_DATA.includes(rel) ? 'edge' : /^src\/(?:shell|app|hunt-view|social)\//.test(rel) ? 'code' : null);
+export const notLabelHome = (rel) => Object.keys(NOT_LABEL_HOMES).some((k) => (k.endsWith('/') ? rel.startsWith(k) : rel === k));
+/** Is `key` of `rel` a lore row (LORE_ROWS)? */
+export function loreRow(rel, key) {
+  const rows = LORE_ROWS[rel];
+  return !!rows && !!key && rows.some((k) => (k.endsWith('_') ? key.startsWith(k) : key === k));
+}
+/** The row key a literal at `at` is the value of: `key: '…'`, or a plural row's own key for `one: '…'` / `other: '…'`. */
+export function rowKey(src, at) {
+  const back = src.slice(Math.max(0, at - 240), at);
+  const m = /([A-Za-z_$][\w$]*)['"]?\s*:\s*$/.exec(back);
+  if (!m) return null;
+  if (!/^(?:zero|one|two|few|many|other)$/.test(m[1])) return m[1];
+  const p = /([A-Za-z_$][\w$]*)['"]?\s*:\s*(?:Object\.freeze\(\s*)?\{[^{}]*$/.exec(back);
+  return p ? p[1] : m[1];
+}
+/** The words a reader reads in a line (a {placeholder} or § is one word; a lone dash, arrow or plus sign is none). */
 export function wordCount(text) {
   return (String(text).replace(/\{[a-z][A-Za-z0-9_]*\}/g, '§').match(/[A-Za-z0-9§][^\s]*/g) || []).length;
 }
-/** A row of labels breaks per line (a warning's "50% HP: …" lines): each line is one label, so the longest line is read. */
-export const longestLine = (text) => Math.max(0, ...String(text).split('\n').map(wordCount));
-/** Does a comment in the row's block (the lines above it, up to a blank line) carry @sentence? */
-export function sentenceTagged(src, at) {
-  const lines = src.slice(0, at).split('\n');
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (i < lines.length - 1 && !lines[i].trim()) return false;
-    if (/@sentence\b/.test(lines[i])) return true;
+const YOU_RE = /\b(?:you|your|yours|yourself)\b|\byou['’](?:re|ll|ve|d)\b/i;
+const PAREN_OK_RE = /^\s*(?:[+−-]?(?:§|\d[\d,.]*)\s*(?:%|[A-Za-z]{1,3})?|[x×]\s*(?:§|\d[\d,]*)|[A-Za-z0-9])\s*$/;
+/* A CSS media query in a matchMedia() literal is code, not a bracket in a sentence. */
+const MEDIA_RE = /\((?:hover|pointer|any-hover|any-pointer|prefers-[a-z-]+|(?:max|min)-(?:width|height))\s*:/;
+const LABEL_SEG_RE = /^[A-Z§][\w’'&§-]*(?: [\w’'&§-]+){0,4}: \S/;
+let IMPERATIVE = null;   /* built on first use: VERB_BASES is declared below */
+const IMPERATIVE_MORE = Object.freeze(['don\'t', 'don’t', 'never', 'reload', 'tap', 'click', 'right-click', 'scroll', 'hover', 'unequip', 'deselect',
+  'enable', 'disable', 'dispatch', 'bless', 'expand', 'refresh', 'sort', 'filter', 'search', 'dye', 'unlist', 'relist', 'harvest', 'log', 'sign']);
+/** The sentences of one line ("Label: value" segments included). */
+export const sentencesOf = (line) => String(line).split(/(?<=[.!?])\s+(?=[A-Z§"“'(\d])/).map((s) => s.trim()).filter((s) => /[A-Za-z]/.test(s));
+const opensOnVerb = (line) => (IMPERATIVE ||= new Set([...VERB_BASES, ...IMPERATIVE_MORE])).has(String((String(line).match(/[A-Za-z][A-Za-z'’-]*/) || [''])[0]).toLowerCase());
+/** One short instruction: one sentence, at most COACH_MAX_WORDS words, opening on a verb ("Pick your look", "Sign in again to keep playing"). */
+export const instruction = (line) => sentencesOf(line).length === 1 && wordCount(line) <= COACH_MAX_WORDS && opensOnVerb(line);
+/**
+ * The LABEL FORM rules `raw` breaks (a row, or a piece a window shows). `kind`: 'title' for a coach card's title, 'line' for a coach card's line,
+ * else null. Tags and entities are not words; a {placeholder}, `${…}` (§) or "{…}" is one word.
+ */
+export function labelForm(raw, kind = null) {
+  const t = String(raw).replace(/<[^>]*>/g, ' ').replace(/&#?[A-Za-z0-9]+;/g, ' ').replace(/\{[a-z][A-Za-z0-9_:]*\}|\{…\}/g, '§');
+  if (!/[A-Za-z]{2,}/.test(t) || MEDIA_RE.test(t) || CSS_LIST_RE.test(t)) return [];
+  const lines = t.split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).filter((l) => /[A-Za-z]/.test(l));
+  const hits = new Set();
+  for (const line of lines) {
+    if (sentencesOf(line).filter((s) => !LABEL_SEG_RE.test(s)).length > 1) hits.add('two-sentences');
+    if (wordCount(line) > LABEL_MAX_WORDS) hits.add('long-line');
+    for (const m of line.matchAll(/\(([^()]*)\)/g)) if (!PAREN_OK_RE.test(m[1])) hits.add('parenthetical');
+    if (YOU_RE.test(line) && !instruction(line)) hits.add('you-line');
   }
-  return false;
+  const all = lines.join(' ');
+  if (kind === 'title' && (lines.length > 1 || wordCount(all) > COACH_TITLE_MAX_WORDS || /\.\s*$/.test(all))) hits.add('coach-card');
+  if (kind === 'line' && (lines.length > 1 || sentencesOf(all).length > 1 || wordCount(all) > COACH_MAX_WORDS
+    || !(opensOnVerb(all) || /→/.test(all) || LABEL_SEG_RE.test(all)))) hits.add('coach-card');
+  return [...hits];
+}
+/** A coach.js row's kind: its card titles, its card lines, and the two presses (controls, read by the control rules). */
+const coachKind = (rel, key) => (rel !== 'src/data/text/coach.js' || !key || ['got_it', 'no_tips'].includes(key) ? null : /_title$/.test(key) ? 'title' : 'line');
+/* THE EDGE PINS: an edge-bundled file's lines that broke a LABEL FORM rule the day the rules landed (2026-11-16), "<file>#<rule>#<text>". The list only
+   shrinks: the next edge deploy rewrites them (the shown ones move to src/data/text/), --prune-labels drops a rewritten row, and a new hit is red. */
+export const LABELS_BASELINE = join(HERE_ROOT, 'tests', 'copy-lint-labels.baseline.json');
+export function readLabelPins(path = LABELS_BASELINE) {
+  return new Set(JSON.parse(readFileSync(path, 'utf8')).hits || []);
 }
 
 /* A SENTENCE WITH NO VERB ("After the one before.", "The next home."): a sentence ending in . ! or ? with 3 or more words,
@@ -571,9 +667,16 @@ export async function scan(root, opts = {}) {
      passes its own set gets no stale-voice check unless it sets opts.checkStale). */
   const pinned = opts.voice || (opts.files ? new Set() : readVoiceBaseline());
   const seenVoice = new Set();
+  /* opts.labels: the edge pins to honour (default: the baseline on a full scan, none on planted files) */
+  const labelPins = opts.labels || (opts.files ? new Set() : readLabelPins());
+  const seenPins = new Set();
   for (const f of files) {
     const src = readFileSync(f, 'utf8');
     const lits = stringLiterals(src);
+    const rel = relative(root, f).split(sep).join('/');
+    /* the path from src/ on (a selftest plant sits under a temp dir's own src/) */
+    const srcRel = (/(?:^|\/)(src\/.*)$/.exec(rel) || [, rel])[1];
+    const home = homeOf(srcRel);
     /* THE TEXT TABLE (src/data/text/*, lane/b-text-home): a row's {placeholder} is a hole, read like a template's ${…}. */
     const table = TEXT_TABLE_RE.test(f);
     for (let i = 0; i < lits.length; i++) {
@@ -597,9 +700,16 @@ export async function scan(root, opts = {}) {
       if (!rules.includes('em-dash') && /^\s+—\s+$/.test(text)) rules.push('em-dash');
       /* THE PERSON TEST: a pinned line (the voice baseline) is the debt the sweep pays down, anything else is red. */
       const person = prose(text) ? personRules(text, table) : [];
-      /* THE LABELS: a long row outside lore (src/data/text/*, the controls' glossary aside: control-long reads it) */
-      if ((table || LABEL_HOMES_RE.test(f)) && prose(text) && !CONTROLS_TABLE_RE.test(f) && !SENTENCE_TABLES_RE.test(f) && longestLine(text) > LABEL_MAX_WORDS
-        && !sentenceTagged(src, at)) person.push('label-long');
+      /* THE LABEL FORM: every row, refusal and UI data line outside LORE_ROWS, and every player piece written in code (the windows) */
+      const labels = [];
+      /* a selector, an id or a class list is code; a coach anchor's about (hunt-tutorial.js TUTORIAL_ANCHORS) is its documentation */
+      if (home && prose(text) && !codeish(text) && !/\banchor\(\s*$/.test(src.slice(Math.max(0, at - 20), at))) {
+        const key = home === 'code' ? null : rowKey(src, at);
+        if (!loreRow(srcRel, key)) {
+          const pieces = home === 'code' ? playerParts(lits[i].text) : [text];
+          for (const p of pieces) for (const r of labelForm(p, coachKind(srcRel, key))) labels.push([r, p]);
+        }
+      }
       /* THE CONTROLS: a controls.* row, a btn_/tab_/button_ row, or a static <button>/<summary> label in src/shell or src/app */
       const controls = [];
       if (table) {
@@ -608,14 +718,19 @@ export async function scan(root, opts = {}) {
       } else if (CONTROL_DIRS_RE.test(f)) {
         for (const l of buttonLabels(text)) for (const r of controlRules(l)) controls.push([r, l]);
       }
-      if (!rules.length && !person.length && !controls.length) continue;
+      if (!rules.length && !person.length && !controls.length && !labels.length) continue;
       const line = src.slice(0, at).split('\n').length;
-      const rel = relative(root, f).split(sep).join('/');
       for (const rule of rules) {
         if (waived(root, f, rule, text)) continue;
         findings.push({ file: rel, line, rule, text: text.replace(/\s+/g, ' ').slice(0, 110) });
       }
       for (const [rule, label] of controls) findings.push({ file: rel, line, rule, text: label.replace(/\s+/g, ' ').slice(0, 110) });
+      for (const [rule, piece] of labels) {
+        /* an edge-bundled file's line is pinned until the next edge deploy; every other home's is red now */
+        const pin = home === 'edge' ? srcRel + '#' + rule + '#' + piece.replace(/\s+/g, ' ').trim() : null;
+        if (pin && labelPins.has(pin)) { seenPins.add(pin); continue; }
+        findings.push({ file: rel, line, rule, text: piece.replace(/\s+/g, ' ').slice(0, 140), ...(pin ? { pin } : {}) });
+      }
       for (const rule of person) {
         const key = voiceKey(rel, rule, text);
         if (pinned.has(key)) { seenVoice.add(key); continue; }
@@ -628,7 +743,39 @@ export async function scan(root, opts = {}) {
   if (opts.checkStale ?? (!opts.files && !opts.voice)) for (const k of pinned) {
     if (!seenVoice.has(k)) findings.push({ file: k.slice(0, k.indexOf('#')), line: 0, rule: 'stale-voice', text: k.slice(k.indexOf('#') + 1).slice(0, 110) + ' (rewritten: drop the row, --prune-voice)' });
   }
+  if (opts.checkStale ?? (!opts.files && !opts.labels)) for (const k of labelPins) {
+    if (!seenPins.has(k)) findings.push({ file: k.slice(0, k.indexOf('#')), line: 0, rule: 'stale-label-pin', text: k.slice(k.indexOf('#') + 1).slice(0, 110) + ' (rewritten: drop the row, --prune-labels)' });
+  }
   return { files: files.length, plurals: plurals.length, findings };
+}
+
+/* EVERY DATA HOME IS NAMED (the label form's last rule): a src/data file outside the text table, LABEL_DATA, EDGE_LABEL_DATA and NOT_LABEL_HOMES with a
+   line that breaks a LABEL FORM rule is red once, as unread-home. `files`: absolute paths (default every src/data file). */
+export function unreadHomes(root, files = walk(join(root, 'src', 'data'))) {
+  const out = [];
+  for (const f of files) {
+    const rel = relative(root, f).split(sep).join('/');
+    const srcRel = (/(?:^|\/)(src\/.*)$/.exec(rel) || [, rel])[1];
+    if (homeOf(srcRel) || notLabelHome(srcRel)) continue;
+    const src = readFileSync(f, 'utf8');
+    const hit = stringLiterals(src).find(({ text, at }) => !devOnly(src, at) && prose(text) && labelForm(text).length);
+    if (hit) out.push({ file: rel, line: src.slice(0, hit.at).split('\n').length, rule: 'unread-home', text: hit.text.replace(/\s+/g, ' ').slice(0, 110) });
+  }
+  return out;
+}
+
+/* THE COACH, AS SHOWN: every card's title and its lines as written on the row (a card stated from the facts is read from its coach.js rows, and
+   tests/hunt-core/sewer.mjs reads each stated card against labelForm on the walk-through's facts). */
+export async function coachFindings(root) {
+  const { HUNT_TUTORIAL } = await import(pathToFileURL(join(root, 'src', 'data', 'hunt-tutorial.js')).href);
+  const out = [];
+  for (const c of HUNT_TUTORIAL) {
+    for (const [field, kind] of [['title', 'title'], ['text', 'line'], ['inWindow', 'line']]) {
+      if (typeof c[field] !== 'string') continue;
+      for (const rule of labelForm(c[field], kind)) out.push({ file: 'src/data/hunt-tutorial.js', line: 0, rule, text: c.id + '.' + field + ': ' + c[field].slice(0, 120) });
+    }
+  }
+  return out;
 }
 
 /* ── Filler words in names (shrink-only ratchet) ─────────────────────── */
@@ -701,14 +848,28 @@ async function gate(root, report) {
   findings.push(...nameFindings(dataNames(root), baseline));
   findings.push(...changelogFindings(readFileSync(join(root, 'CHANGELOG.md'), 'utf8')));
   findings.push(...sqlCopyFindings(chainSql(root)));
+  findings.push(...unreadHomes(root), ...await coachFindings(root));
   if (report || findings.length) for (const f of findings) console.log(`  ${f.rule.padEnd(12)} ${f.file}:${f.line}  ${f.text}`);
   /* a red PERSON rule says its fix once, and where the voice is written down */
   const fixes = [...new Set(findings.map((f) => f.rule))].filter((r) => PERSON_FIX[r]);
   for (const r of fixes) console.log(`  fix ${r}: ${PERSON_FIX[r]}`);
   if (fixes.length) console.log('  (the voice: docs/DESIGN_STANDARDS.md §3 "Tyler\'s voice")');
   for (const r of [...new Set(findings.map((f) => f.rule))].filter((r) => CONTROL_FIX[r])) console.log(`  fix ${r}: ${CONTROL_FIX[r]}`);
-  console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${Object.keys(baseline).length} pinned filler name(s), ${readVoiceBaseline().size} pinned person line(s), ${findings.length} slip(s)`);
+  console.log(`copy-lint: ${files} files, ${plurals} plural item names, ${Object.keys(baseline).length} pinned filler name(s), ${readVoiceBaseline().size} pinned person line(s), `
+    + `${readLabelPins().size} pinned edge label line(s), ${findings.length} slip(s)`);
   return findings.length ? 1 : 0;
+}
+
+/* Drops the edge pins whose line was rewritten; a row is never added here, so the list can only shrink. */
+async function pruneLabels(root) {
+  const doc = JSON.parse(readFileSync(LABELS_BASELINE, 'utf8'));
+  const live = new Set((await scan(root, { labels: new Set() })).findings.filter((f) => f.pin).map((f) => f.pin));
+  const kept = doc.hits.filter((k) => live.has(k));
+  const dropped = doc.hits.length - kept.length;
+  doc.hits = kept;
+  writeFileSync(LABELS_BASELINE, JSON.stringify(doc, null, 2) + '\n');
+  console.log(`copy-lint --prune-labels: dropped ${dropped} row(s), ${kept.length} pinned`);
+  return 0;
 }
 
 /* Drops the voice baseline's rewritten rows only; a row is never added here, so the debt can only shrink. */
@@ -1010,6 +1171,7 @@ if (isMain(import.meta.url)) {
     process.exit(argv.includes('--selftest') ? await selftest()
       : argv.includes('--prune-names') ? pruneNames(HERE_ROOT)
       : argv.includes('--prune-voice') ? await pruneVoice(HERE_ROOT)
+      : argv.includes('--prune-labels') ? await pruneLabels(HERE_ROOT)
       : await gate(HERE_ROOT, argv.includes('--report')));
   } catch (e) { console.error('copy-lint harness error:', e); process.exit(2); }
 }

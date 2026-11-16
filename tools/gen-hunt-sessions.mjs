@@ -124,7 +124,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, TOWER_HUNTS, trainingHunt } from '../src/data/hunts.js';
 import { OPEN_BOSS_HALLS, BOSS_HALL_RULES } from '../src/data/boss-halls.js';
 import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, TRAINING_GEAR, TRAINING_GEAR_ITEMS, trainingHuntId } from '../src/data/training.js';
 import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
@@ -145,7 +145,7 @@ import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hun
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
-import { CALLED_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
+import { CALLED_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS, TOWER_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -289,7 +289,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
    hr_training_gear (each item's skill, hours, whether it is the bound Crowns copy, and its gold price); hr_hunt_vendor_value gains the eight gold rows'
    bids (1% of the price). Read by 2027-04-23-training-gear.sql, which applies right after this file. No ground, spawn, kill bound, limit, end reason or
    world shape moves. */
-export const OUT_NAME = '2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql';
+/* THE BURNING TOWER (lane/c-tower-climb, Tyler 2026-11-14; src/data/tower.js): 2027-04-23-training-gear is the file before this one and this file carries it
+   whole. The Tower's ground joins hr_hunt_grounds, its placeholder spawn rows hr_hunt_ground_spawns and its hunt hr_hunt_travel (served to one verb,
+   hr_tower_start; the roster leaves it out, as it leaves the training grounds: no Tower kill is a Bestiary kill), and END_ORDER's floor_time (the floor's
+   time ran out) joins hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK. Read by 2027-04-24-tower-climb.sql. No world shape, limit or kill bound moves. */
+export const OUT_NAME = '2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -393,6 +397,7 @@ export function catalogueRows(src = {}) {
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
     trainingHunts: TRAINING_HUNTS, trainingGrounds: TRAINING_GROUNDS, training: { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS, gear: TRAINING_GEAR, gearItems: TRAINING_GEAR_ITEMS },
+    towerHunts: TOWER_HUNTS, towerGrounds: TOWER_GROUNDS,
     /* the OPEN halls only (a staged pack's hall is served nowhere); everyHall, staged too, is where a named add may stand (hallRows) */
     hallHunts: OPEN_HALL_HUNTS, hallGrounds: OPEN_HALL_GROUNDS, halls: OPEN_BOSS_HALLS, hallRules: BOSS_HALL_RULES, everyHall: HALL_GROUNDS,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
@@ -407,6 +412,9 @@ export function catalogueRows(src = {}) {
   /* THE TRAINING GROUNDS (training.js) stand beside them too, served to one verb, hr_training_start; the roster below leaves them out as well. */
   S.hunts = [...S.hunts, ...S.trainingHunts];
   S.grounds = { ...S.grounds, ...S.trainingGrounds };
+  /* THE BURNING TOWER (tower.js) stands beside them too, served to one verb, hr_tower_start; the roster below leaves it out as well. */
+  S.hunts = [...S.hunts, ...S.towerHunts];
+  S.grounds = { ...S.grounds, ...S.towerGrounds };
   /* THE KEYED HALLS (boss-halls.js) stand beside them as well, served to one verb, hr_boss_hall_enter; they PAY, so the roster and the drop bounds read them like any ground. */
   S.hunts = [...S.hunts, ...S.hallHunts];
   S.grounds = { ...S.grounds, ...S.hallGrounds };
@@ -672,7 +680,7 @@ export function catalogueRows(src = {}) {
      nothing but what a blow on it teaches, and each training ground holds one seat and the dummy alone. */
   const training = trainingRows(S, grounds);
   /* what a player can meet on the grounds served above (a staged ground is not among them, nor a called room: the Bestiary's total never counts one) */
-  const reach = reachableOf(Object.fromEntries(Object.entries(S.grounds).filter(([, g]) => !g.call && !g.train)), S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
+  const reach = reachableOf(Object.fromEntries(Object.entries(S.grounds).filter(([, g]) => !g.call && !g.train && !g.tower)), S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
   for (const id of reach.monsters) if (!ID.test(id) || !own(S.monsters, id)) throw new Error(`roster monster ${id} is not a monster id`);
   const roster = [...reach.monsters];
   /* THE DROP BOUNDS the self-check executes (dropNeeds: each ground's items, a second derivation from the authored rows) */
@@ -716,7 +724,9 @@ export function catalogueRows(src = {}) {
   return { bossCalls, bossHalls, training, supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
     cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, drops, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
-    defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
+    defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots,
+    /* THE BURNING TOWER'S HUNTS (tower.js): served here, never in hr_hunts (the ordinary door's gate refuses what hr_hunts does not name) */
+    towerHunts: S.towerHunts.map((h) => h.id).sort() };
 }
 
 /* A boss row's two lines (src/core/hunt/boss-phases.js): adds at addsPm, a raised blow under enragePm, whole permille in order. */
@@ -979,7 +989,16 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
+-- NEW IN THIS FILE (lane/c-tower-climb, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower; src/data/tower.js): the Tower's ground
+-- (${r.grounds.filter((g) => g.hunt === 'burning_tower').length} row) in hr_hunt_grounds, its ${r.groundSpawns.filter((s) => s.hunt === 'burning_tower').length} placeholder spawn rows (the engine fields each floor's own room, src/core/hunt/tower.js) in
+-- hr_hunt_ground_spawns and its hunt in hr_hunt_travel, served to one verb (hr_tower_start) and left off the roster (no Tower kill is a Bestiary
+-- kill); END_ORDER's floor_time (a floor's room ran out of time: it resumes, like boss_time) in hr_hunt_end_reasons and hunt_sessions.end_reason's
+-- CHECK. No limit, kill bound or world shape moves. ORDER: after 2027-04-23-session-modes.sql, before
+-- 2027-04-24-tower-climb-session-modes-catalogue.generated.sql (which names the Tower's mode and wants its ground served) and
+-- 2027-04-24-tower-climb.sql (which proves floor_time and opens the one door). The Tower is never in hr_hunts, so until that file the
+-- ordinary door refuses it (hr_hunt_admit -> hr_hunt_gate: unknown_activity), and after it hr_hunt_admit sends it to hr_tower_start.
+--
+-- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
 -- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
 -- hr_training_rules gains xp_per_hour (${r.training.rules.xpPerHour}, the fixed rate), min_level (${r.training.rules.minLevel}, the Level a hero trains from),
 -- boost_pm (${r.training.rules.boostPm}, an item's rate) and buy_per_day (${r.training.rules.buyPerDay}, the Arms Master's clamp an account a UTC day);
@@ -1732,10 +1751,13 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
      or exists (select 1 from public.hr_premium_login_reward l where l.item_id is not null
                   and not exists (select 1 from public.hr_items i where i.item_id = l.item_id)) then
     raise exception 'a supply, vendor-value, ability-rune or login-reward row names an item hr_items does not have'; end if;
-  if exists (select 1 from public.hr_hunt_travel t where not t.training
+  -- (the Burning Tower's hunt is never in hr_hunts: its one door is hr_tower_start, and the ordinary door's gate refuses what hr_hunts does not name)
+  if exists (select 1 from public.hr_hunt_travel t where not t.training and t.hunt_id <> all (array[${r.towerHunts.map(sq).join(', ')}]::text[])
                and not exists (select 1 from public.hr_hunts h where h.hunt_id = t.hunt_id))
-     or exists (select 1 from public.hr_hunt_grounds g where not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id)) then
-    raise exception 'a named hunt or a ground hunt is not in hr_hunts'; end if;
+     or exists (select 1 from public.hr_hunt_grounds g where g.hunt_id <> all (array[${r.towerHunts.map(sq).join(', ')}]::text[])
+                  and not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id))
+     or exists (select 1 from public.hr_hunts h where h.hunt_id = any (array[${r.towerHunts.map(sq).join(', ')}]::text[])) then
+    raise exception 'a named hunt or a ground hunt is not in hr_hunts (or the Tower is)'; end if;
   if exists (select 1 from public.hr_hunt_travel t where t.training
                and not exists (select 1 from public.hr_activities a
                                 where a.kind = 'combat' and a.activity_id = t.hunt_id and not a.is_boss)) then

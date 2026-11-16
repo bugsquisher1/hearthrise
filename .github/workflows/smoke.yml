@@ -3944,6 +3944,18 @@ jobs:
         run: |
           node tests/target-kind-db.mjs
           node tools/mutant-gate.mjs node tests/target-kind-db.mjs --mutate
+      # NO DEATH LOSS IS A SESSION MODE (2027-04-23-session-modes.sql; Tyler 2026-11-14, the Burning Tower's §3): the mode frozen from the
+      # server's own catalogue; a death in the no-loss mode takes nothing and spends no Blessing while a hunt's is unchanged, browser closed and
+      # hunt viewed, swing for swing the same fight; the engine proposes an empty loss and the database refuses any; no intent carries a mode.
+      # --mutate (9): die() ignores the mode, the default is the no-loss row, the bound unscaled, the Blessing still spent, an intent carries a
+      # mode, the table check (twice), the freeze keeps a caller's value, the edge reads a mode off the request.
+      - name: Session modes — no death loss in a mode, both paths (9 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-session-modes.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-session-modes.mjs --selftest
+          node tests/mode-death.mjs
+          node tools/mutant-gate.mjs node tests/mode-death.mjs --mutate
       # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
       # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
       # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled

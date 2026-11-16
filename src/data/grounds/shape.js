@@ -160,6 +160,9 @@ export function definePack(p) {
   if ('standingFor' in p.hunt && !STANDING_SIDES.includes(p.hunt.standingFor)) no('hunt.standingFor is not one of ' + STANDING_SIDES.join(' | '));
   if (!isObj(p.ground) || 'id' in p.ground || 'hunt' in p.ground) no('ground is not a hunt-grounds.js row without id and hunt');
   if (!isObj(p.map) || p.map.id !== p.ground.map) no('map is not the row ground.map names');
+  /* A pack plays the default session mode (src/data/session-modes.js): its additive file carries no hr_ground_session_modes row
+     (tools/pack/sql.mjs PACK_TABLES), so a mode named here would be one the server never froze. */
+  if ('mode' in p.ground || (isObj(p.hall) && isObj(p.hall.ground) && 'mode' in p.hall.ground)) no('a pack ground names a session mode, which a pack cannot carry to the server yet');
   for (const k of ['monsters', 'roster', 'items', 'itemText']) if (p[k] !== undefined && !isObj(p[k])) no(k + ' is not an object');
   for (const k of ['monsters', 'items']) for (const x of Object.keys(p[k] || {})) if (!ID.test(x)) no(k + ' id ' + x + ' is not [a-z0-9_]');
   for (const x of Object.keys(p.itemText || {})) if (!(p.items && x in p.items)) no('itemText names ' + x + ', which is not one of its items');

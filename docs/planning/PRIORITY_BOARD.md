@@ -29,6 +29,50 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-16 Store supply prices (designer, lane/d-supply-prices; Tyler 2026-11-16: "I think raising the supply costs will help with the gold imbalance"): BUILT as data, two server files STAGED, the edge moves. It sinks gold where heroes take risks, NOT from a hero on Normal in range, so it does not fix the audit's F12 by itself
+Measured on the real settle (`tools/balance-sim/supply-prices-table.mjs careers | runes | floors`). A store price never changes a fight, so each cell is played once and its buys priced at both lists; the "was" column reproduces the separate run at the old prices to the gold.
+
+**Prices, gold a use.** Tiers 1 and 2 (the first 31 Levels' food and drink) keep theirs: a lone tank at the Glade's floor already spends about 60% of what it makes on Salted Trout. From tier 3 each tier costs 25% more a tier than it did.
+| Store row | Was | Now |
+|---|---|---|
+| Salted Shrimp, Salted Trout (tiers 1, 2) | 14, 40 | same |
+| Salted Lobster (3), Swordfish (4), Shark (5) | 180, 432, 693 | **270, 756, 1,386** |
+| Thin Turnip Juice, Thin Carrot Juice (1, 2) | 10, 18 | same |
+| Thin Tomato Juice (3), Pumpkin Cider (4), Goldenroot Tea (5), Emberfruit Cordial (6) | 45, 80, 138, 233 | **68, 140, 276, 524** |
+| Runes Plain / Scored / Etched (Tyler's) | 1 / 8 / 12 | same |
+| Runes Carved / Graven | 28 / 44 | **34 / 55** |
+| Arrows and bolts | 1-12 | same |
+
+**1. A lone hero on Normal where the game sends it (the brief's table): almost nothing moves, because it buys almost nothing.** Net gold an hour, coin plus sold loot and rares less the store bill:
+| Levels | Tank: bill, net was -> now | Mage: bill, net was -> now |
+|---|---|---|
+| 1-19 | 0.3k, 4.2k -> 4.2k | 0.9k, 5.3k -> 5.3k |
+| 20-29 (Glade) | 0.3k, 8.2k -> 8.2k | 0.7k, 10.2k -> 10.2k |
+| 30-39 (Glade) | 0.0k, 9.6k -> 9.6k | 0.3k, 12.5k -> 12.5k |
+| 40-49 (Glade, Ford) | 0.9k -> 1.4k, 9.5k -> 9.1k (-5%) | 0.4k -> 0.5k, 14.4k -> 14.4k |
+| 50-59 (Slake) | 1.8k -> 2.6k, 10.9k -> 10.0k (-8%) | 0.6k -> 0.7k, 17.9k -> 17.8k |
+| 60-69 (Slake) | 0.0k, 14.0k -> 14.0k | 0.6k, 20.5k -> 20.5k |
+| 70-74 (Pyre Field) | 16.2k -> 24.3k, **+1.7k -> -6.4k** | 0.9k -> 1.1k, 31.6k -> 31.5k |
+| Banked by 50 | 1.58M -> 1.55M (-2%) | 1.60M -> 1.60M (0%) |
+| Banked by 74 | 3.82M -> 3.37M (-12%, the Pyre) | 4.55M -> 4.54M |
+On Normal in its range a tank drops under its eat line a few times an hour, and a Mage's bill is Plain runes at 1 g. **The brief's target (a quarter to a third off from 30 up) can't be reached through supply prices on this path at any price:** the tank buys nothing from 30 to 39 and from 60 to 69, the Mage's whole bill is under 1k. Only the income side reaches a hero who buys nothing: about x0.7 on coin and sold loot from the Glade up is the -30%. That's a coin dial per ground (GROUND_GP_FIT beside GROUND_XP_FIT, raised in Andy's item 2), Tyler's call, not built. Training items (250k a 12 h) stay the sink for this hero (F12).
+
+**2. Where supplies are spent, it bites: the tank's seat, Dangerous and Deadly.** Andy's four (hammer, bow, Mage at the Level, a Healer 5 under) on Deadly, net a head an hour:
+| His four, Deadly | Plain | Scored | Etched (the sensible kit) | Carved |
+|---|---|---|---|---|
+| Hask's Ford 55 | 9.1k -> 5.4k | 11.5k -> 9.5k | 13.4k -> 12.5k (-7%) | 13.3k -> 11.9k |
+| The Slake 57 | -1.8k -> -10.8k | 3.1k -> -2.6k | 8.2k -> 5.1k (-37%) | 8.6k -> 5.6k |
+| Muster Barrows 60 | 1.6k -> -5.5k | 4.6k -> 0.3k | 8.4k -> 6.0k (-29%) | 7.8k -> 5.1k |
+In the Etched kit his four loses about a quarter (-7 to -37%), and Deadly now costs gold against Normal at the Slake and the Muster (Normal fours there net 7.1-7.5k and 9.3-13.1k), which is Tyler's 11-06 trade: more XP, more spent. The Ford stays the cheap group ground (Andy's item 2). The hammer's seat carries the bill (Slake Etched -5.6k -> -17.5k), as before; on one account the purse is shared.
+
+**3. The deeper rune stays a trade (Andy's item 4). Carved 28 -> 34 and Graven 44 -> 55, flagged: the numbers demanded it.** A deeper rune pays back in food, so at 28 / 44 the dearer Lobster made both free again: the Carved step in his four read +0.5k to +1.9k a head and Graven +1.7k for the lone Deadly Mage. At 34 / 55 the Carved step reads -0.6k (Ford), +0.5k (Slake), -0.9k (Muster) a head for 2.5-3.7% more XP (was -0.1k, +0.4k, -0.6k), and the lone Mage on the Slake's Deadly at 60 pays 0.6k for each of Carved and Graven, about 9% more XP each. On Normal the top rune now costs a lone Mage 38% (Slake 52, Carved) to 66% (Muster 60, Graven) of its gold over Plain for 12-23% more XP. Plain, Scored and Etched are Tyler's and unchanged.
+
+**4. Sign flips, reported (NO PROFIT MOLDS), lone heroes on Normal, the reference bar, 2 h a cell.** The lone tank at the Pyre Field's floor: +1.7k -> -6.4k in the career (16 to 24k an hour of Lobster), +8.6k -> +3.3k in its floor cell; at 80 it buys nothing (24.9k). Krell's Hold at 85, a lone tank: +5.4k -> -1.8k. Grounds the game sends a lone hero only past (they were already negative for lone melee): the Warrens at 41 (tank +1.3k -> -2.2k), the Muster at 55 (Healer +3.6k -> -0.2k) and 65 (tank +1.2k -> -3.7k, hammer +0.5k -> -8.0k). The Ford and the Slake stay positive for every way (their floor tanks lose 22-28%), and every ground from 1 to 31 is untouched.
+
+**5. Crafters.** A crafted food or drink of tier 3 and up is worth half again as much against the store (the price list, the designer's rate a point): Cooked Lobster 250 -> 375 g, Swordfish 576 -> 1,008, Shark 924 -> 1,848, Tomato Juice 63 -> 95, Pumpkin Cider 107 -> 187, Goldenroot Tea 184 -> 368, Emberfruit Cordial 315 -> 708. A cook or farmer can ask that much more on the Weighhouse and still undercut the store (its ceiling stays 100x book). A Carved rune can list up to 34, a Graven up to 55. Their shop bids don't move (book value; the one cap that bound, the Cordial's 157, lifts to its book 160). **Known limit:** gold a crafter is paid moves between players, it isn't burned, and a hero who cooks its own food or drops to Salted Trout where Trout holds pays none of it. That's the player's call, by design.
+
+**Server (lane C, staged, Coordinator applies):** `2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql` REGENERATED IN PLACE (still staged: the store rows, including Andy's 28 / 44 the last lane left stale, now 34 / 55; the Cordial's bid) and NEW `2027-04-24-supply-prices-alpha-catalogue.generated.sql` (the price list; `gen-alpha-catalogue` OUT_NAME moved, the 03-25 file is applied history). **The edge moves** (`supply-basics.js` is bundled: `pack-edge --hash` 155a0e22 -> 9f79f77c); deploy it with the applies so the vendor cap and the store agree. No count moves (restore-census).
+
 ### 2026-11-16 Andy's March feedback, measured and ruled (designer, lane/d-andy-march-feedback, on the party-XP hotfix lane/a-party-xp-tier with the cloth fix lane/d-mage-110 merged): TWO DATA CHANGES COMMITTED (drop odds, store rune prices), three rulings, one what-if for Tyler
 Andy plays a mixed four (Klappa hammer, Krungus bow, Saphina mage, Marigold healer, Level 52-59) on Deadly at Hask's Ford, the Slake and the Muster. Every number below is the real settle (`tools/balance-sim` cells, the world tick's engine), 3 seeds x 2 h a cell, the Level's ladder gear, every supply bought from the store. "His four" is a hammer, a bow and a Mage at the Level and a Healer 5 under. Gold is coin plus loot sold minus the store bill, a head an hour. Contract = the pace contract at the party's top Level.
 
@@ -84,7 +128,7 @@ Each caster's rune slots on one store tier, the same dice. Step = this tier over
 - **What the new prices do.** On Deadly, Scored and Etched still pay for themselves, so they're the sensible kit. Carved and Graven become a real XP-for-gold trade: about break-even in his four for 2-4% more XP, and Graven costs the lone Deadly Mage 1.0k for 9%. On Normal every step stays a trade, and the top rune now costs a lone Mage 23-48% of its gold for 12-22% more XP. The QA audit's 11-15 read (Carved at the Slake at 52: +18% XP for -28% gold) doesn't reproduce at the old price: the sim's lone Mage there read +12% for -3%. At 28 g it reads +12% for -23%, about the trade the audit thought it saw. A Healer's deeper water rune is about 1-3% XP a step on Normal and a gold cost. It's for Deadly safety, where the Scored step alone is +5.4k.
 - It also takes some heat off item 3: the Carved Mage's 46-49% share now costs gold.
 - **Tyler's call:** this moves the top of his 11-05 ladder line ("then 16 / 24 g"). Plain, Scored and Etched are his and unchanged. Runecrafters gain headroom (a Carved rune can list up to 28 g), and more gold burns.
-- **NOT REGENERATED (brief):** `node tools/gen-hunt-sessions.mjs --check` is stale on this row only. Regenerate `2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql` at integration.
+- **REGENERATED on lane/d-supply-prices** (`2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql`, in place, still staged), where Carved and Graven then moved to 34 / 55 with the store food raise.
 
 **5. Andy's idea, monster HP up in a party. NOT BUILT** (it reverses Tyler's 11-08 "Same monsters, re-tune"). Simmed as one HP factor on every monster for a party, on top of the hotfix, against the flat-party route (one factor on the party XP cell, lane/d-flat-party-xp).
 | Party HP | His four, Deadly (Ford 55, Slake 57, Muster 60): XP a head | gold a head | store bill | deaths | Mage share |

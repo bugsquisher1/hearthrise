@@ -54,7 +54,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE BLESSING CUT (lane/c-death-and-slots, Tyler 2026-11-10): 2027-03-14-jewelry is APPLIED history; hr_blessing_tiers.permille moves 320 / 630 / 950 ->
    250 / 500 / 750 (src/data/blessings.js BLESSING_CUT_PERMILLE) in this forward file, the same full delete+insert replace. No shop, seed or refill row moves.
    hr_blessing_take reads the row at the death, so no body and no edge waits on it: either order against the 2027-03-25 death pair and the hr-accrue. */
-export const OUT_NAME = '2027-03-25-death-share-alpha-catalogue.generated.sql';
+/* THE STORE'S TIER RAISE (lane/d-supply-prices, designer 2026-11-16; Tyler: "raising the supply costs will help with the gold imbalance"): 2027-03-25-death-share
+   is APPLIED history; the price list of every crafted food and drink of tier 3 and up follows its store row (src/data/supply-basics.js, the designer's
+   rate) in this forward file, the same full delete+insert replace. No tool, gear, seed, refill or Blessing row moves. */
+export const OUT_NAME = '2027-04-24-supply-prices-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */

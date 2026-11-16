@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-16 · lane/d-flat-party-xp (LV-PULL's viewed drift: a peer's level the browser never sees)
+1. *Name the first differing event before theorising.* The diverged world named one monster's HP (74 vs 51); the events at that instant named Eddie's swing: dmg 23 on the server, a miss in the browser. His Melee had gone 41 -> 42 at the 608 s commit; the browser's frozen Eddie never did. A party-XP change only moved the level earlier.
+2. *A frozen peer is frozen for the whole prediction.* The browser never holds a peer's XP (Tyler 10-20), so it cannot foresee a peer's level; and it only took new rows on a divergence, so a stale peer ran until some roll flipped (150 s here, never in other seeds). Each viewed commit now names every member's frozen-row key (member.js frozenKey) and a moved key asks for a start point.
+3. *A key the browser compares must come from the same function as the row it holds.* The commit's keys are read BEFORE the window runs, through huntLive's own frozenAt, not from the engine's sides after the run (a boss room rewrites a member's hero in-sim: a key from that copy would differ from every start point and restart the view each commit). Costs one window of lag, exact by construction; LV-PULL bounds refreshes by the levels that moved, so a loop goes red.
+4. *A guard shortened to get green hides the class.* 736 s sat just under a drift logged "apart, not chased" since 11-08 (1,024 s); the fix holds 0 of 93 commits off to 1,500 s in both modes.
+
 ## 2026-11-11 · lane/b-town-criers (tips are never mandatory; three criers call tips in Local chat; Tyler 11-11)
 1. *A switch the player holds for every hero already had a home.* "Show tips" is a player-switch row (src/data/tips.js, residue `tips` { on, at }, newest pick wins, src/session/player-switch.js), the same shape as Idle animations and the recording switch, so Settings, the coach (launcher.js tipsOn) and the criers read ONE rule and a press from any card reaches every open hero.
 2. *Got it on a server-fact card is a hide, not a read.* `coach.read` finishes a card that teaches (pointerCardOf reads it); a card the server finishes is only HIDDEN (`coach.hid`, bounded like `seen`) and the chain keeps moving on the server's facts: tests/town-criers.mjs TC-7 reloads the hero on the next fact and the next card shows. Two lists, two meanings, no gate.

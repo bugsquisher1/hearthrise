@@ -8,7 +8,8 @@
 //   hunt_live   a start point: seed the engine, or (when the prediction is off the
 //               server's world) re-seed it and ease the drawing onto the truth
 //   hunt_check  a commit: confirm the prediction (and take the next seeds), or
-//               ask at once for a fresh start point
+//               ask at once for a fresh start point (its world differs, or a peer
+//               now fights with numbers the prediction does not run: peersStale)
 // Prediction only: nothing here is spent, credited or shown as owned.
 //
 // A SWING NOT REACHED YET IS NOT A DIFFERENCE. The server settles to its own now and the clock the prediction runs
@@ -62,7 +63,7 @@ export class LiveLink {
     this._reseeded = null;
     this._joining = false;
     /** What the live view did (tools: the world stage's data-live): each commit's verdict, every restart. */
-    this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0, failures: 0 };
+    this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0, failures: 0, refreshes: 0 };
     this._wasStalled = false;
     /** The server's settle watermark (ms) its last commit or start point stated: display only (?debug=live's settle lag). */
     this.settledToMs = null;
@@ -181,6 +182,9 @@ export class LiveLink {
     } else if (body.hunt_check && (this.engine.running() || this.engine.ended())) {
       const v = this._judge(body.hunt_check);
       if (v !== 'match' && v !== 'ahead') this.want = true;
+      /* A PEER THAT FIGHTS OTHERWISE NOW (live-engine.js peersStale: a Level or a skill it gained, which the browser never
+         foresees): the world agrees, the numbers ahead do not. Ask for the start point that carries them (sameSetup restarts). */
+      else if (this.engine.peersStale(body.hunt_check)) { this.stats.refreshes++; this.want = true; }
     } else if (!this.engine.running() && !this.engine.ended()) {
       /* No start point in this answer (not due yet, a settle, or a plain read): ask again, backing
          off to the ordinary poll (askDelayMs). Never give up while the hunt is open: a view that

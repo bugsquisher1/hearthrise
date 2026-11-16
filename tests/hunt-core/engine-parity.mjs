@@ -52,7 +52,12 @@ const SEED = '-4611686018427387904';
    putting the old row back alone (the bear's gp [13, 40]: every pin holds, exit 0): src/data/monsters.js brook_bear gp [13, 40] -> [11, 32], the purse
    back on the formula when the +10% floor it served was retired (NO PROFIT MOLDS). The Cellar's XP fit (rat 15 -> 16 XP) is on no pinned ground.
    UN-PINNED 2026-11-15 (lane/d-chief-spell): warrens-4 is back on its 11-13 pin. lane/a-open-march-scaled had re-pinned it over cf3fbb21d's Slag Rain 400 -> 800,
-   a row the field Chief shared with the called one; the called Chief now casts his own slag_rain_called and the field row is 400 again. Opening the March moves no pin. */
+   a row the field Chief shared with the called one; the called Chief now casts his own slag_rain_called and the field row is 400 again. Opening the March moves no pin.
+   RE-PINNED 2026-11-16 (lane/d-flat-party-xp), A PARTY XP CHANGE MEANT TO MOVE THEM: the three parties moved (warrens-4 first, its world at settle 8, kills 231
+   as pinned; glade-4 and sewer-2 behind it), the lone kiting ranger held. Cause, proved by laying origin/main's src/data/party-class-xp.js and
+   src/core/hunt/xp-share.js back alone into an archive of the lane (all four pins hold, exit 0): ONE party table by size for every ground and tier (Tyler
+   2026-11-16, "just balance the hunting grounds xp vs having a unique formula everywhere"); a party's XP moves its Levels, and the Levels their rolls.
+   The peer keys on hunt_check (hunt-settle.js huntPeerKeys, member.js frozenKey) move no pin. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

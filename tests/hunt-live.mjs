@@ -114,6 +114,9 @@
 //         are the same with the browser closed (a peer's frozen `lv` and `shots`, src/core/member.js).
 //   LV-PULL THE HOLDER PULLS (bug #61, Andy's party): under Take turns the lap's holder, under "One tank
 //         holds" the pick, switched only when the lap ends; no tank yanks a pack, browser closed and viewed.
+//         Viewed for the closed half's 1,500 s: a peer's Level or skill gained mid-hunt (Eddie's Melee 42) is named
+//         by the next commits' peer keys (hunt-settle.js huntPeerKeys) and the prediction restarts on it, so every
+//         commit matches (it left the server's world 150 s after the level while it kept the old row).
 //   LV-TGT "STRONGEST" AND "FOLLOW" ON A MIXED PACK (Andy a08): a follower stands on the leader's monster, a
 //         Strongest hero on the strongest kind engaged, browser closed (the server's boundaries) and viewed (every
 //         commit matches; the browser plays their blows as the server's commits hold them).
@@ -254,6 +257,8 @@ function server(M, mis, o) {
     inst, drops, buys,
     live: (user, slot) => M.HS.huntLive(inst, mis, user, slot || 0),
     commit(to) {
+      /* the peers' keys at the window's start, read before it runs, as the edge's settleOnce reads them */
+      const peers = M.HS.huntPeerKeys(inst, mis);
       const r = M.AC.accrueHunt({ instance: { id: inst.id, nextSwingAtMs: inst.next_swing_at_ms, world: inst.world, worldSwing: inst.world_swing },
         window: { fromMs: inst.settled_to_ms, toMs: to }, secret: SECRET, ground: where.ground, grid: where.grid,
         items: M.ITEMS, monsters: (o && o.monsters) || M.MONSTERS, members: mis, ...(inst.play.level ? { scale: { level: inst.play.level } } : {}) });
@@ -272,7 +277,7 @@ function server(M, mis, o) {
         for (const [id, n] of Object.entries(h.buys || {})) buys[id] = (buys[id] || 0) + n;
       }
       inst.world = r.world; inst.settled_to_ms = r.settledTo; inst.next_swing_at_ms = r.settledTo; inst.world_swing = r.worldSwingTo;
-      return { tl, ends: r.members.map((p) => p.hunt.ended).filter(Boolean), check: { world_swing: r.worldSwingTo, settled_to_ms: r.settledTo, world_hash: M.HT.worldHash(r.world), seeds: M.HS.liveSeeds(inst, r.worldSwingTo) } };
+      return { tl, ends: r.members.map((p) => p.hunt.ended).filter(Boolean), check: M.HS.huntCheckOf(inst, r, peers) };
     },
   };
 }
@@ -282,10 +287,13 @@ function run(M, mis, spanMs, opt) {
   const o = opt || {};
   const srv = server(M, mis, o.server);
   const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: (o.server && o.server.monsters) || M.MONSTERS });
-  E.seed(srv.live(o.viewer ? o.viewer.user : mis[0].user, o.viewer ? o.viewer.slot : 0));
+  const startPoint = () => srv.live(o.viewer ? o.viewer.user : mis[0].user, o.viewer ? o.viewer.slot : 0);
+  E.seed(startPoint());
   const fed = { steps: [], events: [] };
   const heroesSeen = new Map();
   const verdicts = [];
+  /* the commits at which a peer's frozen row had moved (live-engine.js peersStale), each a restart from the start point */
+  const refreshes = [];
   const every = o.commitMs || 16000;
   let starvedMs = 0;
   for (let t = T0; t <= T0 + spanMs; t += 100) {
@@ -300,13 +308,16 @@ function run(M, mis, spanMs, opt) {
       if (c) {
         const v = E.reconcile(c.check);
         verdicts.push({ t, v, tl: c.tl });
+        /* A PEER THAT FIGHTS OTHERWISE NOW (a Level or skill it gained): the page asks for a start point and restarts from it
+           (live-link.js, tests/hunt-scene-live.mjs LV-37); here at once, from the server's start point at this commit. */
+        if ((v === 'match' || v === 'ahead') && E.peersStale(c.check)) { refreshes.push(t); E.reseed(startPoint(), t, 0); }
         if (o.onCommit) o.onCommit({ t, v, c, E, srv });
       }
     }
     if (o.onTick) o.onTick({ t, E });
     if (!E.running()) starvedMs += 100;
   }
-  return { srv, E, fed, verdicts, heroesSeen, starvedMs };
+  return { srv, E, fed, verdicts, heroesSeen, starvedMs, refreshes };
 }
 
 /* A MONSTER'S SWINGS, NEVER ITS SPELLS (lane/b-area-data: the monsters' spells on the real grounds). A spell's hits land in the
@@ -1104,19 +1115,28 @@ function rules(M) {
       console.log(`  LV-PULL ${mode}, closed (Andy's party, Warrens d5, 1,500 s): ${laps.length} lap(s) [${lapWords(laps)}]; pull leader off the holder at ${wrongLeader} of ${commits} commits, ${wrongHolder} pack(s) held by another`);
       ok('LV-PULL', laps.length >= 3 && wrongLeader === 0 && wrongHolder === 0, `${mode}, closed: over ${laps.length} lap(s) the pull leader was not the holder at ${wrongLeader} of ${commits} commits and ${wrongHolder} pack(s) were held by another tank (want 3+ laps, 0, 0)`);
       ok('LV-PULL', onApollo === 0 && casts === 0 && offHolder === 0, `${mode}, closed: ${casts} Challenge cast(s), ${offHolder} monster swing(s) off the holder, ${onApollo} at Apollo (want 0, 0; control 0)`);
-      /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes). 800 s: since one pack for every group (lane/b-one-difficulty,
-         2026-11-08) a three's Warrens monsters have their row's HP, not 85% of it, so a lap takes about 350 s and the third begins near 705 s. Every
-         commit to 800 s matches; the browser's first commit off the prediction is at 1,024 s in both modes (on the board, not this rule's).
-         736 s since one party table (lane/d-flat-party-xp, 2026-11-16): the same drift now opens at 752 s under "One tank holds" (Take turns still matches to
-         800 s); 736 s still holds the third lap and 46 commits. The drift itself is Systems' (CONFLICTS 2026-11-16). */
+      /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes), the closed half's 1,500 s. A PEER'S LEVEL OR SKILL
+         GAINED MID-HUNT is one the browser cannot foresee (it never holds a peer's XP, Tyler 2026-10-20): Eddie's Melee 42, near 600 s, left
+         the browser on his Melee 41 rolls, and a swing he hit on the server missed in the browser 150 s on (752 s under "One tank holds" on
+         the one party table; 1,024 s before it, on the board since 11-08; the rule read 736 s for a day). Each commit names the peers' keys at
+         its window's start (hunt-settle.js huntPeerKeys); a key the prediction does not run restarts it from the start point (run's refresh,
+         live-link.js), so every commit matches. CONTROL: a peer's numbers do move (a refresh); never more refreshes than moves (no loop). */
       const vm = andy(hold);
-      const v = run(M, [vm[2], vm[0], vm[1]], 736000, { server: { hunt } });
+      const peerLv = () => JSON.stringify([vm[0], vm[1]].map((m) => [M.XP.charLevelFromXp(m.levelXp), M.XP.levelsOf(m.skills)]));
+      let lvWas = null, moves = 0;
+      const v = run(M, [vm[2], vm[0], vm[1]], 1500000, { server: { hunt }, onCommit: () => { const s = peerLv(); if (lvWas !== null && s !== lvWas) moves++; lvWas = s; } });
       const vids = [vm[0].unitId, vm[1].unitId, vm[2].unitId];
       const vlaps = tally(v.fed.events.slice().sort((x, y) => x.atMs - y.atMs), vids);
       const vOff = vlaps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== holderOf(vids, i)).reduce((m, [, k]) => m + k, 0), 0);
       const vCasts = vlaps.reduce((n, l) => n + l.casts, 0), unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
-      console.log(`  LV-PULL ${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} Challenge cast(s), ${vOff} swing(s) off the holder; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
-      ok('LV-PULL', vlaps.length >= 3 && vCasts === 0 && vOff === 0 && unmatched === 0 && v.verdicts.length >= 30, `${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} cast(s), ${vOff} swing(s) off the holder, ${unmatched} of ${v.verdicts.length} commits off (want 3+, 0, 0, 0)`);
+      const firstOff = v.verdicts.find((x) => x.v !== 'match');
+      /* the browser's key of each peer's row as it lands (through JSON) is the server's (a mismatch would restart it every commit) */
+      const sp = v.srv.live(vm[2].user, 0), keys = M.HS.huntPeerKeys(v.srv.inst, [vm[0], vm[1], vm[2]]);
+      const wire = sp.members.filter((m) => m.frozen).every((m) => M.MB.frozenKey(JSON.parse(JSON.stringify(m.frozen))) === keys[m.key]);
+      console.log(`  LV-PULL ${mode}, viewed (1,500 s): ${vlaps.length} lap(s), ${vCasts} Challenge cast(s), ${vOff} swing(s) off the holder; ${unmatched} of ${v.verdicts.length} commits off the prediction${firstOff ? ' (first at ' + (firstOff.t - T0) / 1000 + ' s)' : ''}; peers' levels moved at ${moves} commit(s), refreshed at ${v.refreshes.map((t) => (t - T0) / 1000 + ' s').join(', ') || 'none'}`);
+      ok('LV-PULL', vlaps.length >= 3 && vCasts === 0 && vOff === 0 && unmatched === 0 && v.verdicts.length >= 90, `${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} cast(s), ${vOff} swing(s) off the holder, ${unmatched} of ${v.verdicts.length} commits off${firstOff ? ' (first at ' + (firstOff.t - T0) / 1000 + ' s)' : ''} (want 3+, 0, 0, 0)`);
+      ok('LV-PULL', moves >= 1 && v.refreshes.length >= 1 && v.refreshes.length <= moves, `${mode}, viewed: the peers' levels moved at ${moves} commit(s) and the prediction restarted for them ${v.refreshes.length} time(s) (want 1+ moves; 1+ restarts, never more than the moves)`);
+      ok('LV-PULL', wire, `${mode}, viewed: a peer's frozen row keys otherwise in the browser (through JSON) than on the server`);
     }
     });
   }
@@ -1934,7 +1954,7 @@ const MUTANTS = [
   ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],
   ['the browser plays a scaled hunt unscaled (LV-SCALE)', 'src/hunt-view/live-engine.js', 'monsters, items, ...(s.scale ? { scale: s.scale } : {}),', 'monsters, items,', /^LV-SCALE: (solo|party): \d+ of/],
   ['the start point drops the scale (LV-SCALE)', 'supabase/functions/hr-accrue/hunt-settle.js', '      scale: play.level === null ? null : { level: play.level },', '      scale: null,', /^LV-SCALE: (solo|party): \d+ of/],
-  ["a peer is frozen against the catalogue's rows (LV-SCALE)", 'supabase/functions/hr-accrue/hunt-settle.js', 'Number(inst.next_swing_at_ms), rows) };', 'Number(inst.next_swing_at_ms)) };', /^LV-SCALE: party: \d+ of/],
+  ["a peer is frozen against the catalogue's rows (LV-SCALE)", 'supabase/functions/hr-accrue/hunt-settle.js', 'kindsOf(inst, world)), atMs, rows) };', 'kindsOf(inst, world)), atMs) };', /^LV-SCALE: party: \d+ of/],
   ['a spawn reads the catalogue row (LV-SCALE)', 'src/core/hunt/pull-cycle.js', 'const row = (inst.monsters || MONSTERS)[s.monster];', 'const row = MONSTERS[s.monster];', /^LV-SCALE: .*scaled rows' health/],
   ['a kill pays the catalogue Level XP (LV-SCALE)', 'src/core/hunt/damage.js', 'xp: Math.round(atTier(row, inst.tier).xp', 'xp: Math.round(atTier(MONSTERS[target.kind], inst.tier).xp', /^LV-SCALE: a scaled kill paid .* Level XP/],
   ["a kill's coin is the catalogue's (LV-SCALE)", 'src/core/combat-sim.js', 'monsters: play.monsters || ctx.monsters, tier,', 'monsters: ctx.monsters, tier,', /^LV-SCALE: a scaled kill paid .* coin/],
@@ -2029,6 +2049,15 @@ const MUTANTS = [
   ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, armour: snap.armour || null, level: snap.level }, vs,', 'def: snap.def, level: snap.level }, vs,', /^LV-A/],
   ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.armour = snap.armour || null;', '  u.armour = null;', /^LV-A/],
   ['the pull leader is back to role order (LV-PULL, bug #61)', 'src/core/hunt/pull-cycle.js', '  return holderTank(inst).id;\n', '  return byRole;\n', /^LV-PULL/],
+  /* a peer's Level or skill gained mid-hunt (LV-PULL viewed, lane/d-flat-party-xp): the commit names the peers' keys, the browser judges them */
+  ['the commit names no peer keys (LV-PULL)', 'supabase/functions/hr-accrue/hunt-settle.js',
+    'seeds: liveSeeds(inst, out.worldSwingTo), ...(peers ? { peers } : {}) };', 'seeds: liveSeeds(inst, out.worldSwingTo) };', /^LV-PULL: .*viewed/],
+  ["the browser never judges a commit's peer keys (LV-PULL)", 'src/hunt-view/live-engine.js',
+    'if (Object.hasOwn(st.peers, k) && st.peers[k] !== v) return true;', 'if (false) return true;', /^LV-PULL: .*viewed/],
+  ["a peer's key is its setup alone (LV-PULL)", 'src/core/member.js',
+    'FROZEN_KEYS.filter((k) => !FROZEN_STATE_KEYS.includes(k))', "['hero']", /^LV-PULL: .*viewed/],
+  ["a peer's key holds its HP: a restart every commit (LV-PULL)", 'src/core/member.js',
+    "const FROZEN_STATE_KEYS = Object.freeze(['hp', 'session']);", "const FROZEN_STATE_KEYS = Object.freeze(['session']);", /^LV-PULL: .*restarted for them/],
   ['the "One tank holds" pick does not pull (LV-PULL)', 'src/core/hunt/pull-cycle.js', '  if (pick) return pick.id;\n', '  if (pick) return pickLeader(inst.world.units);\n', /^LV-PULL/],
   ['a world opened with a pick is pulled by role order its first lap (LV-PULL)', 'src/core/combat-sim.js',
     'world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false;', 'world.hold = world.holdNext; fresh = false;', /^LV-PULL/],

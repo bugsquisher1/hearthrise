@@ -185,8 +185,9 @@
 //              envelope built; a backlog past the span cap is one slice a
 //              fire, never one per member, the rest the next fire's.
 //   VIEWED-ENVELOPE  the hunt viewed: a landed settle reads no envelope beside
-//              the commit's projection; an early answer reads the caller's once
-//              and carries it; the tick's early answer carries none.
+//              the commit's projection (which names every member's frozen-row key
+//              at its window's start: hunt_check.peers); an early answer reads the
+//              caller's once and carries it; the tick's early answer carries none.
 //   PARTY-RESTART  a restarted instance (no world, a kept swing counter) settles on from it.
 //   PARTY-LEAVE  LEAVE TOGETHER through the chain, BOTH PATHS (tick windows = browser closed,
 //              a player's instants = viewed, the same rows): the box on by default, set only
@@ -3296,8 +3297,16 @@ const DB_ARMS = {
     const exec = async (sql, p) => { seen.push(String(sql)); return base(sql, p); };
     const envs = () => seen.filter((s) => s.includes('hr_state_of(')).length;
     const player = () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', bucket: null, project: true, live: true, grounds: groundsOf(M) });
+    /* THE PEERS' KEYS (lane/d-flat-party-xp, tests/hunt-live.mjs LV-PULL): the viewed commit names every member's frozen-row key as a start
+       point read at its window's start freezes it (huntPeerKeys), so the browser can tell a peer's Level or skill gained from its own rows */
+    const pre = await M.HS.readHuntSettle({ exec: base, user: UID, slot: 0, grounds: groundsOf(M) }, 'tick');
+    const keys = pre && pre.inst && pre.members ? M.HS.huntPeerKeys(pre.inst, pre.members) : null;
     const v1 = await player();
     if (v1.outcome !== 'paid' || !v1.body || !v1.body.state || !v1.body.skills || !v1.body.hunt_check) problems.push(`the viewed settle answered ${v1.outcome}/${v1.reason} without the commit's projection`);
+    const named = v1.body && v1.body.hunt_check ? v1.body.hunt_check.peers : null;
+    if (!keys || Object.keys(keys).length !== 2 || JSON.stringify(named) !== JSON.stringify(keys)) {
+      problems.push(`the viewed commit names the peers' keys ${JSON.stringify(named)}, not those of its window's start ${JSON.stringify(keys)}`);
+    }
     if (envs() !== 0) problems.push(`a landed viewed settle read ${envs()} envelope(s) beside the commit's own`);
     seen.length = 0;
     const v2 = await player();
@@ -4647,6 +4656,8 @@ const MUTANTS = [
     from: '    if (o.project !== true) return null;\n    if (memo === undefined) {', to: '    return null;\n    if (memo === undefined) {' },
   { arm: 'VIEWED-ENVELOPE', name: '[settle-cost] the tick door reads an envelope for its early answer', file: join(FN, 'hunt-settle.js'),
     from: '    if (o.project !== true) return null;\n    if (memo === undefined) {', to: '    if (memo === undefined) {' },
+  { arm: 'VIEWED-ENVELOPE', name: "[peer keys] the viewed commit names no peers' keys (LV-PULL)", file: join(FN, 'hunt-settle.js'),
+    from: '  const peers = o.live === true ? huntPeerKeys(plan.inst, plan.members) : null;', to: '  const peers = null;' },
 ];
 
 /* DB mutants: planted in a LIVE function body of the booted chain, the arm run, the body restored. */

@@ -164,7 +164,7 @@ function candidatesOf(cs, viewed) {
      already dismissed never comes back as a side line. */
   /* THE BURNING TOWER: the Hearth spat the hero out, no death (no popup either: death-popup.js); an ended line in the Tower's words */
   if (h.ended && h.endReason === 'died' && h.huntId === TOWER_RULES.hunt) {
-    out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: null, quiet: viewed, text: t('tower.alert_spat', { name: who(cs) }) });
+    out.push(/** @type {any} */ ({ id: 'ended:' + h.sessionId, kind: 'ended', session: null, quiet: viewed, text: t('tower.alert_spat', { name: who(cs) }) }));
   } else if (h.ended && h.endReason === 'died') {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
       text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });

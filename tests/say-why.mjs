@@ -201,6 +201,14 @@ export const REASONS = Object.freeze({
     { cond: '!(f && f.swap && f.swap.ms >= f.swap.needMs)', words: 'swapLeftWords(f)', where: 'Finish the swap: the swap line above it says the hunting time still owed ("4 h 10 m left"), from the server\'s credited swap time' },
     { cond: '!claimable(f, p)', words: "t('factions.piece_needs'", where: 'Claim a piece: its row says the hours of that side\'s standing it needs' },
   ],
+  /* the Burning Tower (lane/b-tower-window): Enter and Use each have the line above them that says why they're off */
+  'src/shell/windows/tower.js': [
+    { cond: '!!block', words: "text(root.querySelector('.tt-off-why'), block)", where: 'Enter: the line above it says why (out hunting, already climbing, in a party, no floor the server lists), and data-off-why says it on a press' },
+  ],
+  'src/shell/windows/tower-chest.js': [
+    { cond: '!!block', words: "text(pane.querySelector('.tc-off-why'), k ? block : '')", where: 'Use: the line above it says why (out on a hunt, no key, its weapons not built, the day\'s keys used); with no key held the press is hidden and the pane says how to earn one' },
+    { cond: '!!block || all < 2', words: "t('tower.today'", where: 'Use all: off for Use\'s reasons (the line above), or when the day leaves one key, which the key\'s "You used N of M keys today" line says; hidden with fewer than two keys held' },
+  ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },

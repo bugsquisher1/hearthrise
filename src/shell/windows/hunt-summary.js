@@ -201,6 +201,12 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };
     patchTown(root, ctx, sc, town);
     cls(go, 'is-primary', town.primary === 'again');
+    /* A CLIMB'S CARD: its next move is the Tower window (the chest when it gave keys), so that is the card's press; no Hunt again */
+    if (climb) {
+      prop(go, 'hidden', true);
+      cls(toTower, 'is-primary', town.primary === 'again');
+      againWhy = '';
+    } else prop(go, 'hidden', false);
     for (const b of root.querySelectorAll('.hsum-actions button:not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
     prop(root.querySelector('[data-hs-act="expand"]'), 'hidden', !bagFull(cs));
   }

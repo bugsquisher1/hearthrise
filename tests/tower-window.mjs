@@ -266,6 +266,11 @@ async function checks(overrides, shots) {
       await page.waitForTimeout(600);
       sent = verbs(s).slice(2);
       if (sent.length !== 1 || sent[0].body.p_count !== 3 || sent[0].body.p_stokes !== null) fails.push('TW-4 Use all sent ' + JSON.stringify(sent));
+      /* one key left of the day: Use on, Use all off (it would spend past the server's day) */
+      s.tower = section({ held: { bronze: { bag: 2, storage: 1 } }, today: 49 });
+      await replay(page); await openTower(page, 'chest');
+      c = await chestView(page);
+      if (c.use !== 'on' || c.all !== 'off') fails.push('TW-4 with one key left of the day Use/Use all read ' + JSON.stringify([c.use, c.all]));
       /* off: the day's cap, a key not built, out hunting */
       for (const [o, env, want] of [[{ today: 50 }, null, /You used 50 keys today/], [{ notReady: true }, null, /weapons aren't in the chest yet/], [{}, 'hunt', /out on a hunt/]]) {
         s.tower = section(Object.assign({ held: { bronze: { bag: 2, storage: 1 } } }, o));
@@ -328,12 +333,12 @@ async function checks(overrides, shots) {
       await replay(page);
       await page.keyboard.press('l');
       const card = await wait(page, () => /spat you out/.test(document.querySelector('.hsum-reason')?.textContent || ''), null, 8000);
-      const got = await page.evaluate(() => ({ reason: document.querySelector('.hsum-reason')?.textContent || '', again: document.querySelector('[data-hs-act="again"]')?.disabled,
+      const got = await page.evaluate(() => ({ reason: document.querySelector('.hsum-reason')?.textContent || '', again: (() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'); return !b ? null : b.hidden ? 'hidden' : b.disabled ? 'off' : 'on'; })(),
         tower: (() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower"]'); return b && !b.hidden ? b.textContent : null; })(),
         death: !!document.querySelector('[data-hs-win="death"]') }));
       if (!card || !/^The Hearth spat you out on floor 30\. You lost no XP\. You climbed from floor 21 to floor 29\. You got a Bronze Key\./.test(got.reason) || /died/i.test(got.reason))
         fails.push('TW-6 the end card reads ' + JSON.stringify(got.reason));
-      if (got.again !== true || got.tower !== 'Open chest') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
+      if (got.again !== 'hidden' || got.tower !== 'Open chest') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
       if (got.death) fails.push('TW-6 the death popup opened for the Tower');
       if (got.tower) {
         await page.evaluate(() => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower"]').click());

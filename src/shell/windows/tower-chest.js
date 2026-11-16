@@ -160,6 +160,7 @@ export function patchChest(pane, cs, tw, sc) {
   const all = useAllCount(tw, k);
   const use = pane.querySelector('.tc-use'), useAll = pane.querySelector('.tc-use-all');
   prop(use, 'disabled', sc.pending || !!block);
+  prop(use, 'hidden', !k);
   prop(useAll, 'disabled', sc.pending || !!block || all < 2);
   prop(useAll, 'hidden', !k || k.heldAll < 2);
   attr(use, 'data-off-why', block || null);

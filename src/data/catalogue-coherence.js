@@ -29,26 +29,26 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.132';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.132';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.132';
-import { SKILLS_DEF } from './skills.js?v=0.2.132';
-import { SHOP_OFFERS } from './shops.js?v=0.2.132';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.132';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.132';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.132';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.132';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.132';
-import { MONSTERS } from './monsters.js?v=0.2.132';
-import { NAMED_FUELS } from './hearth.js?v=0.2.132';
-import { TEMPER_OFFERS } from './temper.js?v=0.2.132';
-import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.132';
-import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.132';
-import { HUNT_INDEX } from './hunts.js?v=0.2.132';
-import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.132';
+import { ITEMS } from './items.js?v=0.2.133';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.133';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.133';
+import { SKILLS_DEF } from './skills.js?v=0.2.133';
+import { SHOP_OFFERS } from './shops.js?v=0.2.133';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.133';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.133';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.133';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.133';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.133';
+import { MONSTERS } from './monsters.js?v=0.2.133';
+import { NAMED_FUELS } from './hearth.js?v=0.2.133';
+import { TEMPER_OFFERS } from './temper.js?v=0.2.133';
+import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.133';
+import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.133';
+import { HUNT_INDEX } from './hunts.js?v=0.2.133';
+import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.133';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.132';
+} from './item-authority.js?v=0.2.133';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module

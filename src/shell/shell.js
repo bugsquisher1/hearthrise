@@ -39,30 +39,30 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.132';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.132';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.132';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.132';
-import { createShellHud, fightOn } from './shell-hud.js?v=0.2.132';
-import { createHudRoom } from './hud-room.js?v=0.2.132';
-import { createWidgetStack } from './widget-stack.js?v=0.2.132';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.132';
-import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.132';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.132';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.132';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.132';
-import { mountContextMenu } from './context-menu.js?v=0.2.132';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.132';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.132';
-import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.132';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.132';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.132';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.132';
-import { benchSpentAtMs } from './town-work.js?v=0.2.132';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.132';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.132';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.132';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.132';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.133';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.133';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.133';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.133';
+import { createShellHud, fightOn } from './shell-hud.js?v=0.2.133';
+import { createHudRoom } from './hud-room.js?v=0.2.133';
+import { createWidgetStack } from './widget-stack.js?v=0.2.133';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.133';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.133';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.133';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.133';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.133';
+import { mountContextMenu } from './context-menu.js?v=0.2.133';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.133';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.133';
+import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.133';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.133';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.133';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.133';
+import { benchSpentAtMs } from './town-work.js?v=0.2.133';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.133';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.133';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.133';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.133';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;

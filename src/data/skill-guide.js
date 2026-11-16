@@ -14,17 +14,17 @@
 const row = (glyph, use, where) => Object.freeze({ glyph, use, where });
 
 export const SKILL_GUIDE = Object.freeze({
-  melee: row('uiSword', 'Your melee blows land more often and hit harder.', 'Deal damage with a sword, axes or a club.'),
-  ranged: row('uiBow', 'Your shots land more often and hit harder.', 'Deal damage with a bow or crossbow.'),
-  magic: row('uiStaff', 'Your spells land more often and hit harder.', 'Spend mana on spells.'),
-  defense: row('uiShield', 'Monsters hit you less often.', 'Take blows while wearing armor. A shield block counts double.'),
-  inner_flame: row('uiCamp', 'Your hero recovers health and mana faster.', 'Fuel the Great Hearth in Havora with bones and other fuel.'),
-  woodcutting: row('uiAxe', 'Logs for Crafting and for building your home.', 'Chop trees.'),
+  melee: row('uiSword', 'Melee blows land more often and hit harder', 'Deal damage with a sword, axes or a club.'),
+  ranged: row('uiBow', 'Shots land more often and hit harder', 'Deal damage with a bow or crossbow.'),
+  magic: row('uiStaff', 'Spells land more often and hit harder', 'Spend mana on spells.'),
+  defense: row('uiShield', 'Monsters hit less often', 'Take blows in armor, a shield block counts double'),
+  inner_flame: row('uiCamp', 'Faster health and mana recovery', 'Fuel the Great Hearth in Havora with bones and other fuel.'),
+  woodcutting: row('uiAxe', 'Logs for Crafting and the House', 'Chop trees.'),
   mining: row('uiPickaxe', 'Ore for Smithing and essence for Runecrafting.', 'Mine rocks.'),
   fishing: row('uiRod', 'Raw fish for Cooking.', 'Fish at a fishing spot.'),
-  farming: row('uiSprout', 'Crops for Cooking and for drinks.', 'Plant seeds in your plots.'),
+  farming: row('uiSprout', 'Crops for Cooking and for drinks.', 'Plant seeds in the plots'),
   cooking: row('uiPot', 'Food that heals and drinks that restore mana on a hunt.', 'Cook what you fish and grow.'),
-  crafting: row('uiHammer', 'Planks, arrows and bolts, and timber for building your home.', 'Saw logs and fletch at the workbench.'),
-  smithing: row('uiAnvil', 'Metal bars, axes and pickaxes, whetstones for melee, salts for tempering, and fittings for your home.', 'Smelt ore and forge bars.'),
-  runecrafting: row('uiGem', 'Runes your spells spend, better than the shop’s.', 'Bind essence into runes.'),
+  crafting: row('uiHammer', 'Planks, arrows, bolts and timber for the House', 'Saw logs and fletch at the workbench.'),
+  smithing: row('uiAnvil', 'Bars, tools, whetstones, tempering salts and House fittings', 'Smelt ore and forge bars.'),
+  runecrafting: row('uiGem', 'Runes for spells, better than the shop’s', 'Bind essence into runes.'),
 });

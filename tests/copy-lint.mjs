@@ -327,7 +327,7 @@ export const LORE_ROWS = Object.freeze({
 export const LABEL_DATA = Object.freeze(['src/data/refusal-words.js', 'src/data/hunt-tutorial.js', 'src/data/armour-weights.js', 'src/data/party-words.js',
   'src/data/alerts.js', 'src/data/honor-roll.js', 'src/data/settings.js', 'src/data/social-settings.js', 'src/data/chat-channels.js', 'src/data/town-works.js',
   'src/data/hunt-after.js', 'src/data/outfits.js', 'src/data/shell-windows.js', 'src/data/combat-text.js', 'src/data/live-events.js', 'src/data/how-to-play.js',
-  'src/data/skill-guide.js', 'src/data/fx-alpha.js']);
+  'src/data/skill-guide.js', 'src/data/fx-alpha.js', 'src/data/hud-widgets.js']);
 /* Edge-bundled (tools/pack-edge.mjs walks them into hr-accrue): read like LABEL_DATA, and a line that breaks a rule today is pinned until the next edge deploy. */
 export const EDGE_LABEL_DATA = Object.freeze(['src/data/hunt-sessions.js', 'src/data/training.js', 'src/data/boss-calls.js', 'src/data/boss-halls.js',
   'src/data/hunt-tiers.js', 'src/data/session-modes.js', 'src/data/condition-metrics.js', 'src/data/supply-basics.js', 'src/data/party.js',
@@ -343,6 +343,12 @@ export const NOT_LABEL_HOMES = Object.freeze({
   'src/data/grounds/': 'lore: a ground\'s story and its loot\'s flavor, and design notes', 'src/data/world/': 'names and design notes of the pixel world',
   'src/data/monster-art.js': 'design notes (the art review), never shown', 'src/data/catalogue-coherence.js': 'design notes, never shown',
   'src/data/item-effects.js': 'design notes, never shown', 'src/data/balance-sheet.js': 'design notes, never shown',
+  /* each holds only its own validator's messages (a validate() list a test prints) or a documentation field */
+  'src/data/bench-tax.js': 'validator messages and notes, never shown', 'src/data/consumables.js': 'validator messages, never shown',
+  'src/data/factions.js': 'validator messages, never shown (its words are src/data/text/factions.js)', 'src/data/item-authority.js': 'documentation, never shown',
+  'src/data/monster-spells.js': 'validator messages, never shown', 'src/data/party-class-xp.js': 'validator messages, never shown',
+  'src/data/runes.js': 'validator messages, never shown', 'src/data/stamina-refill.js': 'validator messages, never shown',
+  'src/data/tally-tasks.js': 'validator messages, never shown',
 });
 const homeOf = (rel) => (/^src\/data\/text\/[^/]+\.js$/.test(rel) || LABEL_DATA.includes(rel) ? 'table'
   : EDGE_LABEL_DATA.includes(rel) ? 'edge' : /^src\/(?:shell|app|hunt-view|social)\//.test(rel) ? 'code' : null);
@@ -703,10 +709,12 @@ export async function scan(root, opts = {}) {
       /* THE LABEL FORM: every row, refusal and UI data line outside LORE_ROWS, and every player piece written in code (the windows) */
       const labels = [];
       /* a selector, an id or a class list is code; a coach anchor's about (hunt-tutorial.js TUTORIAL_ANCHORS) is its documentation */
-      if (home && prose(text) && !codeish(text) && !/\banchor\(\s*$/.test(src.slice(Math.max(0, at - 20), at))) {
+      /* a data row's {placeholder} is a hole like the table's (else its brace reads as code and the row goes unread) */
+      const row = home === 'code' ? text : lits[i].text.replace(/\{[a-z][A-Za-z0-9_]*\}/g, '§');
+      if (home && prose(row) && !codeish(row) && !/\banchor\(\s*$/.test(src.slice(Math.max(0, at - 20), at))) {
         const key = home === 'code' ? null : rowKey(src, at);
         if (!loreRow(srcRel, key)) {
-          const pieces = home === 'code' ? playerParts(lits[i].text) : [text];
+          const pieces = home === 'code' ? playerParts(lits[i].text) : [row];
           for (const p of pieces) for (const r of labelForm(p, coachKind(srcRel, key))) labels.push([r, p]);
         }
       }

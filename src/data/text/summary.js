@@ -35,11 +35,14 @@ export const SUMMARY_TEXT = Object.freeze({
 
   /* WHY THE HUNT ENDED (src/hunt-view/summary-model.js END_WORDS, one per END_ORDER name): labels on the end card. */
   end_died: 'Died',
+  died_in: '{name} died in {ground}',
   end_boss_felled: 'Boss defeated, new title earned',
   end_party_member_died: 'Party member died',
   end_party_member_left: 'Party member left',
   end_heals_out: 'Out of healing supplies',
   end_ammo_out: 'Out of ammunition',
+  end_runes_out: 'Out of runes',
+  end_no_fight: 'No blows landed, came home',
   end_gold_out: 'Gold reserve reached',
   end_rule: 'Stop rule met',
   end_stamina: 'Out of stamina',

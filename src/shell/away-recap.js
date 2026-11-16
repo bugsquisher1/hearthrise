@@ -48,11 +48,10 @@ import { levelOf } from '../session/character-sections.js?v=0.2.134';
 import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.134';
 import { nameOf } from '../session/item-sections.js?v=0.2.134';
 import { huntName } from '../session/party-sections.js?v=0.2.134';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
 import { whole } from '../render/format.js?v=0.2.134';
 import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.134';
-import { bestFind } from '../hunt-view/summary-model.js?v=0.2.134';
+import { bestFind, END_WORDS } from '../hunt-view/summary-model.js?v=0.2.134';
 import { itemName } from './widgets/bits.js?v=0.2.134';
 import { t } from '../render/player-text.js?v=0.2.134';
 import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.134';
@@ -170,7 +169,7 @@ function nowWords(cs, h, now) {
   const then = said ? ' ' + said : '';
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
-    ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
+    ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
       .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
       + then + (stamina ? ' Stamina now: ' + stamina + '.' : '')
     : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';

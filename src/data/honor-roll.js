@@ -39,14 +39,14 @@ import { SKILL_GUIDE } from './skill-guide.js?v=0.2.134';
 const skill = (id, group) => Object.freeze({
   id: 'skill:' + id, group, label: SKILLS_DEF[id].name, reads: 'level', glyph: SKILL_GUIDE[id].glyph,
   why: SKILL_GUIDE[id].where,
-  empty: 'No hero has trained ' + SKILLS_DEF[id].name + ' yet. The first to do it takes first place.',
+  empty: 'No ' + SKILLS_DEF[id].name + ' entries yet',
   join: 'Train ' + SKILLS_DEF[id].name + ' to earn a place: ' + SKILL_GUIDE[id].where.charAt(0).toLowerCase() + SKILL_GUIDE[id].where.slice(1),
 });
 
 export const HONOR_BOARDS = Object.freeze([
   Object.freeze({ id: 'level', group: 'Hunting', label: 'Level', reads: 'level', glyph: 'uiSkull',
     why: 'Level comes from the creatures a hero defeats in hunts.',
-    empty: 'No hero has earned a level in a hunt yet. The first to do it takes first place.',
+    empty: 'No entries yet',
     join: 'Defeat creatures in a hunt to earn Level and a place here.' }),
   Object.freeze({ id: 'total_level', group: 'Hunting', label: 'Total level', reads: 'total', glyph: 'uiStar',
     why: 'Every skill level a hero has, added together.',
@@ -66,9 +66,9 @@ export const HONOR_BOARDS = Object.freeze([
   skill('smithing', 'Crafting'),
   skill('runecrafting', 'Crafting'),
   Object.freeze({ id: 'gold_given', group: 'Town', label: 'Gold Given', reads: 'gold', glyph: 'uiCoinStack',
-    why: 'Gold an account gave to Havora this UTC month. It starts again on the 1st.',
-    empty: 'Nobody has given gold to Havora this month. The first gift takes first place.',
-    join: 'Give to the Town Works, throw a Hearth powder, stand a round or pay the Town Crier.' }),
+    why: 'Gold given to Havora this UTC month, resets on the 1st',
+    empty: 'No gifts this month yet',
+    join: 'Give gold to Havora: Works, powders, rounds, Crier' }),
 ]);
 
 /** The row for a board id, or null. */

@@ -98,7 +98,7 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true,
     pageOf: Object.freeze(['hunt-prep']) }),
   /* Tyler 2026-10-19: a death opens a centred popup (src/shell/death-popup.js opens it; its key shows the last death). */
-  Object.freeze({ id: 'death', label: 'You died', key: null, glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
+  Object.freeze({ id: 'death', label: 'Defeated', key: null, glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
   /* Tyler 2026-11-01: the play cap's refusal opens a centered popup (windows/play-cap.js). It has nothing to say until the server refuses a start, so no key. */
   Object.freeze({ id: 'play-cap', label: 'Too many heroes playing', key: null, glyph: 'uiWarn', width: 420, object: 'plain', launcher: false, modal: true }),
   /* Tyler 2026-11-14: after a hero's first Krell kill, Holly and Venn ask it to pick a side (windows/faction-join.js opens it once; the

@@ -62,7 +62,7 @@ export const SETTING_CATEGORIES = Object.freeze([
   cat('effects', 'Effects', 'How strongly spells, hits and danger marks show in a hunt.'),
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
-  cat('account', 'Account', 'Your name, password and signing out.'),
+  cat('account', 'Account', 'Name, password and sign out'),
   cat('help', 'Help', 'How Hearthrise works, and how to report a problem'),
 ]);
 
@@ -95,7 +95,7 @@ const LOOK_ROWS = [row({
   id: 'ui.windowOpacity',
   category: 'interface',
   label: 'Window opacity',
-  help: 'Window and panel opacity (text and frames stay solid)',
+  help: 'Window and panel opacity',
   type: 'slider',
   default: PANEL_ALPHA.initial,
   options: Object.freeze({ min: PANEL_ALPHA.min, max: PANEL_ALPHA.max, step: PANEL_ALPHA.step, unit: '%' }),
@@ -114,7 +114,7 @@ const LOOK_ROWS = [row({
   id: 'ui.monsterNames',
   category: 'interface',
   label: MONSTER_NAMES.label,
-  help: 'Monster names over their heads in hunts (bosses always show)',
+  help: 'Monster names in hunts, bosses always shown',
   type: 'toggle',
   default: MONSTER_NAMES.defaultOn,
   bind: Object.freeze({ store: 'switch', field: MONSTER_NAMES.field, sw: MONSTER_NAMES }),
@@ -144,8 +144,8 @@ const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
   category: 'interface',
   label: w.label,
   help: w.when === 'hunt'
-    ? 'Show the ' + w.label.toLowerCase() + ' panel while you are in a hunt.'
-    : 'Show the ' + w.label.toLowerCase() + ' panel on the screen.',
+    ? 'Show the ' + w.label.toLowerCase() + ' panel in hunts'
+    : 'Show the ' + w.label.toLowerCase() + ' panel',
   type: 'toggle',
   default: w.visible,
   bind: Object.freeze({ store: 'hud', id: w.id }),
@@ -160,7 +160,7 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !('escape' in w && w.escape) && 
   type: 'hotkey', key: w.key,
 })).concat(HOTKEYS.map((k, i) => row({
   id: 'key.shell' + i, category: 'controls', label: k.does,
-  help: 'Hunts play themselves. Keys only open windows.', type: 'hotkey', key: k.key,
+  help: 'Keys open windows, hunts play themselves', type: 'hotkey', key: k.key,
 })));
 
 /* ── Help: how the game works (src/data/how-to-play.js HELP_NOTES, read-only notes the search finds),
@@ -172,12 +172,12 @@ const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 
   type: 'action', open: 'wiki',
 }), row({
   id: 'help.report', category: 'help', label: 'Report a problem',
-  help: 'Report a problem straight to the team (game details attached)',
+  help: 'Report a problem to the team',
   type: 'action', open: 'report',
 }), row({
   /* THE SESSION-RECORDING SWITCH (src/data/privacy.js, src/session/replay-pref.js): the player's choice, kept for every hero. */
   id: 'help.replay', category: 'help', label: REPLAY.label,
-  help: 'Screen recording for the team. Typed text and chat hidden. Off: nothing recorded.',
+  help: 'Screen recording for the team, typed text and chat hidden',
   type: 'toggle', default: REPLAY.defaultOn,
   bind: Object.freeze({ store: 'switch', field: REPLAY.field, sw: REPLAY }),
 })];

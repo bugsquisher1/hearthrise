@@ -30,7 +30,7 @@ export const ALERT_KINDS = Object.freeze([
   Object.freeze({ id: 'low', label: 'Low supplies', glyph: 'uiWarn', action: 'show', button: 'See the hunt', fadeMs: 30000 }),
   Object.freeze({ id: 'ended', label: 'Hunt ended', glyph: 'uiHourglass', action: 'restart', button: 'Start again' }),
   /* "While you were away" on return (src/shell/away-recap.js, designer 2026-10-22): what the hunt did meanwhile. */
-  Object.freeze({ id: 'away', label: 'While you were away', glyph: 'uiHourglass', action: 'show', button: 'See the hunt' }),
+  Object.freeze({ id: 'away', label: 'While away', glyph: 'uiHourglass', action: 'show', button: 'See the hunt' }),
   /* PARTY_SPEC §1.3: an invite reaches a stranger anywhere in the game, Join / Decline (the server's party_invites). */
   Object.freeze({ id: 'invite', label: 'Party invites', glyph: 'uiPeople', action: 'join', button: 'Join', decline: 'Decline' }),
   /* What another player's move did to this hero (2027-02-18-party-truth.sql party_notices): said no, removed it, closed the party, left. */

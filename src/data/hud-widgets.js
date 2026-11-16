@@ -67,7 +67,7 @@ export const HUD_WIDGETS = Object.freeze([
   }),
   /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
   Object.freeze({
-    id: 'hunt-topbar', label: 'Hunt bar (top)', layer: 'world', anchor: 'tc', dx: 0, dy: 8,
+    id: 'hunt-topbar', label: 'Hunt bar', layer: 'world', anchor: 'tc', dx: 0, dy: 8,
     min: Object.freeze([300, 40]), opacity: 1, visible: true, removable: true, when: 'hunt', keepClear: true,
     phone: Object.freeze({ anchor: 'tr', dx: 4, dy: 4 }),
   }),
@@ -91,7 +91,7 @@ export const HUD_WIDGETS = Object.freeze([
      right corner. With nothing to show it takes no room (widgets/tally-hud.js), so it never moves the camera.
      Off by default on a phone, where it stacks under the hunt bar (HUD layout shows it). */
   Object.freeze({
-    id: 'tally', label: 'Tally (kill tasks)', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
+    id: 'tally', label: 'Tally', layer: 'world', anchor: 'tr', dx: 12, dy: 12,
     min: Object.freeze([180, 32]), opacity: 0.9, visible: true, removable: true, when: 'always', folded: 'narrow',
     below: Object.freeze(['analyzer', 'hunt-topbar']),
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),

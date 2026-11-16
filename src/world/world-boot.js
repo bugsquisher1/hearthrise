@@ -276,9 +276,7 @@ export async function bootWorld(panel, opts) {
     if (stage && stage.dataset.live !== key) stage.dataset.live = key;
     tl.advance(now);
     const f = scene.frame(now);
-    /* A UNIT WHOSE SHEET HAS NOT LANDED: asked for now, and not drawn until it lands, never a stub box. The Burning Tower's rooms stand
-       monsters from every ground's sheets, and its map (the scene's sheets, scene-sets.js) names none of them: a room's kinds are asked
-       for as it stands and each walks in the moment its sheet lands. Every other ground's sheets came with its scene: nothing drops there. */
+    /* A unit whose sheet has not landed is asked for and drawn when it lands, never a stub box (the Tower's rooms name monsters its scene's sheets lack). */
     const units = f.units.filter((u) => {
       const set = book.has(u.id) ? book.frame(u.id).set : '';
       if (!set || sheets.ready([set])) return true;

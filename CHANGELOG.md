@@ -17,6 +17,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Shorter game text.** Menus, buttons and settings now use short labels instead of full sentences. For example Gold to keep is now Gold reserve. Story text is unchanged.
 
+**Selling old gear.** The bag has a new Select outgrown button. It picks every piece of gear below the tier you wear, Rares included, so you can sell it all at once. A very big sale no longer fails. It sells 64 stacks a press and tells you how many are left.
+
 **Fixes.** The Party window shows each member's real stamina.
 
 ## v0.2.133 — 2026-11-16 (Party XP fix)

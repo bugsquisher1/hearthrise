@@ -138,6 +138,38 @@ function report(rows) {
     const lo = h.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
     console.log('  ' + g.padEnd(20) + ' Deadly four ' + f2(top) + 'x -> ' + String(gp).padStart(4) + ': ' + f2((top * gp) / NOW_PM) + 'x; lowest harder-tier mix vs alone ' + f2((lo.vsSame * gp) / NOW_PM) + ' (' + lo.tier + ' ' + lo.lvName + ' ' + lo.name + ')');
   }
+  /* (F) A FLAT FACTOR'S DEADLY-FOUR COLUMN: --flat PM (default the lowest that keeps every harder-tier mix over its heroes alone) */
+  const flat = Number(arg('--flat', Math.ceil(NOW_PM / lowH.vsSame)));
+  console.log('(F) ONE FACTOR ' + flat + ': each ground\'s hottest Deadly four (andy or four, floor or middle) over the contract, now -> at ' + flat);
+  for (const g of grounds) {
+    const d = rows.filter((x) => x.g === g && x.tier === 'deadly' && fours(x));
+    if (d.length) { const top = Math.max(...d.map((x) => x.contract)); console.log('  ' + g.padEnd(20) + ' ' + f2(top) + 'x -> ' + f2((top * flat) / NOW_PM) + 'x'); }
+  }
+  /* (S) THE SIZE BONUS ONLY: one factor on every 3-hero cell and one on every 4-hero cell, every ground and tier; pairs as they are. Each factor is the
+     deepest that keeps every Dangerous/Deadly mix of its size at or over its heroes alone (andy left out: its seat five under keeps less by the
+     under-floor share), so the hottest Deadly four comes as near the target as that allows (never under it). */
+  const harderOf = (n) => harder.filter((x) => PARTIES[x.name][0].length === n);
+  const deepest = (n) => Math.ceil((NOW_PM / Math.min(...harderOf(n).map((x) => x.vsSame))) / 5) * 5;
+  const hotFour = Math.max(...deadly.map((x) => x.contract));
+  const f4 = Math.min(NOW_PM, Math.max(deepest(4), Math.ceil(((NOW_PM * target) / hotFour) / 5) * 5)), f3 = Math.min(NOW_PM, deepest(3));
+  const kSize = (x) => { const n = PARTIES[x.name][0].length; return n === 4 ? f4 / NOW_PM : n === 3 ? f3 / NOW_PM : 1; };
+  console.log('(S) THE SIZE BONUS ONLY: 4-hero cells x' + (f4 / NOW_PM).toFixed(3) + ' (' + f4 + '), 3-hero cells x' + (f3 / NOW_PM).toFixed(3) + ' (' + f3 + '), pairs x1; the hottest Deadly four ' + f2(hotFour) + 'x -> ' + f2((hotFour * f4) / NOW_PM) + 'x');
+  for (const tier of T.TIER_IDS) {
+    const on = rows.filter((x) => x.tier === tier && x.name !== 'andy');
+    const lo = on.reduce((m, x) => (x.vsSame * kSize(x) < m.vsSame * kSize(m) ? x : m));
+    console.log('  ' + tier.padEnd(9) + ' lowest mix vs same heroes alone ' + f2(lo.vsSame * kSize(lo)) + ' (' + lo.g + ' ' + lo.lvName + ' ' + lo.name + '); ' + on.filter((x) => x.vsSame * kSize(x) < 1).length + ' of ' + on.length + ' mixes under alone');
+  }
+  console.log('  ground               Deadly four xC now -> (S) | trio xC Deadly now -> (S) | lowest harder-tier mix vs alone now -> (S) | Normal four vs alone now -> (S)');
+  for (const g of grounds) {
+    const d = rows.filter((x) => x.g === g && x.tier === 'deadly' && fours(x));
+    if (!d.length) { console.log('  ' + g.padEnd(20) + ' no Deadly'); continue; }
+    const top = Math.max(...d.map((x) => x.contract));
+    const trio = Math.max(...rows.filter((x) => x.g === g && x.tier === 'deadly' && x.name === 'trio tank+healer+bow').map((x) => x.contract));
+    const h = rows.filter((x) => x.g === g && x.tier !== 'normal' && x.name !== 'andy');
+    const lo0 = Math.min(...h.map((x) => x.vsSame)), lo1 = Math.min(...h.map((x) => x.vsSame * kSize(x)));
+    const n4 = Math.min(...rows.filter((x) => x.g === g && x.tier === 'normal' && x.name === 'four').map((x) => x.vsSame));
+    console.log('  ' + g.padEnd(20) + ' ' + f2(top) + ' -> ' + f2((top * f4) / NOW_PM) + ' | ' + f2(trio) + ' -> ' + f2((trio * f3) / NOW_PM) + ' | ' + f2(lo0) + ' -> ' + f2(lo1) + ' | ' + f2(n4) + ' -> ' + f2((n4 * f4) / NOW_PM));
+  }
 }
 
 async function main() {

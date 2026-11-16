@@ -16,7 +16,7 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 112 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 113 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
 --     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
@@ -86,8 +86,8 @@ declare
     'hr_faction_members', 'hr_faction_standing', 'hr_faction_days', 'hr_faction_claims', 'hr_faction_ledger',
     /* a hero's Burning Tower best and its climbs (2027-04-24-tower-climb.sql) */
     'tower_progress', 'tower_runs',
-    /* a hero's Hearth Chest warmth, key count and default stokes, and the journal of its keys used (2027-04-27-tower-chest.sql) */
-    'chest_luck', 'chest_opens',
+    /* a hero's Hearth Chest warmth, key count and default stokes, the journal of its keys used, and its Key Ring (2027-04-27-tower-chest.sql) */
+    'chest_luck', 'chest_opens', 'player_key_ring',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',

@@ -271,6 +271,17 @@ export function bagCapOf(cs) {
 }
 
 /** `bag_expand` (hr_bag_expand_view): { cap, rung, max, next: { offer, gold, adds } | null }, or null. Every number is the server's. */
+/** `key_ring` (2027-04-27-tower-chest.sql hr_key_ring_section): { unlocked, offer: { offer, gold } | null, keys: [{ id, qty }] }, or null
+    (no section: the Tower off for the account, or a database before the ring). Every number is the server's. */
+export function keyRingOf(cs) {
+  const s = read(cs, 'key_ring');
+  if (!isObj(s) || typeof s.unlocked !== 'boolean' || !Array.isArray(s.keys)) return null;
+  const o = s.offer;
+  const offer = !s.unlocked && isObj(o) && OFFER.test(String(o.offer)) && count(o.gold) ? { offer: o.offer, gold: o.gold } : null;
+  const keys = s.keys.filter((k) => isObj(k) && ID.test(String(k.item)) && count(k.qty)).map((k) => ({ id: k.item, qty: k.qty }));
+  return { unlocked: s.unlocked, offer, keys };
+}
+
 export function bagExpandOf(cs) {
   const s = read(cs, 'bag_expand');
   if (!isObj(s) || !count(s.cap) || count(s.rung) === null || count(s.max) === null) return null;

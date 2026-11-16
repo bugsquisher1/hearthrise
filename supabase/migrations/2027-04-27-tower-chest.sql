@@ -55,9 +55,22 @@
 -- hr_chest_stoke_default(p_slot int, p_key text, p_stokes int, p_idem uuid) -> jsonb   CLIENT VERB. The hero's default stoke count for one
 --   kind of key (the design's "Save as default"). Moves no value. ok: { ok, key, stokes, chest_section }. Refusals: the shape ones, bad_key,
 --   bad_stokes, rate_limited, feature_off, no_character, intent_mismatch.
+-- THE KEY RING (lane/c-key-ring, Tyler 2026-11-16): a hero-bound storage for every chest key (all families), bought once per hero for gold
+--   through the ONE spend RPC (hr_unlock_buy: offer key_ring.0, src/data/gold-ladders.js, a PLACEHOLDER price for the designer; ownership is
+--   player_progress unlock/key_ring = 1). Before it, keys sit in the bag; from the purchase on, every chest key in the bag moves onto the
+--   ring at once (hr_key_ring_on_unlock) and every NEW bag stack of one moves there as it lands (hr_key_ring_on_bag: the mint, a Storage
+--   withdraw, whatever wrote it), so keys take no bag slot. Ring keys count toward the family's held limit and open exactly as bag keys do
+--   (the ring first, then the bag, then Storage). player_key_ring (user_id, slot, item_id, qty) NEW: RLS own read, no client write.
+-- hr_key_ring_store(p_slot int, p_item text, p_qty int, p_idem uuid) -> jsonb   CLIENT VERB. Ring keys into the account's Storage (Tyler
+--   2026-11-14: keys pass between one account's heroes through Storage), through the bank's own per-stack deposit (hr_bank_move_stack: its
+--   room check and its bank_deposit ledger row). Refusals, each moving nothing: not_signed_in, bad_slot, bad_idem, bad_qty (not 1..1e6),
+--   bad_key (no chest key), rate_limited (the bank_move bucket), settle_first / party_hunt_running, no_character, insufficient_item
+--   { have, need } (the ring's count), bank_full and the deposit's other refusals, intent_mismatch. ok: { ok, item, qty, version }.
+-- hr_key_ring_section(p_user uuid, p_slot int) -> jsonb   the `key_ring` STATE SECTION (every envelope): null while burning_tower is
+--   off for the account; else { unlocked, offer: { offer, gold } | null (the server's price while it is locked), keys: [{ item, qty }] }.
 -- hr_chest_section(p_user uuid, p_slot int) -> jsonb (owner-only; both verbs answer it; the window lane projects it): { on, dry, opens,
---   per_call, own_pm, own_family, cinders { bag, storage }, warmth_pm, week_ends (the next Monday 00:00 UTC), families: [{ family, name,
---   opened (this week), max (opens_per_week), held, held_max }], keys: [{ key, family, item, name, from, held { bag, storage }, base_pm,
+--   per_call, own_pm, own_family, cinders { bag, storage, ring }, warmth_pm, week_ends (the next Monday 00:00 UTC), families: [{ family, name,
+--   opened (this week), max (opens_per_week), held, held_max }], keys: [{ key, family, item, name, from, held { bag, storage, ring }, base_pm,
 --   chance_ppm (now, with the default stokes), stokes_default, stokes: [{ n, pm, cost }], inside { item: qty }, ready, skill_plus }] }:
 --   every number the menu shows, the server's own.
 -- chest_luck (user_id, slot) NEW: dry (keys since the last weapon), opens (keys used, ever: the roll's index and the Turnkey title's count),
@@ -107,7 +120,8 @@
 --   folded into 2027-04-24-tower-climb-session-modes-catalogue.generated.sql (src/data/session-modes.js), whose engine deploy follows it.
 -- CLIENT: none (the window lane wires both verbs and projects hr_chest_section; the words are src/data/text/tower.js and refusal-words.js).
 -- ORDER: after 2027-04-24-tower-climb-hunts-catalogue.generated.sql: 2027-04-27-tower-chest-items-catalogue.generated.sql, then
---   2027-04-27-tower-chest-bench-inputs.generated.sql, then 2027-04-27-tower-chest-catalogue.generated.sql, then THIS file.
+--   2027-04-27-tower-chest-bench-inputs.generated.sql, then 2027-04-27-tower-chest-catalogue.generated.sql, then
+--   2027-04-28-key-ring-gold-ladders.generated.sql (the Key Ring's offer and unlock row: §9 owns a ring), then THIS file.
 -- REVERSIBLE: drop the mint trigger on tower_runs first (no key is minted after it), then the two verbs and their baseline rows, the eight
 --   helpers, the two tables. Keys and Cinders already in bags stay as items (bound, no value: they move nothing); the wipe empties them.
 -- IDEMPOTENT: a second apply finds the tables, restates every body byte-identical, re-creates the trigger and the baseline rows, and §9
@@ -169,10 +183,18 @@ create table if not exists public.chest_opens (
   constraint chest_opens_hit check ((weapon is null) = (family is null) and (weapon is null or roll < chance_ppm))
 );
 create index if not exists chest_opens_week on public.chest_opens (user_id, slot, key_family, at);
+create table if not exists public.player_key_ring (
+  user_id    uuid        not null,
+  slot       int         not null check (slot between 0 and 5),
+  item_id    text        not null,
+  qty        bigint      not null check (qty > 0),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, slot, item_id)
+);
 do $mig$
 declare t text;
 begin
-  foreach t in array array['chest_luck', 'chest_opens'] loop
+  foreach t in array array['chest_luck', 'chest_opens', 'player_key_ring'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
     execute format('grant select on table public.%I to authenticated', t);
@@ -191,6 +213,7 @@ drop trigger if exists hr_chest_opens_immutable on public.chest_opens;
 create trigger hr_chest_opens_immutable before update or delete on public.chest_opens
   for each row execute function public.hr_chest_opens_immutable();
 comment on table public.chest_luck is '2027-04-27-tower-chest.sql: each hero''s Hearth warmth (dry: keys since its last tower weapon), its lifetime key count (the roll''s index) and its default stokes a key. Written only by hr_chest_open and hr_chest_stoke_default. RLS: own rows readable, no client write.';
+comment on table public.player_key_ring is '2027-04-27-tower-chest.sql (lane/c-key-ring): a hero''s Key Ring, its chest keys by item, once the ring is bought (player_progress unlock/key_ring). Written only by the ring''s triggers (a key landing in the bag), hr_chest_open (a key used) and hr_key_ring_store (keys into Storage). RLS: own rows readable, no client write.';
 comment on table public.chest_opens is '2027-04-27-tower-chest.sql: append-only, one row a key used at the Hearth Chest: its index, key family, chance, roll, warmth, stokes and weapon. The audit a dispute is replayed from, a family''s weekly open count (hr_chest_open) and the Turnkey title''s count. Written only by hr_chest_open. RLS: own rows readable, no client write.';
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
@@ -236,24 +259,107 @@ begin
   return jsonb_build_object('roll', v_r, 'weapon', true, 'family', v_fam);
 end $fn$;
 
--- What the hero holds of an item: { bag, storage }.
+-- What the hero holds of an item: { bag, storage, ring }.
 create or replace function public.hr_chest_held(p_user uuid, p_slot int, p_item text)
 returns jsonb language sql stable set search_path = public, pg_catalog as $$
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
   select jsonb_build_object(
     'bag', coalesce((select i.qty from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = p_item), 0),
-    'storage', coalesce((select b.qty from public.account_bank b where b.user_id = p_user and b.item_id = p_item), 0))
+    'storage', coalesce((select b.qty from public.account_bank b where b.user_id = p_user and b.item_id = p_item), 0),
+    'ring', coalesce((select r.qty from public.player_key_ring r where r.user_id = p_user and r.slot = p_slot and r.item_id = p_item), 0))
 $$;
 
--- What the hero holds of a key FAMILY: every key of it in the bag plus the account's Storage (the keys it could open). The mint's held limit.
+-- What the hero holds of a key FAMILY: every key of it in the bag, on its Key Ring and in the account's Storage (the keys it could open). The
+-- mint's held limit.
 create or replace function public.hr_chest_family_held(p_user uuid, p_slot int, p_family text)
 returns bigint language sql stable set search_path = public, pg_catalog as $$
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
   select coalesce((select sum(i.qty) from public.player_inventory i join public.hr_chest_keys k on k.item_id = i.item_id
                     where i.user_id = p_user and i.slot = p_slot and k.key_family = p_family), 0)::bigint
+       + coalesce((select sum(r.qty) from public.player_key_ring r join public.hr_chest_keys k on k.item_id = r.item_id
+                    where r.user_id = p_user and r.slot = p_slot and k.key_family = p_family), 0)::bigint
        + coalesce((select sum(b.qty) from public.account_bank b join public.hr_chest_keys k on k.item_id = b.item_id
                     where b.user_id = p_user and k.key_family = p_family), 0)::bigint
 $$;
+
+-- THE KEY RING (lane/c-key-ring): does this hero own one (hr_unlock_buy's ownership row, GREATEST-merged)?
+create or replace function public.hr_key_ring_owned(p_user uuid, p_slot int)
+returns boolean language sql stable set search_path = public, pg_catalog as $$
+  -- KEY-RING (2027-04-27-tower-chest.sql)
+  select exists (select 1 from public.player_progress g where g.user_id = p_user and g.slot = p_slot and g.kind = 'unlock'
+                  and g.key = 'key_ring' and g.period_key = '' and g.value >= 1)
+$$;
+
+-- Every chest key in the hero's bag onto its ring (the purchase's sort). The number of keys moved.
+create or replace function public.hr_key_ring_sweep(p_user uuid, p_slot int)
+returns bigint language plpgsql set search_path = public, pg_catalog as $fn$
+declare v_n bigint;
+begin
+  -- KEY-RING (2027-04-27-tower-chest.sql)
+  with moved as (
+    delete from public.player_inventory i using public.hr_chest_keys k
+     where i.user_id = p_user and i.slot = p_slot and i.item_id = k.item_id
+    returning i.item_id, i.qty),
+  put as (
+    insert into public.player_key_ring as r (user_id, slot, item_id, qty)
+      select p_user, p_slot, m.item_id, m.qty from moved m
+    on conflict (user_id, slot, item_id) do update set qty = r.qty + excluded.qty, updated_at = now()
+    returning 1)
+  select coalesce(sum(m.qty), 0) into v_n from moved m;
+  return v_n;
+end $fn$;
+
+-- THE PURCHASE SORTS THE BAG: the ring's ownership row written (hr_unlock_buy), every bag key goes onto it; one journal row (no value moves).
+create or replace function public.hr_key_ring_on_unlock()
+returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare v_n bigint;
+begin
+  -- KEY-RING (2027-04-27-tower-chest.sql)
+  v_n := public.hr_key_ring_sweep(new.user_id, new.slot);
+  insert into public.player_ledger (user_id, slot, kind, intent, meta)
+    values (new.user_id, new.slot, 'bank', 'key_ring_sort', jsonb_build_object('reason', 'key_ring_sort', 'moved', v_n));
+  return null;
+end $fn$;
+drop trigger if exists hr_key_ring_on_unlock on public.player_progress;
+create trigger hr_key_ring_on_unlock after insert or update of value on public.player_progress for each row
+  when (new.kind = 'unlock' and new.key = 'key_ring' and new.period_key = '' and new.value >= 1)
+  execute function public.hr_key_ring_on_unlock();
+
+-- A KEY LANDS ON THE RING: a NEW bag stack of a chest key, for a hero with a ring, moves onto it as it is written (whoever wrote it: the
+-- mint, a Storage withdraw). Only an INSERT is a new stack (an upsert onto an existing stack fires UPDATE), and with a ring no key stack
+-- stays in the bag, so a key always arrives as one. hr_key_ring_store's own bag row (`hr.key_ring_out`, its transaction) is let be.
+create or replace function public.hr_key_ring_on_bag()
+returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare v_q bigint;
+begin
+  -- KEY-RING (2027-04-27-tower-chest.sql)
+  if coalesce(current_setting('hr.key_ring_out', true), '') = '1' then return null; end if;
+  if not exists (select 1 from public.hr_chest_keys k where k.item_id = new.item_id) then return null; end if;
+  if not public.hr_key_ring_owned(new.user_id, new.slot) then return null; end if;
+  delete from public.player_inventory where user_id = new.user_id and slot = new.slot and item_id = new.item_id returning qty into v_q;
+  if v_q is null or v_q <= 0 then return null; end if;
+  insert into public.player_key_ring as r (user_id, slot, item_id, qty) values (new.user_id, new.slot, new.item_id, v_q)
+    on conflict (user_id, slot, item_id) do update set qty = r.qty + excluded.qty, updated_at = now();
+  return null;
+end $fn$;
+drop trigger if exists hr_key_ring_on_bag on public.player_inventory;
+create trigger hr_key_ring_on_bag after insert on public.player_inventory for each row execute function public.hr_key_ring_on_bag();
+
+-- THE `key_ring` SECTION (every envelope; plpgsql: the settle reads every section, tests/settle-budget.mjs SB-3). Null while the Tower is
+-- off for the account (no tab, no button).
+create or replace function public.hr_key_ring_section(p_user uuid, p_slot int)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $fn$
+declare v_on boolean; v_gold bigint;
+begin
+  -- KEY-RING (2027-04-27-tower-chest.sql)
+  if not public.hr_feature_on('burning_tower', p_user) then return null; end if;
+  v_on := public.hr_key_ring_owned(p_user, p_slot);
+  if not v_on then select o.gold into v_gold from public.hr_unlock_offers o where o.offer_id = 'key_ring.0' and o.refusal is null; end if;
+  return jsonb_build_object('unlocked', v_on,
+    'offer', case when v_on or v_gold is null then null else jsonb_build_object('offer', 'key_ring.0', 'gold', v_gold) end,
+    'keys', coalesce((select jsonb_agg(jsonb_build_object('item', r.item_id, 'qty', r.qty) order by r.item_id)
+                        from public.player_key_ring r where r.user_id = p_user and r.slot = p_slot), '[]'::jsonb));
+end $fn$;
 
 -- The key week an instant is in: its Monday 00:00 UTC (the board: the Tower's week; every family's week).
 create or replace function public.hr_chest_week_start(p_at timestamptz)
@@ -350,7 +456,7 @@ declare
   v_fams text[]; v_own text; v_week int; v_keys jsonb; v_cin jsonb; v_cin_have bigint; v_held bigint;
   v_stacks int; v_cap int; v_new int; v_want int; v_st int; v_cost bigint; v_spent bigint := 0; v_paid bigint := 0;
   v_dry int; v_n bigint; v_chance int; v_roll jsonb; v_weapon text; v_opens jsonb := '[]'::jsonb; v_haul jsonb := '{}'::jsonb;
-  v_take jsonb; v_a jsonb; v_out jsonb; i int; v_it record;
+  v_take jsonb; v_a jsonb; v_out jsonb; i int; v_it record; v_ring bigint; v_rest bigint; v_need jsonb;
 begin
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
@@ -399,9 +505,11 @@ begin
   if v_week + p_count > coalesce(v_f.opens_per_week, 0) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'week_limit', 'family', v_k.key_family,
                                                                        'used', v_week, 'limit', coalesce(v_f.opens_per_week, 0))); end if;
-  -- THE KEYS: the bag, then Storage.
+  -- THE KEYS: the Key Ring, then the bag, then Storage.
   v_keys := public.hr_chest_held(v_uid, p_slot, v_k.item_id);
-  v_held := (v_keys->>'bag')::bigint + (v_keys->>'storage')::bigint;
+  v_held := (v_keys->>'bag')::bigint + (v_keys->>'storage')::bigint + (v_keys->>'ring')::bigint;
+  v_ring := least((v_keys->>'ring')::bigint, p_count);
+  v_rest := p_count - v_ring;
   if v_held < p_count then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_key', 'have', v_held, 'need', p_count)); end if;
   -- THE BAG, BEFORE ANY ROLL: the worst case of the press must fit (every haul item the bag doesn't hold, a weapon a family it could roll,
@@ -411,7 +519,7 @@ begin
   v_new := (select count(*) from (values ('tower_cinders'), (v_k.salts_item), (v_k.food_item)) h(item)
              where not exists (select 1 from public.player_inventory i where i.user_id = v_uid and i.slot = p_slot and i.item_id = h.item))::int
            + least(p_count, cardinality(v_fams))
-           - case when (v_keys->>'bag')::bigint between 1 and p_count then 1 else 0 end;
+           - case when (v_keys->>'bag')::bigint between 1 and v_rest then 1 else 0 end;
   if v_new > 0 and v_stacks + v_new > v_cap then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bag_full', 'stacks', v_stacks, 'cap', v_cap, 'need', v_new)); end if;
   select f.family into v_own from public.player_equipment e join public.hr_chest_weapon_families f on f.item_id = e.item_id
@@ -447,17 +555,25 @@ begin
       v_dry := case when v_weapon is null then v_dry + 1 else 0 end;
       v_paid := v_paid + v_k.cinders;
     end loop;
-    -- THE TAKE: the keys, and the Cinders the stokes spent over what the press paid out (the bag first, then Storage). One ledger row an item.
-    v_take := public.hr_materials_take(v_uid, p_slot, jsonb_build_object(v_k.item_id, p_count)
-                || case when v_spent > v_paid then jsonb_build_object('tower_cinders', v_spent - v_paid) else '{}'::jsonb end, true);
+    -- THE TAKE: the keys (the Key Ring first, then the bag, then Storage), and the Cinders the stokes spent over what the press paid out (the
+    -- bag first, then Storage). One ledger row an item.
+    if v_ring > 0 then
+      delete from public.player_key_ring where user_id = v_uid and slot = p_slot and item_id = v_k.item_id and qty <= v_ring;
+      update public.player_key_ring set qty = qty - v_ring, updated_at = now() where user_id = v_uid and slot = p_slot and item_id = v_k.item_id;
+    end if;
+    v_need := case when v_rest > 0 then jsonb_build_object(v_k.item_id, v_rest) else '{}'::jsonb end
+              || case when v_spent > v_paid then jsonb_build_object('tower_cinders', v_spent - v_paid) else '{}'::jsonb end;
+    v_take := case when v_need = '{}'::jsonb then jsonb_build_object('ok', true, 'from', '{}'::jsonb)
+                   else public.hr_materials_take(v_uid, p_slot, v_need, true) end;
     if coalesce(v_take->>'ok', 'false') <> 'true' then
       raise exception using errcode = 'HR001', message = (v_take || jsonb_build_object('ok', false))::text; end if;
     for v_it in select t.key as item, (coalesce((v_take #>> array['from', 'bag', t.key])::bigint, 0)) as bag,
-                       (coalesce((v_take #>> array['from', 'storage', t.key])::bigint, 0)) as sto
-                  from jsonb_each(jsonb_build_object(v_k.item_id, 1) || case when v_spent > v_paid then jsonb_build_object('tower_cinders', 1) else '{}'::jsonb end) t loop
+                       (coalesce((v_take #>> array['from', 'storage', t.key])::bigint, 0)) as sto,
+                       case when t.key = v_k.item_id then v_ring else 0 end as ring
+                  from jsonb_each(v_need || case when v_ring > 0 then jsonb_build_object(v_k.item_id, 1) else '{}'::jsonb end) t loop
       insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, meta)
-        values (v_uid, p_slot, 'hunt', v_verb, v_it.item, -(v_it.bag + v_it.sto), 0,
-                jsonb_build_object('reason', c_verb, 'took', jsonb_build_object('bag', v_it.bag, 'storage', v_it.sto)));
+        values (v_uid, p_slot, 'hunt', v_verb, v_it.item, -(v_it.bag + v_it.sto + v_it.ring), 0,
+                jsonb_build_object('reason', c_verb, 'took', jsonb_build_object('bag', v_it.bag, 'storage', v_it.sto, 'ring', v_it.ring)));
     end loop;
     -- THE HAUL: what every key always holds, the weapons, and the Cinders the press paid over what its stokes spent.
     v_haul := v_haul || jsonb_build_object(v_k.salts_item, v_k.salts_qty::bigint * p_count)
@@ -468,7 +584,7 @@ begin
              'journal', jsonb_build_object('kind', 'hunt', 'intent', v_verb,
                                            'meta', jsonb_build_object('reason', c_verb, 'chest', p_chest, 'key', v_k.key_id, 'count', p_count,
                                                                       'opens', v_opens, 'cinders_paid', v_paid, 'cinders_spent', v_spent,
-                                                                      'took', v_take->'from'))));
+                                                                      'took', coalesce(v_take->'from', '{}'::jsonb) || jsonb_build_object('ring', v_ring)))));
     if coalesce(v_a->>'ok', 'false') <> 'true' then
       raise exception using errcode = 'HR001', message = (v_a || jsonb_build_object('ok', false))::text; end if;
     update public.chest_luck set dry = v_dry, opens = opens + p_count, updated_at = now() where user_id = v_uid and slot = p_slot;
@@ -514,12 +630,77 @@ begin
   return v_r || jsonb_build_object('chest_section', public.hr_chest_section(v_uid, p_slot));
 end $fn$;
 
+-- RING KEYS INTO STORAGE (lane/c-key-ring): the bank's own deposit of the stack, so the room check and the bank_deposit ledger row are its.
+create or replace function public.hr_key_ring_store(p_slot int, p_item text, p_qty int, p_idem uuid)
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
+declare
+  c_verb constant text := 'key_ring_store';
+  v_uid uuid := auth.uid(); v_r jsonb; v_verb text; v_ver bigint; v_cap int; v_have bigint; v_settle jsonb;
+begin
+  -- KEY-RING (2027-04-27-tower-chest.sql)
+  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+  if p_slot is null or p_slot < 0 or p_slot > 5 then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
+  if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
+  if p_qty is null or p_qty < 1 or p_qty > 1000000 then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_qty')); end if;
+  if not exists (select 1 from public.hr_chest_keys k where k.item_id = p_item) then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_key')); end if;
+  v_verb := c_verb || ':' || p_item || ':' || p_qty;
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
+  if not public.hr_rpc_gate('bank_move') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  v_settle := public.hr_settle_first_of(v_uid, p_slot);
+  if v_settle is not null then return public.hr_note_rejection(c_verb, p_slot, v_settle); end if;
+  -- THE HERO, THEN THE DEPOT (the bank's order), THEN THE RING'S ROW
+  perform public.hr_hunt_lock(v_uid, p_slot);
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
+  select version, bank_cap into v_ver, v_cap from public.player_state where user_id = v_uid and slot = p_slot;
+  if v_ver is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
+  perform pg_advisory_xact_lock(hashtextextended('hr:depot:' || v_uid::text, 0));
+  select qty into v_have from public.player_key_ring where user_id = v_uid and slot = p_slot and item_id = p_item for update;
+  if coalesce(v_have, 0) < p_qty then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'insufficient_item', 'item_id', p_item,
+                                                                       'have', coalesce(v_have, 0), 'need', p_qty)); end if;
+  begin
+    -- off the ring and through the bag for this statement's length only: the deposit is the bank's (hr_bank_move_stack), whole
+    perform set_config('hr.key_ring_out', '1', true);
+    delete from public.player_key_ring where user_id = v_uid and slot = p_slot and item_id = p_item and qty <= p_qty;
+    update public.player_key_ring set qty = qty - p_qty, updated_at = now() where user_id = v_uid and slot = p_slot and item_id = p_item;
+    insert into public.player_inventory as pi (user_id, slot, item_id, qty) values (v_uid, p_slot, p_item, p_qty)
+      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
+    v_r := public.hr_bank_move_stack(v_uid, p_slot, p_item, p_qty, 'deposit', v_cap);
+    perform set_config('hr.key_ring_out', '', true);
+    if v_r is not null then raise exception using errcode = 'HR001', message = v_r::text; end if;
+  exception when sqlstate 'HR001' then
+    perform set_config('hr.key_ring_out', '', true);
+    return public.hr_note_rejection(c_verb, p_slot, sqlerrm::jsonb);
+  end;
+  update public.player_state set version = v_ver + 1, updated_at = now() where user_id = v_uid and slot = p_slot;
+  v_r := jsonb_build_object('ok', true, 'item', p_item, 'qty', p_qty, 'version', v_ver + 1);
+  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
+    values (v_uid, p_idem, p_slot, v_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
+  return v_r;
+end $fn$;
+
 -- ── §4 PRIVILEGES: the verbs the signed-in client's alone, every helper the owner's ──
 revoke all on function public.hr_chest_chance_ppm(int, int, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_roll(uuid, int, bigint, int, text, text[]) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_held(uuid, int, text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_family_held(uuid, int, text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_week_start(timestamptz) from public, anon, authenticated, service_role;
+revoke all on function public.hr_key_ring_owned(uuid, int) from public, anon, authenticated, service_role;
+revoke all on function public.hr_key_ring_sweep(uuid, int) from public, anon, authenticated, service_role;
+revoke all on function public.hr_key_ring_on_unlock() from public, anon, authenticated, service_role;
+revoke all on function public.hr_key_ring_on_bag() from public, anon, authenticated, service_role;
+revoke all on function public.hr_key_ring_section(uuid, int) from public, anon, authenticated, service_role;
+do $mig$ begin
+  if exists (select 1 from pg_roles where rolname = 'hr_engine') then
+    revoke all on function public.hr_key_ring_section(uuid, int) from hr_engine;
+  end if;
+end $mig$;
+revoke execute on function public.hr_key_ring_store(int, text, int, uuid) from public;
+revoke execute on function public.hr_key_ring_store(int, text, int, uuid) from anon, service_role;
+grant  execute on function public.hr_key_ring_store(int, text, int, uuid) to authenticated;
 revoke all on function public.hr_chest_section(uuid, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_tower_key_mint() from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_opens_immutable() from public, anon, authenticated, service_role;
@@ -532,15 +713,21 @@ grant  execute on function public.hr_chest_stoke_default(int, text, int, uuid) t
 
 -- ── §5 THE CLIENT BASELINE AND THE WALL ──────────────────────────────────────
 -- an older signature's row goes; the current two are upserted, so a second apply keeps their approved_at (byte-identical)
-delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_chest_open', 'hr_chest_stoke_default')
+delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_chest_open', 'hr_chest_stoke_default', 'hr_key_ring_store')
   and (proname, identity_args) not in (('hr_chest_open', 'p_slot integer, p_chest text, p_key text, p_count integer, p_stokes integer, p_idem uuid'),
-                                        ('hr_chest_stoke_default', 'p_slot integer, p_key text, p_stokes integer, p_idem uuid'));
+                                        ('hr_chest_stoke_default', 'p_slot integer, p_key text, p_stokes integer, p_idem uuid'),
+                                        ('hr_key_ring_store', 'p_slot integer, p_item text, p_qty integer, p_idem uuid'));
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
   ('hr_chest_open', 'p_slot integer, p_chest text, p_key text, p_count integer, p_stokes integer, p_idem uuid', 'authenticated',
    'added 2027-04-27 (lane/c-tower-chest): MONEY (a server roll that pays items; a weapon that will trade) - uses Burning Tower keys at the Hearth Chest, the stokes priced and the chance worked out by the server, rolled on hr_seed; behind the switch burning_tower (feature_off) and chest_not_ready; pre-EA Security list'),
   ('hr_chest_stoke_default', 'p_slot integer, p_key text, p_stokes integer, p_idem uuid', 'authenticated',
-   'added 2027-04-27 (lane/c-tower-chest): the hero''s own default stoke count for one kind of key; moves no value')
+   'added 2027-04-27 (lane/c-tower-chest): the hero''s own default stoke count for one kind of key; moves no value'),
+  ('hr_key_ring_store', 'p_slot integer, p_item text, p_qty integer, p_idem uuid', 'authenticated',
+   'added 2027-04-27 (lane/c-key-ring): ITEMS (bound keys, value 0) - moves this hero''s Key Ring keys into its own account''s Storage through the bank''s deposit (hr_bank_move_stack); never another account''s')
 on conflict (proname, identity_args, grantee) do update set note = excluded.note;
+insert into public.hr_state_sections (key, fn, note) values
+  ('key_ring', 'hr_key_ring_section', '2027-04-27-tower-chest.sql (lane/c-key-ring): this hero''s Key Ring: owned or its price, and its keys; null while the Tower is off for the account')
+  on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 do $mig$
 begin
   if to_regclass('public.hr_gm_wall_allow') is not null then
@@ -554,6 +741,7 @@ declare
   v_u      constant uuid := '000000c0-0000-4000-a000-0000c4e57001';
   k        constant text := '000000c0-0000-4000-b000-c4e5';
   v        jsonb; v2 jsonb; v_sig text; v_role text; t text; v_sid uuid; v_sid2 uuid; v_sid3 uuid; v_fam record; v_w text;
+  v_stacks bigint; v_keys bigint; v_sid4 uuid;
   v_weapons constant bigint := (select count(*) from public.hr_chest_weapons);
 begin
   -- (a) PRIVILEGES AND SHAPE: every helper the owner's alone; the verbs the signed-in client's alone and on the baseline; the tables
@@ -561,19 +749,22 @@ begin
   foreach v_sig in array array['public.hr_chest_chance_ppm(integer,integer,integer)', 'public.hr_chest_roll(uuid,integer,bigint,integer,text,text[])',
                                'public.hr_chest_held(uuid,integer,text)', 'public.hr_chest_family_held(uuid,integer,text)',
                                'public.hr_chest_week_start(timestamp with time zone)', 'public.hr_chest_section(uuid,integer)', 'public.hr_tower_key_mint()',
+                               'public.hr_key_ring_owned(uuid,integer)', 'public.hr_key_ring_sweep(uuid,integer)', 'public.hr_key_ring_on_unlock()',
+                               'public.hr_key_ring_on_bag()', 'public.hr_key_ring_section(uuid,integer)',
                                'public.hr_chest_opens_immutable()'] loop
     foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
       if has_function_privilege(v_role, v_sig, 'execute') then raise exception 'tower-chest §9(a): % can execute %', v_role, v_sig; end if;
     end loop;
   end loop;
-  foreach v_sig in array array['public.hr_chest_open(integer,text,text,integer,integer,uuid)', 'public.hr_chest_stoke_default(integer,text,integer,uuid)'] loop
+  foreach v_sig in array array['public.hr_chest_open(integer,text,text,integer,integer,uuid)', 'public.hr_chest_stoke_default(integer,text,integer,uuid)',
+                               'public.hr_key_ring_store(integer,text,integer,uuid)'] loop
     if not has_function_privilege('authenticated', v_sig, 'execute') or has_function_privilege('anon', v_sig, 'execute')
        or has_function_privilege('service_role', v_sig, 'execute') then
       raise exception 'tower-chest §9(a): % is not the signed-in client''s alone', v_sig; end if;
   end loop;
-  if (select count(*) from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_chest_open', 'hr_chest_stoke_default')) <> 2 then
+  if (select count(*) from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname in ('hr_chest_open', 'hr_chest_stoke_default', 'hr_key_ring_store')) <> 3 then
     raise exception 'tower-chest §9(a): a verb is not on the client baseline'; end if;
-  foreach t in array array['chest_luck', 'chest_opens'] loop
+  foreach t in array array['chest_luck', 'chest_opens', 'player_key_ring'] loop
     if not (select c.relrowsecurity from pg_class c where c.oid = ('public.' || t)::regclass) then raise exception 'tower-chest §9(a): % has no RLS', t; end if;
     if has_table_privilege('authenticated', 'public.' || t, 'insert,update,delete') or has_table_privilege('anon', 'public.' || t, 'select')
        or has_table_privilege('service_role', 'public.' || t, 'insert,update,delete') then
@@ -586,6 +777,10 @@ begin
     raise exception 'tower-chest §9(a): the mint is not on tower_runs alone'; end if;
   if not exists (select 1 from pg_trigger where tgname = 'hr_chest_opens_immutable' and tgrelid = 'public.chest_opens'::regclass and not tgisinternal) then
     raise exception 'tower-chest §9(a): chest_opens is not append-only'; end if;
+  if not exists (select 1 from pg_trigger where tgname = 'hr_key_ring_on_bag' and tgrelid = 'public.player_inventory'::regclass and not tgisinternal)
+     or not exists (select 1 from pg_trigger where tgname = 'hr_key_ring_on_unlock' and tgrelid = 'public.player_progress'::regclass and not tgisinternal)
+     or (select fn from public.hr_state_sections where key = 'key_ring') is distinct from 'hr_key_ring_section' then
+    raise exception 'tower-chest §9(a): the Key Ring''s triggers or its section are missing'; end if;
   perform public.hr_assert_grant_hygiene(true);
   -- (b) THE DESIGN'S NUMBERS (the board's §5 warmth and stoke tables, Tyler 2026-11-14), read back through the server's own sum.
   if public.hr_chest_chance_ppm(160, 0, 0) <> 160000 or public.hr_chest_chance_ppm(160, 5, 0) <> 192000
@@ -697,6 +892,37 @@ begin
        or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = 'tower_key_bronze') <> 2
        or (select opens from public.chest_luck where user_id = v_u and slot = 0) <> 2 then
       raise exception 'tower-chest §9(c): the seventh key of the week answered % (or moved)', v; end if;
+    -- (d) THE KEY RING (lane/c-key-ring): bought (the ownership row hr_unlock_buy writes), the bag's keys go onto it in one journalled sort;
+    --     a new key lands on it and takes no bag slot; the held count still counts it; ring keys go into Storage through the bank's deposit
+    if public.hr_key_ring_section(v_u, 0)->>'unlocked' is distinct from 'false' then raise exception 'tower-chest §9(d): a hero owns a ring unbought'; end if;
+    v_stacks := (select count(*) from public.player_inventory where user_id = v_u and slot = 0);
+    v_keys := (select coalesce(sum(i.qty), 0) from public.player_inventory i join public.hr_chest_keys ck on ck.item_id = i.item_id where i.user_id = v_u and i.slot = 0);
+    insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values (v_u, 0, 'unlock', 'key_ring', '', 1, now());
+    if exists (select 1 from public.player_inventory i join public.hr_chest_keys ck on ck.item_id = i.item_id where i.user_id = v_u and i.slot = 0)
+       or (select coalesce(sum(qty), 0) from public.player_key_ring where user_id = v_u and slot = 0) <> v_keys or v_keys < 1
+       or (select count(*) from public.player_ledger where user_id = v_u and intent = 'key_ring_sort' and (meta->>'moved')::bigint = v_keys) <> 1 then
+      raise exception 'tower-chest §9(d): the purchase did not sort % bag keys onto the ring', v_keys; end if;
+    v_stacks := (select count(*) from public.player_inventory where user_id = v_u and slot = 0);
+    v_keys := public.hr_chest_family_held(v_u, 0, 'tower');
+    v_sid4 := gen_random_uuid();
+    insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor) values (v_sid4, v_u, 0, gen_random_uuid(), 1);
+    update public.tower_runs set top_floor = 10, floors = 10 where session_id = v_sid4;
+    if (select count(*) from public.player_inventory where user_id = v_u and slot = 0) <> v_stacks
+       or not exists (select 1 from public.player_key_ring where user_id = v_u and slot = 0 and item_id = 'tower_key_bronze')
+       or public.hr_chest_family_held(v_u, 0, 'tower') <> v_keys + 1 then
+      raise exception 'tower-chest §9(d): a key minted with a ring took a bag slot or missed the ring (held % -> %)', v_keys, public.hr_chest_family_held(v_u, 0, 'tower'); end if;
+    delete from public.hr_rate_counters where user_id = v_u;
+    v := public.hr_key_ring_store(0, 'tower_key_platinum', 1, (k || '0000000e')::uuid);
+    if coalesce(v->>'ok', '') <> 'true' or exists (select 1 from public.player_key_ring where user_id = v_u and item_id = 'tower_key_platinum')
+       or (select qty from public.account_bank where user_id = v_u and item_id = 'tower_key_platinum') is distinct from 1
+       or exists (select 1 from public.player_inventory where user_id = v_u and item_id = 'tower_key_platinum')
+       or (select count(*) from public.player_ledger where user_id = v_u and intent = 'bank_deposit' and item_id = 'tower_key_platinum') <> 1 then
+      raise exception 'tower-chest §9(d): a ring key into Storage answered %', v; end if;
+    if (public.hr_key_ring_store(0, 'tower_key_platinum', 1, (k || '0000000f')::uuid))->>'error' is distinct from 'insufficient_item'
+       or (public.hr_key_ring_store(0, 'tower_cinders', 1, (k || '00000010')::uuid))->>'error' is distinct from 'bad_key' then
+      raise exception 'tower-chest §9(d): a ring key it lacks, or no key at all, went to Storage'; end if;
+    if public.hr_key_ring_section(v_u, 0)->>'unlocked' is distinct from 'true' or jsonb_array_length(public.hr_key_ring_section(v_u, 0)->'keys') < 1 then
+      raise exception 'tower-chest §9(d): the section reads %', public.hr_key_ring_section(v_u, 0); end if;
     -- the default stoke: saved, read back
     v := public.hr_chest_stoke_default(0, 'silver', 2, (k || '0000000c')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or (select stokes->>'silver' from public.chest_luck where user_id = v_u and slot = 0) is distinct from '2' then
@@ -708,6 +934,7 @@ begin
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from public.chest_opens where user_id = v_u)
      or exists (select 1 from public.tower_runs where user_id = v_u) or exists (select 1 from public.account_bank where user_id = v_u)
+     or exists (select 1 from public.player_key_ring where user_id = v_u)
      or (select count(*) from public.hr_chest_weapons) <> v_weapons then
     raise exception 'tower-chest §9: LEAKED a probe row'; end if;
   raise notice 'tower-chest: a key a landing a run under the held limit, six a family a week, the open on the server''s dice, every forged value refused; all green';

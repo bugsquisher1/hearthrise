@@ -195,6 +195,10 @@ function contract(R, cs, body, tl) {
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
     'bagExpandOf yields ' + JSON.stringify(be) + ' from ' + JSON.stringify(body.bag_expand));
+  // the Key Ring (2027-04-27-tower-chest.sql, lane/c-key-ring): not bought, its offer at the server's price (gold-ladders.js), no keys on it
+  const kr = R.IS.keyRingOf(cs);
+  need('key_ring', !!kr && kr.unlocked === false && !!kr.offer && kr.offer.offer === 'key_ring.0' && Number.isInteger(kr.offer.gold) && kr.offer.gold > 0
+    && Array.isArray(kr.keys) && kr.keys.length === 0, 'keyRingOf yields ' + JSON.stringify(kr) + ' from ' + JSON.stringify(body.key_ring));
   // Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window
   const tp = R.TP.temperOf(cs);
   need('temper', Array.isArray(tp) && tp.length === 4 && tp.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold) && l.gold > 0),
@@ -315,7 +319,8 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions',
+  'key_ring']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -409,6 +414,8 @@ async function realBody(db, M, H) {
   await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'open_halls'");
   /* THE FACTIONS (2027-04-23-faction-section.sql): their switch on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'factions'");
+  /* THE KEY RING (2027-04-27-tower-chest.sql): its section rides the Tower's switch, on for everyone inside this transaction only. */
+  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'burning_tower'");
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,

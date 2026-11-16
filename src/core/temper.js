@@ -18,7 +18,7 @@
 // ============================================================================
 
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.132';
-import { TEMPER_RUNG_PM, temperLadder, temperTierOf, temperUnlockId } from '../data/temper.js?v=0.2.132';
+import { temperLadder, temperTierOf, temperUnlockId } from '../data/temper.js?v=0.2.132';
 
 /* The armor points a piece wears: a shield or a cape wears none here (mitigation.js armourValues reads the same pieces). */
 const armorPointsOf = (it) => (it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor(Number(it.defB) || 0) : 0);
@@ -31,13 +31,14 @@ export function temperRung(temper, track, tier) {
   return Number.isFinite(n) && n > 0 ? Math.min(n, ladder.rungs) : 0;
 }
 
-/* A rung's worth on one ladder, permille: 1% on a gear tier's, 0.5% on a unique band's (src/data/temper.js TEMPER_UNIQUE_RUNG_PM). */
+/* A rung's worth on one ladder, permille: 1% on a gear tier's, 0.4% on Dawnsteel's (TEMPER_TIER_RUNG_PM), 0.5% on a unique band's
+   (TEMPER_UNIQUE_RUNG_PM). Read from the ladder, never a constant here. */
 const rungPmOf = (track, tier) => { const l = temperLadder(track, tier); return l ? l.pm : 0; };
 
-/** The permille this hero's blows and heals gain: its WEAPON's tier's Blows rung. 0 with none. */
+/** The permille this hero's blows and heals gain: its WEAPON's tier's Blows rung, at that ladder's worth a rung. 0 with none. */
 export function blowsPmOf(equipment, items, temper) {
   const it = temper && equipment && equipment.weapon && items ? items[equipment.weapon] : null;
-  return it ? temperRung(temper, 'blows', it.tier) * TEMPER_RUNG_PM : 0;
+  return it ? temperRung(temper, 'blows', it.tier) * rungPmOf('blows', it.tier) : 0;
 }
 
 /**

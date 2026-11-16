@@ -24,15 +24,28 @@ export const TEMPER_TRACKS = Object.freeze(['blows', 'armor']);
    them, so from Level 45 to 88 no gold sink grew with the hero. MEASURED on one hero's life (`node tools/balance-sim/audit-table.mjs sinks`,
    a sword and shield hero sent where the game sends it, every drop sold): it banks 1.10M from Level 45 to 60, 1.77M from 60 to 75 and
    1.89M from 75 to 90. Both tracks of a tier ask 496k, 744k and 992k: 45%, 42% and 52% of the band's gold, where tiers 2 and 3 ask 40% and
-   45% of theirs. Same 1% a rung and 5% a track (TEMPER_RUNG_PM), so the next tier still wins (tests/hunt-core/temper-play.mjs). Tier 7
-   (Krell's pieces, worn at 88) has no ladder: his prize holds no weapon, so its Blows track would be a row nothing wears. */
+   45% of theirs. Same 1% a rung and 5% a track (TEMPER_RUNG_PM), so the next tier still wins (tests/hunt-core/temper-play.mjs). */
+/* TIER 7, DAWNSTEEL, WORN FROM 88 (Tyler 2026-11-16 "yes": its own ladder, so the sink keeps growing from Level 88 to 110; designer,
+   lane/d-temper-dawnsteel; the measured table is PRIORITY_BOARD "2026-11-16 Tempering Dawnsteel"). Both tracks: Lord Krell drops a Dawnsteel
+   weapon for every way to fight and the helm and body in every weight, and Carter's Rest the rest of the set. SMALLER RUNGS, 0.4% each and 2% a
+   track (TEMPER_TIER_RUNG_PM): past Dawnsteel there is no tier 8, the next armor is the armor line's (src/data/armor-line.js), and its first
+   piece above Dawnsteel is worn from 122 at only x1.11. 2% is the largest round step at which full Dawnsteel, fully tempered, still lets more
+   through than the line's bare set worn from 122, for every weight on every drafted ground at or past 122 (measured,
+   `node tools/balance-sim/temper-dawn-table.mjs next`: thinnest leather at Wyvern Roost, 0.45%; at 2.5% it is -0.06%). A piece worn from 110
+   carries Dawnsteel's own armor (the line's anchor), so a unique there wins by its attribute and by its own band's bigger ladder (2.5%), never
+   by its bare armor. Guarded, tests/temper-uniques.mjs TU6. THE GOLD (`temper-dawn-table.mjs gold`, a lone tank where the game sends it, Krell's
+   Hold from 88 to 110): 260 hours, 5.66M banked. Both tracks ask 2.48M, 44% (tiers 2 to 6 ask 40% to 52%), more than tier 6's 992k and a
+   track under the 110 band's 1.86M. */
 export const TEMPER_TIERS = Object.freeze({
   2: Object.freeze([2000, 4000, 8000, 16000, 32000]),
   3: Object.freeze([7000, 14000, 28000, 56000, 112000]),
   4: Object.freeze([8000, 16000, 32000, 64000, 128000]),
   5: Object.freeze([12000, 24000, 48000, 96000, 192000]),
   6: Object.freeze([16000, 32000, 64000, 128000, 256000]),
+  7: Object.freeze([40000, 80000, 160000, 320000, 640000]),
 });
+/* A tier whose rung is worth less than TEMPER_RUNG_PM, in permille (Dawnsteel's 0.4%; the reason is above). */
+export const TEMPER_TIER_RUNG_PM = Object.freeze({ 7: 4 });
 
 /* WHAT EACH RUNG ALSO TAKES (Tyler 2026-11-05: "require some sort of crafting in order to temper gear"): a crafted material of that tier, bought with the gold in one sale
    (hr_unlock_buy, from the hero's bag and then the account's Storage). A whole tier takes 3 to 5 hours of a resting hero's work, under a tenth of the hours its gold takes to
@@ -46,6 +59,8 @@ export const TEMPER_MATERIALS = Object.freeze({
   4: Object.freeze({ item: 'mithril_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
   5: Object.freeze({ item: 'rune_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
   6: Object.freeze({ item: 'ember_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  /* Dawnsteel takes the smith's best salt too (no new item): the tier-6 count, so a tier-7 track is about 3 hours of a resting hero's mixing. */
+  7: Object.freeze({ item: 'ember_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
 });
 
 /* ── UNIQUE ARMOR PAST DAWNSTEEL (Tyler 2026-11-15, "ok then yes" to Tempering past tier 7: a PURE GOLD SINK on the unique armor past
@@ -103,7 +118,7 @@ export function temperTierOf(it) {
 
 /** A ladder's shape: { rungs, pm } (rungs on the ladder, permille a rung), or null where there is none. */
 export function temperLadder(track, tier) {
-  if (TEMPER_TIERS[tier]) return { rungs: TEMPER_RUNGS, pm: TEMPER_RUNG_PM };
+  if (TEMPER_TIERS[tier]) return { rungs: TEMPER_RUNGS, pm: TEMPER_TIER_RUNG_PM[tier] || TEMPER_RUNG_PM };
   const u = track === 'armor' ? TEMPER_UNIQUE_BANDS[tier] : null;
   return u ? { rungs: u.gold.length, pm: TEMPER_UNIQUE_RUNG_PM } : null;
 }

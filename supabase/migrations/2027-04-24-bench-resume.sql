@@ -38,7 +38,7 @@
 --   none, as any activity statement without a count leaves it: hr_apply BENCH-COUNT), the return anchor. Always: ONE ledger row
 --   (kind hunt, intent resume; meta as before {reason, resumed, kind, id, at} + `left` when a count was restored + `why` when
 --   nothing was resumed: none | gone | level | no_count | dry) and the `ended` event's `resume` ({kind, id, at} + `left`; null).
--- hr_hunt_apply_member   RESTATED WHOLE (2027-04-16-combat-training.sql's image, pg_get_functiondef's own text; §0 pins it).
+-- hr_hunt_apply_member   RESTATED WHOLE (2027-04-23-session-modes.sql's image, pg_get_functiondef's own text; §0 pins it).
 --   BENCH-RESUME marks its two changes and every other line is verbatim: step (7)'s 31 lines are one call of hr_hunt_resume,
 --   and that step's five locals (v_end, v_lk, v_li, v_home, v_ok) are gone. hr_hunt_settle_session is NOT touched.
 --   Whole, not an anchored edit: the mutant harnesses plant in this body's ONE last author (tests/alpha-server.mjs
@@ -77,11 +77,11 @@
 -- (src/data/how-to-play.js, the Help page's `town` note); "Then {name} went back to working on X" already reads the pointer.
 -- A hunt open across the apply was entered before the capture existed: its bench is not resumed, as before this file.
 -- REVERSIBILITY: re-apply hr_resume_has_inputs from 2027-02-15-panel-truth.sql, hr_last_activity_note from
--- 2026-10-22-hunt-sessions-settle.sql and hr_hunt_apply_member from 2027-04-16-combat-training.sql, drop the four new
+-- 2026-10-22-hunt-sessions-settle.sql and hr_hunt_apply_member from 2027-04-23-session-modes.sql, drop the four new
 -- functions; the column is inert. No row of any character needs repair.
--- ORDER: after 2027-04-23-training-gear.sql (no object in common; the set's last file). THE NEXT WHOLE RESTATE OF
--- hr_hunt_apply_member (lane/c-tower-mode's 2027-04-23-session-modes.sql is written against combat-training's image) lands
--- AFTER this file and re-bases on its image: step (7) is then this one call, and the two lanes share no other line.
+-- ORDER: after 2027-04-23-session-modes.sql (lane/c-tower-mode), which restates hr_hunt_apply_member first: this file's
+-- restate is THAT image (its three SESSION-MODES changes, verbatim) with step (7) as one call; the two lanes share no other
+-- line. A LATER whole restate of that body re-bases the same way: anchor on step (7)'s one call, keep it.
 -- After apply: live-hash-drift wants hr_hunt_apply_member, hr_resume_has_inputs and hr_last_activity_note re-measured and the
 -- four new bodies tracked (Coordinator).
 -- ════════════════════════════════════════════════════════════════════════
@@ -89,6 +89,7 @@
 -- ── §0 PRECONDITIONS AND THE PINS: FAIL CLOSED IF ANOTHER FILE MOVED A RESTATED BODY ─────────────────────────────────────────
 -- md5 of pg_get_functiondef with whitespace runs as one: tests/live-hash-drift.baseline.json's own normalisation, so each
 -- pre-image below is the value MEASURED ON PRODUCTION (2026-11-15, equal to the replay's), or this file's own (a second apply).
+-- hr_hunt_apply_member's is the replay's alone: 2027-04-23-session-modes.sql is staged too and must be applied first.
 do $mig$
 declare v_md5 text; r record;
 begin
@@ -102,7 +103,7 @@ begin
                      and conrelid = 'public.player_state'::regclass) then
     raise exception 'PRECONDITION: a table, helper or column this file builds on is missing (2026-12-01-bench-count.sql, 2027-01-24-skills-from-storage.sql)'; end if;
   for r in select * from (values
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '5786ead704f7d4230d49aff8921ed288', '77229c0210708cde8f16dc9e1533558f', '2027-04-16-combat-training.sql'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'add877806bb908e8e79416f2baafe912', '034d0bcb1a3ad843d30917afb5ae7fe9', '2027-04-23-session-modes.sql'),
     ('public.hr_resume_has_inputs(uuid,integer,text,text)', '5b1886334c5669f1395b9f8c08128895', '44e151312349ce9b7543b418e90e21d9', '2027-02-15-panel-truth.sql'),
     ('public.hr_last_activity_note()', '7486863c27623617ddb85abf5a048338', 'c613f3e203cdb279f1b5830db8c32f84', '2026-10-22-hunt-sessions-settle.sql')
   ) p(sig, pre, post, src) loop
@@ -251,7 +252,7 @@ begin
 end $$;
 
 -- ── §4 THE SETTLE CALLS IT: hr_hunt_apply_member RESTATED WHOLE ──────────────
--- 2027-04-16-combat-training.sql's image, pg_get_functiondef's own text, with the two BENCH-RESUME changes, each marked: step (7)
+-- 2027-04-23-session-modes.sql's image, pg_get_functiondef's own text, with the two BENCH-RESUME changes, each marked: step (7)
 -- is one call of hr_hunt_resume, and that step's five locals went with it. Every other line is verbatim. CREATE OR REPLACE keeps
 -- the function's grants; none moves here.
 CREATE OR REPLACE FUNCTION public.hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)
@@ -292,6 +293,7 @@ declare
   v_loot  jsonb;  -- the loot filter's answer (hr_hunt_loot_rules, 2026-10-25-bag-rules.sql)
   -- BENCH-RESUME (2027-04-24-bench-resume.sql): step (7)'s five locals went with it to hr_hunt_resume.
   v_train boolean;  -- TRAINING (2027-04-16-combat-training.sql): this session trains on a training ground (hr_training_grounds)
+  v_mode  public.hr_session_modes%rowtype;  -- SESSION-MODES (2027-04-23-session-modes.sql): the instance's mode, frozen at its start
 begin
   if p_user is null or p_slot is null or p_session is null or p_intent is null
      or p_delta is null or jsonb_typeof(p_delta) <> 'object' or p_hunt is null or jsonb_typeof(p_hunt) <> 'object' then
@@ -378,6 +380,10 @@ begin
     perform public.hr_reject('bad_analyzer'); end if;
   select * into v_ground from public.hr_hunt_grounds g where g.hunt_id = v_s.hunt_id;
   if not found then perform public.hr_reject('no_ground', jsonb_build_object('hunt', v_s.hunt_id)); end if;
+  -- SESSION-MODES (2027-04-23-session-modes.sql): THE INSTANCE'S MODE, frozen by the server when it started (hunt_instances.session_mode,
+  -- hr_hunt_mode_freeze, from its own ground catalogue), never an intent's or the edge's. Its row bounds the death (6) and its Blessings.
+  select m.* into v_mode from public.hunt_instances i join public.hr_session_modes m on m.mode_id = i.session_mode where i.id = p_instance;
+  if not found then perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'session_mode')); end if;
   -- DENSITY-BOUNDS (2026-11-16-hunt-density-bounds.sql): what the ground can present at once is its as-built
   -- rows plus every pocket's pull at the density the SERVER froze for this instance when it opened
   -- (hunt_instances.density, hr_hunt_density_freeze; the engine plays exactly it, hr_hunt_instance_read).
@@ -635,7 +641,8 @@ begin
 
   -- BLESSINGS (hook: hr_blessing_take): the death keeps only the unprotected share of its
   -- loss (Level and skills); the tiers it used (held since before the window began) are used up.
-  if v_nd > 0 then
+  -- SESSION-MODES: a mode whose death uses no Blessing (one that costs nothing: the Burning Tower) never calls the hook; they stay held.
+  if v_nd > 0 and v_mode.blessings then
     v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);
     if v_bless is not null then v_dx := v_bless->'dx'; v_lost := v_bless->'lost'; end if;
   end if;
@@ -644,18 +651,20 @@ begin
   --     death_xp_permille of its TOTAL XP, and that may take a Level (never below 0 XP, Level 1);
   --     each combat skill loses at most the permille of its progress into its level, never a level.
   --     Bounds are read on the CURRENT values, which only grew since the death.
+  --     SESSION-MODES: each bound is that rule at the instance mode's share (hr_death_xp_mode_max): the rule itself in a hunt, and 0 in
+  --     a mode whose death costs nothing, so there any death XP at all is refused (the engine proposes none: two locks).
   if v_lost <> '{}'::jsonb then
     for v_k, v_n in select key, (value #>> '{}')::bigint from jsonb_each(v_lost) order by key loop
       if v_k = 'level' then
         select level_xp into v_cur from public.player_state where user_id = p_user and slot = p_slot for update;
-        if v_n > public.hr_death_xp_max('level', v_cur) then
+        if v_n > public.hr_death_xp_mode_max('level', v_cur, v_mode.death_loss_pm) then
           perform public.hr_reject('death_xp_over', jsonb_build_object('skill', 'level', 'level', public.hr_char_level(v_cur))); end if;
         update public.player_state set level_xp = level_xp - v_n where user_id = p_user and slot = p_slot;
         continue;
       end if;
       select xp into v_cur from public.player_skills where user_id = p_user and slot = p_slot and skill_id = v_k for update;
       if v_cur is null then perform public.hr_reject('bad_death_xp', jsonb_build_object('skill', v_k)); end if;
-      if v_n > public.hr_death_xp_max(v_k, v_cur) then
+      if v_n > public.hr_death_xp_mode_max(v_k, v_cur, v_mode.death_loss_pm) then
         perform public.hr_reject('death_xp_over', jsonb_build_object('skill', v_k, 'level', public.hr_skill_level(v_k, v_cur))); end if;
       update public.player_skills set xp = xp - v_n where user_id = p_user and slot = p_slot and skill_id = v_k;
     end loop;
@@ -793,7 +802,7 @@ begin
      or strpos(v_src, 'perform public.hr_hunt_resume') < strpos(v_src, 'return jsonb_build_object(''ok'', true, ''replayed'', true);') then
     raise exception 'bench-resume §6(a): the resume runs before the value half or before a replayed key returns'; end if;
   -- the restated settle is the reviewed image, still the owner's SECURITY DEFINER body that no client role runs
-  if md5(regexp_replace(pg_get_functiondef(c_am::regprocedure), '[[:space:]]+', ' ', 'g')) is distinct from '77229c0210708cde8f16dc9e1533558f' then
+  if md5(regexp_replace(pg_get_functiondef(c_am::regprocedure), '[[:space:]]+', ' ', 'g')) is distinct from '034d0bcb1a3ad843d30917afb5ae7fe9' then
     raise exception 'bench-resume §6(a): hr_hunt_apply_member is not the reviewed image'; end if;
   if not exists (select 1 from pg_proc p where p.oid = c_am::regprocedure and p.prosecdef and p.proconfig @> array['search_path=public, pg_catalog'])
      or has_function_privilege('anon', c_am, 'execute') or has_function_privilege('authenticated', c_am, 'execute') then

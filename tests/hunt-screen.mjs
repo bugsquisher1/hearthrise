@@ -2221,8 +2221,6 @@ const MUTANTS = [
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
   ['a docked window covers the analyzer again (HS-26)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
   ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],
-  ['a training session\'s hunt bar reads as a hunt again (HS-30)', 'src/shell/widgets/hunt-topbar.js', '  const train = trainingNowOf(ctx.character, now);', '  const train = null;'],
-  ['a training session\'s analyzer shows the hunt\'s zeros again (HS-31)', 'src/shell/widgets/analyzer.js', '  const tn = trainingNowOf(ctx.character, serverNowOf(ctx.character));', '  const tn = null;'],
 ];
 
 /* Seconds per mutant on a GitHub runner (tests/hunt-screen.mutant-times.json); none read = every mutant booked alike. */

@@ -863,8 +863,14 @@ label.st-line { cursor: pointer; }
      main box lend their children to the panel's own grid (display: contents); the desktop panel is unchanged. */
   .ha-analyzer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-rows: auto auto auto minmax(0, 1fr) auto;
     align-items: center; column-gap: 2px; width: min(376px, calc(100vw - 232px)); max-height: min(calc(100vh - 219px), var(--hs-room, 100vh)); padding: 0 6px 4px; }
+  /* Over the town or home (a training session, a hunt the World has no map for) the World's title row stands over the stage too, so
+     the hunt bar's foot is 48 px lower (151 px, not 103): the cap is that much shorter, or the panel ran into the action bar and was stepped down
+     below it, off the screen (lane/a-training-display, 922x423 and 667x375). */
+  #panel-world:not([data-scene="hunt"]) .ha-analyzer { max-height: min(calc(100vh - 267px), var(--hs-room, 100vh)); }
   .ha-analyzer .hh-panel-head, .ha-analyzer .hh-panel-body, .ha-analyzer .ha-main { display: contents; }
   .ha-analyzer .hh-panel-title { display: none; }
+  /* a training session has no tabs: its name heads the row instead */
+  .ha-analyzer.is-training .hh-panel-title { display: block; grid-area: 1 / 1; align-self: center; }
   /* The tabs share row 1 with the fold and the close: all four fit (phone panel v0.2.83: Taken cut, Dealt behind the buttons),
      a wide fallback font too, brought down to Alegreya's size. Past that the strip pans under the thumb and still never runs under the fold. */
   .ha-analyzer .ha-tabs { grid-area: 1 / 1 / 2 / 2; min-width: 0; margin-bottom: 0; overflow-x: auto; scrollbar-width: none; }

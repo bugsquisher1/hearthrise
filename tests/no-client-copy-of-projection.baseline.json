@@ -18,6 +18,7 @@
       "dungeon_cooldowns",
       "enchant",
       "equipment",
+      "factions",
       "farm_land",
       "features",
       "gem_unlocks",
@@ -26,6 +27,7 @@
       "hero_slots",
       "home",
       "hunt",
+      "hunt_after",
       "hunt_analyzer",
       "hunt_bests",
       "hunt_presets",
@@ -106,5 +108,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-14"
+  "generatedAt": "2026-11-16"
 }

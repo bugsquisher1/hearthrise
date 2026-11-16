@@ -75,7 +75,7 @@ export function slotLineHtml() {
   return '<div class="hw-slotline"><h3 class="hw-slothead"></h3>'
     + '<div class="hw-worn"><span class="hw-ico"></span><span class="hw-worn-name"></span><button type="button" class="hh-tool" data-hs-act="unequip">' + t('controls.unequip') + '</button></div>'
     + '<p class="hw-why hw-slot-why" role="status" aria-live="polite"></p>'
-    + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in your bag fits here.</p></div>';
+    + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in bag fits here</p></div>';
 }
 
 /* Bag stacks that fit an equip slot, best first by the change against what is worn. */

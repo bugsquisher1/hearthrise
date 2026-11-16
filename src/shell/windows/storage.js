@@ -69,7 +69,7 @@ export function renderStorage(ctx) {
     /* Expand: the bag's next rung, at the server's price (hr_bag_expand_view); one unlock_buy naming the offer and no number. */
     + '<div class="hw-tools hw-store-grow"><button type="button" class="hh-tool" data-hs-act="expand"></button><p class="hw-why"></p></div>'
     + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button><p class="hw-why"></p></div>'
-    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
+    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
        (windows.css, sticky), and its coming moves no stack from under the hand. Above the grids, a bag scrolled into reach left it out of sight, and a
        press read as nothing at all (Andy 10-26, a refused 12k-arrow press; 11-02, 14 presses in 25 s). */

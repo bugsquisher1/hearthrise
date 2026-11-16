@@ -44,7 +44,7 @@ const MOVES = new Set(['deposit', 'sell']);
     pass `held` false and the server's own refusal answers the press. */
 export function planBlock(id, plan, bids, held = true) {
   if (!MOVES.has(plan)) return '';
-  if (plan === 'sell' && isStartKit(id)) return 'The shop does not buy back your starting kit.';
+  if (plan === 'sell' && isStartKit(id)) return 'Shop doesn\'t buy starting kit';
   if (plan === 'sell' && held && bids && !bids.has(id)) return 'The shop does not buy this.';
   return '';
 }
@@ -52,9 +52,9 @@ export function planBlock(id, plan, bids, held = true) {
 /** Why Dispatch loot is off for this hero now, or '' (from the server's bag, rules and hunt; nothing planned = off). */
 export function dispatchBlock(cs) {
   const h = huntOf(cs);
-  if (h && !h.ended) return 'Your hero is out hunting. Dispatch loot works in town.';
+  if (h && !h.ended) return 'Dispatch loot works in town';
   const rules = rulesOf(cs), bag = bagOf(cs);
-  if (!rules || !bag) return 'Reading your bag…';
+  if (!rules || !bag) return 'Loading bag…';
   const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && isStartKit(r.id)));
   if (planned) return '';
   /* A plan that has run is not "nothing set" (designer re-read 2026-11-11: that line stood right under "Sold 17 for 5,407 gp."). The words on the
@@ -84,5 +84,5 @@ export function dispatchWords(a) {
 
 /** ONE Dispatch loot for the window whose scratch is `sc`; the answer's line replaces the busy words. */
 export function runDispatch(account, cs, sc, repaint) {
-  return runIntent(sc, repaint, () => dispatchLoot(account, cs), 'Dispatching your loot…', (r) => dispatchWords(r.dispatch), cs);
+  return runIntent(sc, repaint, () => dispatchLoot(account, cs), 'Dispatching loot…', (r) => dispatchWords(r.dispatch), cs);
 }

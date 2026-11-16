@@ -68,7 +68,7 @@ const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.
    hunt showed a bare "–" there, core-loop play 2026-10-30); Level XP per hour before bonuses only when the server sent
    it (premium, the 10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab
    (Tyler 2026-10-22). */
-const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
+const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Unsold loot value', gold, true],
   ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
 /* A TRAINING SESSION'S ROWS (summary-model.js trainingCard), in place of the hunt's: the skill's XP, its level before and after, and the
@@ -91,7 +91,7 @@ function bagFull(cs) {
 /** The skeleton (built once). */
 export function renderHuntSummary() {
   return '<div class="hsum">'
-    + '<p class="hs-note hsum-none">No hunts have ended yet. When one does, what it came to lands here.</p>'
+    + '<p class="hs-note hsum-none">No finished hunts yet</p>'
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
     + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-loss" hidden></p>'
@@ -138,7 +138,7 @@ function itemLines(host, ctx, items) {
       + '<span class="hsum-name"><b></b><small></small></span><span class="hsum-n"></span></li>'),
     patch: (el, x) => {
       text(el.querySelector('b'), itemName(x.it));
-      text(el.querySelector('small'), x.from === 'store' ? 'from the store' : x.from ? 'from your bag' : '');
+      text(el.querySelector('small'), x.from === 'store' ? 'from the store' : x.from ? 'from the bag' : '');
       text(el.querySelector('.hsum-n'), '×' + whole(x.n));
     },
   });
@@ -207,9 +207,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
     /* ...only opens a window, which says itself whether Start can go (a session running, out hunting, the purse): never off for a rule */
     if (trainAgain) prop(go, 'disabled', sc.pending);
-    attr(go, 'title', trainAgain ? t('training.card_again_title') : huntOpen ? 'A hunt is already running.' : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
+    attr(go, 'title', trainAgain ? t('training.card_again_title') : huntOpen ? 'A hunt is already running' : !again ? againOffWords(cur) : route.why || 'Same ground, bar and limits');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = trainAgain ? '' : huntOpen ? 'Hunt again is off. A hunt is already running.' : !again ? 'Hunt again is off. ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
+    againWhy = trainAgain ? '' : huntOpen ? 'Hunt again off: a hunt is already running' : !again ? 'Hunt again off: ' + againOffWords(cur) : route.why ? 'Hunt again off: ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);
@@ -336,10 +336,10 @@ function leadAgain(ctx, cs, sc, repaint, hunt) {
   const low = row ? seatsUnder(row, party) : { under: [] };
   const warned = hunt + ':' + low.under.map((s) => s.seat).join();
   if (low.under.length && sc.warned !== warned) {
-    runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-      () => underWords(row, low.under) + '. Party warned. Press Hunt again to go.', cs).then(() => { sc.warned = warned; repaint(); });
+    runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling the party…',
+      () => underWords(row, low.under) + ', party warned', cs).then(() => { sc.warned = warned; repaint(); });
     return;
   }
   sc.warned = null;
-  runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…', () => 'Your party is on its way to ' + huntName(hunt) + '.', cs);
+  runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…', () => 'Party heading to ' + huntName(hunt), cs);
 }

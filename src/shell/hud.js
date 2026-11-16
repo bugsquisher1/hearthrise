@@ -524,12 +524,12 @@ export function renderHudSettings(ctx) {
       + (hud.isMoved(row.id) ? '<button type="button" class="hs-quiet hs-hudset-put" data-hs-act="put-back" data-wid="' + esc(row.id) + '" aria-label="Put the ' + esc(row.label) + ' back">Put back</button>' : '')
       + '</li>';
   };
-  const move = hud.sizeClass() === 'desktop' ? ' Drag the Hunt analyzer or the Tally by its title to move it.' : '';
+  const move = hud.sizeClass() === 'desktop' ? ' Drag a panel title to move it.' : '';
   /* A row behind a server switch (its `section`, e.g. the live events) is listed only while the server sends that section:
      switched off, its widget is nowhere, its settings line included. */
   const cs = ctx.character;
   const listed = (row) => !row.section || (!!cs && typeof cs.read === 'function' && cs.read(row.section) != null);
-  return '<p class="hs-note">Show, hide or fade any part of the screen. Hovering shows it at full strength.' + move + '</p>'
+  return '<p class="hs-note">Show, hide or fade any part of the screen.' + move + '</p>'
     + '<ul class="hs-hudset">' + hud.rows().filter(listed).map(line).join('') + '</ul>'
     + '<div class="hs-foot"><button type="button" class="hs-quiet" data-hs-wreset>Reset layout</button></div>';
 }

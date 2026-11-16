@@ -168,7 +168,7 @@ export function liveRoster(cs, r) {
  * Your party tab (src/shell/windows/party-roster.js) both press it. True when `action` was one of the two.
  */
 export function leaveOrDisband(ctx, cs, sc, repaint, action) {
-  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
+  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'Left the party');
   else if (action === 'disband') {
     /* It asks twice, on every screen (panels 2026-11-01: one press, no question, party gone): the first press arms it, and its words say so. */
     if (!sc.disbandArmed) {
@@ -206,7 +206,7 @@ export function renderPartyPanel() {
     '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>' + t('controls.leave_party') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>' + t('controls.disband') + '</button></div>'
-    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>You each pay your own supplies.</p>');
+    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>Supplies: each hero pays their own</p>');
 }
 
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {

@@ -240,7 +240,7 @@ function doRule(st, id, rule, repaint) {
 
 /* Dispatch loot: the server runs every plan on the bag; its one answer is the line. */
 function doDispatch(ctx, st, repaint) {
-  send(st, repaint, () => dispatchLoot(ctx.account, st.cs), 'Dispatching your loot…', (r) => dispatchWords(r.dispatch));
+  send(st, repaint, () => dispatchLoot(ctx.account, st.cs), 'Dispatching loot…', (r) => dispatchWords(r.dispatch));
 }
 
 /* ── The context menu: built when it opens, beside the stack ── */
@@ -282,7 +282,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const rule = st.rules ? (st.rules.loot[id] || 'keep') : null;
   const bids = st.shop ? st.shop.bids : null;
   const choice = ([v, w]) => {
-    const why = planBlock(id, v, bids) || (st.rules ? '' : 'Reading your loot plans…');
+    const why = planBlock(id, v, bids) || (st.rules ? '' : 'Loading loot plans…');
     return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"', why);
   };
   for (const [group, words] of [['plan', 'Loot plan'], ['pickup', 'On pickup']]) {

@@ -29,7 +29,7 @@ import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder
 import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.134';
 import { t } from '../../render/player-text.js?v=0.2.134';
 
-const TABS = Object.freeze([['party', 'Your party'], ['invites', 'Invites'], ['find', 'Find a party']]);
+const TABS = Object.freeze([['party', 'Party'], ['invites', 'Invites'], ['find', 'Find a party']]);
 
 /** The skeleton (built once per opening). */
 export function renderParty() {
@@ -49,7 +49,7 @@ export function renderParty() {
 
 /** One invite in words: "Mira invites you" / "to hunt Millrace Sewer" (or no ground yet). */
 function inviteWords(i) {
-  return { who: i.from + ' invites you', where: i.hunt ? 'Their party last hunted ' + huntName(i.hunt) + '.' : 'To their party.' };
+  return { who: i.from + ': party invite', where: i.hunt ? 'Last hunt: ' + huntName(i.hunt) : '' };
 }
 
 function patchInvites(root, ctx, sc, inv) {
@@ -67,8 +67,8 @@ function patchInvites(root, ctx, sc, inv) {
   });
   const none = root.querySelector('.hw-invites-none');
   cls(none, 'is-on', !inv.length);
-  text(none, partyMembershipOf(ctx.character) ? 'No invites. You are in a party, and its members show on the Your party tab.'
-    : 'No invites right now. ' + (ctx.isPhone && ctx.isPhone() ? 'Type a name above, or hold a player’s name' : 'Type a name above, or right-click a player') + ' and choose Invite to party to start your own.');
+  text(none, partyMembershipOf(ctx.character) ? 'No invites'
+    : 'No invites. ' + (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' → Invite to party');
 }
 
 renderParty.patch = function patchParty(body, ctx) {
@@ -120,7 +120,7 @@ renderParty.act = function actParty(ctx, body, action, ev, el) {
   if (action === 'accept' || action === 'decline') {
     const yes = action === 'accept';
     runIntent(sc, repaint, () => cs.answerInvite(el.getAttribute('data-invite'), yes).then((r) => (r.ok ? r : { ...r, verb: 'party_join' })), yes ? 'Joining…' : 'Declining…',
-      () => (yes ? 'You joined the party.' : 'Invite declined.'));
+      () => (yes ? 'Joined the party' : 'Invite declined'));
     return true;
   }
   return actRoster(ctx, action, repaint, sc) || actFinder(ctx, body, action, el, repaint);

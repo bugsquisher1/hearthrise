@@ -127,7 +127,7 @@ function spareWords(kind, rows, named) {
     const c = CONSUMABLES[r.id];
     if (c && c.kind === kind && c.source !== 'store' && !named.has(r.id) && r.qty > 0 && (!best || r.qty > best.qty)) best = r;
   }
-  return best ? 'You carry ' + whole(best.qty) + ' ' + itemName(best.id) + '. Put it on the bar to ' + (kind === 'food' ? 'eat' : 'drink') + ' it' : '';
+  return best ? 'Carried: ' + whole(best.qty) + ' ' + itemName(best.id) + ', put it on the bar' : '';
 }
 
 function bareWords(kind, parts, carried) {
@@ -137,8 +137,7 @@ function bareWords(kind, parts, carried) {
   /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a slot the player set to Carried runes only, with none left
      (no default bar: rule-subjects.js); this line says the fix before the hunt */
   const fixes = Array.from(new Map(parts.filter((p) => p.spell && p.fix).map((p) => [p.fix.name, p.fix])).values());
-  return spells.join(' and ') + ' will not fire' + (fixes.length ? '. To cast ' + (spells.length > 1 ? 'them' : 'it') + ', press ' + (spells.length > 1 ? 'each' : 'its')
-    + ' slot and pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp a cast)').join(' or ') + ' under "When your runes run out"' : '');
+  return spells.join(' and ') + ' will not fire' + (fixes.length ? ', pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp)').join(' or ') + ' on the slot' : '');
 }
 
 /* Every item the bar's slots name. */
@@ -149,7 +148,7 @@ function partWords(p) {
   const name = p.own ? p.own.name || itemName(p.own.id) : '';
   /* a rune a new hero never had is not "left": "no Fire runes of yours". With the store behind it the empty stock says
      nothing ("no Fire runes of yours, then Plain Fire Rune..." read like a robot, first-hour play 2026-10-31). */
-  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' of yours' : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' of yours' : ' left')) : null;
+  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' carried' : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' carried' : ' left')) : null;
   const store = p.store ? p.store.name + ' from the store, ' + p.store.price + ' gp ' + p.store.each : null;
   return [own, store].filter(Boolean).join(', then ');
 }
@@ -225,21 +224,21 @@ function shotLine(s, cs, carried) {
   const worn = (equipmentOf(cs) || {}).ammo || null;
   const skills = skillsOf(cs);
   const plan = shotPlan(s, worn, carried, skills);
-  const waiting = plan.locked.map((l) => ' ' + itemName(l.id) + ' wait on your bar. ' + l.text + '.').join('');
+  const waiting = plan.locked.map((l) => ', ' + itemName(l.id) + ' waits: ' + l.text).join('');
   const dry = !!worn && shootsItem(s.role, ITEMS[worn]) && !((carried.find((r) => r.id === worn) || {}).qty > 0) ? 'no ' + itemName(worn) + ' left' : null;
   if (!plan.own.length && !plan.store.length) {
     const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && !shortOf(r.id, skills, null));
-    return { id: 'ammo', text: 'Ammo: ' + (dry || 'nothing loaded') + ', so your weapon can\'t shoot and your hero won\'t attack. '
-      + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.') + waiting, short: true, pays: false };
+    return { id: 'ammo', text: 'Ammo: ' + (dry || 'nothing loaded') + ', no attacks'
+      + (spare ? ', Bag → ' + itemName(spare.id) + ' → Put on the bar' : ', empty slot → Ammo → pick a store shot') + waiting, short: true, pays: false };
   }
   const parts = (dry ? [dry] : [])
-    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id) + ' of yours') + (o.id === worn ? (o.free ? ' loaded' : ', loaded') : '')))
+    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id) + ' carried') + (o.id === worn ? (o.free ? ' loaded' : ', loaded') : '')))
     .concat(plan.store.map((st) => st.name + ' from the store, ' + st.price + ' gp each'));
   const idle = plan.own.length && !plan.own[0].free ? []
     : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));
   const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);
-  return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + '.' + (plan.own.some((o) => o.free) ? ' They never run out.' : '')
-    + (spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '') + waiting, short: false, pays: plan.store.length > 0 };
+  return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + (plan.own.some((o) => o.free) ? ', never runs out' : '')
+    + (spare ? ', ' + whole(spare.qty) + ' ' + itemName(spare.id) + ' not on the bar' : '') + waiting, short: false, pays: plan.store.length > 0 };
 }
 
 /** The hunt screen's warning: a hero hunting with a weapon that can shoot nothing won't attack at all (the panel 2026-11-01

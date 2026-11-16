@@ -228,12 +228,16 @@ export default definePack({
      harder tiers differ by their blows and their pay, not their pull. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet
      also asks that pair to die, and it never did in the hour, on a pull of 5, 7 or 8 (its tank's typical low 44%). The next step up
      in the monsters' own blows is Deadly's, where it died 8 times. The pair pays in gold here, not in deaths.
+     (Since 2026-11-16 the table's Dangerous is 8 everywhere, so the pull is no longer this ground's own; and Deadly's HP is the table's, below.)
      THE HARDER TIERS ADD NO HP HERE (the table adds 10%). A tank and Healer pair holding Deadly at the floor earned 1.17 of its Normal
      at the table's dials, where the sheet asks 1.25 of whoever holds it: its kills are held by its damage, and these party-built
      bodies already carry 2.5 times a solo ground's HP. A kill never pays more than +25% for a tier (Tyler 11-05, hunt-tiers rows),
      so the answer is the HP, not the pay. */
-  tierOverride: { dangerous: 8, dials: { dangerous: { hpPm: 1000 }, deadly: { hpPm: 1000 } },
-    why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous, so it brings the full box. With the 10% more HP the table adds, a pair holding Deadly at the floor earned 17% over its Normal, under the 25% a tier owes whoever holds it, so the harder tiers add no HP here' },
+  /* THE DEADLY HP IS THE TABLE'S (lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground): on 1000 Andy's four (axe, bow, wand, a
+     Healer 5 under) read 2.61x the pace contract at the floor and 2.57x at the middle (party-tier-xp, 2 seeds x 0.5 h), past Tyler's 2.5x; a four kills
+     here far faster than its heroes alone, so the longer fight is the dial. Dangerous's pull is the table's 8 now too. */
+  tierOverride: { dials: { dangerous: { hpPm: 1000 } },
+    why: 'Dangerous adds no HP here: with the 10% more the table adds, a pair holding it at the floor earned too little over Normal for its risk' },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours

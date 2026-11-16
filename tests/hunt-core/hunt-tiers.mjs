@@ -256,7 +256,7 @@ const mutants = [
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[SH, 'mill_cellar: Object.freeze({ normalOnly: true,', 'mill_cellar: Object.freeze({ normalOnly: false,']] },
   /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): a lone hero's own pull again, in the engine's rows, and in the sheet */
   { name: 'a lone hero pulls fewer than a four on the Glade\'s Dangerous', case: 'rows', edits: [[D, 'out[g][id] = { id, pull: [...r.pull],', "out[g][id] = { id, pull: [g === 'mosslight_glade' && id === 'dangerous' ? 3 : r.pull[0], ...r.pull.slice(1)],"]] },
-  { name: 'the sheet pulls Dangerous by party size again', case: 'rows', edits: [[SH, 'dangerous: Object.freeze({ pull: 5,', 'dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]),']] },
+  { name: 'the sheet pulls Dangerous by party size again', case: 'rows', edits: [[SH, 'dangerous: Object.freeze({ pull: 8,', 'dangerous: Object.freeze({ pull: Object.freeze([3, 5, 5, 6]),']] },
   { name: 'a ground gives a party its own pull again', case: 'rows', edits: [[SH, "  mill_cellar: Object.freeze({ normalOnly: true,", "  wickstead: Object.freeze({ deadly: Object.freeze([0, 8, 8, 8]), why: 'a lone hero keeps the ground as it stands' }),\n  mill_cellar: Object.freeze({ normalOnly: true,"]] },
   { name: 'the Glade\'s Dangerous under its room as built (a smaller fight than Normal)', case: 'rows', edits: [[D, 'out[g][id] = { id, pull: [...r.pull],', "out[g][id] = { id, pull: g === 'mosslight_glade' && id === 'dangerous' ? [2, 2, 2, 2] : [...r.pull],"]] },
   { name: 'Deadly pays more than slightly more XP', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 1300')]] },
@@ -278,9 +278,12 @@ const mutants = [
   { name: 'Deadly pays triple XP: nobody moves on', case: 'ladder', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 4200')]] },
   /* the bigger pulls from Wickstead's and the Sewer's floor (8), not the Glade's (16), one for everyone: a lone hammer there out-earns the Glade (98k and 113k against 79k, lane/b-one-difficulty) */
   /* Q1 2026-11-12: a real Normal-vs-Normal inversion for a four still bites */
-  /* (re-aimed, lane/d-flat-party-xp: one party table for every ground since Tyler 2026-11-16, so a ground's own cell is typed in the engine) */
-  { name: 'the Glade pays a mixed four triple on Normal: it out-earns the Warrens', case: 'ladder', edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'mosslight_glade' && heroes.length === 4 ? 3 : 1);"]] },
-  { name: 'the bigger pulls start at Wickstead: it out-earns the Glade', case: 'ladder', edits: [[SH, 'export const TIER_PULL_FROM_FLOOR = 16;', 'export const TIER_PULL_FROM_FLOOR = 8;']] },
+  /* (re-aimed, lane/d-flat-party-xp: one party table for every ground since Tyler 2026-11-16, so a ground's own cell is typed in the engine; on the
+     table a Glade four on Normal at 32 earns about a third of the Warrens' four, so the slip is x5) */
+  { name: 'the Glade pays a mixed four five times on Normal: it out-earns the Warrens', case: 'ladder', edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'mosslight_glade' && heroes.length === 4 ? 5 : 1);"]] },
+  /* (re-aimed, lane/d-flat-party-xp: since Deadly's HP is 1300 a lone hammer at 16 on Wickstead's or the Sewer's Deadly on the full box reads 0.99 of the
+     Glade's Normal, under the bar, where it read 1.25 on 1100; the bigger pulls from the first ground's floor still out-earn Wickstead) */
+  { name: 'the bigger pulls start at the Thicket: it out-earns Wickstead', case: 'ladder', edits: [[SH, 'export const TIER_PULL_FROM_FLOOR = 16;', 'export const TIER_PULL_FROM_FLOOR = 1;']] },
 ];
 
 const REPORT = makeReport('hunt-core/hunt-tiers');

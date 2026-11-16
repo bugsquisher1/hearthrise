@@ -68,9 +68,27 @@ function gp3() {
     const f = packSqlOf(id);
     if (!f) continue;
     const covered = COVERED.map((g) => outOf(g));
-    if (covered.every((o) => foldedPacks(o).includes(id))) continue; /* folded: the whole --check guards its rows */
-    const want = shipText(id).sql;
-    ok(existsSync(join(MIG, f)) && readFileSync(join(MIG, f), 'utf8').replace(/\r\n/g, '\n') === want, 'GP-3 ' + f + ' is not what tools/pack.mjs ship ' + id + ' renders today');
+    const folded = covered.filter((o) => foldedPacks(o).includes(id));
+    if (folded.length === covered.length) continue; /* folded: the whole --check guards its rows */
+    const have = existsSync(join(MIG, f)) ? readFileSync(join(MIG, f), 'utf8').replace(/\r\n/g, '\n') : null;
+    const ship = shipText(id);
+    if (!folded.length) { ok(have === ship.sql, 'GP-3 ' + f + ' is not what tools/pack.mjs ship ' + id + ' renders today'); continue; }
+    /* PARTLY FOLDED (lane/d-flat-party-xp, 2026-11-16: a world move dated after the pack, 2027-04-24-flat-party-xp-tiers re-issues hr_ground_tiers
+       whole with every shipped pack folded in). A folded whole file carries the pack's rows for the tables it writes, and its own --check holds
+       them to the data; the pack's applied file is history there. Every OTHER table must still be the pack's file, row for row, and every
+       table the file holds and the render no longer adds must be one a folded whole file writes, with the pack's keys in it. */
+    if (have === null) { ok(false, 'GP-3 ' + f + ' is not on disk'); continue; }
+    const tab = (stmts) => { const m = new Map(); for (const t of stmts) m.set(t.table, [...(m.get(t.table) || []), ...t.rows.map((r) => r.join(','))]); return m; };
+    const mine = tab(rowsOf(have)), now = tab(ship.added.map((t) => ({ table: t.table, rows: t.rows })));
+    const wholes = folded.map((o) => tab(rowsOf(readFileSync(join(MIG, o), 'utf8'))));
+    for (const [t, rows] of now) ok(JSON.stringify([...(mine.get(t) || [])].sort()) === JSON.stringify([...rows].sort()), 'GP-3 ' + f + ': its ' + t + ' rows are not what tools/pack.mjs ship ' + id + ' renders today');
+    for (const [t, rows] of mine) {
+      if (now.has(t)) continue;
+      const keyCols = PACK_TABLES[t] ? PACK_TABLES[t].length : 1;
+      const keyOf = (r) => r.split(',').slice(0, keyCols).join(',');
+      const carried = wholes.some((w) => w.has(t) && rows.every((r) => w.get(t).some((x) => keyOf(x) === keyOf(r))));
+      ok(carried, 'GP-3 ' + f + ': its ' + t + ' rows are in no folded whole file (' + folded.join(', ') + ')');
+    }
   }
 }
 /* a covered generator's whole file name, read as text */

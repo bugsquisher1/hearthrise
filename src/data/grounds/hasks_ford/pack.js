@@ -149,10 +149,6 @@ export default definePack({
      1378 x L^1.298, was 975 x L^1.421: 238k an hour at 53, was 276k). At 1.28 the median lone way read 1.26 of the contract at the band middle
      (quick grade, the Slake's weapons on the ladder, 1 seed x 1 h). A fit scales every way alike, so 1.28 x 1.00 / 1.26 = 1.02. The Warrens'
      own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
-  /* Dangerous brings Deadly's 8 here (lane/d-flat-party-xp, 2026-11-16): with one party table for every ground a four on the table's 5 read 0.91-0.95
-     of its heroes alone, on 6 0.93 and on 7 0.93 (party-tier-xp, 2 seeds x 0.5 h), on 8 1.04-1.06. The two harder tiers differ by their blows,
-     their HP and their pay here, like the Muster's. */
-  tierOverride: { dangerous: 8, why: 'Dangerous brings eight at once here, like Deadly: on five, six or seven a group of four earned less a head than the same heroes alone' },
   xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority

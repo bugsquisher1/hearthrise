@@ -10,23 +10,18 @@
 // whole kill for any party size, a hero hunting alone earns SOLO_XP_PM, and the mixed cells
 // carry what a party needs to out-earn a typical hero alone (balance-sheet.js party).
 //
-// Designer's rule (10-31, table 11-01; set when a party drew its own bigger Normal pull, hunt-grounds.js partyPull, which Tyler retired 2026-11-11:
-// on Normal every group meets the room as built, and these cells await the designer's re-measure, lane/c-brook-bear's table):
+// THE RULE (designer 10-31; ONE TABLE since Tyler 2026-11-16, "just balance the hunting grounds xp vs having a unique
+// formula everywhere", lane/d-flat-party-xp):
 //   - LEVEL XP only (src/core/hunt/xp-share.js): no gold or loot effect, skill XP untouched.
 //   - FOUR CLASSES: Melee (a shield or not), Ranger, Mage, Healer.
 //   - Read from the LIVING heroes at EACH kill, never latched: a death or a leave
 //     changes the next kill. A hero alone earns SOLO_XP_PM, on every ground.
-//   - One row per ground. The cell is the factor applied on top of the even share.
+//   - ONE TABLE for every ground and every tier (PARTY_CLASS_XP): the cell is the factor on
+//     the even share by how many heroes are alive and how many classes they hold. No ground
+//     carries a row of its own (src/data/grounds/shape.js refuses one in a pack); what a party
+//     earns on a ground is that ground's own pull, density and monster rows (balance-sheet.js).
 //
-// A ROW: { heroes alive: [permille at 1 class, at 2 classes, ...] }, as many cells as
-// that many heroes can hold classes. The numbers are the designer's to retune, here.
-//
-// A GROUND WITH NO ROW PAYS A PARTY 1000 (the even share): no bonus and no cut until the designer
-// writes its row. It fails safe for pay, and the standing guard plays every ground
-// (tests/party-class-xp-line.mjs), so a new ground where a same-class party beats solo
-// turns that guard red until its row is written.
-//
-// A PARTY LARGER THAN A ROW'S LARGEST SIZE reads that largest size (the party cap is
+// A PARTY LARGER THAN THE TABLE'S LARGEST SIZE reads that largest size (the party cap is
 // a config value), so a same-class cut can never lapse by adding a hero.
 //
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).

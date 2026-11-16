@@ -38,18 +38,18 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-03-23-one-difficulty.generated.sql';
+export const OUT_NAME = '2027-04-24-flat-party-xp-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
-const FILE_NOTE = `-- THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
--- unchanged. Either they are strong enough to do the harder content or they aren't"): ONE pull a tier for one hero or four, every
--- entry of a row's pull the same. The Glade and the Warrens: Dangerous {5,5,5,5} (was {3,5,5,6}), Deadly {8,8,8,8} as before. The
--- first grounds, floors under 16 (the Thicket, Wickstead, the Sewer): no tier brings more monsters, for anyone, {0,0,0,0} (Wickstead
--- and the Sewer were {0,5,5,6} and {0,8,8,8}: a party pulled more than a lone hero). Damage, health and XP as they stand. The solo
--- boost (party-class-xp.js SOLO_XP_PM) is engine data and moves nothing here.
--- ORDER: last, after 2027-03-21-sewer-deadly-xp.generated.sql and the v0.2.109 bundle (all APPLIED). Idempotent: the rename stays guarded and the rows are rewritten
+const FILE_NOTE = `-- THIS FILE (lane/d-flat-party-xp, Tyler 2026-11-16: "just balance the hunting grounds xp vs having a unique formula everywhere"):
+-- the party's Level XP bonus is ONE table for every ground (src/data/party-class-xp.js, engine data, no table here), and the grounds
+-- carry the rest. Dangerous brings Deadly's pull on the table, 8 (was 5): the Glade, the Warrens and Hask's Ford {8,8,8,8} (were
+-- {5,5,5,5}), the Slake too (its own 6 retired), Krell's Hold 6 like its Deadly (was 5), the Muster as before. Deadly's monsters have
+-- 1300 permille HP on the table (was 1100): every ground on the table's Deadly moves its hp_pm, the Muster's too (it kept 1000; its
+-- Dangerous still does). The first grounds (the Thicket, Wickstead, the Sewer) bring no more monsters, as before. Damage and XP as they stand.
+-- ORDER: after 2027-04-23-open-march-scaled-hunts-catalogue.generated.sql (the March open, APPLIED). Idempotent: the rows are rewritten
 -- whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
--- src/data/balance-sheet.js and src/data/party-class-xp.js follows AT ONCE (a hunt already running keeps the pull it froze).
--- REVERSIBLE: re-apply 2027-03-21-sewer-deadly-xp.generated.sql, with the engine from before this lane.`;
+-- src/data/balance-sheet.js, src/data/party-class-xp.js and the packs follows AT ONCE (a hunt already running keeps the pull it froze).
+-- REVERSIBLE: re-apply the rows of 2027-03-23-one-difficulty.generated.sql and the five 2027-04-22 pack files, with the engine from before this lane.`;
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];

@@ -385,7 +385,11 @@ export const TIER_PULL_FROM_FLOOR = 16;
    (plan formulaH): a little more food and about the same XP an hour, so a tier costs what Tyler asked. */
 export const TIER_DIALS = Object.freeze({
   normal: Object.freeze({ pull: 0, lift: 0, dmgPm: 1000, hpPm: 1000, xpPm: 1000 }),
-  dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
+  /* Dangerous brings Deadly's 8 (was 5; lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground): on 5 a four read 0.91-0.95 of
+     its heroes alone on the Glade and Hask's Ford, on 7 0.93-0.94, on 8 1.04-1.06 (party-tier-xp), where Tyler 2026-11-16 asks every Dangerous party to
+     stand at or over them. A bigger pull is where a party's hands count; the two harder tiers now differ by their blows, their HP and their pay, as the
+     Muster's always did. */
+  dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
   /* Deadly's HP 1300 (was 1100; lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground, Tyler's "just balance the hunting grounds
      xp vs having a unique formula everywhere"): on the full box a mixed four at a ground's floor kills far faster than its heroes alone, and on
      1100 Andy's four (axe, bow, wand, a Healer 5 under) read 2.40-2.61x the pace contract on the Glade and Hask's Ford where a four on Dangerous
@@ -400,10 +404,6 @@ export const TIER_SIZES = 4;
    normalOnly, a tier's own pull ({ tier: ONE number for every group }), or its own XP, HP and damage dials ({ dials: { tier: { hpPm, xpPm, dmgPm } } }).
    No ground carries a pull of its own since 2026-11-08 (TIER_PULL_FROM_FLOOR says it for all); grounds not listed take TIER_DIALS whole. */
 const BASE_TIER_OVERRIDES = Object.freeze({
-  /* The Glade's Dangerous brings 7 (lane/d-flat-party-xp, 2026-11-16): with one party table for every ground a four on the table's 5 read 0.94 of
-     its heroes alone at the middle (party-tier-xp), where Tyler 2026-11-16 asks every Dangerous party to stand at or over them; a bigger pull is
-     where a party's hands count. Deadly keeps the full box (Tyler 10-18). */
-  mosslight_glade: Object.freeze({ dangerous: 7, why: 'Dangerous brings 7 here, not 5: on 5 a group of four earned less a head than the same heroes alone' }),
   mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
   /* The Thicket sits just under Wickstead: its Normal at Wickstead's floor (8) pays 6-12% under Wickstead's, so the table's x1.2 and x1.25 a kill on its
      harder tiers beat Wickstead's Normal for every way to fight (tests/hunt-core/hunt-tiers.mjs ladder; lane/b-ground-formula-2: a lone tank 25.8k against

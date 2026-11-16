@@ -165,7 +165,7 @@
       "verified": {
         "asserts": true,
         "selftest": true,
-        "runner": "by hand: node tests/boss-hall-advice.mjs && node tests/boss-hall-advice.mjs --mutate (both EXIT 0 on lane/d-audit-f22, 8 of 8 mutants caught)"
+        "runner": "by hand: node tests/boss-hall-advice.mjs && node tests/boss-hall-advice.mjs --mutate (both EXIT 0 on lane/d-audit-f22, 9 of 9 mutants caught)"
       }
     }
   },

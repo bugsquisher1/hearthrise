@@ -6001,6 +6001,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bar-sort.mjs
 
+      # Hunt prep's Basic setup per weapon type and the new spell prompt (lane/b-prep-defaults, Tyler 2026-11-16): pure, over
+      # the real modules with a fake hero and server; --mutate plants fifteen defects into a temp copy.
+      - name: Prep defaults and new spell prompt - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/prep-defaults.mjs --mutate
+
+      - name: Prep defaults and new spell prompt - base run
+        if: ${{ !cancelled() }}
+        run: node tests/prep-defaults.mjs
+
       # THE REBUILT CLIENT (2026-10-17). session-core: one rule per session law
       # (envelope replace, frame order, residue allowlist, per-character
       # isolation, the concurrent cap, sign-out clears every copy, the tab id,

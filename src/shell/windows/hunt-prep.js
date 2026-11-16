@@ -15,7 +15,8 @@
 //   Builder    (hunt-prep/builder.js, hunt-prep/grid.js) Fights as (read only: the worn weapon decides it),
 //              stance, target, chase and distance, the gold to keep, and the 2 x 10 slot grid at the HUD's
 //              own tiles: drag to move, drop on a filled slot to swap, a press opens Configure action on
-//              that slot (every condition the engine has), Sort (bar-sort.js) and Clear. All of it edits a
+//              that slot (every condition the engine has), Basic setup (basic-setup.js: the weapon type's basic
+//              bar, Tyler 2026-11-16), Sort (bar-sort.js) and Clear. All of it edits a
 //              COPY of the picked setup (prep-draft.js); Save sends it as ONE hr_action_set_options with
 //              every key, Save and use then ONE hr_hunt_preset_apply. The setup in use is the envelope's
 //              projection; another setup is read on demand (session/preset-read.js).
@@ -42,7 +43,7 @@ const SCRATCH = new WeakMap();
    the builder's draft (builder.js): `picked`, `draft`, `base`, `read`, `stale`, `sorted`, `drag`. */
 export const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { pending: false, msg: '', naming: null, arming: null, armingEquipped: false, adding: false, readyOpen: false, picked: null, draft: null, draftFor: null, base: '', read: null, stale: false, sorted: false, cleared: false, roleHint: null, drag: null }; SCRATCH.set(cs, s); }
+  if (!s) { s = { pending: false, msg: '', naming: null, arming: null, armingEquipped: false, adding: false, readyOpen: false, picked: null, draft: null, draftFor: null, base: '', read: null, stale: false, sorted: false, cleared: false, basic: false, roleHint: null, drag: null }; SCRATCH.set(cs, s); }
   return s;
 };
 

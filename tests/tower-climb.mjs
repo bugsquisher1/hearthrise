@@ -254,7 +254,7 @@ async function doorsArm(db, M) {
     for (const k of Object.keys(s0.skills || {})) if (Number((s1.skills || {})[k]) < Number(s0.skills[k])) bad.push(`${tag} ${k} fell ${s0.skills[k]} -> ${s1.skills[k]}`);
     if (Number(s1.coin_rows) !== 0) bad.push(`${tag} ${s1.coin_rows} ledger row(s) credited coin`);
     if (Number(s1.ev) !== Number(s0.ev)) bad.push(`${tag} a Bestiary or task count moved (${s0.ev} -> ${s1.ev})`);
-    /* the bag moves by the landings' keys alone (2027-04-27-tower-chest.sql hr_tower_key_mint: one key a landing row, src/data/chests.js keyForLanding) */
+    /* the bag moves by the landings' keys alone (2027-04-27-tower-chest.sql hr_tower_key_mint: one key a landing the run cleared, src/data/chests.js keyForLanding) */
     const keyed = { ...(s0.items || {}) };
     for (const [l] of s1.landings || []) { const kr = M.CH.keyForLanding(l); if (kr) keyed[kr.item] = (keyed[kr.item] || 0) + 1; }
     const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((x) => [x, o[x]]));

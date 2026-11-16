@@ -4,14 +4,23 @@
 //   Hearth", "Bronze Keys, Silver Keys, Gold Keys, Platinum keys", "should likely just be a single chest and varies loot based on the key
 //   so we can add more keys later", "we'll eventually want to go higher than platinum", "should we reverse the % weapon chances", "I think
 //   we should do it like huntera does it, but be very transparent about it in a menu", "stoke the fire for good luck", "the keys are per
-//   character per week". The design of record: docs/planning/PRIORITY_BOARD.md "2026-11-14 The Burning Tower" §5 (origin/lane/
+//   character per week" (its weekly cap superseded 2026-11-16, below). The design of record: docs/planning/PRIORITY_BOARD.md "2026-11-14 The Burning Tower" §5 (origin/lane/
 //   d-burning-tower), with the coherence pass's C4 (origin/lane/d-coherence-133). lane/c-tower-chest builds the server half
 //   (supabase/migrations/2027-04-27-tower-chest.sql); the server reads these rows as hr_chest_keys, hr_chest_luck, hr_chest_weapons and
 //   hr_chest_weapon_families (tools/gen-chests.mjs, whose --check fails a stale copy). Nothing here is read by the engine.
 //
-// THE KEY TABLE IS OPEN (the design's §5). A key row says where its landings start (`from`); a Tower landing hands out the key of the
-//   highest row that starts at or under it (keyForLanding), so the top row is always open-ended and a key above it is ONE ROW here, its
-//   seven weapon rows and its art: no code, no new chest, no landing renumbered.
+// KEY FAMILIES (Tyler 2026-11-16, superseding the 2026-11-14 "6 keys a week" earn cap): every key belongs to ONE family (KEY_FAMILIES:
+//   'tower' today, 'catacomb' when the Unmarked Catacombs are built), and the caps live on the FAMILY, never on a key, so a new key type or
+//   a catacomb wing is one row here that joins its family's caps with no new cap:
+//   opensPerWeek  keys of the family one hero may USE at the chest in a UTC week (Monday 00:00), counted by the server from the
+//                 append-only chest_opens. Keys keep dropping with no weekly earn cap ("so if someone wants to stock up ... they can")
+//   heldMax       the held-key LIMIT: when a hero already holds this many keys of the family (its bag plus the account's Storage: what it
+//                 could open; the designer's number, about five weeks of opens) a new key of that family does not drop (the mint skips
+//                 it and journals the skip). Keys still move between one account's heroes through Storage: the limit gates a new drop only
+// THE KEY TABLE IS OPEN (the design's §5). A Tower key row says where its landings start (`from`); a Tower landing hands out the key of
+//   the highest TOWER row that starts at or under it (keyForLanding), so the family's top row is always open-ended and a key above it is
+//   ONE ROW here, its seven weapon rows and its art: no code, no new chest, no landing renumbered.
+//   family      its KEY_FAMILIES row (the caps it counts against)
 //   from        the first landing (a floor, a multiple of TOWER_RULES.landingEvery) whose key this is
 //   item        the key's item id (a bag item: no shop value, never listed or traded; Storage moves it between one account's heroes)
 //   weaponPm    the base chance a key of this row finds a tower weapon, permille (Tyler 2026-11-14: 16 / 8 / 4.5 / 2%, falling as keys rise)
@@ -43,8 +52,7 @@
 //                 from the hero's bag, then the account's Storage. No gold, no second currency.
 //   ownPm         a weapon is the family the hero has equipped this often (500 = half: Tyler 2026-11-14, "I like the 2nd option"); the rest
 //                 is spread evenly over the key's other families. No weapon worn (or one no family names): even over all of them.
-//   perCall       keys one press may use ("Use all" is one press); perDay  keys one hero may use a UTC day (a blast-radius clamp far over
-//                 six a week, read from the append-only chest_opens).
+//   perCall       keys one press may use ("Use all" is one press). The period clamp is the key family's opensPerWeek.
 //   A key's chance, in parts per million: base x warmth x stoke, at most a sure thing (chestChancePpm). The server works it out
 //   again itself inside the open; the menu never sends a chance, a warmth or a Cinder count.
 //
@@ -61,17 +69,25 @@ export const CHESTS = Object.freeze({
 /* The Tower Cinders item: the chest's own fuel, burnt in the Hearth for Inner Flame (src/data/hearth.js) or spent on stokes. */
 export const CINDERS = 'tower_cinders';
 
-const key = (id, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty) => Object.freeze({
-  id, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty, weapons: Object.freeze({}) });
+/* The key families and their caps (Tyler 2026-11-16: "6 per family per hero per week" opened; a held limit of "about 30, ~5 weeks", the
+   designer's to set). The Catacombs' family joins as one row here when its keys are built. */
+export const KEY_FAMILIES = Object.freeze({
+  tower: Object.freeze({ id: 'tower', name: 'Tower', opensPerWeek: 6, heldMax: 30 }),
+});
+/* The family a Tower landing mints from (the server's hr_tower_key_mint reads the same id). */
+export const TOWER_KEY_FAMILY = 'tower';
+
+const key = (id, family, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty) => Object.freeze({
+  id, family, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty, weapons: Object.freeze({}) });
 
 /* The design's four (§5, Tyler 2026-11-14), in `from` order. Counts are the designer's; none is measured in play. Platinum: the
    coherence pass's C4 says "Ember salts and more Cinders" until a tier 7 ladder exists, with no number for the Cinders: 600 stays the
    design's, the designer's to raise. */
 export const CHEST_KEYS = Object.freeze([
-  key('bronze', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 15, 'cooked_shrimp', 20),
-  key('silver', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 25, 'cooked_lobster', 15),
-  key('gold', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 30, 'cooked_lobster', 20),
-  key('platinum', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 40, 'cooked_lobster', 25),
+  key('bronze', 'tower', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 15, 'cooked_shrimp', 20),
+  key('silver', 'tower', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 25, 'cooked_lobster', 15),
+  key('gold', 'tower', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 30, 'cooked_lobster', 20),
+  key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 40, 'cooked_lobster', 25),
 ]);
 
 export const CHEST_LUCK = Object.freeze({
@@ -84,7 +100,6 @@ export const CHEST_LUCK = Object.freeze({
   ]),
   ownPm: 500,
   perCall: 20,
-  perDay: 200,
 });
 
 /* The weapon families a key's weapons come in (gear-tiers.js WEAPON_FAMILIES), in its order: the seven "types". */
@@ -105,10 +120,12 @@ export function weaponFamilyOf(item) {
   }
 }
 
-/** The key row a landing (a floor) hands out: the highest row starting at or under it, or null under the first. Pure. */
+/** The key row a Tower landing (a floor) hands out: the highest Tower row starting at or under it, or null under the first. Pure. */
 export function keyForLanding(landing, keys = CHEST_KEYS) {
   let out = null;
-  for (const k of keys) if (Number.isInteger(landing) && landing >= k.from && (!out || k.from > out.from)) out = k;
+  for (const k of keys) {
+    if (k.family === TOWER_KEY_FAMILY && Number.isInteger(landing) && landing >= k.from && (!out || k.from > out.from)) out = k;
+  }
   return out;
 }
 
@@ -156,16 +173,28 @@ export function chestChancePpm(k, dry, stokes, luck = CHEST_LUCK) {
 }
 
 /** Everything wrong with the chest table, as strings (empty: valid). `landingEvery` is TOWER_RULES.landingEvery. Pure. */
-export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = TEMPER_MATERIALS) {
+export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = TEMPER_MATERIALS, families = KEY_FAMILIES) {
   const out = [];
   const ID = /^[a-z0-9_]{1,40}$/;
   if (!Array.isArray(keys) || !keys.length) return ['the key table is empty'];
-  let prev = null;
+  /* the families: each an id, a weekly open count above 0, a held limit of at least a week's opens, and a key (no dead family) */
+  if (!families || typeof families !== 'object' || !Object.keys(families).length) return ['the key families are empty'];
+  for (const [fid, f] of Object.entries(families)) {
+    if (!ID.test(fid) || !f || f.id !== fid) { out.push('family ' + fid + ': its id is not its key'); continue; }
+    if (typeof f.name !== 'string' || !f.name.trim()) out.push('family ' + fid + ': no name');
+    if (!Number.isInteger(f.opensPerWeek) || f.opensPerWeek < 1 || f.opensPerWeek > 1000) out.push('family ' + fid + ': opensPerWeek is not 1..1000');
+    if (!Number.isInteger(f.heldMax) || f.heldMax < f.opensPerWeek) out.push('family ' + fid + ': heldMax is under a week\'s opens');
+    if (!keys.some((k) => k && k.family === fid)) out.push('family ' + fid + ': no key belongs to it');
+  }
+  if (!Object.hasOwn(families, TOWER_KEY_FAMILY)) out.push('no ' + TOWER_KEY_FAMILY + ' family for the Tower\'s landings to mint from');
+  const prevOf = {};
   const seen = new Set(), items = new Set();
   for (const k of keys) {
     const n = (k && k.id) || '?';
     if (!k || !ID.test(String(k.id))) { out.push(n + ': its id is not an id'); continue; }
     if (seen.has(k.id)) out.push(n + ': a second row with this id');
+    if (!Object.hasOwn(families, k.family)) out.push(n + ': its family ' + k.family + ' is no key family');
+    const prev = prevOf[k.family] || null;
     seen.add(k.id);
     if (!ID.test(String(k.item)) || items.has(k.item)) out.push(n + ': its item is not an id, or another key names it');
     items.add(k.item);
@@ -183,14 +212,14 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
       if (!ID.test(String(item))) out.push(n + ': its ' + fam + ' weapon is not an item id');
     }
     if (prev) {
-      /* The open table: rows rise. A higher key always has more inside (the design: "a higher key always has more in it"), and its
+      /* The open table: a family's rows rise. A higher key always has more inside (the design: "a higher key always has more in it"), and its
          weapon is the rarer one (Tyler 2026-11-14's reversal), its tier and its +skill higher. */
       if (k.from <= prev.from) out.push(n + ': starts at or under ' + prev.id);
       if (k.weaponPm > prev.weaponPm) out.push(n + ': a better weapon chance than ' + prev.id + ' (the odds fall as keys rise)');
       if (k.weaponTier < prev.weaponTier || k.skillPlus <= prev.skillPlus) out.push(n + ': its weapons are no better than ' + prev.id + '\'s');
       if (k.cinders <= prev.cinders) out.push(n + ': no more Cinders than ' + prev.id);
     }
-    prev = k;
+    prevOf[k.family] = k;
   }
   const allWeapons = keys.flatMap((k) => Object.values(k.weapons || {}));
   if (new Set(allWeapons).size !== allWeapons.length) out.push('one weapon item is named by two keys or families');
@@ -207,7 +236,6 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
   }
   if (!Number.isInteger(luck.ownPm) || luck.ownPm < 0 || luck.ownPm > 1000) out.push('ownPm is not a whole permille');
   if (!Number.isInteger(luck.perCall) || luck.perCall < 1 || luck.perCall > 100) out.push('perCall is not 1..100');
-  if (!Number.isInteger(luck.perDay) || luck.perDay < luck.perCall) out.push('perDay is under perCall');
   return out;
 }
 

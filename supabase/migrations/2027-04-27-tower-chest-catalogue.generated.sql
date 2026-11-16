@@ -5,23 +5,33 @@
 -- STATUS: STAGED, NOT APPLIED (lane/c-tower-chest, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower's chest). The Coordinator
 --   applies (tools/apply-migration.mjs, one file, never inside begin/commit). ORDER: after 2027-04-27-tower-chest-items-catalogue.generated.sql
 --   (every item a row names is in hr_items: §4 checks it), right before 2027-04-27-tower-chest.sql, which reads every table. No function body.
--- hr_chests (one row today); hr_chest_keys (4 rows: the open table, a landing's key is the highest row at or under it); hr_chest_stokes
---   (3: a stoke count's multiplier and its price in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family
---   weight, the per-call and per-day clamps); hr_chest_families (the 7 weapon families, the "types"); hr_chest_weapons (each key's
+-- hr_chests (one row today); hr_chest_key_families (1: a key family's caps, every key of the family sharing them: the keys one hero may
+--   open a UTC week and the held limit past which a new key of it does not drop); hr_chest_keys (4 rows: each in a family; the open
+--   table, a Tower landing's key is the highest Tower row at or under it); hr_chest_stokes (3: a stoke count's multiplier and its price
+--   in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family weight, the per-call clamp);
+--   hr_chest_families (the 7 weapon families, the "types"); hr_chest_weapons (each key's
 --   weapon a family: 0 built today, so no key is ready and the open refuses chest_not_ready); hr_chest_weapon_families (76
 --   weapon items and their family). All rewritten whole: no player row points at any of them (the key and Cinders items are hr_items rows).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower.
--- REVERSIBLE: drop the seven tables after 2027-04-27-tower-chest.sql's reversal.
+-- REVERSIBLE: drop the eight tables after 2027-04-27-tower-chest.sql's reversal.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_chests (
   chest_id text primary key check (chest_id ~ '^[a-z0-9_]{1,40}$'),
   name     text not null
 );
+create table if not exists public.hr_chest_key_families (
+  key_family     text primary key check (key_family ~ '^[a-z0-9_]{1,40}$'),
+  name           text not null,
+  opens_per_week int  not null check (opens_per_week between 1 and 1000),
+  held_max       int  not null,
+  constraint hr_chest_key_families_held check (held_max >= opens_per_week)
+);
 create table if not exists public.hr_chest_keys (
   key_id       text primary key check (key_id ~ '^[a-z0-9_]{1,40}$'),
+  key_family   text not null,
   item_id      text not null unique,
   name         text not null,
-  from_landing int  not null unique check (from_landing > 0),
+  from_landing int  not null check (from_landing > 0),
   weapon_pm    int  not null check (weapon_pm between 1 and 1000),
   weapon_tier  int  not null check (weapon_tier between 1 and 10),
   skill_plus   int  not null check (skill_plus >= 1),
@@ -29,7 +39,8 @@ create table if not exists public.hr_chest_keys (
   salts_item   text not null,
   salts_qty    int  not null check (salts_qty > 0),
   food_item    text not null,
-  food_qty     int  not null check (food_qty > 0)
+  food_qty     int  not null check (food_qty > 0),
+  constraint hr_chest_keys_from unique (key_family, from_landing)
 );
 create table if not exists public.hr_chest_stokes (
   stokes int primary key check (stokes between 1 and 9),
@@ -41,9 +52,7 @@ create table if not exists public.hr_chest_luck (
   warmth_step_pm int not null check (warmth_step_pm >= 0),
   warmth_cap_pm  int not null check (warmth_cap_pm >= 1000),
   own_pm         int not null check (own_pm between 0 and 1000),
-  per_call       int not null check (per_call between 1 and 100),
-  per_day        int not null,
-  constraint hr_chest_luck_day check (per_day >= per_call)
+  per_call       int not null check (per_call between 1 and 100)
 );
 create table if not exists public.hr_chest_families (
   family text primary key check (family ~ '^[a-z0-9_]{1,40}$'),
@@ -62,13 +71,14 @@ create table if not exists public.hr_chest_weapon_families (
 do $$
 declare t text;
 begin
-  foreach t in array array['hr_chests', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
   end loop;
 end $$;
-comment on table public.hr_chest_keys is '2027-04-27-tower-chest-catalogue.generated.sql: the Hearth Chest''s open key table (src/data/chests.js CHEST_KEYS): a landing''s key is the highest row at or under it; what each key always holds; its base weapon chance (permille). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
-comment on table public.hr_chest_luck is '2027-04-27-tower-chest-catalogue.generated.sql: the Hearth''s warmth (a dry key warms the next by warmth_step_pm of its base, up to warmth_cap_pm), the own-family weight and the clamps (src/data/chests.js CHEST_LUCK). One row.';
+comment on table public.hr_chest_key_families is '2027-04-27-tower-chest-catalogue.generated.sql: the key families (src/data/chests.js KEY_FAMILIES, Tyler 2026-11-16): every key of a family shares its caps, opens_per_week keys one hero may use a UTC week (hr_chest_open, from chest_opens) and held_max, the held limit past which a new key of the family does not drop (hr_tower_key_mint). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
+comment on table public.hr_chest_keys is '2027-04-27-tower-chest-catalogue.generated.sql: the Hearth Chest''s open key table (src/data/chests.js CHEST_KEYS): each key in a family (hr_chest_key_families); a Tower landing''s key is the highest Tower row at or under it; what each key always holds; its base weapon chance (permille). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
+comment on table public.hr_chest_luck is '2027-04-27-tower-chest-catalogue.generated.sql: the Hearth''s warmth (a dry key warms the next by warmth_step_pm of its base, up to warmth_cap_pm), the own-family weight and the per-call clamp (src/data/chests.js CHEST_LUCK). One row.';
 comment on table public.hr_chest_weapons is '2027-04-27-tower-chest-catalogue.generated.sql: each key''s tower weapon a family (src/data/chests.js weapons). A key without one for every hr_chest_families row is not ready: hr_chest_open refuses it.';
 
 delete from public.hr_chests;
@@ -76,20 +86,23 @@ insert into public.hr_chests (chest_id, name) values
   ('great_hearth', 'The Hearth Chest');
 delete from public.hr_chest_weapons;
 delete from public.hr_chest_keys;
-insert into public.hr_chest_keys (key_id, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty) values
-  ('bronze', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 'temper_salts', 15, 'cooked_shrimp', 20),
-  ('silver', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 'fine_temper_salts', 25, 'cooked_lobster', 15),
-  ('gold', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 'fine_temper_salts', 30, 'cooked_lobster', 20),
-  ('platinum', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 'fine_temper_salts', 40, 'cooked_lobster', 25);
+delete from public.hr_chest_key_families;
+insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max) values
+  ('tower', 'Tower', 6, 30);
+insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty) values
+  ('bronze', 'tower', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 'temper_salts', 15, 'cooked_shrimp', 20),
+  ('silver', 'tower', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 'fine_temper_salts', 25, 'cooked_lobster', 15),
+  ('gold', 'tower', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 'fine_temper_salts', 30, 'cooked_lobster', 20),
+  ('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 'fine_temper_salts', 40, 'cooked_lobster', 25);
 delete from public.hr_chest_stokes;
 insert into public.hr_chest_stokes (stokes, pm, keys) values
   (1, 1700, 3),
   (2, 2500, 7),
   (3, 3300, 12);
-insert into public.hr_chest_luck (id, warmth_step_pm, warmth_cap_pm, own_pm, per_call, per_day) values
-  (true, 40, 3000, 500, 20, 200)
+insert into public.hr_chest_luck (id, warmth_step_pm, warmth_cap_pm, own_pm, per_call) values
+  (true, 40, 3000, 500, 20)
 on conflict (id) do update set warmth_step_pm = excluded.warmth_step_pm, warmth_cap_pm = excluded.warmth_cap_pm, own_pm = excluded.own_pm,
-  per_call = excluded.per_call, per_day = excluded.per_day;
+  per_call = excluded.per_call;
 delete from public.hr_chest_families;
 insert into public.hr_chest_families (family, ord) values
   ('sword', 1),
@@ -179,17 +192,24 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('yew_staff', 'staff'),
   ('yew_wand', 'wand');
 
--- §4 SELF-CHECK: the data's rows (a digest of every key row), the open table rising, every item a row names an hr_items row (the keys and
--- the Cinders bound), every weapon of its own family, and no client can read or write a table.
+-- §4 SELF-CHECK: the data's rows (a digest of every key row and every key family), each key in a family and each family with a key, the
+-- Tower's family there, a family's open table rising, every item a row names an hr_items row (the keys and the Cinders bound), every weapon
+-- of its own family, and no client can read or write a table.
 do $$
 declare t text; v_role text; v_sum text;
 begin
-  select string_agg(concat_ws(':', key_id, item_id, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty), '|' order by from_landing)
+  select string_agg(concat_ws(':', key_id, key_family, item_id, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty), '|' order by key_id collate "C")
     into v_sum from public.hr_chest_keys;
-  if v_sum is distinct from 'bronze:tower_key_bronze:10:160:2:1:50:temper_salts:15:cooked_shrimp:20|silver:tower_key_silver:40:80:4:2:150:fine_temper_salts:25:cooked_lobster:15|gold:tower_key_gold:70:45:6:3:300:fine_temper_salts:30:cooked_lobster:20|platinum:tower_key_platinum:100:20:7:4:600:fine_temper_salts:40:cooked_lobster:25' then raise exception 'chest-catalogue §4: hr_chest_keys is not src/data/chests.js: %', v_sum; end if;
-  if exists (select 1 from public.hr_chest_keys a join public.hr_chest_keys b on b.from_landing > a.from_landing
+  if v_sum is distinct from 'bronze:tower:tower_key_bronze:10:160:2:1:50:temper_salts:15:cooked_shrimp:20|gold:tower:tower_key_gold:70:45:6:3:300:fine_temper_salts:30:cooked_lobster:20|platinum:tower:tower_key_platinum:100:20:7:4:600:fine_temper_salts:40:cooked_lobster:25|silver:tower:tower_key_silver:40:80:4:2:150:fine_temper_salts:25:cooked_lobster:15' then raise exception 'chest-catalogue §4: hr_chest_keys is not src/data/chests.js: %', v_sum; end if;
+  select string_agg(concat_ws(':', key_family, opens_per_week, held_max), '|' order by key_family collate "C") into v_sum from public.hr_chest_key_families;
+  if v_sum is distinct from 'tower:6:30' then raise exception 'chest-catalogue §4: hr_chest_key_families is not src/data/chests.js: %', v_sum; end if;
+  if exists (select 1 from public.hr_chest_keys k where not exists (select 1 from public.hr_chest_key_families f where f.key_family = k.key_family))
+     or exists (select 1 from public.hr_chest_key_families f where not exists (select 1 from public.hr_chest_keys k where k.key_family = f.key_family))
+     or not exists (select 1 from public.hr_chest_key_families f where f.key_family = 'tower') then
+    raise exception 'chest-catalogue §4: a key of no family, a family of no key, or no family for the Tower''s landings'; end if;
+  if exists (select 1 from public.hr_chest_keys a join public.hr_chest_keys b on b.key_family = a.key_family and b.from_landing > a.from_landing
               where b.weapon_pm > a.weapon_pm or b.cinders <= a.cinders or b.skill_plus <= a.skill_plus) then
-    raise exception 'chest-catalogue §4: a higher key is no better than the one under it'; end if;
+    raise exception 'chest-catalogue §4: a higher key is no better than the one under it in its family'; end if;
   if (select count(*) from public.hr_chest_stokes) <> 3 or (select count(*) from public.hr_chest_luck) <> 1
      or (select count(*) from public.hr_chest_families) <> 7 or (select count(*) from public.hr_chests) <> 1 then
     raise exception 'chest-catalogue §4: the stokes, the luck row, the families or the chests are not the data''s'; end if;
@@ -209,7 +229,7 @@ begin
     raise exception 'chest-catalogue §4: a key''s weapon is not of its family, or names no key or family'; end if;
   if exists (select 1 from public.hr_chest_weapon_families w where not exists (select 1 from public.hr_chest_families c where c.family = w.family)) then
     raise exception 'chest-catalogue §4: a weapon item reads no family'; end if;
-  foreach t in array array['hr_chests', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
     if exists (select 1 from pg_policies where schemaname = 'public' and tablename = t) then
       raise exception 'chest-catalogue §4: a policy opens % to a client', t; end if;
     foreach v_role in array array['anon', 'authenticated'] loop

@@ -355,6 +355,7 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_key: 'That isn\'t a key this chest takes.',
   bad_count: 'Use between 1 and 20 keys at a time.',
   bad_stokes: 'You can stoke the fire up to three times.',
+  week_limit: 'That\'s all the chests for that kind of key this week. More on Monday after midnight UTC.',
   dummy_max: 'Your dummy trains every skill already.',
   /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
   buy_limit: 'That is all you can buy today. Try again after midnight UTC.',

@@ -1156,6 +1156,11 @@
    "replay": 7,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): the seven weapon families a key's weapons come in. Empty, no key is ready and every open is refused chest_not_ready. Rebuilt from repo, never restored."
   },
+  "hr_chest_key_families": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js KEY_FAMILIES): each key family's caps, the keys one hero may open a UTC week and the held limit past which a new key of it does not drop (Tyler 2026-11-16). Empty, a climb that crosses a landing is refused catalogue_missing (retried, nothing moves) and every open is refused week_limit. Rebuilt from repo, never restored."
+  },
   "hr_chest_keys": {
    "class": "seeded",
    "replay": 4,
@@ -1164,7 +1169,7 @@
   "hr_chest_luck": {
    "class": "seeded",
    "replay": 1,
-   "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): the Hearth's warmth step and cap, the own-family weight and the per-call and per-day clamps (one row). Empty, every open errors (no luck row; nothing moves). Rebuilt from repo, never restored."
+   "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): the Hearth's warmth step and cap, the own-family weight and the per-call clamp (one row; the period clamp is the key family's week). Empty, every open errors (no luck row; nothing moves). Rebuilt from repo, never restored."
   },
   "hr_chest_stokes": {
    "class": "seeded",

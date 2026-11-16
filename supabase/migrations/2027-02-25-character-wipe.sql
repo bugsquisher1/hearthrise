@@ -134,8 +134,8 @@ declare
     'hr_training_gear',
     /* the Burning Tower's catalogue (2027-04-24-tower-climb-catalogue.generated.sql): its rules and each floor's bound */
     'hr_tower_rules', 'hr_tower_floors',
-    /* the Hearth Chest's catalogue (2027-04-27-tower-chest-catalogue.generated.sql): the chest, its keys, stokes, luck and weapons */
-    'hr_chests', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families',
+    /* the Hearth Chest's catalogue (2027-04-27-tower-chest-catalogue.generated.sql): the chest, its key families, keys, stokes, luck and weapons */
+    'hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families',
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
     'hr_boss_halls',
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */

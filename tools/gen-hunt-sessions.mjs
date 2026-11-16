@@ -1901,8 +1901,17 @@ function selftest() {
     'a free yard': () => ({ training: { ...S_TRAINING, places: { ...S_TRAINING.places, yard: { fee: false } } } }),
     'a session longer than an hours limit': () => ({ training: { ...S_TRAINING, rules: { ...S_TRAINING.rules, maxHours: 25 } } }),
   };
-  /* The fixture ground itself must pass (the arm proves the ground path is live). */
-  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens } });
+  /* The fixture ground itself must pass (the arm proves the ground path is live), beside the grounds the calls start from and the ground each
+     OPEN hall's key comes from (hallRows: a hall's key ground must be served). Which halls are open is the whole view's (tools/pack/whole.mjs):
+     this file folds the March packs since lane/c-tower-climb moved OUT_NAME past them, so Krell's Hold is open here and its ground comes along. */
+  const hallKeyGrounds = Object.fromEntries(Object.entries(OPEN_GROUNDS).filter(([, g]) => Object.values(OPEN_BOSS_HALLS).some((h) => h.id === g.hunt)));
+  if (Object.keys(hallKeyGrounds).length !== Object.keys(OPEN_BOSS_HALLS).length) throw new Error('selftest: an open hall\'s key ground is not an open ground');
+  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens, ...hallKeyGrounds } });
+  /* ...and the hall path is live in that fixture: the same grounds less a hall's key ground are refused (only while a hall is open here) */
+  if (Object.keys(hallKeyGrounds).length) {
+    cases['an open hall whose key ground is not served'] = () => ({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer,
+      coppercap_warrens: OPEN_GROUNDS.coppercap_warrens, ...Object.fromEntries(Object.entries(hallKeyGrounds).slice(1)) } });
+  }
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {
     let threw = false;

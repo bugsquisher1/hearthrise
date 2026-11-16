@@ -272,6 +272,11 @@ export const MUTANTS = [
   { name: 'immutableBackToSql', why: 'hr_jsonb_add (IMMUTABLE, 300 calls a settle) is SQL again', expect: 'SB-3', plant: backToSql('hr_jsonb_add') },
   { name: 'setofBackToSql', why: 'hr_unlock_levels (RETURNS TABLE) is SQL again', expect: 'SB-3', plant: backToSql('hr_unlock_levels') },
   { name: 'sectionBackToSql', why: 'hr_premium_view (once an envelope) is SQL again', expect: 'SB-3', plant: backToSql('hr_premium_view') },
+  /* lane/c-tower-paydown: the Burning Tower's floor read (hr_hunt_instance_read, every hunt's every settle) as 2027-04-24-tower-climb.sql first
+     staged it, a SET-clause SQL function */
+  { name: 'towerFloorBackToSql', why: 'hr_tower_floor_of (every instance read) is a SET-clause SQL function again', expect: 'SB-3',
+    plant: `create or replace function public.hr_tower_floor_of(p_instance uuid) returns int language sql stable set search_path = public, pg_catalog
+      as $m$ select max(coalesce(r.top_floor + 1, r.start_floor)) from public.tower_runs r where r.instance_id = p_instance and r.ended_at is null $m$;` },
 ];
 
 async function main() {

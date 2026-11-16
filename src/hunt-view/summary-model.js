@@ -45,6 +45,7 @@ export const END_WORDS = Object.freeze({
   stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
   hours: 'The hunt reached its time limit.',
   boss_time: 'The ten minutes ran out before he went down. Your party came home.',
+  floor_time: END_REASON_COPY.floor_time.one,
   left: 'You left the hunt.',
   changed: 'You moved on to another hunt.',
   no_fight: END_REASON_COPY.no_fight.one,

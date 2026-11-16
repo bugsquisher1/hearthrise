@@ -28,6 +28,78 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 - **The pre-rebuild board** (b1xx to b585, the scrapped old client and its systems) is archived whole at `docs/archive/planning/PRIORITY_BOARD_pre-rebuild.md`. None of its rows apply to the rebuilt game unless re-added here.
 
 ## Decisions
+### 2026-11-16 The armor line past Dawnsteel, as a budget: a ceiling on pace and safety, eight named pieces that spend it eight ways (designer, lane/d-armor-line-v2, on lane/d-weapon-line + lane/d-temper-dawnsteel. Tyler 2026-11-14, reminded 2026-11-16, binding: after tier 7 gear is unique "more like tibia", named pieces per ground and boss, each with its own stat mix; the lines are power budgets, never "a Dawnsteel twin plus one attribute". The Coordinator 2026-11-16: the ceiling below ACCEPTED, the Roost's plate as named pieces, the anchor kept at 110): RULED, a HIDDEN sample of eight (`src/data/armor-line.js`, replacing the five twins), its measure (`tools/balance-sim/armor-power.mjs`), its guard rewritten (`tests/armor-line.mjs` AL1-AL10, 29 of 29 mutants), the grader ranks armor by the same measure (`tools/balance-sim/gear.mjs`), MEASURED on the full grade on all four late grounds and on the settle. Nothing served, no art, no migration, the edge does not move
+**The rule: a budget, not a template.** The line's piece of a slot and weight at Level R is the Dawnsteel piece with its armor x max(1, R / 110), as before. It is now the CEILING, not the row. A piece's power on a ground is what the engine makes of it (`armor-power.mjs`: the engine's own rolls and armor chain over the ground's spawn, in a set of its weight with the line elsewhere), read two ways: **pace** (kills a swing: Melee on plate, Ranged and crit on leather, Magic on cloth) and **safety** (what reaches the hero a swing: armor, the element it resists, the spells it holds). Rules, all in the guard:
+1. **Never over the line.** On every late ground, worn by a hero of its Level (or the ground's floor if higher), the mean of its pace and safety over the line's piece is at most 1, and neither is more than 5% over (`LINE_TRADE`). The 5% is what lets a piece be heavy or light.
+2. **It wins somewhere.** On a ground its Level is sent to, worn in fully tempered Dawnsteel (both tier-7 ladders full, read by the engine's own `armorPmOf`), it beats the tempered Dawnsteel piece of its slot and every other piece of its slot and weight a hero of its Level can wear. A piece worn from under its weight's first Level must win on its own ground.
+3. **Not a template.** A piece that reads as the line's own (pace and safety within 0.1% on every late ground) fails.
+4. **Caster damage never climbs with the line** (`magicStrB`, `rangeStrB` at most the base's), so the Mage gap lane/d-mage-110 closed stays closed. The Pauper's Shroud's old 36 (AL4's red) is gone.
+5. **At most one attribute, one the engine reads today** (no hook owed), so the measure sees what the player gets.
+
+**The anchor stays 110, and plate can't beat tempered Dawnsteel on Carter's Rest or the Ox Road.** Their monsters are Levels 111 to 125, and full Dawnsteel plate already absorbs the 60% cap against them. More armor buys a plate hero nothing there, and fully tempered Dawnsteel (2%) lands on the same cap, so the line and every unique read the same as tempered Dawnsteel, rounding aside. Measured, the line's whole set over fully tempered Dawnsteel, safety, on Carter's Rest / the Ox Road / Wyvern Roost / the Vaults:
+| Worn from | Plate | Leather | Cloth |
+|---|---|---|---|
+| 110 | 0.983 / 0.982 / 0.980 / 0.980 | 0.980 / 0.980 / 0.980 / 0.980 | 0.995 / 0.994 / 0.992 / 0.986 |
+| 120 | 0.994 / 0.996 / 1.008 / 1.009 | 1.001 / 1.001 / 1.002 / 1.003 | 1.020 / 1.020 / 1.028 / 1.038 |
+| 125 | 0.994 / 0.997 / 1.018 / 1.022 | 1.008 / 1.008 / 1.009 / 1.012 | 1.033 / 1.031 / 1.042 / 1.062 |
+| 165 | 0.993 / 0.995 / 1.035 / 1.113 | 1.070 / 1.071 / 1.076 / 1.083 | 1.049 / 1.039 / 1.075 / 1.195 |
+
+So the line first clears tempered Dawnsteel on every ground its Level is sent to at **plate 129, leather 120, cloth 113** (`LINE_FIRST_LEVEL`, re-measured by AL10). Tyler's x R / 110 stays the slope, and the Tempering bands keep keying on 110 (TU3). The Roost's 125 plate is under plate's first Level, so it must win on the Roost itself, and it does. A side effect of the cap: any element resistance reads over the line on Carter's Rest and the Ox Road (the element cuts under the cap's floor), so no fire piece fits the line while those two are graded (open 2).
+
+#### 1. The sample of eight (hidden)
+Pace / safety over the line's piece, at the piece's Level (Carter's Rest / Ox Road / Roost / Vaults). Then its score over tempered Dawnsteel where it's sent (1.000 is tempered Dawnsteel).
+| Piece | Slot, weight, worn from | The line's armor | Its numbers | Spends it on | Against the line | Over tempered Dawnsteel | From |
+|---|---|---|---|---|---|---|---|
+| **Wagon Guard's Breastplate** | body, plate, 125 | 102 | 108 armor, Melee accuracy -1 | Heavy: more armor than the line, a stiff shoulder | 1.000/1.000, 0.999/1.000, 0.995/1.005, 0.995/1.004 | CR 1.001, Ox 1.002, **Roost 1.003** | Brood Wyvern, 0.93% |
+| **Burnt Crag Leg Plates** | legs, plate, 125 | 73 | 86 armor, Melee damage -2, 10% less fire | Fireproof and heavy, paid in the swing | 0.987/1.004, 0.984/1.008, 0.984/1.015, 0.987/1.013 | CR 0.997, Ox 1.000, **Roost 1.004** | Crag Wyvern, 0.23% |
+| **Outrider's Visor** | helm, plate, 125 | 50 | 64 armor, Melee accuracy -2 | Closed: the most armor a helm has here | 1.000/1.000, 0.998/0.999, 0.990/1.009, 0.990/1.010 | CR 1.002, Ox 1.002, **Roost 1.003** | Ledge Wyvern, 0.23% |
+| **Watchman's Helm** | helm, plate, 165 | 66 | 46 armor, Melee accuracy +2 | Sure: open-faced, lands on the hard-skinned heads | 1.000/1.000 x3, 1.010/0.990 | **Vaults 1.006** | Shrouded Pauper, 0.07% |
+| **Limewashed Plate** | body, plate, 165 | 135 | 150 armor, Melee accuracy -1 | Heavy: the most armor of any breastplate | 1.000/1.000 x3, 0.995/1.004 | **Vaults 1.024** | Bone Wall, 0.23% |
+| **Keeper's Leg Plates** | legs, plate, 165 | 96 | 84 armor, 10% less ice | Snuff the Candles' answer | 1.000/1.000 x3, 1.000/0.996 | **Vaults 1.010** | Keeper Dunn, 0.93% |
+| **Hauler's Jerkin** | body, leather, 165 | 75 | 85 armor, no crit, Ranged 35, 10% less poison | Dodge over damage, and the lime sacks | 0.988/1.008, 0.988/1.008, 0.988/1.009, 0.988/1.011 | **Vaults 1.016** | Night Carter, 0.31% |
+| **Pauper's Shroud** | body, cloth, 165 | 41 | 62 ward, Magic damage 2 (Duskweave 10), 10% less ice | A healer's robe: ward and ice for 8 Magic damage | 0.965/1.000 x3, 0.965/1.034 | **Vaults 1.074** | Shrouded Pauper, 0.07% |
+
+**Where they trade.** At the Vaults' floor the Watchman's Helm out-scores the Roost's Visor (1.0055 to 1.0021 tempered, 1.0076 to 1.0047 bare), and from 175 the heavy Visor wins (1.0029 to 1.0022 tempered, 1.0060 to 1.0018 at 185): the sure helm is the floor's, the heavy one the climb's. Accuracy stops paying as a hero out-levels the heads. Accuracy caps at 95% against most heads past 110, so it pays only on the hard-skinned (Keeper Dunn, the Bone Walls, the Roost's dragons, which "turn a sword"). The Shroud costs a Mage 3.5% of pace and buys 3.4% safety at the Vaults. The grader's Mage takes it (low point 93.6 there), and a Healer wants it.
+
+**Names and the cards.** Every name is from its ground's lore and was checked against every item and both other hidden samples (AL2). The Breastplate is the Wagon Guard's Sword's set (both off the Brood Wyvern, "one of them is still up in the nest"). The Leg Plates come off the Burnt Crag (pack.js's P3, "the rock black from their fire"). The Visor is the outriders' who rode ahead of the wagons. The Watchman's Helm drops beside the Watchman's Sword (the old Havora Watch). The Limewashed Plate comes out of the same ossuary wall as the Limewashed Sword. Each card leads with its number (AL9). Books are the Dawnsteel piece's times the line, so none sells under Dawnsteel. Chances: about one every 15 hours for a lone hero at the floor (172 kills an hour, by the monster's share of the spawn, the first sample's method). At most two armor slots a monster (the Pauper: helm and shroud).
+
+#### 2. Wyvern Roost's plate: one step short of 60, and why (the weapon lane's last red)
+A lone sword, Wyvern Roost, Level 125, Normal, 6 seeds x 4 h, the same dice, the Wagon Guard's Sword, the low point (it moves in steps of 0.2):
+| Plate | Low point |
+|---|---|
+| Full Dawnsteel (the cleanup's tip) | 59.5 |
+| The three Roost pieces (the grader's pick on this tip) | **59.9** |
+| The line's own armor, helm, body and legs | 59.9 |
+| The line's own armor on all six slots (a template) | 60.1 |
+| Six heavy pieces (+6 armor, Melee accuracy -1 each, each 0.9999 of the line) | 59.8 |
+| Three sure pieces (less armor, Melee accuracy +5) | 58.9 |
+| Four fire pieces at the line's armor (over the line on Carter's Rest and the Ox Road) | 60.5 |
+
+Every trade under the ceiling lands 59.6-59.9. The lone sword at the Roost is short of accuracy, so pace counts as much as safety, and the line's own armor is the most the budget allows there. Only the line on all six slots clears 60, and that is a template. Fire would do it (Fire Breath is the Roost's spike), but a fire piece reads 0.4-0.8% over the line where plate is at the cap. **Open 2 for Tyler.**
+
+#### 3. The full grade (`node tools/pack.mjs check <g> --mode full --with <the other three> --uniques`, on this branch's tip, each exit code seen)
+GRADE_TABLE_PENDING
+
+#### 4. Walk-through (a sword hero in plate from 125 to 165)
+| Step | Does | Has from the earlier steps and the real kit | Doable? |
+|---|---|---|---|
+| 1 | Reaches 125 in full Dawnsteel plate | `dawn_platebody`, `dawn_platelegs`, `dawn_helm` drop on Carter's Rest, the Ox Road and in Krell's hall (open) | Yes |
+| 2 | Opens Hunts, sees Wyvern Roost 125-142 | Level 125 | **Not yet.** Staged |
+| 3 | Hunts the Ledges, the Burnt Crag and the Nests (Ledge, Crag and Brood Wyverns) | Step 2 | Yes on the engine (`ledge_wyvern`, `crag_wyvern`, `brood_wyvern` placed on `wyvern_roost`, AL7) |
+| 4 | Gets the Visor, the Leg Plates, the Breastplate (about every 15 hours alone each) | Step 3 | **Not yet.** Hidden rows, on no drop list |
+| 5 | Wears them | Step 4, Level 125 | Yes once they're rows: worn by Level |
+| 6 | Reads each card against Dawnsteel | Step 4 | **Partly, and it reads backwards.** The Leg Plates show more armor and a lighter swing, so a player can't tell they're 0.4% better on the Roost and under Dawnsteel on Carter's Rest. The "on this ground" card line is owed (handoff, client lane) |
+| 7 | Reaches 165, opens the Pauper Vaults | Levels | **Not yet.** Staged |
+| 8 | Paupers drop the Watchman's Helm, Bone Walls the Limewashed Plate, Keeper Dunn the Keeper's Leg Plates | Step 7 | **Not yet.** Hidden rows |
+| 9 | Picks a helm: the sure Watchman's at the floor, the heavy Visor from 175 | Steps 4 and 8 | **Partly.** Nothing in the game says which. Same card line |
+| 10 | Keeps both helms and wears the right one per ground and Level, chosen once | Step 9 | **No.** Gear setups remembered by ground are the Morrow's missing item 5. A budget line makes picking per ground matter more, and doing it by hand every trip is a repeated decision (the first principle) |
+
+**Regression coverage.** `tests/armor-line.mjs` AL1-AL10, 29 of 29 mutants caught, including the old red (Shroud `magicStrB` 36), a template, a heavy piece that sheds its cost, fire at the line's armor over on the Ox Road, a piece past the trade band, a rival that out-wins everywhere, a piece under its first Level winning off its own ground, an unhooked attribute and a first Level written, not measured. The grader's `--selftest` exits 0 (5 of 5 uniques mutants). Its U4 is re-aimed at Krell's Hold, because the line carries no unhooked attribute any more. `temper-uniques`, `weapon-line`, `special-attributes` and `guard-hygiene` exit 0.
+
+**Exploit and economy review.** Nothing is served. Each piece is at or under the line on every late ground on both reads, so no piece is a better piece of armor anywhere than the published line. Books are Dawnsteel's times the line, so a sold piece pays what the first sample's did. Not held by the ceiling: a piece of another weight worn in a mixed set (DISCOVERIES 2026-11-16: one leather piece in plate adds 10% safety at the Vaults under K7). That is the engine's rule, and the guard measures each piece in its own weight.
+
+**Open, for Tyler.** (1) Approve the ceiling and the eight. (2) The Roost's last step (section 2): allow a resistance over the line where plate is at the cap, put it on the Roost's pack, or accept 59.9 on the bow's ground. (3) Mixed weights (Systems). (4) The card's "on this ground" line (client lane).
+
 ### 2026-11-16 The weapon line past Dawnsteel: a power ceiling, five uniques that spend it five ways (designer, lane/d-weapon-line, on lane/d-morrow-cleanup. Tyler 2026-11-16: "yes" to a weapon line past Dawnsteel, the armor line's pattern, about x Level / 110, no tier 8; Tyler 2026-11-14: "after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades, more like tibia"; the Coordinator's reading the same day: a power BUDGET, not a stat template): RULED, a HIDDEN sample of five (`src/data/weapon-line.js`), its power measure (`tools/balance-sim/weapon-power.mjs`), its guard (`tests/weapon-line.mjs`, 27 of 27 mutants), the grader's `--uniques` wears it, MEASURED on the full grade on all four late grounds and A/B on the real settle. Nothing served, no art, no migration, the edge does not move
 **The rule: a budget, not a template.** The line is a CEILING on a weapon's power, never a stat sheet to copy. The line's weapon at Level R is the Dawnsteel weapon of its family with its attack and damage times max(1, R / 110). A weapon's power on a ground is what the engine's own rolls make of it there (`combat.js playerCombatRolls`: accuracy against each monster's defence, max hit, the weakness, the bane, the critical chance), read two ways over the ground's spawn: **pace** (each head weighted by how long it takes: kills an hour) and **safety** (each head weighted again by what it does to the hero meanwhile: the low point and the food bill). A unique worn from R may spend the budget any way it likes: more accuracy and less damage, a critical chance, a bane, and whatever the engine adds next. Three rules, all in the guard:
 1. **Never over the line.** On every ground whose band starts at 110 or later, at Level R, it sits at or under the line's weapon on pace and on safety. So it is under the line somewhere else, and that is its trade.

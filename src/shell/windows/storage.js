@@ -99,7 +99,7 @@ function patchSide(root, ctx, side, list, shown, off, depot, grow) {
     build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs, side === 'bank' ? 'withdraw' : 'deposit')),
     patch: (li, r) => {
       patchCount(li, r.qty);
-      attr(li, 'aria-label', itemName(r.id) + (r.qty > 1 ? ', ' + whole(r.qty) : '') + (side === 'bank' ? ': take it out' : ': put it away'));
+      attr(li, 'aria-label', t(side === 'bank' ? 'bag.store_aria_take' : 'bag.store_aria_put', { item: itemName(r.id) + (r.qty > 1 ? ', ' + whole(r.qty) : '') }));
       attr(li, 'aria-disabled', String(off));
       attr(li, 'draggable', 'false');
     },
@@ -134,7 +134,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   const depot = depotOf(cs);
   patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot);
   /* "73 of 100 stacks. 2 more are kept free for your market listings." (a listing's return always has its place) */
-  const kept = depot && depot.reserved ? whole(depot.reserved) + (depot.reserved === 1 ? ' more is' : ' more are') + ' kept free for your market listings. ' : '';
+  const kept = depot && depot.reserved ? t('bag.store_kept', { count: depot.reserved }) + '. ' : '';
   text(root.querySelector('.hw-store-room'), !depot ? '' : kept + (depot.next
     ? t('bag.store_more_room', { name: depot.next.name, n: whole(depot.next.stacks) })
     : t('bag.store_all_built')));
@@ -150,7 +150,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   const dWhy = dispatchBlock(cs);
   const db = root.querySelector('[data-hs-act="dispatch"]');
   prop(db, 'disabled', sc.pending || !!dWhy);
-  attr(db, 'title', dWhy || 'Stores every stack planned "Deposit in storage" and sells every stack planned "Sell"');
+  attr(db, 'title', dWhy || t('bag.store_dispatch_tip'));
   text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);
@@ -172,7 +172,7 @@ function move(cs, sc, repaint, id, qty, dir) {
   /* Read from the bag before the move: a tool put away slows its skill, and that is not a silent change (panel 2026-11-01). */
   const slower = dir === 'deposit' ? toolLossWords(cs, id, qty) : '';
   return runIntent(sc, repaint, () => cs.moveStorage(id, qty, dir), dir === 'withdraw' ? t('bag.store_taking') : t('bag.store_putting'),
-    () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.' + (slower ? ' ' + slower : ''));
+    () => t(dir === 'withdraw' ? 'bag.store_took' : 'bag.store_put', { n: whole(qty), item: itemName(id) }) + (slower ? '. ' + slower : ''));
 }
 
 /* ONE unlock_buy naming the server's offer id; the cap and the next price change only from the answer's envelope. */
@@ -188,8 +188,8 @@ function expand(cs, sc, repaint) {
 function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
   hideTip(ctx.doc);
   const verb = dir === 'withdraw' ? t('controls.withdraw') : t('controls.deposit');
-  openFloatMenu(ctx.doc, amountHtml({ title: verb + ' how many ' + itemName(row.id) + '?', verb, max: row.qty, value: row.qty, act: 'amt-go' }), at, {
-    label: verb + ' how many',
+  openFloatMenu(ctx.doc, amountHtml({ title: t('bag.store_how_many', { verb, item: itemName(row.id) }), verb, max: row.qty, value: row.qty, act: 'amt-go' }), at, {
+    label: t('bag.store_how_many_label', { verb }),
     onAct: (action) => {
       const menu = ctx.doc.querySelector('.hw-menu');
       if (stepAmount(menu, action) || action !== 'amt-go') return;

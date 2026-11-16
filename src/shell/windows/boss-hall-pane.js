@@ -19,6 +19,7 @@ import { storeFoodUnder } from '../hunt-go.js?v=0.2.132';
 import { storeName } from '../bar-draft.js?v=0.2.132';
 import { openHall } from '../../session/boss-intents.js?v=0.2.132';
 import { itemName } from '../widgets/bits.js?v=0.2.132';
+import { partyNote } from '../hunt-list.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { hall: null, warned: false }; SCRATCH.set(cs, s); } return s; };
@@ -94,7 +95,7 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
     text(warn.querySelector('.hw-confirm-q'), hallWords(W.warnTitle, hall));
     const a = warn.querySelector('.hw-hall-note-alone');
     prop(a, 'hidden', !alone);
-    text(a, alone ? hallWords(W.warnAlone, hall) : '');
+    text(a, alone ? partyNote(v.hunt) || W.warnAlone : '');
     text(warn.querySelector('.hw-hall-note-a'), hallWords(W.warn[0], hall));
     text(warn.querySelector('.hw-hall-note-b'), hallWords(W.warn[1], hall));
     text(warn.querySelector('[data-hs-act="hall-go"]'), hallWords(W.confirm, hall));

@@ -299,7 +299,7 @@ async function checks(overrides, shots) {
         const king = await readPage(page);
         compare(fails, 'MF-5', king, expected('rat_king', 'millrace_sewer'));
         const said = king ? king.homes.map((h) => h.warn).join('') : '';
-        if (king && (!/built for a group/.test(said) || /wants a party|party of \d/.test(JSON.stringify(king)))) fails.push('MF-5 the Rat King\'s page does not carry the group warning as a warning: ' + JSON.stringify(king.homes));
+        if (king && (!/^Recommended: \d+\+ players$/.test(said) || /wants a party|party of \d/.test(JSON.stringify(king)))) fails.push('MF-5 the Rat King\'s page does not carry the group warning as a warning: ' + JSON.stringify(king.homes));
       }
       if (errors.length) fails.push('MF-1 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();

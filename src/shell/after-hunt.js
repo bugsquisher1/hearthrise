@@ -108,7 +108,7 @@ export function afterHuntWords(st, h, nowMs, name, spare) {
   if (!a) return '';
   if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
   const next = a.next === null ? ''
-    : t(a.next, a.next === 'away.next_gather' ? { name } : a.next === 'away.next_bar' ? { name, item: itemName(a.item) }
+    : t(a.next, a.next === 'away.next_bar' ? { name, item: itemName(a.item) }
       : a.next === 'away.next_stamina' ? { name, level: TRAINING_RULES.minLevel } : undefined);
   const waited = a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) : '';
   return waited && next ? waited + ' ' + next : waited || next;

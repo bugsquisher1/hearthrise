@@ -45,7 +45,7 @@ import { resetConfigureView } from '../windows/configure-action.js?v=0.2.132';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.132';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.132';
 import { refusalWords } from '../intent-words.js?v=0.2.132';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, effectsDoorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.132';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldReserveHtml, effectsDoorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.132';
 import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.132';
 import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.132';
 import { renameActionSet } from '../../session/preset-intents.js?v=0.2.132';
@@ -136,8 +136,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-pl-fold"><div class="hb-pl-head"><b>More fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div>'
     /* THE FIRST TARGET (first-target.js): the monster the hero goes for first on this ground, before the Target order */
     + firstTargetHtml()
-    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label>'
-    + '<p class="hb-pl-note">The hunt sells loot, then stops, rather than spend below this.</p>'
+    + goldReserveHtml()
     + effectsDoorHtml() + '</div></div>'
     + '<div class="hb-pl-row is-stance"><span class="hh-segs hb-stance" role="group" aria-label="Stance" data-coach-hook="stance">' + stanceButtonsHtml() + '</span></div>'
     + '<div class="hb-pl-row is-move"><button type="button" class="hh-seg hb-chase" data-opt="chase" data-hs-act="opt" aria-pressed="false" data-coach-hook="chase" title="With chase off, the hero keeps its distance">Chase</button>'

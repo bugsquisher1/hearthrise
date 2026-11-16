@@ -44,9 +44,9 @@ const SCREENS = Object.freeze({
   'sign-in': { title: 'Sign in', fields: ['email', 'password'], submit: 'Sign in',
     links: [['create', 'Create an account'], ['forgot', 'Forgot your password?']] },
   create: { title: 'Create an account', fields: ['email', 'newPassword', 'confirm'], submit: 'Create account',
-    lead: 'If you already have an account, sign in instead.', links: [['sign-in', 'Back to sign in']] },
+    lead: 'Already have an account? Sign in instead.', links: [['sign-in', 'Back to sign in']] },
   forgot: { title: 'Reset your password', fields: ['email'], submit: 'Send reset link',
-    lead: 'We will email you a link to choose a new password.', links: [['sign-in', 'Back to sign in']] },
+    lead: 'We\'ll email you a reset link.', links: [['sign-in', 'Back to sign in']] },
   'set-password': { title: 'Choose a new password', fields: ['newPassword', 'confirm'], submit: 'Save password', links: [] },
 });
 

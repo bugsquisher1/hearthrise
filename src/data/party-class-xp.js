@@ -59,6 +59,9 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
    with it, x1150/1050 to the nearest 5, and was re-measured: every party-vs-alone reading Tyler ruled on 2026-11-11 holds. */
 export const SOLO_XP_PM = 1150;
 
+/* THE PARTY BONUS, ONE FLAT CUT (Tyler 2026-11-16: "it's better to just scale the overall party bonus down"; lane/a-party-xp-tier). */
+export const PARTY_XP_PM = 1000;
+
 /* ground id → its row (designer's final table, 2026-11-01). SAME MONSTERS, RE-TUNED (Tyler 2026-11-08; lane/b-one-difficulty): a monster has its row's HP
    and pays its whole kill for one hero or four, so a party of n shares a whole kill n ways where it used to share a pack scaled to its size. The mixed
    cells are the lever for 10-25 §5 as the sheet reads it (balance-sheet.js party: a head against the median lone way at the same Level, the solo
@@ -158,7 +161,8 @@ export function partyClassXp(groundId, roles) {
   const tab = PARTY_CLASS_XP[groundId];
   const sizes = Object.keys(tab).map(Number);
   const cells = tab[Math.min(n, Math.max(...sizes))];
-  return { permille: cells[Math.min(Math.max(classes.length, 1), cells.length) - 1], classes };
+  const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
+  return { permille: Math.round((cell * PARTY_XP_PM) / 1000), classes };
 }
 
 /** The measured percent (PARTY_VS_ALONE) for these living roles on this ground; null with no row or under two heroes. */

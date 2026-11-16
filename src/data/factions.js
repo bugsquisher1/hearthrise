@@ -76,6 +76,8 @@ export function validateFactions(rules = FACTION_RULES, outfits = FACTION_OUTFIT
 /**
  * The ground rule's problems, as sentences (FG-* names the clause). Empty = holds. Every input defaults to the data, so a guard can hand
  * it a planted copy. `grounds` are the hunt rows of walkable grounds (HUNTS: base and packs, staged included); `rooms` every other row.
+ * @param {{grounds?: readonly any[], rooms?: readonly any[], regions?: readonly string[], rules?: typeof FACTION_RULES,
+ *   kits?: Record<string, any>, maps?: Record<string, string>, monsters?: Record<string, any>, outfits?: typeof FACTION_OUTFITS}} [o]
  */
 export function factionGroundProblems(o = {}) {
   const grounds = o.grounds || HUNTS, rooms = o.rooms || [...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS];

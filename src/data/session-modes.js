@@ -65,7 +65,7 @@ export function validateSessionModes(modes, def) {
   const d = modes[def];
   if (!d) out.push('the default mode ' + def + ' is no row');
   else if (!(d.deathLossPm === 1000 && d.blessings && d.xpPm === 1000 && d.coin && d.drops && d.bestiary && d.stamina)) {
-    out.push('the default mode ' + def + ' is not a full hunt: every ground that names no mode would pay or cost less than a hunt');
+    out.push('the default mode ' + def + ' is not a full hunt. Every ground that names no mode would pay or cost less than a hunt');
   }
   return out;
 }

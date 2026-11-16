@@ -13,6 +13,12 @@ export const BAG_TEXT = Object.freeze({
   selected_worth: '{count} selected, worth {worth}',
   selected_worth_unpriced: '{count} selected, worth {worth} ({unpriced} with no shop price)',
   /* (The bulk tools beside it say the glossary's words: controls.sell_selected, deposit, lock / unlock, clear.) */
+  /* Select outgrown (audit F18): the selection becomes the gear below what the hero wears in its slot, Rares in, locked stacks out. */
+  select_outgrown: 'Select outgrown ({count})',
+  select_outgrown_tip: 'Gear below your worn tier',
+  /* A sale's confirmation: the Rares in it, and the stacks one sale leaves for the next press (64 a sale). */
+  confirm_rares: 'Rares: {count}',
+  confirm_remaining: { one: 'Remaining: {count} stack', other: 'Remaining: {count} stacks' },
   /* Deposit: ONE storage move of every selected stack, whole (all or nothing); the count is the server's. */
   putting_away: 'Putting them away…',
   put_away: { one: 'Put away {count} stack.', other: 'Put away {count} stacks.' },

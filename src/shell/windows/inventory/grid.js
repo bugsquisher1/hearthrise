@@ -81,6 +81,7 @@ export function toolsHtml(g) {
     + '<button type="button" class="hh-tool" data-hs-act="lock-sel">' + t('controls.lock') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="clear-sel">' + t('controls.clear') + '</button></div>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="select-outgrown"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
     + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
@@ -201,6 +202,12 @@ export function patchTools(root, st, ctx) {
   cls(cb, 'is-on', prefs.cat !== 'all');
   text(cb, t('controls.sell_all_cat', { category: catLabel.toLowerCase() }));
   prop(cb, 'disabled', sc.pending || !st.shop || !st.shown.length);
+  /* Select outgrown (audit F18): the outgrown gear becomes the selection, so Sell selected (or Deposit) takes it in one press */
+  const ob = tools.querySelector('[data-hs-act="select-outgrown"]');
+  text(ob, t('bag.select_outgrown', { count: st.outgrown.length }));
+  attr(ob, 'title', t('bag.select_outgrown_tip'));
+  prop(ob, 'hidden', !st.outgrown.length);
+  prop(ob, 'disabled', sc.pending);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
   text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + ' unpriced)' : ''));
 

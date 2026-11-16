@@ -26,7 +26,7 @@ import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.
 import { whole, gold } from '../../render/format.js?v=0.2.134';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
 import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.134';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds } from '../bag-model.js?v=0.2.134';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds, upgradeWanted } from '../bag-model.js?v=0.2.134';
 import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.134';
 import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.134';
 import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.134';
@@ -139,9 +139,7 @@ function patchBuy(root, st, ctx) {
 
 /* Sell spare gear, as its button shows and sends it: what Equip upgrades would put on stays (upgrade-line.js upgradeOf, the same plan). */
 function spareOf(cs, items, rules, shop) {
-  const up = upgradeOf(cs);
-  const wanted = new Set([...up.picks.map((p) => p.id), ...up.choices.flatMap((c) => c.ids)]);
-  return { ...spareSale(items, equipmentOf(cs) || {}, rules, shop, { wanted, isRare: isRareOnly }), spare: true };
+  return { ...spareSale(items, equipmentOf(cs) || {}, rules, shop, { wanted: upgradeWanted(upgradeOf(cs)), isRare: isRareOnly }), spare: true };
 }
 /* What Sell all junk leaves out and why, so its price and the list under it add up (say-why). */
 function sellNote(plan, kept, spare) {
@@ -197,7 +195,7 @@ function patchSell(root, st, ctx) {
     text(cf.querySelector('.hw-confirm-q'), p.lines.length === 1 ? 'Sell ' + itemName(p.lines[0].item) + ' ×' + whole(p.lines[0].qty) + '?' : 'Sell ' + p.lines.length + ' stacks?');
     /* Selling a tool away slows the skill: said before the press, as the sale's one warning. */
     const slower = p.lines.map((l) => toolLossWords(st.cs, l.item, l.qty)).filter(Boolean).join(' ');
-    text(cf.querySelector('.hw-confirm-note'), [p.spare ? '' : rareSaleWords(p.lines), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower].filter(Boolean).join(' '));
+    text(cf.querySelector('.hw-confirm-note'), [p.spare ? '' : rareSaleWords(p.lines), p.kept.length ? p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.' : '', slower, p.more ? t('bag.confirm_remaining', { count: p.more }) : ''].filter(Boolean).join(' '));
     const yes = cf.querySelector('[data-hs-act="confirm-yes"]');
     text(yes, 'Sell for ' + gold(p.total));
     prop(yes, 'disabled', sc.pending);

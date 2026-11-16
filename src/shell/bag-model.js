@@ -282,23 +282,30 @@ function aboveWorn(id, worn) {
   return expandItemSlot(it.slot).some((s) => { const w = worn && worn[s] ? ITEMS[worn[s]] : null; return !w || (Number.isInteger(w.tier) && it.tier > w.tier); });
 }
 
+/** What Equip upgrades would put on (src/shell/upgrade-plan.js: its picks and every choice's pieces): no bulk sale or selection takes one. Pure. */
+export const upgradeWanted = (up) => new Set([...((up && up.picks) || []).map((p) => p.id), ...((up && up.choices) || []).flatMap((c) => c.ids)]);
+
 /**
- * THE RETURN CHORE (designer 2026-11-03; optimizer panel, its quit moment at hour 11-12: "sell-all, hand-sell 17-20 armor stacks"): what "Sell spare gear" sells, ONE sale
- * with its total shown first. Gear the hero has outgrown, of any weight or weapon family: never what Equip upgrades would put on (`wanted`: its picks and choices), an empty
- * slot's piece, a higher tier than the piece worn in that slot, a Rare (`isRare`, hunt-ground-facts.js isRareOnly: never sold unasked, Tyler 2026-10-14), the start kit, or a stack the player locked
- * or gave a plan to Keep or Deposit. What is worn is not in the bag (the server's inventory). `worn`: equipmentOf. Pure.
+ * GEAR THE HERO HAS OUTGROWN, of any weight or weapon family: never what Equip upgrades would put on (`o.wanted`: upgradeWanted), an empty slot's
+ * piece, a higher tier than the piece worn in that slot, the start kit or what the bench made from it, or a stack the player gave a plan to Keep or
+ * Deposit. `o.isRare` leaves Rares out too (Sell spare gear: never sold unasked, Tyler 2026-10-14); the bag's "Select outgrown" keeps them in, since
+ * the player sees the selection and confirms it (audit F18, 2026-11-15: 41 of 145 outgrown stacks were Rares, a press each). What is worn is not in the
+ * bag (the server's inventory). `worn`: equipmentOf. Ids, in the bag's order. Pure.
  */
-export function spareSale(items, worn, rules, shop, o) {
+export function outgrownIds(items, worn, rules, o) {
   const wanted = (o && o.wanted) || new Set();
   const rare = (o && o.isRare) || (() => false);
   const plans = rules ? rules.loot : {};
-  const ids = (items || []).filter((r) => kindOf(r.id) === 'gear' && !isStartKit(r.id) && !madeFromKit(r.id) && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)
+  return (items || []).filter((r) => kindOf(r.id) === 'gear' && !isStartKit(r.id) && !madeFromKit(r.id) && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)
     && plans[r.id] !== 'keep' && plans[r.id] !== 'deposit').map((r) => r.id);
-  const plan = sellPlan(items || [], ids, { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
-  if (plan.lines.length <= SELL_LINES_MAX) return plan;
-  const lines = plan.lines.slice(0, SELL_LINES_MAX);
-  const bids = shop.bids;
-  return { ...plan, lines, total: lines.reduce((n, l) => n + bids.get(l.item) * l.qty, 0), capped: true };
+}
+
+/**
+ * THE RETURN CHORE (designer 2026-11-03; optimizer panel, its quit moment at hour 11-12: "sell-all, hand-sell 17-20 armor stacks"): what "Sell spare gear" sells, ONE sale
+ * with its total shown first: the outgrown gear (outgrownIds) with `o.isRare` (hunt-ground-facts.js isRareOnly) left out, and any stack the player locked. Pure.
+ */
+export function spareSale(items, worn, rules, shop, o) {
+  return sellPlan(items || [], outgrownIds(items, worn, rules, o), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
 }
 
 /**
@@ -323,23 +330,26 @@ export const sellQty = (qty) => Math.min(qty, SELL_LINE_MAX);
  * The sale a bulk action would send: every chosen stack (up to the server's limit a line, SELL_LINE_MAX), minus the
  * locked ones (they are listed in `kept`, never in `lines`). `total` is at the server's
  * bids; a stack with no bid is `unpriced` and is not sold (the confirmation
- * cannot show what the player would get for it). `capped`: a stack held more than one sale takes.
+ * cannot show what the player would get for it). `capped`: a stack held more than one sale takes. ONE SALE CARRIES AT MOST SELL_LINES_MAX
+ * stacks (the engine refuses more, so a bigger plan sent whole sold nothing: audit F18, "Sell all gear" over a 145-stack bag): the first that many
+ * go, `more` counts the priced stacks left for the next press.
  */
 export function sellPlan(items, ids, o) {
   const want = new Set(ids);
   const locked = (o && o.locked) || new Set();
   const bids = (o && o.bids) || new Map();
   const lines = [], kept = [], unpriced = [];
-  let total = 0, capped = false;
+  let total = 0, capped = false, more = 0;
   for (const { id, qty } of items) {
     if (!want.has(id)) continue;
     if (locked.has(id)) { kept.push(id); continue; }
     if (!bids.has(id)) { unpriced.push(id); continue; }
+    if (lines.length >= SELL_LINES_MAX) { more++; continue; }
     lines.push({ item: id, qty: sellQty(qty) });
     total += bids.get(id) * sellQty(qty);
     capped = capped || qty > SELL_LINE_MAX;
   }
-  return { lines, total, kept, unpriced, capped };
+  return { lines, total, kept, unpriced, capped, more };
 }
 
 /** The bag's worth at the server's bids; `unpriced` counts the stacks it has no bid for. */

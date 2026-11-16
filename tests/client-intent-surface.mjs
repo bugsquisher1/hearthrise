@@ -76,6 +76,9 @@ export const CLIENT_RPCS = Object.freeze({
   /* Combat training (the designer's 2026-11-13 spec; server half lane/c-combat-training). */
   hr_training_start: 'train one combat skill at the yard or on the house dummy: the slot, a skill id, the place and the hourly fee the player saw, with a fresh key; the server re-quotes on its clock and charges each hour (training-intents.js)',
   hr_house_dummy_unlock: 'unlock one skill on the account\'s house dummy at the price the player saw, with a fresh key; the server gates, prices and debits it (training-intents.js)',
+  /* Scaled hunts (2027-03-21-scaled-hunts.sql; audit F26: the client half). */
+  hr_scaled_hunt_buy: 'bank whole hours of a scaled hunt on one ground at the total the player saw (the section\'s price an hour x the hours), with a fresh key; the server prices it from its own Level and catalogue under the hero\'s lock, clamps the bank and the day, and debits it (scaled-hunts.js)',
+  hr_scaled_hunt_switch: 'use or stop using this hero\'s banked scaled hours on one ground, with a fresh key; moves no value (scaled-hunts.js)',
   hr_training_gear_buy: 'buy one training item from the Arms Master: the slot, the item id and the price the player saw, with a fresh key; the server prices it from its catalogue, refuses quote_changed, a bound row and past the account\'s day (training-intents.js buyGear; 2027-04-23-training-gear.sql)',
   hr_training_gear_open: 'open one sealed training item of the hero\'s into its bank for that skill: the slot and the item id, with a fresh key; the server takes it from the bag or Storage (training-intents.js openGear)',
   hr_training_gear_switch: 'the hero\'s own "Use the training item" switch for one skill: the slot, a skill id and on/off, with a fresh key; no value (training-intents.js useGear)',

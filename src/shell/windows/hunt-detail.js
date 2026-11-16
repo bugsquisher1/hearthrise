@@ -34,6 +34,7 @@ import { factsTarget } from './monster.js?v=0.2.134';
 import { t } from '../../render/player-text.js?v=0.2.134';
 import { groundLines } from '../live-events-view.js?v=0.2.134';
 import { afterHtml } from './hunt-after-pane.js?v=0.2.134';
+import { scaleHtml } from './scale-pane.js?v=0.2.134';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -53,6 +54,8 @@ export function detailHtml() {
     + '<h4 class="hw-hd-h">' + t('hunts.head_lives') + '</h4><ul class="hw-hd-lineup" aria-label="' + t('hunts.head_lives') + '"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
     + '<p class="hw-hd-theme"></p>'
+    /* a ground the server scales for this hero: its Level, price, bank and the hours slider (scale-pane.js; audit F26) */
+    + scaleHtml()
     + '<h4 class="hw-hd-h">' + t('hunts.head_drops') + ' <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="' + t('hunts.head_drops') + '"></ul>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_mats') + ' <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="' + t('hunts.head_mats') + '"></ul>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_rares') + ' <small class="hw-hd-per">' + t('hunts.rares_per') + '</small></h4><ul class="hw-hd-rares" aria-label="' + t('hunts.head_rares') + '"></ul>'

@@ -191,6 +191,11 @@ function contract(R, cs, body, tl) {
   need('factions', !!fx && fx.side === null && fx.canJoin === false && fx.sides.length === 2 && fx.sides.every((x) => fx.standing[x] === 0)
     && fx.pieces.length > 0 && fx.pieces.every((x) => x.needMs > 0 && fx.sides.includes(x.side) && x.held === false) && fx.swapNeedMs > 0 && fx.cooldownMs > 0,
     'factionOf yields ' + JSON.stringify(fx) + ' from ' + JSON.stringify(body.factions).slice(0, 240));
+  // when the hunt ends (2027-04-25-hunt-itinerary.sql): a hunter that never picked reads the default, the grace, and its running hunt's own frozen choice
+  const ha = R.HA.huntAfterOf(cs);
+  need('hunt_after', !!ha && ha.choice === 'job' && ha.skill === null && Number.isInteger(ha.graceS) && ha.graceS > 0
+    && !!ha.now && typeof ha.now.session === 'string' && ha.now.choice === 'job' && ha.now.done === null,
+    'huntAfterOf yields ' + JSON.stringify(ha) + ' from ' + JSON.stringify(body.hunt_after).slice(0, 240));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
@@ -315,7 +320,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -375,6 +380,7 @@ async function readers(root) {
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
+    HA: await import(u('src/session/hunt-after-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };
@@ -520,6 +526,9 @@ const DB_MUTANTS = [
   /* lane/b-faction-ui: the Faction tab reads each piece's need and the swap's need */
   ['factions', 'public.hr_faction_view(uuid,integer)', "'need_ms', o.need_ms,", "'need', o.need_ms,"],
   ['factions', 'public.hr_faction_section(uuid,integer)', "jsonb_build_object('swap_need_ms', r.swap_ms,", "jsonb_build_object('swap_ms', r.swap_ms,"],
+  /* lane/c-hunt-itinerary: the hunt page's control and the analyzer's line read the grace and the running hunt's own choice */
+  ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'grace_s', v_grace,", "'grace', v_grace,"],
+  ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now,", "'job', public.hr_hunt_after_job(p_user, p_slot), 'running', v_now,"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

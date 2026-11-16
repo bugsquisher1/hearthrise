@@ -205,6 +205,10 @@
 //         bag's; the Shop's lines hold the art in a 44 px well; every item icon in Inventory, Storage and the Shop
 //         draws its 32 px art at exactly 1x (a whole scale, never 1.25x / 1.5x); counts and shop prices at 16 px. At
 //         922x423 (a phone) every well, count and line is what it was (36 px, 14.5 px).
+//   AW-35 WHEN THE HUNT ENDS (Tyler 2026-11-15, the itinerary; src/shell/windows/hunt-after-pane.js): the Hunts page's one
+//         select lists what the server offers (a hero with no job to go back to: waiting, and each skill the yard trains),
+//         the picked one is the server's and the line under it says what it means; a change sends ONE hr_hunt_after_set
+//         with the choice and the skill and nothing else; a server that sends no section draws no control.
 //   AW-34 ARMOR WEIGHTS (Tyler 2026-10-25, src/data/armour-weights.js): the Inventory's "Armor worn" line counts the
 //         SERVER's equipment (2 plate, 1 leather, 1 cloth -> "2 heavy (+9.3% max HP) · 1 medium · 1 light (+5.8% max
 //         mana)", re-read when an envelope takes a piece off); a worn plate helmet's tooltip names its weight and its
@@ -293,7 +297,7 @@ function levelOne(e) {
   e.hunt_settings = Object.assign({}, e.hunt_settings, { presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }] });
 }
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
-const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move', 'hr_loot_dispatch', 'hr_hunt_restock'];
+const ITEM_RPCS = ['hr_hunt_after_set', 'hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move', 'hr_loot_dispatch', 'hr_hunt_restock'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
 const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep'], ['x', 'havora']];
 
@@ -2917,6 +2921,40 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (own.fresh !== 'Food: 20 Cooked Shrimp of yours, then Salted Shrimp from the store, 14 gp each | Drink: Thin Turnip Juice from the store, 10 gp each | Gold: 500 gp (pays the store as you go)')
           fails.push('AW-27 a fresh hero\'s Before you go reads ' + JSON.stringify(own.fresh));
         if (own.free !== 'Brannoc') fails.push('AW-28 Bring your heroes offers ' + JSON.stringify(own.free));
+        /* AW-35 WHEN THE HUNT ENDS: no section, no control; then the server's section and its training rows arrive. */
+        const afterOf = () => page.evaluate((w) => { const sel = document.querySelector(w + '.hw-after-pick'); const sec = sel && sel.closest('.hw-after');
+          return sel ? { hidden: sec.hidden, options: Array.from(sel.options).map((o) => o.textContent), value: sel.value, off: sel.disabled, note: sec.querySelector('.hw-after-note').textContent } : null; }, W);
+        const bare = await afterOf();
+        if (!bare) fails.push('AW-35 the Hunts page has no When the hunt ends control');
+        else if (!bare.hidden) fails.push('AW-35 a server with no hunt_after section still draws the control: ' + JSON.stringify(bare));
+        if (bare) {
+        s.env.hunt_after = { choice: 'job', skill: null, grace_s: 60, job: null, now: null, last: null };
+        s.env.training = { skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12, quotes: ['melee', 'ranged', 'magic', 'defense'].map((skill) => ({ skill, level: 12, fee_h: 122 })),
+          rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 12 } };
+        await pushEnvelope(page, s);
+        const offered = await afterOf();
+        if (!offered || offered.hidden || offered.off || offered.options.join('|') !== 'Wait in town|Train Melee at the yard|Train Ranged at the yard|Train Magic at the yard|Train Defense at the yard'
+          || offered.value !== 'wait' || !/^Waits in town \(no job to go back to\)\./.test(offered.note)) fails.push('AW-35 When the hunt ends reads ' + JSON.stringify(offered));
+        /* the server's choice is the picked one, with what it costs */
+        s.env.hunt_after = { choice: 'train', skill: 'melee', grace_s: 60, job: { kind: 'gather', id: 'copper_rock' }, now: null, last: null };
+        await pushEnvelope(page, s);
+        const picked = await afterOf();
+        if (!picked || picked.value !== 'train:melee' || picked.options[0] !== 'Go back to mining the Copper Rock'
+          || picked.note !== '122 gold/h, up to 12 h (can\'t pay: waits in town)') fails.push('AW-35 a hero that picked the yard reads ' + JSON.stringify(picked));
+        if (shots) { await page.evaluate((w) => document.querySelector(w + '.hw-after').scrollIntoView({ block: 'center' }), W); await page.waitForTimeout(150); await shot(page, 'alpha-1440x900-hunt-after'); }
+        /* a change sends ONE ask: the choice and the skill, nothing else */
+        const h0 = sent(s, 'hr_hunt_after_set').length;
+        await page.selectOption(W + '.hw-after-pick', 'wait');
+        for (let i = 0; i < 30 && sent(s, 'hr_hunt_after_set').length === h0; i++) await page.waitForTimeout(100);
+        await page.waitForTimeout(400);
+        const asked = sent(s, 'hr_hunt_after_set').slice(h0).map((c) => c.body);
+        if (asked.length !== 1 || asked[0].p_choice !== 'wait' || asked[0].p_skill !== null || Object.keys(asked[0]).sort().join() !== 'p_choice,p_idem,p_skill,p_slot') fails.push('AW-35 picking Wait in town sent ' + JSON.stringify(asked));
+        /* the answer's re-read is what shows: the server still says the yard */
+        const back = await afterOf();
+        if (!back || back.value !== 'train:melee') fails.push('AW-35 the control kept a pick the server did not send back: ' + JSON.stringify(back && back.value));
+        delete s.env.hunt_after; delete s.env.training;
+        await pushEnvelope(page, s);
+        }
         const enters = () => sent(s, 'hr_hunt_enter').length;
         const applies = () => sent(s, 'hr_hunt_preset_apply').length;
         let e0 = enters(), a0 = applies();
@@ -4655,6 +4693,10 @@ const MUTANTS = [
   ['prep builder: Save sends a null for an option the server never sent', 'src/shell/prep-draft.js', '  if (known(d.goldFloor)) o.gold_floor = d.goldFloor;', '  o.gold_floor = d.goldFloor;'],
   ['prep builder: a drop on a filled slot does nothing', 'src/shell/prep-draft.js', '  return bar[to] ? swapPlan(bar, from, to) : movePlan(bar, from, to);', '  return bar[to] ? null : movePlan(bar, from, to);'],
   ['prep builder: Save and use never puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    await settleTownActivity(cs);\n    return cs.applyPreset(preset);', '    return r;'],
+  /* AW-35 when the hunt ends (lane/c-hunt-itinerary) */
+  ['when the hunt ends: a pick is never sent', 'src/shell/windows/hunt-after-pane.js', '  if (p) send(() => setHuntAfter(ctx.account, ctx.character, p.choice, p.skill));\n', ''],
+  ['when the hunt ends: the control is drawn with no section', 'src/shell/windows/hunt-after-pane.js', "  prop(sec, 'hidden', !c);\n", "  prop(sec, 'hidden', false);\n"],
+  ['when the hunt ends: a hero with no job is offered one', 'src/shell/hunt-after.js', '      if (!doing) continue;\n', ''],
   ['prep builder: a refused save still puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    if (!r.ok || !andUse) return r;', '    if (!andUse) return r;'],
   ['prep builder: a stale copy still saves', 'src/shell/windows/hunt-prep/builder.js', '  if (!sc.draft || sc.pending || sc.stale) return;', '  if (!sc.draft || sc.pending) return;'],
   ['prep builder: Use equipped sends at the first press', 'src/shell/windows/hunt-prep/setups.js', '    if (!sc.armingEquipped) { sc.armingEquipped = true; repaint(); return true; }\n', ''],
@@ -4909,7 +4951,7 @@ const MUTANTS = [
   ['AW-28 Bring your heroes offers a hero already in a party', 'src/shell/hunt-go.js', ' && Number.isInteger(o.slot) && !partyMembershipOf(o))', ' && Number.isInteger(o.slot))'],
   ['AW-29 the pick resets after a hunt', 'src/shell/windows/hunts.js', '  if ((!sc.pick || sc.auto) && list.length) {', '  if ((!sc.pick || sc.auto || (h && h.ended)) && list.length) {'],
   ['AW-25b the pick never follows the advice once set', 'src/shell/windows/hunts.js', '  if ((!sc.pick || sc.auto) && list.length) {', '  if (!sc.pick && list.length) {'],
-  ['AW-25b a pick by hand is replaced by the advice', 'src/shell/windows/hunts.js', "    sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; repaint();", "    sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint();"],
+  ['AW-25b a pick by hand is replaced by the advice', 'src/shell/windows/hunts.js', "    sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; repage();", "    sc.pick = hunt; sc.msg = ''; sc.paged = true; repage();"],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
   /* AW-24 in the page: the bag's pocket is where the ticker shows, so these two are judged by the page rules. */
   ['the bag shows only the server\'s count while town work runs', 'src/shell/windows/inventory/grid.js', '  patchCount(li, shown.qty, shown.ahead !== 0);', '  patchCount(li, r.qty);'],

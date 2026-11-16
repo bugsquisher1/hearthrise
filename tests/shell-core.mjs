@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, AL, AH, XP, WH, SW, SHELL_CSS } = mods;
+  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, SHELL_CSS } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
@@ -1058,6 +1058,54 @@ async function runTests(mods) {
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
     ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
   });
+  /* R3f WHEN THE HUNT ENDS (Tyler 2026-11-15, the itinerary; src/shell/hunt-after.js): the hunt page's one control, the running
+     hunt's plan and what came of an ended hunt's choice, each from the server's sections alone. */
+  t('R3f when the hunt ends: the choices the server offers, the plan in a sentence, and what came of it', () => {
+    const TR = { skills: ['melee', 'ranged'], max_hours: 12, quotes: [{ skill: 'melee', level: 12, fee_h: 122 }, { skill: 'ranged', level: 3, fee_h: 68 }],
+      rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 12 } };
+    const hero = (after, training = TR) => ({ read: (k) => ({ hunt_after: after, training })[k] });
+    const ROCK = { kind: 'gather', id: 'copper_rock' };
+    /* a hero with a job, on the default: the job is offered and picked, beside waiting and each yard skill */
+    const a = HA.afterChoices(hero({ choice: 'job', skill: null, job: ROCK }));
+    eq(JSON.stringify(a.options.map((o) => o.value)), '["job","wait","train:melee","train:ranged"]', 'the choices, in the data\'s order');
+    eq(a.options[0].label, 'Go back to mining the Copper Rock', 'the job, in the server\'s words');
+    eq(a.picked, 'job', 'the server\'s choice is the picked one');
+    /* a bench says what it still has to make: the server's count */
+    const b = HA.afterChoices(hero({ choice: 'job', skill: null, job: { kind: 'artisan', id: 'cook_shrimp', left: 7 } }));
+    eq(b.note, 'Your hero makes the 7 still left, no more', 'a bench\'s count');
+    /* no job to go back to: the job is not offered, and the default reads as what will happen */
+    const c = HA.afterChoices(hero({ choice: 'job', skill: null, job: null }));
+    ok(!c.options.some((o) => o.value === 'job') && c.picked === 'wait' && /no job to go back to/.test(c.note), 'no job: ' + JSON.stringify(c));
+    /* training: the yard's fee and its longest stay, the server's; under its Level, why the hero would wait */
+    const d = HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: ROCK }));
+    eq(d.picked, 'train:melee', 'a training choice is picked with its skill');
+    eq(d.note, '122 gold/h, up to 12 h (can\'t pay: waits in town)', 'the yard\'s cost');
+    eq(HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: null }, { ...TR, rate: { ...TR.rate, level: 5 } })).note,
+      'Yard from Level 10 (waits in town until then)', 'under the yard\'s Level');
+    /* a server that sends no training offers none; one that sends no section draws no control */
+    ok(!HA.afterChoices(hero({ choice: 'wait', skill: null, job: null }, null)).options.some((o) => o.value.startsWith('train')), 'no training section: no training choice');
+    eq(HA.afterChoices(hero(undefined)), null, 'no section: no control');
+    /* a control value is a row of the data, or nothing is sent */
+    eq(JSON.stringify([HA.afterPick('train:melee'), HA.afterPick('wait'), HA.afterPick('train'), HA.afterPick('wait:melee'), HA.afterPick('nap')]),
+      '[{"choice":"train","skill":"melee"},{"choice":"wait","skill":null},null,null,null]', 'afterPick');
+    /* the running hunt's own plan */
+    const run = (choice, skill, job) => HA.thenWords(hero({ choice: 'wait', skill: null, job, now: { session: 's-9', choice, skill } }));
+    eq(run('job', null, ROCK), 'After this hunt your hero goes back to mining the Copper Rock.', 'then: the job');
+    ok(/\(7 left\)$/.test(run('job', null, { kind: 'artisan', id: 'cook_shrimp', left: 7 })), 'then: a bench and its count');
+    eq(run('job', null, null), 'After this hunt your hero waits in town.', 'then: no job is waiting');
+    eq(run('train', 'melee', ROCK), 'After this hunt your hero trains Melee at the yard.', 'then: the yard');
+    eq(HA.thenWords(hero({ choice: 'job', skill: null, job: ROCK })), '', 'no hunt running: no plan line');
+    /* what came of the ended hunt's choice */
+    const came = (done, id = 's-1') => HA.afterDoneWords(hero({ choice: 'job', skill: null, job: null, last: { session: 's-1', choice: 'train', skill: 'melee', done } }), id, 'Wrenna');
+    eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Then Wrenna went to the yard to train Melee.', 'started');
+    eq(came({ state: 'pending', skill: 'melee', place: 'yard' }), 'Wrenna is on the way to the yard to train Melee.', 'pending');
+    eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: 30 }),
+      'Wrenna waited in town (Melee costs 122 gold/h, you had 30)', 'too little gold says the fee and the purse');
+    eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'The yard takes heroes from Level 10, so Wrenna waited in town.', 'under the Level');
+    eq(came({ state: 'waited', why: 'chose_wait' }), 'Then Wrenna waited in town, as you asked.', 'chose to wait');
+    eq(came({ state: 'resumed', kind: 'gather', id: 'copper_rock' }), '', 'back on the job: the pointer\'s own line says it');
+    eq(came({ state: 'started', skill: 'melee' }, 's-0'), '', 'another hunt\'s summary says nothing of this one');
+  });
 
   return fails;
 }
@@ -1087,6 +1135,7 @@ async function load(base) {
     AR: await import(u('src/shell/away-recap.js')),
     AL: await import(u('src/shell/alerts.js')),
     AH: await import(u('src/shell/after-hunt.js')),
+    HA: await import(u('src/shell/hunt-after.js')),
     XP: await import(u('src/core/xp.js')),
     WH: await import(u('src/shell/window-head.js')),
     SW: (await import(u('src/data/shell-windows.js'))).SHELL_WINDOWS,
@@ -1095,6 +1144,10 @@ async function load(base) {
 
 const WH_FILE = 'src/shell/window-head.js';
 const MUTANTS = [
+  /* R3f: when the hunt ends (lane/c-hunt-itinerary) */
+  { test: 'R3f', file: 'src/shell/hunt-after.js', from: "      if (!doing) continue;\n", to: '' },
+  { test: 'R3f', file: 'src/shell/hunt-after.js', from: "  const d = a && a.last && a.last.session === id ? a.last.done : null;\n", to: "  const d = a && a.last ? a.last.done : null;\n" },
+  { test: 'R3f', file: 'src/shell/hunt-after.js', from: "  if (!a || !a.now) return '';\n", to: "  if (!a) return '';\n" },
   /* W17-W21: one window header (lane/b-window-header) */
   { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }' },
   { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },

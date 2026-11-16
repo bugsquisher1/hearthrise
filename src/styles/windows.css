@@ -454,6 +454,11 @@
 .hw-before-line { padding: 1px 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-before-line.is-short { color: var(--red); }
 .hw-hd-h:has(+ .hw-before:empty) { display: none; }
+/* When the hunt ends: one select the page's width, and the line that says what the picked choice means. */
+.hw-after[hidden] { display: none; }
+.hw-after .hw-after-pick { width: 100%; max-width: 100%; }
+.hw-after-note { margin: 4px 0 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-after-note:empty { display: none; }
 /* With a party: the way to one, from the ground that wants one. */
 .hw-hd-party[hidden] { display: none; }
 .hw-hd-party-why { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }

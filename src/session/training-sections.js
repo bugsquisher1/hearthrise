@@ -19,8 +19,22 @@
 // Every envelope replaces it, and nothing here holds a number of its own (CLAUDE.md §6). The one thing drawn between
 // two answers is the running clock: the server's `since` against the server's clock as the session measures it.
 // ════════════════════════════════════════════════════════════════════════
+import { trainingOf as trainingHuntOf } from '../data/training.js?v=0.2.132';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * What a training hunt does, in words: { doing: "Training Melee", at: "at the Training Yard" | "on your dummy at home" }, or null
+ * for any other hunt. One phrase for the hero's tab line (party-sections.js assignmentOf) and the hunt bar (src/shell/training-now.js).
+ */
+export function trainingPhrase(huntId) {
+  const tr = typeof huntId === 'string' ? trainingHuntOf(huntId) : null;
+  if (!tr) return null;
+  const skill = (SKILLS_DEF[tr.skill] && SKILLS_DEF[tr.skill].name) || tr.skill;
+  return { doing: t('training.bar_doing', { skill }), at: t(tr.place === 'house' ? 'training.bar_at_house' : 'training.bar_at_yard') };
+}
 const WORD = /^[a-z0-9_]{1,64}$/;
 const nat = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const word = (v) => (typeof v === 'string' && WORD.test(v) ? v : null);

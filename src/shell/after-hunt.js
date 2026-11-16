@@ -4,10 +4,11 @@
 // The designer's second night (re-read 2026-11-11, #2): stamina ran out after 3 h 14 m and the player came back to
 // "The hunt has ended 5 h 45 min ago" with nothing saying the hero had sat in town for most of the night, or what
 // would have filled it. An automatic end (src/data/hunt-sessions.js RESUME_AFTER_END) walks the hero home and puts it
-// back on its last gathering job; with none, it idles. So the line says one of two things, from server fields only:
+// back on its last gathering job, or on the bench it was running, for the count it had left (Tyler 2026-11-15); with
+// neither, it idles. So the line says one of two things, from server fields only:
 //   went    the server's pointer is a town job whose `active_since` is the walk home's end (the resume stamps exactly
-//           ended_at + the ground's travel, 2027-03-25-death-share.sql step 7): "Then Wrenna came home and went back
-//           to mining the Copper Rock."
+//           ended_at + the ground's travel, hr_hunt_resume, 2027-04-24-bench-resume.sql): "Then Wrenna came home and
+//           went back to mining the Copper Rock."
 //   waited  the pointer is idle and was not moved since the end: how long the hero has stood in town, and the ONE next
 //           thing that would have filled it, chosen by the end reason (NEXT below).
 // Anything else (a job the player started or stopped after the end, a pointer the server has not sent) says nothing:
@@ -15,8 +16,8 @@
 //
 // WHY THE NEXT LINES ARE THESE (rules of record, not the brief's draft): a Blessing cuts what a death costs and
 // touches no stamina, and nothing starts a hunt by itself, so "a Blessing or a rest would have let the next hunt
-// start" is false and is not said. What fills idle time after ANY automatic end is a gathering job, because that is
-// what the server resumes (a bench never is: hr_resume_has_inputs). A limit the player set (`hours`) is filled by a
+// start" is false and is not said. What fills idle time after ANY automatic end is a gathering job, because the server
+// resumes it and it never runs out (a bench resumes only for the count it had left). A limit the player set (`hours`) is filled by a
 // longer hunt; a bag that ran dry by packing more; a purse that ran dry by keeping gold or packing your own, and when the bag
 // held food or drink of a kind the bar eats that no slot named, by putting THAT on the bar (the store sold what the bag had).
 // A BOSS ROOM (a call or a hall: boss-halls.js roomOfHunt) is one fight, not a night: no next line, only what the hero did.

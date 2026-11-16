@@ -61,6 +61,10 @@ export const HUD_TEXT = Object.freeze({
   top_aria: 'Hunt',
   top_clock: 'Time in this hunt',
   top_details_aria: 'Hunt details',
+  top_details_word: 'details',
+  top_hunt_word: 'Hunt',
+  top_leave_word: 'Leave',
+  top_leave_wide: 'hunt',
   top_summary: 'Summary',
   top_leave_aria: 'Leave hunt',
   leaving: 'Leaving…',
@@ -77,6 +81,7 @@ export const HUD_TEXT = Object.freeze({
 
   /* THE HUNT ANALYZER (src/shell/widgets/analyzer.js). {min} minutes. */
   an_title: 'Hunt analyzer',
+  an_skill: 'Skill',
   an_later: 'Per hour: after {min} min',
   an_later_premium: 'Per hour: after {min} min (next level too)',
   an_tab_session: 'Session',

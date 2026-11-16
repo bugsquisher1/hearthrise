@@ -33,6 +33,7 @@ import { gotoAttr, patchParts } from '../goto.js?v=0.2.132';
 import { factsTarget } from './monster.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
 import { groundLines } from '../live-events-view.js?v=0.2.132';
+import { afterHtml } from './hunt-after-pane.js?v=0.2.132';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -72,6 +73,7 @@ export function goHtml() {
   return '<h4 class="hw-hd-h">' + t('hunts.head_go_as') + '</h4><div class="hw-go-list" role="radiogroup" aria-label="' + t('hunts.head_go_as') + '"></div>'
     + '<p class="hw-go-note"></p>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
+    + afterHtml()
     + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'
     + '<div class="hw-hd-party-do"><button type="button" class="hh-tool hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
     + '<p class="hw-bring-none"></p></section>';

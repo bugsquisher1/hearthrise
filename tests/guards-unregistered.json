@@ -167,6 +167,16 @@
         "selftest": true,
         "runner": "by hand: node tests/armor-line.mjs && node tests/armor-line.mjs --mutate (both EXIT 0 on lane/d-armor-past-dawnsteel, 18 of 18 mutants caught)"
       }
+    },
+    "temper-uniques.mjs": {
+      "reason": "TEMPERING PAST DAWNSTEEL, SHUT (designer, lane/d-temper-uniques, PRIORITY_BOARD 2026-11-15 Tempering past Dawnsteel): every band in src/data/temper.js TEMPER_UNIQUE_BANDS is shut until a piece past Dawnsteel is a real item, so the catalogue sells nothing new and no shipped rung depends on this guard yet; the fight's half of the rule is in tests/hunt-core/temper.mjs a-unique-reads-its-band, which run-all runs. Not in smoke.yml for armor-line.mjs's reason (lane/a-133-ci-time holds smoke.yml this cycle). It is registered, plain and --mutate, by the lane that opens the first band (with the armor line's sample), or by the Coordinator once the CI lane lands, whichever is first.",
+      "owner": "game-designer",
+      "disposition": "register-when-the-first-band-opens",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": "by hand: node tests/temper-uniques.mjs && node tests/temper-uniques.mjs --mutate (both EXIT 0 on lane/d-temper-uniques, 15 of 15 mutants caught)"
+      }
     }
   },
   "$proof_baseline_comment": [
@@ -229,6 +239,12 @@
       "owner": "game-designer",
       "disposition": "register-when-the-sample-ships",
       "runner": "by hand: node tests/armor-line.mjs --mutate"
+    },
+    "tests/temper-uniques.mjs": {
+      "reason": "TEMPERING PAST DAWNSTEEL, SHUT (designer, lane/d-temper-uniques): every band is shut until a piece past Dawnsteel is a real item, so nothing shipped depends on it yet. Not in smoke.yml for armor-line.mjs's reason (lane/a-133-ci-time holds smoke.yml this cycle). Registered, plain and --mutate, by the lane that opens the first band, or by the Coordinator once the CI lane lands.",
+      "owner": "game-designer",
+      "disposition": "register-when-the-first-band-opens",
+      "runner": "by hand: node tests/temper-uniques.mjs --mutate"
     }
   }
 }

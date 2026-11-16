@@ -52,16 +52,24 @@ export const TEMPER_MATERIALS = Object.freeze({
    Dawnsteel with a SMALL cap, about +2-3% at most, sized with the simulator before anything is built; on the pre-EA Security list).
    Designer, lane/d-temper-uniques; the measured table is PRIORITY_BOARD "2026-11-15 Tempering past Dawnsteel".
 
-   WHY A BAND, NOT A TIER. Every piece past Dawnsteel carries `tier: 7` (src/data/armor-line.js: no tier 8, Tyler 2026-11-14), so a ladder
+   WHY A BAND, NOT A TIER. Every piece past Dawnsteel carries `tier: 7` (the armor line past Dawnsteel: no tier 8, Tyler 2026-11-14), so a ladder
    keyed on the tier would be one ladder for every unique from Level 110 to 200 and the sink would stop growing again. A ladder is keyed on
    the BAND the piece is worn from instead: its Level requirement, floored to the band's first Level. The key is that Level ('temper:armor:165'),
    a number no gear tier will ever reach, so the server's catalogue, hr_temper_view and the perks map read it as they read a tier.
 
    WHAT IT IS. Armor only (the line moves armor; weapons, shields and capes have no line, so there is no Blows ladder here). Five rungs as the
    tiers, half the step: 0.5% less of what reaches the hero a rung, 2.5% a ladder (TEMPER_UNIQUE_RUNG_PM). Same hook, same cap: it is the chain's
-   last step and never passes the total mitigation cap, so a plate set ON the line (it sits at the 60% cap by design) gains nothing from it, and
-   a plate set a band behind gains only up to the cap. A fully tempered set a band behind never beats the next band's bare set (measured,
-   tools/balance-sim/temper-uniques-table.mjs next; guarded, tests/temper-uniques.mjs). A new region past the last band is a new row here.
+   last step and never passes the total mitigation cap: a plate set on the line sits near the 60% cap, so there it takes 1.5% to 2.1% off, not
+   2.5%. WHY 2.5%: it is the largest round step at which a fully tempered set a band behind still lets more through than the next band's bare
+   set, for every weight on every drafted ground (measured, `node tools/balance-sim/temper-uniques-table.mjs next`: thinnest 0.43%, leather
+   110 against 125 at Wyvern Roost; at 3% that pair goes to -0.09%, at 4% plate breaks too). Guarded, tests/temper-uniques.mjs.
+
+   THE GOLD, BY BAND (measured, `temper-uniques-table.mjs gold`: a lone sword-and-shield tank on Normal, on the line with Krell's Tollgate, the
+   guide food, 4 seeds x 2 h at the floor, middle and top of every drafted ground past Dawnsteel, as lane/d-audit-balance-2 priced tiers 4 to 6):
+   the hero banks 4.00M from 110 to 125 (175 h), 5.82M from 125 to 145 (295 h), 7.95M from 145 to 165 (355 h, read on the Roost: the Bellows
+   is not drafted) and 5.24M from 165 to 185 (338 h; the Vaults' floor eats 21k g/h of Salted Lobster). Each ladder doubles as the tiers do and
+   asks 1.86M, 2.48M, 3.10M and 3.10M: 47%, 43%, 39% and 59% of its band (tiers 2 to 6 ask 40% to 52%). The 165 ladder holds level with 145
+   rather than drop under it: a later ladder never costs less than an earlier one. A new region past the last band is a new row here.
 
    HIDDEN. A band is sold only when `open` is true, and a band opens when its first piece is a real item (tests/temper-uniques.mjs TU-OPEN holds
    the two together both ways). Today no piece past Dawnsteel is in ITEMS (the armor line's sample is a hidden row set), so every band is shut:
@@ -73,7 +81,7 @@ export const TEMPER_UNIQUE_BANDS = Object.freeze({
   110: Object.freeze({ open: false, gold: Object.freeze([60000, 120000, 240000, 480000, 960000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
   125: Object.freeze({ open: false, gold: Object.freeze([80000, 160000, 320000, 640000, 1280000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
   145: Object.freeze({ open: false, gold: Object.freeze([100000, 200000, 400000, 800000, 1600000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
-  165: Object.freeze({ open: false, gold: Object.freeze([120000, 240000, 480000, 960000, 1920000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  165: Object.freeze({ open: false, gold: Object.freeze([100000, 200000, 400000, 800000, 1600000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
 });
 /* The material: the smith's best salt, the one tier 6 already takes (no new item; Smithing 75 from Emberstone Ore and Grave Dust, or
    Crafting 75 from a Runewood Plank and Grave Dust; Grave Dust drops at the Ox Road and the Pauper Vaults as well as the March). */

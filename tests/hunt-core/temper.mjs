@@ -67,6 +67,32 @@ const cases = {
     if (M.ITEMS.iron_sword.tier !== 2 || M.ITEMS.steel_sword.tier !== 3 || M.ITEMS.iron_platebody.tier !== 2) return 'the gear\'s tiers moved: this test names the wrong pieces';
     return null;
   },
+  /* PAST DAWNSTEEL (lane/d-temper-uniques, Tyler 2026-11-15): a piece worn from 110 reads its BAND's armor ladder at half a tier's step, armor
+     only, never the tier-7 key it carries; Dawnsteel itself (worn from 88) reads none, and a band's rungs pay nothing on any other piece. */
+  'a-unique-reads-its-band': (M) => {
+    const { armorPmOf, blowsPmOf, temperRung, armorLineOf } = M.temper;
+    const D = M.temperData;
+    const I = { ...M.ITEMS };
+    const DAWN = { helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets', belt: 'dawn_belt' };
+    const line = {};
+    for (const [slot, id] of Object.entries(DAWN)) { I['tu_' + slot] = { ...I[id], defB: Math.round(I[id].defB * 1.5), reqLv: 165, rarity: 'unique' }; line[slot] = 'tu_' + slot; }
+    const full = D.TEMPER_UNIQUE_BANDS[165].gold.length * D.TEMPER_UNIQUE_RUNG_PM;
+    if (I.tu_body.tier !== 7 || I.dawn_platebody.reqLv !== 88) return 'fixture: Dawnsteel is not tier 7 worn from 88';
+    if (full !== 25) return 'a full band ladder is ' + full + ' pm: the ruling is about 2-3%, measured 2.5% (tools/balance-sim/temper-uniques-table.mjs next)';
+    if (armorPmOf(line, I, { 'temper:armor:165': 5 }) !== full) return 'a whole line set at rung 5 reads ' + armorPmOf(line, I, { 'temper:armor:165': 5 }) + ' pm, want ' + full;
+    if (armorPmOf(line, I, { 'temper:armor:165': 99 }) !== full) return 'a forged band rung reads ' + armorPmOf(line, I, { 'temper:armor:165': 99 }) + ' pm';
+    if (armorPmOf(line, I, { 'temper:armor:7': 5, 'temper:armor:6': 5, 'temper:armor:145': 5 }) !== 0) return "another ladder's rungs pay on the 165 band";
+    if (armorPmOf(DAWN, I, { 'temper:armor:110': 5, 'temper:armor:165': 5 }) !== 0) return "a band's rungs pay on Dawnsteel";
+    if (temperRung({ 'temper:blows:165': 5 }, 'blows', 165) !== 0) return 'a band has a Blows ladder';
+    /* a 138 piece reads the 125 band: a band is the first Level of the span the piece is worn in */
+    I.tu_body = { ...I.tu_body, reqLv: 138 };
+    const share = Math.floor((I.tu_body.defB * 5 * D.TEMPER_UNIQUE_RUNG_PM) / Object.values(line).reduce((n, id) => n + I[id].defB, 0));
+    if (armorPmOf(line, I, { 'temper:armor:125': 5 }) !== share) return 'a body worn from 138 under the 125 band reads ' + armorPmOf(line, I, { 'temper:armor:125': 5 }) + ' pm, its share is ' + share;
+    const top = armorLineOf(line, I);
+    if (!top || top.tier !== 165) return 'the smith offers the ladder ' + JSON.stringify(top) + ', want the 165 band (the most armor)';
+    if (blowsPmOf({ weapon: 'iron_sword', ...line }, I, { 'temper:armor:165': 5 }) !== 0) return "the band's rungs raise blows";
+    return null;
+  },
   /* A mixed set reads piece by piece, by the armor the piece wears: moving one piece up costs that piece's share, never the ladder. */
   'a-mixed-set-reads-each-piece': (M) => {
     const { armorPmOf } = M.temper;
@@ -270,6 +296,11 @@ const mutants = [
   { name: 'tier 1 has a ladder', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', '  2: Object.freeze([2000,', '  1: Object.freeze([1, 2, 3, 4, 5]),\n  2: Object.freeze([2000,']] },
   { name: 'Blows reads the first ladder whatever the weapon', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'blows', it.tier) * TEMPER_RUNG_PM", "temperRung(temper, 'blows', 2) * TEMPER_RUNG_PM"]] },
   { name: 'Armor reads the first ladder whatever the piece', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'armor', t)", "temperRung(temper, 'armor', 2)"]] },
+  { name: 'a unique reads its gear tier, not its band', case: 'a-unique-reads-its-band', edits: [[T, 'const def = armorPointsOf(it), t = def > 0 ? temperTierOf(it) : 0;', 'const def = armorPointsOf(it), t = def > 0 ? it.tier : 0;']] },
+  { name: 'a band rung is worth a tier rung', case: 'a-unique-reads-its-band', edits: [['src/data/temper.js', 'export const TEMPER_UNIQUE_RUNG_PM = 5;', 'export const TEMPER_UNIQUE_RUNG_PM = 10;']] },
+  { name: 'a band is never clamped', case: 'a-unique-reads-its-band', edits: [['src/data/temper.js', "return u ? { rungs: u.gold.length, pm: TEMPER_UNIQUE_RUNG_PM } : null;", "return u ? { rungs: 99, pm: TEMPER_UNIQUE_RUNG_PM } : null;"]] },
+  { name: 'a band takes Blows too', case: 'a-unique-reads-its-band', edits: [['src/data/temper.js', "const u = track === 'armor' ? TEMPER_UNIQUE_BANDS[tier] : null;", 'const u = TEMPER_UNIQUE_BANDS[tier] || null;']] },
+  { name: 'the smith offers the tier-7 key', case: 'a-unique-reads-its-band', edits: [[T, '    const t = def > 0 ? temperTierOf(it) : 0;\n', '    const t = def > 0 ? it.tier : 0;\n']] },
   { name: 'every piece counts the same, whatever it wears', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'if (def > 0) { worn += def; rungs += def * temperRung(', 'if (def > 0) { worn += 1; rungs += temperRung(']] },
   { name: 'a shield carries the Armor rung', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor', 'it && it.slot ? 1 + Math.floor']] },
   { name: 'Blows is lost in hurt()', case: 'blows-raise-what-lands', edits: [[D, "if (source && source.blowsPm > 0 && target.side === 'mon') n = temperedAmount(n, source.blowsPm, rng);", '']] },

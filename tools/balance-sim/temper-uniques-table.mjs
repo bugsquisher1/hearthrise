@@ -5,7 +5,7 @@
 // A measuring tool: it grades nothing and writes nothing to src/. The ladders are src/data/temper.js TEMPER_UNIQUE_BANDS (shut until
 // a piece is real); the pieces are the armor line's (src/data/armor-line.js), added to the engine's ITEMS in memory as armor-line-table does.
 //
-//   node tools/balance-sim/temper-uniques-table.mjs gold [--hours 2] [--seeds 2]
+//   node tools/balance-sim/temper-uniques-table.mjs gold [--hours 2] [--seeds 4] [--food salted_shark]
 //        THE GOLD CURVE PAST 110: a lone sword-and-shield tank (the career's hero, as lane/d-audit-balance-2 priced tiers 4 to 6) on Normal
 //        at the floor and middle of every drafted ground past Dawnsteel, on the line at that Level with Krell's Tollgate, the ground's guide
 //        food: Level XP an hour and net gold an hour (coin and sold loot with rares, less the store). A band's hours and gold are the sum over
@@ -38,10 +38,10 @@ const k = (n) => (Math.abs(n) >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : Math.round(n
 
 /* The drafted grounds past Dawnsteel and the Levels each is read at (each pack's `band`), and the grounds its staged packs open with. */
 const GROUNDS = [
-  { ground: 'carters_rest', levels: [110, 118], open: ['carters_rest', 'ox_road'] },
-  { ground: 'ox_road', levels: [112, 120], open: ['carters_rest', 'ox_road'] },
-  { ground: 'wyvern_roost', levels: [125, 134], open: ['wyvern_roost', 'carters_rest', 'ox_road'] },
-  { ground: 'pauper_vaults', levels: [165, 175], open: ['pauper_vaults', 'carters_rest', 'ox_road', 'wyvern_roost'] },
+  { ground: 'carters_rest', band: [110, 125], levels: [110, 117, 124], open: ['carters_rest', 'ox_road'] },
+  { ground: 'ox_road', band: [112, 128], levels: [112, 120, 127], open: ['carters_rest', 'ox_road'] },
+  { ground: 'wyvern_roost', band: [125, 142], levels: [125, 133, 141], open: ['wyvern_roost', 'carters_rest', 'ox_road'] },
+  { ground: 'pauper_vaults', band: [165, 185], levels: [165, 175, 184], open: ['pauper_vaults', 'carters_rest', 'ox_road', 'wyvern_roost'] },
 ];
 
 /* In-memory rows: each weight's line set worn from Level `r` ('tu_<r>_<weight>_<slot>', armor Dawnsteel's x max(1, r / 110), reqLv r),
@@ -71,7 +71,7 @@ async function engine(extra) {
 
 /* ── THE GOLD CURVE ── */
 async function gold() {
-  const HOURS = Number(arg('hours', 2)), SEEDS = Number(arg('seeds', 2));
+  const HOURS = Number(arg('hours', 2)), SEEDS = Number(arg('seeds', 4));
   const levels = [...new Set(GROUNDS.flatMap((g) => g.levels))];
   const { rows } = await rowsFor(levels);
   const { R } = await engine(rows);
@@ -81,17 +81,25 @@ async function gold() {
   const pts = [];
   for (const g of GROUNDS) for (const L of g.levels) {
     const also = { ...setOf(L, 'plate'), shield: 'tu_tollgate' };
-    const m = R.runCell({ id: 'TU:' + g.ground + ':' + L, ground: g.ground, party: ['tank'], level: L, hours: HOURS, seeds: SEEDS, gear: { openAlso: g.open, also } });
+    /* `--food salted_shark`: every cell on that store food instead of the guide's (the armor line's handoff 1: the guide names Salted Lobster past 110) */
+    const food = arg('food', null);
+    const m = R.runCell({ id: 'TU:' + g.ground + ':' + L, ground: g.ground, party: ['tank'], level: L, hours: HOURS, seeds: SEEDS, gear: { openAlso: g.open, also },
+      ...(food ? { bar: { storeFood: food } } : {}) });
     const h = m.heroes[0];
     pts.push({ ground: g.ground, L, xp: h.levelXpPerH, net: h.netWithRaresPerH });
     line([g.ground, L, h.levelXpPerH, h.incomePerH, h.raresPerH, h.storePerH, h.netWithRaresPerH, h.deaths, Math.round(h.encMinHpPct.p50)]);
   }
-  /* A Level's XP an hour and net gold an hour: the best-paying measured ground at or under it (the hero goes where it pays), read straight
-     between that ground's two Levels and held flat past its last. Past the last drafted ground's band (185) nothing is measured. */
+  /* A Level's XP an hour and net gold an hour, where the game sends the hero (hunt-list.js recommends a ground whose band holds its Level):
+     the drafted grounds whose band holds L, the one paying the most XP; with none (143 to 164: the Bellows is not drafted), the drafted ground
+     with the highest floor under L, held at its last measured Level. Read straight between a ground's measured Levels. */
   const at = (L, key) => {
-    const byGround = GROUNDS.filter((g) => g.levels[0] <= L).map((g) => {
-      const [a, b] = g.levels.map((x) => pts.find((p) => p.ground === g.ground && p.L === x));
-      const f = Math.min(1, Math.max(0, (L - a.L) / (b.L - a.L)));
+    const inBand = GROUNDS.filter((g) => g.band[0] <= L && L <= g.band[1]);
+    const pool = inBand.length ? inBand : [GROUNDS.filter((g) => g.band[0] <= L).sort((x, y) => y.band[0] - x.band[0])[0]];
+    const byGround = pool.map((g) => {
+      const ms = g.levels.map((x) => pts.find((p) => p.ground === g.ground && p.L === x));
+      let i = 0;
+      while (i < ms.length - 2 && L > ms[i + 1].L) i++;
+      const a = ms[i], b = ms[i + 1], f = Math.min(1, Math.max(0, (L - a.L) / (b.L - a.L)));
       return { xp: a.xp + f * (b.xp - a.xp), net: a.net + f * (b.net - a.net), ground: g.ground };
     });
     return byGround.sort((x, y) => y.xp - x.xp)[0][key];
@@ -108,7 +116,8 @@ async function gold() {
       hours += need / xp; banked += (need / xp) * net;
     }
     const row = TD.TEMPER_UNIQUE_BANDS[b], ask = row.gold.reduce((s, n) => s + n, 0), salts = row.qty.reduce((s, n) => s + n, 0);
-    line([b, b + ' to ' + to, at(b, 'ground') === at(to - 1, 'ground') ? at(b, 'ground') : at(b, 'ground') + ', ' + at(to - 1, 'ground'), Math.round(hours), k(banked), k(ask),
+    const read = [...new Set(Array.from({ length: to - b }, (_, j) => at(b + j, 'ground')))].join(', ');
+    line([b, b + ' to ' + to, read, Math.round(hours), k(banked), k(ask),
       Math.round((100 * ask) / banked) + '%', salts, k(salts * book), Math.round((100 * (ask + salts * book)) / banked) + '%']);
   }
 }

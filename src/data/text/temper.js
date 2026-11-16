@@ -17,4 +17,12 @@ export const TEMPER_TEXT = Object.freeze({
   drop_pulled: '{where}, and it drops {stack}.',
   /* Said only for what the Weighhouse lists (item-lore saleWords). */
   way_weighhouse: 'Or buy them at the Weighhouse.',
+  /* PAST DAWNSTEEL (lane/d-temper-uniques): said only when the server sells a unique band's rungs. {from} is the first band's Level, {bands}
+     every band the server sells ("110, 125 and 145"). The smaller step and the span are what a player can't guess from "rung 1 of 5". */
+  unique_row: 'Unique armor takes smaller rungs, half a step each, and gets a new ladder at Levels {bands}.',
+  unique_row_one: 'Unique armor takes smaller rungs, half a step each, and gets its own ladder at Level {bands}.',
+  unique_span: ' The smith also tempers unique armor worn from Level {from}.',
+  /* SAY WHY (the playthrough audit's F17): gear past the server's ladders. {from} and {to} are the Levels the SERVER's ladders cover
+     (temper-sections.js `span`), so the line is true before and after a new tier's rungs are sold. */
+  cant_yet: ' yet. The smith only has rungs for gear worn from Level {from} to Level {to}.',
 });

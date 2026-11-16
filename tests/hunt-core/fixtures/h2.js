@@ -44,7 +44,7 @@ export async function suite(name, cases, mutants) {
   for (const mu of mutants || []) {
     if (only && !only.has(mu.case)) continue;
     if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-    const p = plant(mu.edits);
+    const p = plant(mu.edits, ['src/render']);
     try {
       let why = null;
       try { why = cases[mu.case](await loadCore2(p.root)); } catch (e) { why = 'threw ' + e.message; }

@@ -32,12 +32,15 @@ function rowWords(track, r) {
   /* SAY WHY (Tyler 2026-10-25; the playthrough audit's F17: "can't be tempered yet" at Level 55 in Mithril, no reason): the smith has rungs
      for some tiers of gear and this is not one. The Levels are the SERVER's ladders (temper-sections.js `span`), so the line is true before
      and after a new tier's rungs are sold. */
+  /* PAST DAWNSTEEL (lane/d-temper-uniques): the unique bands are said only when the server sells one (`bands` is the server's). */
+  const bands = r.bands && r.bands.length ? r.bands : null;
   if (!r.ladder) return 'Your ' + r.piece + ' can\'t be tempered' + (r.below || !r.span ? '. Gear worn from Level 15 can.'
-    : ' yet. The smith only has rungs for gear worn from Level ' + r.span.from + ' to Level ' + r.span.to + '.');
+    : t('temper.cant_yet', { from: r.span.from, to: r.span.to }) + (bands && !r.unique ? t('temper.unique_span', { from: bands[0] }) : ''));
   const now = 'Rung ' + r.ladder.rung + ' of ' + r.ladder.max + ': ';
-  if (!r.ladder.offer) return now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. The most this gear takes.';
+  const also = r.unique && bands ? ' ' + (bands.length > 1 ? t('temper.unique_row', { bands: listWords(bands.map(String), Infinity) }) : t('temper.unique_row_one', { bands: bands[0] })) : '';
+  if (!r.ladder.offer) return now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. The most this gear takes.' + also;
   return (r.ladder.rung ? now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. Next rung ' + pct(r.nextPm) + '.'
-    : 'Not tempered yet. First rung: ' + track.effect + ' ' + pct(r.nextPm) + ' ' + track.worse + '.');
+    : 'Not tempered yet. First rung: ' + track.effect + ' ' + pct(r.nextPm) + ' ' + track.worse + '.') + also;
 }
 
 /* What the next rung takes besides gold, and what this hero holds. */

@@ -64,10 +64,15 @@ function spanOf(ladders) {
   return levels.length ? { from: Math.min(...levels), to: Math.max(...levels) } : null;
 }
 
+/* The unique bands past Dawnsteel the SERVER sells, by their first Level, ascending ([] while every band is shut: src/data/temper.js
+   TEMPER_UNIQUE_BANDS). The smith's words name them from here, never from this build's table. */
+const bandsOf = (ladders) => [...new Set(ladders.filter((l) => l.track === 'armor' && l.tier >= TEMPER_UNIQUE_FROM).map((l) => l.tier))].sort((a, b) => a - b);
+
 const mapOf = (ladders) => Object.fromEntries(ladders.map((l) => [temperUnlockId(l.track, l.tier), l.rung]));
 
 /**
- * The two rows the smith's window shows: { blows, armor }, each { piece, below, span, ladder, needs, nowPm, nextPm } for what this hero wears now,
+ * The two rows the smith's window shows: { blows, armor }, each { piece, below, span, ladder, needs, nowPm, nextPm } for what this hero wears now
+ * (the armor row also `bands`, the unique bands the server sells, and `unique`, whether its ladder is one of them),
  * `ladder` null on gear with none (`below`: under the first ladder; `span`: the Levels the server's ladders cover), `piece` null when it wears nothing of the kind. Null until the server has said.
  */
 export function temperRowsOf(cs) {
@@ -82,10 +87,10 @@ export function temperRowsOf(cs) {
   const armorLadder = line ? ladderOf('armor', line.tier) : null;
   /* past Dawnsteel a ladder is a band of unique pieces, not a metal: the row says "unique armor" (src/data/temper.js temperTierOf) */
   const worn = line ? (line.tier >= TEMPER_UNIQUE_FROM ? 'unique' : armourLineWord(line.armourClass, line.tier)) : null;
-  const span = spanOf(ladders);
+  const span = spanOf(ladders), bands = bandsOf(ladders);
   return {
     blows: { piece: weapon ? weapon.n : null, span, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },
-    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, span, below: !!line && belowLadders(line.tier), ladder: armorLadder, needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
+    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, span, bands, unique: !!line && line.tier >= TEMPER_UNIQUE_FROM, below: !!line && belowLadders(line.tier), ladder: armorLadder, needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
   };
 }
 

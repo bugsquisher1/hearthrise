@@ -36,13 +36,19 @@
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
 import { definePack, box, gather } from '../shape.js?v=0.2.134';
 import map from './map.js?v=0.2.134';
+import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.134';
+
+/* KRELL'S TWO UNIQUE PIECES (Tyler 2026-11-14: "a pair of pally legs a tank shield ... just no weapon", "by unique i mean having a special
+   attribute"). Their rows and lines are the designer's sample rows (src/data/special-attributes.js: the standard piece plus ONE attribute),
+   read from there and written nowhere else; tests/special-attributes.mjs SA1 holds what ships to the row. */
+const UNIQUES = Object.freeze(['krells_tollgate', 'banded_legguards']);
 
 const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_priest', CS = 'gatekeeper';
 
 export default definePack({
   id: 'krells_hold',
   status: "open",
-  sql: "2027-04-22-pack-krells_hold.generated.sql",
+  sql: "2027-04-25-pack-krells_hold-2.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
     region: 'barrow_march',
@@ -160,6 +166,9 @@ export default definePack({
        moves only through Storage and trade (the ruling's rails, for the keyed-room lane). Book value 800: the shop pays that, and the market's
        ceiling is 100x book, so a player can ask up to 80,000 for one. PROPOSED, unmeasured. */
     hall_key: { n: 'Hall Key', icon: '🗝️', v: 800, opens: 'krells_hold' },
+    /* Krell's Tollgate (tier 7 tank shield, guard 15, 10% less fire damage) and the Banded Legguards (Dawnsteel Platelegs' numbers, 3% less
+       physical damage): on his daily prize roll only (`hall` below), 3% a hero a day each. They trade like any gear. */
+    ...Object.fromEntries(UNIQUES.map((id) => [id, SPECIAL_SAMPLE[id].row])),
   },
   itemText: {
     farmhands_tag: 'Krell\'s men gave this wooden tag to every farmhand they forced to guard his castle',
@@ -168,6 +177,8 @@ export default definePack({
     priests_cord: 'Krell\'s priests tied this cord around the dead before they burned them. They put a knot in it for every name',
     gatekeepers_chain: 'A link off the Gatekeeper\'s key chain. He keeps every key in the castle, including the one to the toll box',
     hall_key: 'It opens Krell\'s Hall for you and your party. You get one fight out of it, win or lose',
+    /* item text carries no closing full stop (item-descriptions.js) */
+    ...Object.fromEntries(UNIQUES.map((id) => [id, SPECIAL_SAMPLE[id].text.replace(/\.$/, '')])),
   },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Pyre Field's store food, and Chalked Poison Runes in place of its ice. These are
      living men (poison does 15% more), and the dead in the cellar shrug poison off, so a caster brings a second family for the Crypt.
@@ -230,10 +241,16 @@ export default definePack({
        Shrimp is the loss (0 to 5% at every Level, 40 tries a row). `storeFloor` is said to every hero and in red to a bar under it
        (boss-hall-pane.js). `words.bars` are the tuned bar's changes from the one a party is handed, one label line each (Tyler 2026-11-14: a good
        bar is one a person spent time tuning, and an untouched one should mostly lose): each is a "good bar but" row of boss-call-table.mjs that
-       loses most when it is taken away (Krell's row). */
-    storeFloor: 'salted_lobster',
+       loses most when it is taken away (Krell's row).
+       THE CARD IS PLAYED AS WRITTEN (the QA audit's F22, 2026-11-15; tests/boss-hall-advice.mjs reads these lines, builds that bar and party, and
+       plays them in the gear a hero holds BEFORE his first win: his tier 7 drops only here, so nobody reading the card wears it). On Salted Lobster
+       a tank, a healer and a third hero won 56 to 99 of 100 at 85 by who the third was (a sword alone 56, a bow 62, a second tank 63): the tank
+       dies under his enrage. On Salted Swordfish every third wins 94 to 100% at 85 (88% or better with Challenge off), for about 2x the food
+       (15-22k a head a fight, from 8-12k). So the floor is Swordfish. A tank and a healer alone run out of time whatever they eat: in tier 6, 0% at 88, 45% at 100,
+       77% at 104, 92% at 106 (60 tries a row). The first fix's "Level 88" was measured in his own tier 7 (78%), which no first-time pair wears. */
+    storeFloor: 'salted_swordfish',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
-      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank and a healer'] },
+      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and a third hero', 'Two heroes: Level 106 or higher'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
       /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals
@@ -266,13 +283,20 @@ export default definePack({
         elements: { ember: 25, poison: -15 },
         /* his marked hit first, then his pulse (monster-spells.js: castSpells starts the first one ready) */
         spells: ['rake_the_coals', 'hall_fire'],
-        drops: [
-          { id: 'dawn_sword', ch: 0.035, band: 'rare' }, { id: 'dawn_warhammer', ch: 0.035, band: 'rare' },
-          { id: 'duskwood_bow', ch: 0.035, band: 'rare' }, { id: 'duskwood_staff', ch: 0.035, band: 'rare' },
-          { id: 'duskwood_wand', ch: 0.035, band: 'rare' }, { id: 'duskwood_codex', ch: 0.035, band: 'rare' },
-          { id: 'dawn_hatchets', ch: 0.035, band: 'rare' }, { id: 'duskwood_crossbow', ch: 0.035, band: 'rare' },
-          { id: 'dawn_platebody', ch: 0.035, band: 'rare' }, { id: 'dawnhide_body', ch: 0.035, band: 'rare' }, { id: 'duskweave_body', ch: 0.035, band: 'rare' },
-          { id: 'dawn_helm', ch: 0.035, band: 'rare' }, { id: 'dawnhide_helmet', ch: 0.035, band: 'rare' }, { id: 'duskweave_helmet', ch: 0.035, band: 'rare' }],
+        /* HIS DAILY PRIZE (Tyler 2026-11-14: "a daily kill"; the designer's spec, PRIORITY_BOARD "The Barrow March hand play, ruled" 3 and 4; built
+           by lane/c-krell-daily and lane/c-krell-uniques). A hall's boss pays his rows ONCE A DAY PER HERO, each hero's own roll, never the
+           party's shared one (boss-halls.js; src/core/drops.js rollPrize; the server's day table player_boss_loot_day). Every row is a SLICE
+           of that one roll: a standard tier 7 piece 40%, each of the 14 as likely (0.4 / 14 a row, about 2.9%), then his two unique pieces,
+           the Tollgate 3% and the Banded Legguards 3% (special-attributes.js `source.pm`, read from there), and 54% nothing. A hero who
+           kills him every day sees about 2.8 standard pieces a week and a given one about every 35 days, each unique about every 33 days
+           and one of the two about every 17; trade shortens it. A hero who took it today can still fight: the kill's XP and coin are
+           everyone's, every time. The 0.035 a row below was the shared roll before the daily prize.
+           A HERO'S FIRST WIN ALWAYS PAYS A PIECE (the QA audit's F21, 2026-11-15: "I beat the last boss and got 174 gold"): the rows marked
+           `first` (the 14 standard pieces) share the empty 54% of a hero's first roll ever, 94% / 14 a row (about 6.7%), and the two unique
+           pieces keep their 3% (drops.js prizeSlices; the server says which roll is the first, player_boss_loot_day.first). */
+        drops: [...['dawn_sword', 'dawn_warhammer', 'duskwood_bow', 'duskwood_staff', 'duskwood_wand', 'duskwood_codex', 'dawn_hatchets', 'duskwood_crossbow',
+          'dawn_platebody', 'dawnhide_body', 'duskweave_body', 'dawn_helm', 'dawnhide_helmet', 'duskweave_helmet'].map((id) => ({ id, ch: 0.4 / 14, band: 'rare', first: true })),
+          ...UNIQUES.map((id) => ({ id, ch: SPECIAL_SAMPLE[id].source.pm / 1000, band: 'rare' }))],
         /* FITTED TO THE SHIP BAR (lane/b-barrow-numbers 2026-11-14; node tools/balance-sim/boss-call-table.mjs --hall krells_hold --seeds 40,
            the real settle, tank + healer + hammer + mage at Level 98, the band's middle). On the formula's row (2,256 HP, atk 94) every row
            won in 70 s, the bad bar too. At 7,000 HP, atk 205, enrage x1.25 and the spells below: the good bar 95%, the bad bar 30%, the good

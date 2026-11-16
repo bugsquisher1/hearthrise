@@ -6609,6 +6609,7 @@ jobs:
 
       # A KEYED HALL (lane/b-barrow-boss-room, the Krell's Hold design's engine pieces 5, 6, 7): a room a key opens that PAYS, a named add with his own
       # kit, a spell that speeds up under a line. tests/boss-hall.mjs is the engine on the real settle, tests/boss-hall-db.mjs the server's half, both doors.
+      # WHAT A HALL'S CARD SAYS WINS, WINS (lane/d-audit-f22, the QA audit's F22): tests/boss-hall-advice.mjs plays Krell's Hall card as written.
       - name: Keyed hall - pays, one door, the key under the lock, both paths
         if: ${{ !cancelled() }}
         run: |
@@ -6616,6 +6617,8 @@ jobs:
           node tools/mutant-gate.mjs node tests/boss-hall.mjs --mutate
           node tests/boss-hall-db.mjs
           node tools/mutant-gate.mjs node tests/boss-hall-db.mjs --mutate
+          node tests/boss-hall-advice.mjs
+          node tools/mutant-gate.mjs node tests/boss-hall-advice.mjs --mutate
 
       # COMBAT TRAINING (Tyler 2026-11-08, lane/c-combat-training): the yard by the hour and the house dummy, on the one engine. tests/combat-training.mjs is the
       # engine's half on the real settle; tests/combat-training-db.mjs the server's (the verbs, the one door, the hourly charge and gold_out through both doors).

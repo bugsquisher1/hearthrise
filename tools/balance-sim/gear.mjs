@@ -88,7 +88,7 @@ export async function loadGear(root) {
   /**
    * The worn set of `style` at Level `L`. opts: { tierOffset, only, heavyShield, line (another armour line),
    * armourSlots (default all six; the reachable ones are filled), noArmour, ammo (an item for the ammo slot),
-   * starter (the start kit's pieces only), openAlso (ground ids played as open: see the header) }.
+   * starter (the start kit's pieces only), openAlso (ground ids played as open: see the header), exclude (item ids held out) }.
    */
   function kitOf(style, L, opts = {}) {
     const S = STYLES[style];
@@ -104,7 +104,9 @@ export async function loadGear(root) {
       return set;
     }
     const off = (group) => (opts.only === group || opts.only === 'all' ? (opts.tierOffset || 0) : 0);
-    const ok = opts.openAlso ? canIn(reachWith(opts.openAlso)) : can;
+    const okR = opts.openAlso ? canIn(reachWith(opts.openAlso)) : can;
+    /* `exclude`: pieces this hero can't hold yet, whatever drops them (a hall's own prize before its first win) */
+    const ok = opts.exclude ? (id, L) => !opts.exclude.includes(id) && okR(id, L) : okR;
     const set = {};
     set.weapon = pick(ladder[S.weapon] || [], L, off('weapon'), practiceFor(S.weapon), ok);
     if (S.offhand === 'shield') {

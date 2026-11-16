@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 6cbce76bd712308b0d31f1f0da89078a876d42eefbdf08f7288fd12f206cc95c
---   rows: 633 items (14 untradeable) ·
---         349 item-slot pairs · 14 equip slots ·
+--   catalogue digest: 80d070af1165dd2a13a92cfb1fee772612baf5877a0d70ff3d300620083958c6
+--   rows: 635 items (14 untradeable) ·
+--         351 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 379 activities ·
 --         0 runes
 --
@@ -228,6 +228,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('archmage_pants','Archmage Robe Bottom',true,'armor',20020,'level',75,null,false,'light',false),
   ('ashcrown_greatsword','Ashcrown Greatsword',true,'weapon',40000,'level',65,null,false,null,false),
   ('baked_potato','Baked Potato',true,null,150,null,null,240,true,null,false),
+  ('banded_legguards','Banded Legguards',true,'armor',79200,'level',88,null,false,'heavy',false),
   ('banded_signet','Banded Signet',true,'jewelry',260,'level',15,null,false,null,false),
   ('banded_signet_follow','Banded Signet (Follow-through)',true,'jewelry',260,'level',15,null,false,null,false),
   ('banded_signet_keen','Banded Signet (Keen)',true,'jewelry',260,'level',15,null,false,null,false),
@@ -506,6 +507,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('klappas_club','Klappa''s Club',true,'weapon',100,'level',5,null,false,null,true),
   ('knotted_tails','Knotted Tails',true,null,50,null,null,null,false,null,false),
   ('kobold_scale','Kobold Scale',true,null,26,null,null,null,false,null,false),
+  ('krells_tollgate','Krell''s Tollgate',true,'offhand',43200,'level',88,null,false,null,false),
   ('lamp_jelly','Lamp Jelly',true,null,1,null,null,null,false,null,false),
   ('lazlos_maul','Lazlo''s Maul',true,'weapon',1650,'level',45,null,false,null,false),
   ('leather_belt','Leather Belt',true,'armor',35,'level',1,null,false,'medium',false),
@@ -857,6 +859,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('archmage_helmet','helmet'),
   ('archmage_pants','pants'),
   ('ashcrown_greatsword','weapon'),
+  ('banded_legguards','pants'),
   ('banded_signet_follow','ring1'),
   ('banded_signet_follow','ring2'),
   ('banded_signet_keen_follow','ring1'),
@@ -1015,6 +1018,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('kingsgrate','shield'),
   ('kingstooth','weapon'),
   ('klappas_club','weapon'),
+  ('krells_tollgate','shield'),
   ('lazlos_maul','weapon'),
   ('leather_belt','belt'),
   ('leather_body','body'),
@@ -2156,7 +2160,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '6cbce76bd712308b0d31f1f0da89078a876d42eefbdf08f7288fd12f206cc95c', now())
+  values (true, '80d070af1165dd2a13a92cfb1fee772612baf5877a0d70ff3d300620083958c6', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2184,11 +2188,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 633 then raise exception 'hr_items has % rows, generator emitted 633', v_n; end if;
+  if v_n <> 635 then raise exception 'hr_items has % rows, generator emitted 635', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '27ed7b2c878fe60b87f830e391c9c62f' then
-    raise exception 'hr_items names differ from src/data (expected digest 27ed7b2c878fe60b87f830e391c9c62f)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '2b79923f11824f8ce3cce8e99c216563' then
+    raise exception 'hr_items names differ from src/data (expected digest 2b79923f11824f8ce3cce8e99c216563)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2274,8 +2278,8 @@ begin
      and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
   if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
   select count(*) into v_n from public.hr_items where req_skill = 'level';
-  if v_n <> 289 then
-    raise exception 'hr_items holds % Level-gated rows, the generator emitted 289', v_n;
+  if v_n <> 291 then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted 291', v_n;
   end if;
 
   -- No client write policy may exist on a catalogue table.
@@ -2388,7 +2392,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 6cbce76bd712308b0d31f1f0da89078a876d42eefbdf08f7288fd12f206cc95c',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 80d070af1165dd2a13a92cfb1fee772612baf5877a0d70ff3d300620083958c6',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

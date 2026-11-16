@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 647084706144d1252a9868521029e218e62159d1d2c87da421cd591e13f24eca
+--   digest: 55c9634162ca060b0a56a2e1279a6ac6630ba94b20f095377bdfbd7364377296
 --   82 supplies, 165 hunts (named + training), 47 limits, 16 end reasons,
---   600 vendor values, 49 store supplies paid per use, 5 target modes,
+--   602 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 22 hunt grounds
 --
 -- NEW IN THIS FILE (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: "it should definitely have a chance for an item drop otherwise there is no
@@ -805,7 +805,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('lesser_demon', 140, 565, '{"demon_shard":1,"rune_frag":1,"hell_ember":1}'::jsonb),
   ('lich', 500, 1325, '{"lich_soul":1,"ancient_rune":1,"vamp_dust":1,"hollow_sigil":1,"soul_recipe":1,"runewood_codex":1}'::jsonb),
   ('locust_swarm', 13, 65, '{"wheat":1,"silk_thread":1,"venom_sac":1,"studded_belt":1}'::jsonb),
-  ('lord_krell', 753, 48720, '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb),
+  ('lord_krell', 753, 48720, '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1,"krells_tollgate":1,"banded_legguards":1}'::jsonb),
   ('lurcher', 57, 1039, '{"bones":1,"razor_claw":1,"kennel_tag":1,"rune_helm":1,"wyvernhide_helmet":1,"sorcerer_helmet":1,"rune_gauntlets":1,"wyvernhide_gloves":1,"sorcerer_gloves":1}'::jsonb),
   ('lynx', 44, 191, '{"wolf_pelt":1,"razor_claw":1,"raw_wolf_meat":1,"bones":1,"boarhide_gloves":1}'::jsonb),
   ('magma_elemental', 242, 919, '{"hell_ember":1,"emberstone_ore":1,"coal":1,"ember_bar":1}'::jsonb),
@@ -1154,6 +1154,7 @@ insert into public.hr_hunt_shields (item_id) values
   ('coppercap_shield'),
   ('ironbound_shield'),
   ('kingsgrate'),
+  ('krells_tollgate'),
   ('practice_shield'),
   ('steelgrate');
 delete from public.hr_hunt_roles;
@@ -1455,6 +1456,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('archmage_pants', 300),
   ('ashcrown_greatsword', 20000),
   ('baked_potato', 150),
+  ('banded_legguards', 554),
   ('banded_signet', 130),
   ('banded_signet_follow', 130),
   ('banded_signet_keen', 130),
@@ -1722,6 +1724,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('klappas_club', 50),
   ('knotted_tails', 10),
   ('kobold_scale', 5),
+  ('krells_tollgate', 302),
   ('lamp_jelly', 1),
   ('lazlos_maul', 123),
   ('leather_belt', 17),
@@ -2079,7 +2082,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 165
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 16
-     or (select count(*) from public.hr_hunt_vendor_value) <> 600
+     or (select count(*) from public.hr_hunt_vendor_value) <> 602
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -2099,7 +2102,7 @@ begin
      or (select count(*) from public.hr_hunt_weapons) <> 77
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 0
-     or (select count(*) from public.hr_hunt_shields) <> 7
+     or (select count(*) from public.hr_hunt_shields) <> 8
      or (select count(*) from public.hr_boss_calls) <> 2
      or (select count(*) from public.hr_training_rules) <> 1
      or (select count(*) from public.hr_training_grounds) <> 8
@@ -2359,6 +2362,7 @@ begin
     ('krells_hold', 'runewood_staff', 1),
     ('krells_hold', 'runewood_wand', 1),
     ('krells_hold', 'wheat', 1),
+    ('krells_hold_hall', 'banded_legguards', 1),
     ('krells_hold_hall', 'dawn_hatchets', 1),
     ('krells_hold_hall', 'dawn_helm', 1),
     ('krells_hold_hall', 'dawn_platebody', 1),
@@ -2373,6 +2377,7 @@ begin
     ('krells_hold_hall', 'duskwood_crossbow', 1),
     ('krells_hold_hall', 'duskwood_staff', 1),
     ('krells_hold_hall', 'duskwood_wand', 1),
+    ('krells_hold_hall', 'krells_tollgate', 1),
     ('meadowbrook_thicket', 'adept_helmet', 1),
     ('meadowbrook_thicket', 'alpha_fang', 1),
     ('meadowbrook_thicket', 'apprentice_body', 1),
@@ -2767,6 +2772,7 @@ begin
     ('runewood_staff'),
     ('runewood_wand'),
     ('wheat'),
+    ('banded_legguards'),
     ('dawn_hatchets'),
     ('dawn_helm'),
     ('dawn_platebody'),
@@ -2781,6 +2787,7 @@ begin
     ('duskwood_crossbow'),
     ('duskwood_staff'),
     ('duskwood_wand'),
+    ('krells_tollgate'),
     ('adept_helmet'),
     ('alpha_fang'),
     ('apprentice_body'),

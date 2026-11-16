@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-15 lane/d-special-attributes: the attribute catalogue, measured before it was written down
+- **Measure the attribute before naming the item.** Two of my first five sample rows did nothing: 5% poison on the Glade (a four at the floor dies 0 times on Deadly, bare) and +1 Magic (+8 Magic is +0.5% for a wand at 90). Both were cut after one table each.
+- **Element resistance is a boss attribute today.** It moved no death on any open ground and it moves win rates at the Chief and Krell. Place a resist piece on the ground whose boss uses that element.
+- **A skill level is worth little and moves in steps.** +1 Defense is 4 to 6% less damage. +1 Melee is about 1%. +2 Ranged is 0%, 2.8% or 0.9% by Level. Read + skill at three Levels before quoting it, never one.
+- **Lower weapon numbers are not a trade.** 85% of a staff's numbers cost 2%, x1.4 bane gave +15 to +26%. Size a multiplier on full numbers.
+- A what-if resistance for every hero is a ring-slot row with only `resistPm`: no other stat moves. `gear.also` dresses a cell in a named row today.
+- Physical resistance is three edits in `elements.js`, planted and measured (`special-table.mjs` `PHYSICAL_PLANT`). The board's `damage.js landHit` note was wrong.
 ## 2026-11-14 lane/d-labels-sweep (Tyler: "Recommended: 4+ players" for everything outside lore)
 - A label has no period. "Label: lower-case clause." trips label-sentence, and a placeholder right after the colon counts as lower case: end a label without a period, or open its value on a number.
 - Several labels on one line read as one sentence to colon-join and run together for the eye: break them per line (white-space: pre-line on the element). The lint now treats a line break as a boundary.
@@ -906,3 +913,8 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-16 lane/d-audit-f22 (Krell's card must win as written)
+- A boss's own prize is on the gear ladder once his hall opens: boss-call-table dressed a pair at 88 in Krell's tier 7, so "two heroes from 88" read 78% and was 0% for anyone reading the card. Fit a hall's advice with `--first` (his prize held out).
+- At a boss the lever that moved was food, not the hints: eat at 85% or Greater Mend at 90% left the weak trios at 58-70%; Salted Swordfish took every third to 90-100% (the tank dies under his enrage on Lobster). A pair fails on the clock, so food doesn't help it, only Levels do.
+- Test advice by reading the words the player reads (a small label grammar, an unreadable line is red) and playing them; then the card and the measurement can't drift apart.
+- Backticks inside `node -e "..."` ran the guard twice by command substitution. Use a script file for any text with backticks.

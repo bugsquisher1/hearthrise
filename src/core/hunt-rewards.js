@@ -40,7 +40,7 @@
 import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.134';
 import { BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.134';
 import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.134';
-import { rollDropTable } from './drops.js?v=0.2.134';
+import { rollDropTable, rollPrize } from './drops.js?v=0.2.134';
 import { applyGoldFind } from './pacing.js?v=0.2.134';
 import { COMBAT_XP } from '../data/core-model.js?v=0.2.134';
 import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.134';
@@ -72,6 +72,37 @@ function countKill(m, kind) {
   call(m.fx, 'updateQuest', 'kill_monster', 1, { target: kind });
 }
 
+/* One dropped unit into member `m`'s bag (unit `unitId`), with the rare-drop moment when its band reveals. */
+function giveDrop(m, unitId, ev, ctx, atMs) {
+  call(m.fx, 'addItem', ev.id, 1);
+  if (ev.rare) {
+    m.state.stats = m.state.stats || {}; m.state.stats.rareDrops = (m.state.stats.rareDrops || 0) + 1;
+    /* THE RARE-DROP MOMENT: a world event for the owner (the timeline: alert, float, log) and the
+       member's hint (huntProposal hints.rare_drop: the session's journal row). */
+    if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop', atMs, { u: unitId, item: ev.id }));
+    if (Array.isArray(m.hs._events)) m.hs._events.push({ type: 'rare_drop', atMs, item: ev.id });
+  }
+  call(m.fx, 'onDrop', ev);
+}
+
+/* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js; Tyler 2026-11-14: "a daily kill"). The boss's rows are PERSONAL and ONCE A DAY:
+   each hero there whose day's prize is still to take (member.prizeLeft: the server's own read, never a client value) rolls ONCE, in
+   unit-id order, one draw a roll (drops.js rollPrize: the rows are slices of that one roll, no multiplier), and keeps what lands. The
+   roll is the day's whether a piece lands or not: `hs.prizeRolled` rides the member's journal (accrual.js memberDelta `journal.meta.prize`) and the
+   database stamps the day and refuses a second (hr_hunt_apply_member). A hero who took it today rolls nothing and draws nothing, and
+   still shares the kill's XP and coin like everyone there. No party rare roll: nothing here is shared. */
+function payPrize(present, ids, row, ctx, atMs) {
+  present.forEach((m, i) => {
+    if (m.prizeLeft !== true) return;
+    m.prizeLeft = false;
+    m.hs.prizeRolled = true;
+    /* A HERO'S FIRST ROLL ON THIS BOSS, EVER, IS A SURE ONE (the server's word, member.prizeFirst; drops.js prizeSlices): a piece always lands */
+    const ev = rollPrize(row.drops, ctx.rng, m.prizeFirst === true);
+    m.prizeFirst = false;
+    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);
+  });
+}
+
 /* A monster kill's gold and drops, split across `present` (members in unit-id
    order; `ids` their unit ids), and the Hearthfind for `killer`. A rare unit
    goes to the rare roll, its rotation kept on `world.rareWon`. */
@@ -89,7 +120,10 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
     if (g > 0) { m.state.gold = (m.state.gold || 0) + g; call(m.fx, 'onLoot', g, row); }
   });
   const lead = killer || present[0];
-  payDrops(present, ids, lead, row, ctx, world, atMs);
+  /* A KEYED HALL'S BOSS (ctx.prize, combat-sim.js from the room): his rows are the hall's DAILY PRIZE, each hero's own roll (payPrize),
+     never the shared table. Every other kill, his adds' included, rolls as it always did, draw for draw. */
+  if (ctx.prize === kind) payPrize(present, ids, row, ctx, atMs);
+  else payDrops(present, ids, lead, row, ctx, world, atMs);
   for (const m of present) countKill(m, kind);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. */
@@ -115,15 +149,7 @@ function payDrops(present, ids, lead, row, ctx, world, atMs) {
     } else {
       m = present[itemOwner(k++, present.length, offset)];
     }
-    call(m.fx, 'addItem', ev.id, 1);
-    if (ev.rare) {
-      m.state.stats = m.state.stats || {}; m.state.stats.rareDrops = (m.state.stats.rareDrops || 0) + 1;
-      /* THE RARE-DROP MOMENT: a world event for the owner (the timeline: alert, float, log) and the
-         member's hint (huntProposal hints.rare_drop: the session's journal row). */
-      if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop', atMs, { u: ids[present.indexOf(m)], item: ev.id }));
-      if (Array.isArray(m.hs._events)) m.hs._events.push({ type: 'rare_drop', atMs, item: ev.id });
-    }
-    call(m.fx, 'onDrop', ev);
+    giveDrop(m, ids[present.indexOf(m)], ev, ctx, atMs);
   }
 }
 
@@ -160,6 +186,7 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the hunt's hunt-tiers.js row), hearthfind? (the indexed table; the catalogue's when absent),
  *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays only his drops, on his kill),
+ *   prize? (a keyed hall's boss, by id: his rows are each hero's own daily roll, payPrize),
  *   train? (a training ground's { place, skill }: it pays that skill only, src/core/hunt/training.js) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */

@@ -37,6 +37,8 @@ import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.134';
 import { recipeInputs } from '../core/artisan.js?v=0.2.134';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.134';
 import { itemName } from './widgets/bits.js?v=0.2.134';
+import { HERO_RESIST_KEYS } from '../data/elements.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -370,6 +372,11 @@ const STATS = Object.freeze([
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);
+/* A PIECE'S RESISTANCE (`resistPm`: { ember | frost | poison | physical: permille less taken }; src/core/elements.js heroElementPermille is the
+   engine's read), one line a key in the vocabulary's order: "Fire damage taken −10%", "Physical damage taken −3%". The words are the
+   monster page's own element names (src/data/text/monster.js), so fire is called the same thing on both. */
+const resistValue = (it, k) => (it && it.resistPm && Number.isFinite(it.resistPm[k]) ? it.resistPm[k] : 0);
+const resistLabel = (k) => t('item.resist_taken', { element: t('monster.el_' + k) });
 const pctWords = (v) => (Math.round(v * 1000) / 10) + '%';
 const cutWords = (v) => Math.abs(v) / 10 + '%';
 
@@ -382,6 +389,10 @@ export function statLines(id) {
     if (!v) continue;
     out.push({ key: k, label, value: v, text: kind === 'cut' ? '−' + cutWords(v) : (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v) });
   }
+  for (const k of HERO_RESIST_KEYS) {
+    const v = resistValue(it, k);
+    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });
+  }
   return out;
 }
 
@@ -393,6 +404,10 @@ export function compare(id, worn) {
     const d = statValue(a, k) - statValue(b, k);
     if (Math.abs(d) < 1e-9) continue;
     out.push({ label, delta: d, text: kind === 'cut' ? (d > 0 ? '−' : '+') + cutWords(d) : (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d)) });
+  }
+  for (const k of HERO_RESIST_KEYS) {
+    const d = resistValue(a, k) - resistValue(b, k);
+    if (d) out.push({ label: resistLabel(k), delta: d, text: (d > 0 ? '−' : '+') + cutWords(d) });
   }
   return out;
 }

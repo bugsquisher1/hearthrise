@@ -126,6 +126,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
 import { OPEN_BOSS_HALLS, BOSS_HALL_RULES } from '../src/data/boss-halls.js';
+import { REVEAL_BANDS } from '../src/data/loot-bands.js';
 import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, TRAINING_GEAR, TRAINING_GEAR_ITEMS, trainingHuntId } from '../src/data/training.js';
 import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
@@ -295,6 +296,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
    xp 0, and the CHECK hr_hunt_kill_bounds_xp_max_check lets a called row carry drops (never XP or coin). No other row, bound, limit or shape moves. The
    bound only widens, so this file is safe on either side of the hr-accrue that pays the drops; the settle's own allowlist (hr_boss_call_pays) still
    refuses a window with an item until lane C's migration restates it, and that migration applies BEFORE that edge. */
+/* ...AND KRELL'S HOLD AS RE-SHIPPED (lane/c-krell-uniques: 2027-04-25-pack-krells_hold-2, Lord Krell's rows his daily prize). The applied training-gear whole files fold the
+   pack as its first file shipped it; the re-ship applies BEFORE this file (tests/schema-apply-order.json), so this file folds it as re-shipped
+   (tools/pack/whole.mjs). The 2027-04-26-krell-reship pair lane/d-audit-f22 staged for that alone was collapsed into this one when the lanes met
+   (one generator vouches for one file). */
 export const OUT_NAME = '2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -824,6 +829,21 @@ function calledRows(S) {
    carry spells and an enrage line but never a wave or a guard of his own; a plain add has no lines. A hasted spell (piece 7) is the row's own, and
    its hastened wait still outlasts its windup (data/monster-spells.js: a cooldown is longer than its windup). */
 const NAMED_ADD_PHASES = Object.freeze(['enragePm', 'enrageAtkPm']);
+/* A HALL BOSS'S ROWS ARE THE HALL'S DAILY PRIZE (src/data/boss-halls.js; src/core/drops.js rollPrize; 2027-04-25-boss-daily.sql): each hero's ONE roll a day,
+   every row a SLICE of it. So every row is a reveal row (rare or trophy), named once, with a real slice, and the slices make at most one roll. The
+   database reads the same rows as his kill bound's drops and holds a hero to one of them a day: a row that rolled any other way (an every-kill bone)
+   would be taken away as a second prize, so it is refused here. An every-kill drop goes on one of his adds. */
+function prizeRows(hall, boss, b) {
+  const seen = new Set(); let sum = 0;
+  for (const d of Array.isArray(b.drops) ? b.drops : []) {
+    if (!d || !ID.test(String(d.id)) || seen.has(d.id)) throw new Error(`hall ${hall}'s boss ${boss} names a prize row twice, or by no id: ${d && d.id}`);
+    seen.add(d.id);
+    if (!REVEAL_BANDS.includes(d.band)) throw new Error(`hall ${hall}'s boss ${boss} drops ${d.id} in the ${d.band} band: his rows are the hall's daily prize (rare or trophy), so give an every-kill drop to one of his adds`);
+    if (!(Number(d.ch) > 0 && Number(d.ch) <= 1)) throw new Error(`hall ${hall}'s boss ${boss} prize row ${d.id} has no slice of the roll: ch ${d.ch}`);
+    sum += Number(d.ch);
+  }
+  if (sum > 1 + 1e-9) throw new Error(`hall ${hall}'s boss ${boss} prize rows add up to ${sum}: they are slices of ONE roll, at most 1`);
+}
 const BOSS_PHASES = Object.freeze(['addsPm', 'enragePm', 'enrageAtkPm', 'guardPm', 'hasten']);
 function hallRows(S) {
   const rules = S.hallRules;
@@ -860,6 +880,7 @@ function hallRows(S) {
     if (!b || b.boss !== true || b.add === true || b.called === true) throw new Error(`hall ${h.id}'s boss ${boss} is not a boss row that pays`);
     if (!lines(b.phases)) throw new Error(`hall boss ${boss} has no two lines: ${JSON.stringify(b.phases)}`);
     hasten(boss, b);
+    prizeRows(h.id, boss, b);
     for (const s of p.adds) {
       const a = S.monsters[s.monster];
       if (!a || a.add !== true || a.called === true) throw new Error(`hall ${h.id}'s add ${s.monster} is not an add row that pays`);

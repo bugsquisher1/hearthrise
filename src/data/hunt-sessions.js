@@ -241,8 +241,9 @@ export const END_REASON_COPY = Object.freeze({
   /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
   boss_felled: Object.freeze({ one: '{name} beat him and walked out of {ground}. There\'s a title for you under Titles in the Character window.' }),
   boss_time: Object.freeze({ one: 'The ten minutes ran out before he went down. {name} came home from {ground}.' }),
-  /* THE BURNING TOWER (a draft, not through the reader gate: the window and art lane words it with the rest of the Tower's lines). */
-  floor_time: Object.freeze({ one: 'The time on that floor ran out and the Hearth spat {name} back out onto the ledge.' }),
+  /* THE BURNING TOWER (the board's §2: "Three minutes a floor, ten on a landing. Then the climb ends"). Plain words, the house's "so you
+     headed home" (a draft, not through the reader gate: the window and art lane words it with the rest of the Tower's lines). */
+  floor_time: Object.freeze({ one: 'You didn\'t clear that floor in time, so the climb ended and you headed home.' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
   party_member_died: Object.freeze({ one: '{member} died, so {name} came home too.' }),

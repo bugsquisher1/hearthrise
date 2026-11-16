@@ -23,8 +23,9 @@ export function sourcesOf(account, cs) {
 /** The row of presses and its confirm (built once; patchPlanCopy fills it). */
 export function planCopyHtml() {
   return '<div class="hw-plancopy"><span class="hw-plancopy-list"></span>'
-    + '<div class="hw-confirm hw-plancopy-confirm" role="alertdialog" aria-label="' + t('bag.plan_copy_confirm_label') + '"><p class="hw-confirm-q"></p>'
-    + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="plan-copy-yes"></button>'
+    /* its own class names: the sale's confirm and its tests find the window's first .hw-confirm (grid.js patchTools) */
+    + '<div class="hw-plancopy-confirm" role="alertdialog" aria-label="' + t('bag.plan_copy_confirm_label') + '"><p class="hw-plancopy-q"></p>'
+    + '<div class="hw-plancopy-do"><button type="button" class="hw-primary" data-hs-act="plan-copy-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="plan-copy-no">' + t('controls.cancel') + '</button></div></div></div>';
 }
 
@@ -48,7 +49,7 @@ export function patchPlanCopy(root, st, ctx, onBag) {
   const src = list.find((s) => s.slot === st.sc.planCopy) || null;
   const c = box.querySelector('.hw-plancopy-confirm');
   cls(c, 'is-on', !!src);
-  text(c.querySelector('.hw-confirm-q'), src ? confirmWords(src, nameOf(st.cs) || t('bag.plan_copy_this')) : '');
+  text(c.querySelector('.hw-plancopy-q'), src ? confirmWords(src, nameOf(st.cs) || t('bag.plan_copy_this')) : '');
   const yes = c.querySelector('[data-hs-act="plan-copy-yes"]');
   text(yes, t('bag.plan_copy_yes'));
   prop(yes, 'disabled', st.sc.pending);

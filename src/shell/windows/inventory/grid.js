@@ -83,7 +83,7 @@ export function toolsHtml(g) {
     + '<button type="button" class="hh-tool" data-hs-act="clear-sel">' + t('controls.clear') + '</button></div>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
-    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>' + planCopyHtml()
+    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>' + planCopyHtml()   /* the sale's confirm follows; plan-copy.js keeps its own class names */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'

@@ -8,7 +8,7 @@
 //   FLOOR  src/data/world/maps/burning_tower.js rows → a paint grid: I the iron landing (the plate), A the swept ash (the Pyre Field's
 //          own ash, chained: both sets share base tile ed88d179 byte for byte), H hearthstone patches where the ash is thin, laid only
 //          off the fight area (its median #6a6865 is too dark under a pocket, tower-pours.mjs --check), # the brick mass.
-//   FINISH (round 3) a hand-placed list (FINISH): the climbers' worn path, ash drifts against the walls, cool and warm patches, cinder
+//   FINISH (round 3) a hand-placed list (FINISH): the climbers' worn path, ash drifts against the walls, pale and warm patches, cinder
 //          scatter, and the landing's 64 px sections and raised rim. It throws if the floor's median under the spawns leaves #8a867d.
 //          The plain ash it leaves is varied per cell at runtime (art/world/tower/flue_ash_variety.json, src/world/core/ground-variety.js).
 //   WALLS  the ember run (cracks glowing in three cells) and the plain run (its brown flecks remapped to the ember run's stone and
@@ -65,15 +65,16 @@ export function flueGrid(rows) {
 
 /* ── THE FLOOR'S FINISH, BY HAND (round 3, 2026-11-16: "break the flat pale ash; give the iron landing a rim and seams") ──
    Every feature is a row here in map cells, placed by eye against the room and moved by editing the row. Fight cells take paint, never
-   props. No colour is new: a pixel moves one step along its own ramp, to a cooler or warmer twin of about its value, or takes a cinder
+   props. No colour is new: a pixel moves one step along its own ramp, to a warmer twin of about its value, or takes a cinder
    from the soot and fire ramps. Seeds are fixed, so the paint is the same on every run. */
 export const FINISH = Object.freeze({
   /* the climbers' worn path: from the stair at the landing's west, over the iron, across the ash to the irons in the north wall */
   path: Object.freeze([[41.5, 23.5], [50.5, 23.5], [53.2, 22.2], [54.5, 19.5], [54.5, 15.6]]),
   /* ash drifts blown against the walls and round the curves: [cx, cy, rx, ry, turn] (cells; turn in radians) */
   drifts: Object.freeze([[57.3, 22.4, 0.5, 3.1, 0], [52.1, 17.4, 1.6, 0.5, -0.45], [55.0, 29.8, 1.8, 0.45, 0.12], [50.5, 27.9, 0.55, 1.5, 0.25]]),
-  /* the draught down the flue keeps the north and the east wall cool; the heap's embers and the stair's braziers warm theirs: [cx, cy, r] */
-  cool: Object.freeze([[54.5, 17.0, 3.2], [57.2, 24.6, 2.6]]),
+  /* the draught down the flue leaves pale, clean ash in the north and along the east wall; the heap's embers and the stair's braziers warm
+     theirs: [cx, cy, r] */
+  pale: Object.freeze([[54.5, 17.0, 3.2], [57.2, 24.6, 2.6]]),
   warm: Object.freeze([[53.8, 29.0, 2.6], [51.4, 23.0, 1.8], [54.2, 24.6, 2.2]]),
   /* cinders: what falls from the flue under the irons, what spills round the heap and the scuttle: [cx, cy, r, count] */
   cinders: Object.freeze([[53.5, 31.0, 1.4, 90], [56.2, 31.2, 0.6, 30], [54.5, 15.8, 0.8, 40], [55.3, 20.4, 1.0, 26], [52.4, 26.4, 1.0, 26], [50.8, 22.1, 0.5, 14], [56.6, 27.2, 0.7, 18]]),
@@ -96,14 +97,14 @@ export function finishFloor(img, rows) {
   /* the patches and drifts are the ash's own: the hearthstone slabs keep their stone (a warm speckle on a slab reads as rust) */
   const loose = (x, y) => cellOf(x, y) === 'A' && ASH_FAMILY.includes(hexAt(img, x, y));
   const swap = (x, y, map, p, seed) => { const h = hexAt(img, x, y); if (map[h] && hash2(x, y, seed) < p) setHex(img, x, y, map[h]); };
-  const counts = { cool: 0, warm: 0, drift: 0, path: 0, cinder: 0, seam: 0, rim: 0 };
-  /* 1 COOL AND WARM: a soft blob round each centre; cool ash takes the iron ramp's grey twins of its values (the steel ramp read as puddles of
-     water), warm takes the bone's pale and the earth's dark (the orange earths read as rust) */
-  const COOL = { [R('stone', 3)]: R('iron', 3), [R('stone', 2)]: R('iron', 2), [R('stone', 4)]: R('iron', 3) };
-  const COOL_P = { [R('stone', 3)]: 0.55, [R('stone', 2)]: 1, [R('stone', 4)]: 1 };
+  const counts = { pale: 0, warm: 0, drift: 0, path: 0, cinder: 0, seam: 0, rim: 0 };
+  /* 1 PALE AND WARM: a soft blob round each centre; pale ash is the ash's own ramp a step up, neutral grey (the steel and iron ramps' cool
+     twins read as blue puddles under the indoor light), warm takes the bone's pale and the earth's dark (the orange earths read as rust) */
+  const PALE = { [R('stone', 3)]: R('stone', 4), [R('stone', 2)]: R('stone', 3) };
+  const PALE_P = { [R('stone', 3)]: 0.4, [R('stone', 2)]: 0.8 };
   const WARM = { [R('stone', 2)]: R('earth', 2), [R('stone', 4)]: R('bone', 0), [R('stone', 3)]: R('bone', 0) };
   const WARM_P = { [R('stone', 2)]: 0.6, [R('stone', 4)]: 1, [R('stone', 3)]: 0.16 };
-  for (const [list, map, P, seed, key] of [[FINISH.cool, COOL, COOL_P, 71, 'cool'], [FINISH.warm, WARM, WARM_P, 73, 'warm']]) {
+  for (const [list, map, P, seed, key] of [[FINISH.pale, PALE, PALE_P, 71, 'pale'], [FINISH.warm, WARM, WARM_P, 73, 'warm']]) {
     for (const [cx, cy, r] of list) {
       for (let y = Math.max(0, Math.floor((cy - r) * T)); y < Math.min(H, Math.ceil((cy + r) * T)); y++) for (let x = Math.max(0, Math.floor((cx - r) * T)); x < Math.min(W, Math.ceil((cx + r) * T)); x++) {
         if (!loose(x, y)) continue;
@@ -276,32 +277,17 @@ export function layWalls() {
   const CAP = 10;
   /* 0: THE MASS IS A WALL'S TOP, NOT VOID (round 3: the room closed as Krell's Hold closes its rooms, a wall's top beyond every edge). The
      top is the flue's own hearthstone slab (the 5-pyreash-hearthstone tileset's interior tile, the masonry the chimney is built of) sunk
-     down the stone ramp and on into the shadow ramp, so it reads as stone in shadow and never as the floor or as the brick faces: two
-     steps at the floor's edge, four a cell out, five beyond (near black, its joints still there), the bands crossed in an ordered 4x4 dither so they never show the cell grid. The
-     whole mass is stone, as the Hold's is: no void. */
+     down the stone ramp and on into the shadow ramp four steps, so it reads as stone in shadow and never as the floor or as the brick
+     faces. ONE flat tone over the whole mass, as the Hold's wall-walk is one step down everywhere: no falloff with distance and no dither
+     (a darkening away from the room is a painted shadow, ART_DIRECTION §2). The whole mass is stone: no void. */
   const hsDir = G16 + '/5-pyreash-hearthstone', hsSheet = decodePNG(readFileSync(abs(hsDir) + '/' + readdirSync(abs(hsDir)).find((f) => f.endsWith('-sheet.png'))));
   const ht = wangTiles(metaOf(hsDir), { sheet: hsSheet }).tiles['1111'];
   const slab = crop(hsSheet, ht.x, ht.y, T, T);
-  /* the stone ramp bottoms out at #3a3a3e in shadeGround, so the sink runs on down the shadow ramp: one chain, dark to light */
+  /* the stone ramp bottoms out at #3a3a3e (lock.mjs shadeGround), so the sink runs on down the shadow ramp: one chain, dark to light */
   const CHAIN = [...RAMPS.shadow, ...RAMPS.stone];
   const sink = (im, n) => { const out = crop(im, 0, 0, im.width, im.height); for (let i = 0; i < out.data.length; i += 4) { const k = CHAIN.indexOf('#' + [0, 1, 2].map((j) => out.data[i + j].toString(16).padStart(2, '0')).join('')); if (k >= 0) out.data.set(rgb(CHAIN[Math.max(0, k - n)]), i); } return out; };
-  const tops = [2, 4, 5].map((n) => sink(slab, n));
-  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (!wall(x, y)) continue;
-    const near = [];
-    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (x + dx >= 0 && y + dy >= 0 && x + dx < w && y + dy < h && floor(x + dx, y + dy)) near.push([x + dx, y + dy]);
-    for (let py = 0; py < T; py++) for (let px = 0; px < T; px++) {
-      const gx = x * T + px, gy = y * T + py, o = (gy * img.width + gx) * 4;
-      let dmin = Infinity;
-      for (const [qx, qy] of near) {
-        const ex = Math.max(qx * T - gx, 0, gx - (qx * T + T - 1)), ey = Math.max(qy * T - gy, 0, gy - (qy * T + T - 1));
-        dmin = Math.min(dmin, Math.hypot(ex, ey));
-      }
-      const band = Math.max(0, Math.min(tops.length - 1, Math.floor(dmin / T + (BAYER[(gy & 3) * 4 + (gx & 3)] + 0.5) / 16 - 0.5)));
-      img.data.set(tops[band].data.subarray((py * T + px) * 4, (py * T + px) * 4 + 4), o);
-    }
-  }
+  const top = sink(slab, 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (wall(x, y)) blit(img, top, 0, 0, T, T, x * T, y * T);
   /* 1: the side walls' coping seen from above: the plain run's cap turned a quarter (its lit row to the west, the light's side), on the edge of
      the mass that meets the floor. A south wall carries its own cap on its face (3). */
   const cap = S.plain[0], capV = createImage(CAP, T);
@@ -352,7 +338,7 @@ export function layWalls() {
   }
   writeFileSync(file, encodePNG(img));
   const jp = file.replace(/\.png$/, '.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
-  sc.notes += ' The soot-brick walls are laid over the paint by tools/world-art/tower-flue.mjs: ' + faces + ' north face slices (' + cracked + ' ember-cracked) and ' + south + ' south face slices of the two kept pro-flash runs (gen-2026-11-16/01-flue-sample/walls, the plain run remapped onto the ember run\'s ramp), ' + sides + ' side copings (the run\'s cap turned a quarter), and the mass beyond every edge a wall\'s top: the flue\'s hearthstone slab sunk 2, 4 and 5 steps down the stone and shadow ramps by its distance to the floor, the bands crossed in a 4x4 ordered dither.';
+  sc.notes += ' The soot-brick walls are laid over the paint by tools/world-art/tower-flue.mjs: ' + faces + ' north face slices (' + cracked + ' ember-cracked) and ' + south + ' south face slices of the two kept pro-flash runs (gen-2026-11-16/01-flue-sample/walls, the plain run remapped onto the ember run\'s ramp), ' + sides + ' side copings (the run\'s cap turned a quarter), and the mass beyond every edge a wall\'s top: the flue\'s hearthstone slab sunk 4 steps down the stone and shadow ramps, one flat tone with no falloff.';
   writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
   console.log('  ✓ tower/burning_tower_ground: ' + faces + ' north faces (' + cracked + ' ember-cracked), ' + south + ' south faces, ' + sides + ' side copings');
 }

@@ -1,0 +1,85 @@
+// src/data/world/maps/burning_tower.js — THE BURNING TOWER'S ROOM: one floor of the flue, the room every floor of the climb is fought in.
+// Row shape and lint: src/world/core/map-compile.js. Rebuild the hash with `node tests/world-core.mjs --hashes` after changing what
+// blocks a step. The climb's rules: src/data/tower.js; its ground row: src/data/hunt-grounds.js TOWER_GROUNDS.
+//
+// THE GRID (art director, lane/a-tower-art-gen 2026-11-16). The Tower is the Great Hearth's chimney: a ring of soot brick round a floor
+// of cold ash, every floor the same room. The room is a rounded shaft, x49-57 y15-32, its corners cut in steps so it reads as a flue and
+// not a hall. The stair comes up from the floor below onto an iron landing at the west, x41-50 y21-25 (the Keepers' iron, riveted plate
+// where the ash is swept off), and the way on up is the iron rungs in the north wall. The fight is on the ash: a BRIGHT ground (median
+// #8a867d, the Pyre Field's ash, chained) so the Tower's charred bodies read 3:1 by their ring (tools/world-art/tower-pours.mjs --check).
+//   '#' the flue's brick mass (rock: blocks a step and a shot)
+//   '.' the ash floor (earth)
+//   'i' the iron landing (setts: walked)
+//
+// ONE ROOM, TWO GRIDS UNTIL THE ROW MOVES. The engine still fights the climb on the Sewer's grid (TOWER_GROUNDS `map`: the Rat King's
+// hall, x51-57 y18-29, its start and pocket cells). This room is laid so every cell the engine can walk there, and the hall's way west
+// (x41-50 y21-25), is open floor here too: the scene shows this room and no unit ever stands in its brick. When the systems engineer
+// moves the ground row to this map (a new hunt-sessions catalogue: HANDOFFS 2026-11-16), the room is the engine's too; nothing here
+// changes.
+//
+// ART: set `tower` (tools/world-art/tower-flue.mjs): the floor painted from these rows on the flue family (the iron plate, the Pyre
+// Field's ash chained, hearthstone patches the paint lays where the ash is thin), the soot-brick walls laid over the paint with an
+// ember-cracked face every sixth cell, and the kit's props.
+export default Object.freeze({
+  id: 'burning_tower',
+  name: 'The Burning Tower',
+  kind: 'hunt',
+  hunts: Object.freeze(['the_burning_tower']),
+  outdoor: false,
+  light: 'indoor',
+  ground: 'burning_tower_ground',
+  legend: Object.freeze({ '#': 'rock', '.': 'earth', i: 'setts' }),
+  rows: Object.freeze([
+    '############################################################', // 0
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '############################################################', // 5
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '############################################################', // 10
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '####################################################.....###', // 15 the shaft's north curve; the rungs above x54
+    '###################################################.......##',
+    '##################################################........##',
+    '#################################################.........##',
+    '#################################################.........##',
+    '#################################################.........##', // 20
+    '##########################################iiiiiiiii.......##', //    the iron landing, the stair from the floor below
+    '#########################################iiiiiiiiii.......##',
+    '#########################################iiiiiiiiii.......##',
+    '#########################################iiiiiiiiii.......##',
+    '##########################################iiiiiiiii.......##', // 25
+    '#################################################.........##',
+    '#################################################.........##',
+    '#################################################.........##',
+    '#################################################.........##',
+    '##################################################........##', // 30
+    '###################################################......###',
+    '####################################################....####',
+    '############################################################',
+    '############################################################',
+    '############################################################', // 35
+    '############################################################',
+    '############################################################',
+    '############################################################',
+    '############################################################',
+  ]),
+  faces: Object.freeze([]),
+  objects: Object.freeze([]),
+  buildings: Object.freeze([]),
+  /* the patrol loop round the room's middle */
+  path: Object.freeze([[52, 20], [56, 20], [56, 27], [52, 27]]),
+  /* the Tower's start and pocket cells (hunt-grounds.js TOWER_GROUNDS), so the lint proves each is open floor here */
+  spawns: Object.freeze([[55, 23], [56, 18], [56, 28], [53, 18], [53, 28], [51, 23], [51, 22], [51, 24], [50, 23]]),
+  stations: Object.freeze({}),
+  exits: Object.freeze([{ x: 42, y: 23, to: 'town_common' }]),
+  start: Object.freeze([51, 23]),
+  maskHash: '00000000',
+});

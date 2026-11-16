@@ -1,0 +1,23 @@
+{
+  "lane": "lane/a-tower-art-gen (art director, 2026-11-16)",
+  "brief": "the flue room kit SAMPLE (CLAUDE.md §10): the floor and one wall, read before the rest",
+  "gens": "78 (balance 8595 before; 4 pro tilesets x15, 3 pro-flash wall runs x6)",
+  "floor": {
+    "1-iron-ash 625b617c": "REFUSED: the ash came back steel #c4ccd2 (median lum 0.596) and cracked like crazy paving. Its IRON half is KEPT as the landing's plate: base tile 1d9d972e (palette-born, chain it)",
+    "2-iron-ash-b edc513f2": "REFUSED: a two-tone flagstone checkerboard, not ash",
+    "3-iron-ashbrick ff0ffa3c": "REFUSED: a blue-grey brick pavement, busy",
+    "4-iron-pyreash cd1545ff": "KEPT: the iron plate (1d9d972e) meeting the Pyre Field's own ash (ed88d179, chained, both bases byte-identical); a pale ash lip where the ash meets the plate. The floor IS #8a867d, the colour tower-pours.mjs --check measures",
+    "5-pyreash-hearthstone 6c66b9da": "KEPT for PATCHES only: the ash (ed88d179) meeting swept hearthstone slabs (44a79cf1, #6a6865, median 0.139: too dark for the fight area, so never under a pocket)"
+  },
+  "walls (create_image_pro_flash 192x64, palette)": {
+    "run-ember-237933ea": "KEPT: soot brick, grey cap, two piers, ember cracks glowing in three cells (the ember-crack variant). Style image: Krell's Hold run 8a476eef (form only)",
+    "run-plain2-c83bef3f": "KEPT: the plain run, styled on the ember run (same courses and cap); its brown flecks (#553a26 #6e4c30) and iron tones want a 0-gen ramp remap to the ember run's stone/shadow before slicing",
+    "run-plain-54b1eb8d": "REFUSED: a cream #c9bfa0 cap that does not match the ember run",
+    "slicing": "cells x0,32,..160 of each run, opaque rows 4-59 (the Hold's slices are 3-59 in 32x60): cut at y0-59 into 32x60 wall slices"
+  },
+  "next (not done)": [
+    "tools/world-art/tower-flue.mjs: paint burning_tower_ground from src/data/world/maps/burning_tower.js rows (A ash, I iron, H hearthstone patches by noise away from iron, # void #0b0a0c) with port-pixellab.mjs paint over dirs 4 and 5; lay the wall faces (plain, ember-crack every 6th, piers) and capstones as barrow-grounds.mjs holdWalls does",
+    "map row burning_tower.js is WRITTEN but NOT wired (not in maps/index.js; maskHash is a placeholder; objects empty): wire after the paint, set light/ATLAS_SETS 'tower', a region kit for it, take the_burning_tower off millrace_sewer's hunts",
+    "then: in-game 1x read, the 5 props, the Hearth Chest, the Sweep's Coat"
+  ]
+}

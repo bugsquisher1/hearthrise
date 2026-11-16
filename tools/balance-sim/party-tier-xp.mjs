@@ -6,7 +6,7 @@
 // Level (the band's floor and middle): five lone ways (tank, hammer, bow, mage, healer) at the Level and a healer 5 under,
 // then the mixed parties: "andy" (hammer, bow, mage at the Level, a healer 5 under: the live party that showed it), the
 // designer's four (tank, healer, bow, mage), two duos and a trio. Each reading:
-//   contract  a four's Level XP a head an hour over the pace contract at each seat's Level (balance-sheet.js contractXpPerH)
+//   contract  a four's Level XP a head an hour over the pace contract at its top Level (balance-sheet.js contractXpPerH, grade.mjs xpVsContract)
 //   seat      each seat over the SAME way alone at the same Level and tier (the lowest seat printed): above 1.00 = above solo
 //   vsMedian  a head over the median lone way at the Level (10-25 §5's measure)
 // A party's Level XP is the party cell times its even share (src/core/hunt/xp-share.js), so a flat party factor moves every
@@ -76,43 +76,67 @@ function judge(played) {
       const seatXp = ways.map((_, i) => mean(cells.map((c) => c.heroes[i].levelXpPerH)));
       const head = mean(seatXp);
       const lv = off.map((o) => Math.max(1, L + o));
-      const contract = mean(seatXp.map((x, i) => x / contractXpPerH(lv[i])));
+      /* the grader's read (grade.mjs xpVsContract): a head over the contract at the party's top Level (a seat 5 under at Level 1-5 reads the contract of a Level 1 hero) */
+      const contract = head / contractXpPerH(Math.max(...lv));
       const seats = ways.map((w, i) => seatXp[i] / alone(w, off[i] === -5 ? -5 : 0));
       const deaths = cells.reduce((n, c) => n + c.heroes.reduce((m, h) => m + h.deaths, 0), 0);
-      rows.push({ g, tier, lvName, L, name, head, contract, seatMin: Math.min(...seats), seats, vsMedian: head / med, deaths, hours: SEEDS * HOURS });
+      const vsSame = head / mean(ways.map((w, i) => alone(w, off[i] === -5 ? -5 : 0)));
+      rows.push({ g, tier, lvName, L, name, head, contract, seatMin: Math.min(...seats), vsSame, seats, vsMedian: head / med, soloC: med / contractXpPerH(L), deaths, hours: SEEDS * HOURS });
     }
   }
   return rows;
 }
 
 const f2 = (x) => x.toFixed(2);
+const MIXES = Object.keys(PARTIES);
+/* --at-ground g=pm,h=pm: a factor per ground (the rest at --at) */
+const AT_GROUND = Object.fromEntries(String(arg('--at-ground', '')).split(',').filter(Boolean).map((x) => { const [g, pm] = x.split('='); return [g, Number(pm)]; }));
+const kOf = (g) => (Object.hasOwn(AT_GROUND, g) ? AT_GROUND[g] : AT_PM) / NOW_PM;
+
 function report(rows) {
-  const k = AT_PM / NOW_PM;
-  console.log('party-tier-xp: PARTY_XP_PM on this tree ' + NOW_PM + (AT_PM !== NOW_PM ? ', read at ' + AT_PM + ' (x' + k.toFixed(3) + ' on every party number)' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell');
-  console.log('ground               tier       at     L | andy xC  four xC | lowest seat vs same way alone: andy four duoTH duoTB trio | four vs median | deaths(andy,four)');
+  console.log('party-tier-xp: PARTY_XP_PM on this tree ' + NOW_PM + ', read at ' + AT_PM + (Object.keys(AT_GROUND).length ? ' (per ground: ' + JSON.stringify(AT_GROUND) + ')' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell');
+  console.log('  xC = Level XP a head over the pace contract (solo: the median lone way); vs same = a head over the same heroes alone (mean), seat = over its best way alone; ' + MIXES.join(', '));
+  console.log('ground               tier       at       L | solo xC  andy xC  four xC | vs same: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | seat: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | deaths');
   for (const g of grounds) for (const tier of T.tiersOf(g)) for (const lv of ['floor', 'middle']) {
+    const k = kOf(g);
     const r = (n) => rows.find((x) => x.g === g && x.tier === tier && x.lvName === lv && x.name === n);
     const a = r('andy'), f = r('four');
-    console.log(g.padEnd(20) + ' ' + tier.padEnd(10) + ' ' + lv.padEnd(6) + ' ' + String(a.L).padStart(3) + ' | ' + f2(a.contract * k).padStart(7) + ' ' + f2(f.contract * k).padStart(7) + ' | '
-      + Object.keys(PARTIES).map((n) => f2(r(n).seatMin * k)).join(' ') + ' | ' + f2(f.vsMedian * k) + ' | ' + a.deaths + ',' + f.deaths);
+    console.log(g.padEnd(20) + ' ' + tier.padEnd(10) + ' ' + lv.padEnd(6) + ' ' + String(a.L).padStart(3) + ' | ' + f2(a.soloC).padStart(7) + ' ' + f2(a.contract * k).padStart(8) + ' ' + f2(f.contract * k).padStart(8) + ' | '
+      + MIXES.map((n) => f2(r(n).vsSame * k)).join(' ') + ' | ' + MIXES.map((n) => f2(r(n).seatMin * k)).join(' ') + ' | ' + MIXES.map((n) => r(n).deaths).join(','));
   }
-  /* the flat factor that lands the hottest Deadly four (andy or four) on the target, and what Normal and Dangerous read with it */
   const target = Number(arg('--deadly', 2.5));
-  const deadly = rows.filter((x) => x.tier === 'deadly' && (x.name === 'andy' || x.name === 'four'));
-  if (deadly.length) {
-    const hot = deadly.reduce((m, x) => (x.contract > m.contract ? x : m));
-    const pm = Math.floor(((NOW_PM * target) / hot.contract) / 5) * 5;
-    console.log('hottest Deadly four: ' + hot.g + ' ' + hot.lvName + ' ' + hot.name + ' ' + f2(hot.contract * k) + 'x the contract; PARTY_XP_PM ' + pm + ' lands it at ' + target + 'x');
-    for (const tier of T.TIER_IDS) {
-      const on = rows.filter((x) => x.tier === tier);
-      const lo = on.reduce((m, x) => (x.seatMin < m.seatMin ? x : m));
-      const fours = on.filter((x) => x.name === 'andy' || x.name === 'four').map((x) => x.contract);
-      console.log('  at ' + pm + ', ' + tier.padEnd(9) + ' fours ' + f2(Math.min(...fours) * pm / NOW_PM) + '-' + f2(Math.max(...fours) * pm / NOW_PM) + 'x the contract; lowest seat vs alone ' + f2(lo.seatMin * pm / NOW_PM) + ' (' + lo.g + ' ' + lo.lvName + ' ' + lo.name + ')');
-    }
-    /* the flat factor that keeps every Dangerous and Deadly seat over solo */
-    const harder = rows.filter((x) => x.tier !== 'normal');
-    const floorSeat = harder.reduce((m, x) => (x.seatMin < m.seatMin ? x : m));
-    console.log('  lowest Dangerous/Deadly seat at this tree: ' + f2(floorSeat.seatMin) + ' (' + floorSeat.g + ' ' + floorSeat.tier + ' ' + floorSeat.lvName + ' ' + floorSeat.name + '): every seat stays over solo down to PARTY_XP_PM ' + Math.ceil(NOW_PM / floorSeat.seatMin));
+  const fours = (x) => x.name === 'andy' || x.name === 'four';
+  /* (A) ONE flat factor: lands the hottest Deadly four on the target */
+  const deadly = rows.filter((x) => x.tier === 'deadly' && fours(x));
+  if (!deadly.length) return;
+  const hot = deadly.reduce((m, x) => (x.contract > m.contract ? x : m));
+  const pm = Math.floor(((NOW_PM * target) / hot.contract) / 5) * 5;
+  console.log('(A) ONE FACTOR: the hottest Deadly four ' + hot.g + ' ' + hot.lvName + ' ' + hot.name + ' ' + f2(hot.contract) + 'x at ' + NOW_PM + '; PARTY_XP_PM ' + pm + ' lands it at ' + target + 'x');
+  for (const tier of T.TIER_IDS) {
+    const on = rows.filter((x) => x.tier === tier && x.name !== 'andy');
+    const lo = on.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
+    const fc = rows.filter((x) => x.tier === tier && fours(x)).map((x) => x.contract);
+    console.log('  ' + tier.padEnd(9) + ' fours ' + f2((Math.min(...fc) * pm) / NOW_PM) + '-' + f2((Math.max(...fc) * pm) / NOW_PM) + 'x the contract; lowest mix vs same heroes alone '
+      + f2((lo.vsSame * pm) / NOW_PM) + ' (' + lo.g + ' ' + lo.lvName + ' ' + lo.name + '); ' + on.filter((x) => (x.vsSame * pm) / NOW_PM <= 1).length + ' of ' + on.length + ' mixes at or under alone');
+  }
+  const harder = rows.filter((x) => x.tier !== 'normal' && x.name !== 'andy');
+  const lowH = harder.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
+  console.log('  every Dangerous/Deadly mix stays over its heroes alone down to PARTY_XP_PM ' + Math.ceil(NOW_PM / lowH.vsSame) + ' (' + lowH.g + ' ' + lowH.tier + ' ' + lowH.lvName + ' ' + lowH.name + ' ' + f2(lowH.vsSame) + ' now)');
+  const normal = rows.filter((x) => x.tier === 'normal' && x.name !== 'andy');
+  const lowN = normal.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
+  const keepN = Math.ceil(NOW_PM / lowN.vsSame);
+  const dAt = (p) => f2((Math.max(...deadly.map((x) => x.contract)) * p) / NOW_PM);
+  console.log('  every Normal mix stays over its heroes alone down to PARTY_XP_PM ' + keepN + '; there the hottest Deadly four reads ' + dAt(keepN) + 'x');
+  /* (G) A FACTOR PER GROUND, the same on every tier: each ground's hottest Deadly four onto the target, never raised */
+  console.log('(G) ONE FACTOR A GROUND, every tier: the cut that lands each ground\'s hottest Deadly four on ' + target + 'x (none where it reads under)');
+  for (const g of grounds) {
+    const d = rows.filter((x) => x.g === g && x.tier === 'deadly' && fours(x));
+    if (!d.length) { console.log('  ' + g.padEnd(20) + ' no Deadly'); continue; }
+    const top = Math.max(...d.map((x) => x.contract));
+    const gp = top > target ? Math.floor(((NOW_PM * target) / top) / 5) * 5 : NOW_PM;
+    const h = rows.filter((x) => x.g === g && x.tier !== 'normal' && x.name !== 'andy');
+    const lo = h.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
+    console.log('  ' + g.padEnd(20) + ' Deadly four ' + f2(top) + 'x -> ' + String(gp).padStart(4) + ': ' + f2((top * gp) / NOW_PM) + 'x; lowest harder-tier mix vs alone ' + f2((lo.vsSame * gp) / NOW_PM) + ' (' + lo.tier + ' ' + lo.lvName + ' ' + lo.name + ')');
   }
 }
 

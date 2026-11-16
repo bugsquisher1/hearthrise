@@ -876,6 +876,9 @@ async function pureRules(M, base) {
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
       [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
       [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 50, 'Wickstead')],
+      /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): the Pyre Field's mixed pair reads -5 */
+      [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about -5% vs solo in The Pyre Field'],
+      [['tank', 'melee_dps'], 'pyre_field', less(1, 35, 'The Pyre Field')],
     ]) {
       if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }

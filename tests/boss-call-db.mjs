@@ -41,7 +41,8 @@
 //   BD-RECORD  each hero's session keeps the fight's record (hunt_session_tally.fight, read through hr_hunt_view): where he stood at the end, what that hero's
 //              bar fired, the same through both doors; a forged record is refused; every other hunt's section has no such key
 //   BD-OWED    a fight's limit is owed from the fight's start: a window past it with no end is refused
-//   BD-AGAIN   every file of each lane applied a second time moves nothing: the schema's inventory, every spliced body and the catalogue rows, byte for byte
+//   BD-AGAIN   every file of each lane applied a second time moves nothing: the schema's inventory, every spliced body and the catalogue rows, byte for byte;
+//              an older file that restates a spliced body whole (faction-standing's settle, training-gear's member read) is refused by its own pin, moving nothing
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -893,16 +894,22 @@ ARMS.again = async (boot) => {
 };
 /* ...and the series' three files, on the chain as of ITS last file. */
 const SERIES_FILES = ['2027-04-23-boss-call-drops-items-catalogue.generated.sql', '2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql', '2027-04-24-boss-call-series.sql'];
-/* An OLDER file that restates the settle whole. Applied over the series it would erase the five CALL-SERIES splices; its own pin must refuse. */
-const OLDER_SETTLE = '2027-04-22-faction-standing.sql';
+/* OLDER files that restate a spliced body whole. Applied over the series each would erase that body's CALL-SERIES splices; its own pin must refuse,
+   moving nothing: faction-standing's settle (five splices) and training-gear's member read (one; the series' anchor sits on its image). */
+const OLDER_WHOLE = Object.freeze([
+  ['2027-04-22-faction-standing.sql', /PIN: hr_hunt_settle_session/],
+  ['2027-04-23-training-gear.sql', /PIN: public\.hr_hunt_member_read/],
+]);
 ARMS.again2 = async (boot) => {
   const { db } = await boot({ upTo: SERIES_FILES[2] });
   const bad = await againOn(db, SERIES_FILES);
   const read = reader(db), before = await read();
-  let raised = null;
-  try { await db.exec(readFileSync(join(ROOT, 'supabase/migrations', OLDER_SETTLE), 'utf8')); } catch (e) { raised = String(e.message).split('\n')[0]; }
-  if (!raised || !/PIN: hr_hunt_settle_session/.test(raised)) bad.push('BD-AGAIN ' + OLDER_SETTLE + ' applied over the series ' + (raised ? 'raised ' + raised.slice(0, 160) : 'was taken: the splices are gone'));
-  if ((await read()) !== before) bad.push('BD-AGAIN ' + OLDER_SETTLE + ' applied over the series moved a spliced body');
+  for (const [file, pin] of OLDER_WHOLE) {
+    let raised = null;
+    try { await db.exec(readFileSync(join(ROOT, 'supabase/migrations', file), 'utf8')); } catch (e) { raised = String(e.message).split('\n')[0]; }
+    if (!raised || !pin.test(raised)) bad.push('BD-AGAIN ' + file + ' applied over the series ' + (raised ? 'raised ' + raised.slice(0, 160) : 'was taken: the splices are gone'));
+    if ((await read()) !== before) bad.push('BD-AGAIN ' + file + ' applied over the series moved a spliced body');
+  }
   return bad;
 };
 

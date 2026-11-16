@@ -110,8 +110,8 @@ const mutants = [
   { name: 'Carter\'s Rest\'s throwers come down to melee: a lone Mage profits there on Dangerous', case: 'claims', grounds: ['carters_rest'],
     edits: [[PACK('carters_rest'), "      range: 6,\n      spells: ['poachers_volley'],", "      spells: ['poachers_volley'],"],
       [PACK('carters_rest'), "      range: 6,\n      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally'", "      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally'"]] },
-  { name: 'the Vaults\' Night Carter comes down to melee: a lone Mage at the floor never dies there', case: 'claims', grounds: ['pauper_vaults'],
-    edits: [[PACK('pauper_vaults'), "      range: 6,\n      spells: ['lime_sack'],", "      spells: ['lime_sack'],"]] },
+  { name: 'the Vaults\' Keeper Dunn comes down to melee: a lone Mage at the floor never dies there', case: 'claims', grounds: ['pauper_vaults'],
+    edits: [[PACK('pauper_vaults'), "      range: 6,\n      spells: ['snuff_the_candles'],", "      spells: ['snuff_the_candles'],"]] },
   /* the page: the line is never added */
   { name: 'the Hunts page never says it', case: 'words', also: ['src/shell/hunt-list.js', 'src/render'],
     edits: [['src/shell/hunt-list.js', "const alone = size <= 1 && isPartyTier(r.hunt, tier.id) ? [t('hunts.tier_party')] : [];", 'const alone = [];']] },

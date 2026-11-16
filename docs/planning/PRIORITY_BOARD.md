@@ -71,6 +71,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | 5 | Presses "Use the Hall Key" | One confirm | `BOSS_HALL_WORDS.confirm` |
 | 6 | Wins (tier 7 at 1 in 10 a piece) or reads the losing line | | `lord_krell` drops, `lossLine` guarded answer |
 
+### 2026-11-14 The Morrow Hills: the region after Krell, Harry and Holly, two factions, and unique gear (designer, lane/d-next-region. Tyler 2026-11-14: "let's go ahead and get started on the next set of lore and hunts after this boss", "The lore should somewhat tie in", "a good guy in the lore somewhere named Harry Something after my son", "some type of normal fella that ends up being a god at the endgame", "something similar to horde and alliance it doesn't have to be called good and evil", "Havora is a neutral town", "each new zone has equal amounts", "after tier 7 we start getting unique with the itemization", "for now lets just call him Harry", "she will be the eventual leader of the other side. Lets start with Holly"): DESIGNED, one ground drafted as a STAGED pack and MEASURED on the real engine, the two faction skills, Bulwark and Reap, MEASURED as a what-if on a scratch copy of the engine. Nothing built, nothing played by hand, no art, no server work
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.
 - **The Brook Bear's purse is back on the formula** ([13, 40] -> [11, 32]). It was kept by hand only for the +10% floor. The bear stays a heavy, the slow bruiser it reads as. drop-tables Glade value pin 6364 -> 6214, cause named.
@@ -402,7 +403,7 @@ The Last Ember don't think you can put it back, or should. The old way is the on
 | Mark on the hero | A rising flame in antique gold, by the name plate | A glowing ember in deep crimson, by the name plate |
 | Look | An antique gold tabard over forged steel plate, a tall shield, a ring of light behind the head. A paladin's shape | A charcoal hood and layered charcoal plate with deep crimson cloth, a soldier's iron face plate, a coal glowing in the chest. A reaper's shape, grim and not evil |
 | Earns standing on | Grounds 2, 4, 6 | Grounds 1, 3, 5 |
-| Skill | Lantern | Roll Call |
+| Skill | Bulwark | Reap |
 
 **Havora is neutral.** No gate, price, vendor, fire or scoreboard in town knows a faction. The Great Hearth burns a Roster Page for anybody.
 
@@ -464,45 +465,85 @@ That's 2 marks, 2 base outfits on the hero base model in 8 and 4 facings, 4 add-
 
 **The data rule and its guard (spec only).** Two new fields on a hunt row: `region` and `standingFor: 'first_flame' | 'last_ember'`. A new check in `src/data/catalogue-coherence.js`, held by `tests/faction-ground-balance.mjs`: every region after `barrow_march` has the same count of each, every post-Krell ground has the field, and a mutant with one flipped turns it red. The pack shape (`src/data/grounds/shape.js`) learns both fields in the same lane.
 
-#### 7. The faction skills (Tyler 2026-11-14: "a faction skill, not super over powered for either of them and balanced as best we can")
-One bar ability each, set up in Configure action like any other move. Different in kind.
+#### 7. The faction skills: Bulwark and Reap (Tyler 2026-11-14: "a faction skill, not super over powered for either of them and balanced as best we can", "What if roll call grants life leech for 5 seconds and lantern grants attack speed while the shield is active", "Bulwark and reap are it!", "let's just have the damage it's own base / multiplier based on highest combat stat")
+One bar ability each, set up in Configure action like any other move. Different in kind. The names are Tyler's.
 
-| | **Lantern** (the First Flame, a working name) | **Roll Call** (the Last Ember, a working name) |
+| | **Bulwark** (the First Flame) | **Reap** (the Last Ember) |
 |---|---|---|
-| What the player reads | Blocks the next chunk of damage on you | Hits your target hard |
-| Kind | Protective. It answers the big hit and the group spell | Aggressive. It ends one monster sooner |
-| Row as measured | universal, support lane, 45 s, 15 mana, self shield 90 (grows 1% a Magic level), fires under 70% HP | universal, offense lane, 45 s, 15 mana, one hit of 1.2 times your own biggest blow |
-| Lore | The Great Hearth's light, held up | Venn reads a name and somebody answers |
+| What the player reads | Blocks the next chunk of damage on you, and you attack faster while it holds | Hits your target, and for 5 seconds your hits heal you |
+| Kind | Protective, with a little speed | Aggressive, with a little healing |
+| Row as measured | universal, support lane, 45 s, 15 mana, a self shield of 90 (grows 1% a Magic level), 20% faster basic attacks while the shield stands, fires under 70% HP | universal, offense lane, 45 s, 15 mana, one hit of its own size (below), then 25% of the damage you deal comes back as HP for 5 s |
 
-**Measured.** The real engine (`tools/balance-sim/cell.mjs`) run from a scratch copy of the tree with the two rows added to its `abilities.js`. Nothing in the repo carries them. Mosslight Glade at Level 24, each hero on its default bar with the skill in the first slot, the same dice in all three arms. Alone is 2 seeds x 1 h and the four is 1 seed x 1 h, so a death count this small is a first read and not a rate. Deaths and close calls are totals for the cell. Profit was not read.
+**Reap's hit has its own size (Tyler's ruling).** It no longer reads the hero's own biggest blow. The top hit is a base plus a share of the hero's highest combat skill, and each hit rolls from half of that to all of it.
 
-| Who, tier | No skill: kills an hour, deaths, close calls, meals an hour | Lantern: kills, deaths, close calls, meals | Roll Call: kills, deaths, close calls, meals |
-|---|---|---|---|
-| Tank, Normal | 286, 0, 0, 32 | +0.3%, 0, 0, 8 | +4.2%, 0, 0, 31 |
-| Tank, Dangerous | 333, 0, 0, 345 | -0.3%, 0, 0, 265 | +3.0%, 0, 0, 322 |
-| Tank, Deadly | 362, 13, 47, 944 | -1.4%, 6, 34, 835 | +3.6%, 8, 41, 916 |
-| Healer, Normal | 385, 0, 0, 0 | -0.5%, 0, 0, 2 | +6.0%, 0, 0, 1 |
-| Healer, Dangerous | 431, 0, 0, 13 | -1.9%, 0, 0, 10 | +5.1%, 0, 0, 16 |
-| Healer, Deadly | 451, 0, 6, 148 | +2.0%, 0, 6, 113 | +7.8%, 1, 5, 122 |
-| Bow, Normal | 380, 0, 0, 19 | -0.3%, 0, 0, 7 | +4.2%, 0, 0, 13 |
-| Bow, Dangerous | 507, 0, 0, 70 | -0.6%, 0, 0, 39 | +3.0%, 0, 0, 69 |
-| Bow, Deadly | 572, 6, 15, 290 | -0.2%, 2, 8, 205 | +1.0%, 7, 11, 278 |
-| Mage, Normal | 443, 0, 0, 6 | 0.0%, 0, 0, 2 | +4.7%, 0, 0, 3 |
-| Mage, Dangerous | 565, 0, 0, 80 | 0.0%, 0, 0, 43 | +4.4%, 0, 0, 75 |
-| Mage, Deadly | 669, 2, 11, 257 | -1.0%, 4, 6, 170 | +4.0%, 3, 9, 238 |
-| Four, Normal | 720, 0, 0, 0 | 0.0%, 0, 0, 0 | +1.4%, 0, 0, 0 |
-| Four, Dangerous | 1,195, 0, 0, 0 | +1.5%, 0, 0, 0 | +3.8%, 0, 0, 0 |
-| Four, Deadly | 1,507, 0, 0, 91 | -0.7%, 0, 0, 52 | +2.5%, 0, 0, 79 |
+- **Which skills count:** Melee, Ranged, Magic and Defense, whichever is highest. Defense counts because a shield tank's highest skill is often Defense, and leaving it out would give the tank the smallest Reap. Inner Flame doesn't count. It's trained by burning fuel at the Hearth, so counting it would let gold buy a bigger Reap.
+- **The pick:** base 2, plus 0.95 for each Level of that skill. I sized it to land where the old rule's average did.
 
-Level XP an hour moved with kills in every row, within a point.
+| Hero, with every combat skill at its Level | Own biggest blow at 24 | Reap's top hit at 24 | Own biggest blow at 110 | Reap's top hit at 110 |
+|---|---|---|---|---|
+| Tank | 13 | 24 | 56 | 106 |
+| Healer | 24 | 24 | 113 | 106 |
+| Bow | 15 | 24 | 58 | 106 |
+| Mage | 26 | 24 | 120 | 106 |
 
-**How to read it.** Roll Call is a steady 1 to 8% more kills, about 4% in the middle, for every role, and it doesn't change who dies. Lantern adds no kills at all. It took a lone tank's Deadly deaths from 13 to 6 and a lone bow's from 6 to 2, and it cut meals by 10 to 75% everywhere. The mage's 2 to 4 is inside the noise of a 2 hour cell. Neither broke the ground.
+Every class gets the same Reap at the same skill. Under the old rule (1.2 times your own biggest blow) a Mage's Reap was twice a tank's: 31 against 15 at Level 24, and 144 against 67 at 110. The biggest blows were read off the engine's own units, at 110 in the full tier 6 set.
 
-**The honest verdict. Not balanced to a band yet.** Where nobody dies, Roll Call is the pick, because Lantern buys nothing there but food. Where a hero does die, Lantern is the pick by a mile, because a death at Level 24 costs 114,309 Level XP (6% of the total, `src/core/xp.js`), which is about an hour and a half of that tank's hunting, and at Level 110 it's about 23 hours. So the choice today is really "do you push tiers or farm Normal", and that is a real decision but a lopsided one. This was the second pass. The first (shield 60, a 2.0x hit) read Roll Call at +3 to +10% and Lantern at 13 to 9 deaths, so I cut Roll Call and raised Lantern. The next lever, unmeasured: give Lantern a small pace side of its own (the hero's next hit after the shield breaks lands harder) so it isn't dead weight on Normal, and hold Roll Call near +3%. Both skills need a 6 seed x 4 h grade and a second ground at Level 110 before either ships.
+**Measured.** The real engine (`tools/balance-sim/cell.mjs`) run from a scratch copy of the tree. Nothing in the repo carries the rows or the engine edits. Mosslight Glade at Level 24, each hero on its default bar with the skill in the first slot, the same dice in every arm, 2 seeds x 1 h a cell, the four included. Deaths and close calls are totals for the cell, so a small death count is a first read and not a rate. The no-skill arm on the edited engine answers the same numbers as before the edit. Profit was not read.
 
-**What the rows need.** Two rows in `src/data/abilities.js` with a new field `faction`, read where `alone` is read (`src/core/hunt/abilities.js`) against the server's snapshot, so the slot falls through for anyone else. A swap changes which one can fire, and a saved bar keeps both slots, so nobody rebuilds a bar after swapping (first principle). Lantern wants its shield as a share of max HP, a new field, because the measured row is about 28% of a Level 24 hero's HP and about 15% of a Level 110 hero's, and it should be the same share at both. No revive, no area, one cast every 45 seconds.
+The four arms:
+- **B, Bulwark as Tyler described it:** the shield, with 20% faster attacks while it stands, firing under 70% HP.
+- **B2:** the same, but it fires on cooldown in any fight.
+- **A, Reap:** the hit above with the 5 second leech at 25%.
+- **A2:** the same with a smaller hit (base 2, plus 0.78 a Level, about 1.0 times the average blow).
 
-**The guard (spec only).** `tests/faction-skill-band.mjs`: on the cells above, each skill's gain over no skill in kills an hour and its change in deaths stay inside an agreed band of the other's, and neither passes a ceiling. I'd start the band from the table above once Tyler has seen it.
+Each cell reads kills an hour (as a change from no skill), deaths, close calls, meals an hour.
+
+| Who, tier | No skill | B, Bulwark | B2, Bulwark on cooldown | A, Reap | A2, Reap with a smaller hit |
+|---|---|---|---|---|---|
+| Tank, Normal | 286, 0, 0, 32 | +2.4%, 0, 0, 5 | +7.0%, 0, 0, 7 | +5.9%, 0, 0, 26 | +7.0%, 0, 0, 22 |
+| Tank, Dangerous | 333, 0, 0, 345 | +0.6%, 0, 0, 253 | +2.4%, 0, 0, 245 | +4.2%, 0, 0, 298 | +5.7%, 0, 0, 320 |
+| Tank, Deadly | 362, 13, 47, 944 | +1.7%, 2, 29, 801 | +1.7%, 6, 22, 793 | +6.6%, 13, 39, 884 | +5.0%, 10, 38, 899 |
+| Healer, Normal | 385, 0, 0, 0 | +2.3%, 0, 0, 3 | +11.7%, 0, 0, 0 | +5.5%, 0, 0, 0 | +3.6%, 0, 0, 0 |
+| Healer, Dangerous | 431, 0, 0, 13 | +4.6%, 0, 0, 18 | +5.6%, 0, 0, 8 | +5.1%, 0, 0, 16 | +4.2%, 0, 0, 18 |
+| Healer, Deadly | 451, 0, 6, 148 | +4.2%, 2, 10, 132 | +4.9%, 0, 5, 114 | +5.8%, 1, 9, 132 | +3.3%, 2, 4, 110 |
+| Bow, Normal | 380, 0, 0, 19 | +2.9%, 0, 0, 3 | +8.2%, 0, 0, 3 | +3.4%, 0, 0, 10 | +3.4%, 0, 0, 15 |
+| Bow, Dangerous | 507, 0, 0, 70 | +3.9%, 0, 0, 34 | +5.9%, 0, 0, 22 | +2.0%, 0, 0, 69 | +3.4%, 0, 0, 63 |
+| Bow, Deadly | 572, 6, 15, 290 | +1.7%, 4, 9, 199 | +1.9%, 9, 16, 212 | +2.8%, 9, 29, 292 | +3.0%, 2, 14, 267 |
+| Mage, Normal | 443, 0, 0, 6 | +1.8%, 0, 0, 2 | +11.5%, 0, 0, 0 | +2.9%, 0, 0, 2 | +3.2%, 0, 0, 4 |
+| Mage, Dangerous | 565, 0, 0, 80 | +3.2%, 0, 0, 43 | +7.8%, 0, 0, 55 | +3.4%, 0, 1, 77 | +3.5%, 0, 1, 76 |
+| Mage, Deadly | 669, 2, 11, 257 | +4.5%, 0, 4, 166 | +5.5%, 0, 4, 171 | +4.0%, 1, 4, 220 | +4.5%, 5, 11, 228 |
+| Four, Normal | 721, 0, 0, 0 | +0.0%, 0, 0, 0 | +1.1%, 0, 0, 0 | +1.4%, 0, 0, 0 | +1.0%, 0, 0, 0 |
+| Four, Dangerous | 1,193, 0, 0, 0 | +1.8%, 0, 0, 1 | +9.0%, 0, 0, 1 | +4.3%, 0, 0, 1 | +3.1%, 0, 0, 0 |
+| Four, Deadly | 1,500, 0, 0, 82 | +1.6%, 0, 0, 64 | +9.1%, 0, 0, 47 | +3.2%, 0, 0, 73 | +2.8%, 0, 0, 77 |
+
+**What it says.**
+1. **Bulwark on cooldown (B2) is the pick everywhere, so it's out.** Alone on Normal nothing breaks the shield, so the speed never ends: 7 to 12% more kills for every class, 9% in a four on the harder tiers, and it still halves a lone tank's Deadly deaths. It beats Reap on pace and on safety at once.
+2. **Bulwark under 70% HP (B) works.** It's 0 to 5% more kills, about 2.5% in the middle, where the plain shield gave none. It still does the shield's job: a lone tank's Deadly deaths go from 13 to 2 and meals drop 15 to 85%.
+3. **Reap (A) is 1 to 7% more kills, about 4% in the middle,** for every class, with the hit now the same size for all of them.
+4. **The leech does almost nothing at 25%.** A lone hero deals about 5 damage a second at this Level, so 5 seconds of it at 25% is 6 HP against a 390 HP hero. Deaths don't move (the lone tank's Deadly is 13 with no skill, 14 with the hit alone and 13 with the leech) and meals drop a few percent. I ran it at 100% as well to be sure: still 13 deaths, meals another 2 to 12% lower, no extra kills. A leech this short can't save anyone until it's worth far more than the hit.
+5. **Is either one the pick everywhere? No, but it leans to Bulwark.** For a tank or a Healer on Normal and Dangerous, Reap is ahead by half a point to 4 points of kills. For a bow or a Mage the two are level on kills and Bulwark is safer, so Bulwark is the better pick for them. Wherever a hero dies, Bulwark wins outright.
+
+**Recommendation.**
+- **Bulwark:** arm B, with the speed cut from 20% to 15%, so a bow or a Mage gives up a point or two of kills for the safety. Never the on-cooldown rule.
+- **Reap:** arm A's hit (base 2, plus 0.95 a Level of the highest combat skill), and the leech raised to 100% for 5 seconds. Measured, that changes no death count and no kill count. It makes the heal numbers big enough to see, which is the point of having it.
+- The 15% speed is the one number here that isn't measured. Both skills still need a 6 seed x 4 h grade and a Level 110 ground before either ships.
+
+**What a real build needs.** The scratch edits were about 20 lines. The real thing is a combat-engine change, so it goes out in a combat batch under the world-tick parity rule (CLAUDE.md §3.3b), with the edge deployed before the client, and with a viewed test and a browser-closed test (§4).
+| Where | What |
+|---|---|
+| `src/data/abilities.js` | Two rows. New fields: `faction`, a shield's attack speed, a leech share and length, a hit sized from a base and the highest combat skill. `validate` learns each one |
+| `src/core/hunt/abilities.js` | The `faction` gate, read where `alone` is read, against the server's snapshot. Three unit fields added to `PERSISTED`, or the leech and the speed are lost at every settle cut. The effect applies them |
+| `src/core/hunt/damage.js` | `landHit` returns the leech to the hero as a `heal` event. `restart` shortens the swing clock while the shield stands, in whole 100 ms steps. That function sets every unit's swing, so this is the line the combat replay has to watch |
+| `src/core/hunt/member.js`, the hero snapshot | Carries `faction` from the server |
+| The server catalogue (`hr_hunt_abilities`, from `tools/gen-hunt-sessions`) | The two rows, and `hr_faction_members` as the gate's source |
+| The hunt view and the text | The browser runs the same engine, so the prediction follows. It needs a mark for "attacking faster" and for "leeching", and the two lines in `src/data/text/bar.js` |
+| Bulwark's shield | A share of max HP, a new field. The measured row is about 28% of a Level 24 hero's HP and about 15% of a Level 110 hero's, and it should be the same share at both |
+
+A swap changes which one can fire, and a saved bar keeps both slots, so nobody rebuilds a bar after swapping (first principle). No revive, no area, one cast every 45 seconds.
+
+**The guard (spec only).** `tests/faction-skill-band.mjs`: on the cells above, each skill's gain over no skill in kills an hour and its change in deaths stay inside an agreed band of the other's, and neither passes a ceiling. I'd start the band from this table once Tyler has seen it.
+
+**Earlier passes, for the record.** Pass 1 (a shield of 60, a hit of 2.0 times the biggest blow): Reap +3 to +10% kills, the shield no kills. Pass 2 (a shield of 90, a hit of 1.2 times): Reap +1 to +8%, the shield no kills, a lone tank's Deadly deaths 13 to 6. Both read the plain shield as dead weight on Normal, which is what the attack speed fixes.
 
 #### 8. Carter's Rest, the sample ground, Levels 110-125
 **The place.** Halfway up the Morrow road there's an inn where the ore carters used to stop for the night. When Krell shut the road the carters stopped coming, the innkeeper left, and a family of hill trolls moved in. They've each sort of taken a job. Harry's cart is parked in the yard, because he can't get past them.
@@ -676,7 +717,83 @@ The same hero on Wyvern Roost's Normal would drop the Stable Door (nothing there
 
 So "Voidhide Bracers" becomes "Duskhide Bracers" and "Voidweave Slippers" becomes "Dawnweave Slippers". The plate set is already Dawnsteel.
 
-**For Tyler.** The faction names, colors, symbols, building styles and philosophies are his (2026-11-14), and so are Harry in the Last Ember, Holly leading the First Flame, and the NPC villains. Neither has a surname. No tier 8, unique gear instead (section 9). Waiting on him: the two renames above, the name Keeper Rowe, and new names for the two skills. "Lantern" is the First Flame's skill and Harry's Lantern is now a Last Ember outfit piece, so that working name has to go.
+**For Tyler.** The faction names, colors, symbols, building styles and philosophies are his (2026-11-14), and so are Harry in the Last Ember, Holly leading the First Flame, the NPC villains, and the skill names Bulwark and Reap. Neither hero has a surname. No tier 8, unique gear instead (section 9). Waiting on him: the two renames above, the name Keeper Rowe, and the section 7 recommendation (Bulwark's speed at 15%, Reap's leech at 100%).
+
+#### 10. Grounds 2 and 3 drafted: the Ox Road and Wyvern Roost (designer, lane/d-morrow-grounds, 2026-11-14): STAGED packs, MEASURED, grade 0 fail on all three Morrow grounds. Nothing played by hand, no art, no map, no server work
+Tyler's brief: grounds 2 and 3 the way Carter's Rest was done, Last Ember on 1, 3, 5 and First Flame on 2, 4, 6, tier-7 leather and cloth are **Dawnhide** and **Duskweave** (his pick, so the section 9 rename table is settled). Carter's Rest's pack came onto this branch from `lane/b-carters-rest-pack` (merged, not copied) so the three can be graded together on one ladder.
+
+| Ground, band | Pays | Who lives there (role, Level) | The question each one asks | Drops (source and use) |
+|---|---|---|---|---|
+| **The Ox Road**, 112-128 (`src/data/grounds/ox_road/`) | The First Flame | **Dead Teamster** (swarm 113, Undead), **Coal Runner** (glass 116, Human), **Yoke Ox** (heavy 119, Undead), **Drover** (regular 121, Human), **Wagonmaster** (elite 125, Undead) | Trample (the Ox runs through its target and everyone lined up behind: don't stand behind the tank). Hot Coal (a thrown coal splashes the tiles around it: spread out). Goad (the Drover gets the dead back up, a mend: kill him first, or the ox). Undead take a hammer and fire, the living an arrow and poison | All eight tier-7 weapons, off Krell's last arms order in the wagons. Scarce, about an hour each: Hatchets, Wand, Warhammer, Staff. Rare, about 15 h each: Bow, Crossbow, Sword, Codex. Bones and Big Bones, Grave Dust (Hearth, Inner Flame 46), Coal, Dawnstone Ore (Dawnsteel bars, Smithing 88). Five imbuement pieces: Wagon Pin, Runner's Tin, Ox Shoe, Drover's Goad, Waybill |
+| **Wyvern Roost**, 125-142 (`src/data/grounds/wyvern_roost/`) | The Last Ember | **Wyvern Fledgling** (swarm 126), **Ledge Wyvern** (glass 130, shoots from 5 tiles), **Bull Wyvern** (heavy 133), **Crag Wyvern** (regular 136), **Brood Wyvern** (elite 140). All Dragon: an arrow, not a sword. Fire does 25% less, ice 15% more | Out-shoot the Ledge Wyvern (your bow reaches 7). Tail Sweep hits everyone next to the Bull. Fire Breath is a marked cone: the tank stands in it, everyone else steps off | No gear (no tier 8, and the uniques wait on the sample rule). Dragon Bones (Hearth, Inner Flame 35) and Dragon Scale (Hearth at Inner Flame 79, the house's top tiers, Dragon Stew): both had no source in the game until now. Five imbuement pieces: Eggshell, Gizzard Stone, Tail Spur, Fire Gland, Stolen Fleece |
+
+Every name was grepped free in `src/data`, `src/shell` and `src/app`. Every id a row names is a real row (`tests/catalogue-coherence.mjs`, `tests/hunt-core/drop-tables.mjs`). The creature and item lines are in the voice, short and plain, and nobody but me has read them yet.
+
+**Measured on the real engine.** `node tools/pack.mjs check <ground> --mode quick --with hasks_ford,the_slake,muster_barrows,pyre_field,krells_hold,carters_rest[,ox_road]`: 72 cells a ground, 1 seed x 1 h, with every Barrow March and Morrow pack open on the gear ladder, so a hero wears what the ground will have under it when it ships (tier-7 boots, legs, gloves and belts from Carter's Rest, a tier-7 weapon from the Ox Road, Krell's tier-6 body and helm, since his hall isn't on the ladder). XP is Level XP an hour per hero as a share of the pace contract.
+
+| Ground | Grade | Normal at the floor alone: tank, hammer, bow, mage | Pair, four (floor) | Deaths on Normal | Harder tiers |
+|---|---|---|---|---|---|
+| Carter's Rest, re-measured | **pass, 0 fail, 21 ok** | 0.93, 1.08, 0.99, 1.75 | 1.17, 1.28 | 0 in every cell, 5 under included | Deadly alone in melee can't be played (59 deaths). A four holds Deadly (2) |
+| The Ox Road | **pass, 0 fail, 21 ok** | 0.76, 1.13, 0.98, 1.61 | 1.17, 1.28 | 0 | The same shape. A four holds Deadly (1) |
+| Wyvern Roost | **pass, 0 fail, 21 ok** | 0.78, 0.99, 1.08, 1.54 | 1.15, 1.26 | 0 | Deadly on eight killed a four 9 times in 4 h, so Deadly brings six there (the Hold's row): now 0 |
+
+What I fitted, by the Hold's method, and nothing else: an XP fit per ground (0.96 / 0.91 / 0.94, the median lone way to about 1.0 at the middle), a party row per ground (the four at 1.2 of the median lone way, the pair at 1.1; the first grade read the four at 0.48-0.54 with no row, the same hole Carter's Rest had), and Deadly brings six on the Roost. Each ground's Party window line (`partyVsAlone`) is measured on `tests/party-class-xp-line.mjs --table --mixed` (3 seeds, the floor): a one-class party reads 25 to 45% under the same heroes alone on every Morrow ground, so a same-class party never beats solo, and a four of four classes +15 (Carter's Rest, the Ox Road) and +25 (the Roost). The drop chances are fitted on the floor hour's kills (`tests/hunt-core/drop-tables.mjs`, a lone tank in its full set): every Scarce piece lands every 0.78-1.48 h, every Rare every 13.9-15.2 h.
+
+**What the numbers say.**
+1. **Each ground's weapon reads.** The hammer is the best lone melee on the Ox Road (1.13, Undead) and the bow the best lone way after the Mage on the Roost (1.08, Dragon). Carter's Rest's sword ground has the tank at its best of the three (0.93).
+2. **The Mage is still way out** (1.54-1.75 alone on Normal, never under 95% HP). That's three Morrow grounds and Krell's Hold saying the same thing, so it's the Mage at Level 110+, not a ground. It needs its own look. I didn't tune it here.
+3. **The Roost pays the least gold.** A lone hero at the floor nets a median 6.4k an hour (a tank -3.5k, a hammer -10.4k) against 20.5k on the Ox Road. Printed, never graded (NO PROFIT MOLDS, 11-13). It's the XP ground, and Dragon Scales sell.
+4. **The quick grade is a first read.** One seed and one hour a cell, four lone ways. The full grade (8 ways, 6 seeds x 4 h) is owed before any of the three opens.
+
+**Changed on Carter's Rest (it's on this branch now).** Its tier-7 gloves and belts are Rares now (the Shop sells a glove and a belt, so a ground drops those only as Rares, `tests/hunt-core/forest-cave.mjs` shop-outfits-defense, the Hold's pattern). Its weights are the head-count at a pull of 4, its drop chances are fitted, it has two coal seams standing in for a Dawnstone Vein, and it has an XP fit and a party row. So section 8's "the first day: boots, gloves and legs" becomes boots and legs. The pack lane's own branch never ran forest-cave or drop-tables: both were red on it.
+
+**What the guards had to learn (all in this lane).** `tests/hunt-core/drop-tables.mjs` build-coverage asked every ground for a helmet, body, legs and boots in each weight, which is the tier ladder. Tyler ruled there's no tier 8, so a ground whose floor is 110 or more is past it (`UNIQUE_GEAR_FROM`). A mutant that moves the end past the Morrow Hills turns it red on Carter's Rest (seen: EXIT 1, then back to EXIT 0). `src/data/grounds/shape.js` learns `region` and `standingFor` on a pack's hunt row (they come as a pair, `standingFor` is `first_flame` or `last_ember`). The per-region balance guard (`tests/faction-ground-balance.mjs`) is still the faction lane's. `src/data/catalogue-coherence.js`: tier-7 boots, gloves, legs and belts leave AWAITING_ROSTER for `staged`, and Troll Hide, Dragon Bones and Dragon Scale leave `later` (ceiling 64 to 61).
+
+**Walk-through: the Ox Road.** A Level 112 hero coming off Carter's Rest, on the Hold's bar (`cooked_lobster`, `carrot_juice`, `barbed_arrows`, `chalked_poison_rune`).
+
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Reaches 112 on Carter's Rest | Carter's Rest | Not yet. Staged |
+| 2 | Opens Hunts, sees The Ox Road 112-128 | Level 112 | Yes once it opens |
+| 3 | A caster swaps the poison rune for `chalked_fire_rune` (three of five are Undead) | The Hold's bar | Yes, a real rune Fireball already uses |
+| 4 | Enters at Holly's Vigil, first pull two Dead Teamsters | Step 2 | Not yet. Wickstead's layout stands in, no art, no Vigil |
+| 5 | First kills: coin, Bones, Grave Dust | Step 4 | Yes, real rows |
+| 6 | Burns the Grave Dust at the Great Hearth | Step 5 | Yes, Inner Flame 46 (`hearth.js`) |
+| 7 | A Yoke Ox Tramples the tank and the Healer standing behind him | Step 4 | Yes, the line row plays on the grade |
+| 8 | A Drover gets a Teamster back up, and the player wants the bar to go for him first | Step 4 | **Partly.** The mend plays. The bar's Target has Nearest, Lowest HP, Highest % life, Strongest and Follow the leader, so there's no way to say "the Drover first". Krell's Pyre Priest has the same gap |
+| 9 | A tier-7 weapon within the hour or so | Step 5 | Yes, 0.78-1.48 h a piece |
+| 10 | Smelts Dawnstone Ore into Dawnsteel bars | Step 5 | Yes, `smelt_dawn` at Smithing 88 (an Emberforged bar and 5 coal a bar) |
+| 11 | Earns First Flame standing | A join at Krell | Needs the settle hook (the faction lane) |
+
+**Walk-through: Wyvern Roost.** A Level 125 hero off the Ox Road, the same bar.
+
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Sees Wyvern Roost 125-142: "Bring a bow, because a sword barely scratches them" | Level 125 | Yes once it opens |
+| 2 | A caster swaps to `chalked_ice_rune` | Step 1 | Yes, Frost Lance's rune |
+| 3 | Enters at Harry's Camp, fledglings off the scree | Step 1 | Not yet. Stand-in map, no art, no cart |
+| 4 | Coin and Dragon Bones, burned at the Hearth | Step 3 | Yes, Inner Flame 35 |
+| 5 | A Ledge Wyvern spits at the back line | Step 3 | Yes, `range: 5`, the Lookout's piece |
+| 6 | The Bull's Tail Sweep, the Crag's Fire Breath | Step 3 | Yes, the ring and cone rows |
+| 7 | Dragon Scales from the big three | Step 3 | Yes. Hearth at Inner Flame 79 and the house's top tiers. Dragon Stew needs the Marrow Cookbook, which has no source |
+| 8 | Wants a gear upgrade | Step 3 | **No. A dead moment.** Nothing here drops gear until the bow's uniques and the Roost Mother land |
+| 9 | Earns Last Ember standing | A join at Krell | Needs the settle hook |
+
+Three steps on each ground wait on art and the map, and one on the faction lane. The Roost's step 8 is a design gap, not a build gap.
+
+**Art, for the art pipeline (`node tools/pack.mjs art <ground>`, no generation in this lane).** Each ground owes 16 pieces, about 184-240 generations for the Ox Road and 200-210 for the Roost by the tool's prices. Sample first: the Dead Teamster and one Yoke Ox in harness, read at x2 beside Krell's Hold, and the Wyvern Fledgling beside the Bull for the size ladder.
+
+| Ground | Bodies (5 each) | Icons | Tiles and props (not in the tool's count, the map is a stand-in) |
+|---|---|---|---|
+| The Ox Road | Dead Teamster, Yoke Ox, Wagonmaster (`body_object`); Coal Runner, Drover (`body_character`) | 5 heads, 5 drops (Wagon Pin, Runner's Tin, Ox Shoe, Drover's Goad, Waybill) | A region kit row (`region-kits.js`, none claims it yet). Road ruts, stopped ore wagons, a broken bridge, Holly's brazier and wood stack |
+| Wyvern Roost | All five `body_object`: one wyvern body plan in three sizes (Fledgling, Ledge and Crag, Bull and Brood), the Brood on a nest | 5 heads, 5 drops (Eggshell, Gizzard Stone, Tail Spur, Fire Gland, Stolen Fleece) | A region kit row. Crag ledges, scree, nests, burnt rock, Harry's cart moved up from Carter's Rest |
+
+**Open questions.**
+1. **The Roost's gear.** It drops none. The bow's uniques and the Roost Mother's pieces (section 9) are the plan, and the sample rule holds them behind Carter's Rest's five. Until then the Roost's chase is XP, the bestiary and Dragon Scales. I'd sooner open it with nothing than invent a sixth unique ahead of the sample.
+2. **Dragon Scale flow.** About 20 an hour for a lone floor hero, and each one is 855 Inner Flame XP at 79. Fine for a late skill, but whoever owns the Hearth should look at it beside the Night Shift's Dawnstone.
+3. **Target by kind.** The Ox Road's Drover and Krell's Pyre Priest both ask "kill the mender first", and the bar can't say it. That's a Systems piece, and it's the first-principle kind (set it once per ground).
+4. **The Mage at 110+** (point 2 above), for its own lane.
+5. **The old Wyvern row.** `monsters.js` still has a tier-4 Wyvern (no ground) and the tier-5 leather set is called Wyvernhide. Neither touches the Roost, but a player will notice the leather name once real wyverns live at 125.
 
 ### 2026-11-13 Under-Level pairs and the fresh hero's dips (designer, lane/d-live-grounds-2, the plan's #3 and #1 below): MEASURED on the full grade; the dips were a GRADER artefact (fixed in the grader, the Glade crow withdrawn); the under-Level rule CAN'T be met with monster stats on the three grounds under 16. **Tyler: one call**
 **#1, the fresh melee hero's dips under 25% HP: not real.** The grader played every cell in 120 s settle cuts and `cell.mjs` spreads a cut's regeneration evenly over it, so regeneration lost at full HP early in a cut reads as HP missing later. The same fights read in 10 s cuts (the live cadence) show the same XP and gold to the unit and **zero** dips: the Thicket's fresh melee 7/6/3/3 -> 0, the Glade's lone Rangers 47 in 96 h -> 0 (at the crow's old 4.4 too). Proof that it was the trace and not the fight: lowering every Thicket monster's to-hit 10% moved the 120 s dips not at all (35 -> 33). Fix: `tools/balance-sim/grade.mjs windowFor` reads a lone cell at 10 s (same run time, 8-13 s a cell); parties keep 120 s, since no rule reads a party's dips. Regression `lone-window` in `tests/balance-grade.mjs` (the old 120 s turns it red, read). **Yesterday's Glade crow change is WITHDRAWN** (speed back to 4.4): it fixed a number that wasn't there. If its hr-accrue was deployed, the next deploy puts it back; if not, nothing moves.

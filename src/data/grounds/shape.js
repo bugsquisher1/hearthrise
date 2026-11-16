@@ -50,7 +50,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      sql       the pack's additive server file (supabase/migrations/<date>-pack-<id>.generated.sql), written by
                `node tools/pack.mjs ship <id>`; null until then. The whole catalogue generators leave a pack out until a world
                move folds it (tools/pack/fold.mjs), so a pack never re-issues a whole catalogue.
-     hunt      a src/data/hunts.js row without its id
+     hunt      a src/data/hunts.js row without its id; a Morrow ground's carries `region` and `standingFor` (FACTIONS below)
      ground    a src/data/hunt-grounds.js row without its id and hunt
      map       the map row (src/data/world/maps' shape); ground.map names it
      monsters  { id: row }: the pack's NEW monsters, src/data/monsters.js rows (the numbers by `tools/pack.mjs propose --write`)
@@ -79,6 +79,10 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                one spell model: monster-spells.js folds them in (an id already taken is refused), validateSpell judges each row, and a row
                none of the pack's own monsters casts is refused (tools/pack.mjs lintFields) */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
+/* THE FACTION FIELDS on a pack's hunt row (the board's "2026-11-14 The Morrow Hills" section 6; Tyler 2026-11-14): `region` and
+   `standingFor`, the side that earns standing there. Every Morrow ground carries both; the settle hook and the per-region balance
+   guard are the faction lane's. */
+const FACTIONS = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
 const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
@@ -150,6 +154,8 @@ export function definePack(p) {
   if (p.sql != null && !new RegExp('^\\d{4}-\\d{2}-\\d{2}-pack-' + id + '(-\\d+)?\\.generated\\.sql$').test(p.sql)) no('sql is not <date>-pack-' + id + '[-N].generated.sql');
   if (p.status === 'open' && p.sql == null) no('an open pack is served, so it names its file (node tools/pack.mjs ship ' + id + ')');
   if (!isObj(p.hunt) || 'id' in p.hunt || 'staged' in p.hunt) no('hunt is not a hunts.js row without id and staged (status says staged)');
+  if ('standingFor' in p.hunt && !FACTIONS.includes(p.hunt.standingFor)) no('hunt.standingFor is not ' + FACTIONS.join(' | '));
+  if (('standingFor' in p.hunt) !== ('region' in p.hunt) || ('region' in p.hunt && !ID.test(String(p.hunt.region)))) no('hunt.region and hunt.standingFor come as a pair, region [a-z0-9_]');
   if (!isObj(p.ground) || 'id' in p.ground || 'hunt' in p.ground) no('ground is not a hunt-grounds.js row without id and hunt');
   if (!isObj(p.map) || p.map.id !== p.ground.map) no('map is not the row ground.map names');
   for (const k of ['monsters', 'roster', 'items', 'itemText']) if (p[k] !== undefined && !isObj(p[k])) no(k + ' is not an object');

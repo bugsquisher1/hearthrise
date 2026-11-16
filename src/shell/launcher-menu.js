@@ -46,6 +46,7 @@ function setMenu(ctx, el, id, draw) {
   if (id) MENU.set(ctx.wm, { id, seen: openKey(ctx.wm) }); else MENU.delete(ctx.wm);
   if (el.isConnected) markup(el, draw(ctx));
   if (!id) return;
+  dockClear(el);
   watchOutside(el.ownerDocument);
   if (el.hasAttribute('data-hs-menu-wired')) return;
   el.setAttribute('data-hs-menu-wired', '');
@@ -53,6 +54,13 @@ function setMenu(ctx, el, id, draw) {
     if (MENU.has(ctx.wm)) setMenu(ctx, el, null, draw);
     if (e.detail && e.detail.focusBack) focusIn(el, '[data-hs-group="' + e.detail.id + '"]');
   });
+}
+/* THE COACH'S CARD STANDS CLEAR OF THE OPEN MENU (the Coordinator's read 2026-11-16: the Town menu lay over its Got it). The menu's left
+   edge, measured from the row's, goes on the row's widget as --hs-menu-left; shell.css docks the card's right end 8 px short of it while
+   a menu is open (a phone's menu is a sheet at the right and its card stands at the left: its own rules win there). */
+function dockClear(el) {
+  const row = el.querySelector('.hs-launchers'), menu = el.querySelector('.hs-launch-menu');
+  if (row && menu) el.style.setProperty('--hs-menu-left', Math.round(menu.getBoundingClientRect().left - row.getBoundingClientRect().left) + 'px');
 }
 /* A press outside the open menu shuts it (the press goes on to whatever it landed on); so does Esc, wherever the focus is, and Esc
    then does nothing else. The row that drew the menu is told (an event on its widget), so its own shell's state goes. Once per document. */

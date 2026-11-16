@@ -29,6 +29,9 @@
 //         itself, so with nothing changing no paint rebuilds it (2.5 s watched, the menu shut and open)
 //   TB-6  A PHONE'S MENU IS A SHEET (922x423 and 667x375): it stands at the right edge under the row, as tall as the screen allows,
 //         every line inside it at a thumb's height, none cut, no text under 12 px; never a bottom bar
+//   TB-7  A MENU NEVER LIES OVER THE COACH'S PRESSES (1440x900 and 922x423; the Coordinator's read 2026-11-16: the Town menu covered
+//         the card's Got it): with a card up in town, each group's menu open, no visible press of the card (Got it, Don't show tips,
+//         fold, close) overlaps the menu, and each still takes its press (the topmost element at its middle is its own)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -38,7 +41,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
-import { pressBar, groupOf } from './_bar.mjs';
+import { pressBar, groupOf, barReach } from './_bar.mjs';
 
 const src = (p) => import(pathToFileURL(join(ROOT, p)).href);
 
@@ -237,6 +240,34 @@ async function checks(overrides, shots, firstRed = false) {
       await ctx.close();
       if (firstRed && fails.length) return fails;
     }
+    for (const size of SIZES.slice(0, 2)) { // TB-7
+      const { ctx, page, up } = await open(size, town);
+      if (!up) { fails.push('TB-7 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
+      await page.waitForTimeout(400);
+      const presses = () => page.evaluate(() => Array.from(document.querySelectorAll('.hs-pointer button')).filter((b) => b.getClientRects().length && !b.closest('[hidden]')).length);
+      if (!(await presses())) { fails.push('TB-7 [' + tag(size) + '] CONTROL: no coach card with a press is up in town'); await ctx.close(); continue; }
+      for (const g of (await barReach(page)).filter((x) => x.startsWith('group:')).map((x) => x.slice(6))) {
+        await closeAll(page);
+        if (!(await tryPress(page, '.hs-launchers [data-hs-group="' + g + '"]', size.touch))) { fails.push('TB-7 [' + tag(size) + '] the ' + g + ' icon took no press'); continue; }
+        await page.waitForTimeout(250);
+        const hit = await page.evaluate(() => {
+          const m = document.querySelector('.hs-launch-menu');
+          if (!m) return { menu: false };
+          const r = m.getBoundingClientRect();
+          const bs = Array.from(document.querySelectorAll('.hs-pointer button')).filter((b) => b.getClientRects().length && !b.closest('[hidden]'));
+          const bad = bs.filter((b) => { const q = b.getBoundingClientRect(); const over = q.left < r.right && q.right > r.left && q.top < r.bottom && q.bottom > r.top;
+            const top = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return over || !(top && (top === b || b.contains(top))); })
+            .map((b) => (b.textContent.trim() || b.getAttribute('data-hs-act')) + ' ' + JSON.stringify([Math.round(b.getBoundingClientRect().left), Math.round(b.getBoundingClientRect().right)]));
+          return { menu: true, n: bs.length, bad, at: [Math.round(r.left), Math.round(r.right)] };
+        });
+        if (!hit.menu) fails.push('TB-7 [' + tag(size) + '] a press on ' + g + ' opened no menu');
+        else if (!hit.n) fails.push('TB-7 [' + tag(size) + '] with the ' + g + ' menu open the coach card has no press left on screen');
+        else if (hit.bad.length) fails.push('TB-7 [' + tag(size) + '] the ' + g + ' menu ' + JSON.stringify(hit.at) + ' lies over the coach card\'s ' + hit.bad.join(', '));
+        if (shots && size.width === 1440) await page.screenshot({ path: join(shots, 'menu-' + g + '-over-card-' + tag(size) + '.png') });
+      }
+      await ctx.close();
+      if (firstRed && fails.length) return fails;
+    }
     for (const size of SIZES) { // TB-3, TB-6
       const { ctx, page, errors, up } = await open(size, town);
       if (!up) { fails.push('TB-3 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
@@ -338,6 +369,8 @@ const MUTANTS = [
   ['the phone\'s menu lines lose a thumb\'s height', 'src/styles/shell.css', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: var(--tap); padding: 0 6px; }', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: 30px; padding: 0 6px; }'],
   ['every paint rebuilds the row, so an envelope takes the keyboard off the open menu', 'src/shell/shell.js', '      else markup(el, render(ctx));', "      else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }"],
   ['the menu opens past the row\'s record, so the next paint rebuilds it', 'src/shell/launcher-menu.js', '  if (el.isConnected) markup(el, draw(ctx));', '  if (el.isConnected) el.innerHTML = draw(ctx);'],
+  ['the coach card stays under the open menu', 'src/styles/shell.css', '.hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer { right: max(calc(100% - 46px), calc(100% - var(--hs-menu-left, 100%) + 8px)); }\n', ''],
+  ['the open menu is never measured, so the card cannot dock clear', 'src/shell/launcher-menu.js', '  if (!id) return;\n  dockClear(el);\n', '  if (!id) return;\n'],
   ['Hunt prep loses the bar\'s setup press', 'src/shell/widgets/action-bar.js', "  if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }", ''],
 ];
 

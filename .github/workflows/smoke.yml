@@ -627,7 +627,7 @@ jobs:
       # THE TOP BAR STAYS SHORT (Tyler 2026-11-16: "our top menu bar is starting to get long again"): at most 8 buttons;
       # every window two presses from the row and one by its key at 1440x900, 922x423 and 667x375; the group menus shut
       # as menus do and keep the keyboard through an envelope; the coach rings the group, then the line, and the row
-      # carries its own ring; a phone's menu is a sheet. --mutate plants fifteen.
+      # carries its own ring; a phone's menu is a sheet; an open menu never covers the coach card's presses. --mutate plants seventeen.
       - name: Top bar (play.html)
         if: ${{ !cancelled() }}
         run: |

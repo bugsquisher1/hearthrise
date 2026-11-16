@@ -123,6 +123,11 @@
    at the World's top right): its right end under the first icon, its tip at that icon's middle. */
 .hs-launchers > .hs-pointer { left: auto; right: calc(100% - 46px); }
 .hs-launchers > .hs-pointer::before { left: auto; right: 10px; }
+/* A GROUP'S MENU OPEN: the card docks to its left, its right end 8 px short of the menu (launcher-menu.js dockClear measures
+   --hs-menu-left), so the menu never lies over Got it or the card's other presses; its tip would point at nothing, so it goes. :where keeps
+   the weight of the rule above, so a phone's own card rules (below) still win. */
+.hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer { right: max(calc(100% - 46px), calc(100% - var(--hs-menu-left, 100%) + 8px)); }
+.hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer::before { display: none; }
 /* A town card's body never ends on one lone word ("…she pays you gold and a" / "helmet.", the v0.2.130 gate, both sizes): the words wrap
    pretty. Only the town's cards: a card inside a window is sized with the window (window-fit.js), so it keeps its lines. */
 :is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }

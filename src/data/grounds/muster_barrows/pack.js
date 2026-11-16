@@ -81,6 +81,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
      on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {
+    region: 'barrow_march',
     name: 'The Muster Barrows', theme: "Lord Krell gave Hask's officers a proper burial here so nobody would ask how they really died. Then he buried Hask with them to keep him quiet.",
     band: [55, 75],
     spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: CW, w: 6, rarity: 'uncommon' }, { monster: BK, w: 5, rarity: 'rare' }],

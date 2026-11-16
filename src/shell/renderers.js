@@ -47,6 +47,7 @@ import { renderGameMaster } from './windows/game-master.js?v=0.2.132';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */import { renderWiki } from './windows/wiki.js?v=0.2.132';
 import { renderTraining } from './windows/training.js?v=0.2.132';
+import { renderFactionJoin } from './windows/faction-join.js?v=0.2.132';
 
 export const WINDOW_RENDERERS = Object.freeze({
   hunts: renderHunts,
@@ -70,6 +71,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   'configure-action': renderConfigureAction,
   death: renderDeath,
   'play-cap': renderPlayCap,
+  'faction-join': renderFactionJoin,
   chat: renderChat,
   friends: renderFriends,
   inspect: renderInspect,

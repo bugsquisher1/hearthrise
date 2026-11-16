@@ -346,24 +346,24 @@ const ARMS = {
 
 /* A second apply of the three files over `db` (a mutant's file text edited for it): byte-identical, or what moved. */
 async function againAt(db, mutant) {
-    const image = () => one(db, `select jsonb_build_object(
-        'defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
-                   from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'hr\\_faction\\_%' or p.proname = 'hr_hunt_settle_session')),
-        'rows', (select jsonb_build_object('f', jsonb_agg(f order by f.faction_id)) from public.hr_factions f) ||
-                (select jsonb_build_object('r', jsonb_agg(r)) from public.hr_faction_rule r) ||
-                (select jsonb_build_object('o', jsonb_agg(o order by o.piece_id)) from public.hr_faction_outfits o) ||
-                (select jsonb_build_object('g', coalesce(jsonb_agg(g order by g.hunt_id), '[]'::jsonb)) from public.hr_faction_grounds g) ||
-                (select jsonb_build_object('sw', jsonb_agg(jsonb_build_array(w.scope, w.accounts, w.note))) from public.hr_feature_switches w where w.switch_id = 'factions') ||
-                (select jsonb_build_object('sec', jsonb_agg(jsonb_build_array(x.key, x.fn))) from public.hr_state_sections x where x.key = 'factions'),
-        'base', (select jsonb_agg(jsonb_build_array(b.proname, b.identity_args, b.grantee, b.note) order by b.proname) from public.hr_client_rpc_baseline b where b.proname like 'hr\\_faction\\_%'))`);
-    const before = await image();
-    for (const f of FILES) {
-      let sql = MIG(f);
-      if (mutant && mutant.sql && mutant.sql[0] === f) sql = sql.replace(mutant.sql[1], mutant.sql[2]);
-      try { await db.exec(sql); } catch (e) { return [`FS-AGAIN a second apply of ${f} RAISED: ${String(e.message).split('\n')[0]}`]; }
-    }
-    const after = await image();
-    return JSON.stringify(after) === JSON.stringify(before) ? [] : ['FS-AGAIN a second apply moved ' + Object.keys(after).filter((k) => JSON.stringify(after[k]) !== JSON.stringify(before[k])).join(', ')];
+  const image = () => one(db, `select jsonb_build_object(
+      'defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
+                 from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'hr\\_faction\\_%' or p.proname = 'hr_hunt_settle_session')),
+      'rows', (select jsonb_build_object('f', jsonb_agg(f order by f.faction_id)) from public.hr_factions f) ||
+              (select jsonb_build_object('r', jsonb_agg(r)) from public.hr_faction_rule r) ||
+              (select jsonb_build_object('o', jsonb_agg(o order by o.piece_id)) from public.hr_faction_outfits o) ||
+              (select jsonb_build_object('g', coalesce(jsonb_agg(g order by g.hunt_id), '[]'::jsonb)) from public.hr_faction_grounds g) ||
+              (select jsonb_build_object('sw', jsonb_agg(jsonb_build_array(w.scope, w.accounts, w.note))) from public.hr_feature_switches w where w.switch_id = 'factions') ||
+              (select jsonb_build_object('sec', jsonb_agg(jsonb_build_array(x.key, x.fn))) from public.hr_state_sections x where x.key = 'factions'),
+      'base', (select jsonb_agg(jsonb_build_array(b.proname, b.identity_args, b.grantee, b.note) order by b.proname) from public.hr_client_rpc_baseline b where b.proname like 'hr\\_faction\\_%'))`);
+  const before = await image();
+  for (const f of FILES) {
+    let sql = MIG(f);
+    if (mutant && mutant.sql && mutant.sql[0] === f) sql = sql.replace(mutant.sql[1], mutant.sql[2]);
+    try { await db.exec(sql); } catch (e) { return [`FS-AGAIN a second apply of ${f} RAISED: ${String(e.message).split('\n')[0]}`]; }
+  }
+  const after = await image();
+  return JSON.stringify(after) === JSON.stringify(before) ? [] : ['FS-AGAIN a second apply moved ' + Object.keys(after).filter((k) => JSON.stringify(after[k]) !== JSON.stringify(before[k])).join(', ')];
 }
 
 /* ── THE PLANTED DEFECTS: a live body edited (fn, find, replace), a statement run (ddl), or a file's text edited for its re-apply (sql). ── */

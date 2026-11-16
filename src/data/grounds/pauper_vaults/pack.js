@@ -82,7 +82,7 @@ export default definePack({
       /* the swarm, the common majority: somebody's grandmother, sewn into a gray sheet and tied at the head and feet, with a wooden tag on the
          wrist. Undead, no override: a hammer breaks them, fire does 15% more. Bones and grave dust for the Hearth, and the tag. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'owing_tag', ch: 0.08, band: 'uncommon' }],
-      hp: 216, atk: 140, baseAcc: 1.18, def: 80, xp: 2838, gp: [45, 136], formula: true },
+      hp: 216, atk: 140, baseAcc: 1.18, def: 80, xp: 2838, gp: [32, 95], formula: true },
     vault_leech: {
       name: 'Vault Leech', icon: '🪱', tier: 6, level: 169, cls: 'vermin', family: 'Vermin', speed: 2800,
       /* the glass: a leech as long as your arm that came in with the river and fed on the vaults for a hundred years. Vermin, one override on the
@@ -90,7 +90,7 @@ export default definePack({
          the shop, and its jaw. */
       weaponWeak: 'sword', weaponResist: ['ranged'],
       drops: [{ id: 'live_leech', ch: 0.4, band: 'common' }, { id: 'leech_jaw', ch: 0.08, band: 'uncommon' }],
-      hp: 206, atk: 184, baseAcc: 0.45, def: 81, xp: 3271, gp: [43, 130], formula: true },
+      hp: 206, atk: 184, baseAcc: 0.45, def: 81, xp: 3271, gp: [30, 91], formula: true },
     bone_wall: {
       name: 'Bone Wall', icon: '💀', tier: 6, level: 173, cls: 'construct', family: 'Construct', speed: 2400,
       /* the heavy: a stretch of the ossuary, skulls and long bones the Keepers set in lime to make room, that pulled itself off the wall. A
@@ -98,7 +98,7 @@ export default definePack({
          (`spells` below): the tank holds, everyone else steps off. Big Bones and Bone Chips, and a lump of the lime. */
       spells: ['bone_slide'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.5, band: 'common' }, { id: 'lime_mortar', ch: 0.08, band: 'uncommon' }],
-      hp: 338, atk: 137, baseAcc: 1.32, def: 118, xp: 4966, gp: [71, 213], formula: true },
+      hp: 338, atk: 137, baseAcc: 1.32, def: 118, xp: 4966, gp: [50, 149], formula: true },
     night_carter: {
       name: 'Night Carter', icon: '🪝', tier: 6, level: 176, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of the men who dug in from the Sewer side and sold the unburned dead up the north road by the cartload. Their buyer's
@@ -106,7 +106,7 @@ export default definePack({
          party (Lime Sack, `spells` below). The gold he was paid in, and his hook. */
       spells: ['lime_sack'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'carters_hook', ch: 0.08, band: 'uncommon' }],
-      hp: 286, atk: 174, baseAcc: 0.74, def: 92, xp: 3846, gp: [60, 180], formula: true },
+      hp: 286, atk: 174, baseAcc: 0.74, def: 92, xp: 3846, gp: [42, 126], formula: true },
     keeper_dunn: {
       name: 'Keeper Dunn', icon: '🕯️', tier: 6, level: 181, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite and the rare carrier: the Keeper who locked the door from the inside and stayed. He's still reading the names out of the Wood
@@ -115,9 +115,10 @@ export default definePack({
          waits on its reveal icon (the header). */
       spells: ['snuff_the_candles'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
-      hp: 471, atk: 178, baseAcc: 0.76, def: 138, xp: 7366, gp: [99, 297], formula: true },
+      hp: 471, atk: 178, baseAcc: 0.76, def: 138, xp: 7366, gp: [69, 208], formula: true },
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five
      kinds. */
   items: {

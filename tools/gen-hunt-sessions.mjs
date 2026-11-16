@@ -989,6 +989,11 @@ export function render(src) {
 -- moves. ORDER: after 2027-04-23-training-gear-items-catalogue.generated.sql (the self-check wants the items in hr_items) and 2027-04-20-boss-hall
 -- (carried whole), right before 2027-04-23-training-gear.sql, which restates the bodies that read the dropped share: between the two, a training start
 -- or a training settle is refused (the old bodies read xp_permille), so the two apply back to back, then the hr-accrue at once.
+-- THE INCOME DIAL, REGENERATED IN PLACE (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): a ground's dial
+-- (balance-sheet.js GROUND_GP_FIT, 0.7 from the Glade up) is x its kills' coin and x what its loot sells for (src/data/loot-sale.js), so
+-- hr_hunt_kill_bounds' gold falls for every dialed monster and hr_hunt_vendor_value falls for every dialed drop. Both only FALL: the hr-accrue
+-- carrying the same src/data deploys at once after the trio (until it lands an old engine's coin can pass the lower bound, so a hunt on a dialed
+-- ground is refused kills_over and the next tick retries it; nothing is lost).
 --
 -- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),

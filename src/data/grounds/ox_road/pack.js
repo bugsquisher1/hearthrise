@@ -74,7 +74,7 @@ export default definePack({
          override. The wagons' axes, and now and then a bow. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wagon_pin', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_hatchets', ch: 0.02, band: 'scarce' }, { id: 'duskwood_bow', ch: 0.00104, band: 'rare' }],
-      hp: 148, atk: 99, baseAcc: 0.94, def: 51, xp: 1517, gp: [31, 93], formula: true },
+      hp: 148, atk: 99, baseAcc: 0.94, def: 51, xp: 1517, gp: [22, 65], formula: true },
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: one of Gault's living runners, carrying live coals in a tin from one of his fires to the next. He throws one at you, and
@@ -82,7 +82,7 @@ export default definePack({
       spells: ['hot_coal'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'runners_tin', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_wand', ch: 0.026, band: 'scarce' }, { id: 'duskwood_codex', ch: 0.00256, band: 'rare' }],
-      hp: 143, atk: 131, baseAcc: 0.45, def: 53, xp: 1777, gp: [30, 90], formula: true },
+      hp: 143, atk: 131, baseAcc: 0.45, def: 53, xp: 1777, gp: [21, 63], formula: true },
     yoke_ox: {
       name: 'Yoke Ox', icon: '🐂', tier: 6, level: 119, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy: a dead ox still in its yoke, dragging a wagon. It puts its head down and runs straight through whoever it's facing and
@@ -90,7 +90,7 @@ export default definePack({
       spells: ['trample'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'ox_shoe', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_warhammer', ch: 0.038, band: 'scarce' }, { id: 'duskwood_crossbow', ch: 0.00256, band: 'rare' }],
-      hp: 234, atk: 97, baseAcc: 1.04, def: 78, xp: 2694, gp: [49, 148], formula: true },
+      hp: 234, atk: 97, baseAcc: 1.04, def: 78, xp: 2694, gp: [34, 104], formula: true },
     drover: {
       name: 'Drover', icon: '🦯', tier: 6, level: 121, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: Gault's living man who walks the dead teams up the road. He jabs a fallen one with his goad, says the words, and it gets
@@ -98,14 +98,14 @@ export default definePack({
       spells: ['goad'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'dawnstone_ore', ch: 0.2, band: 'common' }, { id: 'drovers_goad', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_staff', ch: 0.045, band: 'scarce' }],
-      hp: 198, atk: 124, baseAcc: 0.64, def: 60, xp: 2086, gp: [42, 124], formula: true },
+      hp: 198, atk: 124, baseAcc: 0.64, def: 60, xp: 2086, gp: [29, 87], formula: true },
     wagonmaster: {
       name: 'Wagonmaster', icon: '📜', tier: 6, level: 125, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite: the man who ran the convoy, dead on the box of the lead wagon and still holding the waybill. No trick, just the hardest
          thing on the road. Undead, no override. The lead wagon's Dawnstone and the Dawnsteel sword. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'waybill', ch: 0.1, band: 'uncommon' },
         { id: 'dawn_sword', ch: 0.0056, band: 'rare' }],
-      hp: 327, atk: 127, baseAcc: 0.66, def: 93, xp: 4013, gp: [69, 206], formula: true },
+      hp: 327, atk: 127, baseAcc: 0.66, def: 93, xp: 4013, gp: [48, 144], formula: true },
   },
   roster: { dead_teamster: 'swarm', coal_runner: 'glass', yoke_ox: 'heavy', drover: 'regular', wagonmaster: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five kinds. */
@@ -140,6 +140,7 @@ export default definePack({
      0.57 / 0.53 and a tank and Healer 0.80 / 0.74, so the four 1000 x 1.20 / 0.489 = 2455, the pair 1000 x 1.10 / 0.684 = 1610, the cells between at the
      Hold's proportions. */
   xpFit: { k: 0.91, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   partyClassXp: { 2: [990, 1610], 3: [1150, 1705, 1820], 4: [1150, 2210, 2445, 2455] },
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */

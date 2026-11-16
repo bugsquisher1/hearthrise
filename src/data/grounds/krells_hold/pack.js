@@ -92,7 +92,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
-      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1128, gp: [24, 72], formula: true },
+      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1128, gp: [17, 50], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
@@ -105,7 +105,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1306, gp: [23, 69], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
+      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1306, gp: [16, 48], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -117,7 +117,7 @@ export default definePack({
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
         { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
-      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2035, gp: [38, 115], formula: true },
+      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2035, gp: [27, 80], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
@@ -127,7 +127,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
         { id: 'runewood_wand', ch: 0.0035, band: 'rare' }, { id: 'runewood_codex', ch: 0.0035, band: 'rare' }],
-      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1617, gp: [33, 99], formula: true },
+      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1617, gp: [23, 69], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
@@ -138,7 +138,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
-      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3179, gp: [55, 166], formula: true },
+      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3179, gp: [39, 116], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority
@@ -190,6 +190,7 @@ export default definePack({
      "harder mobs grand better loot and more exp"). A lone tank at the floor (85) levelled slower here than on the Pyre Field (583k against 615k). 0.95 -> 0.98 (and the Pyre 0.89):
      about 3% over. The full grade's median lone way at 98 read 1.04 of the contract, so about 1.07, inside 0.90-1.10. */
   xpFit: { k: 0.98, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   /* PARTY LEVEL XP (party-class-xp.js's row shape; lane/d-packs-retune, 2026-11-12). With no row a party paid the even share, and on one pack for every
      group (Tyler 2026-11-11) a four of four classes read 0.43 / 0.40 of the median lone way at the floor and middle (quick grade), a tank and Healer
      pair 0.67 / 0.66. The Ford's method: the four's 1000 x 1.20 / 0.415 = 2890 (the three-class four 2880, the two-class 2600), the pair 1000 x 1.10
@@ -306,7 +307,7 @@ export default definePack({
            drops at. Tier 7 is the last standard tier (Tyler 2026-11-14), so it is the chase: at 0.035 a kill drops about one piece in two,
            a four sees one of a given piece about every 23 h, and a hero's own weapon, body and helm come in about 40 h if the party passes
            them round. */
-        hp: 18000, atk: 247, baseAcc: 0.95, def: 80, xp: 21720, gp: [251, 753], speed: 2800,
+        hp: 18000, atk: 247, baseAcc: 0.95, def: 80, xp: 21720, gp: [176, 527], speed: 2800, // gp: the pack's income dial (gpFit 0.7) on [251, 753], mean kept
         phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1800, guardPm: 800, hasten: { spell: 'hall_fire', cdPm: 500 } } },
       /* CAPTAIN HASK, read off the Roll: the man who sold the crossing. Everyone who gets here killed him in the Muster Barrows; now the man who
          bought him calls him by name and he has to come. A NAMED ADD (boss and add both, piece 6): the formula's elite at 100, and his own enrage
@@ -317,10 +318,10 @@ export default definePack({
         /* fitted with the hall (2026-11-14): on the elite's 263 HP he fell in seconds and nobody met him. At 700 HP and atk 135 he is the
            wave's question. His attack is the hall's most sensitive number: at 110 the bad bar won 58%, at 150 the good bar lost its tank
            (both in tier 3 steel, see Krell's row). In tier 6 at 98, 170 (his Cleave held to 1.4x, under the written 55%). */
-        hp: 700, atk: 170, baseAcc: 0.6, def: 72, xp: 3082, gp: [55, 166], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
+        hp: 700, atk: 170, baseAcc: 0.6, def: 72, xp: 3082, gp: [39, 116], speed: 3000, drops: [], phases: { enragePm: 250, enrageAtkPm: 1150 } },
       /* Two of the company's officers, standing up out of the hall floor: the Hold's Grave Guard row (formula heavy at 92), paying a kill as there */
       hall_grave_guard: { name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', add: true,
-        hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1973, gp: [38, 115], speed: 2400, drops: [] },
+        hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 1973, gp: [27, 80], speed: 2400, drops: [] },
     },
   },
   /* THE HOLD'S SPELLS (src/data/monster-spells.js rows; the design's sections 2 and 3).

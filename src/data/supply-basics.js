@@ -86,41 +86,26 @@ const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, par
    +44% XP and +20k gold. Price can't take that back below Carved without punishing Normal (Carved breaks even in his four at about
    52-71 g). So Plain, Scored and Etched keep Tyler's numbers (Etched 12, 2026-11-05) and stay the sensible Deadly kit, and the top two
    become a real trade on every tier: the Carved step in his four on Deadly now reads -0.7k to +0.5k a head for +2-4% XP, and on Normal
-   the top rune costs a lone Mage 23-48% of its gold for 12-22% more XP.
-   CARVED 28 -> 34 AND GRAVEN 44 -> 55 (designer 2026-11-16, lane/d-supply-prices, with the store food raise below). A deeper rune pays
-   back in food (a faster kill, fewer blows), so Salted Lobster at 270 made the top two free again on Deadly: the Carved step in his four
-   read +0.5k to +1.9k a head and Graven +1.7k for the lone Deadly Mage at the Slake. At 34 / 55 they read where 28 / 44 put them: the
-   Carved step -0.9k to +0.5k a head in his four (Ford, Slake, Muster on Deadly), Graven about -0.5k for the lone Deadly Mage. Plain,
-   Scored and Etched keep Tyler's 1 / 8 / 12. */
-export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 34, 55]);
+   the top rune costs a lone Mage 23-48% of its gold for 12-22% more XP. */
+export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 28, 44]);
 /* A deeper store rune is called by its tier's own name, "Scored Fire Rune" (Tyler 2026-11-08: "Plain Scored Fire Rune" read wrong
    beside "the store's"); Plain names only the tier-1 row, the store's own cheap rune. The ids keep their `plain_` prefix. */
 const storeRune = (family, t) => shot(t.tier === 1 ? 'plain_' + family + '_rune' : 'plain_' + runeId(family, t.tier),
   t.tier === 1 ? 'Plain ' + RUNE_FAMILIES[family].label + ' Rune' : runeName(family, t.tier), runeId(family, t.tier), STORE_RUNE_PRICE[t.tier - 1]);
 
-/* THE TIER RAISE (designer 2026-11-16, lane/d-supply-prices; Tyler 2026-11-16: "I think raising the supply costs will help with the gold
-   imbalance"). Tiers 1 and 2, the food and drink of the first 31 Levels, keep their prices: a new hero isn't gold-rich, and a lone tank at
-   the Glade's floor spends about 60% of what it makes on Salted Trout. From tier 3 each tier costs 25% more a tier than it did: tier 3
-   x1.5 (Salted Lobster 180 -> 270, Thin Tomato Juice 45 -> 68), tier 4 x1.75, tier 5 x2, tier 6 x2.25. A bigger store heal still never
-   costs less a point than a smaller one (B3). Measured on the real settle (the board, "2026-11-16 Store supply prices"): food is the bill
-   of whoever takes the blows, so this lands on Dangerous and Deadly, on the tank's seat and on a lone tank pushing its band floor, and
-   barely touches a hero on Normal in its range, who buys almost nothing (Tyler 11-06: outside your weight class you spend money for XP).
-   His four on Deadly in the Etched kit nets 7% (the Ford) to 37% (the Slake) less a head; the lone careers lose 0-8% from Level 30 to
-   69 and the lone tank at the Pyre Field's floor goes from about +1.7k to -6.4k an hour (reported, NO PROFIT MOLDS). A crafted food or
-   drink is worth half again as much against the store, so a cook or farmer can ask more and still undercut it. */
 /* id -> row. `price` is gold per use (per shot for ammo, per cast for a rune). */
 export const BASIC_SUPPLIES = Object.freeze([
   heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14),
   heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40),
-  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 270),
-  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 756),
-  heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 1386),
+  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 180),
+  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 432),
+  heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 693),
   mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10),
   mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 120, 18),
-  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 216, 68),
-  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 288, 140),
-  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 396, 276),
-  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480, 524),
+  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 216, 45),
+  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 288, 80),
+  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 396, 138),
+  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480, 233),
   /* (Tyler 2026-10-23: "like anything else the arrows should then be bought from the store".) Iron Arrows ran out
      with no store row and the Ranger hunted on with no basic attack; priced by the rule, BASIC_AMMO_PREMIUM x its
      partner's book value (1 g). */
@@ -222,15 +207,15 @@ const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + it
 export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sell('cooked_shrimp', 'food', 'salted_shrimp', 19),
   sell('cooked_trout', 'food', 'salted_trout', 56),
-  sell('cooked_lobster', 'food', 'salted_lobster', 375),
-  sell('cooked_swordfish', 'food', 'salted_swordfish', 1008),
-  sell('cooked_shark', 'food', 'salted_shark', 1848),
+  sell('cooked_lobster', 'food', 'salted_lobster', 250),
+  sell('cooked_swordfish', 'food', 'salted_swordfish', 576),
+  sell('cooked_shark', 'food', 'salted_shark', 924),
   sell('turnip_juice', 'drink', 'thin_turnip_juice', 14),
   sell('carrot_juice', 'drink', 'thin_carrot_juice', 26),
-  sell('tomato_juice', 'drink', 'thin_tomato_juice', 95),
-  sell('pumpkin_cider', 'drink', 'thin_pumpkin_cider', 187),
-  sell('goldenroot_tea', 'drink', 'thin_goldenroot_tea', 368),
-  sell('emberfruit_cordial', 'drink', 'thin_emberfruit_cordial', 708),
+  sell('tomato_juice', 'drink', 'thin_tomato_juice', 63),
+  sell('pumpkin_cider', 'drink', 'thin_pumpkin_cider', 107),
+  sell('goldenroot_tea', 'drink', 'thin_goldenroot_tea', 184),
+  sell('emberfruit_cordial', 'drink', 'thin_emberfruit_cordial', 315),
   sell('barbed_arrows', 'ammo', 'plain_barbed_arrows', 1),
   sell('iron_bolts', 'ammo', 'plain_iron_bolts', 1),
   sell('steel_arrows', 'ammo', 'plain_steel_arrows', 1),

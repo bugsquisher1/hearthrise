@@ -69,7 +69,7 @@ export default definePack({
          fire, so fire does 25% less and ice 15% more (the Dragon class sets its element per monster). */
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'eggshell', ch: 0.08, band: 'uncommon' }],
-      hp: 165, atk: 109, baseAcc: 1, def: 58, xp: 1825, gp: [35, 104], formula: true },
+      hp: 165, atk: 109, baseAcc: 1, def: 58, xp: 1825, gp: [24, 73], formula: true },
     ledge_wyvern: {
       name: 'Ledge Wyvern', icon: '🐲', tier: 6, level: 130, cls: 'dragon', family: 'Dragon', speed: 3000,
       /* the glass: a thin one that sits on a ledge and spits at whoever's standing farthest back. HE SHOOTS (`range`, src/core/hunt/shooters.js)
@@ -77,7 +77,7 @@ export default definePack({
       range: 5,
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'gizzard_stone', ch: 0.08, band: 'uncommon' }],
-      hp: 159, atk: 145, baseAcc: 0.45, def: 60, xp: 2137, gp: [33, 101], formula: true },
+      hp: 159, atk: 145, baseAcc: 0.45, def: 60, xp: 2137, gp: [23, 70], formula: true },
     bull_wyvern: {
       name: 'Bull Wyvern', icon: '🐲', tier: 6, level: 133, cls: 'dragon', family: 'Dragon', speed: 2400,
       /* the heavy: an old male, slow and huge. He swings his tail round and hits everyone standing next to him (Tail Sweep, `spells`), so
@@ -85,7 +85,7 @@ export default definePack({
       spells: ['tail_sweep'],
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'dragon_scale', ch: 0.2, band: 'common' }, { id: 'tail_spur', ch: 0.08, band: 'uncommon' }],
-      hp: 261, atk: 108, baseAcc: 1.1, def: 88, xp: 3245, gp: [55, 164], formula: true },
+      hp: 261, atk: 108, baseAcc: 1.1, def: 88, xp: 3245, gp: [38, 115], formula: true },
     crag_wyvern: {
       name: 'Crag Wyvern', icon: '🐲', tier: 6, level: 136, cls: 'dragon', family: 'Dragon', speed: 3000,
       /* the regular: a grown wyvern. She breathes fire in a cone in front of her (Fire Breath, a marked hit, `spells`): the tank stands in it,
@@ -93,14 +93,14 @@ export default definePack({
       spells: ['fire_breath'],
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'dragon_scale', ch: 0.2, band: 'common' }, { id: 'fire_gland', ch: 0.08, band: 'uncommon' }],
-      hp: 222, atk: 137, baseAcc: 0.68, def: 69, xp: 2531, gp: [47, 139], formula: true },
+      hp: 222, atk: 137, baseAcc: 0.68, def: 69, xp: 2531, gp: [33, 98], formula: true },
     brood_wyvern: {
       name: 'Brood Wyvern', icon: '🐲', tier: 6, level: 140, cls: 'dragon', family: 'Dragon', speed: 2800,
       /* the elite: a big female sitting on her eggs. No trick, she's just the hardest thing in the pass. The Roost Mother (the boss, board
          section 9) is the oldest of these, and she waits for her own lane. */
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 1, band: 'common' }, { id: 'dragon_scale', ch: 0.5, band: 'common' }, { id: 'stolen_fleece', ch: 0.1, band: 'uncommon' }],
-      hp: 366, atk: 141, baseAcc: 0.68, def: 105, xp: 4855, gp: [77, 230], formula: true },
+      hp: 366, atk: 141, baseAcc: 0.68, def: 105, xp: 4855, gp: [54, 161], formula: true },
   },
   roster: { wyvern_fledgling: 'swarm', ledge_wyvern: 'glass', bull_wyvern: 'heavy', crag_wyvern: 'regular', brood_wyvern: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five kinds. */
@@ -134,6 +134,7 @@ export default definePack({
      A four of four classes read 0.58 / 0.53 and a tank and Healer 0.77 / 0.72, so the four 1000 x 1.20 / 0.514 = 2335, the pair 1000 x 1.10 / 0.69 = 1595, the
      cells between at the Hold's proportions. */
   xpFit: { k: 0.94, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   partyClassXp: { 2: [990, 1595], 3: [1150, 1620, 1735], 4: [1150, 2100, 2325, 2335] },
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */

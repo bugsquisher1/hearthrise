@@ -136,7 +136,7 @@ export default definePack({
         { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
         { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
         { id: 'rune_sword', ch: 0.016, band: 'scarce' }],
-      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1060, gp: [21, 64], formula: true },
+      hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1060, gp: [15, 45], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -147,7 +147,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
         { id: 'yew_staff', ch: 0.048, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1278, gp: [21, 63], formula: true },
+      hp: 188, atk: 31, baseAcc: 1.03, def: 22, xp: 1278, gp: [15, 44], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -159,7 +159,7 @@ export default definePack({
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' },
         { id: 'rune_hatchets', ch: 0.0033, band: 'rare' }],
-      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 2978, gp: [49, 147], formula: true },
+      hp: 440, atk: 41, baseAcc: 0.9, def: 44, xp: 2978, gp: [34, 103], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
@@ -172,7 +172,7 @@ export default definePack({
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
       /* HIS LINES ARE BACK with the ground-boss engine (lane/b-barrow-integrate 2026-11-14, from lane/b-muster-barrows 36a7a2d1b; carried as a
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
-      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 11567, gp: [173, 520], formula: true,
+      hp: 1556, atk: 50, baseAcc: 0.9, def: 52, xp: 11567, gp: [121, 364], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {
@@ -223,6 +223,7 @@ export default definePack({
      the sheet's 0.90-1.10. A lone tank here still levels slower than on the Slake: this is a party-built ground, which the Hunts window never
      sends a lone hero to (ONE DIFFICULTY, Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"). */
   xpFit: { k: 0.81, why: 'Monsters here give less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   /* THE HARDER TIERS (TIER_PULL_OVERRIDES' shape since one difficulty: ONE pull for every group). Dangerous brings the full box, 8, not
      the table's 5: on 5 a Melee and Healer pair two under the floor netted +2.9k gold an hour a head and five under +0.5k, where the
      weight-class ruling (11-06) asks them to lose gold. On 8 they lose 15.6k and 28.8k (quick grade, 1 seed x 1 h). So here the two

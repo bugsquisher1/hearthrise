@@ -29,49 +29,45 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
-### 2026-11-16 Store supply prices (designer, lane/d-supply-prices; Tyler 2026-11-16: "I think raising the supply costs will help with the gold imbalance"): BUILT as data, two server files STAGED, the edge moves. It sinks gold where heroes take risks, NOT from a hero on Normal in range, so it does not fix the audit's F12 by itself
-Measured on the real settle (`tools/balance-sim/supply-prices-table.mjs careers | runes | floors`). A store price never changes a fight, so each cell is played once and its buys priced at both lists; the "was" column reproduces the separate run at the old prices to the gold.
+### 2026-11-16 Income dial (designer, lane/d-supply-prices; Tyler 2026-11-16 chose "cut income instead" over dearer supplies): BUILT as data, four server files STAGED (one regenerated in place), the edge moves
+Every store price is back where it was (food and drink as before, runes at Andy's approved 28 / 44). The dearer-supplies version reached a hero on Normal in range by 0-8%, because that hero buys almost nothing. Measured on the real settle with `tools/balance-sim/supply-prices-table.mjs careers | runes | floors` at 66744ab31 (before) and this lane (after). A dial never changes a fight, so before and after play the same hours on the same dice.
 
-**Prices, gold a use.** Tiers 1 and 2 (the first 31 Levels' food and drink) keep theirs: a lone tank at the Glade's floor already spends about 60% of what it makes on Salted Trout. From tier 3 each tier costs 25% more a tier than it did.
-| Store row | Was | Now |
+**The lever.** Each ground has one row field, `gpFit` (`balance-sheet.js` GROUND_GP_FIT, or a pack's own `gpFit`). It multiplies its kills' coin (the formula's mean, so every monster row is rewritten by `gen-ground-stats` / `pack propose --write`) and what its loot sells for (`src/data/loot-sale.js`, read by the one bid function, `catalogue.js` vendorPriceOf).
+| Ground | Dial |
+|---|---|
+| Mill Cellar, Meadowbrook Thicket, Wickstead, Millrace Sewer (Levels 1-25) | none (x1) |
+| Mosslight Glade, Coppercap Warrens | x0.7 |
+| Hask's Ford, the Slake, Muster Barrows, Pyre Field, Krell's Hold (its hall's three hand rows dialed to match) | x0.7 |
+| Staged: Carter's Rest, Ox Road, Wyvern Roost, the Vaults | x0.7 |
+**Flagged: the Glade is dialed although its band starts at 16.** A lone hero hunts it from 16 to 44 (the Warrens is a party ground) and makes 80% of the 1.58M it banks by 50 there, so no target below is reachable without it. It touches Levels 16-31: the 1-19 band loses 10-11%, Levels 20-31 a quarter.
+
+**1. The lone career (the brief's table), net gold an hour:**
+| Levels | Tank before -> after | Mage before -> after |
 |---|---|---|
-| Salted Shrimp, Salted Trout (tiers 1, 2) | 14, 40 | same |
-| Salted Lobster (3), Swordfish (4), Shark (5) | 180, 432, 693 | **270, 756, 1,386** |
-| Thin Turnip Juice, Thin Carrot Juice (1, 2) | 10, 18 | same |
-| Thin Tomato Juice (3), Pumpkin Cider (4), Goldenroot Tea (5), Emberfruit Cordial (6) | 45, 80, 138, 233 | **68, 140, 276, 524** |
-| Runes Plain / Scored / Etched (Tyler's) | 1 / 8 / 12 | same |
-| Runes Carved / Graven | 28 / 44 | **34 / 55** |
-| Arrows and bolts | 1-12 | same |
+| 1-19 | 4.2k -> 3.8k (-10%) | 5.3k -> 4.7k (-11%) |
+| 20-29 (Glade) | 8.2k -> 6.1k (-25%) | 10.2k -> 7.5k (-26%) |
+| 30-39 (Glade) | 9.6k -> 7.2k (-25%) | 12.5k -> 9.3k (-25%) |
+| 40-49 (Glade, Ford) | 9.5k -> 6.8k (-29%) | 14.4k -> 10.5k (-28%) |
+| 50-59 (Slake) | 10.9k -> 7.2k (-34%) | 17.9k -> 12.5k (-30%) |
+| 60-69 (Slake) | 14.0k -> 9.9k (-29%) | 20.5k -> 14.3k (-30%) |
+| 70-74 (Pyre Field) | **+1.7k -> -3.6k** | 31.6k -> 22.0k (-31%) |
+| Banked by 50 | 1.58M -> 1.18M (-25%) | 1.60M -> 1.19M (-25%) |
+| Banked by 74 | 3.82M -> 2.52M (-34%) | 4.55M -> 3.25M (-29%) |
+From Level 30 the cut is 25-34% an hour. Banked by 50 is down a quarter, not a third: Levels 1-15 are undialed, and the Glade's iron pieces also drop on the undialed grounds, so they keep their price. A third by 50 needs about x0.6 on the Glade, which would take 35-40% off every hour from 30. I kept one number.
 
-**1. A lone hero on Normal where the game sends it (the brief's table): almost nothing moves, because it buys almost nothing.** Net gold an hour, coin plus sold loot and rares less the store bill:
-| Levels | Tank: bill, net was -> now | Mage: bill, net was -> now |
-|---|---|---|
-| 1-19 | 0.3k, 4.2k -> 4.2k | 0.9k, 5.3k -> 5.3k |
-| 20-29 (Glade) | 0.3k, 8.2k -> 8.2k | 0.7k, 10.2k -> 10.2k |
-| 30-39 (Glade) | 0.0k, 9.6k -> 9.6k | 0.3k, 12.5k -> 12.5k |
-| 40-49 (Glade, Ford) | 0.9k -> 1.4k, 9.5k -> 9.1k (-5%) | 0.4k -> 0.5k, 14.4k -> 14.4k |
-| 50-59 (Slake) | 1.8k -> 2.6k, 10.9k -> 10.0k (-8%) | 0.6k -> 0.7k, 17.9k -> 17.8k |
-| 60-69 (Slake) | 0.0k, 14.0k -> 14.0k | 0.6k, 20.5k -> 20.5k |
-| 70-74 (Pyre Field) | 16.2k -> 24.3k, **+1.7k -> -6.4k** | 0.9k -> 1.1k, 31.6k -> 31.5k |
-| Banked by 50 | 1.58M -> 1.55M (-2%) | 1.60M -> 1.60M (0%) |
-| Banked by 74 | 3.82M -> 3.37M (-12%, the Pyre) | 4.55M -> 4.54M |
-On Normal in its range a tank drops under its eat line a few times an hour, and a Mage's bill is Plain runes at 1 g. **The brief's target (a quarter to a third off from 30 up) can't be reached through supply prices on this path at any price:** the tank buys nothing from 30 to 39 and from 60 to 69, the Mage's whole bill is under 1k. Only the income side reaches a hero who buys nothing: about x0.7 on coin and sold loot from the Glade up is the -30%. That's a coin dial per ground (GROUND_GP_FIT beside GROUND_XP_FIT, raised in Andy's item 2), Tyler's call, not built. Training items (250k a 12 h) stay the sink for this hero (F12).
-
-**2. Where supplies are spent, it bites: the tank's seat, Dangerous and Deadly.** Andy's four (hammer, bow, Mage at the Level, a Healer 5 under) on Deadly, net a head an hour:
+**2. Andy's four on Deadly** (hammer, bow, Mage at the Level, a Healer 5 under), net a head an hour:
 | His four, Deadly | Plain | Scored | Etched (the sensible kit) | Carved |
 |---|---|---|---|---|
-| Hask's Ford 55 | 9.1k -> 5.4k | 11.5k -> 9.5k | 13.4k -> 12.5k (-7%) | 13.3k -> 11.9k |
-| The Slake 57 | -1.8k -> -10.8k | 3.1k -> -2.6k | 8.2k -> 5.1k (-37%) | 8.6k -> 5.6k |
-| Muster Barrows 60 | 1.6k -> -5.5k | 4.6k -> 0.3k | 8.4k -> 6.0k (-29%) | 7.8k -> 5.1k |
-In the Etched kit his four loses about a quarter (-7 to -37%), and Deadly now costs gold against Normal at the Slake and the Muster (Normal fours there net 7.1-7.5k and 9.3-13.1k), which is Tyler's 11-06 trade: more XP, more spent. The Ford stays the cheap group ground (Andy's item 2). The hammer's seat carries the bill (Slake Etched -5.6k -> -17.5k), as before; on one account the purse is shared.
+| Hask's Ford 55 | 9.1k -> 4.1k | 11.5k -> 6.2k | 13.4k -> 8.1k (-40%) | 13.3k -> 7.6k |
+| The Slake 57 | -1.8k -> -6.8k | 3.1k -> -2.1k | 8.2k -> 2.8k (-66%) | 8.6k -> 3.0k |
+| Muster Barrows 60 | 1.6k -> -3.4k | 4.6k -> -0.3k | 8.4k -> 3.2k (-62%) | 7.8k -> 2.4k |
+Deadly loses more than a quarter because its supply bill doesn't shrink. The Normal fours on the same grounds lose exactly 30% (Ford 6.1k -> 4.3k at 53, Slake 7.5k -> 5.3k at 58, Muster 13.1k -> 9.1k at 65), so Deadly at the Slake and the Muster is now the XP-for-gold trade (Tyler 11-06) and the Ford stays the cheap group ground. **The deeper rune stays a trade at 28 / 44:** the Carved step reads -0.5k (Ford), +0.2k (Slake), -0.8k (Muster) a head, where it read -0.1k, +0.4k, -0.6k before.
 
-**3. The deeper rune stays a trade (Andy's item 4). Carved 28 -> 34 and Graven 44 -> 55, flagged: the numbers demanded it.** A deeper rune pays back in food, so at 28 / 44 the dearer Lobster made both free again: the Carved step in his four read +0.5k to +1.9k a head and Graven +1.7k for the lone Deadly Mage. At 34 / 55 the Carved step reads -0.6k (Ford), +0.5k (Slake), -0.9k (Muster) a head for 2.5-3.7% more XP (was -0.1k, +0.4k, -0.6k), and the lone Mage on the Slake's Deadly at 60 pays 0.6k for each of Carved and Graven, about 9% more XP each. On Normal the top rune now costs a lone Mage 38% (Slake 52, Carved) to 66% (Muster 60, Graven) of its gold over Plain for 12-23% more XP. Plain, Scored and Etched are Tyler's and unchanged.
+**3. Lone heroes on Normal that go from positive to negative** (the reference bar, 2 h a cell, every open ground at floor and middle): the Pyre Field's floor tank in the career (+1.7k -> -3.6k; the floor cell itself stays positive), Krell's Hold at 85 tank (+5.4k -> -0.4k). Grounds the game sends a lone hero only past (lone melee there was already negative): the Warrens at 41 tank (+1.3k -> -1.1k), the Muster at 55 Healer (+3.6k -> -0.1k), the Muster at 65 tank (+1.2k -> -2.1k) and hammer (+0.5k -> -4.7k). Nothing on the Glade, the Ford or the Slake flips. NO PROFIT MOLDS: reported, not fitted.
 
-**4. Sign flips, reported (NO PROFIT MOLDS), lone heroes on Normal, the reference bar, 2 h a cell.** The lone tank at the Pyre Field's floor: +1.7k -> -6.4k in the career (16 to 24k an hour of Lobster), +8.6k -> +3.3k in its floor cell; at 80 it buys nothing (24.9k). Krell's Hold at 85, a lone tank: +5.4k -> -1.8k. Grounds the game sends a lone hero only past (they were already negative for lone melee): the Warrens at 41 (tank +1.3k -> -2.2k), the Muster at 55 (Healer +3.6k -> -0.2k) and 65 (tank +1.2k -> -3.7k, hammer +0.5k -> -8.0k). The Ford and the Slake stay positive for every way (their floor tanks lose 22-28%), and every ground from 1 to 31 is untouched.
+**4. One sale value everywhere.** A drop sells at its ground's dial, and an item more than one ground drops sells at the highest of their dials, so bones and the iron pieces keep their price. A drop that is also gathered, farmed or made at a bench (coal, copper ore) keeps its whole bid, so no gatherer or crafter is cut. 202 items move. A dialed piece never sells under the piece a tier below it in its line (the sale ladder, `drop-tables` sale-ladder; `loot-sale.js` LOWER_TWIN): 18 pieces, mostly the Glade's and the Warrens' Steel and Willow, sit on their undialed Iron or Oak twin's bid. The one bid function feeds the shop's bid, Dispatch loot, the Weighhouse floor (`hr_market_items.floor_each` reads `hr_hunt_vendor_value`) and the bench tax (`gen-bench-tax --check` unchanged: it only taxes bench outputs, which are never dialed). **Book value (`v`) is untouched on purpose:** it is the crafting measure (a bench row's inputs against its output, `craft-wages`, `style-gear` SG-4), the Weighhouse ceiling (100x book) and the House's. None of those is the faucet, and a lower bid only widens the gap the vendor already keeps under the shop (`vendor-shop-arbitrage`). Also touched: Krell's hall (three hand rows), the scaled hunts (`scaled-hunts.js` gpFitAt: a scaled coin rise reads the top ground's dial, so an early ground scaled up can't dodge it), and `tools/pack/files.mjs` (a pack copied from a ground keeps its dial). Tally rewards are fixed gold (35% of the old coin) and don't move.
 
-**5. Crafters.** A crafted food or drink of tier 3 and up is worth half again as much against the store (the price list, the designer's rate a point): Cooked Lobster 250 -> 375 g, Swordfish 576 -> 1,008, Shark 924 -> 1,848, Tomato Juice 63 -> 95, Pumpkin Cider 107 -> 187, Goldenroot Tea 184 -> 368, Emberfruit Cordial 315 -> 708. A cook or farmer can ask that much more on the Weighhouse and still undercut the store (its ceiling stays 100x book). A Carved rune can list up to 34, a Graven up to 55. Their shop bids don't move (book value; the one cap that bound, the Cordial's 157, lifts to its book 160). **Known limit:** gold a crafter is paid moves between players, it isn't burned, and a hero who cooks its own food or drops to Salted Trout where Trout holds pays none of the raise. That's the player's call, by design.
-
-**Server (lane C, staged, Coordinator applies):** `2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql` REGENERATED IN PLACE (still staged: the store rows, including Andy's 28 / 44 the last lane left stale, now 34 / 55; the Cordial's bid) and NEW `2027-04-24-supply-prices-alpha-catalogue.generated.sql` (the price list; `gen-alpha-catalogue` OUT_NAME moved, the 03-25 file is applied history). **The edge moves** (`supply-basics.js` is bundled: `pack-edge --hash` 155a0e22 -> 9f79f77c on this change alone, 6a716a54 with main's v0.2.133 merged); deploy it with the applies so the vendor cap and the store agree. No count moves (restore-census). **Client after the applies:** the bar and Hunt prep print `src/data`'s prices, so the client half ships after the two files and the edge, or it shows 270 while the server charges 180. Its one code change: the supply line groups a four-digit store price ("Salted Shark from the store, 1,386 gp each"; AW-64 now reads every price from the data).
+**Server (lane C, staged, Coordinator applies):** `2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql` REGENERATED IN PLACE (still staged): kill bounds' gold and `hr_hunt_vendor_value` fall, and the store rows carry Andy's 28 / 44 (the file had 16 / 24). NEW `2027-04-24-income-dial-scaled-hunts-catalogue.generated.sql` (the scaled gold bounds fall; the 04-23 file is applied history). NEW `2027-04-24-march-folded-hunts-catalogue.generated.sql` and `2027-04-24-march-folded-ground-tiers.generated.sql`: the same rows with the five March packs folded in, no row moves. They exist because the dial moves the open packs' own rows, and `tests/ground-pack.mjs` GP-3 counts a pack as carried only when every whole file folds it. The alpha catalogue doesn't move. **The edge moves** (`monsters.js`, the packs, `catalogue.js` and `loot-sale.js` are bundled; `pack-edge --hash` 0c9fefb7). Bounds only fall, so the hr-accrue deploys at once after the training-gear trio. Until it lands, an old engine's coin can pass the lower bound: a hunt on a dialed ground is refused kills_over and the next tick retries it. Then the scaled file. **Client:** the bag's sell price and every coin number are the server's, so it ships with the edge.
 
 ### 2026-11-16 Andy's March feedback, measured and ruled (designer, lane/d-andy-march-feedback, on the party-XP hotfix lane/a-party-xp-tier with the cloth fix lane/d-mage-110 merged): TWO DATA CHANGES COMMITTED (drop odds, store rune prices), three rulings, one what-if for Tyler
 Andy plays a mixed four (Klappa hammer, Krungus bow, Saphina mage, Marigold healer, Level 52-59) on Deadly at Hask's Ford, the Slake and the Muster. Every number below is the real settle (`tools/balance-sim` cells, the world tick's engine), 3 seeds x 2 h a cell, the Level's ladder gear, every supply bought from the store. "His four" is a hammer, a bow and a Mage at the Level and a Healer 5 under. Gold is coin plus loot sold minus the store bill, a head an hour. Contract = the pace contract at the party's top Level.
@@ -128,7 +124,7 @@ Each caster's rune slots on one store tier, the same dice. Step = this tier over
 - **What the new prices do.** On Deadly, Scored and Etched still pay for themselves, so they're the sensible kit. Carved and Graven become a real XP-for-gold trade: about break-even in his four for 2-4% more XP, and Graven costs the lone Deadly Mage 1.0k for 9%. On Normal every step stays a trade, and the top rune now costs a lone Mage 23-48% of its gold for 12-22% more XP. The QA audit's 11-15 read (Carved at the Slake at 52: +18% XP for -28% gold) doesn't reproduce at the old price: the sim's lone Mage there read +12% for -3%. At 28 g it reads +12% for -23%, about the trade the audit thought it saw. A Healer's deeper water rune is about 1-3% XP a step on Normal and a gold cost. It's for Deadly safety, where the Scored step alone is +5.4k.
 - It also takes some heat off item 3: the Carved Mage's 46-49% share now costs gold.
 - **Tyler's call:** this moves the top of his 11-05 ladder line ("then 16 / 24 g"). Plain, Scored and Etched are his and unchanged. Runecrafters gain headroom (a Carved rune can list up to 28 g), and more gold burns.
-- **REGENERATED on lane/d-supply-prices** (`2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql`, in place, still staged), where Carved and Graven then moved to 34 / 55 with the store food raise.
+- **REGENERATED on lane/d-supply-prices** (`2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql`, in place, still staged) at these 28 / 44.
 
 **5. Andy's idea, monster HP up in a party. NOT BUILT** (it reverses Tyler's 11-08 "Same monsters, re-tune"). Simmed as one HP factor on every monster for a party, on top of the hotfix, against the flat-party route (one factor on the party XP cell, lane/d-flat-party-xp).
 | Party HP | His four, Deadly (Ford 55, Slake 57, Muster 60): XP a head | gold a head | store bill | deaths | Mage share |

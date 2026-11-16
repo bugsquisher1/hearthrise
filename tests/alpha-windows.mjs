@@ -1517,8 +1517,8 @@ async function planRules(base) {
   const { itemName: nameOfItem, runeWords: runeWordsOf } = await imp('src/shell/widgets/bits.js');
   const { factsOf: factsOfSlot } = await imp('src/shell/action-facts.js');
   const LIVE = BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, heals: b.heals || null, mana: b.mana || null, price: b.price }));
-  /* a store row's price as the line prints it, read from the data: this case pins the reader, not a price (lane/d-supply-prices moved
-     Salted Swordfish 432 -> 756 and the literal went red) */
+  /* a store row's price as the line prints it, read from the data: this case pins the reader, not a price (a store price tune, such as
+     lane/d-supply-prices' first pass, turned the literal red) */
   const gp = (id) => BASIC_SUPPLIES.find((b) => b.id === id).price.toLocaleString('en-US') + ' gp each';
   const barOf = (role, slots) => ({ preset: 0, presets: [], role, slots, store: LIVE, supply_source: 'mine', on_empty: 'switch' });
   const inHunt = (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: {},

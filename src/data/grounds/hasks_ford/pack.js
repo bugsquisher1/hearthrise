@@ -120,7 +120,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_band', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.008, band: 'scarce' }, { id: 'warlock_boots', ch: 0.008, band: 'scarce' },
         { id: 'mithril_helm', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.008, band: 'scarce' }],
-      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 485, gp: [13, 38], formula: true },
+      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 485, gp: [9, 27], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
@@ -128,7 +128,7 @@ export default definePack({
       weaponResist: ['ranged'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platelegs', ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0325, band: 'scarce' }],
-      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 921, gp: [21, 64], formula: true },
+      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 921, gp: [15, 44], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
       /* the glass: the company's dead quartermasters, still keeping the books by the stores. It hits hard and breaks fast. A
@@ -137,7 +137,7 @@ export default definePack({
       weaponResist: ['magic'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'ledger_leaf', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' }],
-      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 652, gp: [14, 41], formula: true },
+      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 652, gp: [10, 28], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. The gloves
@@ -146,7 +146,7 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'toll_token', ch: 0.1, band: 'uncommon' },
         { id: 'mithril_gauntlets', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0042, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0042, band: 'rare' },
         { id: 'mithril_belt', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0042, band: 'rare' }, { id: 'warlock_belt', ch: 0.0042, band: 'rare' }],
-      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1507, gp: [32, 95], formula: true },
+      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1507, gp: [22, 67], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the
      pace contract (254,360 an hour at 53). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.15 the middle
@@ -160,6 +160,7 @@ export default definePack({
      (quick grade, the Slake's weapons on the ladder, 1 seed x 1 h). A fit scales every way alike, so 1.28 x 1.00 / 1.26 = 1.02. The Warrens'
      own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
   xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
     fordsunk: 'heavy',         // the tank: slow (2400), thick

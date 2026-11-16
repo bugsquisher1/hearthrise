@@ -8,6 +8,9 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - Food and deeper runes are coupled: a deeper rune pays back in food (faster kills, fewer blows). Raise food and re-measure the rune ladder in the same lane (Carved and Graven moved 28 -> 34, 44 -> 55 to stay a trade).
 - One store food (Salted Lobster) is every guide's pick from 32 to 185, so "by tier" lands on that one row. The deeper rows have no measured buyer.
 - Never run a test loop across a `git merge`: conflict markers in src/core crash every engine test mid-loop. Merge first, then run.
+- REWORKED the same day (Tyler: "cut income instead"): a per-ground `gpFit` on coin (the formula) and on the SALE (loot-sale.js in vendorPriceOf), never on book `v`. 93 drops are shared across grounds, so a per-ground sale needs a rule (the highest dial of its grounds; gathered or made items exempt). Book `v` is the crafting measure, not the faucet.
+- A per-ground dial can't split a ground's in-band Levels from its over-levelled ones: the lone career lives on the Glade from 16 to 44, so "cut from 30" and "leave 1-31 alone" can't both hold. Say which one you broke.
+- Deadly's cut runs 2x Normal's under an income dial (its supply bill doesn't shrink); report both.
 
 ## 2026-11-15 lane/d-mage-110: the Mage at 110 and up was cloth, not spawns
 - **Move one lever at a time before naming the limit.** "+Magic does nothing, so the Mage is spawn-bound" read right and was wrong: respawn 60 s to 1 s moved nothing (424 vs 419 kills). Splitting the Mage's damage by source (`dealtBy`) said it in one line: 85% is the basic wand blow, so the gear term in max hit decides.

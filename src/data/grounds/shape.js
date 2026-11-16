@@ -44,7 +44,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
   nodes: Object.freeze(nodes.map(([node, x, y, p]) => Object.freeze({ id: 'n' + x + '_' + y, node, x, y, pocket: p }))) });
 
 /* ── THE PACK ─────────────────────────────────────────────────────────────
-   { id, status, sql, hunt, ground, map, monsters, roster, items, itemText, xpFit, tierOverride }
+   { id, status, sql, hunt, ground, map, monsters, roster, items, itemText, xpFit, gpFit, tierOverride }
      id        [a-z0-9_]: the hunt id AND the ground id (one ground a pack)
      status    'staged' (built, its art not done: never listed, never served, the hunt row says `staged`) | 'open'
      sql       the pack's additive server file (supabase/migrations/<date>-pack-<id>.generated.sql), written by
@@ -57,6 +57,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      roster    { monster: role }: each placed monster's role (src/data/balance-sheet.js GROUND_ROSTER's row)
      items     { id: row }: the pack's NEW items, src/data/items.js rows; itemText { id: 'its line' } (item-descriptions.js)
      xpFit, tierOverride   (optional) its GROUND_XP_FIT number and TIER_PULL_OVERRIDES row (balance-sheet.js), each with its reason
+     gpFit                 (optional) its GROUND_GP_FIT number (balance-sheet.js): the ground's income dial on coin and on what its loot sells for
      partyClassXp, partyVsAlone   (optional) its party rows { 2: [...], 3: [...], 4: [...] } (party-class-xp.js): the pay cell when a
                same-class party would beat solo there, and the measured line the party window says (tests/party-class-xp-line.mjs)
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
@@ -87,7 +88,7 @@ export const REGIONS = Object.freeze(['greenhaven', 'barrow_march', 'morrow_hill
 export const STANDING_SIDES = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'gpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
 const FUEL_KEYS = Object.freeze(['item', 'xp', 'req', 'flame', 'secs', 'chunk']);
 const SPELL_ROW_KEYS = Object.freeze(['n', 'shape', 'r', 'len', 'range', 'windupMs', 'cdMs', 'hitPm', 'element']);
 const posInt = (n) => Number.isInteger(n) && n > 0;
@@ -167,6 +168,7 @@ export function definePack(p) {
   for (const k of ['monsters', 'items']) for (const x of Object.keys(p[k] || {})) if (!ID.test(x)) no(k + ' id ' + x + ' is not [a-z0-9_]');
   for (const x of Object.keys(p.itemText || {})) if (!(p.items && x in p.items)) no('itemText names ' + x + ', which is not one of its items');
   if (p.xpFit !== undefined && !(isObj(p.xpFit) && Number.isFinite(p.xpFit.k) && typeof p.xpFit.why === 'string' && p.xpFit.why)) no('xpFit is not { k, why }');
+  if (p.gpFit !== undefined && !(isObj(p.gpFit) && Number.isFinite(p.gpFit.k) && p.gpFit.k > 0 && typeof p.gpFit.why === 'string' && p.gpFit.why)) no('gpFit is not { k (above 0), why }');
   if (p.tierOverride !== undefined && !(isObj(p.tierOverride) && typeof p.tierOverride.why === 'string' && p.tierOverride.why)) no('tierOverride has no why');
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');
   if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');

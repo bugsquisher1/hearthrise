@@ -38,18 +38,15 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-03-23-one-difficulty.generated.sql';
+/* 2027-03-23-one-difficulty is APPLIED history. THE FIVE MARCH PACKS FOLDED IN (lane/d-supply-prices, 2026-11-16): see tools/gen-hunts.mjs, the same reason. The same
+   rows as 2027-03-23 with the five 2027-04-22 packs' hr_ground_tiers rows folded in: no row moves. */
+export const OUT_NAME = '2027-04-24-march-folded-ground-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
-const FILE_NOTE = `-- THIS FILE (lane/b-one-difficulty, Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be
--- unchanged. Either they are strong enough to do the harder content or they aren't"): ONE pull a tier for one hero or four, every
--- entry of a row's pull the same. The Glade and the Warrens: Dangerous {5,5,5,5} (was {3,5,5,6}), Deadly {8,8,8,8} as before. The
--- first grounds, floors under 16 (the Thicket, Wickstead, the Sewer): no tier brings more monsters, for anyone, {0,0,0,0} (Wickstead
--- and the Sewer were {0,5,5,6} and {0,8,8,8}: a party pulled more than a lone hero). Damage, health and XP as they stand. The solo
--- boost (party-class-xp.js SOLO_XP_PM) is engine data and moves nothing here.
--- ORDER: last, after 2027-03-21-sewer-deadly-xp.generated.sql and the v0.2.109 bundle (all APPLIED). Idempotent: the rename stays guarded and the rows are rewritten
--- whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
--- src/data/balance-sheet.js and src/data/party-class-xp.js follows AT ONCE (a hunt already running keeps the pull it froze).
--- REVERSIBLE: re-apply 2027-03-21-sewer-deadly-xp.generated.sql, with the engine from before this lane.`;
+const FILE_NOTE = `-- THIS FILE (lane/d-supply-prices, designer 2026-11-16): 2027-03-23-one-difficulty.generated.sql (APPLIED) with the five March packs' tier rows
+-- folded in, the rows each 2027-04-22-pack-*.generated.sql wrote. NO ROW MOVES: the income dial moved the open packs' own rows in the hunt-sessions
+-- catalogue, and tools/pack/whole.mjs counts a pack as carried only when every whole file folds it (tests/ground-pack.mjs GP-3).
+-- ORDER: any time after the five 2027-04-22-pack-*.generated.sql (APPLIED). Idempotent: the rows are rewritten whole, so a second apply is
+-- byte-identical. No begin/commit (CLAUDE.md §2). No edge waits on it. REVERSIBLE: nothing to undo (the same rows).`;
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];

@@ -18,7 +18,7 @@
 //            standing back too (Tyler 2026-11-06, "Yes, make it risky": "you're gonna waste money ... and possibly die a few times"). Where
 //            Dangerous is named, a lone Mage at the FLOOR spends more on supplies than it earns there (its store bill over its income), and
 //            the named grounds' floor Mages die at least once a ground between them. Before the throwers two of the four paid a lone Mage
-//            30-37k gold an hour there, and the four floors' Mages died once in 8 h. The line's words name Melee and Ranger heroes only:
+//            28-37k gold an hour there, and the four floors' Mages died once in 8 h. The line's words name Melee and Ranger heroes only:
 //            a Mage is threatened there, never told it dies fast.
 //
 // Measured when written (2 seeds x 2 h): named, at the top of the band the hammer died 46-207 times, the sword 34-213, the bow 14-52 and the

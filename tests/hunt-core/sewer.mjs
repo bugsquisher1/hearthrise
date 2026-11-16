@@ -1352,8 +1352,8 @@ const cases = {
        2026-10-22, the outfitter); once Defense has XP the line is gone. */
     const withDef = (xp) => renderLaunchers({ character: { read: (k) => ({ ...sewerEnv, skills: { ...sewerEnv.skills, defense: { xp, level: 1 } } })[k] }, glyphs: {},
       hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
-    if (!withDef(0).includes('Buy gloves or a belt in the Shop')) return 'Defense at 0 XP: the what-next line does not point at the Shop\'s armour: ' + withDef(0);
-    if (withDef(40).includes('Buy gloves or a belt in the Shop')) return 'Defense training: the what-next line still asks for armour';
+    if (!withDef(0).includes('Shop → Buy gloves or a belt')) return 'Defense at 0 XP: the what-next line does not point at the Shop\'s armour: ' + withDef(0);
+    if (withDef(40).includes('Shop → Buy gloves or a belt')) return 'Defense training: the what-next line still asks for armour';
     /* A TRAINING SESSION RUNNING (lane/a-training-leftovers: a Melee session at the yard read "Your Defense isn't training"): the line is
        the skill the server's `training` section says is trained, and its hours to the next level; never the armour line. */
     const withTrain = (skill) => renderLaunchers({ character: { read: (k) => ({ ...sewerEnv, skills: { ...sewerEnv.skills, defense: { xp: 0, level: 1 } },
@@ -1362,7 +1362,7 @@ const cases = {
       hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     for (const [skill, word] of [['melee', 'Melee'], ['defense', 'Defense']]) {
       const said = withTrain(skill);
-      if (!said.includes('About 2 hours more training to ' + word + ' 21.') || /Defense isn.t training/.test(said)) return 'a ' + word + ' training session: the what-next line does not name the trained skill: ' + said;
+      if (!said.includes('Train ' + word + ' to 21: about 2 hours') || /Shop → Buy gloves/.test(said)) return 'a ' + word + ' training session: the what-next line does not name the trained skill: ' + said;
     }
     /* THE LAND IS THE ACCOUNT'S (2026-12-14-shared-farm). v0.2.35 gate: Fingerguns, 0 Farming XP, was told "Nothing
        grows on your farm yet" over 5 READY turnips the other heroes planted. The line reads the server's `farm_land`
@@ -1410,7 +1410,7 @@ const cases = {
     const mage = goal(12, 'mage');
     /* the third name moved with Wickstead (v0.2.63): its tier-2 gloves are reachable, and the Studded Vambraces carry no magic
        penalty (leather's is round(def x 0.15) = 0 at def 2), so a classless Mage may wear them; the wand and its book lead */
-    if (!/Next gear at Level 15: Oak Wand and \d+ more/.test(mage)) return 'a Level-12 Mage is not told the Oak Wand at Level 15: ' + mage;
+    if (!/Next gear at Level 15: Oak Wand(?: and \d+ more|, made at Crafting \d+)/.test(mage)) return 'a Level-12 Mage is not told the Oak Wand at Level 15: ' + mage;
     if (!/Next at Magic 15: Scored /.test(mage)) return 'the Mage\'s skill line lost its runes (supplies keep their skill): ' + mage;
     let named = 0;
     for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) {

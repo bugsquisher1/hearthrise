@@ -20,13 +20,13 @@ export const SHOP_TEXT = Object.freeze({
      picked at Tamsin's settles a tie between weights, so only that tie says so (a Keen ring against a Surge ring is not one). */
   /* A perk a piece adds that its name does not say (a jewelry row's name says its own). */
   upgrade_adds_perk: 'adds {perk}',
-  upgrade_tie: 'No clear upgrade. {ties}. Pick on the doll.',
-  upgrade_tie_weights: 'No clear upgrade. {ties}. Pick on the doll or at Tamsin\'s.',
+  upgrade_tie: 'No clear upgrade: {ties}',
+  upgrade_tie_weights: 'No clear upgrade: {ties}',
   /* One tie's words when a plain stronger weapon in the bag would lose the worn one's bane (designer 2026-11-11): `more` is item.bane_more's line, the tooltip's. */
   upgrade_tie_bane: '{plain} hits harder, {bane} does {more}',
   /* Why Dispatch loot is off in town (src/shell/loot-dispatch.js dispatchBlock): no plan yet, or a plan with nothing left in the bag to move. */
-  dispatch_none_set: 'No loot plan yet (pick Deposit or Sell in an item’s menu)',
-  dispatch_all_moved: 'Nothing left to move (new loot follows the plan)',
+  dispatch_none_set: 'No loot plans set',
+  dispatch_all_moved: 'Nothing left to move',
   /* Blessings in the Services tab (src/shell/windows/services.js): all of them in one press, one server purchase each. */
   bless_all: 'Bless all',
   bless_all_busy: 'Blessing…',

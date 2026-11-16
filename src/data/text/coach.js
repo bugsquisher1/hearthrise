@@ -68,7 +68,7 @@ export const COACH_TEXT = Object.freeze({
   home_buy: 'House → Buy the {deed}',
   purse_goal: 'Buy a hero slot or a House deed',
   /* WHAT NEXT: one goal a line (hunt-tutorial.js nextGoal) */
-  goal_armor: 'Buy gloves or a belt in the Shop to train Defense',
+  goal_armor: 'Shop → Buy gloves or a belt to train Defense',
   goal_free_hero: 'Create your free {nth} hero in Characters',
   goal_slot: 'Buy a {nth} hero slot for {gold}',
   goal_top_up: 'Press + beside stamina: {hours} h for {gold}',

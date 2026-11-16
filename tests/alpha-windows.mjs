@@ -1512,7 +1512,7 @@ async function planRules(base) {
   if (noShotWords(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'bronze_arrows' } }))) fails.push('AW-27 the hunt screen warns a loaded bow');
   if (!say(sess({ equipment: {} })).startsWith('!Weapon: none (bare-handed')) fails.push('AW-27 no weapon reads ' + JSON.stringify(say(sess({ equipment: {} }))));
   const TASK = { held: [{ place: 1, task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', kills: 0, target: 120, keep: false, done: false }], paid_today: 0, per_day: 3, held_max: 3, order: [], recent: [] };
-  if (!/No Tamsin tasks count here\. Only Giant Rats in .+ count/.test(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' }))) fails.push('AW-27 a held task elsewhere reads ' + JSON.stringify(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' })));
+  if (!/Tamsin tasks count elsewhere: Giant Rats in .+/.test(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' }))) fails.push('AW-27 a held task elsewhere reads ' + JSON.stringify(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' })));
   if (/Tamsin/.test(say(sess({ tally: TASK }), { hunt: 'mill_cellar' }))) fails.push('AW-27 a task that counts here is warned about');
   const { heroWords, huntRows } = await imp('src/shell/hunt-list.js');
   const sewer = huntRows().find((r) => r.hunt === 'millrace_sewer');

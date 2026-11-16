@@ -256,7 +256,7 @@ function tallyElsewhere(cs, hunt) {
   const tally = tallyOf(cs);
   const open = tally && hunt ? tally.held.filter((h) => !h.done) : [];
   if (!open.length || open.some((h) => h.hunt === hunt)) return null;
-  return { id: 'tally', text: t('prep.go_no_tamsin') + ' ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
+  return { id: 'tally', text: t('prep.go_no_tamsin', { counts: open.map((h) => countsWords(h.task, huntName(h.hunt))).join(', ') }), short: false };
 }
 
 /**

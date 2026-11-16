@@ -9,20 +9,17 @@
 
 export const SLOTS_TEXT = Object.freeze({
   /* The line over the roster when more slots can be bought. {count} the slots owned, {most} how many heroes can play at once. */
-  more_cost_gold: {
-    one: 'Hero slots: {count} (up to {most} play at once, more cost gold)',
-    other: 'Hero slots: {count} (up to {most} play at once, more cost gold)',
-  },
+  more_cost_gold: { one: 'Hero slots: {count}, up to {most} play at once', other: 'Hero slots: {count}, up to {most} play at once' },
   /* The line over the roster with a slot left to fill, or nothing for sale (labels, Tyler 2026-11-14). */
   play_one: 'Heroes at once: 1',
   play_up_to: 'Heroes at once: up to {most}',
-  play_owned: { one: 'Hero slots: {count} (up to {most} play at once)', other: 'Hero slots: {count} (up to {most} play at once)' },
+  play_owned: { one: 'Hero slots: {count}, up to {most} play at once', other: 'Hero slots: {count}, up to {most} play at once' },
   /* The offer block under the roster: the server's quote. {nth} is "Second", {cost} and {gold} whole numbers. */
   offer_nth: '{nth} hero slot: {cost} gold',
-  offer_nth_max: '{nth} hero slot: {cost} gold (max {max} heroes)',
+  offer_nth_max: '{nth} hero slot: {cost} gold, max {max} heroes',
   offer_any: 'Another hero slot: {cost} gold',
-  offer_any_max: 'Another hero slot: {cost} gold (max {max} heroes)',
-  purse: 'Your gold: {gold}',
+  offer_any_max: 'Another hero slot: {cost} gold, max {max} heroes',
+  purse: 'Gold: {gold}',
   short: 'Need {gold} more gold',
   buying: 'Buying…',
   buy: 'Buy a hero slot for {cost} gold',
@@ -30,12 +27,12 @@ export const SLOTS_TEXT = Object.freeze({
   refused_owned: 'Slot already owned',
   refused_cap: 'All hero slots owned',
   refused_previous: 'Buy the earlier slots first',
-  refused_daily: 'Daily slot limit reached. Try again tomorrow.',
-  refused_rate: 'Too many tries. Wait a minute.',
+  refused_daily: 'Daily slot limit reached',
+  refused_rate: 'Too many tries, wait a minute',
   refused_no_hero: 'Create a hero first',
   refused_unpriced: 'Slot not for sale',
   refused_gold: 'Not enough gold',
-  refused_other: 'Slot not bought. Try again in a minute.',
+  refused_other: 'Slot not bought, try again',
   /* Under the offer, only while the account has one hero (designer 2026-11-09, table E). @sentence: guidance a label can't carry (the week, and what to do meanwhile). */
-  one_hero_note: 'Most players can buy a second hero after about a week. Until then, use Find a party in the Party window to hunt with other players.',
+  one_hero_note: 'Party → Find a party to hunt with other players',
 });

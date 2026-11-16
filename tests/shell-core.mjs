@@ -988,7 +988,7 @@ async function runTests(mods) {
       hunt_analyzer: { hero: { kills: 900, coins: 0 } } })[k],
   }, o);
   const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
-  /* out of stamina, the next line names what uses none (R3f) */
+  /* out of stamina, the next line names what uses none (R3n) */
   const STAMINA_NEXT = 'While your stamina comes back, Wrenna can work at a bench, or train at the Training Yard from Level 10. Neither uses stamina. Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.';
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
@@ -1025,6 +1025,22 @@ async function runTests(mods) {
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
   });
+  /* R3n (the designer's coherence pass 2026-11-15, walk row 6): out of stamina the card named gathering only, the first day's dead moment,
+     with the yard and the benches using none. Every other automatic end keeps the gathering line. */
+  t('R3n out of stamina, the next line names the yard and a bench as well as gathering', () => {
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1'), STAMINA_NEXT, 'the stamina end');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'died'), 's-1'),
+      'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a death keeps the gathering line');
+  });
+  /* R3t (walk row 7): a 12-hour yard session ended "Set a longer hunt next time, up to the stamina you have." Training uses no stamina
+     and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
+  t('R3t a training session\'s end gives its own line, never a hunt\'s', () => {
+    const yard = (reason) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason, { hunt: 'training_yard_melee' }), 's-1');
+    eq(yard('hours'), 'Training uses no stamina, so start it again to keep going.', 'the 12-hour cap');
+    eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job is still said');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt next time, up to the stamina you have.', 'a hunt\'s own limit keeps its line');
+  });
   /* R3e (Barrow March play-through 2026-11-14): each card's next line fits its end. A boss room is one fight: the Krell win card
      said "Start mining, chopping or fishing before you hunt". A purse run dry with food in the bag the bar never named said
      "pack your own": it was packed, just not on the bar. */
@@ -1041,22 +1057,6 @@ async function runTests(mods) {
     ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Cooked Trout was in your bag but not on your bar'), 'the away card says it too: ' + away);
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
     ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
-  });
-  /* R3f (the designer's coherence pass 2026-11-15, walk row 6): out of stamina the card named gathering only, the first day's dead moment,
-     with the yard and the benches using none. Every other automatic end keeps the gathering line. */
-  t('R3f out of stamina, the next line names the yard and a bench as well as gathering', () => {
-    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1'), STAMINA_NEXT, 'the stamina end');
-    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'died'), 's-1'),
-      'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a death keeps the gathering line');
-  });
-  /* R3g (walk row 7): a 12-hour yard session ended "Set a longer hunt next time, up to the stamina you have." Training uses no stamina
-     and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
-  t('R3g a training session\'s end gives its own line, never a hunt\'s', () => {
-    const yard = (reason) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason, { hunt: 'training_yard_melee' }), 's-1');
-    eq(yard('hours'), 'Training uses no stamina, so start it again to keep going.', 'the 12-hour cap');
-    eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
-    eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job is still said');
-    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt next time, up to the stamina you have.', 'a hunt\'s own limit keeps its line');
   });
 
   return fails;
@@ -1234,8 +1234,8 @@ const MUTANTS = [
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: " || !RESUME_AFTER_END.includes(h.endReason)) return null;", to: ') return null;' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (st.active_kind !== 'idle') return null;", to: '' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "hours: 'away.next_longer', ", to: '' },
-  { test: 'R3f', file: 'src/shell/after-hunt.js', from: "\n  stamina: 'away.next_stamina' });", to: ' });' },
-  { test: 'R3g', file: 'src/shell/after-hunt.js', from: "  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };\n", to: '' },
+  { test: 'R3n', file: 'src/shell/after-hunt.js', from: "\n  stamina: 'away.next_stamina' });", to: ' });' },
+  { test: 'R3t', file: 'src/shell/after-hunt.js', from: "  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };\n", to: '' },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };\n", to: '' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "if (h.endReason === 'gold_out' && typeof spare === 'string')", to: 'if (false)' },

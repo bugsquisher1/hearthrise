@@ -556,14 +556,17 @@ begin
        or (public.hr_chest_open(0, 'great_hearth', 'bronze', 1, -1, (k || '00000007')::uuid))->>'error' is distinct from 'bad_stokes' then
       raise exception 'tower-chest §9(c): a forged chest, key, count or stoke was not refused'; end if;
     delete from public.hr_rate_counters where user_id = v_u;
-    -- no weapon is built: chest_not_ready, the key kept
+    -- a key short of its seven: chest_not_ready, the key kept (the Bronze Key's own rows taken away for the probe, rolled back with it)
+    delete from public.hr_chest_weapons where key_id = 'bronze';
     v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '00000008')::uuid);
     if v->>'error' is distinct from 'chest_not_ready'
        or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = 'tower_key_bronze') <> 1 then
       raise exception 'tower-chest §9(c): a key with no weapons answered % (or was taken)', v; end if;
-    -- seven stand-in weapons for the Bronze Key (rolled back with the probe): the open plays
+    -- seven stand-in weapons for the Bronze Key (rolled back with the probe), none another key already names (an item is one key's): the
+    -- open plays
     for v_fam in select family from public.hr_chest_families order by ord loop
-      select w.item_id into v_w from public.hr_chest_weapon_families w where w.family = v_fam.family order by w.item_id limit 1;
+      select w.item_id into v_w from public.hr_chest_weapon_families w where w.family = v_fam.family
+        and not exists (select 1 from public.hr_chest_weapons x where x.item_id = w.item_id) order by w.item_id limit 1;
       insert into public.hr_chest_weapons (key_id, family, item_id) values ('bronze', v_fam.family, v_w) on conflict do nothing;
     end loop;
     v := public.hr_chest_open(0, 'great_hearth', 'bronze', 2, 0, (k || '00000009')::uuid);

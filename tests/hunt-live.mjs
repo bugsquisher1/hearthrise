@@ -1988,7 +1988,7 @@ const MUTANTS = [
     '    shield: m.shield === true, hero: Object.assign({}, m.hero, { settings: m.hero.settings && Object.assign({}, m.hero.settings, { tkind: undefined }) }), session, lv, shots };', /^LV-KINDS: viewed/],
   ['a shooter shoots only from beside its target (LV-KINDS)', 'src/core/hunt/shooters.js', '  return r ? inShot(inst, m.x, m.y, t, r) : cheb(m, t) <= 1;', '  return cheb(m, t) <= 1;', /^LV-KINDS: browser closed: the wasp/],
   ['a mender never mends (LV-KINDS)', 'src/core/hunt/monster-spells.js', '  if (mends(sp)) return mendable(inst, u, sp);\n', '  if (mends(sp)) return null;\n', /^LV-KINDS: browser closed: \d+ mends/],
-  ['a frozen peer row drops its resistance (LV-SPELL)', 'src/core/member.js', '  ...(snap.resistPm ? { resistPm: snap.resistPm } : {}) });', '  });', /^LV-SPELL: four: viewed/],
+  ['a frozen peer row drops its resistance (LV-SPELL)', 'src/core/member.js', '  ...(snap.resistPm ? { resistPm: snap.resistPm } : {}), ...(snap.skillPlus ? { skillPlus: snap.skillPlus } : {}) });', '  ...(snap.skillPlus ? { skillPlus: snap.skillPlus } : {}) });', /^LV-SPELL: four: viewed/],
   ['a group strike lands only on its target (LV-SPELL)', 'src/core/hunt/shapes.js', "    case 'group': return true;", "    case 'group': return d === 0;", /^LV-SPELL: four: browser closed/],
   ['gear never sums its resistance (LV-SPELL)', 'src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '', /^LV-SPELL: four: the frost-resisting tank/],
   ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],

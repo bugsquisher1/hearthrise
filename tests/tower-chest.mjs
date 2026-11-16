@@ -392,6 +392,9 @@ async function forgedArm(db, M) {
   const r = await H.inTx(db, async () => {
     const out = {};
     await hero(db, M, { tower_key_bronze: 1, tower_key_gold: 3 }, ['bronze']);
+    /* the Gold Key missing one of its seven (since lane/d-tower-weapons every key's are built in the catalogue: a key short of one is
+       still never opened) */
+    await db.query("delete from public.hr_chest_weapons where key_id = 'gold' and family = 'crossbow'");
     const snap = async () => JSON.stringify([await q(db, 'select item_id, qty from public.player_inventory where user_id = $1 order by item_id', [UID]),
       await q(db, 'select count(*) from public.chest_opens where user_id = $1', [UID]), await q(db, 'select count(*) from public.player_ledger where user_id = $1', [UID])]);
     const s0 = await snap();

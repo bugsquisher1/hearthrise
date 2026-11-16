@@ -136,6 +136,14 @@ const BASIC_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
 /* The hero's level in the skill `row`'s numbers grow with (abilitySkill: Magic, or the weapon's own skill); 1 for
    a hero whose entry carries no skills (a bare fixture, a peer the browser draws: the server's commit is the truth). */
 const skillLevel = (h, row) => (h && h.skills ? levelOf(h.skills, abilitySkill(row)) : 1);
+/* THE WORN +SKILL to `skill` (combat.js SKILL_PLUS_FIELDS: a tower weapon's; member.js skillPlus), 0 with none. */
+const plusOf = (h, skill) => {
+  const n = h && h.skillPlus && Object.prototype.hasOwnProperty.call(h.skillPlus, skill) ? h.skillPlus[skill] : 0;
+  return Number.isInteger(n) && n > 0 ? n : 0;
+};
+/* THE LEVEL A SPELL'S OR HEAL'S NUMBERS GROW WITH: the base level and the worn +skill ("it functions like it does in tibia", Tyler
+   2026-11-14). The gates (an ability's unlock, a rune's version) read the base level alone (skillLevel). */
+const powerLevel = (h, row) => skillLevel(h, row) + plusOf(h, abilitySkill(row));
 
 /* THE RUNE A SPELL SPENDS AND THE VERSION IT CASTS (Tyler 2026-10-23, src/data/runes.js; RUNE SUPPLY PER SLOT,
    Tyler 2026-11-08). A spell spends a rune of its FAMILY, and only one its slot TICKED (`action.own`,
@@ -311,7 +319,7 @@ export function firstUsable(inst, hero, sc, only) {
        rune: the basic version). */
     const v = versionOf(row, s.version);
     if (int(hero.mana) < v.mana) return { why: 'mana' };
-    const pm = Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000);
+    const pm = Math.floor((outputPm(row, s.version, powerLevel(h, row)) * s.pm) / 1000);
     /* A self-shield recasts only to land MORE than its standing shell (a full shell waits; a stronger version, or a
        chipped shell, recasts and refunds the rest: shieldRefund). */
     if (row.target === 'self' && row.shield && int(hero.shield) >= landsShield(row, pm)) return { why: 'no_target' };
@@ -348,7 +356,7 @@ function effect(inst, u, row, t, sc, v) {
   const afflict = (m) => {
     if (!row.status) return;
     const srow = statusRow(row.status), h = inst.heroes && inst.heroes[u.id];
-    applyStatus(inst, m, srow, { u: u.id, skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) : 0, runeTier: (v && v.version) || 1 }, sc);
+    applyStatus(inst, m, srow, { u: u.id, skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) + plusOf(h, srow.scalesWith) : 0, runeTier: (v && v.version) || 1 }, sc);
   };
   switch (row.target) {
     case 'taunt': challengeFrom(inst, sc, u); break;

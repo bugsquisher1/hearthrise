@@ -15,7 +15,7 @@ import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.132';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
 import { foldRows } from './grounds/shape.js?v=0.2.132';
 import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.132';
-import { CHEST_ITEM_ROWS } from './chests.js?v=0.2.132';
+import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.132';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -839,6 +839,14 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
     if (live[k] == null && generated[k] != null) live[k] = generated[k];
   }
 });
+
+/* THE TOWER WEAPONS (src/data/chests.js towerWeaponItems, src/data/tower-weapons.js; Tyler 2026-11-14): each the standard weapon of its
+   key's rank as the ladder stands NOW (after the backfill above: a hand-authored rung's own numbers), its own name and its +skill. New
+   ids only, the Hearth Chest's. */
+for (const [id, row] of Object.entries(towerWeaponItems(ITEMS))) {
+  if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('tower weapon ' + id + ' is already an item');
+  ITEMS[id] = row;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — foodClassOf(item): the single answer to "what is this food FOR?"

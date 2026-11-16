@@ -267,6 +267,8 @@ export function reachableSources(opts = {}) {
   /* the Burning Tower: a landing's Keeper mints its key (2027-04-27-tower-chest.sql hr_tower_key_mint), the Hearth Chest pays the Cinders */
   for (const k of CHEST_KEYS) put(k.item, 'a Burning Tower landing');
   put(CINDERS, 'the Hearth Chest');
+  /* the tower weapons: a key's weapon roll at the Hearth Chest (2027-04-27-tower-chest.sql hr_chest_open, hr_chest_weapons) */
+  for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) put(id, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) put(id, CODED_SOURCES[id].label);
   if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
   for (const t of HEARTHFIND_TABLE) if (t.kind === 'node' || met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
@@ -343,6 +345,8 @@ export function itemSources() {
   /* The Burning Tower (src/data/chests.js; 2027-04-27-tower-chest.sql): a landing mints its key, the Hearth Chest pays the Cinders. */
   for (const k of CHEST_KEYS) push(m, k.item, 'a Burning Tower landing');
   push(m, CINDERS, 'the Hearth Chest');
+  /* The tower weapons (src/data/tower-weapons.js): a key's weapon roll at the Hearth Chest (hr_chest_open reads hr_chest_weapons). */
+  for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) push(m, id, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) push(m, id, CODED_SOURCES[id].label);
   return m;
 }

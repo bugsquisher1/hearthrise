@@ -1,0 +1,446 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tests/tower-climb.mjs — A BURNING TOWER CLIMB PLAYS FLOOR AFTER FLOOR ON THE ONE ENGINE, BOTH PATHS, AND THE SERVER RE-PROVES EVERY FLOOR
+//   (lane/c-tower-climb; Tyler 2026-11-14, the board's "2026-11-14 The Burning Tower" §2-§4; src/data/tower.js, src/core/hunt/tower.js,
+//   supabase/migrations/2027-04-24-tower-climb.sql). On the replayed chain with the shipped engine, BOTH PATHS (CLAUDE.md §4): the
+//   browser closed (the world tick, tick.js runTick) and the hunt viewed (the player's settle, hunt-settle.js settleHunt).
+//
+//   node tests/tower-climb.mjs              the guard
+//   node tests/tower-climb.mjs --arm=doors  one arm
+//   node tests/tower-climb.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
+//
+// mutant-anchors: src/core/hunt/tower.js, src/core/hunt-rewards.js, src/core/hunt/xp-share.js, src/core/combat-sim.js,
+//   supabase/migrations/2027-04-24-tower-climb.sql
+//
+//   TC-ROOM    the room: floor F's five at Level F (the stat formula), a Keeper on every landing at the boss role and no second of his kind,
+//              the same room every read (no dice), a floor past the top playing the top's rows; the rows pay no coin and drop nothing; the
+//              server's per-floor bound (hr_tower_floors) is the engine's own, row for row
+//   TC-ENGINE  the engine alone: a climb clears floors one after another from the server's floor, ends `died` with no XP lost, pays no coin,
+//              no item and no Bestiary or task count, pays Level XP at the mode's 200 permille of the kill and every skill route at the same
+//              share; a room that stood its time ends the climb `floor_time` for everyone in it
+//   TC-DOORS   one hero from floor 1, the browser closed and the hunt viewed: the same floors land (the run's top, its floors and kills),
+//              landing 10's row this week once and its journal row, the hero's best, the end `died` with no death_xp row and the
+//              Blessings untouched, no coin credited, no item, no ev: count; the run's end stamped and journalled once; the two doors
+//              land the same rows
+//   TC-FORGED  the settle refuses a forged window: a skipped floor, a repeated floor, a floor added past what the engine cleared, a floor
+//              claimed off the Tower, coin, an item, a Bestiary count, inflated Level XP; the untampered window lands (the control)
+//   TC-START   the one door: off while the switch is off, `tower_only` through the ordinary door, an unearned floor refused with the list,
+//              the floor after a landing cleared this week offered and opened, a replayed key answered once
+//
+// Exit: 0 green · 1 red · 2 harness.
+// ════════════════════════════════════════════════════════════════════════
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
+import { bootReplay } from './schema-replay.mjs';
+
+const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
+const { one, q, makeExec } = H;
+const ROOT = H.ROOT;
+const UID = H.UIDS[0];
+const FN = join('supabase', 'functions', 'hr-accrue');
+const SPAN = 20 * 60000;
+const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const rewind = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
+const idem = () => crypto.randomUUID();
+
+/* The engine's own instances (src/core imports src/data with the build's ?v=), the play fixture, and the edge. */
+async function load(root) {
+  const u = (p) => pathToFileURL(join(root, p)).href;
+  const { loadPlay } = await import(u('tests/hunt-core/fixtures/play-ground.mjs'));
+  return { ...(await H.loadEdge(root)), T: await import(u('src/core/hunt/tower.js') + V), TD: await import(u('src/data/tower.js') + V),
+    MON: await import(u('src/data/monsters.js') + V), BS: await import(u('src/data/balance-sheet.js') + V),
+    G: await import(u('src/data/hunt-grounds.js') + V), SMD: await import(u('src/data/session-modes.js') + V), HG: await import(u('src/core/hunt-ground.js')),
+    P: await loadPlay(root), root };
+}
+
+/* ── TC-ROOM ──────────────────────────────────────────────────────────────── */
+async function roomArm(db, M) {
+  const bad = [];
+  const { towerRoom, towerMonsters, towerXpMax, towerLevelOf } = M.T;
+  const R = M.TD.TOWER_RULES;
+  for (const F of [1, 9, 10, 20, 45, 50, 100, 101, R.floorTop, R.floorTop + 70]) {
+    const room = towerRoom(F), tab = towerMonsters(F), L = towerLevelOf(F);
+    if (room.monsters.length !== R.roomSize) bad.push(`TC-ROOM floor ${F} holds ${room.monsters.length}, not ${R.roomSize}`);
+    if (JSON.stringify(towerRoom(F)) !== JSON.stringify(room)) bad.push(`TC-ROOM floor ${F}'s room moved between two reads`);
+    const landing = F % R.landingEvery === 0;
+    if (landing !== (room.keeper !== null) || (landing && room.monsters[0] !== room.keeper)) bad.push(`TC-ROOM floor ${F}: the Keeper is ${room.keeper} (a landing: ${landing})`);
+    if (room.keeper && room.monsters.slice(1).includes(room.keeper)) bad.push(`TC-ROOM floor ${F}: the Keeper's kind ${room.keeper} stands in another slot too`);
+    for (const id of room.monsters) {
+      const row = tab[id], base = M.MON.MONSTERS[id];
+      if (!row || row.level !== L) { bad.push(`TC-ROOM floor ${F}: ${id} is not at Level ${L}`); continue; }
+      if (base.boss === true) bad.push(`TC-ROOM floor ${F}: a ground's boss ${id} stands in the Tower`);
+      if (!(row.gp[0] === 0 && row.gp[1] === 0) || row.drops.length) bad.push(`TC-ROOM floor ${F}: ${id} pays coin ${row.gp} or drops ${row.drops.length}`);
+      const role = id === room.keeper ? 'boss' : Object.values(M.BS.GROUND_ROSTER).map((r) => r[id]).find(Boolean);
+      const s = M.BS.formulaStats({ level: L, role, tier: base.tier, floor: L, fit: R.fit, ground: R.hunt });
+      if (row.hp !== s.hp || row.atk !== s.atk || row.def !== s.def || row.xp !== s.xp) bad.push(`TC-ROOM floor ${F}: ${id} is not the formula's ${role} at Level ${L}`);
+      if (row.xp > towerXpMax(F)) bad.push(`TC-ROOM floor ${F}: ${id} pays ${row.xp}, over the floor's bound ${towerXpMax(F)}`);
+    }
+  }
+  const srv = await q(db, 'select floor, level, xp_max from public.hr_tower_floors order by floor');
+  if (srv.length !== R.floorTop) bad.push(`TC-ROOM the server holds ${srv.length} floors, not ${R.floorTop}`);
+  for (const r of srv) if (Number(r.xp_max) !== towerXpMax(r.floor) || Number(r.level) !== towerLevelOf(r.floor)) { bad.push(`TC-ROOM the server's floor ${r.floor} bound is not the engine's`); break; }
+  const rules = (await q(db, 'select * from public.hr_tower_rules'))[0] || {};
+  if (rules.hunt_id !== R.hunt || Number(rules.stair_ms) !== R.stairMs || Number(rules.room_size) !== R.roomSize || Number(rules.week_back) !== R.weekBack) bad.push('TC-ROOM hr_tower_rules is not src/data/tower.js');
+  return bad;
+}
+
+/* ── TC-ENGINE ────────────────────────────────────────────────────────────── */
+function climbOf(M, o) {
+  return M.P.run(M.TD.TOWER_RULES.hunt, o.level, o.roles || ['tank'], { ground: M.G.TOWER_GROUNDS[M.TD.TOWER_RULES.hunt], sessionMode: o.mode || 'tower',
+    tower: { floor: o.floor || 1 }, spanMs: o.spanMs || SPAN, windowMs: o.windowMs || 10000, dropEnded: true, ...(o.onWindow ? { onWindow: o.onWindow } : {}) });
+}
+async function engineArm(db, M) {
+  const bad = [];
+  const deltas = [];
+  const r = climbOf(M, { level: 10, onWindow: (out) => { for (const p of out.members) deltas.push(p); } });
+  const floors = (r.tower && r.tower.floors.tank0) || [];
+  if (floors.length < 10) bad.push(`TC-ENGINE CONTROL: a Level 10 tank cleared ${floors.length} floors (want a landing)`);
+  if (floors.some((f, i) => f !== i + 1)) bad.push(`TC-ENGINE the floors cleared are not 1, 2, 3, ... from the server's floor: ${floors.slice(0, 20)}`);
+  if (!r.ended.some((e) => / died$/.test(e))) bad.push(`TC-ENGINE the climb ended ${JSON.stringify(r.ended)}, not died`);
+  if (r.totals.coin || Object.keys(r.items).length) bad.push(`TC-ENGINE the Tower paid coin ${r.totals.coin} or items ${JSON.stringify(r.items)}`);
+  for (const p of deltas) {
+    const d = p.delta, h = p.hunt;
+    if (d.gold || d.items || d.hearthfind || (d.journal.meta && d.journal.meta.km)) { bad.push('TC-ENGINE a window paid ' + JSON.stringify({ gold: d.gold, items: d.items, km: d.journal.meta.km })); break; }
+    if ((d.progress || []).some((o) => String(o.key).startsWith('ev:'))) { bad.push('TC-ENGINE a window counted ' + JSON.stringify(d.progress.filter((o) => String(o.key).startsWith('ev:')))); break; }
+    if ((h.death_xp || []).some((x) => Object.keys(x).length)) { bad.push('TC-ENGINE a death in the Tower was priced ' + JSON.stringify(h.death_xp)); break; }
+  }
+  /* THE MODE'S SHARE: the split pays 200 permille of the kill (one hero: the Tower's flat 1000 cell, no solo boost); a skill route the same share */
+  const pm = M.SMD.SESSION_MODES.tower.xpPm;
+  const hero = { id: 1, side: 'hero', alive: true, role: 'tank', heroLv: 10 };
+  const evs = [];
+  const sc = { atMs: 0, emit: (e) => evs.push(e) };
+  M.XS.shareKillXp({ world: { units: [hero], xpGroup: null }, ground: M.G.TOWER_GROUNDS[M.TD.TOWER_RULES.hunt], xpPm: pm }, { t: 9, u: 1, xp: 1000 }, sc);
+  const x = evs.find((e) => e.type === 'xp');
+  if (!x || x.amount !== Math.floor(1000 * pm / 1000)) bad.push(`TC-ENGINE a 1000 XP kill paid one hero alone ${x && x.amount} in the Tower, not ${Math.floor(1000 * pm / 1000)}`);
+  const four = [1, 2, 3, 4].map((id) => ({ ...hero, id, role: ['tank', 'healer', 'ranger', 'mage'][id - 1] }));
+  const evs4 = [];
+  M.XS.shareKillXp({ world: { units: four, xpGroup: null }, ground: M.G.TOWER_GROUNDS[M.TD.TOWER_RULES.hunt], xpPm: pm }, { t: 9, u: 1, xp: 1000 }, { atMs: 0, emit: (e) => evs4.push(e) });
+  const head = Math.floor(1000 * pm / 1000 / 4 * M.TD.TOWER_PARTY_XP[4] / 1000);
+  if (!evs4.filter((e) => e.type === 'xp').every((e) => e.amount === head)) bad.push(`TC-ENGINE a four paid ${evs4.filter((e) => e.type === 'xp').map((e) => e.amount)} a head, not the flat row's ${head}`);
+  const gained = {};
+  M.HR.rewardSwing(new Map([[1, { state: { skills: {} }, hs: { tally: { kills: 0 } }, family: 'sword', armoured: false,
+    fx: { addXp: (k, n) => { gained[k] = (gained[k] || 0) + n; } } }]]), [{ type: 'dmg', u: 1, t: 2, amount: 100, atMs: 0 }],
+    { units: [{ id: 2, side: 'mon', kind: 'rat', alive: true }] }, { rng: null, pay: M.SMD.sessionPayOf('tower') });
+  const melee = Object.values(gained)[0];
+  const full = {};
+  M.HR.rewardSwing(new Map([[1, { state: { skills: {} }, hs: { tally: { kills: 0 } }, family: 'sword', armoured: false,
+    fx: { addXp: (k, n) => { full[k] = (full[k] || 0) + n; } } }]]), [{ type: 'dmg', u: 1, t: 2, amount: 100, atMs: 0 }],
+    { units: [{ id: 2, side: 'mon', kind: 'rat', alive: true }] }, { rng: null });
+  if (!(melee > 0) || Math.abs(melee - Object.values(full)[0] * pm / 1000) > 1e-9) bad.push(`TC-ENGINE a blow's skill XP in the Tower is ${melee}, not ${pm} permille of the hunt's ${Object.values(full)[0]}`);
+  /* THE FLOOR'S TIME: a room that has stood its time ends the climb for everyone in it, `floor_time`; the same room unaged plays on */
+  const ft = floorTimeRun(M);
+  if (ft.control !== null) bad.push(`TC-ENGINE CONTROL: the room unaged ended the climb ${ft.control}`);
+  if (ft.aged !== 'floor_time') bad.push(`TC-ENGINE a room that stood ${M.TD.TOWER_RULES.floorLimitMs / 1000} s ended the climb ${ft.aged}, not floor_time`);
+  return bad;
+}
+/* One 4 s window on floor 1 (the room still standing), then the next 4 s twice: as it is, and with the room standing since floorLimitMs + 1 s
+   ago (the pocket's respawn instant is the room's: the persisted field tower.js towerEndsAt reads). Answers each window's end reason, or null. */
+function floorTimeRun(M) {
+  const ground = M.G.TOWER_GROUNDS[M.TD.TOWER_RULES.hunt];
+  let world = null, next = 0, member = null;
+  M.P.run(M.TD.TOWER_RULES.hunt, 10, ['tank'], { ground, sessionMode: 'tower', tower: { floor: 1 }, spanMs: 4000, windowMs: 4000, dropEnded: true,
+    onWindow: (out, members) => { world = out.world; next = out.settledTo; member = members[0]; } });
+  if (!world) return { control: 'no world', aged: 'no world' };
+  const grid = M.HG.gridOfMap(ground.map);
+  const play = (text) => {
+    const out = M.AC.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000c5e01', nextSwingAtMs: next, world: text }, window: { fromMs: next, toMs: next + 4000 },
+      secret: '-4611686018427387904', ground, grid, items: M.P.ITEMS, monsters: M.P.MONSTERS, members: [JSON.parse(JSON.stringify(member))], sessionMode: 'tower', towerFloor: 1 });
+    const p = (out.members || [])[0];
+    return p && p.hunt.ended ? p.hunt.ended.reason : null;
+  };
+  const w = JSON.parse(world);
+  const at = M.WS.FIELDS.pack.map(([n]) => n).indexOf('respawnAtMs');
+  const control = play(world);
+  w.p[0][at] = next - M.TD.TOWER_RULES.floorLimitMs - 1000;
+  return { control, aged: play(JSON.stringify(w)) };
+}
+
+/* ── THE DATABASE: a climber, and its run through either door ─────────────── */
+async function boot() {
+  const { db } = await bootReplay();
+  await H.pinDice(db);
+  return db;
+}
+async function climber(db, M, o = {}) {
+  await rewind(db);
+  await H.character(db, M, UID, { level: o.level || 12, inv: {}, gold: 200000 });
+  await db.query('update public.hr_hunt_config set enabled = true where id');
+  await db.query('update public.hr_tick_config set enabled = true where id');
+  await db.query("update public.hr_feature_switches set scope = 'accounts', accounts = array[$1::uuid] where switch_id = 'burning_tower'", [UID]);
+  if (o.before) await o.before();
+  await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [UID]);
+  const r = await one(db, 'select public.hr_tower_start(0, $1, $2::uuid)', [o.floor || 1, idem()]);
+  await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+  if (!r || r.ok !== true) throw new Error('hr_tower_start refused: ' + JSON.stringify(r));
+  const sid = r.session_id;
+  const t = `date_trunc('second', now() - make_interval(mins => ${Number(o.minutesAgo || 25)}))`;
+  await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t}, next_swing_at = ${t} where id = $1`, [sid]);
+  const inst = await one(db, 'select instance_id from public.hunt_sessions where id = $1', [sid]);
+  await db.query(`update public.hunt_instances set settled_to = ${t}, next_swing_at = ${t} where id = $1`, [inst]);
+  const from = Number(await one(db, `select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1`, [inst]));
+  return { sid, inst, from };
+}
+const VIEWED_AT = (from) => [from + 7001, from + 33333, from + 61234, from + 200001, from + 333333, from + 600000, from + SPAN];
+async function drive(db, M, door, h) {
+  const exec = makeExec(db);
+  const cuts = door === 'closed' ? [h.from + SPAN] : VIEWED_AT(h.from);
+  for (const at of cuts) {
+    for (let guard = 0; guard < 60; guard++) {
+      const s = (await q(db, 'select settled_to, ended_at from public.hunt_sessions where id = $1', [h.sid]))[0];
+      if (s.ended_at || Date.parse(s.settled_to) >= at) break;
+      if (door === 'closed') {
+        await db.query('delete from public.hunt_tick_lease');
+        const r = (await M.TK.runTick({ exec, grounds: {}, atMs: at,
+          body: { op: 'tick', roster: [], cadence_ms: 10000, flush_ms: 90000, hunts: [{ user_id: UID, slot: 0, session_id: h.sid }] } })).body;
+        if (!r.hunts || r.hunts.settled < 1) throw new Error('the world tick settled nothing: ' + JSON.stringify(r.hunts || r).slice(0, 300));
+      } else {
+        const v = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', bucket: null, project: true, live: true, atMs: at, minWindowMs: 0, grounds: {} });
+        if (v.outcome !== 'paid') throw new Error('the player\'s settle answered ' + JSON.stringify({ o: v.outcome, r: v.reason, d: v.body && v.body.detail }).slice(0, 400));
+      }
+    }
+    if ((await q(db, 'select ended_at from public.hunt_sessions where id = $1', [h.sid]))[0].ended_at) break;
+  }
+}
+async function rows(db, h) {
+  return one(db, `select jsonb_build_object(
+      'run', (select to_jsonb(r) - 'session_id' - 'instance_id' - 'started_at' - 'ended_at' - 'updated_at' from public.tower_runs r where r.session_id = $2),
+      'best', (select jsonb_build_array(p.best_floor, p.best_landing) from public.tower_progress p where p.user_id = $1 and p.slot = 0),
+      'landings', (select jsonb_agg(jsonb_build_array(l.landing, l.week = public.hr_tower_week(now())) order by l.landing) from public.tower_landings l where l.user_id = $1),
+      'landing_rows', (select count(*) from public.player_ledger where user_id = $1 and intent = 'tower_landing'),
+      'run_rows', (select count(*) from public.player_ledger where user_id = $1 and intent = 'tower_run'),
+      'level_xp', (select level_xp from public.player_state where user_id = $1 and slot = 0),
+      'skills', (select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0 and skill_id in ('melee', 'ranged', 'magic', 'defense')),
+      'death_rows', (select count(*) from public.player_ledger where session_id = $2 and intent = 'death_xp'),
+      'coin_rows', (select count(*) from public.player_ledger where session_id = $2 and gold > 0),
+      'ev', (select count(*) from public.player_progress where user_id = $1 and key like 'ev:%'),
+      'items', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
+      'end', (select h.end_reason from public.hunt_sessions h where h.id = $2),
+      'mode', (select i.session_mode from public.hunt_instances i where i.id = $3))`, [UID, h.sid, h.inst]);
+}
+
+/* ── TC-DOORS ─────────────────────────────────────────────────────────────── */
+async function doorsArm(db, M) {
+  const bad = [];
+  const runs = {};
+  for (const door of ['closed', 'viewed']) {
+    const r = await H.inTx(db, async () => {
+      const h = await climber(db, M, {});
+      const s0 = await rows(db, h);
+      try { await drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 400) }; }
+      return { s0, s1: await rows(db, h) };
+    });
+    const tag = `TC-DOORS the ${door === 'closed' ? 'browser closed' : 'hunt viewed'}:`;
+    if (r.err) { bad.push(`${tag} ${r.err}`); continue; }
+    runs[door] = r;
+    const { s0, s1 } = r;
+    const run = s1.run || {};
+    if (s1.mode !== 'tower') bad.push(`${tag} the instance plays ${s1.mode}`);
+    if (!(run.top_floor >= 10)) { bad.push(`${tag} CONTROL: the climb reached floor ${run.top_floor} (want a landing): ${JSON.stringify(run)}`); continue; }
+    if (run.floors !== run.top_floor - run.start_floor + 1 || run.start_floor !== 1) bad.push(`${tag} the run ${JSON.stringify(run)} is not floors 1 to its top`);
+    if (!(run.kills >= (run.floors - 1) * M.TD.TOWER_RULES.roomSize)) bad.push(`${tag} the run cleared ${run.floors} floors on ${run.kills} kills`);
+    if (JSON.stringify(s1.best) !== JSON.stringify([run.top_floor, Math.floor(run.top_floor / 10) * 10])) bad.push(`${tag} the best reads ${JSON.stringify(s1.best)} after a climb to ${run.top_floor}`);
+    const want = []; for (let l = 10; l <= run.top_floor; l += 10) want.push([l, true]);
+    if (JSON.stringify(s1.landings) !== JSON.stringify(want) || Number(s1.landing_rows) !== want.length) bad.push(`${tag} the landings read ${JSON.stringify(s1.landings)} (${s1.landing_rows} rows), not ${JSON.stringify(want)} once each this week`);
+    if (s1.end !== 'died' || run.end_reason !== 'died' || Number(s1.run_rows) !== 1) bad.push(`${tag} the climb ended ${s1.end} (run ${run.end_reason}, ${s1.run_rows} run rows), not died once`);
+    if (Number(s1.death_rows) !== 0) bad.push(`${tag} the death journalled ${s1.death_rows} death_xp row(s): a death in the Tower costs nothing`);
+    if (!(Number(s1.level_xp) > Number(s0.level_xp))) bad.push(`${tag} the Level XP did not rise (${s0.level_xp} -> ${s1.level_xp})`);
+    for (const k of Object.keys(s0.skills || {})) if (Number((s1.skills || {})[k]) < Number(s0.skills[k])) bad.push(`${tag} ${k} fell ${s0.skills[k]} -> ${s1.skills[k]}`);
+    if (Number(s1.coin_rows) !== 0) bad.push(`${tag} ${s1.coin_rows} ledger row(s) credited coin`);
+    if (Number(s1.ev) !== Number(s0.ev)) bad.push(`${tag} a Bestiary or task count moved (${s0.ev} -> ${s1.ev})`);
+    if (JSON.stringify(s1.items || {}) !== JSON.stringify(s0.items || {})) bad.push(`${tag} the bag moved ${JSON.stringify(s0.items)} -> ${JSON.stringify(s1.items)}`);
+  }
+  if (runs.closed && runs.viewed) {
+    const sig = (r) => JSON.stringify([r.s1.run, r.s1.best, r.s1.landings, r.s1.level_xp, r.s1.skills, r.s1.end]);
+    if (sig(runs.closed) !== sig(runs.viewed)) bad.push(`TC-DOORS the browser closed lands ${sig(runs.closed).slice(0, 260)}, the hunt viewed ${sig(runs.viewed).slice(0, 260)}`);
+  }
+  return bad;
+}
+
+/* ── TC-FORGED ────────────────────────────────────────────────────────────── */
+const FORGERIES = [
+  ['a skipped floor', 'tower_floor_forged', (m) => { m.hunt.tower.floors = m.hunt.tower.floors.map((f) => f + 1); }],
+  ['a repeated floor', 'tower_floor_forged', (m) => { m.hunt.tower.floors = [m.hunt.tower.floors[0], ...m.hunt.tower.floors]; }],
+  ['floors past what the engine cleared', /tower_floor_forged|tower_too_fast/, (m) => { const f = m.hunt.tower.floors; for (let i = 0; i < 6; i++) f.push(f[f.length - 1] + 1); }],
+  ['coin in the Tower', 'mode_pays', (m) => { m.delta.gold = 500; }],
+  ['an item in the Tower', 'mode_pays', (m) => { m.delta.items = { bones: 3 }; }],
+  ['a Bestiary count in the Tower', 'mode_pays', (m) => { m.delta.journal.meta.km = { rat: m.delta.journal.meta.kills }; }],
+  ['Level XP past the floors\' bound', 'value_over', (m) => { m.delta.level_xp = (m.delta.level_xp || 0) * 50 + 100000; }],
+];
+async function forgedArm(db, M) {
+  const bad = [];
+  const r = await H.inTx(db, async () => {
+    const h = await climber(db, M, {});
+    const exec = makeExec(db);
+    for (let i = 0; i < 40; i++) {
+      const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, grounds: {}, atMs: h.from + SPAN }, 'tick');
+      if (plan.answer) return { err: 'the read answered ' + plan.answer.reason };
+      const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+      if (!p.commit) return { err: 'the engine proposed nothing: ' + (p.out && p.out.reason) };
+      const mine = p.commit.members[0];
+      if (!(mine.hunt.tower && mine.hunt.tower.floors.length && mine.delta.level_xp > 0)) {
+        const ok = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
+        if (!ok || ok.ok !== true) return { err: 'an honest window was refused: ' + JSON.stringify(ok).slice(0, 300) };
+        continue;
+      }
+      const out = [];
+      for (const [name, want, edit] of FORGERIES) {
+        const f = JSON.parse(JSON.stringify(p.commit));
+        edit(f.members[0]);
+        /* each forgery alone: a counted refusal moves the session (its refusals and version), which the next commit of this window would meet */
+        await db.query('savepoint tc_forge');
+        const res = await M.HS.commitHuntSettle(exec, { ...f, project: null });
+        await db.query('rollback to savepoint tc_forge');
+        out.push({ name, want, res: JSON.stringify(res).slice(0, 300), ok: !!(res && res.ok === true) });
+      }
+      /* THE CONTROL: the same window untampered lands and moves the run to its last floor */
+      const top0 = await one(db, 'select top_floor from public.tower_runs where session_id = $1', [h.sid]);
+      const honest = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
+      const top1 = await one(db, 'select top_floor from public.tower_runs where session_id = $1', [h.sid]);
+      return { out, honest: JSON.stringify(honest).slice(0, 300), honestOk: !!(honest && honest.ok === true), top0, top1, claimed: mine.hunt.tower.floors };
+    }
+    return { err: 'no window cleared a floor' };
+  });
+  if (r.err) return [`TC-FORGED CONTROL: ${r.err}`];
+  for (const x of r.out) {
+    const hit = typeof x.want === 'string' ? x.res.includes(x.want) : x.want.test(x.res);
+    if (x.ok || !hit) bad.push(`TC-FORGED ${x.name} answered ${x.res}, not ${x.want}`);
+  }
+  if (!r.honestOk || Number(r.top1) !== r.claimed[r.claimed.length - 1]) bad.push(`TC-FORGED CONTROL: the untampered window answered ${r.honest} and moved the run ${r.top0} -> ${r.top1} (claimed ${r.claimed})`);
+  /* a floor claimed by a session that is no climb */
+  const off = await H.inTx(db, async () => {
+    await rewind(db);
+    const h = await H.hunter(db, M, { ...H.STRONG });
+    const exec = makeExec(db);
+    const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, grounds: H.groundsOf(M), atMs: h.from + 60000 }, 'tick');
+    if (plan.answer) return { err: plan.answer.reason };
+    const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+    if (!p.commit) return { err: 'nothing proposed' };
+    const f = JSON.parse(JSON.stringify(p.commit));
+    f.members[0].hunt.tower = { floors: [1] };
+    return { res: JSON.stringify(await M.HS.commitHuntSettle(exec, { ...f, project: null })).slice(0, 300) };
+  });
+  if (off.err) bad.push(`TC-FORGED CONTROL: the hunt off the Tower: ${off.err}`);
+  else if (!/bad_tower/.test(off.res)) bad.push(`TC-FORGED a hunt off the Tower claiming a floor answered ${off.res}, not bad_tower`);
+  return bad;
+}
+
+/* ── TC-START ─────────────────────────────────────────────────────────────── */
+async function startArm(db, M) {
+  const bad = [];
+  const r = await H.inTx(db, async () => {
+    await rewind(db);
+    await H.character(db, M, UID, { level: 12, inv: {}, gold: 200000 });
+    await db.query('update public.hr_hunt_config set enabled = true where id');
+    const hunt = M.TD.TOWER_RULES.hunt;
+    const call = async (sql, p) => { await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [UID]); const v = await one(db, sql, p); await db.query('delete from public.hr_rate_counters'); return v; };
+    const out = {};
+    await db.query("update public.hr_feature_switches set scope = 'off' where switch_id = 'burning_tower'");
+    out.off = await call('select public.hr_tower_start(0, 1, $1::uuid)', [idem()]);
+    await db.query("update public.hr_feature_switches set scope = 'accounts', accounts = array[$1::uuid] where switch_id = 'burning_tower'", [UID]);
+    out.door = await call(`select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)`, [hunt, idem()]);
+    out.unearned = await call('select public.hr_tower_start(0, 21, $1::uuid)', [idem()]);
+    out.open0 = Number(await one(db, 'select count(*) from public.hunt_sessions where user_id = $1 and ended_at is null', [UID]));
+    /* a landing cleared this week (the settle's own write): its next floor is offered */
+    await db.query("insert into public.tower_landings (user_id, slot, week, landing, session_id, at) values ($1, 0, public.hr_tower_week(now()), 10, $2::uuid, now())", [UID, idem()]);
+    await db.query("insert into public.tower_progress (user_id, slot, best_floor, best_landing) values ($1, 0, 14, 10)", [UID]);
+    const key = idem();
+    out.eleven = await call('select public.hr_tower_start(0, 11, $1::uuid)', [key]);
+    out.again = await call('select public.hr_tower_start(0, 11, $1::uuid)', [key]);
+    out.runs = Number(await one(db, 'select count(*) from public.tower_runs where user_id = $1', [UID]));
+    out.floor = await one(db, `select public.hr_hunt_instance_read($1, 0)->'instance'->'tower_floor'`, [UID]);
+    return out;
+  });
+  if (r.off.error !== 'feature_off') bad.push(`TC-START the switch off answered ${JSON.stringify(r.off)}`);
+  if (r.door.ok === true || !JSON.stringify(r.door).includes('tower_only')) bad.push(`TC-START the ordinary door answered ${JSON.stringify(r.door).slice(0, 200)}`);
+  if (r.unearned.error !== 'bad_floor' || JSON.stringify(r.unearned.starts) !== '[1]' || r.open0 !== 0) bad.push(`TC-START an unearned floor answered ${JSON.stringify(r.unearned)} (${r.open0} open)`);
+  if (r.eleven.ok !== true || JSON.stringify(r.eleven.starts) !== '[1,11]') bad.push(`TC-START the floor after this week's landing answered ${JSON.stringify(r.eleven).slice(0, 200)}`);
+  if (r.runs !== 1 || Number(r.floor) !== 11) bad.push(`TC-START a replayed key made ${r.runs} runs; the engine reads floor ${r.floor}`);
+  return bad;
+}
+
+const ARMS = { room: roomArm, engine: engineArm, doors: doorsArm, forged: forgedArm, start: startArm };
+
+/* ── THE MUTANTS ──────────────────────────────────────────────────────────── */
+const MUTANTS = [
+  { name: 'the stair does not move the floor', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/tower.js', from: '  w.towerFloor += 1;', to: '' },
+  { name: 'the Tower pays coin', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt-rewards.js',
+    from: '  const gp = Array.isArray(row.gp) && !(pay && !pay.coin) ? rng.int(row.gp[0], row.gp[1]) : 0;', to: '  const gp = 7;' },
+  { name: 'the Tower counts the Bestiary', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt-rewards.js', from: '  if (!bestiary) return;\n', to: '' },
+  { name: 'the split ignores the mode', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/xp-share.js',
+    from: '  const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;', to: '  const raw = xp / heroes.length;' },
+  { name: 'the floor\'s time is never asked', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/combat-sim.js',
+    from: '      if (tw) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world) : null;', to: '' },
+  { name: 'the order check is gone', arm: 'forged', want: /^TC-FORGED (a skipped|a repeated)/, fn: 'public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)',
+    find: "  if exists (select 1 from jsonb_array_elements(v_f) with ordinality e(v, i) where (e.v #>> '{}')::bigint <> v_lo + e.i - 1) then",
+    replace: '  if false then' },
+  { name: 'the mode pays what it likes', arm: 'forged', want: /^TC-FORGED (coin|an item|a Bestiary)/, fn: 'public.hr_mode_pays(text,jsonb)',
+    find: "  if not found then return 'mode'; end if;", replace: "  return null;" },
+  { name: 'the kill bound ignores the mode', arm: 'forged', want: /^TC-FORGED Level XP/, fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
+    find: '  if v_mode.xp_pm <> 1000 then v_vb_xp := ceil(v_vb_xp * v_mode.xp_pm / 1000.0)::bigint; end if;', replace: '  v_vb_xp := v_vb_xp * 100;' },
+  { name: 'the start floor is not checked', arm: 'start', want: /^TC-START an unearned/, fn: 'public.hr_tower_start(integer,integer,uuid)',
+    find: '    if p_floor <> all (v_starts) then', replace: '    if false then' },
+  { name: 'the ordinary door admits the Tower', arm: 'start', want: /^TC-START the ordinary door/, fn: 'public.hr_hunt_admit(uuid,integer,text)',
+    find: "    if current_setting('hr.tower', true) is distinct from p_hunt then", replace: '    if false then' },
+  { name: 'a landing is not written', arm: 'doors', want: /^TC-DOORS/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',
+    find: '    insert into public.tower_landings (user_id, slot, week, landing, session_id, at) values (p_user, p_slot, v_week, v_l, p_session, p_to)',
+    replace: '    perform 1; insert into public.tower_landings (user_id, slot, week, landing, session_id, at) select p_user, p_slot, v_week, v_l, p_session, p_to where false' },
+];
+
+async function runArm(db, M, name) {
+  try { return await ARMS[name](db, M); } catch (e) { return ['THREW ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')]; }
+}
+
+async function main() {
+  let db;
+  try { db = await boot(); } catch (e) { console.error('tower-climb: the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(2); }
+  if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) {
+    const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+    const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
+    let escaped = 0;
+    for (const m of list) {
+      let got = [];
+      if (m.fn) {
+        const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).split('\r').join('');
+        if (def.split(m.find).length !== 2) { console.error(`HARNESS: ${m.fn} has no single ${JSON.stringify(m.find.slice(0, 70))}`); process.exit(2); }
+        await db.exec(def.replace(m.find, () => m.replace));
+        try { got = await runArm(db, await load(ROOT), m.arm); } finally { await db.exec(def); }
+      } else {
+        const dir = mkdtempSync(join(tmpdir(), 'hr-tc-'));
+        try {
+          for (const d of ['src/core', 'src/data', 'src/session', FN, 'tests/hunt-core/fixtures']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
+          cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
+          const p = join(dir, m.file);
+          let src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+          if (src.split(m.from).length !== 2) { console.error(`HARNESS: ${m.file} has no single ${JSON.stringify(m.from.slice(0, 70))}`); process.exit(2); }
+          src = src.replace(m.from, () => m.to);
+          writeFileSync(p, src);
+          let M;
+          try { M = await load(dir); } catch (e) { got = ['THREW loading the mutated tree: ' + String(e.message).slice(0, 160)]; }
+          if (M) got = await runArm(db, M, m.arm);
+        } finally { rmSync(dir, { recursive: true, force: true }); }
+      }
+      const hit = got.some((x) => m.want.test(x));
+      if (!hit) escaped++;
+      console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${m.name}: ${String(got[0] || 'every check held').slice(0, 160)}`);
+    }
+    console.log(escaped ? `tower-climb --mutate: ${escaped} ESCAPED` : `tower-climb --mutate: ${list.length}/${list.length} caught`);
+    process.exit(escaped ? 1 : 0);
+  }
+  const only = (process.argv.find((a) => a.startsWith('--arm=')) || '').slice(6);
+  const M = await load(ROOT);
+  const bad = [];
+  for (const name of Object.keys(ARMS)) {
+    if (only && name !== only) continue;
+    const got = await runArm(db, M, name);
+    console.log((got.length ? '✗ ' : '✓ ') + name);
+    bad.push(...got);
+  }
+  for (const p of bad) console.log('FAIL  ' + p);
+  console.log(bad.length ? `tower-climb: ${bad.length} FAILED` : 'tower-climb: green (the room, the engine, both doors, forged windows refused, the one door)');
+  process.exit(bad.length ? 1 : 0);
+}
+
+if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(2); });

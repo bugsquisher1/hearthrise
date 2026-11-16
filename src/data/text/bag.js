@@ -47,9 +47,9 @@ export const BAG_TEXT = Object.freeze({
   store_expanding: 'Expanding your bag…',
   /* The Key Ring tab (src/shell/windows/inventory/key-ring.js; Tyler 2026-11-16): labels, the server's price. */
   ring_tab: 'Key Ring',
-  ring_locked: 'Locked. Keys use bag slots.',
+  ring_locked: 'Locked',
   ring_empty: 'No keys',
-  ring_unlock: 'Unlock ({gold})',
+  ring_unlock: 'Unlock: {gold}',
   ring_unlocking: 'Unlocking…',
   ring_unlocked: 'Key Ring unlocked',
   store_expanded: 'Your bag holds {n} stacks now.',

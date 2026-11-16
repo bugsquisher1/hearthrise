@@ -14,6 +14,12 @@
 //            and a four with a Healer at the FLOOR dies none. Where it isn't, the hammer at the top dies at most once in its 2 h (the
 //            lone Melee outgrows Dangerous inside the band, the weight-class rule: Tyler 2026-11-06). Deadly is a four's ceiling on every
 //            ground by ruling (Andy 11-06, the sheet's tiers.deadly), so it is judged only where a pack names it.
+//            THE KITING MAGE (lane/c-late-kits, the board's "2026-11-15 The late grounds' throwers"): a party's tier threatens a lone caster
+//            standing back too (Tyler 2026-11-06, "Yes, make it risky": "you're gonna waste money ... and possibly die a few times"). Where
+//            Dangerous is named, a lone Mage at the FLOOR spends more on supplies than it earns there (its store bill over its income), and
+//            the named grounds' floor Mages die at least once a ground between them. Before the throwers two of the four paid a lone Mage
+//            30-37k gold an hour there, and the four floors' Mages died once in 8 h. The line's words name Melee and Ranger heroes only:
+//            a Mage is threatened there, never told it dies fast.
 //
 // Measured when written (2 seeds x 2 h): named, at the top of the band the hammer died 46-207 times, the sword 34-213, the bow 14-52 and the
 // crossbow 14-33; the four at the floor 0. Unnamed, the hammer at the top 0 on every ground (the bow 0-1). The guard plays the hammer and the
@@ -33,6 +39,8 @@ const HOURS = 2;
 const FOUR = Object.freeze(['tank', 'healer', 'bow', 'mage']);
 /* "die here fast": at least once an hour, alone at the top of the band; "holds": at most one death in the cell */
 const FAST_PER_H = 1, HOLDS_MAX = 1;
+/* the kiting Mage on a named tier, at the floor: "possibly die a few times", at least this many deaths a named ground on average (2 h a ground) */
+const MAGE_DEATHS_PER_GROUND = 1;
 const bandOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band;
 const isOpen = (g) => Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g);
 /* a staged ground is played as it ships, with every staged ground at or under its floor (packs ship in road order: party-class-xp-line's rule) */
@@ -64,6 +72,7 @@ const claims = (grounds) => async (RUN, root) => {
   const cell = (g, party, level, tier, tag) => RUN.runCell({ id: 'pt:' + [g, party.join('+'), level, tier, tag].join(':'), ground: g, party, level, hours: HOURS, seeds: 1,
     windowMs: 120000, density: T.tierRowOf(g, tier).pull[party.length - 1] || undefined, options: { tier }, ...gearOf(g) });
   const deaths = (r) => r.heroes.reduce((s, h) => s + h.deaths, 0);
+  let named = 0, mageDeaths = 0;
   for (const g of grounds || Object.keys(G.HUNT_GROUNDS)) {
     const [floor, top] = bandOf(g);
     for (const tier of T.tiersOf(g).filter((x) => x !== T.DEFAULT_TIER && (x === 'dangerous' || T.isPartyTier(g, x)))) {
@@ -74,10 +83,14 @@ const claims = (grounds) => async (RUN, root) => {
       }
       const bow = deaths(cell(g, ['bow'], top, tier, 'top'));
       if (hammer < FAST_PER_H * HOURS || bow < FAST_PER_H * HOURS) return g + ' ' + tier + ': named a party\'s tier, and alone at the top of the band (' + top + ') a hammer died ' + hammer + ' and a bow ' + bow + ' times in ' + HOURS + ' h (the words say they die fast)';
+      const mage = cell(g, ['mage'], floor, tier, 'floor').heroes[0];
+      named++; mageDeaths += mage.deaths;
+      if (!(mage.profitPerH < 0)) return g + ' ' + tier + ': named a party\'s tier, and a lone Mage at the floor (' + floor + ') nets ' + mage.profitPerH + ' gold an hour (income ' + mage.incomePerH + ', supplies ' + mage.storePerH + ') with ' + mage.deaths + ' deaths in ' + HOURS + ' h: standing back, nothing there threatens it';
       const four = cell(g, FOUR, floor, tier, 'floor');
       if (deaths(four) > 0) return g + ' ' + tier + ': named a party\'s tier, and a four with a Healer at the floor (' + floor + ') died ' + deaths(four) + ' times in ' + HOURS + ' h';
     }
   }
+  if (mageDeaths < MAGE_DEATHS_PER_GROUND * named) return 'on the ' + named + ' named party tier(s) a lone Mage at the floor died ' + mageDeaths + ' times in ' + named * HOURS + ' h, under ' + MAGE_DEATHS_PER_GROUND + ' a ground: a caster standing back holds a party\'s tier';
   return null;
 };
 
@@ -93,6 +106,12 @@ const mutants = [
   /* the party half of the claim: Dangerous twice as hard and a four with a Healer dies at Carter's Rest's floor too */
   { name: 'Dangerous hits twice as hard: a four with a Healer dies at Carter\'s Rest', case: 'claims', grounds: ['carters_rest'],
     edits: [['src/data/balance-sheet.js', 'dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),', 'dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 2340, hpPm: 1100, xpPm: 1200 }),']] },
+  /* the kiting Mage: the late grounds' throwers come down to melee (their `range` gone), and a lone Mage standing back holds again */
+  { name: 'Carter\'s Rest\'s throwers come down to melee: a lone Mage profits there on Dangerous', case: 'claims', grounds: ['carters_rest'],
+    edits: [[PACK('carters_rest'), "      range: 6,\n      spells: ['poachers_volley'],", "      spells: ['poachers_volley'],"],
+      [PACK('carters_rest'), "      range: 6,\n      spells: ['blasting_charge'],", "      spells: ['blasting_charge'],"]] },
+  { name: 'the Vaults\' Night Carter comes down to melee: a lone Mage at the floor never dies there', case: 'claims', grounds: ['pauper_vaults'],
+    edits: [[PACK('pauper_vaults'), "      range: 6,\n      spells: ['lime_sack'],", "      spells: ['lime_sack'],"]] },
   /* the page: the line is never added */
   { name: 'the Hunts page never says it', case: 'words', also: ['src/shell/hunt-list.js', 'src/render'],
     edits: [['src/shell/hunt-list.js', "const alone = size <= 1 && isPartyTier(r.hunt, tier.id) ? [t('hunts.tier_party')] : [];", 'const alone = [];']] },

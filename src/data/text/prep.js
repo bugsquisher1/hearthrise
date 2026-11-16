@@ -69,7 +69,8 @@ export const PREP_TEXT = Object.freeze({
   slot_always: 'Fires whenever it is ready.',
   sorted: 'Sorted. Moves first, then food and drink, then ammo. In each, a slot with a rule goes before a plain one.',
   cleared: 'Cleared. Save keeps it, and your hero fights with its weapon\'s own moves until you fill the bar again.',
-  basic_loaded: 'Basic setup loaded. Save keeps it.',
+  /* a label, not a sentence (Tyler 2026-11-14: everything outside lore is a genre-standard label) */
+  basic_loaded: 'Basic setup: unsaved',
 
   /* THE FOOTER. */
   save_and_use: 'Save and use',

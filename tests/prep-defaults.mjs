@@ -20,7 +20,7 @@
 //         hr_action_set_options with it, and the server's bar read back is it; the fight options stay; with no
 //         weapon type from the server the press changes nothing
 //   PD-4  ONE PROMPT ON A LEVEL-UP: a load raises nothing (the baseline is the first read); a skill crossing a move's
-//         unlock raises ONE line "New spell for <hero>: <Name>" with Add to bar, once; a move of another weapon, or one the bar
+//         unlock raises ONE line "<hero>: New spell <Name>" (a label) with Add to bar, once; a move of another weapon, or one the bar
 //         holds already, raises nothing; a read with no skills judges nothing
 //   PD-5  ADD TO BAR: ONE intent with the move in the first empty slot as the basic setup writes it, every other slot
 //         as it was; the line goes once the server's bar holds it; a full bar sends nothing and opens Hunt prep
@@ -171,7 +171,7 @@ export async function rules(base) {
     h.env.skills = Object.assign({}, h.env.skills, { melee: { xp: 0, level: 10 } });
     h.tell();
     const one = spellLines(centre);
-    if (one.length !== 1 || one[0].text !== 'New spell for Basil: Turning Cut' || one[0].button !== 'Add to bar' || JSON.stringify(one[0].spells) !== '["turning_cut"]') return 'Melee 10 raised ' + JSON.stringify(one.map((a) => [a.text, a.button, a.spells]));
+    if (one.length !== 1 || one[0].text !== 'Basil: New spell Turning Cut' || one[0].button !== 'Add to bar' || JSON.stringify(one[0].spells) !== '["turning_cut"]') return 'Melee 10 raised ' + JSON.stringify(one.map((a) => [a.text, a.button, a.spells]));
     h.tell(); h.env.skills = Object.assign({}, h.env.skills, { melee: { xp: 0, level: 11 } }); h.tell();
     if (spellLines(centre).length !== 1) return 'the prompt repeated: ' + spellLines(centre).length + ' lines';
     /* another weapon's move: a wand crossing Melee 10 is told nothing */
@@ -241,7 +241,7 @@ export async function rules(base) {
     /* a line standing for several moves keeps each one seen */
     const m = hero({ discipline: 'ranged', role: 'ranger' });
     const cm = AL.createAlertCenter(accountOf(m), { track: () => {}, clock: () => 0 });
-    cm.say(m, { id: 'spell:hoarfrost', also: ['spell:raking_shot'], kind: 'spell', session: null, spells: ['hoarfrost', 'raking_shot'], text: 'New spells for Basil: Hoarfrost, Raking Shot' });
+    cm.say(m, { id: 'spell:hoarfrost', also: ['spell:raking_shot'], kind: 'spell', session: null, spells: ['hoarfrost', 'raking_shot'], text: 'Basil: New spells Hoarfrost, Raking Shot' });
     m.env.skills = Object.assign({}, m.env.skills, { ranged: { xp: 0, level: 10 } }); m.tell();
     if (spellLines(cm).length !== 1) return 'a move shown inside another line was raised again: ' + JSON.stringify(spellLines(cm).map((a) => a.text));
     const kept = (m.record.residue.alerts || {}).seen || [];

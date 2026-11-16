@@ -82,8 +82,8 @@ export const BAR_TEXT = Object.freeze({
   unlock: 'Unlocks at {skill} {level}.',
   unlock_wait: 'Unlocks at {skill} {level}, and you have {have}. This slot waits until then.',
   /* The new spell prompt (src/shell/spell-news.js, Tyler 2026-11-16): a level-up unlocked these moves for the weapon {hero} wears. A label,
-     its names after it; the hero is named because up to four play at once and the line's Add acts on that hero's bar (as "Rare drop for {hero}"). */
-  new_spell: { one: 'New spell for {hero}: {names}', other: 'New spells for {hero}: {names}' },
+     never a sentence: the hero as its prefix (up to four play at once and the line's Add acts on that hero's bar), then the names. */
+  new_spell: { one: '{hero}: New spell {names}', other: '{hero}: New spells {names}' },
   cost_mana: '{mana} mana',
   cost_no_mana: 'No mana',
   cost_rune: '1 {rune}',

@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2027-04-09-own-hunt-nudge.sql supabase/migrations/2027-02-27-hunt-tiers.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-04-26-party-stamina-truth.sql supabase/migrations/2027-04-09-own-hunt-nudge.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -47,6 +47,10 @@
 //   PF-WARN     the leader's warning: leader only, catalogue grounds only, names the seats under the floor and tells them;
 //               starts nothing, refuses nothing
 //   PF-END-WHY  a friend's end names its cause (hr_hunt_view end_by_why); a hunting seat's stamina shows only when low
+//   PF-STAMINA-POOL (2027-04-26-party-stamina-truth.sql, the full-game audit's F7) that stamina is the seat's POOL, never the
+//               stored column: a seat that rested since its last hunt reads rested from the Start, before any settle writes
+//               it, in the view and in the leader's envelope; ten minutes rested from empty is 600000; a hunting seat does
+//               not rest (the pool is read at its settled_to, the number its own stamina section shows)
 //   PF-TRUTH-IDEM a second apply of the file is byte-identical
 //   PF-OWN-NUDGE (2027-04-09-own-hunt-nudge.sql, qa 11-11) a hunt opened or closed for an own hero reaches the account's
 //               OTHER open clients at once: a solo start, the leader's Start (each own seat) and an end each nudge the
@@ -94,8 +98,8 @@ const OWN = '2027-04-09-own-hunt-nudge.sql';
 const ONCE = '2027-04-10-own-hunt-nudge-once.sql';
 /* 2027-02-18-party-truth.sql restates the seat, join, decline, kick, disband, leave, sweep and finder bodies last: their mutants plant there. */
 const TRUTH = '2027-02-18-party-truth.sql';
-/* 2027-02-27-hunt-tiers.sql restates hr_hunt_party_view last (the tier replaces the density): its mutants plant there. */
-const TIERS = '2027-02-27-hunt-tiers.sql';
+/* 2027-04-26-party-stamina-truth.sql restates hr_hunt_party_view last (a seat's low stamina is its pool, not the stored column): its mutants plant there. */
+const POOL = '2027-04-26-party-stamina-truth.sql';
 /* 2027-02-20-party-leader-starts.sql restates hr_hunt_enter last: only the leader starts. */
 const LEAD = '2027-02-20-party-leader-starts.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
@@ -812,6 +816,39 @@ const ARMS = {
     return p;
   },
 
+  /* A SEAT'S LOW STAMINA IS ITS POOL (2027-04-26-party-stamina-truth.sql). The audit's F7, 2026-11-15: a hero ran dry, rested twelve hours
+     in town and entered a party hunt; nothing had written his pool, so the stored column still said 0 and every other seat read "1 min of
+     stamina left" until his first settle, while the server held eleven hours for him. */
+  'PF-STAMINA-POOL': async (db) => {
+    const p = [];
+    const { hunt } = await world(db);
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    await db.query("update public.player_state set stamina_ms = 0, stamina_at = now() - interval '12 hours' where user_id = $1 and slot = 0", [B]);
+    if (err(await start(db, A, hunt)) !== 'ok') return ['HARNESS: the start was refused (it reads the rested pool)'];
+    const sb = await one(db, 'select id from public.hunt_sessions where user_id = $1 and slot = 0 and instance_id = $2 and ended_at is null', [B, await partyOf(db, A)]);
+    if (!sb || Number(await one(db, 'select stamina_ms from public.player_state where user_id = $1 and slot = 0', [B])) !== 0) return ['HARNESS: B is not a hunting seat whose stored pool is still 0'];
+    const seatB = (party) => ((party && party.members) || []).find((m) => m.name === 'Flow B') || {};
+    const view = async () => seatB(await one(db, 'select public.hr_hunt_party_view($1, 0)', [A]));
+    const pool = (ms, at) => db.query(`update public.player_state ps set stamina_ms = $2, stamina_at = ${at} from public.hunt_sessions h
+                                        where h.id = $1 and ps.user_id = h.user_id and ps.slot = h.slot`, [sb, ms]);
+    let r = await view();
+    if (r.hunting !== true || r.stamina_low_ms !== null) p.push('[F7] a seat rested twelve hours, its stored pool 0, is shown to its leader with ' + r.stamina_low_ms + ' ms left');
+    r = seatB(((await one(db, 'select public.hr_state_of($1, 0)', [A])) || {}).party);
+    if (r.hunting !== true || r.stamina_low_ms !== null) p.push('[F7] the leader\'s envelope shows the rested seat with ' + r.stamina_low_ms + ' ms left');
+    await pool(0, "h.settled_to - interval '10 minutes'");
+    if ((await view()).stamina_low_ms !== 600000) p.push('a seat rested ten minutes from empty reads ' + (await view()).stamina_low_ms + ', want 600000');
+    /* Its settle runs five minutes behind: the 14 min it wrote at settled_to is still its pool. At now() it would be 19 and the warning gone. */
+    await db.query(`update public.hunt_sessions set entered_at = now() - interval '7 minutes', hunt_from = now() - interval '6 minutes',
+                                                    settled_to = now() - interval '5 minutes' where id = $1`, [sb]);
+    await pool(840000, 'h.settled_to');
+    const got = (await view()).stamina_low_ms;
+    if (got !== 840000) p.push('a seat whose settle runs five minutes behind reads ' + got + ', want the 840000 it wrote: a hunting seat does not rest');
+    const own = await one(db, 'select public.hr_stamina_view($1, 0)', [B]);
+    if (!own || own.hunting !== true || own.ms !== got) p.push('the seat\'s own stamina section says ' + JSON.stringify(own) + ' and its party ' + got);
+    return p;
+  },
+
   /* A second apply of 2027-02-18-party-truth.sql over its own state is byte-identical. */
   'PF-TRUTH-IDEM': async (chainDb) => {
     void chainDb;
@@ -984,7 +1021,7 @@ MUTANTS.push(
 
 /* The party says what the server knows (2027-02-18-party-truth.sql, blind panel 2026-11-01). */
 MUTANTS.push(
-  { arm: 'PF-ROLE', file: TIERS, why: 'the view reads a fixed weapon, not what is worn',
+  { arm: 'PF-ROLE', file: POOL, why: 'the view reads a fixed weapon, not what is worn',
     find: "    select m.user_id, m.slot, m.seat::int as seat, public.hr_hunt_weapon_of(m.user_id, m.slot) as weapon, h.id as sid,",
     repl: "    select m.user_id, m.slot, m.seat::int as seat, 'shield'::text as weapon, h.id as sid," },
   { arm: 'PF-ROLE', file: TRUTH, why: 'the finder lists a fixed weapon',
@@ -1033,8 +1070,19 @@ MUTANTS.push(
      (an anchored replace), so the body that runs is text no single file holds. */
   { arm: 'PF-END-WHY', fn: 'hr_hunt_view', why: 'a cascaded hero is named as the cause',
     find: "         and o.end_reason <> all (array['party_member_died', 'party_member_left'])\n", repl: '' },
-  { arm: 'PF-END-WHY', file: TIERS, why: 'a seat\'s whole stamina pool is shown',
-    find: 'and ps.stamina_at is not null and ps.stamina_ms <= 900000 then', repl: 'and ps.stamina_at is not null then' },
+  { arm: 'PF-END-WHY', file: POOL, why: 'a seat\'s whole stamina pool is shown',
+    find: 'case when v_stam <= 900000 then', repl: 'case when v_stam is not null then' },
+  { arm: 'PF-END-WHY', file: POOL, why: 'a seat in town is read too: its stored pool warns the party',
+    find: 'v_stam := case when v_r.sid is not null then public.hr_stamina_of(', repl: 'v_stam := case when true then public.hr_stamina_of(' },
+);
+
+/* A seat's low stamina is its POOL (2027-04-26-party-stamina-truth.sql; the full-game audit's F7, 2026-11-15). */
+MUTANTS.push(
+  { arm: 'PF-STAMINA-POOL', file: POOL, why: '[F7] the party reads the stored column again, so a rested seat reads empty',
+    find: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, v_r.settled_to) end;',
+    repl: 'then (select q.stamina_ms from public.player_state q where q.user_id = v_r.user_id and q.slot = v_r.slot) end;' },
+  { arm: 'PF-STAMINA-POOL', file: POOL, why: 'a hunting seat is rested to now(): a settle running behind hides the warning',
+    find: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, v_r.settled_to) end;', repl: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, now()) end;' },
 );
 
 /* THE BODY THAT RUNS. A mutant runs ONE statement of its file on the chain end: the function create that carries

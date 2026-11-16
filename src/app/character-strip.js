@@ -49,9 +49,9 @@ export function stripTargetOf(e) {
    the sheet it opens holds Characters and Sign out (src/shell/windows/characters.js, playtest 2026-10-31). */
 const STRIP_HTML = '<ol class="char-tabs"></ol>'
   + '<span class="char-strip-tools">'
-  + '<button type="button" class="char-tool is-all" data-app="all" aria-label="All characters" title="Every character on one screen (O)"><span class="char-tool-now"></span><span class="char-tool-wide">All characters</span><span class="char-tool-short">Heroes</span><span class="char-badge char-all-badge"></span></button>'
-  + '<button type="button" class="char-tool" data-app="characters">Characters</button>'
-  + '<button type="button" class="char-tool" data-app="sign-out">Sign out</button></span>';
+  + '<button type="button" class="char-tool is-all" data-app="all" aria-label="' + t('heroes.strip_all') + '" title="' + t('heroes.strip_all_title') + '"><span class="char-tool-now"></span><span class="char-tool-wide">' + t('heroes.strip_all') + '</span><span class="char-tool-short">' + t('heroes.strip_all_short') + '</span><span class="char-badge char-all-badge"></span></button>'
+  + '<button type="button" class="char-tool" data-app="characters">' + t('heroes.strip_characters') + '</button>'
+  + '<button type="button" class="char-tool" data-app="sign-out">' + t('controls.sign_out') + '</button></span>';
 
 const TAB_HTML = '<li class="char-tab-row"><button type="button" class="char-tab" data-app="show">'
   + '<span class="char-roleglyph" aria-hidden="true"></span>'
@@ -126,7 +126,7 @@ export function mountCharacterStrip(host, o) {
   const doc = host.ownerDocument;
   const win = doc.defaultView;
   host.className = 'char-strip';
-  host.setAttribute('aria-label', 'Characters');
+  host.setAttribute('aria-label', t('heroes.strip_characters'));
   host.innerHTML = STRIP_HTML;
   const list = host.querySelector('.char-tabs');
   const allBadge = host.querySelector('.char-all-badge');

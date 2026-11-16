@@ -228,7 +228,7 @@ async function checks(overrides) {
       if (!opened) fails.push('FW-7 the window did not open');
       else {
         if (errors.length) fails.push('FW-7 console errors: ' + errors.join(' | ').slice(0, 300));
-        if (!(await shown(page, W + '.hw-farm-shared')) || !/^Your heroes share this land\./.test((await txt(page, W + '.hw-farm-shared')) || '')) fails.push('FW-7 the window does not say the land is shared: ' + JSON.stringify(await txt(page, W + '.hw-farm-shared')));
+        if (!(await shown(page, W + '.hw-farm-shared')) || !/^Shared land: /.test((await txt(page, W + '.hw-farm-shared')) || '')) fails.push('FW-7 the window does not say the land is shared: ' + JSON.stringify(await txt(page, W + '.hw-farm-shared')));
         const drawn = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot')].map((li) => li.getAttribute('data-plot')));
         if (drawn.join() !== '0,1,3') fails.push('FW-7 the field draws plots ' + JSON.stringify(drawn) + ', want 0,1 and the extra 3');
         const by0 = await txt(page, W + '.hw-plot[data-plot="0"] .hw-plot-by');
@@ -316,7 +316,7 @@ async function checks(overrides) {
         const pl = sent(s, 'hr_farm_plant').map((c) => c.body.p_plot_idx + ':' + c.body.p_crop);
         if (pl.join() !== '0:carrot,2:carrot,3:carrot') fails.push('FW-9 the plants sent ' + JSON.stringify(pl) + ', want plot 0, then 2 and 3 in order, then stop');
         const line = await txt(page, W + '.hh-intent-msg');
-        if (!/^Planted Carrot in 1 plot\. Stopped at plot 4: You have no seed for that crop/.test(line || '')) fails.push('FW-9 the sweep\'s line reads ' + JSON.stringify(line));
+        if (!/^Planted Carrot in 1 plot\. Stopped at plot 4: No seed for that crop/.test(line || '')) fails.push('FW-9 the sweep\'s line reads ' + JSON.stringify(line));
       }
       await ctx.close();
     }

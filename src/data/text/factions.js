@@ -16,17 +16,19 @@ export const FACTIONS_TEXT = Object.freeze({
   motto_first_flame: 'Preserve what was',
   motto_last_ember: 'Forge what comes next',
 
-  /* The join prompt. */
+  /* The join prompt's opening line (@sentence: the March's story, lore). */
   join_lead: 'Two sides are heading up the road to Morrow. Neither one is evil, and Havora belongs to neither.',
-  join_terms: 'Joining is free and nothing is locked. You can party with anyone and hunt every ground. Standing only buys looks.',
-  join_swap_terms: 'Changing sides later takes {time} of hunting on the other side\'s grounds, and then you wait {days} before you can change again.',
+
+  /* The join prompt. */
+  join_terms: 'Free to join. Party and hunt anywhere. Standing buys looks only',
+  join_swap_terms: 'Swap later: {time} on their grounds, then wait {days}',
   join_press: 'Join the {side}',
   not_now: 'Not now',
   later: 'You can pick later from the Faction tab in Character (C).',
   busy_join: 'Joining…',
   joined: 'You joined the {side}.',
 
-  /* What Holly and Venn say. Their words only. */
+  /* What Holly and Venn say. Their words only (@sentence: NPC talk is lore). */
   said_holly_join: '{rowe} is too old for the road now, so it\'s me. I\'m going up to Morrow to put that coal out and give those people a proper rest. Walk with me if you want to help.',
   said_venn_join: 'The old way is what got my company killed. I\'m not putting it back. We\'re taking Morrow for the people who dig it and fight for it. {harry} has the cart loaded.',
   said_holly_swap: 'You want in? Then keep a vigil with us first, on our ground. After that you\'re one of us.',
@@ -36,14 +38,14 @@ export const FACTIONS_TEXT = Object.freeze({
   tab: 'Faction',
   side: 'Side: {side}',
   side_none: 'Side: none',
-  neutral_locked: 'After your first Lord Krell kill, {holly} and {venn} will ask you to pick a side. Until then you hunt every ground the same.',
-  neutral_open: '{holly} and {venn} are waiting for your answer. You can pick a side whenever you like.',
+  neutral_locked: '{holly} and {venn} ask after your first Lord Krell kill',
+  neutral_open: '{holly} and {venn} are waiting for your answer (pick any time)',
   press_choose: 'Choose a side',
   standing_head: 'Standing',
   standing: 'Standing: {time}',
-  standing_note: 'You earn standing by hunting on grounds that pay your side. It is never lost, even if you swap.',
+  standing_note: 'Earned on your side\'s grounds. Never lost, even on a swap',
   swap_head: 'Swap',
-  swap_to: 'Swapping to the {side}. Their grounds pay you no standing until you finish.',
+  swap_to: 'Swapping to the {side}. No standing from their grounds until done',
   swap_left: 'Swap: {time} left',
   swap_done: 'Swap: ready to finish',
   swap_cost: 'Swap: {time} on {side} grounds',
@@ -57,7 +59,7 @@ export const FACTIONS_TEXT = Object.freeze({
   swap_started: 'Your swap to the {side} has started.',
   swapped: 'You are with the {side} now.',
   pieces_head: 'Outfit pieces',
-  pieces_note: 'The art for these is still being made. A piece you claim now is yours when it arrives.',
+  pieces_note: 'Art still being made. Claimed pieces are yours when it arrives',
   piece_flamebearer: 'Flamebearer',
   piece_flamebearer_shield: 'Hearth Shield',
   piece_flamebearer_light: '{holly}\'s Light',

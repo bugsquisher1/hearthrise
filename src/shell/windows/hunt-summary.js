@@ -335,7 +335,7 @@ function leadAgain(ctx, cs, sc, repaint, hunt) {
   const warned = hunt + ':' + low.under.map((s) => s.seat).join();
   if (low.under.length && sc.warned !== warned) {
     runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-      () => underWords(row, low.under) + ' They have been told. Press Hunt again to go.', cs).then(() => { sc.warned = warned; repaint(); });
+      () => underWords(row, low.under) + '. Party warned. Press Hunt again to go.', cs).then(() => { sc.warned = warned; repaint(); });
     return;
   }
   sc.warned = null;

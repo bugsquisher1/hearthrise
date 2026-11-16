@@ -12,7 +12,7 @@ export const AWAY_TEXT = Object.freeze({
   /* {name} when the server has not sent the hero's name yet. */
   your_hero: 'Your hero',
   /* Out of stamina (after-hunt.js NEXT.stamina): what uses none while it comes back. {level} the yard's first Level (src/data/training.js). */
-  next_stamina: 'While your stamina comes back, {name} can work at a bench, or train at the Training Yard from Level {level}. Neither uses stamina. Start mining, chopping or fishing before you hunt, and {name} will go back to it when the hunt ends.',
+  next_stamina: 'Stamina refilling: work a bench or train at the Yard (Level {level}+)',
   /* A training session that reached its longest run (after-hunt.js TRAIN_NEXT). */
   next_train_again: 'Training uses no stamina, so start it again to keep going.',
   /* {doing} is the server's job in words ("mining the Copper Rock", party-sections.js townActivityWords). */
@@ -20,12 +20,12 @@ export const AWAY_TEXT = Object.freeze({
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */
   after_waited: 'Then {name} waited in town for {time}.',
   /* The one next thing that would have filled the time, by what ended the hunt (after-hunt.js NEXT). */
-  next_gather: 'Start mining, chopping or fishing before you hunt, and {name} will go back to it when the hunt ends.',
-  next_longer: 'Set a longer hunt next time, up to the stamina you have.',
-  next_food: 'Pack more food next time, and the hunt can run longer.',
-  next_ammo: 'Pack more ammo next time, and the hunt can run longer.',
-  next_runes: 'Pack more runes next time, and the hunt can run longer.',
-  next_gold: 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.',
+  next_gather: 'Start mining, chopping or fishing before a hunt to resume it after.',
+  next_longer: 'Set a longer hunt, up to your stamina.',
+  next_food: 'Pack more food for a longer hunt.',
+  next_ammo: 'Pack more ammo for a longer hunt.',
+  next_runes: 'Pack more runes for a longer hunt.',
+  next_gold: 'Lower your gold reserve, carry more gold, or pack your own supplies.',
   /* gold_out with food or drink in the bag that no slot of the bar uses (after-hunt.js spareSupplyOf): {item} its name. */
-  next_bar: '{item} was in your bag but not on your bar, so {name} bought supplies until the gold ran out. Put it on your bar next time.',
+  next_bar: 'Tip: put {item} on your bar ({name} bought store supplies instead)',
 });

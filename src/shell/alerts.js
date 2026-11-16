@@ -37,6 +37,9 @@
 // in memory for the page and in the character's residue (`alerts.seen`,
 // display state, bounded) for the next visit, so a reload or a re-sent
 // envelope never repeats one. Which kinds show is the residue's `alerts.off`.
+// A LIVE line (LIVE below: a supply at zero, a friend's low stamina) says what the
+// record says now, so it is the envelope's: it stands only while the server says
+// it of the open hunt, in that read's words, and is news again if said again.
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
@@ -72,6 +75,12 @@ const residueOf = (cs) => {
 const who = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 /* The lines a new hunt retires once its session is open (the last hunt's end, death and low supply). */
 const RETIRE = new Set(['ended', 'death', 'low']);
+/* THE LIVE LINES say what the record says NOW of the open hunt (a bar supply at zero, a friend's low stamina), not something that
+   happened: ids `low:<session>:…` and `lowstam:<session>:…`. Each is the envelope's (CLAUDE.md §6): its words are this read's, it
+   goes when the server stops saying it, and its id is forgotten then, so the server saying it again is news again (a friend refills,
+   then runs low once more). The full-game audit's F7, 2026-11-15: "Corwen has 1 min of stamina left. Their hunt ends then, and Ilsa
+   comes home too." stood on screen after the server had stopped saying it, for a hero it held eleven hours for. */
+const LIVE = /^(?:low|lowstam):/;
 /* How long the away card must have been up to count as read when the page is left. */
 const AWAY_READ_MS = 8000;
 /* THE HOOK, COUNTED (designer 2026-11-10: "Your hero keeps hunting after you close the game"). Three funnel steps this centre is the one to see,
@@ -277,6 +286,13 @@ export function createAlertCenter(account, opts) {
     return true;
   }
 
+  /* A live line the server stopped saying is forgotten, on this page and in the saved list: said again, it fires again. */
+  function forget(cs, unsaid) {
+    const mine = seenOf(cs.slot), r = residueOf(cs);
+    for (const id of Array.from(mine)) if (unsaid(id)) mine.delete(id);
+    if (Array.isArray(r.seen) && r.seen.some(unsaid)) cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: r.seen.filter((id) => !unsaid(id)) });
+  }
+
   /* first_gear_found: the first read of a hunt is the baseline (what dropped unseen is the return's news, not a find); a gear id new since then is the find. */
   function noteGear(cs) {
     const ids = huntGearOf(cs);
@@ -327,6 +343,10 @@ export function createAlertCenter(account, opts) {
        hunt): once the server says another session is open, an ended, death or low line of an older one goes. */
     const h = huntOf(cs);
     const open = h && !h.ended ? h.sessionId : null;
+    /* The live lines this read says of the open hunt, by id, and the ones it no longer says (LIVE, above). */
+    const said = new Map(now.filter((c) => LIVE.test(c.id)).map((c) => [c.id, c.text]));
+    const unsaid = (id) => !!open && LIVE.test(id) && id.split(':')[1] === open && !said.has(id);
+    forget(cs, unsaid);
     for (let i = alerts.length - 1; i >= 0; i--) {
       const a = alerts[i];
       if (a.slot !== cs.slot) continue;
@@ -334,6 +354,9 @@ export function createAlertCenter(account, opts) {
       const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
       /* AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary): the player closed the summary, or dismissed the death. */
       const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
+      /* A live line goes when the server stops saying it, and its words are this read's (LIVE, above). */
+      if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }
+      if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }
       if (stale || seenEnd || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
       /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
       const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;

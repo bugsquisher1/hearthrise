@@ -19,34 +19,34 @@ import { track } from '../../net/observability.js?v=0.2.132';
 import { refusalText } from '../intent-words.js?v=0.2.132';
 import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.132';
 import { connection } from '../../net/connection.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
-const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
+const LEAVING = Object.freeze({ asked: 'hud.leaving', now: 'hud.leaving_now', late: 'hud.leaving_late' });
 /* NEVER A SILENT WAIT (phone playtest 2026-10-31: 20-33 s on "Leaving…" on bad signal): past a moment with no countdown
    the line says what it is waiting for, and says so when the connection is gone. */
 const WAIT_WORDS_MS = 4000;
-const LEAVE_WAIT = Object.freeze({ lost: 'No connection yet…', slow: 'Waiting for the server…' });
-const LEAVE_WHY = 'Your hero finishes the fight under way, then heads home.';
+const LEAVE_WAIT = Object.freeze({ lost: 'hud.leaving_lost', slow: 'hud.leaving_slow' });
 const LEAVE_SINCE = new WeakMap();   // the bar -> when its pending leave was first drawn (display only)
 function leavingLine(cd, waitedMs, state) {
-  if (cd && cd.phase === 'counting') return 'Leaving in ' + cd.s + 's';
-  if (state === 'lost') return LEAVE_WAIT.lost;
-  if (cd && cd.phase === 'late') return LEAVING.late;
-  return waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING[cd ? cd.phase : 'asked'] || LEAVING.asked;
+  if (cd && cd.phase === 'counting') return t('hud.leaving_in', { s: cd.s });
+  if (state === 'lost') return t(LEAVE_WAIT.lost);
+  if (cd && cd.phase === 'late') return t(LEAVING.late);
+  return t(waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING[cd ? cd.phase : 'asked'] || LEAVING.asked);
 }
 
 /** The skeleton (built once). */
 export function renderHuntTopbar() {
-  return '<div class="ht-bar" role="group" aria-label="Hunt">'
-    + '<b class="ht-ground"></b><span class="ht-clock" title="Time in this hunt"></span>'
+  return '<div class="ht-bar" role="group" aria-label="' + t('hud.top_aria') + '">'
+    + '<b class="ht-ground"></b><span class="ht-clock" title="' + t('hud.top_clock') + '"></span>'
     /* The phone's bar has the width beside the Party panel only: "Details" and "Leave" there (hunt.css .ht-wide). */
-    + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="Hunt details"><span class="ht-wide">Hunt </span>details</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="summary">Summary</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="' + t('hud.top_details_aria') + '"><span class="ht-wide">Hunt </span>details</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="summary">' + t('hud.top_summary') + '</button>'
     + '<span class="ht-leaving" role="timer" hidden></span>'
-    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="Leave hunt">Leave<span class="ht-wide"> hunt</span></button>'
+    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="' + t('hud.top_leave_aria') + '">Leave<span class="ht-wide"> hunt</span></button>'
     + '<span class="hh-intent-msg" role="status" aria-live="polite"></span></div>'
     /* The phone's one line under the bar while a leave counts down (hunt.css): what the wait is for. */
-    + '<p class="ht-why" hidden>' + LEAVE_WHY + '</p>';
+    + '<p class="ht-why" hidden>' + t('hud.leave_why') + '</p>';
 }
 
 renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
@@ -57,11 +57,11 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];
   /* Over, the hero stands in town: the plaque names the hunt as the LAST one, never as where the hero is (core-loop
      play 2026-10-30: Corliss in Havora read "Wickstead · Summary"). */
-  const gname = ground ? ground.name : h ? 'Hunting' : '';
+  const gname = ground ? ground.name : h ? t('hud.hunting') : '';
   /* The harder tier this hunt froze, in the same plain word as the picker (Normal says nothing: it is the ground as it stands). */
   const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
   const hard = tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? ' (' + TIER_NAME[tiers.playing] + ')' : '';
-  text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname + hard);
+  text(el.querySelector('.ht-ground'), h && h.ended && ground ? t('hud.last_hunt', { ground: gname }) : gname + hard);
   const ms = sessionClockMs(a, serverNowOf(ctx.character));
   text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));
   const leave = el.querySelector('.is-leave');
@@ -120,6 +120,6 @@ renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   renderHuntTopbar.patch(el, ctx);
   const r = await ctx.character.leaveHunt();
   attr(btn, 'data-pending', null);
-  text(el.querySelector('.hh-intent-msg'), r.ok ? '' : 'The hunt did not end. ' + refusalText(r));
+  text(el.querySelector('.hh-intent-msg'), r.ok ? '' : t('hud.leave_failed', { why: refusalText(r) }));
   renderHuntTopbar.patch(el, ctx);
 };

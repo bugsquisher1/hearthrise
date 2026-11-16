@@ -139,11 +139,11 @@ async function runTests(M) {
 
   await t('S1 every END_ORDER reason has a plain sentence', () => {
     eq(Object.keys(MD.END_WORDS), [...END_ORDER], 'END_WORDS covers END_ORDER, in order');
-    for (const r of END_ORDER) ok(/^[A-Z].*\.$/.test(MD.endWords(r)), r + ' is a sentence');
-    ok(MD.endWords('nonsense') === 'The hunt ended.', 'an unknown reason still reads');
+    for (const r of END_ORDER) ok(/^[A-Z][^]*\S$/.test(MD.endWords(r)) && MD.endWords(r) !== 'Hunt ended', r + ' has its own words (a label, Tyler 2026-11-14)');
+    ok(MD.endWords('nonsense') === 'Hunt ended', 'an unknown reason still reads');
     /* out of stamina: why, how it comes back, and what the hero has now (panel 2026-11-01: "Your stamina ran out." and nothing else) */
-    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + ' Stamina now: 5 h 46 min.', 'the stamina end says what is rested');
-    ok(/comes back hour for hour/.test(MD.END_WORDS.stamina), 'the stamina end says how it comes back');
+    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + '. Stamina now: 5 h 46 min', 'the stamina end says what is rested');
+    ok(/refills hour for hour/.test(MD.END_WORDS.stamina), 'the stamina end says how it comes back');
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', null), MD.END_WORDS.stamina, 'an older hunt, or a server that has not said: no number');
     eq(MD.reasonWords({ reason: 'left' }, 'Pip', 3600000), MD.END_WORDS.left, 'another end says nothing of stamina');
   });
@@ -221,11 +221,11 @@ async function runTests(M) {
     const card = (session) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [])])[0];
     const f = card(sess());
     eq([f.reason, f.forfeit], ['server', true], 'the stored card keeps the forfeit');
-    eq(MD.endWords(f.reason, f.forfeit), 'Your hunt was stopped because the server could not accept its last few minutes, so nothing from them was counted.', 'the forfeit sentence');
+    eq(MD.endWords(f.reason, f.forfeit), 'Stopped: last minutes not accepted, nothing from them counted', 'the forfeit sentence');
     const plain = card(sess({ forfeit: false }));
     eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
     const left = card(sess({ end_reason: 'left' }));
-    ok(/^You left the hunt\. .*nothing from them was counted\.$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
+    ok(/^You left: .*nothing from them counted$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
   });
@@ -396,14 +396,14 @@ async function runTests(M) {
     const sell = r.steps[1];
     /* the LOOT PLAN's rule, Dispatch loot's own (Coordinator 2026-11-11): never a locked stack (Sticky Core), the kit (Shrimp) or a stack with no bid (Bones) */
     eq(sell.lines, [{ item: 'rat_tail', qty: 31 }, { item: 'slime_gel', qty: 12 }], 'the sale names the plan\'s Sell stacks whole, and nothing else');
-    eq(sell.words, 'Your loot plan marks Rat Tail and Slime Gel for the shop.', 'the sale says whose rule it is');
+    eq(sell.words, 'Marked Sell: Rat Tail and Slime Gel', 'the sale says whose rule it is');
     eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
     eq(r.steps[0].words, 'Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense).', 'Equip says what goes on');
     eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
-    eq(r.steps[2].words, 'Your loot plan marks Wolf Pelt for Storage, and that frees 1 bag space.', 'Deposit says what it frees');
+    eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt (frees 1 bag space)', 'Deposit says what it frees');
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
     eq(steps({ rules: { locked: new Set(['sticky_core', 'wolf_pelt']), loot: rules.loot } }).steps.map((s) => s.id), ['equip', 'sell', 'bless'], 'a locked Deposit stack is not a step');
-    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30. A death costs you less with them on.'], 'Bless names the tiers not on');
+    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30, less death loss'], 'Bless names the tiers not on');
     /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
     const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
     const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });
@@ -412,7 +412,7 @@ async function runTests(M) {
     /* Bless only while the purse covers the next tier (the server prices each); a purse not read reads as enough */
     const dear = { tiers: [{ tier: 1, price: 500, held: true }, { tier: 2, price: 900, held: false }, { tier: 3, price: 1400, held: false }], freeUntil: null };
     eq(steps({ blessings: dear, purse: 100 }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'short of the next Blessing, no Bless step');
-    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Costs 2,300 gp. A death costs you less with them on.', 'the purse covers the next');
+    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Costs 2,300 gp, less death loss', 'the purse covers the next');
     eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
     /* nothing to do at all: no steps, Hunt again is the press */
     const none = steps({ plan: { ops: {}, picks: [], choices: [] }, rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
@@ -488,7 +488,7 @@ const MUTANTS = [
   { test: 'D3', file: EXPLAIN, from: "e.atMs >= from && e.atMs <= to)", to: "e.atMs <= to)" },
   { test: 'D4', file: EXPLAIN, from: "kind: wipe ? 'wipe'", to: "kind: false ? 'wipe'" },
   { test: 'S1', file: MODEL, from: "if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;", to: 'return why;' },
-  { test: 'S1', file: MODEL, from: "  stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\\'t hunting.',\n", to: '' },
+  { test: 'S1', file: MODEL, from: "  stamina: t('summary.end_stamina'),\n", to: '' },
   { test: 'S2', file: SUMMARIES, from: "    if (out.length >= HISTORY_MAX) break;", to: '' },
   { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id)) continue;", to: "if (!s) continue;" },
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
@@ -500,7 +500,7 @@ const MUTANTS = [
   { test: 'S4', file: SUMMARIES, from: 'balance: num(v.balance), ', to: '' },
   { test: 'S4', file: MODEL, from: 'balance: hero ? hero.balance : null,', to: 'balance: null,' },
   { test: 'S4', file: SUMMARIES, from: 'balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),', to: 'balanceH: num(v.balanceH),' },
-  { test: 'S4', file: MODEL, from: 'isObj(t.xp) ? num(t.xp.level) : num(t.xp)', to: 'num(t.xp)' },
+  { test: 'S4', file: MODEL, from: 'isObj(tl.xp) ? num(tl.xp.level) : num(tl.xp)', to: 'num(tl.xp)' },
   { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, hours: summary.hoursLimit," },
   { test: 'S6', file: MODEL, from: "return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason]", to: "return END_WORDS[reason]" },
   { test: 'S6', file: MODEL, from: "    forfeit: s.forfeit === true,\n", to: '' },

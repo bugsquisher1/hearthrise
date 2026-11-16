@@ -1017,7 +1017,7 @@ const SAY = Object.freeze({
   },
   fight_settings: (f) => {
     const n = used(f, 'food');
-    return n ? { text: 'Your hero has eaten ' + sum(n) + ' times this hunt. Try changing the stance on your bar. ' + STANCE_WORDS + ' Target picks who your hero hits first.' } : null;
+    return n ? { text: 'Your hero has eaten ' + sum(n) + ' times this hunt. Try changing the stance on your bar. ' + STANCE_WORDS + ' Target sets which monster your hero attacks first.' } : null;
   },
   more_heroes: (f) => {
     const h = heroesOn(f);

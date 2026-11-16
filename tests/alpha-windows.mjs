@@ -1763,7 +1763,7 @@ async function planRules(base) {
       if (Object.keys(legs('bronze_platelegs', 'aw21_fire_legs', 20).ops).length) fails.push('AW-21 fire resistance counts with no fire in range');
       const keep = legs('aw21_fire_legs', 'iron_platelegs', 17);
       if (ops2(keep) !== '{}' || JSON.stringify(keep.choices) !== '[{"slot":"pants","ids":["iron_platelegs"],"keeps":"aw21_fire_legs","lost":[{"resist":"ember","pct":10}],"gain":"+4 Defense"}]'
-        || UP.upgradeWords(keep) !== 'Nothing goes on by itself, since each piece is better at something. Iron Platelegs adds +4 Defense, and Fireproof Legs cuts fire damage by 10%. Pick on the doll.')
+        || UP.upgradeWords(keep) !== 'No clear upgrade. Iron Platelegs adds +4 Defense, and Fireproof Legs cuts fire damage by 10%. Pick on the doll.')
         fails.push('AW-21 a worn fire resistance against bigger plain numbers where fire is dealt reads ' + ops2(keep) + ' / ' + JSON.stringify(keep.choices) + ' / ' + UP.upgradeWords(keep));
       const gone = legs('aw21_fire_legs', 'iron_platelegs', 20);
       if (ops2(gone) !== '{"pants":"iron_platelegs"}' || gone.choices.length) fails.push('AW-21 a fire resistance with no fire in range holds the bigger numbers off: ' + ops2(gone) + ' / ' + JSON.stringify(gone.choices));

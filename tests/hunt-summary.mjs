@@ -20,6 +20,8 @@
 //       and, for a free character, the session tally
 //   S5  Hunt again's arguments are the ended hunt's own
 //   S6  a forfeited hunt (the server's `forfeit`) reads why in plain words; a plain server end keeps its own
+//   S8  a training session's card is the skill's XP, its levels and the yard's fee (the server's last stop, the tally's XP first),
+//       never Monsters / Level XP / Gold zeros; why it ended in the Training window's words; no Hunt again
 //   S7  an ended hunt names the tier it ran at (the server's session `tier`) on the card and in Earlier hunts; Normal and a forged tier name the ground alone
 //   A1  Hunt again sends ONE hr_hunt_enter with the same ground, set, limits and
 //       bag; a call missing its ground sends nothing
@@ -239,6 +241,31 @@ async function runTests(M) {
     /* the residue is the player's own file: a forged tier names nothing */
     eq([MD.groundTitle(MD.sanitizeSummaries([entry(1, { hunt: 'wickstead', tier: 'constructor' })])[0]), MD.sanitizeSummaries([entry(1, { tier: 'Deadly!' })])[0].tier],
       ['Wickstead', null], 'a forged tier');
+  });
+
+  /* S8 (the designer's coherence pass 2026-11-15, walk rows 5 and 7): an hour of Defense at the yard read "You left the hunt. Monsters 0,
+     Level XP 0, Gold 0 gp" and left out the Defense 18 to 20 and the 176 g; its 12-hour end read "The hunt reached its time limit." */
+  await t('S8 a training session\'s card is the skill it gave and the fee it cost, from the server, in the yard\'s own words', () => {
+    const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
+    const sess = (over) => Object.assign({ id: 'sess-y', hunt: 'training_yard_defense', preset: 0, entered_at: '2026-11-15T10:00:00Z', ended_at: '2026-11-15T11:00:00Z',
+      end_reason: 'left', phase: 'ended', bag: [], tally: { kills: 0, xp: { level: 0, defense: 30000 }, coins: 0 } }, over || {});
+    /* the `training` section's last stop for this session (2027-04-23-training-gear.sql hr_training_section) */
+    const stop = { reason: 'left', skill: 'defense', at: null, session: 'sess-y', xp: 30000, paid: 176, level: 20, from: 18 };
+    const card = (session, st) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [], null, st)])[0];
+    const c = card(sess(), stop);
+    eq(c.train, { skill: 'defense', xp: 30000, fee: 176, from: 18, to: 20 }, 'the skill, its XP, the fee and the levels, each the server\'s');
+    eq([c.kills, c.xp, c.gold, c.balance, c.loot, c.supplies], [null, null, null, null, [], []], 'no row of hunting zeros');
+    eq(MD.huntAgainOf(c), null, 'never an hr_hunt_enter: training has its own Start');
+    /* the `training` section can land after the `hunt` one: the card keeps the tally's XP, then the stop fills the rest */
+    const early = card(sess(), null);
+    eq(early.train, { skill: 'defense', xp: 30000, fee: null, from: null, to: null }, 'before the stop: the session tally\'s XP');
+    eq(MD.withTrainingStop(early, stop).train, c.train, 'the stop fills the fee and levels');
+    eq([MD.withTrainingStop(early, { ...stop, session: 'sess-other' }), MD.withTrainingStop(c, stop)], [null, null], 'another session\'s stop, or a card already full: nothing');
+    /* why it ended: the Training window's words, never a hunt's */
+    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'You stopped Wren\'s Defense training.', 'stopped');
+    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Wren finished Defense training. That was the longest one session can run.', 'the 12-hour end');
+    eq(MD.endWords('hours', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.hours, 'a hunt keeps its own words');
+    eq(card(sess({ hunt: 'wickstead' }), stop).train, null, 'a hunt is no training card');
   });
 
   const FIX = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -481,10 +508,14 @@ const MUTANTS = [
   { test: 'S7', file: MODEL, from: "    tier: typeof s.tier === 'string' ? s.tier : null,\n", to: '' },
   { test: 'S7', file: SUMMARIES, from: "    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,\n", to: '' },
   { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
+  { test: 'S8', file: MODEL, from: "  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill }, hero);\n", to: '' },
+  { test: 'S8', file: MODEL, from: "fee: mine ? mine.paid : null,", to: "fee: null," },
+  { test: 'S8', file: MODEL, from: "  if (train) {\n    const dur", to: "  if (false) {\n    const dur" },
+  { test: 'S8', file: SUMMARIES, from: "    train: trainOf(v.train),\n", to: '' },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },
   { test: 'A5', file: RECORDER, from: 'a.started = a.sid !== null || a.done.size > 0;', to: 'a.started = false;' },
-  { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return;\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
+  { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return fillTraining(cs, stop);\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
   { test: 'A2', file: RECORDER, from: "const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };", to: "const ex = { deaths: [] };" },
   /* Back in town (T1..T4) */
   { test: 'T1', file: TOWN, from: "rules.loot[r.id] === rule && !rules.locked.has(r.id) &&", to: "rules.loot[r.id] === rule &&" },

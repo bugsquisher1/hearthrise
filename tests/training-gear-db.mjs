@@ -203,6 +203,13 @@ async function doorArm(bootFn, door, withItem) {
   } else if (g || autos.length) bad.push(`${tag} a hero with no item banked ${JSON.stringify(g)} or opened ${autos.length}`);
   const st = (await q(db, 'select stamina_ms, stamina_at from public.player_state where user_id = $1 and slot = 0', [uid]))[0];
   if (Number(st.stamina_ms) !== 0 || new Date(st.stamina_at).getTime() !== A - HOUR) bad.push(`${tag} the stamina row was written: ${JSON.stringify(st)}`);
+  /* THE LAST STOP (lane/a-training-words: the end card's figures, hr_training_section): once the session ends, the section names it and
+     says what it came to, the XP its tally holds, the fee its rows took, the skill's level before and after */
+  await db.query(`update public.hunt_sessions set ended_at = ${ts(A + 4 * 60000)}, end_reason = 'left' where id = $1`, [sid]);
+  const stop = ((await one(db, 'select public.hr_state_of($1::uuid, 0)', [uid])) || {}).training?.last_stop;
+  if (!stop || stop.session !== sid || stop.reason !== 'left' || stop.xp !== want || stop.paid !== fee || !(stop.level >= stop.from && stop.from >= 1)) {
+    bad.push(`${tag} the last stop reads ${JSON.stringify(stop)} (want session ${sid}, xp ${want}, paid ${fee})`);
+  }
   return { bad, end: { xp: xp1 - xp0, books: g, autos: autos.length } };
 }
 

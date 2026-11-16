@@ -20,6 +20,10 @@
 // longer hunt; a bag that ran dry by packing more; a purse that ran dry by keeping gold or packing your own, and when the bag
 // held food or drink of a kind the bar eats that no slot named, by putting THAT on the bar (the store sold what the bag had).
 // A BOSS ROOM (a call or a hall: boss-halls.js roomOfHunt) is one fight, not a night: no next line, only what the hero did.
+// STAMINA (the designer's coherence pass 2026-11-15, walk row 6): the hours it takes to come back are the first day's dead moment, so
+// its line names everything that uses none: the yard (from its Level, src/data/training.js), a bench, gathering, and gathering's resume.
+// A TRAINING SESSION (src/data/training.js) uses no stamina and has its own cap (walk row 7: its 12-hour end read "Set a longer hunt
+// next time, up to the stamina you have."): that end says to start it again; any other says nothing more.
 //
 // Display only: nothing here is spendable or gates an intent (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
@@ -32,6 +36,7 @@ import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.132';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.132';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.132';
 import { itemName } from './widgets/bits.js?v=0.2.132';
+import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.132';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;
@@ -42,7 +47,10 @@ const MOVED_AFTER_MS = 10 * 60 * 1000;
 
 /* The one next thing per end reason; every other automatic end (stamina, a death, a stop rule, a party end ...) is
    filled by a gathering job, which the server resumes after each of them. */
-const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_food', ammo_out: 'away.next_ammo', runes_out: 'away.next_runes', gold_out: 'away.next_gold' });
+const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_food', ammo_out: 'away.next_ammo', runes_out: 'away.next_runes', gold_out: 'away.next_gold',
+  stamina: 'away.next_stamina' });
+/* A training session's: its cap reached, start it again; the purse's end and every other say it all already. */
+const TRAIN_NEXT = Object.freeze({ hours: 'away.next_train_again' });
 const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
 
 /** "1 h 58 min", "25 min". */
@@ -88,6 +96,7 @@ export function afterHuntOf(st, h, nowMs, spare) {
   if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;
   const idleMs = Math.max(0, nowMs - home);
   if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };
+  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };
   if (h.endReason === 'gold_out' && typeof spare === 'string') return { kind: 'waited', idleMs, next: 'away.next_bar', item: spare };
   return { kind: 'waited', idleMs, next: NEXT[h.endReason] || 'away.next_gather' };
 }
@@ -97,7 +106,9 @@ export function afterHuntWords(st, h, nowMs, name, spare) {
   const a = afterHuntOf(st, h, nowMs, spare);
   if (!a) return '';
   if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
-  const next = a.next === null ? '' : t(a.next, a.next === 'away.next_bar' ? { name, item: itemName(a.item) } : undefined);
+  const next = a.next === null ? ''
+    : t(a.next, a.next === 'away.next_bar' ? { name, item: itemName(a.item) }
+      : a.next === 'away.next_stamina' ? { name, level: TRAINING_RULES.minLevel } : undefined);
   const waited = a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) : '';
   return waited && next ? waited + ' ' + next : waited || next;
 }

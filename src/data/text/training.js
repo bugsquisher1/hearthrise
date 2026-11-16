@@ -98,4 +98,18 @@ export const TRAINING_TEXT = Object.freeze({
   time_minutes: { one: '{count} minute', other: '{count} minutes' },
   time_both: '{hours} {minutes}',
   time_under_minute: 'less than a minute',
+
+  /* A SESSION'S END CARD (src/shell/windows/hunt-summary.js; the designer's coherence pass 2026-11-15): what it gave and cost, each
+     figure the server's last stop for it. {skill} the skill's name. */
+  card_xp: '{skill} XP',
+  card_level: '{skill} level',
+  card_level_up: '{from} to {to}',
+  card_fee: 'Paid at the yard',
+  card_again: 'Train again',
+  card_again_title: 'Opens the Training window.',
+
+  /* THE WORLD WHILE A HERO TRAINS (src/world/world-boot.js): where it is, and the window that runs it. */
+  world_line: '{name} is training {skill} at the Training Yard.',
+  world_line_house: '{name} is training {skill} on your dummy at home.',
+  world_open: 'Open Training',
 });

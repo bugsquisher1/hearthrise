@@ -19,7 +19,8 @@
 // (opts.emit); no tap sends an intent (steer-local.js). WASD / arrows walk 8 ways unless a
 // text field has focus. opts.town (src/session/town-presence.js) gives the walkers and is the
 // one record of where this body stands in town (placeOn: a switch is not a move).
-// A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
+// A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt; a training session's says
+// where the hero trains and opens the Training window (idle-banner.js).
 // THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
 // THE GREAT HEARTH (hearth-burn.js): a town frame's fuel throws, flame colour and "+N Inner Flame", from server answers.
 // THE ART BY SCENE (atlas.js, scene-sets.js): every manifest on the first open, but a sheet only when a
@@ -29,7 +30,6 @@
 import { BUILD } from '../build-info.js?v=0.2.132';
 import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.132';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.132';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
 import { MONSTERS } from '../data/monsters.js?v=0.2.132';
 import { compileMap } from './core/map-compile.js?v=0.2.132';
 import { createBook } from './core/book.js?v=0.2.132';
@@ -43,6 +43,7 @@ import { createViewSheets } from './view-sheets.js?v=0.2.132';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.132';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.132';
 import { huntOfMap } from './hunt-maps.js?v=0.2.132';
+import { OPEN_HUNT, unmappedBanner } from './idle-banner.js?v=0.2.132';
 import { createHuntScene } from './hunt-scene.js?v=0.2.132';
 import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.132';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.132';
@@ -85,29 +86,10 @@ function bareSnapshot(G) {
     heroMaxHp: n(G.playerMaxHp), kills: n(G.combatKillsThisFoe), tickMs: 0, down: null };
 }
 
-/** The hunt the World can show today — the first hunt map's — named from the data. */
-const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));
 const standKeyOf = (town) => {
   const me = town && typeof town.me === 'function' ? town.me() : null;
   return me ? me.station + ':' + me.stand + ':' + me.since : null;
 };
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
-
-/**
- * A FIGHT THE WORLD HAS NO MAP FOR (Ridge Camp, say): the town or home stays on screen as the viewer picked, and one
- * slim line over it names where the hero really is and offers the hunt that IS in the World. Null when the scene speaks
- * for itself. Its button only names that hunt's entrance (the pane opens Hunts on it).
- * @param {object} G  read only
- * @param {{kind: string}} sc  the scene showing
- * @param {(id: string) => string} monsterName
- */
-function unmappedBanner(G, sc, monsterName) {
-  if (!G.activeMonster || sc.kind === 'hunt' || !OPEN_HUNT) return null;
-  const hunt = G._huntId && HUNT_INDEX[G._huntId];
-  const where = hunt ? hunt.name : 'Your fight with the ' + monsterName(G.activeMonster);
-  return '<p class="world-idle-line"><b>' + esc(where) + '</b> isn’t in the World yet. The ' + esc(OPEN_HUNT.name) + ' is.</p>'
-    + '<button type="button" class="world-idle-go" data-world-go="hunt">' + esc('Hunt in the ' + OPEN_HUNT.name) + '</button>';
-}
 
 /** The account's `home` section (session/home-sections.js), re-parsed only when an envelope replaces it. */
 function createHomeReader(character) {
@@ -524,7 +506,9 @@ export async function bootWorld(panel, opts) {
     }
   }
   function onGo(e) {
-    if (e.target && e.target.closest && e.target.closest('[data-world-go]') && OPEN_HUNT) emit('entrance', { hunt: OPEN_HUNT.id });
+    const go = e.target && e.target.closest ? e.target.closest('[data-world-go]') : null;
+    if (go && go.getAttribute('data-world-go') === 'training') emit('keeper', { window: 'training' });
+    else if (go && OPEN_HUNT) emit('entrance', { hunt: OPEN_HUNT.id });
   }
   function onChoice(e) {
     const b = e.target && e.target.closest && e.target.closest('[data-world-choice]');

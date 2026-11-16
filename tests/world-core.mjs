@@ -29,7 +29,8 @@
 //   W  the Wang vertex grid melts lone tiles and keeps plains whole; a fill
 //      floor is laid in its cycle order
 //   G  scene routing; missing art compiles and draws as a stub; the canvas
-//      draws the layers in the plan's order, and every canvas text size floors at 12 CSS px
+//      draws the layers in the plan's order, and every canvas text size floors at 12 CSS px; a training
+//      session's World line says where the hero trains, never "isn't in the World yet" (idle-banner.js)
 //   N  NAME PLATES (src/world/core/plates.js; Tyler 2026-11-08: "Fingerguns / The Rat catcher (centered of
 //      course)"): a titled hero's plate is two centred lines, the title under the name, the block's foot
 //      where a one-line plate's is; an untitled plate is one line; a crowd of plates on one spot never
@@ -57,7 +58,7 @@ const argv = process.argv.slice(2);
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -65,13 +66,13 @@ async function load(base) {
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
-    'src/world/core/plates.js',
+    'src/world/core/plates.js', 'src/world/idle-banner.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -588,6 +589,17 @@ async function check(M) {
       'a mill_cellar hunt or a rat training fight must show the cellar');
     ok('G1', S({ kind: 'combat', id: 'goblin' }, 'home').map === 'home_cottage' && S(null, 'town').map === 'town_common' && S({ kind: 'gather', id: 'rat' }, 'home').kind === 'home' && S(null, 'garbage').map === 'town_common',
       'anything else shows the viewer\'s choice of town or home');
+    /* G6 (audit F25; the designer's coherence pass 2026-11-15, walk row 5): a training session showed "Training Yard isn't in the World
+       yet. The Mill Cellar is." with the yard standing in the town. Its line says where the hero trains and opens Training; a hunt with
+       no map keeps its own line. */
+    const town = { kind: 'town' }, mon = (id) => id;
+    const yard = M.bannerM.unmappedBanner({ activeMonster: 'yard_dummy', _huntId: 'training_yard_defense', playerName: 'Wren' }, town, mon) || '';
+    ok('G6', /Wren is training Defense at the Training Yard\./.test(yard) && /data-world-go="training"/.test(yard) && !/World yet|Mill Cellar/.test(yard),
+      'a yard session must say where the hero trains and open Training: ' + yard);
+    const home = M.bannerM.unmappedBanner({ activeMonster: 'yard_dummy', _huntId: 'training_house_magic', playerName: 'Wren' }, town, mon) || '';
+    ok('G6', /Wren is training Magic on your dummy at home\./.test(home), 'a house dummy session must say it trains at home: ' + home);
+    const ridge = M.bannerM.unmappedBanner({ activeMonster: 'wolf', _huntId: 'meadowbrook_thicket' }, town, mon) || '';
+    ok('G6', /isn’t in the World yet/.test(ridge) && /data-world-go="hunt"/.test(ridge), 'a hunt with no map keeps its line: ' + ridge);
     /* G5 (Krell's Hall showed the town, 2026-11-14): every hunt, called room and keyed hall routes to the map its fight is
        fought on (its ground row's `map`). An open one through WORLD_MAPS, the client's own table; a staged one through
        WORLD_MAPS + STAGED_MAPS, so a pack's map lists all its rooms before the pack ships. */
@@ -721,7 +733,7 @@ async function check(M) {
 }
 
 /* src/data and src/core whole: the scene sheets (src/world/scene-sets.js) read the grounds, effects and rooms, and those their own imports */
-const COPY = ['src/world', 'src/data', 'src/core', 'src/build-info.js', 'assets/world'];
+const COPY = ['src/world', 'src/data', 'src/core', 'src/build-info.js', 'src/render/player-text.js', 'assets/world'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-core-'));
   for (const p of COPY) {
@@ -790,6 +802,7 @@ const MUTANTS = [
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
+  ['G6', 'a training session reads as a fight the World is missing (audit F25)', 'src/world/idle-banner.js', [['  if (train) {', '  if (false) {']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G5', 'a keyed hall left off its map (Krell\'s Hall showed the town)', 'src/data/grounds/krells_hold/map.js', [["hunts: Object.freeze(['krells_hold', 'krells_hold_hall'])", "hunts: Object.freeze(['krells_hold'])"]]],
   ['G5', 'a called room left off its map', 'src/data/world/maps/coppercap_warrens.js', [["hunts: Object.freeze(['coppercap_warrens', 'coppercap_warrens_called'])", "hunts: Object.freeze(['coppercap_warrens'])"]]],

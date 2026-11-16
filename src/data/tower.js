@@ -54,10 +54,10 @@ export function validateTower(rules, partyXp, swingMs) {
   if (!rules || typeof rules !== 'object') return ['the rules are no row'];
   if (typeof rules.hunt !== 'string' || !/^[a-z0-9_]{1,64}$/.test(rules.hunt)) out.push('hunt is not an id');
   for (const k of ['roomSize', 'landingEvery', 'floorLimitMs', 'landingLimitMs', 'stairMs', 'weekBack', 'floorTop']) pos(k);
-  if (Number.isInteger(rules.roomSize) && (rules.roomSize < 2 || rules.roomSize > 8)) out.push('roomSize is not 2..8 (a landing is a Keeper and at least one more; a full box is 8)');
+  if (Number.isInteger(rules.roomSize) && (rules.roomSize < 2 || rules.roomSize > 8)) out.push('roomSize is not 2..8 (a landing is a Keeper and at least one more, and a full box is 8)');
   if (Number.isInteger(rules.weekBack) && Number.isInteger(rules.landingEvery) && rules.weekBack % rules.landingEvery) out.push('weekBack is not a whole number of landings');
   if (Number.isInteger(rules.floorTop) && Number.isInteger(rules.landingEvery) && rules.floorTop % rules.landingEvery) out.push('floorTop is not a landing');
-  if (Number.isInteger(rules.stairMs) && Number.isInteger(swingMs) && rules.stairMs < 2 * swingMs) out.push('stairMs is under two engine swings: a floor\'s rows could change inside the swing it was cleared in');
+  if (Number.isInteger(rules.stairMs) && Number.isInteger(swingMs) && rules.stairMs < 2 * swingMs) out.push('stairMs is under two engine swings, so a floor\'s rows could change inside the swing it was cleared in');
   if (Number.isInteger(rules.floorLimitMs) && Number.isInteger(rules.landingLimitMs) && rules.landingLimitMs < rules.floorLimitMs) out.push('a landing gets less time than a floor');
   if (!['solo', 'both', 'party'].includes(rules.fit)) out.push('fit is not solo, both or party');
   const sizes = Object.keys(partyXp || {}).map(Number).sort((a, b) => a - b);

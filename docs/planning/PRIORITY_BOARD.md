@@ -29,6 +29,59 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-15 The Mage at 110 and up (designer, lane/d-mage-110; fix lane F and Morrow condition 3 of the coherence pass below): RULED, ONE DATA ROW CHANGED, a grader bug FIXED, MEASURED on the real settle. The edge moves (items are engine data). No migration (`tools/gen-catalogues.mjs --check` stays in sync: item combat stats aren't in `hr_items`)
+**The ruling.** The Mage isn't held back by how many monsters spawn. Each cloth piece now adds **1 Magic damage plus a tenth of its plate twin's defence** (`src/data/gear-tiers.js`, the cloth line's `magicStrB`, was 0.4 of that defence). A full cloth set adds 7 / 9 / 14 / 16 / 22 / 27 / 33 by tier, down from 7 / 15 / 27 / 41 / 61 / 84 / 113. Tier 1 doesn't change. Cloth still carries damage (Tyler 2026-08-15: "cloth should give the character dps regardless of the weapon type"). It's the size that was wrong, not the stat.
+
+**What limits a Mage (Carter's Rest, Level 110, alone on Normal, 2 h, cloth as it was).** Each lever was moved on its own:
+| Lever | Change | Kills an hour | Read |
+|---|---|---|---|
+| None | | 461 | Fighting 60% of the hour. The other 40% is walking between pockets (6 s gaps). Fights take 8 s against a hammer's 16 s |
+| Spawn density | respawn 60 s to 1 s | 424 vs 419 (same dice) | **Not spawn-bound.** Nothing waits on a respawn |
+| Mana and cooldowns | | | 0 drinks an hour from Level 55 up. Fireball fires 170-230 times an hour of a possible 450 |
+| Area spells | | | Fireball is 5% of the Mage's damage and Frost Lance 9%. **The basic wand blow is 85%** (the Healer's staff: 96%) |
+| Magic +40 / -30 | 150 / 80 | 460 / 394 (+10% / -6%) | A hammer's +40 Melee: +27%. Magic adds the same 0.35 max hit a level that Melee does (`combat.js playerCombatRolls`). It just counts for less, because gear was two thirds of the Mage's hit |
+| Cloth's damage | 0.4 / 0.2 / 0.15 / 0.1 / 0 of plate def | 461 / 404 / 387 / 363 / 323 | **The lever.** The hammer kills 272 |
+
+**Why it opens at Level 40 and not before.** A full set's damage was 0.4 of plate's defence, and plate's defence climbs about 16 times from tier 1 to tier 7, faster than any weapon (wand 11 times, hammer 10 times). At tier 7 cloth added 113 to the wand and codex's 64, so the Mage's blow was 1.9 times a warhammer's at tier 7's Level (88), and 1.5 times at tier 3's. Under Level 30 fights are short, so a lone hero's hour is mostly walking and that lead didn't show (Mage 0.95-1.04 times the hammer). From the Slake on, fights are long enough that damage sets the pace.
+
+**Measured before and after (real settle, `tools/balance-sim` cells, 3 seeds x 2 h alone, 2 x 2 h a party, Normal, the Level's ladder gear).** XP is per head over the pace contract (`grade.mjs loadPace`). Gold is coin plus loot sold, per head per hour.
+| Ground, Level | Lone Mage XP/h | Mage gold/h | Mage over the hammer | Lone Healer XP/h | Lone median (no caster) | Four T+H+B+M over the lone median |
+|---|---|---|---|---|---|---|
+| Glade 20 | 1.04 to 0.97 | 10k to 10k | 1.04 to 0.96 | 0.91 to 0.81 | 0.90 | |
+| Slake 55 | 1.43 to 1.25 | 23k to 20k | 1.33 to 1.16 | 1.26 to 1.07 | 0.98 | |
+| Pyre Field 80 | 1.78 to 1.48 | 47k to 40k | 1.45 to 1.20 | 1.57 to 1.26 | 1.05 | 1.19 to 1.16 |
+| Krell's Hold 100 | 1.77 to 1.49 | 45k to 38k | 1.43 to 1.20 | 1.60 to 1.24 | 1.09 | 1.18 to 1.17 |
+| Krell's Hold 110 | 1.50 to 1.28 | 46k to 38k | 1.40 to 1.20 | 1.37 to 1.07 | 0.96 | 1.15 to 1.14 |
+| Carter's Rest 110 | 1.82 to 1.46 | 44k to 36k | 1.67 to 1.34 | 1.63 to 1.24 | 1.02 | 1.27 to 1.21 |
+| Carter's Rest 118 | 1.69 to 1.37 | 45k to 37k | 1.61 to 1.31 | 1.50 to 1.14 | 0.96 | 1.24 to 1.18 |
+| Ox Road 112 | 1.59 to 1.30 | 41k to 33k | 1.40 to 1.15 | 1.42 to 1.09 | 0.97 | 1.31 to 1.24 |
+| Ox Road 120 | 1.47 to 1.22 | 41k to 34k | 1.40 to 1.16 | 1.33 to 1.04 | 0.91 | 1.29 to 1.22 |
+| Wyvern Roost 125 | 1.53 to 1.29 | 40k to 34k | 1.54 to 1.30 | 1.38 to 1.11 | 0.99 | 1.18 to 1.12 |
+| Wyvern Roost 134 | 1.42 to 1.19 | 41k to 35k | 1.49 to 1.25 | 1.29 to 1.04 | 0.95 | 1.16 to 1.11 |
+| Pauper Vaults 165 | 1.44 to 1.19 | 44k to 36k | 1.49 to 1.23 | 1.31 to 1.02 | 0.91 | 1.25 to 1.18 |
+| Pauper Vaults 175 | 1.36 to 1.14 | 45k to 38k | 1.44 to 1.20 | 1.23 to 0.98 | 0.87 | 1.24 to 1.17 |
+| Pauper Vaults 185 | 1.29 to 1.09 | 45k to 39k | 1.41 to 1.19 | 1.18 to 0.94 | 0.84 | 1.20 to 1.14 |
+The Thicket (8), Wickstead (12) and every lone non-caster are the same to the unit. No Normal cell above died, before or after, and the lone Mage's typical lowest HP stays at 90-100%.
+- **+Magic now counts** (the coherence pass's C7, Level 90 at the Hold, skill +4 / +8): Mage +0.2% / +0.5% before, **+2.0% / +2.6%** after (hammer +2.1% / +3.3%, bow +0.9% / +3.0%). At Carter's Rest 110: +0.5% / +2.0% before, +2.1% / +2.9% after. The C7 hold on more +Magic pieces can lift.
+- **Parties.** The well-built four now sits at 1.11-1.24 times the lone median, where it was 1.15-1.31, so it's back inside the ruled 1.15-1.25 at the floors. The two-Mage four reads 1.08-1.27, down from 1.10-1.34. A tank and Healer pair drops to 0.95-1.09 of the lone median from 1.05-1.21 (the duo line is 1.05-1.15, an advisory line), because most of the Healer's damage was cloth's. Gold a head: a four 0 to -7%, the pair -8 to -16%.
+- **Dangerous** (pull 5, 2 x 2 h, the floors): the lone Mage still holds where a lone melee doesn't (Mage 0 to 11 deaths, hammer 84 to 238). The four holds with 0 deaths everywhere, and its XP drops 7 to 12%.
+- **The early Healer.** Tier 1 doesn't change, so the Thicket and Wickstead floors read the same (0.86 and 0.80 of the pace alone). The Glade floor (16) drops from 0.87 to 0.77. The binding bar is 0.5.
+- **Any lower would barely move it.** 0.05 a point (plus 1) takes the Carter's Rest Mage from 1.46 to 1.42 and costs the Glade Healer another 3 points. What's left of the lead isn't cloth's (next point).
+
+**What's left, and it isn't a formula bug: the Mage is still the best lone way, 1.15 to 1.34 times the hammer.** With no cloth damage at all it would still read 1.07 to 1.17 times the hammer. The wand and its codex hit as hard as a two-handed warhammer (64 against 68 at tier 7), from range, at the 95% accuracy cap. The weapon ladder means it ("with its tier's spellbook it out-damages the staff by about a third (the Mage deals damage, the Healer heals)", `gear-tiers.js`). The bow is the other ranged way, and it's at the median because its 36 damage pays for an accuracy bonus that caps out. Carter's Rest reads highest (1.34 times) because its trolls' defence makes a hammer miss 18-39% of its swings, while a Mage never drops under 95%.
+
+**Also found and fixed here: the grader graded every staged ground without Lord Krell's drops** (`tools/balance-sim/gear.mjs` reachWith left out `OPEN_HALL_GROUNDS`). At Carter's Rest a Level 110 hammer wore the Ember Warhammer and Ember plate, and a bow the Runewood Bow, while the Mage kept its Duskwood wand. With Krell's drops back in, the Carter's Rest hammer reads 1.09 of the contract where it read 0.97, and the bow 1.02 where it read 0.94. Every Morrow and Vaults number on this board from before today was graded one weapon tier short for Melee and the bow.
+
+**Regression coverage.** `tests/style-gear.mjs` SG-8: from tier 2 up, a Mage in its tier's wand, spellbook and full cloth at that tier's Level hits at most 1.3 times a warhammer at the same Level (`playerCombatRolls`, Magic and Melee at the Level). Today it reads 1.19-1.28. The old row reads 1.38 at tier 2, 1.50 at tier 3 and 1.90 at tier 7. Two mutants (the Duskwood Robe Top and the Scholar set back at 0.4) are both caught (17 of 17). Green: `style-gear` and `--mutate`, `catalogue-coherence`, `party-class-xp-line` (375 cells), `level-curve`, `balance-sheet`, `gen-catalogues --check`.
+
+**Exploit and economy review.** It only takes something away: less damage, so fewer kills and less coin an hour for a Mage or a Healer. Nothing new is bought, crafted or sold, and no price moves. Gold created an hour falls 15-20% for a lone caster, 0-7% a head in a four and 8-16% in a tank and Healer pair.
+
+**For the Coordinator and Tyler.**
+1. **Morrow condition 3 is met on the formula.** The Mage is no longer "way out" because of a bug. Whether the best lone way may lead the hammer by 15-35% is Tyler's call, and the lever is the wand and codex rows, not cloth. My read is to keep it: the Mage is the class that deals damage, it has no shield and no Challenge, and every four still pays more a head.
+2. **Ruling 2's other half is still open (Systems).** Cloth's damage counts only for Magic. Now that it's a third of the size, making it count for every weapon (the 08-15 direction) won't create a cloth hammer that hits twice as hard: about +20 max hit at tier 7, and cloth's `atkB` penalty then has to go.
+3. **A lone melee can't hold Dangerous on a Morrow ground** (above, 84 to 238 deaths in 4 h), while the lone Mage and bow can. Plate's "buys survival" doesn't work when standing next to the pack is what kills you. That's for the Morrow pass, not this lane.
+4. **Re-grade the Morrow and Vaults packs** (`tools/pack.mjs check <g> --mode full`) on this branch: the grader fix moves Melee and the bow, and the cloth row moves the Mage and the Healer.
+
 ### 2026-11-15 Coherence pass: v0.2.133 and today's lanes, ranked by first-20-hours value (designer, lane/d-coherence-133. CLAUDE.md §3.5; Tyler 2026-11-14 kept "one designer coherence pass across Tower / training gear / factions / Morrow"): PLAYED on the local world (a new hero to Level 23 on set/v0.2.133, tower mode merged), MEASURED on the real settle, design only, nothing built
 **The call.** The batch hangs together. Every new system passes the purpose test, and none of them needs to be cut. What's wrong is in the seams. Two call-only drops break the special-attribute catalogue, there are three stats that all mean "less damage from every hit", the Tower's chest pays salts for a tier its key's heroes have already outgrown, and a Platinum Tower weapon becomes worthless the day the Ox Road opens. Ranked by what a new player meets in the first 20 hours, the after-hunt itinerary and the training yard are the whole of it. Factions, Krell, the Morrow Hills and most of the Tower are endgame.
 

@@ -228,7 +228,7 @@ const ARMOUR_LINES = [
        up"): each piece adds 1 Magic damage plus a tenth of its plate twin's defence. It was 0.4 of that defence, which climbs
        faster than any weapon: a tier-7 set added 113 to the Duskwood wand and codex's 64, so the Mage's basic blow hit 1.8 times
        a warhammer's from Level 50 up and a lone Mage earned 1.4-1.8 times the pace on every ground from the Slake to the Pauper
-       Vaults. Now a set adds 7 / 9 / 14 / 16 / 22 / 27 / 33 by tier (tier 1 unchanged), the Mage's blow is about 1.25 times the
+       Vaults. Now a set adds 7 / 9 / 14 / 16 / 22 / 27 / 33 by tier (tier 1 unchanged), the Mage's blow is 1.19-1.28 times the
        warhammer's at each tier's Level (tests/style-gear.mjs SG-8), and a level of Magic is worth what a level of Melee is.
        Cloth still carries damage (ruling 2 above); making it count for every weapon is still the open engine piece. */
     fields: (def, i) => ({ magicAtkB: Math.round(def * 0.6), magicStrB: Math.round(def * 0.1) + 1, atkB: -Math.round(def * 0.25), rangeAtkB: -Math.round(def * 0.2) }) },

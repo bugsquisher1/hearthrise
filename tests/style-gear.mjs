@@ -21,8 +21,8 @@
 //         then its blow and a real Thicket hunt on the settle
 //   SG-8  cloth's damage is a premium, not the hit (designer 2026-11-15, lane/d-mage-110): from tier 2 up, a Mage in its tier's wand,
 //         spellbook and six cloth pieces at that tier's Level (Magic at the Level) hits at most 1.3 times a warhammer at the same Level
-//         (Melee at the Level), the engine's own max hit (playerCombatRolls). At 0.4 of the plate twin's defence it was 1.4 at tier 3 and
-//         1.9 at tier 7, and a lone Mage earned 1.4-1.8 times the pace from the Slake to the Pauper Vaults (the board's section)
+//         (Melee at the Level), the engine's own max hit (playerCombatRolls). At 0.4 of the plate twin's defence it was 1.5 at tier 3 and
+//         1.9 at tier 7 (today 1.19-1.28), and a lone Mage earned 1.4-1.8 times the pace from the Slake to the Pauper Vaults (the board's section)
 //
 //   node tests/style-gear.mjs            the shipped data
 //   node tests/style-gear.mjs --mutate   each arm driven red by a planted defect on the live objects
@@ -209,7 +209,7 @@ function mutate() {
   run('a made rung whose output type no Work-window tab claims', 'SG-6', () => setField('oak_wand', 'type', 'trinket'));
   /* the old cloth row on one piece: the Duskwood Robe Top at 0.4 of the Dawn Platebody's 90 (36, not 10) */
   run('the Duskwood Robe Top back at 0.4 of its plate twin\'s defence', 'SG-8', () => setField('duskweave_body', 'magicStrB', 36));
-  run('the Scholar set back at 0.4 (the Mage 1.4 times the Willow Warhammer at Level 30)', 'SG-8', () => {
+  run('the Scholar set back at 0.4 (the Mage 1.5 times the Willow Warhammer at Level 30)', 'SG-8', () => {
     const undo = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'].map((sl, i) => setField('scholar_' + sl, 'magicStrB', [4, 9, 6, 3, 2, 3][i]));
     return () => undo.reverse().forEach((u) => u());
   });

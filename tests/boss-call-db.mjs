@@ -893,9 +893,17 @@ ARMS.again = async (boot) => {
 };
 /* ...and the series' three files, on the chain as of ITS last file. */
 const SERIES_FILES = ['2027-04-23-boss-call-drops-items-catalogue.generated.sql', '2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql', '2027-04-24-boss-call-series.sql'];
+/* An OLDER file that restates the settle whole. Applied over the series it would erase the five CALL-SERIES splices; its own pin must refuse. */
+const OLDER_SETTLE = '2027-04-22-faction-standing.sql';
 ARMS.again2 = async (boot) => {
   const { db } = await boot({ upTo: SERIES_FILES[2] });
-  return againOn(db, SERIES_FILES);
+  const bad = await againOn(db, SERIES_FILES);
+  const read = reader(db), before = await read();
+  let raised = null;
+  try { await db.exec(readFileSync(join(ROOT, 'supabase/migrations', OLDER_SETTLE), 'utf8')); } catch (e) { raised = String(e.message).split('\n')[0]; }
+  if (!raised || !/PIN: hr_hunt_settle_session/.test(raised)) bad.push('BD-AGAIN ' + OLDER_SETTLE + ' applied over the series ' + (raised ? 'raised ' + raised.slice(0, 160) : 'was taken: the splices are gone'));
+  if ((await read()) !== before) bad.push('BD-AGAIN ' + OLDER_SETTLE + ' applied over the series moved a spliced body');
+  return bad;
 };
 
 /* The limit, as the settle owes it: a window past it with no end is refused, whatever the engine proposed. The limit is the FIGHT's. */

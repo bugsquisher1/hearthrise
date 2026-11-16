@@ -380,7 +380,10 @@ async function plant(db, m) {
 }
 
 async function runArm(name, M, mutant) {
-  const { db } = await bootReplay();
+  /* FS-AGAIN judges the chain as of this lane's own last file (the form of boss-hall-db HD-AGAIN and boss-call-db BD-AGAIN). A later file splices
+     the settle (2027-04-24-boss-call-series.sql), and 2027-04-22-faction-standing.sql's own PIN then refuses a re-apply over it, by design: that
+     refusal is proved where the later file is (boss-call-db BD-AGAIN, the series' arm). Every other arm reads the whole chain. */
+  const { db } = await bootReplay(name === 'FS-AGAIN' ? { upTo: FILES[FILES.length - 1] } : undefined);
   try {
     await H.pinDice(db);
     await db.query('update public.hr_hunt_config set enabled = true where id');

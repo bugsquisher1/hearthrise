@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-16 lane/d-armor-line-v2: the armor line as a budget
+- **The cap is a ceiling the line can't raise.** Dawnsteel plate already absorbs 60% against Carter's Rest and the Ox Road, so the line, tempered Dawnsteel and every heavier piece read the same there, and any element resistance reads over the line (it cuts under the cap's floor). Check where a stat saturates before writing a ceiling on it.
+- **The low point follows the score, not the armor.** At the Roost every trade I tried (more armor for a lighter swing, less armor for more accuracy, fire resistance for armor) landed 59.6-59.9 against the line's 60.1, because the lone sword is accuracy-starved there and pace counts as much as safety. The settle quantizes the low point to 0.2, so "one step short" is a real result, not noise.
+- **A line set and a set of uniques are different questions.** The line on all six slots clears a bar that no set of pieces under the line with their own identities can, by construction. If a bar needs the line itself, the bar or the ceiling has to move, and that is Tyler's call.
+- **A grader ranking by raw armor hides a budget piece.** Hook the grader to the same measure as the guard (gear.mjs rankOf -> armor-power.mjs), or it never wears the piece that wins on its ground.
+- **A selftest can go vacuous when the data improves.** The uniques proof's U4 needed an unhooked attribute worn; the new rows carry none, so the mutant had nothing to flip. Re-aim the proof (Krell's Hold, the Banded Legguards) rather than keep a hookless row around for it.
+
 ## 2026-11-16 lane/d-weapon-line: the weapon line past Dawnsteel, a budget and not a template
 - **Kills an hour is not the low point.** A bane on the soft heads matched the line on kills (223 against 226) and lost 2 points of low point, because the heads that hurt don't take it. Measure a weapon on safety (each head weighted by its threat) as well as pace.
 - **Before blaming the weapon, swap the armor.** The Roost's lone sword stayed under 60 with the line's own sword (59.8) and an 8% stronger line (60.0); the armor line's plate took it to 61.1. A what-if that changes two things at once reads like one.

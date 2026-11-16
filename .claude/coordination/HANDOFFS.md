@@ -1,5 +1,12 @@
 # Handoffs
 
+### 2026-11-16 · GAME DESIGNER (lane/d-armor-line-v2) → TYLER, COORDINATOR, ART DIRECTOR (a client lane), SYSTEMS · the armor line as a budget
+Board "2026-11-16 The armor line past Dawnsteel, as a budget". Hidden rows only (src/data/armor-line.js); nothing served, no migration, the edge does not move.
+1. **Tyler:** approve the eight pieces and the ceiling (the Coordinator's reading: a piece's mean of pace and safety at or under the line's piece on every late ground, neither more than 5% over). And one call: Wyvern Roost's lone sword reads 59.9 against the bar of 60 with the three Roost pieces. Under this ceiling only the line's own armor on all six slots clears it (60.1). Four fire-resistant pieces at the line's armor read 60.5, but every fire piece reads 0.4-0.8% over the line on Carter's Rest and the Ox Road, where plate is at the cap. The choices: allow a resistance over the line on a ground where plate is at the cap, put the bar's last step on the Roost's pack, or accept 59.9 on the bow's ground.
+2. **Client lane (Art Director first):** an item card needs an "on this ground" line. The Watchman's Helm reads 46 armor against Dawnsteel's 44 plus 2 Melee, the Pauper's Shroud 8 less Magic damage, and each one wins only where its trade pays. Without the line a player throws away the right piece. Same ask as the weapon line's (DISCOVERIES 2026-11-16), now for armor too.
+3. **Systems:** mixed weights (DISCOVERIES 2026-11-16): one leather piece in a plate set adds 10% safety at the Vaults under K7's split. Rule whether that is intended.
+4. **Coordinator:** register tests/armor-line.mjs (plain and --mutate, 29 of 29) with weapon-line.mjs when smoke.yml frees. On this branch, `tests/mutant-anchors.mjs` is RED on alpha-windows AW-27's anchor in src/shell/hunt-go.js, which came from origin/lane/d-temper-dawnsteel as merged. This lane doesn't touch either file.
+
 ### 2026-11-16 · GAME DESIGNER (lane/d-weapon-line) → TYLER, COORDINATOR, ART DIRECTOR, the armor line's owner · the weapon line past Dawnsteel
 Board "2026-11-16 The weapon line past Dawnsteel". Hidden rows only (src/data/weapon-line.js); nothing served.
 1. **Tyler:** approve the rule (a power ceiling: the Dawnsteel weapon x Level / 110, read on the engine's rolls on every ground from 110 up; each unique spends it its own way and wins somewhere) and the sample of five.

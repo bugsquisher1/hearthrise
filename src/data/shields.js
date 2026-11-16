@@ -35,7 +35,7 @@
 //   Runebound               worn from 60: the Muster Barrows' Barrow Pikeman, the Pyre Field's Charred Pikeman
 //   Emberforged Tower       worn from 75: the Pyre Field's Provost, Krell's Hold's Grave Guard
 // Tier 7 is Krell's Tollgate (guard 15, Tyler 2026-11-14) and the Muster's Bier Shield is the Runebound with one attribute
-// (both in the special-attribute plan, src/data/special-attributes.js): neither is a row here.
+// (both in the special-attribute plan, the hidden attribute catalogue): neither is a row here.
 // Book value (`v`): a made shield is worth no more than the book of what goes
 // in (the bench is never a gold faucet: tests/style-gear.mjs SG-4's rule), the
 // Shop's at SHOP_PREMIUM x its book. Icons are placeholders until the Asset

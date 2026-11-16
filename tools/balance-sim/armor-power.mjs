@@ -194,20 +194,23 @@ if (isMain(import.meta.url)) {
   const G = P.lateGrounds();
   const f3 = (n) => (n == null ? '-' : n.toFixed(3));
   const S = line.LINE_SAMPLE;
-  console.log('THE SAMPLE AGAINST THE LINE (pace / safety over the line\'s piece of its slot and weight, the line worn elsewhere, each late ground at the piece\'s own Level; the ceiling: score <= 1 and each <= ' + (1 + (line.LINE_TRADE || 0)).toFixed(2) + ')');
+  console.log('THE SAMPLE AGAINST THE LINE (pace / safety over the line\'s piece of its slot and weight at the piece\'s Level, the line worn elsewhere, a hero of the piece\'s Level or the ground\'s floor; the ceiling: their mean <= 1 and each <= ' + (1 + line.LINE_TRADE).toFixed(2) + ')');
   console.log('| Piece | Slot, weight, Level | ' + G.join(' | ') + ' |');
+  console.log('|---|---|' + G.map(() => '---').join('|') + '|');
   for (const s of Object.values(S)) {
     const rows = P.againstLine(s.row, s.row.reqLv, G);
     console.log('| ' + s.row.n + ' | ' + s.row.slot + ', ' + s.row.armourClass + ', ' + s.row.reqLv + ' | ' + rows.map((r) => f3(r.pace) + ' / ' + f3(r.safety)).join(' | ') + ' |');
   }
-  console.log('\nWHO WINS WHERE (each piece\'s Level, worn in fully tempered Dawnsteel: the score over the tempered Dawnsteel piece of its slot, which is 1.000)');
+  console.log('\nWHO WINS WHERE (at the piece\'s Level on the grounds that Level is sent to, worn in fully tempered Dawnsteel: the score over the tempered Dawnsteel piece of its slot, 1.000; - not sent there)');
   console.log('| Piece | ' + G.join(' | ') + ' |');
-  for (const s of Object.values(S)) console.log('| ' + s.row.n + ' | ' + G.map((g) => f3(P.scoreOnDawn(s.row, g, s.row.reqLv))).join(' | ') + ' |');
-  console.log('\nTHE LINE\'S WHOLE SET OVER FULLY TEMPERED DAWNSTEEL (safety; pace is 1 for plate) at its own Level, by weight and ground; the first Level it clears 1 on every late ground');
+  console.log('|---|' + G.map(() => '---').join('|') + '|');
+  for (const s of Object.values(S)) {
+    const H = P.huntedAt(s.row.reqLv, G);
+    console.log('| ' + s.row.n + ' | ' + G.map((g) => (H.includes(g) ? f3(P.scoreOnDawn(s.row, g, s.row.reqLv)) : '-')).join(' | ') + ' |');
+  }
+  console.log('\nTHE LINE\'S WHOLE SET OVER FULLY TEMPERED DAWNSTEEL, safety, a hero of the set\'s Level on each late ground; the first Level it clears 1 on every ground that Level is sent to (LINE_FIRST_LEVEL)');
   for (const w of ['plate', 'leather', 'cloth']) {
     const cells = [110, 115, 120, 125, 130, 145, 165].map((R) => R + ': ' + G.map((g) => f3(P.setVsTemperedDawn(w, R, g).safety)).join('/'));
-    let first = null;
-    for (let R = line.LINE_ANCHOR_LEVEL; R <= 200 && first === null; R++) if (G.every((g) => P.setVsTemperedDawn(w, R, g).safety > 1)) first = R;
-    console.log('  ' + w + ' (first ' + first + '): ' + cells.join('  '));
+    console.log('  ' + w + ' (first ' + P.firstLevel(w, G) + ', data ' + line.LINE_FIRST_LEVEL[w] + '): ' + cells.join('  '));
   }
 }

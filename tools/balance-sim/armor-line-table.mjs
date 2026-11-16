@@ -12,9 +12,11 @@
 //                                                                              each on the ground's guide food and on Salted Shark
 //   node tools/balance-sim/armor-line-table.mjs roost  [--seeds 4] [--hours 2] Wyvern Roost's Deadly on the full box (8, the pack's
 //                                                                              override brings 6): Dawnsteel against the line, two foods
+//   vaults and roost take --only <variant rows> and --food <food row> (0-based) to split one table over processes
 //
-// Every variant keeps the hero's shield and weapon from the gear ladder except the tank's shield, which is Krell's Tollgate
-// (guard 15, src/data/special-attributes.js, the tier-7 rung) in every variant but "today": a Level 165 tank has had the March.
+// Every variant keeps the hero's weapon from the gear ladder. The tank's shield is the ladder's (the Coppercap, guard 7: main's shield
+// ladder stops at tier 3) where the variant says so, else Krell's Tollgate (guard 15, src/data/special-attributes.js, the tier-7 rung):
+// a shield's guard is a flat 2% off every monster's to-hit at any Level, so the two are read apart from the armor.
 // The Limewashed Leg Plates' 3% physical resistance has no engine hook yet (special-attributes.js HOOK 1), so the sample is
 // measured without it: the sample reads at most what it gives.
 // Exit 0 when every cell ran; 1 otherwise.
@@ -75,7 +77,7 @@ async function rowsFor(scales) {
 function wearOf(variant, style, AL) {
   const cls = LINE_OF[style], w = {};
   if (variant.kind === 'ladder') return w;
-  if (style === 'tank') w.shield = 'sample_krells_tollgate';
+  if (style === 'tank' && variant.shield !== 'ladder') w.shield = 'sample_krells_tollgate';
   for (const k of SLOTS) w[k] = variant.kind === 'line' ? 'line_' + variant.m + '_' + cls + '_' + k : AL.LINE_BASE[cls].ids[k];
   if (variant.kind === 'sample') for (const [id, s] of Object.entries(AL.LINE_SAMPLE)) if (s.row.armourClass === cls) w[s.row.slot] = 'sample_' + id;
   return w;
@@ -93,14 +95,18 @@ async function playGround(spec) {
   const SEEDS = Number(arg('seeds', spec.seeds)), HOURS = Number(arg('hours', spec.hours));
   const { rows, AL } = await rowsFor(spec.variants.filter((v) => v.kind === 'line').map((v) => v.m));
   const R = await engine(rows);
+  const T = await import(u('src/data/hunt-tiers.js'));
   head(spec.title + ' ' + SEEDS + ' seeds x ' + HOURS + ' h a cell, the same dice in every variant. Deaths are per 16 hero-hours (the sheet: a Deadly four at most 9); "low" is the typical low point (the sheet: Normal at least 60%).',
     ['Kit', 'Food', ...spec.cells.map((c) => c.label)]);
-  for (const food of spec.foods) for (const v of spec.variants) {
+  /* --only 0,2 plays those variants (by row), --food 1 that food (by row): one table split over processes, the same dice */
+  const only = arg('only', null) ? arg('only', '').split(',').map(Number) : null, foodOnly = arg('food', null) === null ? null : Number(arg('food'));
+  for (const [fi, food] of spec.foods.entries()) for (const [vi, v] of spec.variants.entries()) {
+    if ((only && !only.includes(vi)) || (foodOnly !== null && foodOnly !== fi)) continue;
     const out = [v.label, food.label];
     for (const c of spec.cells) {
       const cell = { id: spec.ground + ':' + c.party.join('+') + ':' + v.label + ':' + food.id, ground: spec.ground, party: c.party, level: spec.level, hours: HOURS, seeds: SEEDS,
         gearBySeat: c.party.map((s) => ({ openAlso: spec.openAlso, also: wearOf(v, s, AL) })), ...(c.tier !== 'normal' ? { options: { tier: c.tier } } : {}),
-        ...(c.pull ? { density: c.pull } : {}), ...(food.id ? { bar: { storeFood: food.id } } : {}) };
+        ...(c.tier !== 'normal' ? { density: c.pull || T.tierRowOf(spec.ground, c.tier).pull[c.party.length - 1] } : {}), ...(food.id ? { bar: { storeFood: food.id } } : {}) };
       const r = read(R.runCell(cell));
       out.push(c.show === 'deaths' ? r.per16 + ' (tank low ' + r.heroes[0].low + '%)' : r.heroes[0].low + '% (' + mitWord(r.heroes[0].mit) + ', food ' + r.heroes[0].food + '/h)');
     }
@@ -110,6 +116,7 @@ async function playGround(spec) {
 
 const VARIANTS_165 = [
   { kind: 'ladder', label: 'Today\'s ladder kit (Emberforged helm and body, Coppercap Shield)' },
+  { kind: 'dawn', shield: 'ladder', label: 'Full Dawnsteel, Coppercap Shield' },
   { kind: 'dawn', label: 'Full Dawnsteel, the Tollgate' },
   { kind: 'line', m: 1.27, label: 'The line one band behind (x1.27, worn from 140)' },
   { kind: 'line', m: 1.5, label: 'The line (x1.5, worn from 165)' },
@@ -128,7 +135,7 @@ async function roost() {
   await playGround({ ground: 'wyvern_roost', level: 125, seeds: 4, hours: 2, openAlso: ['wyvern_roost', 'carters_rest', 'ox_road'],
     title: 'WYVERN ROOST\'S DEADLY ON THE FULL BOX (8; the pack\'s tierOverride brings 6), Level 125.',
     foods: [{ id: null, label: 'the guide\'s (Salted Lobster)' }, { id: 'salted_swordfish', label: 'Salted Swordfish' }],
-    variants: [{ kind: 'dawn', label: 'Full Dawnsteel, the Tollgate' }, { kind: 'line', m: 1.14, label: 'The line (x1.14, worn from 125)' }],
+    variants: [{ kind: 'dawn', shield: 'ladder', label: 'Full Dawnsteel, Coppercap Shield' }, { kind: 'dawn', label: 'Full Dawnsteel, the Tollgate' }, { kind: 'line', m: 1.14, label: 'The line (x1.14, worn from 125)' }],
     cells: [{ label: 'Deadly on 8, a four', party: ['tank', 'healer', 'bow', 'mage'], tier: 'deadly', pull: 8, show: 'deaths' }] });
 }
 

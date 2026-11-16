@@ -57,10 +57,11 @@ export function lineArmor(slot, armourClass, reqLv) {
 /* ── THE LINE BY BAND: the Levels a unique is worn from, from the Morrow Hills ladder and the Vaults (board 2026-11-14 section 5,
    2026-11-15 the Pauper Vaults), and what a full set on the line wears. For the board and the wiki; every number is lineArmor's. ── */
 export const LINE_BANDS = Object.freeze([
-  Object.freeze({ reqLv: 110, where: 'Carter\'s Rest, the Ox Road (Dawnsteel itself)' }),
-  Object.freeze({ reqLv: 125, where: 'Wyvern Roost, the Night Shift' }),
-  Object.freeze({ reqLv: 140, where: 'The Old Guard' }),
-  Object.freeze({ reqLv: 155, where: 'The Bellows, Father Gault' }),
+  Object.freeze({ reqLv: 110, where: 'Carter\'s Rest (Dawnsteel itself; the Ox Road opens at 112)' }),
+  Object.freeze({ reqLv: 122, where: 'The Night Shift' }),
+  Object.freeze({ reqLv: 125, where: 'Wyvern Roost' }),
+  Object.freeze({ reqLv: 138, where: 'The Old Guard' }),
+  Object.freeze({ reqLv: 145, where: 'The Bellows, Father Gault' }),
   Object.freeze({ reqLv: 165, where: 'The Pauper Vaults' }),
   Object.freeze({ reqLv: 185, where: 'the next region' }),
   Object.freeze({ reqLv: 200, where: 'Level 200' }),

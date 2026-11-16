@@ -22,13 +22,12 @@
 -- file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files).
 -- hr_shop_view lists them: 2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql.
 -- ORDER: after the v0.2.29 chain (needs hr_items, hr_hunt_supplies, hr_crops); first of v0.2.30.
--- NEW IN THIS FILE (lane/c-death-and-slots, Tyler 2026-11-10: Blessings cut a death by 25 / 50 / 75%, the
--- designer's numbers, replacing 32 / 63 / 95): hr_blessing_tiers.permille 250 / 500 / 750
--- (src/data/blessings.js BLESSING_CUT_PERMILLE). Prices and every shop, seed and refill row are carried
--- unchanged from 2027-03-14-jewelry-alpha-catalogue.generated.sql (applied history). hr_blessing_take reads the
--- row at the death and hr_blessings_view projects it, so no body moves and the hr-accrue does not wait on it.
--- A Blessing already held cuts by the new row at the hero's next death (no wipe is planned, Tyler 2026-11-09).
--- No begin/commit (CLAUDE.md §2).
+-- Carried from 2027-03-25-death-share-alpha-catalogue.generated.sql (applied history): hr_blessing_tiers.permille
+-- 250 / 500 / 750 (lane/c-death-and-slots, Tyler 2026-11-10), every tool, gear, seed, refill and Blessing row.
+-- NEW IN THIS FILE (lane/d-supply-prices, Tyler 2026-11-16: "raising the supply costs will help with the gold
+-- imbalance"): the price list of each crafted food and drink of tier 3 and up follows its store row's raise
+-- (src/data/supply-basics.js; the designer's rate a point, so a crafted piece still undercuts the store). No tab
+-- sells these rows; the vendor's buy-back cap reads them. No body moves. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 do $pre$

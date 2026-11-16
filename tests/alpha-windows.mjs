@@ -1517,6 +1517,9 @@ async function planRules(base) {
   const { itemName: nameOfItem, runeWords: runeWordsOf } = await imp('src/shell/widgets/bits.js');
   const { factsOf: factsOfSlot } = await imp('src/shell/action-facts.js');
   const LIVE = BASIC_SUPPLIES.map((b) => ({ id: b.id, kind: b.kind, partner: b.partner, heals: b.heals || null, mana: b.mana || null, price: b.price }));
+  /* a store row's price as the line prints it, read from the data: this case pins the reader, not a price (lane/d-supply-prices moved
+     Salted Swordfish 432 -> 756 and the literal went red) */
+  const gp = (id) => BASIC_SUPPLIES.find((b) => b.id === id).price.toLocaleString('en-US') + ' gp each';
   const barOf = (role, slots) => ({ preset: 0, presets: [], role, slots, store: LIVE, supply_source: 'mine', on_empty: 'switch' });
   const inHunt = (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: {},
     hunt: { session_id: 's-1', hunt_id: 'mosslight_glade', session: { bag: Object.entries(packed).map(([item, left]) => ({ item, left })) } } });
@@ -1532,12 +1535,12 @@ async function planRules(base) {
     { mithril_arrows: 27300, coarse_whetstone: 26340, bronze_arrows: 2600, cooked_swordfish: 150, cooked_shrimp: 25 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }];
   const FREMULON_SAYS = 'Ammo: no Steel Arrows left, then Bronze Arrows. They never run out. You carry 27,300 Mithril Arrows: put them on the bar to shoot them.';
   const want64 = [
-    ['Eddie food', 'food', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Food: 2,000 Swordfish Steak of yours, then Salted Swordfish from the store, 432 gp each'],
-    ['Eddie drink', 'drink', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Drink: Thin Carrot Juice from the store, 18 gp each'],
+    ['Eddie food', 'food', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Food: 2,000 Swordfish Steak of yours, then Salted Swordfish from the store, ' + gp('salted_swordfish')],
+    ['Eddie drink', 'drink', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Drink: Thin Carrot Juice from the store, ' + gp('thin_carrot_juice')],
     ['Eddie ammo', 'ammo', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], undefined],
     ['Fremulon ammo', 'ammo', ['Fremulon', 'ranger', ...FREMULON], FREMULON_SAYS],
     /* the player's order stands: a store slot ahead of his own is said as what it is, the store first */
-    ['store ahead of own', 'food', ['A', 'melee_dps', [eat('salted_shrimp'), eat('cooked_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each, then 5 Cooked Shrimp of yours'],
+    ['store ahead of own', 'food', ['A', 'melee_dps', [eat('salted_shrimp'), eat('cooked_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, ' + gp('salted_shrimp') + ', then 5 Cooked Shrimp of yours'],
     /* carried first, the worn ahead of the bar's, the store last, whatever the bar's order */
     ['the engine\'s order', 'ammo', ['A', 'ranger', [shoot('barbed_arrows')], { barbed_arrows: 5, iron_arrows: 3 }, { weapon: 'willow_longbow', ammo: 'iron_arrows' }], 'Ammo: 3 Iron Arrows of yours, loaded, then 5 Barbed Arrows of yours, then Plain Iron Arrows from the store, 1 gp each.'],
     /* a whetstone or a rune is no one's shot, and the free rung ends the line */
@@ -1550,8 +1553,8 @@ async function planRules(base) {
   /* every tier, every line: own stock counted, then its store row at the server's price */
   const KIND_64 = { heal: ['food', 'Food'], mana: ['drink', 'Drink'] };
   for (const b of BASIC_SUPPLIES) {
-    if (KIND_64[b.kind]) want64.push(['tier ' + b.partner, KIND_64[b.kind][0], ['A', 'melee_dps', [eat(b.partner), eat(b.id)], { [b.partner]: 7 }, { weapon: 'steel_hatchets' }], KIND_64[b.kind][1] + ': 7 ' + nameOfItem(b.partner) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp each']);
-    else if (!/_rune$/.test(b.id)) want64.push(['tier ' + b.partner, 'ammo', ['A', 'ranger', [shoot('loaded')], { [b.partner]: 7 }, { weapon: 'willow_longbow', ammo: b.partner }], 'Ammo: 7 ' + nameOfItem(b.partner) + ' of yours, loaded, then ' + b.n + ' from the store, ' + b.price + ' gp each.']);
+    if (KIND_64[b.kind]) want64.push(['tier ' + b.partner, KIND_64[b.kind][0], ['A', 'melee_dps', [eat(b.partner), eat(b.id)], { [b.partner]: 7 }, { weapon: 'steel_hatchets' }], KIND_64[b.kind][1] + ': 7 ' + nameOfItem(b.partner) + ' of yours, then ' + b.n + ' from the store, ' + b.price.toLocaleString('en-US') + ' gp each']);
+    else if (!/_rune$/.test(b.id)) want64.push(['tier ' + b.partner, 'ammo', ['A', 'ranger', [shoot('loaded')], { [b.partner]: 7 }, { weapon: 'willow_longbow', ammo: b.partner }], 'Ammo: 7 ' + nameOfItem(b.partner) + ' of yours, loaded, then ' + b.n + ' from the store, ' + b.price.toLocaleString('en-US') + ' gp each.']);
     else {
       const spell = Object.values(SPELLS).find((a) => a.rune === b.partner);
       if (spell) want64.push(['tier ' + b.partner, 'rune', ['A', 'mage', [spellStore(spell.id, b.id)], { [b.partner]: 7 }, { weapon: 'practice_staff' }], 'Runes: 7 ' + runeWordsOf(spell.rune, 7) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp a cast']);

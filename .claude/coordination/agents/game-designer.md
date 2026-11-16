@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-16 lane/d-supply-prices (Tyler: raise supply costs for the gold imbalance)
+- Supplies scale with RISK, not with hours played. A lone hero on Normal in its range buys almost nothing (the career tank 0 g/h from 30 to 39 and 60 to 69, the Mage under 1k in Plain runes), so no store price reaches the audit's F12 hero; only coin and loot do. Read a career's bill by item before promising a sink.
+- A store price never changes a fight, so play a cell once, keep its buys by row (cell.mjs `buysPerH`), and price them at any list. `tools/balance-sim/supply-prices-table.mjs` does it; its "was" column reproduced the separate old-price run to the gold.
+- Food and deeper runes are coupled: a deeper rune pays back in food (faster kills, fewer blows). Raise food and re-measure the rune ladder in the same lane (Carved and Graven moved 28 -> 34, 44 -> 55 to stay a trade).
+- One store food (Salted Lobster) is every guide's pick from 32 to 185, so "by tier" lands on that one row. The deeper rows have no measured buyer.
+- Never run a test loop across a `git merge`: conflict markers in src/core crash every engine test mid-loop. Merge first, then run.
+
 ## 2026-11-15 lane/d-mage-110: the Mage at 110 and up was cloth, not spawns
 - **Move one lever at a time before naming the limit.** "+Magic does nothing, so the Mage is spawn-bound" read right and was wrong: respawn 60 s to 1 s moved nothing (424 vs 419 kills). Splitting the Mage's damage by source (`dealtBy`) said it in one line: 85% is the basic wand blow, so the gear term in max hit decides.
 - **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.

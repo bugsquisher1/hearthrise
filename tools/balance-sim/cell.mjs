@@ -123,7 +123,7 @@ export async function loadCellRunner(root) {
       xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0,
       manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} }));
-    const P = { kills: 0, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
+    const P = { kills: 0, killsBy: {}, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
     const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
     for (let seed = 0; seed < cell.seeds; seed++) {
       let left = cell.hours * 3600000, seg = 0;
@@ -199,7 +199,7 @@ export async function loadCellRunner(root) {
                 if (tk) byKey[tk].shieldIn += e.amount || 0;
                 break;
               case 'kill':
-                if (!tk) { P.kills++; if (firstHit[e.t] !== undefined) { P.ttk.push(e.atMs - firstHit[e.t]); delete firstHit[e.t]; } }
+                if (!tk) { P.kills++; const kd = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; P.killsBy[kd] = (P.killsBy[kd] || 0) + 1; if (firstHit[e.t] !== undefined) { P.ttk.push(e.atMs - firstHit[e.t]); delete firstHit[e.t]; } }
                 break;
               case 'eat': case 'drink':
                 if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
@@ -359,6 +359,8 @@ export async function loadCellRunner(root) {
     return {
       id: cell.id, cell, ground: cell.ground, hunt: { band: hunt.band || null, groupFit: ground.groupFit || null },
       party: { size: heroes.length, hours: round(P.hours, 2), segments: P.segments, killsPerH: round(P.kills / hours, 0),
+        /* kills an hour by monster (Tamsin's counts: tally-tasks.js "a count is about an hour at the ground's floor") */
+        killsByPerH: Object.fromEntries(Object.entries(P.killsBy).map(([k, n]) => [k, round(n / hours, 1)])),
         pullsPerH: round(P.pulls / hours, 1), ttkS: { p50: msS(quantile(P.ttk, 0.5)), p90: msS(quantile(P.ttk, 0.9)) },
         rareRolls: P.rareRolls, rareWins: P.rareWins, rareGini: gini(wins),
         levelXpPerHeroPerH: round(heroes.reduce((s, h) => s + (h.levelXpPerH || 0), 0) / heroes.length, 0),

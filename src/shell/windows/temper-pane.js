@@ -29,7 +29,11 @@ const pct = (pm) => String(pm / 10) + '%';
 /** What a row says: the rung, what it does now, what the next rung does. */
 function rowWords(track, r) {
   if (!r.piece) return track.none;
-  if (!r.ladder) return 'Your ' + r.piece + ' can\'t be tempered' + (r.below ? '. Gear worn from Level 15 can.' : ' yet.');
+  /* SAY WHY (Tyler 2026-10-25; the playthrough audit's F17: "can't be tempered yet" at Level 55 in Mithril, no reason): the smith has rungs
+     for some tiers of gear and this is not one. The Levels are the SERVER's ladders (temper-sections.js `span`), so the line is true before
+     and after a new tier's rungs are sold. */
+  if (!r.ladder) return 'Your ' + r.piece + ' can\'t be tempered' + (r.below || !r.span ? '. Gear worn from Level 15 can.'
+    : ' yet. The smith only has rungs for gear worn from Level ' + r.span.from + ' to Level ' + r.span.to + '.');
   const now = 'Rung ' + r.ladder.rung + ' of ' + r.ladder.max + ': ';
   if (!r.ladder.offer) return now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. The most this gear takes.';
   return (r.ladder.rung ? now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. Next rung ' + pct(r.nextPm) + '.'

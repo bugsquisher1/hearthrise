@@ -134,7 +134,9 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'coffin_nail', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.016, band: 'scarce' },
         { id: 'rune_helm', ch: 0.016, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.016, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.016, band: 'scarce' },
-        { id: 'rune_sword', ch: 0.016, band: 'scarce' }],
+        { id: 'rune_sword', ch: 0.016, band: 'scarce' },
+        /* the shield he was buried holding (shields.js, the audit's F8): a Rare beside his Scarce sword */
+        { id: 'runebound_shield', ch: 0.0011, band: 'rare' }],
       hp: 191, atk: 23, baseAcc: 1.04, def: 21, xp: 1060, gp: [21, 64], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
@@ -200,7 +202,21 @@ export default definePack({
      deaths, Salted Trout 1, Salted Shrimp after 100 Cooked Lobster 12 (the hand play died 2 of 2 on the start bar's Salted Shrimp). The
      Barrow Knights are the first blows in the March that outrun the start bar: on the Ford, the Slake, the Pyre Field and the Hold a lone
      tank at the floor on Salted Shrimp alone died 0 times in 8 h each, so no other ground names one. */
-  bagGuide: { tier: 4, storeFloor: 'salted_lobster',
+  /* EVERY WAY TO FIGHT, MEASURED (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F14: "in range on Normal I die in 8
+     minutes"). `node tools/balance-sim/audit-table.mjs storefood`: a lone hero on Normal at each of the ten grounds' floor and middle, four
+     ways, on each of the five store foods and nothing carried, 2 h a cell, 400 cells. THE BARROWS ARE THE ONLY GROUND WHERE A STORE FOOD
+     KILLS IN RANGE: every other cell died 0 times on Salted Shrimp. Deaths in 2 h here, shield / hammer / bow / mage:
+       Level 55   Salted Shrimp 8 / 19 / 11 / 0    Salted Trout 0 / 5 / 3 / 0    Salted Lobster 0 / 0 / 0 / 0
+       Level 60   Salted Shrimp 0 / 14 / 6         Salted Trout 0 / 0 / 2        Salted Lobster 0 / 0 / 0
+       Level 65   Salted Shrimp 0 / 0 / 6 / 0      Salted Trout 0 / 0 / 0 / 0
+     So `storeFloor` stays Salted Lobster and `storeFloorFrom` drops it to Salted Trout at 65 (Lobster there costs a shield hero 5,300 g/h
+     more than Shrimp for nothing). A bigger food is never the answer either: on Salted Shark the same heroes lose 53,000 to 95,000 g/h.
+     `healerUnder`: WHAT THE SAFE FOOD COSTS ALONE, AND WHAT A HEALER DOES. Net gold an hour on Salted Lobster, alone, shield / hammer / bow:
+     -20,649 / -42,949 / -28,165 at 55, -1,540 / -12,112 / -13,949 at 60, +2,810 / +336 / +3,224 at 65. With a Healer beside the same hero
+     at 55, a head: +7,957 / +6,647 / +4,702 on Lobster and +10,566 / +12,267 / +12,476 on Salted Shrimp, 0 deaths in every pair, and Level
+     XP a head 320,000 to 383,000 against 185,000 to 325,000 alone. A Mage alone kites and nets +11,016 to +17,645 at 55, so the line is
+     not said to one. Reported, never tuned toward (no profit molds, Tyler 2026-11-13): the Hunts page says what the ground asks for. */
+  bagGuide: { tier: 4, storeFloor: 'salted_lobster', storeFloorFrom: { 65: 'salted_trout' }, healerUnder: { level: 65, ways: ['melee', 'ranged'] },
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },

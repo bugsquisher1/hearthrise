@@ -87,12 +87,12 @@ export const PARTY_CLASS_XP = row([990, 1500], [990, 1600, 1700], [970, 1580, 17
    from it (the Cellar's four 28, the Glade's four 34, the Warrens' three 29, Wickstead's three 43), so the lines stand. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: said([-40, 20], [-55, 10, 20], [-60, 15, 15, 25]),
-  meadowbrook_thicket: said([-30, 45], [-50, 35, 50], [-55, 35, 40, 45]),
-  wickstead: said([-35, 45], [-40, 30, 40], [-50, 35, 40, 45]),
-  mosslight_glade: said([-25, 30], [-30, 20, 30], [-45, 15, 25, 30]),
-  millrace_sewer: said([-15, 40], [-15, 40, 50], [-25, 30, 35, 45]),
-  coppercap_warrens: said([-15, 25], [-20, 20, 25], [-30, 10, 15, 25]),
+  mill_cellar: said([-55, -30], [-70, -45, -45], [-80, -60, -55, -55]),
+  meadowbrook_thicket: said([-40, -10], [-55, -25, -20], [-65, -40, -30, -30]),
+  wickstead: said([-40, -10], [-55, -25, -20], [-65, -45, -35, -35]),
+  mosslight_glade: said([-35, 0], [-45, -15, -10], [-60, -30, -20, -20]),
+  millrace_sewer: said([-25, 10], [-35, 10, 15], [-45, 0, 10, 15]),
+  coppercap_warrens: said([-20, 20], [-25, 20, 30], [-30, 10, 25, 30]),
 });
 /* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));

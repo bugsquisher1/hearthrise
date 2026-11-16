@@ -404,10 +404,10 @@ export const TIER_SIZES = 4;
    normalOnly, a tier's own pull ({ tier: ONE number for every group }), or its own XP, HP and damage dials ({ dials: { tier: { hpPm, xpPm, dmgPm } } }).
    No ground carries a pull of its own since 2026-11-08 (TIER_PULL_FROM_FLOOR says it for all); grounds not listed take TIER_DIALS whole. */
 const BASE_TIER_OVERRIDES = Object.freeze({
-  /* The Glade's Dangerous brings 7, one under the table's 8 (lane/d-flat-party-xp, 2026-11-16): on 8 a lone tank at the floor never met the Brook Bear in
-     a played hour (tests/hunt-core/drop-tables.mjs big-pull: the Keep's pelts), on 7 a four still stands over its heroes alone (party-tier-xp: 1.02 at the
-     middle against 1.14 on 8). */
-  mosslight_glade: Object.freeze({ dangerous: 7, why: 'Dangerous brings 7 here, one under Deadly: on 8 a hero alone at the floor never reached the Brook Bear' }),
+  /* The Glade's Dangerous brings 6, two under the table's 8 (lane/d-flat-party-xp, 2026-11-16): on 8 a lone tank at the floor never met the Brook Bear in
+     a played hour and on 7 the Keep's five pelts took 2.7 h (tests/hunt-core/drop-tables.mjs big-pull, bar 2 h).
+     On 6 the pelts take 1.63 h and a four at the floor stands at 1.04 of its heroes alone (party-tier-xp; 1.01 at the middle). */
+  mosslight_glade: Object.freeze({ dangerous: 6, why: 'Dangerous brings 6 here, two under Deadly: on a bigger pull a hero alone at the floor reaches the Brook Bear too seldom' }),
   mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
   /* The Thicket sits just under Wickstead: its Normal at Wickstead's floor (8) pays 6-12% under Wickstead's, so the table's x1.2 and x1.25 a kill on its
      harder tiers beat Wickstead's Normal for every way to fight (tests/hunt-core/hunt-tiers.mjs ladder; lane/b-ground-formula-2: a lone tank 25.8k against

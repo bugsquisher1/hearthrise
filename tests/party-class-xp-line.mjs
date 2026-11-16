@@ -72,6 +72,12 @@ const ANDY = Object.freeze({ party: Object.freeze(['axes', 'bow', 'mage', 'heale
 const TIER_WAYS = Object.freeze(['tank', 'healer', 'bow', 'mage']);
 const ALONE_BAR = 1.0;
 const PACE_CAP = 2.5;
+/* THE NUMBERS THAT STAND (Tyler 2026-11-16, asked whether the Thicket and Wickstead should become solo grounds: "all hunts work the same for everyone
+   regardless as often as we can, the only difference is the Solo Exp boost"). Their harder tiers bring no bigger pull (floors under
+   balance-sheet.js TIER_PULL_FROM_FLOOR), so a party there walks the same room a hero alone does and a mixed four reads about 0.64-0.70 of its
+   heroes alone on Dangerous and Deadly. No label hides it and no bar binds it: each run PRINTS their mixes against their heroes alone, and the
+   pace cap still binds there. A ground that reads at or over the bar again is named, so its line can go. */
+const STANDS = Object.freeze({ meadowbrook_thicket: 'Tyler 2026-11-16', wickstead: 'Tyler 2026-11-16' });
 
 const argOf = (name, dflt) => { const i = process.argv.indexOf(name); return i > 0 ? Number(process.argv[i + 1]) : dflt; };
 
@@ -131,7 +137,7 @@ function judgeTiers(jobs, at) {
   return rows;
 }
 const PACED = Object.freeze(['four', 'andy']);
-const tierRed = (r) => (r.alone !== null && !(r.alone >= ALONE_BAR)) || (r.tier === 'deadly' && PACED.includes(r.name) && !(r.pace <= PACE_CAP));
+const tierRed = (r) => (r.alone !== null && !Object.hasOwn(STANDS, r.g) && !(r.alone >= ALONE_BAR)) || (r.tier === 'deadly' && PACED.includes(r.name) && !(r.pace <= PACE_CAP));
 const tierWords = (r) => r.g + ', ' + r.tier + ', ' + r.party.join('+') + (r.name === 'andy' ? ' (a Healer 5 under)' : '') + ': ' + r.head + ' Level XP/h a head'
   + (r.alone === null ? '' : ', the same heroes alone ' + r.same + ' = ' + r.alone.toFixed(3) + ' (its best way alone ' + r.best + ' = ' + r.seat.toFixed(3) + ')')
   + (PACED.includes(r.name) ? ', ' + r.pace.toFixed(2) + 'x the pace contract' + (r.tier === 'deadly' ? ' (cap ' + PACE_CAP + ')' : '') : '');
@@ -394,6 +400,13 @@ async function main() {
     const tierRows = judgeTiers(tierJobs, (id) => played.get(id));
     for (const r of tierRows) if (process.argv.includes('--table') || r.name === 'four' || tierRed(r)) console.log('  TIER ' + tierWords(r));
     const tierReds = tierRows.filter(tierRed);
+    for (const g of Object.keys(STANDS)) {
+      const mine = tierRows.filter((r) => r.g === g && r.alone !== null);
+      if (!mine.length) continue;
+      const low = mine.reduce((m, r) => (r.alone < m.alone ? r : m));
+      console.log('  STANDS (' + STANDS[g] + ') ' + g + ': its harder-tier mixes read ' + Math.min(...mine.map((r) => r.alone)).toFixed(2) + '-' + Math.max(...mine.map((r) => r.alone)).toFixed(2)
+        + ' of the same heroes alone (lowest ' + low.tier + ' ' + low.party.join('+') + ')' + (mine.every((r) => r.alone >= ALONE_BAR) ? '; every mix at or over the bar now, so this line can go' : ''));
+    }
     const paths = bothPaths(await loadCellRunner(ROOT));
     if (paths) problems.push(paths);
     const same = rows.filter((r) => !mixedNames.includes(r.name));

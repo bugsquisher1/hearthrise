@@ -34,6 +34,8 @@ export const HUNTS_TEXT = Object.freeze({
   tier_choice: '{tier}: {head}.',
   /* A tier a lone Melee or Ranger hero can't hold on this ground at any Level in its band (a pack's partyTiers, measured): said to a hero alone. */
   tier_party: 'Alone, Melee and Ranger heroes die here fast. Bring a party with a Healer.',
+  /* A tier where even a full party dies without a Healer on this ground (a pack's healerTiers, measured): said to every group. */
+  tier_healer: 'Bring a Healer. Without one, even a party of four dies here.',
 
   /* The band, and a ground above the hero. */
   band: 'Level {lo} to {hi}',

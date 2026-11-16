@@ -130,18 +130,21 @@ export default definePack({
     hot_coal: { n: 'Hot Coal', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: 'ember' },
     goad: { n: 'Goad', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
   },
-  /* THE BAG: Swordfish, and the fire rune (three of the five are Undead, fire does 15% more). MEASURED on the full grade (lane/a-grader-uniques, the
-     armor ruling's handoff 1, every hero in the best piece it can get): on the Hold's Lobster a Deadly four with no Healer died 66 times in 16 hero-hours
-     at the floor (the bar is 9), on Swordfish 5; the four with a Healer 0 on both. So the guide names Swordfish here, eight Levels before the 120 the
-     ruling first read. The same HP as the Lobster bag; quantities not measured for cost. */
+  /* THE BAG: the Hold's Lobster, and the fire rune (three of the five are Undead, fire does 15% more). lane/a-grader-uniques named Swordfish to
+     keep a Deadly four with no Healer alive (66 deaths in 16 hero-hours on Lobster, 5 on Swordfish, the bar 9); on the merged tree Swordfish
+     reads 18 (lane/d-late-nearmisses, the full grade --uniques), so Deadly is a Healer's tier here as on Carter's Rest, and the four with a
+     Healer dies 0. Lobster costs 0.83 g a point of HP against Swordfish's 1.50. */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h). Deaths in the 4 h alone: at the floor
      (112) a hammer 101, axes 183, a tank 121, a bow 45; at the top (128) a hammer 54, a tank 37, a bow 32. A Mage alone 0. With a Healer at the
      floor: tank + Healer 0, hammer + Healer 1, the four 0 (a tank with a bow or a Mage and no Healer: 11 and 12). */
   partyTiers: ['dangerous'],
+  /* DEADLY IS A HEALER'S TIER HERE (lane/d-late-nearmisses, 2026-11-16, as Carter's Rest): the four with no Healer 18 deaths in 16 hero-hours
+     at the floor on Swordfish (the bar is 9), the four with one 0. */
+  healerTiers: ['deadly'],
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
-    ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_swordfish', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_lobster', qty: 75 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_lobster', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.16 / 1.10 of the contract at the floor and middle (the hammer 1.24, Undead), so 0.91. A four of four classes read
      0.57 / 0.53 and a tank and Healer 0.80 / 0.74, so the four 1000 x 1.20 / 0.489 = 2455, the pair 1000 x 1.10 / 0.684 = 1610, the cells between at the
@@ -153,6 +156,6 @@ export default definePack({
   /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
      the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
   partyVsAlone: { 2: [-30, 10], 3: [-35, -5, 0], 4: [-50, 0, 15, 15] },
-  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19318 },
+  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19318, deadlyFourNeeds: 'healer' },
   map,
 });

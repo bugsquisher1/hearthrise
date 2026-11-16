@@ -29,7 +29,7 @@
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.132';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isPartyTier } from '../data/hunt-tiers.js?v=0.2.132';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isPartyTier, isHealerTier } from '../data/hunt-tiers.js?v=0.2.132';
 import { PARTY } from '../data/party.js?v=0.2.132';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
 import { MONSTERS } from '../data/monsters.js?v=0.2.132';
@@ -108,7 +108,9 @@ export function tierWords(r, id, size = 1) {
   if (tier.id === DEFAULT_TIER) return '';
   /* a party's tier on this ground (hunt-tiers.js PARTY_TIERS, measured), said to a hero alone: a party reads the tier as it is */
   const alone = size <= 1 && isPartyTier(r.hunt, tier.id) ? [t('hunts.tier_party')] : [];
-  return [tierLine(r, tier, size), ...alone, TIER_DEATH_LINE].join(' ');
+  /* a Healer's tier on this ground (hunt-tiers.js HEALER_TIERS, measured), said to every group */
+  const healer = isHealerTier(r.hunt, tier.id) ? [t('hunts.tier_healer')] : [];
+  return [tierLine(r, tier, size), ...alone, ...healer, TIER_DEATH_LINE].join(' ');
 }
 
 /** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: big groups that hit hard." '' on Normal. Pure. */

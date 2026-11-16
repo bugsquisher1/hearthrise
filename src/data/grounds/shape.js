@@ -63,7 +63,10 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      partyTiers (optional) the harder tiers a lone Melee or Ranger hero can't hold here at any Level of the band, and a party with a Healer
                can, measured on the real settle: ['dangerous'] or ['dangerous', 'deadly']. The Hunts page says so to a hero alone
                (hunt-tiers.js PARTY_TIERS, hunt-list.js tierWords); tests/hunt-core/party-tiers.mjs plays the claim on every ground. Words only
-     checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
+     healerTiers (optional) the harder tiers where even a full party dies without a Healer, measured on the full grade: ['deadly']. The
+               Hunts page says "bring a Healer" to every group (hunt-tiers.js HEALER_TIERS, hunt-list.js tierWords), and a pack naming Deadly
+               carries checks.deadlyFourNeeds 'healer' so the grader grades the four the card asks for (tests/hunt-core/party-tiers.mjs healer). Words only
+     checks   (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
                (its one-tile choke, tests/hunt-core/forest-cave.mjs), holders [monster, ...] (its room holders, no spawn weight), dropRef { roles, full } and valueToday (its measured value pin,
                tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground
      hall      (optional, lane/b-krells-hold-pack) a KEYED BOSS ROOM on the ground's own map, behind a key that drops on the ground:
@@ -90,7 +93,7 @@ export const REGIONS = Object.freeze(['greenhaven', 'barrow_march', 'morrow_hill
 export const STANDING_SIDES = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells', 'partyTiers']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells', 'partyTiers', 'healerTiers']);
 /* the tiers a pack's partyTiers may name (hunt-tiers.js TIER_IDS less Normal, which is safe at the Level by definition) */
 const PARTY_TIER_IDS = Object.freeze(['dangerous', 'deadly']);
 const FUEL_KEYS = Object.freeze(['item', 'xp', 'req', 'flame', 'secs', 'chunk']);
@@ -178,6 +181,8 @@ export function definePack(p) {
   for (const k of ['partyClassXp', 'partyVsAlone']) if (p[k] !== undefined && !(isObj(p[k]) && [2, 3, 4].every((n) => Array.isArray(p[k][n]) && p[k][n].length === n))) no(k + ' is not { 2: [2], 3: [3], 4: [4] }');
   if (p.partyTiers !== undefined && !(Array.isArray(p.partyTiers) && p.partyTiers.length && p.partyTiers.every((x) => PARTY_TIER_IDS.includes(x))
     && new Set(p.partyTiers).size === p.partyTiers.length)) no('partyTiers is not a list of ' + PARTY_TIER_IDS.join(' | ') + ', each once');
+  if (p.healerTiers !== undefined && !(Array.isArray(p.healerTiers) && p.healerTiers.length && p.healerTiers.every((x) => PARTY_TIER_IDS.includes(x))
+    && new Set(p.healerTiers).size === p.healerTiers.length)) no('healerTiers is not a list of ' + PARTY_TIER_IDS.join(' | ') + ', each once');
   if (p.hall !== undefined) { const why = hallWhy(p); if (why) no(why); }
   if (p.fuel !== undefined) { const why = fuelWhy(p); if (why) no(why); }
   if (p.spells !== undefined) { const why = spellsWhy(p); if (why) no(why); }

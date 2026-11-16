@@ -65,6 +65,12 @@ export const TIER_DEATH_LINE = 'Dying ends the hunt and costs Level XP. You can 
 export const PARTY_TIERS = Object.freeze(foldRows('party tiers', {}, GROUND_PACKS, (p) => (p.partyTiers ? { [p.id]: Object.freeze([...p.partyTiers]) } : {})));
 /** True when `tierId` on `groundId` is a party's tier (PARTY_TIERS). */
 export const isPartyTier = (groundId, tierId) => !!(Object.prototype.hasOwnProperty.call(PARTY_TIERS, groundId) && PARTY_TIERS[groundId].includes(tierId));
+/* A HEALER'S TIER (designer 2026-11-15, lane/d-late-nearmisses): ground id -> the harder tiers where even a full party dies without a
+   Healer (a pack's `healerTiers`, measured on the full grade; the grader grades that four with one, checks.deadlyFourNeeds). The Hunts
+   page says "bring a Healer" to every group (hunt-list.js tierWords). Words only, like PARTY_TIERS: nothing in a fight reads it. */
+export const HEALER_TIERS = Object.freeze(foldRows('healer tiers', {}, GROUND_PACKS, (p) => (p.healerTiers ? { [p.id]: Object.freeze([...p.healerTiers]) } : {})));
+/** True when `tierId` on `groundId` is a Healer's tier (HEALER_TIERS). */
+export const isHealerTier = (groundId, tierId) => !!(Object.prototype.hasOwnProperty.call(HEALER_TIERS, groundId) && HEALER_TIERS[groundId].includes(tierId));
 
 /* The dials a tier row carries (permille of the monster row). */
 export const DIALS = Object.freeze(['dmgPm', 'hpPm', 'xpPm']);

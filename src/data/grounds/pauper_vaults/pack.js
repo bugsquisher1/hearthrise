@@ -151,16 +151,24 @@ export default definePack({
      The bag's food is Shark (the armor ruling's handoff 1, board 2026-11-15 Armor past Dawnsteel). MEASURED on the full grade (lane/a-grader-uniques,
      every hero in the best piece it can get, the Vaults sample worn from 165): a Deadly four with a Healer at the floor died 40.5 times in 16 hero-hours
      on Lobster and 1 on Shark (the bar is 9); no Normal death in 192 lone hero-hours. The four with no Healer still dies 70 times on Shark, the store's
-     biggest food: that is not the bag's to fix. The same HP as the Lobster bag; quantities not measured for cost. */
+     biggest food: that is not the bag's to fix. RULED (lane/d-late-nearmisses, 2026-11-16): Deadly is a Healer's tier here (healerTiers below).
+     THE COUNTS, MEASURED (lane/d-late-nearmisses, the full grade --uniques on the merged tree, a lone hero at the floor on Normal, Salted Shark
+     an hour): tank 63, hammer 115, axes 157, sword 166, bow 28, crossbow 15, Mage and Healer 0. A bag is BAG_TARGET_HOURS (3) of its style's
+     eating in Cooked Shark (528 HP to the store's 396): Melee the median of the four Melee ways (136 an hour) = 305, Ranged the mean of the
+     two (21.5) = 50; Magic eats none alone, so 10 for a stray pull. */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h, the Morrow's three open). Deaths alone:
      at the floor (165) a hammer, axes and a tank 238 each (about one a minute), a bow 69 in 4 h; at the top (185) a hammer 207 in 2.2 h, a tank
      159 in 2.9 h, a bow 52 in 4 h. A Mage alone 6. At the floor a pair with a Healer still dies (tank + Healer 28, hammer + Healer 39) and the
      four holds (0): the Vaults' Dangerous is a four's tier, the armor past Dawnsteel this ground's own section names. */
   partyTiers: ['dangerous'],
+  /* DEADLY IS A HEALER'S TIER HERE (lane/d-late-nearmisses, 2026-11-16; the Hold's and the Barrows' call). MEASURED on the full grade --uniques
+     on the merged tree at the floor, on Shark: the four with no Healer dies 93 times in 16 hero-hours, the four with one 8 (the bar is 9).
+     No food answers the first (Shark is the store's biggest); a Healer does. */
+  healerTiers: ['deadly'],
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
-    melee: { heal: { id: 'cooked_shark', qty: 55 } },
-    ranged: { heal: { id: 'cooked_shark', qty: 45 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_shark', qty: 55 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_shark', qty: 305 } },
+    ranged: { heal: { id: 'cooked_shark', qty: 50 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_shark', qty: 10 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* PARTY LEVEL XP (the Hold's method, as Carter's Rest: quick grade, 1 seed x 1 h, the Morrow's three packs open on the ladder, lane/d-catacombs
      2026-11-15). With no row a four of four classes read 0.48 / 0.46 of the pace contract at the floor and middle and a tank and Healer 0.66 / 0.63, so
      the pair 1000 x 1.10 / 0.645 = 1705 and a first four of 2555. At 2555 the four read 1.31 / 1.26 of the median lone way (the sheet's four-xp asks
@@ -178,6 +186,6 @@ export default definePack({
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value
      pin is that pair's floor hour, 17,655 g a head (coin 15,642, commons 2,013, no gear), measured 2026-11-15. */
-  checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655 },
+  checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655, deadlyFourNeeds: 'healer' },
   map,
 });

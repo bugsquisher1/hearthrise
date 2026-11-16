@@ -124,24 +124,33 @@ export default definePack({
     tail_sweep: { n: 'Tail Sweep', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 16000, hitPm: 1000, element: null },
     fire_breath: { n: 'Fire Breath', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
   },
-  /* THE BAG: Swordfish (the armor ruling's handoff 1, board 2026-11-15 Armor past Dawnsteel), and the ice rune (wyverns take 15% more from ice).
-     MEASURED on the full grade (lane/a-grader-uniques, every hero in the best piece it can get): on Swordfish no Normal death in 192 lone hero-hours,
-     and a Deadly four at the floor 0 deaths in 16 hero-hours with a Healer, 1 without (the bar is 9). The same HP as the Lobster bag; quantities not
-     measured for cost. */
+  /* THE BAG: the Hold's Lobster, and the ice rune (wyverns take 15% more from ice). lane/a-grader-uniques named Swordfish (the armor ruling's
+     read, "Swordfish from 120"). MEASURED on the merged tree (lane/d-late-nearmisses, 3 seeds x 2 h, the ladder kit): with Swordfish a lone bow
+     at the band's top (142) dies 6 times in 6 h on Dangerous and a crossbow once, so the party's-tier line below ("Alone, Melee and Ranger heroes
+     die here fast") stops being true and tests/hunt-core/party-tiers.mjs is red; on Lobster they die 23 and 24 times (a hammer 90, a sword 99).
+     Lobster also costs 0.83 g a point of HP against 1.50, and a lone sword's Normal low point moves 0.2 between the two (58.8 / 59.0). On Lobster
+     the Deadly four with no Healer dies 40 times in 16 hero-hours (the bar is 9) and the four with one 0: a Healer's tier (healerTiers). */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h). Deaths in the 4 h alone: at the floor
      (125) a hammer 202, axes 223, a tank 202, a bow 26; at the top (142) a hammer 83, a tank 42, a bow 14. A Mage alone 4. With a Healer at the
      floor: tank + Healer 0, hammer + Healer 0, the four 0 (a tank with a bow or a Mage and no Healer: 11 and 12). */
   partyTiers: ['dangerous'],
+  /* DEADLY IS A HEALER'S TIER HERE (lane/d-late-nearmisses, 2026-11-16, as Carter's Rest; the Deadly pull of six, tierOverride below). */
+  healerTiers: ['deadly'],
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
-    ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_swordfish', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_lobster', qty: 75 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_lobster', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.10 / 1.06 of the contract at the floor and middle (the bow 1.15, the best lone way after the Mage), so 0.94.
      A four of four classes read 0.58 / 0.53 and a tank and Healer 0.77 / 0.72, so the four 1000 x 1.20 / 0.514 = 2335, the pair 1000 x 1.10 / 0.69 = 1595, the
      cells between at the Hold's proportions. */
   xpFit: { k: 0.94, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
-  partyClassXp: { 2: [990, 1595], 3: [1150, 1620, 1735], 4: [1150, 2100, 2325, 2335] },
+  /* RE-FIT 2026-11-16 (lane/d-late-nearmisses, the full grade --uniques on the merged tree, where the lone Mage earns more since lane/d-mage-110):
+     the four of four classes read 1.152 / 1.12 / 1.108 of the median lone way at the floor, middle and floor+10 (the sheet asks 1.15-1.25), a tank's
+     seat in a tank and Healer 0.98-0.99 and in a tank, Healer and bow 0.935-0.971 (a seat never under solo), a hammer, bow and Mage's 0.995 at the
+     top. The cell scales its reading straight: the four's mixed cells x1.06 (2335 -> 2475), the pair of two x1.04 (1595 -> 1660), the trio of three
+     x1.08 (1735 -> 1875). */
+  partyClassXp: { 2: [990, 1660], 3: [1150, 1620, 1875], 4: [1150, 2225, 2465, 2475] },
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
   /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
@@ -150,6 +159,6 @@ export default definePack({
   /* DEADLY BRINGS SIX (the Hold's and the Pyre Field's row): on eight a four of four classes died 9 times in 4 hero-hours at the floor (36 in 16,
      where the sheet allows 9). Six is the least Deadly may bring, one over Dangerous's five. */
   tierOverride: { deadly: 6, why: 'on the full box a group of four died 9 times in 4 hours at the floor, where the rule allows about 2. On six they hold it' },
-  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 21782 },
+  checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 21782, deadlyFourNeeds: 'healer' },
   map,
 });

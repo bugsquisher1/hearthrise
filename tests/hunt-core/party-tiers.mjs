@@ -8,6 +8,9 @@
 //
 //   words    the page: every ground and every tier it offers, a hero alone reads the line exactly where PARTY_TIERS names the tier, and a
 //            party never does; PARTY_TIERS names only grounds that offer the tier.
+//   healer   the page: a pack's `healerTiers` (hunt-tiers.js HEALER_TIERS) is said to every group exactly where named, and a pack naming
+//            Deadly grades its four with a Healer (checks.deadlyFourNeeds 'healer'), so the card and the grader's bar agree (lane/d-late-nearmisses).
+//            Words and data only: the claim behind it is the full grade's (tools/pack.mjs check --mode full --uniques), too big for a guard.
 //   claims   the REAL engine (tools/balance-sim's cell runner, the settle the world tick runs; one seed x 2 h a cell, the ladder kit, the
 //            ground's store food). Every ground offering Dangerous: a lone hammer at the TOP of the band. Where Dangerous is named, the
 //            hammer and a lone bow there each die at least once an hour (outgrowing the band never makes it a lone Melee's or bow's tier),
@@ -58,6 +61,33 @@ async function words(RUN, root) {
   return named ? null : 'no ground names a party\'s tier: the words were never read';
 }
 
+/** A HEALER'S TIER (lane/d-late-nearmisses, 2026-11-15): where a pack's `healerTiers` names a tier, the page says "bring a Healer" to every
+    group, a hero alone and a party alike, and nowhere else; and the grader grades that tier's four WITH a Healer (checks.deadlyFourNeeds),
+    so the card and the measured bar say the same thing. Answers null or the first disagreement. */
+async function healer(RUN, root) {
+  const T = await tiersOn(root);
+  const HL = await import(pathToFileURL(join(root, 'src/shell/hunt-list.js')).href + V);
+  const { t } = await import(pathToFileURL(join(root, 'src/render/player-text.js')).href + V);
+  const { GROUND_PACKS } = await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href + V);
+  const line = t('hunts.tier_healer');
+  if (!line || line === 'hunts.tier_healer') return 'hunts.tier_healer has no words';
+  for (const [g, tiers] of Object.entries(T.HEALER_TIERS)) for (const id of tiers) {
+    if (!T.tiersOf(g).includes(id)) return g + ' names ' + id + ' a Healer\'s tier, and it does not offer ' + id;
+    const p = GROUND_PACKS.find((x) => x.id === g);
+    if (id === 'deadly' && !(p && p.checks && p.checks.deadlyFourNeeds === 'healer')) return g + ' says Deadly needs a Healer, and the grader grades its four without one (checks.deadlyFourNeeds)';
+  }
+  let named = 0;
+  for (const g of Object.keys(G.HUNT_GROUNDS)) for (const id of T.tiersOf(g).filter((x) => x !== T.DEFAULT_TIER)) {
+    const want = T.isHealerTier(g, id);
+    for (const size of [1, 2, 4]) {
+      const w = HL.tierWords({ hunt: g }, id, size);
+      if (w.includes(line) !== want) return g + ' ' + id + ', a group of ' + size + ': the page reads "' + w + '"' + (want ? ', with no word that it needs a Healer' : ', and it is not named one');
+    }
+    named += want ? 1 : 0;
+  }
+  return named ? null : 'no ground names a Healer\'s tier: the words were never read';
+}
+
 /** The claims on the engine, on `grounds` (default every ground offering Dangerous). Answers null or the first claim that is false. */
 const claims = (grounds) => async (RUN, root) => {
   const T = await tiersOn(root);
@@ -81,7 +111,7 @@ const claims = (grounds) => async (RUN, root) => {
   return null;
 };
 
-const cases = { words, claims: claims(null) };
+const cases = { words, healer, claims: claims(null) };
 
 const PACK = (g) => 'src/data/grounds/' + g + '/pack.js';
 const mutants = [
@@ -98,6 +128,13 @@ const mutants = [
     edits: [['src/shell/hunt-list.js', "const alone = size <= 1 && isPartyTier(r.hunt, tier.id) ? [t('hunts.tier_party')] : [];", 'const alone = [];']] },
   { name: 'a party is told it too', case: 'words', also: ['src/shell/hunt-list.js', 'src/render'],
     edits: [['src/shell/hunt-list.js', "const alone = size <= 1 && isPartyTier(r.hunt, tier.id) ? [t('hunts.tier_party')] : [];", "const alone = isPartyTier(r.hunt, tier.id) ? [t('hunts.tier_party')] : [];"]] },
+  /* a Healer's tier: the page, both ways, and the card against the grader's bar */
+  { name: 'the Hunts page never says bring a Healer', case: 'healer', also: ['src/shell/hunt-list.js', 'src/render'],
+    edits: [['src/shell/hunt-list.js', "const healer = isHealerTier(r.hunt, tier.id) ? [t('hunts.tier_healer')] : [];", 'const healer = [];']] },
+  { name: 'only a hero alone is told to bring a Healer', case: 'healer', also: ['src/shell/hunt-list.js', 'src/render'],
+    edits: [['src/shell/hunt-list.js', "const healer = isHealerTier(r.hunt, tier.id) ? [t('hunts.tier_healer')] : [];", "const healer = size <= 1 && isHealerTier(r.hunt, tier.id) ? [t('hunts.tier_healer')] : [];"]] },
+  { name: 'the Vaults say bring a Healer and the grader grades its four without one', case: 'healer', also: ['src/data/grounds'],
+    edits: [[PACK('pauper_vaults'), "deadlyFourNeeds: 'healer'", "deadlyFourNeeds: null"]] },
 ];
 
 const R = makeReport('hunt-core/party-tiers');

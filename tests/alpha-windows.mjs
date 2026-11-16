@@ -1674,6 +1674,33 @@ async function planRules(base) {
     if (ops2(pick) !== '{}' || JSON.stringify(pick.choices) !== '[{"slot":"ring2","ids":["banded_signet_keen","banded_signet_surge"]}]'
       || UP.upgradeWords(pick) !== 'Nothing goes on by itself, since each piece is better at something. Ring 2: Banded Signet (Keen) or Banded Signet (Surge). Pick on the doll.')
       fails.push('AW-21 Keen and Surge rings over a plain one read ' + ops2(pick) + ' / ' + JSON.stringify(pick.choices) + ' / ' + UP.upgradeWords(pick));
+    /* A RESISTANCE COUNTS ONLY WHERE IT PLAYS, THE SAME LEVEL-BAND WAY AS A BANE (lane/a-next-steps; lane/c-krell-uniques gives gear `resistPm`: Krell's Tollgate fire, the
+       Banded Legguards physical). Level 17 hunts Wickstead, where the Turncoat's Smoke Pot is fire; Level 20 has no fire on any ground. The rows are made here for the
+       test (Bronze Platelegs with a resistance) and put back after. */
+    /* the build's ?v= instance of the catalogue, the one upgrade-plan.js reads */
+    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const threats = (lv) => Array.from(UP.threatsAt(lv)).sort().join();
+    if (threats(17) !== 'ember,physical,poison' || threats(20) !== 'physical,poison') fails.push('AW-21 the damage in range reads ' + threats(17) + ' at 17 and ' + threats(20) + ' at 20');
+    IT.aw21_fire_legs = { ...IT.bronze_platelegs, n: 'Fireproof Legs', resistPm: { ember: 100 } };
+    try {
+      const legs = (worn, bag, level) => plan({ weapon: 'practice_sword', pants: worn }, [[bag]], lv1, level);
+      const gain = legs('bronze_platelegs', 'aw21_fire_legs', 17);
+      if (ops2(gain) !== '{"pants":"aw21_fire_legs"}' || UP.upgradeWords(gain) !== 'Wear Fireproof Legs (-10% Fire damage taken).') fails.push('AW-21 fire resistance where fire is dealt reads ' + ops2(gain) + ' / ' + UP.upgradeWords(gain));
+      if (Object.keys(legs('bronze_platelegs', 'aw21_fire_legs', 20).ops).length) fails.push('AW-21 fire resistance counts with no fire in range');
+      const keep = legs('aw21_fire_legs', 'iron_platelegs', 17);
+      if (ops2(keep) !== '{}' || JSON.stringify(keep.choices) !== '[{"slot":"pants","ids":["iron_platelegs"],"keeps":"aw21_fire_legs","lost":[{"resist":"ember","pct":10}],"gain":"+4 Defense"}]'
+        || UP.upgradeWords(keep) !== 'Nothing goes on by itself, since each piece is better at something. Iron Platelegs adds +4 Defense, and Fireproof Legs cuts fire damage by 10%. Pick on the doll.')
+        fails.push('AW-21 a worn fire resistance against bigger plain numbers where fire is dealt reads ' + ops2(keep) + ' / ' + JSON.stringify(keep.choices) + ' / ' + UP.upgradeWords(keep));
+      const gone = legs('aw21_fire_legs', 'iron_platelegs', 20);
+      if (ops2(gone) !== '{"pants":"iron_platelegs"}' || gone.choices.length) fails.push('AW-21 a fire resistance with no fire in range holds the bigger numbers off: ' + ops2(gone) + ' / ' + JSON.stringify(gone.choices));
+      /* PHYSICAL, once lane/c-krell-uniques' `physical` key is in the engine's profile (elements.js HERO_RESIST_KEYS): every monster swings, so it counts wherever a ground is in range */
+      const EL = await imp('src/data/elements.js');
+      if (Array.isArray(EL.HERO_RESIST_KEYS) && EL.HERO_RESIST_KEYS.includes('physical')) {
+        IT.aw21_guard_legs = { ...IT.bronze_platelegs, n: 'Banded Test Legs', resistPm: { physical: 30 } };
+        if (ops2(legs('bronze_platelegs', 'aw21_guard_legs', 20)) !== '{"pants":"aw21_guard_legs"}') fails.push('AW-21 physical resistance does not count, though every monster swings');
+        if (ops2(legs('aw21_guard_legs', 'iron_platelegs', 20)) !== '{}') fails.push('AW-21 a worn physical resistance is traded away for plain numbers');
+      }
+    } finally { delete IT.aw21_fire_legs; delete IT.aw21_guard_legs; }
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight known: the
@@ -4792,10 +4819,14 @@ const MUTANTS = [
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
-  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (banes) for (const c of MONSTER_CLASSES) { const side = baneSide(a, b, c); if (side < 0) return false; if (side > 0) more = true; }\n', ''],
-  ['plans: AW-21 a bane is a reason with no such monster in range (F15)', 'src/shell/upgrade-plan.js', '    if (!Array.isArray(h.band) || level < h.band[0] || level > h.band[1]) continue;\n', ''],
+  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (traits) for (const c of MONSTER_CLASSES) { const side = baneSide(a, b, c); if (side < 0) return false; if (side > 0) more = true; }\n', ''],
+  ['plans: AW-21 a resistance is no number (lane/a-next-steps)', 'src/shell/upgrade-plan.js', '  if (traits) for (const k of resistsIn(a, b)) { if (resistOf(a, k) < resistOf(b, k)) return false; if (resistOf(a, k) > resistOf(b, k)) more = true; }\n', ''],
+  ['plans: AW-21 a resistance counts with nothing in range dealing it', 'src/shell/upgrade-plan.js', '(k in a.resist || k in b.resist) && a.threats.has(k)', '(k in a.resist || k in b.resist)'],
+  ['plans: AW-21 a worn resistance is lost in silence', 'src/shell/upgrade-plan.js', "const lost = [...(slot === 'weapon' ? banesLost(now, after) : []), ...resistsLost(now, after)];", "const lost = slot === 'weapon' ? banesLost(now, after) : [];"],
+  ['plans: AW-21 a spell\'s element is no threat', 'src/shell/upgrade-plan.js', 'if (r && !mends(r)) out.add(r.element || PHYSICAL);', 'if (r && !mends(r)) out.add(PHYSICAL);'],
+  ['plans: AW-21 a bane is a reason with no such monster in range (F15)', 'src/shell/upgrade-plan.js', 'OPEN_HUNTS.filter((h) => Array.isArray(h.band) && !(level < h.band[0] || level > h.band[1]))', 'OPEN_HUNTS.filter((h) => Array.isArray(h.band))'],
   ['plans: AW-21 a worn off-hand stays for a better one of its kind (F8)', 'src/shell/upgrade-plan.js', '    for (const slot of UPGRADE_SLOTS.concat(OFFHAND)) {', '    for (const slot of UPGRADE_SLOTS) {'],
-  ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
+  ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return tradeOf(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',", "  shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',"],

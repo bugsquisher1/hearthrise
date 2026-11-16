@@ -2203,12 +2203,6 @@ const DB_ARMS = {
     }
     await db.exec('revoke execute on function public.hr_hunt_rune_state(uuid, int, uuid, text) from public, anon, authenticated, service_role');
     await db.exec('revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role');
-    /* THE BURNING TOWER (2027-04-24-tower-climb.sql) is a ground with one door, hr_tower_start: this file's §3 probe enters the lowest-band ground
-       through the ordinary door, which the Tower refuses by design (tower_only), so the Tower leaves the catalogue inside this rolled-back
-       transaction too. What the arm proves (the second apply's bodies, grants and baseline row) is unmoved. */
-    if (await one(db, "select to_regclass('public.hr_tower_rules') is not null")) {
-      await db.exec('delete from public.hr_hunt_grounds g using public.hr_tower_rules r where g.hunt_id = r.hunt_id');
-    }
     const before = await image();
     try { await db.exec(carryIn); }
     catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }

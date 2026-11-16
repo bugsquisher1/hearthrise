@@ -11,19 +11,19 @@
 // Anonymous: no seller or buyer name reaches this window; the server's reads hold listing
 // ids only. Every number is the server's and every control is off until it has answered.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.132';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.132';
-import { whole } from '../../../render/format.js?v=0.2.132';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.132';
-import { MARKET_TABS } from '../../market-model.js?v=0.2.132';
-import { lockedWords } from '../../market-words.js?v=0.2.132';
-import { hideTip } from '../item-tip.js?v=0.2.132';
-import { marketScratch, rereadAll, readMine, readItem, MARKET_WORKS, buildingWorks } from './state.js?v=0.2.132';
-import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.132';
-import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.132';
-import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.132';
-import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.132';
-import { t } from '../../../render/player-text.js?v=0.2.132';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.134';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
+import { whole } from '../../../render/format.js?v=0.2.134';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.134';
+import { MARKET_TABS } from '../../market-model.js?v=0.2.134';
+import { lockedWords } from '../../market-words.js?v=0.2.134';
+import { hideTip } from '../item-tip.js?v=0.2.134';
+import { marketScratch, rereadAll, readMine, readItem, MARKET_WORKS, buildingWorks } from './state.js?v=0.2.134';
+import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.134';
+import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.134';
+import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.134';
+import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.134';
+import { t } from '../../../render/player-text.js?v=0.2.134';
 
 /** The skeleton (built once per opening). An opening reads the server again. */
 export function renderMarket(ctx) {
@@ -41,7 +41,7 @@ export function renderMarket(ctx) {
 export function blockWords(sc) {
   if (sc.closed && buildingWorks(sc.works)) {
     const w = sc.works;
-    return t('shop.market_being_built', { building: TOWN_WORKS[MARKET_WORKS].name, total: whole(w.total), goal: whole(w.goal) });
+    return t('shop.market_being_built', { building: TOWN_WORKS[MARKET_WORKS].name, total: whole(w.total), goal: whole(w.goal) }) + '. ' + t('shop.market_listings_safe');
   }
   if (sc.closed) return 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.';
   if (sc.locked && sc.rules && sc.rules.minLevel) return lockedWords(sc.rules.minLevel, sc.rules.minSkillLevel) + ' Until then, have a look around.';

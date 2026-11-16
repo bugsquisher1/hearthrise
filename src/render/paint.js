@@ -84,7 +84,7 @@ export function style(el, name, v) {
  * removed row is kept and reused when its key returns, so only a list whose
  * keys come from a catalogue (items, monsters, abilities) passes it.
  * @param {Element} host
- * @param {any[]} items
+ * @param {readonly any[]} items
  * @param {{key:(i:any)=>string, build:(i:any)=>Element, patch:(el:Element,i:any)=>void, keep?:boolean}} o
  */
 export function rows(host, items, o) {

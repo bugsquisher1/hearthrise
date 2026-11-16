@@ -101,11 +101,11 @@ async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
   ok('W5', say('market_locked', { min_level: 10, min_skill_level: 30 }) === 'The Weighhouse trades with heroes of Level 10, or with a bench skill at 30.', 'the rule says both numbers: ' + say('market_locked', { min_level: 10, min_skill_level: 30 }));
   const lockedAnswer = F.refusalOf({ body: { ok: false, verb: 'market_buy', error: 'market_locked', min_level: 7, min_skill_level: 25 } });
   ok('W5', /Level 7, or with a bench skill at 25\./.test(T.refusalText(lockedAnswer)), 'the numbers are the answer\'s own, off the wire: ' + T.refusalText(lockedAnswer));
-  ok('W5', /higher bench skill/.test(say('market_locked', null)) && !/Keep hunting|—/.test(say('market_locked', null)), 'an answer with no numbers invents none and doesn\'t send a crafter hunting: ' + say('market_locked', null));
+  ok('W5', /bench skill/.test(say('market_locked', null)) && !/Keep hunting|—/.test(say('market_locked', null)), 'an answer with no numbers invents none and doesn\'t send a crafter hunting: ' + say('market_locked', null));
   const benchRules = M.rulesOf({ fee_bp: 100, cut_bp: 400, min_level: 7, min_skill_level: 25 });
   ok('W5', benchRules.minLevel === 7 && benchRules.minSkillLevel === 25,'the window reads both numbers from the rules row: ' + JSON.stringify(benchRules));
-  ok('W5', /can't be sold to other players/.test(say('not_tradeable', null)), 'the listable rule');
-  ok('W5', /That's your own listing/.test(say('own_listing', null, 'market_buy')), 'own listing');
+  ok('W5', /^Can't be sold to players/.test(say('not_tradeable', null)), 'the listable rule');
+  ok('W5', /^Your own listing/.test(say('own_listing', null, 'market_buy')), 'own listing');
   const r = F.refusalOf({ body: { ok: false, verb: 'market_list', error: 'price_below_shop', detail: { floor: 142 } } });
   ok('W5', r.figures && r.figures.floor === 142, 'the floor sits in `detail` on the wire and must reach the words: ' + JSON.stringify(r.figures));
   const top = F.refusalOf({ body: { ok: false, verb: 'market_list', error: 'too_many_listings', limit: 50 } });
@@ -178,7 +178,7 @@ async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
      the Works' own read unfinished: one story, the server's numbers, where to give. Finished, unread or another project: the plain closed line. */
   const built = { project: 'weighhouse', total: 125000, goal: 1000000, finished: false };
   const closedLine = "The Weighhouse isn't trading right now. Your listings are safe, and you can still take them back.";
-  ok('W13', W.blockWords({ closed: true, works: built }) === "The Weighhouse isn't open yet. Havora is still building it, 125,000 of 1,000,000 gp so far. Give in Havora > Works. Your listings are safe, and you can still take them back.",
+  ok('W13', W.blockWords({ closed: true, works: built }) === "The Weighhouse being built: 125,000 of 1,000,000 gp (give in Havora > Works). Your listings are safe (you can take them back)",
     'trading off while the Works builds it reads ' + JSON.stringify(W.blockWords({ closed: true, works: built })));
   ok('W13', W.blockWords({ closed: true, works: { ...built, finished: true } }) === closedLine && W.blockWords({ closed: true, works: null }) === closedLine
     && W.blockWords({ closed: true, works: { ...built, project: 'bridge' } }) === closedLine && W.blockWords({ closed: false, works: built }) === '', 'the plain closed line is not kept for a standing building, an unread Works or another project');

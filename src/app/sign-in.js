@@ -12,11 +12,11 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.132';
-import { AUTH_COPY } from '../net/auth.js?v=0.2.132';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.132';
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.132';
-import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.132';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.134';
+import { AUTH_COPY } from '../net/auth.js?v=0.2.134';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.134';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.134';
+import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.134';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
@@ -28,7 +28,7 @@ const FIELD = {
 };
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
-export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.132" alt="" width="311" height="384">'
+export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.134" alt="" width="311" height="384">'
   + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your hero keeps hunting after you close the game.</p></header>';
 
 /* The two pages a player can read from here (legal-reader.js), as presses. */
@@ -44,9 +44,9 @@ const SCREENS = Object.freeze({
   'sign-in': { title: 'Sign in', fields: ['email', 'password'], submit: 'Sign in',
     links: [['create', 'Create an account'], ['forgot', 'Forgot your password?']] },
   create: { title: 'Create an account', fields: ['email', 'newPassword', 'confirm'], submit: 'Create account',
-    lead: 'If you already have an account, sign in instead.', links: [['sign-in', 'Back to sign in']] },
+    lead: 'Already have an account? Sign in instead.', links: [['sign-in', 'Back to sign in']] },
   forgot: { title: 'Reset your password', fields: ['email'], submit: 'Send reset link',
-    lead: 'We will email you a link to choose a new password.', links: [['sign-in', 'Back to sign in']] },
+    lead: 'We\'ll email you a reset link.', links: [['sign-in', 'Back to sign in']] },
   'set-password': { title: 'Choose a new password', fields: ['newPassword', 'confirm'], submit: 'Save password', links: [] },
 });
 

@@ -50,8 +50,8 @@
 // Each body drops its own imbuement item, one of each of the five kinds, a Material that only sells until linings are built (its
 // book value is twice its dropper's Level). The ground's named fuel, Pyre Ash (the board's), waits on a pack field for NAMED_FUELS
 // (src/data/hearth.js): no row.
-import { definePack, box, gather } from '../shape.js?v=0.2.132';
-import map from './map.js?v=0.2.132';
+import { definePack, box, gather } from '../shape.js?v=0.2.134';
+import map from './map.js?v=0.2.134';
 
 const CP = 'charred_pikeman', ST = 'stoker', LU = 'lurcher', PW = 'pyre_wraith', PV = 'provost';
 /* the pyres burned them once: fire does 25% less, frost full, poison still little (the class's 50) */
@@ -64,6 +64,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 9 Pikemen, 4 Stokers, 4 Lurchers, 4 Wraiths
      and 3 Provosts, two of them holding the Great Pyre. */
   hunt: {
+    region: 'barrow_march',
     name: 'The Pyre Field', theme: 'There were too many of Hask\'s dead soldiers to bury, so Lord Krell\'s priests burned them here. They keep getting back up.',
     band: [70, 90],
     spawns: [{ monster: CP, w: 9, rarity: 'common' }, { monster: ST, w: 4, rarity: 'uncommon' },

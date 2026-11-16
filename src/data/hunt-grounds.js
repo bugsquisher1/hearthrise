@@ -25,6 +25,9 @@
 //                 only from it ("Best with 2 to 4, and alone it pays from Level 45"). Advice, like groupFit.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
+//     mode        (optional) the session mode a hunt here plays (src/data/session-modes.js: what a death costs and what a
+//                 kill pays); absent = DEFAULT_SESSION_MODE, every ground today. The server freezes it on the instance at
+//                 the session's start from its own copy (tools/gen-session-modes.mjs); the engine never reads it from here.
 //     pull, pack  (optional, a `box` pocket) `pull` is the tank's tile (3x3 clear of walls and props), `pack` 8 rows in join
 //                 order on the ring round it, so every pull fits a full box: all 8 tiles round the tank (Tyler 10-18). `spawns` =
 //                 the head of `pack` is the pocket as built. A tier's pull (hunt-tiers.js) reads them through pullRows. Party size still scales pack HP.
@@ -132,14 +135,15 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.132';
-import { HUNT_INDEX } from './hunts.js?v=0.2.132';
-import { MONSTERS } from './monsters.js?v=0.2.132';
-import { PARTY } from './party.js?v=0.2.132';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.134';
+import { HUNT_INDEX } from './hunts.js?v=0.2.134';
+import { MONSTERS } from './monsters.js?v=0.2.134';
+import { PARTY } from './party.js?v=0.2.134';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.132';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.132';
+import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.134';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.134';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.134';
+import { sessionModeOf } from './session-modes.js?v=0.2.134';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -598,6 +602,8 @@ export function validateGround(row, refs) {
   if (row.leashMargin !== undefined && !(Number.isInteger(row.leashMargin) && row.leashMargin >= 0 && row.leashMargin <= 8)) {
     bad('leashMargin must be an integer 0..8');
   }
+  /* A SESSION MODE (src/data/session-modes.js): a row there, or none (the default). */
+  if (row.mode !== undefined && (typeof row.mode !== 'string' || !sessionModeOf(row.mode))) bad('mode ' + String(row.mode) + ' is no session mode (src/data/session-modes.js)');
   /* A box pocket fields the full box: 8 rows on the ring round its pull tile, its as-built spawns their head. */
   (row.pockets || []).forEach((pk, i) => {
     if (!pk || pk.pack === undefined) return;

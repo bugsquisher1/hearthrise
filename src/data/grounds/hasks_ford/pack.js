@@ -47,8 +47,8 @@
 // tier-4 weapons are the Slake's, so opened alone a sword alone at 45 swings its tier-3 sword and nets +5% over its store bill
 // (`node tools/pack.mjs check hasks_ford --mode full`, 6 seeds x 4 h), where the rule is +25% for every way. With the Slake's
 // mithril sword gettable it nets +45%, and that full grade passes every row (`--with the_slake`, exit 0, 66 rows).
-import { definePack, box, gather } from '../shape.js?v=0.2.132';
-import map from './map.js?v=0.2.132';
+import { definePack, box, gather } from '../shape.js?v=0.2.134';
+import map from './map.js?v=0.2.134';
 
 const PK = 'banded_pikeman', FS = 'fordsunk', LW = 'ledger_wight', BN = 'bannerman';
 
@@ -59,6 +59,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Fordsunk, 4 Ledger Wights and
      the 2 Bannermen. */
   hunt: {
+    region: 'barrow_march',
     name: 'Hask\'s Ford', theme: 'Captain Hask sold this river crossing to Lord Krell. Krell\'s men killed Hask\'s soldiers here, and they came back as undead.',
     band: [45, 60],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: FS, w: 6, rarity: 'uncommon' },

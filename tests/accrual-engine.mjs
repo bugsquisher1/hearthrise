@@ -1216,6 +1216,10 @@ async function shellGuard() {
     /* SCALED HUNTS (2027-03-21-scaled-hunts.sql): the Level a window plays, the instance read's `scale` (hr_scaled_hunt_of: the
        leader's banked hours and the switch), through hunt-settle.js scalePlanOf, never hr_state_of. */
     'scale',
+    /* SESSION MODES (2027-04-23-session-modes.sql): the instance's frozen mode, the instance read's `instance.session_mode`
+       (hunt_instances.session_mode, set by hr_hunt_mode_freeze from the server's ground catalogue), handed over by hunt-settle.js
+       proposeHuntSettle only after readHuntSettle's modePending check; never hr_state_of, never a client field. */
+    'sessionMode',
     /* accrueHunt's world bound: HUNT_TUNING.worldMaxBytes. This key is a TEST seam that
        can only TIGHTEN it (hunt-settle.js passes o.worldMaxBytes, which production never sets). */
     'worldMaxBytes',

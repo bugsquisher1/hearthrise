@@ -10,20 +10,21 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
-import { ITEMS } from '../data/items.js?v=0.2.132';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.132';
-import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.132';
-import { levelOf } from '../session/character-sections.js?v=0.2.132';
-import { needOf, needWords } from './item-lore.js?v=0.2.132';
-import { listWords, whole } from '../render/format.js?v=0.2.132';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
-import { marketRefusal } from './market-words.js?v=0.2.132';
-import { setupFullWords } from './setup-words.js?v=0.2.132';
-import { TITLES } from '../data/titles.js?v=0.2.132';
-import { sinkRefusal } from './sink-words.js?v=0.2.132';
-import { t } from '../render/player-text.js?v=0.2.132';
-import { trainingRefusal } from './training-words.js?v=0.2.132';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
+import { ITEMS } from '../data/items.js?v=0.2.134';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.134';
+import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.134';
+import { levelOf } from '../session/character-sections.js?v=0.2.134';
+import { needOf, needWords } from './item-lore.js?v=0.2.134';
+import { listWords, whole } from '../render/format.js?v=0.2.134';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.134';
+import { marketRefusal } from './market-words.js?v=0.2.134';
+import { setupFullWords } from './setup-words.js?v=0.2.134';
+import { TITLES } from '../data/titles.js?v=0.2.134';
+import { sinkRefusal } from './sink-words.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
+import { trainingRefusal } from './training-words.js?v=0.2.134';
+import { factionRefusal } from './faction-words.js?v=0.2.134';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -94,6 +95,9 @@ export function refusalText(r, cs) {
   /* Combat training: the server's fee, price and the dummy's hero in its sentences (training-words.js). */
   const training = trainingRefusal(r, cs ? nameOf(cs) : null);
   if (training) return training;
+  /* The factions: the server's standing, swap time and cooldown in their sentences (faction-words.js). */
+  const faction = factionRefusal(r, cs);
+  if (faction) return faction;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
     const why = seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]

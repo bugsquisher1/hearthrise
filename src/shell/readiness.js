@@ -10,26 +10,26 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.132';
-import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.132';
-import { itemName } from './widgets/bits.js?v=0.2.132';
-import { whole, hoursWords } from '../render/format.js?v=0.2.132';
-import { supplyWords } from './hunt-go.js?v=0.2.132';
-import { t } from '../render/player-text.js?v=0.2.132';
+import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.134';
+import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.134';
+import { itemName } from './widgets/bits.js?v=0.2.134';
+import { whole, hoursWords } from '../render/format.js?v=0.2.134';
+import { supplyWords } from './hunt-go.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 
 /**
  * @param {object} cs a CharacterSession
  */
 export function readinessOf(cs) {
-  const name = nameOf(cs) || 'Character ' + ((cs && Number.isInteger(cs.slot) ? cs.slot : 0) + 1);
+  const name = nameOf(cs) || t('prep.ready_character', { n: (cs && Number.isInteger(cs.slot) ? cs.slot : 0) + 1 });
   /* In a hunt the supplies are in the hunt bag, not the bag (Enter moves them: Andy #74, 2,000 Swordfish read as "the store"). */
   const carried = carriedOf(cs);
   const checks = [];
   const short = [];
-  if (!carried) return { name, ready: false, checks: [{ id: 'loading', ok: false, text: 'Reading this character…' }], short: ['not read yet'] };
+  if (!carried) return { name, ready: false, checks: [{ id: 'loading', ok: false, text: t('prep.ready_loading') }], short: [t('prep.ready_short_loading')] };
   const eq = equipmentOf(cs) || {};
-  checks.push({ id: 'weapon', ok: !!eq.weapon, text: eq.weapon ? 'Weapon: ' + itemName(eq.weapon) : 'No weapon worn' });
-  if (!eq.weapon) short.push('no weapon');
+  checks.push({ id: 'weapon', ok: !!eq.weapon, text: eq.weapon ? t('prep.ready_weapon', { item: itemName(eq.weapon) }) : t('prep.ready_no_weapon') });
+  if (!eq.weapon) short.push(t('prep.ready_short_weapon'));
 
   /* What the bar spends, the same words as Before you go (hunt-go.js supplyWords). Nobody has to buy first (Tyler 10-18), and
      an empty food or drink slot is a heads-up, never a blocker (designer 2026-10-29, Tyler's "0 food" report). */
@@ -39,13 +39,13 @@ export function readinessOf(cs) {
       checks.push({ id: l.id, ok: !l.short, text: l.text });
       if (l.short) short.push('0 ' + l.id);
     }
-  } else checks.push({ id: 'bar', ok: true, text: 'The action bar is set when a hunt is chosen' });
+  } else checks.push({ id: 'bar', ok: true, text: t('prep.ready_bar_later') });
 
   const st = staminaOf(cs);
   if (st) {
     /* How much, never a bare "Stamina left" (core-loop play 2026-10-30): the server's stamina, in hours and minutes. */
-    checks.push({ id: 'stamina', ok: st.msLeft > 0, text: st.msLeft > 0 ? 'Stamina: ' + hoursWords(st.msLeft) + ' left' : 'No stamina left. Rest first' });
-    if (!(st.msLeft > 0)) short.push('no stamina');
+    checks.push({ id: 'stamina', ok: st.msLeft > 0, text: st.msLeft > 0 ? t('prep.ready_stamina', { left: hoursWords(st.msLeft) }) : t('prep.ready_no_stamina') });
+    if (!(st.msLeft > 0)) short.push(t('prep.ready_short_stamina'));
   }
   const gp = goldOf(cs);
   /* How long the gold lasts: the gold and, while a hunt runs, the server's supply spend an hour (the analyzer's waste). */

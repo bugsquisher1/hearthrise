@@ -4,10 +4,11 @@
 // The designer's second night (re-read 2026-11-11, #2): stamina ran out after 3 h 14 m and the player came back to
 // "The hunt has ended 5 h 45 min ago" with nothing saying the hero had sat in town for most of the night, or what
 // would have filled it. An automatic end (src/data/hunt-sessions.js RESUME_AFTER_END) walks the hero home and puts it
-// back on its last gathering job; with none, it idles. So the line says one of two things, from server fields only:
+// back on its last gathering job, or on the bench it was running, for the count it had left (Tyler 2026-11-15); with
+// neither, it idles. So the line says one of two things, from server fields only:
 //   went    the server's pointer is a town job whose `active_since` is the walk home's end (the resume stamps exactly
-//           ended_at + the ground's travel, 2027-03-25-death-share.sql step 7): "Then Wrenna came home and went back
-//           to mining the Copper Rock."
+//           ended_at + the ground's travel, hr_hunt_resume, 2027-04-24-bench-resume.sql): "Then Wrenna came home and
+//           went back to mining the Copper Rock."
 //   waited  the pointer is idle and was not moved since the end: how long the hero has stood in town, and the ONE next
 //           thing that would have filled it, chosen by the end reason (NEXT below).
 // Anything else (a job the player started or stopped after the end, a pointer the server has not sent) says nothing:
@@ -15,23 +16,28 @@
 //
 // WHY THE NEXT LINES ARE THESE (rules of record, not the brief's draft): a Blessing cuts what a death costs and
 // touches no stamina, and nothing starts a hunt by itself, so "a Blessing or a rest would have let the next hunt
-// start" is false and is not said. What fills idle time after ANY automatic end is a gathering job, because that is
-// what the server resumes (a bench never is: hr_resume_has_inputs). A limit the player set (`hours`) is filled by a
+// start" is false and is not said. What fills idle time after ANY automatic end is a gathering job, because the server
+// resumes it and it never runs out (a bench resumes only for the count it had left). A limit the player set (`hours`) is filled by a
 // longer hunt; a bag that ran dry by packing more; a purse that ran dry by keeping gold or packing your own, and when the bag
 // held food or drink of a kind the bar eats that no slot named, by putting THAT on the bar (the store sold what the bag had).
 // A BOSS ROOM (a call or a hall: boss-halls.js roomOfHunt) is one fight, not a night: no next line, only what the hero did.
+// STAMINA (the designer's coherence pass 2026-11-15, walk row 6): the hours it takes to come back are the first day's dead moment, so
+// its line names everything that uses none: the yard (from its Level, src/data/training.js), a bench, gathering, and gathering's resume.
+// A TRAINING SESSION (src/data/training.js) uses no stamina and has its own cap (walk row 7: its 12-hour end read "Set a longer hunt
+// next time, up to the stamina you have."): that end says to start it again; any other says nothing more.
 //
 // Display only: nothing here is spendable or gates an intent (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.132';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
-import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.132';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.132';
-import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.132';
-import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.132';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.132';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.132';
-import { itemName } from './widgets/bits.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.134';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
+import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.134';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.134';
+import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.134';
+import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.134';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.134';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.134';
+import { itemName } from './widgets/bits.js?v=0.2.134';
+import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.134';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;
@@ -42,7 +48,10 @@ const MOVED_AFTER_MS = 10 * 60 * 1000;
 
 /* The one next thing per end reason; every other automatic end (stamina, a death, a stop rule, a party end ...) is
    filled by a gathering job, which the server resumes after each of them. */
-const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_food', ammo_out: 'away.next_ammo', runes_out: 'away.next_runes', gold_out: 'away.next_gold' });
+const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_food', ammo_out: 'away.next_ammo', runes_out: 'away.next_runes', gold_out: 'away.next_gold',
+  stamina: 'away.next_stamina' });
+/* A training session's: its cap reached, start it again; the purse's end and every other say it all already. */
+const TRAIN_NEXT = Object.freeze({ hours: 'away.next_train_again' });
 const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
 
 /** "1 h 58 min", "25 min". */
@@ -88,6 +97,7 @@ export function afterHuntOf(st, h, nowMs, spare) {
   if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;
   const idleMs = Math.max(0, nowMs - home);
   if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };
+  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };
   if (h.endReason === 'gold_out' && typeof spare === 'string') return { kind: 'waited', idleMs, next: 'away.next_bar', item: spare };
   return { kind: 'waited', idleMs, next: NEXT[h.endReason] || 'away.next_gather' };
 }
@@ -98,7 +108,8 @@ export function afterHuntWords(st, h, nowMs, name, spare) {
   if (!a) return '';
   if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
   const next = a.next === null ? ''
-    : t(a.next, a.next === 'away.next_gather' ? { name } : a.next === 'away.next_bar' ? { name, item: itemName(a.item) } : undefined);
+    : t(a.next, a.next === 'away.next_bar' ? { name, item: itemName(a.item) }
+      : a.next === 'away.next_stamina' ? { name, level: TRAINING_RULES.minLevel } : undefined);
   const waited = a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) : '';
   return waited && next ? waited + ' ' + next : waited || next;
 }

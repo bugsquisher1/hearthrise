@@ -786,11 +786,11 @@ const ARMS = {
     const out = [];
     const R = (o) => X.IW.refusalText({ ok: false, verb: 'town_works', project: P, ...o }, null);
     const want = [
-      [{ error: 'works_limit', perDay: 25000 }, 'Havora takes 25,000 gp a day from one account, and you\'ve given yours. More after midnight UTC.'],
-      [{ error: 'works_over', left: 4200 }, 'You can give 4,200 gp more today.'],
-      [{ error: 'works_short', left: 800 }, 'The Weighhouse only needs 800 gp more.'],
-      [{ error: 'works_small', min: 100 }, 'The smallest gift is 100 gp.'],
-      [{ error: 'works_done' }, 'The Weighhouse is finished. Nothing else is being built right now.'],
+      [{ error: 'works_limit', perDay: 25000 }, 'Daily limit: 25,000 gp given per account. Resets at midnight UTC.'],
+      [{ error: 'works_over', left: 4200 }, 'Max today: 4,200 gp more'],
+      [{ error: 'works_short', left: 800 }, 'The Weighhouse needs only 800 gp more'],
+      [{ error: 'works_small', min: 100 }, 'Minimum gift: 100 gp'],
+      [{ error: 'works_done' }, 'The Weighhouse is finished (nothing else being built)'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(`${r.error} reads "${R(r)}"`);
     /* the plain table says something for every code the verb can answer, in case a number is lost */
@@ -817,7 +817,7 @@ const ARMS = {
     if (/hv-works-today|hv-works-msg/.test(X.WK.worksHtml())) out.push('the pane draws its own day\'s line or answer, in the flow');
     const footed = await footOf(X, await as(db, A, 'select public.hr_town_works_view(0)'));
     if (footed.day !== 'You can give 25,000 gp more today. More after midnight UTC.') out.push('the foot\'s day line reads ' + JSON.stringify(footed.day));
-    if (footed.said !== 'The smallest gift is 100 gp.') out.push('the foot\'s answer reads ' + JSON.stringify(footed.said));
+    if (footed.said !== 'Minimum gift: 100 gp') out.push('the foot\'s answer reads ' + JSON.stringify(footed.said));
     /* A GIFT THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS WHY (v0.2.97 gate: a 500 gp purse saw "Give 1,000 gp", "Give 5,000 gp" and "Give the 25,000 gp left
        today" live, and "Not enough gold." only after the press). The purse is the envelope's; the room is the server's; the last button gives the smaller. */
     const room = await as(db, A, 'select public.hr_town_works_view(0)');

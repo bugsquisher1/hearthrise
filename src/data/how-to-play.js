@@ -23,11 +23,11 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.132';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.132';
-import { STARTER_SETS } from './start-kit.js?v=0.2.132';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.132';
-import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.132';
+import { ITEMS } from './items.js?v=0.2.134';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.134';
+import { STARTER_SETS } from './start-kit.js?v=0.2.134';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.134';
+import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.134';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -80,7 +80,7 @@ export const HELP_NOTES = Object.freeze([
   note('levels', 'Level and skills',
     'Every kill earns Level XP, and each Level raises your health and mana. Your Level decides which gear you can wear, while arrows, whetstones and runes need their own skill instead. Melee, Ranged, Magic and Defense rise as you use them, by fighting with that weapon or taking blows in armor. Level has no cap.'),
   note('town', 'Work in town',
-    'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed. Making something uses what is in your bag. Starting a hunt stops either one.'),
+    'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed. Making something uses what is in your bag. Starting a hunt stops either one. Under When the hunt ends on the hunt\'s page you pick where your hero goes next. It can go back to the job, wait in town or train at the yard. A bench only makes what it still had left to make when you set off, however much loot you bring home. If you leave the hunt yourself, your hero waits in town.'),
   note('heroes', 'Several heroes at once',
     'Your account starts with one hero slot, and gold buys up to three more. All four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
   note('death', 'If your hero dies',

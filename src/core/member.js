@@ -13,25 +13,25 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.132';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.132';
-import { companionBonus } from './companion-perk.js?v=0.2.132';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.132';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.132';
-import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.132';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.132';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.132';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.132';
-import { MONSTERS } from '../data/monsters.js?v=0.2.132';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.132';
-import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.132';
-import { isRune } from '../data/runes.js?v=0.2.132';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.132';
-import { STATUSES } from '../data/statuses.js?v=0.2.132';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.132';
-import { LANE_OF } from './hunt/conditions.js?v=0.2.132';
-import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.132';
-import { resistProfile } from './elements.js?v=0.2.132';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.134';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.134';
+import { companionBonus } from './companion-perk.js?v=0.2.134';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.134';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.134';
+import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.134';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.134';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.134';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.134';
+import { MONSTERS } from '../data/monsters.js?v=0.2.134';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.134';
+import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.134';
+import { isRune } from '../data/runes.js?v=0.2.134';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.134';
+import { STATUSES } from '../data/statuses.js?v=0.2.134';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.134';
+import { LANE_OF } from './hunt/conditions.js?v=0.2.134';
+import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.134';
+import { resistProfile } from './elements.js?v=0.2.134';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -216,6 +216,15 @@ export function memberSide(mi, ctx) {
       if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
       hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);
       if (skillId === 'inner_flame' && applied > 0) applyVitals(state, equipment, items);
+    },
+    /* TRAINING'S FIXED RATE (src/core/hunt/training.js trainingTick; Tyler 2026-11-14, the same rate for every hero): skill XP through
+       the same carry, with no XP perk, buff or pace dial, so an hour of training pays exactly src/data/training.js xpPerHour. */
+    addFixedXp(skillId, amt) {
+      const before = Number(state.skills[skillId]) || 0;
+      grantXp(state, skillId, amt, { bonus: null, restedQuantum: 0, authored: true });
+      const applied = (Number(state.skills[skillId]) || 0) - before;
+      if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
+      hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);
     },
     /* LEVEL XP: the kill share xp-share.js already split, whole (Level comes from
        kills only). A Level raises max HP and max mana from the next swing. */

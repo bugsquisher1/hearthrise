@@ -69,8 +69,8 @@
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box, gather, addRows } from '../shape.js?v=0.2.132';
-import map from './map.js?v=0.2.132';
+import { definePack, box, gather, addRows } from '../shape.js?v=0.2.134';
+import map from './map.js?v=0.2.134';
 
 const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'captain_hask';
 
@@ -81,6 +81,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 16 Pikemen, 6 Wights and 5 Knights, who stand only
      on the Sergeants' Row and with their captain. Hask holds his barrow and has no weight (checks.holders). */
   hunt: {
+    region: 'barrow_march',
     name: 'The Muster Barrows', theme: "Lord Krell gave Hask's officers a proper burial here so nobody would ask how they really died. Then he buried Hask with them to keep him quiet.",
     band: [55, 75],
     spawns: [{ monster: PK, w: 16, rarity: 'common' }, { monster: CW, w: 6, rarity: 'uncommon' }, { monster: BK, w: 5, rarity: 'rare' }],

@@ -6,11 +6,11 @@
 // until the server answers. A stop, a mute and a ban ask once more, naming the target. Refusals read through refusalText, never a code.
 // One component, shown as a window on a desktop and a sheet on a phone (CLAUDE.md §1).
 // ════════════════════════════════════════════════════════════════════════
-import { attr, cls, element, prop, rows, text } from '../../render/paint.js?v=0.2.132';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
-import { huntFor } from '../../core/hunt-spawn.js?v=0.2.132';
-import { refusalText } from '../intent-words.js?v=0.2.132';
-import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline, gmSay, gmStop, gmUnban, gmUnmute } from '../../session/gm-intents.js?v=0.2.132';
+import { attr, cls, element, prop, rows, text } from '../../render/paint.js?v=0.2.134';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
+import { huntFor } from '../../core/hunt-spawn.js?v=0.2.134';
+import { refusalText } from '../intent-words.js?v=0.2.134';
+import { gmBan, gmGrantGold, gmGrantItem, gmGrantLevel, gmHero, gmMute, gmOnline, gmSay, gmStop, gmUnban, gmUnmute } from '../../session/gm-intents.js?v=0.2.134';
 
 const MUTE_MINUTES = Object.freeze([[15, '15 minutes'], [60, '1 hour'], [1440, '1 day'], [10080, '1 week']]);
 const STATES = new WeakMap();

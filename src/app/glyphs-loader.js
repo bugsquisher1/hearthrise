@@ -14,7 +14,7 @@
 // rather than not at all; the next load tries again.
 // ════════════════════════════════════════════════════════════════════════
 
-import { BUILD } from '../build-info.js?v=0.2.132';
+import { BUILD } from '../build-info.js?v=0.2.134';
 
 const ATLAS = new URL('../data/glyphs.js', import.meta.url).href + '?v=' + BUILD.cache;
 const PENDING = new WeakMap();

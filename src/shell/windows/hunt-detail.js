@@ -21,20 +21,22 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.133';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.133';
-import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.133';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.133';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.133';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.133';
-import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.133';
-import { gotoAttr, patchParts } from '../goto.js?v=0.2.133';
-import { factsTarget } from './monster.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
-import { groundLines } from '../live-events-view.js?v=0.2.133';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.134';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.134';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.134';
+import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.134';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.134';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.134';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.134';
+import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.134';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.134';
+import { factsTarget } from './monster.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
+import { groundLines } from '../live-events-view.js?v=0.2.134';
+import { afterHtml } from './hunt-after-pane.js?v=0.2.134';
+import { scaleHtml } from './scale-pane.js?v=0.2.134';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -51,14 +53,16 @@ export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></p>'
     + '<p class="hw-hd-who"></p><div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
-    + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
+    + '<h4 class="hw-hd-h">' + t('hunts.head_lives') + '</h4><ul class="hw-hd-lineup" aria-label="' + t('hunts.head_lives') + '"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
     + '<p class="hw-hd-theme"></p>'
-    + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
-    + '<h4 class="hw-hd-h">Materials <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="Materials"></ul>'
-    + '<h4 class="hw-hd-h">Rare drops <small class="hw-hd-per">chance per kill of its creature</small></h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'
+    /* a ground the server scales for this hero: its Level, price, bank and the hours slider (scale-pane.js; audit F26) */
+    + scaleHtml()
+    + '<h4 class="hw-hd-h">' + t('hunts.head_drops') + ' <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="' + t('hunts.head_drops') + '"></ul>'
+    + '<h4 class="hw-hd-h">' + t('hunts.head_mats') + ' <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="' + t('hunts.head_mats') + '"></ul>'
+    + '<h4 class="hw-hd-h">' + t('hunts.head_rares') + ' <small class="hw-hd-per">' + t('hunts.rares_per') + '</small></h4><ul class="hw-hd-rares" aria-label="' + t('hunts.head_rares') + '"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
-    + '<section class="hw-hd-bests" aria-label="Your best here"><h4 class="hw-hd-h">Your best here</h4>'
+    + '<section class="hw-hd-bests" aria-label="' + t('hunts.head_best') + '"><h4 class="hw-hd-h">' + t('hunts.head_best') + '</h4>'
     + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
 }
 
@@ -71,10 +75,11 @@ const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) 
  * ground or while leading, the way to a party (B #3).
  */
 export function goHtml() {
-  return '<h4 class="hw-hd-h">Go as</h4><div class="hw-go-list" role="radiogroup" aria-label="Go as"></div>'
+  return '<h4 class="hw-hd-h">' + t('hunts.head_go_as') + '</h4><div class="hw-go-list" role="radiogroup" aria-label="' + t('hunts.head_go_as') + '"></div>'
     + '<p class="hw-go-note"></p>'
-    + '<h4 class="hw-hd-h">Before you go</h4><ul class="hw-before"></ul>'
-    + '<section class="hw-hd-party" aria-label="With a party"><h4 class="hw-hd-h">With a party</h4><p class="hw-hd-party-why"></p>'
+    + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
+    + afterHtml()
+    + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'
     + '<div class="hw-hd-party-do"><button type="button" class="hh-tool hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
     + '<p class="hw-bring-none"></p></section>';
 }
@@ -97,7 +102,7 @@ export function patchGo(det, ctx, v) {
       attr(b, 'aria-checked', String(on));
       cls(b, 'is-picked', on);
       text(b.querySelector('.hw-go-name'), p.name);
-      patchParts(b.querySelector('.hw-go-what'), withSeps([p.roleWords, p.inUse ? 'on now' : null].filter(Boolean)));
+      patchParts(b.querySelector('.hw-go-what'), withSeps([p.roleWords, p.inUse ? t('hunts.go_on_now') : null].filter(Boolean)));
       const w = b.querySelector('.hw-go-weapon');
       if (w.getAttribute('data-item') !== String(p.weapon)) { w.innerHTML = p.weapon ? itemIconHtml(ctx.glyphs, p.weapon) : ''; w.setAttribute('data-item', String(p.weapon)); }
       const bar = b.querySelector('.hw-go-bar');
@@ -107,7 +112,7 @@ export function patchGo(det, ctx, v) {
     },
   });
   const chosen = (v.setups || []).find((p) => p.preset === v.chosen);
-  text(det.querySelector('.hw-go-note'), chosen && !chosen.inUse ? 'Enter puts ' + chosen.name + ' on first: its gear and its bar.' : '');
+  text(det.querySelector('.hw-go-note'), chosen && !chosen.inUse ? t('hunts.go_puts_on', { setup: chosen.name }) : '');
   rows(det.querySelector('.hw-before'), v.before || [], {
     key: (l) => l.id,
     build: () => element(ctx.doc, '<li class="hw-before-line"></li>'),
@@ -123,10 +128,10 @@ export function patchGo(det, ctx, v) {
   rows(pb.querySelector('.hw-bring'), v.partyBlock.bring, {
     key: (h) => String(h.slot),
     build: (h) => element(ctx.doc, '<button type="button" class="hh-tool" data-hs-act="bring" data-slot="' + h.slot + '"></button>'),
-    patch: (b, h) => { text(b, 'Bring ' + h.name); prop(b, 'disabled', v.off || v.partyBlock.full); },
+    patch: (b, h) => { text(b, t('hunts.party_bring', { name: h.name })); prop(b, 'disabled', v.off || v.partyBlock.full); },
   });
   const none = pb.querySelector('.hw-bring-none');
-  text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.');
+  text(none, v.partyBlock.bring.length ? '' : t('hunts.party_others'));
 }
 
 /* "Level 2 · common"; a boss says so in place of its share. A narrow card puts the share under the Level, with no dot (format.js sepHtml). */
@@ -171,7 +176,7 @@ export function patchGround(det, ctx, r, o) {
   /* the dot is text, so a reader gets "Level 1–8 · In range", not "1–8In range" */
   prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
-  text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
+  text(det.querySelector('.hw-hd-who'), heroWords(r));
   /* A live event that reaches this ground, the server's (live-events-view.js): nothing at all while every switch is off. */
   rows(det.querySelector('.hw-hd-events'), groundLines(ctx.character, r.hunt), {
     key: (l) => l.id,
@@ -211,7 +216,7 @@ export function patchGround(det, ctx, r, o) {
      are the engine's own rows, the same for every party size (hunt-ground-facts.js), never a number typed here. */
   /* PER KILL, FOR THE WHOLE PARTY (blind party test 2026-11-01; played): each kill rolls the row's own odds for any party size, and each drop goes to one hero
      (hunt-rewards.js payKill). */
-  text(det.querySelector('.hw-hd-per-size'), size > 1 ? 'chance per kill, for your party of ' + size + ': each drop goes to one of you' : 'chance per kill, hunting alone');
+  text(det.querySelector('.hw-hd-per-size'), size > 1 ? t('hunts.per_kill_party', { n: size }) : t('hunts.per_kill_alone'));
   rows(det.querySelector('.hw-hd-sets'), scarceSetOf(r.hunt, o.worn || null), {
     key: (e) => String(e.tier),
     build: () => element(ctx.doc, '<li class="hw-hd-set"><span><b class="hw-hd-set-lines"></b><span class="hw-hd-set-what"></span></span>'
@@ -224,7 +229,7 @@ export function patchGround(det, ctx, r, o) {
   });
   /* The materials a shortage sends a player here for (panel 2026-11-01: Drops listed gear only). The rows look like the Rare list's. */
   const mats = materialsOf(r.hunt);
-  text(det.querySelector('.hw-hd-mats-per'), size > 1 ? 'chance per kill, for your party of ' + size + ': each drop goes to one of you' : 'chance per kill, hunting alone');
+  text(det.querySelector('.hw-hd-mats-per'), size > 1 ? t('hunts.per_kill_party', { n: size }) : t('hunts.per_kill_alone'));
   rows(det.querySelector('.hw-hd-mats'), mats, {
     key: (x) => x.id,
     build: (x) => element(ctx.doc, '<li class="hw-hd-rare" data-item="' + esc(x.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, x.id) + '</span>'

@@ -101,7 +101,7 @@
 .hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }
 .hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
-.hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); white-space: pre-line; }
 .hw-confirm-note:empty { display: none; }
 .hw-sell-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-sell-note:empty { display: none; }
@@ -389,7 +389,7 @@
 .hw-hunt-event { display: block; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-event b { color: var(--ink); }
 .hw-hunt-events:empty { display: none; }
-.hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
+.hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); white-space: pre-line; }
 .hw-hunt-warn:empty { display: none; }
 .hw-hd-theme { margin: var(--gap) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
 /* Each section head is a Forged Steel head (shell.css): Cinzel in gold over a rule. */
@@ -463,6 +463,11 @@
 .hw-before-line { padding: 1px 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-before-line.is-short { color: var(--red); }
 .hw-hd-h:has(+ .hw-before:empty) { display: none; }
+/* When the hunt ends: one select the page's width, and the line that says what the picked choice means. */
+.hw-after[hidden] { display: none; }
+.hw-after .hw-after-pick { width: 100%; max-width: 100%; }
+.hw-after-note { margin: 4px 0 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-after-note:empty { display: none; }
 /* With a party: the way to one, from the ground that wants one. */
 .hw-hd-party[hidden] { display: none; }
 .hw-hd-party-why { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
@@ -479,6 +484,19 @@
 .hw-call-line:empty { display: none; }
 .hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-call-press[hidden] { display: none; }
+/* A scaled hunt (scale-pane.js, audit F26): its facts, the dials in the small ink, Use scaled hours, then the hours slider with Buy beside it. */
+.hw-hd-scale[hidden], .hw-scale-use[hidden], .hw-scale-buy[hidden], .hw-scale-dials[hidden], .hw-scale-note[hidden] { display: none; }
+.hw-scale-facts { margin: 0 0 4px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-scale-dials, .hw-scale-note { margin: 0 0 6px; }
+.hw-scale-note { color: var(--gold-2); }
+.hw-scale-use { display: flex; align-items: center; gap: 6px; min-height: 30px; margin: 0 0 6px; color: var(--ink-2); cursor: pointer; }
+.hw-scale-use input { accent-color: var(--gold); }
+.hw-scale-buy { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.hw-scale-buy input[type="range"] { flex: 1; min-width: 96px; max-width: 280px; }
+.hw-scale-n { min-width: 40px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-scale-buy .hh-tool { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-hunt-scale { display: block; font-size: var(--t-micro); color: var(--gold-2); }
+.hw-hunt-scale[hidden] { display: none; }
 /* A keyed hall (boss-hall-pane.js): the door first, then what wins under it, a step apart from the press. */
 .hw-hall-bars { margin-top: var(--gap); }
 .hw-hd-foot { flex: none; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
@@ -1237,6 +1255,13 @@
 .tw-go, .tw-stop { display: block; width: 100%; min-height: 40px; margin: 6px 0; }
 .tw-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .tw-foot .hw-why { margin: 4px 2px 0; }
+/* THE TRAINING ITEM (2027-04-23-training-gear.sql): the hours left, the switch, the sealed ones held and the Arms Master's rows, as ledger lines. */
+.tw-gear { margin: 0 0 8px; }
+.tw-gear-use { display: flex; align-items: center; gap: 8px; min-height: 36px; margin: 0 2px; font-size: var(--t-small); color: var(--ink); cursor: pointer; }
+.tw-gear-row { display: flex; align-items: center; gap: 8px; min-height: 40px; border-top: 2px solid var(--steel-sep); font-size: var(--t-small); font-variant-numeric: lining-nums tabular-nums; }
+.tw-gear-name { flex: 1 1 auto; min-width: 0; color: var(--ink); }
+.tw-gear-fig { flex: 0 0 auto; white-space: nowrap; color: var(--gold-2); }
+.tw-gear-press { min-height: 32px; padding: 0 12px; }
 /* THE HOUSE'S DUMMY (src/shell/windows/house-dummy.js): four skills as ledger lines, the held ones gold. */
 .hd-dummy[hidden], .hd-confirm[hidden] { display: none; }
 .hd-skills { list-style: none; margin: 0 0 6px; padding: 0; }

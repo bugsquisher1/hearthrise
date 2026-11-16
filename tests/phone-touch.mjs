@@ -10,7 +10,7 @@
 //
 // mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js
 // mutant-writes-tree: no — page mutants are served overrides
-// mutant-rule-functions: bagReach configureFits analyzerToggles portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor rules
+// mutant-rule-functions: bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor rules
 // mutant-runner-functions: main
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -26,7 +26,9 @@
 //        open, it never crosses the hunt bar or the action bar; closed stays closed after a reload, open comes
 //        back clear of the hunt bar; a pending leave ("Leaving in Ns") stands where Leave hunt was and keeps the
 //        hunt bar on one line, inside the screen and off the Party panel (on screen: a party of two ends above the
-//        action bar). At 1440x900 the analyzer shows by default and the same toggle works
+//        action bar). At 1440x900 the analyzer shows by default and the same toggle works. Over the town (a training
+//        session, 667x375 and 922x423: the World's title row lowers the hunt bar) Details opens it wholly on screen,
+//        clear of both bars, its close in reach
 //   PH-3 PORTRAIT: a touch phone held upright (390x844, 375x812) sees ONE full-screen "turn your phone
 //        sideways" card on top of everything, its words >= 12 px; a phone in landscape, a touch tablet either
 //        way up and a desktop (a narrow window included) never see it
@@ -321,6 +323,31 @@ async function analyzerToggles(page, base, tag, fails, phone) {
   a = await anState(page);
   if (!a.an) fails.push('PH-2 [' + tag + '] an open analyzer did not come back after a reload');
   else if (window_cross(a.an, a.bar)) fails.push('PH-2 [' + tag + '] after a reload the analyzer covers the hunt bar: ' + JSON.stringify([a.an, a.bar]));
+}
+/* A FIGHT SHOWN OVER THE TOWN (a training session at the yard: the World keeps its title row, so the hunt bar's foot is 48 px lower than in a
+   hunt). At 667x375 the room left above the action bar (110 px) was under the analyzer's 120 px floor: Details stepped it below the bar, off
+   the screen, and showed nothing (lane/a-training-leftovers). Opened, it lies wholly on screen, clear of both bars, its close a thumb's. */
+const atTheYard = (env) => {
+  env.hunt = Object.assign({}, env.hunt, { hunt_id: 'training_yard_melee' });
+  env.state = Object.assign({}, env.state, { active_kind: 'combat', active_id: 'training_yard_melee' });
+  env.training = { skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12, quotes: [{ skill: 'melee', level: 20, fee_h: 170, xp_h: 30000, hours_to_next: 1 }],
+    run: { skill: 'melee', where: 'yard', since: new Date(env.hunt_server_now_ms - 20 * 60000).toISOString(), fee_h: 170, paid: 340, boosted: false, boost_ms: 0 },
+    last_stop: null, rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 20 }, gear: [], offers: [], shop: { on: false, today: 0, max: 10 } };
+};
+async function analyzerOverTown(page, tag, fails) {
+  if (!(await wait(page, () => /^Training Melee/.test((document.querySelector('.ht-bar .ht-name') || {}).textContent || '')
+    && document.querySelector('#panel-world[data-scene]') && document.querySelector('#panel-world').getAttribute('data-scene') !== 'hunt', null, 6000))) {
+    fails.push('PH-2 [' + tag + '] CONTROL: no training session shown over the town'); return;
+  }
+  if (!(await page.click('.ht-bar [data-hs-act="details"]', { timeout: 2500 }).then(() => true, () => false))) { fails.push('PH-2 [' + tag + '] Details cannot be pressed'); return; }
+  await page.waitForTimeout(400);
+  const a = await page.evaluate(() => { const c = document.querySelector('.ha-analyzer .ha-close');
+    return { an: window.__r('.ha-analyzer'), hub: window.__r('.hb-bar'), bar: window.__r('.ht-bar'), close: !!c && window.__onScreen(window.__r(c)) && window.__hits(c),
+      on: window.__onScreen(window.__r('.ha-analyzer')), train: !!window.__r('.ha-analyzer .ha-train') }; });
+  if (!a.an || !a.on || !a.close) fails.push('PH-2 [' + tag + '] Details opened no analyzer wholly on screen with a close in reach: ' + JSON.stringify(a));
+  else if (!a.train) fails.push('PH-2 [' + tag + '] CONTROL: the analyzer does not show the training session');
+  else if (window_cross(a.an, a.hub)) fails.push('PH-2 [' + tag + '] the analyzer runs over the action bar: ' + JSON.stringify([a.an, a.hub]));
+  else if (window_cross(a.an, a.bar)) fails.push('PH-2 [' + tag + '] the analyzer covers the hunt bar: ' + JSON.stringify([a.an, a.bar]));
 }
 function window_cross(a, b) { return !!a && !!b && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5; }
 
@@ -636,7 +663,7 @@ async function staminaBuy(open, fails, done) {
   if (!mid.off || mid.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] Buy stayed on (or the stamina moved) before the server answered: ' + JSON.stringify(mid));
   a.s.holdRefill = false;
   if (a.s.releaseRefill) a.s.releaseRefill();
-  const bought = await wait(a.page, () => document.querySelector('.hb-buy-now').textContent === '7 h 12 m of 8 h' && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored.', null, 6000);
+  const bought = await wait(a.page, () => document.querySelector('.hb-buy-now').textContent === '7 h 12 m of 8 h' && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored', null, 6000);
   const sent = a.s.calls.filter((c) => c.name === 'hr_stamina_refill');
   if (sent.length !== 1 || sent[0].body.p_price !== 1840 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
   if (!bought) fails.push('PH-9 [' + tag + '] after the server answered the panel reads ' + JSON.stringify(await panelOf(a.page)));
@@ -650,7 +677,7 @@ async function staminaBuy(open, fails, done) {
   a.s.onRefill = () => { a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 410, n: 3 }); return { ok: false, error: 'quote_changed', stamina_refill: a.s.env.stamina_refill }; };
   a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 });
   await askThenBuy();   // the question reads 520 (the server's then); the server moves to 410 under the second press
-  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp\.$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
+  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
   if (!moved) fails.push('PH-9 [' + tag + '] after quote_changed (the server quotes 410 gp) the panel reads ' + JSON.stringify(await panelOf(a.page)));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: 28800000 }); a.s.env.stamina_refill = { available: false, why: 'stamina_full', n: 3, per_day: 6 };
     return { ok: false, error: 'stamina_full', stamina_refill: a.s.env.stamina_refill }; };
@@ -697,7 +724,7 @@ async function coachSheetHunting(page, tag, fails) {
   if (!(await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hs-win-coach .hs-pointer') && document.querySelector('.hw-hunts-now') && document.querySelector('.hw-hunt b'), null, 4000))) { fails.push('PH-18 [' + tag + '] CONTROL: no card in Hunts mid-hunt'); return; }
   await page.waitForTimeout(250);
   const n = await page.evaluate(() => { const note = document.querySelector('.hw-hunts-now'); return { hint: note.classList.contains('is-hint'), said: note.textContent, box: note.getClientRects().length }; });
-  if (n.hint || !/^You are hunting in /.test(n.said)) fails.push('PH-18 [' + tag + '] CONTROL: mid-hunt the note reads ' + JSON.stringify(n));
+  if (n.hint || !/^Hunting in /.test(n.said)) fails.push('PH-18 [' + tag + '] CONTROL: mid-hunt the note reads ' + JSON.stringify(n));
   else if (n.box) fails.push('PH-18 [' + tag + '] the note of the running hunt stands over the grounds the card names');
 }
 /* Got it hands the sheet back: the next card waits on its tab until the tab is pressed. */
@@ -1331,7 +1358,7 @@ async function leaveWords(page, s, ctx, tag, fails) {
   const line = () => page.evaluate(() => (document.querySelector('.ht-leaving') || {}).textContent);
   const onBar = () => page.evaluate(() => { const l = document.querySelector('.ht-leaving'); return !!l && !l.hidden && window.__onScreen(window.__r(l)); });
   if (!(await wait(page, () => /^Leaving/.test((document.querySelector('.ht-leaving') || {}).textContent || ''), null, 2000))) fails.push('PH-16 [' + tag + '] the press reads: ' + await line());
-  if (!(await wait(page, () => /Waiting for the server/.test(document.querySelector('.ht-leaving').textContent), null, 6000))) fails.push('PH-16 [' + tag + '] a leave with no answer still reads: ' + await line());
+  if (!(await wait(page, () => /Waiting for server/.test(document.querySelector('.ht-leaving').textContent), null, 6000))) fails.push('PH-16 [' + tag + '] a leave with no answer still reads: ' + await line());
   if (!(await onBar())) fails.push('PH-16 [' + tag + '] the leave\'s words are not on screen');
   if (!(await wait(page, () => /Slow connection/.test((document.querySelector('.conn-line') || {}).textContent || ''), null, 8000))) fails.push('PH-16 [' + tag + '] an ask out for 8 s does not say the connection is slow');
   await ctx.setOffline(true);
@@ -1439,6 +1466,14 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         await tallEnough(leaving.page, '.ha-analyzer .ha-tab', 40, 'the analyzer\'s tabs', tag, fails);
       }
       await done(leaving, tag);
+    }
+    for (const vp of run('hunt') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }] : []) { // PH-2 over the town (a training session)
+      const tag = tagOf(vp) + ' training';
+      const o = await open(vp, HUNT, atTheYard);
+      if (!o.up) { fails.push('PH-2 [' + tag + '] the training session did not mount'); await o.ctx.close(); continue; }
+      await analyzerOverTown(o.page, tag, fails);
+      await shot(o.page, 'training-analyzer-open-' + tagOf(vp));
+      await done(o, tag);
     }
     if (run('portrait')) await portrait(browser, base, fails, shots); // PH-3
     for (const vp of run('town') ? [{ width: 844, height: 390 }] : []) { // PH-4, PH-5 in town
@@ -1831,6 +1866,7 @@ const MUTANTS = [
   ['PH-2 the analyzer has no close', 'src/shell/widgets/analyzer.js', "  if (action === 'hide') { ctx.hud.setVisible('analyzer', false); return; }", ''],
   ['PH-2 the analyzer sits over the hunt bar', 'src/data/hud-widgets.js', "    below: Object.freeze(['hunt-topbar']),\n", ''],
   ['PH-2 the phone hunt bar is as wide as the ground\'s name', 'src/styles/hunt.css', '  .ht-bar { flex-wrap: nowrap; width: auto; justify-content: flex-end; }', '  .ht-bar { flex-wrap: nowrap; width: fit-content; }'],
+  ['PH-2 the phone analyzer keeps its floor over the town', 'src/shell/shell.js', "phoneMq.matches ? 'min(' + floor + ', var(--hs-room, ' + floor + '))' : floor", 'floor'],
   ['PH-2 a party of two runs under the action bar', 'src/styles/hunt.css', '  .hp-party { max-height: calc(100vh - 160px); }', ''],
   ['PH-2 the leaving hunt bar keeps every word', 'src/styles/hunt.css', '  .ht-bar:has(.ht-leaving:not([hidden])) .is-leave { display: none; }', ''],
   ['PH-3 no turn-sideways card', 'src/styles/app.css', '  .turn-phone { display: flex; }', '  .turn-phone { display: none; }'],
@@ -1859,7 +1895,7 @@ const MUTANTS = [
   ['PH-8 the stance folds away on a desktop', 'src/styles/hunt.css', '.hb-stance { display: flex; width: 100%; }', '.hb-stance { display: none; width: 100%; }'],
   ['PH-9 the refill sends a price of its own', 'src/shell/widgets/stamina-buy.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price + 1)'],
   ['PH-9 the premium note shows to premium heroes too', 'src/shell/widgets/stamina-buy.js', "cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));", "cls(box.querySelector('.hb-buy-premium'), 'is-on', true);"],
-  ['PH-9 a refused refill loses its words', 'src/shell/widgets/stamina-buy.js', "s.msg = r.ok ? 'Stamina restored.' : refusalWords(r.error);", "s.msg = r.ok ? 'Stamina restored.' : '';"],
+  ['PH-9 a refused refill loses its words', 'src/shell/widgets/stamina-buy.js', "s.msg = r.ok ? t('hud.stam_done') : refusalWords(r.error);", "s.msg = r.ok ? t('hud.stam_done') : '';"],
   ['PH-9 Buy stays on when a refill cannot be bought', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', s.pending);"],
   ['PH-9 Buy stays on while the refill is in flight', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', !!why);"],
   ['PH-9 the stamina panel is wider than a phone', 'src/styles/hunt.css', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px;', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 900px;'],
@@ -1895,8 +1931,8 @@ const MUTANTS = [
   ['PH-16 the world waits in silence', 'src/app/world-pane.js', 'statusEl.textContent = loadingWords(connection.state(), Date.now() - waitFrom, firstWords);', 'statusEl.textContent = firstWords;'],
   ['PH-16 no connection line', 'src/app/boot.js', 'mountConnectionLine(doc), ', ''],
   ['PH-16 the connection line never clears', 'src/net/connection.js', "    line.hidden = s === 'ok';\n", '    if (s !== \'ok\') line.hidden = false;\n'],
-  ['PH-16 a leave with no answer stays on "Leaving"', 'src/shell/widgets/hunt-topbar.js', "return waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING", "return LEAVING"],
-  ['PH-16 a leave does not know the connection went', 'src/shell/widgets/hunt-topbar.js', "  if (state === 'lost') return LEAVE_WAIT.lost;\n", ''],
+  ['PH-16 a leave with no answer stays on "Leaving"', 'src/shell/widgets/hunt-topbar.js', "return t(waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING", "return t(LEAVING"],
+  ['PH-16 a leave does not know the connection went', 'src/shell/widgets/hunt-topbar.js', "  if (state === 'lost') return t(LEAVE_WAIT.lost);\n", ''],
   ['PH-16 a counting leave does not say why', 'src/shell/widgets/hunt-topbar.js', "prop(el.querySelector('.ht-why'), 'hidden', over || !cd || cd.phase !== 'counting');", ''],
   ['PH-17 the email box throws the keyboard up', 'src/app/sign-in.js', "if (!win || !win.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'input.focus();'],
   ['PH-17 a desktop loses its focus', 'src/app/sign-in.js', "if (!win || !win.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'void win;'],

@@ -25,8 +25,8 @@
 // only. Nothing is guessed.
 // ════════════════════════════════════════════════════════════════════════
 
-import { listWords } from '../render/format.js?v=0.2.133';
-import { spellRow } from '../data/monster-spells.js?v=0.2.133';
+import { listWords } from '../render/format.js?v=0.2.134';
+import { spellRow } from '../data/monster-spells.js?v=0.2.134';
 
 export const EXPLAIN_WINDOW_MS = 10000;
 const MAX_HITS_LISTED = 4;

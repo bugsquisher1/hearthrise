@@ -66,31 +66,31 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.133';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.133';
-import { tiersOf } from './hunt-tiers.js?v=0.2.133';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.133';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.133';
-import { SKILLS_DEF } from './skills.js?v=0.2.133';
-import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.133';
-import { tallyTask } from './tally-tasks.js?v=0.2.133';
-import { ITEMS } from './items.js?v=0.2.133';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.133';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.133';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.133';
-import { isShield } from './shields.js?v=0.2.133';
-import { deriveProfile } from '../core/member.js?v=0.2.133';
-import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.133';
-import { skillLevelFromXp } from '../core/xp.js?v=0.2.133';
-import { CONSUMABLES } from './consumables.js?v=0.2.133';
-import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.133';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.133';
-import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.133';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.133';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.133';
-import { regenPermille } from '../core/vitals.js?v=0.2.133';
-import { BAR_TEXT } from './text/bar.js?v=0.2.133';
-import { t } from '../render/player-text.js?v=0.2.133';
+import { HUNT_INDEX } from './hunts.js?v=0.2.134';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.134';
+import { tiersOf } from './hunt-tiers.js?v=0.2.134';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.134';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.134';
+import { SKILLS_DEF } from './skills.js?v=0.2.134';
+import { CROPS, TREES, ROCKS } from './gathering.js?v=0.2.134';
+import { tallyTask } from './tally-tasks.js?v=0.2.134';
+import { ITEMS } from './items.js?v=0.2.134';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.134';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.134';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.134';
+import { isShield } from './shields.js?v=0.2.134';
+import { deriveProfile } from '../core/member.js?v=0.2.134';
+import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.134';
+import { skillLevelFromXp } from '../core/xp.js?v=0.2.134';
+import { CONSUMABLES } from './consumables.js?v=0.2.134';
+import { RUNE_FAMILIES, runeId } from './runes.js?v=0.2.134';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.134';
+import { HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.134';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.134';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.134';
+import { regenPermille } from '../core/vitals.js?v=0.2.134';
+import { BAR_TEXT } from './text/bar.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -1074,7 +1074,7 @@ const SAY = Object.freeze({
   },
   fight_settings: (f) => {
     const n = used(f, 'food');
-    return n ? { text: 'Your hero has eaten ' + sum(n) + ' times this hunt. Try changing the stance on your bar. ' + STANCE_WORDS + ' Target picks who your hero hits first.' } : null;
+    return n ? { text: 'Your hero has eaten ' + sum(n) + ' times this hunt. Try changing the stance on your bar. ' + STANCE_WORDS + ' Target sets which monster your hero attacks first.' } : null;
   },
   more_heroes: (f) => {
     const h = heroesOn(f);
@@ -1361,7 +1361,8 @@ function madeWords(lv, said, role) {
  * Or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land, inParty, gold, slotCost, slotsOwned, home, roster, visited, staminaMs, refill, tally } (skillLevel: the
  * role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when unknown; land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } },
  * or null when the server has not sent it; inParty: the hero sits in a party of 2+; roster: the account's heroes; visited: a Set of the grounds this hero has hunted; refill: the server's next
- * stamina quote; tally: { held }). Answers { id, title, text, also }; the id names every goal, so it changes whenever a goal comes or goes (the hunt top bar redraws on a new id, and a number
+ * stamina quote; tally: { held }; training: the running training session, { skill, level, hoursToNext } from the server's
+ * training section, or null). Answers { id, title, text, also }; the id names every goal, so it changes whenever a goal comes or goes (the hunt top bar redraws on a new id, and a number
  * changing inside a goal follows in place: launcher.js sameCardWords).
  */
 export function nextGoal(facts) {
@@ -1369,9 +1370,18 @@ export function nextGoal(facts) {
   const lines = [];
   const ids = ['goal'];
   const visited = (h) => facts.visited instanceof Set && facts.visited.has(h);
+  /* A TRAINING SESSION RUNNING (the server's `training` section: its run's skill, and that skill's quote): the goal is the skill it trains,
+     never the armour line (a Melee session read "Your Defense isn't training", lane/a-training-leftovers; a Defense session at the yard
+     trains Defense with no armour on). Its time to the next level is the server's. */
+  const train = facts.training && SKILLS_DEF[facts.training.skill] ? facts.training : null;
+  if (train) {
+    if (Number.isInteger(train.level) && Number.isInteger(train.hoursToNext)) {
+      lines.push(t('training.coach_next', { hours: t('training.time_hours', { count: Math.max(1, train.hoursToNext) }), skill: SKILLS_DEF[train.skill].name, level: train.level + 1 }));
+      ids.push('training', train.skill);
+    }
   /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
      kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
-  if (facts.defenseXp === 0) {
+  } else if (facts.defenseXp === 0) {
     lines.push('Your Defense isn\'t training. It only rises while you wear armor. The Shop sells gloves and belts.');
     ids.push('armour');
   }

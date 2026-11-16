@@ -1,0 +1,58 @@
+// ════════════════════════════════════════════════════════════════════════
+// src/data/hunt-after.js — WHEN THE HUNT ENDS: WHERE THE HERO GOES NEXT.
+//
+// Tyler 2026-11-15: "I think we just need an itinerary of sorts where a player picks a hunt and picks what they
+// want to do when the hunt finishes." One choice a hero, remembered (the first principle: a decision made once is
+// not made again), picked on the hunt's page under "When the hunt ends". The server stores it, freezes it on the
+// hunt at Enter and runs it when the hunt ends ON ITS OWN (src/data/hunt-sessions.js RESUME_AFTER_END); a hunt the
+// player leaves by hand always ends with the hero waiting in town.
+//
+// AFTER_CHOICES  one row a choice, in the order the control lists them. `runs` is what the server does:
+//                  job       back to the hero's job: the gathering job it last had, or the bench it was at when it
+//                            set off, for what that bench still had to make then (never the hunt's loot)
+//                  nothing   wait in town
+//                  training  open a training session at `place` for the skill the player named; a paid place
+//                            charges the server's own price when it starts
+//                A NEW PLACE TO GO IS A ROW HERE (tools/gen-hunt-after.mjs -> hr_hunt_after_choices), not a new
+//                settle body: the server's start reads `runs` and `place`.
+// AFTER_DEFAULT  the choice of a hero who never picked: back to the job, so a player who touches nothing keeps
+//                what gathering always did.
+// JOB_GRACE_S    going hunting stops the job a moment before Enter (the client settles it so the last stretch is
+//                paid). A bench the player's own Stop ended no longer ago than this still counts as the job the hero
+//                set off from. Longer ago, it was stopped on purpose and is not picked up.
+//
+// The words are src/data/text/away.js (t('away.<key>')). PURE ESM. Data only.
+// ════════════════════════════════════════════════════════════════════════
+
+export const AFTER_RUNS = Object.freeze(['job', 'nothing', 'training']);
+
+export const AFTER_CHOICES = Object.freeze([
+  Object.freeze({ id: 'job', runs: 'job', place: null }),
+  Object.freeze({ id: 'wait', runs: 'nothing', place: null }),
+  Object.freeze({ id: 'train', runs: 'training', place: 'yard' }),
+]);
+
+export const AFTER_DEFAULT = 'job';
+
+export const JOB_GRACE_S = 60;
+
+export const AFTER_INDEX = Object.freeze(Object.fromEntries(AFTER_CHOICES.map((c) => [c.id, c])));
+
+/** Every problem with the rows, as strings. Empty = valid. `places`: the places a hero can train (src/data/training.js). */
+export function validateAfter(choices = AFTER_CHOICES, def = AFTER_DEFAULT, graceS = JOB_GRACE_S, places = ['yard', 'house']) {
+  const out = [];
+  const ids = new Set();
+  for (const c of choices) {
+    if (!c || typeof c.id !== 'string' || !/^[a-z_]{1,24}$/.test(c.id)) { out.push('a choice has no plain id'); continue; }
+    if (ids.has(c.id)) out.push(c.id + ': listed twice');
+    ids.add(c.id);
+    if (!AFTER_RUNS.includes(c.runs)) out.push(c.id + ': runs ' + c.runs + ', which is no entry of AFTER_RUNS');
+    if ((c.runs === 'training') !== (typeof c.place === 'string')) out.push(c.id + ': a place belongs to a training choice, and only to one');
+    if (c.runs === 'training' && !places.includes(c.place)) out.push(c.id + ': ' + c.place + ' is no place a hero trains');
+  }
+  if (!ids.has(def)) out.push('the default ' + def + ' is no choice');
+  else if (choices.find((c) => c.id === def).runs === 'training') out.push('the default may not cost gold');
+  if (!choices.some((c) => c.runs === 'nothing')) out.push('no choice waits in town');
+  if (!Number.isInteger(graceS) || graceS < 0 || graceS > 3600) out.push('the grace is not a whole number of seconds up to an hour');
+  return out;
+}

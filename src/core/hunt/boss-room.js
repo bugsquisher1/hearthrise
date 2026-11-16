@@ -13,8 +13,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../../data/boss-calls.js?v=0.2.133';
-import { BOSS_HALL_RULES, hallBossOf } from '../../data/boss-halls.js?v=0.2.133';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../../data/boss-calls.js?v=0.2.134';
+import { BOSS_HALL_RULES, hallBossOf } from '../../data/boss-halls.js?v=0.2.134';
 
 /** The room ground `ground` is: { kind: 'call' | 'hall', monster (the boss whose kill ends it), limitMs }, or null for any other ground. */
 export function roomOf(ground) {

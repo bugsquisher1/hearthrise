@@ -21,15 +21,16 @@
 // heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
 // and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.133';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.133';
-import { huntOf, huntBagOf, staminaOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.133';
-import { text, attr } from '../../render/paint.js?v=0.2.133';
-import { whole, gold, hoursMinutes } from '../../render/format.js?v=0.2.133';
-import { glyphSvg } from '../launcher.js?v=0.2.133';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.133';
-import { staminaPlusHtml } from './stamina-buy.js?v=0.2.133';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.134';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.134';
+import { huntOf, huntBagOf, staminaOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.134';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.134';
+import { text, attr } from '../../render/paint.js?v=0.2.134';
+import { whole, gold, hoursMinutes } from '../../render/format.js?v=0.2.134';
+import { glyphSvg } from '../launcher.js?v=0.2.134';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.134';
+import { staminaPlusHtml } from './stamina-buy.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
 
 /* THE RING on a 120-unit grid, centre (60, 60), drawn smooth (no crispEdges) at any size the stylesheet gives it.
    From the outside in: the steel bezel (r 59), the gauge channel (r 52, 10 wide) with HP on its left from the bottom
@@ -47,16 +48,16 @@ export function hubHtml(glyphs) {
   const arc = (d, k) => '<path class="hb-arc is-' + k + '" d="' + d + '" pathLength="100" stroke-dasharray="0 100"/>';
   const ring = (k, r) => '<circle class="hb-ring-' + k + '" cx="60" cy="60" r="' + r + '"/>';
   return '<div class="hb-hub">'
-    + '<div class="hb-read is-hp" title="Health"><span class="hb-read-k">HP</span><b class="hb-read-v" data-v="hp"></b><small class="hb-read-r" data-r="hp" title="Health regained each second"></small></div>'
-    + '<div class="hb-medal" role="group" aria-label="Level and experience" data-coach-hook="level">'
+    + '<div class="hb-read is-hp" title="' + t('hud.hp') + '"><span class="hb-read-k">' + t('hud.hp_k') + '</span><b class="hb-read-v" data-v="hp"></b><small class="hb-read-r" data-r="hp" title="' + t('hud.hp_rate') + '"></small></div>'
+    + '<div class="hb-medal" role="group" aria-label="' + t('hud.medal') + '" data-coach-hook="level">'
     + '<svg class="hb-arcs" viewBox="0 0 120 120" aria-hidden="true">' + ring('bezel', 59) + ring('channel', 52)
     + '<path class="hb-arc-track" d="' + ARC_LEFT + '"/><path class="hb-arc-track" d="' + ARC_RIGHT + '"/>' + arc(ARC_LEFT, 'hp') + arc(ARC_RIGHT, 'mana')
     + ring('xp', 43) + arc(XP_RING, 'xp') + ring('disc', 40) + '</svg>'
-    + '<span class="hb-medal-in"><small class="hb-lv-k">Lv</small><b class="hb-lv"></b><small class="hb-xp"><i class="hb-xp-k">XP </i><span class="hb-xp-v"></span></small></span></div>'
-    + '<div class="hb-read is-mana" title="Mana"><span class="hb-read-k">MP</span><b class="hb-read-v" data-v="mana"></b><small class="hb-read-r" data-r="mana" title="Mana regained each second"></small></div>'
-    + '<div class="hb-stam" title="Stamina: hunting time left" data-coach-hook="stamina">' + glyphSvg(glyphs, 'uiHourglass') + '<b class="hb-stam-v"></b>' + staminaPlusHtml() + '</div>'
+    + '<span class="hb-medal-in"><small class="hb-lv-k">' + t('hud.lv') + '</small><b class="hb-lv"></b><small class="hb-xp"><i class="hb-xp-k">XP </i><span class="hb-xp-v"></span></small></span></div>'
+    + '<div class="hb-read is-mana" title="' + t('hud.mana') + '"><span class="hb-read-k">' + t('hud.mana_k') + '</span><b class="hb-read-v" data-v="mana"></b><small class="hb-read-r" data-r="mana" title="' + t('hud.mana_rate') + '"></small></div>'
+    + '<div class="hb-stam" title="' + t('hud.stamina') + '" data-coach-hook="stamina">' + glyphSvg(glyphs, 'uiHourglass') + '<b class="hb-stam-v"></b>' + staminaPlusHtml() + '</div>'
     + '<div class="hb-socket is-food"><span class="hb-socket-ico"></span><small class="hb-socket-k"></small></div>'
-    + '<div class="hb-socket is-charm" title="Charm socket: empty"><span class="hb-socket-ico">' + glyphSvg(glyphs, 'uiRing') + '</span><small class="hb-socket-k">Charm</small></div>'
+    + '<div class="hb-socket is-charm" title="' + t('hud.charm_empty') + '"><span class="hb-socket-ico">' + glyphSvg(glyphs, 'uiRing') + '</span><small class="hb-socket-k">' + t('hud.charm') + '</small></div>'
     + '</div>';
 }
 
@@ -107,8 +108,8 @@ export function patchHub(el, ctx) {
      the title's. Whole numbers from 5 up: it has to fit beside the medallion. */
   const rest = hero ? hero.hpRestPerS : null;
   const hpRate = el.querySelector('[data-r="hp"]');
-  text(hpRate, ok(rest) && rest > 0 ? '+' + (rest >= 5 ? Math.round(rest) : rest.toFixed(1)) + '/s rest' : '');
-  attr(hpRate, 'title', ok(rest) && rest > 0 ? 'Health regained each second between fights. In a fight: ' + regen(hero.hpPerS) + '.' : 'Health regained each second');
+  text(hpRate, ok(rest) && rest > 0 ? t('hud.hp_rate_rest', { rate: rest >= 5 ? Math.round(rest) : rest.toFixed(1) }) : '');
+  attr(hpRate, 'title', ok(rest) && rest > 0 ? t('hud.hp_rate_fight', { rate: regen(hero.hpPerS) }) : t('hud.hp_rate'));
   text(el.querySelector('[data-r="mana"]'), hero ? regen(hero.manaPerS) : '');
   fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));
   fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));
@@ -116,7 +117,8 @@ export function patchHub(el, ctx) {
   text(el.querySelector('.hb-lv'), level === null ? '–' : String(level));
   text(el.querySelector('.hb-xp-v'), xp === null ? '' : Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '%');
   attr(el.querySelector('.hb-xp'), 'hidden', xp === null ? '' : null);
-  attr(el.querySelector('.hb-medal'), 'title', level === null ? 'Level' : 'Level ' + level + (xp === null ? '' : ': ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '% of the way to ' + (level + 1)));
+  attr(el.querySelector('.hb-medal'), 'title', level === null ? t('hud.level') : xp === null ? t('hud.level') + ' ' + level
+    : t('hud.level_to_next', { level, pct: Math.floor(Math.max(0, Math.min(1, xp)) * 100), next: level + 1 }));
   text(el.querySelector('.hb-stam-v'), hoursMinutes(stam ? stam.msLeft : null));
   const food = foodOf(carriedOf(cs));
   const sock = el.querySelector('.hb-socket.is-food');
@@ -126,9 +128,9 @@ export function patchHub(el, ctx) {
   const store = food.n > 0 ? null : storeFoodOf(settingsOf(cs));
   const icon = food.top || (store && store.id);
   if (ico.getAttribute('data-for') !== String(icon)) { ico.innerHTML = icon ? itemIconHtml(ctx.glyphs, icon) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(icon)); }
-  text(sock.querySelector('.hb-socket-k'), store ? 'Food: store' : 'Food ×' + whole(food.n));
-  const where = huntBagOf(cs) ? 'the hunt bag' : 'the bag';
-  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')'
-    : store ? 'No food in ' + where + ': your bar buys ' + itemName(store.id) + ' at ' + gold(store.price) + ' each as it is used'
-    : 'No food in ' + where + ' and no store food on your bar');
+  text(sock.querySelector('.hb-socket-k'), store ? t('hud.food_store') : t('hud.food_n', { n: whole(food.n) }));
+  const where = huntBagOf(cs) ? t('hud.where_hunt') : t('hud.where_bag');
+  attr(sock, 'title', food.top ? t('hud.food_title', { where, n: whole(food.n), item: itemName(food.top) })
+    : store ? t('hud.food_store_title', { where, item: itemName(store.id), price: gold(store.price) })
+    : t('hud.food_none_title', { where }));
 }

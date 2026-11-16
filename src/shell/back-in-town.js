@@ -23,15 +23,15 @@
 // card that now has nothing left is listed as done, so the player sees what happened;
 // the first open step is the card's ONE gold press, else Hunt again is.
 // ════════════════════════════════════════════════════════════════════════
-import { sellPlan, isStartKit, SELL_LINES_MAX } from './bag-model.js?v=0.2.133';
-import { upgradeWords } from './upgrade-plan.js?v=0.2.133';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.133';
-import { nextBuyOf } from './next-buy.js?v=0.2.133';
-import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.133';
-import { moveStorageMany } from '../session/storage-intents.js?v=0.2.133';
-import { itemName } from './widgets/bits.js?v=0.2.133';
-import { gold, listWords } from '../render/format.js?v=0.2.133';
-import { t } from '../render/player-text.js?v=0.2.133';
+import { sellPlan, isStartKit } from './bag-model.js?v=0.2.134';
+import { upgradeWords } from './upgrade-plan.js?v=0.2.134';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.134';
+import { nextBuyOf } from './next-buy.js?v=0.2.134';
+import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.134';
+import { moveStorageMany } from '../session/storage-intents.js?v=0.2.134';
+import { itemName } from './widgets/bits.js?v=0.2.134';
+import { gold, listWords } from '../render/format.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const names = (ids) => listWords(ids.map(itemName));
@@ -70,8 +70,7 @@ export function townSteps(o) {
   /* sell: the plan's Sell stacks at the shop's bids (a stack with no bid is not sold: nothing could show what it brings), one sale's worth of lines */
   const bag = (o && o.bag) || [], rules = (o && o.rules) || null, bids = (o && o.bids) || null;
   const sale = sellPlan(bag, planned(bag, rules, 'sell').map((r) => r.id), { locked: rules ? rules.locked : null, bids });
-  const lines = sale.lines.slice(0, SELL_LINES_MAX);
-  const total = lines.reduce((n, l) => n + (bids && bids.has(l.item) ? bids.get(l.item) * l.qty : 0), 0);
+  const lines = sale.lines, total = sale.total;   // one sale's worth: sellPlan stops at SELL_LINES_MAX
   add({ id: 'sell', count: lines.length, title: t('summary.sell_n', { count: lines.length, total: gold(total) }),
     words: lines.length ? t('summary.sell_words', { names: names(lines.map((l) => l.item)) }) : '', verb: t('controls.sell'), icon: lines.length ? lines[0].item : null, lines });
   /* deposit: the plan's Deposit stacks, whole, with their worth when the shop bids on any */

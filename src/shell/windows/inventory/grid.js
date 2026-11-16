@@ -18,28 +18,28 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.133';
-import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.133';
-import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.133';
-import { patchParts, placeLink } from '../../goto.js?v=0.2.133';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.133';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.133';
-import { whole, gold } from '../../../render/format.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { glyphSvg } from '../../launcher.js?v=0.2.133';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.133';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.133';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.133';
-import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.133';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.133';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.133';
-import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.133';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.133';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.133';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.133';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.133';
-import { t } from '../../../render/player-text.js?v=0.2.133';
-import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.133';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.134';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.134';
+import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.134';
+import { patchParts, placeLink } from '../../goto.js?v=0.2.134';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.134';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.134';
+import { whole, gold } from '../../../render/format.js?v=0.2.134';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
+import { glyphSvg } from '../../launcher.js?v=0.2.134';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.134';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.134';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.134';
+import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.134';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.134';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.134';
+import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.134';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.134';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.134';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.134';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.134';
+import { t } from '../../../render/player-text.js?v=0.2.134';
+import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.134';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -82,6 +82,7 @@ export function toolsHtml(g) {
     + '<button type="button" class="hh-tool" data-hs-act="lock-sel">' + t('controls.lock') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="clear-sel">' + t('controls.clear') + '</button></div>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="select-outgrown"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
     + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>' + planCopyHtml()   /* the sale's confirm follows; plan-copy.js keeps its own class names */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
@@ -203,6 +204,12 @@ export function patchTools(root, st, ctx) {
   cls(cb, 'is-on', prefs.cat !== 'all');
   text(cb, t('controls.sell_all_cat', { category: catLabel.toLowerCase() }));
   prop(cb, 'disabled', sc.pending || !st.shop || !st.shown.length);
+  /* Select outgrown (audit F18): the outgrown gear becomes the selection, so Sell selected (or Deposit) takes it in one press */
+  const ob = tools.querySelector('[data-hs-act="select-outgrown"]');
+  text(ob, t('bag.select_outgrown', { count: st.outgrown.length }));
+  attr(ob, 'title', t('bag.select_outgrown_tip'));
+  prop(ob, 'hidden', !st.outgrown.length);
+  prop(ob, 'disabled', sc.pending);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
   text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + ' unpriced)' : ''));
 

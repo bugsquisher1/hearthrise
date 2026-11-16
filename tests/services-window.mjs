@@ -213,7 +213,7 @@ async function checks(overrides) {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
         if (!/You hold 4 \(1 in Storage\)\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
         const way = await txt(page, '.hw-temper-way');
-        if (!/Tempering Salts: Smithing 15 \(yours is \d+\) makes them from 1 Iron Bar and 1 Bone Chips/.test(way || '') || !/Or buy them at the Weighhouse\./.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
+        if (!/Tempering Salts: requires Smithing 15 \(you: \d+\), made from 1 Iron Bar and 1 Bone Chips/.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
       }
       await ctx.close();
     }
@@ -226,7 +226,7 @@ async function checks(overrides) {
         const way = (await txt(page, '.hw-temper-way')) || '';
         const ins = (ARTISAN_RECIPES.smithing.find((r) => r.output === 'fine_temper_salts') || {}).inputs || {};
         const where = dropWhereWords('big_bones').replace(/^Dropped by /, '');
-        if (!where || !way.includes('makes them from ' + ins.iron_bar + ' Iron Bars and ' + ins.big_bones + ' Big Bones') || !way.includes('Big Bones drop from ' + where + '.'))
+        if (!where || !way.includes('made from ' + ins.iron_bar + ' Iron Bars and ' + ins.big_bones + ' Big Bones') || !way.includes('Big Bones drop from ' + where + '.'))
           fails.push('SV-10 the way never says where Big Bones drop (' + JSON.stringify(where) + '): ' + JSON.stringify(way));
       }
       await ctx.close();
@@ -259,7 +259,7 @@ async function checks(overrides) {
         await press(page, P + '[data-hs-act="temper-yes"]', 'SV-9');
         /* while the smith works the player reads back up the sheet; the answer still lands where it is seen (played at 844x390: half of it stood under the foot) */
         await page.evaluate(() => { document.querySelector('[data-hs-win="shop"] .hs-win-body').scrollTop = 0; });
-        const landed = await wait(page, () => /is at rung 2/.test(document.querySelector('.hw-services').textContent) && /Or buy them at the Weighhouse/.test(document.querySelector('.hw-temper-way').textContent), null, 6000);
+        const landed = await wait(page, () => /is at rung 2/.test(document.querySelector('.hw-services').textContent) && /Also sold at the Weighhouse/.test(document.querySelector('.hw-temper-way').textContent), null, 6000);
         /* the line that holds the answer, wherever the window put it, against every other line of the tab that shows */
         const cover = () => page.evaluate(() => {
           const lines = Array.from(document.querySelectorAll('.hw-services p, .hw-services li, .hw-services h3, .hw-services small')).filter((e) => e.getClientRects().length && e.textContent.trim());
@@ -311,7 +311,7 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-7 the Services tab did not open on Mithril');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Mithril Sword can't be tempered yet\. The smith only has rungs for gear worn from Level 15 to Level 30\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
+        if (!/Can't temper Mithril Sword yet \(rungs only for Level 15 to 30 gear\)/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }
@@ -325,14 +325,14 @@ async function checks(overrides) {
         const before = await shown();
         if (!before || before.hidden || before.off || before.t !== 'Bless all') fails.push('SV-11 Bless all with two missing reads ' + JSON.stringify(before));
         await press(sv.page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless-all"]', 'SV-11');
-        await wait(sv.page, () => /All 3 Blessings are on/.test(document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hh-intent-msg').textContent), null, 6000);
+        await wait(sv.page, () => /All 3 Blessings on/.test(document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hh-intent-msg').textContent), null, 6000);
         const bought = sent(sv.s, 'hr_blessing_buy').map((c) => [c.body.p_tier, c.body.p_price]);
         if (JSON.stringify(bought) !== '[[2,165],[3,220]]') fails.push('SV-11 Bless all sent ' + JSON.stringify(bought));
         const msg = await txt(sv.page, '.hh-intent-msg'), after = await shown();
-        if (!/All 3 Blessings are on\./.test(msg || '') || !after || !after.hidden) fails.push('SV-11 after Bless all: ' + JSON.stringify({ msg, after }));
+        if (!/All 3 Blessings on/.test(msg || '') || !after || !after.hidden) fails.push('SV-11 after Bless all: ' + JSON.stringify({ msg, after }));
         /* say-why: with nothing left to buy, the line under it says so */
         const why = await txt(sv.page, '.hw-bless-all-why');
-        if (why !== 'All your Blessings are on.') fails.push('SV-11 the Bless all why line reads ' + JSON.stringify(why));
+        if (why !== 'All Blessings on') fails.push('SV-11 the Bless all why line reads ' + JSON.stringify(why));
         if (sv.errors.length) fails.push('SV-11 console errors: ' + sv.errors.join(' | ').slice(0, 300));
       }
       await sv.ctx.close();

@@ -345,7 +345,7 @@ async function checks(overrides, shots) {
         if (head.voice !== 'That\'s all 120. Let me get your pay.') fails.push('TW-14 with a done task in town she says ' + JSON.stringify(head.voice));
         /* TW-1 THE BOX ON A HELD TASK SAYS WHAT IT DOES (audit 2026-11-15 F6: it read "Keep" beside Abandon): its label names taking the task again, its hover both states */
         const box = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-entry[data-task="thicket_gray_wolves"] .ht-keep'); return l && { label: l.textContent, why: l.getAttribute('title') }; });
-        if (!box || box.label !== 'Take again when paid' || box.why !== 'Ticked: you get this task again as soon as she pays for it. Not ticked: it ends when she pays.') fails.push('TW-1 the box on a held task reads ' + JSON.stringify(box));
+        if (!box || box.label !== 'Take again when paid' || box.why !== 'Ticked: task repeats once she pays. Not ticked: it ends') fails.push('TW-1 the box on a held task reads ' + JSON.stringify(box));
         /* TW-9 no line on screen keeps the riddles (Tyler 2026-10-24: "this is weird dialogue") */
         const all = await page.evaluate(() => (document.querySelector('[data-hs-win="tally"]') || {}).textContent + ' ' + (document.querySelector('.hs-tally') || {}).textContent);
         if (OLD_WORDS.test(all)) fails.push('TW-9 her window still says "' + OLD_WORDS.exec(all)[0] + '"');
@@ -356,8 +356,8 @@ async function checks(overrides, shots) {
         /* TW-15 SHE GIVES IT ONCE (the mock lane 2026-11-11): the Adept Hat is on two rows, so her board says so, ONCE under it (the v0.2.130
            gate: the note sat under 5 of 6 rows). sharedPieces read pick.pick while tally-intents.js hands it over as pick.kind, so it never showed. */
         const once = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]');
-          return { notes: [...w.querySelectorAll('.ht-board-once')].filter((n) => n.getClientRects().length).map((n) => n.textContent), told: (w.textContent.match(/same piece/g) || []).length }; });
-        if (once.notes.length !== 1 || !/^When two tasks show the same piece, you get it once\./.test(once.notes[0]) || once.told !== 1) fails.push('TW-15 the once note reads ' + JSON.stringify(once));
+          return { notes: [...w.querySelectorAll('.ht-board-once')].filter((n) => n.getClientRects().length).map((n) => n.textContent), told: (w.textContent.match(/Shared piece/g) || []).length }; });
+        if (once.notes.length !== 1 || !/^Shared piece: paid once/.test(once.notes[0]) || once.told !== 1) fails.push('TW-15 the once note reads ' + JSON.stringify(once));
         // TW-2: the visit hands the done task in, once
         await idle(page);
         const cl = sent(s, 'hr_tally_collect');
@@ -401,7 +401,7 @@ async function checks(overrides, shots) {
         await press(page, W + '.ht-row[data-task="glade_poachers"] .ht-take', 'TW-4');
         await idle(page);
         const line = await txt(page, W + '.hh-intent-msg');
-        if (!/as many of her tasks as she gives at once/.test(line || '')) fails.push('TW-4 a refused take reads ' + JSON.stringify(line));
+        if (!/^Max tasks from Tamsin/.test(line || '')) fails.push('TW-4 a refused take reads ' + JSON.stringify(line));
       }
       await ctx.close();
     }
@@ -592,7 +592,7 @@ async function checks(overrides, shots) {
         const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="tally"]'), why = w.querySelector('.ht-board-why');
           return { why: why.querySelector('span').textContent, off: Array.from(w.querySelectorAll('[data-hs-act="take"]')).every((b) => b.disabled), pick: w.querySelector('.ht-pick-line').textContent,
             pay: w.querySelector('.ht-row .ht-pay-name').textContent, toPicker: !w.querySelector('[data-hs-act="to-weight"]').hidden }; });
-        if (!seen.off || !/^Pick the armor weight she pays you in first/.test(seen.why) || seen.pay || /armor weight she pays/.test(seen.pick)) fails.push('TW-13 with no worn weight and no role her board reads ' + JSON.stringify(seen));
+        if (!seen.off || !/^Pick the armor weight she pays in first/.test(seen.why) || seen.pay || /armor weight she pays/.test(seen.pick)) fails.push('TW-13 with no worn weight and no role her board reads ' + JSON.stringify(seen));
         if (sent(s, 'hr_tally_set').length) fails.push('TW-13 with nothing to go on a weight was guessed');
         if (seen.toPicker) {
           await page.click('[data-hs-win="tally"] [data-hs-act="to-weight"]');
@@ -617,7 +617,7 @@ async function checks(overrides, shots) {
       if (met.up) {
         await met.page.waitForTimeout(500);
         const line = await met.page.evaluate(() => (document.querySelector('[data-hs-widget="tally"] .hs-tally-none') || {}).textContent || '');
-        if (!/Tamsin has kill tasks/.test(line)) fails.push('TW-10 once met (a weight asked), the empty Tally box reads ' + JSON.stringify(line));
+        if (!/^Kill tasks: Tamsin's board/.test(line)) fails.push('TW-10 once met (a weight asked), the empty Tally box reads ' + JSON.stringify(line));
       }
       await met.ctx.close();
     }
@@ -910,7 +910,7 @@ const MUTANTS = [
   ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !tl || (!held.length && (hunting || !met)));"],
   ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!tl && (!!tl.weight || tl.recent.length > 0);', '  const met = !!tl;'],
   /* TW-11: move and fold (Tyler 2026-10-25) */
-  ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';", "      el.style.minHeight = row.min[1] + 'px';"],
+  ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : phoneMq.matches", "      el.style.minHeight = phoneMq.matches"],
   ['the fold press does nothing', 'src/shell/widget-move.js', '    hud.setFolded(id, !hud.layoutOf(id).folded);', ''],
   ['a moved tally still stacks under the analyzer', 'src/shell/widget-stack.js', '      if (!row.below || hud.isMoved(row.id)) continue;', '      if (!row.below) continue;'],
   ['the drop is never kept', 'src/shell/widget-move.js', '      hud.setPlace(id, hud.layoutOf(id), true);', '      hud.setPlace(id, hud.layoutOf(id), false);'],

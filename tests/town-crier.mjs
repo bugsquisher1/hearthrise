@@ -315,17 +315,17 @@ const ARMS = {
     const want = [
       [{ error: 'crier_word' }, 'The Crier won\'t shout that word. Change it. You weren\'t charged.'],
       [{ error: 'crier_link' }, 'The Crier won\'t shout web addresses. You weren\'t charged.'],
-      [{ error: 'crier_long', n: 133, max: 120 }, 'The Crier shouts 120 letters at most. That\'s 133.'],
-      [{ error: 'crier_limit', perDay: 5 }, 'The Crier takes 5 lines a day from one account. More after midnight UTC.'],
-      [{ error: 'crier_busy', waitS: 12 }, 'The Crier is shouting someone else\'s line. Try again in 12 seconds. You weren\'t charged.'],
+      [{ error: 'crier_long', n: 133, max: 120 }, 'Max 120 letters (yours: 133)'],
+      [{ error: 'crier_limit', perDay: 5 }, 'Daily limit: 5 Crier lines per account. Resets at midnight UTC.'],
+      [{ error: 'crier_busy', waitS: 12 }, 'Crier busy, not charged. Try again in 12 s.'],
       [{ error: 'crier_off' }, 'The Crier is off duty right now. You weren\'t charged.'],
-      [{ error: 'quote_changed', price: 2000 }, 'The price moved to 2,000 gp. You weren\'t charged. Press again to pay it.'],
+      [{ error: 'quote_changed', price: 2000 }, 'Price changed to 2,000 gp, not charged. Press again to pay.'],
       /* a muted press, said for the Crier (the raised row lock reads the same code through src/session/server.js raisedCode) */
       [{ error: 'muted' }, 'The Game Master has muted you, so the Crier is off.'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(JSON.stringify(r) + ' reads: ' + R(r));
     const lv = X.SW.sinkRefusal({ verb: 'crier', error: 'crier_level', need: 10, level: 7 }, 'Marlow');
-    if (lv !== 'The Crier takes words from Level 10 heroes and up. Marlow is Level 7.') out.push('the Level gate reads: ' + lv);
+    if (lv !== 'Requires Level 10 (Marlow: Level 7)') out.push('the Level gate reads: ' + lv);
     return out;
   },
 

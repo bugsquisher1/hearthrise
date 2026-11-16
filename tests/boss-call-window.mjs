@@ -93,22 +93,22 @@ async function checks(overrides) {
     /* BW-1: ALONE, A WARNING AND NEVER A LOCK (the designer's ruling 2, 2026-11-10): the press is on, the warning carries one more line, one press calls */
     {
       const { ctx, page, errors, s } = await open({}, QUOTE({ seats: 1, alone: true }));
-      if (!/2 calls left today\./.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-1 alone reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
+      if (!/Calls left today: 2/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-1 alone reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (await off(page) !== false) fails.push('BW-1 alone, the press is off');
       if (!/Call out the Rat King for 10,000 gp/.test(await txt(page, '.hw-call-press') || '')) fails.push('BW-1 the press reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
       await press(page, '[data-hs-act="call-warn"]', 'BW-1');
       await page.waitForTimeout(150);
       if (sent(s, 'hr_boss_call').length) fails.push('BW-1 the first press charged');
       const lone = await txt(page, '.hw-call-note-alone') || '';
-      if (lone !== 'The Rat King is built for a party. You can fight him alone, but he can kill you.' || !await shown(page, '.hw-call-note-alone')) fails.push('BW-1 alone, the warning\'s own line reads ' + JSON.stringify(lone));
+      if (lone !== 'Recommended: 2+ players' || !await shown(page, '.hw-call-note-alone')) fails.push('BW-1 alone, the warning\'s own line reads ' + JSON.stringify(lone));
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/You pay 10,000 gp, win or lose/.test(warned) || !/At half his health his adds come/.test(warned)) fails.push('BW-1 alone, the warning reads ' + JSON.stringify(warned));
+      if (!/Cost: 10,000 gp, win or lose/.test(warned) || !/50% HP: adds attack your non-tanks/.test(warned)) fails.push('BW-1 alone, the warning reads ' + JSON.stringify(warned));
       await press(page, '[data-hs-act="call-go"]', 'BW-1');
       await page.waitForTimeout(500);
       const calls = sent(s, 'hr_boss_call');
       if (calls.length !== 1 || calls[0].body.p_price !== 10000 || calls[0].body.p_call !== 'rat_king') fails.push('BW-1 alone, the press sent ' + JSON.stringify(calls.map((c) => c.body)));
       const msg = await page.evaluate(() => (document.querySelector('.hw-hunts .hh-intent-msg') || {}).textContent || '');
-      if (!/The Rat King answers\. You're on your way\./.test(msg) || /party/.test(msg)) fails.push('BW-1 alone, the answer reads ' + JSON.stringify(msg));
+      if (!/The Rat King answers, on your way/.test(msg) || /party/.test(msg)) fails.push('BW-1 alone, the answer reads ' + JSON.stringify(msg));
       await page.click('.hw-hunt[data-hunt="mill_cellar"]');
       await page.waitForTimeout(200);
       if (await shown(page, '.hw-hd-call')) fails.push('BW-1 a ground with no boss to call shows the section');
@@ -117,21 +117,21 @@ async function checks(overrides) {
     }
     {
       const { ctx, page } = await open(PARTY(1), QUOTE({ available: false, why: 'call_leader' }));
-      if (!/Only your party's leader can call him out\./.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-1 a member reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
+      if (!/Party leader only/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-1 a member reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (await off(page) !== true) fails.push('BW-1 a member\'s press is not off');
       await ctx.close();
     }
     /* BW-2 */
     {
       const { ctx, page, s, errors } = await open(PARTY(0), QUOTE({}));
-      if (!/2 calls left today\./.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-2 the page reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
+      if (!/Calls left today: 2/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-2 the page reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (await off(page) !== false) fails.push('BW-2 the leader\'s press is off');
       await press(page, '[data-hs-act="call-warn"]', 'BW-2');
       await page.waitForTimeout(150);
       if (sent(s, 'hr_boss_call').length) fails.push('BW-2 the first press charged');
       if (!await shown(page, '.hw-call-warn')) fails.push('BW-2 no warning');
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/If anyone dies, the fight ends/.test(warned) || !/You pay 10,000 gp, win or lose/.test(warned) || !/no XP, coin or drops/.test(warned) || !/At half his health his adds come/.test(warned) || !/At a quarter of his health he hits even harder/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
+      if (!/Ends if anyone dies/.test(warned) || !/Cost: 10,000 gp, win or lose/.test(warned) || !/No XP, coin or drops/.test(warned) || !/50% HP: adds attack your non-tanks/.test(warned) || !/25% HP: hits even harder/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
       /* a party's leader reads no lone line: the room holds the party */
       if (/You can fight him alone/.test(warned) || await shown(page, '.hw-call-note-alone')) fails.push('BW-2 a party\'s warning reads the lone line: ' + JSON.stringify(warned));
       await press(page, '[data-hs-act="call-no"]', 'BW-2');
@@ -154,7 +154,7 @@ async function checks(overrides) {
       await press(page, '[data-hs-act="call-go"]', 'BW-3');
       await page.waitForTimeout(500);
       const msg = await page.evaluate(() => (document.querySelector('.hw-hunts .hh-intent-msg') || {}).textContent || '');
-      if (!/weren't charged/.test(msg)) fails.push('BW-3 the answer reads ' + JSON.stringify(msg));
+      if (!/not charged/.test(msg)) fails.push('BW-3 the answer reads ' + JSON.stringify(msg));
       if (!/12,000 gp/.test(await txt(page, '.hw-call-press') || '')) fails.push('BW-3 the press still reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
       await press(page, '[data-hs-act="call-warn"]', 'BW-3');
       await press(page, '[data-hs-act="call-go"]', 'BW-3');
@@ -168,7 +168,7 @@ async function checks(overrides) {
       const { ctx, page, s } = await open(PARTY(0), null);
       await page.waitForTimeout(1500);
       if (await off(page) !== true) fails.push('BW-4 with no quote the press is on');
-      if (!/Checking if you can call him out/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-4 off with no words: ' + JSON.stringify(await txt(page, '.hw-call-line')));
+      if (!/Checking…/.test(await txt(page, '.hw-call-line') || '')) fails.push('BW-4 off with no words: ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (sent(s, 'hr_boss_call_view').length > 1) fails.push('BW-4 asked ' + sent(s, 'hr_boss_call_view').length + ' times in a moment');
       await ctx.close();
     }
@@ -183,7 +183,7 @@ async function checks(overrides) {
       });
       if (r.room !== null) fails.push('BW-5 Hunt again has something to send from a called room');
       if (!r.ground) fails.push('BW-5 Hunt again is gone from a normal hunt');
-      if (r.felled === 'The hunt ended.' || r.time === 'The hunt ended.') fails.push('BW-5 an end has no words: ' + JSON.stringify(r));
+      if (r.felled === 'Hunt ended' || r.time === 'Hunt ended') fails.push('BW-5 an end has no words: ' + JSON.stringify(r));
       await ctx.close();
     }
     /* BW-6, BW-7: the modules as this page serves them. */
@@ -234,39 +234,39 @@ async function checks(overrides) {
       });
       const l = r.lines;
       const want = (rule, name, re) => { if (!re.test(l[name] || '')) fails.push(rule + ' ' + name + ' reads ' + JSON.stringify(l[name])); };
-      want('BW-6', 'enrageTank', /^You lost after he got enraged, with him at 23%\. You ate 6 times\. .*eat earlier/i);
-      want('BW-6', 'enrageHealer', /^You lost after he got enraged, with him at 23%\. Your heals fired 12 times\./);
-      want('BW-6', 'addsMage', /^You lost while his adds were up, with him at 41%\. Your area slots fired 0 times\. .*Cleave or Fireball/);
-      want('BW-6', 'addsHealer', /^You lost while his adds were up, with him at 41%\. Your heals fired 2 times\./);
-      want('BW-6', 'addsTank', /^You lost while his adds were up, with him at 41%\. Your Challenge fired 1 time\. /);
-      want('BW-6', 'chiefAdds', /^You lost while his adds were up, with him at 41%\. Your area slots fired 3 times\. His adds shield him until they fall\. Kill them first, and keep your healer on whoever they go for\.$/);
-      want('BW-6', 'chiefEnrage', /^You lost after he got enraged, with him at 23%\. You ate 2 times\. Under a quarter of his health he hits far harder, and most of it lands on your tank\. Better armor on your tank, eating earlier and a healer who heals sooner all help\.$/);
-      want('BW-6', 'chiefEnrageCh', /^You lost after he got enraged, with him at 23%\. Your Challenge fired 3 times\. /);
-      want('BW-6', 'krellEnrage', /^You lost after he got enraged, with him at 23%\. Your Challenge fired 4 times\. Under a quarter of his health he hits far harder, and most of it lands on your tank\. Better armor on your tank, eating earlier and a healer who heals sooner all help\.$/);
-      want('BW-6', 'krellEnrageHealer', /^You lost after he got enraged, with him at 23%\. Your heals fired 5 times\. Under a quarter .*heals sooner all help\.$/);
-      want('BW-6', 'krellAdds', /^You lost while his adds were up, with him at 41%\. Your Challenge fired 2 times\. His adds shield him until they fall\. Kill them first/);
+      want('BW-6', 'enrageTank', /^Lost after his enrage, boss at 23%\. You ate 6 times\. .*eat earlier/i);
+      want('BW-6', 'enrageHealer', /^Lost after his enrage, boss at 23%\. Your heals fired 12 times\./);
+      want('BW-6', 'addsMage', /^Lost during his adds, boss at 41%\. Your area slots fired 0 times\. .*Cleave, Fireball/);
+      want('BW-6', 'addsHealer', /^Lost during his adds, boss at 41%\. Your heals fired 2 times\./);
+      want('BW-6', 'addsTank', /^Lost during his adds, boss at 41%\. Your Challenge fired 1 time\. /);
+      want('BW-6', 'chiefAdds', /^Lost during his adds, boss at 41%\. Your area slots fired 3 times\. His adds shield him\. Kill them first and keep your healer on whoever they attack\.$/);
+      want('BW-6', 'chiefEnrage', /^Lost after his enrage, boss at 23%\. You ate 2 times\. Under 25% HP he hits far harder, mostly your tank\. Better tank armor, eating earlier and faster heals help\.$/);
+      want('BW-6', 'chiefEnrageCh', /^Lost after his enrage, boss at 23%\. Your Challenge fired 3 times\. /);
+      want('BW-6', 'krellEnrage', /^Lost after his enrage, boss at 23%\. Your Challenge fired 4 times\. Under 25% HP he hits far harder, mostly your tank\. Better tank armor, eating earlier and faster heals help\.$/);
+      want('BW-6', 'krellEnrageHealer', /^Lost after his enrage, boss at 23%\. Your heals fired 5 times\. Under 25% HP .*faster heals help\.$/);
+      want('BW-6', 'krellAdds', /^Lost during his adds, boss at 41%\. Your Challenge fired 2 times\. His adds shield him\. Kill them first/);
       /* NO LINE TELLS A PLAYER TO TURN CHALLENGE ON OR OFF (Tyler 2026-11-14: "the player should decide whether or not challenge should be on") */
       for (const [k, x] of Object.entries(l)) if (/Challenge (off|on)|off your tank|Keep Challenge|Take Challenge/.test(x || '')) fails.push('BW-6 ' + k + ' tells the player what to do with Challenge: ' + JSON.stringify(x));
       if (/Challenge/.test(l.enrageTank || '')) fails.push('BW-6 the King, whose rats shield nothing, is asked about Challenge in his enrage: ' + JSON.stringify(l.enrageTank));
       if (/shield/.test(l.addsMage || '')) fails.push('BW-6 the King, whose rats shield nothing, reads ' + JSON.stringify(l.addsMage));
-      want('BW-6', 'first', /^You lost before his adds came, with him at 80%\. You ate 1 time\. /);
-      want('BW-6', 'time', /^Time ran out after he got enraged, with him at 23%\. /);
+      want('BW-6', 'first', /^Lost before his adds, boss at 80%\. You ate 1 time\. /);
+      want('BW-6', 'time', /^Time up after his enrage, boss at 23%\. /);
       want('BW-6', 'floor', /at 1%\./);
       for (const n of ['won', 'left', 'normal', 'none']) if (l[n] !== null) fails.push('BW-6 ' + n + ' has a line: ' + l[n]);
       if (!r.ended || r.ended.boss_pm !== 230) fails.push('BW-6 the ended session lost the record: ' + JSON.stringify(r.ended));
-      if (!/^You lost after he got enraged, with him at 23%\. You ate 6 times/.test(r.loss || '')) fails.push('BW-6 the summary reads ' + JSON.stringify(r.loss));
+      if (!/^Lost after his enrage, boss at 23%\. You ate 6 times/.test(r.loss || '')) fails.push('BW-6 the summary reads ' + JSON.stringify(r.loss));
       if (r.kept !== r.loss) fails.push('BW-6 the residue\'s bounds lost the line: ' + JSON.stringify(r.kept));
       const b = r.bars;
       if (b.full.quiet || b.full.name !== 'The Rat King' || b.full.adds !== '50%' || b.full.enrage !== '25%' || b.full.fill !== '100%' || b.full.wave || b.full.raging) fails.push('BW-7 at full he reads ' + JSON.stringify(b.full));
-      if (!b.half.wave || b.half.raging || b.half.state !== 'His adds are coming') fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
+      if (!b.half.wave || b.half.raging || b.half.state !== 'Adds incoming') fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
       /* A boss whose adds shield him says so, on the bar and in the warning; one whose adds don't, never (boss-calls.js isGuarded). */
-      if (!b.chief.wave || b.chief.state !== 'His adds shield him') fails.push('BW-7 the Chief at his first line reads ' + JSON.stringify(b.chief));
-      if (!/They shield him until you kill them\. At a quarter/.test(r.warn.chief) || /Challenge/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
-      if (b.quarter.wave || !b.quarter.raging || !/enraged/.test(b.quarter.state) || b.quarter.fill !== '24%') fails.push('BW-7 under the second line he reads ' + JSON.stringify(b.quarter));
+      if (!b.chief.wave || b.chief.state !== 'Shielded by adds') fails.push('BW-7 the Chief at his first line reads ' + JSON.stringify(b.chief));
+      if (!/adds attack your non-tanks and shield him until killed\n25% HP/.test(r.warn.chief) || /Challenge/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
+      if (b.quarter.wave || !b.quarter.raging || b.quarter.state !== 'Enraged' || b.quarter.fill !== '24%') fails.push('BW-7 under the second line he reads ' + JSON.stringify(b.quarter));
       if (!b.played.raging || b.played.fill !== '24%') fails.push('BW-7 the bar does not read the instant shown: ' + JSON.stringify(b.played));
       if (!b.normal.quiet) fails.push('BW-7 a normal hunt has a boss bar');
       if (!b.over.quiet) fails.push('BW-7 a finished fight still has a boss bar');
-      if (b.hask.quiet || b.hask.name !== 'Captain Hask' || !b.hask.wave || b.hask.state !== 'His adds are coming' || b.hask.adds !== '50%' || b.hask.enrage !== '25%') fails.push('BW-7 Captain Hask hurt on his ground reads ' + JSON.stringify(b.hask));
+      if (b.hask.quiet || b.hask.name !== 'Captain Hask' || !b.hask.wave || b.hask.state !== 'Adds incoming' || b.hask.adds !== '50%' || b.hask.enrage !== '25%') fails.push('BW-7 Captain Hask hurt on his ground reads ' + JSON.stringify(b.hask));
       if (!b.haskFull.quiet) fails.push('BW-7 Captain Hask has a bar before anyone hurt him');
       if (!b.haskOver.quiet) fails.push('BW-7 a finished hunt at the Barrows still has his bar');
       await ctx.close();
@@ -289,7 +289,7 @@ const MUTANTS = [
   { name: 'a shielded boss\'s wave reads the plain answer', file: 'src/hunt-view/boss-loss.js', from: "guarded && phase === 'adds' ? W.answer.guarded : ", to: '', want: /BW-6/ },
   { name: 'a shielded boss\'s enrage reads the plain answer', file: 'src/hunt-view/boss-loss.js', from: "guarded && phase === 'enrage' ? W.answer.enrageGuarded : ", to: '', want: /BW-6/ },
   { name: 'the tank is asked about his food', file: 'src/hunt-view/boss-loss.js', from: "if (role === 'tank' && (phase === 'adds' ||", to: "if (role === 'nobody' && (phase === 'adds' ||", want: /BW-6/ },
-  { name: 'the warning tells the player to turn Challenge off again', file: 'src/data/boss-calls.js', from: "  warnGuard: ' They shield him until you kill them.',", to: "  warnGuard: ' They shield him until you kill them. Take Challenge off your tank\\'s bar for this fight.',", want: /BW-7/ },
+  { name: 'the warning tells the player to turn Challenge off again', file: 'src/data/boss-calls.js', from: "  warnGuard: ' and shield him until killed',", to: "  warnGuard: ' and shield him until killed (take Challenge off your tank\\'s bar)',", want: /BW-7/ },
   { name: 'a shielded boss\'s tank is asked about his food once Challenge fired', file: 'src/hunt-view/boss-loss.js', from: "(guarded && sum(fired, ['challenge']) > 0)", to: 'false', want: /BW-6/ },
   { name: 'a mark in the wrong place', file: 'src/shell/widgets/boss-bar.js', from: "'left', (ph.enragePm / 10) + '%'", to: "'left', (ph.addsPm / 10) + '%'", want: /BW-7/ },
   { name: 'the bar reads the snapshot, not the instant shown', file: 'src/shell/widgets/boss-bar.js', from: 'const hp = played ? played.hp : x ? x.hp : NaN, max = played ? played.maxHp : x ? x.hpMax : 0;', to: 'const hp = x ? x.hp : NaN, max = x ? x.hpMax : 0;', want: /BW-7/ },
@@ -298,7 +298,7 @@ const MUTANTS = [
   { name: 'a ground boss has his bar before he is hurt', file: 'src/shell/widgets/boss-bar.js', from: 'if (pm === null || pm <= 0 || pm >= 1000) continue;', to: 'if (pm === null || pm <= 0) continue;', want: /BW-7/ },
   /* ALONE, A WARNING (the designer's ruling 2, 2026-11-10): the lone line shows for a hero alone, only for one, and the answer names no party. */
   { name: 'a hero alone reads no lone line', file: 'src/shell/windows/boss-call-pane.js', from: "prop(alone, 'hidden', !q.alone);", to: "prop(alone, 'hidden', true);", want: /BW-1/ },
-  { name: 'a party reads the lone line', file: 'src/shell/windows/boss-call-pane.js', from: "text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call, q.price) : '');", to: 'text(alone, callWords(BOSS_CALL_WORDS.warnAlone, call, q.price));', want: /BW-2/ },
+  { name: 'a party reads the lone line', file: 'src/shell/windows/boss-call-pane.js', from: "text(alone, q.alone ? partyNote(call.from) || BOSS_CALL_WORDS.warnAlone : '');", to: "text(alone, partyNote(call.from) || BOSS_CALL_WORDS.warnAlone);", want: /BW-2/ },
   { name: 'a hero alone is told the party is on its way', file: 'src/shell/windows/boss-call-pane.js', from: 'const answered = quote.alone ? BOSS_CALL_WORDS.answered.alone : BOSS_CALL_WORDS.answered.party;', to: 'const answered = BOSS_CALL_WORDS.answered.party;', want: /BW-1/ },
   { name: 'a free way back from the room', file: 'src/hunt-view/summary-model.js', from: ' || roomOfHunt(summary.hunt)) return null;', to: ') return null;', want: /BW-5/ },
 ];

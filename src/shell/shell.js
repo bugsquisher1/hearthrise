@@ -39,30 +39,30 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.133';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.133';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.133';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.133';
-import { createShellHud, fightOn } from './shell-hud.js?v=0.2.133';
-import { createHudRoom } from './hud-room.js?v=0.2.133';
-import { createWidgetStack } from './widget-stack.js?v=0.2.133';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.133';
-import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.133';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.133';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.133';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.133';
-import { mountContextMenu } from './context-menu.js?v=0.2.133';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.133';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.133';
-import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.133';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.133';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.133';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.133';
-import { benchSpentAtMs } from './town-work.js?v=0.2.133';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.133';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.133';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.133';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.133';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.134';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.134';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.134';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.134';
+import { createShellHud, fightOn } from './shell-hud.js?v=0.2.134';
+import { createHudRoom } from './hud-room.js?v=0.2.134';
+import { createWidgetStack } from './widget-stack.js?v=0.2.134';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.134';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.134';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.134';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.134';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.134';
+import { mountContextMenu } from './context-menu.js?v=0.2.134';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.134';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.134';
+import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.134';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.134';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.134';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.134';
+import { benchSpentAtMs } from './town-work.js?v=0.2.134';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.134';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.134';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.134';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.134';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -220,7 +220,10 @@ export function mountShell(root, o) {
       /* A folded widget is its title's width, or its empty box would still take presses and the camera's room
          (and at 1024 px a folded analyzer as wide as the open one stepped under the hunt bar, into the fight). */
       el.style.minWidth = L.folded ? '' : row.min[0] + 'px';
-      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';
+      /* On a phone the floor yields to the room the panel has above the action bar (hud-room.js: under the hunt bar over the town,
+         667x375 leaves 110 px), or the floor pushed it below the bar, off the screen. */
+      const floor = row.min[1] + 'px';
+      el.style.minHeight = L.folded ? '' : phoneMq.matches ? 'min(' + floor + ', var(--hs-room, ' + floor + '))' : floor;
       paintMove(el, L, hud.isMoved(row.id));
       if (sized && !sized.watched.has(el)) { sized.watched.add(el); sized.ro.observe(el, { box: 'border-box' }); }
     }
@@ -358,7 +361,7 @@ export function mountShell(root, o) {
      published only when they change, so the camera frames the playable area beside them. */
   let lastInset = '';
   function insetNow(alertToo = true) {
-    const b = shell.getBoundingClientRect();
+    const b = shell.getBoundingClientRect(), box = { width: b.width, height: b.height };
     const widgets = [];
     const rel = (r, left = r.left - b.left) => ({ left, top: r.top - b.top, width: r.width, height: r.height });
     for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
@@ -367,21 +370,18 @@ export function mountShell(root, o) {
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: rel(r, left) });
     }
-    /* THE COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10; audit 2026-11-15 F1, F13): the phone's open card stands at the hunt bar's right end, the
-       desktop's in the left column (hud-room.js dockCoach), and the camera frames the World beside it, as beside a panel. An alert in a hunt is framed beside too
-       (`alertToo`: heroAt asks without it, or the alert would be placed by its own shadow): the phone's by its half; the desktop's, slid into the World (hud-room.js
-       clearPlates), covers the SIDE that costs the World less (anchor 'm.': never the top strip hudInsetOf may trade a top-corner panel for). */
+    /* THE COACH NEVER LIES ON THE HERO (playtest 10-29 #10; audit 2026-11-15 F1, F13): the phone's open card stands at the hunt bar's right end, the desktop's in
+       the left column (hud-room.js dockCoach), and the camera frames the World beside it. So is an alert in a hunt (`alertToo`: heroAt asks without it, or the alert is
+       placed by its own shadow): the phone's by its half, the desktop's (hud-room.js clearPlates) by the SIDE costing the World less (anchor 'm.', never the top strip). */
     const side = (r) => (r.left + r.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr');
     const shown = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? r : null; };
     const bar = worldHud.querySelector('[data-hs-widget="hunt-topbar"]');
     const card = bar && (phoneMq.matches || bar.classList.contains('is-coach-docked')) ? shown(bar.querySelector(':scope > .hs-pointer:not(.is-min)')) : null;
     if (card) widgets.push({ anchor: side(card), rect: rel(card) });
-    const box = { width: b.width, height: b.height };
     const alert = alertToo && fightOn(opts) ? shown(screenHud.querySelector('[data-hs-widget="alerts"]:not(.is-under-dock) .hw-alerts:not(.is-empty) .hw-alert-list')) : null;
-    if (alert && phoneMq.matches) widgets.push({ anchor: side(alert), rect: rel(alert) });
-    else if (alert) {
-      const clear = hudInsetOf(widgets, box), q = rel(alert);
-      widgets.push({ anchor: q.left + q.width - clear.left <= b.width - clear.right - q.left ? 'ml' : 'mr', rect: q });
+    if (alert) {
+      const q = rel(alert), clear = phoneMq.matches ? null : hudInsetOf(widgets, box);
+      widgets.push({ anchor: !clear ? side(alert) : q.left + q.width - clear.left <= b.width - clear.right - q.left ? 'ml' : 'mr', rect: q });
     }
     return hudInsetOf(widgets, box);
   }
@@ -563,8 +563,9 @@ export function mountShell(root, o) {
   const offMoves = mountWidgetMoves({ boxes: [worldHud, screenHud], hud, host, isPhone: () => phoneMq.matches, place: placeWidgets, refresh });
   paintWidgets();
   coach();
-  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own. */
-  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh);
+  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own,
+     and the server's first offer of a side opens the join prompt (windows/faction-join.js). */
+  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh), offFaction = WINDOW_RENDERERS['faction-join'].follow(ctx);
 
   return {
     wm, hud,
@@ -583,7 +584,7 @@ export function mountShell(root, o) {
     destroy() {
       /* a switch of the viewed hero takes the windows with it: the summary on screen has been seen, and the bar must not stand in for it on the way back */
       if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);
-      offDeaths(); offPlayCap(); offWm(); offHud(); offMoves();
+      offDeaths(); offPlayCap(); offFaction(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

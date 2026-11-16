@@ -6,17 +6,18 @@
 // Original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.133';
-import { foldRows } from './grounds/shape.js?v=0.2.133';
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.133';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.133';
-import { LIB2_DESC } from './library2-items.js?v=0.2.133';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.133';
-import { CHAMPION_DESC } from './champions.js?v=0.2.133';
-import { DRINK_DESC } from './drinks.js?v=0.2.133';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.133';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.133';
-import { SHIELD_DESC } from './shields.js?v=0.2.133';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.134';
+import { foldRows } from './grounds/shape.js?v=0.2.134';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.134';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.134';
+import { LIB2_DESC } from './library2-items.js?v=0.2.134';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.134';
+import { CHAMPION_DESC } from './champions.js?v=0.2.134';
+import { DRINK_DESC } from './drinks.js?v=0.2.134';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.134';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.134';
+import { SHIELD_DESC } from './shields.js?v=0.2.134';
+import { TRAINING_GEAR_DESC } from './training.js?v=0.2.134';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -51,6 +52,7 @@ export const ITEM_DESC = {
   ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
   ...STYLE_GEAR_DESC, // lane c-style-gear: the two new tier-2 weapons
   ...SHIELD_DESC,     // lane b-spell-roles: the five shields
+  ...TRAINING_GEAR_DESC, // lane/c-training-gear: the training items, one line a skill
   /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */
   'chalked_earth_rune': 'Your Earth spells, the stone shields, use one of these each cast. It feels heavy for something with just a chalk mark',
   'scored_earth_rune': 'A better Earth rune that needs a bit more skill to use. Grit collects in the scratched-in lines',

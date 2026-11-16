@@ -258,8 +258,8 @@ async function checks(overrides) {
       await ctx.close();
     }
     // IP-6: each size, a gather Start and a hunt Enter; the two refusals, each with its own words.
-    const HERE = 'Four heroes are already playing from this internet connection. They can be on any account here. Stop one to start this one.';
-    const OWN = 'Four of your heroes are already playing. Stop one to start this one.';
+    const HERE = 'Four heroes already playing on this connection (any account). Stop one first.';
+    const OWN = 'Four heroes already playing. Stop one to start this one.';
     for (const [tag, viewport] of [['1440x900', { width: 1440, height: 900 }], ['922x423', { width: 922, height: 423 }], ['667x375', { width: 667, height: 375 }]]) {
       const { ctx, page, errors, s } = await inTown(viewport);
       s.edgeNo = { set_activity: 'too_many_playing_here' };

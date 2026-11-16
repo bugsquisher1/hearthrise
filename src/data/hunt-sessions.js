@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.133';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.133';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.133';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.134';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.134';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.134';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -207,15 +207,19 @@ export const NO_FIGHT_END_MIN = 10;
    points the character at its last non-hunt activity
    (player_state.last_activity_kind / _id), if that is still allowed; else
    idle in town. A data row so Huntera-style combat training can take its
-   place later without touching the settle. A BENCH IS REMEMBERED BUT NEVER RESUMED
-   (2027-02-15-panel-truth.sql hr_resume_has_inputs): a resume has no count, so it would spend
-   a whole hunt's loot the player never pointed at. Gathering spends nothing and resumes. */
+   place later without touching the settle. Gathering spends nothing and
+   resumes as it was. A BENCH RESUMES FOR THE COUNT IT HAD LEFT WHEN THE HUNT
+   STARTED (Tyler 2026-11-15, 2027-04-24-bench-resume.sql; it replaces his
+   2026-10-31 "bench jobs dont"): only a bench that was running at Enter, for
+   the smaller of its own count and what the bag plus Storage could make then
+   (player_state.last_activity_left), so never the hunt's loot. */
 export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
    stamina refills): stored and resumed by name the day it exists, refused until
-   then (it has no catalogue rows). */
+   then (it has no catalogue rows). What each kind remembers at Enter and does at
+   the end is one arm of hr_activity_left and of hr_resume_plan (the same file). */
 export const RESUMABLE_KINDS = Object.freeze(['gather', 'artisan', 'training']);
 
 /* The end card: a title, then the reason in one plain sentence. */

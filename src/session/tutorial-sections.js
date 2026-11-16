@@ -23,20 +23,21 @@
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
 //   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.133';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.133';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, huntTierOf } from './hunt-sections.js?v=0.2.133';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.133';
-import { farmFieldOf } from './farm-sections.js?v=0.2.133';
-import { homeOf, chestsOf } from './home-sections.js?v=0.2.133';
-import { tallyOf } from './tally-sections.js?v=0.2.133';
-import { temperFirstRungOf } from './temper-sections.js?v=0.2.133';
-import { partyMembershipOf } from './party-sections.js?v=0.2.133';
-import { wearsArmour } from '../core/vitals.js?v=0.2.133';
-import { ITEMS } from '../data/items.js?v=0.2.133';
-import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.133';
-import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.133';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.133';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.134';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.134';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, huntTierOf } from './hunt-sections.js?v=0.2.134';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.134';
+import { farmFieldOf } from './farm-sections.js?v=0.2.134';
+import { homeOf, chestsOf } from './home-sections.js?v=0.2.134';
+import { tallyOf } from './tally-sections.js?v=0.2.134';
+import { temperFirstRungOf } from './temper-sections.js?v=0.2.134';
+import { partyMembershipOf } from './party-sections.js?v=0.2.134';
+import { trainingOf, quoteFor } from './training-sections.js?v=0.2.134';
+import { wearsArmour } from '../core/vitals.js?v=0.2.134';
+import { ITEMS } from '../data/items.js?v=0.2.134';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.134';
+import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.134';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.134';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -200,7 +201,17 @@ export function pointerCardOf(cs, sh) {
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
     gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home,
-    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper });
+    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper,
+    training: trainingRunOf(cs) });
+}
+
+/* The running training session as the server's `training` section states it: its run's skill, and that skill's level and hours to the next
+   (its quote), or null when none runs. */
+function trainingRunOf(cs) {
+  const tr = trainingOf(cs);
+  if (!tr || !tr.run) return null;
+  const q = quoteFor(tr, tr.run.skill);
+  return { skill: tr.run.skill, level: q ? q.level : null, hoursToNext: q ? q.hoursToNext : null };
 }
 
 /* The ACCOUNT's field as the server last said (2026-12-14-shared-farm: one field for every hero, and any hero may

@@ -10,11 +10,12 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.133';
-import { roleIdOf } from '../session/party-sections.js?v=0.2.133';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.133';
-import { explainDeaths } from './death-explain.js?v=0.2.133';
-import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.133';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.134';
+import { roleIdOf } from '../session/party-sections.js?v=0.2.134';
+import { monsterName } from '../shell/widgets/bits.js?v=0.2.134';
+import { explainDeaths } from './death-explain.js?v=0.2.134';
+import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop } from './summary-model.js?v=0.2.134';
+import { trainingOf } from '../session/training-sections.js?v=0.2.134';
 
 const ATTACHED = new WeakMap();
 
@@ -62,6 +63,13 @@ export function liveDeaths(a) {
   return a.live;
 }
 
+/* A TRAINING CARD stored before the server's last stop for it landed (the `training` section can come after the `hunt` one that
+   ended it): its fee and levels go on once they do (summary-model.js withTrainingStop). */
+function fillTraining(cs, stop) {
+  const filled = withTrainingStop(summariesOf(cs)[0], stop);
+  if (filled) cs.setResidue('huntSummaries', withSummary(summariesOf(cs), filled));
+}
+
 /**
  * Start recording a character's hunts (idempotent). Safe to call from any
  * paint: the first call subscribes, later calls are a lookup.
@@ -77,7 +85,9 @@ export function attach(cs) {
     const s = endedSessionOf(cs);
     if (!s) return;
     if (!s.ended) { if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.live = null; a.liveSig = ''; } return; }
-    if (a.done.has(s.id)) return;
+    const tr = trainingOf(cs);
+    const stop = tr ? tr.lastStop : null;
+    if (a.done.has(s.id)) return fillTraining(cs, stop);
     a.done.add(s.id);
     /* Recorded on an earlier page: it has already had its moment (summaryFromEarlierPage). */
     if (summariesOf(cs).some((x) => x.id === s.id)) { a.earlier = s.id; return; }
@@ -85,7 +95,7 @@ export function attach(cs) {
     const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
     a.recorded = { id: s.id, at: Date.now() };
-    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths, roleIdOf(cs))));
+    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths, roleIdOf(cs), stop)));
   });
   return a;
 }

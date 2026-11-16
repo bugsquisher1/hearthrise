@@ -796,7 +796,7 @@ const cases = {
       const heal = M.consumables.CONSUMABLES.cooked_shrimp.amount;
       const lost = M.tut.wasteAt(heal, 60, fixed.hpMax);
       const line = wasteLine({ kind: 'food', amount: heal }, 60, fixed.hpMax);
-      if (lost > 0 ? !line.includes(lost + ' of its ' + heal) : line !== '') return set + ': the coach\'s waste (' + lost + ') is not Configure action\'s: "' + line + '"';
+      if (lost > 0 ? !line.includes(lost + ' of ' + heal + ' wasted') : line !== '') return set + ': the coach\'s waste (' + lost + ') is not Configure action\'s: "' + line + '"';
       if (!eat || eat.id !== 'food_when' || eat.barSlot !== food || !eat.text.startsWith('Slot ' + (food + 1) + ' eats your own Cooked Shrimp when your HP is below 60%. A Cooked Shrimp heals ' + heal)
         || !eat.text.includes(fixed.hpMax + ' HP') || (lost > 0 && !eat.text.includes(lost + ' of it is wasted'))) return set + ': the eat card reads ' + JSON.stringify(eat && eat.text);
       /* where it says to stop: Configure action's 5% steps down from 60 until nothing is wasted, never under 50% */
@@ -1440,6 +1440,16 @@ const cases = {
       hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     if (!withDef(0).includes('The Shop sells gloves and belts')) return 'Defense at 0 XP: the what-next line does not point at the Shop\'s armour: ' + withDef(0);
     if (withDef(40).includes('The Shop sells gloves and belts')) return 'Defense training: the what-next line still asks for armour';
+    /* A TRAINING SESSION RUNNING (lane/a-training-leftovers: a Melee session at the yard read "Your Defense isn't training"): the line is
+       the skill the server's `training` section says is trained, and its hours to the next level; never the armour line. */
+    const withTrain = (skill) => renderLaunchers({ character: { read: (k) => ({ ...sewerEnv, skills: { ...sewerEnv.skills, defense: { xp: 0, level: 1 } },
+      training: { skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12, quotes: [{ skill, level: 20, fee_h: 170, xp_h: 30000, hours_to_next: 2 }],
+        run: { skill, where: 'yard', since: '2026-11-15T20:00:00.000Z', fee_h: 170, paid: 170 }, last_stop: null } })[k] }, glyphs: {},
+      hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
+    for (const [skill, word] of [['melee', 'Melee'], ['defense', 'Defense']]) {
+      const said = withTrain(skill);
+      if (!said.includes('About 2 hours more training to ' + word + ' 21.') || /Defense isn.t training/.test(said)) return 'a ' + word + ' training session: the what-next line does not name the trained skill: ' + said;
+    }
     /* THE LAND IS THE ACCOUNT'S (2026-12-14-shared-farm). v0.2.35 gate: Fingerguns, 0 Farming XP, was told "Nothing
        grows on your farm yet" over 5 READY turnips the other heroes planted. The line reads the server's `farm_land`
        field, never this hero's Farming XP: empty land asks for a seed (any hero), ready plots ask for the harvest

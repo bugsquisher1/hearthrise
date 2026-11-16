@@ -96,7 +96,8 @@ async function dataArm(db, M) {
     .filter((g) => g.mode !== undefined).map((g) => [g.hunt, g.mode]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
   const onSrv = (await q(db, 'select hunt_id, mode_id from public.hr_ground_session_modes order by hunt_id')).map((r) => [r.hunt_id, r.mode_id]);
   if (JSON.stringify(onSrv) !== JSON.stringify(named)) bad.push('MD-DATA the server maps ' + JSON.stringify(onSrv) + ' to modes, the data ' + JSON.stringify(named));
-  if (!named.some(([h, m]) => h === 'burning_tower' && m === 'tower')) bad.push('MD-DATA CONTROL: the Burning Tower names no mode in the data');
+  const tower = (await import(pathToFileURL(join(M.root, 'src/data/tower.js')).href + V)).TOWER_RULES.hunt;
+  if (!named.some(([h, m]) => h === tower && m === 'tower')) bad.push('MD-DATA CONTROL: the Burning Tower names no mode in the data');
   return bad;
 }
 

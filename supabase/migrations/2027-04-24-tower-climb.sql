@@ -5,7 +5,8 @@
 --   STAGED: tools/apply-migration.mjs, one file, never inside begin/commit. Pre-EA (CLAUDE.md §2): applies on its passing §10.
 --   ON THE EA SECURITY LIST: a ranked climb (the floors a board will read) and the weekly landings the chest's keys will be minted from.
 --   HIDDEN: the switch `burning_tower` is seeded OFF; while it is off for an account its one door refuses (feature_off) and nothing else
---   opens a climb (hr_hunt_admit: tower_only; the Tower is never in hr_hunts, so hr_hunt_gate refuses it too).
+--   opens a climb (hr_hunt_admit: tower_only, ahead of the ordinary gate; until this file the Tower has no hr_hunts row, so that gate
+--   refused it, and its row lands only after this file: 2027-04-24-tower-climb-hunts-catalogue.generated.sql, which checks the door first).
 --
 -- ── WHY ────────────────────────────────────────────────────────────────────
 -- A climb is a hunt session on the Tower's ground in the `tower` mode (a death costs nothing, no coin, no drops, no Bestiary, 200 permille
@@ -89,8 +90,10 @@
 --   `tower_floor` and waits (tower_pending).
 -- CLIENT: none (the window lane wires hr_tower_start and reads the climb; the live view's ctx.towerFloor is hunt_live.instance.tower_floor).
 -- ORDER: after 2027-04-23-session-modes.sql: 2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql, then
---   2027-04-24-tower-climb-session-modes-catalogue.generated.sql, then 2027-04-24-tower-climb-catalogue.generated.sql, then THIS file.
--- REVERSIBLE: re-apply the §0 images of hr_hunt_apply_member and hr_hunt_instance_read (2027-04-23-session-modes.sql), hr_hunt_admit (production's)
+--   2027-04-24-tower-climb-session-modes-catalogue.generated.sql, then 2027-04-24-tower-climb-catalogue.generated.sql, then THIS file, then
+--   2027-04-24-tower-climb-hunts-catalogue.generated.sql (the Tower's hr_hunts row, once its one door stands).
+-- REVERSIBLE: delete the Tower's hr_hunts row FIRST (2027-04-16-combat-training-hunts-catalogue's rows again), so no restated admit opens an
+--   ordinary door to it; re-apply the §0 images of hr_hunt_apply_member and hr_hunt_instance_read (2027-04-23-session-modes.sql), hr_hunt_admit (production's)
 --   and hr_hunt_settle_session (2027-04-22-faction-standing.sql); drop the trigger, the seven helpers, hr_tower_start and its baseline row, the
 --   three tables and the switch row. No value moved to undo (the Tower pays only XP, which a climb's own ledger rows name).
 -- IDEMPOTENT: a second apply finds the tables, restates every body byte-identical, finds the settle arm, re-creates the trigger, keeps the switch
@@ -114,8 +117,6 @@ begin
                    join public.hr_session_modes m on m.mode_id = g.mode_id
                   where m.death_loss_pm = 0 and not m.blessings and not m.coin and not m.drops and not m.bestiary) then
     raise exception 'PRECONDITION: apply 2027-04-24-tower-climb-session-modes-catalogue.generated.sql first (the Tower plays a mode whose death costs nothing and that pays no coin, drops or Bestiary)'; end if;
-  if exists (select 1 from public.hr_hunts h join public.hr_tower_rules r on r.hunt_id = h.hunt_id) then
-    raise exception 'PRECONDITION: the Tower is in hr_hunts, so the ordinary door (hr_hunt_gate) would admit it'; end if;
   if to_regclass('public.hr_feature_switches') is null or to_regprocedure('public.hr_feature_on(text,uuid)') is null
      or to_regprocedure('public.hr_hunt_enter_for(uuid,integer,text,jsonb,integer,integer)') is null
      or to_regprocedure('public.hr_hunt_saved_bag(uuid,integer)') is null or to_regprocedure('public.hr_hunt_active_set(uuid,integer)') is null

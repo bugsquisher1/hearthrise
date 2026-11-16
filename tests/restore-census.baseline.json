@@ -1550,7 +1550,7 @@
   },
   "hr_hunts": {
    "class": "seeded",
-   "replay": 25,
+   "replay": 26,
    "note": "Generated catalogue (2026-10-20-hunts-catalogue.generated.sql, tools/gen-hunts.mjs --check from src/data/hunts.js): the named hunts and their level bands, read by hr_hunt_gate. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_import_marker": {

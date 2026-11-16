@@ -43,7 +43,7 @@ comment on table public.hr_tower_rules is '2027-04-24-tower-climb-catalogue.gene
 comment on table public.hr_tower_floors is '2027-04-24-tower-climb-catalogue.generated.sql: each floor''s Level and the most one kill on it pays in Level XP before its mode and party share (src/core/hunt/tower.js towerXpMax). The settle''s XP bound for a climb.';
 
 insert into public.hr_tower_rules (id, hunt_id, room_size, landing_every, floor_limit_ms, landing_limit_ms, stair_ms, week_back, floor_top) values
-  (true, 'burning_tower', 5, 10, 180000, 600000, 4000, 60, 300)
+  (true, 'the_burning_tower', 5, 10, 180000, 600000, 4000, 60, 300)
 on conflict (id) do update set hunt_id = excluded.hunt_id, room_size = excluded.room_size, landing_every = excluded.landing_every,
   floor_limit_ms = excluded.floor_limit_ms, landing_limit_ms = excluded.landing_limit_ms, stair_ms = excluded.stair_ms,
   week_back = excluded.week_back, floor_top = excluded.floor_top;
@@ -355,7 +355,7 @@ insert into public.hr_tower_floors (floor, level, xp_max) values
 do $$
 declare t text; v_role text;
 begin
-  if (select count(*) from public.hr_tower_rules) <> 1 or (select hunt_id from public.hr_tower_rules) is distinct from 'burning_tower'
+  if (select count(*) from public.hr_tower_rules) <> 1 or (select hunt_id from public.hr_tower_rules) is distinct from 'the_burning_tower'
      or (select floor_top from public.hr_tower_rules) <> 300 or (select stair_ms from public.hr_tower_rules) <> 4000 then
     raise exception 'tower-catalogue §4: hr_tower_rules is not the one row of src/data/tower.js'; end if;
   if (select count(*) from public.hr_tower_floors) <> 300 or (select min(floor) from public.hr_tower_floors) <> 1

@@ -53,7 +53,7 @@ on conflict (mode_id) do update set is_default = excluded.is_default, death_loss
 
 delete from public.hr_ground_session_modes;
 insert into public.hr_ground_session_modes (hunt_id, mode_id) values
-  ('burning_tower', 'tower');
+  ('the_burning_tower', 'tower');
 
 -- A mode dropped from the data goes last, once no ground names it (an instance still frozen on it refuses, loudly).
 delete from public.hr_session_modes where mode_id <> all (array['hunt', 'tower']::text[]);

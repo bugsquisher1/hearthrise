@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: ce888cd723ba8c5f0ee0324a522b1b27003960646d5053afe54791f1b325c0ed
+--   digest: 55f9ad417300072df6f6c2bf9eacc214a1c28d0934eed4fe014c711ba41b2dcc
 --   82 supplies, 166 hunts (named + training), 47 limits, 17 end reasons,
 --   598 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 23 hunt grounds
@@ -19,8 +19,9 @@
 -- kill); END_ORDER's floor_time (a floor's room ran out of time: it resumes, like boss_time) in hr_hunt_end_reasons and hunt_sessions.end_reason's
 -- CHECK. No limit, kill bound or world shape moves. ORDER: after 2027-04-23-session-modes.sql, before
 -- 2027-04-24-tower-climb-session-modes-catalogue.generated.sql (which names the Tower's mode and wants its ground served) and
--- 2027-04-24-tower-climb.sql (which proves floor_time and opens the one door). The Tower is never in hr_hunts, so until that file the
--- ordinary door refuses it (hr_hunt_admit -> hr_hunt_gate: unknown_activity), and after it hr_hunt_admit sends it to hr_tower_start.
+-- 2027-04-24-tower-climb.sql (which proves floor_time and opens the one door). The Tower joins hr_hunts only after that file
+-- (2027-04-24-tower-climb-hunts-catalogue.generated.sql), so until it the ordinary door refuses it (hr_hunt_admit -> hr_hunt_gate:
+-- unknown_activity), and after it hr_hunt_admit sends it to hr_tower_start.
 --
 -- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
 -- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
@@ -895,7 +896,6 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
-  ('burning_tower', 'burning_tower', 1, 5, 4000, 4, '{8,8,8,8}'::int[]),
   ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[]),
   ('coppercap_warrens_called', 'coppercap_warrens_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
   ('hasks_ford', 'hasks_ford', 6, 12, 60000, 4, '{8,8,8,8}'::int[]),
@@ -908,6 +908,7 @@ insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn
   ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
   ('muster_barrows', 'muster_barrows', 7, 23, 90000, 4, '{8,8,8,8}'::int[]),
   ('pyre_field', 'pyre_field', 6, 12, 60000, 4, '{8,8,8,8}'::int[]),
+  ('the_burning_tower', 'the_burning_tower', 1, 5, 4000, 4, '{8,8,8,8}'::int[]),
   ('the_slake', 'the_slake', 6, 12, 60000, 4, '{8,8,8,8}'::int[]),
   ('training_house_defense', 'training_house_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
   ('training_house_magic', 'training_house_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
@@ -919,7 +920,6 @@ insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn
   ('training_yard_ranged', 'training_yard_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
   ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
-  ('burning_tower', 'rat', 5),
   ('coppercap_warrens', 'chief_coppercap', 1),
   ('coppercap_warrens', 'goblin_digger', 12),
   ('coppercap_warrens', 'goblin_scavenger', 20),
@@ -970,6 +970,7 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('pyre_field', 'provost', 3),
   ('pyre_field', 'pyre_wraith', 6),
   ('pyre_field', 'stoker', 8),
+  ('the_burning_tower', 'rat', 5),
   ('the_slake', 'bargeman', 12),
   ('the_slake', 'color_sergeant', 3),
   ('the_slake', 'greened_pikeman', 22),
@@ -1169,7 +1170,6 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('bramble_edge', 0, false),
   ('briarcoat_wolf', 0, true),
   ('brook_bear', 0, true),
-  ('burning_tower', 0, false),
   ('cairn_wight', 0, true),
   ('carnivorous_plant', 0, true),
   ('carrion_crow', 0, true),
@@ -1285,6 +1285,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('stone_golem', 0, true),
   ('storm_elemental', 0, true),
   ('sump_slime', 0, true),
+  ('the_burning_tower', 0, false),
   ('the_silence', 0, true),
   ('the_slake', 0, false),
   ('training_house_defense', 0, false),
@@ -2094,11 +2095,11 @@ begin
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
-               (('burning_tower', 4000), ('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('hasks_ford', 60000), ('krells_hold', 60000), ('krells_hold_hall', 600000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('muster_barrows', 90000), ('pyre_field', 60000), ('the_slake', 60000), ('training_house_defense', 10000), ('training_house_magic', 10000), ('training_house_melee', 10000), ('training_house_ranged', 10000), ('training_yard_defense', 10000), ('training_yard_magic', 10000), ('training_yard_melee', 10000), ('training_yard_ranged', 10000), ('wickstead', 60000))) then
+               (('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('hasks_ford', 60000), ('krells_hold', 60000), ('krells_hold_hall', 600000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('muster_barrows', 90000), ('pyre_field', 60000), ('the_burning_tower', 4000), ('the_slake', 60000), ('training_house_defense', 10000), ('training_house_magic', 10000), ('training_house_melee', 10000), ('training_house_ranged', 10000), ('training_yard_defense', 10000), ('training_yard_magic', 10000), ('training_yard_melee', 10000), ('training_yard_ranged', 10000), ('wickstead', 60000))) then
     raise exception 'a hunt ground''s respawn_ms is not hunt-grounds.js respawnMs'; end if;
   -- THE KILL BOUND'S BASE is the room as built for every group (Tyler 2026-11-11): every ground's spawns, as generated.
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.pockets, g.spawns) not in
-               (('burning_tower', 1, 5), ('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('hasks_ford', 6, 12), ('krells_hold', 5, 10), ('krells_hold_hall', 1, 4), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('muster_barrows', 7, 23), ('pyre_field', 6, 12), ('the_slake', 6, 12), ('training_house_defense', 1, 1), ('training_house_magic', 1, 1), ('training_house_melee', 1, 1), ('training_house_ranged', 1, 1), ('training_yard_defense', 1, 1), ('training_yard_magic', 1, 1), ('training_yard_melee', 1, 1), ('training_yard_ranged', 1, 1), ('wickstead', 6, 12))) then
+               (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('hasks_ford', 6, 12), ('krells_hold', 5, 10), ('krells_hold_hall', 1, 4), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('muster_barrows', 7, 23), ('pyre_field', 6, 12), ('the_burning_tower', 1, 5), ('the_slake', 6, 12), ('training_house_defense', 1, 1), ('training_house_magic', 1, 1), ('training_house_melee', 1, 1), ('training_house_ranged', 1, 1), ('training_yard_defense', 1, 1), ('training_yard_magic', 1, 1), ('training_yard_melee', 1, 1), ('training_yard_ranged', 1, 1), ('wickstead', 6, 12))) then
     raise exception 'a hunt ground''s spawns is not its rows as built (no party pull on Normal)'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"markPm":45,"markUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"ruleHold":51,"ruleWait":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb
@@ -2198,13 +2199,13 @@ begin
      or exists (select 1 from public.hr_premium_login_reward l where l.item_id is not null
                   and not exists (select 1 from public.hr_items i where i.item_id = l.item_id)) then
     raise exception 'a supply, vendor-value, ability-rune or login-reward row names an item hr_items does not have'; end if;
-  -- (the Burning Tower's hunt is never in hr_hunts: its one door is hr_tower_start, and the ordinary door's gate refuses what hr_hunts does not name)
-  if exists (select 1 from public.hr_hunt_travel t where not t.training and t.hunt_id <> all (array['burning_tower']::text[])
+  -- (the Burning Tower's hunt joins hr_hunts only once its one door stands, 2027-04-24-tower-climb-hunts-catalogue.generated.sql, after
+  --  2027-04-24-tower-climb.sql: until then the ordinary door's gate refuses what hr_hunts does not name)
+  if exists (select 1 from public.hr_hunt_travel t where not t.training and t.hunt_id <> all (array['the_burning_tower']::text[])
                and not exists (select 1 from public.hr_hunts h where h.hunt_id = t.hunt_id))
-     or exists (select 1 from public.hr_hunt_grounds g where g.hunt_id <> all (array['burning_tower']::text[])
-                  and not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id))
-     or exists (select 1 from public.hr_hunts h where h.hunt_id = any (array['burning_tower']::text[])) then
-    raise exception 'a named hunt or a ground hunt is not in hr_hunts (or the Tower is)'; end if;
+     or exists (select 1 from public.hr_hunt_grounds g where g.hunt_id <> all (array['the_burning_tower']::text[])
+                  and not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id)) then
+    raise exception 'a named hunt or a ground hunt is not in hr_hunts'; end if;
   if exists (select 1 from public.hr_hunt_travel t where t.training
                and not exists (select 1 from public.hr_activities a
                                 where a.kind = 'combat' and a.activity_id = t.hunt_id and not a.is_boss)) then
@@ -2217,11 +2218,6 @@ begin
   -- the most rows naming it over the kill bounds of the ground's spawn rows) at least the rows one kill names it.
   -- A 0 here is a hunt the settle refuses value_over on the first such drop.
   select d.hunt_id || ' ' || d.item_id into v_t from (values
-    ('burning_tower', 'bones', 1),
-    ('burning_tower', 'giant_rat_hide', 1),
-    ('burning_tower', 'rat_tail', 1),
-    ('burning_tower', 'small_fang', 1),
-    ('burning_tower', 'wheat', 1),
     ('coppercap_warrens', 'big_bones', 1),
     ('coppercap_warrens', 'boarhide_belt', 1),
     ('coppercap_warrens', 'boarhide_body', 1),
@@ -2534,6 +2530,11 @@ begin
     ('pyre_field', 'yew_spellbook', 1),
     ('pyre_field', 'yew_staff', 1),
     ('pyre_field', 'yew_wand', 1),
+    ('the_burning_tower', 'bones', 1),
+    ('the_burning_tower', 'giant_rat_hide', 1),
+    ('the_burning_tower', 'rat_tail', 1),
+    ('the_burning_tower', 'small_fang', 1),
+    ('the_burning_tower', 'wheat', 1),
     ('the_slake', 'barge_nail', 1),
     ('the_slake', 'big_bones', 1),
     ('the_slake', 'bone_chips', 1),
@@ -2627,11 +2628,6 @@ begin
                 and v.unit * 5 > i.value) then
     raise exception 'a refined good is bid above a fifth of its book value'; end if;
   select d.item_id into v_t from (values
-    ('bones'),
-    ('giant_rat_hide'),
-    ('rat_tail'),
-    ('small_fang'),
-    ('wheat'),
     ('big_bones'),
     ('boarhide_belt'),
     ('boarhide_body'),
@@ -2639,6 +2635,7 @@ begin
     ('boarhide_gloves'),
     ('boarhide_helmet'),
     ('boarhide_pants'),
+    ('bones'),
     ('coal'),
     ('copper_ore'),
     ('coppercaps_cauldron'),
@@ -2729,6 +2726,7 @@ begin
     ('runewood_codex'),
     ('runewood_staff'),
     ('runewood_wand'),
+    ('wheat'),
     ('dawn_hatchets'),
     ('dawn_helm'),
     ('dawn_platebody'),
@@ -2769,11 +2767,14 @@ begin
     ('studded_helmet'),
     ('whelp_milk_tooth'),
     ('wolf_pelt'),
+    ('giant_rat_hide'),
     ('hive_wasp_stinger'),
     ('lamp_jelly'),
     ('queens_comb'),
+    ('rat_tail'),
     ('silk_thread'),
     ('slime_gel'),
+    ('small_fang'),
     ('sticky_core'),
     ('venom_sac'),
     ('adept_boots'),

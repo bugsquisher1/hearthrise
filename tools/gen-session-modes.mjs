@@ -29,6 +29,7 @@ import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
 import { SESSION_MODES, DEFAULT_SESSION_MODE, validateSessionModes } from '../src/data/session-modes.js';
 import { OPEN_GROUNDS, CALLED_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS, TOWER_GROUNDS } from '../src/data/hunt-grounds.js';
+import { TOWER_RULES } from '../src/data/tower.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a changed row moves OUT_NAME to a forward file, like every generated catalogue. */
@@ -167,7 +168,7 @@ function selftest() {
   bites('one hunt naming two modes', 'names a mode twice', { grounds: [{ hunt: 'zz_tower', mode: 'hunt' }, { hunt: 'zz_tower', mode: 'hunt' }] });
   /* PHASE 2: the Tower's ground names `tower`, from the data (tower.js, hunt-grounds.js TOWER_GROUNDS) */
   const served = catalogueRows().grounds;
-  const tw = served.length === 1 && served[0].hunt === 'burning_tower' && served[0].mode === 'tower';
+  const tw = served.length === 1 && served[0].hunt === TOWER_RULES.hunt && served[0].mode === 'tower';
   console.log(`  ${tw ? 'CAUGHT' : 'MISSED'} the Burning Tower names the tower mode, and no other ground names one`);
   if (!tw) bad++;
   /* a ground that names a mode becomes a row, one that names none does not: the rows say what the input says (a second mode that pays

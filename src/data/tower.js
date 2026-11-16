@@ -31,8 +31,10 @@
 // PURE ESM DATA. No imports, no DOM. Node and Deno both.
 // ════════════════════════════════════════════════════════════════════════
 
+/* `hunt`: the Tower's hunt and ground id. `the_` as the Slake's: an id that sorts after the first ground (the Mill Cellar), which every probe
+   that reads "the lowest-band ground" (by band, then id) takes for an ordinary ground the ordinary door opens. */
 export const TOWER_RULES = Object.freeze({
-  hunt: 'burning_tower',
+  hunt: 'the_burning_tower',
   roomSize: 5,
   landingEvery: 10,
   floorLimitMs: 180000,

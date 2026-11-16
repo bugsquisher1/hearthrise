@@ -725,7 +725,7 @@ export function catalogueRows(src = {}) {
     cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, drops, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots,
-    /* THE BURNING TOWER'S HUNTS (tower.js): served here, never in hr_hunts (the ordinary door's gate refuses what hr_hunts does not name) */
+    /* THE BURNING TOWER'S HUNTS (tower.js): served here; in hr_hunts only once its one door stands (2027-04-24-tower-climb-hunts-catalogue) */
     towerHunts: S.towerHunts.map((h) => h.id).sort() };
 }
 
@@ -990,13 +990,14 @@ export function render(src) {
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
 -- NEW IN THIS FILE (lane/c-tower-climb, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower; src/data/tower.js): the Tower's ground
--- (${r.grounds.filter((g) => g.hunt === 'burning_tower').length} row) in hr_hunt_grounds, its ${r.groundSpawns.filter((s) => s.hunt === 'burning_tower').length} placeholder spawn rows (the engine fields each floor's own room, src/core/hunt/tower.js) in
+-- (${r.grounds.filter((g) => r.towerHunts.includes(g.hunt)).length} row) in hr_hunt_grounds, its ${r.groundSpawns.filter((s) => r.towerHunts.includes(s.hunt)).length} placeholder spawn rows (the engine fields each floor's own room, src/core/hunt/tower.js) in
 -- hr_hunt_ground_spawns and its hunt in hr_hunt_travel, served to one verb (hr_tower_start) and left off the roster (no Tower kill is a Bestiary
 -- kill); END_ORDER's floor_time (a floor's room ran out of time: it resumes, like boss_time) in hr_hunt_end_reasons and hunt_sessions.end_reason's
 -- CHECK. No limit, kill bound or world shape moves. ORDER: after 2027-04-23-session-modes.sql, before
 -- 2027-04-24-tower-climb-session-modes-catalogue.generated.sql (which names the Tower's mode and wants its ground served) and
--- 2027-04-24-tower-climb.sql (which proves floor_time and opens the one door). The Tower is never in hr_hunts, so until that file the
--- ordinary door refuses it (hr_hunt_admit -> hr_hunt_gate: unknown_activity), and after it hr_hunt_admit sends it to hr_tower_start.
+-- 2027-04-24-tower-climb.sql (which proves floor_time and opens the one door). The Tower joins hr_hunts only after that file
+-- (2027-04-24-tower-climb-hunts-catalogue.generated.sql), so until it the ordinary door refuses it (hr_hunt_admit -> hr_hunt_gate:
+-- unknown_activity), and after it hr_hunt_admit sends it to hr_tower_start.
 --
 -- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
 -- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
@@ -1751,13 +1752,13 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
      or exists (select 1 from public.hr_premium_login_reward l where l.item_id is not null
                   and not exists (select 1 from public.hr_items i where i.item_id = l.item_id)) then
     raise exception 'a supply, vendor-value, ability-rune or login-reward row names an item hr_items does not have'; end if;
-  -- (the Burning Tower's hunt is never in hr_hunts: its one door is hr_tower_start, and the ordinary door's gate refuses what hr_hunts does not name)
+  -- (the Burning Tower's hunt joins hr_hunts only once its one door stands, 2027-04-24-tower-climb-hunts-catalogue.generated.sql, after
+  --  2027-04-24-tower-climb.sql: until then the ordinary door's gate refuses what hr_hunts does not name)
   if exists (select 1 from public.hr_hunt_travel t where not t.training and t.hunt_id <> all (array[${r.towerHunts.map(sq).join(', ')}]::text[])
                and not exists (select 1 from public.hr_hunts h where h.hunt_id = t.hunt_id))
      or exists (select 1 from public.hr_hunt_grounds g where g.hunt_id <> all (array[${r.towerHunts.map(sq).join(', ')}]::text[])
-                  and not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id))
-     or exists (select 1 from public.hr_hunts h where h.hunt_id = any (array[${r.towerHunts.map(sq).join(', ')}]::text[])) then
-    raise exception 'a named hunt or a ground hunt is not in hr_hunts (or the Tower is)'; end if;
+                  and not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id)) then
+    raise exception 'a named hunt or a ground hunt is not in hr_hunts'; end if;
   if exists (select 1 from public.hr_hunt_travel t where t.training
                and not exists (select 1 from public.hr_activities a
                                 where a.kind = 'combat' and a.activity_id = t.hunt_id and not a.is_boss)) then

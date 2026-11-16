@@ -919,3 +919,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - spell-rows: a non-boss carries exactly one spell. Design the elite's one spell first.
 - Staged maps are lint-checked (world-core, forest-cave one-choke) but not kit-checked; a pillar next to a 1-wide water edge breaks the 3x3 rule on the row above it.
 - Python's text mode on Windows writes CRLF; read and write bytes when editing repo files.
+
+## 2026-11-15 lane/d-party-lines (the Party window's lines; Dangerous on the Morrow)
+- A number the player reads before a choice needs a guard that re-measures it, or it drifts the first time anything upstream moves. The party lines drifted 10-23 points in a week with nobody touching them. Measured text gets a writer (`--write`) and a tolerance guard, never a hand edit.
+- Ask where in the band a measured line is true. A mixed four's lead over the same heroes alone falls 10-15 points from a ground's floor to its middle (the Pyre Field +18 to +5). One number for a band should be read at more than one Level.
+- `runPool` hung (and node exited 0) when every worker died loading the engine; a planted tree for pool workers needs `src/shell/hunt-list.js` and `src/render` (worker.mjs loads recommendedHunt). Any guard on the pool sets exit 2 until it reaches a verdict.
+- A lone Melee's Dangerous problem is the pull (5 monsters swing at whoever stands in it, about 5x the swings a kiting caster takes), with armor at the 60% cap past Level 70 and Lobster heals that can't keep up. Before calling a ground "too hard alone", play the same way 8-15 Levels in and at the band's top: on the Pyre Field and Krell's Hold the lone Melee outgrows Dangerous inside the band; on the Morrow and the Vaults it never does.
+- Store food prices make "just eat better food" a non-answer at high Levels: a lone Melee on Shark held Dangerous but ran a 458k-699k gold an hour bill on 16k-30k of income. Check the bill before proposing food as a fix.

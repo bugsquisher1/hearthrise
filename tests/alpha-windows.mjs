@@ -2178,6 +2178,32 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!tip || !tip.startsWith('Heavy armor') || !tip.includes(share(VITALS.heavyHpPermille, 1) + ' max HP, of the ' + share(VITALS.heavyHpPermille, ARMOUR_SLOTS.length) + ' a full heavy set of ' + ARMOUR_SLOTS.length))
           fails.push('AW-34 the worn plate helmet\'s tooltip weight line reads ' + JSON.stringify(tip));
         if (shots) await shot(page, 'armour-weight-1440x900-doll-tip');
+        /* AW-21 IN THE PAGE: a side-grade's own attribute on its card and its compare (lane/a-compare-lines; the pure rows are AW-21's in planRules).
+           Kingstooth against a worn Iron Sword, the Cauldron Lid against a worn Coppercap Shield: the bag pocket's tip, as a player hovers it. */
+        {
+          const was = { weapon: s.env.equipment.weapon, shield: s.env.equipment.shield };
+          Object.assign(s.env.equipment, { weapon: 'iron_sword', shield: 'coppercap_shield' });
+          Object.assign(s.env.inventory, { kingstooth: 1, cauldron_lid: 1 });
+          await pushEnvelope(page, s);
+          await page.mouse.move(2, 2);
+          for (const [id, stat, delta, name] of [['kingstooth', 'Damage to Vermin monsters+10%', '+10% Damage to Vermin monsters', 'compare-kingstooth'],
+            ['cauldron_lid', 'Fire damage taken−10%', '−10% Fire damage taken', 'compare-cauldron-lid']]) {
+            const read = await page.evaluate((x) => {
+              const p = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="' + x + '"]');
+              if (!p) return null;
+              p.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+              const tip = document.querySelector('.hw-tip.is-on');
+              return tip ? { stats: Array.from(tip.querySelectorAll('.hw-tip-stats:not(.hw-tip-perks) dt')).map((d) => d.textContent + d.nextElementSibling.textContent),
+                gains: Array.from(tip.querySelectorAll('.hw-tip-delta .is-gain')).map((l) => l.textContent) } : null;
+            }, id);
+            if (!read || !read.stats.includes(stat) || !read.gains.includes(delta)) fails.push('AW-21 the ' + id + ' tip in the bag reads ' + JSON.stringify(read) + ', want the stat "' + stat + '" and the gain "' + delta + '"');
+            if (shots) await shot(page, name + '-1440x900-bag-tip');
+          }
+          await page.mouse.move(2, 2);
+          for (const k of ['weapon', 'shield']) { if (was[k]) s.env.equipment[k] = was[k]; else delete s.env.equipment[k]; }
+          delete s.env.inventory.kingstooth; delete s.env.inventory.cauldron_lid;
+          await pushEnvelope(page, s);
+        }
         /* THE TIP GOES WITH ITS WINDOW (designer re-read 2026-11-11: a bag tip stood over the World after B closed the bag, through mouse moves and a hunt start).
            A tip the pointer is not on (the bag's keyboard cursor shows one: actions.js focusCursor) gets no mouseout when its window goes, so the
            pointer is moved off the bag first and the pocket's tip is raised as the cursor raises it. */

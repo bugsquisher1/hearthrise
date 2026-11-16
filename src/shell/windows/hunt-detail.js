@@ -21,18 +21,18 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.132';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.132';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.132';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.132';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.132';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.132';
-import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.132';
-import { gotoAttr, patchParts } from '../goto.js?v=0.2.132';
-import { factsTarget } from './monster.js?v=0.2.132';
-import { t } from '../../render/player-text.js?v=0.2.132';
-import { groundLines } from '../live-events-view.js?v=0.2.132';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.133';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.133';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.133';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.133';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.133';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.133';
+import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.133';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.133';
+import { factsTarget } from './monster.js?v=0.2.133';
+import { t } from '../../render/player-text.js?v=0.2.133';
+import { groundLines } from '../live-events-view.js?v=0.2.133';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */

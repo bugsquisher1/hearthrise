@@ -22,24 +22,24 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.132';
-import { VITALS } from '../../data/core-model.js?v=0.2.132';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.132';
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.132';
-import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.132';
-import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.132';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.132';
-import { monsterMaxHit } from '../combat.js?v=0.2.132';
-import { castsOf, spellHit, spellRow, mends } from '../../data/monster-spells.js?v=0.2.132';
-import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.132';
-import { inArea, resetPack } from './leash.js?v=0.2.132';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.132';
-import { makeEvent, trackStep } from './events.js?v=0.2.132';
-import { staleIndex } from './unit-index.js?v=0.2.132';
-import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.132';
-import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.132';
-import { aimOf } from './shooters.js?v=0.2.132';
-import { towerOf, towerPull, towerCleared } from './tower.js?v=0.2.132';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.133';
+import { VITALS } from '../../data/core-model.js?v=0.2.133';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.133';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.133';
+import { AI_REPATH_MS, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.133';
+import { HUNT_GROUNDS, pullRows, monstersOn } from '../../data/hunt-grounds.js?v=0.2.133';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.133';
+import { monsterMaxHit } from '../combat.js?v=0.2.133';
+import { castsOf, spellHit, spellRow, mends } from '../../data/monster-spells.js?v=0.2.133';
+import { cheb, dist2, freeNear, tileKey, walkable } from './grid.js?v=0.2.133';
+import { inArea, resetPack } from './leash.js?v=0.2.133';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable, goToNearest } from './movement.js?v=0.2.133';
+import { makeEvent, trackStep } from './events.js?v=0.2.133';
+import { staleIndex } from './unit-index.js?v=0.2.133';
+import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.133';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.133';
+import { aimOf } from './shooters.js?v=0.2.133';
+import { towerOf, towerPull, towerCleared } from './tower.js?v=0.2.133';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */

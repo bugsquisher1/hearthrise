@@ -13,18 +13,18 @@
 //   while the hero is out, the key isn't held, its weapons aren't built, or the day's keys are used; the server judges the rest.
 // The answer of a press (each key's weapon or none, what came out) is drawn from the server's answer; the counts come back with the envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { keyRow, stokeRow } from '../../session/tower-sections.js?v=0.2.132';
-import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.132';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.132';
-import { nameOf } from '../../session/item-sections.js?v=0.2.132';
-import { CHESTS } from '../../data/chests.js?v=0.2.132';
-import { text, attr, prop, rows } from '../../render/paint.js?v=0.2.132';
-import { whole } from '../../render/format.js?v=0.2.132';
-import { t } from '../../render/player-text.js?v=0.2.132';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
-import { runIntent } from '../intent-words.js?v=0.2.132';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.132';
-import { ppmWords, familyWord, stokeLabel, stokeWord, timesWords, haulWords } from '../tower-words.js?v=0.2.132';
+import { keyRow, stokeRow } from '../../session/tower-sections.js?v=0.2.133';
+import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.133';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.133';
+import { nameOf } from '../../session/item-sections.js?v=0.2.133';
+import { CHESTS } from '../../data/chests.js?v=0.2.133';
+import { text, attr, prop, rows } from '../../render/paint.js?v=0.2.133';
+import { whole } from '../../render/format.js?v=0.2.133';
+import { t } from '../../render/player-text.js?v=0.2.133';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
+import { runIntent } from '../intent-words.js?v=0.2.133';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.133';
+import { ppmWords, familyWord, stokeLabel, stokeWord, timesWords, haulWords } from '../tower-words.js?v=0.2.133';
 
 /* The one chest today (src/data/chests.js CHESTS: a later chest is a row). */
 const CHEST_ID = Object.keys(CHESTS)[0];

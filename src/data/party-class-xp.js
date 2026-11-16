@@ -32,10 +32,10 @@
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.132';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
-import { foldRows } from './grounds/shape.js?v=0.2.132';
-import { TOWER_RULES, TOWER_PARTY_XP } from './tower.js?v=0.2.132';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.133';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.133';
+import { foldRows } from './grounds/shape.js?v=0.2.133';
+import { TOWER_RULES, TOWER_PARTY_XP } from './tower.js?v=0.2.133';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */

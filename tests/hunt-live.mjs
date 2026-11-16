@@ -1106,9 +1106,11 @@ function rules(M) {
       ok('LV-PULL', onApollo === 0 && casts === 0 && offHolder === 0, `${mode}, closed: ${casts} Challenge cast(s), ${offHolder} monster swing(s) off the holder, ${onApollo} at Apollo (want 0, 0; control 0)`);
       /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes). 800 s: since one pack for every group (lane/b-one-difficulty,
          2026-11-08) a three's Warrens monsters have their row's HP, not 85% of it, so a lap takes about 350 s and the third begins near 705 s. Every
-         commit to 800 s matches; the browser's first commit off the prediction is at 1,024 s in both modes (on the board, not this rule's). */
+         commit to 800 s matches; the browser's first commit off the prediction is at 1,024 s in both modes (on the board, not this rule's).
+         736 s since one party table (lane/d-flat-party-xp, 2026-11-16): the same drift now opens at 752 s under "One tank holds" (Take turns still matches to
+         800 s); 736 s still holds the third lap and 46 commits. The drift itself is Systems' (CONFLICTS 2026-11-16). */
       const vm = andy(hold);
-      const v = run(M, [vm[2], vm[0], vm[1]], 800000, { server: { hunt } });
+      const v = run(M, [vm[2], vm[0], vm[1]], 736000, { server: { hunt } });
       const vids = [vm[0].unitId, vm[1].unitId, vm[2].unitId];
       const vlaps = tally(v.fed.events.slice().sort((x, y) => x.atMs - y.atMs), vids);
       const vOff = vlaps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== holderOf(vids, i)).reduce((m, [, k]) => m + k, 0), 0);

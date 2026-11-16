@@ -71,7 +71,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | 5 | Presses "Use the Hall Key" | One confirm | `BOSS_HALL_WORDS.confirm` |
 | 6 | Wins (tier 7 at 1 in 10 a piece) or reads the losing line | | `lord_krell` drops, `lossLine` guarded answer |
 
-### 2026-11-16 The Unmarked Catacombs descent: the Hearth Chest's armor line (designer, lane/d-catacomb-mode. Tyler 2026-11-16: "Unmarked Catacombs", their "OWN game mode like the Burning Tower" with ARMOR "instead of weapons", a WING picked before the run, "Waterlogged Key" (Flooded Wing, leans boots) and "Bone Key" (Bone Wing, leans helmets), the SAME Hearth Chest and Bronze/Silver/Gold/Platinum tiers "so it's familiar", KEY FAMILIES with 6 chests OPENED per family per hero per week and a held-key limit "about 30"): DESIGNED on the built Tower stack, odds by arithmetic (no engine run), nothing built, no art, no server work. **Keys, the open cap, the roll and armor through the market are §1 surfaces: pre-EA Security list (§3.7)**
+### 2026-11-16 The Unmarked Catacombs descent: the Hearth Chest's armor line (designer, lane/d-catacomb-mode. Tyler 2026-11-16: "Unmarked Catacombs", their "OWN game mode like the Burning Tower" with ARMOR "instead of weapons", a WING picked before the run, "Waterlogged Key" (Flooded Wing, leans boots) and "Bone Key" (Bone Wing, leans helmets), the SAME Hearth Chest and Bronze/Silver/Gold/Platinum tiers "so it's familiar", KEY FAMILIES with 6 chests OPENED per family per hero per week and a held-key limit "about 30"): DESIGNED on the built Tower stack, odds by arithmetic (no engine run), **Tyler's four answers in (section 10, 2026-11-16)**. The armor's 24 rows are built hidden on lane/d-catacomb-armor. No server work, no art. **Keys, the open cap, the roll, the Deepest board and armor through the market are §1 surfaces: pre-EA Security list (§3.7)**
 
 **In plain words (the first thing the Catacombs tab shows; drafts, not through the reader gate).**
 - The Catacombs go down under the Great Hearth. Every room is harder than the one above it.
@@ -80,9 +80,9 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 - Dying down there costs you nothing. You come back up and lose no XP.
 - Every 10th room is a vault door, and Keeper Dunn has a key there. Deeper doors have better keys.
 - Use keys on the chest at the Great Hearth, 6 Catacomb keys a week for each hero. Bone Keys mostly give helmets, Waterlogged Keys mostly boots.
-- You get about half the XP of hunting and no gold.
+- You get about half the XP of hunting and no gold. The Leaderboards show who got deepest, alone and in a party.
 
-**The call.** The descent is the Burning Tower turned upside down, built on the Tower's own code: same engine, same free deaths, same chest, same key tiers, same luck. What's new is small: a second key family, two wing rows, an armor roll on the chest, and 24 armor rows. The Tower is the ranked mode and gives weapons. The Catacombs give helmets and boots and have no board. A player who does both opens 12 keys a week for each hero, 6 from each family.
+**The call.** The descent is the Burning Tower turned upside down, built on the Tower's own code: same engine, same free deaths, same chest, same key tiers, same luck, same board machinery. What's new is small: a second key family, two wing rows, an armor roll on the chest, its own Deepest board, and 24 armor rows. The Tower gives weapons and the Catacombs give helmets and boots. A player who does both opens 12 keys a week for each hero, 6 from each family.
 
 #### 1. The story (draft for Tyler's read; ties the Wood Book, Dunn and Rowe, changes nothing approved)
 > Nobody put a stone over the people in the Catacombs. That's why they're unmarked. The only place their names are written down is the Wood Book.
@@ -105,7 +105,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Where you start | Any vault door you've reached in that wing, your deepest kept for good, the choice remembered for each wing. The Tower's weekly `weekBack` goes with the earn cap (section 4) |
 | What ends it | Death, stamina, supplies, gold, your bar's rule, the room's time (3 minutes, 10 at a door), Leave. All built |
 | Rooms on the map | One pocket for each wing on the Catacombs' own map, the Tower's one-pocket model. The art the hunting ground needs is the art the descent needs |
-| The 165-185 hunting ground | Stays as it is (coin, drops, the armor line's five Vaults pieces). The descent is its second door at any Level (Tyler: question 2) |
+| The 165-185 hunting ground | Stays as it is (coin, drops, the armor line's five Vaults pieces). The descent is its second door at any Level (RULED, Tyler 2026-11-16: both) |
 
 #### 3. Shared and new
 | Piece | Built where | For the Catacombs |
@@ -118,7 +118,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Sweep's Coat, the Turnkey titles | designed on the chest | Every key at the chest rolls the coat and counts toward the title, both families |
 | +skill, resistance, steady | `SKILL_PLUS_FIELDS` (lane/d-tower-weapons), `resistPm`, `steadyPm` (main `combat.js`) | Read as built. No new hook |
 | Window | Tower window, Climb / Chest / Story (lane/b-tower-window) | A Catacombs tab with two wing cards and the start door. The Chest tab shows both families with "4 of 6 this week" |
-| Leaderboard | Tower boards | None for the descent |
+| Leaderboard | Tower boards: `honor-roll.js` rows read through `hr_lb_boards`, a UTC-month season, the raise-only board rows, the floors-a-minute clamp | Its own board, separate from the Tower's (RULED, Tyler 2026-11-16): **Catacombs, Deepest**, solo and party, one board for both wings (the deepest door a hero was alive to clear in either). Two rows on the same machinery, nothing new |
 | **New** | | Key families and the open cap (below), 8 key rows, 2 wing rows, the slot lean, 24 armor rows (12 now), story and lines, icons |
 
 #### 4. Keys
@@ -152,7 +152,7 @@ Arithmetic, not the engine (`odds.mjs` in the lane's scratch: 300,000 weeks of 6
 | Gold | 4.5% | 6.6% | 2.5 | 7.6 | 17.4 | 32 |
 | Platinum | 2% | 3.6% | 4.7 | **13.5** | 31.2 | 57 |
 
-So a wanted Platinum helmet takes about 1.4 times the Tower's own-type weapon (9.3 to 9.5 weeks), because a key has two slots to pick from. Running the other wing is how you chase the other slot, and half of every drop is another weight, which is what stocks the Weighhouse. Same numbers is my pick (question 1).
+So a wanted Platinum helmet takes about 1.4 times the Tower's own-type weapon (9.3 to 9.5 weeks), because a key has two slots to pick from. Running the other wing is how you chase the other slot, and half of every drop is another weight, which is what stocks the Weighhouse. **RULED (Tyler 2026-11-16): the Tower's numbers.**
 
 #### 6. The armor: 24 rows, a sample of 12
 **The rule (the Tower weapons' rule, Tyler's tiers).** Each piece is the standard helmet or boots of its slot, weight and the key's tier, every number copied (armor, the weight's accuracy fields, crit, Level, book, tier), plus ONE special attribute. Sizes are the special-attribute catalogue's at that tier (`SPECIAL_ATTRIBUTES`, lane/d-special-attributes), never a second table. Generated like `towerWeaponItems`, never typed. Tradeable, and it sells to the Shop at the dropped-gear rate. Past Platinum, a key's pieces follow the armor line instead (Tyler 11-16).
@@ -215,9 +215,9 @@ Found: a new hero wears no helmet or boots, so the 50% weight rule does nothing 
 | 6 | Opens 6 Tower keys too, a separate count | The Tower family | Built, cap moves to opens |
 
 #### 8. Build order (each lane merges the one before into itself; the Tower stack is unapplied, so its staged files change in place)
-1. **lane/c-key-families** (backend-architect, on the Tower stack's tip). `family` on key rows, `KEY_FAMILIES`, the weekly open cap per family from `chest_opens`, the account-wide held limit at the mint and at Storage, warmth for each family, the earn row and `weekBack` retired, Cinders renamed. The Tower needs this anyway (Tyler 11-16), so it ships with the Tower. Guard: `tests/tower-chest.mjs` gains the family cases (a 7th open refused, the other family unaffected, the 121st key not minted, Storage can't beat the limit) with mutants.
-2. **lane/c-catacomb-descent** (systems-engineer, after the pack's rename). The run row behind `tower.js`, the two wing grounds and their rosters, Dunn as the door's Keeper, the `catacomb` mode row, progress for each ground, `hr_tower_start` taking the wing. Measured on real descents (the Tower's `tower-climb.mjs` with a wing argument, Levels 10/20/30/45, alone to a four, 3 seeds): the reach, the XP fit, and the gate that a Level 10 alone holds depth 10 on the start bar's food. Both paths, viewed and closed (§4).
-3. **lane/d-catacomb-armor** (designer with Systems). The 8 key rows, the slot lean in `hr_chest_open`, `catacombArmorItems`, the sample of 12, each measured (twin vs piece vs next tier, the resist pieces on a descent). Then Silver and Gold's 12.
+1. **Key families: IN FLIGHT on lane/c-tower-chest** (the Coordinator 2026-11-16: that lane is building them now, 6 opened per family a week, about 30 held; no second lane). What it needs to cover for the Catacombs: `family` on key rows, `KEY_FAMILIES`, the weekly open cap per family from `chest_opens`, the account-wide held limit at the mint and at Storage, warmth for each family, the earn row and `weekBack` retired, Cinders renamed. The Tower needs this anyway (Tyler 11-16), so it ships with the Tower. Guard: `tests/tower-chest.mjs` gains the family cases (a 7th open refused, the other family unaffected, the 121st key not minted, Storage can't beat the limit) with mutants.
+2. **lane/c-catacomb-descent** (systems-engineer, after the pack's rename). The run row behind `tower.js`, the two wing grounds and their rosters, Dunn as the door's Keeper, the `catacomb` mode row, progress for each ground, `hr_tower_start` taking the wing, the two Deepest board rows. Measured on real descents (the Tower's `tower-climb.mjs` with a wing argument, Levels 10/20/30/45, alone to a four, 3 seeds): the reach, the XP fit, and the gate that a Level 10 alone holds depth 10 on the start bar's food. Both paths, viewed and closed (§4).
+3. **lane/d-catacomb-armor** (designer, BUILDING now, the Coordinator 2026-11-16: all 24 at once). The 24 rows as hidden data, `catacombArmorItems`, measured against their same-tier standard pieces. Left for the chest's build once families land: the 8 key rows and the slot lean in `hr_chest_open`.
 4. **lane/b-catacomb-window** (client, Art Director). The tab, the wing cards, the start door, the chest's two families with their weekly counts. Interim icons as the Tower weapons' (the twin's drawing with the key's mark), two key drawings, the wings' rooms from the Catacombs' map art.
 5. Every line through the reader gate. Hidden behind `burning_tower` or its own switch, opened with or after the Tower.
 
@@ -232,11 +232,13 @@ Found: a new hero wears no helmet or boots, so the 50% weight rule does nothing 
 
 First principle: the wing, the start door, the default stokes for each key and "Use all" (best keys first, up to the week's 6) are all remembered. **Flagged:** an alt opening keys for its main has to wear the main's weight to get it, a hand swap every week, and the Tower has the same. A "weight to roll for" setting on the chest would remove it. Not in this design.
 
-#### 10. For Tyler
-1. **Armor odds.** The Tower's 16 / 8 / 4.5 / 2% (your own Platinum helmet in about 13.5 weeks), or 1.4x so a wanted piece takes as long as the Tower's weapon (about 9.5)? My pick: the same numbers.
-2. **Ground and mode both.** The 165-185 hunting ground stays (coin, drops, the Vaults' five armor uniques) and the descent is its door at any Level. My pick: both.
-3. **No leaderboard for the descent.** The Tower stays the ranked one. My pick: none for now, two rows later if players ask.
-4. **The story.** Dunn holds every key and carries you up when you'd die because you're not in the Wood Book. Is that the reason dying is free down there?
+#### 10. Tyler's answers (2026-11-16, through the Coordinator)
+| # | Question | Answer | What moved |
+|---|---|---|---|
+| 1 | Armor odds: the Tower's, or 1.4x | The Tower's 16 / 8 / 4.5 / 2% | Section 5 ruled. A wanted Platinum piece about 13.5 weeks |
+| 2 | Keep the 165-185 ground as well as the descent | Both | Section 2 ruled |
+| 3 | A leaderboard for the descent | **Yes, its own**, deepest room, like the Tower's, on the Tower's board machinery, a separate board | Sections 3 and 8: Catacombs Deepest, solo and party, one board across both wings. My pick was none: overruled |
+| 4 | Dunn carries you up because your name isn't in the Wood Book | Yes | The reason is locked. The rest of section 1's text still goes through the reader gate |
 
 **Done and verified:** every existing id above was read on main or the branch named, every new name was checked free, the odds table reproduces the Tower board's own weeks. **Not verified:** nothing was played or run on the engine. Reach, XP, the door fight, the low-depth spells, every piece's power. **Assumed:** the 375‰ start, the 30 held, the steady sizes, the 70/30 lean, every count inside a key.
 

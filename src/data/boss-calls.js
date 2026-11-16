@@ -115,9 +115,9 @@ export const BOSS_CALL_WORDS = Object.freeze({
     limit: 'Time limit: {minutes} min a fight',
     total: 'Total: {stamina} min of stamina, {gold} gp',
     totalFree: 'Total: {stamina} min of stamina',
-    covers: Object.freeze({ none: 'Not enough stamina or gold for a fight right now.', one: 'Enough stamina and gold for 1 fight right now.', other: 'Enough stamina and gold for {covers} fights right now.' }),
+    covers: Object.freeze({ none: 'Affordable now: none', one: 'Affordable now: 1 fight', other: 'Affordable now: {covers} fights' }),
     /* more than one of this account's heroes in the room ({heroes}, the server's count): whose stamina, whose gold */
-    heroes: 'Each of your {heroes} heroes pays its own stamina. The gold is for all of them.',
+    heroes: 'Your {heroes} heroes: stamina each, gold shared',
     ends: 'Ends on a death, or when stamina or gold runs out',
     confirm: 'Call him out {n} times',
     confirmOne: 'Call him out once',
@@ -131,10 +131,10 @@ export const BOSS_CALL_WORDS = Object.freeze({
     paid: 'Paid {stamina} min of stamina and {gold} gp',
     paidFree: 'Paid {stamina} min of stamina',
     /* Why a series ended short of its count when the hero could not pay another fight (the session's own end reason, the server's:
-       src/hunt-view/summary-model.js endWords reads it for a called room). */
+       src/hunt-view/summary-model.js endWords reads it for a called room). Labels, the end reasons' shape (text/summary.js end_stamina). */
     ended: Object.freeze({
-      stamina: 'You didn\'t have the stamina for another fight, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
-      gold_out: 'You didn\'t have the gold for another fight, so your hero came home.',
+      stamina: 'Out of stamina for another fight (refills hour for hour in town)',
+      gold_out: 'Out of gold for another fight',
     }),
   }),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */

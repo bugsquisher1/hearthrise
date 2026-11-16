@@ -179,7 +179,7 @@ async function checks(overrides) {
       if (!range || range.min !== '1' || range.max !== String(TOP) || range.value !== '1' || !range.shown) fails.push('BW-2 the slider reads ' + JSON.stringify(range) + ', want 1 to the server\'s ' + TOP);
       const one = await facts(page);
       const wantOne = { count: 'Fights: 1', 'f-stamina': 'Stamina: 2 min a fight', 'f-cost': 'Cost: 50 gp a fight, win or lose', 'f-limit': 'Time limit: 10 min a fight', 'f-pay': 'Drops on a win. No XP or coin.',
-        'f-total': 'Total: 2.5 min of stamina, 57 gp', 'f-covers': 'Enough stamina and gold for 12 fights right now.', 'f-ends': 'Ends on a death, or when stamina or gold runs out' };
+        'f-total': 'Total: 2.5 min of stamina, 57 gp', 'f-covers': 'Affordable now: 12 fights', 'f-ends': 'Ends on a death, or when stamina or gold runs out' };
       if (JSON.stringify(one) !== JSON.stringify(wantOne)) fails.push('BW-2 at one fight the warning reads ' + JSON.stringify(one));
       /* moved to 5, not released: it answers as it moves, and the total is the SERVER'S entry for 5 (10.5 min and 257 gp, not 5 x 2 min and 5 x 50 gp) */
       await slide(page, 5);
@@ -212,7 +212,7 @@ async function checks(overrides) {
       if (got !== '7' || f.count !== 'Fights: 7') fails.push('BW-2 a top of 7 let the slider reach ' + got + ' and reads ' + JSON.stringify(f.count));
       if (f['f-cost'] !== 'Cost: no gold' || f['f-total'] !== 'Total: 14.5 min of stamina') fails.push('BW-2 a fight with no fee reads ' + JSON.stringify({ cost: f['f-cost'], total: f['f-total'] }));
       const heroes = await page.evaluate(() => { const e = document.querySelector('.hw-call-f-heroes'); return e && e.offsetParent !== null ? e.textContent : null; });
-      if (heroes !== 'Each of your 2 heroes pays its own stamina. The gold is for all of them.') fails.push('BW-2 two of this account\'s heroes read ' + JSON.stringify(heroes));
+      if (heroes !== 'Your 2 heroes: stamina each, gold shared') fails.push('BW-2 two of this account\'s heroes read ' + JSON.stringify(heroes));
       await ctx.close();
     }
     /* BW-9: WHAT A WIN CAN DROP, FROM THE SERVER'S PROJECTION, and THE DANGER a weak party reads before the slider */
@@ -408,8 +408,8 @@ async function checks(overrides) {
       if (sr.short.kept !== sr.short.line) fails.push('BW-8 the residue\'s bounds lost the series\' line: ' + JSON.stringify(sr.short.kept));
       if (sr.free.line !== 'Won 1 of 1 fight. Paid 2 min of stamina.') fails.push('BW-8 one fight with no fee reads ' + JSON.stringify(sr.free.line));
       if (sr.none.line !== null || sr.forged.line !== null || sr.lost !== null || sr.none.call !== null) fails.push('BW-8 a room with no series, or a forged one, has a line: ' + JSON.stringify([sr.none.line, sr.forged.line, sr.lost]));
-      if (!/^You didn't have the stamina for another fight/.test(sr.words.stamina) || !/^You didn't have the gold for another fight/.test(sr.words.gold)) fails.push('BW-8 a series cut short reads ' + JSON.stringify(sr.words));
-      if (!/^Your stamina ran out/.test(sr.words.ground) || !/^Your stamina ran out/.test(sr.words.hall)) fails.push('BW-8 a normal hunt, or a hall, reads a series\' end: ' + JSON.stringify(sr.words));
+      if (!/^Out of stamina for another fight/.test(sr.words.stamina) || !/^Out of gold for another fight/.test(sr.words.gold)) fails.push('BW-8 a series cut short reads ' + JSON.stringify(sr.words));
+      if (!/^Out of stamina \(/.test(sr.words.ground) || !/^Out of stamina \(/.test(sr.words.hall)) fails.push('BW-8 a normal hunt, or a hall, reads a series\' end: ' + JSON.stringify(sr.words));
       await ctx.close();
     }
   } finally {

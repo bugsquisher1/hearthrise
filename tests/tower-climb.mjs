@@ -95,7 +95,11 @@ function climbOf(M, o) {
 async function engineArm(db, M) {
   const bad = [];
   const deltas = [];
-  const r = climbOf(M, { level: 10, onWindow: (out) => { for (const p of out.members) deltas.push(p); } });
+  /* 60 s windows: several floors stand and fall inside one window, so the engine's own stair moves the floor, not only the server's read
+     at each window's start (a 10 s window holds about one floor and hides a stair that never climbs) */
+  const r = climbOf(M, { level: 10, windowMs: 60000, onWindow: (out) => { for (const p of out.members) deltas.push(p); } });
+  const perWindow = Math.max(0, ...deltas.map((p) => ((p.hunt.tower && p.hunt.tower.floors) || []).length));
+  if (perWindow < 2) bad.push(`TC-ENGINE CONTROL: no window cleared two floors (the most was ${perWindow}), so the engine's stair is unproven`);
   const floors = (r.tower && r.tower.floors.tank0) || [];
   if (floors.length < 10) bad.push(`TC-ENGINE CONTROL: a Level 10 tank cleared ${floors.length} floors (want a landing)`);
   if (floors.some((f, i) => f !== i + 1)) bad.push(`TC-ENGINE the floors cleared are not 1, 2, 3, ... from the server's floor: ${floors.slice(0, 20)}`);

@@ -110,6 +110,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     dummy_busy: 'Another hero is on your dummy at home right now.',
     bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
   }),
+  scaled_hunt_buy: Object.freeze({ quote_changed: 'Price changed. Check it and buy again.' }),
   house_dummy: Object.freeze({
     quote_changed: 'The price changed. Look at the new price and press Unlock again.',
     no_home: 'You need the Hearthside Homestead before you can put a dummy in.',
@@ -234,6 +235,12 @@ export const REFUSAL_WORDS = Object.freeze({
   unknown_chest: 'The server does not know that chest.',
   version_conflict: 'Your hero changed while you chose. Check the price and try again.',
   quote_changed: 'Prices or your bag changed. Check the new total and try again.',
+  /* Scaled hunts (2027-03-21-scaled-hunts.sql hr_scaled_hunt_buy and hr_scaled_hunt_switch; src/shell/windows/scale-pane.js). */
+  not_scalable: 'This hunt can\'t be scaled.',
+  scale_level: 'Your Level is still in this hunt\'s range.',
+  scaled_bank_full: 'Bank full for this hunt.',
+  scaled_day_limit: 'Daily limit reached. More after midnight UTC.',
+  feature_off: 'This isn\'t open yet.',
   offer_unsupported: 'The shop does not sell that.',
   unknown_offer: 'The shop does not sell that.',
   not_for_sale: 'The shop does not sell that.',

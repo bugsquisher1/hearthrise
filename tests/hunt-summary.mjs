@@ -489,7 +489,8 @@ const MUTANTS = [
   /* Back in town (T1..T4) */
   { test: 'T1', file: TOWN, from: "rules.loot[r.id] === rule && !rules.locked.has(r.id) &&", to: "rules.loot[r.id] === rule &&" },
   { test: 'T1', file: TOWN, from: " && !(rule === 'sell' && isStartKit(r.id))", to: '' },
-  { test: 'T1', file: TOWN, from: "const lines = sale.lines.slice(0, SELL_LINES_MAX);", to: "const lines = sale.lines.slice(0);" },
+  /* one sale's worth of lines: sellPlan stops at SELL_LINES_MAX (audit F18 moved the cap there, where every bulk sale reads it) */
+  { test: 'T1', file: 'src/shell/bag-model.js', from: "    if (lines.length >= SELL_LINES_MAX) { more++; continue; }\n", to: '' },
   { test: 'T1', file: TOWN, from: "const can = missing.length > 0 && (purse === null || purse >= missing[0].price);", to: "const can = missing.length > 0;" },
   { test: 'T1', file: TOWN, from: "if (step.count > 0) out.push(Object.assign(step, { done: false }));", to: "if (step.count >= 0) out.push(Object.assign(step, { done: false }));" },
   { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done);", to: "const first = out[0];" },

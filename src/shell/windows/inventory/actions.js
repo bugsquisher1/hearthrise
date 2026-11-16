@@ -41,7 +41,7 @@ import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from 
 import { runIntent } from '../../intent-words.js?v=0.2.133';
 import { t } from '../../../render/player-text.js?v=0.2.133';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.133';
-import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection } from './selection.js?v=0.2.133';
+import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.133';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
 import { gold } from '../../../render/format.js?v=0.2.133';
 import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.133';
@@ -469,6 +469,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'clear-sel': clearSelection(sc); repaint(); return true;
     case 'dispatch': doDispatch(ctx, st, repaint); return true;
     case 'sell-cat': askSell(st, st.shown.map((r) => r.id), 'Sell all', repaint); return true;
+    case 'select-outgrown': selectOutgrown(sc, st.outgrown, st.rules ? st.rules.locked : null); sc.confirm = null; repaint(); return true;
     case 'confirm-yes': doSell(st, repaint); return true;
     case 'confirm-no': sc.confirm = null; repaint(); return true;
     case 'bury-stop': doStopBury(st, repaint); return true;

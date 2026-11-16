@@ -470,6 +470,19 @@
 .hw-call-line:empty { display: none; }
 .hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-call-press[hidden] { display: none; }
+/* A scaled hunt (scale-pane.js, audit F26): its facts, the dials in the small ink, Use scaled hours, then the hours slider with Buy beside it. */
+.hw-hd-scale[hidden], .hw-scale-use[hidden], .hw-scale-buy[hidden], .hw-scale-dials[hidden], .hw-scale-note[hidden] { display: none; }
+.hw-scale-facts { margin: 0 0 4px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-scale-dials, .hw-scale-note { margin: 0 0 6px; }
+.hw-scale-note { color: var(--gold-2); }
+.hw-scale-use { display: flex; align-items: center; gap: 6px; min-height: 30px; margin: 0 0 6px; color: var(--ink-2); cursor: pointer; }
+.hw-scale-use input { accent-color: var(--gold); }
+.hw-scale-buy { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.hw-scale-buy input[type="range"] { flex: 1; min-width: 96px; max-width: 280px; }
+.hw-scale-n { min-width: 40px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-scale-buy .hh-tool { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-hunt-scale { display: block; font-size: var(--t-micro); color: var(--gold-2); }
+.hw-hunt-scale[hidden] { display: none; }
 /* A keyed hall (boss-hall-pane.js): the door first, then what wins under it, a step apart from the press. */
 .hw-hall-bars { margin-top: var(--gap); }
 .hw-hd-foot { flex: none; margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 6px 18px 8px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }

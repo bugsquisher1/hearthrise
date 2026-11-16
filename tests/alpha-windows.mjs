@@ -1049,6 +1049,47 @@ async function huntsPure(imp) {
   /* A closed session is no hero to bring (the open one in a party is checked on the page, AW-28). */
   const me = { slot: 0, status: 'ready', read: () => null };
   if (freeHeroes(me, [me, { slot: 3, status: 'closed', read: (k) => (k === 'name' ? 'Wrenna' : null) }]).length) fails.push('AW-28 Bring your heroes offers a closed session');
+  /* AW-29 A SCALED HUNT IS FOUND ON THE HUNTS PAGE (audit F26, 2026-11-15: the data and the server existed, no window read them). The server's
+     `scaled_hunts` section (2027-03-21-scaled-hunts.sql hr_scaled_hunts_view) reads whole or not at all; the page shows the server's Level, price
+     and bank, the slider's hours capped by the bank and the day, says why Buy is off, and Buy sends the server's price an hour x the hours. No
+     section (the switch off): nothing anywhere. */
+  {
+    const SH = await imp('src/session/scaled-hunts.js');
+    const SP = await imp('src/shell/windows/scale-pane.js');
+    const H = 3600000;
+    const section = (grounds, o) => Object.assign({ min_hours: 1, max_hours: 24, bank_max_ms: 24 * H, day_max_hours: 48, today_hours: 0, playing: null, grounds }, o || {});
+    const csOf = (s, extra) => ({ slot: 0, status: 'ready', read: (k) => (k === 'scaled_hunts' ? s : extra ? extra[k] : undefined) });
+    const sewer = { level: 41, from_level: 26, price: 1640, banked_ms: 6 * H, on: true };
+    const sh = SH.scaledHuntsOf(csOf(section({ sewer_drains: sewer, mill_cellar: { level: null, from_level: 9, price: null, banked_ms: 0, on: true }, bad: { level: 5 } })));
+    if (!sh || sh.maxHours !== 24 || sh.grounds.sewer_drains.price !== 1640 || sh.grounds.mill_cellar.level !== null || sh.grounds.bad || !Object.isFrozen(sh.grounds)) fails.push('AW-29 the section reads ' + JSON.stringify(sh));
+    if (SH.scaledHuntsOf(csOf(null)) !== null || SH.scaledHuntsOf(csOf(undefined)) !== null) fails.push('AW-29 no section (the switch off) still reads as one');
+    const view = (s, hunt, o) => SP.scaleView(SH.scaledHuntsOf(csOf(s)), hunt, o);
+    const v1 = view(section({ sewer_drains: sewer }), 'sewer_drains', { hours: 4, gold: 100000 });
+    if (!v1 || v1.level !== 41 || v1.price !== 1640 || v1.max !== 18 || v1.hours !== 4 || v1.cost !== 6560 || v1.why !== null) fails.push('AW-29 a banked ground reads ' + JSON.stringify(v1));
+    const whyOf = (s, o) => { const v = view(s, 'sewer_drains', o); return v ? v.why + ':' + v.max : 'none'; };
+    const said = [whyOf(section({ sewer_drains: { ...sewer, banked_ms: 24 * H } }), { gold: 1e6 }), whyOf(section({ sewer_drains: sewer }, { today_hours: 48 }), { gold: 1e6 }),
+      whyOf(section({ sewer_drains: sewer }), { hours: 4, gold: 6559 }), whyOf(section({ sewer_drains: sewer }, { today_hours: 40 }), { hours: 20, gold: 1e6 })].join(' ');
+    if (said !== 'bank:0 day:0 gold:18 null:8') fails.push('AW-29 Buy off says ' + said + ', want bank:0 day:0 gold:18 null:8');
+    const locked = view(section({ mill_cellar: { level: null, from_level: 9, price: null, banked_ms: 0, on: true } }), 'mill_cellar');
+    if (!locked || locked.level !== null || locked.locked !== 9 || view(null, 'sewer_drains') !== null || view(section({}), 'sewer_drains') !== null) fails.push('AW-29 a ground not scaled yet reads ' + JSON.stringify(locked));
+    const tags = [SP.scaleTag(csOf(section({ sewer_drains: sewer })), 'sewer_drains'), SP.scaleTag(csOf(section({ sewer_drains: { ...sewer, on: false } })), 'sewer_drains'),
+      SP.scaleTag(csOf(section({ sewer_drains: { ...sewer, banked_ms: 0 } })), 'sewer_drains'), SP.scaleTag(csOf(null), 'sewer_drains'),
+      SP.scaleTag(csOf(section({ mill_cellar: { level: null, from_level: 9, price: null, banked_ms: 0, on: true } })), 'mill_cellar')].join('|');
+    if (tags !== 'Scaled: Level 41|Scalable|Scalable||') fails.push('AW-29 the Hunts list\'s tags read ' + JSON.stringify(tags));
+    /* the press: ONE hr_scaled_hunt_buy with whole hours and the total seen; a malformed ask never leaves */
+    const calls = [];
+    const account = { server: { rpc: async (name, args) => { calls.push([name, args]); return { ok: true, body: { ok: true, hours: args.p_hours } }; } } };
+    let loads = 0;
+    const cs = Object.assign(csOf(section({ sewer_drains: sewer })), { load: async () => { loads++; } });
+    const r = await SH.buyScaledHours(account, cs, 'sewer_drains', 4, 6560);
+    const sent = calls[0] && calls[0][1];
+    if (!r.ok || calls.length !== 1 || calls[0][0] !== 'hr_scaled_hunt_buy' || sent.p_hunt !== 'sewer_drains' || sent.p_hours !== 4 || sent.p_price !== 6560 || sent.p_slot !== 0 || !/^[0-9a-f-]{36}$/.test(sent.p_idem) || loads !== 1) {
+      fails.push('AW-29 Buy sent ' + JSON.stringify(calls) + ' -> ' + JSON.stringify(r) + ', re-read ' + loads);
+    }
+    for (const [hours, price] of [[1.5, 2460], [0, 0], [4, null]]) if ((await SH.buyScaledHours(account, cs, 'sewer_drains', hours, price)).ok || calls.length !== 1) fails.push('AW-29 a malformed Buy (' + hours + ' h, ' + price + ') was sent');
+    const sw = await SH.setScaledOn(account, cs, 'sewer_drains', false);
+    if (!sw.ok || !calls[1] || calls[1][0] !== 'hr_scaled_hunt_switch' || calls[1][1].p_on !== false) fails.push('AW-29 the switch sent ' + JSON.stringify(calls[1]));
+  }
   return fails;
 }
 
@@ -1731,7 +1772,33 @@ async function planRules(base) {
   const saleWords = (await imp('src/shell/item-lore.js')).rareSaleWords;
   if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Club.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
   const big = spareSale(stack(Array.from({ length: 70 }, () => 'bronze_helm')), IRON, rulesAre(), { bids: new Map([['bronze_helm', 10]]) }, {});
-  if (big.lines.length !== 64 || big.total !== 64 * 3 * 10 || !big.capped) fails.push('AW-70 past the engine\'s 64 lines a sale reads ' + big.lines.length + ' lines, ' + big.total + ' gp');
+  if (big.lines.length !== 64 || big.total !== 64 * 3 * 10 || big.more !== 6 || big.capped) fails.push('AW-70 past the engine\'s 64 lines a sale reads ' + big.lines.length + ' lines, ' + big.total + ' gp, ' + big.more + ' more, capped ' + big.capped);
+  /* AW-70b BULK SALES OF A BIG BAG (audit F18, 2026-11-15: a Level 60 bag of 145 outgrown stacks; replayed on the local world 11-16: Sell spare gear
+     left 41 Rare stacks, a press each, and the bag's "Sell all gear" or a 95-stack selection sent 95 lines, which the engine's 64 refuse, so nothing sold).
+     Every bulk sale the bag sends carries at most 64 lines and says how many are left; "Select outgrown" selects the outgrown gear, Rares in (the
+     player sees the selection and confirms it), never a locked stack, a higher tier, what Equip upgrades wants or the start kit. */
+  {
+    const { sellPlan: plan70, outgrownIds, upgradeWanted } = await imp('src/shell/bag-model.js');
+    const { edgeBody } = await imp('src/session/edge-intents.js');
+    const many = Object.keys((await imp('src/data/items.js')).ITEMS).filter((id) => /^[a-z0-9_]+$/.test(id)).slice(0, 95).map((id) => ({ id, qty: 2 }));
+    const p95 = plan70(many, many.map((r) => r.id), { bids: new Map(many.map((r) => [r.id, 7])) });
+    if (p95.lines.length !== 64 || p95.more !== 31 || p95.total !== 64 * 2 * 7) fails.push('AW-70b a 95-stack sale reads ' + p95.lines.length + ' lines, ' + p95.more + ' more, ' + p95.total + ' gp');
+    if (!edgeBody(0, 'vendor_sell_many', { lines: p95.lines }, '00000000-0000-4000-8000-000000000000')) fails.push('AW-70b a 95-stack bag sale builds no engine ask (nothing would sell)');
+    const TROLL = { ...IRON, cape: 'trollhide_cape' };
+    const outRows = stack(['houndskin_cloak', 'bronze_helm', 'steel_platebody', 'practice_club', 'iron_warhammer']);
+    const picked = outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: upgradeWanted({ picks: [], choices: [] }) }).sort().join();
+    if (picked !== 'bronze_helm,houndskin_cloak,iron_warhammer') fails.push('AW-70b Select outgrown picks ' + picked + ', want bronze_helm,houndskin_cloak,iron_warhammer');
+    if (spareIds(outRows, { ...TROLL, weapon: 'steel_sword' }) !== 'bronze_helm') fails.push('AW-70b Sell spare gear now sells a Rare: ' + spareIds(outRows, { ...TROLL, weapon: 'steel_sword' }));
+    const wantedUp = upgradeWanted({ picks: [{ id: 'bronze_helm' }], choices: [{ ids: ['houndskin_cloak'] }] });
+    if (outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: wantedUp }).join() !== 'iron_warhammer') fails.push('AW-70b Select outgrown takes what Equip upgrades wants');
+    const SEL = await imp('src/shell/windows/inventory/selection.js');
+    const scO = { sel: new Set(['rat_tail']), anchor: 'rat_tail', base: new Set(), cursor: null };
+    SEL.selectOutgrown(scO, ['bronze_helm', 'houndskin_cloak', 'iron_warhammer'], new Set(['iron_warhammer']));
+    if ([...scO.sel].sort().join() !== 'bronze_helm,houndskin_cloak') fails.push('AW-70b Select outgrown leaves the selection ' + [...scO.sel].sort().join() + ' (a locked stack in, or the old one kept)');
+    const ST = await imp('src/shell/windows/inventory/state.js');
+    const words = ST.confirmWords({ empty: false, plan: { ...p95, lines: Array.from({ length: 63 }, () => ({ item: 'bronze_helm', qty: 1 })).concat([{ item: 'houndskin_cloak', qty: 1 }]), kept: [], unpriced: [] } }).join(' | ');
+    if (!/Remaining: 31 stacks/.test(words) || !/Rares: 1\b/.test(words)) fails.push('AW-70b the bag\'s confirmation reads ' + JSON.stringify(words) + ' (want Remaining: 31 stacks and Rares: 1)');
+  }
   /* AW-65 CARRY IN (Tyler 2026-11-02, "Yes, add a press"; Andy: supplies that reached the bag mid-hunt sat unused): while the
      hunt runs and is not on its way home, every hunt supply in the BAG is a row with the server's two counts, what the bar
      spends first (a rune spell spends every tier of its family); never gear or loot; none in town, on the way home or once it
@@ -4822,7 +4889,7 @@ const MUTANTS = [
   ['plans: AW-70 spare gear sells what an empty slot could wear', 'src/shell/bag-model.js', "return !w || (Number.isInteger(w.tier) && it.tier > w.tier); });", "return !!w && Number.isInteger(w.tier) && it.tier > w.tier; });"],
   ['plans: AW-70 spare gear sells a Rare', 'src/shell/bag-model.js', ' && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)', ' && !wanted.has(r.id) && !aboveWorn(r.id, worn)'],
   ['plans: AW-70 spare gear overrides a Keep plan', 'src/shell/bag-model.js', "    && plans[r.id] !== 'keep' && plans[r.id] !== 'deposit').map((r) => r.id);", "    ).map((r) => r.id);"],
-  ['plans: AW-70 a sale past the engine\'s line cap', 'src/shell/bag-model.js', '  if (plan.lines.length <= SELL_LINES_MAX) return plan;', '  return plan;'],
+  ['plans: AW-70 a sale past the engine\'s line cap', 'src/shell/bag-model.js', '    if (lines.length >= SELL_LINES_MAX) { more++; continue; }\n', ''],
   ['plans: AW-21 a better weapon stays in the bag', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);"],
   ['plans: AW-21 Equip upgrades changes the style', 'src/shell/upgrade-plan.js', "    if (slot === 'weapon' && !sameHands(id, cur, worn)) continue;\n", ''],
   ['plans: AW-21 a bow turns into a crossbow', 'src/shell/upgrade-plan.js', ' && !!ITEMS[id].twoHanded === !!ITEMS[cur].twoHanded', ''],
@@ -4955,7 +5022,7 @@ async function main() {
   if (process.argv.includes('--pure') && !process.argv.includes('--mutate')) {
     const fails = await pure();
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-28 the Hunts page, AW-76 the station sort, AW-77 the bag\'s selection, AW-85..AW-92 the Hunt prep builder)');
+    console.log(fails.length ? 'alpha-windows --pure: ' + fails.length + ' rule(s) RED' : 'alpha-windows --pure: the pure rules hold (AW-0, AW-19..AW-22, AW-24 the town ticker, AW-25..AW-29 the Hunts page, AW-76 the station sort, AW-77 the bag\'s selection, AW-85..AW-92 the Hunt prep builder)');
     process.exit(fails.length ? 1 : 0);
   }
   if (!process.argv.includes('--mutate')) {

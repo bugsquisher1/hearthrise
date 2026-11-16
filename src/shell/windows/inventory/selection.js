@@ -53,6 +53,14 @@ export function selectAll(sc, shown) {
   else for (const id of ids) sc.sel.add(id);
 }
 
+/** "Select outgrown" (audit F18): the selection becomes `ids` (bag-model.js outgrownIds), never a `locked` stack; the anchor goes. */
+export function selectOutgrown(sc, ids, locked) {
+  sc.sel.clear();
+  for (const id of ids) if (!(locked && locked.has(id))) sc.sel.add(id);
+  sc.anchor = null;
+  sc.base = null;
+}
+
 /** Ctrl+press or Space on `id`: toggled, and the anchor moves there. */
 export function toggleSelect(sc, id) { toggle(sc, id); setAnchor(sc, id); }
 

@@ -22,7 +22,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.133';
 import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.133';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf } from '../../bag-model.js?v=0.2.133';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf, outgrownIds, upgradeWanted } from '../../bag-model.js?v=0.2.133';
+import { isRareOnly } from '../../hunt-ground-facts.js?v=0.2.133';
 import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.133';
 import { itemName } from '../../widgets/bits.js?v=0.2.133';
 import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.133';
@@ -81,10 +82,13 @@ export function stateOf(ctx) {
   const stored = seenOf(cs);
   const seen = stored || Object.fromEntries(list.map((r) => [r.id, [r.qty, 0]]));
   const shown = view(list, { cat: prefs.cat, query: sc.query, sort: prefs.sort, bids: shop ? shop.bids : null, seen });
-  return { cs, account: ctx.account || null, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {},
+  const rules = rulesOf(cs), eq = equipmentOf(cs) || {}, upgrade = upgradeOf(cs);
+  return { cs, account: ctx.account || null, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules, shop, eq,
     bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])),
     /* What "Equip upgrades" would put on (src/shell/upgrade-plan.js), from the same server sections. */
-    upgrade: upgradeOf(cs),
+    upgrade,
+    /* What "Select outgrown" selects (bag-model.js outgrownIds, Rares in): read off the server's bag, worn set and rules; never a locked stack. */
+    outgrown: outgrownIds(list, eq, rules, { wanted: upgradeWanted(upgrade) }).filter((id) => !(rules && rules.locked.has(id))),
     /* Display only: the pockets' pending counts (grid.js). Never read by an action. */
     tick: tickOf(cs) };
 }
@@ -141,5 +145,9 @@ export function confirmWords(c) {
   else lines.push('Sell ' + (n === 1 ? itemName(p.lines[0].item) + ' ×' + p.lines[0].qty : n + ' stacks') + '?');
   if (p.kept.length) lines.push(p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.');
   if (p.unpriced.length) lines.push(p.unpriced.length + (p.unpriced.length === 1 ? ' stack has' : ' stacks have') + ' no shop price and stays.');
+  /* a Rare in the sale is said before the press (never sold unasked, Tyler 2026-10-14), and so is what one sale's 64 stacks leave (audit F18) */
+  const rares = c.empty ? 0 : p.lines.filter((l) => isRareOnly(l.item)).length;
+  const labels = [rares ? t('bag.confirm_rares', { count: rares }) : '', p.more ? t('bag.confirm_remaining', { count: p.more }) : ''].filter(Boolean);
+  if (labels.length) lines.push(labels.join(', '));
   return lines;
 }

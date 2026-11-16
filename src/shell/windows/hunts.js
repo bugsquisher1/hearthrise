@@ -67,6 +67,7 @@ import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v
 import { callFromGround } from '../../data/boss-calls.js?v=0.2.133';
 import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.133';
 import { hallFromGround } from '../../data/boss-halls.js?v=0.2.133';
+import { patchScale, actScale, scaleTag } from './scale-pane.js?v=0.2.133';
 import { rowLines } from '../live-events-view.js?v=0.2.133';
 import { patchParts } from '../goto.js?v=0.2.133';
 import { t } from '../../render/player-text.js?v=0.2.133';
@@ -214,7 +215,7 @@ function lineHtml(r, glyphs) {
     + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></small>'
     /* a reader gets a space between the parts (it got "Level 1–8In range"); the dot never starts or ends a line (format.js sepHtml) */
     + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-bestline"></span></small>'
-    + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
+    + '<small class="hw-hunt-tally"></small><small class="hw-hunt-scale" hidden></small><span class="hw-hunt-events"></span></span></li>';
 }
 
 renderHunts.patch = function patchHunts(body, ctx) {
@@ -282,6 +283,10 @@ renderHunts.patch = function patchHunts(body, ctx) {
       prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);
       /* Tamsin's tallies held on this ground, the server's count ("Gray Wolves 112/200"). */
       patchParts(li.querySelector('.hw-hunt-tally'), withSeps(heldOn(tally, r.hunt).map(tallyLine)));
+      /* a ground the server scales for this hero says so on its line (audit F26: no window showed scaled hunts) */
+      const scaled = scaleTag(cs, r.hunt), sl = li.querySelector('.hw-hunt-scale');
+      text(sl, scaled);
+      prop(sl, 'hidden', !scaled);
       /* A live event on this ground or its boss, the server's (live-events-view.js rowLines): Open Halls frees its call out. */
       rows(li.querySelector('.hw-hunt-events'), rowLines(cs, r.hunt), {
         key: (l) => l.id,
@@ -332,6 +337,7 @@ function patchPage(det, ctx, sc, v) {
   });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
+  patchScale(det, ctx, { hunt: r.hunt, party, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   const armed = sc.warned === warnKey(r.hunt, under) && (under.length > 0 || !!rangeWords(r, level));
@@ -371,11 +377,13 @@ function patchPage(det, ctx, sc, v) {
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, el) {
-  if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
-  const hunt = el.getAttribute('data-hunt');
   const repaint = () => renderHunts.patch(body, ctx);
+  /* Scaled hunt: its slider moves on 'input' (renderHunts.events), its presses run on the status line; its refusals read refusal-words.js */
+  if (sc.pick && actScale(ctx, sc.pick, action, ev, el, repaint, (send, busy, done) => runIntent(sc, repaint, send, busy, done, cs))) return true;
+  if (ev.type !== 'click') return false;
+  const hunt = el.getAttribute('data-hunt');
   if (action === 'tier') {
     /* The choice moves on the press; the save waits TIER_SAVE_MS for the next press (saveTier). */
     const tiers = huntTierOf(cs);
@@ -478,6 +486,9 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   }
   return false;
 };
+
+/* The DOM events beyond click and change: the scaled hunt's hours slider follows the thumb (scale-pane.js). */
+renderHunts.events = Object.freeze(['input']);
 
 /* The header's Back (src/shell/window-head.js): on a phone, a ground's page goes back to the list. */
 renderHunts.inner = (ctx, body) => (ctx.isPhone() && body.querySelector('.is-paged') ? 'back' : null);

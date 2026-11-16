@@ -33,6 +33,7 @@ import { gotoAttr, patchParts } from '../goto.js?v=0.2.133';
 import { factsTarget } from './monster.js?v=0.2.133';
 import { t } from '../../render/player-text.js?v=0.2.133';
 import { groundLines } from '../live-events-view.js?v=0.2.133';
+import { scaleHtml } from './scale-pane.js?v=0.2.133';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -52,6 +53,8 @@ export function detailHtml() {
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
     + '<p class="hw-hd-theme"></p>'
+    /* a ground the server scales for this hero: its Level, price, bank and the hours slider (scale-pane.js; audit F26) */
+    + scaleHtml()
     + '<h4 class="hw-hd-h">Drops <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="Drops"></ul>'
     + '<h4 class="hw-hd-h">Materials <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="Materials"></ul>'
     + '<h4 class="hw-hd-h">Rare drops <small class="hw-hd-per">chance per kill of its creature</small></h4><ul class="hw-hd-rares" aria-label="Rare drops"></ul>'

@@ -40,7 +40,7 @@ import { isMain } from '../tests/_is-main.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-03-23-one-difficulty is APPLIED history. THE FIVE MARCH PACKS FOLDED IN (lane/d-supply-prices, 2026-11-16): see tools/gen-hunts.mjs, the same reason. The same
    rows as 2027-03-23 with the five 2027-04-22 packs' hr_ground_tiers rows folded in: no row moves. */
-export const OUT_NAME = '2027-04-24-march-folded-ground-tiers.generated.sql';
+export const OUT_NAME = '2027-04-27-march-folded-ground-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
 const FILE_NOTE = `-- THIS FILE (lane/d-supply-prices, designer 2026-11-16): 2027-03-23-one-difficulty.generated.sql (APPLIED) with the five March packs' tier rows
 -- folded in, the rows each 2027-04-22-pack-*.generated.sql wrote. NO ROW MOVES: the income dial moved the open packs' own rows in the hunt-sessions

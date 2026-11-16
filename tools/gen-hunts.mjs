@@ -47,7 +47,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    server rows (their kill bounds and drops' bids, restated by the whole hunt-sessions file), and tools/pack's GP-3 holds an applied pack file to what ship renders
    today unless every whole file carries the pack. This forward file is the same rows as 2027-04-16 with the five 2027-04-22 packs' hr_hunts rows folded in:
    no row moves. */
-export const OUT_NAME = '2027-04-24-march-folded-hunts-catalogue.generated.sql';
+export const OUT_NAME = '2027-04-27-march-folded-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

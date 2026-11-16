@@ -47,7 +47,7 @@ alter table public.hr_ground_tiers drop constraint if exists hr_ground_tiers_hp_
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 comment on table public.hr_ground_tiers is
-  '2027-04-24-march-folded-ground-tiers.generated.sql: the harder tiers a ground offers (src/data/hunt-tiers.js through tools/gen-ground-tiers.mjs; tests/hunt-core/hunt-tiers.mjs holds the two equal). Per ground and tier: the pull for 1-4 heroes, the monsters'' damage (dmg_pm) and health (hp_pm) and a kill''s Level XP (xp_pm), permille; never coin. Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
+  '2027-04-27-march-folded-ground-tiers.generated.sql: the harder tiers a ground offers (src/data/hunt-tiers.js through tools/gen-ground-tiers.mjs; tests/hunt-core/hunt-tiers.mjs holds the two equal). Per ground and tier: the pull for 1-4 heroes, the monsters'' damage (dmg_pm) and health (hp_pm) and a kill''s Level XP (xp_pm), permille; never coin. Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
 delete from public.hr_ground_tiers;
 insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values
   ('millrace_sewer', 'dangerous', '{0,0,0,0}'::int[], 1170, 1100, 1200),

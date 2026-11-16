@@ -39,30 +39,30 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.133';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.133';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.133';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.133';
-import { createShellHud, fightOn } from './shell-hud.js?v=0.2.133';
-import { createHudRoom } from './hud-room.js?v=0.2.133';
-import { createWidgetStack } from './widget-stack.js?v=0.2.133';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.133';
-import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.133';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.133';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.133';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.133';
-import { mountContextMenu } from './context-menu.js?v=0.2.133';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.133';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.133';
-import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.133';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.133';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.133';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.133';
-import { benchSpentAtMs } from './town-work.js?v=0.2.133';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.133';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.133';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.133';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.133';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.134';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.134';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.134';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.134';
+import { createShellHud, fightOn } from './shell-hud.js?v=0.2.134';
+import { createHudRoom } from './hud-room.js?v=0.2.134';
+import { createWidgetStack } from './widget-stack.js?v=0.2.134';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.134';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.134';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.134';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.134';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.134';
+import { mountContextMenu } from './context-menu.js?v=0.2.134';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.134';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.134';
+import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.134';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.134';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.134';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.134';
+import { benchSpentAtMs } from './town-work.js?v=0.2.134';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.134';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.134';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.134';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.134';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -220,7 +220,10 @@ export function mountShell(root, o) {
       /* A folded widget is its title's width, or its empty box would still take presses and the camera's room
          (and at 1024 px a folded analyzer as wide as the open one stepped under the hunt bar, into the fight). */
       el.style.minWidth = L.folded ? '' : row.min[0] + 'px';
-      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';
+      /* On a phone the floor yields to the room the panel has above the action bar (hud-room.js: under the hunt bar over the town,
+         667x375 leaves 110 px), or the floor pushed it below the bar, off the screen. */
+      const floor = row.min[1] + 'px';
+      el.style.minHeight = L.folded ? '' : phoneMq.matches ? 'min(' + floor + ', var(--hs-room, ' + floor + '))' : floor;
       paintMove(el, L, hud.isMoved(row.id));
       if (sized && !sized.watched.has(el)) { sized.watched.add(el); sized.ro.observe(el, { box: 'border-box' }); }
     }

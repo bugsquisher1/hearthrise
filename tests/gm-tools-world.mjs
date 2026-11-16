@@ -160,13 +160,13 @@ async function main() {
     await p.page.click('[data-hs-win="chat"] [data-tab="global"]');
     await p.page.fill('[data-hs-win="chat"] .hc-field', 'anyone there');
     await p.page.press('[data-hs-win="chat"] .hc-field', 'Enter');
-    const mutedWords = await p.page.waitForFunction(() => { const t = document.querySelector('[data-hs-win="chat"]').innerText; return /muted you/.test(t) ? t : null; }, null, { timeout: 20000 }).then((h) => h.jsonValue(), () => '');
+    const mutedWords = await p.page.waitForFunction(() => { const t = document.querySelector('[data-hs-win="chat"]').innerText; return /Muted by the Game Master/.test(t) ? t : null; }, null, { timeout: 20000 }).then((h) => h.jsonValue(), () => '');
     await shot(p.page, 'player-muted');
     await gm.page.fill(WIN + ' .gm-why', 'served');
     await gm.page.waitForFunction((w) => !document.querySelector(w + ' [data-hs-act="gm-unmute"]').disabled, WIN);
     await gm.page.click(WIN + ' [data-hs-act="gm-unmute"]');
     await saidIs(gm.page, /can chat again/);
-    step('GW-5 a muted player\'s chat says why, in words; Unmute lifts it', /muted you/.test(mutedWords) && !(await sql(`select public.hr_chat_muted_until($1) u`, [pId])).u, mutedWords.slice(0, 200));
+    step('GW-5 a muted player\'s chat says why, in words; Unmute lifts it', /Muted by the Game Master/.test(mutedWords) && !(await sql(`select public.hr_chat_muted_until($1) u`, [pId])).u, mutedWords.slice(0, 200));
 
     /* GW-6 */
     await gm.page.fill(WIN + ' .gm-grant-why', 'testing a price');

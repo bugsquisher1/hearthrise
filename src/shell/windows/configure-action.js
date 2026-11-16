@@ -24,30 +24,33 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.133';
-import { STATUSES } from '../../data/statuses.js?v=0.2.133';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.133';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.133';
-import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.133';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.133';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.133';
-import { startSupply } from '../rune-supply.js?v=0.2.133';
-import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.133';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.133';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.133';
-import { glyphSvg } from '../launcher.js?v=0.2.133';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.133';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.133';
-import { whole } from '../../render/format.js?v=0.2.133';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.134';
+import { STATUSES } from '../../data/statuses.js?v=0.2.134';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.134';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.134';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.134';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.134';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.134';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.134';
+import { startSupply } from '../rune-supply.js?v=0.2.134';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.134';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.134';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.134';
+import { glyphSvg } from '../launcher.js?v=0.2.134';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.134';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.134';
+import { whole, sepHtml } from '../../render/format.js?v=0.2.134';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
 const VIEW = new WeakMap();   // CharacterSession -> { tab, hover } (display scratch)
 const viewOf = (cs) => { let v = VIEW.get(cs); if (!v) { v = { tab: null, hover: null }; VIEW.set(cs, v); } return v; };
 const keyOf = (a) => (a && a.id ? a.type + ':' + a.id : '');
+/* Markup written only when it changed (paint.js's rule for text): the warning's lines carry the dot's spans. */
+const SAID = new WeakMap();
+const markup = (el, html) => { if (el && SAID.get(el) !== html) { SAID.set(el, html); el.innerHTML = html; } };
 /* The tab of the slot type the player last picked (an empty slot opens on it, else Spells: art spec §9). */
 const LAST_TAB = new WeakMap();
 
@@ -236,10 +239,13 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* (and the earlier slot it shares a cooldown with: the bar's hover no longer says it, Tyler 2026-11-08) */
   const wires = editBar(cs);
   if (wires) wires[s.open] = d.action.id ? d : null;
-  const warn = [healWarning(d, set, blow, vitalsOf(cs).hpMax), setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).join(' ');
-  text(root.querySelector('.ca-warn'), warn);
+  const heal = healWarning(d, set, blow, vitalsOf(cs).hpMax);
+  const notes = [setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).map((n) => [n]);
+  /* A line's parts take the dot that never starts or ends a line (format.js sepHtml): "Max Hit 74 · Your HP 66". */
+  const warn = [...heal, ...notes].map((parts) => parts.map(esc).join(sepHtml())).join('\n');
+  markup(root.querySelector('.ca-warn'), warn);
   /* On a phone the sentence's warning is one line with an ellipsis; the detail pane says it whole. */
-  text(root.querySelector('.ca-d-warn'), warn);
+  markup(root.querySelector('.ca-d-warn'), warn);
   /* THE TABLE: runs of rows, the pick pinned at the top of the well */
   rows(root.querySelector('.ca-runs'), table.runs, {
     key: (run) => tab + ':' + run.kind,

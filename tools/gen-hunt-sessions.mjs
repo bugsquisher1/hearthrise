@@ -289,7 +289,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
    hr_training_gear (each item's skill, hours, whether it is the bound Crowns copy, and its gold price); hr_hunt_vendor_value gains the eight gold rows'
    bids (1% of the price). Read by 2027-04-23-training-gear.sql, which applies right after this file. No ground, spawn, kill bound, limit, end reason or
    world shape moves. */
-export const OUT_NAME = '2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql';
+/* THE INCOME DIAL (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): 2027-04-23-training-gear is APPLIED history (v0.2.134) and this
+   file carries it whole. A ground's dial (balance-sheet.js GROUND_GP_FIT) moves hr_hunt_kill_bounds' gold and hr_hunt_vendor_value (src/data/loot-sale.js),
+   both only down, and the store runes are Carved 28 / Graven 44. The hr-accrue carrying the same src/data deploys right after it. */
+export const OUT_NAME = '2027-04-27-income-dial-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -979,7 +982,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
+-- NEW IN THIS FILE: THE INCOME DIAL (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): a ground's dial (balance-sheet.js
+-- GROUND_GP_FIT, 0.7 from the Glade up) is x its kills' coin and x what its loot sells for (src/data/loot-sale.js), so hr_hunt_kill_bounds' gold FALLS
+-- for every dialed monster and hr_hunt_vendor_value FALLS for every dialed drop; hr_hunt_basic_supplies carries the store runes at Carved 28 and
+-- Graven 44 (lane/d-andy-march-feedback, Tyler-approved). No other row, no shape. The bounds only fall: the hr-accrue carrying the same src/data
+-- deploys at once after this file (until it lands an old engine's coin can pass the lower bound, so a hunt on a dialed ground is refused
+-- kills_over and the next tick retries it; nothing is lost). ORDER: after everything applied with v0.2.134.
+--
+-- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (APPLIED with v0.2.134; lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
 -- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
 -- hr_training_rules gains xp_per_hour (${r.training.rules.xpPerHour}, the fixed rate), min_level (${r.training.rules.minLevel}, the Level a hero trains from),
 -- boost_pm (${r.training.rules.boostPm}, an item's rate) and buy_per_day (${r.training.rules.buyPerDay}, the Arms Master's clamp an account a UTC day);
@@ -989,11 +999,6 @@ export function render(src) {
 -- moves. ORDER: after 2027-04-23-training-gear-items-catalogue.generated.sql (the self-check wants the items in hr_items) and 2027-04-20-boss-hall
 -- (carried whole), right before 2027-04-23-training-gear.sql, which restates the bodies that read the dropped share: between the two, a training start
 -- or a training settle is refused (the old bodies read xp_permille), so the two apply back to back, then the hr-accrue at once.
--- THE INCOME DIAL, REGENERATED IN PLACE (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): a ground's dial
--- (balance-sheet.js GROUND_GP_FIT, 0.7 from the Glade up) is x its kills' coin and x what its loot sells for (src/data/loot-sale.js), so
--- hr_hunt_kill_bounds' gold falls for every dialed monster and hr_hunt_vendor_value falls for every dialed drop. Both only FALL: the hr-accrue
--- carrying the same src/data deploys at once after the trio (until it lands an old engine's coin can pass the lower bound, so a hunt on a dialed
--- ground is refused kills_over and the next tick retries it; nothing is lost).
 --
 -- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),

@@ -41,7 +41,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    (lane/a-open-march-scaled): a new dated file, applied AFTER the five 2027-04-22-pack-*.generated.sql (its self-check reads hr_hunt_grounds). */
 /* 2027-04-23-open-march-scaled-hunts-catalogue.generated.sql is APPLIED history (2026-11-15). The income dial (lane/d-supply-prices, 2026-11-16; balance-sheet.js
    GROUND_GP_FIT): the dialed grounds' own kills and every scaled coin rise (the top ground's dial) pay x0.7, so the scaled gold bounds fall: a new dated file. */
-export const OUT_NAME = '2027-04-24-income-dial-scaled-hunts-catalogue.generated.sql';
+export const OUT_NAME = '2027-04-27-income-dial-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;

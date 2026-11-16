@@ -61,7 +61,9 @@
 --   quotes[].xp_h is the rate the hero trains that skill at now (the item's while its hours last and the switch is on), and
 --   hours_to_next follows it; + gear: [{ skill, banked_ms, on, bag: [{ item, hours, bound, qty }], stored: [{ item, hours, bound, qty }] }]
 --   (in the data's skill order); + offers: [{ item, skill, hours, price }] (the Arms Master's gold rows), + shop { on (the switch, for
---   this account), today, max } ; run gains boosted (its skill's item time is running) and boost_ms (that budget).
+--   this account), today, max } ; run gains boosted (its skill's item time is running) and boost_ms (that budget); last_stop gains
+--   session (its id), xp (the trained skill's XP its tally holds), paid (its fee rows' gold), level and from (the skill's level now and
+--   before that XP): the end card's figures (lane/a-training-words).
 -- THE CROWNS PURCHASE, SPECIFIED, NOT BUILT (no Crowns ledger exists: no migration creates a Crowns balance or journal). When it lands:
 --   hr_crown_store_buy(p_item text, p_price_seen bigint, p_idem uuid) -> jsonb, the stamina-refill shape: the price from a server catalogue
 --   (hr_crown_store_items, generated from a data file, never the client), re-quoted, quote_changed { price } if it moved; the account's
@@ -131,7 +133,7 @@ begin
   for v_r in select * from (values
     ('public.hr_training_quote(uuid,integer,text,text)', '2bbfea96fad5c835318f5a257ced5d7e', '96f6ff5050f6b80466ca802da5f1ec7c'),
     ('public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)', 'a396047961d1fccbd116c392c8bbc3db', 'a18bad4f4a26d4243b4e2c6e712f0b5a'),
-    ('public.hr_training_section(uuid,integer)', '24b243ffdf16736de5f987eced185a86', '6bc2a9f36cc4142dd6a8116020723d81'),
+    ('public.hr_training_section(uuid,integer)', '24b243ffdf16736de5f987eced185a86', '3dcb331da76367e7f571ccacb822f8ce'),
     ('public.hr_hunt_member_read(public.hunt_sessions)', '14cd77882a9bfba0be7624652017aaf6', 'a34a1041fb1d9762d4eaac94d9b91c48')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -460,9 +462,19 @@ begin
       'boost_ms', public.hr_training_gear_budget(p_user, p_slot, v_s.skill),
       'boosted', public.hr_training_gear_budget(p_user, p_slot, v_s.skill) > 0);
   end if;
-  -- THE LAST STOP: its last ended training session, why and when.
-  select jsonb_build_object('reason', h.end_reason, 'skill', g.skill, 'at', h.ended_at) into v_last
+  -- THE LAST STOP: its last ended training session, why and when, and what it came to (lane/a-training-words; the designer's coherence
+  -- pass 2026-11-15, walk row 5: its end card read "Monsters 0, Level XP 0, Gold 0"): `session` its id (the end card's key), `xp` the
+  -- trained skill's XP its tally holds, `paid` the gold its fee rows took (run.paid's sum), `level` the skill's level now and `from` its
+  -- level before that XP.
+  select jsonb_build_object('reason', h.end_reason, 'skill', g.skill, 'at', h.ended_at, 'session', h.id, 'xp', x.gained,
+           'paid', coalesce((select -sum(l.gold) from public.player_ledger l
+                              where l.user_id = p_user and l.slot = p_slot and l.at >= h.entered_at and l.kind = 'shop'
+                                and l.intent like 'training\_%' and l.meta->>'session' = h.id::text), 0),
+           'level', public.hr_skill_level(g.skill, x.now_xp), 'from', public.hr_skill_level(g.skill, greatest(0, x.now_xp - x.gained))) into v_last
     from public.hunt_sessions h join public.hr_training_grounds g on g.hunt_id = h.hunt_id
+    cross join lateral (select coalesce((select floor((t.xp->>g.skill)::numeric)::bigint from public.hunt_session_tally t where t.session_id = h.id), 0) as gained,
+                               coalesce((select ps.xp from public.player_skills ps
+                                          where ps.user_id = p_user and ps.slot = p_slot and ps.skill_id = g.skill), 0)::bigint as now_xp) x
    where h.user_id = p_user and h.slot = p_slot and h.ended_at is not null
    order by h.ended_at desc limit 1;
   -- THE ACCOUNT'S DUMMY: the home it needs, the skills bought in order, the ladder and the next rung, and the hero on it now, by name.

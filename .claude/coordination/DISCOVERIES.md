@@ -3970,3 +3970,8 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   bodies lifted (build.mjs `lift`/`shade`), every March monster now 3.06:1 or more on all four facings; world-assets [ring] holds it.
   Left: lifted earth-ramp bodies (Barrow Knight, Captain Hask) read as one warm brown with less dark weight than their drawings; a
   palette-born regen with a real lit rim would keep Hask's menace (gens, asset-director's call).
+- 2026-11-15 (art-director, lane/a-krell-pieces-art): worn gear never shows on a world hero. hero-look.js draws one outfit sprite
+  (chosen outfit, else the weapon's role); no shield, legs or any piece has a layer. Board item 4 and the krell-uniques report call
+  the Tollgate's off-hand layer and the Legguards' outfit layer "owed"; there is no pipeline for them. Played: Practice Shield vs
+  Tollgate + Legguards on local-world, identical knight in town and hunt (art/review/krell-pieces-2026-11-15/). Ruling needed
+  before any art (HANDOFFS 2026-11-15). Owner: coordinator / designer.

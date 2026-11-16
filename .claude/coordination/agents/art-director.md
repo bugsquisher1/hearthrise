@@ -3389,3 +3389,13 @@ Lesson: check art/world-src for held generations before spending; 35 gens of idl
 Readability pass (same lane): [ring] added to world-assets (READABLE in art-budget.js, Barrow March kits only; selftest +4).
 Lesson: a 0.07-0.09 floor is a dead zone for the 3:1 ring (bright bodies wash out to tan, dark ones can't pass); pick dim or
 bright per ground first, then lift. A whole-ramp lift of 4-5 steps turns earth bodies to gingerbread: shade the floor instead.
+
+## 2026-11-15 lane/a-krell-pieces-art (over lane/c-krell-uniques 16f8dc616): nothing drawn, the premise is false
+Briefed to pixel-script the Tollgate's off-hand layer and the Banded Legguards' outfit layer "following the tier-7 pieces' pipeline".
+There is none: hero-look.js draws one outfit sprite per hero (rulings: outfits are cosmetic, role from the weapon), so no worn piece
+has ever shown. Proved on local-world (scratch Playwright, SQL into player_equipment): Practice Shield vs Tollgate + Legguards, the
+same knight frame in town and in the Mill Cellar, HP 150 -> 156 so the server took the pieces. Drew nothing (it would be dead art);
+filed three ways for Tyler (HANDOFFS). The two icons (krell-icons.mjs) read well at 8x: a square-topped oak gate leaf with straps and
+the toll slot, dark plate with bright bronze bands.
+Lessons: (1) read the renderer before the brief: "follow how X is layered" can name a system nobody built; (2) hr_items' key is
+item_id; (3) 'i' in town opens Inspect, not the bag.

@@ -1,5 +1,21 @@
 # Handoffs
 
+### 2026-11-15 · ART DIRECTOR (lane/a-krell-pieces-art) → COORDINATOR, DESIGNER (for Tyler), SYSTEMS · Krell's pieces have no "layer" to draw: no worn piece shows on a hero
+The owed art (board item 4: "the shield on the hero's off hand, the legs as an outfit layer") assumes a gear-layer pipeline that does
+not exist. A world hero is ONE outfit sprite (`src/session/hero-look.js`: "There is no other hero sprite"), picked from the chosen
+outfit or the worn weapon's role (rulings: "Outfits are cosmetic", "Role comes from the equipped weapon"). Dawnsteel Platelegs and every
+tank shield are drawn by nothing: a tank with any shield is the knight outfit's painted blue-and-gold shield and steel legs.
+Played on local-world: the same hero with the Practice Shield, then with the Tollgate and Banded Legguards worn (HP 150 -> 156, so the
+server took them) draws the identical knight in town and in the Mill Cellar (`art/review/krell-pieces-2026-11-15/`). Drawing the two
+pieces now would be dead art. The call is Tyler's, three ways:
+1. **Keep the ruling** (my default): the pieces show in the icon, the card and the doll, as every piece does. Cost 0.
+2. **A unique repaints its outfit part** (my pick if he wants trophies seen): the Tollgate replaces the knight's shield, the
+   Legguards band the knight's plate legs, as sprite variants (`outfit_knight` + a worn-unique key), pixel-scripted from the knight
+   sheet per frame (outfit-masks' `cutShield` already finds the shield in all 56 frames; dye masks follow). Needs: a session rule in
+   hero-look (systems), the worn uniques in the walker/party payload so others see it (server), and a rule for outfits that draw no
+   shield or no plate legs (sorcerer robe, ranger crossbow: the piece simply doesn't show). About 112 frames of art per piece.
+3. **General gear layers** for every piece: contradicts the cosmetic-outfit model and scales as items x outfits x 56 frames. Not recommended.
+
 ### 2026-11-14 · RELIABILITY (lane/r-restore-drill) → BACKEND ARCHITECT, COORDINATOR · what the first restore drill found
 ### 2026-11-10 · ASSET DIRECTOR (lane/a-import-ford-art) → DESIGNER, COORDINATOR, ART DIRECTOR, SYSTEMS · Hask's Ford art is in, the pack is still staged
 

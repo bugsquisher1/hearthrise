@@ -74,8 +74,10 @@ begin
     v_run_j := jsonb_build_object('session', v_run.session_id, 'start', v_run.start_floor, 'top', v_run.top_floor, 'floors', v_run.floors,
                                   'floor', public.hr_tower_floor_of(v_run.instance_id));
   end if;
+  -- the newest climb STARTED that has ended (a run's end is its session's, the instant the engine stopped, which a late settle can put
+  -- before a newer run's; its start is the door's own now())
   select * into v_last from public.tower_runs t where t.user_id = p_user and t.slot = p_slot and t.ended_at is not null
-   order by t.ended_at desc limit 1;
+   order by t.started_at desc limit 1;
   if v_last.session_id is not null then
     v_last_j := jsonb_build_object('session', v_last.session_id, 'start', v_last.start_floor, 'top', v_last.top_floor, 'floors', v_last.floors,
       'end_reason', v_last.end_reason, 'ended_at', v_last.ended_at,

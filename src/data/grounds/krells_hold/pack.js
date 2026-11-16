@@ -240,13 +240,16 @@ export default definePack({
        Shrimp is the loss (0 to 5% at every Level, 40 tries a row). `storeFloor` is said to every hero and in red to a bar under it
        (boss-hall-pane.js). `words.bars` are the tuned bar's changes from the one a party is handed, one label line each (Tyler 2026-11-14: a good
        bar is one a person spent time tuning, and an untouched one should mostly lose): each is a "good bar but" row of boss-call-table.mjs that
-       loses most when it is taken away (Krell's row). */
-    storeFloor: 'salted_lobster',
+       loses most when it is taken away (Krell's row).
+       THE CARD IS PLAYED AS WRITTEN (the QA audit's F22, 2026-11-15; tests/boss-hall-advice.mjs reads these lines, builds that bar and party, and
+       plays them in the gear a hero holds BEFORE his first win: his tier 7 drops only here, so nobody reading the card wears it). On Salted Lobster
+       a tank, a healer and a third hero won 56 to 99 of 100 at 85 by who the third was (a sword alone 56, a bow 62, a second tank 63): the tank
+       dies under his enrage. On Salted Swordfish every third wins 90 to 100% at 85, Challenge on or off, for about 2x the food (15-22k a head a
+       fight, from 8-12k). So the floor is Swordfish. A tank and a healer alone run out of time whatever they eat: in tier 6, 0% at 88, 45% at 100,
+       77% at 104, 92% at 106 (60 tries a row). The first fix's "Level 88" was measured in his own tier 7 (78%), which no first-time pair wears. */
+    storeFloor: 'salted_swordfish',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
-      /* THE PARTY LINES (the QA audit's F22, 2026-11-15; boss-call-table.mjs --hall krells_hold, the "Size:" rows, 40 tries a row on this bar):
-         a tank and a healer alone run out of the ten minutes under Level 88 (Level 85: 0 wins, 33 of 40 on time; 88: 78%; 98: 88%), and a
-         third hero wins (85: 65 to 90% by who it is; 88: 85 to 90%; 98: 90 to 95%). So the card asks for three, and says when two is enough. */
-      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and a third hero', 'Two heroes: Level 88 or higher'] },
+      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and a third hero', 'Two heroes: Level 106 or higher'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
       /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals

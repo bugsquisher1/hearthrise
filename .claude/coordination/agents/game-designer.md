@@ -906,3 +906,8 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-16 lane/d-audit-f22 (Krell's card must win as written)
+- A boss's own prize is on the gear ladder once his hall opens: boss-call-table dressed a pair at 88 in Krell's tier 7, so "two heroes from 88" read 78% and was 0% for anyone reading the card. Fit a hall's advice with `--first` (his prize held out).
+- At a boss the lever that moved was food, not the hints: eat at 85% or Greater Mend at 90% left the weak trios at 58-70%; Salted Swordfish took every third to 90-100% (the tank dies under his enrage on Lobster). A pair fails on the clock, so food doesn't help it, only Levels do.
+- Test advice by reading the words the player reads (a small label grammar, an unreadable line is red) and playing them; then the card and the measurement can't drift apart.
+- Backticks inside `node -e "..."` ran the guard twice by command substitution. Use a script file for any text with backticks.

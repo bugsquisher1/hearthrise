@@ -1,0 +1,210 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tests/boss-hall-advice.mjs — WHAT A HALL'S CARD SAYS WINS, WINS (the QA audit's F22, 2026-11-15: "The hall's own advice doesn't beat Krell").
+//   A player who does exactly what the hall's card says must win most of the time. This reads the card a player reads (boss-halls.js: the food
+//   line `storeFloor` and the label lines `bars`), builds the bar and the party those lines describe and nothing else, and plays them on the real
+//   settle (tests/hunt-core/fixtures/play-ground.mjs, the world tick's accrueHunt) against the hall's boss.
+//
+//   node tests/boss-hall-advice.mjs              the guard
+//   node tests/boss-hall-advice.mjs --table      every cell's win rate (the designer's read)
+//   node tests/boss-hall-advice.mjs --seeds N    more tries a cell (default 40, the boss-call-table.mjs dice: --hall --first --rows "^Size")
+//   node tests/boss-hall-advice.mjs --mutate     every planted defect must turn its arm red
+//
+// mutant-anchors: src/data/grounds/krells_hold/pack.js
+//
+//   HA-READ  every line on an open hall's card is one this guard can play. A line it can't read is advice nobody measured.
+//   HA-WIN   each party the card names wins at least RATE of the tries, on the bar its lines build, in the gear a hero holds BEFORE the boss's
+//            first win (his own prize held out: at Krell it is the only tier 7, and the card is read before it), at the Level the line names,
+//            or the hall's floor when it names none. "A third hero" is every way to fight (gear.mjs STYLES), so the line is true whoever comes.
+//
+// THE CARD'S GRAMMAR (label lines, Tyler 2026-11-14 "Recommended: 4+ players"; one form a line):
+//   Everyone: Eat under P%                            every food slot under P% HP
+//   Healer: <spell> when N are under P%               the healer's slot, N allies under P%
+//   Healer: <spell> under P%                          the healer's slot, the lowest ally under P%
+//   Party: a tank, a healer and a third hero          a tank, a healer and one more of every kind, at the hall's floor
+//   Two heroes: Level L or higher                     the tank and the healer alone, at Level L
+//
+// Exit: 0 green · 1 red · 2 harness.
+// ════════════════════════════════════════════════════════════════════════
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
+import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
+
+const { PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+const { loadGear, STYLES } = await import(pathToFileURL(join(REPO, 'tools/balance-sim/gear.mjs')).href);
+
+/* THREE TIMES IN FOUR: a boss may be hard, never a lie. Each plan the card names wins at least this share of its tries (Krell's card, 100 tries
+   a cell: 94 to 100% at 85 for every third hero, 90% for two at 106). The seeds are fixed (boss-call-table.mjs secretOf), so a cell's rate
+   moves only when the data does. */
+const RATE = 0.75;
+const argN = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? Number(process.argv[i + 1]) : d; };
+const SEEDS = argN('--seeds', 40);
+/* a planted run loads the settle from the planted tree; the gear ladder is the repo's gear.mjs reading the planted tree's data */
+const TREES = [...PLAY_TREES, 'tests/hunt-core/fixtures'];
+
+/* the boss-call-table.mjs dice, so a cell here is the same fight as that table's row */
+const secretOf = (seed) => {
+  let h = 2166136261 >>> 0;
+  for (const c of 'bosscall:' + seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return String(-4611686018427387904n + BigInt(h));
+};
+
+export async function loadAll(root) {
+  const u = (p) => pathToFileURL(join(root, p)).href;
+  const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const { loadPlay } = await import(u('tests/hunt-core/fixtures/play-ground.mjs'));
+  return {
+    play: await loadPlay(root), gear: await loadGear(root),
+    BH: await import(u('src/data/boss-halls.js')),
+    G: await import(u('src/data/hunt-grounds.js')),
+    H: await import(u('src/data/hunts.js')),
+    AB: await import(u('src/data/abilities.js')),
+    SK: await import(u('src/data/start-kit.js')),
+    SP: await import(u('src/data/supplies.js')),
+    SB: await import(u('src/data/supply-basics.js')),
+    EM: (await import(u('src/data/monsters.js') + V)).MONSTERS,
+  };
+}
+
+/* ── THE CARD, READ ──────────────────────────────────────────────────────────── */
+/** A hall's card as a plan: { eat, slots: { healer: [slot] }, parties: [{ line, party: [style], L }] }, or { unread: [line] }. */
+export function readCard(X, hall) {
+  const floor = X.H.HUNT_INDEX[hall.hunt].band[0];
+  const abilityNamed = (n) => Object.values(X.AB.ABILITIES).find((a) => a && a.n === n) || null;
+  const plan = { eat: null, slots: {}, parties: [], unread: [] };
+  const slot = (role, name, conditions, line) => {
+    const a = abilityNamed(name);
+    if (!a) { plan.unread.push(line + ' (no spell named ' + name + ')'); return; }
+    (plan.slots[role] = plan.slots[role] || []).push({ action: { type: 'ability', id: a.id }, conditions, join: 'and' });
+  };
+  let m;
+  for (const line of hall.bars || []) {
+    if ((m = /^Everyone: Eat under (\d+)%$/.exec(line))) plan.eat = Number(m[1]);
+    else if ((m = /^Healer: (.+) when (\d+) are under (\d+)%$/.exec(line))) slot('healer', m[1], [{ metric: 'allies_below', op: 'gte', value: Number(m[2]), subject: 'under_' + m[3] }], line);
+    else if ((m = /^Healer: (.+) under (\d+)%$/.exec(line))) slot('healer', m[1], [{ metric: 'ally_hp_pct', op: 'lt', value: Number(m[2]), subject: 'lowest' }], line);
+    else if (line === 'Party: a tank, a healer and a third hero') for (const s of Object.keys(STYLES)) plan.parties.push({ line, party: ['tank', 'healer', s], L: floor });
+    else if ((m = /^Two heroes: Level (\d+) or higher$/.exec(line))) plan.parties.push({ line, party: ['tank', 'healer'], L: Number(m[1]) });
+    else plan.unread.push(line);
+  }
+  if (!plan.parties.length) plan.unread.push('(no party line: the card names nobody to bring)');
+  return plan;
+}
+
+/** Each hero's bar: the card's slots for its role, then the start bar's three slots on the card's food (`storeFloor`), eating at its line. */
+function barOf(X, hall, plan, role) {
+  const guide = X.SP.BAG_GUIDE_BY_HUNT[hall.id];
+  const cooked = (X.SB.BASIC_SUPPLIES.find((b) => b.id === hall.storeFloor) || {}).partner;
+  const drink = guide ? (X.SB.BASIC_SUPPLIES.find((b) => b.kind === 'mana' && b.partner === guide.magic.mana.id) || {}).id : null;
+  const item = { d_food: cooked, d_food_store: hall.storeFloor, ...(drink ? { d_drink: drink } : {}) };
+  const food = X.SK.START_BAR.map((x) => {
+    const y = JSON.parse(JSON.stringify(x));
+    if (item[y.id]) y.action.id = item[y.id];
+    if (Number.isInteger(plan.eat) && y.conditions[0].metric === 'self_hp_pct') y.conditions[0].value = plan.eat;
+    return y;
+  });
+  return [...(plan.slots[role] || []).map((s) => JSON.parse(JSON.stringify(s))), ...food];
+}
+
+/* ── ONE FIGHT ──────────────────────────────────────────────────────────────── */
+/** One try to its end: 'felled', 'death', 'time' or 'other'. */
+export function fightOnce(X, hall, plan, party, L, seed) {
+  const ground = X.G.HALL_GROUNDS[hall.hunt];
+  /* THE GEAR AT HIS FIRST WIN: the ladder at L (gear.mjs kitOf), every staged ground's drops counted, his own prize held out */
+  const staged = Object.keys(X.G.HUNT_GROUNDS).filter((g) => !Object.prototype.hasOwnProperty.call(X.G.OPEN_GROUNDS, g));
+  const prize = (X.EM[X.BH.hallBossOf(ground)].drops || []).map((d) => d.id);
+  const kits = party.map((s) => X.gear.kitOf(s, L, { openAlso: staged, exclude: prize }));
+  const roles = party.map((s) => STYLES[s].role);
+  let how = 'other';
+  X.play.run(hall.hunt, L, roles, {
+    ground, spanMs: X.BH.BOSS_HALL_RULES.limitMs + 30000, windowMs: 60000, secret: secretOf(seed), leaveTogether: true,
+    equipment: (role, i) => kits[i], bar: (role) => barOf(X, hall, plan, role),
+    bag: (role, i) => (kits[i].ammo === 'bronze_arrows' ? { bronze_arrows: { loaded: 1 } } : {}),
+    onWindow: (o) => {
+      for (const p of o.members) {
+        const r = p.hunt.ended && p.hunt.ended.reason;
+        if (r === 'boss_felled') how = 'felled';
+        else if (r === 'boss_time' && how !== 'felled') how = 'time';
+        else if ((r === 'died' || r === 'party_member_died') && how === 'other') how = 'death';
+      }
+    },
+  });
+  return how;
+}
+
+/* ── THE GUARD ──────────────────────────────────────────────────────────────── */
+async function guard(root, o = {}) {
+  const X = await loadAll(root);
+  const bad = [];
+  const halls = Object.values(X.BH.OPEN_BOSS_HALLS).filter((h) => (h.bars || []).length);
+  if (!halls.length) return ['HA-READ no open hall has a card to check (Krell\'s Hall reads none)'];
+  for (const hall of halls) {
+    const plan = readCard(X, hall);
+    for (const line of plan.unread) bad.push('HA-READ ' + hall.id + '\'s card says "' + line + '", a line this guard can\'t play');
+    if (plan.unread.length) continue;
+    for (const c of plan.parties) {
+      const ends = { felled: 0, death: 0, time: 0, other: 0 };
+      for (let s = 0; s < SEEDS; s++) {
+        ends[fightOnce(X, hall, plan, c.party, c.L, s)] += 1;
+        /* a mutant run stops at the first cell that can no longer reach the rate */
+        if (o.failFast && SEEDS - (s + 1) + ends.felled < RATE * SEEDS) break;
+      }
+      const tries = ends.felled + ends.death + ends.time + ends.other;
+      const words = c.party.join(' + ') + ' at Level ' + c.L + ': ' + ends.felled + ' of ' + tries + ' won (' + ends.death + ' died, ' + ends.time + ' out of time)';
+      if (o.table) console.log('  ' + hall.id + ' | ' + c.line + ' | ' + words);
+      if (ends.felled < RATE * SEEDS) bad.push('HA-WIN ' + hall.id + '\'s card says "' + c.line + '" and ' + words + ', under ' + Math.round(RATE * 100) + '%');
+      if (o.failFast && bad.length) return bad;
+    }
+  }
+  return bad;
+}
+
+/* ── THE PROOF ──────────────────────────────────────────────────────────────── */
+const PACK = 'src/data/grounds/krells_hold/pack.js';
+const LINES = "'Party: a tank, a healer and a third hero', 'Two heroes: Level 106 or higher'] },";
+const MUTANTS = [
+  /* the card the audit read (F22): a tank and a healer, nothing about a third */
+  { name: 'the card says a tank and a healer (the audit\'s card)', edits: [[PACK, LINES, "'Party: a tank and a healer'] },"]], want: /HA-READ krells_hold's card says "Party: a tank and a healer"/ },
+  /* the line the first fix shipped: measured in Krell's own tier 7, which nobody wears before his first win */
+  { name: 'two heroes from Level 88', edits: [[PACK, "'Two heroes: Level 106 or higher'", "'Two heroes: Level 88 or higher'"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 88 or higher" and tank \+ healer at Level 88/ },
+  /* the first fix's food: a tank, a healer and a sword won 56 of 100 at 85, the tank dead under his enrage */
+  { name: 'the card\'s food is Salted Lobster', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and a third hero"/ },
+  /* the whole card this lane found (lane/c-krell-uniques, 2026-11-15): red twice */
+  { name: 'the first fix\'s card (Salted Lobster, two heroes from 88)', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"], [PACK, "'Two heroes: Level 106 or higher'", "'Two heroes: Level 88 or higher'"]], want: /HA-WIN/ },
+  { name: 'everyone eats at 40%', edits: [[PACK, "bars: ['Everyone: Eat under 75%',", "bars: ['Everyone: Eat under 40%',"]], want: /HA-WIN/ },
+  { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
+  { name: 'Krell at 30,000 HP', edits: [[PACK, 'hp: 18000, atk: 247,', 'hp: 30000, atk: 247,']], want: /HA-WIN/ },
+  { name: 'a healer line naming no spell', edits: [[PACK, "'Healer: Greater Mend under 85%'", "'Healer: Great Mend under 85%'"]], want: /HA-READ .*no spell named Great Mend/ },
+];
+
+async function main() {
+  if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) {
+    if (process.env.HR_MUTANT_CONTROL) {
+      const bad = await guard(REPO, { failFast: true });
+      console.log('boss-hall-advice --mutate: control ran the clean tree: ' + (bad.length ? bad.join('; ') : 'green'));
+      process.exit(0);
+    }
+    let escaped = 0;
+    const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+    const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
+    for (const m of list) {
+      const { root, done } = plant(m.edits, TREES);
+      let got = [];
+      try { got = await guard(root, { failFast: true }); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 160)]; }
+      finally { done(); }
+      const hit = got.some((p) => m.want.test(p));
+      if (!hit) escaped++;
+      console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + String(got[0] || 'every check held').slice(0, 160));
+    }
+    console.log(escaped ? 'boss-hall-advice --mutate: ' + escaped + ' ESCAPED' : 'boss-hall-advice --mutate: ' + list.length + '/' + list.length + ' caught');
+    process.exit(escaped ? 1 : 0);
+  }
+  const t0 = Date.now();
+  const bad = await guard(REPO, { table: process.argv.includes('--table') });
+  for (const p of bad) console.log('FAIL  ' + p);
+  console.log(bad.length ? 'boss-hall-advice: ' + bad.length + ' FAILED' : 'boss-hall-advice: green (every line on the card read, every party it names wins ' + Math.round(RATE * 100) + '%+ of ' + SEEDS + ' in the gear before his first win, ' + Math.round((Date.now() - t0) / 1000) + ' s)');
+  process.exit(bad.length ? 1 : 0);
+}
+
+if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(2); });

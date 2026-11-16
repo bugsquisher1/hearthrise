@@ -104,12 +104,12 @@
 -- crosses a landing (the trigger's WHEN), then a catalogue probe, two summed lookups (bag, Storage) and two writes a landing.
 --
 -- EDGE: does not move (the mint is a database trigger; the chest is a town verb). The XP share that moved with this lane is
---   2027-04-27-tower-chest-session-modes-catalogue.generated.sql's (src/data/session-modes.js), whose engine deploy follows it.
+--   folded into 2027-04-24-tower-climb-session-modes-catalogue.generated.sql (src/data/session-modes.js), whose engine deploy follows it.
 -- CLIENT: none (the window lane wires both verbs and projects hr_chest_section; the words are src/data/text/tower.js and refusal-words.js).
 -- ORDER: after 2027-04-24-tower-climb-hunts-catalogue.generated.sql: 2027-04-27-tower-chest-items-catalogue.generated.sql, then
---   2027-04-27-tower-chest-session-modes-catalogue.generated.sql, then 2027-04-27-tower-chest-catalogue.generated.sql, then THIS file.
+--   2027-04-27-tower-chest-bench-inputs.generated.sql, then 2027-04-27-tower-chest-catalogue.generated.sql, then THIS file.
 -- REVERSIBLE: drop the mint trigger on tower_runs first (no key is minted after it), then the two verbs and their baseline rows, the eight
---   helpers, the two tables (tower_landings' comment goes back to 2027-04-24-tower-climb.sql's). Keys and Cinders already in bags stay as items (bound, no value: they move nothing); the wipe empties them.
+--   helpers, the two tables. Keys and Cinders already in bags stay as items (bound, no value: they move nothing); the wipe empties them.
 -- IDEMPOTENT: a second apply finds the tables, restates every body byte-identical, re-creates the trigger and the baseline rows, and §9
 --   rolls back its probes.
 -- WIPE: chest_luck and chest_opens join 2027-02-25-character-wipe.sql's c_wipe, the seven catalogues its c_no_player.
@@ -124,7 +124,7 @@ begin
      or to_regclass('public.hr_chest_families') is null or to_regclass('public.hr_chests') is null
      or (select count(*) from public.hr_chest_luck) <> 1 or not exists (select 1 from public.hr_chest_keys) then
     raise exception 'PRECONDITION: apply 2027-04-27-tower-chest-catalogue.generated.sql first (the chest''s catalogue)'; end if;
-  if to_regclass('public.tower_runs') is null or to_regclass('public.tower_landings') is null or to_regclass('public.hr_tower_rules') is null then
+  if to_regclass('public.tower_runs') is null or to_regclass('public.hr_tower_rules') is null then
     raise exception 'PRECONDITION: apply 2027-04-24-tower-climb.sql first (tower_runs, the floors a key is minted from)'; end if;
   if not exists (select 1 from public.hr_feature_switches where switch_id = 'burning_tower') then
     raise exception 'PRECONDITION: no burning_tower switch (2027-04-24-tower-climb.sql seeds it)'; end if;
@@ -192,8 +192,6 @@ create trigger hr_chest_opens_immutable before update or delete on public.chest_
   for each row execute function public.hr_chest_opens_immutable();
 comment on table public.chest_luck is '2027-04-27-tower-chest.sql: each hero''s Hearth warmth (dry: keys since its last tower weapon), its lifetime key count (the roll''s index) and its default stokes a key. Written only by hr_chest_open and hr_chest_stoke_default. RLS: own rows readable, no client write.';
 comment on table public.chest_opens is '2027-04-27-tower-chest.sql: append-only, one row a key used at the Hearth Chest: its index, key family, chance, roll, warmth, stokes and weapon. The audit a dispute is replayed from, a family''s weekly open count (hr_chest_open) and the Turnkey title''s count. Written only by hr_chest_open. RLS: own rows readable, no client write.';
--- the climb's table, its role restated: the floors a hero may start from this week. Keys are minted from tower_runs (§2), not from it.
-comment on table public.tower_landings is '2027-04-24-tower-climb.sql (restated by 2027-04-27-tower-chest.sql): one row a hero, UTC week (Monday) and landing cleared over the week''s base: the floors a hero may start a climb from this week (hr_tower_starts). Written only by hr_tower_write. Keys are NOT minted from it (2027-04-27-tower-chest.sql: a key a landing a run clears, from tower_runs). RLS: own rows readable, no client write.';
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
 -- A key's chance in parts per million: base (permille) x the warmth after p_dry dry keys x the stoke (permille), at most 1,000,000. Null for
@@ -337,8 +335,6 @@ begin
   end loop;
   return null;
 end $fn$;
--- the earlier staged image minted from tower_landings (one key a landing a week): gone, so a landing is never minted twice
-drop trigger if exists hr_tower_key_mint on public.tower_landings;
 drop trigger if exists hr_tower_key_mint on public.tower_runs;
 create trigger hr_tower_key_mint after update of top_floor on public.tower_runs for each row
   when (new.top_floor is not null and new.top_floor > coalesce(old.top_floor, new.start_floor - 1))
@@ -561,7 +557,7 @@ declare
   v_weapons constant bigint := (select count(*) from public.hr_chest_weapons);
 begin
   -- (a) PRIVILEGES AND SHAPE: every helper the owner's alone; the verbs the signed-in client's alone and on the baseline; the tables
-  --     readable by their owner and written by no client; the mint's trigger on tower_runs (and none left on tower_landings).
+  --     readable by their owner and written by no client; the mint's trigger on tower_runs.
   foreach v_sig in array array['public.hr_chest_chance_ppm(integer,integer,integer)', 'public.hr_chest_roll(uuid,integer,bigint,integer,text,text[])',
                                'public.hr_chest_held(uuid,integer,text)', 'public.hr_chest_family_held(uuid,integer,text)',
                                'public.hr_chest_week_start(timestamp with time zone)', 'public.hr_chest_section(uuid,integer)', 'public.hr_tower_key_mint()',
@@ -585,8 +581,8 @@ begin
     if exists (select 1 from pg_policies where schemaname = 'public' and tablename = t and cmd <> 'SELECT') then
       raise exception 'tower-chest §9(a): % has a client write policy', t; end if;
   end loop;
-  if not exists (select 1 from pg_trigger where tgname = 'hr_tower_key_mint' and tgrelid = 'public.tower_runs'::regclass and not tgisinternal)
-     or exists (select 1 from pg_trigger where tgname = 'hr_tower_key_mint' and tgrelid = 'public.tower_landings'::regclass and not tgisinternal) then
+  if (select count(*) from pg_trigger where tgname = 'hr_tower_key_mint' and not tgisinternal) <> 1
+     or not exists (select 1 from pg_trigger where tgname = 'hr_tower_key_mint' and tgrelid = 'public.tower_runs'::regclass and not tgisinternal) then
     raise exception 'tower-chest §9(a): the mint is not on tower_runs alone'; end if;
   if not exists (select 1 from pg_trigger where tgname = 'hr_chest_opens_immutable' and tgrelid = 'public.chest_opens'::regclass and not tgisinternal) then
     raise exception 'tower-chest §9(a): chest_opens is not append-only'; end if;

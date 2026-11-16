@@ -3,7 +3,10 @@
 --   A MODE PAYS HONORED (lane/c-tower-climb, backend-architect, 2026-11-15; Tyler 2026-11-14, the board's "2026-11-14 The Burning Tower"
 --   §2 how a climb runs, §3 the mode, §4 integrity, §10 server surface). Phase 2 of the Tower; phase 1 was 2027-04-23-session-modes.sql.
 --   STAGED: tools/apply-migration.mjs, one file, never inside begin/commit. Pre-EA (CLAUDE.md §2): applies on its passing §10.
---   ON THE EA SECURITY LIST: a ranked climb (the floors a board will read) and the weekly landings the chest's keys will be minted from.
+--   ON THE EA SECURITY LIST: a ranked climb (the floors a board will read) and the runs the chest's keys are minted from.
+--   CHECKPOINTS (lane/c-tower-checkpoints, Tyler 2026-11-16): a climb starts from any landing up to the hero's best (a party's: the highest
+--   landing every member has reached), the default the best; SUPERSEDES 2026-11-14's "each week's first climb starts 60 floors under your
+--   best" (removed whole: no week, no weekly landings table).
 --   HIDDEN: the switch `burning_tower` is seeded OFF; while it is off for an account its one door refuses (feature_off) and nothing else
 --   opens a climb (hr_hunt_admit: tower_only, ahead of the ordinary gate; until this file the Tower has no hr_hunts row, so that gate
 --   refused it, and its row lands only after this file: 2027-04-24-tower-climb-hunts-catalogue.generated.sql, which checks the door first).
@@ -16,14 +19,18 @@
 -- engine. Phase 1 stopped short of what a mode PAYS; this file honors it (a refusal, `mode_pays`, and every XP bound at the mode's share).
 --
 -- ── THE CONTRACT ───────────────────────────────────────────────────────────
--- hr_tower_start(p_slot int, p_floor int, p_idem uuid) -> jsonb   CLIENT VERB (authenticated; hr_client_rpc_baseline). Opens a SOLO climb
---   on the Tower's ground from p_floor. Refusals, each opening nothing and journalling nothing: not_signed_in, bad_slot, bad_idem, bad_floor
---   (not a whole floor 1..1e6; or not one this hero may start from this week: `starts` lists them), feature_off, rate_limited, in_party (a
---   party climb is a later lane: its start floor needs a rule for heroes whose weeks differ), every refusal the start of a hunt runs
---   (hr_hunt_enter_for: hunt_open, activity_running, the play cap, an empty stamina pool, ...). The floors a hero may start from
---   (hr_tower_starts, the server clock): its week's first floor, the floor after (best landing - weekBack) (floor 1 for a new hero), and the
---   floor after any landing it cleared this UTC week (Monday 00:00). On success ONE journal-only hr_apply on the caller's key
---   (kind combat, intent tower_start:<floor>), so a replay answers once and opens once; tower_runs gets the run's row.
+-- hr_tower_start(p_slot int, p_landing int, p_idem uuid) -> jsonb   CLIENT VERB (authenticated; hr_client_rpc_baseline). Opens a climb on the
+--   Tower's ground from the floor after CHECKPOINT p_landing (0: floor 1; null: the highest checkpoint, "default = best"). Alone: the hero's.
+--   In a party: the leader's call, every seat or none (hr_hunt_party_start under the Tower's GUC; a party with a seat already out hunting is
+--   refused party_hunting), each seat its own run from the same floor. The checkpoints (hr_mode_checkpoints): 0 and every multiple of the
+--   ground's mode's checkpoint_every (the Tower: 10, its landings) up to the RECORD (hr_tower_record: the hero's best floor; a party's, the
+--   lowest best of its seats, so the highest landing every member has reached), read under the locks the start took. Refusals, each opening
+--   nothing and journalling nothing: not_signed_in, bad_slot, bad_idem, bad_landing (not 0..1e6; or no checkpoint of this record:
+--   `checkpoints` lists them), feature_off, rate_limited, catalogue_missing, party_hunting, every refusal the start of a hunt or a party's
+--   start runs (hr_hunt_enter_for / hr_hunt_party_start: hunt_open, activity_running, not_leader, not_ready { seats }, the play cap, an
+--   empty stamina pool, ...). On success ONE journal-only hr_apply on the caller's key (kind combat, intent tower_start:<landing|best>), so
+--   a replay answers once and opens once; tower_runs gets one row a seat (party = the seats that entered).
+--   ok: { ok, version, session_id (the caller's), session, landing, floor, checkpoints, party (the party's view, in a party) }.
 -- hr_hunt_instance_read RESTATED WHOLE (the 2027-04-23-session-modes.sql image, §0 pins it): the instance carries `tower_floor` (hr_tower_floor_of:
 --   the open runs' highest floor cleared + 1, or the run's start; null on every other ground). hr-accrue reads it there and nowhere else
 --   (hunt-settle.js; none on the Tower's ground: `tower_pending`, the deploy-gap rule, nothing proposed, refused or counted).
@@ -37,8 +44,8 @@
 --   (4) the XP bounds: a climb's kills by the most one kill of the floors it stood on (hr_tower_floors), and EVERY mode's XP by its share
 --       (xp_pm; 1000 moves nothing); a climb's Defense bound at the floor's Level;
 --   (5) hr_tower_write, on a climb only, after every bound held: each floor a room of the run's kills, but the first (tower_floor_forged), then
---       the run's top floor, floors and kills, the week's landings (one row a hero, week and landing, over the week's base: the chest's key
---       rows; journalled kind hunt, intent tower_landing) and the hero's best floor and landing (raise-only).
+--       the run's top floor, floors and kills (the chest's key mint reads its rise: 2027-04-27-tower-chest.sql) and the hero's best floor and
+--       landing (raise-only: the record the checkpoints and the boards read).
 -- hr_hunt_settle_session SPLICED ONCE (2027-04-22-faction-standing.sql's image, §0 pins it; a second apply finds the arm): `floor_time` is proven
 --   as "a climb, at least one floor's time into it" (the room's instant is the engine's world): like `rule` and `boss_time`, it can only stop
 --   value. Its hr_hunt_end_reasons row and the end_reason CHECK came with 2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql.
@@ -46,42 +53,44 @@
 --   own transaction); every other way in answers `tower_only`. No Level gate.
 -- tower_progress (user_id, slot) NEW: best_floor, best_landing (raise-only), best_at. tower_runs (session_id) NEW: one row a climb (instance,
 --   start_floor, top_floor, floors, kills, party, started_at, ended_at, end_reason), written by hr_tower_start, hr_tower_write and the end
---   trigger only; the record a rank is audited from (the boards are a later lane). tower_landings (user_id, slot, week, landing) NEW: one row a
---   hero, week and landing; the weekly cap is its key. All three: RLS on, the owner reads its own rows, NO client write (no policy, no grant).
+--   trigger only; the record a rank is audited from (the boards are a later lane). Both: RLS on, the owner reads its own rows, NO client
+--   write (no policy, no grant).
 -- hr_tower_run_end() trigger AFTER UPDATE OF ended_at ON hunt_sessions (null -> a time): stamps the run's end and journals ONE aggregate
 --   row a climb (kind hunt, intent tower_run: start, top, floors, kills, party, reason), whatever ended it (a settle, a leave, a kick, the sweep).
--- Owner-only helpers: hr_tower_week, hr_tower_starts, hr_tower_floor_of, hr_mode_pays, hr_tower_check, hr_tower_write, hr_tower_run_end.
+-- Owner-only helpers: hr_mode_checkpoints (GENERIC: any mode with a checkpoint_every, the Unmarked Catacombs' vault doors with their own
+--   record), hr_tower_record, hr_tower_floor_of, hr_mode_pays, hr_tower_check, hr_tower_write, hr_tower_run_end.
 -- ERRORS (hr_reject, inside the settle; the edge's refusal path): mode_pays {mode, what}, bad_tower {why}, tower_floor_forged {why},
 --   tower_too_fast, catalogue_missing {what: tower_rules}. None is a client RPC's answer; an honest engine never meets one (TWO LOCKS:
 --   src/core/hunt/tower.js and hunt-rewards.js propose only what these re-prove).
--- NOT HERE: the chest, the keys and their table (src/data/chests.js: the next lane mints a key from each tower_landings row), the boards and
---   the season, party climbs, the window and its section, the Keepers' own rows and art, the flue room (the ground's map is the Sewer's
+-- NOT HERE: the chest, the keys and their table (2027-04-27-tower-chest.sql: a key a landing a run clears), the boards and the season, the
+--   window and its section, the Keepers' own rows and art, the flue room (the ground's map is the Sewer's
 --   Rat King hall, a stand-in).
 --
 -- ── CONCURRENCY / IDEMPOTENCY ──────────────────────────────────────────────
 -- hr_tower_start: the key replay first (hr_intent_replay), the rate gate, then hr_hunt_enter_for takes the character (its usual locks) BEFORE
---   the start floor is read: the floor check reads tower_progress and tower_landings under the same character lock the settle writes them
---   under, so a start can't race a settle into an unearned floor. A refused floor raises inside the block and rolls the opened session back.
+--   the record is read (a party: hr_hunt_party_start takes every seat's character first): the checkpoint check reads tower_progress under the
+--   same character locks the settle writes it under, so a start can't race a settle into an unearned floor. A refused landing raises inside
+--   the block and rolls every opened session back (every seat or none).
 -- The settle: hr_hunt_apply_instance holds the instance, then each member's character (hr_hunt_lock), and hr_tower_check takes the run row
---   `for update`: the floors, the run, the landings and the best are one transaction with the world they were played in. tower_landings'
---   key makes a landing's row once a week whatever retries; a replayed settle intent returns before any of it (hr_apply's replay).
+--   `for update`: the floors, the run and the best are one transaction with the world they were played in; a replayed settle intent returns
+--   before any of it (hr_apply's replay).
 -- The end trigger runs in the transaction that ends the session; it stamps a run once (ended_at is null) and journals once.
 --
 -- ── EXPLOIT SURFACE DELTA ──────────────────────────────────────────────────
--- ONE new client verb, behind a switch. It carries a floor only to be compared with the server's own list; nothing is priced by a client
--- value. A forged or buggy settle can't skip, repeat or invent a floor (one after another from the server's record), can't climb faster than
--- the engine's stair, can't clear a floor without a room of kills (themselves held by the kill bound), can't take a landing twice a week, and
+-- ONE new client verb, behind a switch. It carries a checkpoint only to be compared with the server's own list, built from the server's own
+-- record (the lowest seat's in a party: a strong hero can't carry a weak one past the weak one's landings); nothing is priced by a client value. A forged or buggy settle can't skip, repeat or invent a floor (one after another from the server's record), can't climb faster than
+-- the engine's stair, can't clear a floor without a room of kills (themselves held by the kill bound), and
 -- in the Tower can't pay a coin, an item, a Hearthfind, a Bestiary or task count, or more XP than 200 permille of the floor's best kill.
 -- Nothing crosses to another player yet (no board, no key, no trade). Risks named for Security: (a) the floor_time proof is weak by design
--- (it can only end a climb early: the hero's own loss); (b) the landings table is the future key mint, so its key and hr_tower_write's base
--- rule are the review surface; (c) the switch's scope is the only thing between a client and a climb, so §10 proves `feature_off`.
+-- (it can only end a climb early: the hero's own loss); (b) tower_runs' top floor is the key mint (2027-04-27-tower-chest.sql), so
+-- hr_tower_check's one-after-another rule is the review surface; (c) the switch's scope is the only thing between a client and a climb, so §10 proves `feature_off`.
 --
 -- ── COST (rows and bytes at 100x players) ─────────────────────────────────
 -- Per settle of ANY hunt: one primary-key probe of hr_session_modes (already read) through hr_mode_pays (pure jsonb walks, no table), one
 -- primary-key probe of tower_runs (hr_tower_check), and in the instance read one indexed probe of tower_runs by instance (partial index,
--- open runs only). Per climb settle: one run update; per landing cleared, one row and one ledger row (at most six a hero a week, plus new
--- records); per climb, one ledger row at its end. At 100x (say 600 heroes climbing an hour a day): 600 runs, about 3,600 landing rows and
--- 4,200 ledger rows a week; tower_runs is ~120 bytes a row (~4 MB a year). No per-floor or per-kill row, ever (CLAUDE.md §1 law 6).
+-- open runs only). Per climb settle: one run update and one best upsert; per climb, one ledger row at its start and one at its end. At 100x
+-- (say 600 heroes climbing an hour a day): about 4,200 runs and 8,400 ledger rows a week; tower_runs is ~120 bytes a row (~25 MB a year).
+-- A start reads one tower_progress row a seat. No per-floor or per-kill row, ever (CLAUDE.md §1 law 6).
 --
 -- EDGE: MOVES (pack-edge --hash): src/data/tower.js, src/core/hunt/tower.js, combat-sim.js, pull-cycle.js, hunt-spawn.js, hunt-rewards.js,
 --   xp-share.js, world-step.js, events.js, action-rules.js, hunt-sessions.js, hunt-grounds.js, hunts.js, party-class-xp.js, session-modes.js,
@@ -95,7 +104,7 @@
 -- REVERSIBLE: delete the Tower's hr_hunts row FIRST (2027-04-16-combat-training-hunts-catalogue's rows again), so no restated admit opens an
 --   ordinary door to it; re-apply the §0 images of hr_hunt_apply_member and hr_hunt_instance_read (2027-04-23-session-modes.sql), hr_hunt_admit (production's)
 --   and hr_hunt_settle_session (2027-04-22-faction-standing.sql); drop the trigger, the seven helpers, hr_tower_start and its baseline row, the
---   three tables and the switch row. No value moved to undo (the Tower pays only XP, which a climb's own ledger rows name).
+--   two tables and the switch row. No value moved to undo (the Tower pays only XP, which a climb's own ledger rows name).
 -- IDEMPOTENT: a second apply finds the tables, restates every body byte-identical, finds the settle arm, re-creates the trigger, keeps the switch
 --   as the Coordinator left it (on conflict do nothing), and §10 rolls back its probes.
 -- WIPE: the three tables join 2027-02-25-character-wipe.sql's c_wipe, the two catalogues its c_no_player.
@@ -126,7 +135,7 @@ begin
      or to_regprocedure('public.hr_hunt_party_of(uuid,integer)') is null then
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'add877806bb908e8e79416f2baafe912', '9d74efde14648725682a5a7fa48d4311'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'add877806bb908e8e79416f2baafe912', '95bd76730b5c924746f7ed00a0178005'),
     ('public.hr_hunt_instance_read(uuid,integer)', '158da9ba7d6a68295ba69ef346d77e27', '7e38eb39860d5f8f3db0d70842d320d0'),
     ('public.hr_hunt_admit(uuid,integer,text)', 'a35133547b1022f0eb1811728268f6e2', '9677c2ee50d8891e6787447f480eab32')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -171,19 +180,10 @@ create table if not exists public.tower_runs (
 );
 create index if not exists tower_runs_open_instance on public.tower_runs (instance_id) where ended_at is null;
 create index if not exists tower_runs_hero on public.tower_runs (user_id, slot, started_at desc);
-create table if not exists public.tower_landings (
-  user_id    uuid        not null,
-  slot       int         not null check (slot between 0 and 5),
-  week       date        not null,
-  landing    int         not null check (landing > 0),
-  session_id uuid        not null,
-  at         timestamptz not null,
-  primary key (user_id, slot, week, landing)
-);
 do $mig$
 declare t text;
 begin
-  foreach t in array array['tower_progress', 'tower_runs', 'tower_landings'] loop
+  foreach t in array array['tower_progress', 'tower_runs'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
     execute format('grant select on table public.%I to authenticated', t);
@@ -191,30 +191,31 @@ begin
     execute format('create policy %I on public.%I for select to authenticated using (user_id = auth.uid())', t || ' own read', t);
   end loop;
 end $mig$;
-comment on table public.tower_progress is '2027-04-24-tower-climb.sql: each hero''s best Burning Tower floor and landing (raise-only), written only by hr_tower_write inside the settle. RLS: own rows readable, no client write.';
+comment on table public.tower_progress is '2027-04-24-tower-climb.sql: each hero''s best Burning Tower floor and landing (raise-only), written only by hr_tower_write inside the settle. The record a climb''s checkpoints are read from (hr_tower_record) and the boards rank. RLS: own rows readable, no client write.';
 comment on table public.tower_runs is '2027-04-24-tower-climb.sql: one row a climb (a hunt session on the Tower): its start, the highest floor it cleared, floors, kills, party, end. Written only by hr_tower_start, hr_tower_write and the end trigger. The record a rank is audited from. RLS: own rows readable, no client write.';
-comment on table public.tower_landings is '2027-04-24-tower-climb.sql: one row a hero, UTC week (Monday) and landing cleared over the week''s base: the weekly cap is its key, and the chest lane mints a key from each row. Written only by hr_tower_write. RLS: own rows readable, no client write.';
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
--- The UTC week an instant is in, as its Monday (Tyler 2026-11-14: "6 a week"; the board: the week starts Monday 00:00 UTC).
-create or replace function public.hr_tower_week(p_at timestamptz)
-returns date language sql stable set search_path = public, pg_catalog as $$
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql)
-  select (date_trunc('week', p_at at time zone 'UTC'))::date
+-- THE CHECKPOINTS a run in mode p_mode may start from, for a record p_best (Tyler 2026-11-16): 0 (the start) and every multiple of the
+-- mode's checkpoint_every up to the record, ascending. A mode with none: {0}. No mode row: null (the caller refuses). GENERIC: the Tower reads
+-- it with a hero's best floor (its landings), a descent with its deepest door.
+create or replace function public.hr_mode_checkpoints(p_mode text, p_best int)
+returns int[] language sql stable set search_path = public, pg_catalog as $$
+  -- TOWER-CHECKPOINTS (2027-04-24-tower-climb.sql)
+  select case when m.checkpoint_every <= 0 then array[0]
+              else array(select g * m.checkpoint_every from generate_series(0, greatest(coalesce(p_best, 0), 0) / m.checkpoint_every) g order by g) end
+    from public.hr_session_modes m where m.mode_id = p_mode
 $$;
 
--- The floors a hero may start a climb from now: its week's first floor (the floor after best landing - weekBack; floor 1 for a new hero), and
--- the floor after any landing it cleared this week. Sorted, never empty.
-create or replace function public.hr_tower_starts(p_user uuid, p_slot int)
-returns int[] language sql stable set search_path = public, pg_catalog as $$
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql)
-  select coalesce(array_agg(distinct x.s order by x.s), array[1])
-    from (select greatest(0, coalesce((select p.best_landing from public.tower_progress p where p.user_id = p_user and p.slot = p_slot), 0)
-                             - r.week_back) + 1 as s
-            from public.hr_tower_rules r
-          union all
-          select l.landing + 1 from public.tower_landings l
-           where l.user_id = p_user and l.slot = p_slot and l.week = public.hr_tower_week(now())) x
+-- A climb's RECORD: the hero's best floor, or, for a hero seated in an open party, the LOWEST best floor of its seats (Tyler 2026-11-16: "a
+-- party starts at the highest landing every member has reached"). 0 for a hero who never climbed.
+create or replace function public.hr_tower_record(p_user uuid, p_slot int)
+returns int language sql stable set search_path = public, pg_catalog as $$
+  -- TOWER-CHECKPOINTS (2027-04-24-tower-climb.sql)
+  select coalesce(case when public.hr_hunt_party_of(p_user, p_slot) is null
+                         then (select p.best_floor from public.tower_progress p where p.user_id = p_user and p.slot = p_slot)
+                         else (select min(coalesce(p.best_floor, 0)) from public.hunt_party_members m
+                                 left join public.tower_progress p on p.user_id = m.user_id and p.slot = m.slot
+                                where m.party_id = public.hr_hunt_party_of(p_user, p_slot)) end, 0)
 $$;
 
 -- The floor whose room stands, or stands next, in an instance: the open runs' highest floor cleared + 1, or the run's start. Null: no climb.
@@ -287,14 +288,14 @@ begin
 end $fn$;
 
 -- THE CLIMB, WRITTEN (hr_hunt_apply_member, after every bound held, under the character's lock and the run row's): each floor a room of the
--- run's kills (this window's journalled kills on top), but the first (a hero who came into a room mid-fight saw part of it); then the run;
--- the week's landings over the week's base (best landing before this window - weekBack), once a hero, week and landing; the hero's best.
+-- run's kills (this window's journalled kills on top), but the first (a hero who came into a room mid-fight saw part of it); then the run
+-- (its rising top floor is the chest's key mint); then the hero's best, raise-only (the record its checkpoints are read from).
 create or replace function public.hr_tower_write(p_user uuid, p_slot int, p_session uuid, p_tw jsonb, p_kills bigint, p_to timestamptz)
 returns void language plpgsql set search_path = public, pg_catalog as $fn$
 declare
   v_run public.tower_runs%rowtype; v_r public.hr_tower_rules%rowtype;
   v_lo int := (p_tw->>'lo')::int; v_n int := (p_tw->>'n')::int; v_k bigint := greatest(coalesce(p_kills, 0), 0);
-  v_hi int; v_base int; v_l int; v_week date;
+  v_hi int;
 begin
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql)
   select * into v_run from public.tower_runs where session_id = p_session for update;
@@ -309,17 +310,6 @@ begin
          updated_at = now()
    where session_id = p_session;
   if v_n = 0 then return; end if;
-  v_base := greatest(0, coalesce((select p.best_landing from public.tower_progress p where p.user_id = p_user and p.slot = p_slot), 0) - v_r.week_back);
-  v_week := public.hr_tower_week(p_to);
-  for v_l in select f from generate_series(v_lo, v_hi) f where f % v_r.landing_every = 0 and f > v_base order by f loop
-    insert into public.tower_landings (user_id, slot, week, landing, session_id, at) values (p_user, p_slot, v_week, v_l, p_session, p_to)
-      on conflict do nothing;
-    if found then
-      insert into public.player_ledger (user_id, slot, kind, intent, meta)
-        values (p_user, p_slot, 'hunt', 'tower_landing',
-                jsonb_build_object('reason', 'tower_landing', 'landing', v_l, 'week', v_week, 'session', p_session));
-    end if;
-  end loop;
   insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at, updated_at)
     values (p_user, p_slot, v_hi, (v_hi / v_r.landing_every) * v_r.landing_every, p_to, now())
     on conflict (user_id, slot) do update
@@ -351,55 +341,73 @@ create trigger hr_tower_run_end after update of ended_at on public.hunt_sessions
   for each row when (old.ended_at is null and new.ended_at is not null) execute function public.hr_tower_run_end();
 
 -- ── §3 THE ONE DOOR ──────────────────────────────────────────────────────────
-create or replace function public.hr_tower_start(p_slot int, p_floor int, p_idem uuid)
+create or replace function public.hr_tower_start(p_slot int, p_landing int, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   c_verb constant text := 'tower_start';
-  v_uid uuid := auth.uid(); v_hunt text; v_verb text; v_r jsonb; v_no jsonb; v_sid uuid; v_inst uuid; v_ver bigint; v_a jsonb; v_starts int[];
+  v_uid uuid := auth.uid(); v_hunt text; v_mode text; v_verb text; v_r jsonb; v_no jsonb; v_sid uuid; v_ver bigint; v_a jsonb;
+  v_party uuid; v_cps int[]; v_pick int; v_n int;
 begin
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql)
+  -- TOWER-CLIMB (2027-04-24-tower-climb.sql); TOWER-CHECKPOINTS (lane/c-tower-checkpoints, Tyler 2026-11-16)
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
   if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
-  if p_floor is null or p_floor < 1 or p_floor > 1000000 then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_floor')); end if;
+  if p_landing is not null and (p_landing < 0 or p_landing > 1000000) then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_landing')); end if;
   if not public.hr_feature_on('burning_tower', v_uid) then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'feature_off')); end if;
-  select hunt_id into v_hunt from public.hr_tower_rules where id;
-  if v_hunt is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'catalogue_missing')); end if;
-  v_verb := c_verb || ':' || p_floor;
+  select r.hunt_id, g.mode_id into v_hunt, v_mode
+    from public.hr_tower_rules r left join public.hr_ground_session_modes g on g.hunt_id = r.hunt_id where r.id;
+  if v_hunt is null or v_mode is null then
+    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'catalogue_missing')); end if;
+  v_verb := c_verb || ':' || coalesce(p_landing::text, 'best');
   v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
-  -- A CLIMB IS SOLO in this build: a hero seated in a party starts none (a party's start floor needs a rule for heroes whose weeks differ).
-  -- (the party helper training's door reads too: a seat in an open party)
-  if public.hr_hunt_party_of(v_uid, p_slot) is not null then
-    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'in_party')); end if;
+  v_party := public.hr_hunt_party_of(v_uid, p_slot);
   begin
-    -- THE SESSION FIRST (its locks: the character's), THEN THE FLOOR under them: a start can't race a settle into an unearned floor.
+    -- THE SESSIONS FIRST (their locks: each seat's character), THEN THE RECORD under them: a start can't race a settle into an unearned floor.
     perform set_config('hr.tower', v_hunt, true);
-    v_r := public.hr_hunt_enter_for(v_uid, p_slot, v_hunt, public.hr_hunt_saved_bag(v_uid, p_slot), public.hr_hunt_active_set(v_uid, p_slot), null);
+    if v_party is null then
+      v_r := public.hr_hunt_enter_for(v_uid, p_slot, v_hunt, public.hr_hunt_saved_bag(v_uid, p_slot), public.hr_hunt_active_set(v_uid, p_slot), null);
+    elsif exists (select 1 from public.hunt_party_members m join public.hunt_sessions h on h.user_id = m.user_id and h.slot = m.slot
+                   where m.party_id = v_party and h.ended_at is null) then
+      -- A PARTY CLIMBS TOGETHER FROM ONE FLOOR: every seat in town first (a seat out hunting would join a climb mid-floor)
+      v_r := jsonb_build_object('ok', false, 'error', 'party_hunting', 'hunt', v_hunt);
+    else
+      -- every seat or none, the leader's call (its own key: hr_hunt_party_start journals what it was asked under)
+      v_r := public.hr_hunt_party_start(p_slot, v_hunt, md5('tower_start:party:' || p_idem::text)::uuid);
+    end if;
     perform set_config('hr.tower', '', true);
     if coalesce(v_r->>'ok', 'false') <> 'true' then v_no := v_r; raise exception using errcode = 'HR879', message = 'tower_refused'; end if;
-    v_starts := public.hr_tower_starts(v_uid, p_slot);
-    if p_floor <> all (v_starts) then
-      v_no := jsonb_build_object('ok', false, 'error', 'bad_floor', 'starts', to_jsonb(v_starts));
+    v_cps := public.hr_mode_checkpoints(v_mode, public.hr_tower_record(v_uid, p_slot));
+    v_pick := coalesce(p_landing, v_cps[cardinality(v_cps)]);
+    if v_cps is null or v_pick is null or v_pick <> all (v_cps) then
+      v_no := jsonb_build_object('ok', false, 'error', 'bad_landing', 'checkpoints', to_jsonb(v_cps));
       raise exception using errcode = 'HR879', message = 'tower_refused'; end if;
-    v_sid := (v_r->>'session_id')::uuid;
-    select h.instance_id into v_inst from public.hunt_sessions h where h.id = v_sid;
+    -- ONE RUN A SEAT, all from the floor after the checkpoint (alone: the caller's one)
+    select count(*) into v_n from public.hunt_sessions h
+     where h.ended_at is null and (case when v_party is null then h.user_id = v_uid and h.slot = p_slot
+                                       else exists (select 1 from public.hunt_party_members m where m.party_id = v_party
+                                                     and m.user_id = h.user_id and m.slot = h.slot) end);
     insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor, party, started_at)
-      values (v_sid, v_uid, p_slot, v_inst, p_floor, 1, now());
+      select h.id, h.user_id, h.slot, h.instance_id, v_pick + 1, least(greatest(v_n, 1), 4), now() from public.hunt_sessions h
+       where h.ended_at is null and (case when v_party is null then h.user_id = v_uid and h.slot = p_slot
+                                         else exists (select 1 from public.hunt_party_members m where m.party_id = v_party
+                                                       and m.user_id = h.user_id and m.slot = h.slot) end);
+    select h.id into v_sid from public.hunt_sessions h where h.user_id = v_uid and h.slot = p_slot and h.ended_at is null;
     -- ONE journal-only apply on the caller's key: a replay answers once and opens once.
     select version into v_ver from public.player_state where user_id = v_uid and slot = p_slot;
     v_a := public.hr_apply(v_uid, p_slot, v_ver, p_idem, jsonb_build_object('journal', jsonb_build_object('kind', 'combat', 'intent', v_verb,
-             'meta', jsonb_build_object('reason', 'tower_start', 'hunt', v_hunt, 'floor', p_floor, 'session', v_sid))));
+             'meta', jsonb_build_object('reason', 'tower_start', 'hunt', v_hunt, 'landing', v_pick, 'floor', v_pick + 1, 'session', v_sid,
+                                        'party', v_party, 'seats', v_n))));
     if coalesce(v_a->>'ok', 'false') <> 'true' then v_no := v_a; raise exception using errcode = 'HR879', message = 'tower_refused'; end if;
   exception when sqlstate 'HR879' then
     perform set_config('hr.tower', '', true);
     return public.hr_note_rejection(c_verb, p_slot, v_no);
   end;
-  return jsonb_build_object('ok', true, 'version', v_a->'version', 'session_id', v_sid, 'session', v_r->'session', 'floor', p_floor,
-                            'starts', to_jsonb(v_starts));
+  return jsonb_strip_nulls(jsonb_build_object('ok', true, 'version', v_a->'version', 'session_id', v_sid, 'session', v_r->'session',
+                            'landing', v_pick, 'floor', v_pick + 1, 'checkpoints', to_jsonb(v_cps), 'party', v_r->'party'));
 end $fn$;
 
 -- ── §4 THE ONE DOOR, AT THE GATE (hr_hunt_admit, RESTATED: production's image with the TOWER-CLIMB arm, every other line verbatim) ─
@@ -785,8 +793,8 @@ begin
         'qty', p_delta->'items'->v_vb_item, 'kills', v_kills)); end if;
   end if;
 
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql): THE CLIMB, WRITTEN (hr_tower_write: each floor a room of the run's kills, then the run's top, the
-  -- week's landings and the hero's best), after every bound above held and before the session half can end the session.
+  -- TOWER-CLIMB (2027-04-24-tower-climb.sql): THE CLIMB, WRITTEN (hr_tower_write: each floor a room of the run's kills, then the run's top (the
+  -- chest's key mint) and the hero's best), after every bound above held and before the session half can end the session.
   if v_tw is not null then perform public.hr_tower_write(p_user, p_slot, p_session, v_tw, v_kills, v_to); end if;
 
   -- (5a) THE STAMINA POOL, RE-PROVED AND WRITTEN (before the session half,
@@ -1097,7 +1105,7 @@ end $mig$;
 do $mig$
 declare v_sig text; v_role text;
 begin
-  foreach v_sig in array array['public.hr_tower_week(timestamp with time zone)', 'public.hr_tower_starts(uuid,integer)', 'public.hr_tower_floor_of(uuid)',
+  foreach v_sig in array array['public.hr_mode_checkpoints(text,integer)', 'public.hr_tower_record(uuid,integer)', 'public.hr_tower_floor_of(uuid)',
                                'public.hr_mode_pays(text,jsonb)', 'public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)',
                                'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)', 'public.hr_tower_run_end()'] loop
     execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);
@@ -1109,10 +1117,12 @@ begin
   revoke execute on function public.hr_tower_start(int, int, uuid) from anon, service_role;
   grant  execute on function public.hr_tower_start(int, int, uuid) to authenticated;
 end $mig$;
-delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_tower_start';
+-- an older signature's row goes (the 11-15 p_floor one); the current one is upserted, so a second apply keeps its approved_at (byte-identical)
+delete from public.hr_client_rpc_baseline where grantee = 'authenticated' and proname = 'hr_tower_start'
+  and identity_args <> 'p_slot integer, p_landing integer, p_idem uuid';
 insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
-  ('hr_tower_start', 'p_slot integer, p_floor integer, p_idem uuid', 'authenticated',
-   'added 2027-04-24 (lane/c-tower-climb): RANKED (the floors a board will read) - opens a solo Burning Tower climb from a floor the server lists for this hero this week (bad_floor otherwise); behind the switch burning_tower (feature_off); no value moves; pre-EA Security list')
+  ('hr_tower_start', 'p_slot integer, p_landing integer, p_idem uuid', 'authenticated',
+   'added 2027-04-24 (lane/c-tower-climb), checkpoints 2026-11-16 (lane/c-tower-checkpoints): RANKED (the floors a board will read) - opens a Burning Tower climb, alone or the party leader''s for every seat, from the floor after a checkpoint the server lists from its own record (the lowest seat''s best in a party; bad_landing otherwise); behind the switch burning_tower (feature_off); no value moves; pre-EA Security list')
   on conflict (proname, identity_args, grantee) do update set note = excluded.note;
 -- THE SWITCH, seeded OFF once (2027-03-21-feature-switches.sql): a re-apply never reverts the Coordinator's flip.
 insert into public.hr_feature_switches (switch_id, scope, note) values
@@ -1131,7 +1141,7 @@ declare
 begin
   select hunt_id into v_hunt from public.hr_tower_rules where id;
   -- (a) PRIVILEGES: every helper the owner's alone; the verb the signed-in client's alone; the tables readable by their owner, written by no client.
-  foreach v_sig in array array['public.hr_tower_week(timestamp with time zone)', 'public.hr_tower_starts(uuid,integer)', 'public.hr_tower_floor_of(uuid)',
+  foreach v_sig in array array['public.hr_mode_checkpoints(text,integer)', 'public.hr_tower_record(uuid,integer)', 'public.hr_tower_floor_of(uuid)',
                                'public.hr_mode_pays(text,jsonb)', 'public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)',
                                'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)', 'public.hr_tower_run_end()',
                                'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'public.hr_hunt_instance_read(uuid,integer)',
@@ -1145,7 +1155,13 @@ begin
     raise exception 'tower-climb §10(a): hr_tower_start is not the signed-in client''s alone'; end if;
   if not exists (select 1 from public.hr_client_rpc_baseline where proname = 'hr_tower_start' and grantee = 'authenticated') then
     raise exception 'tower-climb §10(a): hr_tower_start is not on the client baseline'; end if;
-  foreach t in array array['tower_progress', 'tower_runs', 'tower_landings'] loop
+  if to_regclass('public.tower_landings') is not null or to_regprocedure('public.hr_tower_starts(uuid,integer)') is not null then
+    raise exception 'tower-climb §10(a): the weekly start rule is still here (Tyler 2026-11-16: checkpoints replace it)'; end if;
+  if public.hr_mode_checkpoints('tower', 0) is distinct from array[0] or public.hr_mode_checkpoints('tower', 57) is distinct from array[0, 10, 20, 30, 40, 50]
+     or public.hr_mode_checkpoints('hunt', 57) is distinct from array[0] or public.hr_mode_checkpoints('nowhere', 57) is not null
+     or (select checkpoint_every from public.hr_session_modes where mode_id = 'tower') is distinct from (select landing_every from public.hr_tower_rules where id) then
+    raise exception 'tower-climb §10(a): the checkpoints are not every landing up to the record'; end if;
+  foreach t in array array['tower_progress', 'tower_runs'] loop
     if not (select c.relrowsecurity from pg_class c where c.oid = ('public.' || t)::regclass) then raise exception 'tower-climb §10(a): % has no RLS', t; end if;
     if has_table_privilege('authenticated', 'public.' || t, 'insert,update,delete') or has_table_privilege('anon', 'public.' || t, 'select') then
       raise exception 'tower-climb §10(a): a client can write % (or anon read it)', t; end if;
@@ -1185,21 +1201,21 @@ begin
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_u and slot = 0;
     -- the switch off: refused, nothing open
     update public.hr_feature_switches set scope = 'off' where switch_id = 'burning_tower';
-    v := public.hr_tower_start(0, 1, (k || '00000001')::uuid);
+    v := public.hr_tower_start(0, 0, (k || '00000001')::uuid);
     if v->>'error' is distinct from 'feature_off' then raise exception 'tower-climb §10(d): the switch off answered %', v; end if;
     update public.hr_feature_switches set scope = 'accounts', accounts = array[v_u] where switch_id = 'burning_tower';
     -- the ordinary door: refused
     v := public.hr_hunt_enter(0, v_hunt, '[]'::jsonb, 0, null, (k || '00000002')::uuid);
     if coalesce(v->>'ok', '') = 'true' or v::text not like '%tower_only%' then raise exception 'tower-climb §10(d): the ordinary door answered %', v; end if;
     delete from public.hr_rate_counters where user_id = v_u;
-    -- a floor the hero has not earned: refused, nothing open, the list named
-    v := public.hr_tower_start(0, 41, (k || '00000003')::uuid);
-    if v->>'error' is distinct from 'bad_floor' or v->'starts' is distinct from '[1]'::jsonb
+    -- a checkpoint the hero has not reached: refused, nothing open, the list named
+    v := public.hr_tower_start(0, 40, (k || '00000003')::uuid);
+    if v->>'error' is distinct from 'bad_landing' or v->'checkpoints' is distinct from '[0]'::jsonb
        or exists (select 1 from public.hunt_sessions h where h.user_id = v_u and h.ended_at is null) then
-      raise exception 'tower-climb §10(d): an unearned floor answered % (or left a session open)', v; end if;
+      raise exception 'tower-climb §10(d): an unearned checkpoint answered % (or left a session open)', v; end if;
     delete from public.hr_rate_counters where user_id = v_u;
-    -- floor 1: open, in the Tower's mode, the engine's read on floor 1, the run's row
-    v := public.hr_tower_start(0, 1, (k || '00000004')::uuid);
+    -- the default (the best: a new hero's is checkpoint 0): floor 1, in the Tower's mode, the engine's read on floor 1, the run's row
+    v := public.hr_tower_start(0, null, (k || '00000004')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'tower-climb §10(d): floor 1 answered %', v; end if;
     v_sid := (v->>'session_id')::uuid;
     if public.hr_hunt_instance_read(v_u, 0)->'instance'->>'session_mode' is distinct from 'tower'
@@ -1207,7 +1223,7 @@ begin
        or (select start_floor from public.tower_runs where session_id = v_sid) is distinct from 1 then
       raise exception 'tower-climb §10(d): the climb did not open on floor 1 in the Tower''s mode (the engine reads %)', public.hr_hunt_instance_read(v_u, 0)->'instance'; end if;
     -- the same key again: the first answer, nothing new
-    v := public.hr_tower_start(0, 1, (k || '00000004')::uuid);
+    v := public.hr_tower_start(0, null, (k || '00000004')::uuid);
     if (select count(*) from public.tower_runs where user_id = v_u) <> 1 then raise exception 'tower-climb §10(d): a replayed key opened a second run (%)', v; end if;
     -- (e) THE FLOORS, re-proved: out of order, too fast, a non-climb claiming floors, short of kills; then honest floors write the run and the best
     select h.settled_to into v_t0 from public.hunt_sessions h where h.id = v_sid;
@@ -1233,14 +1249,12 @@ begin
        or (public.hr_hunt_instance_read(v_u, 0)->'instance'->>'tower_floor')::int is distinct from 4
        or (select best_floor from public.tower_progress where user_id = v_u and slot = 0) is distinct from 3 then
       raise exception 'tower-climb §10(e): three honest floors did not move the run, the read and the best'; end if;
-    -- a landing: its row this week, once, and the floor after it a start
+    -- a landing: the best, and with it a checkpoint (the record its next climb may start after)
     v_tw := public.hr_tower_check(v_sid, '{"tower": {"floors": [4, 5, 6, 7, 8, 9, 10]}}', v_t0 + interval '20 seconds', v_t0 + interval '60 seconds');
     perform public.hr_tower_write(v_u, 0, v_sid, v_tw, 50, v_t0 + interval '60 seconds');
-    if (select count(*) from public.tower_landings where user_id = v_u and landing = 10) <> 1
-       or (select count(*) from public.player_ledger where user_id = v_u and intent = 'tower_landing') <> 1
-       or not (11 = any (public.hr_tower_starts(v_u, 0)))
-       or (select best_landing from public.tower_progress where user_id = v_u and slot = 0) is distinct from 10 then
-      raise exception 'tower-climb §10(e): landing 10 did not land once with its start (%)', public.hr_tower_starts(v_u, 0); end if;
+    if (select best_landing from public.tower_progress where user_id = v_u and slot = 0) is distinct from 10
+       or public.hr_tower_record(v_u, 0) <> 10 or public.hr_mode_checkpoints('tower', public.hr_tower_record(v_u, 0)) is distinct from array[0, 10] then
+      raise exception 'tower-climb §10(e): landing 10 did not become a checkpoint (record %)', public.hr_tower_record(v_u, 0); end if;
     -- (f) THE END: the run stamped and one aggregate row journalled, once
     perform public.hr_hunt_close(v_sid, 'left', now(), true);
     if (select end_reason from public.tower_runs where session_id = v_sid) is distinct from 'left'
@@ -1255,5 +1269,5 @@ begin
      or exists (select 1 from public.player_intents where user_id = v_u)
      or exists (select 1 from public.hr_feature_switches f where f.switch_id = 'burning_tower' and f.scope <> 'off') then
     raise exception 'tower-climb §10(g): §10 LEAKED a probe row'; end if;
-  raise notice 'tower-climb: one door behind its switch, a start floor the hero earned, floors re-proved against the run, what a mode pays honored; all green';
+  raise notice 'tower-climb: one door behind its switch, a checkpoint the hero (or the party''s lowest seat) reached, floors re-proved against the run, what a mode pays honored; all green';
 end $$;

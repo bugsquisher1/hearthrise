@@ -22,6 +22,11 @@
 //   stamina      the session drains stamina as a hunt does.                             } refuses a window that pays more (`mode_pays`,
 //                                                                                        } and every XP bound at xpPm:
 //                                                                                        } 2027-04-24-tower-climb.sql). TWO LOCKS again.
+//   checkpointEvery  a run in this mode may start from every this-many steps of the record it has reached (0: no checkpoints, a run
+//                starts at the bottom). Tyler 2026-11-16: the Tower returns to any landing up to the hero's best, a party to the
+//                highest landing every member has reached; the server picks the record and checks the pick (hr_mode_checkpoints,
+//                2027-04-24-tower-climb.sql), never the client's floor. A descent (the Unmarked Catacombs' vault doors) reads the
+//                same field against its own record.
 //
 // THE LOAD-TIME RULE (it can't be farmed, and that is a rule on the table): a mode whose death costs less than the full price
 // must pay no coin, no drops and no Bestiary, or this module does not load (and so neither does the engine, the edge or the
@@ -33,7 +38,7 @@
 
 export const SESSION_MODES = Object.freeze({
   /* Every ground today. A death takes the full 6% and uses the Blessings up. */
-  hunt: Object.freeze({ id: 'hunt', deathLossPm: 1000, blessings: true, xpPm: 1000, coin: true, drops: true, bestiary: true, stamina: true }),
+  hunt: Object.freeze({ id: 'hunt', deathLossPm: 1000, blessings: true, xpPm: 1000, coin: true, drops: true, bestiary: true, stamina: true, checkpointEvery: 0 }),
   /* The Burning Tower (Tyler 2026-11-14): "it spits you out". A death takes nothing and leaves the Blessings alone. No coin, no
      drops, no Bestiary. Stamina drains. XP: Tyler's "start 50% exp" (the board's §7: an hour against an hour, between 35 and 65% of
      hunting for the median hero alone at the top Level measured, and no cell over hunting). The designer's 200 permille, fitted on
@@ -43,7 +48,8 @@ export const SESSION_MODES = Object.freeze({
      the best of 96 cells, three seeds each (a Level 30 bow restarting on its top landing) 0.80, none over; the best skill cell 1.05 of a Training
      Yard hour (the yard costs gold and no stamina). The player's words (drafts for the window lane): docs/planning/PRIORITY_BOARD.md
      '2026-11-15 The Hearth Chest, and the Tower's XP fitted on real climbs'. */
-  tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false, bestiary: false, stamina: true }),
+  tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false, bestiary: false, stamina: true,
+    checkpointEvery: 10 }),
 });
 
 /* The mode of every ground that names none. */
@@ -63,6 +69,7 @@ export function validateSessionModes(modes, def) {
     if (!permille(m.deathLossPm)) out.push(key + ': deathLossPm is not a whole permille 0..1000');
     if (!permille(m.xpPm)) out.push(key + ': xpPm is not a whole permille 0..1000');
     for (const f of FLAGS) if (typeof m[f] !== 'boolean') out.push(key + ': ' + f + ' is not true or false');
+    if (!Number.isInteger(m.checkpointEvery) || m.checkpointEvery < 0 || m.checkpointEvery > 1000) out.push(key + ': checkpointEvery is not a whole number 0..1000');
     /* THE ANTI-FARM RULE: a death that costs less than a hunt's pays nothing a hunt pays. */
     if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(key + ': a mode whose death costs less than a hunt\'s pays coin, drops or Bestiary');
     /* A Blessing is never spent on a death that costs nothing. */
@@ -70,7 +77,7 @@ export function validateSessionModes(modes, def) {
   }
   const d = modes[def];
   if (!d) out.push('the default mode ' + def + ' is no row');
-  else if (!(d.deathLossPm === 1000 && d.blessings && d.xpPm === 1000 && d.coin && d.drops && d.bestiary && d.stamina)) {
+  else if (!(d.deathLossPm === 1000 && d.blessings && d.xpPm === 1000 && d.coin && d.drops && d.bestiary && d.stamina && d.checkpointEvery === 0)) {
     out.push('the default mode ' + def + ' is not a full hunt. Every ground that names no mode would pay or cost less than a hunt');
   }
   return out;

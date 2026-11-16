@@ -347,7 +347,8 @@ export const REFUSAL_WORDS = Object.freeze({
   training_only: 'That spot is for training. Start it from the Training window.',
   /* The Burning Tower (2027-04-24-tower-climb.sql): its one door is hr_tower_start. Drafts: the window and art lane words the Tower. */
   tower_only: 'The Burning Tower is entered from the Great Hearth.',
-  in_party: 'The Tower is climbed alone for now. Leave your party first.',
+  in_party: 'You are already in a party. Leave it first.',
+  bad_landing: 'Your hero hasn\'t reached that landing yet. Pick one it has cleared.',
   /* The Hearth Chest (2027-04-27-tower-chest.sql: hr_chest_open). Drafts, read when the window lane wires the chest. */
   chest_not_ready: 'The chest won\'t take that key yet. Keep it, it\'ll open soon.',
   in_hunt: 'Your hero is out on a hunt. The chest opens when they\'re back in town.',

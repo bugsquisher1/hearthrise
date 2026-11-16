@@ -268,11 +268,11 @@ async function mintArm(db, M) {
   }
   return bad;
 }
-/* A SECOND CLIMB by the same hero, from floor 1 again, 40 minutes on (the server clock pinned: hr.test_now, this transaction), so its
+/* A SECOND CLIMB by the same hero, from floor 1 again (checkpoint 0: any checkpoint up to the best may be picked), 40 minutes on (the server clock pinned: hr.test_now, this transaction), so its
    windows follow the first climb's: the same session setup as tests/tower-climb.mjs climber, on the hero that already exists. */
 async function climbAgain(db) {
   await db.query("select set_config('hr.test_now', (transaction_timestamp() + interval '40 minutes')::text, true)");
-  const r = await call(db, 'select public.hr_tower_start(0, 1, $1::uuid)', [idem()]);
+  const r = await call(db, 'select public.hr_tower_start(0, 0, $1::uuid)', [idem()]);
   if (!r || r.ok !== true) throw new Error('the second hr_tower_start refused: ' + JSON.stringify(r));
   const sid = r.session_id;
   const t = "date_trunc('second', now() - make_interval(mins => 25))";

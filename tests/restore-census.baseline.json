@@ -741,7 +741,6 @@
   "hr_faction_members",
   "hr_faction_standing",
   "player_training_gear",
-  "tower_landings",
   "tower_progress",
   "tower_runs",
   "chest_luck",
@@ -2305,15 +2304,10 @@
    "wiped_at_cutover": true,
    "note": "2026-10-25-social.sql, ships EMPTY. When an account last had the game open (server clock) and on which character: stamped by hr_social_state's 30 s poll (floor 20 s), read only to answer a FRIEND's online state; a sign-out moves the account's stamp back to the edge of the online window and keeps the row (hr_presence_leave, 2027-03-26-signout-presence.sql). Regenerated within one poll of the player coming back; an empty table reads everyone as offline for at most 30 seconds."
   },
-  "tower_landings": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "PLAYER PROGRESS (2027-04-24-tower-climb.sql) - one row per hero, UTC week and Burning Tower landing cleared over the week's base: the weekly key cap (its key) and the rows the chest lane mints keys from. Losing a row frees a landing's key for the week again and drops a start floor; written only by hr_tower_write inside the settle; RLS own read, no client write."
-  },
   "tower_progress": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER PROGRESS (2027-04-24-tower-climb.sql) - a hero's best Burning Tower floor and landing (raise-only). Losing a row loses the record a week's start floor reads (the climb from floor 1 again); written only by hr_tower_write inside the settle; RLS own read, no client write."
+   "note": "PLAYER PROGRESS (2027-04-24-tower-climb.sql) - a hero's best Burning Tower floor and landing (raise-only). Losing a row loses the record its checkpoints and the boards read (the climb from floor 1 again); written only by hr_tower_write inside the settle; RLS own read, no client write."
   },
   "tower_runs": {
    "class": "restore_only",

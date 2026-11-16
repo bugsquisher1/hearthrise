@@ -12,13 +12,16 @@
 // THE RULES (every number a row Tyler or the designer can move; the server reads them as hr_tower_rules and hr_tower_floors,
 //   tools/gen-tower.mjs, whose --check fails a stale copy):
 //   roomSize        a floor is one room of this many monsters, all at Level F (the board: "five is Dangerous's pull")
-//   landingEvery    every this-many floors is a LANDING: an old Keeper (the formula's boss role at Level F) and roomSize - 1 more
+//   landingEvery    every this-many floors is a LANDING: an old Keeper (the formula's boss role at Level F) and roomSize - 1 more.
+//                   A landing is also a CHECKPOINT (Tyler 2026-11-16, superseding 2026-11-14's "each week starts 60 floors under your
+//                   best"): a climb starts on the floor after any landing up to the hero's best (a party's: the highest landing every
+//                   member has reached). The spacing the server reads for that is the mode's (session-modes.js tower.checkpointEvery,
+//                   tools/gen-session-modes.mjs refuses it differing from this one)
 //   floorLimitMs    a floor not cleared this long after its room stands ends the climb `floor_time` (three minutes)
 //   landingLimitMs  the same on a landing (ten)
 //   stairMs         the stair: the next room stands this long after the last monster of a floor falls. At least two engine swings
 //                   (src/core/combat.js COMBAT_BALANCE.tickMs) so a floor's rows only change at a swing boundary with no monster of
 //                   the floor before standing; the server's floors-a-window bound is window / stairMs + 1 (the engine can't beat it)
-//   weekBack        a hero's week starts this many floors under their best landing (Tyler 2026-11-14: "6 a week")
 //   floorTop        the highest floor the stat formula is read at; a floor above it plays this floor's rows. The server's per-floor
 //                   bounds are generated to it (hr_tower_floors), so it is the one place "the floors never end" meets a table
 //   fit             the stat formula's fit for every Tower room (balance-sheet.js STAT_FORMULA.fit): one difficulty for one hero or four
@@ -40,7 +43,6 @@ export const TOWER_RULES = Object.freeze({
   floorLimitMs: 180000,
   landingLimitMs: 600000,
   stairMs: 4000,
-  weekBack: 60,
   floorTop: 300,
   fit: 'both',
 });
@@ -53,9 +55,8 @@ export function validateTower(rules, partyXp, swingMs) {
   const pos = (k) => { if (!Number.isInteger(rules[k]) || rules[k] <= 0) out.push(k + ' is not a whole number above 0'); };
   if (!rules || typeof rules !== 'object') return ['the rules are no row'];
   if (typeof rules.hunt !== 'string' || !/^[a-z0-9_]{1,64}$/.test(rules.hunt)) out.push('hunt is not an id');
-  for (const k of ['roomSize', 'landingEvery', 'floorLimitMs', 'landingLimitMs', 'stairMs', 'weekBack', 'floorTop']) pos(k);
+  for (const k of ['roomSize', 'landingEvery', 'floorLimitMs', 'landingLimitMs', 'stairMs', 'floorTop']) pos(k);
   if (Number.isInteger(rules.roomSize) && (rules.roomSize < 2 || rules.roomSize > 8)) out.push('roomSize is not 2..8 (a landing is a Keeper and at least one more, and a full box is 8)');
-  if (Number.isInteger(rules.weekBack) && Number.isInteger(rules.landingEvery) && rules.weekBack % rules.landingEvery) out.push('weekBack is not a whole number of landings');
   if (Number.isInteger(rules.floorTop) && Number.isInteger(rules.landingEvery) && rules.floorTop % rules.landingEvery) out.push('floorTop is not a landing');
   if (Number.isInteger(rules.stairMs) && Number.isInteger(swingMs) && rules.stairMs < 2 * swingMs) out.push('stairMs is under two engine swings, so a floor\'s rows could change inside the swing it was cleared in');
   if (Number.isInteger(rules.floorLimitMs) && Number.isInteger(rules.landingLimitMs) && rules.landingLimitMs < rules.floorLimitMs) out.push('a landing gets less time than a floor');

@@ -5,8 +5,9 @@
 -- STATUS: STAGED, NOT APPLIED (lane/c-tower-climb, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower). The Coordinator applies
 --   (tools/apply-migration.mjs, one file, never inside begin/commit). ORDER: after 2027-04-24-tower-climb-session-modes-catalogue.generated.sql,
 --   right before 2027-04-24-tower-climb.sql, which reads both tables. No function body, no player row.
--- hr_tower_rules (one row): the Tower's hunt, a room's size, a landing's spacing, a floor's and a landing's time, the stair, how far under the
---   best landing a week starts, and the highest floor the formula is read at (a floor above it plays its rows).
+-- hr_tower_rules (one row): the Tower's hunt, a room's size, a landing's spacing (a landing is a checkpoint:
+--   hr_session_modes.checkpoint_every reads the same number), a floor's and a landing's time, the stair, and the highest floor the formula
+--   is read at (a floor above it plays its rows).
 -- hr_tower_floors (300 rows, floor 1 to 300): the floor's Level and the most ONE kill on it can pay in Level XP before its session
 --   mode's share and its party share (the formula's at that Level, the best-paying role): the settle's XP bound for a climb.
 -- Both rewritten whole (no player row points at either). RLS on, no policy, no client grant: only SECURITY DEFINER functions read them.
@@ -20,10 +21,8 @@ create table if not exists public.hr_tower_rules (
   floor_limit_ms   int  not null check (floor_limit_ms > 0),
   landing_limit_ms int  not null,
   stair_ms         int  not null check (stair_ms > 0),
-  week_back        int  not null check (week_back >= 0),
   floor_top        int  not null check (floor_top > 0),
   constraint hr_tower_rules_landing_time check (landing_limit_ms >= floor_limit_ms),
-  constraint hr_tower_rules_week check (week_back % landing_every = 0),
   constraint hr_tower_rules_top check (floor_top % landing_every = 0)
 );
 create table if not exists public.hr_tower_floors (
@@ -39,14 +38,14 @@ begin
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
   end loop;
 end $$;
-comment on table public.hr_tower_rules is '2027-04-24-tower-climb-catalogue.generated.sql: the Burning Tower''s rules (src/data/tower.js TOWER_RULES), one row. Read by hr_tower_start, hr_tower_starts, hr_hunt_admit, hr_hunt_apply_member and the settle''s floor_time proof.';
+comment on table public.hr_tower_rules is '2027-04-24-tower-climb-catalogue.generated.sql: the Burning Tower''s rules (src/data/tower.js TOWER_RULES), one row. Read by hr_tower_start, hr_hunt_admit, hr_hunt_apply_member and the settle''s floor_time proof.';
 comment on table public.hr_tower_floors is '2027-04-24-tower-climb-catalogue.generated.sql: each floor''s Level and the most one kill on it pays in Level XP before its mode and party share (src/core/hunt/tower.js towerXpMax). The settle''s XP bound for a climb.';
 
-insert into public.hr_tower_rules (id, hunt_id, room_size, landing_every, floor_limit_ms, landing_limit_ms, stair_ms, week_back, floor_top) values
-  (true, 'the_burning_tower', 5, 10, 180000, 600000, 4000, 60, 300)
+insert into public.hr_tower_rules (id, hunt_id, room_size, landing_every, floor_limit_ms, landing_limit_ms, stair_ms, floor_top) values
+  (true, 'the_burning_tower', 5, 10, 180000, 600000, 4000, 300)
 on conflict (id) do update set hunt_id = excluded.hunt_id, room_size = excluded.room_size, landing_every = excluded.landing_every,
   floor_limit_ms = excluded.floor_limit_ms, landing_limit_ms = excluded.landing_limit_ms, stair_ms = excluded.stair_ms,
-  week_back = excluded.week_back, floor_top = excluded.floor_top;
+  floor_top = excluded.floor_top;
 
 delete from public.hr_tower_floors;
 insert into public.hr_tower_floors (floor, level, xp_max) values

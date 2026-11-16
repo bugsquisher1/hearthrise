@@ -20,24 +20,26 @@
 // PURE: RGBA in, RGBA out (in place). No DOM. Node (tools/world-art/tower-pours.mjs) and the browser (monster-pour.js) share it.
 // ════════════════════════════════════════════════════════════════════════
 
+import { PALETTE_RGB } from '../data/world/palette.js?v=0.2.133';
+
 /* The opacity cut of the world's art (src/data/world/palette.js ALPHA_CUT): the art has no partial alpha. */
 const OPAQUE = 128;
 /* The outline colour (the palette's darkest, `shadow` 0): never poured. */
-const hexOf = (n) => '#' + n.toString(16).padStart(6, '0');   // the palette's entries are RGB integers here, shown as '#rrggbb' to the rest
-export const OUTLINE = hexOf(0x0b0a0c);
+const hexOf = (n) => '#' + n.toString(16).padStart(6, '0');
+export const OUTLINE = hexOf(PALETTE_RGB.outline);
 
 /** THE POURS: a body ladder (dark to light) and the glow's tiers [share of the body at or above, colour]. Every colour is hr-world-56-v2's. */
 export const POURS = Object.freeze({
   char: Object.freeze({
     /* shadow 1-3, earth 0-1: soot to scorched */
-    ladder: Object.freeze([hexOf(0x17141a), hexOf(0x231d1f), hexOf(0x2f2723), hexOf(0x2a1c14), hexOf(0x3d2a1d)]),
-    glow: Object.freeze([[0.03, hexOf(0xffd36a)], [0.08, hexOf(0xf2a03a)], [0.14, hexOf(0xc23a2a)]]),
+    ladder: Object.freeze(PALETTE_RGB.soot.map(hexOf)),
+    glow: Object.freeze([[0.03, hexOf(PALETTE_RGB.glow.hot)], [0.08, hexOf(PALETTE_RGB.glow.flame)], [0.14, hexOf(PALETTE_RGB.glow.ember)]]),
     glowMax: 0.2,
   }),
   keeper: Object.freeze({
     /* shadow 1, cloth 0-1, blood 0: coal red */
-    ladder: Object.freeze([hexOf(0x17141a), hexOf(0x3e1216), hexOf(0x5e1a1f), hexOf(0x8e1f1f)]),
-    glow: Object.freeze([[0.06, hexOf(0xffd36a)], [0.16, hexOf(0xf2a03a)], [0.28, hexOf(0xc23a2a)]]),
+    ladder: Object.freeze(PALETTE_RGB.coal.map(hexOf)),
+    glow: Object.freeze([[0.06, hexOf(PALETTE_RGB.glow.hot)], [0.16, hexOf(PALETTE_RGB.glow.flame)], [0.28, hexOf(PALETTE_RGB.glow.ember)]]),
     glowMax: 0.34,
   }),
 });

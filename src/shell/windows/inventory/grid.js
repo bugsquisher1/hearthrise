@@ -254,7 +254,7 @@ function patchHuntPane(root, st, ctx) {
     },
   });
   cls(pane.querySelector('.hw-loot-none'), 'is-on', !loot.length);
-  text(pane.querySelector('.hw-loot-note'), st.rules ? 'Dispatch loot in town: stores and sells by plan'
+  text(pane.querySelector('.hw-loot-note'), st.rules ? 'Dispatch loot stores and sells by plan, in town'
     : 'Loading loot plans…');
 }
 

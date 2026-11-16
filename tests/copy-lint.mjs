@@ -407,8 +407,10 @@ export function labelForm(raw, kind = null) {
 }
 /** A coach.js row's kind: its card titles, its card lines, and the two presses (controls, read by the control rules). */
 const coachKind = (rel, key) => (rel !== 'src/data/text/coach.js' || !key || ['got_it', 'no_tips'].includes(key) ? null : /_title$/.test(key) ? 'title' : 'line');
-/* THE EDGE PINS: an edge-bundled file's lines that broke a LABEL FORM rule the day the rules landed (2026-11-16), "<file>#<rule>#<text>". The list only
-   shrinks: the next edge deploy rewrites them (the shown ones move to src/data/text/), --prune-labels drops a rewritten row, and a new hit is red. */
+/* THE LABEL PINS: the lines that broke a LABEL FORM rule the day the rules landed (2026-11-16) and were not rewritten in that sweep, "<file>#<rule>#<text>":
+   an edge-bundled file's (they change only with an edge deploy) and a piece written in code under src/shell, src/app, src/hunt-view or src/social (a
+   window's own sweep moves it into src/data/text/). Never a text table row, a refusal, the coach or a LABEL_DATA row: those are red at once. The list only
+   shrinks: --prune-labels drops a rewritten row and never adds one, and a new hit is red. */
 export const LABELS_BASELINE = join(HERE_ROOT, 'tests', 'copy-lint-labels.baseline.json');
 export function readLabelPins(path = LABELS_BASELINE) {
   return new Set(JSON.parse(readFileSync(path, 'utf8')).hits || []);
@@ -734,8 +736,8 @@ export async function scan(root, opts = {}) {
       }
       for (const [rule, label] of controls) findings.push({ file: rel, line, rule, text: label.replace(/\s+/g, ' ').slice(0, 110) });
       for (const [rule, piece] of labels) {
-        /* an edge-bundled file's line is pinned until the next edge deploy; every other home's is red now */
-        const pin = home === 'edge' ? srcRel + '#' + rule + '#' + piece.replace(/\s+/g, ' ').trim() : null;
+        /* an edge-bundled file's line (until the next edge deploy) or a line written in code (until its window's sweep) may be pinned; a table row is red now */
+        const pin = home === 'edge' || home === 'code' ? srcRel + '#' + rule + '#' + piece.replace(/\s+/g, ' ').trim() : null;
         if (pin && labelPins.has(pin)) { seenPins.add(pin); continue; }
         findings.push({ file: rel, line, rule, text: piece.replace(/\s+/g, ' ').slice(0, 140), ...(pin ? { pin } : {}) });
       }
@@ -1056,34 +1058,74 @@ async function selftest() {
       + " e: 'Create your new hero in it.', f: 'Paste it anywhere.', g: 'It ranks every hero in Havora.', h: 'Spells cost mana, and drinks bring it back.',"
       + " i: 'Store supplies cost gold as your hero uses them.', j: 'Every skill level counts toward this board.', k: 'Planted {crop} in plot {n}.',"
       + " l: '{now}. Finished.', m: 'The Gold Given Board ranks accounts.', n: 'Hung over the door, torn and proud.', o: 'Up to {n} heroes can play at once.',"
-      + " p: 'You’re out of {item}. Your next food or drink slot takes over.', q: 'Your bag holds {count} stacks.' });\n");
+      + " p: 'Out of {item}, next food or drink slot takes over', q: 'Bag holds {count} stacks' });\n");
     const PERSON = Object.keys(PERSON_FIX);
     const fine = [...(await scan(HERE_ROOT, { files: [plant] })).findings, ...(await scan(HERE_ROOT, { files: [tablePlant] })).findings]
       .filter((f) => PERSON.includes(f.rule));
     console.log(`  ${fine.length ? 'FALSE-POSITIVE' : 'ignored'}  PERSON rules on lines judged fine${fine.length ? ': ' + fine.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
     if (fine.length) bad++;
-    // THE LABELS (Tyler 2026-11-14): the rejected group warning is red as a table row; the same row in the criers' table (lore), under an
-    // @sentence comment, or outside the text table is quiet; a row after the tagged block's blank line is red again; the labels he
-    // approved ("Recommended: 4+ players", a line of labels with breaks, a label and its value) trip no rule at all.
+    // THE LABEL FORM (Tyler 2026-11-14, 2026-11-16). The lines he quoted, live, are each red in their own home: the coach card (as a coach.js row,
+    // as a hunt-tutorial.js literal, and its title), the bag's "None yet..." (a LABEL_DATA row), "Your gold " (a piece written in a window) and the
+    // dispatch line (a text table row). The rejected group warning is red as a row; the criers' say_ rows are lore (LORE_ROWS) and quiet; a key the
+    // allowlist does not name is red in the same file; an @sentence comment shelters nothing any more; a data row's {placeholder} does not hide it.
+    const COACH_CARD = "'Open the Shop and press Sell. Sell all junk sells what is only worth gold. Your Materials stay, like fuel for the Great Hearth (it raises your Inner Flame), food you can cook and parts for your recipes and your House. Point at anything to see what it\\'s for.'";
     const HASK = "'Captain Hask is built for a group of four or more. Alone, you still fight him, and he can kill you.'";
-    const labelHits = async (file, body) => { writeFileSync(file, body); return (await scan(HERE_ROOT, { files: [file] })).findings.filter((f) => f.rule === 'label-long').length; };
-    const criersPlant = join(tmp, 'src', 'data', 'text', 'criers.js');
+    const LABEL_RULES = ['two-sentences', 'long-line', 'parenthetical', 'you-line', 'coach-card'];
+    const labelHits = async (file, body) => { mkdirSync(join(file, '..'), { recursive: true }); writeFileSync(file, body); return [...new Set((await scan(HERE_ROOT, { files: [file] })).findings.filter((f) => LABEL_RULES.includes(f.rule)).map((f) => f.rule))].sort().join(','); };
+    const at = (...p) => join(tmp, 'src', ...p);
     const lr = [
-      ['a long system row in the table', await labelHits(tablePlant, 'export const T = Object.freeze({ party_boss: ' + HASK + ' });\n'), 1],
-      ['the same row in the criers\' table (lore)', await labelHits(criersPlant, 'export const T = Object.freeze({ party_boss: ' + HASK + ' });\n'), 0],
-      ['the same row under @sentence', await labelHits(tablePlant, 'export const T = Object.freeze({\n  /* her talk (@sentence: NPC talk is lore) */\n  a: ' + HASK + ',\n  b: ' + HASK + ',\n\n  c: ' + HASK + ',\n});\n'), 1],
-      ['the same line outside the table', await labelHits(plant, 'export const a = ' + HASK + ';\n'), 0],
-      ['the same line as a refusal (src/data/refusal-words.js)', await labelHits(join(tmp, 'src', 'data', 'refusal-words.js'), 'export const W = { party_size: ' + HASK + ' };\n'), 1],
+      ['the live coach card as a coach.js row', await labelHits(at('data', 'text', 'coach.js'), 'export const C = Object.freeze({ sell_loot: ' + COACH_CARD + ' });\n'), 'coach-card,long-line,parenthetical,two-sentences,you-line'],
+      ['its title as a coach.js row', await labelHits(at('data', 'text', 'coach.js'), "export const C = Object.freeze({ sell_loot_title: 'Sell what only pays coin', sell_ok_title: 'Sell junk', sell_ok: 'Shop → Sell all junk' });\n"), 'coach-card'],
+      ['the live coach card in the tutorial', await labelHits(at('data', 'hunt-tutorial.js'), "export const H = [step('sell_loot', 'Sell junk', " + COACH_CARD + ')];\n'), 'long-line,parenthetical,two-sentences,you-line'],
+      ['the bag\'s "None yet. Your outfit is only a look."', await labelHits(at('data', 'armour-weights.js'), "const NONE_WORN = 'None yet. Your outfit is only a look.';\n"), 'two-sentences,you-line'],
+      ['the bag\'s "Your gold 500 gp" written in a window', await labelHits(at('shell', 'windows', 'inventory', 'index.js'), "text(el, 'Your gold ' + gold(st.gold));\n"), 'you-line'],
+      ['the bag\'s dispatch line as a text row', await labelHits(at('data', 'text', 'shop.js'), "export const S = Object.freeze({ dispatch_none_set: 'You haven\\'t picked Deposit or Sell for anything yet. Pick one in an item\\'s menu.' });\n"), 'long-line,two-sentences,you-line'],
+      ['a long system row in the table', await labelHits(at('data', 'text', '__label.js'), 'export const T = Object.freeze({ party_boss: ' + HASK + ' });\n'), 'long-line,two-sentences,you-line'],
+      ['the same row as a criers\' say_ row (lore)', await labelHits(at('data', 'text', 'criers.js'), 'export const T = Object.freeze({ say_boss: ' + HASK + ' });\n'), ''],
+      ['the same row in the criers\' table under a key LORE_ROWS does not name', await labelHits(at('data', 'text', 'criers.js'), 'export const T = Object.freeze({ go_boss: ' + HASK + ' });\n'), 'long-line,two-sentences,you-line'],
+      ['the same row under an @sentence comment', await labelHits(at('data', 'text', '__label.js'), 'export const T = Object.freeze({\n  /* her talk (@sentence: NPC talk is lore) */\n  a: ' + HASK + ',\n});\n'), 'long-line,two-sentences,you-line'],
+      ['the same row as a refusal', await labelHits(at('data', 'refusal-words.js'), 'export const W = { party_size: ' + HASK + ' };\n'), 'long-line,two-sentences,you-line'],
+      ['a LABEL_DATA row with a {placeholder}', await labelHits(at('data', 'live-events.js'), "export const E = { soon: 'A Bonus XP weekend starts {start}. Rest up so your stamina is full when it begins.' };\n"), 'long-line,two-sentences,you-line'],
+      ['a coach line that names no press', await labelHits(at('data', 'text', 'coach.js'), "export const C = Object.freeze({ styles: 'Every weapon is a style' });\n"), 'coach-card'],
+      ['the same line outside every home', await labelHits(join(tmp, '__label_plant.js'), 'export const a = ' + HASK + ';\n'), ''],
     ];
     for (const [what, got, want] of lr) {
-      console.log(`  ${got === want ? (want ? 'caught' : 'ignored') : want ? 'MISSED' : 'FALSE-POSITIVE'}  label-long: ${what} (${got} of ${want})`);
+      console.log(`  ${got === want ? (want ? 'caught' : 'ignored') : want ? 'MISSED' : 'FALSE-POSITIVE'}  label form: ${what} (${got || 'none'}; want ${want || 'none'})`);
       if (got !== want) bad++;
     }
-    writeFileSync(tablePlant, "export const T = Object.freeze({ a: 'Recommended: {n}+ players', b: 'Hits harder than on the ground\\n50% HP: adds attack your non-tanks\\n25% HP: hits even harder\\nEnds if anyone dies',"
-      + " c: 'Heroes at once: 1. Sign out to pick {name}', d: 'Cost: {fee} gp, win or lose\\nNo XP, coin or drops\\nTime limit: {minutes} min', e: 'Requires Level 30', f: 'Not enough gold' });\n");
-    const labelsFine = (await scan(HERE_ROOT, { files: [tablePlant] })).findings;
-    console.log(`  ${labelsFine.length ? 'FALSE-POSITIVE' : 'ignored'}  the genre labels Tyler approved${labelsFine.length ? ': ' + labelsFine.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
+    // the labels Tyler approved, an instruction with "your", a key hint, a count, a path and a media query trip no rule at all
+    writeFileSync(tablePlant, "export const T = Object.freeze({ a: 'Recommended: {n}+ players', b: 'Hits harder than on the ground\\n50% HP: adds attack non-tanks\\n25% HP: hits even harder\\nEnds if anyone dies',"
+      + " c: 'Heroes at once: 1. Sign out to pick {name}', d: 'Cost: {fee} gp, win or lose\\nNo XP, coin or drops\\nTime limit: {minutes} min', e: 'Requires Level 30', f: 'Not enough gold',"
+      + " g: 'Pick your look', h: 'Farm (J)', i: 'Selected (3)', j: '1 Plain Fire Rune ({price} g)', k: 'Shop → Sell all junk' });\n");
+    writeFileSync(join(tmp, 'src', 'shell', 'windows', '__copy_lint_media.js'), "export const m = matchMedia('(hover: none) and (pointer: coarse)');\n");
+    const labelsFine = [...(await scan(HERE_ROOT, { files: [tablePlant] })).findings, ...(await scan(HERE_ROOT, { files: [join(tmp, 'src', 'shell', 'windows', '__copy_lint_media.js')] })).findings];
+    console.log(`  ${labelsFine.length ? 'FALSE-POSITIVE' : 'ignored'}  the genre labels Tyler approved, a short instruction, a key, a count, a path, a media query${labelsFine.length ? ': ' + labelsFine.map((f) => f.rule + ' ' + f.text).join(' | ') : ''}`);
     if (labelsFine.length) bad++;
+    // THE PINS: a pinned window line is quiet, a pin shelters only its own file, a pin never shelters a text table row, and a pinned line that is gone is stale
+    const winPlant = at('shell', 'windows', '__copy_lint_pin.js');
+    writeFileSync(winPlant, "text(el, 'Your bag is full. Make room first.');\n");
+    const winPins = (await scan(HERE_ROOT, { files: [winPlant] })).findings.filter((f) => f.pin).map((f) => f.pin);
+    const winQuiet = winPins.length === 2 && !(await scan(HERE_ROOT, { files: [winPlant], labels: new Set(winPins) })).findings.some((f) => LABEL_RULES.includes(f.rule));
+    const tablePin = at('data', 'text', '__label.js');
+    writeFileSync(tablePin, "export const T = Object.freeze({ full: 'Your bag is full. Make room first.' });\n");
+    const tableHits = (await scan(HERE_ROOT, { files: [tablePin], labels: new Set(['src/data/text/__label.js#you-line#Your bag is full. Make room first.']) })).findings;
+    const noTablePin = tableHits.some((f) => f.rule === 'you-line') && !tableHits.some((f) => f.pin);
+    const staleL = (await scan(HERE_ROOT, { labels: new Set([...readLabelPins(), 'src/shell/hud.js#you-line#A line that was rewritten']), checkStale: true }))
+      .findings.some((f) => f.rule === 'stale-label-pin' && f.text.startsWith('you-line#A line that was rewritten'));
+    for (const [ok, what] of [[winQuiet, 'a pinned window line is quiet'], [noTablePin, 'a text table row is never pinned'], [staleL, 'stale-label-pin (a rewritten line\'s row left behind)']]) {
+      console.log(`  ${ok ? 'caught' : 'MISSED'}  ${what}`);
+      if (!ok) bad++;
+    }
+    // EVERY DATA HOME IS NAMED: a new src/data file with a sentence is red until it is read or named; the coach as shown is read card by card
+    const newHome = at('data', '__new_home.js');
+    writeFileSync(newHome, "export const X = { line: 'Your hero waits here. Press Go when ready.' };\n");
+    const unread = unreadHomes(tmp, [newHome]).some((f) => f.rule === 'unread-home');
+    const known = unreadHomes(HERE_ROOT).length === 0;
+    const cards = (await coachFindings(HERE_ROOT)).length === 0;
+    for (const [ok, what] of [[unread, 'unread-home: a new data file with a sentence'], [known, 'every real src/data file is read or named'], [cards, 'every card the coach shows passes the label form']]) {
+      console.log(`  ${ok ? 'caught' : 'FAILED'}  ${what}`);
+      if (!ok) bad++;
+    }
     // The voice baseline: a pinned line is quiet, a pin shelters only its own file, and a pinned line that is gone is stale-voice.
     writeFileSync(plant, "export const a = 'The server says this cannot fire now.';\n");
     const unpinned = (await scan(HERE_ROOT, { files: [plant] })).findings.find((f) => f.rule === 'server-talk');

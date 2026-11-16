@@ -69,7 +69,7 @@ function requirementWords(item, cs, counts) {
  */
 export function skillShortWords(skill, need, have, doing) {
   const name = (SKILLS_DEF[skill] && SKILLS_DEF[skill].name) || String(skill);
-  return 'You need ' + name + ' ' + need + (doing ? ' to ' + doing : '') + '.' + (Number.isInteger(have) ? ' You have ' + have + '.' : '');
+  return 'Requires ' + name + ' ' + need + (Number.isInteger(have) ? ', now ' + have : '');
 }
 
 /* Why one seat held the party's start back, after its name. */
@@ -106,13 +106,13 @@ export function refusalText(r, cs) {
   }
   /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */
   if (r && r.error === 'bad_name' && (r.reason === 'reserved' || r.reason === 'blocked')) return refusalWords('bad_name_rule');
-  if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
+  if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting, invite after the hunt';
   /* A named fuel above the hero's Inner Flame (hr_hearth_burn sends both levels): "Den Knot needs Inner Flame 3. You have 1." */
   if (r && r.error === 'flame_too_low' && Number.isInteger(r.need)) {
-    return (r.item && own(ITEMS, r.item) ? ITEMS[r.item].n : 'That fuel') + ' needs Inner Flame ' + r.need + '.' + (Number.isInteger(r.have) ? ' You have ' + r.have + '.' : '');
+    return (r.item && own(ITEMS, r.item) ? ITEMS[r.item].n : 'That fuel') + ': requires Inner Flame ' + r.need + (Number.isInteger(r.have) ? ', now ' + r.have : '');
   }
   if (r && r.error === 'hearth_busy' && Number.isInteger(r.waitS)) {
-    return 'The Great Hearth is already burning named fuels. Try again in ' + Math.max(1, Math.ceil(r.waitS / 60)) + ' min.';
+    return 'Great Hearth busy, try again in ' + Math.max(1, Math.ceil(r.waitS / 60)) + ' min';
   }
   /* A new setup past this hero's count (hr_setup_locked sends both numbers): "This hero's 3 setup slots are full. Delete one, or buy a fourth for 15,000 gp." */
   if (r && r.error === 'setup_locked' && r.figures && Number.isInteger(r.figures.slots)) {
@@ -120,7 +120,7 @@ export function refusalText(r, cs) {
   }
   /* A hero's colors past the row's cap (hr_hero_colors_set sends the number). */
   if (r && r.error === 'colors_limit' && r.figures && Number.isInteger(r.figures.per_day)) {
-    return 'A hero can change colors ' + r.figures.per_day + ' times a day. More after midnight UTC.';
+    return 'Daily limit: ' + r.figures.per_day + ' color changes. Resets at midnight UTC';
   }
   /* A title short of its kills (hr_title_buy counts them): "Wolfer takes 5,000 wolves. Marlow has 3,214. Gold can't skip kills." */
   const title = r && typeof r.title === 'string' && own(TITLES, r.title) ? TITLES[r.title] : null;
@@ -133,7 +133,7 @@ export function refusalText(r, cs) {
     return 'A Hallmark takes Crafting ' + r.figures.need + '. ' + ((cs && nameOf(cs)) || 'This hero') + ' has ' + r.figures.have + '.';
   }
   if (r && r.error === 'hallmark_limit' && r.figures && Number.isInteger(r.figures.limit)) {
-    return 'Your heroes made ' + r.figures.limit + ' Hallmarks today. More after midnight UTC.';
+    return 'Daily limit: ' + r.figures.limit + ' Hallmarks. Resets at midnight UTC';
   }
   /* A town action above the server's skill level: town-work.js names the skill, both levels and the action. */
   if (r && r.error === 'level_too_low' && r.skill && Number.isInteger(r.skill.need)) return skillShortWords(r.skill.id, r.skill.need, r.skill.have, r.skill.doing);
@@ -144,11 +144,10 @@ export function refusalText(r, cs) {
   /* A house build one material short across the bag and Storage (2027-01-10-house-from-storage.sql): the server's counts. */
   const c = r && r.error === 'insufficient_item' && r.item && own(ITEMS, r.item) ? r.counts : null;
   if (c && c.bag !== null && c.storage !== null) {
-    return 'Not enough ' + ITEMS[r.item].n + ': you have ' + whole(c.bag) + ' in your bag and ' + whole(c.storage)
-      + ' in Storage, and it takes ' + whole(c.need) + '.';
+    return 'Not enough ' + ITEMS[r.item].n + ': ' + whole(c.bag) + ' in bag, ' + whole(c.storage) + ' in Storage, need ' + whole(c.need);
   }
   /* "That many" of WHAT (blind playtest 2026-10-31): the item the server's refusal named. */
-  if (r && (r.error === 'insufficient_item' || r.error === 'bag_short') && r.item && own(ITEMS, r.item)) return 'You no longer have that many ' + ITEMS[r.item].n + '.';
+  if (r && (r.error === 'insufficient_item' || r.error === 'bag_short') && r.item && own(ITEMS, r.item)) return 'Not enough ' + ITEMS[r.item].n + ' left';
   /* The locked stack that stopped a bulk deposit (hr_bank_move_many names it): "Wolf Pelt is locked. Unlock it first." */
   if (r && r.error === 'item_locked' && r.item && own(ITEMS, r.item)) return t('item.locked_unlock_first', { item: ITEMS[r.item].n });
   return refusalWords(r && r.error, r && r.verb);

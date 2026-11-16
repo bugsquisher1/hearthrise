@@ -487,14 +487,13 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('roll_of_honor', 'Leaderboards',
     'It ranks every hero in Havora. See where you stand, and who is ahead of you.',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
-  /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
-     can kill, so it is named once with its price. The tier is that decision since 2026-11-04 (hunt-tiers.js). */
   /* THE FIRST DANGEROUS RUN (DANGER_LEVEL above): finished by its Got it or by the hero taking it (the server's tier picks and hunts: tier_taken), and the
      Hunts window records the take as its read (hunts.js), so a hero who goes back to Normal is not offered it again. */
   step(FIRST_DANGEROUS, t('coach.first_dangerous_title'), t('coach.first_dangerous', { ground: HUNT_INDEX[THICKET].name }),
     'hunt_picker', orGotIt({ kind: 'tier_taken' }), { reactive: true, knowledge: true, gotIt: true,
       when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }, { kind: 'danger_kit' }] }),
-  /* After the offer above was read or taken, the hero has heard this: it is not said twice. */
+  /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
+     can kill, so it is named once with its price. The tier is that decision since 2026-11-04 (hunt-tiers.js). Once the offer above was read or taken, it is not said twice. */
   step('pull_goal', 'How hard can you hunt?',
     'Most hunts can be Dangerous or Deadly. The monsters hit harder, more of them often come at once, and every kill earns more XP. These hunts cost more food, and they can kill you. Better armor and a higher Level let you handle them.',
     'hunt_picker', { kind: 'any', of: [READ, { kind: 'card_read', card: FIRST_DANGEROUS }, { kind: 'tier_taken' }] }, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),

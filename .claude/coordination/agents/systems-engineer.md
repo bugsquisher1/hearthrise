@@ -4783,3 +4783,10 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 5. *A non-persisted hero setting goes through syncUnit, set and delete,* like resistPm: `tkind` moves no world shape (no hr_hunt_world_shape catalogue, no world restart on deploy). makeUnit keeps only persisted fields, so heroUnit sets it after.
 6. *A viewed-path mutant needs a peer whose setting moves its blows.* A peer ranger with no ammo never swung, and a "Follow" peer naming the slime was already on the leader's slime: the frozen-row mutant escaped until the peer named the rat.
 7. *Left:* `target_kind` storage per ground (hunt_density column, setter RPC, the instance read's overlay) is lane C, then the bar's choice; the Lookout's `range` and the Pyre Priest's mend row are the designer's numbers.
+
+## 2026-11-15 lane/a-next-steps (on lane/a-audit-ui-1): the first Dangerous run, the next buy, resistance in Equip upgrades
+1. *A trait is weighed where it plays, from one place.* Banes and resistances both ask which grounds hunt at this Level (upgrade-plan.js groundsAt); a second copy of the band filter would have left the F15 mutant anchor matching twice.
+2. *Read what the engine resolves, not the row.* The plan reads `eq.resistPm` (combat.js equipmentStats, resistProfile-capped), so `physical` counts the day lane/c-krell-uniques adds the key, and the cap is never restated on the client.
+3. *A server fact that can be undone needs a sticky read.* hunt_tier.picks drops a Normal pick, so "taken" is the pick OR the running tier OR the last hunt's ended tier, and the Hunts window records a harder pick as the card's read (residue coach.read); otherwise Normal again re-offers it.
+4. *Python on Windows writes CRLF in text mode.* Two files went CRLF and every mutant anchor carrying a newline stopped matching (HARNESS, not a catch). Edit with node, or open with newline=''.
+5. *Left:* the next buy's order (gear, Tempering, dummy, room) is a Systems call the designer may re-rank; the Tollgate's fire resist counts on grounds only, never in Krell's hall (halls are not OPEN_HUNTS spawns), the same as the bane rule; `skillB` (special attributes) is still unpriced by Equip upgrades.

@@ -26,6 +26,18 @@ export const SUMMARY_TEXT = Object.freeze({
   bless_n: 'Bless {names}',
   bless_free: 'Free until Level {level}. A death costs you less with them on.',
   bless_cost: 'Costs {total}. A death costs you less with them on.',
+  /* THE NEXT BUY (src/shell/next-buy.js, lane/a-next-steps; audit 2026-11-15 F12/F20: a million gold by Level 50 and the card said nothing): the one most
+     useful thing the purse covers, a line, its Show opening where it is bought. {gains}: what the piece adds ("+1 Defense"); {pct}: the next rung's total. */
+  buy_gear: 'Buy {item} for {price}',
+  buy_gear_better: 'It adds {gains} over your {worn}.',
+  buy_gear_empty: 'Your {slot} slot is empty. This adds {gains}.',
+  buy_temper: 'Temper your {piece} for {price}',
+  buy_temper_blows: 'After it, your blows and heals land {pct} harder.',
+  buy_temper_armor: 'After it, blows reach you {pct} softer.',
+  buy_dummy: 'Unlock a skill on your training dummy for {price}',
+  buy_dummy_words: 'It trains as fast as the yard, and you pay no fee.',
+  buy_room: 'Upgrade your {room} for {price}',
+  buy_room_words: 'Next is the {rung}.',
   /* The answers. */
   selling: 'Selling…',
   depositing: 'Putting it away…',

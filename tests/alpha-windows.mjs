@@ -2371,6 +2371,88 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await phone.ctx.close();
     }
 
+    { // AW-98 THE NEXT BUY (lane/a-next-steps; audit 2026-11-15 F12/F20: gold piled up and Back in town said nothing once the bag was sorted)
+      /* The AW-78 hero with its loot sold and nothing to deposit or bless, the Shop offering a Bronze Belt for an empty belt slot: the card names that ONE buy,
+         last, its press a Show that is never gold, and the Show opens the Shop's Buy tab. On a phone the row stays inside the sheet. */
+      const sorted = (e) => {
+        e.state = Object.assign({}, e.state, { level_xp: LEVEL_5_XP });
+        e.skills = Object.assign({}, e.skills, { farming: { xp: 28, level: 1, frac: 0 } });
+        for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow', 'rat_tail', 'slime_gel', 'bronze_belt', 'leather_belt']) delete e.inventory[id];
+        e.hunt_settings = Object.assign({}, e.hunt_settings, { slots: [], bar: [] });
+        e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'gear.bronze_belt', item: 'bronze_belt', kind: 'gear', price: 110 }]) });
+      };
+      for (const [vp, tag] of [[{ width: 1440, height: 900 }, '1440x900'], [{ width: 922, height: 423 }, '922x423']]) {
+        const { ctx, page, s, errors, up } = await open({ viewport: vp, mutateEnv: sorted, residue: { coach: { read: ['bar_intro'] } } });
+        if (!up) { fails.push('AW-98 the page did not mount at ' + tag); await ctx.close(); continue; }
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await page.waitForTimeout(300);
+        const row = await page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const li = w.querySelector('.hsum-step[data-step="buy"]');
+          const b = li && li.querySelector('button');
+          const body = w.querySelector('[data-hs-body]').getBoundingClientRect(), r = li ? li.getBoundingClientRect() : null;
+          return { steps: Array.from(w.querySelectorAll('.hsum-step')).map((x) => x.getAttribute('data-step')), title: li ? li.querySelector('b').textContent : null,
+            words: li ? li.querySelector('small').textContent : null, verb: b ? b.textContent : null, gold: b ? b.classList.contains('is-primary') : null,
+            go: b ? b.getAttribute('data-hs-goto') : null, inside: !!r && r.left >= body.left - 1 && r.right <= body.right + 1 };
+        });
+        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Buy Bronze Belt for 110 gp' || row.words !== 'Your belt slot is empty. This adds +2 Defense and +8 health.'
+          || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|bronze_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
+        if (shots) await shot(page, 'alpha-' + tag + '-back-in-town-buy');
+        if (tag === '1440x900') {
+          await page.click('[data-hs-win="hunt-summary"] .hsum-step[data-step="buy"] button');
+          await wait(page, () => !!document.querySelector('[data-hs-win="shop"] [data-hs-built]'), null, 3000);
+          await page.waitForTimeout(200);
+          const shop = await page.evaluate(() => { const tb = document.querySelector('[data-hs-win="shop"] .hw-tab[aria-selected="true"]'); return tb ? tb.getAttribute('data-tab') : null; });
+          if (shop !== 'buy') fails.push('AW-98 Show opened ' + JSON.stringify(shop) + ', want the Shop on its Buy tab');
+          if (shots) await shot(page, 'alpha-1440x900-back-in-town-buy-shop');
+        }
+        if (errors.length) fails.push('AW-98 console errors at ' + tag + ': ' + errors.join(' | ').slice(0, 300));
+        await ctx.close();
+      }
+    }
+
+    { // AW-99 THE FIRST DANGEROUS RUN (lane/a-next-steps; board 2026-11-15 F5): a Level 8 hero home in a helmet and a body piece, every other card read, meets the one
+      /* offer on the real page; in Hunts its ring stands on the Thicket's line, then on that page's Dangerous press. */
+      const TUT = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href)).HUNT_TUTORIAL;
+      const L8 = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(8);
+      const dressed = (e) => {
+        e.state = Object.assign({}, e.state, { level_xp: L8, active_kind: 'idle', active_id: null });
+        e.equipment = Object.assign({}, e.equipment, { helmet: 'bronze_helm', body: 'bronze_platebody' });
+        e.hunt = Object.assign({}, e.hunt, { hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        e.hunt_tier = { picks: {}, playing: null };
+        /* one hero on the account: a second past the first hour would already know (the card is `knowledge`, and the stub answers every slot with this hero) */
+        e.hero_slots = [0];
+      };
+      const { ctx, page, errors, up } = await open({ mutateEnv: dressed, residue: { coach: { read: TUT.map((r) => r.id).filter((id) => id !== 'first_dangerous') } } });
+      if (!up) fails.push('AW-99 the page did not mount');
+      else {
+        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
+        await page.waitForTimeout(300);
+        const card = await page.evaluate(() => { const p = document.querySelector('.hs-pointer[data-tutorial]'); return p ? { id: p.getAttribute('data-tutorial'), text: (p.querySelector('.hs-coach-text') || {}).textContent || null } : null; });
+        if (!card || card.id !== 'first_dangerous' || !/^Open Hunts, pick Meadowbrook Thicket, press Dangerous, then Enter\./.test(card.text || '')) fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
+        if (shots) await shot(page, 'alpha-1440x900-first-dangerous');
+        if (!(await openWin(page, 'h', 'hunts'))) fails.push('AW-99 Hunts did not open');
+        else {
+          await page.waitForTimeout(300);
+          const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] [data-coach-ring]'))
+            .map((e) => (e.getAttribute('data-hunt') || '') + ':' + (e.getAttribute('data-tier') || '')));
+          const onLine = await ringed();
+          if (JSON.stringify(onLine) !== '["meadowbrook_thicket:"]') fails.push('AW-99 in Hunts the ring stands on ' + JSON.stringify(onLine) + ', want the Thicket\'s line');
+          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-hunts');
+          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]');
+          await page.waitForTimeout(400);
+          const onTier = await ringed();
+          if (JSON.stringify(onTier) !== '["meadowbrook_thicket:dangerous"]') fails.push('AW-99 on the Thicket\'s page the ring stands on ' + JSON.stringify(onTier) + ', want its Dangerous press');
+          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-tier');
+        }
+        if (errors.length) fails.push('AW-99 console errors: ' + errors.join(' | ').slice(0, 300));
+      }
+      await ctx.close();
+    }
+
     { // AW-5 AW-6 the locked stack and the confirmation
       const { ctx, page, s, up } = await open();
       if (up) {

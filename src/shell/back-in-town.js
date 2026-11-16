@@ -14,6 +14,8 @@
 //   bless     every Blessing not on, while the purse covers the next one: the
 //             Services tab's own Bless all (bless-all.js)
 //   again     Hunt again, the summary's own press
+//   buy       THE NEXT BUY (next-buy.js, lane/a-next-steps; audit 2026-11-15 F12/F20: gold piled up and this card went silent): the one most
+//             useful thing the purse covers, last, its Show opening where it is bought. Never the gold press: it points, it buys nothing
 // PURE except depositPlanned (the one intent helper). Every count and value is the
 // server's: the bag, the worn set, the loot plan, the shop's bids, the depot and the
 // Blessings all come from the envelope's sections; nothing here is a gate the server
@@ -24,6 +26,7 @@
 import { sellPlan, isStartKit, SELL_LINES_MAX } from './bag-model.js?v=0.2.132';
 import { upgradeWords } from './upgrade-plan.js?v=0.2.132';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.132';
+import { nextBuyOf } from './next-buy.js?v=0.2.132';
 import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.132';
 import { moveStorageMany } from '../session/storage-intents.js?v=0.2.132';
 import { itemName } from './widgets/bits.js?v=0.2.132';
@@ -45,11 +48,12 @@ function planned(bag, rules, rule) {
 /**
  * The Back in town steps from the server's sections, and which press is the gold one.
  * @param {{ plan: object|null, bag: {id:string,qty:number}[]|null, rules: {locked:Set<string>, loot:object}|null, bids: Bids|null,
- *           blessings: {tiers:{tier:number,price:number,held:boolean}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string> }} o
+ *           blessings: {tiers:{tier:number,price:number,held:boolean}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string>,
+ *           buy?: {title:string, words:string, icon:string|null, glyph?:string|null, place:object}|null }} o
  *        plan: upgradePlan's answer (upgrade-line.js upgradeOf); bids: the shop's (shopOf); purse: goldOf; did: the steps pressed on this
- *        card, each with its title as it was pressed (a done row keeps saying what it did: "Sell 17 stacks for 5,407 gp · Done")
+ *        card, each with its title as it was pressed (a done row keeps saying what it did: "Sell 17 stacks for 5,407 gp · Done"); buy: next-buy.js nextBuy's answer
  * @returns {{ steps: {id:string, title:string, words:string, verb:string, icon:string|null, done:boolean, count:number,
- *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[]}[], primary: string }}
+ *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object}[], primary: string }}
  */
 export function townSteps(o) {
   const did = (o && o.did) || new Map();
@@ -85,14 +89,17 @@ export function townSteps(o) {
   add({ id: 'bless', count: can ? missing.length : 0, title: t('summary.bless_n', { names: listWords(missing.map((x) => ROMAN[x.tier] || String(x.tier))) }),
     words: !can ? '' : cost > 0 ? t('summary.bless_cost', { total: gold(cost) }) : t('summary.bless_free', { level: b && b.freeUntil !== null ? b.freeUntil : '' }),
     verb: t('summary.bless'), icon: null, tiers: missing.map((x) => x.tier) });
-  const first = out.find((s) => !s.done);
+  /* buy: one line, last, never the gold press (its press only opens the window where it is bought) */
+  const buy = o && o.buy;
+  if (buy) out.push({ id: 'buy', count: 1, done: false, title: buy.title, words: buy.words, verb: t('controls.show'), icon: buy.icon || null, glyph: buy.glyph || null, place: buy.place });
+  const first = out.find((s) => !s.done && s.id !== 'buy');
   return { steps: out, primary: first ? first.id : 'again' };
 }
 
 /** This character's steps, from what the server sent. `did`: the steps pressed on this card (the window's scratch). */
 export function townStepsOf(cs, did) {
-  const shop = shopOf(cs);
-  return townSteps({ plan: upgradeOf(cs), bag: bagOf(cs), rules: rulesOf(cs), bids: shop ? shop.bids : null, blessings: blessingsOf(cs), purse: goldOf(cs), did });
+  const shop = shopOf(cs), plan = upgradeOf(cs);
+  return townSteps({ plan, bag: bagOf(cs), rules: rulesOf(cs), bids: shop ? shop.bids : null, blessings: blessingsOf(cs), purse: goldOf(cs), did, buy: nextBuyOf(cs, plan) });
 }
 
 /**

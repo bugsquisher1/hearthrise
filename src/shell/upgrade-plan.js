@@ -165,7 +165,7 @@ function numbersOf(worn, level, set = true, skills = null) {
   return { acc, dmg, def: num(eq.defB), steady: num(eq.steadyPm), crit: num(eq.critB) + (set && setBonus ? num(setBonus.critB) : 0),
     hp: maxHpFor(level, w.heavy), mana: maxManaFor(level, w.light), style: profile.accuracySkill, perks: jewelPerksOf(worn, ITEMS) || {}, banes: banesOf(worn), prey,
     /* the worn set's resistance as the engine resolves and caps it (absent: none), and what deals damage in range (threatsAt) */
-    resist: eq.resistPm || {}, threats: threatsAt(level) };
+    resist: /** @type {{ resistPm?: Record<string, number> }} */ (eq).resistPm || {}, threats: threatsAt(level) };
 }
 
 /* A worn armour piece, and in the bag one of its weight from a higher material tier. */
@@ -249,12 +249,12 @@ function tradeOf(slot, cur, now, fits, worn, o, set) {
   }
   const front = plain.filter((c) => !plain.some((x) => x !== c && dominates(x.after, c.after, false))).sort((a, b) => (a.id < b.id ? -1 : 1));
   if (!front.length) return null;
-  const gain = front[0].lost.some((l) => l.resist) ? (gainsOf(now, front[0].after)[0] || { text: '' }).text : null;
+  const gain = front[0].lost.some((l) => 'resist' in l) ? (gainsOf(now, front[0].after)[0] || { text: '' }).text : null;
   return { choice: front.map((c) => c.id), keeps: cur, lost: front[0].lost, ...(gain ? { gain } : {}) };
 }
 
 /* The best piece in the bag for one slot, or { choice } when two trade off (`keeps`: the worn bane or resistance a plain stronger piece would lose), or null. */
-/** @returns {{ choice?: string[], keeps?: any, lost?: any, id?: string, before?: any, after?: any }|null} */
+/** @returns {{ choice?: string[], keeps?: any, lost?: any, gain?: string, id?: string, before?: any, after?: any }|null} */
 function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
   const curIt = cur ? ITEMS[cur] : null;

@@ -905,3 +905,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A walk-through written yesterday can be stale today: the Ox Road's "can't target the Drover" was false (`widgets/first-target.js`, `targeting.js` tkind). Re-grep every "missing control" claim before ruling on it.
 - Driving the pane: coordinates from `getBoundingClientRect` scaled by 800 / innerWidth beat refs, which go stale on every repaint. A `skip` that answers `moved: 0` means the Enter never landed.
 - Two lanes on one day placed the same idea twice (Kingstooth and Widow's Fang, an Iron Sword with crit on the Sewer). A catalogue's placement map must list call-only and daily-prize rows too, or the next lane duplicates them.
+
+## 2026-11-15 lane/d-catacombs: the Pauper Vaults (Tyler's catacombs hunt)
+- Past Dawnsteel the hero stops getting armor, so the one formula grows harder with Level: the same tree read a lone tank's Normal low 73% at Carter's Rest (110) and 59% at the Vaults (165), a four's Deadly 2 deaths against 38. Grade every post-Morrow ground beside Carter's Rest before blaming its own rows.
+- drop-tables plays its own reference group on its own bar: a lone tank that lives the grade on Salted Lobster can die there. A high-Level pack names a pair in checks.dropRef.
+- A Rare row needs its pixel icon before it can exist (loot-structure). A named fuel is a Rare, so it waits on art; write the row into the pack header instead of a stand-in.
+- spell-rows: a non-boss carries exactly one spell. Design the elite's one spell first.
+- Staged maps are lint-checked (world-core, forest-cave one-choke) but not kit-checked; a pillar next to a 1-wide water edge breaks the 3x3 rule on the row above it.
+- Python's text mode on Windows writes CRLF; read and write bytes when editing repo files.

@@ -83,7 +83,7 @@ export const PACK_STATUS = Object.freeze(['staged', 'open']);
 /* A HUNT ROW'S PLACE (lane/c-faction-standing; the board's "2026-11-14 The Morrow Hills" §6). `region`: the regions in the order the road
    walks them, one per hunt row. `standingFor`: the side a ground pays standing to, on every ground of a region after Krell's and on no
    other (src/data/factions.js; catalogue-coherence.js factionGroundProblems holds the rule, the server reads hr_faction_grounds). */
-export const REGIONS = Object.freeze(['greenhaven', 'barrow_march']);
+export const REGIONS = Object.freeze(['greenhaven', 'barrow_march', 'morrow_hills']);
 export const STANDING_SIDES = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);

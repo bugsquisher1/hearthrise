@@ -202,7 +202,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     /* a training card's press opens the Training window on its Start (its own door, hr_training_start) */
     const trainAgain = !!cur.train;
     text(go, trainAgain ? t('training.card_again') : t('controls.hunt_again'));
-    prop(go, 'disabled', sc.pending || huntOpen || (!trainAgain && (!again || !route.how)));
+    prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
+    if (trainAgain) prop(go, 'disabled', sc.pending || huntOpen);
     attr(go, 'title', huntOpen ? 'A hunt is already running.' : trainAgain ? t('training.card_again_title') : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
     againWhy = huntOpen ? 'Hunt again is off. A hunt is already running.' : trainAgain ? '' : !again ? 'Hunt again is off. ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';

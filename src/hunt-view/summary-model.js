@@ -246,8 +246,9 @@ export function withSummary(list, summary) {
  */
 export function huntAgainOf(summary) {
   /* A boss room has one door, its press on the ground's page (a call's fee or a hall's key: src/data/boss-halls.js): no free way back. */
-  /* ...and training has its own door, the Training window's Start (hr_training_start): never an hr_hunt_enter */
-  if (!summary || !summary.hunt || summary.preset === null || roomOfHunt(summary.hunt) || trainedBy(summary.hunt)) return null;
+  if (!summary || !summary.hunt || summary.preset === null || roomOfHunt(summary.hunt)) return null;
+  /* ...and training has its own, the Training window's Start (hr_training_start): never an hr_hunt_enter */
+  if (trainedBy(summary.hunt)) return null;
   return {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),

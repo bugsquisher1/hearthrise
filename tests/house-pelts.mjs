@@ -208,8 +208,10 @@ const ARMS = {
     const short = home.rooms.filter((r) => r.rungs !== 5);
     if (short.length) problems.push(`rooms not at five visible rungs: ${short.map((r) => r.room + '=' + r.rungs).join(', ')}`);
     /* a Keep owner pays the Castle's price, then the Trophy Room to its top */
+    /* a held row has no price to seed: said as a problem, not thrown past the checks above */
+    const priced = async (offer) => { try { await seedPrice(db, U, offer); return true; } catch (e) { problems.push(String(e.message)); return false; } };
     for (const offer of ['property.homestead', 'property.farmstead', 'property.manor', 'property.keep', 'property.castle']) {
-      await seedPrice(db, U, offer);
+      if (!(await priced(offer))) continue;
       const v = await buy(db, U, offer);
       if (!v || v.ok !== true) problems.push(`${offer} refused: ${JSON.stringify(v).slice(0, 200)}`);
     }
@@ -217,7 +219,7 @@ const ARMS = {
     if (tier !== 5) problems.push(`the account's home is tier ${tier} after the Castle, want 5`);
     for (let n = 1; n <= 5; n++) {
       const offer = 'room.trophy.' + n;
-      await seedPrice(db, U, offer);
+      if (!(await priced(offer))) continue;
       const v = await buy(db, U, offer);
       if (!v || v.ok !== true) problems.push(`${offer} refused at the Castle: ${JSON.stringify(v).slice(0, 200)}`);
     }
@@ -402,9 +404,9 @@ const MUTANTS = {
   castle_on_scales: { arm: 'HP-3', why: 'the Castle is sold for dragon scales again, an item nothing drops',
     ddl: `update public.hr_unlock_offers set items = items || '{"dragon_scale": 4}'::jsonb where offer_id = 'property.castle'` },
   castle_held: { arm: 'HP-3', why: 'the Castle is held again: the House stops at the Keep',
-    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet' where offer_id = 'property.castle'` },
+    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'property.castle'` },
   rung5_held: { arm: 'HP-3', why: 'a fifth rung is held again: the Trophy Room stops at four',
-    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet' where offer_id = 'room.trophy.5'` },
+    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'room.trophy.5'` },
   rung_needs_dead_item: { arm: 'HP-3', why: 'a visible Trophy rung costs an item nobody can hold',
     ddl: `update public.hr_unlock_offers set items = items || '{"dragon_gem": 1}'::jsonb where offer_id = 'room.trophy.3'` },
   keep_asks_more: { arm: 'HP-1', why: 'the Keep\'s price drifts past what the hero earned',

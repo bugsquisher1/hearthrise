@@ -210,10 +210,10 @@ const BASE_RECIPES = {
     /* THE MARCH'S THREE SALTS (designer 2026-11-15, lane/d-audit-balance-2; src/data/temper.js tiers 4 to 6). Each opens at the Smithing level its
        metal does (45, 60, 75) and sits on that metal's own xp a second, never a new best. Grave Dust is the hardener: every March ground drops it
        and its one use was the Great Hearth, so a hero now chooses between Inner Flame and the smith. NO COAL in any of them, as Steel's salt
-       has none: Rune's salt takes what a Rune Bar takes less its 4 coal, and Ember's takes the raw ore, unsmelted (a bar is 4 coal; 620 salts
-       would be 2,480). */
-    {id:'mix_mithril_temper_salts', name:'Mix Mithril Tempering Salts', icon:'🧂', inputs:{mithril_bar:1, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
-    {id:'mix_rune_temper_salts', name:'Mix Rune Tempering Salts', icon:'🧂', inputs:{mithril_bar:1, magic_essence:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
+       has none (Andy's slog, board 2026-11-05; tests/temper-buy.mjs TB-MATERIAL): each takes its metal's RAW ORE, unsmelted, since a Mithril Bar
+       already eats 3 coal (smelt_mithril's secondary) and a Rune or Emberforged Bar 4; 620 salts a tier would be 1,860 to 2,480. */
+    {id:'mix_mithril_temper_salts', name:'Mix Mithril Tempering Salts', icon:'🧂', inputs:{mithril_ore:1, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
+    {id:'mix_rune_temper_salts', name:'Mix Rune Tempering Salts', icon:'🧂', inputs:{mithril_ore:1, magic_essence:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
     {id:'mix_ember_temper_salts', name:'Mix Ember Tempering Salts', icon:'🧂', inputs:{emberstone_ore:1, grave_dust:2}, output:'ember_temper_salts', xp:340, req:75, ms:6400},
     /* WHETSTONES — melee's ammo, moved here from the cut Stonemason bench
        (designer ruling, demolition 2026-10-14). xp, ms and the batch of 10 are
@@ -280,11 +280,11 @@ const BASE_RECIPES = {
        "planks and two cloaks, a one-press grind with no decisions"). From 30 to 88 Crafting made planks, one crossbow and arrows. Now each
        tempering salt of the March has a second way in: the old case-hardener's pack of charred wood and bone, at the same Crafting level as
        its metal's Smithing level, the same xp and time as the forge's row (Smithing's mix_*_temper_salts). THE DECISION: feed Tempering from the
-       forge (bars, so coal and the Mithril Rock or the Emberstone Vein) or from the workbench (planks, so the trees), by whichever skill and
-       stock the account has. Each asks a little more book than the forge's (355 against 345, 415 against 395, 345 against 245): no route is
-       free money, and the last one buys freedom from Mining 75. */
-    {id:'pack_mithril_temper_salts', name:'Pack Mithril Tempering Salts', icon:'🧂', inputs:{maple_plank:4, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
-    {id:'pack_rune_temper_salts', name:'Pack Rune Tempering Salts', icon:'🧂', inputs:{yew_plank:2, magic_essence:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
+       forge (raw ore: the Mithril Rock at Mining 60, the Emberstone Vein at 75) or from the workbench (a plank: the trees, Maple at Woodcutting
+       45), by whichever skill and stock the account has. A Level 45 hero with no Mining 60 tempers Mithril only from the workbench. Each
+       workbench row asks a little more book than the forge's (160 against 135, 230 against 185, 345 against 245): no route is free money. */
+    {id:'pack_mithril_temper_salts', name:'Pack Mithril Tempering Salts', icon:'🧂', inputs:{maple_plank:1, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
+    {id:'pack_rune_temper_salts', name:'Pack Rune Tempering Salts', icon:'🧂', inputs:{yew_plank:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
     {id:'pack_ember_temper_salts', name:'Pack Ember Tempering Salts', icon:'🧂', inputs:{runewood_plank:1, grave_dust:1}, output:'ember_temper_salts', xp:340, req:75, ms:6400},
   ],
   /* ── INNER FLAME: FUEL THE HEARTH (Tyler 2026-10-25, replacing Prayer's burying rites) ──────────────

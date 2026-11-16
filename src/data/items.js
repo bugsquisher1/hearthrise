@@ -657,9 +657,10 @@ export const ITEMS={
      fighter's way to them, and a smith's market. */
   temper_salts: {n:'Tempering Salts', icon:'🧂', v:35, tag:'temper'},
   fine_temper_salts: {n:'Fine Tempering Salts', icon:'🧂', v:60, tag:'temper'},
-  /* Tiers 4 to 6 (designer 2026-11-15, lane/d-audit-balance-2): each bids just under what its inputs bid (345, 395 and 245), as the two above do. */
-  mithril_temper_salts: {n:'Mithril Tempering Salts', icon:'🧂', v:330, tag:'temper'},
-  rune_temper_salts: {n:'Rune Tempering Salts', icon:'🧂', v:380, tag:'temper'},
+  /* Tiers 4 to 6 (designer 2026-11-15, lane/d-audit-balance-2): each bids just under what the forge's inputs bid (135, 185 and 245 of book),
+     as the two above do; the workbench's planks ask a little more (recipes.js pack_*_temper_salts). */
+  mithril_temper_salts: {n:'Mithril Tempering Salts', icon:'🧂', v:130, tag:'temper'},
+  rune_temper_salts: {n:'Rune Tempering Salts', icon:'🧂', v:180, tag:'temper'},
   ember_temper_salts: {n:'Ember Tempering Salts', icon:'🧂', v:235, tag:'temper'},
 
   /* ══════════════════════════════════════════════════════════════════

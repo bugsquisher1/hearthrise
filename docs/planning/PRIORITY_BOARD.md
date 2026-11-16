@@ -47,7 +47,7 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Carter's Rest 110 | 0 fail (four-xp 1.199 / 1.171 / 1.158, contract 0.969, Deadly Healer four 2) | not touched | 0 -> **0** |
 | The Ox Road 112 | four-xp 1.269 FAIL / 1.250 / 1.238; contract 0.910 | four-xp 1.220 / 1.201 / 1.190; contract 0.970; Deadly Healer four 3 | 1 -> **0** |
 | Wyvern Roost 125 | a lone sword's Normal low point 58.8 FAIL | not touched (the weapon line) | 1 -> 1 |
-| Pauper Vaults 165 | Deadly Healer four 11 FAIL; sword 58.7, axes 59.1 FAIL | VAULTS_GRADE | 1 -> 1 |
+| Pauper Vaults 165 | Deadly Healer four 11 FAIL; sword 58.7, axes 59.1 FAIL | Deadly Healer four 3, none 82 (the card's line true); sword 58.7, axes 59.1 FAIL (the weapon line); four-xp 1.21 / 1.18; contract 0.907 | 1 -> 1 |
 
 **Gold on Normal, a hero alone, on the guide's food** (thousands an hour, after; the floor / the middle):
 | Ground | Tank | Sword | Hammer | Axes | Bow | Crossbow | Mage | Healer |
@@ -69,7 +69,7 @@ At the middle every one of the eight cells profits (+4.7k to +31.0k). A line cle
 
 **Checks** (each exit code seen): party-tiers 0 (3 cases, 11 mutants), engine-parity 0, hunt-data 0, drop-tables 0 (75 mutants), spell-rows 0, monster-kinds 0, ground-pack 0, supplies-catalogue 0, mutant-anchors 0, guard-hygiene 0, gen-catalogues --check 0, party-class-xp-line 0 (600 party cells, 135 Party window lines at 7.5 points; `--write` re-wrote Carter's Rest's, the Ox Road's and Wyvern Roost's rows, no live ground's), hunt-floor-warning 0, balance-grade 0.
 
-**Open.** (a) The weapon line, for Tyler: the two reds and the Melee gold. (b) A thrower lands on every lone ranged hero on Normal, and the pack check can't see the gold it costs (DISCOVERIES 2026-11-16): a kits lane prices it on the grade's gold table.
+**Open.** (a) The weapon line, for Tyler: the two reds and the Melee gold. (b) The Vaults' Normal XP contract reads 0.907 at the middle (bar 0.90, 0.917 with Dunn's throw): inside, with no room; its next lane re-fits `xpFit`. (c) A thrower lands on every lone ranged hero on Normal, and the pack check can't see the gold it costs (DISCOVERIES 2026-11-16): a kits lane prices it on the grade's gold table.
 
 ### 2026-11-16 The late grounds' near-misses: Deadly is a Healer's tier past 110, the Morrow's food back to Lobster, two pay rows re-fit, the bags measured (designer, lane/d-late-nearmisses, on lane/a-grader-uniques + lane/d-party-lines): RULED, MEASURED on the full grade (`node tools/pack.mjs check <ground> --mode full --with <the other three> --uniques`, every cell played twice: before and after), one card line ADDED with its guard. Staged packs and client words only: no migration, no edge move, no live ground's numbers move
 **The merge changed the numbers first.** On the merged tree (the Mage at 110's row is in) the grader lane's grade does not reproduce: Carter's Rest's and the Ox Road's four now clear (1.20 / 1.18 / 1.17 and 1.23 / 1.20 / 1.21), the Roost's four reads LOW (1.152 / 1.12 / 1.108) and eleven party seats sit under the median lone hero (Roost 8, Carter's Rest 3; 0.935-0.995), and Swordfish no longer saves a healerless Deadly four (Carter's Rest 15, the Ox Road 18 in 16 hero-hours; bar 9). And the two lanes collide: with the grader's Swordfish at Wyvern Roost, `tests/hunt-core/party-tiers.mjs` goes red (a lone bow at the top, 142, dies 6 times in 6 h on Dangerous and a crossbow once, so "Alone, Melee and Ranger heroes die here fast" stops being true).

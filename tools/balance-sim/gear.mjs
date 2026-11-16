@@ -211,10 +211,10 @@ export async function loadGear(root) {
   const tierOf2 = (it) => Number(it && it.tier) || 1;
   /* A WEAPON'S NUMBER ON A GROUND (lane/d-weapon-line): past Dawnsteel a weapon spends one budget its own way (more accuracy, more damage,
      a critical chance, a bane), so attack plus damage no longer ranks it. On a graded ground a weapon's number is its power there at the
-     hero's Level (weapon-power.mjs), rounded to a tenth so two pieces a hair apart fall to the next key; anywhere else, or for a
+     hero's Level (weapon-power.mjs score: the mean of its pace and its safety), rounded to a tenth so two pieces a hair apart fall to the next key; anywhere else, or for a
      spellbook, the family's number as before */
   const rankOf = (it, L, gid) => {
-    if (it.slot === 'weapon' && gid && Number.isFinite(L)) { const p = WP.groundPower(it, gid, L); if (p !== null) return Math.round(p * 10); }
+    if (it.slot === 'weapon' && gid && Number.isFinite(L)) { const p = WP.score(it, gid, L); if (p !== null) return Math.round(p * 10); }
     return powerOf(it);
   };
   /* rank: tier, the family's number, an attribute that answers the ground, the ladder's own piece, the id (a total order: no tie is left to the sort) */

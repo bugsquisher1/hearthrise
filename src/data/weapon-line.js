@@ -9,17 +9,19 @@
 // A BUDGET, NOT A TEMPLATE. The line is a CEILING on a weapon's power, never a stat sheet to copy. The line's weapon at Level R
 // is the Dawnsteel weapon of its family with its attack and damage times max(1, R / 110) (`lineWeapon`). Its POWER on a ground is
 // what the engine's own rolls make of it there (src/core/combat.js playerCombatRolls: accuracy against each monster's defence,
-// the max hit, the critical chance, the weakness and the bane), averaged over the ground's spawn by the time each kill takes
-// (tools/balance-sim/weapon-power.mjs). A unique worn from R may spend that budget any way it likes (more accuracy and less max
-// hit, more max hit and less accuracy, critical hits, a bane, whatever comes next), as long as on EVERY ground from the line's
-// anchor up (every ground whose band starts at 110 or later) its power at Level R is at or under the line's there. So no piece
-// is over the line anywhere, and each piece is under it somewhere else: that is its trade, and it's why one piece doesn't win
-// every ground. tests/weapon-line.mjs measures both.
+// the max hit, the critical chance, the weakness and the bane), read two ways over the ground's spawn: PACE (weighted by how long
+// each head takes: kills an hour) and SAFETY (weighted again by what each head does to the hero meanwhile: the low point and the
+// food bill) (tools/balance-sim/weapon-power.mjs). A unique worn from R may spend that budget any way it likes (more accuracy and
+// less max hit, critical hits, a bane, whatever comes next), as long as on EVERY ground whose band starts at 110 or later, at
+// Level R, it is at or under the line's weapon on both. So no piece is over the line anywhere, and each is under it somewhere
+// else: that is its trade. And each must win somewhere: on some late ground at its Level it beats every other piece of its family a
+// hero that Level can wear, fully tempered Dawnsteel included. tests/weapon-line.mjs measures all of it.
 //
 // WHY THE WEAPON NEEDS A LINE (the board's "2026-11-16 The late grounds, cleaned up"): a Melee hero's own blow is what falls behind
-// past Dawnsteel. A lone sword at the Pauper Vaults' floor loses 92k gold an hour and its low point is 58.7 (bar 60); the what-if
-// with the Melee weapons' attack and damage x R/110 cleared both reds. Accuracy is capped at 95% against most heads, so most of a
-// weapon's power past 110 is its max hit. Accuracy buys power only against the hard-skinned heads (Keeper Dunn 55% -> 76%).
+// past Dawnsteel. A lone sword at the Pauper Vaults' floor lost 92k gold an hour and its low point was 58.7 (bar 60). Accuracy is
+// capped at 95% against most heads, so most of a weapon's power past 110 is its max hit. Accuracy buys power only against the
+// hard-skinned heads (Keeper Dunn 55% -> 76%). A bane on heads that don't hurt doesn't buy safety: measured, the Vaults' axes with
+// a bane of the Undead killed as fast as the line and bottomed out 2 points lower, because the Leech and the Night Carter hit hardest.
 //
 // EVERY FAMILY HAS THE LINE; THE SAMPLE IS MELEE. The bow, crossbow, wand and staff profit at every late floor and hold their low
 // points, so nothing here adds one. The line still caps them for the day one ships. A wand on the line keeps the Mage under 1.3
@@ -47,6 +49,11 @@ export const WEAPON_LINE_BASE = Object.freeze({
   wand: Object.freeze({ id: 'duskwood_wand', atkB: 42, strB: 45, magicAtkB: 42, magicStrB: 45 }),
   staff: Object.freeze({ id: 'duskwood_staff', atkB: 36, strB: 49, magicAtkB: 36, magicStrB: 49 }),
 });
+
+/* TEMPERED DAWNSTEEL IS THE FLOOR A UNIQUE MUST CLEAR (lane/d-temper-dawnsteel, board "2026-11-16 Tempering Dawnsteel": tier 7 tempers
+   5 rungs x 0.4%, so a fully tempered Dawnsteel weapon's blows read x1.02). A unique counts as winning somewhere only where it beats
+   that, so the line's first unique Level is where the line clears it (`node tools/balance-sim/weapon-power.mjs` prints it per family). */
+export const TEMPERED_DAWNSTEEL = 1.02;
 
 /** The fields the line scales: a weapon's attack and damage, in every style it carries them. */
 export const LINE_FIELDS = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB']);
@@ -97,18 +104,18 @@ export const WEAPON_SAMPLE = Object.freeze({
     text: 'It lands a critical hit 10% more often. A hundred years in the ossuary lime ate its edge rough, and a rough edge bites deep.',
   }),
   hoist_hooks: Object.freeze({
-    row: Object.freeze({ n: 'Hoist Hooks', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'axe', atkB: 63, strB: 47,
-      bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']), twoHanded: true, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
-    family: 'hatchets', attr: Object.freeze(['bane', 'undead']),
-    spend: 'the line\'s accuracy and less damage, paid back on the dead',
+    row: Object.freeze({ n: 'Hoist Hooks', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'axe', atkB: 76, strB: 47,
+      critB: 0.1, twoHanded: true, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
+    family: 'hatchets', attr: Object.freeze(['crit', null]),
+    spend: 'sure and keen: a fifth more accuracy than the line and a sixth less damage, and one blow in ten more lands critical, best on the hard-skinned',
     source: Object.freeze({ monster: 'night_carter', ground: 'pauper_vaults', how: 'rare', ch: 0.0031 }), use: 'worn',
-    text: 'It hits the Undead 10% harder. The Night Carters dragged the dead up the hoist shaft on these, and some of the dead didn\'t want to go.',
+    text: 'It lands a critical hit 10% more often. The Night Carters dragged the dead up the hoist shaft on these, and a hook that\'s caught doesn\'t let go.',
   }),
   dunns_mallet: Object.freeze({
-    row: Object.freeze({ n: 'Dunn\'s Mallet', icon: '🔨', v: 59400, type: 'weapon', slot: 'weapon', weaponType: 'hammer', atkB: 72, strB: 92,
+    row: Object.freeze({ n: 'Dunn\'s Mallet', icon: '🔨', v: 59400, type: 'weapon', slot: 'weapon', weaponType: 'hammer', atkB: 66, strB: 92,
       bane: Object.freeze({ class: 'construct', mult: 1.1 }), effects: Object.freeze(['bane']), twoHanded: true, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'warhammer', attr: Object.freeze(['bane', 'construct']),
-    spend: 'a hammer that lands: half again the line\'s accuracy and a tenth less damage, and the walls of bone break',
+    spend: 'a hammer that lands: a third more accuracy than the line and a tenth less damage, and the walls of bone break',
     source: Object.freeze({ monster: 'keeper_dunn', ground: 'pauper_vaults', how: 'rare', ch: 0.0093 }), use: 'worn',
     text: 'It hits Constructs 10% harder. The Keepers packed the old bones into the walls with it to make room for the new dead, and Keeper Dunn never put it down.',
   }),

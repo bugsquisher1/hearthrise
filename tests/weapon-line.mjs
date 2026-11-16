@@ -8,10 +8,10 @@
 //   WL1  THE BASE IS DAWNSTEEL: weapon-line.js WEAPON_LINE_BASE names each family's generated tier-7 weapon (the top of its
 //        GEAR_LADDERS rung), with the numbers the line scales.
 //   WL2  HIDDEN: no src/ file imports weapon-line.js, no sample id is an item, and no item (or other staged sample) has its name.
-//   WL3  NEVER OVER THE LINE: on every ground from the line's anchor up, at the piece's own Level, its power (the engine's rolls,
+//   WL3  NEVER OVER THE LINE: on every ground from the line's anchor up, at the piece's own Level, its pace and its safety (the engine's rolls,
 //        tools/balance-sim/weapon-power.mjs) is at or under the line's weapon of its family.
 //   WL4  A BUDGET, NOT A TEMPLATE: each piece wins somewhere (on some late ground, at its Level, it beats every other piece of its
-//        family a hero of that Level can wear, Dawnsteel included), and where two pieces of a family are worn from the same Level
+//        family a hero of that Level can wear, fully tempered Dawnsteel included: x1.02), and where two pieces of a family are worn from the same Level
 //        neither wins everywhere. A piece whose attack and damage are the line's own is a template, not a unique.
 //   WL5  THE ROW: everything but its own numbers is its Dawnsteel base's (type, slot, weapon kind, hands, tier); it is worn from its
 //        ground's floor; its book is the base's times the line, so it never sells under Dawnsteel.
@@ -113,7 +113,7 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
     /* WL3 */
     for (const r of P.againstLine(row, s.family, row.reqLv, G)) {
       if (r.ratio === null) out.push('WL3 ' + id + ': no power on ' + r.ground);
-      else if (r.ratio > 1 + 1e-9) out.push('WL3 ' + id + ': ' + (r.ratio * 100).toFixed(1) + '% of the line on ' + r.ground + ' at Level ' + row.reqLv + ' (power ' + r.power.toFixed(1) + ' against ' + r.line.toFixed(1) + ')');
+      else if (r.ratio > 1 + 1e-9) out.push('WL3 ' + id + ': ' + (r.ratio * 100).toFixed(1) + '% of the line on ' + r.ground + ' at Level ' + row.reqLv + ' (pace ' + r.pace.toFixed(3) + ', safety ' + r.safety.toFixed(3) + ')');
     }
     /* WL4: a template is the line's own numbers */
     const ln = line.lineWeapon(s.family, row.reqLv);
@@ -157,13 +157,14 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
     if (!/\d/.test(String(s.text).split('. ')[0])) out.push('WL8 ' + id + ': the first sentence says what the piece does, with its number');
   }
   for (const [mon, n] of perMonster) if (n > 1) out.push('WL7 ' + mon + ' gives ' + n + ' weapons, at most one a monster (loot redesign 10-23)');
-  /* WL4: each piece wins somewhere, at its own Level, against its family's pieces a hero of that Level can wear (Dawnsteel too) */
+  /* WL4: each piece wins somewhere, at its own Level, on the score (pace and safety's mean), against its family's pieces a hero of that Level
+     can wear and fully tempered Dawnsteel (line.TEMPERED_DAWNSTEEL, lane/d-temper-dawnsteel) */
   const ids = Object.keys(S).filter((id) => B[S[id].family] && ITEMS[B[S[id].family].id]);
   for (const id of ids) {
     const s = S[id], L = s.row.reqLv;
-    const rivals = ids.filter((o) => o !== id && S[o].family === s.family && S[o].row.reqLv <= L).map((o) => S[o].row).concat([ITEMS[B[s.family].id]]);
-    const wins = G.filter((g) => { const p = P.groundPower(s.row, g, L); return rivals.every((r) => p > P.groundPower(r, g, L)); });
-    if (!wins.length) out.push('WL4 ' + id + ': at Level ' + L + ' it wins on no late ground against its family (' + rivals.map((r) => r.n).join(', ') + ')');
+    const rivals = ids.filter((o) => o !== id && S[o].family === s.family && S[o].row.reqLv <= L).map((o) => [S[o].row, 1]).concat([[ITEMS[B[s.family].id], line.TEMPERED_DAWNSTEEL]]);
+    const wins = G.filter((g) => { const p = P.score(s.row, g, L); return rivals.every(([r, k]) => p > P.score(r, g, L) * k); });
+    if (!wins.length) out.push('WL4 ' + id + ': at Level ' + L + ' it wins on no late ground against its family (' + rivals.map(([r, k]) => (k > 1 ? 'tempered ' : '') + r.n).join(', ') + ')');
     const peers = ids.filter((o) => o !== id && S[o].family === s.family && S[o].row.reqLv === L);
     if (peers.length && wins.length === G.length) out.push('WL4 ' + id + ': at Level ' + L + ' it wins on every late ground over ' + peers.join(', ') + ': one piece dominates its slot');
   }
@@ -206,12 +207,14 @@ const MUTANTS = [
   ['a template: the line\'s own numbers', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 63, strB: 53, critB: 0.1 }); }],
   ['one sword wins everywhere (the other gave up too much)', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 40, strB: 36 }); }],
   ['the Roost sword under Dawnsteel even on the Roost', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.wagon_guards_sword.row, { atkB: 30, strB: 22 }); }],
+  ['tempered Dawnsteel out-hits the Roost sword (the tempering read as x1.1)', 'WL4', (L) => { L.TEMPERED_DAWNSTEEL = 1.1; }],
   ['the hooks lose a hand', 'WL5', (L) => { delete L.WEAPON_SAMPLE.hoist_hooks.row.twoHanded; }],
   ['the sword becomes a hammer', 'WL5', (L) => { L.WEAPON_SAMPLE.limewashed_sword.row.weaponType = 'hammer'; }],
   ['worn under its ground\'s floor', 'WL5', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.reqLv = 150; }],
   ['a book under the base', 'WL5', (L) => { L.WEAPON_SAMPLE.dunns_mallet.row.v = 39600; }],
   ['a second attribute', 'WL6', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.critB = 0.1; }],
-  ['the bane at 1.2', 'WL6', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.bane = { class: 'undead', mult: 1.2 }; }],
+  ['the bane at 1.2', 'WL6', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.bane = { class: 'human', mult: 1.2 }; }],
+  ['the critical chance at 0.15', 'WL6', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.critB = 0.15; }],
   ['a bane of what isn\'t there', 'WL6', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.bane = { class: 'undead', mult: 1.1 }; L.WEAPON_SAMPLE.wagon_guards_sword.attr = ['bane', 'undead']; }],
   ['a bane the card can\'t read', 'WL6', (L) => { delete L.WEAPON_SAMPLE.dunns_mallet.row.effects; }],
   ['a home that is not there', 'WL7', (L) => { L.WEAPON_SAMPLE.hoist_hooks.source.monster = 'troll_picker'; }],

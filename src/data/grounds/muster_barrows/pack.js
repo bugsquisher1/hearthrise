@@ -272,6 +272,8 @@ export default definePack({
   /* RE-MEASURED 2026-11-15 (lane/d-mage-110, the same tool and method, after cloth's smaller Magic damage and the four's cells above): a Healer and a Mage
      alone now earn less, so every mixed party reads more against them. One class: pairs 0.77-0.86 (0.83), threes 0.75-0.83 (0.78), fours 0.67-0.76
      (0.73); two of two 1.21-1.27 (1.24), three of three 1.20 and 1.22, the four 1.25. */
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the floor,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
   partyVsAlone: { 2: [-15, 25], 3: [-20, 0, 20], 4: [-25, -10, 20, 25] },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that

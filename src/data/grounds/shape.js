@@ -60,6 +60,9 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      partyClassXp, partyVsAlone   (optional) its party rows { 2: [...], 3: [...], 4: [...] } (party-class-xp.js): the pay cell when a
                same-class party would beat solo there, and the measured line the party window says (tests/party-class-xp-line.mjs)
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
+     partyTiers (optional) the harder tiers a lone Melee or Ranger hero can't hold here at any Level of the band, and a party with a Healer
+               can, measured on the real settle: ['dangerous'] or ['dangerous', 'deadly']. The Hunts page says so to a hero alone
+               (hunt-tiers.js PARTY_TIERS, hunt-list.js tierWords); tests/hunt-core/party-tiers.mjs plays the claim on every ground. Words only
      checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
                (its one-tile choke, tests/hunt-core/forest-cave.mjs), holders [monster, ...] (its room holders, no spawn weight), dropRef { roles, full } and valueToday (its measured value pin,
                tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground
@@ -87,7 +90,9 @@ export const REGIONS = Object.freeze(['greenhaven', 'barrow_march', 'morrow_hill
 export const STANDING_SIDES = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells', 'partyTiers']);
+/* the tiers a pack's partyTiers may name (hunt-tiers.js TIER_IDS less Normal, which is safe at the Level by definition) */
+const PARTY_TIER_IDS = Object.freeze(['dangerous', 'deadly']);
 const FUEL_KEYS = Object.freeze(['item', 'xp', 'req', 'flame', 'secs', 'chunk']);
 const SPELL_ROW_KEYS = Object.freeze(['n', 'shape', 'r', 'len', 'range', 'windupMs', 'cdMs', 'hitPm', 'element']);
 const posInt = (n) => Number.isInteger(n) && n > 0;
@@ -171,6 +176,8 @@ export function definePack(p) {
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');
   if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');
   for (const k of ['partyClassXp', 'partyVsAlone']) if (p[k] !== undefined && !(isObj(p[k]) && [2, 3, 4].every((n) => Array.isArray(p[k][n]) && p[k][n].length === n))) no(k + ' is not { 2: [2], 3: [3], 4: [4] }');
+  if (p.partyTiers !== undefined && !(Array.isArray(p.partyTiers) && p.partyTiers.length && p.partyTiers.every((x) => PARTY_TIER_IDS.includes(x))
+    && new Set(p.partyTiers).size === p.partyTiers.length)) no('partyTiers is not a list of ' + PARTY_TIER_IDS.join(' | ') + ', each once');
   if (p.hall !== undefined) { const why = hallWhy(p); if (why) no(why); }
   if (p.fuel !== undefined) { const why = fuelWhy(p); if (why) no(why); }
   if (p.spells !== undefined) { const why = spellsWhy(p); if (why) no(why); }

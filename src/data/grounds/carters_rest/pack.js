@@ -116,6 +116,10 @@ export default definePack({
     cellar_tally: 'The innkeeper\'s tally stick for the cellar. The Landlord can\'t read it, and he won\'t give it up',
   },
   /* THE BAG: the Hold's store food and the fire rune (Humanoid: poison does 15% more, a caster may swap). Not measured for cost. */
+  /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, the board's "Dangerous on the Morrow is a party tier"; real settle, 2 seeds
+     x 2 h, the ladder kit, the bag's store food). Deaths in the 4 h alone: at the floor (110) a hammer 84, axes 109, a tank 56, a bow 34; at the
+     top (125) a hammer 46, a tank 17, a bow 26. A Mage alone 0. With a Healer at the floor: tank + Healer 0, hammer + Healer 0, the four 0. */
+  partyTiers: ['dangerous'],
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
@@ -127,7 +131,9 @@ export default definePack({
   partyClassXp: { 2: [990, 1440], 3: [1150, 1595, 1705], 4: [1150, 2065, 2285, 2295] },
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-30, 0], 3: [-35, -10, 0], 4: [-45, 0, 10, 15] },
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the floor,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
+  partyVsAlone: { 2: [-30, -5], 3: [-40, -15, -5], 4: [-50, -5, 5, 5] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 22472 },
   map,
 });

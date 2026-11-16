@@ -4629,6 +4629,16 @@ jobs:
           node tests/faction-standing-db.mjs
           node tools/mutant-gate.mjs node tests/faction-standing-db.mjs --mutate
 
+      # WHEN THE HUNT ENDS (Tyler 2026-11-15, lane/c-hunt-itinerary): the server's copy of the choices is generated from
+      # src/data/hunt-after.js; this holds the drift and the generator's refusals. The behaviour (each choice through an automatic
+      # end on both doors, the yard's fee once, forged picks, two seats) is tests/hunt-sessions-settle.mjs ITINERARY, in its own job.
+      # Measured locally: under 2 s each.
+      - name: Hunt itinerary - the choices' catalogue (8 refusals)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-hunt-after.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-hunt-after.mjs --selftest
+
   # pg17: THE RACES PGLITE CANNOT RUN (lane/a-guard-proofs-2, 2026-11-14). PGlite is one backend, so a chain replay there
   # plays each order the locks admit one after the other and can never show that the locks admit ONLY those orders. These
   # guards replay the same chain on a real PostgreSQL 17 cluster (tools/pg-replay.mjs, production's major version), one

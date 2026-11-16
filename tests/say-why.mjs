@@ -263,6 +263,9 @@ export const REASONS = Object.freeze({
     { cond: '!tiersOf(groundOf(hunt).id).includes(want)', words: 'tierWords(r, tier, size)', where: 'a ground offers its tiers as buttons, and the note says what each does' },
     { cond: '!!now', words: 'carriedWords(carried)', where: 'a running hunt: the page says what it carries; the top bar has Leave' },
   ],
+  'src/shell/windows/hunt-after-pane.js': [
+    { cond: '!!v.now', words: "t('away.after_hunting')", where: 'When the hunt ends: while a hunt runs the control is off, and the line under it says that hunt\'s own plan and that it can be changed once the hunt is over' },
+  ],
   'src/shell/windows/hunt-detail.js': [
     { cond: 'v.partyBlock.full', words: 'v.partyBlock.why', where: 'the party block says the party\'s size' },
   ],

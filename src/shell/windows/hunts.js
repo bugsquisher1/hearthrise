@@ -70,6 +70,7 @@ import { hallFromGround } from '../../data/boss-halls.js?v=0.2.132';
 import { rowLines } from '../live-events-view.js?v=0.2.132';
 import { patchParts } from '../goto.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
+import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.132';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -330,6 +331,8 @@ function patchPage(det, ctx, sc, v) {
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
+  /* WHEN THE HUNT ENDS: each hero's own choice, a party member's too (the leader picks the hunt, never where a friend goes after it). */
+  patchAfter(det, ctx, { off: sc.pending, now: !!now });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
@@ -371,11 +374,19 @@ function patchPage(det, ctx, sc, v) {
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, el) {
+  /* When the hunt ends: the one select on the page (its change, not a click). */
+  if (action === 'after') {
+    const sc0 = scratchOf(ctx.character);
+    const again = () => renderHunts.patch(body, ctx);
+    return actAfter(ctx, action, ev, el, (send) => runIntent(sc0, again, send, t('away.saving'), () => '', ctx.character));
+  }
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const hunt = el.getAttribute('data-hunt');
   const repaint = () => renderHunts.patch(body, ctx);
+  /* To a ground's page and back: the header's Back follows the page AT ONCE (the shell's refresh paints both), not on its next display tick. */
+  const repage = () => (typeof ctx.refresh === 'function' ? ctx.refresh('hunts') : repaint());
   if (action === 'tier') {
     /* The choice moves on the press; the save waits TIER_SAVE_MS for the next press (saveTier). */
     const tiers = huntTierOf(cs);
@@ -403,10 +414,10 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     /* Another ground's page opens at its top, not where the last one was scrolled to. */
     const page = body.querySelector('.hw-hd-page');
     if (sc.pick !== hunt && page && page.scrollTop) page.scrollTop = 0;
-    sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; repaint();
+    sc.pick = hunt; sc.auto = false; sc.msg = ''; sc.paged = true; repage();
     return true;
   }
-  if (action === 'back') { sc.paged = false; repaint(); return true; }
+  if (action === 'back') { sc.paged = false; repage(); return true; }
   /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */

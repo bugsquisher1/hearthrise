@@ -38,6 +38,7 @@ import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementNam
 import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.132';
 import { glyphSvg } from '../launcher.js?v=0.2.132';
 import { foldButtonHtml } from '../widget-move.js?v=0.2.132';
+import { thenWords } from '../hunt-after.js?v=0.2.132';
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
 const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
@@ -95,6 +96,7 @@ export function renderAnalyzer(ctx) {
     + '<p class="ha-ended" role="status">Hunt ended. This is the session summary.</p>'
     + '<div class="ha-clocks"><span><small>Session</small><b data-clock="session"></b></span><span data-premium><small>Next level in</small><b data-clock="next"></b></span></div>'
     + scope
+    + '<p class="ha-then"></p>'
     + '<div class="ha-tabs" role="tablist">' + TABS.map(([id, label], i) => '<button type="button" role="tab" class="ha-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (premiumTab(id) ? ' data-premium' : '') + '>' + label + '</button>').join('') + '</div>'
     + '<div class="ha-scroll">' + SECTIONS.map(sectionHtml).join('') + '</div>'
     + '<p class="hs-note ha-more" hidden>More detail with premium.</p></div>';
@@ -190,6 +192,8 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   const crew = partyOf(ctx.character);
   cls(panel, 'is-alone', !crew || crew.members.length < 2);
   cls(panel, 'is-ended', a.ended);
+  /* WHERE THE HERO GOES NEXT (Tyler 2026-11-15, the itinerary): the running hunt's own plan, the server's (../hunt-after.js). */
+  text(panel.querySelector('.ha-then'), a.ended ? '' : thenWords(ctx.character));
   const since = ctx.character.receivedAt;
   const live = !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
   text(panel.querySelector('[data-clock="session"]'), clock(sessionClockMs(a, serverNowOf(ctx.character))));

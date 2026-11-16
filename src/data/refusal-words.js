@@ -131,6 +131,11 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     feature_off: 'Training items aren\'t open yet.',
     bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
   }),
+  /* When the hunt ends (hr_hunt_after_set): the page lists only what the server offers, so these answer a page that fell behind. */
+  hunt_after_set: Object.freeze({
+    bad_choice: 'That choice isn\'t on offer any more. Pick again.',
+    bad_skill: 'The yard doesn\'t train that skill. Pick another.',
+  }),
   house_dummy: Object.freeze({
     quote_changed: 'The price changed. Look at the new price and press Unlock again.',
     no_home: 'You need the Hearthside Homestead before you can put a dummy in.',

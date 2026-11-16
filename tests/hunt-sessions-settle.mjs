@@ -159,9 +159,22 @@
 //              (the player's settle door and its own answer).
 //   STAMINA    the pool through the database; the cap follows premium (free
 //              8 h, premium 12 h at the window); a tampered pool is refused.
-//   RESUME     an automatic end resumes the last activity after the walk home;
-//              a level-locked one leaves the character idle; so does a bench with
-//              no inputs for one action (a death, browser closed and hunt viewed).
+//   RESUME     an automatic end resumes the last activity after the walk home (gathering, as ever). A BENCH
+//              (Tyler 2026-11-15, 2027-04-24-bench-resume.sql) resumes only if it was running when the hunt
+//              started, for the count it still had to make then: the smaller of the run's count and what the
+//              bag plus Storage could make at Enter, never the hunt's loot; the engine then spends exactly
+//              that. Dry at Enter, emptied by the end, or not running at Enter: idle, and the row says why.
+//              A change of ground keeps the count. A death, browser closed and hunt viewed, the same rows.
+//   RESUME-IDEM  a second apply of 2027-04-24-bench-resume.sql is byte-identical (bodies, grants, the column).
+//   ITINERARY  when the hunt ends (Tyler 2026-11-15; 2027-04-25-hunt-itinerary.sql): the hero's choice, stored by the real
+//              verb and frozen on the hunt at Enter, is what an automatic end runs, both doors, the same rows: back to the
+//              job (a bench the client's own Stop ended a moment before Enter comes back with the count it had then, and the
+//              engine spends exactly it; one the last collect finished does not), wait in town, or train at the yard at
+//              the server's fee, once (too little gold, under the yard's Level, a hero who moved on: it waits and the hunt
+//              says why). A hunt the player leaves runs nothing. A forged choice or skill stores nothing; no price or
+//              count is ever taken; no client role reaches the start.
+//   ITINERARY-PARTY  two seats, two choices: each hunt froze its own hero's and each end ran its own.
+//   ITINERARY-IDEM  a second apply of the two 2027-04-25 itinerary files is byte-identical.
 //   DEATHXP    the death states its price; one death_xp row; bank = start +
 //              gains − price; an over-charge is refused.
 //   TALLY      tally = Σ ledger rows stamped with the session.
@@ -1578,13 +1591,15 @@ async function character(db, M, uid, o) {
   }
   if (o.premium) await db.query(`select public.hr_premium_grant($1, 0, now() + interval '30 days', 's1 probe')`, [uid]);
   if (o.lastActivity) {
-    await db.query('update public.player_state set last_activity_kind = $2, last_activity_id = $3 where user_id = $1 and slot = 0',
-      [uid, o.lastActivity.kind, o.lastActivity.id]);
+    /* `left`: a count an older hunt's start remembered (player_state.last_activity_left, 2027-04-24-bench-resume.sql). */
+    await db.query('update public.player_state set last_activity_kind = $2, last_activity_id = $3, last_activity_left = $4 where user_id = $1 and slot = 0',
+      [uid, o.lastActivity.kind, o.lastActivity.id, o.lastActivity.left ?? null]);
   }
-  /* A town activity RUNNING when the hero presses Enter (burying, fishing): the enter must stop it. */
+  /* A town activity RUNNING when the hero presses Enter (burying, fishing): the enter must stop it. `left`: a bench run's
+     count ("Make N", player_state.active_left; none = "All"). */
   if (o.running) {
-    await db.query('update public.player_state set active_kind = $2, active_id = $3, active_since = now(), accrued_to = now() where user_id = $1 and slot = 0',
-      [uid, o.running.kind, o.running.id]);
+    await db.query('update public.player_state set active_kind = $2, active_id = $3, active_left = $4, active_since = now(), accrued_to = now() where user_id = $1 and slot = 0',
+      [uid, o.running.kind, o.running.id, o.running.left ?? null]);
   }
 }
 
@@ -2964,22 +2979,57 @@ const DB_ARMS = {
     const st = await one(db, 'select active_kind from public.player_state where user_id = $1 and slot = 0', [UID]);
     if (!b.sid || st === 'artisan') problems.push(`Enter left the hero burying (${st})`);
     if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'fuel_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
-    /* A DRY BENCH IS NOT RESUMED (tutorial board row 10, 2027-01-20-tutorial-facts.sql): the hero cooked until its shrimp
-       ran out, hunted and died, and came home "working on Cook Shrimp" with 0 Raw Shrimp. BOTH PATHS, the same rows: the
-       browser closed (the tick's door) and the hunt viewed (the player's door).
-       A STOCKED BENCH IS NOT RESUMED EITHER (2027-02-15-panel-truth.sql; the panel 2026-11-01: one "Fuel all 15" before an
-       11 h hunt burned its 1,954 Bones in town after the stamina end, unasked): a resume has no count, and a bench
-       spends what the player owns. Gathering, above, spends nothing and resumes. */
+    /* A BENCH RESUMES FOR THE COUNT IT HAD LEFT WHEN THE HUNT STARTED (Tyler 2026-11-15, "Yes, resume them";
+       2027-04-24-bench-resume.sql). It replaces his 2026-10-31 "bench jobs dont" (2027-02-15-panel-truth.sql §2: no bench
+       resumed, because a resume had no count and one "Fuel all 15" before an 11 h hunt burned that hunt's 1,954 Bones).
+       Now Enter remembers the count: the smaller of the run's own ("Make N"; none on "All") and what the bag plus Storage
+       could make then. Only a bench that was RUNNING at Enter resumes, for exactly that count, so never the hunt's loot.
+       Dry at Enter, emptied by the end, or not running at Enter (a stale count from an older hunt included): idle, and the
+       journal says why. The engine then spends exactly the count (the stop settles the run first, set-activity.js).
+       BOTH PATHS, the same rows: the browser closed (the tick's door) and the hunt viewed (the player's door). */
     const need = await one(db, `select public.hr_bench_inputs() -> 'cook_shrimp'`);
-    if (!need || !Object.keys(need).length) return [...problems, 'CONTROL: hr_bench_inputs() names no input for cook_shrimp'];
+    if (!need || Object.keys(need).length !== 1) return [...problems, 'CONTROL: hr_bench_inputs() does not name one input for cook_shrimp'];
+    const IN = Object.keys(need)[0]; const NEED = Number(need[IN]);
+    const BENCH = { kind: 'artisan', id: 'cook_shrimp' };
+    const stock = async () => Number(await one(db, `select (coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)
+                                                        + coalesce((select qty from public.account_bank where user_id = $1 and item_id = $2), 0))::text`, [UID, IN]));
+    /* `count`: the run's own ("All" = none); `bag` / `storage`: actions of stock at Enter; `loot`: actions landed in the bag
+       during the hunt; `spent`: the stock is gone by the end; `enter`: the count Enter must remember; `want`: the count the
+       end must resume with (none: idle, with `why`). */
+    const CASES = [
+      { tag: 'a counted run, stocked', count: 7, bag: 20, enter: 7, want: 7, swap: true },
+      { tag: 'All, and the hunt looted more', count: null, bag: 3, storage: 2, loot: 50, enter: 5, want: 5 },
+      { tag: 'a count past the stock', count: 30, bag: 4, loot: 50, enter: 4, want: 4 },
+      { tag: 'dry at Enter, the hunt looted some', count: null, bag: 0, loot: 50, enter: null, want: null, why: 'no_count' },
+      { tag: 'stocked at Enter, gone by the end', count: 5, bag: 5, spent: true, enter: 5, want: null, why: 'dry' },
+      { tag: 'not running at Enter, a full bag and an old count', idle: true, stale: 9, bag: 20, enter: null, want: null, why: 'no_count' },
+    ];
     const doors = { closed: (sid) => ({ mode: 'tick', session: sid }), viewed: () => ({ mode: 'settle', bucket: null, project: true, live: true }) };
+    const wrote = {};
     for (const [path, door] of Object.entries(doors)) {
-      for (const stocked of [false, true]) {
+      for (const c of CASES) {
         await db.query('rollback'); await db.query('begin');
-        const h = await hunter(db, M, { ...DOOMED, lastActivity: { kind: 'artisan', id: 'cook_shrimp' } });
-        await db.query('delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = any($2::text[])', [UID, Object.keys(need)]);
-        for (const [item, qty] of Object.entries(stocked ? need : {})) {
-          await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3)', [UID, item, qty]);
+        const tag = `${path}, ${c.tag}`;
+        const h = await hunter(db, M, { ...DOOMED, inv: c.bag ? { [IN]: c.bag * NEED } : {},
+          ...(c.idle ? { lastActivity: { ...BENCH, left: c.stale } } : { running: { ...BENCH, left: c.count } }),
+          beforeEnter: async () => {
+            if (c.storage) await db.query('insert into public.account_bank (user_id, item_id, qty) values ($1, $2, $3)', [UID, IN, c.storage * NEED]);
+          } });
+        const atEnter = await one(db, 'select last_activity_left from public.player_state where user_id = $1 and slot = 0', [UID]);
+        if ((atEnter ?? null) !== c.enter) problems.push(`${tag}: Enter remembered ${atEnter} left, not ${c.enter}`);
+        if (c.swap) {
+          /* a change of ground keeps what the hunt's START remembered: hr_hunt_swap's own pointer write, hunt to hunt */
+          await db.query(`select public.hr_hunt_point($1::uuid, 0, 'mill_cellar')`, [UID]);
+          const kept = await one(db, 'select last_activity_left from public.player_state where user_id = $1 and slot = 0', [UID]);
+          if ((kept ?? null) !== c.enter) problems.push(`${tag}: a change of ground left ${kept} remembered, not ${c.enter}`);
+        }
+        if (c.loot) {
+          await db.query(`insert into public.player_inventory as pi (user_id, slot, item_id, qty) values ($1, 0, $2, $3)
+                          on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty`, [UID, IN, c.loot * NEED]);
+        }
+        if (c.spent) {
+          await db.query('delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2', [UID, IN]);
+          await db.query('delete from public.account_bank where user_id = $1 and item_id = $2', [UID, IN]);
         }
         const exec = makeExec(db);
         for (const t of ticksOf(90000, SPAN_MS)(h.from)) {
@@ -2987,15 +3037,338 @@ const DB_ARMS = {
           if (!r || r.outcome !== 'paid' || await one(db, 'select ended_at is not null from public.hunt_sessions where id = $1', [h.sid])) break;
         }
         const s = await snapshot(db, h.sid);
-        const res = await one(db, `select meta from public.player_ledger where session_id = $1 and intent = 'resume'`, [h.sid]);
-        const tag = `${path}, ${stocked ? 'one action stocked' : 'dry'}`;
         if (s.session.end_reason !== 'died') { problems.push(`${tag}: CONTROL: the doomed hero's hunt ended ${s.session.end_reason}`); continue; }
-        if (s.active !== 'idle:') problems.push(`${tag}: the death left the hero ${s.active}, not idle`);
-        if (!res || res.resumed !== false || res.id !== 'cook_shrimp') problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}`);
+        const res = await one(db, `select meta from public.player_ledger where session_id = $1 and intent = 'resume'`, [h.sid]);
+        const left = await one(db, 'select active_left from public.player_state where user_id = $1 and slot = 0', [UID]);
+        const ended = (s.events || []).find((e) => e[0] === 'ended');
+        const ev = ended && ended[2] ? ended[2].resume : undefined;
+        wrote[c.tag] = { ...wrote[c.tag], [path]: JSON.stringify([s.active, left ?? null, res && { ...res, at: null }, ev && { ...ev, at: null }]) };
+        if (c.want === null) {
+          if (s.active !== 'idle:') problems.push(`${tag}: the death left the hero ${s.active}, not idle`);
+          if (!res || res.resumed !== false || res.id !== 'cook_shrimp' || res.why !== c.why || 'left' in res) problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}, wanted a refusal saying ${c.why}`);
+          if (ev !== null) problems.push(`${tag}: the ended event's resume is ${JSON.stringify(ev)}, not null`);
+          continue;
+        }
+        if (s.active !== 'artisan:cook_shrimp' || left !== c.want) problems.push(`${tag}: the death left the hero ${s.active} with ${left} left, not cooking with ${c.want}`);
+        if (!res || res.resumed !== true || res.id !== 'cook_shrimp' || res.left !== c.want || 'why' in res) problems.push(`${tag}: the resume journalled ${JSON.stringify(res)}, wanted ${c.want} left`);
+        if (!ev || ev.kind !== 'artisan' || ev.id !== 'cook_shrimp' || ev.left !== c.want) problems.push(`${tag}: the ended event's resume is ${JSON.stringify(ev)}`);
+        /* what the engine reads the run's count from (envelope.js activeLeft) */
+        const shown = (await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]))?.bench_run?.left ?? null;
+        if (shown !== c.want) problems.push(`${tag}: the bench_run section says ${shown} left, not ${c.want}`);
+        /* THE ENGINE SPENDS EXACTLY THAT: the hero came home minutes ago; stopping the bench settles its run first. */
+        const before = await stock();
+        await db.query('delete from public.hr_rate_counters');
+        const stop = await M.SA.runSetActivity({ exec, user: UID, slot: 0, intentId: idem(), activity: { kind: 'idle' } });
+        const used = before - await stock();
+        const after = await one(db, `select active_kind || ':' || coalesce(active_left::text, '') from public.player_state where user_id = $1 and slot = 0`, [UID]);
+        if (!stop || stop.status !== 200) problems.push(`${tag}: stopping the resumed bench answered ${stop && stop.status} ${JSON.stringify(stop && stop.body).slice(0, 240)}`);
+        else if (used !== c.want * NEED) problems.push(`${tag}: the resumed bench spent ${used} ${IN} of the ${before} held, not the ${c.want * NEED} it had left at Enter`);
+        if (after !== 'idle:') problems.push(`${tag}: the stopped bench reads ${after}, not idle with no count`);
+      }
+    }
+    for (const c of CASES) {
+      const w = wrote[c.tag] || {};
+      if (w.closed !== w.viewed) problems.push(`${c.tag}: the two doors wrote different rows: closed ${w.closed} / viewed ${w.viewed}`);
+    }
+    return problems;
+  }),
+  /* A SECOND APPLY OF 2027-04-24-bench-resume.sql IS BYTE-IDENTICAL: its §0 accepts its own post-images, its one anchored
+     edit of hr_hunt_apply_member is skipped on its marker, the column and its range are already there. Judged AS OF the
+     file (PARTY-LEAVE-IDEM's move): the chain is booted TO it and carries over from `main` every body no LATER file authors. */
+  'RESUME-IDEM': async (main) => {
+    const FILE = '2027-04-24-bench-resume.sql';
+    const SIGS = [AM, HR, RP, AL, BM, LN, 'public.hr_resume_has_inputs(uuid,integer,text,text)'];
+    const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const later = order.slice(order.indexOf(FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
+    const authoredLater = (sig) => {
+      const fn = sig.slice('public.'.length, sig.indexOf('('));
+      const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(|pg_get_functiondef\\(\\s*\'(?:public\\.)?' + fn + '\\(', 'i');
+      return later.some((t) => re.test(t));
+    };
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: FILE });
+    try {
+      return await inTx(db, async () => {
+        for (const sig of SIGS) {
+          if (authoredLater(sig)) continue;
+          await db.exec(String(await one(main, 'select pg_get_functiondef($1::regprocedure)', [sig])));
+        }
+        if (AS_OF_PLANT) {
+          const d = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [AS_OF_PLANT.fn])).split(String.fromCharCode(13)).join('');
+          if (d.split(AS_OF_PLANT.find).length !== 2) { AS_OF_PLANT.missed = true; return ['HARNESS: the plant\'s anchor is not in the body as of the file']; }
+          await db.exec(d.replace(AS_OF_PLANT.find, () => AS_OF_PLANT.replace));
+        }
+        const shape = async () => JSON.stringify({
+          bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
+          column: await q(db, `select data_type, is_nullable, column_default from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'last_activity_left'`),
+          range: await q(db, `select conname, pg_get_constraintdef(oid) as def from pg_constraint where conrelid = 'public.player_state'::regclass and conname = 'player_state_last_activity_left_range'`),
+          trigger: await q(db, `select pg_get_triggerdef(oid) as def, tgenabled from pg_trigger where tgrelid = 'public.player_state'::regclass and tgname = 'hr_last_activity_note'`),
+        });
+        const before = await shape();
+        if (!before.includes('"data_type":"integer"') || !before.includes('player_state_last_activity_left_range')) return [`CONTROL: the replayed chain carries no count column: ${before.slice(0, 300)}`];
+        const sql = readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
+        try { await db.exec(sql); } catch (e) { return [`the second apply RAISED: ${String(e.message).split('\n')[0]}`]; }
+        const after = await shape();
+        return after === before ? [] : [`the second apply moved ${firstDiff(before, after)}`];
+      });
+    } finally { await db.close?.(); }
+  },
+  /* WHEN THE HUNT ENDS (Tyler 2026-11-15: "an itinerary of sorts where a player picks a hunt and picks what they want to do
+     when the hunt finishes"; 2027-04-25-hunt-itinerary.sql). The hero's choice is stored by the real verb, frozen on the hunt at
+     Enter and run when the hunt ends on its own: back to the job (the default), wait in town, or train a skill at the yard at
+     the SERVER's price, once. Each choice through a death on BOTH PATHS, the same rows: the browser closed (the tick's door)
+     and the hunt viewed (the player's door); the training start is the minute's sweep either way.
+     THE REAL STOP: the client ends a hero's job a moment before Enter (set_activity idle, the edge's own code here), so the
+     bench cases stop it that way: the count the run had at that Stop is what comes back, and the engine spends exactly it.
+     A run the engine itself finished in that last collect is not picked up. */
+  ITINERARY: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const need = await one(db, `select public.hr_bench_inputs() -> 'cook_shrimp'`);
+    if (!need || Object.keys(need).length !== 1) return ['CONTROL: hr_bench_inputs() does not name one input for cook_shrimp'];
+    const IN = Object.keys(need)[0]; const NEED = Number(need[IN]);
+    const exec = makeExec(db);
+    const stock = async () => Number(await one(db, `select (coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)
+                                                        + coalesce((select qty from public.account_bank where user_id = $1 and item_id = $2), 0))::text`, [UID, IN]));
+    const pick = async (uid, choice, skill) => {
+      await asUser(db, uid);
+      await db.query('delete from public.hr_rate_counters');
+      const r = await one(db, 'select public.hr_hunt_after_set(0, $1, $2, $3::uuid)', [choice, skill, idem()]);
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+      return r;
+    };
+    const sweep = async () => { await db.query('delete from public.hr_rate_counters'); return Number(await one(db, 'select public.hr_hunt_after_sweep(50)')); };
+    const fee = async (skill) => Number(await one(db, `select public.hr_training_fee(public.hr_skill_level($2, coalesce((select xp from public.player_skills
+        where user_id = $1 and slot = 0 and skill_id = $2), 0)))::text`, [UID, skill]));
+    /* The yard takes a hero from Level 10 (hr_training_rules.min_level); this one still dies on the ghoul ground, and the death's
+       share leaves it over the gate. */
+    const TEN = { ...DOOMED, level: 12 };
+    /* `stop`: the bench run the hero is on, ended by the client's own Stop before Enter (`count`, `ago` minutes of unpaid work
+       for that last collect). `pick`: [choice, skill] sent through the verb (none: never picked). `want`: what came of the
+       hunt's choice. */
+    const CASES = [
+      { tag: 'never picked, the bench stopped for the hunt', hero: { ...DOOMED, inv: { [IN]: 20 * NEED } }, stop: { count: 7 }, loot: 50,
+        want: { choice: 'job', state: 'resumed', active: 'artisan:cook_shrimp', left: 7 } },
+      { tag: 'never picked, the last collect finished the run', hero: { ...DOOMED, inv: { [IN]: 20 * NEED } }, stop: { count: 2, ago: 30 }, loot: 50,
+        want: { choice: 'job', state: 'waited', why: 'no_count', active: 'idle:' }, once: true },
+      { tag: 'never picked, gathering', hero: { ...DOOMED, lastActivity: { kind: 'gather', id: 'shrimp_s' } },
+        want: { choice: 'job', state: 'resumed', active: 'gather:shrimp_s' } },
+      { tag: 'wait in town', hero: { ...DOOMED, lastActivity: { kind: 'gather', id: 'shrimp_s' } }, pick: ['wait', null],
+        want: { choice: 'wait', state: 'waited', why: 'chose_wait', active: 'idle:' } },
+      /* this hero has a gathering job too: the choice is the yard, so the job is not what it goes back to */
+      { tag: 'train, gold for the hour', hero: { ...TEN, gold: 5000, lastActivity: { kind: 'gather', id: 'shrimp_s' } }, pick: ['train', 'melee'],
+        want: { choice: 'train', skill: 'melee', state: 'started', active: 'combat:training_yard_melee' } },
+      { tag: 'train, too little gold', hero: { ...TEN, gold: 0 }, pick: ['train', 'melee'],
+        want: { choice: 'train', skill: 'melee', state: 'waited', why: 'insufficient_gold', active: 'idle:' } },
+      { tag: 'train, under the yard\'s Level', hero: { ...DOOMED, gold: 5000 }, pick: ['train', 'melee'],
+        want: { choice: 'train', skill: 'melee', state: 'waited', why: 'low_level', active: 'idle:' }, once: true },
+      { tag: 'train, but the player started a job first', hero: { ...TEN, gold: 5000 }, pick: ['train', 'melee'], moved: true,
+        want: { choice: 'train', skill: 'melee', state: 'waited', why: 'moved_on', active: 'gather:shrimp_s' }, once: true },
+    ];
+    const doors = { closed: (sid) => ({ mode: 'tick', session: sid }), viewed: () => ({ mode: 'settle', bucket: null, project: true, live: true }) };
+    const wrote = {};
+    for (const [path, door] of Object.entries(doors)) {
+      for (const c of CASES) {
+        if (c.once && path !== 'closed') continue;
+        await db.query('rollback'); await db.query('begin');
+        const tag = `${path}, ${c.tag}`;
+        let shown = null;
+        const h = await hunter(db, M, { ...c.hero, ...(c.stop ? { running: { kind: 'artisan', id: 'cook_shrimp', left: c.stop.count } } : {}),
+          beforeEnter: async () => {
+            if (c.pick) { const r = await pick(UID, c.pick[0], c.pick[1]); if (!r || r.ok !== true) throw new Error(`${tag}: the pick answered ${JSON.stringify(r)}`); }
+            if (!c.stop) return;
+            if (c.stop.ago) await db.query(`update public.player_state set active_since = now() - make_interval(mins => $2), accrued_to = now() - make_interval(mins => $2) where user_id = $1 and slot = 0`, [UID, c.stop.ago]);
+            /* what the hunt's page shows for "back to the job" while the bench still runs */
+            shown = (await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]))?.hunt_after?.job ?? null;
+            /* THE CLIENT'S STOP BEFORE ENTER (src/session/party-intents.js settleTownActivity): the edge's own set_activity */
+            await db.query('delete from public.hr_rate_counters');
+            const stop = await M.SA.runSetActivity({ exec, user: UID, slot: 0, intentId: idem(), activity: { kind: 'idle' } });
+            if (!stop || stop.status !== 200) throw new Error(`${tag}: the stop before Enter answered ${stop && stop.status} ${JSON.stringify(stop && stop.body).slice(0, 200)}`);
+          } });
+        if (c.stop && !c.stop.ago && (!shown || shown.kind !== 'artisan' || shown.id !== 'cook_shrimp' || shown.left !== c.stop.count)) {
+          problems.push(`${tag}: the page's job before Enter was ${JSON.stringify(shown)}, not cook_shrimp with ${c.stop.count} left`);
+        }
+        const frozen = await one(db, `select jsonb_build_object('choice', after_choice, 'skill', after_skill) from public.hunt_sessions where id = $1`, [h.sid]);
+        if (!frozen || frozen.choice !== c.want.choice || (frozen.skill ?? null) !== (c.want.skill ?? null)) problems.push(`${tag}: the hunt froze ${JSON.stringify(frozen)}`);
+        /* a pick made after Enter is the NEXT hunt's: this one keeps its own */
+        const later = await pick(UID, c.want.choice === 'wait' ? 'job' : 'wait', null);
+        if (!later || later.ok !== true) problems.push(`${tag}: a pick during the hunt answered ${JSON.stringify(later)}`);
+        if (c.loot) {
+          await db.query(`insert into public.player_inventory as pi (user_id, slot, item_id, qty) values ($1, 0, $2, $3)
+                          on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty`, [UID, IN, c.loot * NEED]);
+        }
+        for (const t of ticksOf(90000, SPAN_MS)(h.from)) {
+          const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door(h.sid) });
+          if (!r || r.outcome !== 'paid' || await one(db, 'select ended_at is not null from public.hunt_sessions where id = $1', [h.sid])) break;
+        }
+        const s0 = await snapshot(db, h.sid);
+        if (s0.session.end_reason !== 'died') { problems.push(`${tag}: CONTROL: the doomed hero's hunt ended ${s0.session.end_reason}`); continue; }
+        const gold0 = Number(s0.gold);
+        /* the player came back before the minute's sweep and put the hero on a job: that is their choice now */
+        if (c.moved) await db.query(`update public.player_state set active_kind = 'gather', active_id = 'shrimp_s', active_since = now(), accrued_to = now() where user_id = $1 and slot = 0`, [UID]);
+        const ran = await sweep();
+        const s = await snapshot(db, h.sid);
+        const done = await one(db, 'select after_done from public.hunt_sessions where id = $1', [h.sid]);
+        const left = await one(db, 'select active_left from public.player_state where user_id = $1 and slot = 0', [UID]);
+        const rows = await one(db, `select jsonb_agg(jsonb_build_object('kind', l.kind, 'intent', regexp_replace(l.intent, ':[0-9]+$', ''), 'gold', l.gold,
+                                              'meta', l.meta - 'at' - 'session' - 'hunt_session') order by l.id)
+                                      from public.player_ledger l where l.user_id = $1
+                                       and (l.intent in ('resume', 'after_hunt') or l.intent like 'training_start:%')`, [UID]);
+        wrote[c.tag] = { ...wrote[c.tag], [path]: JSON.stringify([s.active, left ?? null, done && { ...done, at: null, session: null }, rows]) };
+        if (!done || done.state !== c.want.state || (done.why ?? null) !== (c.want.why ?? null)) problems.push(`${tag}: the hunt's choice came to ${JSON.stringify(done)}, wanted ${c.want.state}${c.want.why ? ' / ' + c.want.why : ''}`);
+        if (s.active !== c.want.active) problems.push(`${tag}: the hero is ${s.active}, not ${c.want.active}`);
+        if (ran !== (c.want.choice === 'train' ? 1 : 0)) problems.push(`${tag}: the sweep ran ${ran} hunt(s)`);
+        if (c.want.left != null && left !== c.want.left) problems.push(`${tag}: the bench came back with ${left} left, not the ${c.want.left} it had at the Stop`);
+        if (c.want.state === 'started') {
+          const f = await fee('melee');
+          if (!(f > 0) || done.fee !== f || Number(s.gold) !== gold0 - f) problems.push(`${tag}: the start charged ${done.fee} (purse ${gold0} -> ${s.gold}), not the server's ${f}`);
+          const fees = (rows || []).filter((r) => r.intent === 'training_start:training_yard_melee');
+          const outs = (rows || []).filter((r) => r.intent === 'after_hunt');
+          if (fees.length !== 1 || Number(fees[0].gold) !== -f || outs.length !== 1) problems.push(`${tag}: the fee and the plan's outcome are not journalled once each: ${JSON.stringify(rows)}`);
+          /* once: a second sweep, and the start asked again, charge nothing and open nothing */
+          const again = await sweep();
+          const twice = await one(db, 'select public.hr_hunt_after_start($1::uuid)', [h.sid]);
+          const g2 = Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)::text', [UID]));
+          if (again !== 0 || twice !== null || g2 !== gold0 - f) problems.push(`${tag}: a second sweep ran ${again}, a second start answered ${JSON.stringify(twice)}, the purse is ${g2}`);
+          /* the training session never trains again unasked: its own frozen choice is not a training one */
+          const t = await one(db, `select jsonb_build_object('choice', h.after_choice, 'hours', h.hours_limit) from public.hunt_sessions h where h.user_id = $1 and h.slot = 0 and h.ended_at is null`, [UID]);
+          if (!t || t.choice === 'train' || t.hours !== 1) problems.push(`${tag}: the training session opened as ${JSON.stringify(t)}`);
+        } else if (Number(s.gold) !== gold0) {
+          problems.push(`${tag}: gold moved (${gold0} -> ${s.gold}) with nothing started`);
+        }
+        if (c.want.why === 'insufficient_gold' && (!(done.fee > 0) || done.purse !== 0)) problems.push(`${tag}: the refusal does not say the fee and the purse: ${JSON.stringify(done)}`);
+        if (c.want.why === 'low_level' && !(done.need > 0)) problems.push(`${tag}: the refusal does not say the Level the yard needs: ${JSON.stringify(done)}`);
+        if (c.want.left != null) {
+          /* THE ENGINE SPENDS EXACTLY THE COUNT: stopping the resumed bench settles its run first */
+          const before = await stock();
+          await db.query('delete from public.hr_rate_counters');
+          const stop = await M.SA.runSetActivity({ exec, user: UID, slot: 0, intentId: idem(), activity: { kind: 'idle' } });
+          const used = before - await stock();
+          if (!stop || stop.status !== 200) problems.push(`${tag}: stopping the resumed bench answered ${stop && stop.status}`);
+          else if (used !== c.want.left * NEED) problems.push(`${tag}: the resumed bench spent ${used} ${IN} of the ${before} held, not the ${c.want.left * NEED} it had left`);
+        }
+      }
+    }
+    for (const c of CASES) {
+      const w = wrote[c.tag] || {};
+      if (!c.once && w.closed !== w.viewed) problems.push(`${c.tag}: the two doors wrote different rows: closed ${w.closed} / viewed ${w.viewed}`);
+    }
+    /* A HUNT THE PLAYER LEAVES WAITS IN TOWN, whatever was picked: nothing is resumed, nothing is pending, no gold moves. */
+    await db.query('rollback'); await db.query('begin');
+    {
+      const h = await hunter(db, M, { ...STRONG, lastActivity: { kind: 'gather', id: 'shrimp_s' },
+        beforeEnter: async () => { const r = await pick(UID, 'train', 'melee'); if (!r || r.ok !== true) throw new Error('the pick answered ' + JSON.stringify(r)); } });
+      await run(db, M, h.from, () => [h.from + 60000]);
+      const g0 = Number((await snapshot(db, h.sid)).gold);
+      /* the player leaves a minute in, on the hunt's own clock (the fixture's hunt began 25 minutes ago) */
+      await db.query(`select set_config('hr.test_now', $1, true)`, [new Date(h.from + 61000).toISOString()]);
+      await asUser(db, UID);
+      const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+      await db.query(`select set_config('request.jwt.claim.sub', '', true), set_config('hr.test_now', '', true)`);
+      await run(db, M, h.from, () => [h.from + SPAN_MS]);
+      const ran = await sweep();
+      const s = await snapshot(db, h.sid);
+      const done = await one(db, 'select after_done from public.hunt_sessions where id = $1', [h.sid]);
+      if (!lv || lv.ok !== true || s.session.end_reason !== 'left') problems.push(`left: CONTROL: the leave answered ${JSON.stringify(lv)} and the hunt ended ${s.session.end_reason}`);
+      else if (s.active !== 'idle:' || done !== null || ran !== 0) problems.push(`left: a hunt the player left ran its choice: ${s.active}, ${JSON.stringify(done)}, sweep ${ran}`);
+      if (await one(db, `select count(*)::int from public.player_ledger where user_id = $1 and (intent = 'after_hunt' or intent like 'training_start:%')`, [UID])) problems.push('left: a training row was journalled for a hunt the player left');
+      void g0;
+    }
+    /* A FORGED CHOICE, SKILL OR PRICE: the verb names catalogue rows and nothing else, and no client role reaches the start. */
+    await db.query('rollback'); await db.query('begin');
+    {
+      await hunter(db, M, { ...STRONG });
+      for (const [choice, skill, want] of [['nap', null, 'bad_choice'], ['train', null, 'bad_skill'], ['train', 'cooking', 'bad_skill'], ['train', 'melee; drop', 'bad_skill'],
+        ['wait', 'melee', 'bad_skill'], ['job', 'melee', 'bad_skill'], [null, null, 'bad_choice']]) {
+        const r = await pick(UID, choice, skill);
+        if (!r || r.error !== want) problems.push(`forged: ${choice} / ${skill} answered ${JSON.stringify(r)}, wanted ${want}`);
+      }
+      const stored = await one(db, `select jsonb_build_object('c', after_choice, 's', after_skill) from public.player_state where user_id = $1 and slot = 0`, [UID]);
+      if (stored.c !== null || stored.s !== null) problems.push(`forged: a refused pick was stored: ${JSON.stringify(stored)}`);
+      const args = await one(db, `select pg_get_function_identity_arguments('public.hr_hunt_after_set(integer,text,text,uuid)'::regprocedure)`);
+      if (args !== 'p_slot integer, p_choice text, p_skill text, p_idem uuid') problems.push(`forged: the verb takes ${args}: a price or a count has no place in it`);
+      for (const sig of ['public.hr_hunt_after_start(uuid)', 'public.hr_hunt_after_sweep(integer)', 'public.hr_hunt_resume(uuid,integer,uuid,text,bigint)', 'public.hr_hunt_after_job(uuid,integer)']) {
+        for (const role of ['anon', 'authenticated', 'hr_engine']) {
+          if (await one(db, 'select has_function_privilege($1, $2, $3)', [role, sig, 'execute'])) problems.push(`forged: ${role} can run ${sig}`);
+        }
       }
     }
     return problems;
   }),
+  /* EACH PARTY SEAT'S OWN CHOICE FOR ITS OWN HERO: two seats on one hunt, one picked "wait in town", the other never picked
+     and has a gathering job. The frail seat dies; the other goes home with it (the box, on by default). Each hunt froze its own
+     hero's choice, and each end ran its own. */
+  'ITINERARY-PARTY': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const FRAIL = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 5, options: { on_empty: 'end' } };
+    const h = await hunter(db, M, { deadly: true, party: [{ ...FRAIL, keepKit: true, lastActivity: { kind: 'gather', id: 'shrimp_s' } },
+      { ...STRONG, level: 60, keepKit: true, lastActivity: { kind: 'gather', id: 'shrimp_s' } }], beforeEnter: async () => {
+      for (const u of UIDS.slice(0, 2)) await admin(db, u, { equip: { weapon: 'practice_club', shield: null } });
+      await asUser(db, UIDS[1]);
+      const r = await one(db, 'select public.hr_hunt_after_set(0, $1, null, $2::uuid)', ['wait', idem()]);
+      await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+      if (!r || r.ok !== true) throw new Error('seat 1\'s pick answered ' + JSON.stringify(r));
+    } });
+    await run(db, M, h.from, ticksOf(90000, 10 * 60000), { user: UIDS[1] });
+    const [a, b] = await Promise.all(h.sids.map((sid, i) => snapshot(db, sid, UIDS[i])));
+    const plans = await one(db, `select jsonb_agg(jsonb_build_object('choice', after_choice, 'done', after_done->>'state', 'why', after_done->>'why') order by entered_at, id)
+                                   from public.hunt_sessions where id = any($1::uuid[])`, [h.sids]);
+    if (a.session.end_reason !== 'died' || b.session.end_reason !== 'party_member_died') return [`CONTROL: the seats ended ${a.session.end_reason} / ${b.session.end_reason}`];
+    const by = Object.fromEntries(await Promise.all(h.sids.map(async (sid) => [sid, await one(db, `select jsonb_build_object('choice', after_choice, 'state', after_done->>'state', 'why', after_done->>'why') from public.hunt_sessions where id = $1`, [sid])])));
+    const p0 = by[h.sids[0]]; const p1 = by[h.sids[1]];
+    if (p0.choice !== 'job' || p0.state !== 'resumed' || a.active !== 'gather:shrimp_s') problems.push(`the seat that never picked: ${JSON.stringify(p0)}, hero ${a.active}`);
+    if (p1.choice !== 'wait' || p1.state !== 'waited' || p1.why !== 'chose_wait' || b.active !== 'idle:') problems.push(`the seat that picked wait: ${JSON.stringify(p1)}, hero ${b.active}`);
+    void plans;
+    return problems;
+  }),
+  /* A SECOND APPLY OF THE TWO ITINERARY FILES IS BYTE-IDENTICAL (bodies, grants, columns, the trigger, the section and baseline
+     rows, the cron job, the catalogue's rows): §0 accepts its own post-images. Judged AS OF the file (PARTY-LEAVE-IDEM's move). */
+  'ITINERARY-IDEM': async (main) => {
+    const FILES = ['2027-04-25-hunt-after-catalogue.generated.sql', '2027-04-25-hunt-itinerary.sql'];
+    const SIGS = [HR, LN, AS, AV, AJ, AF, AT, AW];
+    const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const later = order.slice(order.indexOf(FILES[1]) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
+    const authoredLater = (sig) => {
+      const fn = sig.slice('public.'.length, sig.indexOf('('));
+      const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(|pg_get_functiondef\\(\\s*\'(?:public\\.)?' + fn + '\\(', 'i');
+      return later.some((t) => re.test(t));
+    };
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: FILES[1] });
+    try {
+      return await inTx(db, async () => {
+        for (const sig of SIGS) {
+          if (authoredLater(sig)) continue;
+          await db.exec(String(await one(main, 'select pg_get_functiondef($1::regprocedure)', [sig])));
+        }
+        if (AS_OF_PLANT) {
+          const d = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [AS_OF_PLANT.fn])).split(String.fromCharCode(13)).join('');
+          if (d.split(AS_OF_PLANT.find).length !== 2) { AS_OF_PLANT.missed = true; return ['HARNESS: the plant\'s anchor is not in the body as of the file']; }
+          await db.exec(d.replace(AS_OF_PLANT.find, () => AS_OF_PLANT.replace));
+        }
+        const shape = async () => JSON.stringify({
+          bodies: await Promise.all(SIGS.map((s) => one(db, `select md5(replace(prosrc, chr(13), '')) || ':' || coalesce(array_to_string(proacl, ','), '') from pg_proc where oid = $1::regprocedure`, [s]))),
+          columns: await q(db, `select table_name, column_name, data_type, is_nullable from information_schema.columns where table_schema = 'public'
+                                 and ((table_name = 'player_state' and column_name in ('after_choice', 'after_skill', 'last_activity_stopped_at'))
+                                   or (table_name = 'hunt_sessions' and column_name like 'after\\_%')) order by 1, 2`),
+          checks: await q(db, `select conname, pg_get_constraintdef(oid) as def from pg_constraint where conname in ('player_state_after_choice_fk', 'player_state_after_skill_ck', 'hunt_sessions_after_ck') order by 1`),
+          trigger: await q(db, `select pg_get_triggerdef(oid) as def, tgenabled from pg_trigger where tgname in ('hr_hunt_after_freeze', 'hr_last_activity_note') order by 1`),
+          rows: await q(db, `select 'section' as k, to_jsonb(s) - 'updated_at' as v from public.hr_state_sections s where key = 'hunt_after'
+                             union all select 'baseline', to_jsonb(b) from public.hr_client_rpc_baseline b where proname = 'hr_hunt_after_set'
+                             union all select 'choice', to_jsonb(c) from public.hr_hunt_after_choices c
+                             union all select 'rule', to_jsonb(r) from public.hr_hunt_after_rule r order by 1, 2`),
+          cron: await q(db, `select jobname, schedule, command from cron.job where jobname = 'hr-hunt-after'`).catch(() => 'no cron here'),
+        });
+        const before = await shape();
+        if (!before.includes('hr_hunt_after_freeze') || !before.includes('"k":"section"') || !before.includes('"k":"baseline"')) return [`CONTROL: the replayed chain carries no itinerary: ${before.slice(0, 300)}`];
+        for (const f of FILES) {
+          const sql = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
+          try { await db.exec(sql); } catch (e) { return [`the second apply of ${f} RAISED: ${String(e.message).split('\n')[0]}`]; }
+        }
+        const after = await shape();
+        return after === before ? [] : [`the second apply moved ${firstDiff(before, after)}`];
+      });
+    } finally { await db.close?.(); }
+  },
   DEATHXP: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, DOOMED);
@@ -4654,6 +5027,19 @@ const AM = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,
 const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
+/* The resume, by the job's kind (2027-04-24-bench-resume.sql): hr_hunt_apply_member's step (7) is one call of HR. */
+const HR = 'public.hr_hunt_resume(uuid,integer,uuid,text,bigint)';
+const RP = 'public.hr_resume_plan(uuid,integer,text,text,integer)';
+const AL = 'public.hr_activity_left(uuid,integer,text,text,integer)';
+const BM = 'public.hr_bench_makes(uuid,integer,text)';
+const LN = 'public.hr_last_activity_note()';
+/* When the hunt ends (2027-04-25-hunt-itinerary.sql): the verb, the section and its job, the freeze, the deferred start and its sweep. */
+const AS = 'public.hr_hunt_after_set(integer,text,text,uuid)';
+const AV = 'public.hr_hunt_after_section(uuid,integer)';
+const AJ = 'public.hr_hunt_after_job(uuid,integer)';
+const AF = 'public.hr_hunt_after_freeze()';
+const AT = 'public.hr_hunt_after_start(uuid)';
+const AW = 'public.hr_hunt_after_sweep(integer)';
 const DB_MUTANTS = [
   /* CARRY IN MID-HUNT (2027-02-21-hunt-carry-in.sql): each rule of the carry goes red on its own defect. */
   { arm: 'CARRY-IN', name: '[carry-in] a carry never takes the shrimp out of the bag (a dupe)', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
@@ -4913,10 +5299,67 @@ const DB_MUTANTS = [
   { arm: 'BETA', name: 'the full analyzer reads the column, not the check', fn: 'public.hr_hunt_analyzer_view(uuid,integer)',
     find: '  select case when public.hr_premium_active(p_user, p_slot, now())',
     replace: '  select case when coalesce((select ps.premium_until > now() from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot), false)' },
-  { arm: 'RESUME', name: 'an automatic end resumes nothing', fn: AM,
-    find: '    if v_ok then\n      update public.player_state', replace: '    if false then\n      update public.player_state' },
-  { arm: 'RESUME', name: 'a resume ignores the bench\'s inputs', fn: AM,
-    find: '      and public.hr_resume_has_inputs(p_user, p_slot, v_lk, v_li);\n', replace: '      and true;\n' },
+  /* The resume is hr_hunt_resume since 2027-04-24-bench-resume.sql (hr_hunt_apply_member's step (7) is one call of it): the
+     two faults below are the ones this table always planted, re-aimed at the body that now runs them. */
+  { arm: 'RESUME', name: 'an automatic end resumes nothing', fn: HR,
+    find: '  if v_ok then\n    update public.player_state', replace: '  if false then\n    update public.player_state' },
+  { arm: 'RESUME', name: 'a resume ignores the bench\'s inputs', fn: RP,
+    find: "    when not public.hr_resume_has_inputs(p_user, p_slot, p_kind, p_id) then jsonb_build_object('ok', false, 'why', 'dry')\n", replace: '' },
+  /* BENCH-RESUME (Tyler 2026-11-15): each rule of the count, dropped. */
+  { arm: 'RESUME', name: '[bench-resume] the settle never calls the resume', fn: AM,
+    find: "  perform public.hr_hunt_resume(p_user, p_slot, p_session, v_h->>'ended', v_ev0);\n", replace: '' },
+  { arm: 'RESUME', name: '[bench-resume] a resumed bench has no count (the 11-01 burn)', fn: HR,
+    find: '           active_left = v_left,\n', replace: '           active_left = null,\n' },
+  { arm: 'RESUME', name: '[bench-resume] Enter remembers the run\'s count, not what the stock could make', fn: AL,
+    find: 'coalesce(public.hr_bench_makes(p_user, p_slot, p_id), 100000)) as n', replace: '100000::bigint) as n' },
+  { arm: 'RESUME', name: '[bench-resume] the stock at Enter leaves Storage out', fn: BM,
+    find: "              + coalesce((select b.qty from public.account_bank b\n                           where b.user_id = p_user and b.item_id = i.key), 0))\n", replace: '              + 0)\n' },
+  /* (re-aimed: 2027-04-25-hunt-itinerary.sql restated the trigger; the CASE's last branch is the stopped bench's now) */
+  { arm: 'RESUME', name: '[bench-resume] a bench that was not running at Enter keeps an old count', fn: LN,
+    find: '      then public.hr_activity_left(old.user_id, old.slot, old.last_activity_kind, old.last_activity_id, old.last_activity_left) end;\n',
+    replace: '      then public.hr_activity_left(old.user_id, old.slot, old.last_activity_kind, old.last_activity_id, old.last_activity_left) else old.last_activity_left end;\n' },
+  { arm: 'RESUME', name: '[bench-resume] a change of ground forgets the job', fn: LN,
+    find: "  if new.active_kind = 'combat' and old.active_kind is distinct from 'combat' then\n", replace: "  if new.active_kind = 'combat' then\n" },
+  { arm: 'RESUME', name: '[bench-resume] a bench with no count left starts on the hunt\'s loot', fn: RP,
+    find: "    when p_left is null then jsonb_build_object('ok', false, 'why', 'no_count')\n", replace: '' },
+  /* (re-aimed: the restated hr_hunt_resume says `left` on the hunt too; this is the ledger row's) */
+  { arm: 'RESUME', name: '[bench-resume] the journal does not say the count it restored', fn: HR,
+    find: "'at', v_home)\n              || case when v_left is not null then jsonb_build_object('left', v_left) else '{}'::jsonb end\n", replace: "'at', v_home)\n" },
+  { arm: 'RESUME-IDEM', name: '[bench-resume] another file moved a pinned body', asOf: true, fn: 'public.hr_resume_has_inputs(uuid,integer,text,text)',
+    find: 'coalesce(public.hr_bench_makes(p_user, p_slot, p_id), 1) >= 1', replace: 'coalesce(public.hr_bench_makes(p_user, p_slot, p_id), 1) >= 2' },
+  { arm: 'RESUME-IDEM', name: '[bench-resume] a second apply moves a body back', asOf: true, fn: HR,
+    find: '  v_ok := v_why is null;\n', replace: '  v_ok := v_why is null; -- a body the second apply will move back\n' },
+  /* HUNT-ITINERARY (Tyler 2026-11-15; 2027-04-25-hunt-itinerary.sql): each rule of the choice, dropped. */
+  { arm: 'ITINERARY', name: '[itinerary] the hunt\'s end goes back to the job whatever was picked', fn: HR,
+    find: "  if v_c.runs = 'nothing' then\n", replace: '  if false then\n' },
+  { arm: 'ITINERARY', name: '[itinerary] a training choice is never queued', fn: HR,
+    find: "  elsif v_c.runs = 'training' then\n", replace: '  elsif false then\n' },
+  { arm: 'ITINERARY', name: '[itinerary] a hunt carries the default, not its hero\'s choice', fn: AF,
+    find: '  new.after_choice := coalesce(new.after_choice, v_def);\n', replace: '  new.after_choice := v_def;\n' },
+  { arm: 'ITINERARY', name: '[itinerary] the player\'s Stop before Enter loses the bench\'s count', fn: LN,
+    find: '      new.last_activity_left := old.active_left;\n      new.last_activity_stopped_at := now();\n',
+    replace: '      new.last_activity_left := null;\n      new.last_activity_stopped_at := null;\n' },
+  { arm: 'ITINERARY', name: '[itinerary] a run the engine finished is picked up', fn: LN,
+    find: " and i.slot = old.slot and i.intent = 'set_activity:idle') then\n", replace: ' and i.slot = old.slot) then\n' },
+  { arm: 'ITINERARY', name: '[itinerary] a started plan can be started again', fn: AT,
+    find: "  if not found or v_s.after_done->>'state' is distinct from 'pending' then return null; end if;\n", replace: '  if not found then return null; end if;\n' },
+  { arm: 'ITINERARY', name: '[itinerary] a hero who moved on is sent to the yard anyway', fn: AT,
+    find: "        or coalesce((select ps.active_kind from public.player_state ps where ps.user_id = v_s.user_id and ps.slot = v_s.slot), 'gone') <> 'idle' then\n",
+    replace: '        or false then\n' },
+  { arm: 'ITINERARY', name: '[itinerary] the refusal does not say why', fn: AT,
+    find: "    v_done := jsonb_build_object('state', 'waited', 'why', v_why, ", replace: "    v_done := jsonb_build_object('state', 'waited', 'why', 'no', " },
+  { arm: 'ITINERARY', name: '[itinerary] a hunt the player left runs its choice', fn: HR,
+    find: '  if p_end is null or not coalesce((select r.resumes from public.hr_hunt_end_reasons r where r.reason = p_end), false) then\n    return; end if;\n',
+    replace: '  if p_end is null then\n    return; end if;\n' },
+  { arm: 'ITINERARY', name: '[itinerary] the verb stores a skill no yard trains', fn: AS,
+    find: "  if (v_c.runs = 'training' and not exists (select 1 from public.hr_training_grounds g where g.place = v_c.place and g.skill = p_skill))\n",
+    replace: '  if (false)\n' },
+  { arm: 'ITINERARY-PARTY', name: '[itinerary] every seat\'s hunt carries the default', fn: AF,
+    find: '  new.after_choice := coalesce(new.after_choice, v_def);\n', replace: '  new.after_choice := v_def;\n' },
+  { arm: 'ITINERARY-IDEM', name: '[itinerary] another file moved a pinned body', asOf: true, fn: LN,
+    find: '      new.last_activity_stopped_at := now();\n', replace: '      new.last_activity_stopped_at := now(); -- moved\n' },
+  { arm: 'ITINERARY-IDEM', name: '[itinerary] a second apply moves a body back', asOf: true, fn: AT,
+    find: '  if v_done is null then\n', replace: '  if v_done is null then -- a body the second apply will move back\n' },
   { arm: 'NO-FIGHT', name: 'a no_fight end is proven before its minutes', fn: SS,
     find: "      when 'no_fight' then v_end_at >= v_s.hunt_from + make_interval(mins => public.hr_hunt_limit('no_fight_min'))\n", replace: "      when 'no_fight' then true\n" },
   { arm: 'NO-FIGHT', name: 'a no_fight end is proven with a kill in its window', fn: SS,
@@ -5001,6 +5444,52 @@ const SQL_MUTANTS = [
     replace: "      execute format('grant execute on function public.hr_hunt_member_state(uuid, integer) to %I', v_role); end if;" },
   { file: '2026-10-23-hunt-party.sql', name: 'a groundless hunt is entered', find: "  if not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = p_hunt) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_ground')); end if;\n  if p_preset is null",
     replace: '  if p_preset is null' },
+  /* lane c-bench-resume (Tyler 2026-11-15): 2027-04-24-bench-resume.sql's §6 refuses each rule of the count, dropped. */
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: the count at Enter ignores the stock',
+    find: '                          coalesce(public.hr_bench_makes(p_user, p_slot, p_id), 100000)) as n) x)\n', replace: '                          100000::bigint) as n) x)\n' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a resumed bench has no count',
+    find: '           active_left = v_left,\n', replace: '           active_left = null,\n' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a client can run the resume',
+    find: 'revoke all on function public.hr_hunt_resume(uuid, integer, uuid, text, bigint) from public, anon, authenticated, service_role;\n',
+    replace: 'grant execute on function public.hr_hunt_resume(uuid, integer, uuid, text, bigint) to authenticated;\n' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a bench stopped before the hunt is picked up',
+    find: '      when old.active_id is not null and old.active_kind = new.last_activity_kind and old.active_id = new.last_activity_id\n      then public.hr_activity_left(old.user_id, old.slot, old.active_kind, old.active_id, old.active_left) end;\n',
+    replace: '      when true then public.hr_activity_left(new.user_id, new.slot, new.last_activity_kind, new.last_activity_id, old.active_left) end;\n' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: the restated settle never calls the resume',
+    find: "  perform public.hr_hunt_resume(p_user, p_slot, p_session, v_h->>'ended', v_ev0);\n", replace: '' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a hunt the player left resumes the bench',
+    find: '  if p_end is null or not coalesce((select r.resumes from public.hr_hunt_end_reasons r where r.reason = p_end), false) then\n    return; end if;\n',
+    replace: '  if p_end is null then\n    return; end if;\n' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a change of ground forgets the job',
+    find: "  if new.active_kind = 'combat' and old.active_kind is distinct from 'combat' then\n", replace: "  if new.active_kind = 'combat' then\n" },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a bench with no count left may start',
+    find: "    when p_left is null then jsonb_build_object('ok', false, 'why', 'no_count')\n", replace: '' },
+  { file: '2027-04-24-bench-resume.sql', name: '[bench-resume] §6: a job above the hero\'s level is picked up',
+    find: "                                  where sk.user_id = p_user and sk.slot = p_slot and sk.skill_id = a.req_skill), 1) < a.req_lv) then\n    v_why := 'level';\n",
+    replace: "                                  where sk.user_id = p_user and sk.slot = p_slot and sk.skill_id = a.req_skill), 1) < 0) then\n    v_why := 'level';\n" },
+  /* lane c-hunt-itinerary (Tyler 2026-11-15): 2027-04-25-hunt-itinerary.sql's §8 refuses each rule of the choice, dropped. */
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: the verb stores a skill no yard trains',
+    find: "  if (v_c.runs = 'training' and not exists (select 1 from public.hr_training_grounds g where g.place = v_c.place and g.skill = p_skill))\n", replace: '  if (false)\n' },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: a client can run the start',
+    find: "    execute format('revoke all on function %s from public, anon, authenticated, service_role', v_sig);\n",
+    replace: "    execute format('grant execute on function %s to authenticated', v_sig);\n" },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: no hunt carries a choice',
+    find: 'create trigger hr_hunt_after_freeze before insert on public.hunt_sessions\n  for each row execute function public.hr_hunt_after_freeze();\n', replace: '' },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: a run the engine finished is picked up',
+    find: " and i.slot = old.slot and i.intent = 'set_activity:idle') then\n", replace: ' and i.slot = old.slot) then\n' },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: the player\'s Stop loses the count',
+    find: '      new.last_activity_left := old.active_left;\n      new.last_activity_stopped_at := now();\n',
+    replace: '      new.last_activity_left := null;\n      new.last_activity_stopped_at := null;\n' },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: a started plan can be started again',
+    find: "  if not found or v_s.after_done->>'state' is distinct from 'pending' then return null; end if;\n", replace: '  if not found then return null; end if;\n' },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: a hunt the player left runs its choice',
+    find: '  if p_end is null or not coalesce((select r.resumes from public.hr_hunt_end_reasons r where r.reason = p_end), false) then\n    return; end if;\n',
+    replace: '  if p_end is null then\n    return; end if;\n' },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: wait in town goes back to the job',
+    find: "  if v_c.runs = 'nothing' then\n", replace: '  if false then\n' },
+  { file: '2027-04-25-hunt-itinerary.sql', name: '[itinerary] §8: a stopped bench is the job for ever',
+    find: "           and old.last_activity_stopped_at >= now() - make_interval(secs => (select r.job_grace_s from public.hr_hunt_after_rule r where r.id))\n      then public.hr_activity_left(old.user_id, old.slot, old.last_activity_kind, old.last_activity_id, old.last_activity_left) end;\n",
+    replace: "           and true\n      then public.hr_activity_left(old.user_id, old.slot, old.last_activity_kind, old.last_activity_id, old.last_activity_left) end;\n" },
 ];
 
 /* PIN THE DICE: a fixed PRNG secret and a counting gen_random_uuid, so the same

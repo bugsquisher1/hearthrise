@@ -29,7 +29,7 @@ export const COACH_TEXT = Object.freeze({
      from Level 1 to 15, and Dangerous costs real food and gives more XP): {ground} is a ground in the hero's range that has a Dangerous tier.
      The press sequence is the card's one sentence; what the tier changes is a label (Tyler 2026-11-14, "Higher risk, better loot"). */
   first_dangerous_title: 'Try a Dangerous hunt',
-  first_dangerous: 'Open Hunts, pick {ground}, press Dangerous, then Enter. More XP · More food · Higher risk',
-  first_dangerous_in: 'Pick {ground}, press Dangerous, then Enter. More XP · More food · Higher risk',
+  first_dangerous: 'Open Hunts, pick {ground}, press Dangerous, then Enter. More XP, more food, higher risk.',
+  first_dangerous_in: 'Pick {ground}, press Dangerous, then Enter. More XP, more food, higher risk.',
   keep_hunting: 'You don\'t have to watch. Close the game and your hero keeps hunting. Level {level} is about ten minutes away, and that\'s when you\'re ready for {next}. Everything it earns will be waiting for you.',
 });

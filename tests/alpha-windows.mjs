@@ -2425,7 +2425,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             words: li ? li.querySelector('small').textContent : null, verb: b ? b.textContent : null, gold: b ? b.classList.contains('is-primary') : null,
             go: b ? b.getAttribute('data-hs-goto') : null, inside: !!r && r.left >= body.left - 1 && r.right <= body.right + 1 };
         });
-        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Buy Bronze Belt · 110 gp' || row.words !== 'Empty slot: Belt · +2 Defense, +8 health'
+        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Buy Bronze Belt for 110 gp' || row.words !== '+2 Defense, +8 health (empty belt slot)'
           || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|bronze_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
         if (shots) await shot(page, 'alpha-' + tag + '-back-in-town-buy');
         if (tag === '1440x900') {
@@ -4942,7 +4942,7 @@ const MUTANTS = [
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],
   ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/shell/upgrade-plan.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
-  ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt);\n    if (weak) out.push(weak);\n', ''],
+  ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);\n    if (weak) out.push(weak);\n', ''],
   ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/hunt-go.js', 'return best && best.amount < want.heals ? best.id : null;', 'return best && best.amount * 2 < want.heals ? best.id : null;'],
   ['plans: AW-27 a club hero is warned about another weapon', 'src/shell/hunt-go.js', 'if (moveOffWeapon(s.discipline, a.id)) return null;', ''],
   ['plans: AW-27 three spells read as a fallback ("then")', 'src/shell/hunt-go.js', "+ ' gp a cast').join('. ');", "+ ' gp a cast').join(', then ');"],

@@ -15,6 +15,8 @@ export const TEMPER_TEXT = Object.freeze({
   /* Where an input of those only a hunt gets drops: {where} names the creatures and the ground, or the pull that brings them. */
   drop_from: '{stack} drop from {where}.',
   drop_pulled: '{where}, and it drops {stack}.',
+  /* Gear above every ladder the server sells (temper-pane.js rowWords; the playthrough audit's F17): {from} and {to} are the server's span. */
+  no_rungs: 'Your {piece} can\'t be tempered yet. The smith only has rungs for gear worn from Level {from} to Level {to}.',
   /* Said only for what the Weighhouse lists (item-lore saleWords). */
   way_weighhouse: 'Or buy them at the Weighhouse.',
 });

@@ -1295,7 +1295,7 @@ const cases = {
     const base = { lv: 8, eq: DRESSED, tiers: { picks: {}, playing: null } };
     const offer = say(at(base));
     if (!offer || offer.id !== 'first_dangerous' || offer.title !== 'Try a Dangerous hunt' || !offer.gotIt
-      || offer.text !== 'Open Hunts, pick Meadowbrook Thicket, press Dangerous, then Enter. More XP · More food · Higher risk'
+      || offer.text !== 'Open Hunts, pick Meadowbrook Thicket, press Dangerous, then Enter. More XP, more food, higher risk.'
       || !/^Pick Meadowbrook Thicket, press Dangerous, then Enter\./.test(offer.textIn || '') || M.tut.coachIcon(offer, () => false) !== 'hunts')
       return 'at Level 8 in helm and body the offer reads ' + JSON.stringify(offer && { id: offer.id, title: offer.title, text: offer.text, textIn: offer.textIn });
     /* the ring: the named ground's Dangerous press, unpressed, then its Enter */

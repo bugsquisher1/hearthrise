@@ -153,15 +153,13 @@ export const SHOP_OFFERS = [
     grant: [{ kind: "item", id: "stone_maul", amount: 1 }],
     repeatable: true,
   },
-  /* THE HOUSE'S TOP, OUT OF HIDING (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F12 and F20). Held since
-     2026-10-31 for dragon scales and keystones nothing drops, so the House stopped at the Keep's 40,000 and a Level-80 account had
-     millions and no house to put them in. Now the Castle and the eight fifth rungs ask for the Barrow March: its drops (Krell's gate
-     chains, the Stokers' rake tines, the priests' cords, Hask's coins, the Provost's seals, the Grave Guard's nails, the Wraiths' shroud
-     pins, Ford Weed, Grave Dust) and the top crafts (Emberforged Bars, Runewood and Duskwood Planks, Cooked Shark). Gold: the Castle
-     2,500,000, each room 600,000 to 900,000 (rung 4 asks 55,000 to 240,000), 8,450,000 in all, once an account. MEASURED, one sword and
-     shield hero sent where the game sends it, every drop sold (`audit-table.mjs gold --to 90`): it banks 1.10M from Level 45 to 60, 1.77M
-     from 60 to 75, 1.89M from 75 to 90; Tempering 4 to 6 asks 2.23M of that a hero, so the House is a chase of months, the account's.
-     A fifth rung is +2% at its bench (perks.js), a farm bed or a mount: the House sells capacity and comfort, never power. */
+  /* THE HOUSE'S TOP, OUT OF HIDING (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F12 and F20). Held since 2026-10-31 for
+     dragon scales and keystones nothing drops, so the House stopped at the Keep and a Level-80 account had millions and nowhere to put them.
+     Now the Castle and the eight fifth rungs ask for Barrow March drops (Krell's gate chains, rake tines, priests' cords, Hask's coins, seals,
+     nails, shroud pins, Ford Weed, Grave Dust) and top crafts (Emberforged Bars, Runewood and Duskwood Planks, Cooked Shark). Gold: Castle
+     2,500,000, rooms 600,000 to 900,000, 8,450,000 in all, once an account. MEASURED (`audit-table.mjs gold --to 90`): a hero banks 1.10M from
+     Level 45 to 60, 1.77M to 75, 1.89M to 90, and Tempering 4 to 6 asks 2.23M of it, so the House is the account's chase of months. A fifth
+     rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power. */
   {
     id: "property.castle", table: "property",
     name: "Hearthrise Castle",

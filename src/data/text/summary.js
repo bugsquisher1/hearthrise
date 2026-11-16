@@ -27,16 +27,17 @@ export const SUMMARY_TEXT = Object.freeze({
   bless_free: 'Free until Level {level}. A death costs you less with them on.',
   bless_cost: 'Costs {total}. A death costs you less with them on.',
   /* THE NEXT BUY (src/shell/next-buy.js, lane/a-next-steps; audit 2026-11-15 F12/F20: a million gold by Level 50 and the card said nothing): the one most
-     useful thing the purse covers, a line, its Show opening where it is bought. {gains}: what the piece adds ("+1 Defense"); {pct}: the next rung's total. */
-  buy_gear: 'Buy {item} · {price}',
+     useful thing the purse covers, a line, its Show opening where it is bought. {gains}: what the piece adds ("+1 Defense"); {pct}: the next rung's total.
+     Labels, never sentences (Tyler 2026-11-14), and no "·" in a literal (copy-lint dot). */
+  buy_gear: 'Buy {item} for {price}',
   buy_gear_better: '{gains} vs {worn}',
-  buy_gear_empty: 'Empty slot: {slot} · {gains}',
-  buy_temper: 'Temper {piece} · {price}',
+  buy_gear_empty: '{gains} (empty {slot} slot)',
+  buy_temper: 'Temper {piece} for {price}',
   buy_temper_blows: 'Blows and heals +{pct}',
   buy_temper_armor: 'Damage taken −{pct}',
-  buy_dummy: 'Unlock dummy skill · {price}',
-  buy_dummy_words: 'Yard speed · No fee',
-  buy_room: 'Upgrade {room} · {price}',
+  buy_dummy: 'Unlock dummy skill for {price}',
+  buy_dummy_words: 'Yard speed, no fee',
+  buy_room: 'Upgrade {room} for {price}',
   buy_room_words: 'Next: {rung}',
   /* The answers. */
   selling: 'Selling…',

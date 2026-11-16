@@ -147,16 +147,20 @@ export default definePack({
   /* THE BAG: the Ox Road's store food, and the fire rune (18 heads in 24 are Undead or the Bone Wall). A caster keeps an ice slot for the Bone Wall
      (fire does 25% less on it). `storeFloor` (the March's rule, lane/d-march-balance): MEASURED on the quick grade (1 seed x 1 h, lane/d-catacombs
      2026-11-15), a lone tank at the floor on the start bar's Salted Shrimp died 7 times in the hour (Keeper Dunn 5, the Paupers 2) and lived on
-     Salted Lobster, so Before you go names the lobster. */
+     Salted Lobster, so Before you go names the lobster (the full grade below still reads it so: the lone tank on Lobster 0 deaths in 24 hours, low 73%).
+     The bag's food is Shark (the armor ruling's handoff 1, board 2026-11-15 Armor past Dawnsteel). MEASURED on the full grade (lane/a-grader-uniques,
+     every hero in the best piece it can get, the Vaults sample worn from 165): a Deadly four with a Healer at the floor died 40.5 times in 16 hero-hours
+     on Lobster and 1 on Shark (the bar is 9); no Normal death in 192 lone hero-hours. The four with no Healer still dies 70 times on Shark, the store's
+     biggest food: that is not the bag's to fix. The same HP as the Lobster bag; quantities not measured for cost. */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h, the Morrow's three open). Deaths alone:
      at the floor (165) a hammer, axes and a tank 238 each (about one a minute), a bow 69 in 4 h; at the top (185) a hammer 207 in 2.2 h, a tank
      159 in 2.9 h, a bow 52 in 4 h. A Mage alone 6. At the floor a pair with a Healer still dies (tank + Healer 28, hammer + Healer 39) and the
      four holds (0): the Vaults' Dangerous is a four's tier, the armor past Dawnsteel this ground's own section names. */
   partyTiers: ['dangerous'],
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
-    melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_shark', qty: 55 } },
+    ranged: { heal: { id: 'cooked_shark', qty: 45 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_shark', qty: 55 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* PARTY LEVEL XP (the Hold's method, as Carter's Rest: quick grade, 1 seed x 1 h, the Morrow's three packs open on the ladder, lane/d-catacombs
      2026-11-15). With no row a four of four classes read 0.48 / 0.46 of the pace contract at the floor and middle and a tank and Healer 0.66 / 0.63, so
      the pair 1000 x 1.10 / 0.645 = 1705 and a first four of 2555. At 2555 the four read 1.31 / 1.26 of the median lone way (the sheet's four-xp asks

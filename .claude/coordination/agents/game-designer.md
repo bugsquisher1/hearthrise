@@ -7,6 +7,21 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.
 - **Check the grader's kit before trusting a staged ground's spread.** `gear.mjs` reachWith dropped the open keyed halls, so the Morrow was graded with Melee and the bow a weapon tier short. Print the kit (`h.kit`) of every style once per ground.
 - **A cut has a floor where it stops paying.** 0.1 a point took the Carter's Rest Mage from 1.82 to 1.46 of the pace, and 0.05 only to 1.42. Measure one step past the pick, so the board can say what's left isn't the row's.
+## 2026-11-15 lane/d-armor-past-dawnsteel: the armor line past tier 7
+- **Read what the sim actually dressed before trusting a what-if.** My first sweep "gave" the tank a guard-15 shield through the practice shield's row; the kit picker never wore it (a fallback is unshifted, then the top tier is picked), so every number labelled "Tollgate" was the Coppercap. Print `h.kit` for one cell of every variant.
+- **A grader job's tier is two things: `options.tier` AND `density` (the tier row's pull).** An in-process cell with only `options` plays Deadly on Normal's pull and reads 0 deaths.
+- **Guard is Level-free, armor is not.** To-hit is base + (atk - Defense - guard) x 2%, with base fitted to a same-Level hero, so a guard point is 2% at any Level. Absorb and dodge are P / (P + k x L) against the attacker's Level, so armor must grow in step with L to hold. Past tier 7 only armor needs a line.
+- **On Deadly the monsters' to-hit sits at the 85% cap**, so guard does nothing there and armor is the whole lever. On Normal guard is the bigger lever (the Tollgate over the Coppercap: tank low 59% to 70% at the Vaults).
+- **Heavy armor saturates at the 60% cap.** Past the point that holds the cap against a ground's top monster, more plate does nothing; the line is "hold the cap", not "grow".
+- Death counts at 1 seed x 1 h are noise; the same variant read 9.5 and 21 deaths in two harnesses. Quote 3-4 seeds x 2 h, same dice across variants, and read the typical low beside them.
+
+## 2026-11-15 lane/d-special-attributes: the attribute catalogue, measured before it was written down
+- **Measure the attribute before naming the item.** Two of my first five sample rows did nothing: 5% poison on the Glade (a four at the floor dies 0 times on Deadly, bare) and +1 Magic (+8 Magic is +0.5% for a wand at 90). Both were cut after one table each.
+- **Element resistance is a boss attribute today.** It moved no death on any open ground and it moves win rates at the Chief and Krell. Place a resist piece on the ground whose boss uses that element.
+- **A skill level is worth little and moves in steps.** +1 Defense is 4 to 6% less damage. +1 Melee is about 1%. +2 Ranged is 0%, 2.8% or 0.9% by Level. Read + skill at three Levels before quoting it, never one.
+- **Lower weapon numbers are not a trade.** 85% of a staff's numbers cost 2%, x1.4 bane gave +15 to +26%. Size a multiplier on full numbers.
+- A what-if resistance for every hero is a ring-slot row with only `resistPm`: no other stat moves. `gear.also` dresses a cell in a named row today.
+- Physical resistance is three edits in `elements.js`, planted and measured (`special-table.mjs` `PHYSICAL_PLANT`). The board's `damage.js landHit` note was wrong.
 
 ## 2026-11-14 lane/b-barrow-numbers: the Barrow March's numbers, the hall fitted, tier 7 renamed
 - **A monster that heals can stop a fight, not just slow it.** The Pyre Priest's first mend (a full hit every 8 s) put a lone tank at Level 110 on Dangerous into a pull he could never finish: 7.5k XP an hour, no death, nothing on the grade but one `feel-tier-less` row. Size a mend against the slowest way to fight in the biggest pull, and read the cell list for an hour with no XP and no death.

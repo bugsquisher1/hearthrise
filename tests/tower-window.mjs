@@ -263,6 +263,19 @@ async function checks(overrides, shots) {
       if (sent.length !== 1 || sent[0].name !== 'hr_chest_open' || Object.keys(sent[0].body).sort().join() !== 'p_chest,p_count,p_idem,p_key,p_slot,p_stokes'
         || sent[0].body.p_stokes !== null || sent[0].body.p_count !== 1 || sent[0].body.p_key !== 'bronze' || sent[0].body.p_chest !== 'great_hearth') fails.push('TW-4 Use sent ' + JSON.stringify(sent));
       if (!drawn) fails.push('TW-4 the answer reads ' + JSON.stringify((await chestView(page)).result));
+      /* THE REVEAL: the opened key's own strip, the weapon the server named rising in its column; a repaint never replays it */
+      const reveal = () => page.evaluate(() => {
+        const r = document.querySelector('[data-hs-win="tower"] .tt-result .tc-reveal');
+        const chest = r && r.querySelector('.tc-reveal-chest');
+        return r ? { key: r.getAttribute('data-key'), weapon: r.classList.contains('has-weapon'), item: r.querySelector('.tc-reveal-item')?.getAttribute('src') || null,
+          art: chest ? getComputedStyle(chest).backgroundImage : null, el: (window.__tcReveal = window.__tcReveal || r) === r } : null;
+      });
+      const rv = await reveal();
+      if (shots) { await page.waitForTimeout(1600); await page.screenshot({ path: join(shots, 'tower-chest-reveal-1440x900.png') }); }
+      for (const tab of ['climb', 'chest']) { await page.click('[data-hs-win="tower"] .hw-tab[data-tab="' + tab + '"]'); await page.waitForTimeout(150); }
+      const rv2 = await reveal();
+      if (!rv || rv.key !== 'bronze' || !rv.weapon || rv.item !== 'assets/icons-bundle/pixel/items/palisade_sword.png' || !/chest-open-bronze\.png/.test(rv.art || '') || !rv2 || !rv2.el)
+        fails.push('TW-4 the reveal reads ' + JSON.stringify({ rv, rv2 }));
       await page.click('[data-hs-win="tower"] .tc-use-all');
       await page.waitForTimeout(600);
       sent = verbs(s).slice(2);
@@ -386,6 +399,8 @@ const MUTANTS = [
   ['Use all ignores the day', 'src/shell/windows/tower-chest.js', '  return Math.max(0, Math.min(k.heldAll, c.perCall, c.maxDay - c.today));', '  return Math.max(0, Math.min(k.heldAll, c.perCall));'],
   ['the death popup opens in the Tower', 'src/shell/death-popup.js', '  if (h.huntId === TOWER_RULES.hunt) return null;', '  if (false) return null;'],
   ['a Tower fall says died', 'src/hunt-view/summary-recorder.js', "  return hunt === TOWER_RULES.hunt ? { fell: (name) => t('tower.fell', { name }), blow: t('tower.fell_blow') } : undefined;", '  return undefined;'],
+  ['the reveal is not the opened key\'s', 'src/shell/windows/tower-chest.js', "if (r.ok) sc.result = Object.assign({}, r, { key: k.key });", "if (r.ok) sc.result = Object.assign({}, r, { key: 'gold' });"],
+  ['a repaint replays the reveal', 'src/shell/windows/tower-chest.js', '  if (SHOWN.get(host) === r) return;\n', '\n'],
   ['the bar never says Keeper', 'src/shell/widgets/tower-bar.js', "t(c.keeper ? 'tower.bar_keeper' : 'tower.bar_floor', { floor: c.floor })", "t('tower.bar_floor', { floor: c.floor })"],
 ];
 

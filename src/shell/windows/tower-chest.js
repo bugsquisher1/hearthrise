@@ -23,7 +23,7 @@ import { whole } from '../../render/format.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
 import { runIntent } from '../intent-words.js?v=0.2.132';
-import { itemName } from '../widgets/bits.js?v=0.2.132';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.132';
 import { ppmWords, familyWord, stokeLabel, stokeWord, timesWords, haulWords } from '../tower-words.js?v=0.2.132';
 
 /* The one chest today (src/data/chests.js CHESTS: a later chest is a row). */
@@ -61,6 +61,8 @@ export function chestHtml() {
   return '<p class="hs-note tc-lead">' + esc(t('tower.chest_lead')) + '</p>'
     + '<p class="tt-line tc-cinders"></p>'
     + '<p class="tt-line tc-none" hidden></p>'
+    /* the last press's answer, the reveal first: above the keys, so the moment is where the eye is, and brought into view when it lands */
+    + '<div class="tt-result" hidden></div>'
     + '<div class="tc-keys" role="radiogroup" aria-label="' + esc(t('tower.keys_head')) + '"></div>'
     + '<section class="tc-key" hidden>'
     + '<h3 class="hs-sub tc-have"></h3><p class="hs-note tc-where"></p>'
@@ -70,7 +72,6 @@ export function chestHtml() {
     + '<p class="hs-note tc-stoked"></p>'
     + '<p class="tt-line tc-own"></p><p class="tt-line tc-inside"></p><p class="hs-note tc-plus"></p><p class="hs-note tc-today"></p>'
     + '</section>'
-    + '<div class="tt-result" hidden></div>'
     /* the chance you'd use the key at stands on the foot beside Use: the number the press acts on is never scrolled away from it */
     + '<div class="tt-foot"><p class="tc-chance"></p><p class="hw-why tc-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tc-use" data-hs-act="chest-use">' + esc(t('controls.use')) + '</button>'
@@ -108,10 +109,27 @@ function patchStokes(host, k, pending) {
   });
 }
 
+/* THE REVEAL (tools/world-art/tower-art.mjs, the art at x2): the key's own lock catches the light, the lid lifts on its fire and embers
+   climb out; a weapon rises out of it in a stepped column of the key's metal, its own icon at the top. Drawn from the server's answer
+   only, once per answer (a repaint never replays it), and still for reduced motion (src/styles/windows.css). A key no strip is drawn
+   for (a later key row before its art) shows the words alone. */
+const REVEAL_KEYS = Object.freeze(['bronze', 'silver', 'gold', 'platinum']);
+const ITEM_ICONS = 'assets/icons-bundle/pixel/items/';
+export function revealHtml(r) {
+  if (!r || !REVEAL_KEYS.includes(r.key)) return '';
+  const weapon = r.opens.map((o) => o.weapon).find(Boolean) || null;
+  return '<div class="tc-reveal' + (weapon ? ' has-weapon' : '') + '" data-key="' + esc(r.key) + '" aria-hidden="true"><span class="tc-reveal-chest"></span>'
+    + (weapon ? '<span class="tc-reveal-col"></span><img class="tc-reveal-item" src="' + esc(ITEM_ICONS + weapon + '.png') + '" alt="" width="32" height="32" decoding="async">' : '')
+    + '</div>';
+}
+
 /* The last press's answer: each key's weapon or none, and what came out (the server's answer, drawn once). */
+const SHOWN = new WeakMap();
 function patchResult(host, r) {
   prop(host, 'hidden', !r);
-  if (!r) return;
+  if (!r) { SHOWN.delete(host); return; }
+  if (SHOWN.get(host) === r) return;
+  SHOWN.set(host, r);
   const weapons = r.opens.filter((o) => o.weapon);
   const lines = r.opens.length > 1 ? [t('tower.opened_many', { count: r.opens.length, weapons: weapons.length })] : [];
   for (const o of weapons) lines.push(t('tower.opened_weapon', { item: itemName(o.weapon) }));
@@ -119,7 +137,8 @@ function patchResult(host, r) {
   const rest = Object.fromEntries(Object.entries(r.haul).filter(([id]) => !weapons.some((o) => o.weapon === id)));
   if (Object.keys(rest).length) lines.push(t('tower.haul', { list: haulWords(rest) }));
   const found = new Set(weapons.map((o) => t('tower.opened_weapon', { item: itemName(o.weapon) })));
-  host.innerHTML = lines.map((l) => '<p class="' + (found.has(l) ? 'tt-found' : 'tt-line') + '">' + esc(l) + '</p>').join('');
+  host.innerHTML = revealHtml(r) + lines.map((l) => '<p class="' + (found.has(l) ? 'tt-found' : 'tt-line') + '">' + esc(l) + '</p>').join('');
+  revealInWindow(host);
 }
 
 /** The Chest tab, every number from the section. */
@@ -185,7 +204,7 @@ export function actChest(ctx, cs, tw, sc, action, el, repaint) {
   const count = action === 'chest-use-all' ? useAllCount(tw, k) : 1;
   if (count < 1) { repaint(); return true; }
   sc.result = null;
-  runIntent(sc, repaint, async () => { const r = await openChest(ctx.account, cs, CHEST_ID, k.key, count); if (r.ok) sc.result = r; return r; },
+  runIntent(sc, repaint, async () => { const r = await openChest(ctx.account, cs, CHEST_ID, k.key, count); if (r.ok) sc.result = Object.assign({}, r, { key: k.key }); return r; },
     t('tower.busy_open'), () => '', cs);
   return true;
 }

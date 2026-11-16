@@ -128,5 +128,8 @@ export const TOWER_TEXT = Object.freeze({
   end_key: 'You got a {key}. Use it on the chest at the Great Hearth.',
   end_keys: 'You got {list}. Use them on the chest at the Great Hearth.',
   end_open: 'Open chest',
+  /* "What happened" on a climb's card and in its Just now (death-explain.js words): a Tower fall costs nothing, so it never says "died". */
+  fell: '{name} was spat out',
+  fell_blow: 'The last blow',
   alert_spat: '{name} was spat out of the Burning Tower. No XP lost.',
 });

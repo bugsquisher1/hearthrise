@@ -15,6 +15,8 @@ import { roleIdOf } from '../session/party-sections.js?v=0.2.132';
 import { monsterName } from '../shell/widgets/bits.js?v=0.2.132';
 import { explainDeaths } from './death-explain.js?v=0.2.132';
 import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.132';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 
 const ATTACHED = new WeakMap();
 
@@ -48,6 +50,12 @@ export const whoOf = (u, fall) => {
   return { name: fall.an || 'Someone', vitals: v.self || undefined, others: v.others };
 };
 
+/* HOW A FALL IS SAID on a hunt: the default (death-explain.js "died", "The killing blow"), and on the Burning Tower its own, since a
+   Tower death costs nothing (session-modes.js `tower`): "Ashby was spat out", "The last blow". */
+export function fallWordsOf(hunt) {
+  return hunt === TOWER_RULES.hunt ? { fell: (name) => t('tower.fell', { name }), blow: t('tower.fell_blow') } : undefined;
+}
+
 /** The summaries the residue holds for this character, newest first. */
 export function summariesOf(cs) {
   const r = cs && cs.record && cs.record.residue;
@@ -58,7 +66,7 @@ export function summariesOf(cs) {
 export function liveDeaths(a) {
   const evs = a.rec.events();
   const sig = evs.length + ':' + (evs.length ? evs[evs.length - 1].atMs : 0);
-  if (a.liveSig !== sig) { a.liveSig = sig; a.live = explainDeaths(evs, { whoOf }); }
+  if (a.liveSig !== sig) { a.liveSig = sig; a.live = explainDeaths(evs, { whoOf, words: fallWordsOf(a.hunt) }); }
   return a.live;
 }
 
@@ -70,18 +78,18 @@ export function attach(cs) {
   let a = ATTACHED.get(cs);
   if (a) return a;
   const names = namerOf(cs);
-  a = { rec: createRecorder({ names }), sid: null, done: new Set(), fresh: null, live: null, liveSig: '' };
+  a = { rec: createRecorder({ names }), sid: null, hunt: null, done: new Set(), fresh: null, live: null, liveSig: '' };
   ATTACHED.set(cs, a);
   cs.timeline.subscribe((ev) => { a.rec.add(ev, (u) => vitalsOf(cs, u)); });
   cs.subscribe(() => {
     const s = endedSessionOf(cs);
     if (!s) return;
-    if (!s.ended) { if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.live = null; a.liveSig = ''; } return; }
+    if (!s.ended) { if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.hunt = s.hunt; a.live = null; a.liveSig = ''; } return; }
     if (a.done.has(s.id)) return;
     a.done.add(s.id);
     /* Recorded on an earlier page: it has already had its moment (summaryFromEarlierPage). */
     if (summariesOf(cs).some((x) => x.id === s.id)) { a.earlier = s.id; return; }
-    const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };
+    const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf, words: fallWordsOf(s.hunt) }) : { deaths: [] };
     const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
     a.recorded = { id: s.id, at: Date.now() };

@@ -131,7 +131,9 @@ declare
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
     'hr_boss_halls',
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */
-    'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits'];
+    'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits',
+    /* crafted jewelry's rolled jobs and their odds (2027-04-24-jewel-jobs-catalogue.generated.sql): a catalogue */
+    'hr_jewel_jobs', 'hr_jewel_odds'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

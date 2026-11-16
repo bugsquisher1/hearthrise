@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-15",
+ "generated": "2026-11-16",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -1042,7 +1042,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 379,
+   "replay": 382,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1252,7 +1252,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 6,
+   "replay": 7,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-14",
@@ -1565,6 +1565,16 @@
    "replay": 631,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
+  "hr_jewel_jobs": {
+   "class": "seeded",
+   "replay": 5,
+   "note": "Generated catalogue (2027-04-24-jewel-jobs-catalogue.generated.sql, tools/gen-jewel-jobs.mjs --check from src/data/jewelry.js): every rolled Crafting job, its guarantee, the perks it still rolls, its outcomes and its switch. Empty, the jewel_jobs section lists nothing and the bench shows no odds (the roll is the engine's, unaffected). Rebuilt from repo, never restored."
+  },
+  "hr_jewel_odds": {
+   "class": "seeded",
+   "replay": 297,
+   "note": "Generated catalogue (2027-04-24-jewel-jobs-catalogue.generated.sql): a jewel roll's Fine and Hallmarked chance per 10,000 for each roll kind and Crafting level 1..99, the engine's rollOdds level by level. Empty, the section lists no job. Rebuilt from repo, never restored."
+  },
   "hr_kill_credit_log": {
    "class": "restore_only",
    "wiped_at_cutover": false,
@@ -1781,7 +1791,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 45,
+   "replay": 46,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {

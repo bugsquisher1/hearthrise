@@ -6173,6 +6173,12 @@ jobs:
           node tests/jewelry-sources.mjs
           node tools/mutant-gate.mjs node tests/jewelry-sources.mjs --mutate
           node tools/world-art/jewelry-icons.mjs --check
+          # THE GUARANTEE LAYER (Tyler 2026-11-14, lane/c-crafted-jewelry), dark behind jewel_guarantees: the server's jobs and odds catalogue,
+          # and on the replayed chain the switch, the section's odds, both bench paths, a made piece worn/stored/listable, forged doors refused.
+          node tools/gen-jewel-jobs.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-jewel-jobs.mjs --selftest
+          node tests/jewel-guarantees-db.mjs
+          node tools/mutant-gate.mjs node tests/jewel-guarantees-db.mjs --mutate
 
       # THE GOLD SINKS (Tyler 2026-11-04): every price is a row generated into hr_sink_rules; the shared seams (the title on a chat row and
       # the town label, the hero's colors, the town read's extras) reach a stranger, a later lane's body survives a second apply. Hearth powders,

@@ -18,6 +18,7 @@
       "dungeon_cooldowns",
       "enchant",
       "equipment",
+      "factions",
       "farm_land",
       "features",
       "gem_unlocks",
@@ -35,6 +36,7 @@
       "hunt_tier",
       "inventory",
       "inventory_complete",
+      "jewel_jobs",
       "level",
       "live_events",
       "login",
@@ -106,5 +108,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-14"
+  "generatedAt": "2026-11-16"
 }

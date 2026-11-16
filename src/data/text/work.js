@@ -12,4 +12,15 @@ export const WORK_TEXT = Object.freeze({
   sort_can: 'Can make',
   sort_level: 'Level',
   sort_name: 'Name',
+  /* A rolled job (src/shell/jewel-words.js; src/data/jewelry.js): what it makes, and its odds before the roll, all the server's numbers. */
+  makes_graded: '→ a Fine or Hallmarked {name}',
+  makes_hallmarked: '→ a Hallmarked {name}',
+  odds_or: '{list} or {last}',
+  odds_plain: 'Fine {fine}, Hallmarked {hallmarked}, otherwise plain',
+  odds_fine: 'Hallmarked {hallmarked}, otherwise Fine',
+  odds_sealed: 'always Hallmarked',
+  odds_perks: 'Perks: {perks}',
+  odds_second: 'Second perk: {perks}',
+  odds_at: 'At your Crafting {level}: {grade}. {perks}. No bench fee on a roll.',
+  odds_always: 'Always {perk}. {rest}',
 });

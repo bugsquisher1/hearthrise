@@ -91,8 +91,10 @@ export const ODDS_SCALE = 10000;
    Both are found, never bought, and neither moves a price: no gold on the roll (decision 5). Each row names the pieces it sets in.
    The board's sample row is the Rat King's: his Crown Shard (Rare) fixes Follow-through, and his Crown (his Trophy, 100-150 h:
    the board's "Master's Seal" role, a boss Trophy only) fixes Hallmarked. Both only sold before this. PROVISIONAL (designer). ── */
+/** @typedef {{ perk?: string, grade?: string, words: string, pieces: readonly string[] }} JewelGuarantee */
+/** @type {Readonly<Record<string, JewelGuarantee>>} */
 export const JEWEL_GUARANTEES = Object.freeze({
-  /* `words` is how a job's name says the item (its article and its catalogue name: tests/jewelry-rolls.mjs J12 holds the name). */
+  /* `words` is how a job's name says the item (its article and its catalogue name: tests/jewelry-rolls.mjs J14 holds the name). */
   crown_shard: Object.freeze({ perk: 'follow', words: 'a Crown Shard', pieces: Object.freeze(['banded_signet']) }),
   rat_kings_crown: Object.freeze({ grade: 'hallmarked', words: 'the Rat King\'s Crown', pieces: Object.freeze(['banded_signet']) }),
 });
@@ -184,28 +186,33 @@ export function gradeRows(plain, grade) {
 /* ── THE JOBS, as Crafting recipe rows (src/data/recipes.js joins them to the bench). `output` is the PIECE the job
    works on, its plain id, so a job keeps one product for the bench's tax, icon and category; `roll` is how the grade is
    picked and `outcomes` every id it can make (recipeOutcomes). A gem roll spends a plain piece and never makes one. ── */
+/** @typedef {{ id: string, name: string, icon: string, inputs: Readonly<Record<string, number>>, xp: number, req: number, ms: number,
+    output: string, roll: string, perk?: string, switch?: string, outcomes: readonly string[] }} JewelRecipe */
+/** @type {readonly JewelRecipe[]} */
 export const JEWELRY_RECIPES = Object.freeze(Object.entries(JEWEL_PIECES).flatMap(([plain, p]) => {
   const tier = plainOf(plain).tier;
   /* the grades a ROLL can make: never a gem-only perk (only its gem's job carries that) */
   const rollable = (id) => Object.keys(JEWELRY_ITEMS[id].jewelPerks).every((k) => perksFor(plain).includes(k));
   const fine = gradeRows(plain, 'fine').filter(rollable), hall = gradeRows(plain, 'hallmarked').filter(rollable);
-  return [
+  return /** @type {JewelRecipe[]} */ ([
     Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain, roll: 'base',
       outcomes: Object.freeze([plain].concat(fine, hall)) })),
     Object.freeze(Object.assign({}, p.gem, { inputs: { [plain]: 1, [JEWEL_TIERS[tier].gem]: 1 }, output: plain, roll: 'gem',
       outcomes: Object.freeze(fine.concat(hall)) })),
-  ].concat(guaranteeJobs(plain, p));
+  ]).concat(guaranteeJobs(plain, p));
 }));
 
 /* THE GUARANTEE JOBS of one piece: each perk gem alone, each grade item alone, and each perk gem with each grade item, set in the
-   plain piece IN PLACE of its tier's gem. Behind JEWEL_SWITCH. Its XP, time and level are the piece's gem job's (PROVISIONAL). */
+   plain piece IN PLACE of its tier's gem. Behind JEWEL_SWITCH. Its XP, time and level are the piece's gem job's (PROVISIONAL).
+   @returns {JewelRecipe[]} */
 function guaranteeJobs(plain, p) {
   const base = plainOf(plain);
   const mine = Object.entries(JEWEL_GUARANTEES).filter(([, g]) => g.pieces.includes(plain));
   const perkGems = mine.filter(([, g]) => g.perk), gradeItems = mine.filter(([, g]) => g.grade === 'hallmarked');
   const sets = perkGems.map((x) => [x]).concat(gradeItems.map((x) => [x]), perkGems.flatMap((x) => gradeItems.map((y) => [x, y])));
   return sets.map((set) => {
-    const perk = (set.find(([, g]) => g.perk) || [, {}])[1].perk || null;
+    const withPerk = set.find(([, g]) => g.perk);
+    const perk = withPerk ? withPerk[1].perk : null;
     const seal = set.some(([, g]) => g.grade === 'hallmarked');
     const rest = perksFor(plain).filter((k) => k !== perk);
     const outcomes = (seal ? [] : [jewelId(plain, [perk])])

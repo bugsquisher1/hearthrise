@@ -42,6 +42,7 @@ import { saleWords } from '../item-lore.js?v=0.2.132';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.132';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.132';
 import { rollOddsOf, jobShown } from '../../session/jewelry-sections.js?v=0.2.132';
+import { rolledMakes, oddsSentence } from '../jewel-words.js?v=0.2.132';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.132';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
@@ -91,22 +92,14 @@ function recipeWords(w) {
   const out = productOf(w);
   const n = yieldOf(w);
   /* A ROLLED job (src/data/jewelry.js) names the grades it can make; its odds line says how likely each is. */
-  if (out && w.row.roll === 'gem') return ins + ' → a Fine or Hallmarked ' + itemName(out);
-  if (out && w.row.roll === 'seal') return ins + ' → a Hallmarked ' + itemName(out);
+  const rolled = out ? rolledMakes(w.row, itemName(out)) : null;
+  if (rolled) return ins + ' ' + rolled;
   return out ? ins + ' → ' + (n > 1 ? whole(n) + ' ' : '') + itemName(out) : ins;
 }
 
 /* A rolled job's odds at the server's Crafting level, BEFORE the roll (Tyler 2026-11-05, call 6), and what a guarantee fixes
-   (the server's `jewel_jobs` section). No gold moves on a roll. */
-function oddsWords(cs, w) {
-  const o = rollOddsOf(cs, w.row);
-  if (!o) return '';
-  const perks = o.perks.length > 1 ? o.perks.slice(0, -1).join(', ') + ' or ' + o.perks[o.perks.length - 1] : o.perks.join('');
-  const sure = o.perk ? 'Always ' + o.perk + '. ' : '';
-  const grade = o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
-    : o.fine === '0%' ? 'always Hallmarked' : 'Hallmarked ' + o.hallmarked + ', otherwise Fine';
-  return sure + 'At your Crafting ' + o.level + ': ' + grade + '. ' + (o.perk ? 'Second perk' : 'Perks') + ': ' + perks + '. No bench fee on a roll.';
-}
+   (the server's `jewel_jobs` section; the words: src/shell/jewel-words.js). No gold moves on a roll. */
+const oddsWords = (cs, w) => oddsSentence(rollOddsOf(cs, w.row));
 
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];

@@ -33,7 +33,7 @@
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
 //
-// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js src/shell/item-lore.js src/data/items.js src/data/recipes.js src/session/jewelry-sections.js supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/catalogue.js
+// mutant-anchors: src/shell/jewel-words.js src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js src/shell/item-lore.js src/data/items.js src/data/recipes.js src/session/jewelry-sections.js supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/catalogue.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -52,6 +52,7 @@ async function load(root) {
     AC: await imp('supabase/functions/hr-accrue/accrual.js', ''), CAT: await imp('supabase/functions/hr-accrue/catalogue.js', ''),
     BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'), TT: await imp('src/shell/town-ticker.js'), IL: await imp('src/shell/item-lore.js'),
     SA: await imp('supabase/functions/hr-accrue/set-activity.js', ''), JS: await imp('src/session/jewelry-sections.js'), SU: await imp('src/data/skill-unlocks.js'),
+    JW: await imp('src/shell/jewel-words.js'),
   };
 }
 
@@ -398,6 +399,17 @@ const claims = {
     if (M.JS.rollOddsOf(sectionCs(forged), r)) return 'a section row whose odds sum past 10,000 was believed';
     const badPerk = { level: lv, jobs: sec.jobs.map((j) => (j.recipe === r.id ? Object.assign({}, j, { perk: 'luck' }) : j)) };
     if (M.JS.rollOddsOf(sectionCs(badPerk), r)) return 'a section row naming a perk the catalogue lacks was believed';
+    /* THE BENCH SAYS IT: the guarantee first, then the server's numbers (src/shell/jewel-words.js) */
+    const words = (job) => M.JW.oddsSentence(M.JS.rollOddsOf(sectionCs(sec), job));
+    const both = jobs.find((x) => x.perk && x.roll === 'seal'), shard = jobs.find((x) => x.perk && x.roll === 'gem'), base = jobs.find((x) => x.roll === 'base');
+    const want = [
+      [both, 'Always Follow-through. At your Crafting 41: always Hallmarked. Second perk: Keen or Surge. No bench fee on a roll.'],
+      [shard, 'Always Follow-through. At your Crafting 41: Hallmarked ' + M.JS.oddsPct(M.J.rollOdds('gem', lv).hallmarked) + ', otherwise Fine. Second perk: Keen or Surge. No bench fee on a roll.'],
+      [base, 'At your Crafting 41: Fine ' + M.JS.oddsPct(M.J.rollOdds('base', lv).fine) + ', Hallmarked ' + M.JS.oddsPct(M.J.rollOdds('base', lv).hallmarked) + ', otherwise plain. Perks: Keen, Surge or Follow-through. No bench fee on a roll.'],
+    ];
+    for (const [job, line] of want) if (words(job) !== line) return `${job.id} says "${words(job)}", not "${line}"`;
+    if (M.JW.rolledMakes(both, 'Banded Signet') !== '→ a Hallmarked Banded Signet' || M.JW.rolledMakes(shard, 'Banded Signet') !== '→ a Fine or Hallmarked Banded Signet')
+      return 'a guarantee job names what it makes as ' + M.JW.rolledMakes(both, 'Banded Signet');
     return null;
   },
 };
@@ -424,6 +436,7 @@ const MUTANTS = [
   { claim: 'J13', name: 'the bench offers a dark job without the server', edits: [['src/session/jewelry-sections.js', '  if (!recipe || !recipe.switch) return true;', '  return true;']] },
   { claim: 'J14', name: 'a job names an item that is not its own', edits: [['src/data/jewelry.js', "words: 'a Crown Shard'", "words: 'a Crown Gem'"]] },
   { claim: 'J15', name: 'the bench believes odds that sum past 10,000', edits: [['src/session/jewelry-sections.js', '      || j.fine + j.hallmarked + j.plain !== ODDS_SCALE ', '      ']] },
+  { claim: 'J15', name: 'a minimum-quality job reads "otherwise Fine"', edits: [['src/shell/jewel-words.js', "    : o.fine === '0%' ? t('work.odds_sealed') : ", '    : ']] },
   { claim: 'J15', name: 'the bench reads the guarantee off a perk the catalogue lacks', edits: [['src/session/jewelry-sections.js', '(j.perk !== null && !perkOk(j.perk))', 'false']] },
 ];
 

@@ -71,7 +71,7 @@ import { levelOf } from '../src/core/xp.js';
 import { makeBonus } from '../src/core/perks.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
-import { ARTISAN_RECIPES } from '../src/data/recipes.js';
+import { ARTISAN_RECIPES, ARTISAN_RECIPES_EVERY } from '../src/data/recipes.js';   // EVERY: the server's index holds the dark (switched) jobs too
 import { isMain } from './_is-main.mjs';
 
 const problems = [];
@@ -407,10 +407,10 @@ function parityGuard() {
   const seen = { ticks: 0, doubles: 0, benches: new Set(), speeds: new Set(), consumedKinds: 0 };
 
   ok(Object.keys(ARTISAN_RECIPES_ALL).length
-     === Object.values(ARTISAN_RECIPES).reduce((a, l) => a + l.length, 0),
+     === Object.values(ARTISAN_RECIPES_EVERY).reduce((a, l) => a + l.length, 0),
     `T2: the index holds ${Object.keys(ARTISAN_RECIPES_ALL).length} recipes and the data holds `
-    + `${Object.values(ARTISAN_RECIPES).reduce((a, l) => a + l.length, 0)} — a recipe id is claimed twice`);
-  eq(duplicateRecipeIds(ARTISAN_RECIPES), [],
+    + `${Object.values(ARTISAN_RECIPES_EVERY).reduce((a, l) => a + l.length, 0)} — a recipe id is claimed twice`);
+  eq(duplicateRecipeIds(ARTISAN_RECIPES_EVERY), [],
     'T2: two benches claim the same recipe id — the index would resolve it to one bench and the '
     + "other bench's recipe would be unreachable");
   /* The prototype hazard, measured rather than asserted about. `active_id` is

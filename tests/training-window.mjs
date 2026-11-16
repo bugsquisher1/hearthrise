@@ -25,6 +25,8 @@
 //         items closed, no press shows and the note says so
 //   TR-7  LABELS (Tyler 2026-11-14; lane/c-training-gear-arm before the items opened): the quote, the run, the stop and the item box
 //         show no line that says "you" or ends in a period; the refusals read as labels with the server's numbers (TR-0)
+//   TR-8  BUY ASKS FIRST: one click on Buy sends nothing and shows "Training Sword (12 h): 250,000 gold"; Cancel sends nothing; Buy in
+//         the confirm sends the one hr_training_gear_buy at the price shown
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -255,7 +257,27 @@ async function checks() {
         if (held.join() !== 'Training Sword (12 h), bound | 1 in bag') fails.push('TR-6 the sealed ones held: ' + JSON.stringify(held));
         if (shop.join() !== 'Training Sword (12 h) | 250,000 gold,Training Sword (24 h) | 450,000 gold') fails.push('TR-6 the Arms Master\'s rows: ' + JSON.stringify(shop));
         if (SHOTS) { await page.locator('[data-hs-win="training"] .tw-gear').scrollIntoViewIfNeeded(); await page.screenshot({ path: join(SHOTS, 'training-desktop-items.png') }); }
-        await page.click('[data-hs-win="training"] .tw-gear-shop .tw-gear-row:first-child [data-hs-act="gear-buy"]');
+        /* TR-8 BUY ASKS FIRST (the House dummy's pattern; the Coordinator 2026-11-16: 250,000 gold went on one click): Buy alone sends
+           nothing and shows the item, its size and the server's price; Cancel sends nothing; Buy in the confirm sends the one purchase */
+        const buyPress = '[data-hs-win="training"] .tw-gear-shop .tw-gear-row:first-child [data-hs-act="gear-buy"]';
+        const confirmOf = () => page.evaluate(() => { const c = document.querySelector('[data-hs-win="training"] .tw-gear-confirm');
+          return { shown: !!c && !c.hidden, q: (c && c.querySelector('.tw-gear-confirm-q') || {}).textContent || '' }; });
+        await page.click(buyPress);
+        await page.waitForTimeout(300);
+        let cf = await confirmOf();
+        if (s.calls.some((c) => c.name === 'hr_training_gear_buy')) fails.push('TR-8 one click on Buy bought');
+        if (!cf.shown || cf.q !== 'Training Sword (12 h): 250,000 gold') fails.push('TR-8 Buy did not ask first: ' + JSON.stringify(cf));
+        await labelsOnly(page, 'the confirm');
+        if (cf.shown) {   /* a Buy that bought at once has no confirm to press: its red is above, the rest still runs */
+          await page.click('[data-hs-win="training"] [data-hs-act="gear-no"]');
+          await page.waitForTimeout(300);
+          cf = await confirmOf();
+          if (cf.shown || s.calls.some((c) => c.name === 'hr_training_gear_buy')) fails.push('TR-8 Cancel left the confirm or bought: ' + JSON.stringify(cf));
+          await page.click(buyPress);
+          await wait(page, () => { const c = document.querySelector('[data-hs-win="training"] .tw-gear-confirm'); return !!c && !c.hidden; }, null, 3000);
+          if (SHOTS) await page.screenshot({ path: join(SHOTS, 'training-desktop-confirm.png') });
+          await page.click('[data-hs-win="training"] [data-hs-act="gear-yes"]');
+        }
         await wait(page, () => ((document.querySelector('[data-hs-win="training"] .tw-gear-day') || {}).textContent || '') === 'Daily limit: 1/10', null, 4000);
         const buys = s.calls.filter((c) => c.name === 'hr_training_gear_buy');
         if (buys.length !== 1) fails.push('TR-6 hr_training_gear_buy sent ' + buys.length + ' times');

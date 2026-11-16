@@ -28,6 +28,7 @@ import { t } from '../../render/player-text.js?v=0.2.134';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
 import { runIntent } from '../intent-words.js?v=0.2.134';
 import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.134';
+import { TRAINING_GEAR } from '../../data/training.js?v=0.2.134';
 
 /* The ground a training session runs on (src/data/hunts.js, the server half): its hunt is the run, not "out hunting". */
 const YARD_GROUND = 'training_yard';
@@ -35,7 +36,7 @@ const CLOCK_MS = 30000;
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { skill: null, where: 'yard', pending: false, msg: '', clock: null }; SCRATCH.set(cs, s); }
+  if (!s) { s = { skill: null, where: 'yard', pending: false, msg: '', clock: null, ask: null }; SCRATCH.set(cs, s); }
   return s;
 };
 
@@ -76,7 +77,7 @@ const serverNow = (cs) => { const v = typeof cs.serverNow === 'function' ? cs.se
 
 /** The skeleton (built once per opening). */
 export function renderTraining(ctx) {
-  if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.skill = null; sc.where = 'yard'; sc.msg = ''; }
+  if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.skill = null; sc.where = 'yard'; sc.msg = ''; sc.ask = null; }
   return '<div class="tw-train">'
     + '<p class="hs-note tw-lead">' + esc(t('training.lead')) + '</p>'
     + '<p class="hw-cap tw-purse"></p>'
@@ -97,6 +98,9 @@ export function renderTraining(ctx) {
     + '<p class="tw-line tw-gear-left"></p>'
     + '<label class="tw-gear-use" hidden><input type="checkbox" class="tw-gear-on" data-hs-act="gear-use"><span class="tw-gear-use-text"></span></label>'
     + '<div class="tw-gear-held"></div><div class="tw-gear-shop"></div>'
+    + '<div class="tw-gear-confirm" hidden><p class="tw-gear-confirm-q"></p><div class="hw-confirm-do">'
+    + '<button type="button" class="hw-primary" data-hs-act="gear-yes">' + esc(t('controls.buy')) + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="gear-no">' + esc(t('controls.cancel')) + '</button></div></div>'
     + '<p class="hs-note tw-gear-note"></p><p class="hs-note tw-gear-day"></p></section>'
     + '<div class="tw-foot"><p class="hw-why tw-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tw-go" data-hs-act="train-start">' + esc(t('training.press_start')) + '</button>'
@@ -120,12 +124,8 @@ function patchSkills(host, cs, tr, picked) {
   });
 }
 
-/* The name of a skill's training item, from the catalogue the server's rows name. */
-function gearName(tr, skill) {
-  const g = gearFor(tr, skill);
-  const id = (offersFor(tr, skill)[0] || {}).item || (g && (g.bag[0] || g.stored[0] || {}).item);
-  return id ? itemName(id) : skillWord(skill);
-}
+/* The name of a skill's training item, without a size ("Training Sword"): the hours left and the switch are the skill's bank, never one item's. */
+const gearName = (skill) => TRAINING_GEAR.names[skill] || skillWord(skill);
 
 /* One row of the item box: a name, a figure, a press. */
 function gearRow(doc, act, label) {
@@ -143,7 +143,7 @@ function patchGear(root, tr, skill, sc) {
   const doc = root.ownerDocument;
   const g = gearFor(tr, skill);
   const shopOn = !!(tr.shop && tr.shop.on);
-  const name = gearName(tr, skill);
+  const name = gearName(skill);
   text(root.querySelector('.tw-gear-left'), g && g.bankedMs > 0
     ? t(g.on ? 'training.gear_left_on' : 'training.gear_left', { item: name, time: timeWords(g.bankedMs) }) : '');
   /* While the items are closed (the server's switch) nothing here presses: the note says so. Otherwise every press is on, and the
@@ -161,7 +161,7 @@ function patchGear(root, tr, skill, sc) {
     key: (h) => h.where + ':' + h.item,
     build: () => gearRow(doc, 'gear-open', t('training.press_open')),
     patch: (row, h) => {
-      text(row.querySelector('.tw-gear-name'), t(h.bound ? 'training.gear_bound' : 'training.gear_held', { item: itemName(h.item), hours: h.hours }));
+      text(row.querySelector('.tw-gear-name'), h.bound ? t('training.gear_bound', { item: itemName(h.item) }) : itemName(h.item));
       text(row.querySelector('.tw-gear-fig'), t(h.where === 'bag' ? 'training.gear_in_bag' : 'training.gear_in_storage', { count: h.qty }));
       const b = row.querySelector('.tw-gear-press');
       attr(b, 'data-item', h.item);
@@ -173,13 +173,21 @@ function patchGear(root, tr, skill, sc) {
     key: (o) => o.item,
     build: () => gearRow(doc, 'gear-buy', t('training.press_buy')),
     patch: (row, o) => {
-      text(row.querySelector('.tw-gear-name'), t('training.gear_held', { item: itemName(o.item), hours: o.hours }));
+      text(row.querySelector('.tw-gear-name'), itemName(o.item));
       text(row.querySelector('.tw-gear-fig'), t('training.gear_price', { gold: whole(o.price) }));
       const b = row.querySelector('.tw-gear-press');
       attr(b, 'data-item', o.item);
       prop(b, 'disabled', sc.pending);
     },
   });
+  /* THE CONFIRM (the House dummy's pattern): Buy only asks; Buy in the confirm sends the one purchase at the price shown. An ask whose
+     row the server no longer offers at that price (or a closed shop) is dropped. */
+  const ask = sc.ask && shopOn ? offersFor(tr, skill).find((o) => o.item === sc.ask.item && o.price === sc.ask.price) : null;
+  if (!ask) sc.ask = null;
+  const cf = root.querySelector('.tw-gear-confirm');
+  prop(cf, 'hidden', !ask);
+  text(cf.querySelector('.tw-gear-confirm-q'), ask ? t('training.gear_confirm', { item: itemName(ask.item), price: whole(ask.price) }) : '');
+  prop(cf.querySelector('[data-hs-act="gear-yes"]'), 'disabled', sc.pending);
   text(root.querySelector('.tw-gear-note'), !shopOn ? t('training.gear_closed') : t('training.gear_card', { skill: skillWord(skill) }));
   const day = shopOn && tr.shop.max !== null ? t('training.gear_today', { today: tr.shop.today, max: tr.shop.max }) : '';
   prop(root.querySelector('.tw-gear-day'), 'hidden', !day);
@@ -277,6 +285,15 @@ renderTraining.act = function actTraining(ctx, body, action, ev, el) {
   /* THE TRAINING ITEMS: the server's row (an offer's price as SEEN, a held item's id), never a number of the window's own */
   if (action === 'gear-buy') {
     const item = el.getAttribute('data-item'), o = tr.offers.find((x) => x.item === item);
+    sc.ask = o ? { item: o.item, price: o.price } : null;
+    sc.msg = '';
+    repaint();
+    return true;
+  }
+  if (action === 'gear-no') { sc.ask = null; repaint(); return true; }
+  if (action === 'gear-yes') {
+    const ask = sc.ask, o = ask && tr.offers.find((x) => x.item === ask.item && x.price === ask.price);
+    sc.ask = null;
     if (!o) { repaint(); return true; }
     runIntent(sc, repaint, () => buyGear(ctx.account, cs, o.item, o.price), t('training.busy_buy'), () => t('training.bought', { item: itemName(o.item) }), cs);
     return true;

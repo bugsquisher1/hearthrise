@@ -142,10 +142,14 @@ export function trainingGearOf(id) {
   return TRAINING_GEAR_ITEMS.find((g) => g.id === id) || null;
 }
 
+/** An item's name: the skill's item and its size, "Training Sword (12 h)" (the Coordinator 2026-11-16: the two sizes read alike in the
+    bag, Storage and the market). The size is the row's own hours. */
+const trainingGearName = (skill, hours) => TRAINING_GEAR.names[skill] + ' (' + hours + ' h)';
+
 /** The catalogue rows (src/data/items.js spreads them). `type: 'training'`: its one use is to be opened into a hero's training bank. A
     bound row is `bop` (hr_items.tradeable false) and worth nothing; a gold row's book is its price / bidShare. `training` names it. */
 export const TRAINING_GEAR_ITEM_ROWS = Object.freeze(Object.fromEntries(TRAINING_GEAR_ITEMS.map((g) => [g.id, Object.freeze({
-  n: TRAINING_GEAR.names[g.skill], v: g.bound ? 0 : g.gold / TRAINING_GEAR.bidShare, type: 'training', tag: 'training',
+  n: trainingGearName(g.skill, g.hours), v: g.bound ? 0 : g.gold / TRAINING_GEAR.bidShare, type: 'training', tag: 'training',
   ...(g.bound ? { bop: true } : {}), training: Object.freeze({ skill: g.skill, hours: g.hours, bound: g.bound }) })])));
 
 /** One flavour line an item (src/data/item-descriptions.js spreads it). */

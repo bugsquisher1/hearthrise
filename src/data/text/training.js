@@ -60,8 +60,9 @@ export const TRAINING_TEXT = Object.freeze({
   gear_left: '{item} switched off, {time} left',
   gear_left_on: '{item} at 200%, {time} left',
   gear_use: 'Use {item}',
-  gear_held: '{item} ({hours} h)',
-  gear_bound: '{item} ({hours} h), bound',
+  /* {item} is the catalogue's name with its size, "Training Sword (12 h)" (src/data/training.js). */
+  gear_bound: '{item}, bound',
+  gear_confirm: '{item}: {price} gold',
   gear_in_bag: '{count} in bag',
   gear_in_storage: '{count} in Storage',
   gear_price: '{gold} gold',

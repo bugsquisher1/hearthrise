@@ -125,7 +125,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    APPLIED history. Sixteen new hr_items rows: a Training Sword, Bow, Wand and Shield in 12 and 24 hours, each the Arms Master's tradable
    row (book value its price / 100) and the Crowns store's bound copy (`_bound`, tradeable false, value 0: every trade surface refuses it),
    in ONE forward file, the same full delete+insert replace. No other row moves. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-23-training-gear-items-catalogue.generated.sql');
+/* THE TRAINING ITEMS' SIZES (lane/c-training-gear-arm, the Coordinator 2026-11-16: the 12 h and 24 h items read alike in the bag, Storage
+   and the market): 2027-04-23-training-gear-items-catalogue is APPLIED history. hr_items.name of the sixteen training rows takes its size,
+   "Training Sword (12 h)" (src/data/training.js trainingGearName), in ONE forward file, the same full delete+insert replace, ids, values
+   and tradeability unchanged. The emitted self-check pins every landed name to the source by digest. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-30-training-gear-names-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

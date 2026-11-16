@@ -126,7 +126,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
 import { OPEN_BOSS_HALLS, BOSS_HALL_RULES } from '../src/data/boss-halls.js';
-import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from '../src/data/training.js';
+import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, TRAINING_GEAR, TRAINING_GEAR_ITEMS, trainingHuntId } from '../src/data/training.js';
 import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -283,7 +283,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
    file, so the two are collapsed here (as the 12-21, 12-22 and 12-24 files were, above). It carries the tier 5 to 7 gear rows of the barrow data and adds
    hr_boss_halls, which 2027-04-20-boss-hall.sql reads, applied right after this file. A STAGED pack is served nowhere: its ground, its monsters and its
    hall join these tables the day the pack opens, not before. */
-export const OUT_NAME = '2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql';
+/* THE FIXED TRAINING RATE AND THE TRAINING ITEMS (lane/c-training-gear, Tyler 2026-11-14; src/data/training.js): 2027-04-20-boss-hall is APPLIED history and this
+   file carries it whole. hr_training_rules gains the rate (xp_per_hour), the Level a hero trains from (min_level), an item's rate (boost_pm) and the Arms
+   Master's day clamp (buy_per_day); hr_training_grounds loses its per-skill XP share (the pay is the time now); the training items join as
+   hr_training_gear (each item's skill, hours, whether it is the bound Crowns copy, and its gold price); hr_hunt_vendor_value gains the eight gold rows'
+   bids (1% of the price). Read by 2027-04-23-training-gear.sql, which applies right after this file. No ground, spawn, kill bound, limit, end reason or
+   world shape moves. */
+export const OUT_NAME = '2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -386,7 +392,7 @@ export function catalogueRows(src = {}) {
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
-    trainingHunts: TRAINING_HUNTS, trainingGrounds: TRAINING_GROUNDS, training: { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS },
+    trainingHunts: TRAINING_HUNTS, trainingGrounds: TRAINING_GROUNDS, training: { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS, gear: TRAINING_GEAR, gearItems: TRAINING_GEAR_ITEMS },
     /* the OPEN halls only (a staged pack's hall is served nowhere); everyHall, staged too, is where a named add may stand (hallRows) */
     hallHunts: OPEN_HALL_HUNTS, hallGrounds: OPEN_HALL_GROUNDS, halls: OPEN_BOSS_HALLS, hallRules: BOSS_HALL_RULES, everyHall: HALL_GROUNDS,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
@@ -846,7 +852,7 @@ function hallRows(S) {
   return rows;
 }
 
-/* THE TRAINING RULES, AT THE GENERATOR (tests/combat-training.mjs mutates it): the rows of hr_training_rules and hr_training_grounds, or a throw.
+/* THE TRAINING RULES, AT THE GENERATOR (tests/combat-training.mjs mutates it): the rows of hr_training_rules, hr_training_grounds and hr_training_gear, or a throw.
    The dummy (a `dummy` row) pays no coin, no drop and no Level XP, and stands on a training ground only; a training ground holds one seat, one
    pocket and the dummy alone, on its own hunt, and names a place and a skill the rules list; every place and skill pair has its ground. */
 function trainingRows(S, groundRowsOut) {
@@ -863,8 +869,10 @@ function trainingRows(S, groundRowsOut) {
   if (!(whole(d.hp) && d.hp >= 100)) throw new Error(`training dummy ${dummy} hp ${d.hp}: the most one blow on it can teach must stand well over any blow`);
   const skills = [...T.skills];
   if (!skills.length || !skills.every((k) => ID.test(k))) throw new Error('training: no skills, or a bad skill id');
-  for (const k of skills) if (!(whole(R.xpPermille[k]) && R.xpPermille[k] >= 1 && R.xpPermille[k] <= 1000)) throw new Error(`training: ${k}'s xpPermille ${R.xpPermille[k]} is not 1..1000`);
-  if (Object.keys(R.xpPermille).some((k) => !skills.includes(k))) throw new Error('training: an xpPermille names no trained skill');
+  /* THE FIXED RATE (Tyler 2026-11-14): one whole number of skill XP an hour for every skill, and the Level a hero trains from */
+  if (!(whole(R.xpPerHour) && R.xpPerHour >= 1 && R.xpPerHour <= 1000000)) throw new Error(`training: xpPerHour ${R.xpPerHour} is not 1..1000000`);
+  if (!(whole(R.minLevel) && R.minLevel >= 1 && R.minLevel <= 200)) throw new Error(`training: minLevel ${R.minLevel} is not 1..200`);
+  if ('xpPermille' in R) throw new Error('training: a per-skill XP share is back (the pay is the time, Tyler 2026-11-14)');
   if (!(whole(R.hpFloorPm) && R.hpFloorPm >= 1 && R.hpFloorPm < 1000)) throw new Error(`training: hpFloorPm ${R.hpFloorPm} is not 1..999`);
   if (!(whole(R.feeBase) && R.feeBase >= 0 && whole(R.feePerLevel) && R.feePerLevel >= 0 && R.feeBase + R.feePerLevel > 0)) throw new Error('training: the fee is not whole gold, or is nothing');
   if (!(whole(R.maxHours) && R.maxHours >= 1 && R.maxHours <= S.sessionLimits.hours.max)) throw new Error(`training: maxHours ${R.maxHours} is not 1..${S.sessionLimits.hours.max} (a session's hours limit)`);
@@ -884,7 +892,7 @@ function trainingRows(S, groundRowsOut) {
       if (!g.train || g.train.place !== place || g.train.skill !== skill || !h.train || h.train.place !== place || h.train.skill !== skill) throw new Error(`training ground ${id} does not name ${place} ${skill}`);
       const mons = g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns, p.adds || [])).map((x) => x.monster);
       if (gr.seats !== 1 || g.pockets.length !== 1 || gr.spawns !== 1 || mons.some((m) => m !== dummy)) throw new Error(`training ground ${id} is not one seat, one pocket and the dummy alone`);
-      rows.push({ hunt: id, place, skill, ord: skills.indexOf(skill), fee: T.places[place].fee === true, pm: R.xpPermille[skill] });
+      rows.push({ hunt: id, place, skill, ord: skills.indexOf(skill), fee: T.places[place].fee === true });
     }
   }
   for (const g of Object.values(S.grounds)) {
@@ -892,7 +900,30 @@ function trainingRows(S, groundRowsOut) {
     if (!g.train && mons.includes(dummy)) throw new Error(`ground ${g.id} fields the training dummy`);
     if (g.train && !rows.some((r) => r.hunt === g.hunt)) throw new Error(`ground ${g.id} trains and is no training row`);
   }
-  return { dummy, rules: { feeBase: R.feeBase, feePerLevel: R.feePerLevel, hpFloorPm: R.hpFloorPm, maxHours: R.maxHours, houseTier: home, houseTierId: R.houseTier }, grounds: rows };
+  /* THE TRAINING ITEMS (TRAINING_GEAR): an item's rate over the plain one, a whole XP an hour; every item a catalogue row of its own skill and
+     size; a gold row tradable at its price / bidShare (the shop's bid, at most half its price: buying to sell back never pays); a bound row
+     untradeable (bop) and worth nothing, with no gold door */
+  const GR = T.gear;
+  if (!(whole(GR.boostPermille) && GR.boostPermille > 1000 && GR.boostPermille <= 10000)) throw new Error(`training: boostPermille ${GR.boostPermille} is not 1001..10000`);
+  if (!whole(R.xpPerHour * GR.boostPermille / 1000)) throw new Error('training: the item\'s rate is not a whole XP an hour');
+  if (!(whole(GR.buyPerDay) && GR.buyPerDay >= 1 && GR.buyPerDay <= 100)) throw new Error(`training: buyPerDay ${GR.buyPerDay} is not 1..100`);
+  if (!(whole(GR.bidShare) && GR.bidShare >= 2)) throw new Error(`training: bidShare ${GR.bidShare} would let the shop bid over half the price`);
+  const gear = [];
+  for (const g of T.gearItems) {
+    const it = S.items[g.id];
+    if (!ID.test(g.id) || !it || it.type !== 'training' || !it.training || it.training.skill !== g.skill || it.training.hours !== g.hours) throw new Error(`training item ${g.id} is not its own catalogue row`);
+    if (!skills.includes(g.skill)) throw new Error(`training item ${g.id} trains ${g.skill}, which no ground trains`);
+    if (!(whole(g.hours) && g.hours >= 1 && g.hours <= 48)) throw new Error(`training item ${g.id}: ${g.hours} hours is not 1..48`);
+    if (g.bound) {
+      if (it.bop !== true || Number(it.v) !== 0 || g.gold !== null) throw new Error(`training item ${g.id} is bound but tradable, worth something, or sold for gold`);
+    } else {
+      if (it.bop || !(whole(g.gold) && g.gold >= 1 && g.gold <= 1000000000) || it.v * GR.bidShare !== g.gold) throw new Error(`training item ${g.id}: a gold row must trade at its price ${g.gold} / ${GR.bidShare}`);
+    }
+    gear.push({ id: g.id, skill: g.skill, ms: g.hours * R.hourMs, bound: g.bound, price: g.gold });
+  }
+  for (const s of skills) for (const h of GR.hours) if (!gear.some((g) => g.skill === s && g.ms === h * R.hourMs && !g.bound) || !gear.some((g) => g.skill === s && g.ms === h * R.hourMs && g.bound)) throw new Error(`training: ${s} has no gold and bound item of ${h} hours`);
+  return { dummy, rules: { feeBase: R.feeBase, feePerLevel: R.feePerLevel, hpFloorPm: R.hpFloorPm, maxHours: R.maxHours, houseTier: home, houseTierId: R.houseTier,
+    xpPerHour: R.xpPerHour, minLevel: R.minLevel, boostPm: GR.boostPermille, buyPerDay: GR.buyPerDay, bidShare: GR.bidShare }, grounds: rows, gear };
 }
 
 export function render(src) {
@@ -921,7 +952,8 @@ export function render(src) {
   const resumableValues = r.resumable.map((k) => `  (${sq(k)})`).join(',\n');
   const endList = r.ends.map((e) => sq(e.r)).join(', ');
   const vendorValues = r.vendor.map((v) => `  (${sq(v.id)}, ${v.unit})`).join(',\n');
-  const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee}, ${t.pm})`).join(',\n');
+  const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee})`).join(',\n');
+  const gearValues = r.training.gear.map((g) => `  (${sq(g.id)}, ${sq(g.skill)}, ${g.ms}, ${g.bound}, ${g.price === null ? 'null' : g.price})`).join(',\n');
   const trainRule = r.training.rules;
   const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.fee}, ${c.perDay}, ${c.limitMs})`).join(',\n');
   const hallValues = r.bossHalls.map((h) => `  (${sq(h.id)}, ${sq(h.hunt)}, ${sq(h.monster)}, ${sq(h.key)}, ${h.limitMs})`).join(',\n');
@@ -930,7 +962,7 @@ export function render(src) {
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
     'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns',
     'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls',
-    'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls'];
+    'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls', 'hr_training_gear'];
   const tableList = CATALOGUE.map(sq).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE HUNT SESSION CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -947,7 +979,18 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
+-- NEW IN THIS FILE (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
+-- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
+-- hr_training_rules gains xp_per_hour (${r.training.rules.xpPerHour}, the fixed rate), min_level (${r.training.rules.minLevel}, the Level a hero trains from),
+-- boost_pm (${r.training.rules.boostPm}, an item's rate) and buy_per_day (${r.training.rules.buyPerDay}, the Arms Master's clamp an account a UTC day);
+-- hr_training_grounds LOSES xp_permille (the pay is the settled time, never a share of a blow); NEW hr_training_gear, the ${r.training.gear.length} training
+-- items (a Sword, Bow, Wand and Shield in 12 and 24 hours, each a gold row and the Crowns store's bound copy: item, skill, hours in ms, bound, gold
+-- price or null); hr_hunt_vendor_value gains the eight gold rows' bids (1% of the price). No ground, spawn, kill bound, limit, end reason or world shape
+-- moves. ORDER: after 2027-04-23-training-gear-items-catalogue.generated.sql (the self-check wants the items in hr_items) and 2027-04-20-boss-hall
+-- (carried whole), right before 2027-04-23-training-gear.sql, which restates the bodies that read the dropped share: between the two, a training start
+-- or a training settle is refused (the old bodies read xp_permille), so the two apply back to back, then the hr-accrue at once.
+--
+-- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
 -- which hr_hunt_admit, hr_boss_hall_enter and the settle's proof of a room's ends read (2027-04-20-boss-hall.sql, which applies right after this file).
 -- It is EMPTY: the one hall in the data is Lord Krell's, his pack is staged, and a staged pack is served nowhere; his room, its rows' kill bounds and its
@@ -1381,8 +1424,9 @@ create table if not exists public.hr_boss_calls (
 alter table public.hr_boss_calls drop column if exists party_min;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
--- COMBAT TRAINING (training.js): the rules, one row, and each training ground's place, skill, fee and share. Read by hr_training_start, the settle's
--- hourly charge (hr_training_hour) and its window check (hr_training_window), 2027-04-16-combat-training.sql.
+-- COMBAT TRAINING (training.js): the rules, one row, each training ground's place, skill and fee, and the training items. Read by hr_training_start,
+-- the settle's hourly charge (hr_training_hour), its window check and the items' spend (hr_training_window), the items' verbs and the section
+-- (2027-04-16-combat-training.sql, 2027-04-23-training-gear.sql).
 create table if not exists public.hr_training_rules (
   id            boolean primary key default true check (id),
   fee_base      int     not null check (fee_base >= 0),
@@ -1393,20 +1437,40 @@ create table if not exists public.hr_training_rules (
   house_tier_id text    not null check (house_tier_id ~ '^[a-z0-9_]{1,32}$'),
   constraint hr_training_rules_fee_ck check (fee_base + fee_per_level > 0)
 );
+-- THE FIXED RATE AND THE ITEMS (lane/c-training-gear): the table an earlier revision of this file made widens here, nullable until the row below
+-- fills it, then NOT NULL (the same shape however the table was made).
+alter table public.hr_training_rules
+  add column if not exists xp_per_hour int check (xp_per_hour between 1 and 1000000),
+  add column if not exists min_level   int check (min_level between 1 and 200),
+  add column if not exists boost_pm    int check (boost_pm between 1001 and 10000),
+  add column if not exists buy_per_day int check (buy_per_day between 1 and 100);
 create table if not exists public.hr_training_grounds (
   hunt_id     text    primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   place       text    not null check (place in ('yard', 'house')),
   skill       text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
   ord         int     not null check (ord >= 0),
   fee         boolean not null,
-  xp_permille int     not null check (xp_permille between 1 and 1000),
   constraint hr_training_grounds_place_skill unique (place, skill),
   constraint hr_training_grounds_fee_ck check (fee = (place = 'yard'))
 );
+-- THE PAY IS THE TIME (Tyler 2026-11-14): the per-skill share of a blow is gone (2027-04-23-training-gear.sql restates the bodies that read it).
+alter table public.hr_training_grounds drop column if exists xp_permille;
+-- THE TRAINING ITEMS (training.js TRAINING_GEAR): each item's skill, its hours (ms), whether it is the Crowns store's bound copy, and the Arms
+-- Master's gold price (null for a bound row: no gold door sells it). The items themselves are hr_items rows (tools/gen-catalogues.mjs).
+create table if not exists public.hr_training_gear (
+  item_id  text    primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
+  skill    text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
+  hours_ms bigint  not null check (hours_ms between 3600000 and 172800000),
+  bound    boolean not null,
+  price    bigint  check (price between 1 and 1000000000),
+  constraint hr_training_gear_price_ck check ((price is null) = bound)
+);
+comment on table public.hr_training_gear is
+  'tools/gen-hunt-sessions.mjs from src/data/training.js TRAINING_GEAR: the training items, their skill, hours, bound flag and gold price (lane/c-training-gear). Names no player; character wipe c_no_player.';
 comment on table public.hr_training_rules is
-  'tools/gen-hunt-sessions.mjs from src/data/training.js: the training yard''s fee, the dummy''s floor, the longest session, the house dummy''s property tier (lane/c-combat-training). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/training.js: the training rate and the Level it starts at, an item''s rate, the yard''s fee, the dummy''s floor, the longest session, the house dummy''s property tier, the Arms Master''s day clamp (lane/c-combat-training, lane/c-training-gear). Names no player; character wipe c_no_player.';
 comment on table public.hr_training_grounds is
-  'tools/gen-hunt-sessions.mjs from src/data/training.js and hunt-grounds.js TRAINING_GROUNDS: each training ground''s place, trained skill, hourly fee and XP share (lane/c-combat-training). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/training.js and hunt-grounds.js TRAINING_GROUNDS: each training ground''s place, trained skill and hourly fee (lane/c-combat-training). Names no player; character wipe c_no_player.';
 -- KEYED HALLS (boss-halls.js): which room a Hall Key opens, the boss whose kill ends it, the key it spends and its limit. Read by hr_hunt_admit,
 -- hr_boss_hall_enter and the settle's proof of the room's ends (2027-04-20-boss-hall.sql). A hall's room is its ground's id and _hall.
 create table if not exists public.hr_boss_halls (
@@ -1518,10 +1582,15 @@ insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, 
 ${callValues};
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
-insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
-  (true, ${trainRule.feeBase}, ${trainRule.feePerLevel}, ${trainRule.hpFloorPm}, ${trainRule.maxHours}, ${trainRule.houseTier}, ${sq(trainRule.houseTierId)});
-insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
+insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id, xp_per_hour, min_level, boost_pm, buy_per_day) values
+  (true, ${trainRule.feeBase}, ${trainRule.feePerLevel}, ${trainRule.hpFloorPm}, ${trainRule.maxHours}, ${trainRule.houseTier}, ${sq(trainRule.houseTierId)}, ${trainRule.xpPerHour}, ${trainRule.minLevel}, ${trainRule.boostPm}, ${trainRule.buyPerDay});
+alter table public.hr_training_rules
+  alter column xp_per_hour set not null, alter column min_level set not null, alter column boost_pm set not null, alter column buy_per_day set not null;
+insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee) values
 ${trainValues};
+delete from public.hr_training_gear;
+insert into public.hr_training_gear (item_id, skill, hours_ms, bound, price) values
+${gearValues};
 delete from public.hr_boss_halls;
 ${hallValues ? `insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values\n${hallValues};` : '-- (no open keyed hall in the data: src/data/boss-halls.js OPEN_BOSS_HALLS)'}
 
@@ -1557,6 +1626,7 @@ begin
      or (select count(*) from public.hr_boss_calls) <> ${r.bossCalls.length}
      or (select count(*) from public.hr_training_rules) <> 1
      or (select count(*) from public.hr_training_grounds) <> ${r.training.grounds.length}
+     or (select count(*) from public.hr_training_gear) <> ${r.training.gear.length}
      or (select count(*) from public.hr_boss_halls) <> ${r.bossHalls.length}
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
@@ -1627,6 +1697,19 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
      or exists (select 1 from public.hr_hunt_roster o where o.monster_id = ${sq(r.training.dummy)})
      or exists (select 1 from public.hr_hunt_travel v where v.hunt_id = ${sq(r.training.dummy)}) then
     raise exception 'a training ground holds more than its dummy, or the dummy pays, or it stands where it trains nobody'; end if;
+  -- THE TRAINING ITEMS, THE MONEY LINE (Tyler 2026-11-14: Crowns-bought goods never trade): every item is its own hr_items row of kind 'training'
+  -- and trains a skill a ground trains; a bound row is untradeable, worth nothing, with no gold price and no shop bid; a gold row trades at its
+  -- price / ${trainRule.bidShare} as book, and the shop bids at most half its price (buying one to sell it back never pays).
+  if exists (select 1 from public.hr_training_gear g
+              where not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.kind = 'training')
+                 or not exists (select 1 from public.hr_training_grounds t where t.skill = g.skill)
+                 or g.hours_ms % 3600000 <> 0
+                 or (g.bound and (exists (select 1 from public.hr_items i where i.item_id = g.item_id and (i.tradeable or i.value <> 0))
+                                  or exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id)))
+                 or (not g.bound and (not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.tradeable and i.value * ${trainRule.bidShare} = g.price)
+                                      or not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id and v.unit * 2 <= g.price))))
+     or exists (select 1 from public.hr_items i where i.kind = 'training' and not exists (select 1 from public.hr_training_gear g where g.item_id = i.item_id)) then
+    raise exception 'a training item is not its catalogue row, a bound one trades or is worth something, or a gold one sells back for more than half'; end if;
   -- KEYED HALLS: every hall stands in hr_hunts, hr_hunt_travel and hr_hunt_grounds (one pocket), its boss among its spawns and on no other ground,
   -- its key a catalogued item, and every row in its room a paying one (a called row never stands in a hall: the kill bounds' CHECK tells them apart).
   if exists (select 1 from public.hr_boss_halls h

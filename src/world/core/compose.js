@@ -449,7 +449,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   }
   /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
      walk chosen by distance), alpha, grey (0..1 toward its corpse tone), recoil ([dx, dy] art px), under (drawn
-     beneath the standing: a corpse), plate:{text,title?,kind,alpha?,yields? (gives way in a crowd: core/plates.js)}, bar, barKind, mana, badge, target, dye }.
+     beneath the standing: a corpse), plate:{text,title?,kind,alpha?,yields? (gives way in a crowd: core/plates.js)}, bar, barKind, mana, badge, target, dye, pour }.
      dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
     const anim = u.anim || 'idle';
@@ -459,6 +459,8 @@ export function composeFrame(map, book, state, view, tables, T) {
     if (u.grey) d.grey = Math.max(0, Math.min(1, u.grey));
     /* its colors, dye indices the server sent ("head.body.legs.feet"; the backend draws them, hero-dye.js). The hero you play is first in line for a sheet. */
     if (u.dye) Object.assign(d, { dye: u.dye, dyeOwn: isHero });
+    /* its pour (src/world/pour.js: the Burning Tower's fire), baked once a kind by the backend (monster-pour.js) */
+    if (u.pour) d.pour = u.pour;
     const { cx, foot, top } = head(d);
     /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
     if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }
@@ -499,6 +501,8 @@ export function composeFrame(map, book, state, view, tables, T) {
      `state.ambientSwap` draws another clip in its place ({ hearth_fire: 'hearth_fire_honey' }: a named fuel's colour,
      src/world/hearth-burn.js), at the same anchor. */
   for (const a of map.ambient || []) {
+    /* `state.ambientHide` leaves one out ({ hearth_chest: true }: the Tower's chest while the server hides the Tower) */
+    if (state.ambientHide && state.ambientHide[a.id]) continue;
     const id = (state.ambientSwap && state.ambientSwap[a.id]) || a.id;
     const s = book.sprite(id);
     const name = s.anims && (s.anims.idle ? 'idle' : s.anims.play ? 'play' : null);

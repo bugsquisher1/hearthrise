@@ -276,7 +276,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'hud_vitals', { kind: 'any', of: [READ, { kind: 'stance_changed' }] },
     { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
   step('more_heroes', 'More than one hero',
-    'Characters → Create hero',
+    t('coach.more_heroes'),
     /* A card that asks never walls: played 2026-11-01, a hero who wants one hero sat on this card in every hunt past 5 minutes, ahead of the Thicket's lessons. */
     'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),
     { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
@@ -442,7 +442,7 @@ export const HUNT_TUTORIAL = Object.freeze([
      prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
      keeps. */
   step('purse_goal', 'Spend your gold',
-    'Buy a hero slot or a House deed',
+    t('coach.purse_goal'),
     'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),
   step('home', 'Build your home',
     'Gather logs and ore for your first house',
@@ -915,6 +915,8 @@ const SAY = Object.freeze({
     if (isStore(s) && priceOf(f, s.id) === null) return null;
     return { text: isStore(s) ? t('coach.first_drink_store') : t('coach.first_drink_own', { item: name(s.id) }), barSlot: i };
   },
+  /* unstated until the shell says the roster, the slots owned and the play limit (never a card on a guess) */
+  more_heroes: (f) => (heroesOn(f) && Number.isInteger(f.slotsOwned) && Number.isInteger(f.playLimit) ? { text: t('coach.more_heroes') } : null),
   party_own: (f) => {
     const o = (heroesOn(f) || []).find((x) => x.slot !== f.self && x.open === true && x.hunting === false && x.name);
     return o ? { text: t('coach.party_own', { name: o.name }), other: o.slot } : null;
@@ -942,6 +944,12 @@ const SAY = Object.freeze({
     if (!CLUB_REFORGE || !name('klappas_club')) return null;
     return f.carried && f.carried.klappas_club > 0 ? { text: t('coach.club_equip', { club: name('klappas_club') }), anchor: 'inventory' }
       : { text: t('coach.club_make', { recipe: CLUB_REFORGE.name }) };
+  },
+  /* the smith's first rung when the purse covers it (Tempering, src/data/temper.js), else the hero and the House; unstated with no offer */
+  purse_goal: (f) => {
+    if (!ORDINAL[(Number(f.slotsOwned) || 0) + 1] || !Number.isSafeInteger(f.slotCost) || !Number.isSafeInteger(f.gold)) return null;
+    const smith = f.temper && Number.isSafeInteger(f.temper.gold) ? f.temper : null;
+    return { text: smith ? t('coach.goal_temper', { piece: smith.piece, gold: gp(smith.gold) }) : t('coach.purse_goal') };
   },
   home: (f) => {
     const deed = f.home && f.home.next;
@@ -1102,21 +1110,27 @@ export function nextStepUp(rows, level, alone = true) {
   const wrong = alone ? 'party' : 'solo';
   return here.find((r) => r.groupFit !== wrong) || here[0];
 }
+/* "Iron Sword (sword), Ironbound Shield (shield) and 2 more" (skill-unlocks.js nextUnlock's list) as a card line says it: the first name, the rest
+   counted ("Iron Sword and 3 more"). A card is one short line (Tyler 2026-11-16); the item's own page says what each is. */
+function firstNamed(list) {
+  const more = / and (\d+) more$/.exec(list);
+  const names = list.slice(0, more ? more.index : list.length).split(', ').map((x) => x.replace(/ \([^)]*\)$/, ''));
+  const rest = names.length - 1 + (more ? Number(more[1]) : 0);
+  return { first: names[0], words: rest ? names[0] + ' and ' + rest + ' more' : names[0] };
+}
 /* The ground's advice row as the Hunts list reads it. */
 const adviceRow = (hunt) => ({ hunt, band: HUNT_INDEX[hunt].band, groupFit: partyGround(hunt) ? 'party' : (Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt) || {}).groupFit });
 
-/* "Graypelt Cloak is made in Crafting from Wolf Pelt ×6.": the first gear piece worn at Level `lv` that a bench makes,
-   that the next-gear words `said` name and the role wears; '' when none. Inputs as the home card writes them (name ×n).
-   A bench rung above 1 says its level: "Ironbound Shield is made at Smithing 15 from ..." (lane/b-core-loop-20h, played:
-   a Level 12 tank read the shield's recipe with Smithing 1 and Mining 1 and no word that the bench wants 15). */
-function madeWords(lv, said, role) {
+/* { piece, skill } for the gear piece worn at Level `lv` named `first` when a bench makes it and the role wears it ("Houndskin Cloak, made in
+   Crafting": a made piece no line said how to get was a goal with no way, lane/b-first-hour), or null. */
+function madeWords(lv, first, role) {
   for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
     for (const r of list || []) {
       const it = r.output ? ITEMS[r.output] : null;
-      if (!it || it.reqSkill !== LEVEL_REQ || it.reqLv !== lv || !it.n || !said.includes(it.n) || (role && !wornByRole(r.output, role))) continue;
+      if (!it || it.reqSkill !== LEVEL_REQ || it.reqLv !== lv || it.n !== first || (role && !wornByRole(r.output, role))) continue;
       const ins = Object.entries(r.inputs || (r.input ? { [r.input]: 1 } : {}));
       if (!ins.length || !SKILLS_DEF[skill] || ins.some(([id]) => !name(id))) continue;
-      return { piece: it.n, skill: SKILLS_DEF[skill].name };
+      return { piece: it.n, skill: SKILLS_DEF[skill].name, req: r.req || 1 };
     }
   }
   return null;
@@ -1209,8 +1223,11 @@ export function nextGoal(facts) {
   if (gat) {
     /* A piece that line names and a bench makes: where and from what (the Graypelt Cloak, lane/b-first-hour: a made
        piece no line said how to get was a goal with no way). The first such piece only. */
-    const made = madeWords(Number(gat[1]), gear, role);
-    lines.push(made ? t('coach.goal_gear_made', { level: gat[1], gear: made.piece, skill: made.skill }) : t('coach.goal_gear', { level: gat[1], gear: gear.slice(gat[0].length) }));
+    const named = firstNamed(gear.slice(gat[0].length));
+    const made = madeWords(Number(gat[1]), named.first, role);
+    /* a bench rung above 1 says its level (lane/b-core-loop-20h, played: a Level 12 tank read the shield's recipe with Smithing 1 and no word that the bench wants 15) */
+    const madeKey = made ? (made.req > 1 ? 'coach.goal_gear_made_at' : 'coach.goal_gear_made') : 'coach.goal_gear';
+    lines.push(t(madeKey, { level: gat[1], gear: made ? named.first : named.words, ...(made ? { skill: made.skill } : {}), ...(made && made.req > 1 ? { req: made.req } : {}) }));
     ids.push('gear', gat[1]);
   }
   /* The ground ahead that nothing above has named and this hero has not walked. */
@@ -1231,7 +1248,7 @@ export function nextGoal(facts) {
     const u = nextUnlock(skill, facts.skillLevel);
     const at = /^Next at level (\d+): /.exec(u);
     if (at) {
-      lines.push(t('coach.goal_skill', { skill: SKILLS_DEF[skill].name, level: at[1], unlock: u.slice(at[0].length) }));
+      lines.push(t('coach.goal_skill', { skill: SKILLS_DEF[skill].name, level: at[1], unlock: firstNamed(u.slice(at[0].length)).words }));
       ids.push(skill, at[1]);
     }
   }

@@ -663,7 +663,7 @@ async function pureRules(M, base) {
     srv.reply = { ok: false, error: 'not_a_tank' };
     await press('hold-seat', fremulon());
     v = panelShown(M, dom, ctx);
-    if (dom.el.querySelector('.hp-msg').textContent !== 'Only a hero with a sword and shield can hold the pack.') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
+    if (dom.el.querySelector('.hp-msg').textContent !== 'Requires a sword and shield') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
     if (srv.calls.some((c) => c[0] === 'hr_load') || tanksShown() !== 'Eddie*,Fremulon') return 'a refusal changed the switch: ' + tanksShown();
     srv.calls.length = 0;
     srv.reply = { ok: true };
@@ -967,7 +967,7 @@ async function pureRules(M, base) {
     if (centre.list().some((a) => a.id === stam.id)) return 'the low-stamina line outlived its hunt';
     /* (5) WORDS A DEAD END CANNOT HIDE IN. */
     if (M.FR.answerWords({ done: 'Invite sent to Mira.' }, '') !== 'Invite sent to Mira.') return 'a friends-row invite that worked reads ' + JSON.stringify(M.FR.answerWords({ done: 'Invite sent to Mira.' }, ''));
-    if (!/Leave it, then invite from town/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
+    if (!/Leave your hunt to invite/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
     if (!/Leave it in the Party window/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
     return true;
   });
@@ -1537,7 +1537,7 @@ const PURE_MUTANTS = [
     "  if ((action === 'hold-one' && v.one) || seat === now || (seat !== null && !Number.isInteger(seat))) return true;\n", "  if (seat !== null && !Number.isInteger(seat)) return true;\n"],
   ['the pick note never names who takes over', 'src/shell/widgets/party-hold.js', "(others.length === 1 ? others[0] + ' takes over' : 'Your other tanks take turns')", "'Another tank takes over'"],
   ['a hold press re-reads nobody', 'src/session/party-intents.js', "{ p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), peers)", "{ p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), [])"],
-  ['not_a_tank has no words of its own', 'src/data/refusal-words.js', "  not_a_tank: 'Only a hero with a sword and shield can hold the pack.',\n", ''],
+  ['not_a_tank has no words of its own', 'src/data/refusal-words.js', "  not_a_tank: 'Requires a sword and shield',\n", ''],
   ['the switch goes with the hunt', 'src/shell/widgets/party-hold.js', '  const show = r.inParty && tanks.length > 1;', '  const show = r.inParty && tanks.length > 1 && r.anyHunting;'],
   ['a guarding tank reads as too weak (Tyler 2026-10-22)', 'src/hunt-view/live-engine.js', ": picked ? 'guard' : 'weak');", ": 'weak');"],
   ['a pick made mid-lap reads as in force', 'src/hunt-view/live-engine.js', '{ runs: runs + lap, hold: world.holdNext }', '{ runs: runs + lap }'],
@@ -1568,7 +1568,7 @@ const PURE_MUTANTS = [
   ['a line about something that happened is judged as a live one (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:low|lowstam|out):/;'],
   ['only a friend\'s stamina is live: a supply line stands when the store pays (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:lowstam):/;'],
   ['a live line goes with its hunt\'s end (AL-LIVE)', 'src/shell/alerts.js', "const unsaid = (id) => !!open && LIVE.test(id) && id.split(':')[1] === open && !said.has(id);", 'const unsaid = (id) => LIVE.test(id) && !said.has(id);'],
-  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'On your own hunt. Leave it, then invite from town.' }),", ''],
+  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'Leave your hunt to invite' }),", ''],
   ['a hero sent home by a leave raises a plain end line', 'src/shell/alerts.js', "  else if (h.ended && h.endReason === 'party_member_left') out.push(", '  else if (false) out.push('],
   ['the summary says the hunt ended (no member, no hero)', 'src/hunt-view/summary-model.js', "  if (typeof by === 'string' && by && (reason === 'party_member_left'", "  if (false && (reason === 'party_member_left'"],
   ['the summary forgets who sent the hero home', 'src/hunt-view/summary-model.js', "    by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,", '    by: null,'],

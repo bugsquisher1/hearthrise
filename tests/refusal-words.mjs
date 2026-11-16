@@ -142,10 +142,10 @@ async function run(root) {
 }
 
 const MUTANTS = [
-  ['RW1', 'the Iron Platelegs code loses its line and its family', 'src/data/refusal-words.js', "  requirement_not_met: 'You don\\'t meet that item\\'s requirement yet. Nothing was put on.',\n", ''],
-  ['RW1', 'the bad_* family is gone', 'src/data/refusal-words.js', "  [/^(bad|missing)_[a-z0-9_]+$|_shape$|^unknown_(verb|op|delta_key|rpc)$/, 'That request was not valid, so nothing was changed.'],\n", ''],
+  ['RW1', 'the Iron Platelegs code loses its line and its family', 'src/data/refusal-words.js', "  requirement_not_met: 'Requirement not met',\n", ''],
+  ['RW1', 'the bad_* family is gone', 'src/data/refusal-words.js', "  [/^(bad|missing)_[a-z0-9_]+$|_shape$|^unknown_(verb|op|delta_key|rpc)$/, 'Invalid request, nothing changed'],\n", ''],
   ['RW1', 'the old one-word fallback for every unlisted code', 'src/shell/intent-words.js', '  return (typeof code === \'string\' && familyWords(code)) || REFUSAL_FALLBACK;', '  return REFUSAL_FALLBACK;'],
-  ['RW2', 'the fallback says nothing about what changed', 'src/data/refusal-words.js', "export const REFUSAL_FALLBACK = 'Didn\\'t go through, nothing changed. Try again in a moment.';", "export const REFUSAL_FALLBACK = 'Not done: the server refused it.';"],
+  ['RW2', 'the fallback says nothing about what changed', 'src/data/refusal-words.js', "export const REFUSAL_FALLBACK = 'Didn\\'t go through, nothing changed';", "export const REFUSAL_FALLBACK = 'Not done: the server refused it.';"],
   ['RW3', 'the requirement is not said with its numbers', 'src/shell/intent-words.js', '    const w = requirementWords(r.item, cs, r.counts);', '    const w = null;'],
   ['RW3', 'the refusal\'s own number is not read', 'src/shell/intent-words.js', '  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) {', '  if (false) {'],
   ['RW3', 'the hero\'s own level is not read', 'src/shell/intent-words.js', '  const need = it ? needOf(item, cs ? skillsOf(cs) : null, lv ? lv.level : null) : null;', '  const need = it ? needOf(item, null, null) : null;'],

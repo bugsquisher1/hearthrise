@@ -16,7 +16,7 @@
 
 import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.134';
 
-export const REFUSAL_FALLBACK = 'Didn\'t go through, try again';
+export const REFUSAL_FALLBACK = 'Didn\'t go through, nothing changed';
 
 /* The Weighhouse's refusals (2027-01-12-market-account.sql's taxonomy; the design's words: PRIORITY_BOARD "Marketplace design").
    One with the server's number or the hero's name is src/shell/market-words.js's. */
@@ -306,7 +306,7 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_name: 'Names: 3 to 20 letters, numbers and spaces',
   needs_name: 'Name this hero first',
   /* A new name (2026-12-04-hero-rename.sql): the first name is free, a change costs gold. */
-  same_name: 'Already this hero\'s name',
+  same_name: 'Same name',
   already_named: 'Already named, renaming costs gold',
   not_named: 'Name this hero first',
   renamed_today: 'One name change a day',

@@ -929,7 +929,8 @@ async function huntsPure(imp) {
   /* A HEALER'S TIER (lane/a-honest-lines, v0.2.134; the mechanism is lane/d-late-nearmisses'): where a pack's healerTiers names a tier (hunt-tiers.js HEALER_TIERS,
      measured on the full grade: a four with no Healer dies there and a four with one holds), the page says "bring a Healer" to EVERY group, a hero alone and a
      party alike, and on no other ground or tier; a named Deadly is graded with a Healer (checks.deadlyFourNeeds), so the card and the grader's bar agree.
-     Krell's Hold and the Muster Barrows graded Deadly that way since 2026-11-12 and their cards never said it. */
+     The Muster Barrows graded Deadly that way since 2026-11-12 and its card never said it (its pack has the full grade's numbers). Krell's Hold, graded
+     the same way, is not named: its healerless four holds its floor inside the bar, so the line would not be true there. */
   {
     const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
     const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
@@ -945,7 +946,7 @@ async function huntsPure(imp) {
       named += want ? 1 : 0;
       for (const n of [1, 2, 4]) if (tierWords(r, id, n).includes(healerLine) !== want) fails.push('AW-25 ' + r.hunt + ' ' + id + ', a group of ' + n + ': the page reads "' + tierWords(r, id, n) + '"' + (want ? ', with no word that it needs a Healer' : ', and it is not named one'));
     }
-    for (const g of ['krells_hold', 'muster_barrows']) if (!(TV.isHealerTier && TV.isHealerTier(g, 'deadly'))) fails.push('AW-25 ' + g + '\'s Deadly is graded as a Healer\'s tier and its card does not say so (healerTiers)');
+    if (!(TV.isHealerTier && TV.isHealerTier('muster_barrows', 'deadly'))) fails.push('AW-25 the Muster Barrows\' Deadly kills a four with no Healer and its card does not say so (healerTiers)');
     if (!named) fails.push('AW-25 no ground names a Healer\'s tier: the words were never read');
   }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
@@ -4804,6 +4805,8 @@ const MUTANTS = [
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
+  ['plans: AW-21 an item card says nothing of what it does on the hero\'s ground', 'src/shell/item-lore.js', '  return lines.length ? { ground: (HUNT_INDEX[g.hunt]', '  return lines.length && false ? { ground: (HUNT_INDEX[g.hunt]'],
+  ['plans: AW-21 an item card\'s ground line skips the resistance', 'src/shell/item-lore.js', '    if (hit.length && pm > 0) lines.push(', '    if (false) lines.push('],
   ['plans: AW-21 Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: AW-21 a hero with no weight stays bare (played 2026-11-04)', 'src/shell/upgrade-plan.js', "return chosen || wornWeightOf(equipment || {}) || WEIGHT_FOR_ROLE[role] || null;", "return chosen || null;"],

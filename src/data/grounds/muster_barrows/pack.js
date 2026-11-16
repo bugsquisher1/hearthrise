@@ -235,6 +235,13 @@ export default definePack({
      so the answer is the HP, not the pay. */
   tierOverride: { dangerous: 8, dials: { dangerous: { hpPm: 1000 }, deadly: { hpPm: 1000 } },
     why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous, so it brings the full box. With the 10% more HP the table adds, a pair holding Deadly at the floor earned 17% over its Normal, under the 25% a tier owes whoever holds it, so the harder tiers add no HP here' },
+  /* DEADLY IS A HEALER'S TIER HERE (lane/a-honest-lines 2026-11-16; graded so since designer Q4 2026-11-12, checks.deadlyFourNeeds, and the card
+     never said it). MEASURED on the full grade (node tools/pack.mjs check muster_barrows --mode full, the ladder kit, 2 seeds x 2 h a four):
+     at the floor (55) a tank, hammer, bow and Mage died 10 times in 16 hero-hours, over the bar of 9, and a tank, Healer, bow and Mage 0;
+     under the floor 17 (53), 26 (52) and 37 (50) without a Healer, 0 with one. 8 more seeds at the floor: 34 in 64 without, 0 in 64 with
+     (pooled 8.8 in 16, on the bar). Krell's Hold, graded the same way, is NOT named: its healerless four died 4 in 16 at the floor (11 in
+     64 on 8 more seeds), inside the bar, so "even a party of four dies here" would not be true there. */
+  healerTiers: ['deadly'],
   /* PARTY LEVEL XP (party-class-xp.js's row shape: a share of the kill by how many classes stand, not a difficulty row). With no row a
      party pays the even share of a whole kill, and on the quick grade a tank and Healer pair read 0.78-0.81 of the median lone way and
      the four-class four 0.85-0.86, where 10-25 asks a pair 1.05-1.15 and a four 1.15-1.25. The mixed cells are those readings scaled

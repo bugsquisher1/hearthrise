@@ -1639,20 +1639,20 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const got = await page.evaluate(() => {
           const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
           const w = document.querySelector('[data-hs-win="hunt-summary"]');
-          /* the row's words, on the card and in the analyzer (a dd's own dt) */
+          /* the raw row's words on the card (its dd's own dt) */
           const dt = (d) => (d && d.previousElementSibling ? d.previousElementSibling.textContent : null);
           return { balance: v('balance'), balanceH: v('balanceH'), rawXpH: v('rawXpH'), win: !!w, card: !!(w && w.querySelector('.hsum-card.is-on')),
-            text: w ? w.textContent.slice(0, 160) : null,
-            rawLabels: [dt(document.querySelector('[data-hs-win="hunt-summary"] [data-stat="rawXpH"]')), dt(document.querySelector('.ha-analyzer [data-stat="perHour.rawLevelXp"]'))] };
+            text: w ? w.textContent.slice(0, 160) : null, rawLabel: dt(document.querySelector('[data-hs-win="hunt-summary"] [data-stat="rawXpH"]')) };
         });
         const ph = FIXTURE.hunt_analyzer.hero.per_hour;
         const want = { balance: FIXTURE.hunt_analyzer.hero.balance.toLocaleString('en-US') + ' gp',
           balanceH: short ? null : ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
         if (!shown || got.balance !== want.balance || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
         /* THE RAW ROW SAYS WHICH BONUS IT LEAVES OUT (lane/a-honest-lines, v0.2.134): "before bonuses" read as a party cutting a hero's XP; it is the even
-           share of each kill, less the party's class cell or the solo boost. The card and the analyzer say the same words. */
-        const [onCard, inAnalyzer] = got.rawLabels;
-        if (premium && !(onCard && onCard === inAnalyzer && /party/i.test(onCard) && /solo bonus/i.test(onCard) && !/before bonuses/i.test(onCard))) fails.push('HS-25 the raw Level XP row reads ' + JSON.stringify(got.rawLabels) + ' (card, analyzer): it must name the party and solo bonus it leaves out, the same words on both');
+           share of each kill, less the party's class cell or the solo boost. The card says the analyzer's own row (hud.an_raw_xp_h, which analyzer.js prints). */
+        const rawWords = (await import(pathToFileURL(join(ROOT, 'src/render/player-text.js')).href)).t('hud.an_raw_xp_h');
+        if (premium && !(got.rawLabel === rawWords && /\bparty\b/i.test(rawWords) && /\bsolo bonus\b/i.test(rawWords) && !/before bonuses/i.test(rawWords)))
+          fails.push('HS-25 the raw Level XP row reads ' + JSON.stringify(got.rawLabel) + ' on the card and ' + JSON.stringify(rawWords) + ' in the analyzer: both must be the one row naming the party and solo bonus it leaves out');
       } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
     }
@@ -2178,6 +2178,7 @@ const MUTANTS = [
   /* The merge lands on a COPY: envelope records are deep-frozen, so writing into one threw, the Hunts window stopped
      drawing and the click timed out (run 39899899955, HARNESS) instead of the merged best being shown. */
   ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b0 = section(cs, 'hunt_bests');\n  const b = b0 && b0.grounds ? Object.assign({}, b0, { grounds: Object.assign({}, b0.grounds) }) : b0;\n  if (b && b.grounds && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b && b.grounds) globalThis.__hb = b.grounds;\n"],
+  ['the raw Level XP row says "before bonuses" again (HS-25)', 'src/data/text/hud.js', "an_raw_xp_h: 'Level XP per hour without the party or solo bonus',", "an_raw_xp_h: 'Level XP per hour before bonuses',"],
   ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
   ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],

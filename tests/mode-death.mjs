@@ -90,7 +90,13 @@ async function dataArm(db, M) {
   const want = Object.values(S).map((m) => [m.id, m.id === D, m.deathLossPm, m.blessings, m.xpPm, m.coin, m.drops, m.bestiary, m.stamina]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
   const got = srv.map((r) => [r.mode_id, r.is_default, Number(r.death_loss_pm), r.blessings, Number(r.xp_pm), r.coin, r.drops, r.bestiary, r.stamina]);
   if (JSON.stringify(got) !== JSON.stringify(want)) bad.push('MD-DATA the server holds ' + JSON.stringify(got) + ', the data ' + JSON.stringify(want));
-  if (Number(await one(db, 'select count(*) from public.hr_ground_session_modes'))) bad.push('MD-DATA a ground names a mode on the server, and none does in the data');
+  /* the grounds that name a mode: the server's rows are the data's (lane/c-tower-climb: the Burning Tower names `tower`) */
+  const G = await import(pathToFileURL(join(M.root, 'src/data/hunt-grounds.js')).href + V);
+  const named = [G.OPEN_GROUNDS, G.CALLED_GROUNDS, G.OPEN_HALL_GROUNDS, G.TRAINING_GROUNDS, G.TOWER_GROUNDS].flatMap((t) => Object.values(t))
+    .filter((g) => g.mode !== undefined).map((g) => [g.hunt, g.mode]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  const onSrv = (await q(db, 'select hunt_id, mode_id from public.hr_ground_session_modes order by hunt_id')).map((r) => [r.hunt_id, r.mode_id]);
+  if (JSON.stringify(onSrv) !== JSON.stringify(named)) bad.push('MD-DATA the server maps ' + JSON.stringify(onSrv) + ' to modes, the data ' + JSON.stringify(named));
+  if (!named.some(([h, m]) => h === 'burning_tower' && m === 'tower')) bad.push('MD-DATA CONTROL: the Burning Tower names no mode in the data');
   return bad;
 }
 
@@ -193,16 +199,21 @@ async function doorsArm(db, M) {
         if (!(Number(s1.level_xp) >= Number(s0.level_xp))) bad.push(`${tag} the Level XP fell ${s0.level_xp} -> ${s1.level_xp}`);
       }
     }
-    /* THE SAME FIGHT, ONLY THE LOSS MOVES: the same dice play the same swings in both modes; the Tower ends where the hunt
-       does, holding exactly what the hunt's death took (and nothing a skill's death did not). */
+    /* THE SAME FIGHT, ONLY THE LOSS AND THE MODE'S SHARE MOVE: the same dice play the same swings in both modes; the Tower's hero
+       keeps everything the hunt's death took, and earns on every route the mode's share of what the hunt's hero earned
+       (lane/c-tower-climb wired what a mode pays: xpPm on the split and on every skill route; the stored XP is the floor of the carry,
+       so a route reads within 1, and the Level within a floor a kill). */
     const hu = runs[door + ':hunt'], tw = runs[door + ':tower'];
     if (hu && tw && hu.s1.deaths && tw.s1.deaths) {
       const tag = `MD-DOORS the ${door === 'closed' ? 'browser closed' : 'hunt viewed'}:`;
+      const pm = M.SM.SESSION_MODES.tower.xpPm;
       if (hu.s1.deaths[0][0] !== tw.s1.deaths[0][0] || hu.s1.ended_at !== tw.s1.ended_at) bad.push(`${tag} the Tower's hero died ${tw.s1.deaths[0][0]} ms into the hunt, the hunt's ${hu.s1.deaths[0][0]} ms: not the same fight`);
       const took = hu.s1.death_xp || {};
-      if (Number(tw.s1.level_xp) - Number(hu.s1.level_xp) !== Number(took.level || 0)) bad.push(`${tag} the Tower ends ${Number(tw.s1.level_xp) - Number(hu.s1.level_xp)} Level XP above the hunt, the hunt's death took ${took.level}`);
+      const gainHu = Number(hu.s1.level_xp) + Number(took.level || 0) - Number(hu.s0.level_xp), gainTw = Number(tw.s1.level_xp) - Number(tw.s0.level_xp);
+      if (Math.abs(gainTw - gainHu * pm / 1000) > Math.max(1, Math.ceil(gainHu * pm / 1000 / 50))) bad.push(`${tag} the Tower's hero earned ${gainTw} Level XP, the hunt's ${gainHu} before its death took ${took.level}: not ${pm} permille of it`);
       for (const k of COMBAT) {
-        if (Number(tw.s1.skills[k] || 0) - Number(hu.s1.skills[k] || 0) !== Number(took[k] || 0)) bad.push(`${tag} ${k} ends ${Number(tw.s1.skills[k] || 0) - Number(hu.s1.skills[k] || 0)} above the hunt, its death took ${took[k] || 0}`);
+        const h = Number(hu.s1.skills[k] || 0) + Number(took[k] || 0) - Number(hu.s0.skills[k] || 0), t = Number(tw.s1.skills[k] || 0) - Number(tw.s0.skills[k] || 0);
+        if (Math.abs(t - h * pm / 1000) > 1) bad.push(`${tag} ${k}: the Tower's hero earned ${t}, the hunt's ${h} before its death took ${took[k] || 0}: not ${pm} permille of it`);
       }
     }
   }

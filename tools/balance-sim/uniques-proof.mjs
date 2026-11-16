@@ -8,7 +8,8 @@
 //   U2  the live settle's own member builder (src/core/member.js memberSide, the hr-accrue settle's) carries each worn piece's
 //       armor onto the hero: heavy armour is the sum of the worn plate rows, and more than the ladder kit's;
 //   U3  each worn attribute the engine has a hook for reaches the hero's unit at its row's size (a resistance in `resistPm`);
-//   U4  an attribute with no hook yet is reported `hooked: false` and is not on the unit (the grader never plays what the
+//   U4  an attribute with no hook yet is reported `hooked: false` and is not on the unit (proven on Krell's Hold at 88 too, where the
+//       Banded Legguards are worn: the armor line carries only hooked attributes since lane/d-armor-line-v2) (the grader never plays what the
 //       game would not: no sim-only shortcut).
 // Each mutant plants one defect where the rows meet the engine and must turn the proof red:
 //   ladder       the kit ignores `uniques` (dressed off the ladder alone)
@@ -57,17 +58,24 @@ export function proveUniques(gear, plant = null) {
   if (!(view.armour.heavy > was.armour.heavy)) bad.push('U2 the engine\'s heavy armour (' + view.armour.heavy + ') is not past the ladder kit\'s (' + was.armour.heavy + ')');
 
   /* U3 and U4: what the report says each worn attribute does, against the unit */
-  const report = gear.uniquesIn(kit, LEVEL).filter((p) => p.staged);
-  if (plant === 'fakeHook') for (const p of report) if (p.hooked === false) p.hooked = true;
-  let hooked = 0;
-  for (const p of report) {
-    const row = gear.staged.get(p.id).row;
-    for (const [k, pm] of Object.entries(row.resistPm || {})) {
-      const on = !!(view.resistPm && view.resistPm[k] >= pm);
-      if (p.hooked === true) { hooked++; if (!on) bad.push('U3 ' + p.id + '\'s ' + k + ' resistance (' + pm + ') is reported applied and is not on the hero\'s unit (' + JSON.stringify(view.resistPm) + ')'); }
-      if (p.hooked === false && view.resistPm && k in view.resistPm) bad.push('U4 ' + p.id + '\'s ' + k + ' is reported unhooked but is on the unit');
+  /* U4 needs a worn attribute with no hook. Since lane/d-armor-line-v2 the armor line carries only attributes the engine reads
+     (tests/armor-line.mjs AL6), so the Vaults kit wears none: U4 is proven on Krell's Hold at 88 as well, where the Banded
+     Legguards (physical resistance, its hook owed) are worn by the same rank. */
+  const kit2 = gear.kitOf('tank', 88, { ground: 'krells_hold', uniques: plant !== 'ladder' });
+  const sets = [[gear.uniquesIn(kit, LEVEL).filter((p) => p.staged), view], [gear.uniquesIn(kit2, 88).filter((p) => p.staged), gear.engineView(kit2, 88, items)]];
+  let hooked = 0, unhooked = 0;
+  for (const [report, v] of sets) {
+    if (plant === 'fakeHook') for (const p of report) if (p.hooked === false) p.hooked = true;
+    for (const p of report) {
+      const row = gear.staged.get(p.id).row;
+      for (const [k, pm] of Object.entries(row.resistPm || {})) {
+        const on = !!(v.resistPm && v.resistPm[k] >= pm);
+        if (p.hooked === true) { hooked++; if (!on) bad.push('U3 ' + p.id + '\'s ' + k + ' resistance (' + pm + ') is reported applied and is not on the hero\'s unit (' + JSON.stringify(v.resistPm) + ')'); }
+        if (p.hooked === false) { unhooked++; if (v.resistPm && k in v.resistPm) bad.push('U4 ' + p.id + '\'s ' + k + ' is reported unhooked but is on the unit'); }
+      }
     }
   }
   if (!hooked) bad.push('U3 no worn attribute reached the engine (nothing proven)');
+  if (!unhooked) bad.push('U4 no worn attribute waits on a hook, so the report\'s honesty about one is not proven (re-aim the proof)');
   return bad;
 }

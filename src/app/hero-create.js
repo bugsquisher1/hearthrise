@@ -62,7 +62,7 @@ export function previewDyes(colors, colorOf) {
 /** What the picks change on the outfit a new hero starts in, and that the rest show elsewhere. Pure. */
 export function startWords() {
   const row = OUTFIT_ROWS[START_OUTFIT];
-  return t('heroes.create_start', { outfit: row.label, parts: row.regions.map((g) => row.parts[g].toLowerCase()).join(' and ') });
+  return t('heroes.create_start', { outfit: row.label });
 }
 
 /** The "How you fight" column: the rule, then one line per way to fight. Pure. */

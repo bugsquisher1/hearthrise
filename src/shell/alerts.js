@@ -66,7 +66,7 @@ import { levelOf } from '../session/character-sections.js?v=0.2.134';
 import { ITEMS } from '../data/items.js?v=0.2.134';
 import { trackOnce } from '../net/observability.js?v=0.2.134';
 
-const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
+const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;

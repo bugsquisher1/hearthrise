@@ -10,11 +10,11 @@
 //   seat      each seat over the SAME way alone at the same Level and tier (the lowest seat printed): above 1.00 = above solo
 //   vsMedian  a head over the median lone way at the Level (10-25 §5's measure)
 // A party's Level XP is the party cell times its even share (src/core/hunt/xp-share.js), so a flat party factor moves every
-// party number by that factor and no lone one: `--at PM` prints each reading as it would stand at PARTY_XP_PM = PM
+// party number by that factor and no lone one: `--at PM` prints each reading as it would stand at a flat factor PM on every party cell (a what-if)
 // (read off this tree's own factor), and the factor that would land the worst Deadly four on `--deadly X`.
 //
 //   node tools/balance-sim/party-tier-xp.mjs [--grounds a,b] [--seeds 2] [--hours 0.5] [--workers 4] [--at 650] [--cache file.jsonl]
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -27,10 +27,9 @@ const G = await import(u('src/data/hunt-grounds.js'));
 const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
 const T = await import(u('src/data/hunt-tiers.js'));
 const { contractXpPerH } = await import(u('src/data/balance-sheet.js'));
-const PCX = await import(u('src/data/party-class-xp.js'));
 
 const SEEDS = Number(arg('--seeds', 2)), HOURS = Number(arg('--hours', 0.5)), WORKERS = Number(arg('--workers', 4));
-const NOW_PM = PCX.PARTY_XP_PM, AT_PM = Number(arg('--at', NOW_PM));
+const NOW_PM = 1000, AT_PM = Number(arg('--at', NOW_PM));
 const grounds = arg('--grounds', null) ? arg('--grounds').split(',') : Object.keys(G.HUNT_GROUNDS);
 const WAYS = ['tank', 'hammer', 'bow', 'mage', 'healer'];
 /* name -> [ways, Level offset per seat] */
@@ -94,7 +93,7 @@ const AT_GROUND = Object.fromEntries(String(arg('--at-ground', '')).split(',').f
 const kOf = (g) => (Object.hasOwn(AT_GROUND, g) ? AT_GROUND[g] : AT_PM) / NOW_PM;
 
 function report(rows) {
-  console.log('party-tier-xp: PARTY_XP_PM on this tree ' + NOW_PM + ', read at ' + AT_PM + (Object.keys(AT_GROUND).length ? ' (per ground: ' + JSON.stringify(AT_GROUND) + ')' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell');
+  console.log('party-tier-xp: party cells as on this tree, a what-if flat factor ' + NOW_PM + ', read at ' + AT_PM + (Object.keys(AT_GROUND).length ? ' (per ground: ' + JSON.stringify(AT_GROUND) + ')' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell');
   console.log('  xC = Level XP a head over the pace contract (solo: the median lone way); vs same = a head over the same heroes alone (mean), seat = over its best way alone; ' + MIXES.join(', '));
   console.log('ground               tier       at       L | solo xC  andy xC  four xC | vs same: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | seat: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | deaths');
   for (const g of grounds) for (const tier of T.tiersOf(g)) for (const lv of ['floor', 'middle']) {
@@ -111,7 +110,7 @@ function report(rows) {
   if (!deadly.length) return;
   const hot = deadly.reduce((m, x) => (x.contract > m.contract ? x : m));
   const pm = Math.floor(((NOW_PM * target) / hot.contract) / 5) * 5;
-  console.log('(A) ONE FACTOR: the hottest Deadly four ' + hot.g + ' ' + hot.lvName + ' ' + hot.name + ' ' + f2(hot.contract) + 'x at ' + NOW_PM + '; PARTY_XP_PM ' + pm + ' lands it at ' + target + 'x');
+  console.log('(A) ONE FACTOR: the hottest Deadly four ' + hot.g + ' ' + hot.lvName + ' ' + hot.name + ' ' + f2(hot.contract) + 'x at ' + NOW_PM + '; a flat factor ' + pm + ' lands it at ' + target + 'x');
   for (const tier of T.TIER_IDS) {
     const on = rows.filter((x) => x.tier === tier && x.name !== 'andy');
     const lo = on.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
@@ -121,12 +120,12 @@ function report(rows) {
   }
   const harder = rows.filter((x) => x.tier !== 'normal' && x.name !== 'andy');
   const lowH = harder.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
-  console.log('  every Dangerous/Deadly mix stays over its heroes alone down to PARTY_XP_PM ' + Math.ceil(NOW_PM / lowH.vsSame) + ' (' + lowH.g + ' ' + lowH.tier + ' ' + lowH.lvName + ' ' + lowH.name + ' ' + f2(lowH.vsSame) + ' now)');
+  console.log('  every Dangerous/Deadly mix stays over its heroes alone down to a flat factor ' + Math.ceil(NOW_PM / lowH.vsSame) + ' (' + lowH.g + ' ' + lowH.tier + ' ' + lowH.lvName + ' ' + lowH.name + ' ' + f2(lowH.vsSame) + ' now)');
   const normal = rows.filter((x) => x.tier === 'normal' && x.name !== 'andy');
   const lowN = normal.reduce((m, x) => (x.vsSame < m.vsSame ? x : m));
   const keepN = Math.ceil(NOW_PM / lowN.vsSame);
   const dAt = (p) => f2((Math.max(...deadly.map((x) => x.contract)) * p) / NOW_PM);
-  console.log('  every Normal mix stays over its heroes alone down to PARTY_XP_PM ' + keepN + '; there the hottest Deadly four reads ' + dAt(keepN) + 'x');
+  console.log('  every Normal mix stays over its heroes alone down to a flat factor ' + keepN + '; there the hottest Deadly four reads ' + dAt(keepN) + 'x');
   /* (G) A FACTOR PER GROUND, the same on every tier: each ground's hottest Deadly four onto the target, never raised */
   console.log('(G) ONE FACTOR A GROUND, every tier: the cut that lands each ground\'s hottest Deadly four on ' + target + 'x (none where it reads under)');
   for (const g of grounds) {
@@ -183,7 +182,9 @@ async function main() {
     const played = new Map(readFileSync(out, 'utf8').split('\n').filter(Boolean).map((l) => { const c = JSON.parse(l); return [c.id, c]; }));
     const missing = jobs.filter((j) => !played.has(j.id));
     if (missing.length) { console.log('  ' + missing.length + ' cell(s) not played'); process.exitCode = 2; return; }
-    report(judge(played));
+    const rows = judge(played);
+    if (arg('--rows', null)) writeFileSync(arg('--rows'), JSON.stringify(rows));
+    report(rows);
   } finally { if (tmp) rmSync(tmp, { recursive: true, force: true }); }
 }
 main().catch((e) => { console.error(e); process.exit(2); });

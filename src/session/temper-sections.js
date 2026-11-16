@@ -6,7 +6,7 @@
 // worth is the one rule the fight uses (src/core/temper.js), read over the server's rungs and the server's worn set.
 // ════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.132';
-import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.132';
+import { TEMPER_TIERS, TEMPER_UNIQUE_FROM, temperUnlockId } from '../data/temper.js?v=0.2.132';
 import { armourLineWord, MATERIAL_TIERS } from '../data/gear-tiers.js?v=0.2.132';
 import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.132';
 import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.132';
@@ -80,7 +80,8 @@ export function temperRowsOf(cs) {
   const blowsLadder = weapon ? ladderOf('blows', weapon.tier) : null;
   const line = armorLineOf(eq, ITEMS);
   const armorLadder = line ? ladderOf('armor', line.tier) : null;
-  const worn = line ? armourLineWord(line.armourClass, line.tier) : null;
+  /* past Dawnsteel a ladder is a band of unique pieces, not a metal: the row says "unique armor" (src/data/temper.js temperTierOf) */
+  const worn = line ? (line.tier >= TEMPER_UNIQUE_FROM ? 'unique' : armourLineWord(line.armourClass, line.tier)) : null;
   const span = spanOf(ladders);
   return {
     blows: { piece: weapon ? weapon.n : null, span, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },

@@ -48,16 +48,73 @@ export const TEMPER_MATERIALS = Object.freeze({
   6: Object.freeze({ item: 'ember_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
 });
 
+/* ── UNIQUE ARMOR PAST DAWNSTEEL (Tyler 2026-11-15, "ok then yes" to Tempering past tier 7: a PURE GOLD SINK on the unique armor past
+   Dawnsteel with a SMALL cap, about +2-3% at most, sized with the simulator before anything is built; on the pre-EA Security list).
+   Designer, lane/d-temper-uniques; the measured table is PRIORITY_BOARD "2026-11-15 Tempering past Dawnsteel".
+
+   WHY A BAND, NOT A TIER. Every piece past Dawnsteel carries `tier: 7` (src/data/armor-line.js: no tier 8, Tyler 2026-11-14), so a ladder
+   keyed on the tier would be one ladder for every unique from Level 110 to 200 and the sink would stop growing again. A ladder is keyed on
+   the BAND the piece is worn from instead: its Level requirement, floored to the band's first Level. The key is that Level ('temper:armor:165'),
+   a number no gear tier will ever reach, so the server's catalogue, hr_temper_view and the perks map read it as they read a tier.
+
+   WHAT IT IS. Armor only (the line moves armor; weapons, shields and capes have no line, so there is no Blows ladder here). Five rungs as the
+   tiers, half the step: 0.5% less of what reaches the hero a rung, 2.5% a ladder (TEMPER_UNIQUE_RUNG_PM). Same hook, same cap: it is the chain's
+   last step and never passes the total mitigation cap, so a plate set ON the line (it sits at the 60% cap by design) gains nothing from it, and
+   a plate set a band behind gains only up to the cap. A fully tempered set a band behind never beats the next band's bare set (measured,
+   tools/balance-sim/temper-uniques-table.mjs next; guarded, tests/temper-uniques.mjs). A new region past the last band is a new row here.
+
+   HIDDEN. A band is sold only when `open` is true, and a band opens when its first piece is a real item (tests/temper-uniques.mjs TU-OPEN holds
+   the two together both ways). Today no piece past Dawnsteel is in ITEMS (the armor line's sample is a hidden row set), so every band is shut:
+   TEMPER_UNLOCKS and TEMPER_OFFERS below are exactly what they were and no catalogue moves. The fight reads every band (it is the rule; a hero
+   can only hold a rung the server sold), so the simulator can measure a band before it opens. */
+export const TEMPER_UNIQUE_FROM = 110;
+export const TEMPER_UNIQUE_RUNG_PM = 5;
+export const TEMPER_UNIQUE_BANDS = Object.freeze({
+  110: Object.freeze({ open: false, gold: Object.freeze([60000, 120000, 240000, 480000, 960000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  125: Object.freeze({ open: false, gold: Object.freeze([80000, 160000, 320000, 640000, 1280000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  145: Object.freeze({ open: false, gold: Object.freeze([100000, 200000, 400000, 800000, 1600000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
+  165: Object.freeze({ open: false, gold: Object.freeze([120000, 240000, 480000, 960000, 1920000]), qty: Object.freeze([10, 20, 40, 80, 160]) }),
+});
+/* The material: the smith's best salt, the one tier 6 already takes (no new item; Smithing 75 from Emberstone Ore and Grave Dust, or
+   Crafting 75 from a Runewood Plank and Grave Dust; Grave Dust drops at the Ox Road and the Pauper Vaults as well as the March). */
+export const TEMPER_UNIQUE_ITEM = 'ember_temper_salts';
+
+const UNIQUE_BAND_LEVELS = Object.keys(TEMPER_UNIQUE_BANDS).map(Number).sort((a, b) => a - b);
+
+/** The ladder a worn piece reads: its band's first Level for armor past Dawnsteel (tier 7 or more, worn from Level 110 or more), else its gear tier. */
+export function temperTierOf(it) {
+  if (!it) return 0;
+  const lv = Number(it.reqLv);
+  if (it.armourClass && it.slot && Number(it.tier) >= 7 && lv >= TEMPER_UNIQUE_FROM) {
+    let band = 0;
+    for (const b of UNIQUE_BAND_LEVELS) if (b <= lv) band = b;
+    return band;
+  }
+  return it.tier;
+}
+
+/** A ladder's shape: { rungs, pm } (rungs on the ladder, permille a rung), or null where there is none. */
+export function temperLadder(track, tier) {
+  if (TEMPER_TIERS[tier]) return { rungs: TEMPER_RUNGS, pm: TEMPER_RUNG_PM };
+  const u = track === 'armor' ? TEMPER_UNIQUE_BANDS[tier] : null;
+  return u ? { rungs: u.gold.length, pm: TEMPER_UNIQUE_RUNG_PM } : null;
+}
+
 export const temperUnlockId = (track, tier) => 'temper:' + track + ':' + tier;
 export const temperOfferId = (track, tier, rung) => 'temper.' + track + '.' + tier + '.' + rung;
 
 const tiers = Object.keys(TEMPER_TIERS).map(Number);
+/* The unique bands the smith sells today: only the open ones (none until a piece past Dawnsteel is a real item). */
+const openBands = UNIQUE_BAND_LEVELS.filter((b) => TEMPER_UNIQUE_BANDS[b].open);
 
 /** The hr_unlocks rows: one MAX-merge ladder per track and tier, written only by the spend RPC (kind 'unlock'). */
 export const TEMPER_UNLOCKS = Object.freeze(TEMPER_TRACKS.flatMap((track) => tiers.map((tier) => Object.freeze({
   unlock_id: temperUnlockId(track, tier), namespace: 'temper', merge: 'max', progress_kind: 'unlock', max_value: TEMPER_RUNGS,
   rungs: Object.freeze(Array.from({ length: TEMPER_RUNGS }, (_, i) => i + 1)),
-}))));
+})).concat(track === 'armor' ? openBands.map((band) => Object.freeze({
+  unlock_id: temperUnlockId(track, band), namespace: 'temper', merge: 'max', progress_kind: 'unlock', max_value: TEMPER_UNIQUE_BANDS[band].gold.length,
+  rungs: Object.freeze(TEMPER_UNIQUE_BANDS[band].gold.map((_, i) => i + 1)),
+})) : [])));
 
 const itemsOf = (tier, i) => (TEMPER_MATERIALS[tier] ? Object.freeze({ [TEMPER_MATERIALS[tier].item]: TEMPER_MATERIALS[tier].qty[i] }) : Object.freeze({}));
 
@@ -65,7 +122,10 @@ const itemsOf = (tier, i) => (TEMPER_MATERIALS[tier] ? Object.freeze({ [TEMPER_M
 export const TEMPER_OFFERS = Object.freeze(TEMPER_TRACKS.flatMap((track) => tiers.flatMap((tier) => TEMPER_TIERS[tier].map((gold, i) => Object.freeze({
   offer_id: temperOfferId(track, tier, i + 1), table_name: 'temper', name: 'Temper ' + track + ', tier ' + tier + ', rung ' + (i + 1),
   unlock_id: temperUnlockId(track, tier), value: i + 1, gold, items: itemsOf(tier, i), req_property_tier: 0,
-})))));
+}))).concat(track === 'armor' ? openBands.flatMap((band) => TEMPER_UNIQUE_BANDS[band].gold.map((gold, i) => Object.freeze({
+  offer_id: temperOfferId(track, band, i + 1), table_name: 'temper', name: 'Temper unique armor worn from Level ' + band + ', rung ' + (i + 1),
+  unlock_id: temperUnlockId(track, band), value: i + 1, gold, items: Object.freeze({ [TEMPER_UNIQUE_ITEM]: TEMPER_UNIQUE_BANDS[band].qty[i] }), req_property_tier: 0,
+}))) : [])));
 
 /** The offer-id set the Edge may forward to hr_unlock_buy (supabase/functions/hr-accrue/gold-ladder-catalogue.js). */
 export const TEMPER_OFFER_IDS = Object.freeze(TEMPER_OFFERS.map((r) => r.offer_id));

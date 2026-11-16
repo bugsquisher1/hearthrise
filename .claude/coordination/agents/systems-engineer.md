@@ -4797,3 +4797,10 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 4. *The live view needed the floor too.* combat-sim throws on the Tower without ctx.towerFloor; live-engine now reads hunt_live.instance.tower_floor and the ground's own mode, and exposes tower() for the bar.
 5. *A death in the Tower is not a death on screen.* The popup, the alert and the end card all read the hunt id and say "spat out"; "What happened" (death-explain) still says "died" there: left, named.
 6. *A window with no key and no icon needs a second door for tests and phones:* the Havora window's Hearth tab, beside the Hearth tap.
+
+## 2026-11-16 · lane/a-party-xp-tier (hotfix: a mixed four on a big-pull Deadly earned 3.7-4.5x the pace contract)
+1. *Measure the whole option space once, then replay it.* tools/balance-sim/party-tier-xp.mjs plays every ground x tier x floor/middle once (1,364 cells); every factor after is arithmetic on the cached rows (a party cell scales a party's Level XP linearly). Three of Tyler's options were answered in seconds that way.
+2. *One flat factor could not hold both bars:* the four's lead over its heroes alone runs 1.13x (Muster) to 2.19x (Glade) on Deadly, and a hero alone on a big-pull Deadly already reads 1.5-2.0x the contract, so a 2.5x cap leaves ~1.2x headroom. The fix is per ground AND tier on the mixed 3- and 4-hero cells (party-class-xp.js PARTY_TIER_PM), read from inst.tier.id in xp-share.js (one core, both paths).
+3. *Fit the tier order too, not only the cap:* the first fit let Dangerous pay a four what Deadly did; the Dangerous four is now ~0.90-0.97x the Deadly one.
+4. *A contract-ratio cap means nothing on the first Levels:* on the Sewer, Thicket and Wickstead a hero alone reads 2.2x at Level 5-8 too, and their Deadly brings no bigger pull, so the guard's cap binds only where Deadly's pull > 0.
+5. *Left:* the Glade's Deadly four reads ~1.15x its Normal four at the floor (the grader's tiers.deadly 1.25 line) because Normal is untouched; a scaled hunt's tier row carries no id, so it reads Normal's cells (its partyPm 700 thins them).

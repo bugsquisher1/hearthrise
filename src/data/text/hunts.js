@@ -24,6 +24,8 @@ export const HUNTS_TEXT = Object.freeze({
 
   /* What a tier does. */
   tier_choice: '{tier}: {head}.',
+  /* A tier where even a full party dies without a Healer on this ground (a pack's healerTiers, measured): said to every group. */
+  tier_healer: 'Bring a Healer. Without one, even a party of four dies here.',
 
   /* The band, and a ground above the hero. */
   band: 'Level {lo} to {hi}',

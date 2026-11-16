@@ -4,7 +4,7 @@
 // One floating tooltip per page, shown on hover or keyboard focus of an item:
 //   the name in its rarity, what kind of thing it is, its line of flavour,
 //   its stats and — for gear — what changes against the piece worn in that
-//   slot, a bane's damage against its monster kind, what its armor weight gives, where it comes from, what it is for, what the shop pays for it
+//   slot, a bane's damage against its monster kind, what it does on the hero's ground, what its armor weight gives, where it comes from, what it is for, what the shop pays for it
 //   (the server's bid, never a client price), its lock and loot rule.
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
@@ -12,7 +12,7 @@
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
 import { whole, gold } from '../../render/format.js?v=0.2.132';
 import { itemName } from '../widgets/bits.js?v=0.2.132';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.132';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords, groundEdgeWords } from '../item-lore.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.132';
 import { planWords } from '../loot-dispatch.js?v=0.2.132';
@@ -25,7 +25,8 @@ const GAP = 10;
 /**
  * The tooltip's HTML for one item.
  * @param {string} id
- * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object}} o
+ * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object, ground?:string|null}} o
+ *   ground: the hunt id of the hero's ground (first-target.js heroGroundOf), for the line on what the piece does there
  */
 function tipHtml(id, o) {
   const opt = o || {};
@@ -43,6 +44,10 @@ function tipHtml(id, o) {
   /* A bane: what the weapon does against one kind of monster, the engine's own number (designer re-read 2026-11-11: the Bramble Blade's tip said only +2/+2). */
   const banes = baneWords(id);
   if (banes.length) h += '<p class="hw-tip-line hw-tip-bane"><small>' + esc(t('item.bane_label')) + '</small>' + esc(banes.join('. ')) + '</p>';
+  /* ON THIS GROUND (lane/a-honest-lines): a unique that reads worse than the ladder's piece can still win where the hero hunts, by its
+     bane or its resistance against the monsters there. Nothing when it does nothing special there. */
+  const edge = groundEdgeWords(id, opt.ground);
+  if (edge) h += '<p class="hw-tip-line hw-tip-ground"><small>' + esc(edge.ground) + '</small>' + esc(edge.lines.join('. ')) + '</p>';
   if (stats.length && opt.worn !== undefined) {
     if (opt.worn === id) h += '<p class="hw-tip-cmp">You are wearing this.</p>';
     else {

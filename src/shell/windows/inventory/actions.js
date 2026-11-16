@@ -59,6 +59,7 @@ import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, named
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.132';
 import { wearBlock } from '../../gear-gate.js?v=0.2.132';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.132';
+import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.132';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -95,6 +96,7 @@ function tipFor(ctx, st, li) {
     offers: st.shop ? st.shop.offers : null,
     skills: skillsOf(st.cs),
     level: heroLevel(st.cs),
+    ground: heroGroundOf(st.cs),
   });
 }
 

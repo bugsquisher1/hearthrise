@@ -92,7 +92,8 @@ export const HUD_TEXT = Object.freeze({
   an_balance: 'Balance (gold + loot value − supplies)',
   an_sec_rates: 'Per hour',
   an_level_xp_h: 'Level XP per hour',
-  an_raw_xp_h: 'Level XP per hour before bonuses',
+  /* the even share of each kill (the server's raw_xp): what was paid less the party's class cell or the solo boost, the only Level XP bonuses */
+  an_raw_xp_h: 'Level XP per hour without the party or solo bonus',
   an_gold_loot_h: 'Gold and loot value per hour',
   an_supplies_h: 'Supplies per hour',
   an_balance_h: 'Balance per hour',

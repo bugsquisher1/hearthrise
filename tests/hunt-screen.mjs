@@ -118,7 +118,8 @@
 //         one it leaves unset is off (no client copy of the rule); a press sends ONE absolute value and the re-read
 //         envelope's value replaces it
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
-//         XP per hour only when the server sent it (premium)
+//         XP per hour only when the server sent it (premium), its row named for the party and solo bonus it leaves out,
+//         in the analyzer's words
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -1638,13 +1639,20 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const got = await page.evaluate(() => {
           const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
           const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          /* the row's words, on the card and in the analyzer (a dd's own dt) */
+          const dt = (d) => (d && d.previousElementSibling ? d.previousElementSibling.textContent : null);
           return { balance: v('balance'), balanceH: v('balanceH'), rawXpH: v('rawXpH'), win: !!w, card: !!(w && w.querySelector('.hsum-card.is-on')),
-            text: w ? w.textContent.slice(0, 160) : null };
+            text: w ? w.textContent.slice(0, 160) : null,
+            rawLabels: [dt(document.querySelector('[data-hs-win="hunt-summary"] [data-stat="rawXpH"]')), dt(document.querySelector('.ha-analyzer [data-stat="perHour.rawLevelXp"]'))] };
         });
         const ph = FIXTURE.hunt_analyzer.hero.per_hour;
         const want = { balance: FIXTURE.hunt_analyzer.hero.balance.toLocaleString('en-US') + ' gp',
           balanceH: short ? null : ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
         if (!shown || got.balance !== want.balance || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
+        /* THE RAW ROW SAYS WHICH BONUS IT LEAVES OUT (lane/a-honest-lines, v0.2.134): "before bonuses" read as a party cutting a hero's XP; it is the even
+           share of each kill, less the party's class cell or the solo boost. The card and the analyzer say the same words. */
+        const [onCard, inAnalyzer] = got.rawLabels;
+        if (premium && !(onCard && onCard === inAnalyzer && /party/i.test(onCard) && /solo bonus/i.test(onCard) && !/before bonuses/i.test(onCard))) fails.push('HS-25 the raw Level XP row reads ' + JSON.stringify(got.rawLabels) + ' (card, analyzer): it must name the party and solo bonus it leaves out, the same words on both');
       } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
     }
@@ -2117,7 +2125,7 @@ const MUTANTS = [
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
   /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */
-  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), TIER_DEATH_LINE].join(' ');", "[tierLine(r, tier, size), TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join(' ');"],
+  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join(' ');", "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join(' ');"],
   ['the tier note reads one line whatever the pull', 'src/shell/hunt-list.js', 'tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same;', 'L.same;'],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],

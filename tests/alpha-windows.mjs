@@ -926,6 +926,28 @@ async function huntsPure(imp) {
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
     for (const r of [glade, thicketR]) for (const t of ['dangerous', 'deadly']) for (const n of [1, 2, 3, 4]) if (/\d/.test(tierWords(r, t, n) + tierChoiceWords(r, t, n))) fails.push('AW-25 a tier note carries a number: ' + tierWords(r, t, n));
   } finally { TV.GROUND_TIERS.mosslight_glade = kept.glade; TV.GROUND_TIERS.meadowbrook_thicket = kept.thicket; }
+  /* A HEALER'S TIER (lane/a-honest-lines, v0.2.134; the mechanism is lane/d-late-nearmisses'): where a pack's healerTiers names a tier (hunt-tiers.js HEALER_TIERS,
+     measured on the full grade: a four with no Healer dies there and a four with one holds), the page says "bring a Healer" to EVERY group, a hero alone and a
+     party alike, and on no other ground or tier; a named Deadly is graded with a Healer (checks.deadlyFourNeeds), so the card and the grader's bar agree.
+     Krell's Hold and the Muster Barrows graded Deadly that way since 2026-11-12 and their cards never said it. */
+  {
+    const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
+    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    let named = 0;
+    if (!healerLine || healerLine === 'hunts.tier_healer') fails.push('AW-25 hunts.tier_healer has no words');
+    for (const [g, ids] of Object.entries(TV.HEALER_TIERS || {})) for (const id of ids) {
+      const pk = GROUND_PACKS.find((x) => x.id === g);
+      if (!TV.tiersOf(g).includes(id)) fails.push('AW-25 ' + g + ' names ' + id + ' a Healer\'s tier, and it does not offer ' + id);
+      if (id === 'deadly' && !(pk && pk.checks && pk.checks.deadlyFourNeeds === 'healer')) fails.push('AW-25 ' + g + ' says Deadly needs a Healer, and the grader grades its four without one (checks.deadlyFourNeeds)');
+    }
+    for (const r of huntRows()) for (const id of TV.tiersOf(r.hunt).filter((x) => x !== TV.DEFAULT_TIER)) {
+      const want = !!(TV.isHealerTier && TV.isHealerTier(r.hunt, id));
+      named += want ? 1 : 0;
+      for (const n of [1, 2, 4]) if (tierWords(r, id, n).includes(healerLine) !== want) fails.push('AW-25 ' + r.hunt + ' ' + id + ', a group of ' + n + ': the page reads "' + tierWords(r, id, n) + '"' + (want ? ', with no word that it needs a Healer' : ', and it is not named one'));
+    }
+    for (const g of ['krells_hold', 'muster_barrows']) if (!(TV.isHealerTier && TV.isHealerTier(g, 'deadly'))) fails.push('AW-25 ' + g + '\'s Deadly is graded as a Healer\'s tier and its card does not say so (healerTiers)');
+    if (!named) fails.push('AW-25 no ground names a Healer\'s tier: the words were never read');
+  }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
   if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);
@@ -1622,6 +1644,20 @@ async function planRules(base) {
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
     if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
+    /* ON THIS GROUND (lane/a-honest-lines, v0.2.134): a unique that reads worse than the ladder's piece can win where the hero hunts, so its card says so,
+       from the ground's own monsters through the engine's readers (bane.js classOfMonster, monster-spells.js castsOf, elements.js resistProfile),
+       and says nothing where it does nothing special. Generic: a planted resist row (the armor line's shape) gets it with no code. */
+    {
+      const LORE = await imp('src/shell/item-lore.js'), CAT = (await imp('src/data/items.js')).ITEMS;
+      const planted = { ...CAT, aw_resist_helm: { ...CAT.iron_helm, n: 'Planted Helm', resistPm: { ember: 100 } } };
+      const edge = (id, hunt) => JSON.stringify(LORE.groundEdgeWords(id, hunt, planted));
+      const want = [
+        ['bramble_blade', 'mosslight_glade', '{"ground":"Mosslight Glade","lines":["Strong against Walking Vine here: +40% damage"]}'],
+        ['lazlos_maul', 'muster_barrows', '{"ground":"The Muster Barrows","lines":["Strong against every monster here: +40% damage"]}'],
+        ['aw_resist_helm', 'wickstead', '{"ground":"Wickstead","lines":["Guards against Turncoat here: 10% less Fire damage"]}'],
+        ['bramble_blade', 'wickstead', 'null'], ['aw_resist_helm', 'meadowbrook_thicket', 'null'], ['iron_sword', 'mosslight_glade', 'null'], ['bramble_blade', null, 'null']];
+      for (const [id, hunt, line] of want) if (edge(id, hunt) !== line) fails.push('AW-21 ON THIS GROUND: ' + id + ' on ' + hunt + ' reads ' + edge(id, hunt) + ', not ' + line);
+    }
     const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
     if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));
     const LADDER = (await imp('src/data/style-gear.js')).STYLE_LADDER;

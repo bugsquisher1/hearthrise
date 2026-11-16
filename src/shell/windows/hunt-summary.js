@@ -64,11 +64,11 @@ const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: fa
 const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.did.clear(); sc.did.set(id, d); } return d; };
 /* ── The window ── */
 /* The hunt's balance shows for everyone; balance per hour once the server rates the hunt (10 minutes of it: a shorter
-   hunt showed a bare "–" there, core-loop play 2026-10-30); Level XP per hour before bonuses only when the server sent
-   it (premium, the 10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab
+   hunt showed a bare "–" there, core-loop play 2026-10-30); Level XP per hour without the party or solo bonus (the analyzer's own
+   words, hud.an_raw_xp_h) only when the server sent it (premium, the 10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab
    (Tyler 2026-10-22). */
 const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
-  ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
+  ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', t('hud.an_raw_xp_h'), whole, true]]);
 
 /* A TRAINING SESSION'S ROWS (summary-model.js trainingCard), in place of the hunt's: the skill's XP, its level before and after, and the
    gold the yard took (the house dummy charges none, so it has no row). Each the server's; an unsent one is not shown. */

@@ -35,6 +35,10 @@ export const ITEM_TEXT = Object.freeze({
   /* A bane weapon: its damage against one kind of monster (src/core/bane.js). */
   bane_label: 'Bane',
   bane_more: '+{pct}% damage to {kind} monsters',
+  /* The piece on the hero's ground (item-lore.js groundEdgeWords): its bane and its resistance against the monsters there. */
+  ground_bane: 'Strong against {names} here: +{pct}% damage',
+  ground_resist: 'Guards against {names} here: {pct}% less {element} damage',
+  ground_every: 'every monster',
 
   /* Where it comes from. */
   dropped_closed: 'Dropped by creatures on grounds that aren\'t open yet',

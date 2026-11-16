@@ -18,6 +18,8 @@
 //   needOf(id, sk, lv)  "Needs Melee 30 — you have 20" / "Needs Level 30 — you're 28", against the server's numbers
 //   flavourOf(id)   the item's one-line description, or ''
 //   baneWords(id)   a bane weapon's damage against one monster kind, the engine's clamped multiplier: ["+40% damage to Plant monsters"]
+//   groundEdgeWords(id, hunt)  what the piece does on ONE ground, from the monsters there: its bane and its element resistance against
+//                   the kinds and the spells on that ground, or null when it does nothing special there
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.132';
 import { toolSpeed, toolXpB, toolDouble } from '../core/tools.js?v=0.2.132';
@@ -37,7 +39,11 @@ import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.132';
 import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.132';
 import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.132';
 import { t, hasText } from '../render/player-text.js?v=0.2.132';
-import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.132';
+import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.132';
+import { resistProfile } from '../core/elements.js?v=0.2.132';
+import { groundOfHunt, monstersOn } from '../data/hunt-grounds.js?v=0.2.132';
+import { castsOf, spellRow, mends } from '../data/monster-spells.js?v=0.2.132';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
 import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.132';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
@@ -212,6 +218,35 @@ export function baneWords(id) {
   const ix = baneIndex({ weapon: id }, ITEMS);
   return BANE_CLASSES.filter((c) => baneMultFor(c, ix) > 1)
     .map((c) => t('item.bane_more', { pct: Math.round((baneMultFor(c, ix) - 1) * 100), kind: baneKindName(c) }));
+}
+
+/* THE PIECE ON THIS GROUND (lane/a-honest-lines, v0.2.134): a unique can read worse than the ladder's piece on paper and still win on
+   its ground, by its bane or its resistance. So the card says it, against the ground's own monsters, through the engine's own readers:
+   a monster's kind is bane.js classOfMonster (what combat.js weaknessInfo reads), the bane its clamped baneMultFor, an element the
+   one a monster's spell lands with (monster-spells.js castsOf, a mend strikes nobody) and the resistance the worn row's resistPm as
+   core/elements.js resistProfile keeps it (elements only, capped). Generic: any row carrying `bane` or `resistPm` gets it. */
+const groundMonsters = (g) => [...monstersOn(g)].filter((m) => Object.prototype.hasOwnProperty.call(MONSTERS, m) && MONSTERS[m]);
+const monsterNames = (ids, all) => (ids.length === all.length && all.length > 1 ? t('item.ground_every') : listWords(ids.map((m) => MONSTERS[m].name || m), ids.length <= 6 ? 6 : 4));
+const pctOf = (pm) => (pm % 10 ? (pm / 10).toFixed(1) : String(pm / 10));
+
+/** What item `id` does on the ground of hunt `hunt`, from that ground's monsters: { ground, lines } (the ground's name and one line
+    for each bane and each resisted element that meets a monster there), or null when it does nothing special there or either is unknown.
+    `items`: the catalogue (a test hands a planted row in a copy). */
+export function groundEdgeWords(id, hunt, items = ITEMS) {
+  const it = items && Object.prototype.hasOwnProperty.call(items, id) ? items[id] : null;
+  const g = it && typeof hunt === 'string' ? groundOfHunt(hunt) : null;
+  if (!g || !(it.bane || it.resistPm)) return null;
+  const ms = groundMonsters(g), lines = [];
+  /* the bane: one line per strength (a row may name two kinds), the monsters it bites */
+  const ix = baneIndex({ weapon: id }, items), byMult = new Map();
+  for (const m of ms) { const k = baneMultFor(classOfMonster(MONSTERS[m]), ix); if (k > 1) byMult.set(k, [...(byMult.get(k) || []), m]); }
+  for (const [k, hit] of byMult) lines.push(t('item.ground_bane', { names: monsterNames(hit, ms), pct: Math.round((k - 1) * 100) }));
+  /* the resistance: each element it takes off, against the monsters whose spells land with it */
+  for (const [e, pm] of Object.entries(resistProfile(it.resistPm) || {})) {
+    const hit = ms.filter((m) => castsOf(MONSTERS[m]).some((s) => { const r = spellRow(s); return !!r && !mends(r) && r.element === e; }));
+    if (hit.length && pm > 0) lines.push(t('item.ground_resist', { names: monsterNames(hit, ms), pct: pctOf(pm), element: t('monster.el_' + e) }));
+  }
+  return lines.length ? { ground: (HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].name) || g.hunt, lines } : null;
 }
 
 /** A sale's rare finds by name, for its confirmation ("Sell 7 stacks?" hid 3 Alpha Fang worth 1,350 of 2,054 gp, newcomer panel 2026-11-01), or ''. `lines`: { item, qty }. */

@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/tower-chest.mjs — THE HEARTH CHEST: A KEY FROM EVERY LANDING (BOTH DOORS), AN OPEN ON THE SERVER'S DICE AT THE DESIGN'S ODDS, THE
-//   HEARTH'S WARMTH AND THE STOKES, AND EVERY FORGED VALUE REFUSED (lane/c-tower-chest; Tyler 2026-11-14, the board's "2026-11-14 The Burning
-//   Tower" §5; src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql). On the replayed chain with the shipped engine.
+// tests/tower-chest.mjs — THE HEARTH CHEST: A KEY FROM EVERY LANDING A RUN CLEARS (BOTH DOORS) UNDER ITS FAMILY'S HELD LIMIT, SIX OPENS A
+//   FAMILY A WEEK, AN OPEN ON THE SERVER'S DICE AT THE DESIGN'S ODDS, THE HEARTH'S WARMTH AND THE STOKES, AND EVERY FORGED VALUE REFUSED
+//   (lane/c-tower-chest; Tyler 2026-11-14, the board's "2026-11-14 The Burning Tower" §5; Tyler 2026-11-16, KEY FAMILIES: the weekly cap is
+//   chests opened per family, not keys earned, with a held limit; src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql). On the
+//   replayed chain with the shipped engine.
 //
 //   node tests/tower-chest.mjs              the guard
 //   node tests/tower-chest.mjs --arm=odds   one arm
@@ -14,20 +16,29 @@
 //               the design's warmth table read back through src/data/chests.js; the server's chance (hr_chest_chance_ppm) and the data's
 //               (chestChancePpm) agree on every key, warmth 0..60 and stoke 0..3; the open table (keyForLanding: the top row open-ended);
 //               the salts are the highest tempering tier's at or under each key's weapons (the coherence pass's C4); the catalogue rows
-//               are the data's; the load-time rule refuses a higher key with better odds
+//               are the data's; the load-time rule refuses a higher key with better odds; every key in the Tower family, its caps the
+//               data's and Tyler's six a week, the open table read inside the Tower family alone
 //   TCH-ODDS    the server's roll (hr_chest_roll) over 20,000 keys a cell: a weapon at the chance it was handed (each key's base, a warm and
 //               stoked cell), within 4.5 standard deviations; half the weapons the family worn, the rest even over the other six; no family
 //               worn, even over all seven
 //   TCH-MINT    a climb past its landings, BOTH PATHS (CLAUDE.md §4: the browser closed, the world tick; the hunt viewed, the player's
-//               settle): one key a landing row in the bag (the landing's own key row), one tower_key ledger row each, the two doors alike;
-//               a second climb the same week through the same landing mints nothing more
+//               settle): one key a landing the run cleared in the bag (the landing's own key row), one tower_key ledger row each, the two
+//               doors alike; a second climb the same week through the same landings mints them AGAIN (no weekly earn cap); the open
+//               table on a run's own row, split over windows, each landing once
+//   TCH-HELD    the held limit: a hero at the Tower family's held_max (bag plus Storage) gets no new key, the skip journalled with no item;
+//               under it again, keys drop again; keys of another family never count
+//   TCH-RING    THE KEY RING (lane/c-key-ring, Tyler 2026-11-16), the happy path: locked, the section offers it at the server's price; the
+//               real spend RPC (hr_unlock_buy key_ring.0) charges the price once (a replay charges nothing) and moves the bag's keys onto
+//               the ring; a key minted after it lands on the ring and the bag's stack count does not move; a reload (hr_load) still shows the
+//               ring and its keys and no key in the bag (hr_state_of, the envelope hr_load answers); the held count counts ring keys; a key opens from the ring (ring first); ring keys
+//               go into Storage; a hero short of gold is refused and gets no ring
 //   TCH-OPEN    the open on a real hero: a key's chance is the base x its warmth x its stoke, the warmth grows by a dry key and caps at 3x,
 //               a weapon cools it to nothing; a stoke multiplies the chance and burns its Cinders from the bag, then Storage, net of what
 //               the press paid; a press short of Cinders stokes what they cover; the saved default stokes a key sent with none; the
 //               haul is the key's row; every move journalled
 //   TCH-FORGED  a forged chest, key, count or stoke, a key with no weapons built, a count over the keys held, a used key, a replayed key,
-//               a key reused for another press, a hero in a hunt, a full bag (before any roll) and the day's clamp are each refused and
-//               move nothing; the client can call the two verbs and none of the helpers, and no verb takes a chance, warmth or family
+//               a key reused for another press, a hero in a hunt, a full bag (before any roll) and the family's week (six opens since Monday
+//               00:00 UTC; last week's and another family's opens never count) are each refused and move nothing; the client can call the two verbs and none of the helpers, and no verb takes a chance, warmth or family
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -65,8 +76,11 @@ const open = (db, key, count, stokes, id = idem(), chest = 'great_hearth') =>
   call(db, 'select public.hr_chest_open(0, $1, $2, $3, $4, $5::uuid)', [chest, key, count, stokes, id]);
 
 /* a hero at Level 12 with the bag `inv`, the switch on for it, and seven stand-in weapons on each key in `ready` (the tier's standard
-   weapon a family: gear-tiers.js WEAPON_FAMILIES), so the open can play before the tower weapons are built */
-async function hero(db, M, inv = {}, ready = ['bronze', 'silver', 'gold', 'platinum']) {
+   weapon a family: gear-tiers.js WEAPON_FAMILIES), so the open can play before the tower weapons are built. The arms that measure the
+   odds and the open use hundreds of keys, so the families' weekly cap is lifted for them (`week`: in their own rolled-back transaction);
+   TCH-FORGED keeps the catalogue's cap and proves it. */
+async function hero(db, M, inv = {}, ready = ['bronze', 'silver', 'gold', 'platinum'], week = 1000) {
+  if (week !== null) await db.query('update public.hr_chest_key_families set opens_per_week = $1, held_max = greatest(held_max, $1)', [week]);
   await H.character(db, M, UID, { level: 12, inv, gold: 0 });
   await db.query("update public.hr_feature_switches set scope = 'accounts', accounts = array[$1::uuid] where switch_id = 'burning_tower'", [UID]);
   for (const k of M.CH.CHEST_KEYS.filter((x) => ready.includes(x.id))) {
@@ -84,13 +98,24 @@ const opensOf = (db) => q(db, 'select n, key_id, stokes, cinders_spent, dry, cha
 /* ── TCH-DATA ─────────────────────────────────────────────────────────────── */
 async function dataArm(db, M) {
   const bad = [];
-  const { CHEST_KEYS: K, CHEST_LUCK: L, chestChancePpm, keyForLanding, keySalts, validateChests, stokeCost } = M.CH;
+  const { CHEST_KEYS: K, CHEST_LUCK: L, KEY_FAMILIES: KF, chestChancePpm, keyForLanding, keySalts, validateChests, stokeCost } = M.CH;
   const by = Object.fromEntries(K.map((k) => [k.id, k]));
   /* Tyler's numbers (2026-11-14) */
   const rows = K.map((k) => `${k.id}@${k.from}=${k.weaponPm}`).join(',');
   if (rows !== 'bronze@10=160,silver@40=80,gold@70=45,platinum@100=20') bad.push('TCH-DATA the key table reads ' + rows);
   if (JSON.stringify(L.stokes) !== JSON.stringify([{ pm: 1700, keys: 3 }, { pm: 2500, keys: 7 }, { pm: 3300, keys: 12 }])) bad.push('TCH-DATA the stokes read ' + JSON.stringify(L.stokes));
   if (L.warmthStepPm !== 40 || L.warmthCapPm !== 3000 || L.ownPm !== 500) bad.push(`TCH-DATA the warmth is ${L.warmthStepPm} a dry key to ${L.warmthCapPm}, own ${L.ownPm}`);
+  /* the key families (Tyler 2026-11-16): every Tower key in one family; six opened a week; a held limit of at least a week's opens */
+  if (K.some((k) => k.family !== 'tower') || Object.keys(KF).join(',') !== 'tower' || KF.tower.opensPerWeek !== 6 || !(KF.tower.heldMax >= KF.tower.opensPerWeek)) {
+    bad.push('TCH-DATA the key families read ' + JSON.stringify({ keys: K.map((k) => k.family), families: KF }));
+  }
+  const kfDb = await q(db, 'select key_family, opens_per_week, held_max from public.hr_chest_key_families order by key_family');
+  const kfWant = Object.values(KF).map((f) => [f.id, f.opensPerWeek, f.heldMax].join(':')).sort().join('|');
+  if (kfDb.map((r) => [r.key_family, r.opens_per_week, r.held_max].join(':')).join('|') !== kfWant) bad.push(`TCH-DATA hr_chest_key_families reads ${JSON.stringify(kfDb)}, the data ${kfWant}`);
+  /* the open table is the Tower family's alone: a later family's row starting low never hands out a Tower landing's key */
+  const other = [...K, { ...K[3], id: 'deep_wing', family: 'catacomb', item: 'deep_wing_key', from: 10 }];
+  if (keyForLanding(130, other).id !== 'platinum' || keyForLanding(10, other).id !== 'bronze') bad.push('TCH-DATA the open table read another family\'s row for a Tower landing');
+  if (!validateChests(K.map((k, j) => (j === 1 ? { ...k, family: 'catacomb' } : k))).some((x) => x.includes('is no key family'))) bad.push('TCH-DATA the table let a key of no family load');
   /* the design's warmth table (the board's §5 "(a) The Hearth's warmth"), in hundredths of a percent */
   const table = { bronze: [1600, 1920, 2240, 2880, 3840, 4800], silver: [800, 960, 1120, 1440, 1920, 2400], gold: [450, 540, 630, 810, 1080, 1350], platinum: [200, 240, 280, 360, 480, 600] };
   for (const [id, want] of Object.entries(table)) {
@@ -112,7 +137,7 @@ async function dataArm(db, M) {
   /* the open table */
   const lands = [10, 30, 40, 60, 70, 90, 100, 130, 300].map((l) => keyForLanding(l).id).join(',');
   if (lands !== 'bronze,bronze,silver,silver,gold,gold,platinum,platinum,platinum' || keyForLanding(9) !== null) bad.push('TCH-DATA the landings hand out ' + lands);
-  const sqlLands = await one(db, `select string_agg((select k.key_id from public.hr_chest_keys k where k.from_landing <= l order by k.from_landing desc limit 1), ',' order by l)
+  const sqlLands = await one(db, `select string_agg((select k.key_id from public.hr_chest_keys k where k.key_family = 'tower' and k.from_landing <= l order by k.from_landing desc limit 1), ',' order by l)
     from unnest(array[10, 30, 40, 60, 70, 90, 100, 130, 300]) l`);
   if (sqlLands !== lands) bad.push('TCH-DATA the server\'s open table reads ' + sqlLands);
   /* C4: the salts of the highest tempering tier at or under the key's weapons, never a tier under the hero's gear when a ladder exists */
@@ -122,9 +147,9 @@ async function dataArm(db, M) {
     if (keySalts(k) !== M.TM.TEMPER_MATERIALS[t].item) bad.push(`TCH-DATA ${k.id} pays ${keySalts(k)}, not tier ${t}'s ${M.TM.TEMPER_MATERIALS[t].item}`);
   }
   /* the catalogue rows are the data's */
-  const cat = await q(db, 'select key_id, item_id, from_landing, weapon_pm, cinders, salts_item, salts_qty, food_item, food_qty, skill_plus from public.hr_chest_keys order by from_landing');
-  const want = K.map((k) => [k.id, k.item, k.from, k.weaponPm, k.cinders, keySalts(k), k.saltsQty, k.food, k.foodQty, k.skillPlus].join(':')).join('|');
-  const got = cat.map((r) => [r.key_id, r.item_id, r.from_landing, r.weapon_pm, r.cinders, r.salts_item, r.salts_qty, r.food_item, r.food_qty, r.skill_plus].join(':')).join('|');
+  const cat = await q(db, 'select key_id, key_family, item_id, from_landing, weapon_pm, cinders, salts_item, salts_qty, food_item, food_qty, skill_plus from public.hr_chest_keys order by key_family, from_landing');
+  const want = K.map((k) => [k.id, k.family, k.item, k.from, k.weaponPm, k.cinders, keySalts(k), k.saltsQty, k.food, k.foodQty, k.skillPlus].join(':')).join('|');
+  const got = cat.map((r) => [r.key_id, r.key_family, r.item_id, r.from_landing, r.weapon_pm, r.cinders, r.salts_item, r.salts_qty, r.food_item, r.food_qty, r.skill_plus].join(':')).join('|');
   if (got !== want) bad.push(`TCH-DATA hr_chest_keys reads ${got}, the data ${want}`);
   /* the keys and the Cinders are bound items of no value (the market, the shop and the dispatch refuse them) */
   const items = await q(db, "select item_id, tradeable, value from public.hr_items where item_id like 'tower\\_key\\_%' or item_id = 'tower_cinders' order by item_id");
@@ -170,7 +195,7 @@ async function oddsArm(db, M) {
   const a = await one(db, `select public.hr_chest_roll($1, 0, 77, 160000, 'bow', $2::text[])`, [UID, FAMS]);
   const b = await one(db, `select public.hr_chest_roll($1, 0, 77, 160000, 'bow', $2::text[])`, [UID, FAMS]);
   if (JSON.stringify(a) !== JSON.stringify(b)) bad.push('TCH-ODDS one key rolled twice read two numbers');
-  /* END TO END: a day's 200 Bronze Keys through the verb itself, 20 a press: the weapons found sum to the chances the rows were rolled at
+  /* END TO END: 200 Bronze Keys through the verb itself, 20 a press (the family's week lifted, hero()): the weapons found sum to the chances the rows were rolled at
      (the warmth moving between keys), within the same tolerance */
   const e2e = await H.inTx(db, async () => {
     await hero(db, M, { tower_key_bronze: 200 }, ['bronze']);
@@ -212,37 +237,47 @@ async function mintArm(db, M) {
     runs[door] = r;
     for (const [when, s] of [['the first climb', r.first], ['after a second climb', r.second]]) {
       if (!s.landings.length) { bad.push(`${tag} CONTROL: ${when} took no landing`); continue; }
+      if (s.withheld !== 0) bad.push(`${tag} ${when}: ${s.withheld} key(s) withheld under the held limit`);
       const want = {};
       for (const l of s.landings) { const k = M.CH.keyForLanding(l); want[k.item] = (want[k.item] || 0) + 1; }
       if (JSON.stringify(s.keys) !== JSON.stringify(want)) bad.push(`${tag} ${when}: the bag holds ${JSON.stringify(s.keys)} for landings ${s.landings}, not ${JSON.stringify(want)}`);
       if (s.mint_rows !== s.landings.length || s.mint_bad !== 0) bad.push(`${tag} ${when}: ${s.mint_rows} tower_key ledger rows (${s.mint_bad} malformed) for ${s.landings.length} landings`);
     }
-    if (r.second.landings.filter((l) => r.first.landings.includes(l)).length !== r.first.landings.length) bad.push(`${tag} the second climb lost a landing row`);
+    /* NO WEEKLY EARN CAP (Tyler 2026-11-16): the second climb's landings are keys again, on top of the first's */
+    const total = (o) => Object.values(o || {}).reduce((a, b) => a + Number(b), 0);
+    if (!(total(r.second.keys) > total(r.first.keys)) || !(r.second.mint_rows > r.first.mint_rows)) {
+      bad.push(`${tag} the second climb through the same landings minted no more keys (${JSON.stringify(r.first.keys)} -> ${JSON.stringify(r.second.keys)})`);
+    }
   }
-  /* THE OPEN TABLE ON THE MINT: landings past a climb's reach, written the way the settle writes them (hr_tower_write's insert, on conflict
-     do nothing), each the key of the highest row at or under it; a landing written twice is one key */
+  /* THE OPEN TABLE ON THE MINT: a run's own row raised the way the settle raises it (hr_tower_write: the top floor, over windows), past a
+     climb's reach, each landing the key of the highest Tower row at or under it; a window that raises no floor mints nothing, and a window
+     that starts on the floor after a landing never mints that landing twice */
   const table = await H.inTx(db, async () => {
     await H.character(db, M, UID, { level: 12, inv: {}, gold: 0 });
     const sid = idem();
-    for (const l of [10, 30, 40, 60, 70, 100, 130, 130]) {
-      await db.query('insert into public.tower_landings (user_id, slot, week, landing, session_id, at) values ($1, 0, public.hr_tower_week(now()), $2, $3::uuid, now()) on conflict do nothing', [UID, l, sid]);
+    await db.query('insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 1)', [sid, UID, idem()]);
+    for (const [top, kills] of [[60, 0], [60, 5], [130, 0]]) {
+      await db.query('update public.tower_runs set top_floor = $2, floors = $2, kills = kills + $3 where session_id = $1::uuid', [sid, top, kills]);
     }
     return state(db);
   });
   const want = {};
-  for (const l of [10, 30, 40, 60, 70, 100, 130]) { const k = M.CH.keyForLanding(l); want[k.item] = (want[k.item] || 0) + 1; }
+  const lands = []; for (let l = 10; l <= 130; l += 10) lands.push(l);
+  for (const l of lands) { const k = M.CH.keyForLanding(l); want[k.item] = (want[k.item] || 0) + 1; }
   const sorted = (o) => JSON.stringify(Object.keys(o || {}).sort().map((x) => [x, o[x]]));
-  if (sorted(table.keys) !== sorted(want) || table.mint_rows !== 7) bad.push(`TCH-MINT landings 10 to 130 minted ${JSON.stringify(table.keys)} (${table.mint_rows} rows), not ${JSON.stringify(want)}`);
+  if (sorted(table.keys) !== sorted(want) || table.mint_rows !== lands.length || JSON.stringify(table.landings) !== JSON.stringify(lands)) {
+    bad.push(`TCH-MINT a run to floor 130 minted ${JSON.stringify(table.keys)} (${table.mint_rows} rows, landings ${table.landings}), not ${JSON.stringify(want)}`);
+  }
   if (runs.closed && runs.viewed && JSON.stringify(runs.closed.first) !== JSON.stringify(runs.viewed.first)) {
     bad.push(`TCH-MINT the browser closed mints ${JSON.stringify(runs.closed.first)}, the hunt viewed ${JSON.stringify(runs.viewed.first)}`);
   }
   return bad;
 }
-/* A SECOND CLIMB by the same hero, from floor 1 again, 40 minutes on (the server clock pinned: hr.test_now, this transaction), so its
+/* A SECOND CLIMB by the same hero, from floor 1 again (checkpoint 0: any checkpoint up to the best may be picked), 40 minutes on (the server clock pinned: hr.test_now, this transaction), so its
    windows follow the first climb's: the same session setup as tests/tower-climb.mjs climber, on the hero that already exists. */
 async function climbAgain(db) {
   await db.query("select set_config('hr.test_now', (transaction_timestamp() + interval '40 minutes')::text, true)");
-  const r = await call(db, 'select public.hr_tower_start(0, 1, $1::uuid)', [idem()]);
+  const r = await call(db, 'select public.hr_tower_start(0, 0, $1::uuid)', [idem()]);
   if (!r || r.ok !== true) throw new Error('the second hr_tower_start refused: ' + JSON.stringify(r));
   const sid = r.session_id;
   const t = "date_trunc('second', now() - make_interval(mins => 25))";
@@ -252,12 +287,142 @@ async function climbAgain(db) {
   const from = Number(await one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [inst]));
   return { sid, inst, from };
 }
+/* the hero's keys against every landing its runs cleared (each run's start to its top, the multiples of the landing step, repeats kept) */
 async function state(db) {
   return one(db, `select jsonb_build_object(
-      'landings', coalesce((select jsonb_agg(l.landing order by l.landing) from public.tower_landings l where l.user_id = $1 and l.slot = 0), '[]'::jsonb),
+      'landings', coalesce((select jsonb_agg(f order by f) from public.tower_runs r, generate_series(r.start_floor, coalesce(r.top_floor, 0)) f
+                             where r.user_id = $1 and r.slot = 0 and f % (select t.landing_every from public.hr_tower_rules t where t.id) = 0), '[]'::jsonb),
+      'withheld', (select count(*) from public.player_ledger g where g.user_id = $1 and g.intent = 'tower_key_withheld'),
       'keys', coalesce((select jsonb_object_agg(i.item_id, i.qty) from public.player_inventory i where i.user_id = $1 and i.slot = 0 and i.item_id like 'tower\\_key\\_%'), '{}'::jsonb),
       'mint_rows', (select count(*) from public.player_ledger g where g.user_id = $1 and g.intent = 'tower_key'),
       'mint_bad', (select count(*) from public.player_ledger g where g.user_id = $1 and g.intent = 'tower_key' and (g.qty <> 1 or g.session_id is null or g.kind <> 'hunt')))`, [UID]);
+}
+
+/* ── TCH-HELD ─────────────────────────────────────────────────────────────── */
+async function heldArm(db, M) {
+  const bad = [];
+  const max = M.CH.KEY_FAMILIES.tower.heldMax;
+  const r = await H.inTx(db, async () => {
+    const out = {};
+    /* held - 1 Tower keys: 10 Silver in the bag, the rest Gold in the account's Storage; a stand-in key of another family on an item
+       the hero holds plenty of (it must never count against the Tower's limit) */
+    await H.character(db, M, UID, { level: 12, inv: { tower_key_silver: 10, bones: 500 }, gold: 0 });
+    await db.query("insert into public.account_bank (user_id, item_id, qty) values ($1, 'tower_key_gold', $2) on conflict (user_id, item_id) do update set qty = $2", [UID, max - 11]);
+    await db.query("insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max) values ('deep_wing', 'Stand-in', 6, 30)");
+    await db.query(`insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty)
+      values ('deep_bronze', 'deep_wing', 'bones', 'Stand-in Key', 10, 160, 2, 1, 50, 'temper_salts', 15, 'cooked_shrimp', 20)`);
+    const run = async (top) => {
+      const sid = idem();
+      await db.query('insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 1)', [sid, UID, idem()]);
+      await db.query('update public.tower_runs set top_floor = $2, floors = $2 where session_id = $1::uuid', [sid, top]);
+      return sid;
+    };
+    const keysOf = () => q(db, "select item_id, qty from public.player_inventory where user_id = $1 and slot = 0 and item_id like 'tower\\_key\\_%' order by item_id", [UID]);
+    out.heldBefore = Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID]));
+    /* a run over landings 10, 20 and 30: 10's Bronze drops (the limit reached), 20's and 30's are withheld */
+    const s1 = await run(30);
+    out.keys1 = await keysOf();
+    out.held1 = Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID]));
+    out.rows1 = await q(db, `select intent, item_id, qty, (meta->>'landing')::int as landing, (meta->>'held')::int as held, (meta->>'max')::int as max
+      from public.player_ledger where user_id = $1 and session_id = $2::uuid order by (meta->>'landing')::int`, [UID, s1]);
+    /* five Gold Keys leave Storage (another hero took them): under the limit again, the next run's landings drop until it is reached */
+    await db.query("update public.account_bank set qty = qty - 5 where user_id = $1 and item_id = 'tower_key_gold'", [UID]);
+    const s2 = await run(70);
+    out.rows2 = await q(db, `select intent, (meta->>'landing')::int as landing from public.player_ledger where user_id = $1 and session_id = $2::uuid order by (meta->>'landing')::int`, [UID, s2]);
+    out.held2 = Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID]));
+    return out;
+  });
+  if (r.heldBefore !== max - 1) bad.push(`TCH-HELD CONTROL: the hero held ${r.heldBefore} Tower keys, not ${max - 1} (the stand-in family counted?)`);
+  const minted = r.rows1.filter((x) => x.intent === 'tower_key'), withheld = r.rows1.filter((x) => x.intent === 'tower_key_withheld');
+  if (minted.length !== 1 || minted[0].landing !== 10 || Number(minted[0].qty) !== 1 || r.held1 !== max) {
+    bad.push(`TCH-HELD under the limit by one: ${JSON.stringify(r.rows1)} minted, held ${r.held1} (want landing 10's key alone, held ${max})`);
+  }
+  if (withheld.length !== 2 || withheld.some((x) => x.item_id !== null || Number(x.qty || 0) !== 0 || x.held !== max || x.max !== max)
+      || withheld.map((x) => x.landing).join(',') !== '20,30') {
+    bad.push(`TCH-HELD at the limit the landings past it read ${JSON.stringify(withheld)} (want 20 and 30 withheld, journalled with no item)`);
+  }
+  const bronze = (r.keys1.find((x) => x.item_id === 'tower_key_bronze') || {}).qty;
+  if (Number(bronze) !== 1) bad.push(`TCH-HELD the bag holds ${JSON.stringify(r.keys1)} after the limit`);
+  /* five out: landings 10 to 50 drop (five), 60 and 70 are withheld again */
+  const m2 = r.rows2.filter((x) => x.intent === 'tower_key').map((x) => x.landing).join(','), w2 = r.rows2.filter((x) => x.intent === 'tower_key_withheld').map((x) => x.landing).join(',');
+  if (m2 !== '10,20,30,40,50' || w2 !== '60,70' || r.held2 !== max) bad.push(`TCH-HELD five keys out: minted ${m2}, withheld ${w2}, held ${r.held2} (want 10..50, then 60,70 withheld, held ${max})`);
+  return bad;
+}
+
+/* ── TCH-RING ─────────────────────────────────────────────────────────────── */
+async function ringArm(db, M) {
+  const bad = [];
+  const GOLD = (await import(pathToFileURL(join(M.root, 'src/data/gold-ladders.js')).href + V)).KEY_RING_GOLD;
+  const stacks = async () => Number(await one(db, 'select count(*) from public.player_inventory where user_id = $1 and slot = 0', [UID]));
+  const ring = async () => (await one(db, 'select coalesce(jsonb_object_agg(item_id, qty), \'{}\'::jsonb) from public.player_key_ring where user_id = $1 and slot = 0', [UID]));
+  const bagKeys = async () => Number(await one(db, 'select count(*) from public.player_inventory i join public.hr_chest_keys k on k.item_id = i.item_id where i.user_id = $1 and i.slot = 0', [UID]));
+  const buy = async (key) => {
+    const ver = await one(db, 'select version from public.player_state where user_id = $1 and slot = 0', [UID]);
+    return call(db, 'select public.hr_unlock_buy($1::uuid, 0, $2::bigint, $3::uuid, $4)', [UID, ver, key, 'key_ring.0']);
+  };
+  const r = await H.inTx(db, async () => {
+    const out = {};
+    await H.character(db, M, UID, { level: 12, inv: { tower_key_bronze: 2, tower_key_silver: 1 }, gold: 100000 });
+    await db.query("update public.hr_feature_switches set scope = 'accounts', accounts = array[$1::uuid] where switch_id = 'burning_tower'", [UID]);
+    for (const f of M.GT.WEAPON_FAMILIES) if (f.ids[1]) await db.query('insert into public.hr_chest_weapons (key_id, family, item_id) values ($1, $2, $3) on conflict do nothing', ['bronze', f.key, f.ids[1]]);
+    await db.query('update public.player_state set bank_cap = 200 where user_id = $1 and slot = 0', [UID]);
+    out.locked = await one(db, 'select public.hr_key_ring_section($1, 0)', [UID]);
+    out.stacks0 = await stacks();
+    out.gold0 = await one(db, 'select gold from public.account_wallet where user_id = $1', [UID]);
+    const key = idem();
+    out.buy = await buy(key);
+    out.gold1 = await one(db, 'select gold from public.account_wallet where user_id = $1', [UID]);
+    out.replay = await buy(key);
+    out.again = await buy(idem());
+    out.gold2 = await one(db, 'select gold from public.account_wallet where user_id = $1', [UID]);
+    out.sorted = { ring: await ring(), bagKeys: await bagKeys(), stacks: await stacks() };
+    /* a key drops after it: a run over landing 10 */
+    const sid = idem();
+    await db.query('insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 1)', [sid, UID, idem()]);
+    await db.query('update public.tower_runs set top_floor = 10, floors = 10 where session_id = $1::uuid', [sid]);
+    out.dropped = { ring: await ring(), bagKeys: await bagKeys(), stacks: await stacks(), held: Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID])) };
+    /* a reload: the envelope the client applies */
+    await db.query("select set_config('request.jwt.claim.sub', $1, true)", [UID]);
+    /* hr_state_of: what hr_load answers a named hero (the needs_name gate aside) and every settle's envelope */
+    const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    out.reload = { ring: env && env.key_ring, inv: env && (env.inventory || env.bag || null) };
+    /* a key opens from the ring */
+    out.open = await open(db, 'bronze', 1, 0);
+    out.afterOpen = { ring: await ring(), took: await one(db, "select meta->'took' from public.player_ledger where user_id = $1 and intent = 'chest_open:great_hearth:bronze:1:0' and item_id = 'tower_key_bronze'", [UID]) };
+    /* ring keys into Storage */
+    out.store = await call(db, 'select public.hr_key_ring_store(0, $1, 1, $2::uuid)', ['tower_key_silver', idem()]);
+    out.afterStore = { ring: await ring(), storage: await store(db, 'tower_key_silver'), bag: await bag(db, 'tower_key_silver') };
+    return out;
+  });
+  if (!r.locked || r.locked.unlocked !== false || !r.locked.offer || r.locked.offer.gold !== GOLD || r.locked.offer.offer !== 'key_ring.0') bad.push('TCH-RING locked, the section reads ' + JSON.stringify(r.locked));
+  if (!r.buy || r.buy.ok !== true || Number(r.gold0) - Number(r.gold1) !== GOLD) bad.push(`TCH-RING the purchase answered ${JSON.stringify(r.buy).slice(0, 200)} (gold ${r.gold0} -> ${r.gold1}, price ${GOLD})`);
+  if (Number(r.gold2) !== Number(r.gold1)) bad.push(`TCH-RING a replayed or second purchase charged again (${r.gold1} -> ${r.gold2}; ${JSON.stringify(r.again).slice(0, 120)})`);
+  if (r.sorted.bagKeys !== 0 || r.sorted.ring.tower_key_bronze !== 2 || r.sorted.ring.tower_key_silver !== 1 || r.sorted.stacks !== r.stacks0 - 2) {
+    bad.push(`TCH-RING the purchase left ${JSON.stringify(r.sorted)} (bag stacks were ${r.stacks0})`);
+  }
+  if (r.dropped.bagKeys !== 0 || r.dropped.ring.tower_key_bronze !== 3 || r.dropped.stacks !== r.sorted.stacks || r.dropped.held !== 4) {
+    bad.push(`TCH-RING a key dropped after the ring read ${JSON.stringify(r.dropped)} (the bag had ${r.sorted.stacks} stacks)`);
+  }
+  const rl = r.reload.ring;
+  const rlKeys = rl && Array.isArray(rl.keys) ? Object.fromEntries(rl.keys.map((x) => [x.item, x.qty])) : null;
+  const invHasKey = JSON.stringify(r.reload.inv || '').includes('tower_key_');
+  if (!rl || rl.unlocked !== true || !rlKeys || rlKeys.tower_key_bronze !== 3 || invHasKey) bad.push(`TCH-RING a reload reads the ring ${JSON.stringify(rl)} and a bag key ${invHasKey}`);
+  if (!r.open || r.open.ok !== true || r.afterOpen.ring.tower_key_bronze !== 2 || !r.afterOpen.took || Number(r.afterOpen.took.ring) !== 1) {
+    bad.push(`TCH-RING a key from the ring opened ${JSON.stringify(r.open).slice(0, 160)}, the ring ${JSON.stringify(r.afterOpen)}`);
+  }
+  if (!r.store || r.store.ok !== true || r.afterStore.ring.tower_key_silver !== undefined || r.afterStore.storage !== 1 || r.afterStore.bag !== 0) {
+    bad.push(`TCH-RING a ring key into Storage answered ${JSON.stringify(r.store).slice(0, 160)}, then ${JSON.stringify(r.afterStore)}`);
+  }
+  /* short of gold: refused, nothing bought */
+  const poor = await H.inTx(db, async () => {
+    await H.character(db, M, UID, { level: 12, inv: { tower_key_bronze: 1 }, gold: GOLD - 1 });
+    await db.query("update public.hr_feature_switches set scope = 'accounts', accounts = array[$1::uuid] where switch_id = 'burning_tower'", [UID]);
+    const res = await buy(idem());
+    return { res, owned: await one(db, 'select public.hr_key_ring_owned($1, 0)', [UID]), bagKeys: await bagKeys() };
+  });
+  if (!poor.res || poor.res.ok === true || poor.owned !== false || poor.bagKeys !== 1) bad.push(`TCH-RING a hero short of gold answered ${JSON.stringify(poor.res).slice(0, 160)} (owned ${poor.owned})`);
+  return bad;
 }
 
 /* ── TCH-OPEN ─────────────────────────────────────────────────────────────── */
@@ -391,7 +556,7 @@ async function forgedArm(db, M) {
   const bad = [];
   const r = await H.inTx(db, async () => {
     const out = {};
-    await hero(db, M, { tower_key_bronze: 1, tower_key_gold: 3 }, ['bronze']);
+    await hero(db, M, { tower_key_bronze: 1, tower_key_gold: 3 }, ['bronze'], null);
     /* the Gold Key missing one of its seven (since lane/d-tower-weapons every key's are built in the catalogue: a key short of one is
        still never opened) */
     await db.query("delete from public.hr_chest_weapons where key_id = 'gold' and family = 'crossbow'");
@@ -423,11 +588,24 @@ async function forgedArm(db, M) {
     out.full = await open(db, 'bronze', 1, 0);
     out.fullRows = [n0, Number(await one(db, 'select opens from public.chest_luck where user_id = $1 and slot = 0', [UID])), Number(await one(db, 'select count(*) from public.chest_opens where user_id = $1', [UID]))];
     await db.query('update public.player_state set bank_cap = 200 where user_id = $1 and slot = 0', [UID]);
-    /* the day's clamp, counted from chest_opens */
-    const per = Number(await one(db, 'select per_day from public.hr_chest_luck where id'));
-    await db.query(`insert into public.chest_opens (user_id, slot, n, chest_id, key_id, stokes, cinders_spent, dry, chance_ppm, roll, intent_id)
-      select $1, 0, 1000 + g, 'great_hearth', 'bronze', 0, 0, 0, 0, 999999, $2::uuid from generate_series(1, $3) g`, [UID, idem(), per - 1]);
-    out.day = await open(db, 'bronze', 1, 0);
+    /* THE FAMILY'S WEEK, counted from chest_opens: one key used, (week - 2) more Tower keys this week, three last week and a week's worth of
+       another family's this week: the next key is the week's last and opens, the one after it is week_limit and moves nothing */
+    const week = Number(await one(db, "select opens_per_week from public.hr_chest_key_families where key_family = 'tower'"));
+    out.week = week;
+    const filler = (n0, count, family, at) => db.query(`insert into public.chest_opens (user_id, slot, n, chest_id, key_id, key_family, stokes, cinders_spent, dry, chance_ppm, roll, intent_id, at)
+      select $1, 0, $2 + g, 'great_hearth', 'bronze', $4, 0, 0, 0, 0, 999999, $3::uuid, ${at} from generate_series(1, $5) g`, [UID, n0, idem(), family, count]);
+    await filler(1000, week - 2, 'tower', 'now()');
+    await filler(2000, 3, 'tower', "now() - interval '8 days'");
+    await filler(3000, week, 'catacomb', 'now()');
+    await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'tower_key_bronze', 2) on conflict (user_id, slot, item_id) do update set qty = 2", [UID]);
+    /* two at once with one left in the week: refused whole, not one of the two */
+    const w1 = await snap();
+    out.weekTwo = await open(db, 'bronze', 2, 0);
+    out.weekTwoMoved = (await snap()) !== w1;
+    out.lastOfWeek = await open(db, 'bronze', 1, 0);
+    const w0 = await snap();
+    out.weekOver = await open(db, 'bronze', 1, 0);
+    out.weekMoved = (await snap()) !== w0;
     /* the switch off */
     await db.query("update public.hr_feature_switches set scope = 'off' where switch_id = 'burning_tower'");
     out.off = await open(db, 'bronze', 1, 0);
@@ -444,20 +622,25 @@ async function forgedArm(db, M) {
   if (!r.replay || JSON.stringify(r.replay.opens) !== JSON.stringify(r.first && r.first.opens) || r.rows !== 1) bad.push(`TCH-FORGED the replayed key answered ${JSON.stringify(r.replay).slice(0, 160)} (${r.rows} rows)`);
   if (!r.reuse || r.reuse.error !== 'intent_mismatch') bad.push('TCH-FORGED a key reused for another press answered ' + JSON.stringify(r.reuse).slice(0, 160));
   if (!r.full || r.full.error !== 'bag_full' || r.fullRows[0] !== r.fullRows[1] || r.fullRows[2] !== 1) bad.push(`TCH-FORGED a full bag answered ${JSON.stringify(r.full).slice(0, 160)} with counts ${r.fullRows}`);
-  if (!r.day || r.day.error !== 'day_limit') bad.push('TCH-FORGED the day\'s clamp answered ' + JSON.stringify(r.day).slice(0, 160));
+  if (!r.lastOfWeek || r.lastOfWeek.ok !== true) bad.push(`TCH-FORGED the week's ${r.week}th key (last week's and another family's opens not counted) answered ${JSON.stringify(r.lastOfWeek).slice(0, 160)}`);
+  if (!r.weekOver || r.weekOver.error !== 'week_limit' || r.weekOver.family !== 'tower' || r.weekOver.used !== r.week || r.weekOver.limit !== r.week || r.weekMoved) {
+    bad.push(`TCH-FORGED the family's week answered ${JSON.stringify(r.weekOver).slice(0, 160)}${r.weekMoved ? ' and moved something' : ''}`);
+  }
+  if (!r.weekTwo || r.weekTwo.error !== 'week_limit' || r.weekTwoMoved) bad.push('TCH-FORGED two keys past the week answered ' + JSON.stringify(r.weekTwo).slice(0, 160));
   if (!r.off || r.off.error !== 'feature_off' || !r.offDefault || r.offDefault.error !== 'feature_off') bad.push(`TCH-FORGED the switch off answered ${JSON.stringify(r.off)} / ${JSON.stringify(r.offDefault)}`);
   if (r.badDefault[0].error !== 'bad_stokes' || r.badDefault[1].error !== 'bad_key') bad.push('TCH-FORGED a forged default answered ' + JSON.stringify(r.badDefault));
   /* the client's reach: two verbs, no helper; no verb takes a chance, a warmth, a family or a weapon */
   const priv = await q(db, `select p.proname, has_function_privilege('authenticated', p.oid, 'execute') as auth, has_function_privilege('anon', p.oid, 'execute') as anon,
       coalesce(array_to_string(p.proargnames, ','), '') as args
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in
-      ('hr_chest_open', 'hr_chest_stoke_default', 'hr_chest_roll', 'hr_chest_chance_ppm', 'hr_chest_held', 'hr_chest_section', 'hr_tower_key_mint')`);
+      ('hr_chest_open', 'hr_chest_stoke_default', 'hr_chest_roll', 'hr_chest_chance_ppm', 'hr_chest_held', 'hr_chest_family_held', 'hr_chest_week_start',
+       'hr_chest_section', 'hr_tower_key_mint')`);
   for (const p of priv) {
     const verb = ['hr_chest_open', 'hr_chest_stoke_default'].includes(p.proname);
     if (p.auth !== verb || p.anon) bad.push(`TCH-FORGED ${p.proname}: authenticated ${p.auth}, anon ${p.anon}`);
-    if (verb && /chance|dry|warm|family|weapon|cinder|roll|price/.test(p.args)) bad.push(`TCH-FORGED ${p.proname} takes ${p.args}`);
+    if (verb && /chance|dry|warm|family|weapon|cinder|roll|price|week|held|used/.test(p.args)) bad.push(`TCH-FORGED ${p.proname} takes ${p.args}`);
   }
-  if (priv.length !== 7) bad.push('TCH-FORGED HARNESS: found ' + priv.map((p) => p.proname));
+  if (priv.length !== 9) bad.push('TCH-FORGED HARNESS: found ' + priv.map((p) => p.proname));
   /* a hero in a hunt opens nothing (the chest stands in town) */
   const hunt = await H.inTx(db, async () => {
     await C.climber(db, M, {});
@@ -469,7 +652,7 @@ async function forgedArm(db, M) {
   return bad;
 }
 
-const ARMS = { data: dataArm, odds: oddsArm, mint: mintArm, open: openArm, forged: forgedArm };
+const ARMS = { data: dataArm, odds: oddsArm, mint: mintArm, held: heldArm, ring: ringArm, open: openArm, forged: forgedArm };
 const CHEST_SQL = 'supabase/migrations/2027-04-27-tower-chest.sql';
 const MUTANTS = [
   { name: 'the chance ignores the warmth', arm: 'data', want: /^TCH-DATA the server's chance/, fn: 'public.hr_chest_chance_ppm(integer,integer,integer)',
@@ -487,9 +670,35 @@ const MUTANTS = [
   { name: 'a landing mints two keys', arm: 'mint', want: /^TCH-MINT/, fn: 'public.hr_tower_key_mint()',
     find: 'values (new.user_id, new.slot, v_k.item_id, 1)', replace: 'values (new.user_id, new.slot, v_k.item_id, 2)' },
   { name: 'a landing mints the lowest key', arm: 'mint', want: /^TCH-MINT/, fn: 'public.hr_tower_key_mint()',
-    find: 'order by from_landing desc limit 1', replace: 'order by from_landing limit 1' },
+    find: 'order by k.from_landing desc limit 1', replace: 'order by k.from_landing limit 1' },
+  { name: 'a window re-mints the floor it starts after', arm: 'mint', want: /^TCH-MINT a run to floor 130/, fn: 'public.hr_tower_key_mint()',
+    find: 'generate_series(coalesce(old.top_floor, new.start_floor - 1) + 1, new.top_floor)', replace: 'generate_series(coalesce(old.top_floor, new.start_floor - 1), new.top_floor)' },
+  { name: 'keys drop once a week (the old earn cap)', arm: 'mint', want: /^TCH-MINT .*minted no more keys/, fn: 'public.hr_tower_key_mint()',
+    find: '    continue when v_k.key_id is null;', replace: "    continue when v_k.key_id is null or exists (select 1 from public.player_ledger g where g.user_id = new.user_id and g.slot = new.slot and g.intent = 'tower_key' and (g.meta->>'landing')::int = v_l and g.at >= public.hr_chest_week_start(now()));" },
+  { name: 'the mint ignores the held limit', arm: 'held', want: /^TCH-HELD/, fn: 'public.hr_tower_key_mint()',
+    find: '    if v_held >= v_f.held_max then', replace: '    if false then' },
+  { name: 'the held limit reads the bag alone', arm: 'held', want: /^TCH-HELD/, fn: 'public.hr_chest_family_held(uuid,integer,text)',
+    find: "+ coalesce((select sum(b.qty)", replace: "+ 0 * coalesce((select sum(b.qty)" },
+  { name: 'the held limit counts every family', arm: 'held', want: /^TCH-HELD/, fn: 'public.hr_chest_family_held(uuid,integer,text)',
+    find: 'where i.user_id = p_user and i.slot = p_slot and k.key_family = p_family', replace: 'where i.user_id = p_user and i.slot = p_slot' },
+  { name: 'the week counts every family', arm: 'forged', want: /^TCH-FORGED the week's/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: 'o.key_family = v_k.key_family\n', replace: 'true\n' },
+  { name: 'the week never resets', arm: 'forged', want: /^TCH-FORGED the week's/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: 'and o.at >= public.hr_chest_week_start(now()))::int;', replace: ')::int;' },
+  { name: 'the week is not clamped', arm: 'forged', want: /^TCH-FORGED (the family's week|two keys past)/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: '  if v_week + p_count > coalesce(v_f.opens_per_week, 0) then', replace: '  if false then' },
+  { name: 'the week counts one key of a press', arm: 'forged', want: /^TCH-FORGED two keys past/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: '  if v_week + p_count > coalesce(v_f.opens_per_week, 0) then', replace: '  if v_week + 1 > coalesce(v_f.opens_per_week, 0) then' },
   { name: 'the key is not taken', arm: 'forged', want: /^TCH-FORGED (a used key|the replayed)/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
-    find: "jsonb_build_object(v_k.item_id, p_count)\n                || case", replace: "jsonb_build_object(v_k.item_id, 0)\n                || case" },
+    find: '    v_need := case when v_rest > 0 then', replace: '    v_need := case when false then' },
+  { name: 'a new key skips the ring', arm: 'ring', want: /^TCH-RING a key dropped/, fn: 'public.hr_key_ring_on_bag()',
+    find: '  if not public.hr_key_ring_owned(new.user_id, new.slot) then return null; end if;', replace: '  return null;' },
+  { name: 'the purchase does not sort the bag', arm: 'ring', want: /^TCH-RING the purchase left/, fn: 'public.hr_key_ring_on_unlock()',
+    find: '  v_n := public.hr_key_ring_sweep(new.user_id, new.slot);', replace: '  v_n := 0;' },
+  { name: 'the open ignores the ring', arm: 'ring', want: /^TCH-RING a key from the ring/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: "  v_ring := least((v_keys->>'ring')::bigint, p_count);", replace: '  v_ring := 0;' },
+  { name: 'the held count misses the ring', arm: 'ring', want: /^TCH-RING a key dropped/, fn: 'public.hr_chest_family_held(uuid,integer,text)',
+    find: '+ coalesce((select sum(r.qty) from public.player_key_ring r', replace: '+ 0 * coalesce((select sum(r.qty) from public.player_key_ring r' },
   { name: 'the count is not clamped', arm: 'forged', want: /^TCH-FORGED 21 keys/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
     find: '  if p_count is null or p_count < 1 or p_count > v_lk.per_call then', replace: '  if p_count is null or p_count < 1 then' },
   { name: 'the stokes are free', arm: 'open', want: /^TCH-OPEN (\d stoke|short)/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
@@ -504,7 +713,9 @@ const MUTANTS = [
     find: '  if v_new > 0 and v_stacks + v_new > v_cap then', replace: '  if false then' },
   { name: 'the data\'s warmth cap moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js', from: '  warmthCapPm: 3000,', to: '  warmthCapPm: 2500,' },
   { name: 'the data\'s Platinum odds move', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
-    from: "key('platinum', 'tower_key_platinum', 'Platinum Key', 100, 20,", to: "key('platinum', 'tower_key_platinum', 'Platinum Key', 100, 40," },
+    from: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20,", to: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 40," },
+  { name: 'the data\'s Tower week moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
+    from: "opensPerWeek: 6, heldMax: 30 })", to: "opensPerWeek: 7, heldMax: 30 })" },
 ];
 
 async function runArm(db, M, name) {
@@ -556,7 +767,7 @@ async function main() {
     bad.push(...got);
   }
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? `tower-chest: ${bad.length} FAILED` : 'tower-chest: green (the table, the odds, the mint on both doors, the open, every forged value refused)');
+  console.log(bad.length ? `tower-chest: ${bad.length} FAILED` : 'tower-chest: green (the table, the odds, the mint on both doors with no earn cap, the held limit, the Key Ring, the open, six a family a week, every forged value refused)');
   process.exit(bad.length ? 1 : 0);
 }
 

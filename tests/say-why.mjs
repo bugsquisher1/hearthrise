@@ -203,12 +203,12 @@ export const REASONS = Object.freeze({
   ],
   /* the Burning Tower (lane/b-tower-window): Enter and Use each have the line above them that says why they're off */
   'src/shell/windows/tower.js': [
-    { cond: 'pending || !tw.starts.length', words: "t('tower.off_no_start')", where: 'Start Floor: off while a press is out (the busy line says so) or when the server lists no floor, which the line above Enter says (No start floor available)' },
-    { cond: '!!block', words: "text(root.querySelector('.tt-off-why'), block)", where: 'Enter: the line above it says why (out hunting, already climbing, in a party, no floor the server lists), and data-off-why says it on a press' },
+    { cond: 'pending || !tw.checkpoints.length', words: "t('tower.off_no_start')", where: 'Start Floor: off while a press is out (the busy line says so) or when the server lists no checkpoint, which the line above Enter says (No start floor available)' },
+    { cond: '!!block', words: "text(root.querySelector('.tt-off-why'), block)", where: 'Enter: the line above it says why (out hunting, already climbing, a party seat that does not lead, no checkpoint the server lists), and data-off-why says it on a press' },
   ],
   'src/shell/windows/tower-chest.js': [
-    { cond: '!!block', words: "text(pane.querySelector('.tc-off-why'), k ? block : '')", where: 'Use: the line above it says why (out on a hunt, no key, its weapons not built, the key family\'s week of chests or the day\'s keys used); with no key held the press is hidden and the pane says how to earn one' },
-    { cond: '!!block || all < 2', words: "t('tower.today'", where: 'Use all: off for Use\'s reasons (the line above), or when the day or the key family\'s week leaves one, which the "Keys used today: N / M" and "Chests opened this week: N / 6" lines say; hidden with fewer than two keys held' },
+    { cond: '!!block', words: "text(pane.querySelector('.tc-off-why'), k ? block : '')", where: 'Use: the line above it says why (out on a hunt, no key, its weapons not built, the key family\'s week of chests used); with no key held the press is hidden and the pane says how to earn one' },
+    { cond: '!!block || all < 2', words: "t('tower.week_opened'", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Chests opened: N / 6" line says; hidden with fewer than two keys held' },
   ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },

@@ -6,14 +6,14 @@
 //   node tools/balance-sim/tower-climb.mjs [--levels 10,20,45] [--minutes 60] [--seeds 2] [--starts -10] [--who solo,pair,three,four]
 //
 //   --starts  where each climb starts, in Levels from the hero's own (lane/c-tower-chest): -10 is a climb from the landing at or under
-//             Level - 10 (a week's ordinary climb), 0 from the landing at or under its Level, +10 from 10 floors over it (the die-and-retry
-//             case: a free death sends a hero back to the floor after any landing it took this week, so the best XP an hour a hero can
+//             Level - 10 (a checkpoint under its best), 0 from the landing at or under its Level, +10 from 10 floors over it (the die-and-retry
+//             case: a free death sends a hero back to any checkpoint up to its best, Tyler 2026-11-16, so the best XP an hour a hero can
 //             farm is a start at the top it reaches). Every start is a cell the guard reads.
 //   --who     the heroes: solo (tank, melee_dps, ranger, mage alone), pair (tank+healer, ranger+mage), three (tank+healer+mage),
 //             four (tank+healer+ranger+mage). The party share is the Tower's own row (src/data/tower.js TOWER_PARTY_XP).
 //
 // Each cell is ONE climb through the settle the world tick runs (tests/hunt-core/fixtures/play-ground.mjs -> accrual.js accrueHunt ->
-// combat-sim.js on the Tower's ground in the `tower` mode), from the floor a hero of that Level starts a week on when its best landing is
+// combat-sim.js on the Tower's ground in the `tower` mode), from the checkpoint a hero of that Level picks when its best landing is
 // about its Level (the landing at or under Level - 10, + 1), floors in order, 60 s settle windows, until it is spat out or the minutes run
 // out. The fixture hands each window the floor the server would (its start, or the top cleared + 1). Heroes wear the ladder kit their
 // Level can get (the fixture's), store food on the reference bar. Reports the top floor, minutes climbed, how it ended, Level XP an hour a

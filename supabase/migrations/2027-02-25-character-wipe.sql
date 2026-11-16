@@ -84,10 +84,10 @@ declare
     'hr_live_event_notices',
     /* a hero's side, its standing, its days, its claims and the journal of them (2027-04-22-faction-standing.sql) */
     'hr_faction_members', 'hr_faction_standing', 'hr_faction_days', 'hr_faction_claims', 'hr_faction_ledger',
-    /* a hero's Burning Tower best, its climbs and the week's landings (2027-04-24-tower-climb.sql) */
-    'tower_progress', 'tower_runs', 'tower_landings',
-    /* a hero's Hearth Chest warmth, key count and default stokes, and the journal of its keys used (2027-04-27-tower-chest.sql) */
-    'chest_luck', 'chest_opens',
+    /* a hero's Burning Tower best and its climbs (2027-04-24-tower-climb.sql) */
+    'tower_progress', 'tower_runs',
+    /* a hero's Hearth Chest warmth, key count and default stokes, the journal of its keys used, and its Key Ring (2027-04-27-tower-chest.sql) */
+    'chest_luck', 'chest_opens', 'player_key_ring',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',
@@ -134,8 +134,8 @@ declare
     'hr_training_gear',
     /* the Burning Tower's catalogue (2027-04-24-tower-climb-catalogue.generated.sql): its rules and each floor's bound */
     'hr_tower_rules', 'hr_tower_floors',
-    /* the Hearth Chest's catalogue (2027-04-27-tower-chest-catalogue.generated.sql): the chest, its keys, stokes, luck and weapons */
-    'hr_chests', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families',
+    /* the Hearth Chest's catalogue (2027-04-27-tower-chest-catalogue.generated.sql): the chest, its key families, keys, stokes, luck and weapons */
+    'hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families',
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
     'hr_boss_halls',
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */

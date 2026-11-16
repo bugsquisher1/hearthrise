@@ -3,9 +3,10 @@
 // tools/gen-chests.mjs — GENERATE THE HEARTH CHEST'S SERVER CATALOGUE (lane/c-tower-chest; Tyler 2026-11-14; the Burning Tower board §5,
 //   the coherence pass's C4).
 //
-// src/data/chests.js holds the chest's open key table, what each key always holds, the weapon chance, the Hearth's warmth and the stokes.
-// Postgres must know them to do what only it may: mint a landing's key (hr_tower_key_mint), work out a key's chance again inside the open
-// (hr_chest_chance_ppm), roll it on its own dice, take the stokes' Cinders and pay the haul (hr_chest_open). Emitted as hr_chests,
+// src/data/chests.js holds the chest's open key table, the key families and their caps, what each key always holds, the weapon chance, the
+// Hearth's warmth and the stokes. Postgres must know them to do what only it may: mint a landing's key under its family's held limit
+// (hr_tower_key_mint), count a family's opens against its week (hr_chest_open), work out a key's chance again inside the open
+// (hr_chest_chance_ppm), roll it on its own dice, take the stokes' Cinders and pay the haul. Emitted as hr_chests, hr_chest_key_families,
 // hr_chest_keys, hr_chest_stokes, hr_chest_luck, hr_chest_families, hr_chest_weapons (each key's weapon a family: src/data/tower-weapons.js) and
 // hr_chest_weapon_families (every weapon item's family, the "type you have equipped" the open reads from the hero's own equipment row).
 // Read by supabase/migrations/2027-04-27-tower-chest.sql.
@@ -23,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
-import { CHESTS, CHEST_KEYS, CHEST_LUCK, CINDERS, WEAPON_FAMILY_KEYS, weaponFamilyOf, keySalts, validateChests } from '../src/data/chests.js';
+import { CHESTS, CHEST_KEYS, CHEST_LUCK, CINDERS, KEY_FAMILIES, TOWER_KEY_FAMILY, WEAPON_FAMILY_KEYS, weaponFamilyOf, keySalts, validateChests } from '../src/data/chests.js';
 import { TOWER_WEAPONS } from '../src/data/tower-weapons.js';
 import { WEAPON_FAMILIES } from '../src/data/gear-tiers.js';
 import { TOWER_RULES } from '../src/data/tower.js';
@@ -35,8 +36,8 @@ export const OUT_NAME = '2027-04-27-tower-chest-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. */
-export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = ITEMS, families = WEAPON_FAMILIES, tower = TOWER_WEAPONS } = {}) {
-  const problems = validateChests(keys, luck, TOWER_RULES.landingEvery, undefined, tower);
+export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = ITEMS, families = WEAPON_FAMILIES, keyFamilies = KEY_FAMILIES, tower = TOWER_WEAPONS } = {}) {
+  const problems = validateChests(keys, luck, TOWER_RULES.landingEvery, undefined, keyFamilies, tower);
   const isItem = (id) => Object.hasOwn(items, id);
   if (!isItem(CINDERS)) problems.push('the Cinders (' + CINDERS + ') are no item');
   for (const k of keys) {
@@ -54,7 +55,7 @@ export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = IT
   if (problems.length) throw new Error('gen-chests: ' + problems.join('; '));
   const weaponFamilies = Object.keys(items).sort().map((id) => ({ item: id, family: weaponFamilyOf(items[id]) })).filter((r) => r.family);
   const weapons = keys.flatMap((k) => Object.entries(k.weapons || {}).map(([family, item]) => ({ key: k.id, family, item })));
-  return { keys: keys.map((k) => ({ ...k, salts: keySalts(k) })), luck, weaponFamilies, weapons };
+  return { keys: keys.map((k) => ({ ...k, salts: keySalts(k) })), keyFamilies: Object.values(keyFamilies), luck, weaponFamilies, weapons };
 }
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
@@ -62,13 +63,15 @@ const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 export function build(input) {
   const r = catalogueRows(input);
   const L = r.luck;
-  const keyRows = r.keys.map((k) => `  (${lit(k.id)}, ${lit(k.item)}, ${lit(k.name)}, ${k.from}, ${k.weaponPm}, ${k.weaponTier}, ${k.skillPlus}, ${k.cinders}, ${lit(k.salts)}, ${k.saltsQty}, ${lit(k.food)}, ${k.foodQty})`).join(',\n');
+  const keyRows = r.keys.map((k) => `  (${lit(k.id)}, ${lit(k.family)}, ${lit(k.item)}, ${lit(k.name)}, ${k.from}, ${k.weaponPm}, ${k.weaponTier}, ${k.skillPlus}, ${k.cinders}, ${lit(k.salts)}, ${k.saltsQty}, ${lit(k.food)}, ${k.foodQty})`).join(',\n');
   const stokeRows = L.stokes.map((s, i) => `  (${i + 1}, ${s.pm}, ${s.keys})`).join(',\n');
   const famRows = WEAPON_FAMILY_KEYS.map((f, i) => `  (${lit(f)}, ${i + 1})`).join(',\n');
   const wfRows = r.weaponFamilies.map((w) => `  (${lit(w.item)}, ${lit(w.family)})`).join(',\n');
   const wRows = r.weapons.map((w) => `  (${lit(w.key)}, ${lit(w.family)}, ${lit(w.item)})`).join(',\n');
+  const kfRows = r.keyFamilies.map((f) => `  (${lit(f.id)}, ${lit(f.name)}, ${f.opensPerWeek}, ${f.heldMax})`).join(',\n');
+  const kfSum = [...r.keyFamilies].sort((a, b) => (a.id < b.id ? -1 : 1)).map((f) => [f.id, f.opensPerWeek, f.heldMax].join(':')).join('|');
   const chestRows = Object.values(CHESTS).map((c) => `  (${lit(c.id)}, ${lit(c.name)})`).join(',\n');
-  const sum = r.keys.map((k) => [k.id, k.item, k.from, k.weaponPm, k.weaponTier, k.skillPlus, k.cinders, k.salts, k.saltsQty, k.food, k.foodQty].join(':')).join('|');
+  const sum = [...r.keys].sort((a, b) => (a.id < b.id ? -1 : 1)).map((k) => [k.id, k.family, k.item, k.from, k.weaponPm, k.weaponTier, k.skillPlus, k.cinders, k.salts, k.saltsQty, k.food, k.foodQty].join(':')).join('|');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- ${OUT_NAME} — THE HEARTH CHEST: ITS OPEN KEY TABLE, WHAT EACH KEY ALWAYS HOLDS, ITS WEAPON CHANCE, THE HEARTH'S WARMTH AND THE STOKES.
 -- Generated by tools/gen-chests.mjs from src/data/chests.js (the salts each key holds derived from src/data/temper.js TEMPER_MATERIALS; the
@@ -76,23 +79,33 @@ export function build(input) {
 -- STATUS: STAGED, NOT APPLIED (lane/c-tower-chest, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower's chest). The Coordinator
 --   applies (tools/apply-migration.mjs, one file, never inside begin/commit). ORDER: after 2027-04-27-tower-chest-items-catalogue.generated.sql
 --   (every item a row names is in hr_items: §4 checks it), right before 2027-04-27-tower-chest.sql, which reads every table. No function body.
--- hr_chests (one row today); hr_chest_keys (${r.keys.length} rows: the open table, a landing's key is the highest row at or under it); hr_chest_stokes
---   (${L.stokes.length}: a stoke count's multiplier and its price in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family
---   weight, the per-call and per-day clamps); hr_chest_families (the ${WEAPON_FAMILY_KEYS.length} weapon families, the "types"); hr_chest_weapons (each key's
+-- hr_chests (one row today); hr_chest_key_families (${r.keyFamilies.length}: a key family's caps, every key of the family sharing them: the keys one hero may
+--   open a UTC week and the held limit past which a new key of it does not drop); hr_chest_keys (${r.keys.length} rows: each in a family; the open
+--   table, a Tower landing's key is the highest Tower row at or under it); hr_chest_stokes (${L.stokes.length}: a stoke count's multiplier and its price
+--   in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family weight, the per-call clamp);
+--   hr_chest_families (the ${WEAPON_FAMILY_KEYS.length} weapon families, the "types"); hr_chest_weapons (each key's
 --   weapon a family: ${r.weapons.length} rows; a key short of its ${WEAPON_FAMILY_KEYS.length} is refused chest_not_ready); hr_chest_weapon_families (${r.weaponFamilies.length}
 --   weapon items and their family). All rewritten whole: no player row points at any of them (the key and Cinders items are hr_items rows).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower.
--- REVERSIBLE: drop the seven tables after 2027-04-27-tower-chest.sql's reversal.
+-- REVERSIBLE: drop the eight tables after 2027-04-27-tower-chest.sql's reversal.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_chests (
   chest_id text primary key check (chest_id ~ '^[a-z0-9_]{1,40}$'),
   name     text not null
 );
+create table if not exists public.hr_chest_key_families (
+  key_family     text primary key check (key_family ~ '^[a-z0-9_]{1,40}$'),
+  name           text not null,
+  opens_per_week int  not null check (opens_per_week between 1 and 1000),
+  held_max       int  not null,
+  constraint hr_chest_key_families_held check (held_max >= opens_per_week)
+);
 create table if not exists public.hr_chest_keys (
   key_id       text primary key check (key_id ~ '^[a-z0-9_]{1,40}$'),
+  key_family   text not null,
   item_id      text not null unique,
   name         text not null,
-  from_landing int  not null unique check (from_landing > 0),
+  from_landing int  not null check (from_landing > 0),
   weapon_pm    int  not null check (weapon_pm between 1 and 1000),
   weapon_tier  int  not null check (weapon_tier between 1 and 10),
   skill_plus   int  not null check (skill_plus >= 1),
@@ -100,7 +113,8 @@ create table if not exists public.hr_chest_keys (
   salts_item   text not null,
   salts_qty    int  not null check (salts_qty > 0),
   food_item    text not null,
-  food_qty     int  not null check (food_qty > 0)
+  food_qty     int  not null check (food_qty > 0),
+  constraint hr_chest_keys_from unique (key_family, from_landing)
 );
 create table if not exists public.hr_chest_stokes (
   stokes int primary key check (stokes between 1 and 9),
@@ -112,9 +126,7 @@ create table if not exists public.hr_chest_luck (
   warmth_step_pm int not null check (warmth_step_pm >= 0),
   warmth_cap_pm  int not null check (warmth_cap_pm >= 1000),
   own_pm         int not null check (own_pm between 0 and 1000),
-  per_call       int not null check (per_call between 1 and 100),
-  per_day        int not null,
-  constraint hr_chest_luck_day check (per_day >= per_call)
+  per_call       int not null check (per_call between 1 and 100)
 );
 create table if not exists public.hr_chest_families (
   family text primary key check (family ~ '^[a-z0-9_]{1,40}$'),
@@ -133,13 +145,14 @@ create table if not exists public.hr_chest_weapon_families (
 do $$
 declare t text;
 begin
-  foreach t in array array['hr_chests', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
   end loop;
 end $$;
-comment on table public.hr_chest_keys is '${OUT_NAME}: the Hearth Chest''s open key table (src/data/chests.js CHEST_KEYS): a landing''s key is the highest row at or under it; what each key always holds; its base weapon chance (permille). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
-comment on table public.hr_chest_luck is '${OUT_NAME}: the Hearth''s warmth (a dry key warms the next by warmth_step_pm of its base, up to warmth_cap_pm), the own-family weight and the clamps (src/data/chests.js CHEST_LUCK). One row.';
+comment on table public.hr_chest_key_families is '${OUT_NAME}: the key families (src/data/chests.js KEY_FAMILIES, Tyler 2026-11-16): every key of a family shares its caps, opens_per_week keys one hero may use a UTC week (hr_chest_open, from chest_opens) and held_max, the held limit past which a new key of the family does not drop (hr_tower_key_mint). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
+comment on table public.hr_chest_keys is '${OUT_NAME}: the Hearth Chest''s open key table (src/data/chests.js CHEST_KEYS): each key in a family (hr_chest_key_families); a Tower landing''s key is the highest Tower row at or under it; what each key always holds; its base weapon chance (permille). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
+comment on table public.hr_chest_luck is '${OUT_NAME}: the Hearth''s warmth (a dry key warms the next by warmth_step_pm of its base, up to warmth_cap_pm), the own-family weight and the per-call clamp (src/data/chests.js CHEST_LUCK). One row.';
 comment on table public.hr_chest_weapons is '${OUT_NAME}: each key''s tower weapon a family (src/data/chests.js weapons). A key without one for every hr_chest_families row is not ready: hr_chest_open refuses it.';
 
 delete from public.hr_chests;
@@ -147,15 +160,18 @@ insert into public.hr_chests (chest_id, name) values
 ${chestRows};
 delete from public.hr_chest_weapons;
 delete from public.hr_chest_keys;
-insert into public.hr_chest_keys (key_id, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty) values
+delete from public.hr_chest_key_families;
+insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max) values
+${kfRows};
+insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty) values
 ${keyRows};
 delete from public.hr_chest_stokes;
 insert into public.hr_chest_stokes (stokes, pm, keys) values
 ${stokeRows};
-insert into public.hr_chest_luck (id, warmth_step_pm, warmth_cap_pm, own_pm, per_call, per_day) values
-  (true, ${L.warmthStepPm}, ${L.warmthCapPm}, ${L.ownPm}, ${L.perCall}, ${L.perDay})
+insert into public.hr_chest_luck (id, warmth_step_pm, warmth_cap_pm, own_pm, per_call) values
+  (true, ${L.warmthStepPm}, ${L.warmthCapPm}, ${L.ownPm}, ${L.perCall})
 on conflict (id) do update set warmth_step_pm = excluded.warmth_step_pm, warmth_cap_pm = excluded.warmth_cap_pm, own_pm = excluded.own_pm,
-  per_call = excluded.per_call, per_day = excluded.per_day;
+  per_call = excluded.per_call;
 delete from public.hr_chest_families;
 insert into public.hr_chest_families (family, ord) values
 ${famRows};
@@ -164,17 +180,24 @@ delete from public.hr_chest_weapon_families;
 insert into public.hr_chest_weapon_families (item_id, family) values
 ${wfRows};
 
--- §4 SELF-CHECK: the data's rows (a digest of every key row), the open table rising, every item a row names an hr_items row (the keys and
--- the Cinders bound), every weapon of its own family, and no client can read or write a table.
+-- §4 SELF-CHECK: the data's rows (a digest of every key row and every key family), each key in a family and each family with a key, the
+-- Tower's family there, a family's open table rising, every item a row names an hr_items row (the keys and the Cinders bound), every weapon
+-- of its own family, and no client can read or write a table.
 do $$
 declare t text; v_role text; v_sum text;
 begin
-  select string_agg(concat_ws(':', key_id, item_id, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty), '|' order by from_landing)
+  select string_agg(concat_ws(':', key_id, key_family, item_id, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty), '|' order by key_id collate "C")
     into v_sum from public.hr_chest_keys;
   if v_sum is distinct from ${lit(sum)} then raise exception 'chest-catalogue §4: hr_chest_keys is not src/data/chests.js: %', v_sum; end if;
-  if exists (select 1 from public.hr_chest_keys a join public.hr_chest_keys b on b.from_landing > a.from_landing
+  select string_agg(concat_ws(':', key_family, opens_per_week, held_max), '|' order by key_family collate "C") into v_sum from public.hr_chest_key_families;
+  if v_sum is distinct from ${lit(kfSum)} then raise exception 'chest-catalogue §4: hr_chest_key_families is not src/data/chests.js: %', v_sum; end if;
+  if exists (select 1 from public.hr_chest_keys k where not exists (select 1 from public.hr_chest_key_families f where f.key_family = k.key_family))
+     or exists (select 1 from public.hr_chest_key_families f where not exists (select 1 from public.hr_chest_keys k where k.key_family = f.key_family))
+     or not exists (select 1 from public.hr_chest_key_families f where f.key_family = ${lit(TOWER_KEY_FAMILY)}) then
+    raise exception 'chest-catalogue §4: a key of no family, a family of no key, or no family for the Tower''s landings'; end if;
+  if exists (select 1 from public.hr_chest_keys a join public.hr_chest_keys b on b.key_family = a.key_family and b.from_landing > a.from_landing
               where b.weapon_pm > a.weapon_pm or b.cinders <= a.cinders or b.skill_plus <= a.skill_plus) then
-    raise exception 'chest-catalogue §4: a higher key is no better than the one under it'; end if;
+    raise exception 'chest-catalogue §4: a higher key is no better than the one under it in its family'; end if;
   if (select count(*) from public.hr_chest_stokes) <> ${L.stokes.length} or (select count(*) from public.hr_chest_luck) <> 1
      or (select count(*) from public.hr_chest_families) <> ${WEAPON_FAMILY_KEYS.length} or (select count(*) from public.hr_chests) <> ${Object.keys(CHESTS).length}
      or (select count(*) from public.hr_chest_weapons) <> ${r.weapons.length} then
@@ -195,7 +218,7 @@ begin
     raise exception 'chest-catalogue §4: a key''s weapon is not of its family, or names no key or family'; end if;
   if exists (select 1 from public.hr_chest_weapon_families w where not exists (select 1 from public.hr_chest_families c where c.family = w.family)) then
     raise exception 'chest-catalogue §4: a weapon item reads no family'; end if;
-  foreach t in array array['hr_chests', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
     if exists (select 1 from pg_policies where schemaname = 'public' and tablename = t) then
       raise exception 'chest-catalogue §4: a policy opens % to a client', t; end if;
     foreach v_role in array array['anon', 'authenticated'] loop
@@ -224,6 +247,10 @@ function selftest() {
   bites('a key that starts off a landing', 'from is not a landing', { keys: swap(0, { from: 15 }) });
   bites('two keys from one landing', 'starts at or under', { keys: swap(1, { from: 10 }) });
   bites('a weapon chance of nothing', 'weaponPm is not a whole permille', { keys: swap(0, { weaponPm: 0 }) });
+  bites('a key of no family', 'is no key family', { keys: swap(2, { family: 'catacomb' }) });
+  bites('a held limit under a week of opens', 'heldMax is under', { keyFamilies: { tower: { ...KEY_FAMILIES.tower, heldMax: 5 } } });
+  bites('a family no key belongs to', 'no key belongs to it', { keyFamilies: { ...KEY_FAMILIES, catacomb: { id: 'catacomb', name: 'Catacomb', opensPerWeek: 6, heldMax: 30 } } });
+  bites('no weekly open count', 'opensPerWeek is not', { keyFamilies: { tower: { ...KEY_FAMILIES.tower, opensPerWeek: 0 } } });
   bites('a key that is no item', 'is no item', { keys: swap(0, { item: 'tower_key_nowhere' }) });
   bites('a food that is no item', 'its food', { keys: swap(3, { food: 'cooked_nothing' }) });
   bites('a weapon of the wrong family', 'is a bow', { keys: swap(0, { weapons: { sword: 'shortbow' } }) });

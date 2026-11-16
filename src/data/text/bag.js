@@ -50,6 +50,13 @@ export const BAG_TEXT = Object.freeze({
   store_expand_at: 'Expand (+{n}) for {gold}',
   store_expand_tip: 'Room for {n} more stacks in your bag',
   store_expanding: 'Expanding your bag…',
+  /* The Key Ring tab (src/shell/windows/inventory/key-ring.js; Tyler 2026-11-16): labels, the server's price. */
+  ring_tab: 'Key Ring',
+  ring_locked: 'Locked. Keys use bag slots.',
+  ring_empty: 'No keys',
+  ring_unlock: 'Unlock ({gold})',
+  ring_unlocking: 'Unlocking…',
+  ring_unlocked: 'Key Ring unlocked',
   store_expanded: 'Your bag holds {n} stacks now.',
   store_expanded_plain: 'Your bag is bigger now.',
   /* The key help at the window's foot, one hint a row: the key, then "to" and what it does (grid.js keyHintHtml sets the key apart). */

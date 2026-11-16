@@ -141,7 +141,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_faction_outfit_claim: 'claim a cosmetic piece this hero\'s server standing has earned (faction-intents.js claimPiece)',
   /* The Burning Tower (2027-04-24-tower-climb.sql, 2027-04-27-tower-chest.sql, behind the `burning_tower` switch): a slot, a floor or a
      catalogue id and a count, with a fresh key; never a chance, a warmth, a Cinder count, a weapon or a price. */
-  hr_tower_start: 'start a solo climb from a floor the server lists for this hero this week; refused bad_floor otherwise (tower-intents.js startClimb)',
+  hr_tower_start: 'start a climb after a checkpoint the server lists for this hero (a party: its leader, every seat); refused bad_landing otherwise (tower-intents.js startClimb)',
   hr_chest_open: 'use keys at the Hearth Chest, stoked with the hero\'s SAVED default (p_stokes null); the server prices the stokes and rolls on its own dice (tower-intents.js openChest)',
   hr_chest_stoke_default: 'the hero\'s own default stoke count for one kind of key; moves no value (tower-intents.js saveStokes)',
   hr_hero_colors_view: 'what a color save costs this hero right now; the read of the Outfit tab, moves nothing (hero-color-intents.js readColorsPrice)',

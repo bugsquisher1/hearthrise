@@ -191,19 +191,25 @@ function contract(R, cs, body, tl) {
   need('factions', !!fx && fx.side === null && fx.canJoin === false && fx.sides.length === 2 && fx.sides.every((x) => fx.standing[x] === 0)
     && fx.pieces.length > 0 && fx.pieces.every((x) => x.needMs > 0 && fx.sides.includes(x.side) && x.held === false) && fx.swapNeedMs > 0 && fx.cooldownMs > 0,
     'factionOf yields ' + JSON.stringify(fx) + ' from ' + JSON.stringify(body.factions).slice(0, 240));
-  // the Burning Tower (2027-04-28-tower-section.sql, the switch on inside this test): a hero who never climbed, floor 1 its one start, the
-  // Tower mode's own pay (no coin, no death loss), the rules the window says, and the chest's menu with every key row the server lists
+  // the Burning Tower (2027-04-28-tower-section.sql, the switch on inside this test): a hero who never climbed, checkpoint 0 (floor 1) its
+  // one start, the Tower mode's own pay (no coin, no death loss), the rules the window says, and the chest's menu with every key row and
+  // key family the server lists and the instant its week resets
   const tw = R.TWR.towerOf(cs);
-  need('tower', !!tw && tw.starts.join() === '1' && tw.bestFloor === 0 && tw.run === null && tw.last === null && tw.rules.landingEvery > 0
+  need('tower', !!tw && tw.checkpoints.join() === '0' && tw.record === 0 && tw.bestFloor === 0 && tw.run === null && tw.last === null && tw.rules.landingEvery > 0
     && tw.rules.floorLimitMs > 0 && tw.rules.landingLimitMs >= tw.rules.floorLimitMs && !!tw.pays && tw.pays.deathLossPm === 0 && tw.pays.coin === false
-    && tw.pays.xpPm > 0 && tw.pays.xpPm < 1000 && tw.nextLanding === tw.rules.landingEvery && tw.weekEndsAt !== null
+    && tw.pays.xpPm > 0 && tw.pays.xpPm < 1000
     && !!tw.chest && tw.chest.keys.length >= 4 && tw.chest.keys.every((k) => k.basePm > 0 && k.chancePpm > 0 && k.stokes.length > 0 && k.heldAll === 0)
-    && tw.chest.perCall > 0 && tw.chest.maxDay > 0,
+    && tw.chest.perCall > 0 && tw.chest.weekEnds !== null && tw.chest.families.length >= 1
+    && tw.chest.families.every((x) => x.openedWeek === 0 && x.maxWeek > 0 && x.held === 0 && x.maxHeld >= x.maxWeek && !!x.name),
     'towerOf yields ' + JSON.stringify(tw).slice(0, 300) + ' from ' + JSON.stringify(body.tower).slice(0, 300));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
     'bagExpandOf yields ' + JSON.stringify(be) + ' from ' + JSON.stringify(body.bag_expand));
+  // the Key Ring (2027-04-27-tower-chest.sql, lane/c-key-ring): not bought, its offer at the server's price (gold-ladders.js), no keys on it
+  const kr = R.IS.keyRingOf(cs);
+  need('key_ring', !!kr && kr.unlocked === false && !!kr.offer && kr.offer.offer === 'key_ring.0' && Number.isInteger(kr.offer.gold) && kr.offer.gold > 0
+    && Array.isArray(kr.keys) && kr.keys.length === 0, 'keyRingOf yields ' + JSON.stringify(kr) + ' from ' + JSON.stringify(body.key_ring));
   // Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window
   const tp = R.TP.temperOf(cs);
   need('temper', Array.isArray(tp) && tp.length === 4 && tp.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold) && l.gold > 0),
@@ -324,7 +330,8 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'tower']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions',
+  'tower', 'key_ring']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -419,7 +426,8 @@ async function realBody(db, M, H) {
   await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'open_halls'");
   /* THE FACTIONS (2027-04-23-faction-section.sql): their switch on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'factions'");
-  /* THE BURNING TOWER (2027-04-28-tower-section.sql): its switch on for everyone, inside this test's transaction only. */
+  /* THE BURNING TOWER (2027-04-28-tower-section.sql) and THE KEY RING (2027-04-27-tower-chest.sql), whose section rides the Tower's switch:
+     on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'burning_tower'");
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
@@ -533,7 +541,7 @@ const DB_MUTANTS = [
   ['factions', 'public.hr_faction_view(uuid,integer)', "'need_ms', o.need_ms,", "'need', o.need_ms,"],
   ['factions', 'public.hr_faction_section(uuid,integer)', "jsonb_build_object('swap_need_ms', r.swap_ms,", "jsonb_build_object('swap_ms', r.swap_ms,"],
   /* lane/b-tower-window: the Tower window lists the server's start floors and says each key's chance from the chest's menu */
-  ['tower', 'public.hr_tower_section(uuid,integer)', "'starts', to_jsonb(public.hr_tower_starts(p_user, p_slot)),", "'start_floors', to_jsonb(public.hr_tower_starts(p_user, p_slot)),"],
+  ['tower', 'public.hr_tower_section(uuid,integer)', "'checkpoints', to_jsonb(public.hr_mode_checkpoints(m.mode_id, v_rec)),", "'start_floors', to_jsonb(public.hr_mode_checkpoints(m.mode_id, v_rec)),"],
   ['tower', 'public.hr_tower_section(uuid,integer)', "'floor_limit_ms', r.floor_limit_ms,", "'floor_ms', r.floor_limit_ms,"],
   ['tower', 'public.hr_chest_section(uuid,integer)', "'chance_ppm', public.hr_chest_chance_ppm(", "'chance', public.hr_chest_chance_ppm("],
 ];

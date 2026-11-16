@@ -12,11 +12,11 @@
 //          feature_off: nothing shows and nothing opens
 //   TOW-2  the switch ON for this account only (what the Coordinator's dated migration will do for the QA account): the Tower window shows
 //          floor 1 as the only start, Enter opens a climb (the server's tower_runs row), and the hunt bar says the floor
-//   TOW-3  VIEWED: the page open while the real tick settles the climb; the server writes the floors, landing 10 and its Bronze Key (the
-//          mint, from the server's own landing row); the hero leaves and the end card says the floors and the key, never "died"
+//   TOW-3  VIEWED: the page open while the real tick settles the climb; the server writes the floors, clears landing 10 and mints its Bronze
+//          Key (the mint's own ledger row); the hero leaves and the end card says the floors and the key, never "died"
 //   TOW-4  THE CHEST: the window shows the key the server minted with the server's chance; Use opens it on the server (a chest_opens row,
 //          the key gone from the bag, the Cinders paid) and the answer is drawn
-//   TOW-5  BROWSER CLOSED: a second climb from floor 11 (the floor after this week's landing, the server's list), the page closed, the climb
+//   TOW-5  BROWSER CLOSED: a second climb from floor 11 (checkpoint 10, the server's list: Tyler 2026-11-16 CHECKPOINTS), the page closed, the climb
 //          keeps settling on the server until it ends; back on the page the window and the card read the server's run; a climb that ends
 //          `died` cost no Level XP (the run's ledger) and opened no death popup
 //   TOW-6  nothing left the machine, no console error
@@ -88,7 +88,7 @@ try {
   await play();
   const opened = await openTower();
   const starts = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-start-pick option')).map((o) => o.value));
-  step('TOW-2 switch on: the window opens on floor 1, the one start', opened && starts.join() === '1', JSON.stringify({ opened, starts }));
+  step('TOW-2 switch on: the window opens on floor 1 (checkpoint 0), the one start', opened && starts.join() === '0', JSON.stringify({ opened, starts }));
   await p.shot('tower-climb-1440x900');
   await p.page.click('[data-hs-win="tower"] .tt-go');
   const went = await until(p.page, () => !!document.querySelector('[data-hs-act="leave"]'), null, 60000);
@@ -106,7 +106,7 @@ try {
   let landed = [];
   for (let i = 0; i < 8 && !landed.length; i++) {
     await world.skip(4);
-    landed = await sql('select landing from public.tower_landings where user_id = $1', [uid]);
+    landed = await sql(`select (meta->>'landing')::int as landing from public.player_ledger where user_id = $1 and intent = 'tower_key'`, [uid]);
     const open = await sql('select count(*)::int as n from public.hunt_sessions where user_id = $1 and ended_at is null', [uid]);
     if (!open[0].n) break;
   }
@@ -151,11 +151,11 @@ try {
   await closeWins();
   await openTower('climb');
   const starts2 = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-start-pick option')).map((o) => o.value));
-  await p.page.selectOption('[data-hs-win="tower"] .tt-start-pick', '11').catch(() => {});
+  await p.page.selectOption('[data-hs-win="tower"] .tt-start-pick', '10').catch(() => {});
   await p.page.click('[data-hs-win="tower"] .tt-go');
   await until(p.page, () => !!document.querySelector('[data-hs-act="leave"]'), null, 60000);
   const run2 = await sql('select session_id, start_floor from public.tower_runs where user_id = $1 order by started_at desc limit 1', [uid]);
-  step('TOW-5 the second climb starts on floor 11, the server\'s list', starts2.includes('11') && run2[0].start_floor === 11, JSON.stringify({ starts2, run2 }));
+  step('TOW-5 the second climb starts on floor 11 (checkpoint 10), the server\'s list', starts2.includes('10') && run2[0].start_floor === 11, JSON.stringify({ starts2, run2 }));
   const xp0 = (await sql('select level_xp::bigint as x from public.player_state where user_id = $1 and slot = 0', [uid]))[0].x;
   const url = p.page.url();
   await p.page.goto('about:blank');

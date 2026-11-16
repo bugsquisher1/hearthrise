@@ -54,6 +54,7 @@ import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v
 import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.133';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.133';
 import { askElsewhere } from './elsewhere.js?v=0.2.133';
+import { unlockRing } from './key-ring.js?v=0.2.133';
 import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.133';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.133';
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.133';
@@ -473,6 +474,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'confirm-no': sc.confirm = null; repaint(); return true;
     case 'bury-stop': doStopBury(st, repaint); return true;
     case 'equip-upgrades': sc.menu = null; equipUpgrades(st.cs, sc, repaint, st.upgrade); return true;
+    case 'ring-unlock': unlockRing(st, send, repaint); return true;
     case 'inv': closeMenu(ctx, st); return false;
     default: break;
   }

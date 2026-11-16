@@ -10,6 +10,11 @@
 //                 player_state.bank_cap through hr_bank_cap_for_rungs
 //                 (2026-09-06-bank-cap-tracks-rungs.sql).
 //
+//   key_ring      the Key Ring (Tyler 2026-11-16): ONE rung, once per hero. Every chest key
+//                 sits on it instead of in the bag (2027-04-27-tower-chest.sql, the ring
+//                 itself). KEY_RING_GOLD IS A PLACEHOLDER for the designer: the audit found
+//                 the gold sinks too small (F12/F20), so this is a sink to size, not a number.
+//
 // THE OTHER TWO LADDERS ARE CUT (lane/c-dead-plot-deed, 2026-11-07).
 // `worker_hire` (the crew size) lost its only reader when the hire and assign
 // doors were dropped (2027-01-18-dead-surfaces-cut.sql), and `plot:farm_land`
@@ -59,15 +64,23 @@ export const BANK_LADDER = Object.freeze(
   }),
 );
 
+/* ── key_ring: one rung, one price (a PLACEHOLDER: the designer sizes it) ─── */
+export const KEY_RING_GOLD = 25000;
+export const KEY_RING_LADDER = Object.freeze([
+  rung('key_ring.0', 'key_ring', 'Key Ring', 'key_ring', 1, KEY_RING_GOLD, {}, 0),
+]);
+
 /** The hr_unlocks catalogue rows the ladder needs (merge='max', kind='unlock'). */
 export const GOLD_LADDER_UNLOCKS = Object.freeze([
   Object.freeze({ unlock_id: 'bank', namespace: 'bank', merge: 'max',
     progress_kind: 'unlock', max_value: BANK_RUNGS,
     rungs: Object.freeze(BANK_LADDER.map((r) => r.value)) }),
+  Object.freeze({ unlock_id: 'key_ring', namespace: 'key_ring', merge: 'max',
+    progress_kind: 'unlock', max_value: 1, rungs: Object.freeze([1]) }),
 ]);
 
 /** Every gold-ladder offer row, in id order. */
-export const GOLD_LADDER_OFFERS = Object.freeze([...BANK_LADDER]);
+export const GOLD_LADDER_OFFERS = Object.freeze([...BANK_LADDER, ...KEY_RING_LADDER]);
 
 /** The offer-id SET the Edge consults to decide it may forward the intent to
     hr_unlock_buy. Disjoint from every authored shop offer id on purpose, so it

@@ -17,7 +17,7 @@ export const TOWER_TEXT = Object.freeze({
 
   /* What the Tower is, in plain words: the first thing the window shows (Tyler 2026-11-14: "a quick summary"). */
   sum_climb: 'The Tower is a climb. Every floor is one room of monsters, and every floor is harder than the last.',
-  sum_hunt: 'Your hero fights it like a hunt, alone for now. It uses your stamina and your supplies.',
+  sum_hunt: 'Your hero fights it like a hunt, alone or with your party. It uses your stamina and your supplies.',
   sum_death: 'Dying here costs you nothing. You go back to town and you lose no XP.',
   sum_keys: 'Every {every}th floor gives you a key, and higher floors give better keys.',
   sum_chest: 'Use a key on the chest at the Great Hearth. You always get something, and sometimes a tower weapon you can use or trade.',
@@ -42,12 +42,8 @@ export const TOWER_TEXT = Object.freeze({
   start_head: 'Start Floor',
   start_floor: 'Floor {floor}',
   start_note: 'Checkpoints: every {every}th floor, up to your best',
+  start_note_party: 'Checkpoints: every {every}th floor, up to your party\'s lowest best',
   limits: 'Time limit: {floor} min per floor, {landing} min per landing',
-  week_taken: 'Keys this week: {count}',
-  week_open: 'Keys to claim: {list}',
-  week_next: 'Next landing: floor {floor}, {key}',
-  floor_one: 'floor {list}',
-  floor_many: 'floors {list}',
   week_resets: 'Week resets: {when}',
   run_now: 'Climbing: {name}, floor {floor}',
   run_ready: 'Entering: {name}, floor {floor}',
@@ -57,7 +53,8 @@ export const TOWER_TEXT = Object.freeze({
   /* Why Enter is off, said before the press; the same words answer the server's refusal. */
   off_hunting: 'Not available while hunting',
   off_climbing: 'Already climbing',
-  off_party: 'Solo only: leave your party',
+  off_leader: 'Party leader only',
+  off_party_hunting: 'Party member still hunting',
   off_pick: 'Pick a floor',
   off_no_start: 'No start floor available',
   bad_floor: 'Floor not available',
@@ -65,10 +62,12 @@ export const TOWER_TEXT = Object.freeze({
   /* THE CHEST (the design's "one menu that shows all of it"). */
   keys_head: 'Keys',
   chest_lead: 'One chest on the Hearth\'s ledge, and every key opens it. Higher keys hold more.',
-  cinders: 'Tower Cinders: {count}',
+  cinders: '{name}: {count}',
   no_keys: 'No keys held (every {every}th floor gives one)',
   key_have: '{key}: {count}',
-  key_where: 'Bag: {bag}, Storage: {storage}',
+  key_bag: 'Bag: {count}',
+  key_storage: 'Storage: {count}',
+  key_ring: 'Key Ring: {count}',
   key_base: 'Weapon chance: {pct}',
   key_warm: 'Hearth\'s warmth: x{times} ({count} keys without a weapon)',
   key_cold: 'Hearth\'s warmth: none (each key without a weapon adds some)',
@@ -90,7 +89,6 @@ export const TOWER_TEXT = Object.freeze({
   inside: 'Always inside: {list}',
   skill_plus: 'Weapon bonus: +{plus} combat skill',
   not_ready: 'Weapons not in the chest yet',
-  today: 'Keys used today: {today} / {max}',
   busy_open: 'Opening…',
   busy_stoke: 'Saving…',
   opened_weapon: 'Found: {item}',
@@ -99,15 +97,13 @@ export const TOWER_TEXT = Object.freeze({
   haul: 'Received: {list}',
 
   /* KEY FAMILIES (Tyler 2026-11-16): the cap is chests OPENED a week per hero per family, and a family's held keys have a limit. Both
-     numbers are the server's (src/session/tower-sections.js familyOf, PROVISIONAL names until lane/c-tower-chest lands them). */
-  week_opened: 'Chests opened this week: {count} / {max}',
+     numbers and the family's name are the server's (src/session/tower-sections.js familyOf, hr_chest_section's families). */
+  week_opened: 'Chests opened: {count} / {max}',
   keys_held: 'Keys held: {count} / {max}',
-  key_family_tower: 'Tower keys',
-  key_family_catacomb: 'Catacomb keys',
+  key_family: '{name} Keys',
 
   /* Why Use is off (the screen's own knowledge of the server's numbers; the server still judges). */
   off_no_key: 'Key not held',
-  off_day: 'Daily limit reached ({max})',
   off_week: 'Weekly limit reached ({max})',
 
   /* The weapon families, as a label names them (gear-tiers.js WEAPON_FAMILIES keys; the crush family is "Hammer", Tyler 10-24). */
@@ -134,6 +130,8 @@ export const TOWER_TEXT = Object.freeze({
   end_no_floor: 'You didn\'t clear a floor this time.',
   end_key: 'You got a {key}. Use it on the chest at the Great Hearth.',
   end_keys: 'You got {list}. Use them on the chest at the Great Hearth.',
+  end_key_count: '{key} x{count}',
+  end_withheld: 'Key limit reached: {count} not dropped',
   end_open: 'Open chest',
   alert_spat: '{name} was spat out of the Burning Tower. No XP lost.',
 });

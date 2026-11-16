@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/tower.js — THE BURNING TOWER: WHAT IT IS, WHERE YOU MAY START, THIS WEEK'S KEYS, AND THE HEARTH CHEST.
+// src/shell/windows/tower.js — THE BURNING TOWER: WHAT IT IS, WHERE YOU MAY START, AND THE HEARTH CHEST.
 //
 // The design of record: docs/planning/PRIORITY_BOARD.md "2026-11-14 The Burning Tower" (origin/lane/d-burning-tower) §2 how a climb runs,
 // §5 (c) the chest's one menu, §8 the window's words; the server half is 2027-04-24-tower-climb.sql, 2027-04-27-tower-chest.sql and
@@ -7,56 +7,53 @@
 // section (its switch, src/data/shell-windows.js `section`); with the switch off the Hearth opens the bag as before and nothing here
 // exists. One component: a docked window on a desktop, a slide-out sheet on a phone (the window manager's).
 //
-// TWO TABS. Climb: the six plain lines the design puts first, the Start Floor picker (ONE control, a select: the checkpoints the server
-// lists for this hero, Tyler 2026-11-16; the highest, the hero's best, by default),
-// what a climb pays (the Tower mode's own row), this week's keys, and Enter. Chest: ./tower-chest.js. The Story link shows Tyler's text.
-// Every number is the section's (CLAUDE.md §1, §6): the window works none out and sends none. Enter is off, and says why above it, for
-// what the screen already knows (a hunt, a party, a floor the server did not list); the server still judges (hr_tower_start), and a
-// refusal re-reads the character so the list on screen is the server's again.
+// TWO TABS. Climb: the six plain lines the design puts first, what a climb pays (the Tower mode's own row), the hero's best, and on the
+// foot the Start Floor picker beside Enter: ONE control, a select of the CHECKPOINTS the server lists (Tyler 2026-11-16: every landing up
+// to the hero's best, a party's lowest seat's; the highest by default), each said as the floor the climb starts on. Chest:
+// ./tower-chest.js. The Story link shows Tyler's text. Every number is the section's (CLAUDE.md §1, §6): the window works none out and
+// sends only the picked checkpoint. Enter is off, and says why above it, for what the screen already knows (a hunt, a seat that does not
+// lead its party, a checkpoint the server did not list); the server still judges (hr_tower_start), and a refusal re-reads the character
+// so the list on screen is the server's again.
 // ════════════════════════════════════════════════════════════════════════
-import { towerOf, keyForLanding } from '../../session/tower-sections.js?v=0.2.133';
+import { towerOf } from '../../session/tower-sections.js?v=0.2.133';
 import { startClimb } from '../../session/tower-intents.js?v=0.2.133';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.133';
 import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.133';
 import { nameOf } from '../../session/item-sections.js?v=0.2.133';
 import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.133';
-import { localWhen } from '../../render/format.js?v=0.2.133';
 import { t } from '../../render/player-text.js?v=0.2.133';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
 import { runIntent } from '../intent-words.js?v=0.2.133';
-import { floorList } from '../tower-words.js?v=0.2.133';
 import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.133';
 
 const TABS = Object.freeze(['climb', 'chest']);
 const STORY = Object.freeze(['tower.story_1', 'tower.story_2', 'tower.story_3', 'tower.story_4', 'tower.story_5']);
 const SCRATCH = new WeakMap();
-/* Display scratch per CharacterSession: the tab, the story shown, the floor picked (null: the highest the server lists), the chest's. */
+/* Display scratch per CharacterSession: the tab, the story shown, the checkpoint picked (null: the highest the server lists), the chest's. */
 export const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { tab: 'climb', story: false, floor: null, key: null, pending: false, msg: '', result: null }; SCRATCH.set(cs, s); }
+  if (!s) { s = { tab: 'climb', story: false, landing: null, key: null, pending: false, msg: '', result: null }; SCRATCH.set(cs, s); }
   return s;
 };
 
-/** The floor Enter starts on: the one picked here while the server still lists it, else the highest it lists, else null. Pure. */
-export function floorPicked(sc, tw) {
-  if (!tw || !tw.starts.length) return null;
-  return sc.floor !== null && tw.starts.includes(sc.floor) ? sc.floor : tw.starts[tw.starts.length - 1];
+/** The checkpoint Enter starts after: the one picked here while the server still lists it, else the highest it lists (the best), else
+    null. Pure. */
+export function landingPicked(sc, tw) {
+  if (!tw || !tw.checkpoints.length) return null;
+  return sc.landing !== null && tw.checkpoints.includes(sc.landing) ? sc.landing : tw.checkpoints[tw.checkpoints.length - 1];
 }
 
 /** Why Enter is off now, said above it, or '' when the server is to judge. Only what the screen already knows from the server's record. */
-export function enterBlock(cs, tw, floor) {
+export function enterBlock(cs, tw, landing) {
   const h = huntOf(cs);
   if (h && !h.ended) return t(h.huntId === tw.hunt ? 'tower.off_climbing' : 'tower.off_hunting');
-  /* TODO(lane/c-tower-checkpoints CHECKPOINTS): hr_tower_start refuses a party today (in_party), so the screen says so first. When that
-     lane opens party climbs (Tyler 2026-11-16: a party starts only on landings every member reached, the server's own starts list),
-     this line goes and nothing else here moves: the picker already offers only the floors the server lists. */
-  if (partyMembershipOf(cs)) return t('tower.off_party');
-  if (!tw.starts.length) return t('tower.off_no_start');
-  if (floor === null || !tw.starts.includes(floor)) return t('tower.off_pick');
+  /* a party climbs together on its leader's press (hr_tower_start: every seat or none, from its lowest seat's checkpoints) */
+  const party = partyMembershipOf(cs);
+  if (party && !party.isLeader) return t('tower.off_leader');
+  if (!tw.checkpoints.length) return t('tower.off_no_start');
+  if (landing === null || !tw.checkpoints.includes(landing)) return t('tower.off_pick');
   return '';
 }
-
-const serverNow = (cs) => { const v = typeof cs.serverNow === 'function' ? cs.serverNow() : null; return Number.isFinite(v) ? v : Date.now(); };
 
 /** The skeleton (built once per opening). */
 export function renderTower(ctx) {
@@ -72,8 +69,7 @@ export function renderTower(ctx) {
     + '<ul class="tt-sum"><li class="tt-sum-climb">' + esc(t('tower.sum_climb')) + '</li><li>' + esc(t('tower.sum_hunt')) + '</li>'
     + '<li class="tt-sum-death"></li><li class="tt-sum-keys"></li><li>' + esc(t('tower.sum_chest')) + '</li><li>' + esc(t('tower.sum_xp')) + '</li></ul>'
     + '<p class="hs-note tt-xp"></p>'
-    + '<p class="tt-line tt-best"></p><p class="tt-line tt-week"></p><p class="tt-line tt-open"></p><p class="tt-line tt-next"></p>'
-    + '<p class="hs-note tt-resets"></p><p class="hs-note tt-limits"></p>'
+    + '<p class="tt-line tt-best"></p><p class="hs-note tt-limits"></p>'
     /* the Start Floor picker stands on the foot beside Enter: the floor the press sends is never scrolled away from it */
     + '<div class="tt-foot"><label class="hr-pick tt-start-row"><span>' + esc(t('tower.start_head')) + '</span>'
     + '<select class="hh-select tt-start-pick" data-hs-act="floor"></select></label>'
@@ -84,16 +80,17 @@ export function renderTower(ctx) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-/* The floors the server lists, as the options of ONE select (a checkpoint list grows with the hero's best: one control at any length);
-   the picked one selected, off while a press is out or the server lists none. */
+/* The checkpoints the server lists, as the options of ONE select (the list grows with the hero's best: one control at any length), each
+   said as the floor the climb starts on (the one after the landing; 0 is floor 1); the picked one selected, off while a press is out or
+   the server lists none. */
 function patchStarts(sel, tw, picked, pending) {
-  rows(sel, tw.starts.map((f) => ({ f })), {
-    key: (r) => String(r.f),
+  rows(sel, tw.checkpoints.map((l) => ({ l })), {
+    key: (r) => String(r.l),
     build: () => sel.ownerDocument.createElement('option'),
-    patch: (o, r) => { attr(o, 'value', String(r.f)); text(o, t('tower.start_floor', { floor: r.f })); },
+    patch: (o, r) => { attr(o, 'value', String(r.l)); text(o, t('tower.start_floor', { floor: r.l + 1 })); },
   });
   prop(sel, 'value', picked === null ? '' : String(picked));
-  prop(sel, 'disabled', pending || !tw.starts.length);
+  prop(sel, 'disabled', pending || !tw.checkpoints.length);
 }
 
 /* THE CLIMB TAB, every line from the section. */
@@ -110,22 +107,18 @@ function patchClimb(root, cs, tw, sc) {
   /* no weekly EARN cap is said: Tyler 2026-11-16 put the cap on chests opened per key family, the Chest tab's line (KEY FAMILIES) */
   text(root.querySelector('.tt-sum-keys'), t('tower.sum_keys', { every: tw.rules.landingEvery }));
   text(root.querySelector('.tt-xp'), tw.pays ? t('tower.xp_rule', { pct: tw.pays.xpPm / 10 }) : '');
-  const floor = floorPicked(sc, tw);
-  patchStarts(root.querySelector('.tt-start-pick'), tw, floor, sc.pending);
-  text(root.querySelector('.tt-start-note'), t('tower.start_note', { every: tw.rules.landingEvery }));
+  const landing = landingPicked(sc, tw);
+  patchStarts(root.querySelector('.tt-start-pick'), tw, landing, sc.pending);
+  /* in a party the list is its lowest seat's record (the server's), and the note says whose */
+  const party = partyMembershipOf(cs);
+  text(root.querySelector('.tt-start-note'), t(party ? 'tower.start_note_party' : 'tower.start_note', { every: tw.rules.landingEvery }));
   text(root.querySelector('.tt-best'), tw.bestFloor > 0 ? t('tower.best', { floor: tw.bestFloor }) : t('tower.best_none'));
-  const n = tw.landings.length;
-  text(root.querySelector('.tt-week'), t('tower.week_taken', { count: n }));
-  text(root.querySelector('.tt-open'), tw.open.length ? t('tower.week_open', { list: floorList(tw.open) }) : '');
-  const nextKey = tw.nextLanding !== null ? keyForLanding(tw, tw.nextLanding) : null;
-  text(root.querySelector('.tt-next'), nextKey ? t('tower.week_next', { floor: tw.nextLanding, key: nextKey.name || '' }) : '');
-  text(root.querySelector('.tt-resets'), tw.weekEndsAt !== null ? t('tower.week_resets', { when: localWhen(tw.weekEndsAt, serverNow(cs), true) }) : '');
   text(root.querySelector('.tt-limits'), t('tower.limits', { floor: tw.rules.floorLimitMs / 60000, landing: tw.rules.landingLimitMs / 60000 }));
-  const block = enterBlock(cs, tw, floor);
+  const block = enterBlock(cs, tw, landing);
   const go = root.querySelector('.tt-go');
   prop(go, 'disabled', sc.pending || !!block);
   attr(go, 'data-off-why', block || null);
-  attr(go, 'data-floor', floor === null ? null : String(floor));
+  attr(go, 'data-landing', landing === null ? null : String(landing));
   text(root.querySelector('.tt-off-why'), block);
 }
 
@@ -158,7 +151,7 @@ renderTower.act = function actTower(ctx, body, action, ev, el) {
   if (!tw) return false;
   /* the Start Floor picker: a change picks a floor the server lists (anything else is not its list and is ignored) */
   if (action === 'floor') {
-    if (ev.type === 'change') { const f = Number(el.value); if (tw.starts.includes(f)) { sc.floor = f; sc.msg = ''; } repaint(); }
+    if (ev.type === 'change') { const l = Number(el.value); if (tw.checkpoints.includes(l)) { sc.landing = l; sc.msg = ''; } repaint(); }
     return true;
   }
   if (ev.type !== 'click') return false;
@@ -167,9 +160,9 @@ renderTower.act = function actTower(ctx, body, action, ev, el) {
   if (actChest(ctx, cs, tw, sc, action, el, repaint)) return true;
   if (sc.pending || !ctx.account) return false;
   if (action === 'tower-enter') {
-    const floor = floorPicked(sc, tw);
-    if (enterBlock(cs, tw, floor)) { repaint(); return true; }
-    runIntent(sc, repaint, () => startClimb(ctx.account, cs, floor), t('tower.busy_start'),
+    const landing = landingPicked(sc, tw);
+    if (enterBlock(cs, tw, landing)) { repaint(); return true; }
+    runIntent(sc, repaint, () => startClimb(ctx.account, cs, landing), t('tower.busy_start'),
       () => t('tower.started', { name: nameOf(cs) || t('training.your_hero') }), cs);
     return true;
   }

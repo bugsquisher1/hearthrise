@@ -24,9 +24,9 @@ export const ppmWords = (ppm) => (num(ppm) ? chance(ppm / 1000000) : '');
 /** "Bow", by the server's weapon family id; a family this client has no words for reads as its id spelled out. */
 export const familyWord = (id) => (hasText('tower.family_' + id) ? t('tower.family_' + id) : String(id || '').replace(/_/g, ' '));
 
-/** "Tower keys", by the server's KEY family id (Tyler 2026-11-16: tower, catacomb, later more); an id this client has no words for
-    reads as its id spelled out, so a new family the server adds still draws its row. */
-export const keyFamilyWord = (id) => (hasText('tower.key_family_' + id) ? t('tower.key_family_' + id) : String(id || '').replace(/_/g, ' '));
+/** "Tower Keys", from a key family row: the server's own name for it (hr_chest_key_families.name), or its id spelled out when it sent
+    none, so a family the server adds (the catacombs') draws its row with no words added here. */
+export const keyFamilyWord = (f) => t('tower.key_family', { name: (f && (f.name || String(f.family || '').replace(/_/g, ' '))) || '' });
 
 /** How many stokes, as a button says it ("None", "Once", "Twice", "3 times"). */
 export const stokeLabel = (n) => (n === 0 ? t('tower.stoke_none') : n === 1 ? t('tower.stoke_1') : n === 2 ? t('tower.stoke_2') : t('tower.stoke_n', { count: n }));
@@ -40,13 +40,6 @@ export const timesWords = (pm) => (num(pm) ? String(Math.round(pm / 100) / 10) :
 export function haulWords(items) {
   const rows = Object.entries(items || {}).filter(([, q]) => num(q) && q > 0);
   return listWords(rows.map(([id, q]) => whole(q) + ' ' + itemName(id)), Infinity);
-}
-
-/** The floors as a list a player reads: "floor 10", "floors 10 and 20", "floors 10, 20 and 30". */
-export function floorList(list) {
-  const f = (list || []).filter((x) => Number.isSafeInteger(x));
-  if (!f.length) return '';
-  return t(f.length === 1 ? 'tower.floor_one' : 'tower.floor_many', { list: listWords(f.map(String), Infinity) });
 }
 
 /**
@@ -65,26 +58,28 @@ export function climbEndLines(tw, card, towerHunt) {
   else if (card.reason === 'floor_time') lines.push(t('tower.end_time'));
   else lines.push(null);
   if (run) lines.push(run.top !== null ? t('tower.end_climbed', { from: run.start, to: run.top }) : t('tower.end_no_floor'));
-  const keys = run ? run.keys.map((k) => keyName(tw, k.key)).filter(Boolean) : [];
-  if (keys.length === 1) lines.push(t('tower.end_key', { key: keys[0] }));
-  else if (keys.length > 1) lines.push(t('tower.end_keys', { list: listWords(keys, Infinity) }));
-  return { lines, keys: keys.length };
+  /* every landing a run clears mints its key (no weekly earn cap, Tyler 2026-11-16): one entry a kind, "Bronze Key x2" */
+  const named = run ? run.keys.map((k) => keyName(tw, k.key)).filter(Boolean) : [];
+  const kinds = [...new Set(named)].map((n) => { const c = named.filter((x) => x === n).length; return c > 1 ? t('tower.end_key_count', { key: n, count: c }) : n; });
+  if (named.length === 1) lines.push(t('tower.end_key', { key: kinds[0] }));
+  else if (named.length > 1) lines.push(t('tower.end_keys', { list: listWords(kinds, Infinity) }));
+  /* the keys the family's held limit kept back (the mint's tower_key_withheld rows): the card says why they did not drop */
+  if (run && run.withheld > 0) lines.push(t('tower.end_withheld', { count: run.withheld }));
+  return { lines, keys: named.length };
 }
 const keyName = (tw, id) => { const k = tw && tw.chest ? tw.chest.keys.find((x) => x.key === id) : null; return k ? k.name || itemName(k.item) : null; };
 
 /**
  * A Tower refusal that carries the server's numbers or needs the Tower's own words, as a label, or null (the shared table says it).
- * TODO(lane/c-tower-chest KEY-FAMILIES): `week_limit` { opened, max } is this window's PROPOSED name for the weekly per-family open cap
- * (Tyler 2026-11-16); the chest lane renames it here when its refusal lands. `day_limit` is the server's today.
+ * week_limit { family, used, limit } is the key family's week of chests (2027-04-27-tower-chest.sql, Tyler 2026-11-16).
  */
 export function towerRefusal(r) {
   if (!r || !VERBS.includes(r.verb)) return null;
-  if (r.error === 'bad_floor') return t('tower.bad_floor');
-  if (r.error === 'in_party') return t('tower.off_party');
+  if (r.error === 'bad_landing') return t('tower.bad_floor');
+  if (r.error === 'party_hunting') return t('tower.off_party_hunting');
   if (r.error === 'hunt_open' || r.error === 'activity_running' || r.error === 'in_hunt') return t('tower.off_hunting');
   if (r.error === 'no_key') return t('tower.off_no_key');
-  if (r.error === 'day_limit' && num(r.max)) return t('tower.off_day', { max: r.max });
-  if (r.error === 'week_limit' && num(r.max)) return t('tower.off_week', { max: r.max });
+  if (r.error === 'week_limit' && num(r.limit)) return t('tower.off_week', { max: r.limit });
   if (r.error === 'chest_not_ready') return t('tower.not_ready');
   return null;
 }

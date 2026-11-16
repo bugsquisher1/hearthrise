@@ -22,7 +22,9 @@ export default Object.freeze({
   id: 'millrace_sewer',
   name: 'The Sewer',
   kind: 'hunt',
-  hunts: Object.freeze(['millrace_sewer', 'millrace_sewer_called']),
+  /* the Burning Tower's room is the Rat King's hall here, a STAND-IN (hunt-grounds.js TOWER_GROUNDS `map`) until the flue room kit is
+     drawn: listed last, so the Sewer stays the hunt this map renders first */
+  hunts: Object.freeze(['millrace_sewer', 'millrace_sewer_called', 'the_burning_tower']),
   outdoor: false,
   light: 'cellar',
   ground: 'sewer_ground',

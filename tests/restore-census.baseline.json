@@ -1173,12 +1173,12 @@
   },
   "hr_chest_weapon_families": {
    "class": "seeded",
-   "replay": 76,
+   "replay": 104,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): every weapon item's family, read for the family the hero wears. Empty, every weapon rolls even over its key's families (the worn family loses its half). Rebuilt from repo, never restored."
   },
   "hr_chest_weapons": {
    "class": "seeded",
-   "replay": 0,
+   "replay": 28,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): each key's tower weapon a family (none built today). Empty, every open is refused chest_not_ready (the key kept). Rebuilt from repo, never restored."
   },
   "hr_chests": {
@@ -1612,12 +1612,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 347,
+   "replay": 375,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 636,
+   "replay": 664,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1841,7 +1841,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 45,
+   "replay": 46,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {

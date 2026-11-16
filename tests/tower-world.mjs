@@ -95,6 +95,12 @@ try {
   const run1 = await sql('select session_id, start_floor from public.tower_runs where user_id = $1 order by started_at', [uid]);
   step('TOW-2 Enter opened a climb on floor 1 (the server\'s run)', went && run1.length === 1 && run1[0].start_floor === 1, JSON.stringify(run1));
   await closeWins();
+  /* the live view runs the climb: the bar says the floor and the room's time (the prediction from the server's tower_floor) */
+  const barUp = await until(p.page, () => /^Floor \d+/.test(document.querySelector('.ht-tower:not([hidden]) .ht-floor')?.textContent || '')
+    && /left$/.test(document.querySelector('.ht-tower .ht-floor-left')?.textContent || ''), null, 30000);
+  const barNow = await p.page.evaluate(() => document.querySelector('.ht-tower')?.textContent || '');
+  step('TOW-2 the hunt bar says the floor and its time left while the climb plays live', barUp, JSON.stringify(barNow));
+  await p.shot('tower-climbing-1440x900');
 
   // ── TOW-3 viewed ──
   let landed = [];

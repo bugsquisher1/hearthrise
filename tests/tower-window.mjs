@@ -218,7 +218,7 @@ async function checks(overrides, shots) {
       await wait(page, () => document.querySelectorAll('[data-hs-win="tower"] .tt-start').length === 2);
       v = await climbView(page);
       if (!v || v.starts.join() !== '1,11*') fails.push('TW-3 after the server dropped 21 the picks read ' + JSON.stringify(v && v.starts));
-      await page.click('[data-hs-win="tower"] .tt-go');
+      if (!(await page.click('[data-hs-win="tower"] .tt-go', { timeout: 2000 }).then(() => true, () => false))) fails.push('TW-3 after the drop Enter is off: ' + JSON.stringify(v && v.why));
       await page.waitForTimeout(500);
       const sent = verbs(s);
       if (sent.length !== 2 || sent[0].body.p_floor !== 21 || sent[1].body.p_floor !== 11) fails.push('TW-3 the presses around the drop sent ' + JSON.stringify(sent.map((x) => x.body.p_floor)));

@@ -44,19 +44,20 @@
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.133';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.133';
-import { nameOf } from '../session/item-sections.js?v=0.2.133';
-import { huntName } from '../session/party-sections.js?v=0.2.133';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.133';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.133';
-import { whole } from '../render/format.js?v=0.2.133';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.133';
-import { bestFind } from '../hunt-view/summary-model.js?v=0.2.133';
-import { itemName } from './widgets/bits.js?v=0.2.133';
-import { t } from '../render/player-text.js?v=0.2.133';
-import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.133';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.133';
+import { levelOf } from '../session/character-sections.js?v=0.2.134';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.134';
+import { nameOf } from '../session/item-sections.js?v=0.2.134';
+import { huntName } from '../session/party-sections.js?v=0.2.134';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
+import { whole } from '../render/format.js?v=0.2.134';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.134';
+import { bestFind } from '../hunt-view/summary-model.js?v=0.2.134';
+import { itemName } from './widgets/bits.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
+import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.134';
+import { afterDoneWords } from './hunt-after.js?v=0.2.134';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -145,7 +146,7 @@ export function awayRecapOf(cs) {
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
-  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) : '');
+  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '');
   /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does) */
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     at: was.at, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
@@ -164,7 +165,8 @@ function nowWords(cs, h, now) {
   const after = h.ended ? afterHuntOf(state, h, now) : null;
   const waited = !!after && after.kind === 'waited' && after.idleMs >= WAITED_FROM_MS;
   const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
-  const said = after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '';
+  /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
+  const said = (h.ended ? afterDoneWords(cs, h.sessionId, name) : '') || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '');
   const then = said ? ' ' + said : '';
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */

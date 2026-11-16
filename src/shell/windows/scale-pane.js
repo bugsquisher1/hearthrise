@@ -11,14 +11,14 @@
 // The list's line says it too (scaleTag, hunts.js), so a player scanning the Hunts list finds it. hunts.js owns the window, its status
 // line and the run of the press.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, attr } from '../../render/paint.js?v=0.2.133';
-import { gold, hoursWords, withSeps } from '../../render/format.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { patchParts } from '../goto.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
-import { scaleFor } from '../../data/scaled-hunts.js?v=0.2.133';
-import { scaledHuntsOf, scaledGroundOf, buyScaledHours, setScaledOn } from '../../session/scaled-hunts.js?v=0.2.133';
-import { goldOf } from '../../session/item-sections.js?v=0.2.133';
+import { text, prop, cls, attr } from '../../render/paint.js?v=0.2.134';
+import { gold, hoursWords, withSeps } from '../../render/format.js?v=0.2.134';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
+import { patchParts } from '../goto.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
+import { scaleFor } from '../../data/scaled-hunts.js?v=0.2.134';
+import { scaledHuntsOf, scaledGroundOf, buyScaledHours, setScaledOn } from '../../session/scaled-hunts.js?v=0.2.134';
+import { goldOf } from '../../session/item-sections.js?v=0.2.134';
 
 const HOUR_MS = 3600000;
 const SCRATCH = new WeakMap();

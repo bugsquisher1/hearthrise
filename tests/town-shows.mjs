@@ -847,11 +847,11 @@ const ARMS = {
     const out = [];
     const R = (o) => X.IW.refusalText({ ok: false, ...o }, null);
     const want = [
-      [{ error: 'show_limit', verb: 'town_powder', perDay: 7 }, 'Havora takes 7 powders a day from one account. More after midnight UTC.'],
-      [{ error: 'show_busy', verb: 'town_powder', bookedS: 360, waitS: 60 }, 'The Hearth\'s powders are booked for the next 6 minutes. You weren\'t charged.'],
-      [{ error: 'show_limit', verb: 'town_round', perDay: 4 }, 'Havora takes 4 rounds a day from one account. More after midnight UTC.'],
-      [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Someone\'s round is still going. Try again in 20 seconds. You weren\'t charged.'],
-      [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'The price moved to 4,000 gp. You weren\'t charged. Press again to pay it.'],
+      [{ error: 'show_limit', verb: 'town_powder', perDay: 7 }, 'Daily limit: 7 powders per account. Resets at midnight UTC.'],
+      [{ error: 'show_busy', verb: 'town_powder', bookedS: 360, waitS: 60 }, 'Hearth powders booked for 6 min, not charged'],
+      [{ error: 'show_limit', verb: 'town_round', perDay: 4 }, 'Daily limit: 4 rounds per account. Resets at midnight UTC.'],
+      [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Round in progress, not charged. Try again in 20 s.'],
+      [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'Price changed to 4,000 gp, not charged. Press again to pay.'],
       [{ error: 'not_a_show', verb: 'town_powder' }, 'Havora doesn\'t sell that.'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(JSON.stringify(r) + ' reads: ' + R(r));

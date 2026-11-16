@@ -18,6 +18,11 @@
 //   TR-4  THE HOUSE DUMMY: the House shows the four skills, held and locked, and the server's next price; short of it,
 //         Unlock is off with the words; with the gold, Unlock asks first, then ONE hr_house_dummy_unlock at the price seen
 //   TR-5  SIZES: no text under 12 px, nothing off the screen, desktop 1440x900 and the 922x423 sheet
+//   TR-6  THE RATE AND THE ITEMS (2027-04-23-training-gear.sql, Tyler 2026-11-14), labels with the server's numbers: the quote reads the
+//         server's XP/h (200% while the item time runs), the item box the hours left, the sealed one held and the Arms Master's rows;
+//         Buy sends ONE hr_training_gear_buy naming the slot, the item, the price SEEN and a key; the switch ONE
+//         hr_training_gear_switch; Open's refusal (hours still left) reads in words; under Level 10, Start is off with the Level; the
+//         items closed, no press shows and the note says so
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -42,6 +47,16 @@ const QUOTES = [
 ];
 const DUMMY = (o) => Object.assign({ needs: 'homestead', has_home: true, owned: ['defense'], ladder: [150000, 250000, 400000, 600000], next_price: 250000, busy: null }, o);
 const SECTION = (o) => Object.assign({ skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12, quotes: QUOTES, run: null, last_stop: null, dummy: DUMMY({}) }, o);
+/* THE ITEMS' KEYS (2027-04-23-training-gear.sql hr_training_section): the rate, the hero's items a skill each, the Arms Master's rows, the day. */
+const WORD = { melee: 'sword', ranged: 'bow', magic: 'wand', defense: 'shield' };
+const GEAR = (o) => Object.assign({
+  rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 20 },
+  quotes: QUOTES.map((q) => Object.assign({}, q, { xp_h: q.skill === 'melee' ? 60000 : 30000 })),
+  gear: ['melee', 'ranged', 'magic', 'defense'].map((k) => (k === 'melee'
+    ? { skill: k, banked_ms: 34200000, on: true, bag: [{ item: 'training_sword_12h_bound', hours: 12, bound: true, qty: 1 }], stored: [] }
+    : { skill: k, banked_ms: 0, on: true, bag: [], stored: [] })),
+  offers: ['melee', 'ranged', 'magic', 'defense'].flatMap((k) => [[12, 250000], [24, 450000]].map(([h, p]) => ({ item: 'training_' + WORD[k] + '_' + h + 'h', skill: k, hours: h, price: p }))),
+  shop: { on: true, today: 0, max: 10 } }, o);
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
@@ -58,6 +73,9 @@ async function stub(page, s) {
     }
     if (name === 'hr_hunt_leave') { s.training = SECTION({ last_stop: { reason: 'left', skill: 'melee', at: iso(Date.now()) } }); return json({ ok: true, pending: false }); }
     if (name === 'hr_house_dummy_unlock') { s.training = SECTION({ dummy: DUMMY({ owned: ['defense', body.p_skill], next_price: 400000 }) }); return json({ ok: true }); }
+    if (name === 'hr_training_gear_buy') { s.gold -= 250000; s.training = SECTION(GEAR({ shop: { on: true, today: 1, max: 10 } })); return json({ ok: true, item: body.p_item }); }
+    if (name === 'hr_training_gear_switch') { const g = GEAR({}); g.gear[0].on = body.p_on; s.training = SECTION(g); return json({ ok: true, skill: body.p_skill, on: body.p_on }); }
+    if (name === 'hr_training_gear_open') return json({ ok: false, error: 'still_open', skill: 'melee', banked_ms: 34200000 });
     return json({ ok: true });
   });
 }
@@ -170,7 +188,7 @@ async function checks() {
       ['hunting', { hunt: clone(BASE_ENV.hunt) }, /out hunting/, null],
       ['party', { party: clone(BASE_ENV.party) || { leader: 0, self: 0, members: [{ slot: 0, name: 'Tyler' }, { slot: 1, name: 'Mira' }] } }, /in a party/, null],
       ['short', { gold: 100 }, /The first hour costs 272 gold\. You have 100\./, null],
-      ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /Mira is on your dummy/, 'defense'],
+      ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /Dummy in use by Mira/, 'defense'],
     ]) {
       const s = world(o);
       const { ctx, page } = await open(s);
@@ -209,9 +227,62 @@ async function checks() {
       if (buys.length !== 1 || buys[0].body.p_skill !== 'melee' || buys[0].body.p_price !== 250000) fails.push('TR-4 the unlock: ' + JSON.stringify(buys.map((b) => b.body)));
       await o2.ctx.close();
     }
+    /* TR-6 */
+    {
+      const s = world({ gold: 300000, training: SECTION(GEAR({})) });
+      const { ctx, page, errors } = await open(s);
+      if (!await openTraining(page)) fails.push('TR-6 the icon did not open the Training window');
+      else {
+        const xp = await q(page, '.tw-xp'), left = await q(page, '.tw-gear-left');
+        if (xp !== '60,000 Melee XP/h (200%)') fails.push('TR-6 the rate is not the server\'s, with its 200%: ' + JSON.stringify(xp));
+        if (left !== 'Training Sword at 200%, 9 hours 30 minutes left') fails.push('TR-6 the hours left are not the server\'s: ' + JSON.stringify(left));
+        const rowsOf = (sel) => page.evaluate((x) => [...document.querySelectorAll('[data-hs-win="training"] ' + x + ' .tw-gear-row')]
+          .map((r) => r.querySelector('.tw-gear-name').textContent + ' | ' + r.querySelector('.tw-gear-fig').textContent), sel);
+        const held = await rowsOf('.tw-gear-held'), shop = await rowsOf('.tw-gear-shop');
+        if (held.join() !== 'Training Sword (12 h), bound | 1 in bag') fails.push('TR-6 the sealed ones held: ' + JSON.stringify(held));
+        if (shop.join() !== 'Training Sword (12 h) | 250,000 gold,Training Sword (24 h) | 450,000 gold') fails.push('TR-6 the Arms Master\'s rows: ' + JSON.stringify(shop));
+        if (SHOTS) { await page.locator('[data-hs-win="training"] .tw-gear').scrollIntoViewIfNeeded(); await page.screenshot({ path: join(SHOTS, 'training-desktop-items.png') }); }
+        await page.click('[data-hs-win="training"] .tw-gear-shop .tw-gear-row:first-child [data-hs-act="gear-buy"]');
+        await wait(page, () => /0 of 10|1 of 10/.test((document.querySelector('[data-hs-win="training"] .tw-gear-note') || {}).textContent || '')
+          && /1 of 10/.test(document.querySelector('[data-hs-win="training"] .tw-gear-note').textContent), null, 4000);
+        const buys = s.calls.filter((c) => c.name === 'hr_training_gear_buy');
+        if (buys.length !== 1) fails.push('TR-6 hr_training_gear_buy sent ' + buys.length + ' times');
+        else {
+          const keys = Object.keys(buys[0].body).sort().join(',');
+          if (keys !== 'p_idem,p_item,p_price_seen,p_slot' || buys[0].body.p_item !== 'training_sword_12h' || buys[0].body.p_price_seen !== 250000) fails.push('TR-6 the buy body: ' + JSON.stringify(buys[0].body));
+        }
+        await page.click('[data-hs-win="training"] .tw-gear-on');
+        await wait(page, () => /switched off/.test((document.querySelector('[data-hs-win="training"] .tw-gear-left') || {}).textContent || ''), null, 4000);
+        const flips = s.calls.filter((c) => c.name === 'hr_training_gear_switch');
+        if (flips.length !== 1 || flips[0].body.p_skill !== 'melee' || flips[0].body.p_on !== false) fails.push('TR-6 the switch: ' + JSON.stringify(flips.map((c) => c.body)));
+        await page.click('[data-hs-win="training"] .tw-gear-held [data-hs-act="gear-open"]');
+        await wait(page, () => /still has hours left/.test((document.querySelector('[data-hs-win="training"] .hh-intent-msg') || {}).textContent || ''), null, 4000);
+        const said = await q(page, '.hh-intent-msg');
+        if (!/still has hours left/.test(said || '') || s.calls.filter((c) => c.name === 'hr_training_gear_open').length !== 1) fails.push('TR-6 Open\'s refusal reads ' + JSON.stringify(said));
+      }
+      if (errors.length) fails.push('TR-6 console: ' + errors.slice(0, 2).join(' | '));
+      await ctx.close();
+      for (const [label, sec, check] of [
+        ['under Level 10', SECTION(GEAR({ rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 5 } })), async (page) => {
+          const r = await offWhy(page);
+          return r.off && /Training opens at Level 10\. You are Level 5\./.test(r.why) ? null : 'Start ' + (r.off ? 'off' : 'ON') + ' with ' + JSON.stringify(r.why);
+        }],
+        ['closed', SECTION(GEAR({ shop: { on: false, today: 0, max: 10 } })), async (page) => {
+          const r = await page.evaluate(() => ({ presses: document.querySelectorAll('[data-hs-win="training"] .tw-gear-press').length,
+            note: (document.querySelector('[data-hs-win="training"] .tw-gear-note') || {}).textContent || '' }));
+          return r.presses === 0 && /aren't for sale yet/.test(r.note) ? null : JSON.stringify(r);
+        }],
+      ]) {
+        const s2 = world({ training: sec });
+        const o2 = await open(s2);
+        if (!await openTraining(o2.page)) fails.push('TR-6 ' + label + ': no window');
+        else { const bad = await check(o2.page); if (bad) fails.push('TR-6 ' + label + ': ' + bad); }
+        await o2.ctx.close();
+      }
+    }
     /* TR-5 */
     for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 922, height: 423 }]]) {
-      const s = world({});
+      const s = world({ training: SECTION(GEAR({})) });
       const { ctx, page } = await open(s, viewport);
       if (!await openTraining(page, label === 'phone')) { fails.push('TR-5 ' + label + ': no way to the Training window'); await ctx.close(); continue; }
       await page.waitForTimeout(300);
@@ -242,7 +313,7 @@ async function main() {
   if (SHOTS) await mkdir(SHOTS, { recursive: true });
   const fails = await checks();
   for (const f of fails) console.log('FAIL  ' + f);
-  console.log(fails.length ? 'training-window: ' + fails.length + ' FAILED' : 'training-window: green (nothing without the section, start, run, stop, say why, the house dummy, sizes)');
+  console.log(fails.length ? 'training-window: ' + fails.length + ' FAILED' : 'training-window: green (nothing without the section, start, run, stop, say why, the house dummy, the rate and the items, sizes)');
   process.exit(fails.length ? 1 : 0);
 }
 

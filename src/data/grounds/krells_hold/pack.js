@@ -34,8 +34,8 @@
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
 // GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's 0.45 to-hit and the Dangerous dmgPm 1300 that
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
-import { definePack, box, gather } from '../shape.js?v=0.2.133';
-import map from './map.js?v=0.2.133';
+import { definePack, box, gather } from '../shape.js?v=0.2.134';
+import map from './map.js?v=0.2.134';
 
 const LV = 'farmhand', PK = 'hasks_lookout', WD = 'grave_guard', BD = 'pyre_priest', CS = 'gatekeeper';
 
@@ -45,6 +45,7 @@ export default definePack({
   sql: "2027-04-22-pack-krells_hold.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
+    region: 'barrow_march',
     name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up out of the Muster Barrows guard the crypt.',
     band: [85, 110],
     spawns: [{ monster: LV, w: 7, rarity: 'common' }, { monster: WD, w: 5, rarity: 'uncommon' },

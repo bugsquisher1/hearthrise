@@ -48,52 +48,55 @@ export const BOSS_CALL_WORDS = Object.freeze({
      (src/data/live-events.js WORDS.open_halls: "Call out {boss} for free", "Call him out for free"). */
   press: 'Call out {boss} for {fee} gp',
   warnTitle: 'Call out {boss}?',
+  /* LABELS, one a line (Tyler 2026-11-14: "Recommended: 4+ players", "do it like that for everything outside of actual lore"); the note keeps line breaks. */
   warn: Object.freeze([
-    '{Boss} hits harder here than on the ground. At half his health his adds come for whoever isn\'t your tank.{guard} At a quarter of his health he hits even harder. If anyone dies, the fight ends.',
-    'You pay {fee} gp, win or lose. You get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
+    'Hits harder than on the ground\n50% HP: adds attack your non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
+    'Cost: {fee} gp, win or lose\nNo XP, coin or drops\nTime limit: {minutes} min',
   ]),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
   /* NO PER-BOSS CHALLENGE ADVICE (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; lane/d-march-balance re-fit
-     the Chief and Krell so Challenge on and off are both fair, measured in their rows). The sentence says what the adds do, nothing to turn off. */
-  warnGuard: ' They shield him until you kill them.',
-  /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`). */
-  warnAlone: '{Boss} is built for a party. You can fight him alone, but he can kill you.',
+     the Chief and Krell so Challenge on and off are both fair, measured in their rows). The label says what the adds do, nothing to turn off. */
+  warnGuard: ' and shield him until killed',
+  /* The warning's one more line when the room will hold the caller alone (the server's quote says `alone`): the ground's own
+     "Recommended: N+ players" (hunt-list.js partyNote), this row only where the ground names no size. */
+  warnAlone: 'Recommended: party',
   confirm: 'Call him out for {fee} gp',
   cancel: 'Not yet',
   /* The status line while the call is out, and once he answers (alone: no party walks in with you). */
   calling: 'Calling {boss} out…',
-  answered: Object.freeze({ party: '{Boss} answers. Your party is on its way.', alone: '{Boss} answers. You\'re on your way.' }),
-  left: Object.freeze({ one: 'You have 1 call left today.', other: 'You have {n} calls left today.', none: 'You have no calls left today.' }),
-  hunting: 'Not while you\'re hunting. Come back to town first.',
-  noQuote: 'Checking if you can call him out.',
+  answered: Object.freeze({ party: '{Boss} answers, party on the way', alone: '{Boss} answers, on your way' }),
+  left: Object.freeze({ one: 'Calls left today: 1', other: 'Calls left today: {n}', none: 'Calls left today: 0' }),
+  hunting: 'Not while hunting',
+  noQuote: 'Checking…',
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
-  bar: Object.freeze({ adds: 'His adds are coming', guarded: 'His adds shield him', enrage: 'He is enraged' }),
+  bar: Object.freeze({ adds: 'Adds incoming', guarded: 'Shielded by adds', enrage: 'Enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */
-  log: Object.freeze({ adds: 'calls his adds. They go for whoever isn\'t your tank.', guarded: 'calls his adds. They go for whoever isn\'t your tank and shield him until you kill them.', enrage: 'is enraged, and hits harder.' }),
+  log: Object.freeze({ adds: 'calls his adds (they attack non-tanks)', guarded: 'calls his adds (they attack non-tanks and shield him)', enrage: 'is enraged (hits harder)' }),
   shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
   /* THE LOSING LINE (src/hunt-view/boss-loss.js): where it was lost, what this hero's bar did there, what answers it. {pct} his HP at the end; {times} the server's count. */
   loss: Object.freeze({
-    fell: Object.freeze({ first: 'You lost before his adds came, with him at {pct}%', adds: 'You lost while his adds were up, with him at {pct}%', enrage: 'You lost after he got enraged, with him at {pct}%' }),
-    time: Object.freeze({ first: 'Time ran out before his adds came, with him at {pct}%', adds: 'Time ran out while his adds were up, with him at {pct}%', enrage: 'Time ran out after he got enraged, with him at {pct}%' }),
+    fell: Object.freeze({ first: 'Lost before his adds, boss at {pct}%', adds: 'Lost during his adds, boss at {pct}%', enrage: 'Lost after his enrage, boss at {pct}%' }),
+    time: Object.freeze({ first: 'Time up before his adds, boss at {pct}%', adds: 'Time up during his adds, boss at {pct}%', enrage: 'Time up after his enrage, boss at {pct}%' }),
     fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
+    /* What answers each part of the fight, short. */
     answer: Object.freeze({
-      first: 'His normal hits were too much for your healing. Bring a healer, eat earlier, or come back in better gear.',
-      adds: 'His adds go for whoever isn\'t your tank. An area slot like Cleave or Fireball clears them, and Target on Lowest HP kills them first.',
+      first: 'Bring a healer, eat earlier or upgrade your gear.',
+      adds: 'Adds attack non-tanks. An area slot (Cleave, Fireball) or Target on Lowest HP clears them.',
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
-      guarded: 'His adds shield him until they fall. Kill them first, and keep your healer on whoever they go for.',
-      enrage: 'Under a quarter of his health he hits far harder. Eat earlier on every bar, and set your healer to heal sooner.',
+      guarded: 'His adds shield him. Kill them first and keep your healer on whoever they attack.',
+      enrage: 'Under 25% HP he hits far harder. Eat earlier and set your healer to heal sooner.',
       /* The enrage of a boss whose adds shield him (isGuarded): what he hits harder is the tank. */
-      enrageGuarded: 'Under a quarter of his health he hits far harder, and most of it lands on your tank. Better armor on your tank, eating earlier and a healer who heals sooner all help.',
+      enrageGuarded: 'Under 25% HP he hits far harder, mostly your tank. Better tank armor, eating earlier and faster heals help.',
     }),
   }),
-  /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). */
+  /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). Each says it charged nothing. */
   refused: Object.freeze({
-    call_leader: 'Only your party\'s leader can call him out.',
-    call_limit: 'You\'ve called 3 times today. More after midnight UTC.',
-    quote_changed: 'The price moved, so you weren\'t charged. Look again.',
-    call_unknown: 'Nobody here answers that call, so you weren\'t charged.',
-    insufficient_gold: 'You don\'t have the gold, so you weren\'t charged.',
-    not_ready: 'Not everyone in the party is ready, so you weren\'t charged. The Party window says who.',
-    party_hunting: 'Not while your party is hunting, so you weren\'t charged. Wait until everyone is back in town.',
+    call_leader: 'Party leader only',
+    call_limit: 'Daily limit reached (3), resets at midnight UTC',
+    quote_changed: 'Price changed, not charged',
+    call_unknown: 'Call not available, not charged',
+    insufficient_gold: 'Not enough gold, not charged',
+    not_ready: 'Party not ready (see Party window), not charged',
+    party_hunting: 'Party still hunting, not charged',
   }),
 });

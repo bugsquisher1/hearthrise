@@ -41,7 +41,7 @@ import { ROOT } from './schema-replay.mjs';
 const WINDOWS = 3;
 export const BUDGET = Object.freeze({ stateOf: 12, frames: 9, asks: 4 });
 /* The SQL helpers a watched settle may still call, each with its why (tools/gen-plan-cache.mjs's exclusions). A full-chain
-   mutant patches each in its own file (tests/settle-hooks.mjs H-COVER in 2026-11-07-store-by-slot.sql; tests/alpha-server.mjs's
+   mutant patches each in its own file (tests/settle-hooks.mjs H-COVER in 2027-04-23-training-gear.sql; tests/alpha-server.mjs's
    shop arms in 2026-11-25-shop-seeds.sql), and a later restatement's pin would refuse the mutated pre-image before the
    guard's arm could name the defect. Nothing else may sit here without a why. */
 export const ALLOW = Object.freeze({

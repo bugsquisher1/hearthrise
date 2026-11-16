@@ -25,7 +25,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-15",
- "replay_ms": 1676,
+ "replay_ms": 1898,
  "counts": {
   "tracked_names": 864,
   "entries": 716
@@ -7819,17 +7819,18 @@
     "2026-12-18-party-leave-together.sql",
     "2027-01-25-town-defaults.sql",
     "2027-02-18-party-truth.sql",
-    "2027-02-27-hunt-tiers.sql"
+    "2027-02-27-hunt-tiers.sql",
+    "2027-04-26-party-stamina-truth.sql"
    ],
    "live": {
-    "md5": "7bcaacf2d28450fafcbb5f4e599c48a2",
-    "norm_len": 9408,
+    "md5": "35792d7e813316ff125305e690db4d1a",
+    "norm_len": 9950,
     "measured": "2026-11-15",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7bcaacf2d28450fafcbb5f4e599c48a2",
-    "norm_len": 9408,
+    "md5": "35792d7e813316ff125305e690db4d1a",
+    "norm_len": 9950,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -15,14 +15,14 @@
 //
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
-import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.133';
-import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.133';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.133';
-import { answerWithin } from '../bar-draft.js?v=0.2.133';
-import { refusalText } from '../intent-words.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
+import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.134';
+import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.134';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
+import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.134';
+import { answerWithin } from '../bar-draft.js?v=0.2.134';
+import { refusalText } from '../intent-words.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
 
 /* The server's refusal reads from the one table (src/data/refusal-words.js via intent-words.js refusalText). */
 
@@ -50,9 +50,15 @@ export function effectsDoorHtml() {
 }
 
 /** The gold-to-keep field:a whole number of gold, the server's own range (GOLD_FLOOR, hr_hunt_limits gold_floor_*). */
-export function goldFloorHtml() {
+function goldFloorHtml() {
   return '<input type="number" class="hh-num hb-gold" min="' + GOLD_FLOOR.min + '" max="' + GOLD_FLOOR.max + '" step="50" inputmode="numeric"'
-    + ' data-opt="gold_floor" data-hs-act="opt" aria-label="Gold to keep: the hunt sells loot, then stops, rather than spend below it">';
+    + ' data-opt="gold_floor" data-hs-act="opt" aria-label="' + t('prep.keep_at_least') + '">';
+}
+
+/** The bar's Gold reserve row: the label, the field and its unit, and the line that says what it does (the prep window's words). */
+export function goldReserveHtml() {
+  return '<label class="hb-pl-row is-gold"><span class="hb-label">' + t('prep.gold') + '</span>' + goldFloorHtml() + '<span class="hb-label">' + t('prep.gold_word') + '</span></label>'
+    + '<p class="hb-pl-note">' + t('prep.gold_line') + '</p>';
 }
 
 /* The server's gold floor (hunt_settings.gold_floor, hr_hunt_settings_view). settingsOf (hunt-sections.js, the

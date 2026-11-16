@@ -18,37 +18,40 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.133';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.133';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.133';
-import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.133';
-import { lossLine } from './boss-loss.js?v=0.2.133';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.133';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.133';
-import { ITEMS } from '../data/items.js?v=0.2.133';
-import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.133';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.134';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.134';
+import { lossLine } from './boss-loss.js?v=0.2.134';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.134';
+import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.134';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.134';
+import { ITEMS } from '../data/items.js?v=0.2.134';
+import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 
 export { sanitizeSummaries };
 
 
-/** Why a hunt ended, as a sentence (one per END_ORDER name; a guard in tests/hunt-summary.mjs keeps them equal). */
+/** Why a hunt ended, as a label (one per END_ORDER name; a guard in tests/hunt-summary.mjs keeps them equal; src/data/text/summary.js). */
 export const END_WORDS = Object.freeze({
-  died: 'Your hero died and returned to town.',
-  boss_felled: 'You beat him. There\'s a title for you under Titles in the Character window.',
-  party_member_died: 'A party member died, so your hero came home too.',
-  party_member_left: 'A party member left the hunt, so your hero came home too.',
-  heals_out: 'You ran out of healing supplies.',
-  ammo_out: 'You ran out of ammunition.',
+  died: t('summary.end_died'),
+  boss_felled: t('summary.end_boss_felled'),
+  party_member_died: t('summary.end_party_member_died'),
+  party_member_left: t('summary.end_party_member_left'),
+  heals_out: t('summary.end_heals_out'),
+  ammo_out: t('summary.end_ammo_out'),
   runes_out: END_REASON_COPY.runes_out.one,
-  gold_out: 'You ran out of gold for supplies, so you headed home.',
-  rule: 'One of your stop rules was met, so you headed home.',
-  stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\'t hunting.',
-  hours: 'The hunt reached its time limit.',
-  boss_time: 'The ten minutes ran out before he went down. Your party came home.',
-  left: 'You left the hunt.',
-  changed: 'You moved on to another hunt.',
+  gold_out: t('summary.end_gold_out'),
+  rule: t('summary.end_rule'),
+  stamina: t('summary.end_stamina'),
+  hours: t('summary.end_hours'),
+  boss_time: t('summary.end_boss_time'),
+  left: t('summary.end_left'),
+  changed: t('summary.end_changed'),
   no_fight: END_REASON_COPY.no_fight.one,
-  server: 'The hunt was ended by the server.',
+  server: t('summary.end_server'),
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -57,33 +60,34 @@ const int = (v) => (Number.isSafeInteger(v) ? v : null);
 const ID = /^[a-z0-9_]{1,64}$/;
 const id = (v) => (typeof v === 'string' && ID.test(v) ? v : null);
 const text = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
-const ms = (v) => { if (typeof v === 'number' && Number.isFinite(v)) return v; const t = typeof v === 'string' ? Date.parse(v) : NaN; return Number.isFinite(t) ? t : null; };
+const ms = (v) => { if (typeof v === 'number' && Number.isFinite(v)) return v; const at = typeof v === 'string' ? Date.parse(v) : NaN; return Number.isFinite(at) ? at : null; };
 
 /* A hunt ended by the refused-window rule (the session's server-stated `forfeit`: six refused windows in a
    row, hr_hunt_forfeit): what was lost and why, never "by the server" (2026-11-17-hunt-density-home.sql). */
-export const FORFEIT_WORDS = Object.freeze({
-  server: 'Your hunt was stopped because the server could not accept its last few minutes, so nothing from them was counted.',
-  left: 'You left the hunt. The server could not accept its last few minutes, so nothing from them was counted.',
-});
+export const FORFEIT_WORDS = Object.freeze({ server: t('summary.forfeit_server'), left: t('summary.forfeit_left') });
 
 /** The plain-words end reason (`forfeit`: the server forfeited the hunt's last window); an unknown name still reads as a sentence.
     LEAVE TOGETHER: a hero sent home by another member's end names that member (`by`, the server's end_by), what ended it
     (`why`, end_by_why) and itself (`hero`), "Mira ran out of stamina, so Oren came home too." (party-words.js cameHomeWords). */
 export function endWords(reason, forfeit, by, hero, why, hunt) {
   if (typeof by === 'string' && by && (reason === 'party_member_left' || reason === 'party_member_died')) return cameHomeWords(reason, by, why, hero);
+  /* A TRAINING SESSION (src/data/training.js) is no hunt: the Training window's own words ("Wren finished Defense training. That was the
+     longest one session can run."), never "The hunt reached its time limit." or "You left the hunt." */
+  const train = hunt ? trainedBy(hunt) : null;
+  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill }, hero);
   /* A KEYED HALL'S KILL (src/data/boss-halls.js) names him and no title: END_WORDS.boss_felled is a called room's. */
   const room = reason === 'boss_felled' && hunt ? roomOfHunt(hunt) : null;
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.felled.replace('{Boss}', room.Boss);
-  return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || 'The hunt ended.';
+  return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || t('summary.end_plain');
 }
 
 /** The end card's reason line. `msLeft`: the stamina the server says the hero has now, given only for the newest hunt with none running:
     out of stamina, the card says what it has rested back, so Hunt again is a decision and not a guess (panel 2026-11-01). */
 export function reasonWords(s, hero, msLeft) {
-  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why, s.hunt) : 'The hunt ended.';
+  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why, s.hunt) : t('summary.end_plain');
   if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;
   const m = Math.floor(msLeft / 60000);
-  return why + ' Stamina now: ' + (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min.';
+  return t('summary.stamina_now', { why, left: (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min' });
 }
 
 /* A tally's loot / supplies, whichever shape the server sent: {item: n}, [{item, count}] or {item: {own, store}}. */
@@ -151,26 +155,61 @@ export function endedSessionOf(cs) {
 }
 
 /**
+ * A TRAINING SESSION'S CARD (designer's coherence pass 2026-11-15, walk row 5: an hour at the yard read "Monsters 0, Level XP 0, Gold 0"
+ * and left out the Defense it gave and the 176 g it cost). For a session on a training ground: the skill, its XP (the server's last
+ * stop for this session, else the session's own tally), and from that last stop the gold its fee rows took and the skill's level before
+ * and after. Null for a hunt. `stop`: training-sections.js lastStop, or null. Pure.
+ * @returns {{skill: string, xp: number|null, fee: number|null, from: number|null, to: number|null}|null}
+ */
+export function trainingCard(s, stop) {
+  const tr = s && s.hunt ? trainedBy(s.hunt) : null;
+  if (!tr) return null;
+  const xp = s.tally && isObj(s.tally.xp) ? num(s.tally.xp[tr.skill]) : null;
+  const mine = stop && stop.session === s.id && stop.skill === tr.skill ? stop : null;
+  return { skill: tr.skill, xp: mine && mine.xp !== null ? mine.xp : xp === null ? null : Math.floor(xp),
+    fee: mine ? mine.paid : null, from: mine ? mine.from : null, to: mine ? mine.level : null };
+}
+
+/**
+ * A stored training card the server's last stop has caught up with (the `training` section can land after the `hunt` one that
+ * ended it): the card with the stop's fee and levels, or null when there is nothing to fill. Pure.
+ */
+export function withTrainingStop(summary, stop) {
+  const tr = summary && summary.train;
+  if (!tr || tr.fee !== null || !stop || stop.session !== summary.id || stop.skill !== tr.skill || stop.paid === null) return null;
+  return Object.assign({}, summary, { train: { skill: tr.skill, xp: stop.xp !== null ? stop.xp : tr.xp, fee: stop.paid, from: stop.from, to: stop.level } });
+}
+
+/**
  * The summary record for an ended session.
  * @param {object} s         endedSessionOf(cs)
  * @param {object|null} an   analyzerOf(cs) (hunt-sections.js) or null
  * @param {string[]} deaths  the death explanations' headlines (death-explain.js)
  * @param {string|null} [role]  this hero's role, for a called fight's losing line
+ * @param {object|null} [stop]  the `training` section's last stop (training-sections.js), for a training session's card
  */
-export function buildSummary(s, an, deaths, role) {
+export function buildSummary(s, an, deaths, role, stop) {
+  const train = trainingCard(s, stop || null);
+  /* a training session pays no kill, Level XP, coin or loot and spends no supply: its card is the skill, never a row of zeros */
+  if (train) {
+    const dur = an && an.sessionMs !== null && an.sessionMs !== undefined ? an.sessionMs
+      : s.enteredMs !== null && s.endedMs !== null ? Math.max(0, s.endedMs - s.enteredMs) : null;
+    return sanitizeSummary({ id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, ms: dur,
+      preset: s.preset, hoursLimit: s.hoursLimit, bag: [], loot: [], supplies: [], deaths: [], train });
+  }
   const hero = an && an.hero;
   const ph = hero && hero.perHour ? hero.perHour : null;
-  const t = s.tally || {};
+  const tl = s.tally || {};
   const dur = an && an.sessionMs !== null && an.sessionMs !== undefined ? an.sessionMs
     : s.enteredMs !== null && s.endedMs !== null ? Math.max(0, s.endedMs - s.enteredMs) : null;
-  const loot = rankLoot(hero ? hero.loot.filter((l) => id(l.item) && num(l.count) !== null) : countPairs(t.loot).map(([item, count]) => ({ item, count })))
+  const loot = rankLoot(hero ? hero.loot.filter((l) => id(l.item) && num(l.count) !== null) : countPairs(tl.loot).map(([item, count]) => ({ item, count })))
     .map((l) => [l.item, l.count]);
   const supplies = hero ? hero.supplies.filter((x) => id(x.item) && num(x.count) !== null).map((x) => [x.item, x.source, x.count])
-    : countPairs(t.supplies).map(([item, n]) => [item, 'own', n]);
+    : countPairs(tl.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({
     id: s.id, hunt: s.hunt, tier: s.tier || null, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, by: s.by || null, why: s.why || null, ms: dur,
     /* `xp` is LEVEL XP only (the tally's `level` key), never Level plus training (Tyler 2026-10-22). */
-    kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.levelXp : isObj(t.xp) ? num(t.xp.level) : num(t.xp), gold: hero ? hero.gold : num(t.coins),
+    kills: hero ? hero.kills : int(tl.kills), xp: hero ? hero.levelXp : isObj(tl.xp) ? num(tl.xp.level) : num(tl.xp), gold: hero ? hero.gold : num(tl.coins),
     /* `gold` is coin received (the server's coins); the loot's shop price is its own line (Brannoc 10-22). */
     lootValue: hero ? hero.lootValue : null,
     /* The hunt's BALANCE, the server's own (coins + loot value - store supplies): it is there from the first kill,
@@ -206,6 +245,8 @@ export function withSummary(list, summary) {
 export function huntAgainOf(summary) {
   /* A boss room has one door, its press on the ground's page (a call's fee or a hall's key: src/data/boss-halls.js): no free way back. */
   if (!summary || !summary.hunt || summary.preset === null || roomOfHunt(summary.hunt)) return null;
+  /* ...and training has its own, the Training window's Start (hr_training_start): never an hr_hunt_enter */
+  if (trainedBy(summary.hunt)) return null;
   return {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),
@@ -222,9 +263,9 @@ export function huntAgainOf(summary) {
 export function againRoute(party, hunt) {
   if (!party) return { how: 'enter', why: '' };
   if (party.seats.some((s) => s.seat !== party.me && s.hunting)) {
-    return party.hunt === hunt ? { how: 'enter', why: '' } : { how: null, why: 'Your party is hunting on another ground. You can only go back to that one.' };
+    return party.hunt === hunt ? { how: 'enter', why: '' } : { how: null, why: t('summary.again_elsewhere') };
   }
-  return party.isLeader ? { how: 'party', why: '' } : { how: null, why: 'Your party leader picks the hunt and starts it.' };
+  return party.isLeader ? { how: 'party', why: '' } : { how: null, why: t('summary.again_leader') };
 }
 
 /**

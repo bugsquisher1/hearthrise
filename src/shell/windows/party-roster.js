@@ -16,16 +16,16 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.133';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.133';
-import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.133';
-import { recommendation } from '../hunt-list.js?v=0.2.133';
-import { huntName } from '../../session/party-sections.js?v=0.2.133';
-import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.133';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.133';
-import { glyphSvg } from '../launcher.js?v=0.2.133';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
+import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.134';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.134';
+import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.134';
+import { recommendation } from '../hunt-list.js?v=0.2.134';
+import { huntName } from '../../session/party-sections.js?v=0.2.134';
+import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.134';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.134';
+import { glyphSvg } from '../launcher.js?v=0.2.134';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {
@@ -82,7 +82,7 @@ export function classXpLine(roles, hunt) {
      there, so its line says how to fix it (lane/d-party-xp-cells). */
   const vs = partyVsAlone(ground ? ground.id : null, seats);
   const place = huntName(hunt);
-  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + ' ';
+  const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + '. ';
   if (vs === null) return have + t('party.class_none', { place });
   if (vs === 0) return have + t('party.class_same', { place });
   if (vs > 0) return have + t('party.class_more', { pct: vs, place });

@@ -9,7 +9,7 @@
 
 export const TRAINING_TEXT = Object.freeze({
   /* What the yard is, said once at the top. */
-  lead: 'Pick one combat skill and train it here. You pay by the hour and earn skill XP for that skill only. No Level XP, no loot, and no stamina used.',
+  lead: 'Any skill, same rate, paid hourly. Skill XP only, no stamina',
   your_hero: 'Your hero',
   purse: 'You have {gold} gold.',
 
@@ -22,7 +22,8 @@ export const TRAINING_TEXT = Object.freeze({
   /* The picked skill's quote, every number the server's. */
   fee: '{gold} gold an hour',
   fee_house: 'No fee at home',
-  xp: 'About {xp} {skill} XP an hour',
+  xp: '{xp} {skill} XP/h',
+  xp_item: '{xp} {skill} XP/h (200%)',
   to_level: 'About {hours} to {skill} {level}',
   max_hours: 'Training stops after {hours} hours. Start it again to keep going.',
   paid_ahead: 'You pay each hour when it starts.',
@@ -41,7 +42,7 @@ export const TRAINING_TEXT = Object.freeze({
   run_paid: 'So far you have paid {gold} gold.',
 
   /* Why the last run ended (the section's last_stop.reason). */
-  ended_gold_out: '{name} stopped training {skill}. You ran out of gold for the next hour.',
+  ended_gold_out: '{name} stopped training {skill} (out of gold)',
   ended_hours: '{name} finished {skill} training. That was the longest one session can run.',
   ended_left: 'You stopped {name}\'s {skill} training.',
   ended_other: '{name} stopped training {skill}.',
@@ -49,13 +50,38 @@ export const TRAINING_TEXT = Object.freeze({
   /* Why Start is off, said before the press; the same words answer the server's refusal. */
   closed: 'The training yard is closed right now.',
   hunting: '{name} is out hunting. Come back to town to train.',
-  in_party: '{name} is in a party. Training is solo, so leave the party first.',
+  in_party: '{name} is in a party (training is solo)',
   short_gold: 'The first hour costs {fee} gold. You have {purse}.',
-  dummy_busy: '{who} is on your dummy at home right now. Only one hero can use it at a time.',
+  low_level: 'Training opens at Level {need}. You are Level {level}.',
+  dummy_busy: 'Dummy in use by {who} (one hero at a time)',
+
+  /* THE TRAINING ITEMS (2027-04-23-training-gear.sql, Tyler 2026-11-14): labels, the server's numbers, and one card line. */
+  gear_head: 'Training item',
+  gear_left: '{item} switched off, {time} left',
+  gear_left_on: '{item} at 200%, {time} left',
+  gear_use: 'Use {item}',
+  gear_held: '{item} ({hours} h)',
+  gear_bound: '{item} ({hours} h), bound',
+  gear_in_bag: '{count} in bag',
+  gear_in_storage: '{count} in Storage',
+  gear_price: '{gold} gold',
+  gear_today: '{today} of {max} bought today',
+  gear_card: '200% {skill} XP (yard or home dummy), hours run only while training',
+  gear_closed: 'Training items aren\'t for sale yet.',
+  press_buy: 'Buy',
+  press_open: 'Open',
+  busy_buy: 'Buying…',
+  busy_open: 'Opening…',
+  bought: 'You bought a {item}.',
+  opened: '{item} opened. Your {skill} training is at 200% while its hours last.',
+  gear_short: 'It costs {price} gold. You have {purse}.',
+  gear_limit: 'You bought {max} training items today. The Arms Master sells more tomorrow.',
+  gear_still_open: '{item} still has hours left (next one opens after it)',
+  gear_none_held: 'You don\'t have one in your bag or Storage.',
 
   /* THE HOUSE DUMMY (the House window). */
   dummy_head: 'Training dummy',
-  dummy_lead: 'Your account gets one dummy. It trains as fast as the yard and costs no fee. Unlock one skill at a time. Each one costs more.',
+  dummy_lead: 'One per account: yard speed, no fee. Each skill unlock costs more',
   dummy_owned: 'Unlocked',
   dummy_locked: 'Locked',
   dummy_next: 'Next unlock: {price} gold',
@@ -72,4 +98,40 @@ export const TRAINING_TEXT = Object.freeze({
   time_minutes: { one: '{count} minute', other: '{count} minutes' },
   time_both: '{hours} {minutes}',
   time_under_minute: 'less than a minute',
+
+  /* A SESSION'S END CARD (src/shell/windows/hunt-summary.js; the designer's coherence pass 2026-11-15): what it gave and cost, each
+     figure the server's last stop for it. {skill} the skill's name. */
+  card_xp: '{skill} XP',
+  card_level: '{skill} level',
+  card_level_up: '{from} to {to}',
+  card_fee: 'Paid at the yard',
+  card_again: 'Train again',
+  card_again_title: 'Opens the Training window.',
+
+  /* THE HUNT BAR AND THE ANALYZER WHILE A HERO TRAINS (src/shell/training-now.js): what it does, where, and the server's figures.
+     The hero's tab line says the two together ("Training Melee at the Training Yard", src/session/party-sections.js). */
+  bar_doing: 'Training {skill}',
+  bar_at_yard: 'at the Training Yard',
+  bar_at_house: 'on your dummy at home',
+  bar_left: '{time} left',
+  bar_left_title: 'Time before this training session stops',
+  bar_fee: '{gold} gold/h',
+  bar_details: 'Details',
+  bar_stop: 'Stop',
+  bar_stop_wide: 'training',
+  an_title: 'Training',
+  an_level: '{skill} level {level}',
+  an_xp_h: '{skill} XP per hour',
+  an_xp_h_item: '{xp} (200%)',
+  an_fee_h: 'Fee per hour',
+  an_fee_house: 'None at home',
+  an_paid: 'Paid so far',
+
+  /* THE COACH'S "WHAT NEXT" WHILE A HERO TRAINS (src/data/hunt-tutorial.js nextGoal): the trained skill's next level, the server's hours. */
+  coach_next: 'About {hours} more training to {skill} {level}.',
+
+  /* THE WORLD WHILE A HERO TRAINS (src/world/world-boot.js): where it is, and the window that runs it. */
+  world_line: '{name} is training {skill} at the Training Yard.',
+  world_line_house: '{name} is training {skill} on your dummy at home.',
+  world_open: 'Open Training',
 });

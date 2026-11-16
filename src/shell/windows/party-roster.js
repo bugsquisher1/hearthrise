@@ -86,6 +86,9 @@ export function classXpLine(roles, hunt) {
   if (vs === null) return have + t('party.class_none', { place });
   if (vs === 0) return have + t('party.class_same', { place });
   if (vs > 0) return have + t('party.class_more', { pct: vs, place });
+  /* "Mix ... to get more" only where another class can still be held at this size: since the flat party cut (Tyler 2026-11-16) a full mix may
+     earn under alone on Normal, and telling it to mix is false. */
+  if (classes.length >= Math.min(seats.length, CLASS_NAMES.length)) return have + t('party.class_less_full', { pct: -vs, place });
   return have + t('party.class_less', { pct: -vs, place, classes: CLASS_WORDS });
 }
 

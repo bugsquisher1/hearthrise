@@ -40,8 +40,9 @@ export const SESSION_MODES = Object.freeze({
      proxy rooms, read 0.24 on real climbs (lane/c-tower-climb); 375 is fitted on REAL climbs (lane/c-tower-chest,
      `node tools/balance-sim/tower-climb.mjs --levels 10,20,30,45 --seeds 3 --starts -10,0,10 --who solo,pair,three,four`): the
      median hero alone reads 0.44 of hunting at Level 45 (0.47 / 0.43 / 0.64 at 10 / 20 / 30), a party a head about a third,
-     the best of 96 cells, three seeds each (a Level 30 bow restarting on its top landing) 0.80, none over; the best skill cell 0.94 of a Training
-     Yard hour (the yard costs gold and no stamina). The player's words are src/data/text/tower.js `xp`. */
+     the best of 96 cells, three seeds each (a Level 30 bow restarting on its top landing) 0.80, none over; the best skill cell 1.05 of a Training
+     Yard hour (the yard costs gold and no stamina). The player's words (drafts for the window lane): docs/planning/PRIORITY_BOARD.md
+     '2026-11-15 The Hearth Chest, and the Tower's XP fitted on real climbs'. */
   tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false, bestiary: false, stamina: true }),
 });
 

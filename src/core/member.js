@@ -340,7 +340,7 @@ export function memberSide(mi, ctx) {
       bonus, weakness, rollsVs, shotRolls,
       /* THE WORN +SKILL ({ skill: n } or null, combat.js SKILL_PLUS_FIELDS): what a spell's output and a bleed read on top of the base
          level (hunt/abilities.js powerLevel), live like rollsVs (the loadout can change mid-hunt: unhone). */
-      get skillPlus() { return eq.skillPlus || null; },
+      get skillPlus() { return /** @type {any} */ (eq).skillPlus || null; },
       /* THE RELIC MULTIPLIER (lane c-bestiary): the member's OWN account_bestiary.relic_mult
          { monster kind: mult } (mi.relicMults, server-side only: drops are never rolled for the
          browser), read by hunt-rewards.js as lead.relicMult(kind); 1 when absent, clamped to

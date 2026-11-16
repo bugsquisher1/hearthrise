@@ -304,7 +304,7 @@ const VERB_BASES = ('accept add affect afford aim allow apply arrive ask attack 
   + 'wear weave weigh wield win wish withdraw wither work worry wrap write yield').split(' ');
 const VERB_IRREGULAR = ('am is are was were been being has had does did done went gone got gotten made gave given took taken came saw seen knew '
   + 'known found left lost paid bought brought built caught chose chosen dealt drank drunk ate eaten fell fallen fed felt fought flew forgot froze '
-  + 'grew grown heard held hid hung kept laid led lent lit meant met rode rang rose ran said sold sent shook shot sat slept spoke spent spun stood '
+  + 'grew grown heard held hid hung kept laid led lent lit meant met rode rang rose ran said sold sent shook shot sat slept spoke spent spun spat stood '
   + 'stole stuck struck swore swept swung taught told thought threw woke wore worn won wound wrote written bore borne bound bled broke broken '
   + 'began begun bit bitten blew blown burnt dug drew drawn drove driven can could will would shall should may might must').split(' ');
 const VERBS = new Set(VERB_IRREGULAR);

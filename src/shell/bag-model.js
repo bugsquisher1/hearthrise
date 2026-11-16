@@ -24,6 +24,7 @@
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.132';
 import { MONSTERS } from '../data/monsters.js?v=0.2.132';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.132';
@@ -249,7 +250,7 @@ export function upgradeNeeds(home, chests) {
   if (!home) return null;
   const want = new Set();
   const step = (s) => { for (const it of s.items) want.add(it.id); };
-  const deed = home.tiers.find((t) => !t.owned);
+  const deed = home.tiers.find((tier) => !tier.owned);
   if (deed) step(deed);
   for (const r of home.rooms) if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);
   if (chests && chests.next && chests.next.canBuild) step(chests.next);
@@ -358,7 +359,7 @@ const STATS = Object.freeze([
   ['magicAtkB', 'Magic accuracy'], ['magicStrB', 'Magic damage'],
   ['critB', 'Critical chance', 'pct'], ['steadyPm', 'Damage taken', 'cut'],
   /* +SKILL while worn (src/core/combat.js SKILL_PLUS_FIELDS: a tower weapon's) */
-  ['meleePlus', 'Melee skill'], ['rangedPlus', 'Ranged skill'], ['magicPlus', 'Magic skill'], ['defensePlus', 'Defense skill'],
+  ['meleePlus', t('bag.stat_melee_plus')], ['rangedPlus', t('bag.stat_ranged_plus')], ['magicPlus', t('bag.stat_magic_plus')], ['defensePlus', t('bag.stat_defense_plus')],
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);

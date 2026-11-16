@@ -65,8 +65,10 @@ import { gold } from '../render/format.js?v=0.2.132';
 import { levelOf } from '../session/character-sections.js?v=0.2.132';
 import { ITEMS } from '../data/items.js?v=0.2.132';
 import { trackOnce } from '../net/observability.js?v=0.2.132';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 
-const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
+const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -160,7 +162,10 @@ function candidatesOf(cs, viewed) {
   /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. The character
      on screen gets the death POPUP instead (death-popup.js, Tyler 2026-10-19), and a death whose popup was
      already dismissed never comes back as a side line. */
-  if (h.ended && h.endReason === 'died') {
+  /* THE BURNING TOWER: the Hearth spat the hero out, no death (no popup either: death-popup.js); an ended line in the Tower's words */
+  if (h.ended && h.endReason === 'died' && h.huntId === TOWER_RULES.hunt) {
+    out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: null, quiet: viewed, text: t('tower.alert_spat', { name: who(cs) }) });
+  } else if (h.ended && h.endReason === 'died') {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
       text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
   }

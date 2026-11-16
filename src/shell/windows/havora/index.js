@@ -15,6 +15,8 @@ import { goldOf } from '../../../session/item-sections.js?v=0.2.132';
 import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.132';
 import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.132';
 import { ITEMS } from '../../../data/items.js?v=0.2.132';
+import { towerOf } from '../../../session/tower-sections.js?v=0.2.132';
+import { towerDoorHtml } from '../../tower-words.js?v=0.2.132';
 import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.132';
 import { whole, gold } from '../../../render/format.js?v=0.2.132';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.132';
@@ -77,6 +79,8 @@ export function renderHavora(ctx) {
     /* why the buy is off stands over it: under it, a phone sheet's foot lay on the line */
     + '<p class="hw-why hv-why" data-of="hearth"></p>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="powder"></button>'
+    /* THE BURNING TOWER is the Hearth's chimney (Tyler 2026-11-14): a second door to its window, only while the server sends its section */
+    + towerDoorHtml()
     + '</section>'
     + '<section class="hw-pane hv-pane" data-pane="round">'
     + '<p class="hv-lead">Stand a round at the Tavern. Fireworks go up over Hearth Square for ' + whole(SINK_RULES.round.seconds) + ' seconds, and the whole town hears who paid.</p>'
@@ -98,6 +102,7 @@ renderHavora.patch = function patchHavora(body, ctx) {
   if (want && TABS.some((t) => t.id === want)) { sc.tab = want; sc.msg = ''; }
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hv-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
+  prop(root.querySelector('.hv-tower'), 'hidden', !towerOf(cs));
   const purse = goldOf(cs);
   text(root.querySelector('.hv-gold'), purse === null ? '' : 'Purse: ' + gold(purse));
   const s = sc.sinks;
@@ -141,6 +146,7 @@ renderHavora.act = function actHavora(ctx, body, action, ev, t) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => ctx.refresh('havora');
+  if (action === 'tower') { if (towerOf(cs)) ctx.show('tower'); return true; }
   if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; body.scrollTop = 0; repaint(); return true; }
   if (WORKS_TAB.shown && actWorks(ctx, body, action, ev, t)) return true;
   if (action === 'pick') {

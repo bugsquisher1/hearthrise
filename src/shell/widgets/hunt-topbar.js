@@ -19,6 +19,7 @@ import { track } from '../../net/observability.js?v=0.2.132';
 import { refusalText } from '../intent-words.js?v=0.2.132';
 import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.132';
 import { connection } from '../../net/connection.js?v=0.2.132';
+import { patchTowerBar } from './tower-bar.js?v=0.2.132';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -39,6 +40,8 @@ function leavingLine(cd, waitedMs, state) {
 export function renderHuntTopbar() {
   return '<div class="ht-bar" role="group" aria-label="Hunt">'
     + '<b class="ht-ground"></b><span class="ht-clock" title="Time in this hunt"></span>'
+    /* THE BURNING TOWER: the floor standing and its time left (./tower-bar.js), quiet off the Tower */
+    + '<span class="ht-tower" role="timer" hidden><b class="ht-floor"></b><span class="ht-floor-left"></span></span>'
     /* The phone's bar has the width beside the Party panel only: "Details" and "Leave" there (hunt.css .ht-wide). */
     + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="Hunt details"><span class="ht-wide">Hunt </span>details</button>'
     + '<button type="button" class="hh-tool" data-hs-act="summary">Summary</button>'
@@ -64,6 +67,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname + hard);
   const ms = sessionClockMs(a, serverNowOf(ctx.character));
   text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));
+  patchTowerBar(el.querySelector('.ht-tower'), ctx.character, h);
   const leave = el.querySelector('.is-leave');
   /* LEAVING (the leave pends until the server's leave_at, 2026-10-31-live-horizon.sql): from the press
      until the hunt is over the button is off, and the line beside it says how long is left, counted

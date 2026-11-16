@@ -40,10 +40,14 @@ import { blessAll } from '../bless-all.js?v=0.2.132';
 import { blessingsOf } from '../../session/item-sections.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
+import { towerOf } from '../../session/tower-sections.js?v=0.2.132';
+import { TOWER_RULES } from '../../data/tower.js?v=0.2.132';
+import { climbEndLines } from '../tower-words.js?v=0.2.132';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => {
+  if (cur.hunt === TOWER_RULES.hunt) return t('tower.again_off');
   const room = roomOfHunt(cur.hunt);
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
   return callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.';
@@ -95,6 +99,7 @@ export function renderHuntSummary() {
        the first card); the gold press is the first open Back in town step, else "Hunt again" */
     + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="tower" hidden></button>'
     + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
@@ -154,7 +159,14 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     /* the newest hunt, none open: what the hero did after it, from the server's pointer (../after-hunt.js) */
     const after = cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '';
-    text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null) + (after ? ' ' + after : ''));
+    /* A CLIMB (the Burning Tower) says it in the Tower's words: spat out, the floors, the keys (../tower-words.js climbEndLines) */
+    const climb = climbEndLines(towerOf(cs), cur, TOWER_RULES.hunt);
+    const why = climb && climb.lines[0] ? climb.lines[0] : reasonWords(cur, nameOf(cs), st ? st.msLeft : null);
+    text(root.querySelector('.hsum-reason'), [why].concat(climb ? climb.lines.slice(1) : []).join(' ') + (after ? ' ' + after : ''));
+    const toTower = root.querySelector('[data-hs-act="tower"]');
+    prop(toTower, 'hidden', !climb || !towerOf(cs));
+    text(toTower, climb && climb.keys ? t('tower.end_open') : t('tower.havora_open'));
+    prop(toTower, 'disabled', sc.pending);
     /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
@@ -173,7 +185,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     itemLines(root.querySelector('.hsum-sup'), ctx, sup);
     cls(root.querySelector('.hsum-h-deaths'), 'is-on', cur.deaths.length > 0);
     lines(root.querySelector('.hsum-deaths'), ctx.doc, cur.deaths);
-    const again = huntAgainOf(cur);
+    /* a climb starts only at its own door, the Tower window (hr_tower_start): Hunt again has nothing to send for one */
+    const again = cur.hunt === TOWER_RULES.hunt ? null : huntAgainOf(cur);
     const route = again ? againRoute(partyMembershipOf(cs), again.hunt) : null;
     const go = root.querySelector('[data-hs-act="again"]');
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
@@ -285,6 +298,14 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
     return true;
   }
   if (action === 'bag') { ctx.show('inventory'); return true; }
+  /* a climb's card: the Tower window, on the Chest when the climb gave keys */
+  if (action === 'tower') {
+    const list = sanitizeSummaries(summariesOf(cs));
+    const cur = list.find((s) => s.id === sc.pick) || list[0];
+    const climb = towerOf(cs) ? climbEndLines(towerOf(cs), cur, TOWER_RULES.hunt) : null;
+    if (climb) ctx.wm.openTab('tower', climb.keys ? 'chest' : 'climb');
+    return true;
+  }
   if (action === 'expand') { ctx.show('storage'); return true; }
   if (action === 'again') {
     const list = summariesOf(cs);

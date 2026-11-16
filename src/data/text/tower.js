@@ -31,6 +31,10 @@ export const TOWER_TEXT = Object.freeze({
   story_4: 'Here\'s the good part. It can\'t kill you. It\'s the Hearth\'s own fire, and the Hearth only takes the dead. The second you feel death coming for you, it spits you out. You land on the ledge smelling like smoke, no worse off, and Holly tells you to mind the ash pile.',
   story_5: 'Keeper Rowe says any key you can reach is yours. Harry says he\'s hauled wood to that Hearth for years and never seen anybody carry a stick of it up there, so he\'d like to know what\'s burning.',
 
+  /* The Havora window's Hearth tab: the Tower's second door. */
+  havora_line: 'The Burning Tower is up the Hearth\'s chimney.',
+  havora_open: 'Burning Tower',
+
   /* THE CLIMB. */
   best: 'Your best is floor {floor}.',
   best_none: 'You haven\'t climbed yet.',
@@ -63,7 +67,7 @@ export const TOWER_TEXT = Object.freeze({
   cinders: 'You have {count} Tower Cinders.',
   no_keys: 'You don\'t have a key yet. Every {every}th floor of the Tower gives you one.',
   key_have: '{key}. You have {count}.',
-  key_where: '{bag} in your bag, {storage} in Storage.',
+  key_where: 'You have {bag} in your bag and {storage} in Storage.',
   key_base: '{pct}% to find a tower weapon.',
   key_warm: 'The Hearth is warm from your last {count} keys, so your chance is {times} times the usual.',
   key_cold: 'The Hearth is cold. Every key that finds no weapon warms it for the next.',
@@ -115,10 +119,13 @@ export const TOWER_TEXT = Object.freeze({
 
   /* THE END CARD of a climb. */
   end_spat: 'The Hearth spat you out on floor {floor}. You lost no XP.',
+  end_spat_plain: 'The Hearth spat you out. You lost no XP.',
+  end_time: 'You didn\'t clear that floor in time, so the climb ended and you came back to the ledge.',
+  again_off: 'You start a climb from the Tower window, at the Great Hearth.',
   end_climbed: 'You climbed from floor {from} to floor {to}.',
   end_no_floor: 'You didn\'t clear a floor this time.',
   end_key: 'You got a {key}. Use it on the chest at the Great Hearth.',
   end_keys: 'You got {list}. Use them on the chest at the Great Hearth.',
   end_open: 'Open chest',
-  alert_spat: '{name} was spat out of the Burning Tower on floor {floor}.',
+  alert_spat: '{name} was spat out of the Burning Tower. No XP lost.',
 });

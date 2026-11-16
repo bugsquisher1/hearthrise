@@ -8,6 +8,11 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const BAG_TEXT = Object.freeze({
+  /* +SKILL while worn (src/core/combat.js SKILL_PLUS_FIELDS: a tower weapon's), the item card's stat names */
+  stat_melee_plus: 'Melee skill',
+  stat_ranged_plus: 'Ranged skill',
+  stat_magic_plus: 'Magic skill',
+  stat_defense_plus: 'Defense skill',
   /* The selection line over the bulk tools: how many stacks, and what the shop would pay for them (the server's bids). */
   selected: '{count} selected',
   selected_worth: '{count} selected, worth {worth}',

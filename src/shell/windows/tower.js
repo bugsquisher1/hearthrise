@@ -27,7 +27,7 @@ import { floorList } from '../tower-words.js?v=0.2.132';
 import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.132';
 
 const TABS = Object.freeze(['climb', 'chest']);
-const STORY = Object.freeze(['story_1', 'story_2', 'story_3', 'story_4', 'story_5']);
+const STORY = Object.freeze(['tower.story_1', 'tower.story_2', 'tower.story_3', 'tower.story_4', 'tower.story_5']);
 const SCRATCH = new WeakMap();
 /* Display scratch per CharacterSession: the tab, the story shown, the floor picked (null: the highest the server lists), the chest's. */
 export const scratchOf = (cs) => {
@@ -62,7 +62,7 @@ export function renderTower(ctx) {
     + TABS.map((id, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">'
       + esc(t('tower.tab_' + id)) + '</button>').join('')
     + '</div><button type="button" class="hh-tool tt-story-link" data-hs-act="story" aria-expanded="false">' + esc(t('tower.story_link')) + '</button></div>'
-    + '<section class="tt-story" hidden>' + STORY.map((k) => '<p>' + esc(t('tower.' + k)) + '</p>').join('') + '</section>'
+    + '<section class="tt-story" hidden>' + STORY.map((k) => '<p>' + esc(t(k)) + '</p>').join('') + '</section>'
     + '<section class="hw-pane tt-pane" data-pane="climb">'
     + '<p class="tt-now" hidden></p>'
     + '<ul class="tt-sum"><li class="tt-sum-climb">' + esc(t('tower.sum_climb')) + '</li><li>' + esc(t('tower.sum_hunt')) + '</li>'

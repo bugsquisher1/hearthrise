@@ -1247,3 +1247,47 @@
   .tw-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
   .tw-skills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* ── THE BURNING TOWER (src/shell/windows/tower.js, tower-chest.js): two tabs and a Story link on the steel line; the six plain lines as a
+   short ledger, the start floors and the stokes as sunk steel picks (the picked one outlined in gold, as the yard's skills), the key's odds as
+   ledger lines with the chance in gold, and one gold press stuck to the foot. No card around anything. ── */
+.tt-tower [hidden] { display: none; }
+.tt-top { display: flex; align-items: flex-end; column-gap: 8px; margin-bottom: 8px; border-bottom: 2px solid var(--steel-sep); }
+.tt-top .hw-tabs { flex: 1 1 auto; margin-bottom: -2px; border-bottom: 0; }
+.tt-story-link { min-height: 32px; margin-bottom: 4px; padding: 0 10px; }
+.tt-story { margin: 0 0 10px; padding: 8px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.tt-story p { margin: 0 0 6px; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
+.tt-now { margin: 0 0 6px; font-weight: 700; color: var(--gold-2); }
+.tt-sum { list-style: none; margin: 0 0 6px; padding: 0; }
+.tt-sum li { margin: 0; padding: 4px 2px; border-top: 1px solid var(--line-soft); font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.tt-sum li:first-child { border-top: 0; }
+.tt-tower .hs-sub { margin-top: 10px; }
+.tt-line { margin: 0 0 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.tt-line:empty, .tt-tower .hs-note:empty { display: none; }
+.tt-starts, .tc-keys, .tc-stokes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.tt-start, .tc-pick, .tc-stoke { min-height: 36px; min-width: 48px; padding: 0 10px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink);
+  font-family: var(--f-label); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; cursor: pointer; }
+.tt-start:hover:not(:disabled), .tc-pick:hover:not(:disabled), .tc-stoke:hover:not(:disabled) { color: var(--gold-2); }
+.tt-start[aria-checked="true"], .tc-pick[aria-checked="true"], .tc-stoke[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold-2); }
+.tt-start:focus-visible, .tc-pick:focus-visible, .tc-stoke:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.tt-start:disabled, .tc-pick:disabled, .tc-stoke:disabled { opacity: .5; cursor: default; }
+.tc-key { margin: 4px 0 8px; }
+.tc-stoke-head { margin: 8px 2px 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
+.tc-chance { margin: 6px 2px 4px; font-weight: 700; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.tc-chance:empty { display: none; }
+.tt-result { margin: 0 0 8px; padding: 6px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.tt-found { margin: 0 0 2px; font-weight: 700; color: var(--gold-2); }
+.tt-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
+.tt-foot .hw-why { margin: 4px 2px 0; }
+.tt-go, .tc-use { display: block; width: 100%; min-height: 40px; margin: 6px 0; }
+.tc-use-all { display: block; width: 100%; min-height: 36px; margin: 0 0 4px; }
+.ht-tower { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: lining-nums tabular-nums; }
+.ht-tower .ht-floor { color: var(--gold-2); }
+.ht-tower.is-keeper .ht-floor { color: var(--gold); }
+.ht-floor-left { color: var(--ink); }
+.hv-tower { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 2px 0; font-size: var(--t-small); color: var(--ink); }
+.hv-tower[hidden] { display: none; }
+.hv-tower .hh-tool { min-height: 32px; padding: 0 10px; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .tt-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
+}

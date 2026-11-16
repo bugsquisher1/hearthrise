@@ -158,7 +158,7 @@ export default definePack({
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h, the Morrow's three open). Deaths alone:
      at the floor (165) a hammer, axes and a tank 238 each (about one a minute), a bow 69 in 4 h; at the top (185) a hammer 207 in 2.2 h, a tank
      159 in 2.9 h, a bow 52 in 4 h. A Mage alone 6 (the
-     ladder kit; since the Night Carter throws, lane/c-late-kits, the best-piece kit: 3 at the floor, 1 at the top, supplies 254k an hour). At the floor a pair with a Healer still dies (tank + Healer 28, hammer + Healer 39) and the
+     ladder kit; since Keeper Dunn throws, lane/c-late-kits, the best-piece kit: 0 at the floor and the top, supplies 75k to 135k an hour). At the floor a pair with a Healer still dies (tank + Healer 28, hammer + Healer 39) and the
      four holds (0): the Vaults' Dangerous is a four's tier, the armor past Dawnsteel this ground's own section names. */
   partyTiers: ['dangerous'],
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',

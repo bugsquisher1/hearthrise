@@ -68,6 +68,7 @@
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
 import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.132';
 import { SKILLS_DEF } from './skills.js?v=0.2.132';
+import { TOWER_RULES } from './tower.js?v=0.2.132';
 
 const BASE_HUNTS = Object.freeze([
   {
@@ -209,11 +210,22 @@ export const TRAINING_HUNTS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap
   train: Object.freeze({ place, skill }), band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'yard_dummy', w: 1 })]),
   family: 'Dummy', art: 'yard_dummy', travelS: 0, pull: 1, respawnMs: 10000 }))));
 
+/* THE BURNING TOWER (src/data/tower.js; Tyler 2026-11-14): one hunt, reached by one verb, hr_tower_start, and never listed: not in HUNTS, so no picker,
+   advice line, tally task or spawn table reads it; HUNT_INDEX names it for the top bar and the end card. `tower` marks it; the ground (hunt-grounds.js
+   TOWER_GROUNDS) carries the same. Its `spawns` are the catalogue's placeholder (the engine fields each floor's own room: src/core/hunt/tower.js), and
+   its band is every Level, from 1 (a floor reads like a Level, and nothing reads the hero's Level against it). The name and the theme are drafts (the
+   board's §8 card line), not through the reader gate. */
+export const TOWER_HUNTS = Object.freeze([Object.freeze({
+  id: TOWER_RULES.hunt, region: 'greenhaven', name: 'The Burning Tower',
+  theme: 'Every floor is harder than the last. The Hearth spits you out before anything can kill you, and it costs you nothing.',
+  tower: true, band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'rat', w: 1 })]),
+  family: 'Vermin', art: 'rat', travelS: 0, pull: TOWER_RULES.roomSize, respawnMs: TOWER_RULES.stairMs })]);
+
 /** The words a player reads for a spawn's rarity. */
 export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
-export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
+export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS, ...TOWER_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));
 
 /* A single-monster fight's walk, by the foe's tier: 0 for every tier until the

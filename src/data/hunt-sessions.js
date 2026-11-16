@@ -193,7 +193,9 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    killed one for NO_FIGHT_END_MIN (combat-sim.js, the world's `fightAt`). The server reads
    this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
    (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'left', 'changed', 'no_fight', 'server']);
+/* `floor_time` (the Burning Tower, src/core/hunt/tower.js; the board's §2 "Three minutes a floor, ten on a landing"): the room of the floor
+   standing was not cleared in its time, and the climb ends for everyone in it. Beside `boss_time`, the other room's limit. */
+export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server']);
 
 /* THE NO-FIGHT SPAN, in hunt minutes (the server reads it as hr_hunt_limits.no_fight_min). MEASURED on the real settle,
    every ground at its floor, solo and as a party with a Healer (tests/hunt-core/no-fight.mjs quiet-gaps): the longest
@@ -210,7 +212,7 @@ export const NO_FIGHT_END_MIN = 10;
    place later without touching the settle. A BENCH IS REMEMBERED BUT NEVER RESUMED
    (2027-02-15-panel-truth.sql hr_resume_has_inputs): a resume has no count, so it would spend
    a whole hunt's loot the player never pointed at. Gathering spends nothing and resumes. */
-export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'no_fight', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -239,6 +241,8 @@ export const END_REASON_COPY = Object.freeze({
   /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
   boss_felled: Object.freeze({ one: '{name} beat him and walked out of {ground}. There\'s a title for you under Titles in the Character window.' }),
   boss_time: Object.freeze({ one: 'The ten minutes ran out before he went down. {name} came home from {ground}.' }),
+  /* THE BURNING TOWER (a draft, not through the reader gate: the window and art lane words it with the rest of the Tower's lines). */
+  floor_time: Object.freeze({ one: 'The time on that floor ran out and the Hearth spat {name} back out onto the ledge.' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
   party_member_died: Object.freeze({ one: '{member} died, so {name} came home too.' }),

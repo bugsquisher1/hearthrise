@@ -39,6 +39,7 @@ import { staleIndex } from './unit-index.js?v=0.2.132';
 import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.132';
 import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.132';
 import { aimOf } from './shooters.js?v=0.2.132';
+import { towerOf, towerPull, towerCleared } from './tower.js?v=0.2.132';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -117,7 +118,8 @@ function placeRow(inst, p, s, sc, add) {
 export function spawnPack(inst, p, sc) {
   const w = inst.world;
   occupancy(inst);
-  for (const s of pullRows(inst.ground, p, w.density)) placeRow(inst, p, s, sc);
+  /* THE BURNING TOWER (tower.js): the room of the floor standing, whatever the density. */
+  for (const s of (towerOf(inst.ground) ? towerPull(inst, p) : pullRows(inst.ground, p, w.density))) placeRow(inst, p, s, sc);
   w.packs[p].alive = true;
   w.packs[p].aggro = false;
   w.packs[p].holder = null;
@@ -326,6 +328,8 @@ export function runPhase(inst, sc) {
   if (w.phase === PHASE.FIGHT) {
     const p = pocketNow(inst);
     if (!packMonsters(inst, p).length) {
+      /* THE BURNING TOWER (tower.js): the room is down, the heroes standing clear the floor and the stair opens (the respawn below). */
+      if (towerOf(inst.ground)) towerCleared(inst, sc);
       w.packs[p].alive = false;
       w.packs[p].aggro = false;
       w.packs[p].holder = null;

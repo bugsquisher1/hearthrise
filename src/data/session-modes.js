@@ -16,12 +16,12 @@
 //                bounds the debit by the same share (hr_death_xp_mode_max), so a bug in one can't cost anyone XP.
 //   blessings    a death uses up the Blessings held (blessings.js). False: a death leaves them for the next real hunt
 //                (hr_hunt_apply_member never calls hr_blessing_take).
-//   coin, drops  a kill pays coin / drops loot (no bones, no rare roll).                } What a mode PAYS is read from phase 2
-//   xpPm         a kill's Level and skill XP, in permille of the formula's.            } (the Tower's ground): the engine pays the
-//   bestiary     a kill counts for the Bestiary, tasks and Hearthfind.                  } row and the settle refuses a window that
-//   stamina      the session drains stamina as a hunt does.                             } pays more, in one change. Until then
-//                                                                                        } tools/gen-session-modes.mjs refuses a ground
-//                                                                                        } naming a mode that pays less than a hunt.
+//   coin, drops  a kill pays coin / drops loot (no bones, no rare roll).                } WHAT A MODE PAYS (lane/c-tower-climb, phase 2):
+//   xpPm         a kill's Level and skill XP, in permille of the formula's.            } the engine pays the row (sessionPayOf: src/core/
+//   bestiary     a kill counts for the Bestiary, tasks and Hearthfind.                  } hunt-rewards.js, xp-share.js) and the settle
+//   stamina      the session drains stamina as a hunt does.                             } refuses a window that pays more (`mode_pays`,
+//                                                                                        } and every XP bound at xpPm:
+//                                                                                        } 2027-04-24-tower-climb.sql). TWO LOCKS again.
 //
 // THE LOAD-TIME RULE (it can't be farmed, and that is a rule on the table): a mode whose death costs less than the full price
 // must pay no coin, no drops and no Bestiary, or this module does not load (and so neither does the engine, the edge or the
@@ -77,4 +77,12 @@ if (PROBLEMS.length) throw new Error('src/data/session-modes.js does not load: '
 export function sessionModeOf(id) {
   const k = id === undefined || id === null ? DEFAULT_SESSION_MODE : String(id);
   return Object.hasOwn(SESSION_MODES, k) ? SESSION_MODES[k] : null;
+}
+
+/** WHAT A KILL PAYS in the mode `id` names (absent: the default): { xpPm, coin, drops, bestiary }, the engine's one read of it
+    (src/core/combat-sim.js hands it to the rewards and the split). An id no row has is a refusal, never a guess. */
+export function sessionPayOf(id) {
+  const m = sessionModeOf(id);
+  if (!m) throw new Error('sessionPayOf: ' + String(id) + ' is no session mode (src/data/session-modes.js)');
+  return Object.freeze({ xpPm: m.xpPm, coin: m.coin, drops: m.drops, bestiary: m.bestiary });
 }

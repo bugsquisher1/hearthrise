@@ -135,6 +135,11 @@ export async function loadPlay(root) {
     const common = new Set();
     for (const p of ground.pockets) for (const s of p.spawns) for (const d of monsters[s.monster].drops) if (commonRow(d)) common.add(d.id);
     let world = null, next = T0, played = 0;
+    /* opts.sessionMode: the instance's frozen session mode (src/data/session-modes.js), as the server's read hands it. opts.tower { floor }: a
+       Burning Tower climb from that floor; each window is handed the floor the server's run would say (the start, or the highest floor a hero
+       cleared + 1: hr_hunt_instance_read `tower_floor`), and the floors each hero cleared are kept as the server keeps them. */
+    let towerTop = null;
+    const towerFloors = {};
     const T = { xp: 0, levelXp: 0, coin: 0, commons: 0, rares: 0, store: 0, falls: 0, kills: 0, ended: [], buys: {} };
     const items = {}, heroItems = {}, killsBy = {}, heroXp = {}, heroRares = {}, rareRolls = [];
     const WIN = Number.isInteger(opts.windowMs) && opts.windowMs > 0 ? opts.windowMs : 600000;
@@ -145,7 +150,8 @@ export async function loadPlay(root) {
       /* the settle's engine time, measured as hunt-settle.js proposeHuntSettle measures it (accrueHunt is synchronous) */
       const t0 = performance.now();
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + WIN) },
-        secret, ground, grid, items: ITEMS, monsters, members: playing });
+        secret, ground, grid, items: ITEMS, monsters, members: playing, ...(opts.sessionMode ? { sessionMode: opts.sessionMode } : {}),
+        ...(opts.tower ? { towerFloor: towerTop === null ? opts.tower.floor : towerTop + 1 } : {}) });
       const engineMs = performance.now() - t0;
       if (!out.accrued) continue;
       /* opts.onWindow(out, members, engineMs): an observer of each settled window's events and members (party-defense.mjs),
@@ -182,6 +188,7 @@ export async function loadPlay(root) {
         /* the settle's rare-drop hints (accrual.js huntProposal): the reveals the database journals as rare_drop events */
         for (const rd of (h.hints && h.hints.rare_drop) || []) (heroRares[p.key] = heroRares[p.key] || []).push(rd.item);
         if (h.ended && !m.ended) T.ended.push(p.key + ' ' + h.ended.reason);
+        for (const f of (h.tower && h.tower.floors) || []) { (towerFloors[p.key] = towerFloors[p.key] || []).push(f); towerTop = Math.max(towerTop ?? 0, f); }
         m.huntSession = Object.assign({}, m.huntSession, { swingIndex: h.swing_to, nextSwingAtMs: Date.parse(h.next_swing_at), staminaMs: h.stamina,
           bag: Object.fromEntries(Object.entries(m.huntSession.bag).map(([id, l]) => [id, { ...l, left: (l.left ?? l.loaded) - (h.uses[id] || 0) }])),
           /* a training item's hours, spent as the server spends them (the window's claim, journal meta.boost_ms) */
@@ -201,7 +208,8 @@ export async function loadPlay(root) {
     return { grid, spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, heroRares, rareRolls, killsBy, heroes: members.map((m) => m.key),
       members: members.map((m) => ({ key: m.key, levelXp: m.levelXp, skills: { ...m.skills }, gold: m.gold, hp: m.hp, ended: m.ended || null })),
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
-      margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };
+      margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended,
+      ...(opts.tower ? { tower: { top: towerTop, floors: towerFloors } } : {}) };
   };
   /* kitFor(L, role, full): the worn set a measured hero at Level L wears (the ladder kit, or the full own-tier set), so a
      test can wear one hero differently and the rest as measured (drop-tables.mjs ranger-floor: the crossbow and shield). */

@@ -4489,7 +4489,7 @@ const MUTANTS = [
   { arm: 'RARE-DROP', name: 'the session never journals a rare drop (no hint)', file: join(FN, 'accrual.js'),
     from: "    else if (e.type === 'rare_drop' && e.item) hints.rare_drop.push(", to: "    else if (false) hints.rare_drop.push(" },
   { arm: 'SPLIT', name: 'only the killer counts the kill', file: 'src/core/hunt-rewards.js',
-    from: '  for (const m of present) countKill(m, kind);', to: '  countKill(lead, kind);' },
+    from: '  for (const m of present) countKill(m, kind, !pay || pay.bestiary);', to: '  countKill(lead, kind, !pay || pay.bestiary);' },
   { arm: 'DEATH', name: 'a death does not end the hunt', file: 'src/core/action-rules.js',
     from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
   { arm: 'DEATH', name: 'a dead hero walks home at 0 HP', file: 'src/core/combat-sim.js',

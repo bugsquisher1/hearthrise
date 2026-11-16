@@ -53,10 +53,10 @@ export function towerLevelOf(floor) {
 }
 
 /** Is floor `floor` a landing (its room holds a Keeper)? */
-export const isLanding = (floor) => Number.isInteger(floor) && floor > 0 && floor % TOWER_RULES.landingEvery === 0;
+const isLanding = (floor) => Number.isInteger(floor) && floor > 0 && floor % TOWER_RULES.landingEvery === 0;
 
 /** How long floor `floor`'s room may stand before the climb ends `floor_time`. */
-export const towerLimitMs = (floor) => (isLanding(floor) ? TOWER_RULES.landingLimitMs : TOWER_RULES.floorLimitMs);
+const towerLimitMs = (floor) => (isLanding(floor) ? TOWER_RULES.landingLimitMs : TOWER_RULES.floorLimitMs);
 
 /* THE LADDER the rooms are picked from: every OPEN hunt with a roster, its band and its monsters' roles (a monster on two grounds keeps
    one role: the sheet's rule). Read once, on first use, from the data the whole engine reads. */

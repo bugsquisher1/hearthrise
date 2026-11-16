@@ -122,10 +122,10 @@ export function newHuntWorld(ground, grid, party, o) {
       : densityFor(ground, party.length, partyPick(party.map((h, i) => ({ density: h.density, lead: h.lead === true, seat: i })))) });
   world.units = units;
   /* THE BURNING TOWER: the floor is a working value of the span (never encoded); the room's start is the pocket's persisted respawn instant. */
-  if (o && o.tower) world.towerFloor = o.tower.floor;
+  if (o && o.tower) /** @type {any} */ (world).towerFloor = o.tower.floor;
   const inst = { world, ground, grid, occ: null, tier: (o && o.tier) || null, makeUnit, monsters: (o && o.monsters) || MONSTERS };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);
-  if (o && o.tower) world.packs[0].respawnAtMs = o.tower.atMs;
+  if (o && o.tower) /** @type {any} */ (world).packs[0].respawnAtMs = o.tower.atMs;
   return world;
 }
 

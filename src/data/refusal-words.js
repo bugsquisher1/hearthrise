@@ -345,6 +345,9 @@ export const REFUSAL_WORDS = Object.freeze({
   activity_running: 'Your hero is busy with something else. Stop it first.',
   same_hunt: 'You are already hunting there.',
   training_only: 'That spot is for training. Start it from the Training window.',
+  /* The Burning Tower (2027-04-24-tower-climb.sql): its one door is hr_tower_start. Drafts: the window and art lane words the Tower. */
+  tower_only: 'The Burning Tower is entered from the Great Hearth.',
+  in_party: 'The Tower is climbed alone for now. Leave your party first.',
   dummy_max: 'Your dummy trains every skill already.',
   /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
   buy_limit: 'That is all you can buy today. Try again after midnight UTC.',

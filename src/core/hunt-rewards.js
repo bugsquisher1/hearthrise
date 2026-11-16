@@ -77,15 +77,16 @@ function countKill(m, kind, bestiary) {
    order; `ids` their unit ids), and the Hearthfind for `killer`. A rare unit
    goes to the rare roll, its rotation kept on `world.rareWon`. */
 function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
-  const row = (ctx.monsters || MONSTERS)[kind];
-  if (!row) return;
-  const rng = ctx.rng;
-  /* WHAT THE SESSION MODE PAYS (session-modes.js; ctx.pay, absent in a full hunt): a mode that pays no coin, no drops or no Bestiary draws
-     nothing for it and pays nothing for it, by this one door (the settle refuses a window that says otherwise: mode_pays). */
+  /* WHAT THE SESSION MODE PAYS (session-modes.js; ctx.pay, absent in a full hunt): a mode that pays no coin or no drops kills a row that
+     has none, by this one door (the settle refuses a window that says otherwise: mode_pays); one that counts no Bestiary counts the
+     session's kill and nothing else (countKill), and draws no Hearthfind. */
   const pay = ctx.pay || null;
-  const lead = killer || present[0];
+  const row0 = (ctx.monsters || MONSTERS)[kind];
+  if (!row0) return;
+  const row = !pay || (pay.coin && pay.drops) ? row0 : { ...row0, ...(pay.coin ? {} : { gp: null }), ...(pay.drops ? {} : { drops: [] }) };
+  const rng = ctx.rng;
   /* THE ROW'S WHOLE KILL for every party size (Tyler 2026-11-08: one difficulty for every group), shared by who was there. */
-  const gp = Array.isArray(row.gp) && !(pay && !pay.coin) ? rng.int(row.gp[0], row.gp[1]) : 0;
+  const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;
   /* The remainder's first seat moves with the kill: the dead monster's unit and the swing, both on the stored world, so
      any cut of the windows pays the same shares, and no die is drawn (the loot stream below stays where it was). */
   const shares = splitEven(Math.max(0, gp), present.length, (Number(monId) || 0) + (Number(world.swing) || 0));
@@ -93,7 +94,8 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
     const g = applyGoldFind(shares[i], m.bonus);
     if (g > 0) { m.state.gold = (m.state.gold || 0) + g; call(m.fx, 'onLoot', g, row); }
   });
-  const rolled = pay && !pay.drops ? { events: [] } : rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate') }, rng);
+  const lead = killer || present[0];
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate') }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
   for (const ev of rolled.events) {

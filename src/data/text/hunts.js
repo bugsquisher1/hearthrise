@@ -79,4 +79,12 @@ export const HUNTS_TEXT = Object.freeze({
   fit_in: 'In your range',
   heroes_up_to: 'Alone or with up to {n} more',
   heroes_one: 'One hero',
+
+  /* The hunt bar and the analyzer (src/shell/widgets/hunt-topbar.js, analyzer.js); a training session's own words are training.bar_*. */
+  bar_clock_title: 'Time in this hunt',
+  bar_details: 'Hunt details',
+  bar_details_word: 'details',
+  bar_leave: 'Leave hunt',
+  an_title: 'Hunt analyzer',
+  an_skill: 'Skill',
 });

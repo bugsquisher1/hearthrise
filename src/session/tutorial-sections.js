@@ -32,6 +32,7 @@ import { homeOf, chestsOf } from './home-sections.js?v=0.2.132';
 import { tallyOf } from './tally-sections.js?v=0.2.132';
 import { temperFirstRungOf } from './temper-sections.js?v=0.2.132';
 import { partyMembershipOf } from './party-sections.js?v=0.2.132';
+import { trainingOf, quoteFor } from './training-sections.js?v=0.2.132';
 import { wearsArmour } from '../core/vitals.js?v=0.2.132';
 import { ITEMS } from '../data/items.js?v=0.2.132';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
@@ -185,7 +186,17 @@ export function pointerCardOf(cs, sh) {
   return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
     gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home,
-    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper });
+    roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper,
+    training: trainingRunOf(cs) });
+}
+
+/* The running training session as the server's `training` section states it: its run's skill, and that skill's level and hours to the next
+   (its quote), or null when none runs. */
+function trainingRunOf(cs) {
+  const tr = trainingOf(cs);
+  if (!tr || !tr.run) return null;
+  const q = quoteFor(tr, tr.run.skill);
+  return { skill: tr.run.skill, level: q ? q.level : null, hoursToNext: q ? q.hoursToNext : null };
 }
 
 /* The ACCOUNT's field as the server last said (2026-12-14-shared-farm: one field for every hero, and any hero may

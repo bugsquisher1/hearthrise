@@ -1304,7 +1304,8 @@ function madeWords(lv, said, role) {
  * Or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, land, inParty, gold, slotCost, slotsOwned, home, roster, visited, staminaMs, refill, tally } (skillLevel: the
  * role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when unknown; land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } },
  * or null when the server has not sent it; inParty: the hero sits in a party of 2+; roster: the account's heroes; visited: a Set of the grounds this hero has hunted; refill: the server's next
- * stamina quote; tally: { held }). Answers { id, title, text, also }; the id names every goal, so it changes whenever a goal comes or goes (the hunt top bar redraws on a new id, and a number
+ * stamina quote; tally: { held }; training: the running training session, { skill, level, hoursToNext } from the server's
+ * training section, or null). Answers { id, title, text, also }; the id names every goal, so it changes whenever a goal comes or goes (the hunt top bar redraws on a new id, and a number
  * changing inside a goal follows in place: launcher.js sameCardWords).
  */
 export function nextGoal(facts) {
@@ -1312,9 +1313,18 @@ export function nextGoal(facts) {
   const lines = [];
   const ids = ['goal'];
   const visited = (h) => facts.visited instanceof Set && facts.visited.has(h);
+  /* A TRAINING SESSION RUNNING (the server's `training` section: its run's skill, and that skill's quote): the goal is the skill it trains,
+     never the armour line (a Melee session read "Your Defense isn't training", lane/a-training-leftovers; a Defense session at the yard
+     trains Defense with no armour on). Its time to the next level is the server's. */
+  const train = facts.training && SKILLS_DEF[facts.training.skill] ? facts.training : null;
+  if (train) {
+    if (Number.isInteger(train.level) && Number.isInteger(train.hoursToNext)) {
+      lines.push(t('training.coach_next', { hours: t('training.time_hours', { count: Math.max(1, train.hoursToNext) }), skill: SKILLS_DEF[train.skill].name, level: train.level + 1 }));
+      ids.push('training', train.skill);
+    }
   /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
      kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
-  if (facts.defenseXp === 0) {
+  } else if (facts.defenseXp === 0) {
     lines.push('Your Defense isn\'t training. It only rises while you wear armor. The Shop sells gloves and belts.');
     ids.push('armour');
   }

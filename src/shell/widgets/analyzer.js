@@ -47,7 +47,7 @@ import { t } from '../../render/player-text.js?v=0.2.132';
 /* A TRAINING SESSION (../training-now.js; lane/a-training-display): it showed "Monsters killed 0, Level XP 0, Gold 0". While one runs the
    panel shows the trained skill's level and its progress (the server's skill_levels), its XP an hour, the hour's fee and the gold paid
    (the server's training section), and none of the hunt's rows (hunt.css .is-training). Not premium: the Training window shows them all. */
-const TRAIN_HTML = '<div class="ha-train" hidden><div class="ha-train-level"><span class="ha-train-lv"></span>' + skillBarHtml('Skill')
+const TRAIN_HTML = '<div class="ha-train" hidden><div class="ha-train-level"><span class="ha-train-lv"></span>' + skillBarHtml(t('hunts.an_skill'))
   + '<small class="hw-skill-xp"></small></div><dl class="ha-stats">'
   + '<dt class="ha-train-xp-label"></dt><dd data-train="xp"></dd>'
   + '<dt>' + esc(t('training.an_fee_h')) + '</dt><dd data-train="fee"></dd>'
@@ -130,7 +130,7 @@ export function renderAnalyzer(ctx) {
     + '<div class="ha-tabs" role="tablist">' + TABS.map(([id, label], i) => '<button type="button" role="tab" class="ha-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (premiumTab(id) ? ' data-premium' : '') + '>' + label + '</button>').join('') + '</div>'
     + '<div class="ha-scroll">' + TRAIN_HTML + SECTIONS.map(sectionHtml).join('') + '</div>'
     + '<p class="hs-note ha-more" hidden>More detail with premium.</p></div>';
-  return panelHtml('ha-analyzer', 'Hunt analyzer', tools, body, true);
+  return panelHtml('ha-analyzer', t('hunts.an_title'), tools, body, true);
 }
 
 function lineHtml() {
@@ -209,7 +209,7 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   const tn = trainingNowOf(ctx.character, serverNowOf(ctx.character));
   cls(panel, 'is-training', !!tn);
   prop(panel.querySelector('.ha-train'), 'hidden', !tn);
-  text(panel.querySelector('.hh-panel-title'), tn ? t('training.an_title') : 'Hunt analyzer');
+  text(panel.querySelector('.hh-panel-title'), t(tn ? 'training.an_title' : 'hunts.an_title'));
   if (tn) patchTraining(panel.querySelector('.ha-train'), tn, ctx.character);
   cls(panel, 'is-waiting', !a && !tn);
   /* The premium rows: shown only to a premium character; a free one gets the one quiet line. */

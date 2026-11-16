@@ -43,13 +43,13 @@ export function renderHuntTopbar() {
     /* A TRAINING SESSION (../training-now.js; lane/a-training-display) says what it does and where ("Training Melee", and on a wide bar
        "at the Training Yard"), its time left and the hour's fee, every figure the server's; Hunt details reads Details and Leave hunt
        Stop training. */
-    + '<b class="ht-ground"><span class="ht-name"></span><span class="ht-wide ht-at"></span></b><span class="ht-clock" title="Time in this hunt"></span>'
+    + '<b class="ht-ground"><span class="ht-name"></span><span class="ht-wide ht-at"></span></b><span class="ht-clock" title="' + t('hunts.bar_clock_title') + '"></span>'
     + '<span class="ht-wide ht-fee" hidden></span>'
     /* The phone's bar has the width beside the Party panel only: "Details" and "Leave" there (hunt.css .ht-wide). */
-    + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="Hunt details"><span class="ht-wide ht-hunt-word">Hunt </span><span class="ht-det-word">details</span></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="' + t('hunts.bar_details') + '"><span class="ht-wide ht-hunt-word">Hunt </span><span class="ht-det-word">' + t('hunts.bar_details_word') + '</span></button>'
     + '<button type="button" class="hh-tool" data-hs-act="summary">Summary</button>'
     + '<span class="ht-leaving" role="timer" hidden></span>'
-    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="Leave hunt"><span class="ht-leave-hunt">Leave<span class="ht-wide"> hunt</span></span>'
+    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="' + t('hunts.bar_leave') + '"><span class="ht-leave-hunt">Leave<span class="ht-wide"> hunt</span></span>'
     + '<span class="ht-leave-train" hidden>' + t('training.bar_stop') + '<span class="ht-wide"> ' + t('training.bar_stop_wide') + '</span></span></button>'
     + '<span class="hh-intent-msg" role="status" aria-live="polite"></span></div>'
     /* The phone's one line under the bar while a leave counts down (hunt.css): what the wait is for. */
@@ -76,16 +76,16 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const left = !!train && train.leftMs !== null;
   const clk = el.querySelector('.ht-clock');
   text(clk, left ? t('training.bar_left', { time: clock(train.leftMs) }) : ms === null ? '' : clock(ms));
-  attr(clk, 'title', left ? t('training.bar_left_title') : 'Time in this hunt');
+  attr(clk, 'title', left ? t('training.bar_left_title') : t('hunts.bar_clock_title'));
   const fee = el.querySelector('.ht-fee');
   text(fee, train && train.feeH !== null ? t('training.bar_fee', { gold: whole(train.feeH) }) : '');
   prop(fee, 'hidden', !(train && train.feeH !== null));
   prop(el.querySelector('.ht-hunt-word'), 'hidden', !!train);
-  text(el.querySelector('.ht-det-word'), train ? 'Details' : 'details');
+  text(el.querySelector('.ht-det-word'), t(train ? 'training.bar_details' : 'hunts.bar_details_word'));
   const leave = el.querySelector('.is-leave');
   prop(leave.querySelector('.ht-leave-hunt'), 'hidden', !!train);
   prop(leave.querySelector('.ht-leave-train'), 'hidden', !train);
-  attr(leave, 'aria-label', train ? t('training.bar_stop') + ' ' + t('training.bar_stop_wide') : 'Leave hunt');
+  attr(leave, 'aria-label', train ? t('training.bar_stop') + ' ' + t('training.bar_stop_wide') : t('hunts.bar_leave'));
   /* LEAVING (the leave pends until the server's leave_at, 2026-10-31-live-horizon.sql): from the press
      until the hunt is over the button is off, and the line beside it says how long is left, counted
      to the SERVER's leave_at on the server's clock (CharacterSession.leaveCountdown), never a device
@@ -107,7 +107,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
      no Leave hunt, no Hunt details, no clock. Follows the server's hunt section, replaced each envelope. */
   prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));
   const details = el.querySelector('[data-hs-act="details"]');
-  attr(details, 'aria-label', train ? 'Details' : 'Hunt details');
+  attr(details, 'aria-label', t(train ? 'training.bar_details' : 'hunts.bar_details'));
   prop(details, 'hidden', over);
   attr(details, 'aria-pressed', String(analyzerOpen(ctx)));
   prop(el.querySelector('.ht-clock'), 'hidden', over);

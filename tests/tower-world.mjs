@@ -139,7 +139,7 @@ try {
   await p.shot('tower-chest-1440x900');
   const cinders0 = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_cinders'`, [uid]);
   await p.page.click('[data-hs-win="tower"] .tc-use');
-  const drawn = await until(p.page, () => /The chest gave you|No weapon this time/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''), null, 30000);
+  const drawn = await until(p.page, () => /^Found: |No weapon/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''), null, 30000);
   const opens = await sql('select key_id, stokes, weapon from public.chest_opens where user_id = $1', [uid]);
   const left = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_key_bronze'`, [uid]);
   const cinders1 = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_cinders'`, [uid]);

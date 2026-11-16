@@ -20,7 +20,7 @@
 //              share; a room that stood its time ends the climb `floor_time` for everyone in it
 //   TC-DOORS   one hero from floor 1, the browser closed and the hunt viewed: the same floors land (the run's top, its floors and kills),
 //              landing 10's row this week once and its journal row, the hero's best, the end `died` with no death_xp row and the
-//              Blessings untouched, no coin credited, no item, no ev: count; the run's end stamped and journalled once; the two doors
+//              Blessings untouched, no coin credited, no item but one key a landing (the chest lane), no ev: count; the run's end stamped and journalled once; the two doors
 //              land the same rows
 //   TC-FORGED  the settle refuses a forged window: a skipped floor, a repeated floor, a floor added past what the engine cleared, a floor
 //              claimed off the Tower, coin, an item, a Bestiary count, inflated Level XP; the untampered window lands (the control)
@@ -52,7 +52,7 @@ async function load(root) {
   const { loadPlay } = await import(u('tests/hunt-core/fixtures/play-ground.mjs'));
   return { ...(await H.loadEdge(root)), T: await import(u('src/core/hunt/tower.js') + V), TD: await import(u('src/data/tower.js') + V),
     MON: await import(u('src/data/monsters.js') + V), BS: await import(u('src/data/balance-sheet.js') + V),
-    G: await import(u('src/data/hunt-grounds.js') + V), SMD: await import(u('src/data/session-modes.js') + V), HG: await import(u('src/core/hunt-ground.js')),
+    G: await import(u('src/data/hunt-grounds.js') + V), SMD: await import(u('src/data/session-modes.js') + V), CH: await import(u('src/data/chests.js') + V), HG: await import(u('src/core/hunt-ground.js')),
     P: await loadPlay(root), root };
 }
 
@@ -254,7 +254,11 @@ async function doorsArm(db, M) {
     for (const k of Object.keys(s0.skills || {})) if (Number((s1.skills || {})[k]) < Number(s0.skills[k])) bad.push(`${tag} ${k} fell ${s0.skills[k]} -> ${s1.skills[k]}`);
     if (Number(s1.coin_rows) !== 0) bad.push(`${tag} ${s1.coin_rows} ledger row(s) credited coin`);
     if (Number(s1.ev) !== Number(s0.ev)) bad.push(`${tag} a Bestiary or task count moved (${s0.ev} -> ${s1.ev})`);
-    if (JSON.stringify(s1.items || {}) !== JSON.stringify(s0.items || {})) bad.push(`${tag} the bag moved ${JSON.stringify(s0.items)} -> ${JSON.stringify(s1.items)}`);
+    /* the bag moves by the landings' keys alone (2027-04-27-tower-chest.sql hr_tower_key_mint: one key a landing row, src/data/chests.js keyForLanding) */
+    const keyed = { ...(s0.items || {}) };
+    for (const [l] of s1.landings || []) { const kr = M.CH.keyForLanding(l); if (kr) keyed[kr.item] = (keyed[kr.item] || 0) + 1; }
+    const sorted = (o) => JSON.stringify(Object.keys(o).sort().map((x) => [x, o[x]]));
+    if (sorted(s1.items || {}) !== sorted(keyed)) bad.push(`${tag} the bag moved ${JSON.stringify(s0.items)} -> ${JSON.stringify(s1.items)}, not by one key a landing`);
   }
   if (runs.closed && runs.viewed) {
     const sig = (r) => JSON.stringify([r.s1.run, r.s1.best, r.s1.landings, r.s1.level_xp, r.s1.skills, r.s1.end]);
@@ -366,6 +370,8 @@ async function startArm(db, M) {
 }
 
 const ARMS = { room: roomArm, engine: engineArm, doors: doorsArm, forged: forgedArm, start: startArm };
+/* THE CLIMB'S HARNESS, shared (tests/tower-chest.mjs mints its keys through these climbs, both doors). */
+export const HARNESS = Object.freeze({ boot, load, climber, drive, rows, UID, SPAN });
 
 /* ── THE MUTANTS ──────────────────────────────────────────────────────────── */
 const MUTANTS = [

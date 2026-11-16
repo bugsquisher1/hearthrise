@@ -9,10 +9,6 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **When the hunt ends.** On a hunt's page you can now pick what your hero does after the hunt. It can go back to its job, wait in town or train a skill at the yard. Yard time is charged when the training starts. Crafting jobs now pick up again after a hunt too, for what they still had left to make when you set off. If you leave a hunt yourself, your hero waits in town.
 
-**The First Flame and the Last Ember.** After your first Lord Krell kill your hero can join a side from the Faction tab on the hero screen. Standing comes from hunting on your side's grounds, which open with the next region, and it unlocks that side's outfit pieces. It buys looks only.
-
-**Training gear.** The Arms Master sells a Training Sword, Bow, Wand and Shield in 12 hour and 24 hour sizes. While its hours last your hero trains that skill at 200% of the usual rate. The hours only run down while you train that skill.
-
 **Training.** A training session now shows what is going on in the hunt bar, the hunt analyzer and the World line. Its end card and coach card talk about the training, not a hunt. On a phone the analyzer fits over the town.
 
 **Shorter game text.** Menus, buttons and settings now use short labels instead of full sentences. For example Gold to keep is now Gold reserve. Story text is unchanged.

@@ -78,7 +78,10 @@ export default definePack({
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: one of Gault's living runners, carrying live coals in a tin from one of his fires to the next. He throws one at you, and
-         it splashes the tiles around where it lands (Hot Coal, `spells`). Human, no override. Gault's caster pieces: the wand and the codex. */
+         it splashes the tiles around where it lands (Hot Coal, `spells`). Between coals he throws stones, from 6 tiles
+         (`range`, src/core/hunt/shooters.js: lane/c-late-kits, the board's "2026-11-15 The late grounds' throwers"), so a Mage standing back at
+         its 6 is in reach. Human, no override. Gault's caster pieces: the wand and the codex. */
+      range: 6,
       spells: ['hot_coal'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'runners_tin', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_wand', ch: 0.026, band: 'scarce' }, { id: 'duskwood_codex', ch: 0.00256, band: 'rare' }],
@@ -94,7 +97,10 @@ export default definePack({
     drover: {
       name: 'Drover', icon: '🦯', tier: 6, level: 121, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: Gault's living man who walks the dead teams up the road. He jabs a fallen one with his goad, says the words, and it gets
-         back up a bit healthier (Goad, a mend, `spells`). Kill him first, or kill the ox first. Human, no override. The staff off his wagon. */
+         back up a bit healthier (Goad, a mend, `spells`). Kill him first, or kill the ox first. A drover walks behind his teams, and he does: he
+         stays back and throws stones at whoever stands farthest back, from 6 tiles (`range`, as the Coal Runner: lane/c-late-kits). Human, no
+         override. The staff off his wagon. */
+      range: 6,
       spells: ['goad'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'dawnstone_ore', ch: 0.2, band: 'common' }, { id: 'drovers_goad', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_staff', ch: 0.045, band: 'scarce' }],

@@ -5,8 +5,8 @@
 //
 // STAGED, A SAMPLE. The map is still Wickstead's layout under a new id (map.js): the inn is not drawn and there is no art. The three spells are
 // stand-ins from rows that exist (the Slate Thrower's Poacher's Volley, the Stable Troll's Lash Sweep, the Troll Brewer's Blasting Charge), so the
-// grader plays something close to the design. The ground's own spell rows, a monster that shoots from range and its drop chances fitted on
-// drop-tables are the pack lane's. Nothing here is served or listed.
+// grader plays something close to the design. The Slate Thrower and the Brewer throw from range (`range` 6, lane/c-late-kits). The ground's own
+// spell rows and its drop chances fitted on drop-tables are the pack lane's. Nothing here is served or listed.
 //
 // THE PLACE. Carter's Rest was the halfway inn on the road from Krell's Hold up to Morrow. Krell shut the road years ago, the carters stopped
 // coming, and a family of hill trolls moved in. Harry's cart is parked in the yard, because the trolls are between him and Morrow.
@@ -73,7 +73,10 @@ export default definePack({
       hp: 146, atk: 97, baseAcc: 0.94, def: 50, xp: 1567, gp: [31, 92], formula: true },
     slate_thrower: {
       name: 'Slate Thrower', icon: '🧌', tier: 6, level: 114, cls: 'humanoid', family: 'Troll', speed: 3000,
-      /* the glass: a lanky troll on the roof, pulling slates and throwing them at whoever stands farthest back. Poacher's Volley stands in for the throw. */
+      /* the glass: a lanky troll on the roof, pulling slates and throwing them at whoever stands farthest back. HE THROWS (`range`, src/core/hunt/shooters.js)
+         from 6 tiles and stays on the roof: a Mage at its 6 is in reach (lane/c-late-kits, the board's "2026-11-15 The late grounds' throwers"), a bow's
+         7 still out-reaches him. Poacher's Volley stands in for his spell. */
+      range: 6,
       spells: ['poachers_volley'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'roof_slate', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_gauntlets', ch: 0.0022, band: 'rare' }, { id: 'dawnhide_gloves', ch: 0.0022, band: 'rare' }, { id: 'duskweave_gloves', ch: 0.0022, band: 'rare' }],
@@ -88,7 +91,9 @@ export default definePack({
     troll_brewer: {
       name: 'Troll Brewer', icon: '🧌', tier: 6, level: 119, cls: 'humanoid', family: 'Troll', speed: 3000,
       /* the regular: she kept the inn's kettles going and throws the boiling mash over everyone. Blasting Charge stands in for it, a group fire
-         spell. The tongs came off a priest of Krell's who came through with a live coal. */
+         spell. She stays back by her kettles and throws the mugs too (`range` 6, as the Slate Thrower: lane/c-late-kits). The tongs came off a priest
+         of Krell's who came through with a live coal. */
+      range: 6,
       spells: ['blasting_charge'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'coal_tongs', ch: 0.08, band: 'uncommon' }],
       hp: 195, atk: 122, baseAcc: 0.64, def: 59, xp: 2153, gp: [41, 123], formula: true },

@@ -103,7 +103,9 @@ export default definePack({
       name: 'Night Carter', icon: '🪝', tier: 6, level: 176, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of the men who dug in from the Sewer side and sold the unburned dead up the north road by the cartload. Their buyer's
          gone and they're still down here. Human, no override: an arrow drops him, poison does 15% more. He throws a sack of lime over the whole
-         party (Lime Sack, `spells` below). The gold he was paid in, and his hook. */
+         party (Lime Sack, `spells` below), and between sacks he stays back and throws lumps of it at whoever stands farthest back, from 6 tiles
+         (`range`, src/core/hunt/shooters.js: lane/c-late-kits, the board's "2026-11-15 The late grounds' throwers"). The gold he was paid in, and his hook. */
+      range: 6,
       spells: ['lime_sack'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'carters_hook', ch: 0.08, band: 'uncommon' }],
       hp: 286, atk: 174, baseAcc: 0.74, def: 92, xp: 3846, gp: [60, 180], formula: true },

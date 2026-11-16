@@ -11,7 +11,7 @@
 // STANDING (the board's section 6): it pays the LAST EMBER. Everything here is alive and sitting on the pass the next Morrow is going to need.
 // NAMING VOICE: plain words for what a wyvern does or where it sits (fledgling, ledge, bull, crag, brood). No "drake lord", no "wyrm".
 // THE LESSON. Dragons are weak to the bow and turn a sword, so this is the bow's ground. Each wyvern asks one question: the Ledge Wyvern
-// spits from 5 tiles at whoever stands farthest back (your bow reaches 7, so out-shoot it), the Bull Wyvern's Tail Sweep hits everyone
+// spits from 6 tiles at whoever stands farthest back (your bow reaches 7, so out-shoot it), the Bull Wyvern's Tail Sweep hits everyone
 // standing next to him (melee pays for crowding him), and the Crag Wyvern's Fire Breath is a marked cone (the tank stands in it, everyone
 // else steps off). Wyverns breathe fire, so fire does 25% less and ice 15% more: the caster brings ice.
 // THE LOOT. No standard gear: Dawnsteel is the last tier (Tyler 2026-11-14) and Carter's Rest, the Ox Road and Lord Krell drop all of it.
@@ -73,8 +73,9 @@ export default definePack({
     ledge_wyvern: {
       name: 'Ledge Wyvern', icon: '🐲', tier: 6, level: 130, cls: 'dragon', family: 'Dragon', speed: 3000,
       /* the glass: a thin one that sits on a ledge and spits at whoever's standing farthest back. HE SHOOTS (`range`, src/core/hunt/shooters.js)
-         from 5 tiles and doesn't come down. A bow reaches 7, so a Ranger can out-shoot him, and a Challenge turns him on the tank. */
-      range: 5,
+         from 6 tiles and doesn't come down. A bow reaches 7, so a Ranger can out-shoot him, and a Challenge turns him on the tank. 6, not 5: a Mage
+         stands back at 6, and from 5 he only reached one when it was cornered (lane/c-late-kits, the board's "2026-11-15 The late grounds' throwers"). */
+      range: 6,
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'gizzard_stone', ch: 0.08, band: 'uncommon' }],
       hp: 159, atk: 145, baseAcc: 0.45, def: 60, xp: 2137, gp: [33, 101], formula: true },

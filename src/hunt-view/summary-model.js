@@ -27,6 +27,8 @@ import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
 import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.132';
 import { ITEMS } from '../data/items.js?v=0.2.132';
 import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.132';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.132';
+import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.132';
 
 export { sanitizeSummaries };
 
@@ -71,6 +73,10 @@ export const FORFEIT_WORDS = Object.freeze({
     (`why`, end_by_why) and itself (`hero`), "Mira ran out of stamina, so Oren came home too." (party-words.js cameHomeWords). */
 export function endWords(reason, forfeit, by, hero, why, hunt) {
   if (typeof by === 'string' && by && (reason === 'party_member_left' || reason === 'party_member_died')) return cameHomeWords(reason, by, why, hero);
+  /* A TRAINING SESSION (src/data/training.js) is no hunt: the Training window's own words ("Wren finished Defense training. That was the
+     longest one session can run."), never "The hunt reached its time limit." or "You left the hunt." */
+  const train = hunt ? trainedBy(hunt) : null;
+  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill }, hero);
   /* A KEYED HALL'S KILL (src/data/boss-halls.js) names him and no title: END_WORDS.boss_felled is a called room's. */
   const room = reason === 'boss_felled' && hunt ? roomOfHunt(hunt) : null;
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.felled.replace('{Boss}', room.Boss);
@@ -151,13 +157,48 @@ export function endedSessionOf(cs) {
 }
 
 /**
+ * A TRAINING SESSION'S CARD (designer's coherence pass 2026-11-15, walk row 5: an hour at the yard read "Monsters 0, Level XP 0, Gold 0"
+ * and left out the Defense it gave and the 176 g it cost). For a session on a training ground: the skill, its XP (the server's last
+ * stop for this session, else the session's own tally), and from that last stop the gold its fee rows took and the skill's level before
+ * and after. Null for a hunt. `stop`: training-sections.js lastStop, or null. Pure.
+ * @returns {{skill: string, xp: number|null, fee: number|null, from: number|null, to: number|null}|null}
+ */
+export function trainingCard(s, stop) {
+  const tr = s && s.hunt ? trainedBy(s.hunt) : null;
+  if (!tr) return null;
+  const xp = s.tally && isObj(s.tally.xp) ? num(s.tally.xp[tr.skill]) : null;
+  const mine = stop && stop.session === s.id && stop.skill === tr.skill ? stop : null;
+  return { skill: tr.skill, xp: mine && mine.xp !== null ? mine.xp : xp === null ? null : Math.floor(xp),
+    fee: mine ? mine.paid : null, from: mine ? mine.from : null, to: mine ? mine.level : null };
+}
+
+/**
+ * A stored training card the server's last stop has caught up with (the `training` section can land after the `hunt` one that
+ * ended it): the card with the stop's fee and levels, or null when there is nothing to fill. Pure.
+ */
+export function withTrainingStop(summary, stop) {
+  const tr = summary && summary.train;
+  if (!tr || tr.fee !== null || !stop || stop.session !== summary.id || stop.skill !== tr.skill || stop.paid === null) return null;
+  return Object.assign({}, summary, { train: { skill: tr.skill, xp: stop.xp !== null ? stop.xp : tr.xp, fee: stop.paid, from: stop.from, to: stop.level } });
+}
+
+/**
  * The summary record for an ended session.
  * @param {object} s         endedSessionOf(cs)
  * @param {object|null} an   analyzerOf(cs) (hunt-sections.js) or null
  * @param {string[]} deaths  the death explanations' headlines (death-explain.js)
  * @param {string|null} [role]  this hero's role, for a called fight's losing line
+ * @param {object|null} [stop]  the `training` section's last stop (training-sections.js), for a training session's card
  */
-export function buildSummary(s, an, deaths, role) {
+export function buildSummary(s, an, deaths, role, stop) {
+  const train = trainingCard(s, stop || null);
+  /* a training session pays no kill, Level XP, coin or loot and spends no supply: its card is the skill, never a row of zeros */
+  if (train) {
+    const dur = an && an.sessionMs !== null && an.sessionMs !== undefined ? an.sessionMs
+      : s.enteredMs !== null && s.endedMs !== null ? Math.max(0, s.endedMs - s.enteredMs) : null;
+    return sanitizeSummary({ id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, ms: dur,
+      preset: s.preset, hoursLimit: s.hoursLimit, bag: [], loot: [], supplies: [], deaths: [], train });
+  }
   const hero = an && an.hero;
   const ph = hero && hero.perHour ? hero.perHour : null;
   const t = s.tally || {};
@@ -205,7 +246,8 @@ export function withSummary(list, summary) {
  */
 export function huntAgainOf(summary) {
   /* A boss room has one door, its press on the ground's page (a call's fee or a hall's key: src/data/boss-halls.js): no free way back. */
-  if (!summary || !summary.hunt || summary.preset === null || roomOfHunt(summary.hunt)) return null;
+  /* ...and training has its own door, the Training window's Start (hr_training_start): never an hr_hunt_enter */
+  if (!summary || !summary.hunt || summary.preset === null || roomOfHunt(summary.hunt) || trainedBy(summary.hunt)) return null;
   return {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),

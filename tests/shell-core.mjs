@@ -988,10 +988,12 @@ async function runTests(mods) {
       hunt_analyzer: { hero: { kills: 900, coins: 0 } } })[k],
   }, o);
   const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
+  /* out of stamina, the next line names what uses none (R3f) */
+  const STAMINA_NEXT = 'While your stamina comes back, Wrenna can work at a bench, or train at the Training Yard from Level 10. Neither uses stamina. Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.';
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
     ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
-      + 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends. Stamina now: 5 h 46 min.')
+      + STAMINA_NEXT + ' Stamina now: 5 h 46 min.')
       && !/ ago\./.test(night.text), 'the second night: ' + JSON.stringify(night && night.text));
     /* the line follows the record while the card is up: the wait grows, and it is the server's clock that says so */
     ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('waited in town for 5 h 56 min'), 'the wait is the record\'s now');
@@ -1016,9 +1018,9 @@ async function runTests(mods) {
   });
   t('R3d the hunt viewed: the summary card says what came after, from the server\'s pointer', () => {
     const atEnd = AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1');
-    eq(atEnd, 'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'watched as it ends: the one next thing, no wait yet');
+    eq(atEnd, STAMINA_NEXT, 'watched as it ends: the one next thing, no wait yet');
     const leftOpen = AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000)), 's-1');
-    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a page left open on the card');
+    eq(leftOpen, 'Then Wrenna waited in town for 2 h 0 min. ' + STAMINA_NEXT, 'a page left open on the card');
     eq(AH.endCardAfter(wrenna(END + MIN, mining(END)), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { session: 's-2' }), 's-1'), '', 'an older summary says nothing of today');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END), 'stamina', { open: true }), 's-1'), '', 'a hunt still open: nothing came after');
@@ -1039,6 +1041,22 @@ async function runTests(mods) {
     ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Cooked Trout was in your bag but not on your bar'), 'the away card says it too: ' + away);
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
     ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
+  });
+  /* R3f (the designer's coherence pass 2026-11-15, walk row 6): out of stamina the card named gathering only, the first day's dead moment,
+     with the yard and the benches using none. Every other automatic end keeps the gathering line. */
+  t('R3f out of stamina, the next line names the yard and a bench as well as gathering', () => {
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1'), STAMINA_NEXT, 'the stamina end');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'died'), 's-1'),
+      'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a death keeps the gathering line');
+  });
+  /* R3g (walk row 7): a 12-hour yard session ended "Set a longer hunt next time, up to the stamina you have." Training uses no stamina
+     and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
+  t('R3g a training session\'s end gives its own line, never a hunt\'s', () => {
+    const yard = (reason) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason, { hunt: 'training_yard_melee' }), 's-1');
+    eq(yard('hours'), 'Training uses no stamina, so start it again to keep going.', 'the 12-hour cap');
+    eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
+    eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job is still said');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt next time, up to the stamina you have.', 'a hunt\'s own limit keeps its line');
   });
 
   return fails;
@@ -1216,6 +1234,8 @@ const MUTANTS = [
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: " || !RESUME_AFTER_END.includes(h.endReason)) return null;", to: ') return null;' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (st.active_kind !== 'idle') return null;", to: '' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "hours: 'away.next_longer', ", to: '' },
+  { test: 'R3f', file: 'src/shell/after-hunt.js', from: "\n  stamina: 'away.next_stamina' });", to: ' });' },
+  { test: 'R3g', file: 'src/shell/after-hunt.js', from: "  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };\n", to: '' },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };\n", to: '' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "if (h.endReason === 'gold_out' && typeof spare === 'string')", to: 'if (false)' },

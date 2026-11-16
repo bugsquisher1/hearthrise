@@ -9,7 +9,7 @@
 //     max_hours,                                       a session ends `hours` after this many
 //     quotes: [{ skill, level, fee_h, xp_h, hours_to_next }],   the yard's price and pace for each skill at the hero's level
 //     run: { skill, where, since, fee_h, paid } | null,           the session now (a hunt on the `training_yard` ground)
-//     last_stop: { reason, skill, at } | null,
+//     last_stop: { reason, skill, at, session, xp, paid, level, from } | null,   the last ended session and what it came to
 //     dummy: { needs, has_home, owned: [skill], ladder: [gold], next_price, busy },   the account's house dummy
 //     rate: { xp_h, xp_h_item, boost_pm, min_level, level },          THE FIXED RATE (2027-04-23-training-gear.sql, Tyler 2026-11-14)
 //     gear: [{ skill, banked_ms, on, bag: [{ item, hours, bound, qty }], stored: [...] }],   the hero's training items, a skill each
@@ -68,9 +68,12 @@ function shopOf(s) {
   return Object.freeze({ on: s.on === true, today: nat(s.today) ?? 0, max: nat(s.max) });
 }
 
+/* The last ended session: why, which skill, when, and what it came to (2027-04-23-training-gear.sql: `session` its id, `xp` the
+   skill's XP its tally holds, `paid` its fee rows' gold, `level` / `from` the skill's level now and before that XP; null where unsent). */
 function lastStopOf(l) {
   if (!isObj(l) || !word(l.reason) || !word(l.skill)) return null;
-  return Object.freeze({ reason: l.reason, skill: l.skill, at: at(l.at) });
+  const sid = typeof l.session === 'string' && l.session && l.session.length <= 64 ? l.session : null;
+  return Object.freeze({ reason: l.reason, skill: l.skill, at: at(l.at), session: sid, xp: nat(l.xp), paid: nat(l.paid), level: nat(l.level), from: nat(l.from) });
 }
 
 function dummyOf(d) {

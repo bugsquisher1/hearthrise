@@ -39,6 +39,8 @@ import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.132';
 import { blessAll } from '../bless-all.js?v=0.2.132';
 import { blessingsOf } from '../../session/item-sections.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
+import { skillWord } from '../training-words.js?v=0.2.132';
+import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.132';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
@@ -68,6 +70,17 @@ const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.
 const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
   ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
+/* A TRAINING SESSION'S ROWS (summary-model.js trainingCard), in place of the hunt's: the skill's XP, its level before and after, and the
+   gold the yard took (the house dummy charges none, so it has no row). Each the server's; an unsent one is not shown. */
+const TRAIN_STATS = Object.freeze(['xp', 'level', 'fee']);
+function trainStat(k, tr, hunt) {
+  const skill = skillWord(tr.skill);
+  if (k === 'xp') return tr.xp === null ? null : [t('training.card_xp', { skill }), whole(tr.xp)];
+  if (k === 'level') return tr.to === null ? null : [t('training.card_level', { skill }), tr.from !== null && tr.from < tr.to ? t('training.card_level_up', { from: tr.from, to: tr.to }) : String(tr.to)];
+  const where = trainedBy(hunt);
+  return tr.fee === null || (where && where.place !== 'yard') ? null : [t('training.card_fee'), gold(tr.fee)];
+}
+
 /** The bag is at the server's cap and the server sells a next rung. */
 function bagFull(cs) {
   const g = bagExpandOf(cs), bag = bagOf(cs);
@@ -87,7 +100,8 @@ export function renderHuntSummary() {
     + '<section class="hsum-town"><h4 class="hw-ledger-head hsum-h-town is-on">' + esc(t('summary.town_head')) + '</h4><ul class="hsum-steps"></ul></section>'
     /* TOP LOOT above the numbers (first-30 play 2026-11-12: the first gear drop sat under the sticky foot, out of sight) */
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
-    + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
+    + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('')
+    + TRAIN_STATS.map((k) => '<div class="hsum-stat" hidden><dt data-train-label="' + k + '"></dt><dd data-train="' + k + '"></dd></div>').join('') + '</dl>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
     + '<div class="hsum-foot"><div class="hsum-actions">'
@@ -164,6 +178,15 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));
       /* A called boss counts no kill (src/data/boss-calls.js): the reason line says he's down, and "Monsters 0" would say he isn't. */
       if (k === 'kills' && callOfHunt(cur.hunt)) prop(dd.parentNode, 'hidden', true);
+      /* A training session's card is its time and the skill's rows below, never the hunt's zeros */
+      if (cur.train && k !== 'ms') prop(dd.parentNode, 'hidden', true);
+    }
+    for (const k of TRAIN_STATS) {
+      const row = cur.train ? trainStat(k, cur.train, cur.hunt) : null;
+      const dd = root.querySelector('[data-train="' + k + '"]');
+      prop(dd.parentNode, 'hidden', !row);
+      text(root.querySelector('[data-train-label="' + k + '"]'), row ? row[0] : '');
+      text(dd, row ? row[1] : '');
     }
     const loot = cur.loot.map(([it, n]) => ({ it, n }));
     cls(root.querySelector('.hsum-h-loot'), 'is-on', loot.length > 0);
@@ -176,10 +199,13 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const again = huntAgainOf(cur);
     const route = again ? againRoute(partyMembershipOf(cs), again.hunt) : null;
     const go = root.querySelector('[data-hs-act="again"]');
-    prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
-    attr(go, 'title', huntOpen ? 'A hunt is already running.' : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
+    /* a training card's press opens the Training window on its Start (its own door, hr_training_start) */
+    const trainAgain = !!cur.train;
+    text(go, trainAgain ? t('training.card_again') : t('controls.hunt_again'));
+    prop(go, 'disabled', sc.pending || huntOpen || (!trainAgain && (!again || !route.how)));
+    attr(go, 'title', huntOpen ? 'A hunt is already running.' : trainAgain ? t('training.card_again_title') : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = huntOpen ? 'Hunt again is off. A hunt is already running.' : !again ? 'Hunt again is off. ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
+    againWhy = huntOpen ? 'Hunt again is off. A hunt is already running.' : trainAgain ? '' : !again ? 'Hunt again is off. ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);
@@ -289,6 +315,7 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
   if (action === 'again') {
     const list = summariesOf(cs);
     const cur = list.find((s) => s.id === sc.pick) || list[0];
+    if (cur && cur.train) { ctx.show('training'); return true; }
     const args = huntAgainOf(cur);
     const how = args ? againRoute(partyMembershipOf(cs), args.hunt).how : null;
     if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);

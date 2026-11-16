@@ -11,6 +11,10 @@
 export const AWAY_TEXT = Object.freeze({
   /* {name} when the server has not sent the hero's name yet. */
   your_hero: 'Your hero',
+  /* Out of stamina (after-hunt.js NEXT.stamina): what uses none while it comes back. {level} the yard's first Level (src/data/training.js). */
+  next_stamina: 'While your stamina comes back, {name} can work at a bench, or train at the Training Yard from Level {level}. Neither uses stamina. Start mining, chopping or fishing before you hunt, and {name} will go back to it when the hunt ends.',
+  /* A training session that reached its longest run (after-hunt.js TRAIN_NEXT). */
+  next_train_again: 'Training uses no stamina, so start it again to keep going.',
   /* {doing} is the server's job in words ("mining the Copper Rock", party-sections.js townActivityWords). */
   after_went: 'Then {name} went back to {doing}.',
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */

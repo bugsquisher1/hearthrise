@@ -12,8 +12,8 @@
 //        than LINE_TRADE over (tools/balance-sim/armor-power.mjs, the engine's own rolls and armor chain).
 //   AL4  A BUDGET, NOT A TEMPLATE: each piece wins somewhere (on a ground its Level is sent to, worn in fully tempered Dawnsteel, it
 //        beats the tempered Dawnsteel piece of its slot and every other piece of its slot and weight a hero of its Level can wear),
-//        and a piece under its weight's first Level wins on its own ground. A piece that reads as the line's own (pace and safety
-//        within 0.1% on every late ground) is a template, not a unique.
+//        and a piece under its weight's first Level wins on its own ground. A piece with the line's own armor and its base's style
+//        numbers (an attribute on top or not) is a template, not a unique: the first sample's twins.
 //   AL5  THE ROW: every field but its words, numbers, Level, book and rarity is its Dawnsteel base's; it is worn from its ground's
 //        floor; its book is the base's times the line; a caster's damage (magicStrB, rangeStrB) is never over its base's, so the
 //        line can't re-open the Mage gap (lane/d-mage-110).
@@ -49,7 +49,8 @@ const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the 
 const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'rarity', 'defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB', 'resistPm', 'skillB']);
 const CASTER_DAMAGE = ['magicStrB', 'rangeStrB'];
 const ATTR_TIER = 7;
-const TEMPLATE = 0.001;
+/* a piece's style numbers: what it does to the hero's own blow */
+const STYLE = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB']);
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
@@ -125,8 +126,8 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
       if (r.score > 1 + 1e-9) out.push('AL3 ' + id + ': ' + (r.score * 100).toFixed(2) + '% of the line on ' + r.ground + ' at Level ' + r.L + ' (pace ' + r.pace.toFixed(4) + ', safety ' + r.safety.toFixed(4) + ')');
       if (r.pace > 1 + line.LINE_TRADE + 1e-9 || r.safety > 1 + line.LINE_TRADE + 1e-9) out.push('AL3 ' + id + ': past the trade on ' + r.ground + ' (pace ' + r.pace.toFixed(4) + ', safety ' + r.safety.toFixed(4) + ', at most ' + (1 + line.LINE_TRADE) + ')');
     }
-    /* AL4: a template reads as the line's own everywhere */
-    if (ln.length && ln.every((r) => Math.abs(r.pace - 1) < TEMPLATE && Math.abs(r.safety - 1) < TEMPLATE)) out.push('AL4 ' + id + ': it reads as the line\'s own piece on every late ground, a template and not a unique');
+    /* AL4: a template is the line's own numbers: the line's armor and every style number its base's (an attribute or not on top) */
+    if (row.defB === line.lineArmor(row.slot, row.armourClass, row.reqLv) && STYLE.every((k) => (Number(row[k]) || 0) === (Number(base[k]) || 0))) out.push('AL4 ' + id + ': the line\'s own armor and its base\'s numbers, a template and not a unique');
     /* AL5 */
     for (const k of new Set([...Object.keys(base), ...Object.keys(row)])) {
       if (OWN.has(k)) continue;
@@ -200,14 +201,14 @@ const MUTANTS = [
   ['an importer appears', 'AL2', (L, A, o) => { o.importers = ['/src/data/items.js']; }],
   ['a sample takes an item\'s name', 'AL2', (L) => { L.LINE_SAMPLE.watchmans_helm.row.n = 'Dawnsteel Helm'; }],
   ['a sample takes the weapon line\'s name', 'AL2', (L) => { L.LINE_SAMPLE.watchmans_helm.row.n = 'Watchman\'s Sword'; }],
-  ['the heavy plate sheds its Melee cost (safety over, pace even)', 'AL3', (L) => { delete L.LINE_SAMPLE.limewashed_plate.row.atkB; }],
-  ['the sure helm keeps the line\'s armor', 'AL3', (L) => { L.LINE_SAMPLE.watchmans_helm.row.defB = 66; }],
+  ['the heavy helm sheds its Melee cost (safety over, pace even)', 'AL3', (L) => { delete L.LINE_SAMPLE.watchmans_helm.row.atkB; }],
+  ['poison at the line\'s armor (the first sample\'s twin)', 'AL3', (L) => { L.LINE_SAMPLE.limewashed_plate.row.defB = 135; }],
   ['fire resistance at the line\'s armor (over on the capped Ox Road)', 'AL3', (L) => { const r = L.LINE_SAMPLE.burnt_crag_leg_plates.row; r.defB = 73; delete r.strB; }],
   ['a jerkin far past the trade (dodge for a bow that hits much lighter)', 'AL3', (L) => { const r = L.LINE_SAMPLE.haulers_jerkin.row; r.defB = 200; r.rangeStrB = -15; }],
   ['the line read at a lower Level (the scale lies)', 'AL3', (L) => { L.lineScale = () => 1; }],
   ['a template: the line\'s own armor, Dawnsteel\'s numbers', 'AL4', (L) => { const r = L.LINE_SAMPLE.limewashed_plate.row; r.defB = 135; delete r.atkB; }],
   ['the Visor under tempered Dawnsteel everywhere', 'AL4', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 40; }],
-  ['a second Vaults helm out-wins the Watchman\'s everywhere', 'AL4', (L) => { L.LINE_SAMPLE.rival_helm = { ...structuredClone(L.LINE_SAMPLE.watchmans_helm), row: { ...L.LINE_SAMPLE.watchmans_helm.row, n: 'Rival Helm', defB: 48 } }; L.LINE_SAMPLE.rival_helm.source = { ...L.LINE_SAMPLE.rival_helm.source, monster: 'bone_wall' }; }],
+  ['a second Vaults helm out-wins the Watchman\'s everywhere', 'AL4', (L) => { L.LINE_SAMPLE.rival_helm = { ...structuredClone(L.LINE_SAMPLE.watchmans_helm), row: { ...L.LINE_SAMPLE.watchmans_helm.row, n: 'Rival Helm', defB: 85 } }; L.LINE_SAMPLE.rival_helm.source = { ...L.LINE_SAMPLE.rival_helm.source, monster: 'bone_wall' }; }],
   ['a plate piece under its first Level wins only off its own ground', 'AL4', (L) => { L.LINE_FIRST_LEVEL.plate = 200; L.LINE_SAMPLE.burnt_crag_leg_plates.source = { monster: 'troll_brewer', ground: 'carters_rest', how: 'rare', ch: 0.002 }; L.LINE_SAMPLE.burnt_crag_leg_plates.row.reqLv = 110; }],
   ['the jerkin changes weight', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.armourClass = 'plate'; }],
   ['worn under its ground\'s floor', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.reqLv = 150; }],

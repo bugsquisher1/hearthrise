@@ -14,8 +14,9 @@
 // THE NAMING VOICE (the Tower's lore, LOCKED by Tyler 2026-11-14: "For a few hundred years people brought their dead to the Hearth, and
 //   they'd leave the dead person's sword or bow on the ledge ... the Keepers locked them all in one big chest on the ledge, with a
 //   different lock for the better ones"). Every tower weapon belonged to one of Havora's own dead, burned at the Great Hearth, so its
-//   name says who: their trade, their office or their place in town, then the family's plain word (Sword, Hammer or Maul, Hatchets,
-//   Bow, Crossbow, Wand, Staff), so the type reads from the name. Each lock is one part of the town's history:
+//   name says who: their trade, their office or their place in town, then the family's plain word (Sword, Hammer, Maul or Mallet,
+//   Hatchets, Bow, Crossbow, Wand, Staff; one hearth tool that is plainly a staff, the Old Ash Rake), so the type reads from the name.
+//   Each lock is one part of the town's history:
 //     Bronze    the town's working dead, the trades a player walks past today (the palisade, the mill, the Westwood, the shore, the
 //               orchard, the lamps, the bonesetter)
 //     Silver    the old crossing, before the toll stone (the design's sample of five, plus the raft builder and the drover)
@@ -33,15 +34,32 @@ const row = (key, family, id, name, line) => Object.freeze({ key, family, id, na
 
 /* In key order, then the families' order (gear-tiers.js WEAPON_FAMILIES: sword, warhammer, bow, staff, wand, hatchets, crossbow). */
 export const TOWER_WEAPONS = Object.freeze([
+  /* BRONZE (worn at Level 15, the Iron or Oak numbers, +1): the second batch (14 rows with Gold), after the sample's audit. */
+  row('bronze', 'sword', 'palisade_sword', 'Palisade Sword', 'The night watch on Havora\'s palisade carried this one. He walked that wall for thirty years'),
+  row('bronze', 'warhammer', 'millwrights_mallet', 'Millwright\'s Mallet', 'It fixed the town mill\'s wheel more times than anybody could count'),
+  row('bronze', 'bow', 'fowling_bow', 'Fowling Bow', 'A light bow for ducks on the shore. Whoever owned it never missed a dinner'),
+  row('bronze', 'staff', 'bonesetters_staff', 'Bonesetter\'s Staff', 'The bonesetter leaned on it on her rounds. She set half the broken arms in town'),
+  row('bronze', 'wand', 'lamplighters_wand', 'Lamplighter\'s Wand', 'The lamplighter carried the Hearth\'s fire to every street lamp in Havora with it'),
+  row('bronze', 'hatchets', 'westwood_hatchets', 'Westwood Hatchets', 'A woodcutter\'s pair from the Westwood. She cleared the road to the Mine with them'),
+  row('bronze', 'crossbow', 'orchard_keepers_crossbow', 'Orchard-Keeper\'s Crossbow', 'The orchard keeper shot boars out of the apple trees with it'),
   /* SILVER (worn at Level 45, the Mithril or Maple numbers, +2): THE SAMPLE (CLAUDE.md §10), the design's five named on
-     lane/d-burning-tower and the two it left (the hatchets and the crossbow). */
+     lane/d-burning-tower and the two it left (the hatchets and the crossbow). The audit moved two lines: the Meadowbrook and "the old
+     crossing" each came up twice in seven. */
   row('silver', 'sword', 'tollkeepers_sword', 'Toll-Keeper\'s Sword', 'The toll-keeper\'s sword, from back when Havora ran the crossing itself'),
   row('silver', 'warhammer', 'quarry_maul', 'Quarry Maul', 'It broke the stone that Havora\'s town wall is made of'),
   row('silver', 'bow', 'ferrymans_bow', 'Ferryman\'s Bow', 'He ran the ferry across the Meadowbrook before there was a toll stone, and he shot pike from the boat'),
   row('silver', 'staff', 'old_ash_rake', 'Old Ash Rake', 'A hearth-hand\'s rake from long before today\'s Keeper. The hearth-hands say it\'s still better than theirs'),
   row('silver', 'wand', 'chandlers_wand', 'Chandler\'s Wand', 'The candle-maker\'s wand. It still smells like wax'),
-  row('silver', 'hatchets', 'raftwright_hatchets', 'Raftwright Hatchets', 'A raft builder\'s pair. They cut the logs for the first ferry across the Meadowbrook'),
-  row('silver', 'crossbow', 'drovers_crossbow', 'Drover\'s Crossbow', 'A drover kept the wolves off his cattle with it, all the way to the old crossing'),
+  row('silver', 'hatchets', 'raftwright_hatchets', 'Raftwright Hatchets', 'A raft builder\'s pair. Half the ferries on the river floated on logs he cut'),
+  row('silver', 'crossbow', 'drovers_crossbow', 'Drover\'s Crossbow', 'A drover\'s crossbow. He drove cattle through Havora every spring and never lost one to the wolves'),
+  /* GOLD (worn at Level 75, the Emberforged or Runewood numbers, +3): the second batch, with Bronze. */
+  row('gold', 'sword', 'bierguard_sword', 'Bierguard Sword', 'The guard who walked beside every bier on its way to the Hearth wore this'),
+  row('gold', 'warhammer', 'passing_bell_hammer', 'Passing-Bell Hammer', 'It rang the passing bell every time somebody in Havora died'),
+  row('gold', 'bow', 'vigil_bow', 'Vigil Bow', 'Somebody always sat up with the dead the night before a burning. This bow sat up with them'),
+  row('gold', 'staff', 'mourners_staff', 'Mourner\'s Staff', 'The town\'s head mourner walked in front of every burning with this staff'),
+  row('gold', 'wand', 'sextons_wand', 'Sexton\'s Wand', 'The sexton started the dead\'s fires with it, back when the Hearth was only a hearth'),
+  row('gold', 'hatchets', 'cordwood_hatchets', 'Cordwood Hatchets', 'They split the wood for every burning at the Hearth, and nothing else'),
+  row('gold', 'crossbow', 'lychgate_crossbow', 'Lychgate Crossbow', 'The dead waited at the lychgate before their burning. Its guard kept the wolves off them with this'),
 ]);
 
 /* One line an item (src/data/item-descriptions.js spreads it). */

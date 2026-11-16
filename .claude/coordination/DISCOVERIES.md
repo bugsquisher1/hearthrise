@@ -3970,3 +3970,7 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   bodies lifted (build.mjs `lift`/`shade`), every March monster now 3.06:1 or more on all four facings; world-assets [ring] holds it.
   Left: lifted earth-ramp bodies (Barrow Knight, Captain Hask) read as one warm brown with less dark weight than their drawings; a
   palette-born regen with a real lit rim would keep Hask's menace (gens, asset-director's call).
+- 2026-11-16 (art-director, lane/a-ground-variety) WANG TRANSITIONS STILL REPEAT. Floor interiors now vary (terrain kind `variety`,
+  world-core family V), but every wang pair still has ONE tile per transition key, so the town shows a regular pebble row along every
+  grass/dirt edge and the water is one tile. The same edge-preserving shift (tools/world-art/variety.mjs) could vary a transition's
+  own-material half; or a PixelLab Tileset Pro set with variant fills. Owner: art-director (pipeline) / asset-director (gens). P3.

@@ -53,6 +53,8 @@ import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.133';
 import { runAction } from './steer-local.js?v=0.2.133';
 import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.133';
 import { heroDyeOf } from './hero-dye.js?v=0.2.133';
+import { monsterPourOf } from './monster-pour.js?v=0.2.133';
+import { towerOf } from '../session/tower-sections.js?v=0.2.133';
 import { keyBelongsToField } from '../utils/dom.js?v=0.2.133';
 import { homeOf } from '../session/home-sections.js?v=0.2.133';
 import { skillsOf } from '../session/item-sections.js?v=0.2.133';
@@ -61,6 +63,8 @@ import { townWorksSwap } from './town-works.js?v=0.2.133';
 import { farmCropProps } from './town-farm.js?v=0.2.133';
 import { farmFieldOf } from '../session/farm-sections.js?v=0.2.133';
 import { createTownShows } from './town-shows.js?v=0.2.133';
+/* the town's ambient rows left out while the Tower is hidden */
+const HIDE_CHEST = Object.freeze({ hearth_chest: true });
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -170,7 +174,7 @@ export async function bootWorld(panel, opts) {
   const sheets = createSceneImages({ doc, version: BUILD.cache });
   /* HEROES IN THEIR COLORS: the masks load on the first dyed hero in view, and at most 24 looks stay in memory (hero-dye.js) */
   const dyes = heroDyeOf({ doc, version: BUILD.cache });
-  const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css, arrived: (set) => sheets.ready([set]), dyes });
+  const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css, arrived: (set) => sheets.ready([set]), dyes, pours: monsterPourOf({ doc }) });
   tokensChanged = () => backend.invalidate();
   const gridArt = createGridArt({ doc, version: BUILD.cache, tables, loadSet: loadAtlasSet });
   const artOf = (id) => gridArt.art(ROWS.get(id).grid);
@@ -272,9 +276,16 @@ export async function bootWorld(panel, opts) {
     if (stage && stage.dataset.live !== key) stage.dataset.live = key;
     tl.advance(now);
     const f = scene.frame(now);
-    lastHunt = { live: true, units: f.units.map((u) => ({ id: u.id, unit: u.unit, x: u.x, y: u.y, anim: u.anim, frame: u.frame, dir: u.dir, diag: u.diag })),
+    /* A unit whose sheet has not landed is asked for and drawn when it lands, never a stub box (the Tower's rooms name monsters its scene's sheets lack). */
+    const units = f.units.filter((u) => {
+      const set = book.has(u.id) ? book.frame(u.id).set : '';
+      if (!set || sheets.ready([set])) return true;
+      sheets.ensure([set]).then(() => { if (!running) sync(); });
+      return false;
+    });
+    lastHunt = { live: true, units: units.map((u) => ({ id: u.id, unit: u.unit, x: u.x, y: u.y, anim: u.anim, frame: u.frame, dir: u.dir, diag: u.diag })),
       hero: f.hero, floats: f.floats.length, fx: f.fx.map((e) => e.id), marks: f.marks.map((m) => m.kind + ':' + m.fill), stats: scene.stats() };
-    return { hero: f.hero, units: f.units, floats: f.floats, fx: f.fx, marks: f.marks };
+    return { hero: f.hero, units, floats: f.floats, fx: f.fx, marks: f.marks };
   }
 
   function huntState(G, sc, map, name, now) {
@@ -320,6 +331,8 @@ export async function bootWorld(panel, opts) {
     const f = walk.frame(readEnv(map.kind), now);
     if (held && map.kind === 'town') {
       Object.assign(f, hearthState(map, f, now));
+      /* THE HEARTH CHEST stands on the ledge only while the server sends the Burning Tower's section (src/data/world/town/sites.js AMBIENT) */
+      if (!towerOf(character)) f.ambientHide = HIDE_CHEST;
       /* THE TOWN WORKS (town-works.js): a lot's art by the stage the server said */
       f.objectSwap = townWorksSwap(map, town.extras());
       /* THE FARM (town-farm.js): every planted plot's crop at the stage the server's plot data names */

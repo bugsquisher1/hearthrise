@@ -1,0 +1,35 @@
+{
+  "id": "tower_soot_door",
+  "class": "hanging",
+  "style": "s1",
+  "material": "native",
+  "source": "tower_soot_door.png",
+  "frame": [
+    20,
+    20
+  ],
+  "anchor_px": [
+    10,
+    19
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "559004a0-f390-4e59-9118-1fb4cc2a62e2",
+    "cell": 12
+  },
+  "notes": "Cell 12 of a 4x4 style-1 prop sheet (PixelLab image 559004a0-f390-4e59-9118-1fb4cc2a62e2, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

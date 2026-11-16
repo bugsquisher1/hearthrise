@@ -16,7 +16,7 @@ since been executed.
 
 | Layer | Path | Files | Drawn by the client? |
 |---|---|---|---|
-| World atlases (town, grounds, every creature, effects) | `assets/world/` | 12 sets | **live** (`src/render/creature-sprite.js`, `src/world/`) |
+| World atlases (town, grounds, every creature, effects) | `assets/world/` | 25 sets (`tower`, 2026-11-16: the Burning Tower's painted room, `tools/world-art/tower-flue.mjs`; no sprites of its own, its props are the Stokers' and the Hold's) | **live** (`src/render/creature-sprite.js`, `src/world/`) |
 | Pixel item icons | `assets/icons-bundle/pixel/items/` | 573 (one per ITEMS key) | **live** (`src/shell/widgets/bits.js`, `itemIconHtml`) |
 | Shop supply icons | `assets/icons-bundle/pixel/supplies/` | 25 | **live** |
 | Ability tiles | `assets/icons-bundle/pixel/abilities/` | 16 | **live** (`ABILITY_ART`) |

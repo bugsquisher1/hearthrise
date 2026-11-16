@@ -137,5 +137,9 @@ export const BLEND = Object.freeze({
 });
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,
-   tile (117, 48) lifted 86 art px (the hearth frame's px (176, 262), sidecar art/world/common/hearth_fire.json) */
-export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 })]);
+   tile (117, 48) lifted 86 art px (the hearth frame's px (176, 262), sidecar art/world/common/hearth_fire.json);
+   and THE HEARTH CHEST on the ledge (the Burning Tower's one chest, Tyler 2026-11-14; tools/world-art/tower-art.mjs): on the paving in
+   front of the right log alcove, left of the fire, its foot at the hearth frame's px (80, 305): tile (114, 48) lifted 43 art px. The town
+   draws it only while the server sends the Tower's section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere. */
+export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }),
+  Object.freeze({ id: 'hearth_chest', x: 114, y: 48, lift: 43 })]);

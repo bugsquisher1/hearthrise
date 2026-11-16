@@ -1279,6 +1279,33 @@
 .tc-chance:empty { display: none; }
 .tt-result { margin: 0 0 8px; padding: 6px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .tt-found { margin: 0 0 2px; font-weight: 700; color: var(--gold-2); }
+/* THE REVEAL (tower-chest.js revealHtml; the strips are tools/world-art/tower-art.mjs): 48 x 64 art px frames at x2, stepped, never
+   smoothed (the chest stands at the frame's foot, its open lid and the column above it). The key's lock catches the light, the lid lifts on
+   its fire, embers climb (8 frames); a weapon's column rises (4) and its icon climbs out of the chest's mouth in whole art pixels.
+   Reduced motion shows the last frame of each, still. */
+.tc-reveal { position: relative; width: 96px; height: 128px; margin: 0 auto 4px; }
+.tc-reveal-chest, .tc-reveal-col { position: absolute; inset: 0; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; }
+.tc-reveal-chest { background-size: 768px 128px; animation: tc-open 800ms steps(7, jump-none) forwards; }
+.tc-reveal-col { background-size: 384px 128px; opacity: 0; animation: tc-col 300ms steps(3, jump-none) 800ms forwards; }
+.tc-reveal-item { position: absolute; left: 14px; top: 68px; width: 64px; height: 64px; image-rendering: pixelated; opacity: 0;
+  animation: tc-rise 400ms steps(8, jump-none) 900ms forwards; }
+@keyframes tc-open { from { background-position: 0 0; } to { background-position: -672px 0; } }
+@keyframes tc-col { from { opacity: 1; background-position: 0 0; } to { opacity: 1; background-position: -288px 0; } }
+@keyframes tc-rise { from { opacity: 1; transform: translateY(0); } to { opacity: 1; transform: translateY(-64px); } }
+.tc-reveal[data-key="bronze"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-bronze.png'); }
+.tc-reveal[data-key="silver"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-silver.png'); }
+.tc-reveal[data-key="gold"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-gold.png'); }
+.tc-reveal[data-key="platinum"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-platinum.png'); }
+.tc-reveal[data-key="bronze"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-bronze.png'); }
+.tc-reveal[data-key="silver"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-silver.png'); }
+.tc-reveal[data-key="gold"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-gold.png'); }
+.tc-reveal[data-key="platinum"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-platinum.png'); }
+@media (prefers-reduced-motion: reduce) {
+  .tc-reveal-chest, .tc-reveal-col, .tc-reveal-item { animation: none; }
+  .tc-reveal-chest { background-position: -672px 0; }
+  .tc-reveal-col { opacity: 1; background-position: -288px 0; }
+  .tc-reveal-item { opacity: 1; transform: translateY(-64px); }
+}
 .tt-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .tt-foot .hw-why { margin: 4px 2px 0; }
 .tt-go, .tc-use { display: block; width: 100%; min-height: 40px; margin: 6px 0; }

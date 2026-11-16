@@ -175,4 +175,25 @@ export const REGION_KITS = Object.freeze({
        willow gather nodes in it (art director, 2026-11-15). */
     pending: ids(''),
   }),
+
+  /* THE GREAT HEARTH'S FLUE (lane/a-tower-art-gen, 2026-11-16): the Burning Tower's one room. One tile family on the Pyre Field's own ash
+     (the ash pair chains to the ash family above: base tile ed88d179 is shared byte for byte), an iron plate for the landing and swept
+     hearthstone for patches. The walls are slices of two kept soot-brick runs laid over the paint (tools/world-art/tower-flue.mjs). */
+  hearth_flue: Object.freeze({
+    name: "The Great Hearth's Flue",
+    families: Object.freeze({
+      flue: Object.freeze({
+        terrains: Object.freeze({ iron: '1d9d972e-0dc5-4d34-ab3b-f26cf83d0c42', ash: 'ed88d179-d866-4c6a-83e4-edc0af84b88a', hearthstone: '44a79cf1-b948-4958-bf26-a17f2483cd27' }),
+        tilesets: ids('cd1545ff-f75a-4757-96db-993247c27e06 6c66b9da-a61a-4edd-9f6a-91fa4d52d62d'),
+        maps: ids(''),
+      }),
+    }),
+    /* the flue's own seven (art/world/tower, PixelLab 2026-11-16: art/world-src/gen-2026-11-16/01-note.json "props"), the Stokers' ash barrow and rake,
+       and the Hold's brazier: a sweep's room, all on the one palette */
+    props: ids('tower_climbing_irons tower_soot_door tower_sweep_brush tower_coal_scuttle tower_soot_sacks tower_ash_heap tower_chimney_pot ma_ash_barrow ma_fire_rake kh_brazier'),
+    units: ids(''),
+    sets: ids('tower'),
+    grounds: Object.freeze({ burning_tower: Object.freeze({ family: 'flue', signature: ids('') }) }),
+    pending: ids(''),
+  }),
 });

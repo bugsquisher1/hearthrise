@@ -129,5 +129,8 @@ export const TOWER_TEXT = Object.freeze({
   end_key_count: '{key} x{count}',
   end_withheld: 'Key limit reached: {count} not dropped',
   end_open: 'Open chest',
+  /* "What happened" on a climb's card and in its Just now (death-explain.js words): a Tower fall costs nothing, so it never says "died". */
+  fell: '{name} was spat out',
+  fell_blow: 'The last blow',
   alert_spat: '{name}: spat out of the Burning Tower, no XP lost',
 });

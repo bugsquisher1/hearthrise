@@ -293,7 +293,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
    whole. The Tower's ground joins hr_hunt_grounds, its placeholder spawn rows hr_hunt_ground_spawns and its hunt hr_hunt_travel (served to one verb,
    hr_tower_start; the roster leaves it out, as it leaves the training grounds: no Tower kill is a Bestiary kill), and END_ORDER's floor_time (the floor's
    time ran out) joins hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK. Read by 2027-04-24-tower-climb.sql. No world shape, limit or kill bound moves. */
-export const OUT_NAME = '2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql';
+/* THE TOWER'S WEAPONS, AND THE TOWER ON ITS OWN ROOM (lane/a-tower-art-gen, 2026-11-16): 2027-04-24-tower-climb is the file before this one and this file
+   carries it whole. lane/d-tower-weapons added the Hearth Chest's 28 weapons (src/data/items) without this catalogue, so --check was red on every Tower
+   lane: they join hr_hunt_weapons (each one's weapon type) and hr_hunt_vendor_value (each one's bid). The Tower's ground moving off the Sewer's grid onto
+   the flue's own room (hunt-grounds.js TOWER_GROUNDS map burning_tower) moves NO row: hr_hunt_grounds holds counts (1 pocket, 5 spawns, 4 seats), the
+   same before and after. ORDER: after 2027-04-28-tower-section.sql (the weapons' own rows, 2027-04-27-tower-chest-items-catalogue, land first). No
+   ground, spawn, kill bound, limit, end reason or world shape moves. */
+export const OUT_NAME = '2027-04-29-tower-weapons-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -989,7 +995,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-tower-climb, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower; src/data/tower.js): the Tower's ground
+-- NEW IN THIS FILE (lane/a-tower-art-gen, 2026-11-16): the Hearth Chest's weapons (lane/d-tower-weapons, src/data/items) in hr_hunt_weapons and
+-- hr_hunt_vendor_value, which no catalogue carried. The Tower's ground moved onto the flue's own room (hunt-grounds.js TOWER_GROUNDS map
+-- burning_tower): no row moves, hr_hunt_grounds holds its counts. No ground, spawn, kill bound, limit, end reason or world shape moves. ORDER: after
+-- 2027-04-28-tower-section.sql (2027-04-27-tower-chest-items-catalogue.generated.sql lands the weapons' own rows first). EDGE: either side.
+--
+-- CARRIED FROM 2027-04-24-tower-climb (lane/c-tower-climb, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower; src/data/tower.js): the Tower's ground
 -- (${r.grounds.filter((g) => r.towerHunts.includes(g.hunt)).length} row) in hr_hunt_grounds, its ${r.groundSpawns.filter((s) => r.towerHunts.includes(s.hunt)).length} placeholder spawn rows (the engine fields each floor's own room, src/core/hunt/tower.js) in
 -- hr_hunt_ground_spawns and its hunt in hr_hunt_travel, served to one verb (hr_tower_start) and left off the roster (no Tower kill is a Bestiary
 -- kill); END_ORDER's floor_time (a floor's room ran out of time: it resumes, like boss_time) in hr_hunt_end_reasons and hunt_sessions.end_reason's

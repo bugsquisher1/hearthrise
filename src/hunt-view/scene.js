@@ -58,6 +58,7 @@ import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.133';
 import { createClipHook, struckBy } from './clip-hook.js?v=0.2.133';
 import { switchOn } from '../session/player-switch.js?v=0.2.133';
 import { MONSTER_NAMES } from '../data/world/monster-names.js?v=0.2.133';
+import { towerLookOf, liveFloorOf } from './tower-look.js?v=0.2.133';
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
@@ -148,6 +149,8 @@ export function readHunt(cs, peers) {
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
     /* the Monster names switch (src/data/world/monster-names.js): the newest pick any open hero holds, read each frame */
     names: switchOn(openHeroes(cs, peers), MONSTER_NAMES),
+    /* the Burning Tower's fire: which pour a monster stands in (towerLookOf) */
+    tower: towerLookOf(h ? h.huntId : null, liveFloorOf(cs)),
   };
 }
 
@@ -410,6 +413,8 @@ export function createHuntScene(o) {
     if (shot && shot.anim) ({ anim, frame, dir, diag } = shot);
     /** @type {Record<string, any>} */
     const out = { id, unit: u, x, y, anim, dir, diag, frame, alpha, grey, under, dye: dyeOf(u) };
+    /* in the Burning Tower a monster stands in the fire's pour, its landing's Keeper burning (towerLookOf) */
+    if (read.tower && !hero) out.pour = kindOf(u) && kindOf(u) === read.tower.keeper ? 'keeper' : 'char';
     if (shot && shot.recoil) out.recoil = shot.recoil;
     if (!under) {
       /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */

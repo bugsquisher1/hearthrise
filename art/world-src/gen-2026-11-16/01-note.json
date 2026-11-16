@@ -1,0 +1,52 @@
+{
+  "lane": "lane/a-tower-art-gen (art director, 2026-11-16)",
+  "brief": "the flue room kit SAMPLE (CLAUDE.md §10): the floor and one wall, read before the rest",
+  "gens": "78 (balance 8595 before; 4 pro tilesets x15, 3 pro-flash wall runs x6)",
+  "floor": {
+    "1-iron-ash 625b617c": "REFUSED: the ash came back steel #c4ccd2 (median lum 0.596) and cracked like crazy paving. Its IRON half is KEPT as the landing's plate: base tile 1d9d972e (palette-born, chain it)",
+    "2-iron-ash-b edc513f2": "REFUSED: a two-tone flagstone checkerboard, not ash",
+    "3-iron-ashbrick ff0ffa3c": "REFUSED: a blue-grey brick pavement, busy",
+    "4-iron-pyreash cd1545ff": "KEPT: the iron plate (1d9d972e) meeting the Pyre Field's own ash (ed88d179, chained, both bases byte-identical); a pale ash lip where the ash meets the plate. The floor IS #8a867d, the colour tower-pours.mjs --check measures",
+    "5-pyreash-hearthstone 6c66b9da": "KEPT for PATCHES only: the ash (ed88d179) meeting swept hearthstone slabs (44a79cf1, #6a6865, median 0.139: too dark for the fight area, so never under a pocket)"
+  },
+  "walls (create_image_pro_flash 192x64, palette)": {
+    "run-ember-237933ea": "KEPT: soot brick, grey cap, two piers, ember cracks glowing in three cells (the ember-crack variant). Style image: Krell's Hold run 8a476eef (form only)",
+    "run-plain2-c83bef3f": "KEPT: the plain run, styled on the ember run (same courses and cap); its brown flecks (#553a26 #6e4c30) and iron tones want a 0-gen ramp remap to the ember run's stone/shadow before slicing",
+    "run-plain-54b1eb8d": "REFUSED: a cream #c9bfa0 cap that does not match the ember run",
+    "slicing": "cells x0,32,..160 of each run, opaque rows 4-59 (the Hold's slices are 3-59 in 32x60): cut at y0-59 into 32x60 wall slices"
+  },
+  "next (not done)": [
+    "tools/world-art/tower-flue.mjs: paint burning_tower_ground from src/data/world/maps/burning_tower.js rows (A ash, I iron, H hearthstone patches by noise away from iron, # void #0b0a0c) with port-pixellab.mjs paint over dirs 4 and 5; lay the wall faces (plain, ember-crack every 6th, piers) and capstones as barrow-grounds.mjs holdWalls does",
+    "map row burning_tower.js is WRITTEN but NOT wired (not in maps/index.js; maskHash is a placeholder; objects empty): wire after the paint, set light/ATLAS_SETS 'tower', a region kit for it, take the_burning_tower off millrace_sewer's hunts",
+    "then: in-game 1x read, the 5 props, the Hearth Chest, the Sweep's Coat"
+  ],
+  "done (2026-11-16 resume, 0 gens)": {
+    "floor": "tools/world-art/tower-flue.mjs paints burning_tower_ground from the map rows (dirs 4 + 5; 13 hearthstone cells off the fight area; 8 soot/scorch decals), walls laid from the ember run (cracks every 6th, pier every 12th) and the plain run remapped. The runs' end cells carry 4-5 transparent columns: widened from their clean middle (a first pass left black gaps between faces)",
+    "wired": "maps/index.js WORLD_MAPS, atlas-sets.js tower, region-kits.js hearth_flue (family flue), the_burning_tower off millrace_sewer hunts, maskHash 9bcbdc0f. The engine still fights on the Sewer grid (TOWER_GROUNDS map unchanged: server catalogue, lane C)",
+    "props": "NOT new art: the kit reuses the Stokers' ash barrow, fire rake, charred stake, log stack, the Hold's brazier x2, the Sewer's hanging chains x3, the coal seam x2 (world-core Z3 wants more than 10 draws)",
+    "blocked": "done in round 2 below"
+  },
+  "round 2 (2026-11-16, 104 gens, balance 8502 -> 8398, subscription only, credits $0)": {
+    "chest": {
+      "kept": "shut r2-shut-s97-ba0d7de0 (create_image_pro_flash 40x44, palette, style kh_toll_box, 5 gens: a great iron-bound chest, curved lid, 31x29) + open r2-open-edit-s7-6f025e0b (edit_image_pro_flash of that very chest on a 40x56 canvas, 5 gens: lid up on a bed of embers; the box below the seam is the shut one pixel for pixel). tools/world-art/tower-art.mjs cuts both, repaints the four lock plates in each key's metal (the gen drew two grey), pours the ember bed onto the fire ramp by its red, lays the ledge strip (8 frames of the fire's light) and the reveal strips (now 48x64 frames: the open lid needs 49 rows; windows.css .tc-reveal 96x128)",
+      "refused": "r1 x3 (128x64, 18 gens): handsome open chests but 46-48 px wide and 49-53 tall, taller than a hero; r1 closed edits x2 (10 gens): the lid came back a flat slab and two lock metals went grey; r2 open s23/s89 (10 gens): a different chest from the kept shut one (s89's lid reads as a back panel); open edit s19 (5): the alternate, s7's lid bands match the shut lid",
+      "read": "on the Great Hearth's ledge at x3 (the old 18x18 read as a lunch box beside the log alcoves; this one reads as the big chest), the reveal at x4: shut, the key's lock lit, the lid cracks on fire, opens, embers climb, the column rises"
+    },
+    "props": {
+      "kept": "tower_climbing_irons 18x32 hanging (s71 a7e2aca8 cell 0), tower_chimney_pot 20x34 bulky (s71 cell 7), tower_sweep_brush 26x60 fixture (s41 12c3c805 cell 2), tower_ash_heap 50x26 decal with embers (s53 5a43f6f0 cell 9), tower_coal_scuttle 18x21 clutter (s83 559004a0 cell 0), tower_soot_sacks 22x24 bulky (s83 cell 7), tower_soot_door 20x20 hanging (s83 cell 12). All create_image_pro_flash sheets on hr-world-56-v2: 0 off-palette pixels, imported native",
+      "refused": "s41 + s53 (256 sheets, 18 gens) came back at 1.3-1.6x the kit's scale (a coal bucket 37x48, taller than a hero): only the brush (a sweep's rod is long) and the ember heap kept; s71 (192 sheet, 6) rungs/pot kept, its bucket and sacks still big; s83 (128 sheet, 6) at scale, its chimney pots refused (blood-red blotches read as gore); the flue damper and the shovel-and-poker not placed (the room reads without them)",
+      "placed": "burning_tower.js: irons on the north wall (54,14), soot door on the landing wall (46,20), brush (50,17), pot (57,17), heap (53,31), scuttle (56,31), sacks (55,32); kept the Stokers' barrow and rake and the Hold's two braziers; dropped the Sewer's chains x3, the coal seams x2, the log stack and the charred stake. maskHash 9bcbdc0f -> db4c1995; all clear of the engine's pockets x51-57 y18-28"
+    },
+    "sweeps_coat": {
+      "icon": "create_1_direction_object 32 px x64 candidates, palette, style quiet_coat (10 gens): kept 02c7d52a (cell 7: the coat, flat cap, brush rope across it, scorched hems; 22x28, 0 off-palette) and alt 7bbbae38 (cell 0, laid on the diagonal). NOT in assets/: no item or outfit row yet",
+      "frame": "create_image_pro_flash 64x64, palette, style outfit_brute (2 x 5 gens): kept s67 e2b9bc8a (soot-grey long coat, flat cap, rope over the shoulder, sweep's brush in the right hand); s61 refused (a burlap mask for a face). Then create_character v3 with s67 as south (1 gen): aa551180, 8 rotations in rotations-aa551180/, one identity all round",
+      "left": "the body is about 43 px cap to boot, the shipped outfits 37 (character class 36-40): redraw the south at 38 before the clips; then idle (v3, 8 facings, ping-pong), walk (6 frames x 8), hit (5 x 4), port-pixellab unit with --ramps, the outfit mask (tools/world-art/outfit-masks.mjs), OUTFITS + OUTFIT_ROWS rows, the server's outfit catalogue and its drop from the chest (systems + designer)"
+    },
+    "room_read": "r2 shots: the props read at x2 on the ash and on the hearthstone; the flue reads as a chimney at its edges. Still barer than the Pyre Field and the Hold: the open ash between x51-57 y18-28 carries only scorch decals (the engine's pockets keep props out), and the east and south brick are void, not faces. Those are the floor paint's and the wall layer's, not props"
+  },
+  "round 3 (2026-11-16, 0 gens: the room closed and the floor finished, by script over kept art)": {
+    "walls": "tools/world-art/tower-flue.mjs layWalls: the east and west edges show the plain run's coping turned a quarter (30 cells), the south edges show the run's faces below the floor's edge with an ember crack every sixth (17 slices, as the north's 17), and the mass is a wall's top: the flue's hearthstone slab sunk 2/4/5 steps down the stone and shadow ramps by distance, crossed in a 4x4 ordered dither. No void left. Refused on the way: the brick run as the top (it read as more face, the faces lost their edge), shadeGround for the sink (it stops at #3a3a3e: the whole mass one flat grey grid that read as floor), a hash fray into black (spray paint)",
+    "floor": "FINISH, hand-placed rows: the climbers' path (landing stair -> shaft -> the irons, 1590 px trodden/polished), 4 drifts against the walls and curves (4795 px), cool patches north and east (iron-ramp greys; the steel ramp read as water puddles), warm patches at the landing lip, mid-floor and the south (bone pale and earth dark; the orange earths read as rust), 7 cinder clusters (190 specks, a few still red), the landing in 64 px sections on its own 16 px seams with rivets at the crossings and a raised rim (lit north and west). The fight floor's median under the spawns stays #8a867d (the tool throws otherwise; mutant: a cool patch poured one step dark over the shaft moved it to #4f4e52 and threw)",
+    "variety": "lane/a-ground-variety merged (2d0885cd0): art/world/tower/flue_ash_variety.json varies the 15 plain ash cells the finish leaves per cell at runtime (tone soft, shift)"
+  }
+}

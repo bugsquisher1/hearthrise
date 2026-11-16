@@ -29,6 +29,8 @@ import { listWords } from '../render/format.js?v=0.2.133';
 import { spellRow } from '../data/monster-spells.js?v=0.2.133';
 
 export const EXPLAIN_WINDOW_MS = 10000;
+/* A fall on a ground whose death costs (every hunt): "Knight died: ...", "The killing blow was ...". */
+const DIED = Object.freeze({ fell: (name) => name + ' died', blow: 'The killing blow' });
 const MAX_HITS_LISTED = 4;
 const MAX_GROUPS = 3;
 const LOW_MANA = 0.15;
@@ -55,7 +57,7 @@ const kindOf = (ev) => (typeof ev.element === 'string' && ev.element ? spell(ev.
  * @param {{name: string, vitals?: {mana?: number, manaMax?: number}, others?: {name: string, mana: number, manaMax: number}[]}} who
  * @returns {{unit: number, name: string, atMs: number, headline: string, lines: string[], damageByType: {type: string, total: number}[], hits: number, killingBlow: object|null}}
  */
-function explainFall(events, fall, who) {
+function explainFall(events, fall, who, words) {
   const v = fall.u;
   const to = fall.atMs, from = to - EXPLAIN_WINDOW_MS;
   const inWin = events.filter((e) => Number.isInteger(e.atMs) && e.atMs >= from && e.atMs <= to).sort((a, b) => a.atMs - b.atMs);
@@ -114,11 +116,11 @@ function explainFall(events, fall, who) {
   const lines = [];
   /* the bar's rules, a sentence of their own on the same line (copy 11-06: no "; " joins) */
   const ruled = rules.length ? listWords(rules, Infinity) : '';
-  lines.push(who.name + ' died: ' + parts.join(', ') + '.' + (ruled ? ' ' + ruled.charAt(0).toUpperCase() + ruled.slice(1) + '.' : ''));
+  lines.push(words.fell(who.name) + ': ' + parts.join(', ') + '.' + (ruled ? ' ' + ruled.charAt(0).toUpperCase() + ruled.slice(1) + '.' : ''));
   /* a monster's spell names itself: "from Barn Spider’s Venom Spray" (src/data/monster-spells.js) */
   const cast = killingBlow && spellRow(killingBlow.ability);
-  if (killingBlow) lines.push('The killing blow was ' + killingBlow.amount + ' from ' + killingBlow.by + (cast ? '’s ' + cast.n : '') + '.');
-  else if (killer) lines.push('The killing blow came from a ' + killer + '.');
+  if (killingBlow) lines.push(words.blow + ' was ' + killingBlow.amount + ' from ' + killingBlow.by + (cast ? '’s ' + cast.n : '') + '.');
+  else if (killer) lines.push(words.blow + ' came from a ' + killer + '.');
 
   const byType = new Map();
   for (const h of hits) byType.set(kindOf(h), (byType.get(kindOf(h)) || 0) + h.amount);
@@ -132,13 +134,16 @@ function explainFall(events, fall, who) {
  * `sinceMs` window (or all of them), oldest first; a `wipe` is the party
  * dying together, so a wipe reads as one lead line over each hero's story.
  * @param {object[]} events
- * @param {{whoOf: (unit: number, death: object) => object, since?: number}} o
+ * `words` (optional): how a fall and its last blow are said. A mode whose death costs nothing says it its own way (the Burning Tower:
+ * "Ashby was spat out", "The last blow"), so its card never reads "died" (src/hunt-view/summary-recorder.js FALL_WORDS).
+ * @param {{whoOf: (unit: number, death: object) => object, since?: number, words?: {fell: (name: string) => string, blow: string}}} o
  * @returns {{kind: 'none'|'death'|'wipe', wipe: boolean, deaths: object[]}}
  */
 export function explainDeaths(events, o) {
   const since = Number.isInteger(o.since) ? o.since : -Infinity;
   const deaths = events.filter((e) => e.type === 'death' && Number.isInteger(e.u) && e.atMs >= since).sort((a, b) => a.atMs - b.atMs);
   const wipe = events.some((e) => e.type === 'wipe' && e.atMs >= since);
-  const out = deaths.map((f) => explainFall(events, f, o.whoOf(f.u, f)));
+  const words = o.words || DIED;
+  const out = deaths.map((f) => explainFall(events, f, o.whoOf(f.u, f), words));
   return { kind: wipe ? 'wipe' : out.length ? 'death' : 'none', wipe, deaths: out };
 }

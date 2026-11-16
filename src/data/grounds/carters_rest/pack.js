@@ -126,7 +126,9 @@ export default definePack({
      ruling first read. The same HP as the Lobster bag; quantities not measured for cost. */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, the board's "Dangerous on the Morrow is a party tier"; real settle, 2 seeds
      x 2 h, the ladder kit, the bag's store food). Deaths in the 4 h alone: at the floor (110) a hammer 84, axes 109, a tank 56, a bow 34; at the
-     top (125) a hammer 46, a tank 17, a bow 26. A Mage alone 0. With a Healer at the floor: tank + Healer 0, hammer + Healer 0, the four 0. */
+     top (125) a hammer 46, a tank 17, a bow 26. A Mage alone 0 (since
+     the throwers, lane/c-late-kits: 2 at the floor, 0 at the top, and its supplies cost 184k an hour against 40k of income). With a Healer at the floor:
+     tank + Healer 0, hammer + Healer 0, the four 0. */
   partyTiers: ['dangerous'],
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_swordfish', qty: 75 } },

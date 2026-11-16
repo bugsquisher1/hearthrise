@@ -130,7 +130,8 @@ export default definePack({
      and a Deadly four at the floor 0 deaths in 16 hero-hours with a Healer, 1 without (the bar is 9). The same HP as the Lobster bag; quantities not
      measured for cost. */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h). Deaths in the 4 h alone: at the floor
-     (125) a hammer 202, axes 223, a tank 202, a bow 26; at the top (142) a hammer 83, a tank 42, a bow 14. A Mage alone 4. With a Healer at the
+     (125) a hammer 202, axes 223, a tank 202, a bow 26; at the top (142) a hammer 83, a tank 42, a bow 14. A Mage alone 4 (the
+     Ledge Wyvern at 6, lane/c-late-kits, the best-piece kit: 4 at the floor, 0 at the top, supplies 103k an hour). With a Healer at the
      floor: tank + Healer 0, hammer + Healer 0, the four 0 (a tank with a bow or a Mage and no Healer: 11 and 12). */
   partyTiers: ['dangerous'],
   bagGuide: { tier: 4,

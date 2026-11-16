@@ -141,7 +141,8 @@ export default definePack({
      at the floor (the bar is 9), on Swordfish 5; the four with a Healer 0 on both. So the guide names Swordfish here, eight Levels before the 120 the
      ruling first read. The same HP as the Lobster bag; quantities not measured for cost. */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h). Deaths in the 4 h alone: at the floor
-     (112) a hammer 101, axes 183, a tank 121, a bow 45; at the top (128) a hammer 54, a tank 37, a bow 32. A Mage alone 0. With a Healer at the
+     (112) a hammer 101, axes 183, a tank 121, a bow 45; at the top (128) a hammer 54, a tank 37, a bow 32. A Mage alone 0 (since the
+     throwers, lane/c-late-kits: 13 at the floor, 1 at the top, supplies 226k an hour). With a Healer at the
      floor: tank + Healer 0, hammer + Healer 1, the four 0 (a tank with a bow or a Mage and no Healer: 11 and 12). */
   partyTiers: ['dangerous'],
   bagGuide: { tier: 4,

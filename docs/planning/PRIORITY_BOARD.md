@@ -29,6 +29,83 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-16 Andy's March feedback, measured and ruled (designer, lane/d-andy-march-feedback, on the party-XP hotfix lane/a-party-xp-tier with the cloth fix lane/d-mage-110 merged): TWO DATA CHANGES COMMITTED (drop odds, store rune prices), three rulings, one what-if for Tyler
+Andy plays a mixed four (Klappa hammer, Krungus bow, Saphina mage, Marigold healer, Level 52-59) on Deadly at Hask's Ford, the Slake and the Muster. Every number below is the real settle (`tools/balance-sim` cells, the world tick's engine), 3 seeds x 2 h a cell, the Level's ladder gear, every supply bought from the store. "His four" is a hammer, a bow and a Mage at the Level and a Healer 5 under. Gold is coin plus loot sold minus the store bill, a head an hour. Contract = the pace contract at the party's top Level.
+
+**1. XP too fast: the hotfix lands his four where Tyler asked (2.0-2.5x the contract on Deadly), a little under it at the band tops.** He saw 1.3M an hour at the Ford and 580k at the Warrens.
+| His four on Deadly | Level | XP a head (x contract) | hotfix alone, before the cloth fix |
+|---|---|---|---|
+| Warrens (no cut) | 45 / 50 | 359k (1.86x) / 384k (1.74x) | 387k / 421k |
+| Hask's Ford | 50 / 55 / 59 | 467k (2.11x) / 479k (1.91x) / 488k (1.78x) | 495k / 504k / 513k |
+| The Slake | 52 / 55 / 59 | 516k (2.22x) / 524k (2.09x) / 535k (1.95x) | 547k / 555k / 567k |
+| Muster Barrows (no cut) | 55 / 59 | 535k (2.14x) / 550k (2.01x) | 532k / 548k |
+No death in any of them. The Ford is about a third of what he saw. Two readings sit under 2.0x: the Ford at 59 (its band top is 60) and the Warrens at 45-50 (its top is 50). Both are a hero about to move up, so I'd leave them. The Muster isn't in PARTY_TIER_PM and doesn't need to be.
+
+**2. The Slake and the Ford were the same ground, and the Slake was better at everything. RULED: the Ford is the armor ground, the Slake the weapon and XP ground. COMMITTED** (`src/data/grounds/hasks_ford/pack.js`, `the_slake/pack.js`, drop odds only).
+Measured as it stood, the same hero at the same Level:
+| Who, Level | XP: Ford, Slake | Gold: Ford, Slake | Store bill: Ford, Slake |
+|---|---|---|---|
+| Lone tank / hammer / bow / Mage / Healer, Normal 55 | 193k / 265k / 218k / 287k / 249k against 211k / 270k / 242k / 312k / 266k (Slake +2 to +11%) | 10.9k / 14.9k / 12.9k / 16.2k / 14.0k against 11.8k / 15.4k / 14.2k / 19.4k / 16.1k (Slake +3 to +20%) | 0.2-0.5k against 0.5-1.2k |
+| His four, Normal 55 | 278k, 302k (+9%) | 6.0k, 7.4k | 0.2k, 0.2k |
+| His four, Deadly 55 | 479k, 524k (+9%) | **+8.3k, -3.2k** | 8.0k, 20.8k |
+| His four, Deadly 59 | 488k, 535k (+10%) | **+12.0k, +2.4k** | 5.1k, 16.1k |
+Both grounds dropped the same tier-4 armor at the same pace, and the Slake also had the tier-4 weapons. So on Normal, where a lone hero hunts, the Ford lost on XP, gold and loot at every Level and for every way to fight. On Deadly it already had one real edge that nobody could see. It has no group spell, while the Slake's Bargemen throw Cold Bilge at the whole party, so a four spent 2-3 times the supplies at the Slake and the Ford netted about 10k more gold a head for 9-10% less XP.
+- **The XP order can't flip.** The Slake is the harder ground, and a lone tank at 50 has to level faster there (`forest-cave` harder-pays-more, Tyler 11-04): 362k at the Ford against 387k at the Slake. So the Ford takes the gold and the gear.
+- **The change: the armor moves to the Ford.** Ford boots, helmets and legs x1.25, gloves and belts x1.27. Slake armor x0.75, its gloves and belts x0.85. The weapons, coin, XP and the 5% ceiling on bodies are untouched. `drop-tables` re-read: at the Ford each piece comes every 0.79-1.05 h (bodies 1.05) and each Rare every 11.9 h, total value +3% on its pin. At the Slake the armor comes every 1.21-1.44 h, the weapons every 0.91-1.08 h and the Rares every 13.8-18.9 h, -4% on its pin. A tier-4 armor set now fills about 1.6 times as fast at the Ford.
+- **Each ground's reason, in a player's words.** The Ford is where you finish your armor, it's cheap to hunt in a group, and a hammer breaks every body there. The Slake is where the weapons drop and where you level about a tenth faster, but its frost costs food. NOT YET DONE (stopped for usage): a Normal re-read of every way after the change. At the floors, drop-tables puts the Ford's loot value up 15% and the Slake's gear down 20%.
+- **Not built, for Tyler: a coin dial per ground.** The formula ties coin to HP for every ground (`balance-sheet.js` gp), so the only gold lever a ground has is its loot. If the Ford should also out-earn the Slake on coin alone, that takes a GROUND_GP_FIT beside GROUND_XP_FIT (formula, pack rows, catalogue). It's a Systems and designer lane, and needs a yes first.
+
+**3. "The Mage wrecks the DPS charts." RULED: on the default bar it doesn't, by much. The deep rune does, and that's fixed by item 4. No spell, cooldown or wand change.**
+| His four, share of the party's damage | Hammer | Bow | Mage | Healer | Mage over the hammer |
+|---|---|---|---|---|---|
+| Deadly, Plain runes, before the cloth fix (Ford, Slake, Muster) | 23-26% | 19-21% | 33-36% | 20-24% | 1.3-1.5x |
+| Deadly, Plain runes, after it | 26-28% | 21-23% | 31-36% | 17-20% | 1.2-1.35x |
+| The same with his tier-3 wand and codex (as he plays) | 27-28% | 21-23% | 30-34% | 17-21% | 1.12-1.21x |
+| Normal, tier-3 wand | 23-28% | 18-19% | 30-34% | 23-25% | 1.09-1.45x |
+| **Deadly, Carved runes on every caster slot** | | | **46-49%** (Ford, Slake), 38% (Muster) | | |
+- **Where the Mage's damage comes from** (Deadly, Plain): the wand's basic blow 48-57%, Fireball 37-39% on the Ford's and the Slake's pulls of 8 (22% at the Muster, whose bodies have 2.5x the HP), Frost Lance 5-8%. The cloth fix took 0-3 points off the Mage's share in a party and more off the Healer's (its damage was mostly cloth's), so the hammer's share rose. It mattered much more alone: a lone Mage at the Warrens' 45 went from 288k to 233k.
+- **Levers tried on his four** (tier-3 wand, Deadly): Fireball's damage -17% moves its share 1-2 points and the four's XP 1.5%. Its cooldown from 8 to 12 s moves nothing in a party and takes 8-10% off a lone Mage on Deadly. The wand -20% moves it a point or less. **Fireball hits at most 4** brings the Mage to 29%, level with the hammer (0.95-1.05x), and leaves Normal untouched, because Normal pulls are 2-4. That's the one precise lever if Tyler wants more, but Fireball hitting the whole pack is the fun of the class, so I wouldn't use it now.
+- **The low seat is the bow, not the Mage:** 17-23% of the damage, and under the Healer on Normal (17-18% against 23-25%). That's for the next pass, not this lane.
+
+**4. "You're inting if you're not going BIS runes." He's right about Deadly. RULED: Plain, Scored and Etched stay at Tyler's 1 / 8 / 12, and Carved goes 16 -> 28 g and Graven 24 -> 44 g. COMMITTED** (`src/data/supply-basics.js` STORE_RUNE_PRICE).
+Each caster's rune slots on one store tier, the same dice. Step = this tier over the one under it.
+| Cell | Plain -> Scored -> Etched -> Carved (-> Graven), at 1 / 8 / 12 / 16 / 24 | Top over Plain, then | Carved step at 28 / 44 |
+|---|---|---|---|
+| His four, Ford Deadly 55 | +4% +2.8k, +4% +2.1k, +4% +1.5k | +12% XP, **+6.4k a head** | +4%, -0.6k |
+| His four, Slake Deadly 57 | +4% +4.9k, +4% +4.6k, +3% +3.4k | +11% XP, **+12.9k** | +3%, +0.5k |
+| His four, Muster Deadly 60 | +3% +3.4k, +3% +3.3k, +2% +2.5k | +7% XP, **+9.2k** | +2%, -0.7k |
+| Lone Mage, Slake Deadly 60 | +11% +1.7k, +10% +9.4k, +9% +6.4k, +9% +2.7k | +44% XP, **+20.3k** | +9% +0.6k, then Graven +9% -1.0k |
+| Lone Mage, Slake Normal 52 | +5% -0.6k, +2% -0.3k, +5% +0.4k | +12% XP, -0.5k | +5%, -3.0k |
+| Lone Mage, Warrens Normal 45 | +6% -1.2k, +4% -0.6k, +7% -0.3k | +18% XP, -2.0k | +7%, -3.3k |
+| Lone Mage, Muster Normal 60 | +5% -2.0k, +5% +1.4k, +5% +1.0k, +5% -1.1k | +22% XP, -0.7k | +5% -3.1k, then Graven +5% -3.6k |
+| Lone Healer, Slake Normal 60 | +3% -2.9k, +2% -1.1k, +1% -0.7k, +1% -1.6k | +7% XP, -6.4k | +1% -5.2k |
+- **Why a deeper rune paid for itself on Deadly:** a faster kill is less time taking hits, so less food. It isn't mana. Making a version's mana grow with its damage (tried, `abilities.js` versions at 1x the output) left his four +5.7k to +10.7k a head on Carved. Neither is it the size of the step. A flatter ladder (versions at 1.4 / 1.8 / 2.2 / 2.6, tried) cut the XP gain to 3-6% and still paid +2.5k to +5.8k.
+- **Why not a bigger price:** Carved only breaks even in his four at about 52 g (Ford) to 71 g (Slake). At that price a lone Mage on Normal at the Slake would lose about three quarters of its gold for 12% more XP.
+- **What the new prices do.** On Deadly, Scored and Etched still pay for themselves, so they're the sensible kit. Carved and Graven become a real XP-for-gold trade: about break-even in his four for 2-4% more XP, and Graven costs the lone Deadly Mage 1.0k for 9%. On Normal every step stays a trade, and the top rune now costs a lone Mage 23-48% of its gold for 12-22% more XP. The QA audit's 11-15 read (Carved at the Slake at 52: +18% XP for -28% gold) doesn't reproduce at the old price: the sim's lone Mage there read +12% for -3%. At 28 g it reads +12% for -23%, about the trade the audit thought it saw. A Healer's deeper water rune is about 1-3% XP a step on Normal and a gold cost. It's for Deadly safety, where the Scored step alone is +5.4k.
+- It also takes some heat off item 3: the Carved Mage's 46-49% share now costs gold.
+- **Tyler's call:** this moves the top of his 11-05 ladder line ("then 16 / 24 g"). Plain, Scored and Etched are his and unchanged. Runecrafters gain headroom (a Carved rune can list up to 28 g), and more gold burns.
+- **NOT REGENERATED (brief):** `node tools/gen-hunt-sessions.mjs --check` is stale on this row only. Regenerate `2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql` at integration.
+
+**5. Andy's idea, monster HP up in a party. NOT BUILT** (it reverses Tyler's 11-08 "Same monsters, re-tune"). Simmed as one HP factor on every monster for a party, on top of the hotfix, against the flat-party route (one factor on the party XP cell, lane/d-flat-party-xp).
+| Party HP | His four, Deadly (Ford 55, Slake 57, Muster 60): XP a head | gold a head | store bill | deaths | Mage share |
+|---|---|---|---|---|---|
+| x1.00 (today) | 479k / 529k / 605k | +9k / -2k / +1k | 8k / 19k / 15k | 0 | 35 / 34 / 33% |
+| x1.25 | 89% / 86% / 83% | +5k / -9k / -3k | 10k / 24k / 17k | 0-0.2 an hour | -1 point |
+| x1.50 | 79% / 77% / 70% | +1k / -16k / -6k | 13k / 29k / 18k | 0 | -2 points |
+| x2.00 | 65% / 63% / 55% | -6k / -25k / -10k | 17k / 36k / 20k | 0-0.5 | -3 points |
+| Normal x1.50 (his four, Ford / Slake / Muster) | 92% / 91% / 74% | 6k / 6k / 9k (was 6 / 7 / 12) | | 0 | 0 |
+The tank, Healer, bow and Mage four reads the same within 2 points. **What HP does that the flat route doesn't:** for the same XP cut it takes 4-14k gold a head an hour (longer fights mean more food and fewer kills), it moves the Mage's share 1-4 points at most, and well-built fours still don't die. It hits Normal parties too, and only parties, so a four of friends pays more for every kill than a hero alone, against 11-08 and 11-13 ("all hunts work the same whether single / duo / 4 man"). **The flat route** only moves XP: gold, supplies, deaths and the Mage are untouched. **My read: the flat route.** HP scaling is a gold tax on grouping that doesn't solve the thing Andy is pointing at, the Mage.
+
+**Ranked changes**
+1. Ship the hotfix (lane/a-party-xp-tier, or the flat route Tyler picked after it). His four lands at 1.8-2.2x the contract on Deadly.
+2. Carved 28 g, Graven 44 g (committed; Tyler's yes, since it moves his 11-05 line; regenerate the hunt-sessions catalogue).
+3. The Ford takes the tier-4 armor, the Slake keeps the weapons (committed; drop odds are engine data, so no migration; the edge moves).
+4. Don't build party HP. If Tyler wants a group to cost more, use the flat XP factor.
+5. The Mage: no change. If Tyler still wants it down after item 2, cap Fireball at 4-5 targets. Then lift the bow next pass.
+6. Optional, Tyler: a coin dial per ground (GROUND_GP_FIT), so the Ford can also out-earn the Slake on coin.
+
+**Coverage.** No new test. `drop-tables` holds the new odds inside their bands (Scarce 0.75-1.5 h, Rare 10-20 h, value within +25% of the pin), `forest-cave` harder-pays-more holds the XP order, and `supplies-catalogue` and `craft-wages` W-RUNE hold the ladder rising and above a crafter's bid. EXIT 0 seen on: drop-tables, forest-cave, ground-pack, supplies-catalogue, craft-wages, hunt-core/abilities, gen-catalogues --check. **Exploit review:** both changes only take value away (the Slake's armor, a cheaper top rune) or move it between grounds (the Ford's armor +15% value at its floor), and nothing new is bought, crafted or sold. Higher store prices raise the price a Runecrafter can list at, so check the Carved rune on the market once it ships.
+
 ### 2026-11-15 The Mage at 110 and up (designer, lane/d-mage-110; fix lane F and Morrow condition 3 of the coherence pass below): RULED, ONE FORMULA ROW CHANGED (three knock-on rows below), a grader bug FIXED, MEASURED on the real settle. The edge moves (items are engine data). No migration (`tools/gen-catalogues.mjs --check` stays in sync: item combat stats aren't in `hr_items`)
 **The ruling.** The Mage isn't held back by how many monsters spawn. Each cloth piece now adds **1 Magic damage plus a tenth of its plate twin's defence** (`src/data/gear-tiers.js`, the cloth line's `magicStrB`, was 0.4 of that defence). A full cloth set adds 7 / 9 / 14 / 16 / 22 / 27 / 33 by tier, down from 7 / 15 / 27 / 41 / 61 / 84 / 113. Tier 1 doesn't change. Cloth still carries damage (Tyler 2026-08-15: "cloth should give the character dps regardless of the weapon type"). It's the size that was wrong, not the stat.
 

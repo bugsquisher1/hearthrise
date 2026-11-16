@@ -15,7 +15,7 @@
 //   node tools/balance-sim/train-career.mjs --style hammer [--to 60] [--day 12:12] [--train plain|items|crowns|none] [--skill melee]
 //                                           [--seed 0] [--json out.json]
 //   node tools/balance-sim/train-career.mjs compare a.json b.json ...   the runs side by side: by Level and by hunting hour
-//   node tools/balance-sim/train-career.mjs probe a.json b.json [--levels 20,30,40,50] [--hours 2] [--seeds 2]
+//   node tools/balance-sim/train-career.mjs probe a.json b.json [--levels 20,30,40,50] [--hours 2] [--seeds 2] [--tier deadly]
 //                                           each run's hero at those Levels (its career skills) on the recommended ground and the next one up
 //
 // `--day H:T`: H hunting hours and T training hours a day (12:12 premium, 8:16 free: stamina rests 1:1 while a hero trains).
@@ -51,7 +51,7 @@ export async function loadTrainCareer(root) {
   const lvOf = (st) => XP.charLevelFromXp(st.levelXp);
   const skLv = (st, k) => XP.skillLevelFromXp(k, st.skills[k] || 0);
 
-  /** One career: { style, to, day: [H, T], train: 'none'|'plain'|'items', skill, seed, maxDays } -> { rows (one a day), milestones, breaches }. */
+  /** One career: { style, to, day: [H, T], train: 'none'|'plain'|'items'|'crowns', skill, seed, maxDays } -> { rows (one a day), milestones, breaches }. */
   function runTrainCareer(job) {
     const style = job.style, role = STYLES[style].role, skill = job.skill || MAIN_SKILL[style];
     const [huntH, trainH] = job.day;
@@ -182,9 +182,9 @@ async function probe(files, o) {
         const ammos = STYLES[r.style].role === 'ranger' ? [...new Set(['bronze_arrows', bestArrow(m.skills.ranged)])] : [null];
         for (const ammo of ammos) {
           const cell = { id: ['probe', r.style, r.train, L, g, ammo].join(':'), ground: g, party: [r.style], level: L, skillsBySeat: [m.skills], hours: o.hours, seeds: o.seeds,
-            ...(ammo ? { gear: { ammo } } : {}) };
+            ...(ammo ? { gear: { ammo } } : {}), ...(o.tier && o.tier !== 'normal' ? { options: { tier: o.tier } } : {}) };
           const c = R.runCell(cell), h = c.heroes[0];
-          console.log([L, tag(r), g + ' (' + HUNT_INDEX[g].band[0] + ')', ammo || '-', h.levelXpPerH, h.deaths + ' in ' + h.hours + ' h', h.netWithRaresPerH, h.encMinHpPct.p10,
+          console.log([L, tag(r), g + ' (' + HUNT_INDEX[g].band[0] + ')' + (o.tier ? ' ' + o.tier : ''), ammo || '-', h.levelXpPerH, h.deaths + ' in ' + h.hours + ' h', h.netWithRaresPerH, h.encMinHpPct.p10,
             r.skill + ' ' + m.skills[r.skill]].join(' | '));
         }
       }
@@ -198,7 +198,7 @@ async function main() {
   if (a[0] === 'probe') {
     const files = a.slice(1).filter((x) => /\.json$/.test(x));
     const arg0 = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 && a[i + 1] ? a[i + 1] : d; };
-    return probe(files, { levels: arg0('levels', '20,30,40,50').split(',').map(Number), hours: Number(arg0('hours', 2)), seeds: Number(arg0('seeds', 2)) });
+    return probe(files, { levels: arg0('levels', '20,30,40,50').split(',').map(Number), hours: Number(arg0('hours', 2)), seeds: Number(arg0('seeds', 2)), tier: arg0('tier', '') });
   }
   const arg = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 && a[i + 1] ? a[i + 1] : d; };
   const style = arg('style', 'hammer');

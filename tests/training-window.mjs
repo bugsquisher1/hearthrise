@@ -188,7 +188,7 @@ async function checks() {
       ['hunting', { hunt: clone(BASE_ENV.hunt) }, /out hunting/, null],
       ['party', { party: clone(BASE_ENV.party) || { leader: 0, self: 0, members: [{ slot: 0, name: 'Tyler' }, { slot: 1, name: 'Mira' }] } }, /in a party/, null],
       ['short', { gold: 100 }, /The first hour costs 272 gold\. You have 100\./, null],
-      ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /Mira is on your dummy/, 'defense'],
+      ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /Dummy in use by Mira/, 'defense'],
     ]) {
       const s = world(o);
       const { ctx, page } = await open(s);

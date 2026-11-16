@@ -92,7 +92,7 @@
 .hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }
 .hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
-.hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); white-space: pre-line; }
 .hw-confirm-note:empty { display: none; }
 .hw-sell-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-sell-note:empty { display: none; }
@@ -380,7 +380,7 @@
 .hw-hunt-event { display: block; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-event b { color: var(--ink); }
 .hw-hunt-events:empty { display: none; }
-.hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
+.hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); white-space: pre-line; }
 .hw-hunt-warn:empty { display: none; }
 .hw-hd-theme { margin: var(--gap) 0 0; font-size: var(--t-small); line-height: 1.45; color: var(--ink); }
 /* Each section head is a Forged Steel head (shell.css): Cinzel in gold over a rule. */

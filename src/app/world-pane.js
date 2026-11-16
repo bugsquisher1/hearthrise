@@ -37,7 +37,7 @@ const PANE_HTML = '<div class="world-chrome">'
   + '<button type="button" class="world-scene" data-world-choice="town" aria-pressed="false">Town</button>'
   + '<button type="button" class="world-scene" data-world-choice="home" aria-pressed="false">Home</button>'
   + '</span></div>'
-  + '<div class="world-stage"><p class="world-status">Loading the world…</p></div>';
+  + '<div class="world-stage"><p class="world-status">Loading world…</p></div>';
 
 /* Each character's own display scratch (Town or Home, where its hero stands at home), kept across
    mounts: the pane is remounted on every switch of the viewed character, and a scratch made per mount
@@ -94,7 +94,7 @@ export async function mountWorldPane(host, character, o) {
     return true;
   }
 
-  /* NEVER A SILENT WAIT (phone playtest 2026-10-31: 35 s of "Loading the world…" in a tunnel, no word about why): while
+  /* NEVER A SILENT WAIT (phone playtest 2026-10-31: 35 s of "Loading world…" in a tunnel, no word about why): while
      the world loads, its line says when the connection is gone or slow. It comes back by itself: nothing to press. */
   const statusEl = stage.querySelector('.world-status');
   const firstWords = statusEl.textContent;
@@ -119,7 +119,7 @@ export async function mountWorldPane(host, character, o) {
   } catch (e) {
     console.error('[world] the world failed to load', e);
     const s = stage.querySelector('.world-status');
-    if (s && !reloading) s.textContent = 'The world could not load. Reload the page to try again.';
+    if (s && !reloading) s.textContent = 'World didn\'t load. Reload the page.';
   } finally {
     doc.defaultView.clearInterval(waitTick);
     doc.defaultView.removeEventListener('offline', sayWait);

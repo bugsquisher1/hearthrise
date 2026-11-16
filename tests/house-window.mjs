@@ -133,8 +133,8 @@ async function checks(overrides) {
       else {
         if (errors.length) fails.push('HW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const head = (await txt(page, '.hw-house-name')) + ' / ' + (await txt(page, '.hw-house-note'));
-        if (!/Hearthside Homestead/.test(head) || !/all your characters/.test(head)
-          || !/Gold comes from your shared purse, and materials from Tyler's bag first, then Storage\./.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
+        if (!/Hearthside Homestead/.test(head) || !/Shared house\./.test(head)
+          || !/Gold: shared purse\. Materials: Tyler's bag, then Storage/.test(head)) fails.push('HW-1 the head reads ' + JSON.stringify(head));
         // HW-2
         const deed = await lines(page, '.hw-deed');
         if (deed.length !== 3 || !/Yours/.test(deed[0].t) || deed[0].btn !== 'none'
@@ -179,7 +179,7 @@ async function checks(overrides) {
         // HW-7 the confirmation names the order; HW-8 the server's shortfall in its own numbers
         await press(page, W + '.hw-rooms > li:nth-child(2) [data-hs-act="house-ask"]', 'HW-7');
         const note = await txt(page, '.hw-confirm-note') || '';
-        if (!/600 gp from your shared purse, and 60 Normal Log from Tyler's bag first, then Storage\./.test(note)) fails.push('HW-7 the confirmation reads ' + JSON.stringify(note));
+        if (!/600 gp \(shared purse\) and 60 Normal Log \(Tyler's bag, then Storage\)/.test(note)) fails.push('HW-7 the confirmation reads ' + JSON.stringify(note));
         await press(page, W + '[data-hs-act="house-yes"]', 'HW-8');
         await idle(page);
         const short = await txt(page, '.hh-intent-msg') || '';
@@ -214,7 +214,7 @@ const MUTANTS = [
   ['the reader invents a home', 'src/session/home-sections.js', "  const h = read(cs, 'home');\n", "  const h = read(cs, 'home') || { tier: 0, tiers: [{ offer: 'property.homestead', name: 'Home', tier: 1, need: 0, gold: 1, items: {} }], rooms: [] };\n"],
   ['the room rung goes to the wrong verb', 'src/session/home-intents.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('shop_buy', { offer, qty: 1 })"],
   ['the Storage is not counted (the bag alone pays)', 'src/shell/windows/house.js', 'const inStorage = stored ? stored.get(it.id) || 0 : null;', 'const inStorage = null;'],
-  ['the head still says the hero pays from their own gold and bag', 'src/data/text/house.js', "materials from {name}\\'s bag first, then Storage.',\n\n  /* The deed. */", "materials from {name}\\'s own gold and bag.',\n\n  /* The deed. */"],
+  ['the head still says the hero pays from their own gold and bag', 'src/data/text/house.js', "Gold: shared purse. Materials: {name}\\'s bag, then Storage',\n\n  /* The deed. */", "Gold and materials: {name}\\'s own gold and bag',\n\n  /* The deed. */"],
   ['the refusal drops the server\'s counts', 'src/session/refusal.js', '    counts: countsOf(named),\n', '    counts: null,\n'],
 ];
 

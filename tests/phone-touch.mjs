@@ -625,7 +625,7 @@ async function staminaBuy(open, fails, done) {
   if (!mid.off || mid.now !== '3 h 12 m of 8 h') fails.push('PH-9 [' + tag + '] Buy stayed on (or the stamina moved) before the server answered: ' + JSON.stringify(mid));
   a.s.holdRefill = false;
   if (a.s.releaseRefill) a.s.releaseRefill();
-  const bought = await wait(a.page, () => document.querySelector('.hb-buy-now').textContent === '7 h 12 m of 8 h' && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored.', null, 6000);
+  const bought = await wait(a.page, () => document.querySelector('.hb-buy-now').textContent === '7 h 12 m of 8 h' && document.querySelector('.hb-buy-msg').textContent === 'Stamina restored', null, 6000);
   const sent = a.s.calls.filter((c) => c.name === 'hr_stamina_refill');
   if (sent.length !== 1 || sent[0].body.p_price !== 1840 || sent[0].body.p_slot !== 0 || !sent[0].body.p_idem) fails.push('PH-9 [' + tag + '] Buy sent ' + JSON.stringify(sent.map((c) => c.body)));
   if (!bought) fails.push('PH-9 [' + tag + '] after the server answered the panel reads ' + JSON.stringify(await panelOf(a.page)));
@@ -639,7 +639,7 @@ async function staminaBuy(open, fails, done) {
   a.s.onRefill = () => { a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 410, n: 3 }); return { ok: false, error: 'quote_changed', stamina_refill: a.s.env.stamina_refill }; };
   a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 });
   await askThenBuy();   // the question reads 520 (the server's then); the server moves to 410 under the second press
-  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp\.$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
+  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
   if (!moved) fails.push('PH-9 [' + tag + '] after quote_changed (the server quotes 410 gp) the panel reads ' + JSON.stringify(await panelOf(a.page)));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: 28800000 }); a.s.env.stamina_refill = { available: false, why: 'stamina_full', n: 3, per_day: 6 };
     return { ok: false, error: 'stamina_full', stamina_refill: a.s.env.stamina_refill }; };
@@ -686,7 +686,7 @@ async function coachSheetHunting(page, tag, fails) {
   if (!(await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hs-win-coach .hs-pointer') && document.querySelector('.hw-hunts-now') && document.querySelector('.hw-hunt b'), null, 4000))) { fails.push('PH-18 [' + tag + '] CONTROL: no card in Hunts mid-hunt'); return; }
   await page.waitForTimeout(250);
   const n = await page.evaluate(() => { const note = document.querySelector('.hw-hunts-now'); return { hint: note.classList.contains('is-hint'), said: note.textContent, box: note.getClientRects().length }; });
-  if (n.hint || !/^You are hunting in /.test(n.said)) fails.push('PH-18 [' + tag + '] CONTROL: mid-hunt the note reads ' + JSON.stringify(n));
+  if (n.hint || !/^Hunting in /.test(n.said)) fails.push('PH-18 [' + tag + '] CONTROL: mid-hunt the note reads ' + JSON.stringify(n));
   else if (n.box) fails.push('PH-18 [' + tag + '] the note of the running hunt stands over the grounds the card names');
 }
 /* Got it hands the sheet back: the next card waits on its tab until the tab is pressed. */
@@ -1320,7 +1320,7 @@ async function leaveWords(page, s, ctx, tag, fails) {
   const line = () => page.evaluate(() => (document.querySelector('.ht-leaving') || {}).textContent);
   const onBar = () => page.evaluate(() => { const l = document.querySelector('.ht-leaving'); return !!l && !l.hidden && window.__onScreen(window.__r(l)); });
   if (!(await wait(page, () => /^Leaving/.test((document.querySelector('.ht-leaving') || {}).textContent || ''), null, 2000))) fails.push('PH-16 [' + tag + '] the press reads: ' + await line());
-  if (!(await wait(page, () => /Waiting for the server/.test(document.querySelector('.ht-leaving').textContent), null, 6000))) fails.push('PH-16 [' + tag + '] a leave with no answer still reads: ' + await line());
+  if (!(await wait(page, () => /Waiting for server/.test(document.querySelector('.ht-leaving').textContent), null, 6000))) fails.push('PH-16 [' + tag + '] a leave with no answer still reads: ' + await line());
   if (!(await onBar())) fails.push('PH-16 [' + tag + '] the leave\'s words are not on screen');
   if (!(await wait(page, () => /Slow connection/.test((document.querySelector('.conn-line') || {}).textContent || ''), null, 8000))) fails.push('PH-16 [' + tag + '] an ask out for 8 s does not say the connection is slow');
   await ctx.setOffline(true);
@@ -1848,7 +1848,7 @@ const MUTANTS = [
   ['PH-8 the stance folds away on a desktop', 'src/styles/hunt.css', '.hb-stance { display: flex; width: 100%; }', '.hb-stance { display: none; width: 100%; }'],
   ['PH-9 the refill sends a price of its own', 'src/shell/widgets/stamina-buy.js', 'cs.buyStamina(q.price)', 'cs.buyStamina(q.price + 1)'],
   ['PH-9 the premium note shows to premium heroes too', 'src/shell/widgets/stamina-buy.js', "cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));", "cls(box.querySelector('.hb-buy-premium'), 'is-on', true);"],
-  ['PH-9 a refused refill loses its words', 'src/shell/widgets/stamina-buy.js', "s.msg = r.ok ? 'Stamina restored.' : refusalWords(r.error);", "s.msg = r.ok ? 'Stamina restored.' : '';"],
+  ['PH-9 a refused refill loses its words', 'src/shell/widgets/stamina-buy.js', "s.msg = r.ok ? t('hud.stam_done') : refusalWords(r.error);", "s.msg = r.ok ? t('hud.stam_done') : '';"],
   ['PH-9 Buy stays on when a refill cannot be bought', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', s.pending);"],
   ['PH-9 Buy stays on while the refill is in flight', 'src/shell/widgets/stamina-buy.js', "prop(go, 'disabled', !!why || s.pending);", "prop(go, 'disabled', !!why);"],
   ['PH-9 the stamina panel is wider than a phone', 'src/styles/hunt.css', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px;', '.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 900px;'],
@@ -1884,8 +1884,8 @@ const MUTANTS = [
   ['PH-16 the world waits in silence', 'src/app/world-pane.js', 'statusEl.textContent = loadingWords(connection.state(), Date.now() - waitFrom, firstWords);', 'statusEl.textContent = firstWords;'],
   ['PH-16 no connection line', 'src/app/boot.js', 'mountConnectionLine(doc), ', ''],
   ['PH-16 the connection line never clears', 'src/net/connection.js', "    line.hidden = s === 'ok';\n", '    if (s !== \'ok\') line.hidden = false;\n'],
-  ['PH-16 a leave with no answer stays on "Leaving"', 'src/shell/widgets/hunt-topbar.js', "return waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING", "return LEAVING"],
-  ['PH-16 a leave does not know the connection went', 'src/shell/widgets/hunt-topbar.js', "  if (state === 'lost') return LEAVE_WAIT.lost;\n", ''],
+  ['PH-16 a leave with no answer stays on "Leaving"', 'src/shell/widgets/hunt-topbar.js', "return t(waitedMs >= WAIT_WORDS_MS ? LEAVE_WAIT.slow : LEAVING", "return t(LEAVING"],
+  ['PH-16 a leave does not know the connection went', 'src/shell/widgets/hunt-topbar.js', "  if (state === 'lost') return t(LEAVE_WAIT.lost);\n", ''],
   ['PH-16 a counting leave does not say why', 'src/shell/widgets/hunt-topbar.js', "prop(el.querySelector('.ht-why'), 'hidden', over || !cd || cd.phase !== 'counting');", ''],
   ['PH-17 the email box throws the keyboard up', 'src/app/sign-in.js', "if (!win || !win.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'input.focus();'],
   ['PH-17 a desktop loses its focus', 'src/app/sign-in.js', "if (!win || !win.matchMedia('(pointer: coarse), ' + MOBILE_QUERY).matches) input.focus();", 'void win;'],

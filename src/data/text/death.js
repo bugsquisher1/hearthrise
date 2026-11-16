@@ -8,19 +8,27 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const DEATH_TEXT = Object.freeze({
+  /* The popup's head and lines (src/shell/death-popup.js deathWords). {xp} "1,200 Level XP and 40 Melee XP". */
+  title: '{name} died',
+  title_in: '{name} died in {ground}',
+  killed: 'Killed by {monster}',
+  lost: 'Death cost: {xp}',
+  lost_none: 'Death cost: no XP',
+  town: '{name}: back in town, full HP and mana',
   /* Said only when the row's level_to is under its level_from. */
-  level_dropped: '{name} dropped from Level {from} to Level {to}.',
+  level_dropped: '{name}: Level {from} to Level {to}',
   /* No Blessing was held. {free} is free_until while Blessings are free for this hero, else nothing. */
-  no_blessing: 'You had no Blessing. Blessings in the Shop\'s Services tab make dying cost less{free}.',
-  free_until: ', and they\'re free until Level {level}',
+  no_blessing: 'No Blessings (they cut death loss, Shop, Services tab{free})',
+  free_until: ', free until Level {level}',
   /* {count} is how many Blessings the death used up (the row's `blessings`), {xp} what they kept. */
-  blessing_kept: { one: 'Your Blessing saved you {xp}. It\'s used up now.', other: 'Your {count} Blessings saved you {xp}. They\'re used up now.' },
-  blessing_used: { one: 'Your Blessing is now used up.', other: 'Your {count} Blessings are now used up.' },
-  /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords). A boss room (a call or a hall) is one pull, so it never says to pull less. */
-  why_in_range: 'Better armor, food eaten sooner or a smaller pull would help.',
-  why_in_room: 'Better armor, food eaten sooner or a healer in your party would help.',
+  blessing_kept: { one: 'Blessing saved {xp} (used up)', other: '{count} Blessings saved {xp} (used up)' },
+  blessing_used: { one: 'Blessing used up', other: '{count} Blessings used up' },
+  /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords): advice, kept as short sentences. A boss room (a call
+     or a hall) is one pull, so it never says to pull less. */
+  why_in_range: 'Better armor, eating sooner or a smaller pull would help.',
+  why_in_room: 'Better armor, eating sooner or a healer in your party would help.',
   /* ...for a party that had a Healer (death-popup.js hasHealer): never suggest what it already has */
-  why_in_room_healed: 'Better armor, better food eaten sooner or a healer who heals sooner would help.',
-  /* {gap} Levels under the ground's floor, {levels} "Level" or "Levels". */
-  why_under: 'You were {gap} {levels} under this ground, and its monsters are stronger than you. Better armor, food eaten sooner, a healer or a few more Levels would help.',
+  why_in_room_healed: 'Better armor, better food or a healer who heals sooner would help.',
+  /* {count} Levels under the ground's floor */
+  why_under: { one: '{count} Level under this ground (more Levels or better armor would help)', other: '{count} Levels under this ground (more Levels or better armor would help)' },
 });

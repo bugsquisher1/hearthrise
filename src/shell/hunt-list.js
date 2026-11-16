@@ -33,27 +33,23 @@ import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOf
 import { PARTY } from '../data/party.js?v=0.2.132';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
 import { MONSTERS } from '../data/monsters.js?v=0.2.132';
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.132';
 import { SUPPLIES } from '../data/supplies.js?v=0.2.132';
 import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.132';
 import { whole, gold } from '../render/format.js?v=0.2.132';
-import { t, hasText } from '../render/player-text.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 
 const PACK_QTY_MAX = 100000;
-/* A party size in words (hunts.count_<n>, "two"), else the number. */
-const countWords = (n) => (Number.isInteger(n) && hasText('hunts.count_' + n) ? t('hunts.count_' + n) : String(n));
+/* A line of several labels: each on its own line (the warning keeps line breaks, windows.css). */
+const LINES = '\n';
+/* The advice over the list stays one line (it shares the window's height with the page): its two labels as two fragments. */
+const ADVICE = '. ';
 
-/** "The Rat King is built for a group of two or more. Alone, you still fight him, and he can kill you." for this hunt's ground, or ''. */
+/** "Recommended: 2+ players" for this hunt's ground (Tyler 2026-11-14: a label, not a sentence), or ''. */
 export function partyNote(hunt) {
   const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);
   const p = g && g.pockets.find((q) => q.forParty);
-  if (!p) return '';
-  const id = p.spawns.map((s) => s.monster).find((m) => MONSTERS[m] && MONSTERS[m].boss === true);
-  /* How a sentence opens on him: a called boss's own words ("The Rat King"), else his name ("Captain Hask", never "The Captain Hask"). */
-  const call = id && Object.values(BOSS_CALLS).find((c) => c.of === id);
-  const n = countWords(p.forParty);
   /* A warning, never a gate (Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"): a lone hero walks the hall. */
-  return id ? t('hunts.party_boss', { boss: call ? call.Boss : MONSTERS[id].name, n }) : t('hunts.party_hall', { n });
+  return p ? t('hunts.party_size', { n: p.forParty }) : '';
 }
 
 /** One line per hunt ground, lowest band first (ties by name). */
@@ -139,7 +135,7 @@ export function rangeWords(r, level, cutPermille) {
   /* one decimal at most: 6% x (1 - 750/1000) = 1.5% */
   const loss = Math.round(DEATH_XP_LOSS * (1000 - cut) / 10 * 10) / 10;
   return [t('hunts.range_under', { count: gap }), (gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS),
-    cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })].join(' ');
+    cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })].join(LINES);
 }
 
 /**
@@ -155,7 +151,7 @@ export function seatsUnder(r, party) {
 export function underWords(r, seats) {
   if (!seats.length) return '';
   const names = seats.map((s) => t('hunts.seat_level', { name: s.name, level: s.level }));
-  const who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+  const who = names.join(', ');
   return t('hunts.seats_under', { count: names.length, who, level: r.band[0] });
 }
 
@@ -168,7 +164,7 @@ export function shareWords(r, party, myLevel) {
   const low = seats.map((s) => ({ ...s, pm: underFloorSharePm(ground, s.level, top) })).filter((s) => s.pm < 1000);
   if (!low.length) return '';
   return low.map((s) => (s.me ? t('hunts.share_you', { pct: Math.max(1, Math.round(s.pm / 10)), top })
-    : t('hunts.share_seat', { name: s.name, pct: Math.max(1, Math.round(s.pm / 10)), top }))).join(' ');
+    : t('hunts.share_seat', { name: s.name, pct: Math.max(1, Math.round(s.pm / 10)), top }))).join(LINES);
 }
 
 /** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */
@@ -210,12 +206,12 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
        with how we are planning the game"): the note says where the Levels are and what the tough ground costs, never who it is for. */
     const inBand = best(rows.filter((r) => !fitsGroup(r, partySize) && holds(r, lo, lo)));
     const easier = { easier: below.name, lo: below.band[0], hi: below.band[1] };
-    if (!inBand) return { row: below, note: [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })].join(' ') };
+    if (!inBand) return { row: below, note: [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })].join(ADVICE) };
     const levels2 = holds(inBand, lo, hi) ? levelsWords(lo, hi) : levelsWords(lo, lo);
     const was = alone && bests && bests.grounds && bests.grounds[inBand.hunt] && bests.grounds[inBand.hunt].solo;
     const lost = was && Number.isFinite(was.balanceH) && was.balanceH < 0 ? gold(-was.balanceH) : null;
     const key = lost ? 'hunts.right_but_lost' : alone ? 'hunts.right_but_tough' : 'hunts.right_easier';
-    return { row: below, note: t(key, Object.assign({ ground: inBand.name, levels: levels2, gold: lost }, easier)) };
+    return { row: below, note: [t(key, { ground: inBand.name, levels: levels2, gold: lost }), t('hunts.easier', easier)].join(ADVICE) };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
 }
@@ -285,7 +281,7 @@ export function fitWords(r, level) {
 /** Who may come: "Alone or with up to 3 more" on every ground, or "One hero". No ground is solo or party (Tyler 2026-11-08): a boss built
     for a group says so in its own warning (partyNote), and no rule holds a lone hero out. */
 export function heroWords(r) {
-  return r.heroes > 1 ? t('hunts.heroes_up_to', { n: r.heroes - 1 }) : t('hunts.heroes_one');
+  return r.heroes > 1 ? t('hunts.heroes_up_to', { max: r.heroes }) : t('hunts.heroes_one');
 }
 
 /**

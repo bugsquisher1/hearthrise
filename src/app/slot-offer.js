@@ -19,25 +19,25 @@
 import { whole } from '../render/format.js?v=0.2.132';
 import { t } from '../render/player-text.js?v=0.2.132';
 
-const ORDINAL = Object.freeze(['first', 'second', 'third', 'fourth', 'fifth', 'sixth']);
+const ORDINAL = Object.freeze(['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth']);
 
-/* What the player reads for each refusal the server can give. */
+/* What the player reads for each refusal the server can give (labels: src/data/text/slots.js). */
 const REFUSAL = Object.freeze({
-  already_owned: 'You already own that hero slot.',
-  slot_cap: 'You have every hero slot there is.',
-  requires_previous_slot: 'Buy the hero slots before this one first.',
-  hero_slot_daily_cap: 'That is enough hero slots for today. Try again tomorrow.',
-  rate_limited: 'Too many tries. Wait a minute, then try again.',
-  no_character: 'Create a hero first, then buy another slot.',
-  slot_unpriced: 'That hero slot is not for sale.',
+  already_owned: 'slots.refused_owned',
+  slot_cap: 'slots.refused_cap',
+  requires_previous_slot: 'slots.refused_previous',
+  hero_slot_daily_cap: 'slots.refused_daily',
+  rate_limited: 'slots.refused_rate',
+  no_character: 'slots.refused_no_hero',
+  slot_unpriced: 'slots.refused_unpriced',
 });
 
-/** The sentence a refused purchase shows. Pure. */
+/** The words a refused purchase shows. Pure. */
 export function slotRefusalText(r) {
   if (r && r.reason === 'insufficient_gold') {
-    return Number.isSafeInteger(r.shortBy) && r.shortBy > 0 ? 'You need ' + whole(r.shortBy) + ' more gold.' : 'You do not have enough gold.';
+    return Number.isSafeInteger(r.shortBy) && r.shortBy > 0 ? t('slots.short', { gold: whole(r.shortBy) }) : t('slots.refused_gold');
   }
-  return (r && REFUSAL[r.reason]) || 'The hero slot could not be bought. Try again in a minute.';
+  return t((r && REFUSAL[r.reason]) || 'slots.refused_other');
 }
 
 /**
@@ -51,10 +51,10 @@ export function slotRefusalText(r) {
  */
 export function playLineOf(stated, limit, owned, offer, rows) {
   if (stated === null) return '';
-  if (stated <= 1) return 'One can play at a time.';
+  if (stated <= 1) return t('slots.play_one');
   const most = Math.min(stated, limit);
-  if (!(owned < most)) return 'Up to ' + most + ' can play at once.';
-  if (anEmptySlot(rows)) return 'You own ' + owned + ' hero ' + (owned === 1 ? 'slot' : 'slots') + ', and up to ' + most + ' heroes can play at once.';
+  if (!(owned < most)) return t('slots.play_up_to', { most });
+  if (anEmptySlot(rows)) return t('slots.play_owned', { count: owned, most });
   /* The price is the offer block's (the server's quote, right under the roster), so the line names none (designer 2026-11-09). */
   return t('slots.more_cost_gold', { count: owned, most });
 }
@@ -97,15 +97,15 @@ export function slotOfferHtml(offer, roster, o = {}) {
   const short = offer.cost - purse.gold;
   const heroes = (Array.isArray(roster) ? roster : []).filter((r) => r && r.exists).length;
   return '<section class="slot-offer" data-slot-id="' + offer.slotId + '">'
-    + '<p class="slot-offer-lead">' + (nth ? 'A ' + nth + ' hero slot' : 'Another hero slot') + ' costs ' + whole(offer.cost) + ' gold'
-    + (offer.max ? '. An account holds up to ' + offer.max + ' heroes' : '') + '.</p>'
+    + '<p class="slot-offer-lead">' + t(nth ? (offer.max ? 'slots.offer_nth_max' : 'slots.offer_nth') : (offer.max ? 'slots.offer_any_max' : 'slots.offer_any'),
+      Object.assign({ cost: whole(offer.cost) }, nth ? { nth } : {}, offer.max ? { max: offer.max } : {})) + '</p>'
     /* The second hero is a week away for most players (designer 2026-11-09, table E: about 56 hours of hunting for the
        second slot): while the account has ONE hero, say so and point at other players meanwhile. */
     + (heroes === 1 ? '<p class="slot-offer-lead slot-offer-note">' + t('slots.one_hero_note') + '</p>' : '')
-    + '<p class="slot-offer-purse">Your gold: ' + whole(purse.gold) + '</p>'
-    + (short > 0 ? '<p class="slot-offer-short">You need ' + whole(short) + ' more gold.</p>' : '')
+    + '<p class="slot-offer-purse">' + t('slots.purse', { gold: whole(purse.gold) }) + '</p>'
+    + (short > 0 ? '<p class="slot-offer-short">' + t('slots.short', { gold: whole(short) }) + '</p>' : '')
     + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
     + (o.pending || short > 0 ? ' disabled' : '') + '>'
-    + (o.pending ? 'Buying…' : 'Buy a hero slot for ' + whole(offer.cost) + ' gold') + '</button>'
+    + (o.pending ? t('slots.buying') : t('slots.buy', { cost: whole(offer.cost) })) + '</button>'
     + '</section>';
 }

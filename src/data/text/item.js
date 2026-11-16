@@ -48,9 +48,9 @@ export const ITEM_TEXT = Object.freeze({
 
   /* A tool, and who won't buy it. */
   tool_effect: '{skill} {speed} faster, {xp} more XP, {extra} extra yield',
-  tool_words: '{effect} while it\'s in your bag. You don\'t need to equip it. Only your best one counts, and it does nothing in Storage',
+  tool_words: '{effect} from your bag (best one only, not from Storage)',
   own_use: 'For your own use. The shop and the Weighhouse won\'t take it',
-  kit_unlisted: 'The shop buys it, but every new hero starts with some, so the Weighhouse won\'t list it',
+  kit_unlisted: 'Shop buys it. Not on the Weighhouse (every hero starts with some)',
   qty_item: '{qty} {item}',
   sells_rares: 'This sells rare finds: {items}.',
   kit_once: 'Nothing sells the {kit} that makes another {item}.',
@@ -62,8 +62,8 @@ export const ITEM_TEXT = Object.freeze({
   drink_restores: 'Drink to restore {mana} mana',
   burn_trains: 'Burn it in the Great Hearth to train {skill}',
   burn_trains_level: 'Burn it in the Great Hearth to train {skill} ({skill} {level})',
-  burn_flame: 'Burn it in the Great Hearth for a burst of {skill} XP, and the fire {flame} for all Havora',
-  burn_flame_level: 'Burn it in the Great Hearth for a burst of {skill} XP, and the fire {flame} for all Havora ({skill} {level})',
+  burn_flame: 'Great Hearth: {skill} XP burst, fire {flame} for Havora',
+  burn_flame_level: 'Great Hearth: {skill} XP burst, fire {flame} for Havora ({skill} {level})',
   cook_it: 'Cook it into food ({skill} {level})',
   plant_it: 'Plant it on the Farm',
   house_asks: 'The House asks for it',
@@ -75,7 +75,7 @@ export const ITEM_TEXT = Object.freeze({
   sell_it: 'Sell it at the shop',
   keep_only: 'The shop won\'t buy it, so it\'s yours to keep',
   ammo_rune: 'Spent by spells that call for it',
-  ammo_whetstone: 'Goes in the ammo slot and sharpens a melee weapon. One wears out every {swings} swings',
+  ammo_whetstone: 'Ammo slot: sharpens a melee weapon, wears out every {swings} swings',
   ammo_shot: 'Fired from a bow or crossbow. Each shot uses one',
   ammo_endless: 'Fired from a bow or crossbow. They never run out',
 

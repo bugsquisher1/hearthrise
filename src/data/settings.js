@@ -38,18 +38,18 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.132';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.132';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.132';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.132';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.132';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.132';
-import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.132';
-import { REPLAY } from './privacy.js?v=0.2.132';
-import { IDLE_MOTION } from './world/motion.js?v=0.2.132';
-import { MONSTER_NAMES } from './world/monster-names.js?v=0.2.132';
-import { FX_ALPHA } from './fx-alpha.js?v=0.2.132';
-import { TIPS } from './tips.js?v=0.2.132';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.134';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.134';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.134';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.134';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.134';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.134';
+import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.134';
+import { REPLAY } from './privacy.js?v=0.2.134';
+import { IDLE_MOTION } from './world/motion.js?v=0.2.134';
+import { MONSTER_NAMES } from './world/monster-names.js?v=0.2.134';
+import { FX_ALPHA } from './fx-alpha.js?v=0.2.134';
+import { TIPS } from './tips.js?v=0.2.134';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -63,7 +63,7 @@ export const SETTING_CATEGORIES = Object.freeze([
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
   cat('account', 'Account', 'Your name, password and signing out.'),
-  cat('help', 'Help', 'How Hearthrise works, and how to tell the team when something goes wrong.'),
+  cat('help', 'Help', 'How Hearthrise works, and how to report a problem'),
 ]);
 
 const NO_BIND = Object.freeze({ store: 'none' });
@@ -87,7 +87,7 @@ const LOOK_ROWS = [row({
   id: 'ui.tips',
   category: 'interface',
   label: TIPS.label,
-  help: 'The coach\'s cards under the icons and the town criers\' calls in Local chat. Turn this off to hide them, or press Don\'t show tips on any card.',
+  help: 'Coach cards under the icons and criers\' calls in Local chat',
   type: 'toggle',
   default: TIPS.defaultOn,
   bind: Object.freeze({ store: 'switch', field: TIPS.field, sw: TIPS }),
@@ -95,7 +95,7 @@ const LOOK_ROWS = [row({
   id: 'ui.windowOpacity',
   category: 'interface',
   label: 'Window opacity',
-  help: 'How solid windows and panels are. Lower lets the world show through them, but their text and frames stay solid.',
+  help: 'Window and panel opacity (text and frames stay solid)',
   type: 'slider',
   default: PANEL_ALPHA.initial,
   options: Object.freeze({ min: PANEL_ALPHA.min, max: PANEL_ALPHA.max, step: PANEL_ALPHA.step, unit: '%' }),
@@ -105,7 +105,7 @@ const LOOK_ROWS = [row({
   id: 'ui.idleMotion',
   category: 'interface',
   label: IDLE_MOTION.label,
-  help: 'Heroes, townsfolk and monsters breathe while they stand still. Turn this off to keep them still.',
+  help: 'Idle breathing for heroes, townsfolk and monsters',
   type: 'toggle',
   default: IDLE_MOTION.defaultOn,
   bind: Object.freeze({ store: 'switch', field: IDLE_MOTION.field, sw: IDLE_MOTION }),
@@ -114,7 +114,7 @@ const LOOK_ROWS = [row({
   id: 'ui.monsterNames',
   category: 'interface',
   label: MONSTER_NAMES.label,
-  help: 'Show each monster\'s name over its head during a hunt. Bosses always show theirs.',
+  help: 'Monster names over their heads in hunts (bosses always show)',
   type: 'toggle',
   default: MONSTER_NAMES.defaultOn,
   bind: Object.freeze({ store: 'switch', field: MONSTER_NAMES.field, sw: MONSTER_NAMES }),
@@ -136,7 +136,7 @@ const FX_ROWS = FX_ALPHA.map((f) => row({
 /* ── Interface: show or hide each HUD panel, then the HUD layout window (fade, put back a moved panel, reset) ── */
 const LAYOUT_ROW = row({
   id: 'ui.hudWindow', category: 'interface', label: 'HUD layout',
-  help: 'Fade any panel, put a panel you moved back where it was, or reset them all.',
+  help: 'Fade a panel, reset one you moved, or reset all',
   type: 'action', open: 'hud',
 });
 const PANEL_ROWS = HUD_WIDGETS.filter((w) => w.removable).map((w) => row({
@@ -168,16 +168,16 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !('escape' in w && w.escape) && 
 const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 'help', label: n.label, help: n.text, type: 'note' })), row({
   /* The wiki (src/shell/windows/wiki.js): the top bar has no room for a 21st icon at a laptop's width (alpha-windows AW-62), so Help is its door, and the slash. */
   id: 'help.wiki', category: 'help', label: 'Wiki',
-  help: 'Look up every skill, hunting ground and formula. The game writes it from its own numbers, so it always matches a hunt.',
+  help: 'Every skill, hunting ground and formula, from the game\'s own numbers',
   type: 'action', open: 'wiki',
 }), row({
   id: 'help.report', category: 'help', label: 'Report a problem',
-  help: 'Write what went wrong and it goes straight to the team, with your game details attached.',
+  help: 'Report a problem straight to the team (game details attached)',
   type: 'action', open: 'report',
 }), row({
   /* THE SESSION-RECORDING SWITCH (src/data/privacy.js, src/session/replay-pref.js): the player's choice, kept for every hero. */
   id: 'help.replay', category: 'help', label: REPLAY.label,
-  help: 'Sends the team a recording of your game screen so we can see what went wrong. Typed text and chat are hidden. Turn it off and nothing is recorded.',
+  help: 'Screen recording for the team. Typed text and chat hidden. Off: nothing recorded.',
   type: 'toggle', default: REPLAY.defaultOn,
   bind: Object.freeze({ store: 'switch', field: REPLAY.field, sw: REPLAY }),
 })];

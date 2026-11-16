@@ -24,11 +24,11 @@
 //
 // PURE ESM. Data, a validator and the ground rule. Never imported by the engine or the page (tests/faction-ground-balance.mjs FG-EDGE).
 // ════════════════════════════════════════════════════════════════════════
-import { REGIONS, STANDING_SIDES } from './grounds/shape.js?v=0.2.132';
-import { HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS } from './hunts.js?v=0.2.132';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.132';
-import { MONSTERS } from './monsters.js?v=0.2.132';
-import { REGION_KITS } from './world/region-kits.js?v=0.2.132';
+import { REGIONS, STANDING_SIDES } from './grounds/shape.js?v=0.2.134';
+import { HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS } from './hunts.js?v=0.2.134';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.134';
+import { MONSTERS } from './monsters.js?v=0.2.134';
+import { REGION_KITS } from './world/region-kits.js?v=0.2.134';
 
 export const FACTION_RULES = Object.freeze({
   /* The monster whose first server-counted kill opens joining: Lord Krell, his hall in Krell's Hold (src/data/grounds/krells_hold). */
@@ -76,6 +76,8 @@ export function validateFactions(rules = FACTION_RULES, outfits = FACTION_OUTFIT
 /**
  * The ground rule's problems, as sentences (FG-* names the clause). Empty = holds. Every input defaults to the data, so a guard can hand
  * it a planted copy. `grounds` are the hunt rows of walkable grounds (HUNTS: base and packs, staged included); `rooms` every other row.
+ * @param {{grounds?: readonly any[], rooms?: readonly any[], regions?: readonly string[], rules?: typeof FACTION_RULES,
+ *   kits?: Record<string, any>, maps?: Record<string, string>, monsters?: Record<string, any>, outfits?: typeof FACTION_OUTFITS}} [o]
  */
 export function factionGroundProblems(o = {}) {
   const grounds = o.grounds || HUNTS, rooms = o.rooms || [...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS];

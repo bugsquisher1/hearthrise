@@ -18,22 +18,22 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.132';
-import { ABILITIES, ABILITY_RULES, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.132';
-import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.132';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.132';
-import { STATUSES } from '../data/statuses.js?v=0.2.132';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.132';
-import { ITEMS } from '../data/items.js?v=0.2.132';
-import { isRune } from '../data/supplies.js?v=0.2.132';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.132';
-import { itemName, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.132';
-import { ownCount } from './rune-supply.js?v=0.2.132';
-import { shortOf } from './item-lore.js?v=0.2.132';
-import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.132';
-import { castOf, costLine, landed } from './cast-facts.js?v=0.2.132';
-import { listWords, whole } from '../render/format.js?v=0.2.132';
-import { t } from '../render/player-text.js?v=0.2.132';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.134';
+import { ABILITIES, ABILITY_RULES, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.134';
+import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.134';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.134';
+import { STATUSES } from '../data/statuses.js?v=0.2.134';
+import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.134';
+import { ITEMS } from '../data/items.js?v=0.2.134';
+import { isRune } from '../data/supplies.js?v=0.2.134';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.134';
+import { itemName, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.134';
+import { ownCount } from './rune-supply.js?v=0.2.134';
+import { shortOf } from './item-lore.js?v=0.2.134';
+import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.134';
+import { castOf, costLine, landed } from './cast-facts.js?v=0.2.134';
+import { listWords, whole } from '../render/format.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -257,14 +257,17 @@ function healsSelf(a) {
  * THE HEAL WARNING (designer ruling 2026-10-21, Andy's Sewer death): a heal slot whose HP % (its
  * own "My HP % below" test) is fewer HP than the biggest blow the hunt can land,
  * so one hit can kill before it fires. `blow` is pull-cycle.js biggestBlowOn, `hpMax` the server's.
- * '' when it is safe or a number is unknown.
+ * Lines of parts (the window draws format.js sepHtml between two parts of a line); [] when it is safe or a number is unknown.
+ * @returns {string[][]}
  */
 export function healWarning(w, set, blow, hpMax) {
-  if (!w || !w.action || !w.action.id || !blow || !(hpMax > 0) || !healsSelf(w.action)) return '';
+  if (!w || !w.action || !w.action.id || !blow || !(hpMax > 0) || !healsSelf(w.action)) return [];
   const c = w.conditions.find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
-  if (!c) return '';
+  if (!c) return [];
   const at = Math.floor((hpMax * c.value) / 100);
-  return at < blow.hit ? t(w.action.type === 'consume' ? 'bar.heal_warning_eat' : 'bar.heal_warning_heal', { monster: blow.name, hit: blow.hit, pct: c.value, hp: at }) : '';
+  /* Tyler 2026-11-14: "Max Hit {hit} · Your HP {hp}", then "Eat earlier" on its own line */
+  return at < blow.hit ? [[t('bar.heal_warning_hit', { hit: blow.hit }), t('bar.heal_warning_hp', { hp: at })],
+    [t(w.action.type === 'consume' ? 'bar.heal_warning_eat' : 'bar.heal_warning_heal')]] : [];
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A is On, ignores no monster B fights, and A's conditions are all among B's

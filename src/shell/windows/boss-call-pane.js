@@ -15,14 +15,15 @@
 // no-gold labels, with the event's line before them (live-events-view.js callEventWords). It waives gold only: stamina stays.
 // The event coming on or going off on the server's clock reads the quote again (feeKey).
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.132';
-import { itemName } from '../widgets/bits.js?v=0.2.132';
-import { whole } from '../../render/format.js?v=0.2.132';
-import { BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.132';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.132';
-import { callOut } from '../../session/boss-intents.js?v=0.2.132';
-import { readCall } from '../../session/boss-quote.js?v=0.2.132';
-import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.132';
+import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.134';
+import { itemName } from '../widgets/bits.js?v=0.2.134';
+import { whole } from '../../render/format.js?v=0.2.134';
+import { BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.134';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.134';
+import { callOut } from '../../session/boss-intents.js?v=0.2.134';
+import { readCall } from '../../session/boss-quote.js?v=0.2.134';
+import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.134';
+import { partyNote } from '../hunt-list.js?v=0.2.134';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false, fights: 1 }; SCRATCH.set(cs, s); } return s; };
@@ -165,7 +166,7 @@ export function patchCall(det, ctx, v) {
     /* ALONE, A WARNING, NEVER A REFUSAL (designer's ruling 2, 2026-11-10): one more line, first, when the server says the room holds this hero only. */
     const alone = warn.querySelector('.hw-call-note-alone');
     prop(alone, 'hidden', !q.alone);
-    text(alone, q.alone ? callWords(BOSS_CALL_WORDS.warnAlone, call) : '');
+    text(alone, q.alone ? partyNote(call.from) || BOSS_CALL_WORDS.warnAlone : '');
     text(warn.querySelector('.hw-call-note-a'), callWords(BOSS_CALL_WORDS.warn[0], call));
     text(warn.querySelector('.hw-call-pick-l'), S.pick);
     const slider = warn.querySelector('.hw-call-n');

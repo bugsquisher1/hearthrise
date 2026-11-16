@@ -103,14 +103,14 @@ declare
     'hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers', 'hr_catalogue_meta', 'hr_character_sheet_engine', 'hr_chat_config',
     'hr_client_rpc_baseline', 'hr_client_write_baseline', 'hr_companion_grants', 'hr_crop_plot_tier', 'hr_crops', 'hr_db_samples', 'hr_depot_config',
     'hr_dungeon_loot', 'hr_dungeons', 'hr_equip_slots', 'hr_farm_yield_perk', 'hr_feast_foods', 'hr_flags', 'hr_gem_unlocks', 'hr_gm_wall_allow',
-    'hr_ground_tiers', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
+    'hr_ground_session_modes', 'hr_ground_tiers', 'hr_hearth_named', 'hr_hearth_rule', 'hr_hearthfind_items', 'hr_hearthfind_meta', 'hr_hearthfind_sources', 'hr_hero_rename_rule', 'hr_hero_slots',
     'hr_hunt_abilities', 'hr_hunt_action_ids', 'hr_hunt_basic_supplies', 'hr_hunt_condition_limits', 'hr_hunt_condition_metrics', 'hr_hunt_config',
     'hr_hunt_cover_items', 'hr_hunt_end_reasons', 'hr_hunt_ground_spawns', 'hr_hunt_grounds', 'hr_hunt_kill_bounds', 'hr_hunt_lanes', 'hr_hunt_limits',
     'hr_hunt_resumable_kinds', 'hr_hunt_role_rules', 'hr_hunt_roles', 'hr_hunt_roster', 'hr_hunt_set_options', 'hr_hunt_shields', 'hr_hunt_spawns',
     'hr_hunt_stances', 'hr_hunt_supplies', 'hr_hunt_target_modes', 'hr_hunt_travel', 'hr_hunt_vendor_value', 'hr_hunt_weapon_roles', 'hr_hunt_weapons',
     'hr_hunt_world_shape', 'hr_hunts', 'hr_item_buffs', 'hr_item_slots', 'hr_items', 'hr_ledger_config', 'hr_level_curve', 'hr_market_config',
     'hr_market_premium_items', 'hr_name_blocklist', 'hr_outfit_dyes', 'hr_outfits', 'hr_players_online_cache', 'hr_plot_tier', 'hr_premium_login_reward',
-    'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
+    'hr_qm_offers', 'hr_room_perks', 'hr_runes', 'hr_server_secrets', 'hr_session_modes', 'hr_settings', 'hr_shop_supply_offers', 'hr_skill_curve', 'hr_skills',
     'hr_stamina_refill_rule', 'hr_start_equipment', 'hr_start_inventory', 'hr_start_kit', 'hr_start_skill_xp', 'hr_state_sections', 'hr_storage_chests',
     'hr_tally_config', 'hr_tally_materials', 'hr_tally_pieces', 'hr_tally_tasks', 'hr_tick_cohort', 'hr_tick_cron_log',
     /* Tamsin's tier book (2027-04-08-tally-worn.generated.sql): the gear tier of every item worn in her slots, a catalogue */
@@ -131,7 +131,9 @@ declare
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
     'hr_boss_halls',
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */
-    'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits'];
+    'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits',
+    /* when the hunt ends (2027-04-25-hunt-after-catalogue.generated.sql): the choices and the rule */
+    'hr_hunt_after_choices', 'hr_hunt_after_rule'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

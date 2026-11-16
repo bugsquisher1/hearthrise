@@ -18,18 +18,18 @@
 // alert centre (alerts.js) reads the same id, so a seen death never comes back
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.132';
-import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.132';
-import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.132';
-import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.132';
-import { huntName } from '../session/party-sections.js?v=0.2.132';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.132';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
-import { whole } from '../render/format.js?v=0.2.132';
-import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.132';
-import { monsterName } from './widgets/bits.js?v=0.2.132';
-import { t } from '../render/player-text.js?v=0.2.132';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.134';
+import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.134';
+import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.134';
+import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.134';
+import { huntName } from '../session/party-sections.js?v=0.2.134';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.134';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.134';
+import { whole } from '../render/format.js?v=0.2.134';
+import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.134';
+import { monsterName } from './widgets/bits.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -92,7 +92,7 @@ function whyWords(cs, d) {
   const gap = band[0] - at;
   /* a boss room never tells a party that HAS a healer to bring one (the v0.2.132 re-play: four with a Healer read it): it says heal sooner */
   if (gap <= 0) return t(!roomOfHunt(d.row.hunt) ? 'death.why_in_range' : hasHealer(cs) ? 'death.why_in_room_healed' : 'death.why_in_room');
-  return t('death.why_under', { gap, levels: gap === 1 ? 'Level' : 'Levels' });
+  return t('death.why_under', { count: gap });
 }
 
 /* Did this hero's party (or the hero) fight with a Healer? The server's party section, else the hero's own role. */
@@ -117,16 +117,16 @@ function savedWords(row) {
  * @returns {{title: string, killed: string, what: string, why: string, lost: string, level: string, saved: string, town: string}}
  */
 export function deathWords(cs, d) {
-  const who = nameOf(cs) || 'Your hero';
+  const who = nameOf(cs) || t('away.your_hero');
   const row = d.row;
   const story = summariesOf(cs).find((s) => s.id === d.session);
   return {
-    title: row.hunt ? who + ' died in ' + huntName(row.hunt) : who + ' died',
-    killed: row.monster ? 'Killed by ' + monsterName(row.monster) + '.' : '',
+    title: row.hunt ? t('death.title_in', { name: who, ground: huntName(row.hunt) }) : t('death.title', { name: who }),
+    killed: row.monster ? t('death.killed', { monster: monsterName(row.monster) }) : '',
     what: story && story.deaths.length ? story.deaths[0] : '',
     why: whyWords(cs, d),
     /* xp null: the server has not priced it (an older row); say nothing rather than guess. */
-    lost: Object.keys(row.xpLost).length ? 'Dying cost ' + xpWords(row.xpLost) + '.' : row.xp === null ? '' : 'Dying cost no XP.',
+    lost: Object.keys(row.xpLost).length ? t('death.lost', { xp: xpWords(row.xpLost) }) : row.xp === null ? '' : t('death.lost_none'),
     /* A death can take a Level (Tyler 2026-11-09): said only when the server's row shows the Level fell. */
     level: Number.isInteger(row.levelFrom) && Number.isInteger(row.levelTo) && row.levelTo < row.levelFrom
       ? t('death.level_dropped', { name: who, from: row.levelFrom, to: row.levelTo }) : '',
@@ -134,7 +134,7 @@ export function deathWords(cs, d) {
     saved: row.saved === undefined ? ''
       : row.saved === null ? t('death.no_blessing', { free: freeWords(cs) })
       : savedWords(row),
-    town: who + ' is back in town with full health and mana.',
+    town: t('death.town', { name: who }),
   };
 }
 

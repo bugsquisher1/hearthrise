@@ -12,8 +12,8 @@
 //   openLegal(box, which, opener)   the reader over `box`; which: 'privacy' | 'terms'
 //   legalHtml(md, { dropTitle })    the pure Markdown reader (tested on its own)
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.132';
-import { readLegal } from '../session/server.js?v=0.2.132';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.134';
+import { readLegal } from '../session/server.js?v=0.2.134';
 
 export const LEGAL_DOCS = Object.freeze({
   privacy: Object.freeze({ title: 'Privacy Policy', file: 'legal/PRIVACY_POLICY.md' }),
@@ -103,7 +103,7 @@ export function openLegal(box, which, opener) {
   const win = doc.defaultView;
   readLegal(d.file, win.location.href).then((text) => {
     if (!host.isConnected) return;
-    body.innerHTML = text === null ? '<p>This page could not be loaded. Check your connection and try again.</p>' : legalHtml(text, { dropTitle: true });
+    body.innerHTML = text === null ? '<p>Page didn\'t load. Check your connection.</p>' : legalHtml(text, { dropTitle: true });
   });
   return host;
 }

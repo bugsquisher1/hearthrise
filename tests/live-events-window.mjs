@@ -193,7 +193,7 @@ async function checks(overrides) {
       const calls = sent(s, 'hr_boss_call');
       if (calls.length !== 1 || calls[0].body.p_price !== 0 || calls[0].body.p_fights !== 1 || calls[0].body.p_call !== 'rat_king') fails.push('LW-FREE the confirm sent ' + JSON.stringify(calls.map((c) => c.body)));
       r = await read(page);
-      if (!/The Rat King answers\. You're on your way\./.test(r.msg)) fails.push('LW-PLAY the answer reads ' + JSON.stringify(r.msg));
+      if (!/The Rat King answers, on your way/.test(r.msg)) fails.push('LW-PLAY the answer reads ' + JSON.stringify(r.msg));
       if (!r.plates.some((p) => p.head === '+40% Level XP')) fails.push('LW-PLAY the next answer\'s dial is not shown: ' + JSON.stringify(r.plates));
       const set = await settingsLines(page);
       if (!set.hud || !set.settings) fails.push('LW-PLAY switched on, the plate\'s setting is not listed ' + JSON.stringify(set));

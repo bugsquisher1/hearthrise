@@ -188,6 +188,10 @@ export const REASONS = Object.freeze({
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
   ],
+  /* a scaled hunt's Buy (audit F26): off with the bank full, the day's hours bought, or the purse short of the total */
+  'src/shell/windows/scale-pane.js': [
+    { cond: 'pending || !!s.why', words: "s.why === 'bank' ? t('hunts.scale_bank_full', { max: s.bankMaxH })", where: 'Buy hours: the line above it says why (the bank full, the day\'s limit bought, not enough gold); a full bank or day hides the slider too' },
+  ],
   'src/shell/windows/boss-call-pane.js': [
     { cond: '!open', words: 'BOSS_CALL_WORDS.noQuote', where: 'Call out: the line above the press reads the server\'s why (party of two, leader only, 3 a day), the hunt under way, or no answer yet' },
   ],
@@ -259,9 +263,12 @@ export const REASONS = Object.freeze({
     { cond: '!show || !!opt.locked', words: 'GEAR_HUNT_WORDS.upgrades', where: 'the upgrade line\'s why' },
   ],
   'src/shell/windows/hunts.js': [
-    { cond: 'follower', words: "'Your party leader picks the hunt and starts it.", where: 'the page lead for a party member' },
+    { cond: 'follower', words: "t('hunts.lead_follower')", where: 'the page lead for a party member' },
     { cond: '!tiersOf(groundOf(hunt).id).includes(want)', words: 'tierWords(r, tier, size)', where: 'a ground offers its tiers as buttons, and the note says what each does' },
     { cond: '!!now', words: 'carriedWords(carried)', where: 'a running hunt: the page says what it carries; the top bar has Leave' },
+  ],
+  'src/shell/windows/hunt-after-pane.js': [
+    { cond: '!!v.now', words: "t('away.after_hunting')", where: 'When the hunt ends: while a hunt runs the control is off, and the line under it says that hunt\'s own plan and that it can be changed once the hunt is over' },
   ],
   'src/shell/windows/hunt-detail.js': [
     { cond: 'v.partyBlock.full', words: 'v.partyBlock.why', where: 'the party block says the party\'s size' },
@@ -346,7 +353,7 @@ export const REASONS = Object.freeze({
     { cond: 'row.removable', words: 'hs-hudset-show', where: 'a fixed widget\'s box (cannot be hidden by design; the row is labelled)' },
   ],
   'src/app/slot-offer.js': [
-    { cond: 'short > 0', words: "You need ' + whole(short) + ' more gold.", where: 'the offer block' },
+    { cond: 'short > 0', words: "t('slots.short', { gold: whole(short) })", where: 'the offer block' },
   ],
   /* Other lanes own these files right now (lane/a-v0246-followups); listed as they stand, see the report. */
   'src/shell/windows/farm.js': [

@@ -19,11 +19,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES } from '../data/supplies.js?v=0.2.132';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.132';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.132';
-import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.132';
-import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.132';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.134';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.134';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.134';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.134';
+import { sessionModeOf } from '../data/session-modes.js?v=0.2.134';
+import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.134';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -315,6 +316,16 @@ export function skillDeathLoss(skillId, xp, fraction = DEATH_XP_LOSS) {
   if (!(f > 0)) return 0;
   const into = x - skillXpForLevel(skillId, skillLevelFromXp(skillId, x));
   return Math.max(0, Math.floor(into * f));
+}
+/* A SESSION MODE'S SHARE OF A DEATH (src/data/session-modes.js deathLossPm; Tyler 2026-11-14): the fraction deathXpLoss
+   prices at, in the mode `modeId` names (absent: the default). Worked in whole permilles, DEATH_XP_LOSS's (a whole permille:
+   tools/gen-hunt-sessions.mjs refuses any other) times the mode's, over a million: a mode at 1000 is DEATH_XP_LOSS to the bit,
+   so every hunt's death is priced exactly as before, and a mode at 0 prices nothing. The server's bound is
+   hr_death_xp_mode_max, the same product. An id no row has is a refusal, never a guess. */
+export function modeDeathShare(modeId) {
+  const mode = sessionModeOf(modeId);
+  if (!mode) throw new Error('modeDeathShare: ' + String(modeId) + ' is no session mode (src/data/session-modes.js)');
+  return Math.round(DEATH_XP_LOSS * 1000) * mode.deathLossPm / 1e6;
 }
 /** One death's loss as `{ level?: xp, <skill>?: xp }` (zeros omitted), skills in COMBAT_SKILLS order. */
 export function deathXpLoss(state, fraction = DEATH_XP_LOSS) {

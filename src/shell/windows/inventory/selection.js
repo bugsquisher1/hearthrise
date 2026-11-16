@@ -23,9 +23,9 @@
 // values it at the shop's bids (the server's), and the Lock tool reads Unlock
 // over a selection that is already locked.
 // ════════════════════════════════════════════════════════════════════════
-import { bagValue } from '../../bag-model.js?v=0.2.132';
-import { gold, whole } from '../../../render/format.js?v=0.2.132';
-import { t } from '../../../render/player-text.js?v=0.2.132';
+import { bagValue } from '../../bag-model.js?v=0.2.134';
+import { gold, whole } from '../../../render/format.js?v=0.2.134';
+import { t } from '../../../render/player-text.js?v=0.2.134';
 
 const idsOf = (shown) => shown.map((r) => (typeof r === 'string' ? r : r.id));
 
@@ -51,6 +51,14 @@ export function selectAll(sc, shown) {
   if (!ids.length) return;
   if (ids.every((id) => sc.sel.has(id))) sc.sel.clear();
   else for (const id of ids) sc.sel.add(id);
+}
+
+/** "Select outgrown" (audit F18): the selection becomes `ids` (bag-model.js outgrownIds), never a `locked` stack; the anchor goes. */
+export function selectOutgrown(sc, ids, locked) {
+  sc.sel.clear();
+  for (const id of ids) if (!(locked && locked.has(id))) sc.sel.add(id);
+  sc.anchor = null;
+  sc.base = null;
 }
 
 /** Ctrl+press or Space on `id`: toggled, and the anchor moves there. */

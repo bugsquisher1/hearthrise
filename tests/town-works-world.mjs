@@ -155,7 +155,7 @@ try {
   const purse4 = await purse();
   await page.fill(WIN + ' .hv-works-amount', '24000');
   await page.click(WIN + ' [data-hs-act="works-typed"]');
-  const overWords = await waitText(WIN + ' .hh-intent-msg', /You can give 23,300 gp more today\./);
+  const overWords = await waitText(WIN + ' .hh-intent-msg', /Max today: 23,300 gp more/);
   step('WW-4 over today\'s cap says why and charges nothing', overWords && (await purse()) === purse4, JSON.stringify({ msg: await textOf(WIN + ' .hh-intent-msg'), purse: await purse(), was: purse4 }));
   /* on screen, not just in the page: at this size the window ends under the buttons */
   const onScreen = await page.evaluate(([w, m]) => { const a = document.querySelector(w).getBoundingClientRect(), b = document.querySelector(m).getBoundingClientRect(); return b.height > 0 && b.top >= a.top && b.bottom <= a.bottom; }, [WIN, WIN + ' .hh-intent-msg']);

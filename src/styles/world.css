@@ -118,7 +118,9 @@
 #panel-world .world-zoom-btn:hover:not(:disabled) { color: var(--gold-2); border-color: var(--gold); }
 #panel-world .world-zoom-btn:disabled { color: var(--ink-3); cursor: default; }
 /* A fight the World has no map for: one slim line along the foot of the town or
-   home, clear of the plaza, the crier and the names along the top. */
+   home, clear of the plaza, the crier and the names along the top. Its `bottom` is
+   the shell's bottom inset plus a gap, set by world-boot.js (idle-banner.js
+   bannerFoot): above the action bar, never under it; 10 px until the shell says. */
 #panel-world .world-idle {
   position: absolute;
   bottom: 10px;
@@ -166,6 +168,11 @@
   #panel-world.active { gap: 4px; }
   #panel-world .world-scene { min-height: var(--tap); min-width: 64px; padding: 2px 10px; }
   /* 14.5 px is the floor here too (ART_DIRECTION §10; it was 11 px): the line wraps rather than shrinks. */
-  #panel-world .world-idle { bottom: 4px; gap: 8px; padding: 0 2px 0 10px; font-size: var(--t-micro); }
+  /* At the stage's left edge, at most half its width: the hero stands at the middle and the coach card hangs at the right under
+     the hunt bar (lane/a-training-display, 922x423 and 667x375: centred, it lay over the hero and the card over its button). */
+  #panel-world .world-idle { bottom: 4px; left: 10px; transform: none; max-width: calc(50% - 20px); gap: 8px; padding: 0 2px 0 10px; font-size: var(--t-micro); }
   #panel-world .world-idle-go { min-height: var(--tap); padding: 0 10px; font-size: var(--t-micro); }
+  /* what the hunt bar already says (idle-banner.js): the button alone */
+  #panel-world .world-idle-said { display: none; }
+  #panel-world .world-idle:has(> .world-idle-said) { padding-left: 2px; }
 }

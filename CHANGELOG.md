@@ -5,6 +5,24 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.134 — 2026-11-16 (When the Hunt Ends)
+
+**When the hunt ends.** On a hunt's page you can now pick what your hero does after the hunt. It can go back to its job, wait in town or train a skill at the yard. Yard time is charged when the training starts. Crafting jobs now pick up again after a hunt too, for what they still had left to make when you set off. If you leave a hunt yourself, your hero waits in town.
+
+**Training.** A training session now shows what is going on in the hunt bar, the hunt analyzer and the World line. Its end card and coach card talk about the training, not a hunt. On a phone the analyzer fits over the town.
+
+**Shorter game text.** Menus, buttons and settings now use short labels instead of full sentences. For example Gold to keep is now Gold reserve. Story text is unchanged.
+
+**Selling old gear.** The bag has a new Select outgrown button. It picks every piece of gear below the tier you wear, Rares included, so you can sell it all at once. A very big sale no longer fails. It sells 64 stacks a press and tells you how many are left.
+
+**Fixes.** The Party window shows each member's real stamina.
+
+## v0.2.133 — 2026-11-16 (Party XP fix)
+
+**Party XP on Dangerous and Deadly is fixed.** Parties of 3 or 4 on Dangerous and Deadly at the Mosslight Glade, Hask's Ford, the Slake, the Pyre Field and Krell's Hold were earning far more XP than intended. Their party bonus is now in line with the other grounds. Parties still earn more than hunting alone. Normal, pairs and solo hunting are unchanged.
+
+**Party window.** It no longer tells a party to add a class when no class can be added.
+
 ## v0.2.132 — 2026-11-15 (The Barrow March)
 
 **The Barrow March is open.** Five new hunting grounds from Level 45 to 110 up the old road north: Hask's Ford, the Slake, Muster Barrows, the Pyre Field and Krell's Hold. New monsters shoot from range and mend each other, so use First target to drop the menders first.

@@ -49,7 +49,16 @@ export function sanitizeSummary(v) {
     loss: typeof v.loss === 'string' ? v.loss.slice(0, 280) : null,
     /* A Call out series' line (hunt-view/boss-loss.js seriesLine): display only, the server's count of fights and wins and what it charged. */
     series: typeof v.series === 'string' ? v.series.slice(0, 200) : null,
+    train: trainOf(v.train),
   };
+}
+
+/* A TRAINING SESSION'S CARD (summary-model.js trainingCard): the skill, its XP from the session's tally, and from the server's
+   last stop the gold its fee rows took and the skill's level before and after. Each figure the server's, or null. */
+function trainOf(v) {
+  if (!isObj(v) || !id(v.skill)) return null;
+  const nat = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : null);
+  return { skill: v.skill, xp: nat(v.xp), fee: nat(v.fee), from: nat(v.from), to: nat(v.to) };
 }
 
 /** The residue field: newest first, one entry per session id, at most HISTORY_MAX. */

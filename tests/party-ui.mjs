@@ -90,17 +90,15 @@ const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-gr
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
 /* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
 const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
-const { BOSS_CALLS } = await import(pathToFileURL(join(ROOT, 'src/data/boss-calls.js')).href);
-/* the boss as a sentence opens on him: a called boss's words ("The Rat King"), else his own name ("Captain Hask", never "The Captain Hask") */
-const bossWords = (id) => (Object.values(BOSS_CALLS).find((c) => c.of === id) || { Boss: MONSTERS[id].name }).Boss;
+/* the note is a label, its size a digit (Tyler 2026-11-14: "Recommended: 4+ players" ... "Perfect") */
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   const p = g.pockets.find((q) => q.forParty);
   const boss = p && p.spawns.map((x) => x.monster).find((m) => MONSTERS[m] && MONSTERS[m].boss);
-  return [g.hunt, p && boss ? bossWords(boss) + ' is built for a group of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
+  return [g.hunt, p && boss ? 'Recommended: ' + p.forParty + '+ players' : ''];
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
-/* lane/d-march-text: the Barrows' note read "The Captain Hask is built for a group of four or more." A named man takes no "The". */
-if (!/^Captain Hask is built for a group of four or more\./.test(PARTY_NOTES.muster_barrows || '')) throw new Error('party-ui: UI-5 the Barrows\' note reads ' + JSON.stringify(PARTY_NOTES.muster_barrows));
+/* Tyler 2026-11-14 rejected "Captain Hask is built for a group of four or more. Alone, you still fight him, and he can kill you." for this exact label. */
+if (PARTY_NOTES.muster_barrows !== 'Recommended: 4+ players') throw new Error('party-ui: UI-5 the Barrows\' note reads ' + JSON.stringify(PARTY_NOTES.muster_barrows));
 const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
   'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_list', 'hr_hunt_party_warn'];
 
@@ -855,9 +853,9 @@ async function pureRules(M, base) {
      Normal for every group (Tyler 2026-11-11) a one-class party loses a lot there, so its line says how to get more (lane/d-party-xp-cells). */
   await t('PR-CLASS', async () => {
     const L = M.PRO.classXpLine;
-    const head = (k) => 'Your party has ' + k + ' of 4 classes. ';
-    const more = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% more Level XP than hunting alone in ' + place + '.';
-    const less = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% less Level XP than hunting alone in ' + place + '. Mix Melee, Ranger, Mage and Healer to get more.';
+    const head = (k) => 'Classes: ' + k + ' of 4. ';
+    const more = (k, vs, place) => head(k) + 'Level XP each: about +' + vs + '% vs solo in ' + place;
+    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + ' (mix Melee, Ranger, Mage and Healer)';
     for (const [roles, hunt, want] of [
       [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
@@ -878,6 +876,9 @@ async function pureRules(M, base) {
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
       [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
       [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 50, 'Wickstead')],
+      /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): the Pyre Field's mixed pair reads -5 */
+      [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about -5% vs solo in The Pyre Field'],
+      [['tank', 'melee_dps'], 'pyre_field', less(1, 35, 'The Pyre Field')],
     ]) {
       if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }
@@ -885,9 +886,9 @@ async function pureRules(M, base) {
     for (const [g, row] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [n, cells] of Object.entries(row)) cells.forEach((vs, i) => {
       /* the row's one-class cell is read by one class of two roles: a four of one role may read its own line (pinned above) */
       const roles = Array.from({ length: Number(n) }, (_, s) => (i === 0 && s % 2 ? 'melee_dps' : all[Math.min(s, i)]));
-      const pay = vs > 0 ? 'about ' + vs + '% more Level XP than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP than hunting alone in ' : 'about the same Level XP as hunting alone in ';
+      const pay = vs > 0 ? 'about +' + vs + '% vs solo in ' : vs < 0 ? 'about -' + -vs + '% vs solo in ' : 'about the same as solo in ';
       const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
-      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes. Each of you gets ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
+      if (!L(roles, hunt).includes((i + 1) + ' of 4. Level XP each: ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
     });
     /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
     const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
@@ -900,7 +901,7 @@ async function pureRules(M, base) {
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && /2 of 4 classes\. Each of you gets about (\d+% (more|less)|the same) Level XP /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /Classes: 2 of 4\. Level XP each: about ([+-]\d+% vs solo|the same as solo) /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
   /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role, the class line and the panel; a friend's
@@ -911,8 +912,8 @@ async function pureRules(M, base) {
       members: [{ seat: 0, name: 'Bramwell', level: 6, weapon: w1, hunting: false }, { seat: 1, name: 'Wrenna', level: 6, weapon: w2, hunting: false }] });
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
-    if (before[0] !== 'tank,tank' || !/has 1 of 4 classes/.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes\. Each of you gets about 45% more Level XP than hunting alone in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
+    if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4\./.test(before[2])) return 'two shields read ' + JSON.stringify(before);
+    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/Classes: 2 of 4\. Level XP each: about \+45% vs solo in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
@@ -966,8 +967,95 @@ async function pureRules(M, base) {
     if (centre.list().some((a) => a.id === stam.id)) return 'the low-stamina line outlived its hunt';
     /* (5) WORDS A DEAD END CANNOT HIDE IN. */
     if (M.FR.answerWords({ done: 'Invite sent to Mira.' }, '') !== 'Invite sent to Mira.') return 'a friends-row invite that worked reads ' + JSON.stringify(M.FR.answerWords({ done: 'Invite sent to Mira.' }, ''));
-    if (!/Leave it, and once you are back in town you can invite/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
-    if (!/Press Leave party in the Party window/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
+    if (!/Leave it, then invite from town/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
+    if (!/Leave it in the Party window/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
+    return true;
+  });
+
+  /* AL-LIVE  A LIVE LINE IS THE ENVELOPE'S (CLAUDE.md §6; the full-game audit's F7, 2026-11-15: "Corwen has 1 min of stamina left. Their hunt
+     ends then, and Ilsa comes home too." stood on screen after the server had stopped saying it, for a hero it held eleven hours for). A
+     friend's low stamina and a supply at zero say what the record says NOW: the words are this read's, the line goes when the server stops
+     saying it, and it is news again if the server says it again; while it stands it is never repeated, and a dismissed one stays gone.
+     BOTH PATHS (§4): the hero on screen, and the return to a hunt that ran on with the browser closed. */
+  await t('AL-LIVE', async () => {
+    const open = async (edit, residue) => {
+      const srv = fakeServer(residue ? { residue } : {});
+      const e = srv.env[0];
+      e.hunt_events = [];
+      e.hunt.hero.falls = 0;
+      if (!e.hunt || e.hunt.ended || !e.party.members.some((m) => m.seat !== e.party.self_seat && m.hunting)) return null;
+      edit(e);
+      const acc = account(M, srv);
+      acc.viewed = 0;
+      const centre = M.AL.createAlertCenter(acc);
+      const cs = (await acc.open(0)).session;
+      return cs ? { srv, e, centre, cs } : null;
+    };
+    const friend = (e) => e.party.members.find((m) => m.seat !== e.party.self_seat);
+    const says = async (w, ms) => { friend(w.e).stamina_low_ms = ms; await w.cs.load(); return w.centre.list().filter((a) => /^lowstam:/.test(a.id)); };
+    const words = (lines) => JSON.stringify(lines.map((a) => a.text));
+
+    /* (1) THE HUNT VIEWED, F7 as it played: the Start's read says 0 ms of the friend; the first settle's read says nothing of her. */
+    const v = await open((e) => { friend(e).stamina_low_ms = 0; });
+    if (!v) return 'HARNESS: the fixture is not a hunting party of two';
+    const name = friend(v.e).name;
+    let lines = v.centre.list().filter((a) => /^lowstam:/.test(a.id));
+    if (lines.length !== 1 || lines[0].text !== name + ' has 1 min of stamina left. Their hunt ends then, and Tyler comes home too.') return 'the Start\'s read raised ' + words(lines);
+    lines = await says(v, null);
+    if (lines.length) return '[F7] the server stopped saying it and the line stood: ' + words(lines);
+    if (M.PP.rosterOf(v.cs).members.find((m) => m.seat === friend(v.e).seat).staminaLowMs !== null) return '[F7] the party panel still shows a low stamina the server no longer says';
+    /* (2) SAID AGAIN IS NEWS AGAIN, and the number is each read's: 13.5 min, then 4.2 min, one line re-worded. */
+    lines = await says(v, 13.5 * 60000);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 14 min of stamina left.')) return 'the server said it again (13.5 min) and the lines read ' + words(lines);
+    const key = lines[0].key;
+    lines = await says(v, 4.2 * 60000);
+    if (lines.length !== 1 || lines[0].key !== key || !lines[0].text.startsWith(name + ' has 5 min of stamina left.')) return 'the server said 4.2 min and the lines read ' + words(lines);
+    /* (3) DISMISSED STAYS GONE while the server keeps saying it; a refill and a second low spell is a new warning. */
+    v.centre.dismiss(key);
+    if ((await says(v, 3.9 * 60000)).length) return 'a dismissed warning came back while the server still said it';
+    if ((await says(v, null)).length) return 'a refill raised a line';
+    lines = await says(v, 9 * 60000);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 9 min of stamina left.')) return 'low again after a refill, the lines read ' + words(lines);
+    /* (4) AN EVENT IS NOT A LIVE LINE: "ran out: slot 2 takes over" happened, and no later read takes it back. */
+    v.centre.say(v.cs, { id: 'out:' + v.e.hunt.session_id + ':k1', kind: 'low', session: v.e.hunt.session_id, text: 'Tyler’s Cooked Shrimp ran out.' });
+    await v.cs.load();
+    if (!v.centre.list().some((a) => a.id === 'out:' + v.e.hunt.session_id + ':k1')) return 'a re-read took back a line about something that happened (a supply that ran out)';
+
+    /* (5) A SUPPLY AT ZERO, the same rule: own stock, "end the hunt", no food: out of it; the store set to pay: the line goes. Ended with
+       the line up, the hunt keeps it (a new hunt retires it: AL-3). */
+    const starve = (e) => {
+      e.hunt_settings.on_empty = 'end';
+      e.hunt_settings.supply_source = 'mine';
+      e.hunt_settings.slots = [{ action: { type: 'consume', id: 'cooked_shrimp' } }].concat(Array(19).fill(null));
+      for (const id of ['wheat_bread', 'cooked_shrimp']) delete e.inventory[id];
+    };
+    const lows = (w) => w.centre.list().filter((a) => /^low:/.test(a.id));
+    const s = await open(starve);
+    if (!s || lows(s).length !== 1 || !/ is out of Cooked Shrimp\.$/.test(lows(s)[0].text)) return 'HARNESS: no out-of-food line to judge: ' + (s && words(lows(s)));
+    s.e.hunt_settings.on_empty = 'switch';
+    await s.cs.load();
+    if (lows(s).length) return 'the store pays now and the line still says ' + words(lows(s));
+    const k = await open(starve);
+    k.e.hunt.ended = true;
+    k.e.hunt.session = Object.assign({}, k.e.hunt.session, { end_reason: 'heals_out', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+    await k.cs.load();
+    if (lows(k).length !== 1) return 'the hunt ended for lack of food and its out-of-food line went with it';
+
+    /* (6) THE BROWSER CLOSED. Page one showed the warning (its id is saved with the hero); the hunt ran on, the friend refilled. On return
+       the first read says nothing of her: no line. Later she is low again: that is news, whatever page one saved. And a plain reload while
+       the server still says it repeats nothing (the rule of every line). */
+    const p1 = await open((e) => { friend(e).stamina_low_ms = 12 * 60000; });
+    if (!p1 || p1.centre.list().filter((a) => /^lowstam:/.test(a.id)).length !== 1) return 'HARNESS: page one raised no warning';
+    await p1.cs.flushResidue();
+    const saved = p1.srv.residue[0];
+    if (!(saved && saved.alerts && Array.isArray(saved.alerts.seen) && saved.alerts.seen.some((id) => /^lowstam:/.test(id)))) return 'HARNESS: page one did not save the warning\'s id: ' + JSON.stringify(saved);
+    const again = await open((e) => { friend(e).stamina_low_ms = 12 * 60000; }, clone(p1.srv.residue));
+    if (!again || again.centre.list().some((a) => /^lowstam:/.test(a.id))) return 'a reload repeated a warning already shown';
+    const back = await open((e) => { friend(e).stamina_low_ms = null; }, clone(p1.srv.residue));
+    if (!back || back.centre.list().some((a) => /^lowstam:/.test(a.id))) return 'on return a warning stood that the server does not say';
+    lines = await says(back, 8 * 60000);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 8 min of stamina left.')) return 'back from a closed browser, a friend who refilled and ran low again raised ' + words(lines);
+    if ((await says(back, null)).length) return 'on the return path the line outlived the server\'s word';
     return true;
   });
 
@@ -1264,7 +1352,7 @@ async function pageRules(overrides, shots) {
         const w1 = sent(s, 'hr_hunt_party_warn').slice(warned0);
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
-        if (!/^Mira \(Level 3\) is under this ground’s Level \d+\..*They have been told\./.test(warnSaid[0]) || !/^Mira \(Level 3\) is under/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        if (!/^Under Level \d+, death risk: Mira \(Level 3\)\. Party warned\./.test(warnSaid[0]) || !/^Under Level \d+, death risk: Mira \(Level 3\)/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
         /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
         const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
         s.env[0].party.members.push(late);
@@ -1369,7 +1457,7 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
-          if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          if (v.classLine !== 'Classes: 2 of 4. Level XP each: about +40% vs solo in The Sewer') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
@@ -1471,7 +1559,16 @@ const PURE_MUTANTS = [
   ['a low-stamina warning outlives its hunt (PR-TRUTH)', 'src/shell/alerts.js', "const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);", 'const stale = a.kind === \'partywarn\' && !a.session && !!open;'],
   ['a warned ground stays up over the hunt it warned of (PR-TRUTH)', 'src/shell/alerts.js', "const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);", 'const stale = a.kind === \'partywarn\' && !!a.session && a.session !== open;'],
   ['the roster loses a seat\'s low stamina (PR-TRUTH)', 'src/shell/widgets/party-panel.js', 'seatMs: s.seatMs, staminaLowMs: s.staminaLowMs,', 'seatMs: s.seatMs,'],
-  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'You are on a hunt of your own. Leave it, and once you are back in town you can invite.' }),", ''],
+  /* AL-LIVE (the full-game audit's F7, 2026-11-15): a live line is the envelope's. */
+  ['[F7] a live line stands after the server stopped saying it (AL-LIVE)', 'src/shell/alerts.js', '      if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }\n', ''],
+  ['a live line keeps the words of the read that raised it (AL-LIVE)', 'src/shell/alerts.js', '      if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }\n', ''],
+  ['a live line the server stopped saying is never news again (AL-LIVE)', 'src/shell/alerts.js', '    forget(cs, unsaid);\n', ''],
+  ['the saved list keeps a live id the server stopped saying: no news after a return (AL-LIVE)', 'src/shell/alerts.js',
+    'if (Array.isArray(r.seen) && r.seen.some(unsaid)) cs.setResidue(', 'if (false) cs.setResidue('],
+  ['a line about something that happened is judged as a live one (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:low|lowstam|out):/;'],
+  ['only a friend\'s stamina is live: a supply line stands when the store pays (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:lowstam):/;'],
+  ['a live line goes with its hunt\'s end (AL-LIVE)', 'src/shell/alerts.js', "const unsaid = (id) => !!open && LIVE.test(id) && id.split(':')[1] === open && !said.has(id);", 'const unsaid = (id) => LIVE.test(id) && !said.has(id);'],
+  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'On your own hunt. Leave it, then invite from town.' }),", ''],
   ['a hero sent home by a leave raises a plain end line', 'src/shell/alerts.js', "  else if (h.ended && h.endReason === 'party_member_left') out.push(", '  else if (false) out.push('],
   ['the summary says the hunt ended (no member, no hero)', 'src/hunt-view/summary-model.js', "  if (typeof by === 'string' && by && (reason === 'party_member_left'", "  if (false && (reason === 'party_member_left'"],
   ['the summary forgets who sent the hero home', 'src/hunt-view/summary-model.js', "    by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,", '    by: null,'],

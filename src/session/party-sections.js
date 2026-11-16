@@ -31,13 +31,14 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.132';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.132';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.132';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.132';
-import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.132';
-import { heroVitalsOf } from './character-sections.js?v=0.2.132';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.132';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.134';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.134';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.134';
+import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.134';
+import { trainingPhrase } from './training-sections.js?v=0.2.134';
+import { heroVitalsOf } from './character-sections.js?v=0.2.134';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.134';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -166,16 +167,23 @@ export function townActivityWords(st) {
   return TOWN_WORDS.get(st.active_kind + ':' + st.active_id) || TOWN_KIND_WORDS[st.active_kind];
 }
 
+/* A fight's line: "Hunting in Mill Cellar", or a training session's own ("Training Melee at the Training Yard"): a yard session is a
+   hunt session, and its tab read "Hunting in Training Yard" (lane/a-training-display). */
+function fightWords(huntId) {
+  const tr = trainingPhrase(huntId);
+  return tr ? tr.doing + ' ' + tr.at : 'Hunting in ' + huntName(huntId);
+}
+
 /**
  * What a character is doing, as the server says: { kind: 'hunting'|'idle'|'busy'|'unknown', where, text }.
  * A hunt the server still holds open is "hunting"; an idle state is "in town".
  */
 export function assignmentOf(cs) {
   const h = huntOf(cs);
-  if (h && !h.ended) return { kind: 'hunting', where: h.huntId, text: 'Hunting in ' + huntName(h.huntId) };
+  if (h && !h.ended) return { kind: 'hunting', where: h.huntId, text: fightWords(h.huntId) };
   const st = read(cs, 'state');
   if (!isObj(st)) return { kind: 'unknown', where: null, text: 'Not read yet' };
-  if (st.active_kind === 'combat' && typeof st.active_id === 'string') return { kind: 'hunting', where: st.active_id, text: 'Hunting in ' + huntName(st.active_id) };
+  if (st.active_kind === 'combat' && typeof st.active_id === 'string') return { kind: 'hunting', where: st.active_id, text: fightWords(st.active_id) };
   /* Idle is idle: "the hunt is over" stayed on a hero that had chopped or cooked since (board 2026-10-25 #10); the
      hunt's end is its summary's to say. */
   if (!st.active_kind || st.active_kind === 'idle') return { kind: 'idle', where: null, text: 'In town, idle' };

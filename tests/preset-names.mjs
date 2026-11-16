@@ -20,7 +20,7 @@
 //         the name stays the server's
 //   PN-4  DELETE ASKS ONCE: the first press sends nothing and reads "Delete it?";
 //         Keep backs out; the second press sends ONE hr_hunt_preset_delete and the
-//         row goes only with the re-read ("No saved setups yet." after a reload)
+//         row goes only with the re-read ("No saved setups" after a reload)
 //   PN-5  THE BAR'S SET: the plaque's name renames in place with ONE
 //         hr_action_set_rename naming the set the server shows, and the new name
 //         stays after a reload
@@ -38,8 +38,8 @@
 //         and the save lands on the bought number; a short purse says how much more; past the top there is no button; A SETUP ALREADY SAVED
 //         past the count keeps every control; a save the server refuses says the server's numbers
 //   PN-12 NO COUNT, NO FREE SLOT (audit 11-09 F5, §6 fail safe): with no setup_slots section and one setup saved, Save current setup
-//         is off, nothing is for sale and the window says "Reading your setup slots…"; with no hunt_presets the none line says
-//         "Reading your saved setups…" (both are projected: never "switch on when the server starts keeping them")
+//         is off, nothing is for sale and the window says "Loading setup slots…"; with no hunt_presets the none line says
+//         "Loading setups…" (both are projected: never "switch on when the server starts keeping them")
 //   PN-10 A BAR RENAME THE SERVER NEVER ANSWERS (lane/b-action-bar-fix: renameSet called an undefined function on
 //         the timeout, so the line stuck on "Renaming…" and the page threw): after BAR_ANSWER_MS the plaque says the
 //         server has not answered, keeps the server's name and turns its name control back on, with no page error
@@ -238,7 +238,7 @@ async function checks(overrides) {
     await page.waitForTimeout(300);
     /* PN-11 none saved names the bar's set, so the plaque's name and this line agree (first-30 play 2026-11-12) */
     const noneLine = await page.evaluate(() => ({ line: document.querySelector('.hw-presets-none.is-on')?.textContent || '', bar: document.querySelector('.hb-set .hs-name-t')?.textContent || '' }));
-    if (!noneLine.bar || noneLine.line !== 'Your bar, ' + noneLine.bar + ', is not saved yet. Save keeps its gear and bar to use again.') fails.push('PN-11 none saved reads ' + JSON.stringify(noneLine));
+    if (!noneLine.bar || noneLine.line !== 'Not saved: ' + noneLine.bar) fails.push('PN-11 none saved reads ' + JSON.stringify(noneLine));
     // PN-8 back in town: the hunt has ended; setups 0 and 2 exist, so the next is number 1.
     s.env.hunt.ended = true;
     s.env.hunt_presets = [clone(FIXTURE.hunt_presets[0]), Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: 2, name: 'Mill run' })];
@@ -357,11 +357,11 @@ async function checks(overrides) {
       s.env.hunt_presets = setups([0]);
       await at();
       p = await prep();
-      if (!p.save || p.buy !== null || p.why !== 'Reading your setup slots…') fails.push('PN-12 with no setup_slots section the window reads ' + JSON.stringify(p));
+      if (!p.save || p.buy !== null || p.why !== 'Loading setup slots…') fails.push('PN-12 with no setup_slots section the window reads ' + JSON.stringify(p));
       delete s.env.hunt_presets;
       await at();
       const none = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-prep"] .hw-presets-none.is-on')?.textContent || '');
-      if (none !== 'Reading your saved setups…') fails.push('PN-12 with no hunt_presets section the none line reads ' + JSON.stringify(none));
+      if (none !== 'Loading setups…') fails.push('PN-12 with no hunt_presets section the none line reads ' + JSON.stringify(none));
     }
     if (errors.length) fails.push('PN-6 console errors: ' + errors.slice(0, 3).join(' | '));
   } catch (e) {

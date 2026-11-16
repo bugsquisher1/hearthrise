@@ -10,19 +10,19 @@
 // title and fold to it (src/shell/widget-move.js, Tyler 2026-10-25). Built once,
 // patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.132';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.132';
-import { huntName } from '../../session/party-sections.js?v=0.2.132';
-import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.132';
-import { rows, text, cls, attr, style, element } from '../../render/paint.js?v=0.2.132';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.132';
-import { t } from '../../render/player-text.js?v=0.2.132';
+import { tallyOf, tallyLine, waitWords } from '../../session/tally-sections.js?v=0.2.134';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.134';
+import { huntName } from '../../session/party-sections.js?v=0.2.134';
+import { TALLY_KEEPER } from '../../data/tally-tasks.js?v=0.2.134';
+import { rows, text, cls, attr, style, element } from '../../render/paint.js?v=0.2.134';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
 
 /** The skeleton (built once). Its title opens her window on a press and drags the widget on a drag. */
 export function renderTallyHud() {
-  return '<section class="hs-tally" aria-label="Your tallies"><div class="hs-tally-head">'
-    + '<button type="button" class="hs-tally-open" data-hs-act="tally-open" data-hs-wdrag title="Open the Tally (drag to move)">'
-    + '<b>Tally</b><span class="hs-tally-sum"></span><span class="hs-tally-none"></span></button>' + foldButtonHtml('Tally') + '</div><ul class="hs-tally-list"></ul></section>';
+  return '<section class="hs-tally" aria-label="' + t('hud.tally_aria') + '"><div class="hs-tally-head">'
+    + '<button type="button" class="hs-tally-open" data-hs-act="tally-open" data-hs-wdrag title="' + t('hud.tally_open') + '">'
+    + '<b>' + t('hud.tally') + '</b><span class="hs-tally-sum"></span><span class="hs-tally-none"></span></button>' + foldButtonHtml(t('hud.tally')) + '</div><ul class="hs-tally-list"></ul></section>';
 }
 
 renderTallyHud.patch = function patchTallyHud(el, ctx) {
@@ -36,7 +36,7 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
      and first return hold one instruction, the coach's, which brings her in with her own card (board 2026-10-25 #13). */
   const met = !!tl && (!!tl.weight || tl.recent.length > 0);
   cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));
-  text(el.querySelector('.hs-tally-none'), !tl || held.length ? '' : 'Tamsin has kill tasks at her board in ' + TALLY_KEEPER.board + '.');
+  text(el.querySelector('.hs-tally-none'), !tl || held.length ? '' : t('hud.tally_none', { board: TALLY_KEEPER.board }));
   /* Folded (it starts so below --hud-fold-below), the title keeps the first open task's server count: "Tally 17/25". */
   const lead = held.find((x) => !x.done);
   text(el.querySelector('.hs-tally-sum'), lead ? lead.kills + '/' + lead.target : held.length ? t('hunts.tally_done') : '');
@@ -45,8 +45,8 @@ renderTallyHud.patch = function patchTallyHud(el, ctx) {
     build: () => element(ctx.doc, '<li class="hs-tally-row"><span></span><span class="ht-stick" aria-hidden="true"><i></i></span><small class="hs-tally-wait"></small></li>'),
     patch: (li, x) => {
       const elsewhere = hunting && !x.done && x.hunt !== h.huntId;
-      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' (done)' : elsewhere ? ' (not here)' : ''));
-      attr(li, 'title', elsewhere ? 'Counts only in ' + huntName(x.hunt) + '.' : null);
+      text(li.querySelector('span'), tallyLine(x) + (x.done ? ' ' + t('hud.tally_done_row') : elsewhere ? ' ' + t('hud.tally_not_here_row') : ''));
+      attr(li, 'title', elsewhere ? t('hud.tally_counts_in', { ground: huntName(x.hunt) }) : null);
       /* A done task says how it gets paid (lane/b-first-hour: "200/200 · Done" never said to come home): back in town,
          or why it waits (the tally window's own words, tally-sections.js waitWords). */
       text(li.querySelector('.hs-tally-wait'), x.done ? waitWords(tl, x, hunting).replace(/^Done\. /, '') : '');

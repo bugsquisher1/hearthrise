@@ -13,7 +13,7 @@ export const FARM_TEXT = Object.freeze({
   refused_empty_plot: 'That plot is empty now.',
   refused_plot_occupied: 'Something is already growing there.',
   refused_plot_cap: 'Your land has no room for that plot yet.',
-  refused_insufficient_seed: 'You have no seed for that crop in your bag or Storage. The Shop sells seeds.',
+  refused_insufficient_seed: 'No seed for that crop (the Shop sells seeds)',
   refused_level_too_low: 'Your Farming level is too low for that crop.',
   refused_plot_tier_locked: 'Your plots need a higher tier for that crop.',
   refused_still_watered: 'Still soaked. Water it again when this wears off.',
@@ -27,7 +27,7 @@ export const FARM_TEXT = Object.freeze({
   refused_no_seed_for_sale: 'The Shop does not sell that seed.',
 
   /* The window's frame. */
-  shared: 'Your heroes share this land. The hero you are playing plants their own seeds and keeps the crop and the Farming XP.',
+  shared: 'Shared land: each hero keeps their own crop and Farming XP',
   plots_aria: 'Your plots',
   loading: 'Your field loads from the server.',
   open_shop: 'Open Shop',
@@ -74,7 +74,7 @@ export const FARM_TEXT = Object.freeze({
   seeds_in_bag: { one: '{held} seed in your bag', other: '{held} seeds in your bag' },
   seeds_in_bag_storage: { one: '{held} seed in your bag and Storage', other: '{held} seeds in your bag and Storage' },
   sow_all: 'Plant {n} empty plots',
-  no_seed_to_plant: 'You hold no seed you can plant here yet. The Shop sells seeds under Seeds.',
+  no_seed_to_plant: 'No seed to plant here (Shop, Seeds tab)',
 
   /* The plot tier. */
   tier_grows: 'Tier {tier} grows {crops}.',

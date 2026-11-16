@@ -10,9 +10,10 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const PARTY_TEXT = Object.freeze({
-  class_have: 'Your party has {have} of {of} classes.',
-  class_none: 'You get no extra Level XP in {place}.',
-  class_same: 'Each of you gets about the same Level XP as hunting alone in {place}.',
-  class_more: 'Each of you gets about {pct}% more Level XP than hunting alone in {place}.',
-  class_less: 'Each of you gets about {pct}% less Level XP than hunting alone in {place}. Mix {classes} to get more.',
+  class_have: 'Classes: {have} of {of}',
+  class_none: 'No extra Level XP in {place}',
+  class_same: 'Level XP each: about the same as solo in {place}',
+  class_more: 'Level XP each: about +{pct}% vs solo in {place}',
+  class_less: 'Level XP each: about -{pct}% vs solo in {place} (mix {classes})',
+  class_less_full: 'Level XP each: about -{pct}% vs solo in {place}',
 });

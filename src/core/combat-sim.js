@@ -44,24 +44,24 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.132';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.132';
-import { createRng } from './rng.js?v=0.2.132';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.132';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.132';
-import { MONSTERS } from '../data/monsters.js?v=0.2.132';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.132';
-import { stepSwing } from './hunt/world-step.js?v=0.2.132';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.132';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.132';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.132';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.132';
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.132';
-import { roomOf } from './hunt/boss-room.js?v=0.2.132';
-import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.132';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.134';
+import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js?v=0.2.134';
+import { createRng } from './rng.js?v=0.2.134';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.134';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.134';
+import { MONSTERS } from '../data/monsters.js?v=0.2.134';
+import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.134';
+import { stepSwing } from './hunt/world-step.js?v=0.2.134';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.134';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.134';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.134';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.134';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.134';
+import { roomOf } from './hunt/boss-room.js?v=0.2.134';
+import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.134';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.132';
+export { stepSwing } from './hunt/world-step.js?v=0.2.134';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -163,16 +163,18 @@ function syncUnit(u, m) {
 }
 
 /* A DEATH (Tyler 2026-10-19): priced on the member at once (Level and every
-   combat skill, action-rules.js deathXpLoss) and its hunt ends `died` at the
+   combat skill, action-rules.js deathXpLoss) at the session mode's share
+   (`share`, action-rules.js modeDeathShare: the full price in a hunt, nothing in
+   a mode that costs nothing, Tyler 2026-11-14), and its hunt ends `died` at the
    member's next boundary (the end checks). A hero dies once: its hunt is over. */
-function die(m, f, out) {
+function die(m, f, out, share) {
   const hs = m.hs;
   if (hs.died) return;
   hs.died = true;
   hs.tally.deaths++;
   m.state.stats = m.state.stats || {};
   m.state.stats.deaths = (m.state.stats.deaths || 0) + 1;
-  const xpLost = deathXpLoss(m.state);
+  const xpLost = deathXpLoss(m.state, share);
   for (const k in xpLost) {
     if (k === 'level') m.state.levelXp = (Number(m.state.levelXp) || 0) - xpLost[k];
     else m.state.skills[k] = (Number(m.state.skills[k]) || 0) - xpLost[k];
@@ -243,10 +245,11 @@ export function bornHpOf(u, evs) {
  *        against that monster (a basic swing's accuracy and weapon weakness), shotRolls?(row, ammo) (the same with
  *        the item a shot spent in the ammo slot: damage.js blow), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }
- * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any}} ctx
+ * @param {{toMs: number, tickMs?: number, seed: (domain: string, index: number) => number, ground: any, grid: any, monsters?: any, items?: any, hearthfind?: any, xpMultOf?: any, sessionMode?: string}} ctx
  *        { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId),
- *        scale? ({ level }: the server's scale of this window, huntPlayOf; absent = unscaled) }
+ *        scale? ({ level }: the server's scale of this window, huntPlayOf; absent = unscaled),
+ *        sessionMode? (the instance's frozen mode id, src/data/session-modes.js; absent = the default, an unknown id throws) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary }, scale (the Level it played at, or null) }
  */
 export function simulateHuntInstance(inst, ctx) {
@@ -260,6 +263,9 @@ export function simulateHuntInstance(inst, ctx) {
      spent or proposed (the server's pool rests while the hero trains): the same for every member, from the ground, never stored. */
   const train = trainOf(ctx.ground);
   if (train) for (const m of members) m.hs.staminaMs = null;
+  /* THE SESSION MODE (src/data/session-modes.js; Tyler 2026-11-14): the instance's, frozen by the server when it started and read
+     back by the edge (hunt_instances.session_mode); absent, the default. A death is priced at its share, the same for every member. */
+  const deathShare = modeDeathShare(ctx.sessionMode);
   const pickOf = (ms) => (train || play.normalOf(tierPick(ms)) ? 0 : picker(ms));
   /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
   let fresh = false;
@@ -416,7 +422,7 @@ export function simulateHuntInstance(inst, ctx) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);
         if (!m.hs.died) o.deaths += 1;
-        die(m, f, o);
+        die(m, f, o, deathShare);
         cascadeFrom(m, 'died', members, null, m.hs.nextSwingAtMs);
       }
       for (const [id, m] of byUnit) {

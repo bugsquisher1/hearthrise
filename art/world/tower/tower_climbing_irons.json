@@ -1,0 +1,35 @@
+{
+  "id": "tower_climbing_irons",
+  "class": "hanging",
+  "style": "s1",
+  "material": "native",
+  "source": "tower_climbing_irons.png",
+  "frame": [
+    18,
+    32
+  ],
+  "anchor_px": [
+    9,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "a7e2aca8-23f3-4fec-b1e2-f18651ea916b",
+    "cell": 0
+  },
+  "notes": "Cell 0 of a 4x4 style-1 prop sheet (PixelLab image a7e2aca8-23f3-4fec-b1e2-f18651ea916b, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

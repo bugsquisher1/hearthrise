@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/world-art/tower-art.mjs — THE HEARTH CHEST AND ITS REVEALS (lane/a-tower-art, 2026-11-16; 0 generations).
+// tools/world-art/tower-art.mjs — THE HEARTH CHEST AND ITS REVEALS (lane/a-tower-art; the chest redrawn lane/a-tower-art-gen 2026-11-16).
 //
 // The Burning Tower's chest (Tyler 2026-11-14: "burning tower chests that sit on the ledge of the Great Hearth"; ONE chest, "varies loot
 // based on the key"; the locked story: "the Keepers locked them all in one big chest on the ledge, with a different lock for the better
-// ones"). It is the style-1 iron-bound chest the cottage already ships (art/world/cottage/chest_iron: PixelLab image 75c00296 cell 1,
-// its shipped, palette-locked pixels in assets/world/atlas-cottage.png) with its one latch replaced by FOUR lock plates, one in each
-// key's metal, left to right Bronze, Silver, Gold, Platinum. The world's rule (tools/world-art/style1.mjs): a thing that stands in the
-// world comes from the kit, so this tool paints on the kit's chest and never draws a new one. Every pixel is a palette entry
-// (art/world/palette.json hr-world-56-v2), binary alpha, nothing scaled.
+// ones"). It is ONE generated object in two states, both kept in art/world-src/gen-2026-11-16/02-chest (01-note.json, "chest"):
+//   SHUT  create_image_pro_flash 40x44 on hr-world-56-v2 (ba0d7de0, style the Hold's toll box): a great iron-bound oak chest, curved lid,
+//         four lock plates on its front band. Every pixel came back on the palette.
+//   OPEN  edit_image_pro_flash of that very chest (6f025e0b, laid on a 40x56 canvas so the lid has room): the lid swung up, a bed of
+//         embers inside. The box below the lid's seam is the shut chest's, pixel for pixel. The edit draws off the palette, so it is
+//         snapped here: the ember bed onto the fire ramp (shadow, cloth, blood, torch), everything else onto the whole palette.
+// This tool cuts both to the shut chest's box, repaints the four lock plates in each key's metal (Bronze, Silver, Gold, Platinum, left to
+// right: the generation drew two of them grey), and lays the frames. Every pixel is a palette entry (art/world/palette.json, read by
+// palette.mjs: no colour is written here as a literal), binary alpha, nothing scaled.
 //
-//   art/world/common/hearth_chest.png (+ .json)   the chest on the Hearth's ledge (src/data/world/town/sites.js AMBIENT)
+//   art/world/common/hearth_chest.png             the chest on the Hearth's ledge (src/data/world/town/sites.js AMBIENT): the shut chest,
+//                                                  8 frames of the fire's light on its right-hand iron (FLICKER)
 //   assets/ui/tower/chest-open-<key>.png          THE KEY'S OPENING (the Tower window's Chest tab, src/shell/windows/tower-chest.js):
-//                                                  8 frames of 48x48 in a row, 10 fps, shown at x3: the key's own lock catches the
-//                                                  light, the lid cracks on a line of fire, lifts, and embers climb out
-//   assets/ui/tower/chest-column-<key>.png        THE WEAPON'S REVEAL over the open chest's last frame: 4 frames of 48x48, a stepped
+//                                                  8 frames of FW x FH in a row, shown at x2: the key's own lock catches the light, the
+//                                                  lid cracks on a line of fire, opens, and embers climb out
+//   assets/ui/tower/chest-column-<key>.png        THE WEAPON'S REVEAL over the open chest's last frame: 4 frames of FW x FH, a stepped
 //                                                  light column in the key's metal rising out of it (three bands, no bloom:
 //                                                  ART_DIRECTION §8); the weapon's own icon rises in it (CSS, whole pixels)
-// The lid's open poses (UI only) are painted here on the kit's chest: its own wood and iron, its inside lit by the haul.
 // A key row with no metal here is a finding (a later key is a row in src/data/chests.js CHEST_KEYS; its lock and column need a ramp).
 //
 //   node tools/world-art/tower-art.mjs           write them
@@ -27,128 +31,115 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createImage, encodePNG, decodePNG } from './png.mjs';
+import { snapTo } from './lock.mjs';
+import { PALETTE, RAMPS } from './palette.mjs';
 import { CHEST_KEYS } from '../../src/data/chests.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-/* the kit's chest, as shipped (its locked pixels) */
-const BASE = Object.freeze({ set: 'cottage', id: 'chest_iron' });
+const SRC = 'art/world-src/gen-2026-11-16/02-chest/';
+/* the two kept generations, and where the shut chest's box sits in each canvas (x, y, w, h) */
+const SHUT = Object.freeze({ file: SRC + 'r2-shut-s97-ba0d7de0.png', box: [4, 7, 31, 29] });
+const OPEN = Object.freeze({ file: SRC + 'r2-open-edit-s7-6f025e0b.png', box: [4, 25, 31, 29], lid: 20 });
 
-/* the palette entries the paint uses (hr-world-56-v2) */
+/* the palette entries the paint uses, by ramp and step (hr-world-56-v2) */
+const R = (ramp, i) => RAMPS[ramp][i];
 const C = Object.freeze({
-  K: '#0b0a0c', k1: '#17141a', k2: '#231d1f', k3: '#2f2723',
-  e0: '#2a1c14', e1: '#3d2a1d', e2: '#553a26', e3: '#6e4c30',
-  i0: '#2c2e33', s0: '#3a3a3e', s1: '#4f4e52', s2: '#6a6865',
-  ember: '#c23a2a', flame: '#f2a03a', hot: '#ffd36a',
+  K: R('shadow', 0), k1: R('shadow', 1), k2: R('shadow', 2), k3: R('shadow', 3),
+  ember: R('blood', 1), flame: R('torch', 0), hot: R('torch', 1),
 });
 /* EACH KEY'S METAL: its lock plate and its column, dark to light (palette ramps: bronze, steel, bronze-and-gold, mithril) */
 export const METALS = Object.freeze({
-  bronze: Object.freeze(['#4a2e18', '#a8743a', '#cfa25c']),
-  silver: Object.freeze(['#3a4652', '#8a9aa8', '#c4ccd2']),
-  gold: Object.freeze(['#a8743a', '#e8c547', '#ffd36a']),
-  platinum: Object.freeze(['#4f7a80', '#86b4b4', '#c8e6e0']),
+  bronze: Object.freeze([R('bronze', 0), R('bronze', 2), R('bronze', 3)]),
+  silver: Object.freeze([R('steel', 0), R('steel', 2), R('steel', 3)]),
+  gold: Object.freeze([R('bronze', 2), R('gold', 0), R('torch', 1)]),
+  platinum: Object.freeze([R('mithril', 1), R('mithril', 2), R('mithril', 3)]),
 });
+/* THE EMBER BED: an edit pixel in the open box's mouth that came back warm is poured by its red onto the fire ramp, never onto the planks'
+   earth (a nearest-colour snap reads the edit's hottest orange, 225,63,5, as blood red and the bed goes flat). [least red, colour] */
+const FIRE = Object.freeze([[200, R('torch', 0)], [160, R('blood', 1)], [120, R('blood', 0)], [85, R('cloth', 1)], [60, R('cloth', 0)], [0, R('shadow', 1)]]);
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const hexAt = (img, x, y) => { const i = (y * img.width + x) * 4; return '#' + [0, 1, 2].map((k) => img.data[i + k].toString(16).padStart(2, '0')).join(''); };
+const opaque = (img, x, y) => x >= 0 && y >= 0 && x < img.width && y < img.height && img.data[(y * img.width + x) * 4 + 3] === 255;
 function put(img, x, y, hex) {
   if (x < 0 || y < 0 || x >= img.width || y >= img.height) return;
   const i = (y * img.width + x) * 4;
   const [r, g, b] = rgb(hex);
   img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
 }
-function clear(img, x, y) { if (x >= 0 && y >= 0 && x < img.width && y < img.height) img.data[(y * img.width + x) * 4 + 3] = 0; }
-const opaque = (img, x, y) => x >= 0 && y >= 0 && x < img.width && y < img.height && img.data[(y * img.width + x) * 4 + 3] === 255;
-/* one dark outline round what was painted in the box: every empty pixel touching a drawn one (4 ways) */
-function outline(img, x0, y0, w, h) {
-  const add = [];
-  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
-    if (opaque(img, x, y)) continue;
-    if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => opaque(img, x + dx, y + dy))) add.push([x, y]);
-  }
-  for (const [x, y] of add) put(img, x, y, C.K);
-}
-
-/** The kit's chest as shipped: { w, h, ax, ay, px } (RGBA of its one frame). */
-export function kitChest() {
-  const m = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + BASE.set + '.json'), 'utf8'));
-  const s = m.sprites[BASE.id];
-  if (!s) throw new Error('the kit chest ' + BASE.id + ' is not in atlas-' + BASE.set);
-  const [sx, sy] = s.anims.idle.dirs.s[0];
-  const [w, h] = s.frame;
-  const sheet = decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-' + BASE.set + '.png')));
-  const px = new Uint8ClampedArray(w * h * 4);
+function cut(img, x0, y0, w, h) {
+  const out = createImage(w, h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const i = ((sy + y) * sheet.width + sx + x) * 4;
-    px.set(sheet.data.subarray(i, i + 4), (y * w + x) * 4);
+    const i = ((y0 + y) * img.width + x0 + x) * 4;
+    if (img.data[i + 3] >= 128) { out.data.set(img.data.subarray(i, i + 3), (y * w + x) * 4); out.data[(y * w + x) * 4 + 3] = 255; }
   }
-  return { w, h, ax: s.anchor[0], ay: s.anchor[1], px };
+  return out;
 }
 
-/* WHERE THE KIT CHEST IS: its 18 x 18 frame, the lid rows 0..11 (its lip 10..11), the front 12..17; the latch was x 7..10, rows 12..15.
-   The four plates, 2 x 3 each, on the front band, rows 12..14. */
-const LID_TO = 11, PLATES = Object.freeze([3, 6, 10, 13]), PLATE_Y = 12;
+/* THE MOUTH of the open chest, in its box's frame (x, y from the box's top-left; the lid stands above row 0): the ember bed */
+const MOUTH = Object.freeze({ x0: 5, x1: 25, y0: 1, y1: 10 });
+/* WHERE THE LOCKS ARE, in the box's frame: four plates on the front band, rows 15..17, the keyhole the shadow pixel in row 16 */
+const PLATES = Object.freeze([[6, 8], [12, 14], [17, 19], [22, 24]]), PLATE_Y = 15;
 
-/* THE CHEST at (ox, oy) in `img`. lid: 0 shut, 1 cracked on a line of fire, 2 half up, 3 open; lit: a key's lock catching the light. */
-function chest(img, ox, oy, o = {}) {
-  const base = kitChest();
-  const lid = o.lid || 0;
-  const up = lid === 1 ? 1 : 0;
-  for (let y = 0; y < base.h; y++) for (let x = 0; x < base.w; x++) {
-    const i = (y * base.w + x) * 4;
-    if (base.px[i + 3] < 128) continue;
-    if (lid >= 2 && y <= LID_TO) continue;
-    const hex = '#' + [0, 1, 2].map((k) => base.px[i + k].toString(16).padStart(2, '0')).join('');
-    put(img, ox + x, oy + y - (y <= LID_TO ? up : 0), hex);
+/** The shut chest's box: { w, h, img } (31 x 29, on the palette as generated). */
+export function shutChest() {
+  const [x, y, w, h] = SHUT.box;
+  return { w, h, img: cut(decodePNG(readFileSync(join(ROOT, SHUT.file))), x, y, w, h) };
+}
+/** The open chest: the box's frame plus the lid's rows above it ({ w, h, lid, img }, h = box + lid), snapped onto the palette. */
+export function openChest() {
+  const [x, y, w, h] = OPEN.box, raw = cut(decodePNG(readFileSync(join(ROOT, OPEN.file))), x, y - OPEN.lid, w, h + OPEN.lid);
+  const all = snapTo(raw, PALETTE);
+  for (let yy = MOUTH.y0; yy <= MOUTH.y1; yy++) for (let xx = MOUTH.x0; xx <= MOUTH.x1; xx++) {
+    const i = ((yy + OPEN.lid) * w + xx) * 4;
+    const [r, g, b] = raw.data.subarray(i, i + 3);
+    /* the fire, not the oak or the iron: red leads green and blue by a margin */
+    if (raw.data[i + 3] === 255 && r > 40 && r - b > 15 && r - g > 15) all.data.set([...rgb(FIRE.find(([min]) => r >= min)[1]), 255], i);
   }
-  /* the latch's iron, gone: the front band's own wood and iron under the plates */
-  for (let y = 12; y <= 15; y++) for (let x = 7; x <= 10; x++) put(img, ox + x, oy + y, y === 12 ? C.k2 : y === 15 ? C.k3 : x === 7 || x === 10 ? C.s0 : C.e1);
-  /* THE FOUR LOCKS (Bronze, Silver, Gold, Platinum, left to right) */
+  /* the box below the seam is the shut chest's own pixels (the edit kept them; this holds them exactly) */
+  const shut = shutChest().img;
+  for (let yy = PLATE_Y - 3; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+    const s = (yy * w + xx) * 4, d = ((yy + OPEN.lid) * w + xx) * 4;
+    all.data.set(shut.data.subarray(s, s + 4), d);
+  }
+  return { w, h: h + OPEN.lid, lid: OPEN.lid, img: all };
+}
+
+/* THE FOUR LOCKS on a chest image whose box's top-left is (left, top): each plate's metal pixels poured onto its key's ramp (light row,
+   mid, mid; the keyhole and the outline stay shadow). `lit`: that key's plate catches the light. */
+function locks(img, left, top, lit) {
   CHEST_KEYS.slice(0, PLATES.length).forEach((k, n) => {
-    const m = METALS[k.id];
-    const x0 = ox + PLATES[n], y0 = oy + PLATE_Y, on = o.lit === k.id;
-    const rows = on ? [[C.hot, m[2]], [m[2], C.hot], [m[1], m[1]]] : [[m[2], m[1]], [m[1], C.K], [m[0], m[0]]];
-    rows.forEach((r, dy) => r.forEach((c, dx) => put(img, x0 + dx, y0 + dy, c)));
+    const m = METALS[k.id], on = lit === k.id;
+    const [x0, x1] = PLATES[n].map((x) => left + x);
+    for (let r = 0; r < 3; r++) for (let x = x0; x <= x1; x++) {
+      const y = top + PLATE_Y + r;
+      if (!opaque(img, x, y) || RAMPS.shadow.includes(hexAt(img, x, y))) continue;
+      put(img, x, y, on ? (r === 0 ? C.hot : m[2]) : (r === 0 ? m[2] : m[1]));
+    }
   });
-  if (lid === 1) for (let x = 2; x < base.w - 2; x++) put(img, ox + x, oy + LID_TO, x % 4 === 1 ? C.hot : C.flame);
-  if (lid >= 2) {
-    /* THE MOUTH, rows 8..11: the box's rim (its own iron), the back wall in shadow, the haul alight in the middle */
-    for (let y = 8; y <= LID_TO; y++) for (let x = 0; x < base.w; x++) {
-      const rim = x <= 1 || x >= base.w - 2 || y === LID_TO;
-      const mid = Math.abs(x - 8.5);
-      let c = rim ? (y === LID_TO ? C.s1 : x <= 1 ? C.s2 : C.s0) : y === 8 ? C.k1 : C.k2;
-      if (!rim && y >= 9 && mid < 6) c = mid < 2 && y === 10 ? C.hot : mid < 4 ? C.flame : C.ember;
-      put(img, ox + x, oy + y, c);
-    }
-    /* THE LID, up behind the mouth: half (2) a short band, open (3) its whole underside, oak in shadow, its far edge iron, lit from below */
-    const tall = lid === 2 ? 3 : 7;
-    for (let y = 0; y < tall; y++) for (let x = 1; x < base.w - 1; x++) {
-      let c = y === 0 ? C.s1 : (x <= 2 || x >= base.w - 3 ? C.i0 : y % 3 === 1 ? C.e0 : C.e1);
-      if (y >= tall - 2 && Math.abs(x - 8.5) < (y === tall - 1 ? 6 : 3)) c = y === tall - 1 ? C.ember : C.e3;
-      put(img, ox + x, oy + 8 - tall + y, c);
-    }
-  }
-  if (lid >= 2) outline(img, ox - 2, oy - 8, base.w + 4, base.h + 10);
 }
 
 /* THE FIRE'S LIGHT ON IT: the Great Hearth's fire burns just right of the chest (its 8-frame loop at 8 fps, hearth_fire), so the chest's
-   right-hand iron takes that light, one value step up its own stone ramp, over more or fewer of its rows frame by frame. An ambient row
-   loops on the town's clock (tests/world-core.mjs W2), and in town something always moves (ART_DIRECTION §3). */
+   right-hand iron takes that light, one value step up its own ramp, over more or fewer of its rows frame by frame. An ambient row loops on
+   the town's clock (tests/world-core.mjs W2), and in town something always moves (ART_DIRECTION §3). */
 export const FLICKER = Object.freeze([1, 2, 4, 3, 5, 2, 3, 1]);
-const STEP_UP = Object.freeze({ '#2f2723': '#3a3a3e', '#3a3a3e': '#4f4e52', '#4f4e52': '#6a6865', '#6a6865': '#8a867d', '#6e727a': '#969aa1' });
+const upRamp = (n) => RAMPS[n].slice(0, -1).map((c, i) => [c, RAMPS[n][i + 1]]);
+const STEP_UP = Object.freeze(Object.fromEntries([[R('shadow', 3), R('stone', 0)], ...upRamp('stone'), ...upRamp('iron')]));
+const LIT_COLS = 6;
 
-/** THE CHEST ON THE LEDGE: the kit chest's frame with its four locks, 8 frames of the fire's light in a row (18 x 18 each). */
+/** THE CHEST ON THE LEDGE: the shut chest with its four locks, 8 frames of the fire's light in a row. */
 export function drawChest() {
-  const b = kitChest();
+  const b = shutChest();
   const img = createImage(b.w * FLICKER.length, b.h);
   FLICKER.forEach((rows, f) => {
     const one = createImage(b.w, b.h);
-    chest(one, 0, 0);
-    /* the lit rows: the right-hand iron (x 14..17) from the lid's top down `rows` x 2 rows */
-    for (let y = 1; y < Math.min(b.h - 1, 1 + rows * 2); y++) for (let x = 14; x < b.w; x++) {
-      const i = (y * b.w + x) * 4;
-      if (one.data[i + 3] !== 255) continue;
-      const hex = '#' + [0, 1, 2].map((k) => one.data[i + k].toString(16).padStart(2, '0')).join('');
-      if (STEP_UP[hex]) put(one, x, y, STEP_UP[hex]);
+    one.data.set(b.img.data);
+    locks(one, 0, 0, null);
+    /* the lit rows: the right-hand iron from the lid's top down `rows` x 3 rows */
+    for (let y = 1; y < Math.min(b.h - 1, 1 + rows * 3); y++) for (let x = b.w - LIT_COLS; x < b.w; x++) {
+      const up = opaque(one, x, y) && STEP_UP[hexAt(one, x, y)];
+      if (up) put(one, x, y, up);
     }
     for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
       const i = (y * b.w + x) * 4;
@@ -159,26 +150,54 @@ export function drawChest() {
 }
 
 /* Embers climbing out of an open chest: a fixed set, each a pixel, higher and fewer frame by frame. [dx, rise, kind] */
-const EMBERS = Object.freeze([[-7, 2, 1], [-4, 5, 0], [-1, 1, 2], [1, 6, 1], [3, 3, 0], [6, 5, 2], [8, 1, 1], [-6, 8, 2], [2, 9, 0], [-2, 11, 1], [5, 10, 2]]);
+const EMBERS = Object.freeze([[-9, 2, 1], [-5, 5, 0], [-1, 1, 2], [2, 6, 1], [4, 3, 0], [8, 5, 2], [10, 1, 1], [-7, 8, 2], [3, 9, 0], [-3, 11, 1], [6, 10, 2], [0, 13, 0]]);
 function embers(img, cx, mouthY, step) {
   for (const [dx, rise, kind] of EMBERS) {
-    const y = mouthY - rise - step * 4;
+    const y = mouthY - rise - step * 5;
     if (y < 1 || step * 3 + kind > 11) continue;
     const drift = Math.round(Math.sin((rise + step) * 1.7));
     put(img, cx + dx + drift, y, kind === 0 ? C.hot : kind === 1 ? C.flame : C.ember);
   }
 }
 
-const FW = 48, FH = 48, OX = 15, OY = 29;   /* the chest's top-left in a 48 x 48 frame: its foot on row 46 */
-/** THE KEY'S OPENING, 8 frames of 48 x 48 in a row. */
+/* THE REVEAL'S FRAME: FW x FH art px, the chest's box foot on its last row but one, centred; the lid and the embers above it */
+export const FW = 48, FH = 64;
+const BOX = shutChest(), OX = Math.floor((FW - BOX.w) / 2), OY = FH - 1 - BOX.h;   /* the box's top-left in the frame */
+const SEAM = PLATE_Y - 3;                                                            /* the lid's lower edge, in the box's frame */
+
+/* one pose of the chest at the frame's box: lid 0 shut, 1-2 cracked that many px on a line of fire, 3 open; lit: a key's lock */
+function pose(one, s) {
+  if (s.lid >= 3) {
+    const o = openChest();
+    for (let y = 0; y < o.h; y++) for (let x = 0; x < o.w; x++) {
+      const i = (y * o.w + x) * 4;
+      if (o.img.data[i + 3] === 255) one.data.set(o.img.data.subarray(i, i + 4), ((OY - o.lid + y) * FW + OX + x) * 4);
+    }
+  } else {
+    const up = s.lid || 0;
+    for (let y = 0; y < BOX.h; y++) for (let x = 0; x < BOX.w; x++) {
+      const i = (y * BOX.w + x) * 4;
+      if (BOX.img.data[i + 3] !== 255) continue;
+      one.data.set(BOX.img.data.subarray(i, i + 4), ((OY + y - (y < SEAM ? up : 0)) * FW + OX + x) * 4);
+    }
+    /* the crack: the seam's rows between the lifted lid and the box, a line of fire inside the outline */
+    for (let r = 0; r < up; r++) for (let x = 1; x < BOX.w - 1; x++) {
+      const y = OY + SEAM - 1 - r;
+      put(one, OX + x, y, x === 1 || x === BOX.w - 2 ? C.K : (x + r) % 4 === 1 ? C.hot : r ? C.ember : C.flame);
+    }
+  }
+  locks(one, OX, OY, s.lit || null);
+}
+
+/** THE KEY'S OPENING, 8 frames of FW x FH in a row. */
 export function drawOpen(keyId) {
   if (!METALS[keyId]) throw new Error('no metal for key ' + keyId);
   const n = 8, img = createImage(FW * n, FH);
-  const plan = [{ lid: 0 }, { lid: 0, lit: keyId }, { lid: 1, lit: keyId }, { lid: 2, e: 0 }, { lid: 3, e: 0 }, { lid: 3, e: 1 }, { lid: 3, e: 2 }, { lid: 3, e: 3 }];
+  const plan = [{ lid: 0 }, { lid: 0, lit: keyId }, { lid: 1, lit: keyId }, { lid: 2, lit: keyId }, { lid: 3, e: 0 }, { lid: 3, e: 1 }, { lid: 3, e: 2 }, { lid: 3, e: 3 }];
   plan.forEach((s, i) => {
     const one = createImage(FW, FH);
-    chest(one, OX, OY, s);
-    if (s.e !== undefined) embers(one, OX + 9, OY + 8, s.e);
+    pose(one, s);
+    if (s.e !== undefined) embers(one, OX + Math.floor(BOX.w / 2), OY + MOUTH.y0 + 2, s.e);
     for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
       const a = (y * FW + x) * 4, b = (y * img.width + i * FW + x) * 4;
       img.data.set(one.data.subarray(a, a + 4), b);
@@ -187,23 +206,22 @@ export function drawOpen(keyId) {
   return img;
 }
 
-/** THE WEAPON'S COLUMN, 4 frames of 48 x 48 in a row, over the opening's last frame: three bands of the key's metal, rising. */
+/** THE WEAPON'S COLUMN, 4 frames of FW x FH in a row, over the opening's last frame: three bands of the key's metal, rising out of the mouth. */
 export function drawColumn(keyId) {
   const m = METALS[keyId];
   if (!m) throw new Error('no metal for key ' + keyId);
   const n = 4, img = createImage(FW * n, FH);
-  const cx = OX + 8, foot = OY + 9;
-  [10, 20, 30, 30].forEach((r, i) => {
-    const top = foot - r;
+  const cx = OX + Math.floor(BOX.w / 2) - 1, foot = OY + MOUTH.y1 - 2;
+  [14, 28, 42, 42].forEach((r, i) => {
+    const top = Math.max(1, foot - r);
     /* three straight bands, the outer shortest: the head steps in, the lightest band alone at its tip; the last frame shimmers */
-    for (const [w, c, drop] of [[4, m[0], 5], [2, m[1], 2], [0, m[2], 0]]) {
+    for (const [w, c, drop] of [[6, m[0], 6], [3, m[1], 3], [1, m[2], 0]]) {
       for (let y = top + drop; y <= foot; y++) {
         const cc = c === m[2] && i === 3 && (y & 2) ? m[1] : c;
         for (let x = cx - w; x <= cx + w + 1; x++) put(img, i * FW + x, y, cc);
       }
     }
   });
-  for (let i = 0; i < FW * n * FH; i++) if (img.data[i * 4 + 3] !== 255) clear(img, i % (FW * n), Math.floor(i / (FW * n)));
   return img;
 }
 

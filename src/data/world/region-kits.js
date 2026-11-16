@@ -188,8 +188,9 @@ export const REGION_KITS = Object.freeze({
         maps: ids(''),
       }),
     }),
-    /* the Stokers' ash barrow, rake, stake and log stack, the Hold's brazier and the Sewer's hanging chains: a sweep's room, already drawn on the one palette */
-    props: ids('ma_ash_barrow ma_fire_rake ma_charred_stake ma_log_stack kh_brazier hanging_chains cw_coal_seam'),
+    /* the flue's own seven (art/world/tower, PixelLab 2026-11-16: art/world-src/gen-2026-11-16/01-note.json "props"), the Stokers' ash barrow and rake,
+       and the Hold's brazier: a sweep's room, all on the one palette */
+    props: ids('tower_climbing_irons tower_soot_door tower_sweep_brush tower_coal_scuttle tower_soot_sacks tower_ash_heap tower_chimney_pot ma_ash_barrow ma_fire_rake kh_brazier'),
     units: ids(''),
     sets: ids('tower'),
     grounds: Object.freeze({ burning_tower: Object.freeze({ family: 'flue', signature: ids('') }) }),

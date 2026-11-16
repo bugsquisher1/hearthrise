@@ -19,7 +19,7 @@
 //
 // ART: set `tower` (tools/world-art/tower-flue.mjs): the floor painted from these rows on the flue family (the iron plate, the Pyre
 // Field's ash chained, hearthstone patches the paint lays where the ash is thin), the soot-brick walls laid over the paint with an
-// ember-cracked face every sixth cell, and the kit's props.
+// ember-cracked face every sixth cell, and the kit's props (the flue's own seven: art/world/tower/tower_*, PixelLab, 2026-11-16).
 export default Object.freeze({
   id: 'burning_tower',
   name: 'The Burning Tower',
@@ -72,12 +72,15 @@ export default Object.freeze({
     '############################################################',
   ]),
   faces: Object.freeze([]),
-  /* the sweep's gear along the shaft's curves, clear of every cell the engine fights on (its pockets x51-57 y18-28, the way west) */
+  /* the sweep's gear along the shaft's curves, clear of every cell the engine fights on (its pockets x51-57 y18-28, the way west): the
+     climbing irons up the north wall (the way on up), a soot door in the landing's wall, the sweep's brush on its rods, his sacks of soot
+     and the coal scuttle at the south curve, an ash heap still holding embers, a chimney pot fallen from the top; the Stokers' barrow and
+     rake, and the Hold's braziers lighting the stair */
   objects: Object.freeze([
-    { id: 'ma_ash_barrow', x: 52, y: 15 }, { id: 'ma_fire_rake', x: 55, y: 15 }, { id: 'cw_coal_seam', x: 53, y: 31 }, { id: 'ma_log_stack', x: 56, y: 31 },
-    { id: 'ma_charred_stake', x: 50, y: 17 }, { id: 'kh_brazier', x: 43, y: 21 },
-    { id: 'hanging_chains', x: 53, y: 14 }, { id: 'hanging_chains', x: 56, y: 14 }, { id: 'hanging_chains', x: 46, y: 20 },
-    { id: 'cw_coal_seam', x: 55, y: 32 }, { id: 'kh_brazier', x: 48, y: 21 },
+    { id: 'ma_ash_barrow', x: 52, y: 15 }, { id: 'ma_fire_rake', x: 56, y: 15 }, { id: 'tower_ash_heap', x: 53, y: 31 }, { id: 'tower_coal_scuttle', x: 56, y: 31 },
+    { id: 'tower_sweep_brush', x: 50, y: 17 }, { id: 'kh_brazier', x: 43, y: 21 }, { id: 'tower_chimney_pot', x: 57, y: 17 },
+    { id: 'tower_climbing_irons', x: 54, y: 14 }, { id: 'tower_soot_door', x: 46, y: 20 },
+    { id: 'tower_soot_sacks', x: 55, y: 32 }, { id: 'kh_brazier', x: 48, y: 21 },
   ]),
   buildings: Object.freeze([]),
   /* the patrol loop round the room's middle */
@@ -87,5 +90,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 42, y: 23, to: 'town_common' }]),
   start: Object.freeze([51, 23]),
-  maskHash: '9bcbdc0f',
+  maskHash: 'db4c1995',
 });

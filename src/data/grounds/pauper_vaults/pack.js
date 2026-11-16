@@ -154,9 +154,13 @@ export default definePack({
      2026-11-15). With no row a four of four classes read 0.48 / 0.46 of the pace contract at the floor and middle and a tank and Healer 0.66 / 0.63, so
      the pair 1000 x 1.10 / 0.645 = 1705 and a first four of 2555. At 2555 the four read 1.31 / 1.26 of the median lone way (the sheet's four-xp asks
      1.15-1.25), so the four is 2555 x 0.935 = 2390 (1.22 / 1.18), the cells between at Carter's Rest's proportions. The median lone way read
-     0.945 / 0.93 of the contract (the Mage 1.46, as on Carter's Rest), inside the sheet's 0.90-1.10, so no XP fit. partyVsAlone, the window's line,
-     is the pack lane's (tests/party-class-xp-line.mjs --table --mixed). */
+     0.945 / 0.93 of the contract (the Mage 1.46, as on Carter's Rest), inside the sheet's 0.90-1.10, so no XP fit. */
   partyClassXp: { 2: [990, 1705], 3: [1150, 1890, 2020], 4: [1150, 2150, 2380, 2390] },
+  /* MEASURED (tests/party-class-xp-line.mjs --table --mixed on this ground alone, 3 seeds, the floor, the room as built, 2026-11-15), Carter's Rest's
+     way: one class is the mean of its five one-class parties (0.69 / 0.63 / 0.52), two of two the mean of three duos (1.16), three of three of two
+     trios (1.10), four of four the one played (1.08), the cells between the size's mix times the cell ratio. Whole fives. Every same-class party is
+     under solo (worst 0.75, two bows). */
+  partyVsAlone: { 2: [-30, 15], 3: [-35, 5, 10], 4: [-50, -5, 5, 10] },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value

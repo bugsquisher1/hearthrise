@@ -22,7 +22,7 @@ export const STALE_MS = 3000;
 const COLS = 8;
 
 /** Is `name` a pour the backend can bake? */
-export const isPour = (name) => typeof name === 'string' && Object.hasOwn(POURS, name);
+const isPour = (name) => typeof name === 'string' && Object.hasOwn(POURS, name);
 
 /**
  * @param {{doc: Document, now?: () => number, cap?: number}} o
@@ -56,6 +56,7 @@ export function createMonsterPour(o) {
     const data = g.getImageData(0, 0, W, H);
     pourPixels(data.data, pour);
     g.putImageData(data, 0, 0);
+    /** @type {{img: HTMLCanvasElement|ImageBitmap|null, w: number, h: number, cells: Map<number, number[]>, at: number}} */
     const look = { img: c, w: W, h: H, cells, at: now() };
     looks.set(k, look);
     /* A BITMAP WHERE THE BROWSER HAS ONE: the canvas draws meanwhile, then gives its memory back. */

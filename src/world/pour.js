@@ -56,7 +56,7 @@ export function lightness(r, g, b) {
  * @param {string} name  a key of POURS
  * @returns {Map<string, string>}
  */
-export function pourMap(counts, name) {
+function pourMap(counts, name) {
   const p = POURS[name];
   if (!p) throw new Error('pour: no pour ' + name);
   const body = [...counts.entries()].filter(([h]) => h !== OUTLINE).map(([h, n]) => ({ h, n, l: lightness(...rgbOf(h)) }))
@@ -86,7 +86,7 @@ export function pourMap(counts, name) {
 }
 
 /** The opaque colours of RGBA pixels, counted. Pure. */
-export function countColours(px) {
+function countColours(px) {
   const counts = new Map();
   for (let i = 0; i < px.length; i += 4) {
     if (px[i + 3] < OPAQUE) continue;

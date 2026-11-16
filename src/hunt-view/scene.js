@@ -58,19 +58,7 @@ import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.132';
 import { createClipHook, struckBy } from './clip-hook.js?v=0.2.132';
 import { switchOn } from '../session/player-switch.js?v=0.2.132';
 import { MONSTER_NAMES } from '../data/world/monster-names.js?v=0.2.132';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.132';
-import { towerRoom } from '../core/hunt/tower.js?v=0.2.132';
-
-/**
- * THE BURNING TOWER'S FIRE (src/world/pour.js; the board's "The Burning Tower" §1: the fire remembers what it ate): on the Tower's hunt
- * every monster stands charred, and on a landing its Keeper (src/core/hunt/tower.js towerRoom: the one kind no other slot of the room
- * takes) burns. The floor is the live view's (live-engine.js tower(), display only); off the Tower, or with no floor yet, null. Pure.
- */
-export function towerLookOf(huntId, floor) {
-  if (huntId !== TOWER_RULES.hunt) return null;
-  const f = Number.isSafeInteger(floor) && floor >= 1 ? floor : null;
-  return { keeper: f !== null ? towerRoom(f).keeper : null };
-}
+import { towerLookOf, liveFloorOf } from './tower-look.js?v=0.2.132';
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
@@ -162,7 +150,7 @@ export function readHunt(cs, peers) {
     /* the Monster names switch (src/data/world/monster-names.js): the newest pick any open hero holds, read each frame */
     names: switchOn(openHeroes(cs, peers), MONSTER_NAMES),
     /* the Burning Tower's fire: which pour a monster stands in (towerLookOf) */
-    tower: towerLookOf(h ? h.huntId : null, (() => { const c = cs && cs.live && typeof cs.live.tower === 'function' ? cs.live.tower() : null; return c ? c.floor : null; })()),
+    tower: towerLookOf(h ? h.huntId : null, liveFloorOf(cs)),
   };
 }
 

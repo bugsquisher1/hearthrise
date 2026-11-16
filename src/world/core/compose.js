@@ -331,7 +331,7 @@ function standingOf(map, book, tables, T) {
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
- *          stillIdle?: boolean, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
+ *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0;
  *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js)
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
@@ -460,7 +460,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     /* its colors, dye indices the server sent ("head.body.legs.feet"; the backend draws them, hero-dye.js). The hero you play is first in line for a sheet. */
     if (u.dye) Object.assign(d, { dye: u.dye, dyeOwn: isHero });
     /* its pour (src/world/pour.js: the Burning Tower's fire), baked once a kind by the backend (monster-pour.js) */
-    if (u.pour) d.pour = u.pour;
+    if (u.pour) Object.assign(d, { pour: u.pour });
     const { cx, foot, top } = head(d);
     /* After head(): a recoil moves the art alone, so a full box's blows never shake a name, a bar or the lamp. */
     if (u.recoil) { d.x += u.recoil[0]; d.y += u.recoil[1]; }

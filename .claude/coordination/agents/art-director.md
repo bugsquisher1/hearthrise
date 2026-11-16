@@ -3389,3 +3389,25 @@ Lesson: check art/world-src for held generations before spending; 35 gens of idl
 Readability pass (same lane): [ring] added to world-assets (READABLE in art-budget.js, Barrow March kits only; selftest +4).
 Lesson: a 0.07-0.09 floor is a dead zone for the 3:1 ring (bright bodies wash out to tan, dark ones can't pass); pick dim or
 bright per ground first, then lift. A whole-ramp lift of 4-5 steps turns earth bodies to gingerbread: shade the floor instead.
+
+## 2026-11-16 lane/a-tower-art (over lane/b-tower-window 9d20d04f5; 0 generations)
+The Tower's fire is a RAMP POUR at bake time, not 49 duplicate sheets (14 sets, ~10 more 2048 atlases): `src/world/pour.js` (the pure
+rule, published in ART_DIRECTION §2), `monster-pour.js` (hero-dye.js's bake without masks, LRU 12, one bake a frame, an unbaked pour is
+not drawn). `char`: rank-based onto shadow + dark earth, the lightest ~10% of a body glows torch/blood; `keeper`: coal red, a third alight.
+Ash greys read as stone statues, not fire; char with ember cracks reads. On a dark floor no charred body passes 3:1, so the flue must be a
+BRIGHT ground (pale ash, the Pyre Field's rule): `tower-pours.mjs --check` holds all 49 on #8a867d. Found and fixed: the Tower's map (the
+Sewer) loaded only the Sewer's sheets, so floor 5+ drew stub boxes; liveState now asks for a unit's sheet and keeps it undrawn until it
+lands. The Hearth Chest: style1.mjs forbids script-drawn world props (effects only), so it is the kit's chest_iron (PixelLab 75c00296
+cell 1) with four lock plates and a firelight flicker. The auto-mode classifier refused a new class row in art-budget.js (read as a guard
+change), so the chest is a `box`. The reveal is a UI strip at x2 (8 + 4 frames), drawn once per answer, moved above the keys (the result
+sat under the sticky foot, out of view). The Sweep's Coat as a recolour of brute / sorcerer / witch / berserker reads as those outfits in
+black: it needs its own generation.
+THE FLUE ROOM KIT (plan; nothing built but the pour and the floor rule). Floor: pale ash over flagstone (fill 4x2 + a wang16 pair to the
+landing's iron plate), decals of scorch rings and fallen cinders. Walls: soot brick, a curved flue face (wall class 32x60, cycle 3) with an
+ember-crack variant every 6 tiles (the §5 feature). Light: no ambient sun, ember point lights from the cracks and a brazier at the stair;
+the room is a ring, the stair up a column of iron rungs in the north wall. Signature pieces: the Keeper's key hook board (landings only),
+an ember grate in the floor, fallen ash heaps, hanging chains with a soot bucket, the stair's rungs. Generations: floor fill + ash/iron pair
+~12, wall face + crack variant + cap ~15, 5 props ~20, the stair rung column ~5, the chest at lore size ~3, the Sweep's Coat outfit
+(8 rotations + walk + idle) ~15-20: about 70.
+Lessons: (1) an ambient row must loop on the clock (world-core W2); (2) a world sprite must come from the kit (s1-source): paint on kit
+pixels; (3) a Python edit on Windows writes CRLF unless newline=''; (4) town-crowd.html's `at` is a MAP tile (plan.js at()), not a plan tile.

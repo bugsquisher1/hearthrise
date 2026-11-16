@@ -24,7 +24,8 @@
 // slot takes the best piece of its family the hero can get at its Level: the ladder's, any other gettable row of the same
 // family (slot, weight or weapon kind), and the STAGED GEAR rows (STAGED_GEAR below: hidden rows a design lane measured and
 // has not shipped), each gettable where its own row says it drops, as a staged ground is with `openAlso`. Best is the higher
-// tier, then more of the family's number (armor, a shield's guard, a weapon's attack and strength), then an attribute that
+// tier, then more of the family's number (armor, a shield's guard; a weapon's power on the graded ground, weapon-power.mjs, the weapon line's
+// own measure, or its attack and strength off a ground), then an attribute that
 // answers this ground (a resistance to an element cast here, a bane of a class that lives here, + the style's own skill),
 // then the ladder's own piece. A staged row is put into the engine's ITEMS as it would ship (both module instances, the
 // edge's and src/core's), so its armor and its attribute reach the fight through the hooks the live settle uses (member.js
@@ -33,6 +34,7 @@
 // `tierOffset` moves the ladder only: a slot group with an offset is dressed off the ladder, as before.
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import { weaponPower } from './weapon-power.mjs';
 
 /* THE STAGED GEAR CATALOGUES: [module, export]. Each export is { id: { row, source: { ground, monster, how }, attr } } (the
    design lanes' sample shape). A row whose id is already in ITEMS has shipped: the shipped row stands and the staged one is not read.
@@ -40,6 +42,7 @@ import { join } from 'node:path';
 export const STAGED_GEAR = Object.freeze([
   Object.freeze(['src/data/armor-line.js', 'LINE_SAMPLE']),
   Object.freeze(['src/data/special-attributes.js', 'SPECIAL_SAMPLE']),
+  Object.freeze(['src/data/weapon-line.js', 'WEAPON_SAMPLE']),
 ]);
 
 /* The combat skill each role fights with (a `skillB` key that answers the style). */
@@ -137,6 +140,11 @@ export async function loadGear(root) {
   const { MONSTERS } = await import(u('src/data/monsters.js') + v);
   const { spellRow } = await import(u('src/data/monster-spells.js') + v);
   const MEMBER = await import(u('src/core/member.js'));
+  /* THE WEAPON LINE'S MEASURE (weapon-power.mjs, lane/d-weapon-line): a weapon's power on the ground being graded, the engine's own rolls
+     over its spawn, so the grader picks the weapon the guard (tests/weapon-line.mjs) holds under the line */
+  const WP = weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS: { ...HUNT_GROUNDS }, HUNT_INDEX: (await import(u('src/data/hunts.js') + v)).HUNT_INDEX,
+    combat: await import(u('src/core/combat.js')), deriveProfile: MEMBER.deriveProfile, skillXpForLevel: (await import(u('src/core/xp.js'))).skillXpForLevel,
+    line: await import(u('src/data/weapon-line.js')) });
   const staged = new Map();
   for (const [file, name] of STAGED_GEAR) {
     const cat = (await import(u(file)))[name] || {};
@@ -201,10 +209,18 @@ export async function loadGear(root) {
     return n;
   };
   const tierOf2 = (it) => Number(it && it.tier) || 1;
+  /* A WEAPON'S NUMBER ON A GROUND (lane/d-weapon-line): past Dawnsteel a weapon spends one budget its own way (more accuracy, more damage,
+     a critical chance, a bane), so attack plus damage no longer ranks it. On a graded ground a weapon's number is its power there at the
+     hero's Level (weapon-power.mjs), rounded to a tenth so two pieces a hair apart fall to the next key; anywhere else, or for a
+     spellbook, the family's number as before */
+  const rankOf = (it, L, gid) => {
+    if (it.slot === 'weapon' && gid && Number.isFinite(L)) { const p = WP.groundPower(it, gid, L); if (p !== null) return Math.round(p * 10); }
+    return powerOf(it);
+  };
   /* rank: tier, the family's number, an attribute that answers the ground, the ladder's own piece, the id (a total order: no tie is left to the sort) */
-  const better = (asks, role, onLadder) => (a, b) => {
+  const better = (asks, role, onLadder, L, gid) => (a, b) => {
     const A = rowOf(a), B = rowOf(b);
-    return (tierOf2(B) - tierOf2(A)) || (powerOf(B) - powerOf(A)) || (answers(B, asks, role) - answers(A, asks, role))
+    return (tierOf2(B) - tierOf2(A)) || (rankOf(B, L, gid) - rankOf(A, L, gid)) || (answers(B, asks, role) - answers(A, asks, role))
       || ((onLadder.has(b) ? 1 : 0) - (onLadder.has(a) ? 1 : 0)) || (a < b ? -1 : a > b ? 1 : 0);
   };
   /** The best piece of `ladderIds`' family a hero of `role` can get at Level L, beside the ladder's own pick (null: none). */
@@ -219,7 +235,7 @@ export async function loadGear(root) {
     const ids = familyIds(ladderPick ? [ladderPick, ...ladderIds] : ladderIds).filter(can);
     if (ladderPick && !ids.includes(ladderPick)) ids.push(ladderPick);
     if (!ids.length) return null;
-    return ids.sort(better(ctx.asks, role, onLadder))[0];
+    return ids.sort(better(ctx.asks, role, onLadder, L, ctx.ground))[0];
   };
 
   /**
@@ -286,7 +302,8 @@ export async function loadGear(root) {
     let ctx = null;
     if (opts.uniques === true) {
       registerStaged();
-      ctx = { reach: opts.openAlso ? reachWith(opts.openAlso) : reach, drops: dropGroundsWith(opts.openAlso), asks: groundAsks(opts.ground || null) };
+      ctx = { reach: opts.openAlso ? reachWith(opts.openAlso) : reach, drops: dropGroundsWith(opts.openAlso), asks: groundAsks(opts.ground || null),
+        ground: opts.ground && own(HUNT_GROUNDS, opts.ground) ? opts.ground : null };
     }
     const best = (ids, id, o) => (ctx && !o ? bestOf(ids, id, L, S.role, ctx) || id : id);
     const set = {};

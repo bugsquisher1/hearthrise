@@ -51,7 +51,7 @@ export function patchLedger(v) {
     const bare = !!mine && !list.length;
     cls(root.querySelector('.hw-mk-none'), 'is-on', bare);
     cls(root.querySelector('.hw-mk-none-p'), 'is-on', bare);
-    text(root.querySelector('.hw-mk-none-p'), 'You have nothing listed. Anything you list stays here until it sells, and you can take it back any time.');
+    text(root.querySelector('.hw-mk-none-p'), 'Nothing listed');
     const today = mine ? mine.today : {};
     text(root.querySelector('.hw-mk-caps'), !mine || !sc.rules ? '' : whole(list.length) + ' of ' + whole(sc.rules.maxListings) + ' listings up, ' + whole(Number(today.listed) || 0) + ' of ' + whole(sc.rules.maxListsPerDay) + ' listed today');
     return;
@@ -73,7 +73,7 @@ export function patchLedger(v) {
     },
   });
   const none = root.querySelector('.hw-mk-hist-none');
-  text(none, mine && !hist.length ? 'Nothing yet. Your sales, purchases and returns stay here for 30 days.' : '');
+  text(none, mine && !hist.length ? 'No history yet, kept 30 days' : '');
   cls(none, 'is-on', !!(mine && !hist.length));
 }
 

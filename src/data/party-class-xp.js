@@ -32,9 +32,9 @@
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.132';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
-import { foldRows } from './grounds/shape.js?v=0.2.132';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.133';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.133';
+import { foldRows } from './grounds/shape.js?v=0.2.133';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -58,6 +58,27 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
    The party cells below are the pack's pay in permille and the lone hero is the reference every party line is measured against, so each cell moved
    with it, x1150/1050 to the nearest 5, and was re-measured: every party-vs-alone reading Tyler ruled on 2026-11-11 holds. */
 export const SOLO_XP_PM = 1150;
+
+/* THE OVER-FITTED GROUNDS' BIG-PULL CELLS (Tyler 2026-11-16, option 1: "fix the four over-fitted grounds' party cells"; lane/a-party-xp-tier).
+   The mixed cells below were fitted on Normal, and on a tier that brings a bigger pull a mixed three or four kills that pull far faster than a hero
+   alone does: a mixed four on Deadly read 3.7-4.5x the pace contract a head on the Glade, Hask's Ford, the Slake and Krell's Hold, and 2.9x on the
+   Pyre Field (tools/balance-sim/party-tier-xp.mjs, the floor and middle, 2 seeds x 0.5 h; Andy's live party about 5x). One cell a ground can't fix it:
+   the Dangerous four already reads only 1.6-1.7x its heroes alone, so the Deadly cut would carry it under solo. So each over-fitted ground's MIXED cells
+   (two classes and up) of a three and a four take a permille ON THE TIER, read at each kill from the hunt's tier (xp-share.js): a Deadly mixed four
+   lands at most about 2.45x the contract (andy's hammer + bow + mage + a Healer five under, and tank + Healer + bow + mage, floor and middle), every
+   Dangerous and Deadly mix stays over the same heroes alone (the tank four at least 1.05x), and a Dangerous four earns about 0.90-0.97x a Deadly one
+   (at least 1.10x its Normal: on the Glade, whose Normal four reads 1.98x at the floor, that floor sets it). Normal, pairs,
+   one-class cells and every other ground are untouched (Normal isn't meant for parties, Tyler 2026-11-16, so no bar asks it to, and none is cut).
+   The cost, on the Glade alone: its Deadly four reads under 1.25x its Normal four at the floor (balance-sheet.js tiers.deadly, a grader line).
+   Ground → tier → { party size: permille on that size's mixed cells }. A tier or size not named pays the cell as written. */
+const PARTY_TIER_PM = Object.freeze({
+  mosslight_glade: Object.freeze({ dangerous: Object.freeze({ 3: 890, 4: 670 }), deadly: Object.freeze({ 3: 780, 4: 545 }) }),
+  hasks_ford: Object.freeze({ dangerous: Object.freeze({ 3: 900, 4: 675 }), deadly: Object.freeze({ 3: 805, 4: 555 }) }),
+  the_slake: Object.freeze({ dangerous: Object.freeze({ 3: 945, 4: 705 }), deadly: Object.freeze({ 3: 895, 4: 630 }) }),
+  krells_hold: Object.freeze({ dangerous: Object.freeze({ 4: 640 }), deadly: Object.freeze({ 4: 670 }) }),
+  pyre_field: Object.freeze({ dangerous: Object.freeze({ 4: 790 }), deadly: Object.freeze({ 4: 855 }) }),
+});
+export { PARTY_TIER_PM };
 
 /* ground id → its row (designer's final table, 2026-11-01). SAME MONSTERS, RE-TUNED (Tyler 2026-11-08; lane/b-one-difficulty): a monster has its row's HP
    and pays its whole kill for one hero or four, so a party of n shares a whole kill n ways where it used to share a pack scaled to its size. The mixed
@@ -146,9 +167,10 @@ const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLAS
 /**
  * THE ONE READER. `roles`: the hunt role of each hero counted (the living ones, in the engine); `groundId`: the
  * ground (its `id`, HUNT_GROUNDS). Answers { permille, classes: [class ids held, in PARTY_CLASSES order] }.
- * A role with no class counts as a hero and no class (at least one class is always read).
+ * A role with no class counts as a hero and no class (at least one class is always read). `tierId`: the hunt's tier
+ * (hunt-tiers.js TIER_IDS; absent = Normal): a mixed cell takes its ground's PARTY_TIER_PM on it.
  */
-export function partyClassXp(groundId, roles) {
+export function partyClassXp(groundId, roles, tierId = 'normal') {
   const held = new Set();
   for (const r of roles) if (Object.hasOwn(CLASS_OF_ROLE, r)) held.add(CLASS_OF_ROLE[r]);
   const classes = Object.keys(PARTY_CLASSES).filter((c) => held.has(c));
@@ -157,8 +179,11 @@ export function partyClassXp(groundId, roles) {
   if (n < 2 || !Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1000, classes };
   const tab = PARTY_CLASS_XP[groundId];
   const sizes = Object.keys(tab).map(Number);
-  const cells = tab[Math.min(n, Math.max(...sizes))];
-  return { permille: cells[Math.min(Math.max(classes.length, 1), cells.length) - 1], classes };
+  const size = Math.min(n, Math.max(...sizes));
+  const cells = tab[size];
+  const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
+  const onTier = classes.length > 1 && Object.hasOwn(PARTY_TIER_PM, groundId) && Object.hasOwn(PARTY_TIER_PM[groundId], tierId) ? PARTY_TIER_PM[groundId][tierId][size] : undefined;
+  return { permille: onTier === undefined ? cell : Math.round((cell * onTier) / 1000), classes };
 }
 
 /** The measured percent (PARTY_VS_ALONE) for these living roles on this ground; null with no row or under two heroes. */
@@ -185,6 +210,17 @@ export function validate(grounds) {
     if (!Object.hasOwn(PARTY_VS_ALONE, g)) out.push(g + ': ONE_ROLE_VS_ALONE names a ground with no measured line');
     if (!HUNT_ROLES[role]) out.push(g + ' ' + n + ': ONE_ROLE_VS_ALONE names no role ' + role);
     if (!Number.isInteger(v) || v % 5 !== 0) out.push(g + ' ' + n + ' ' + role + ': ONE_ROLE_VS_ALONE needs whole fives');
+  }
+  /* a tier's cut names a ground with a row, a tier, a party size the row has, and cuts (1-1000: never a raise over the fitted cell) */
+  for (const [g, tiers] of Object.entries(PARTY_TIER_PM)) {
+    if (!Object.hasOwn(PARTY_CLASS_XP, g)) out.push(g + ': PARTY_TIER_PM names a ground with no party row');
+    for (const [t, bySize] of Object.entries(tiers)) {
+      if (!['normal', 'dangerous', 'deadly'].includes(t)) out.push(g + ': PARTY_TIER_PM names no tier ' + t);
+      for (const [n, pm] of Object.entries(bySize)) {
+        if (!Object.hasOwn(PARTY_CLASS_XP[g] || {}, n)) out.push(g + ' ' + t + ': PARTY_TIER_PM names no party size ' + n);
+        if (!Number.isInteger(pm) || pm < 1 || pm > 1000) out.push(g + ' ' + t + ' ' + n + ': PARTY_TIER_PM ' + pm + ' is not a cut (1-1000)');
+      }
+    }
   }
   for (const [g, tab] of Object.entries(PARTY_CLASS_XP)) {
     if (grounds && !grounds.includes(g)) out.push(g + ': names no ground');

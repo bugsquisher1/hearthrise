@@ -16,16 +16,16 @@
 // one intent each), off from the press until the server answered; the tab
 // changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.132';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.132';
-import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.132';
-import { recommendation } from '../hunt-list.js?v=0.2.132';
-import { huntName } from '../../session/party-sections.js?v=0.2.132';
-import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.132';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.132';
-import { glyphSvg } from '../launcher.js?v=0.2.132';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.132';
-import { t } from '../../render/player-text.js?v=0.2.132';
+import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.133';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.133';
+import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.133';
+import { recommendation } from '../hunt-list.js?v=0.2.133';
+import { huntName } from '../../session/party-sections.js?v=0.2.133';
+import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.133';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.133';
+import { glyphSvg } from '../launcher.js?v=0.2.133';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.133';
+import { t } from '../../render/player-text.js?v=0.2.133';
 
 /** The tab's skeleton (built once with the window). */
 export function rosterHtml() {
@@ -86,6 +86,9 @@ export function classXpLine(roles, hunt) {
   if (vs === null) return have + t('party.class_none', { place });
   if (vs === 0) return have + t('party.class_same', { place });
   if (vs > 0) return have + t('party.class_more', { pct: vs, place });
+  /* "Mix ... to get more" only where another class can still be held at this size: since the flat party cut (Tyler 2026-11-16) a full mix may
+     earn under alone on Normal, and telling it to mix is false. */
+  if (classes.length >= Math.min(seats.length, CLASS_NAMES.length)) return have + t('party.class_less_full', { pct: -vs, place });
   return have + t('party.class_less', { pct: -vs, place, classes: CLASS_WORDS });
 }
 

@@ -11,17 +11,23 @@
 // server re-quotes it. The one thing drawn between answers is the running clock (since, against the server's clock).
 // Start is off, and says why above it, for what the screen already knows; the server still judges, and every refusal
 // reads in plain words (src/shell/training-words.js, src/data/refusal-words.js).
+//
+// THE RATE AND THE TRAINING ITEMS (2027-04-23-training-gear.sql, Tyler 2026-11-14: one rate for every skill and Level, the item at
+// 200%; labels, the server's numbers): the quote's XP/h is the server's rate for this hero now; the item box shows the hours left on
+// the skill's open item, the "Use" switch, the sealed ones held (Open) and the Arms Master's rows (Buy at the price SEEN). Every
+// number is the section's; the window never works one out.
 // ════════════════════════════════════════════════════════════════════════
-import { trainingOf, quoteFor, runForMs } from '../../session/training-sections.js?v=0.2.133';
-import { startTraining, stopTraining } from '../../session/training-intents.js?v=0.2.133';
-import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.133';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.133';
-import { whole } from '../../render/format.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { runIntent } from '../intent-words.js?v=0.2.133';
-import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.133';
+import { trainingOf, quoteFor, runForMs, gearFor, offersFor } from '../../session/training-sections.js?v=0.2.134';
+import { startTraining, stopTraining, buyGear, openGear, useGear } from '../../session/training-intents.js?v=0.2.134';
+import { itemName } from '../widgets/bits.js?v=0.2.134';
+import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.134';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
+import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.134';
+import { whole } from '../../render/format.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
+import { runIntent } from '../intent-words.js?v=0.2.134';
+import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.134';
 
 /* The ground a training session runs on (src/data/hunts.js, the server half): its hunt is the run, not "out hunting". */
 const YARD_GROUND = 'training_yard';
@@ -52,6 +58,9 @@ export function startBlock(cs, tr, skill, where) {
   const name = nameOf(cs) || t('training.your_hero');
   const h = huntOf(cs);
   if (h && !h.ended && h.huntId !== YARD_GROUND) return t('training.hunting', { name });
+  /* THE LEVEL GATE (the server's rate row: the Level it opens at and this hero's) */
+  const r = tr.rate;
+  if (r && r.level !== null && r.minLevel !== null && r.level < r.minLevel) return t('training.low_level', { need: r.minLevel, level: r.level });
   if (partyOf(cs)) return t('training.in_party', { name });
   const q = quoteFor(tr, skill);
   if (!skill || !q) return t('training.closed');
@@ -85,6 +94,11 @@ export function renderTraining(ctx) {
     + '</div></div>'
     + '<p class="hs-note tw-terms"></p>'
     + '</div>'
+    + '<section class="tw-gear" hidden><h3 class="hs-sub">' + esc(t('training.gear_head')) + '</h3>'
+    + '<p class="tw-line tw-gear-left"></p>'
+    + '<label class="tw-gear-use" hidden><input type="checkbox" class="tw-gear-on" data-hs-act="gear-use"><span class="tw-gear-use-text"></span></label>'
+    + '<div class="tw-gear-held"></div><div class="tw-gear-shop"></div>'
+    + '<p class="hs-note tw-gear-note"></p></section>'
     + '<div class="tw-foot"><p class="hw-why tw-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tw-go" data-hs-act="train-start">' + esc(t('training.press_start')) + '</button>'
     + '<button type="button" class="hh-tool tw-stop" data-hs-act="train-stop" hidden>' + esc(t('controls.stop')) + '</button>'
@@ -105,6 +119,70 @@ function patchSkills(host, cs, tr, picked) {
       text(b.querySelector('.tw-skill-level'), r.level === null ? '' : String(r.level));
     },
   });
+}
+
+/* The name of a skill's training item, from the catalogue the server's rows name. */
+function gearName(tr, skill) {
+  const g = gearFor(tr, skill);
+  const id = (offersFor(tr, skill)[0] || {}).item || (g && (g.bag[0] || g.stored[0] || {}).item);
+  return id ? itemName(id) : skillWord(skill);
+}
+
+/* One row of the item box: a name, a figure, a press. */
+function gearRow(doc, act, label) {
+  const row = doc.createElement('div');
+  row.className = 'tw-gear-row';
+  row.innerHTML = '<span class="tw-gear-name"></span><span class="tw-gear-fig"></span><button type="button" class="hh-tool tw-gear-press" data-hs-act="' + act + '">' + esc(label) + '</button>';
+  return row;
+}
+
+/* THE ITEM BOX for `skill` (the run's, else the picked one): the hours left, the switch, the sealed ones held, the Arms Master's rows. */
+function patchGear(root, tr, skill, sc) {
+  const box = root.querySelector('.tw-gear');
+  prop(box, 'hidden', !tr.rate || !skill);
+  if (!tr.rate || !skill) return;
+  const doc = root.ownerDocument;
+  const g = gearFor(tr, skill);
+  const shopOn = !!(tr.shop && tr.shop.on);
+  const name = gearName(tr, skill);
+  text(root.querySelector('.tw-gear-left'), g && g.bankedMs > 0
+    ? t(g.on ? 'training.gear_left_on' : 'training.gear_left', { item: name, time: timeWords(g.bankedMs) }) : '');
+  /* While the items are closed (the server's switch) nothing here presses: the note says so. Otherwise every press is on, and the
+     server judges it (a purse short of the price, hours still left, the day's buys): its refusal speaks with its own numbers. */
+  const use = root.querySelector('.tw-gear-use');
+  prop(use, 'hidden', !(shopOn && g && (g.bankedMs > 0 || g.bag.length)));
+  const box2 = root.querySelector('.tw-gear-on');
+  prop(box2, 'checked', !!(g && g.on));
+  prop(box2, 'disabled', sc.pending);
+  attr(box2, 'data-skill', skill);
+  text(root.querySelector('.tw-gear-use-text'), t('training.gear_use', { item: name }));
+  /* the sealed ones: the bag's, then Storage's; Open is off while an item of this skill still has hours */
+  const held = g && shopOn ? g.bag.map((h) => ({ ...h, where: 'bag' })).concat(g.stored.map((h) => ({ ...h, where: 'storage' }))) : [];
+  rows(root.querySelector('.tw-gear-held'), held, {
+    key: (h) => h.where + ':' + h.item,
+    build: () => gearRow(doc, 'gear-open', t('training.press_open')),
+    patch: (row, h) => {
+      text(row.querySelector('.tw-gear-name'), t(h.bound ? 'training.gear_bound' : 'training.gear_held', { item: itemName(h.item), hours: h.hours }));
+      text(row.querySelector('.tw-gear-fig'), t(h.where === 'bag' ? 'training.gear_in_bag' : 'training.gear_in_storage', { count: h.qty }));
+      const b = row.querySelector('.tw-gear-press');
+      attr(b, 'data-item', h.item);
+      prop(b, 'disabled', sc.pending);
+    },
+  });
+  /* the Arms Master's rows, at the server's price */
+  rows(root.querySelector('.tw-gear-shop'), shopOn ? offersFor(tr, skill) : [], {
+    key: (o) => o.item,
+    build: () => gearRow(doc, 'gear-buy', t('training.press_buy')),
+    patch: (row, o) => {
+      text(row.querySelector('.tw-gear-name'), t('training.gear_held', { item: itemName(o.item), hours: o.hours }));
+      text(row.querySelector('.tw-gear-fig'), t('training.gear_price', { gold: whole(o.price) }));
+      const b = row.querySelector('.tw-gear-press');
+      attr(b, 'data-item', o.item);
+      prop(b, 'disabled', sc.pending);
+    },
+  });
+  text(root.querySelector('.tw-gear-note'), !shopOn ? t('training.gear_closed')
+    : t('training.gear_card', { skill: skillWord(skill) }) + (tr.shop.max !== null ? ' ' + t('training.gear_today', { today: tr.shop.today, max: tr.shop.max }) : ''));
 }
 
 /* A minute clock while the window shows a run: the patch asks itself again; a closed window drops it. */
@@ -145,7 +223,9 @@ renderTraining.patch = function patchTraining(body, ctx) {
   patchSkills(root.querySelector('.tw-skills'), cs, tr, skill);
   const q = quoteFor(tr, skill);
   text(root.querySelector('.tw-fee'), !q ? '' : where === 'house' ? t('training.fee_house') : t('training.fee', { gold: whole(q.feeH) }));
-  text(root.querySelector('.tw-xp'), q && q.xpH !== null ? t('training.xp', { xp: whole(q.xpH), skill: skillWord(skill) }) : '');
+  /* the server's rate for this hero now: the item's (200%) while that skill's item time runs and its switch is on */
+  const boosted = !!(q && tr.rate && q.xpH === tr.rate.xpHItem && tr.rate.xpHItem !== tr.rate.xpH);
+  text(root.querySelector('.tw-xp'), q && q.xpH !== null ? t(boosted ? 'training.xp_item' : 'training.xp', { xp: whole(q.xpH), skill: skillWord(skill) }) : '');
   text(root.querySelector('.tw-to-level'), q && q.hoursToNext !== null && q.level !== null
     ? t('training.to_level', { hours: t('training.time_hours', { count: Math.max(1, q.hoursToNext) }), skill: skillWord(skill), level: q.level + 1 }) : '');
   const owned = !!(tr.dummy && tr.dummy.owned.includes(skill));
@@ -154,6 +234,7 @@ renderTraining.patch = function patchTraining(body, ctx) {
   text(root.querySelector('.tw-terms'), where === 'house' ? (tr.maxHours ? t('training.max_hours', { hours: tr.maxHours }) : '')
     : t('training.paid_ahead') + (tr.maxHours ? ' ' + t('training.max_hours', { hours: tr.maxHours }) : ''));
   for (const b of root.querySelectorAll('.tw-skill, .tw-place')) prop(b, 'disabled', sc.pending);
+  patchGear(root, tr, run ? run.skill : skill, sc);
 
   /* THE PRESS: Start while nothing runs (off, with why), Stop while one does */
   const block = run ? '' : startBlock(cs, tr, skill, where);
@@ -187,6 +268,26 @@ renderTraining.act = function actTraining(ctx, body, action, ev, el) {
   }
   if (action === 'train-stop') {
     runIntent(sc, repaint, () => stopTraining(cs), t('training.busy_stop'), () => '', cs);
+    return true;
+  }
+  /* THE TRAINING ITEMS: the server's row (an offer's price as SEEN, a held item's id), never a number of the window's own */
+  if (action === 'gear-buy') {
+    const item = el.getAttribute('data-item'), o = tr.offers.find((x) => x.item === item);
+    if (!o) { repaint(); return true; }
+    runIntent(sc, repaint, () => buyGear(ctx.account, cs, o.item, o.price), t('training.busy_buy'), () => t('training.bought', { item: itemName(o.item) }), cs);
+    return true;
+  }
+  if (action === 'gear-open') {
+    const item = el.getAttribute('data-item');
+    const g = tr.gear.find((x) => x.bag.concat(x.stored).some((h) => h.item === item));
+    if (!g) { repaint(); return true; }
+    runIntent(sc, repaint, () => openGear(ctx.account, cs, item), t('training.busy_open'), () => t('training.opened', { item: itemName(item), skill: skillWord(g.skill) }), cs);
+    return true;
+  }
+  if (action === 'gear-use') {
+    const skill = el.getAttribute('data-skill'), g = gearFor(tr, skill);
+    if (!skill) return true;
+    runIntent(sc, repaint, () => useGear(ctx.account, cs, skill, !(g && g.on)), '', () => '', cs);
     return true;
   }
   return false;

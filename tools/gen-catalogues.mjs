@@ -121,7 +121,16 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Duskwood Wand and Codex), and tier 7 leather and cloth RENAMED, ids and names (Tyler 2026-11-14: Dawnhide and Duskweave, voidhide_ -> dawnhide_, voidweave_ ->
    duskweave_; the designer's 11-10 Slakehide and Shroudweave never applied; twelve rows of each table; no hero can hold one, no ground or recipe a player reaches gives it), in ONE forward file, the same full
    delete+insert replace. Staged, never applied before this rename joined it. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-17-barrow-data-items-catalogue.generated.sql');
+/* THE TRAINING ITEMS (lane/c-training-gear, Tyler 2026-11-14; src/data/training.js TRAINING_GEAR): 2027-04-17-barrow-data-items-catalogue is
+   APPLIED history. Sixteen new hr_items rows: a Training Sword, Bow, Wand and Shield in 12 and 24 hours, each the Arms Master's tradable
+   row (book value its price / 100) and the Crowns store's bound copy (`_bound`, tradeable false, value 0: every trade surface refuses it),
+   in ONE forward file, the same full delete+insert replace. No other row moves. */
+/* KRELL'S HOLD RE-SHIPPED AFTER THE TRAINING ITEMS (the v0.2.134 merge of lane/d-audit-f22, 2026-11-16): 2027-04-23-training-gear-items-catalogue is
+   APPLIED history and folds Krell's Hold as its first pack file shipped it. lane/c-krell-uniques re-shipped the pack (2027-04-25-pack-krells_hold-2:
+   Krell's two unique pieces, his daily prize rows), a file AFTER that whole file, so the whole view no longer folds the pack there (tools/pack/whole.mjs)
+   and that file can never be rendered again. This forward file is the world move whole.mjs names: dated after the pack, it folds every shipped pack,
+   Krell's Hold as re-shipped. The same full delete+insert replace; no row moves but the pack's. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-26-krell-reship-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

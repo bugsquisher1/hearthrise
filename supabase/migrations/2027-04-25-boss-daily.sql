@@ -82,7 +82,7 @@
 -- and one at the commit. Per envelope: one scan of hr_boss_halls (one row today), one party probe, and for a hero in a party at most four
 -- probes each of the day table, player_inventory and player_item_rules.
 --
--- REVERSIBILITY: re-apply hr_hunt_apply_member from 2027-04-16-combat-training.sql and hr_hunt_instance_read from 2027-04-22-target-kind.sql
+-- REVERSIBILITY: re-apply hr_hunt_apply_member from 2027-04-24-bench-resume.sql and hr_hunt_instance_read from 2027-04-23-session-modes.sql
 -- (§0 pins both images); drop the section row, hr_boss_halls_view, hr_boss_prize_take, hr_boss_prize_left and the table. No value to undo:
 -- a piece already credited stays (it was a legal drop before this file too). No begin/commit (CLAUDE.md §2).
 -- IDEMPOTENT: a second apply finds the table, both spliced bodies' marker, restates the three new bodies byte for byte and §6 rolls back its probes.
@@ -100,11 +100,11 @@ begin
   if to_regprocedure('public.hr_reject(text,jsonb)') is null or to_regprocedure('public.hr_hunt_party_of(uuid,integer)') is null
      or to_regprocedure('public.hr_character_name(uuid,integer)') is null or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
-  -- Each body this file splices is exactly the image it was written against (production's, tests/live-hash-drift.baseline.json measured
-  -- 2026-11-14, equal to the replay's), or this file's own (a second apply): md5 of pg_get_functiondef with every run of whitespace one space.
+  -- Each body this file splices is exactly the image it was written against (production's after v0.2.134: bench-resume's 034d0bcb, session-modes'
+  -- 158da9ba, equal to the replay's), or this file's own (a second apply): md5 of pg_get_functiondef with every run of whitespace one space.
   for v_r in select * from (values
-    ('public.hr_hunt_instance_read(uuid,integer)', 'd0cb8c8ec3e038ff865ce81b05242d49', 'ecfc173664cd1ae05b4ef72eed8df713'),
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '5786ead704f7d4230d49aff8921ed288', 'b3ea0f912ba761c7930c0a5b3e852cc4')) t(fn, pre, post) loop
+    ('public.hr_hunt_instance_read(uuid,integer)', '158da9ba7d6a68295ba69ef346d77e27', '57256e05303f02ffff4227bbeab17556'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '034d0bcb1a3ad843d30917afb5ae7fe9', 'a25c708f695ae342e772fa583138d64f')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
       raise exception 'PIN: % is neither its live pre-image (%) nor this file''s image (%): md5 % - another file moved it', v_r.fn, v_r.pre, v_r.post, v_md5;

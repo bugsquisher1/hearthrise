@@ -197,37 +197,38 @@ async function checks(overrides) {
     if (b.capEarly.add !== null) fails.push('BH-4 a named add shows before the wave: ' + b.capEarly.add);
     /* BH-1 */
     const pn = r.panes;
-    /* where a key comes from: the monster whose drops name it (designer 2026-11-14, lane/d-march-balance) */
-    if (pn.none.hidden || !pn.none.off || pn.none.line !== 'You don\'t have a Goblin Totem. The Goblin drops them now and then.') fails.push('BH-1 with no key the pane reads ' + JSON.stringify(pn.none));
-    if (pn.one.off || pn.one.line !== 'You have 1 Goblin Totem.' || !/^Open /.test(pn.one.press)) fails.push('BH-1 with a key the pane reads ' + JSON.stringify(pn.one));
-    if (pn.two.off || pn.two.line !== 'You have 2 keys.') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
+    /* where a key comes from: the monster whose drops name it (designer 2026-11-14, lane/d-march-balance); labels (Tyler 2026-11-14) */
+    if (pn.none.hidden || !pn.none.off || pn.none.line !== 'Requires Goblin Totem (drops from the Goblin)') fails.push('BH-1 with no key the pane reads ' + JSON.stringify(pn.none));
+    if (pn.one.off || pn.one.line !== 'Goblin Totem: 1' || !/^Open /.test(pn.one.press)) fails.push('BH-1 with a key the pane reads ' + JSON.stringify(pn.one));
+    if (pn.two.off || pn.two.line !== 'Goblin Totem: 2') fails.push('BH-1 with two keys the pane reads ' + JSON.stringify(pn.two));
     /* a member holding a key is told it counts: any seat's key opens the hall, the leader makes the press (lane/c-krell-daily; the hand play
        2026-11-14: a key dropped to seat 2 had to be walked to the leader) */
     if (!pn.member.off || pn.member.line !== 'Goblin Totem: 1, your leader opens the hall') fails.push('BH-1 a member with a key reads ' + JSON.stringify(pn.member));
-    if (!pn.memberNone.off || pn.memberNone.line !== 'Only your party\'s leader can open it.') fails.push('BH-1 a member with no key reads ' + JSON.stringify(pn.memberNone));
-    if (!pn.hunting.off || !/^Not while you're hunting/.test(pn.hunting.line)) fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
+    if (!pn.memberNone.off || pn.memberNone.line !== 'Party leader only') fails.push('BH-1 a member with no key reads ' + JSON.stringify(pn.memberNone));
+    if (!pn.hunting.off || pn.hunting.line !== 'Not while hunting') fails.push('BH-1 while hunting the pane reads ' + JSON.stringify(pn.hunting));
     if (pn.leader.off) fails.push('BH-1 a party\'s leader with a key is off');
     if (!pn.noHall.hidden) fails.push('BH-1 a ground with no hall shows the section');
-    if (pn.shrimp.bars !== 'Every hero needs Salted Lobster or better on their bar. Salted Shrimp can\'t keep up with him. An untouched bar mostly loses here. The bars that win him make these changes.'
-      || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Your bar buys Salted Shrimp. Press that slot on your bar and pick Salted Lobster before you go in.') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
-    if (pn.peer.food !== 'Mender\'s bar buys Salted Shrimp. Change that slot to Salted Lobster before you go in.') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
+    /* Labels (lane/d-labels-sweep, Tyler 2026-11-14 "Those are much better"): the food floor, then the "What wins" label over the tips. */
+    if (pn.shrimp.bars !== 'Requires Salted Lobster or better on every bar (Salted Shrimp can\'t keep up) What wins (default bars mostly lose here)'
+      || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Your bar buys Salted Shrimp. Pick Salted Lobster on that slot before you go in.') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
+    if (pn.peer.food !== 'Mender\'s bar buys Salted Shrimp. Change that slot to Salted Lobster.') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
     if (pn.lobster.food !== null || !pn.plainBars) fails.push('BH-1 the food line shows on Salted Lobster, or a hall with no advice shows a bar line: ' + JSON.stringify([pn.lobster, pn.plainBars]));
     for (const [k, x] of Object.entries(pn)) if (/[{}]/.test(Object.values(x).join(' '))) fails.push('BH-1 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
     /* BH-2 */
-    if (r.sentAfterWarn !== 0 || !r.warned.warn || r.warned.title !== 'Fight the Hall Boss?' || !r.warned.alone || !/Goblin Totem, win or lose/.test(r.warned.b) || r.warned.go !== 'Use the Goblin Totem') fails.push('BH-2 the first press: ' + r.sentAfterWarn + ' sent, the warning reads ' + JSON.stringify(r.warned));
+    if (r.sentAfterWarn !== 0 || !r.warned.warn || r.warned.title !== 'Fight the Hall Boss?' || !r.warned.alone || !/^Uses your Goblin Totem, win or lose\nTime limit: 10 min$/.test(r.warned.b) || r.warned.go !== 'Use the Goblin Totem') fails.push('BH-2 the first press: ' + r.sentAfterWarn + ' sent, the warning reads ' + JSON.stringify(r.warned));
     if (/[{}]/.test(Object.values(r.warned).join(' '))) fails.push('BH-2 the warning left a slot unfilled: ' + JSON.stringify(r.warned));
     if (!r.partyWarn.warn || r.partyWarn.alone !== null) fails.push('BH-2 a party\'s leader reads the warning ' + JSON.stringify(r.partyWarn));
     if (r.calls.length !== 1 || r.calls[0].name !== 'hr_boss_hall_enter' || Object.keys(r.calls[0].args).sort().join() !== 'p_hall,p_idem,p_slot'
         || r.calls[0].args.p_hall !== HALL_ROW.id || r.calls[0].args.p_slot !== 0) fails.push('BH-2 the confirm sent ' + JSON.stringify(r.calls));
-    if (r.runs.length !== 1 || !/^Opening /.test(r.runs[0].busy) || r.runs[0].done !== 'The door opens. You\'re on your way.') fails.push('BH-2 the status lines read ' + JSON.stringify(r.runs));
-    if (!/^It uses up your Goblin Totem, win or lose\./.test(r.warned.b)) fails.push('BH-2 with its own key the warning reads ' + JSON.stringify(r.warned.b));
+    if (r.runs.length !== 1 || !/^Opening /.test(r.runs[0].busy) || r.runs[0].done !== 'Door open, on your way') fails.push('BH-2 the status lines read ' + JSON.stringify(r.runs));
+    if (!/^Uses your Goblin Totem, win or lose\n/.test(r.warned.b)) fails.push('BH-2 with its own key the warning reads ' + JSON.stringify(r.warned.b));
     /* BH-5: ANY SEAT'S KEY (2027-04-24-hall-key-any-seat.sql), read from the server's section and nothing else */
     const d = r.daily;
     if (d.seatKey.off || d.seatKey.line !== 'Goblin Totem: held by Mender') fails.push('BH-5 a leader whose party holds the key in another seat reads ' + JSON.stringify(d.seatKey));
     if (!d.seatKeyNoParty.off || d.seatKeyNoParty.line !== pn.none.line) fails.push('BH-5 a lone hero reads another seat\'s key: ' + JSON.stringify(d.seatKeyNoParty));
     if (!d.memberHolds.off || d.memberHolds.line !== 'Goblin Totem: 2, your leader opens the hall') fails.push('BH-5 a member holding two reads ' + JSON.stringify(d.memberHolds));
     if (!d.memberSeat.off || d.memberSeat.line !== 'Goblin Totem: held by Mender') fails.push('BH-5 a member with none, the key in another seat, reads ' + JSON.stringify(d.memberSeat));
-    if (!d.seatWarn.warn || !/^It uses up Mender's Goblin Totem, win or lose\./.test(d.seatWarn.b)) fails.push('BH-5 the warning for another seat\'s key reads ' + JSON.stringify(d.seatWarn.b));
+    if (!d.seatWarn.warn || !/^Uses Mender's Goblin Totem, win or lose\n/.test(d.seatWarn.b)) fails.push('BH-5 the warning for another seat\'s key reads ' + JSON.stringify(d.seatWarn.b));
     if (d.seatSent.join() !== 'hr_boss_hall_enter') fails.push('BH-5 the confirm for another seat\'s key sent ' + JSON.stringify(d.seatSent));
     /* BH-6: THE DAILY PRIZE (2027-04-25-boss-daily.sql), label lines, the wait on the server's clock */
     if (d.seatKey.loot !== 'Loot: available|Party loot: 2 of 2') fails.push('BH-6 a party with the day\'s prize to take reads ' + JSON.stringify(d.seatKey.loot));
@@ -270,7 +271,7 @@ const MUTANTS = [
   { name: 'the food line reads only the viewed hero\'s bar', file: 'src/shell/windows/boss-hall-pane.js', from: "    if (have) out.push(say(W.foodShortPeer, have)", to: "    if (false) out.push(say(W.foodShortPeer, have)", want: /BH-1/ },
   { name: 'the hall lists none of the changes that win', file: 'src/shell/windows/boss-hall-pane.js', from: "rows(box.querySelector('.hw-hall-tips'), hall.bars || [],", to: "rows(box.querySelector('.hw-hall-tips'), [],", want: /BH-1/ },
   { name: 'the hall never says what wins', file: 'src/shell/windows/boss-hall-pane.js', from: "  prop(bars, 'hidden', !advice);", to: "  prop(bars, 'hidden', true);", want: /BH-1/ },
-  { name: 'the page never says where a key comes from', file: 'src/data/boss-halls.js', from: "none: 'You don\\'t have a {key}.{source}'", to: "none: 'You don\\'t have a {key}.'", want: /BH-1/ },
+  { name: 'the page never says where a key comes from', file: 'src/data/boss-halls.js', from: "none: 'Requires {key}{source}'", to: "none: 'Requires {key}'", want: /BH-1/ },
   { name: 'a member holding a key is not told it counts', file: 'src/shell/windows/boss-hall-pane.js', from: '(keys > 0 ? W.memberKey : held || W.refused.hall_leader)', to: '(held || W.refused.hall_leader)', want: /BH-1/ },
   /* ANY SEAT'S KEY AND THE DAILY PRIZE (lane/c-krell-daily): every line from the server's `boss_halls` section */
   { name: 'a leader whose party holds the key in another seat cannot press', file: 'src/shell/windows/boss-hall-pane.js', from: 'const open = (keys > 0 || !!seatKey) &&', to: 'const open = keys > 0 &&', want: /BH-5/ },

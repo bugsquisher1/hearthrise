@@ -9,6 +9,13 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - **Lower weapon numbers are not a trade.** 85% of a staff's numbers cost 2%, x1.4 bane gave +15 to +26%. Size a multiplier on full numbers.
 - A what-if resistance for every hero is a ring-slot row with only `resistPm`: no other stat moves. `gear.also` dresses a cell in a named row today.
 - Physical resistance is three edits in `elements.js`, planted and measured (`special-table.mjs` `PHYSICAL_PLANT`). The board's `damage.js landHit` note was wrong.
+## 2026-11-14 lane/d-labels-sweep (Tyler: "Recommended: 4+ players" for everything outside lore)
+- A label has no period. "Label: lower-case clause." trips label-sentence, and a placeholder right after the colon counts as lower case: end a label without a period, or open its value on a number.
+- Several labels on one line read as one sentence to colon-join and run together for the eye: break them per line (white-space: pre-line on the element). The lint now treats a line break as a boundary.
+- "Heroes at once: 1." is a label with a value, not a verbless sentence: no-verb skips "1 to 4 words: value".
+- label-long (copy-lint): a src/data/text row or a refusal-words line over 12 words is red. Lore and teaching say so: criers, coach and wiki by file, any other row by `@sentence: why` in the comment over its block (up to a blank line).
+- Code literals in src/shell still carry sentence-style system lines (text-home counts 1,860 strings in code). The tables and refusals are clean, so code is the next sweep.
+- local-world serve: an open page keeps its module map, and a hard reload in the pane did not refetch. Fetch the changed files with cache:'reload', then navigate.
 
 ## 2026-11-14 lane/b-barrow-numbers: the Barrow March's numbers, the hall fitted, tier 7 renamed
 - **A monster that heals can stop a fight, not just slow it.** The Pyre Priest's first mend (a full hit every 8 s) put a lone tank at Level 110 on Dangerous into a pull he could never finish: 7.5k XP an hour, no death, nothing on the grade but one `feel-tier-less` row. Size a mend against the slowest way to fight in the biggest pull, and read the cell list for an hour with no XP and no death.

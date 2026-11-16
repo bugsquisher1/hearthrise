@@ -76,6 +76,13 @@ export const CLIENT_RPCS = Object.freeze({
   /* Combat training (the designer's 2026-11-13 spec; server half lane/c-combat-training). */
   hr_training_start: 'train one combat skill at the yard or on the house dummy: the slot, a skill id, the place and the hourly fee the player saw, with a fresh key; the server re-quotes on its clock and charges each hour (training-intents.js)',
   hr_house_dummy_unlock: 'unlock one skill on the account\'s house dummy at the price the player saw, with a fresh key; the server gates, prices and debits it (training-intents.js)',
+  /* Scaled hunts (2027-03-21-scaled-hunts.sql; audit F26: the client half). */
+  hr_scaled_hunt_buy: 'bank whole hours of a scaled hunt on one ground at the total the player saw (the section\'s price an hour x the hours), with a fresh key; the server prices it from its own Level and catalogue under the hero\'s lock, clamps the bank and the day, and debits it (scaled-hunts.js)',
+  hr_scaled_hunt_switch: 'use or stop using this hero\'s banked scaled hours on one ground, with a fresh key; moves no value (scaled-hunts.js)',
+  hr_training_gear_buy: 'buy one training item from the Arms Master: the slot, the item id and the price the player saw, with a fresh key; the server prices it from its catalogue, refuses quote_changed, a bound row and past the account\'s day (training-intents.js buyGear; 2027-04-23-training-gear.sql)',
+  hr_training_gear_open: 'open one sealed training item of the hero\'s into its bank for that skill: the slot and the item id, with a fresh key; the server takes it from the bag or Storage (training-intents.js openGear)',
+  hr_training_gear_switch: 'the hero\'s own "Use the training item" switch for one skill: the slot, a skill id and on/off, with a fresh key; no value (training-intents.js useGear)',
+  hr_hunt_after_set: 'what the hero does when a hunt ends on its own: the slot, a choice id the data lists and, for training, a skill id, with a fresh key; no price, count or job is sent and no value moves (hunt-after-intents.js setHuntAfter)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
   hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
@@ -130,6 +137,12 @@ export const CLIENT_RPCS = Object.freeze({
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
   hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks Crafting and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
+  /* The factions (2027-04-22-faction-standing.sql, behind the `factions` switch 2027-04-23-faction-section.sql): a slot, a side or a piece
+     id and a fresh key, never a number; the server reads the Krell count, standing, swap time and cooldown itself. Moves no value. */
+  hr_faction_join: 'join a side once, after the server counted this hero\'s Krell kill (faction-intents.js joinFaction)',
+  hr_faction_swap_start: 'start a swap to the other side, a cooldown after the last change (faction-intents.js startSwap)',
+  hr_faction_swap_finish: 'finish the open swap once the settle credited its hunting time (faction-intents.js finishSwap)',
+  hr_faction_outfit_claim: 'claim a cosmetic piece this hero\'s server standing has earned (faction-intents.js claimPiece)',
   hr_hero_colors_view: 'what a color save costs this hero right now; the read of the Outfit tab, moves nothing (hero-color-intents.js readColorsPrice)',
   hr_hero_colors_set: 'this hero\'s four dye indices at the quoted price; never a color value (hero-color-intents.js saveHeroColors; 2027-03-05-hero-colors.sql)',
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',

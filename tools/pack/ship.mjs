@@ -11,8 +11,9 @@ import { spawnSync } from 'node:child_process';
 import { ROOT } from './files.mjs';
 import { rowsOf, diffRows, packSql, PACK_TABLES } from './sql.mjs';
 
-/* the whole generators whose tables carry a ground's rows (measured: a fixture pack moves these four and no other generator) */
-export const COVERED = Object.freeze(['gen-hunts.mjs', 'gen-hunt-sessions.mjs', 'gen-catalogues.mjs', 'gen-ground-tiers.mjs']);
+/* the whole generators whose tables carry a ground's rows (measured: a fixture pack moves the first four and no other generator; gen-factions
+   moves only for a ground that pays a faction standing, its standingFor, lane/c-faction-standing) */
+export const COVERED = Object.freeze(['gen-hunts.mjs', 'gen-hunt-sessions.mjs', 'gen-catalogues.mjs', 'gen-ground-tiers.mjs', 'gen-factions.mjs']);
 
 const MIG = (root) => join(root, 'supabase', 'migrations');
 
@@ -22,22 +23,32 @@ const MIG = (root) => join(root, 'supabase', 'migrations');
  */
 export function renderFolded(fold, root = ROOT) {
   const dir = MIG(root);
-  const snap = new Map(readdirSync(dir).filter((f) => f.endsWith('.sql')).map((f) => [f, readFileSync(join(dir, f), 'utf8')]));
-  const after = new Map(), before = new Map();
-  try {
-    for (const g of COVERED) {
-      const r = spawnSync(process.execPath, [join(root, 'tools', g)], { cwd: root, encoding: 'utf8', env: { ...process.env, HR_PACK_FOLD_ADD: fold.join(',') } });
-      if (r.status !== 0) throw new Error('pack ship: ' + g + ' failed (' + r.status + '):\n' + (r.stderr || r.stdout).slice(-2000));
-    }
-    for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql'))) {
-      const now = readFileSync(join(dir, f), 'utf8');
-      if (snap.get(f) !== now) { after.set(f, now); before.set(f, snap.has(f) ? snap.get(f) : ''); }
-    }
-  } finally {
-    for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql'))) {
+  const sqls = () => readdirSync(dir).filter((x) => x.endsWith('.sql'));
+  const snap = new Map(sqls().map((f) => [f, readFileSync(join(dir, f), 'utf8')]));
+  const restore = () => {
+    for (const f of sqls()) {
       if (!snap.has(f)) rmSync(join(dir, f));
       else if (readFileSync(join(dir, f), 'utf8') !== snap.get(f)) writeFileSync(join(dir, f), snap.get(f));
     }
+  };
+  /* one render of every covered generator under `env`: each migration's text after it, the tree put back */
+  const render = (env) => {
+    try {
+      for (const g of COVERED) {
+        const r = spawnSync(process.execPath, [join(root, 'tools', g)], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
+        if (r.status !== 0) throw new Error('pack ship: ' + g + ' failed (' + r.status + '):\n' + (r.stderr || r.stdout).slice(-2000));
+      }
+      return new Map(sqls().map((f) => [f, readFileSync(join(dir, f), 'utf8')]));
+    } finally { restore(); }
+  };
+  /* BEFORE: the whole files WITHOUT these packs (a whole file the apply order already folds one into renders without it: the
+     training-gear catalogues carry the March packs), AFTER: with them. With no whole file folding them yet, BEFORE is the committed tree. */
+  const without = render({ HR_PACK_FOLD_DROP: fold.join(',') });
+  const withIt = render({ HR_PACK_FOLD_ADD: fold.join(',') });
+  const after = new Map(), before = new Map();
+  for (const f of new Set([...without.keys(), ...withIt.keys()])) {
+    const b0 = without.has(f) ? without.get(f) : '', a0 = withIt.has(f) ? withIt.get(f) : '';
+    if (b0 !== a0) { after.set(f, a0); before.set(f, b0); }
   }
   return { before, after };
 }
@@ -96,5 +107,8 @@ export function shipText(id, root = ROOT) {
   /* parents first: the order PACK_TABLES lists them in (items before their slots, a hunt before its spawns, a ground before its tiers) */
   const rank = Object.keys(PACK_TABLES);
   const tables = [...byTable.values()].sort((a, b) => rank.indexOf(a.table) - rank.indexOf(b.table));
-  return { sql: packSql(id, tables, COVERED), added: tables, moved, files: [...after.keys()] };
+  /* the header names the generators that carry THIS pack's rows: gen-factions only for a ground that pays a standing (an hr_faction_grounds
+     row), so a pack shipped before gen-factions joined COVERED renders byte-identical (tests/ground-pack.mjs GP-3) */
+  const sources = COVERED.filter((g) => g !== 'gen-factions.mjs' || tables.some((t) => t.table === 'hr_faction_grounds'));
+  return { sql: packSql(id, tables, sources), added: tables, moved, files: [...after.keys()] };
 }

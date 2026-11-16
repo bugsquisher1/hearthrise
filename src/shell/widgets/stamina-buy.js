@@ -19,40 +19,41 @@
 // raises your stamina cap by 4 hours." (Tyler's words; the 4 is STAMINA_MAX_MS's
 // premium cap less the free one). Nothing here prices or adds stamina.
 // ════════════════════════════════════════════════════════════════════════
-import { STAMINA_MAX_MS } from '../../data/hunt-sessions.js?v=0.2.133';
-import { staminaOf, isPremium } from '../../session/hunt-sections.js?v=0.2.133';
-import { staminaRefillOf, goldOf } from '../../session/item-sections.js?v=0.2.133';
-import { text, cls, attr, prop } from '../../render/paint.js?v=0.2.133';
-import { whole, gold, hoursWords } from '../../render/format.js?v=0.2.133';
-import { refusalWords } from '../intent-words.js?v=0.2.133';
-import { answerWithin } from '../bar-draft.js?v=0.2.133';
+import { STAMINA_MAX_MS } from '../../data/hunt-sessions.js?v=0.2.134';
+import { staminaOf, isPremium } from '../../session/hunt-sections.js?v=0.2.134';
+import { staminaRefillOf, goldOf } from '../../session/item-sections.js?v=0.2.134';
+import { text, cls, attr, prop } from '../../render/paint.js?v=0.2.134';
+import { whole, gold, hoursWords } from '../../render/format.js?v=0.2.134';
+import { refusalWords } from '../intent-words.js?v=0.2.134';
+import { answerWithin } from '../bar-draft.js?v=0.2.134';
+import { t } from '../../render/player-text.js?v=0.2.134';
 
 const PREMIUM_HOURS = Math.round((STAMINA_MAX_MS.premium - STAMINA_MAX_MS.free) / 3600000);
 const STATE = new WeakMap();   // the bar element -> { open, pending, msg, off }
 const stateOf = (el) => { let s = STATE.get(el); if (!s) { s = { open: false, pending: false, msg: '', off: null, asking: false }; STATE.set(el, s); } return s; };
 
 /** "Buy 4 h of stamina for 1,600 gp?": the one question before a refill, here and in the Shop's Services tab. */
-export const staminaAskWords = (q) => 'Buy ' + hoursWords(q.restoreMs) + ' of stamina for ' + gold(q.price) + '?';
+export const staminaAskWords = (q) => t('hud.stam_ask', { hours: hoursWords(q.restoreMs), price: gold(q.price) });
 
 /** The "+" after the stamina timer (inside the hub's stamina line). */
 export function staminaPlusHtml() {
-  return '<button type="button" class="hb-stam-buy" data-hs-act="stam-buy" data-coach-hook="stamina-buy" aria-expanded="false" aria-label="Buy stamina" title="Buy stamina"><i></i></button>';
+  return '<button type="button" class="hb-stam-buy" data-hs-act="stam-buy" data-coach-hook="stamina-buy" aria-expanded="false" aria-label="' + t('hud.stam_buy') + '" title="' + t('hud.stam_buy') + '"><i></i></button>';
 }
 
 /** The panel it opens (inside the bar, beside its tooltip). */
 export function staminaBuyHtml() {
-  return '<div class="hb-buy" role="dialog" aria-label="Buy stamina">'
-    + '<div class="hb-buy-head"><b>Stamina</b><span class="hb-buy-now"></span><button type="button" class="hh-tool" data-hs-act="stam-close" aria-label="Close">×</button></div>'
+  return '<div class="hb-buy" role="dialog" aria-label="' + t('hud.stam_buy') + '">'
+    + '<div class="hb-buy-head"><b>' + t('hud.stam_head') + '</b><span class="hb-buy-now"></span><button type="button" class="hh-tool" data-hs-act="stam-close" aria-label="' + t('controls.close') + '">×</button></div>'
     + '<p class="hb-buy-quote"></p><p class="hb-buy-day"></p><p class="hb-buy-why"></p>'
-    + '<p class="hb-buy-premium">Premium raises your stamina cap by ' + PREMIUM_HOURS + ' hours.</p>'
+    + '<p class="hb-buy-premium">' + t('hud.stam_premium', { hours: PREMIUM_HOURS }) + '</p>'
     + '<div class="hb-buy-do"><button type="button" class="hh-tool is-primary hb-buy-go" data-hs-act="stam-go"></button>'
-    + '<button type="button" class="hh-tool hb-buy-no" data-hs-act="stam-no" hidden>Cancel</button></div>'
+    + '<button type="button" class="hh-tool hb-buy-no" data-hs-act="stam-no" hidden>' + t('controls.cancel') + '</button></div>'
     + '<p class="hh-intent-msg hb-buy-msg" role="status" aria-live="polite"></p></div>';
 }
 
 /* Why the next refill cannot be bought, in the server's refusal words, or null. */
 function whyNot(q, purse) {
-  if (!q) return 'The server has not priced a refill yet.';
+  if (!q) return t('hud.stam_unpriced');
   if (!q.available) return refusalWords(q.why);
   if (purse !== null && purse < q.price) return refusalWords('gold_short');
   return null;
@@ -68,14 +69,14 @@ export function patchStaminaBuy(el, ctx) {
   if (!s.open) return;
   const st = staminaOf(cs), q = staminaRefillOf(cs), purse = goldOf(cs);
   const why = whyNot(q, purse);
-  text(box.querySelector('.hb-buy-now'), st ? hoursWords(st.msLeft) + ' of ' + hoursWords(st.capMs) : '');
+  text(box.querySelector('.hb-buy-now'), st ? t('hud.stam_now', { left: hoursWords(st.msLeft), cap: hoursWords(st.capMs) }) : '');
   if (why) s.asking = false;
-  text(box.querySelector('.hb-buy-quote'), !(q && q.available) ? '' : s.asking ? staminaAskWords(q) : 'One refill: +' + hoursWords(q.restoreMs) + ' for ' + gold(q.price) + '.');
-  text(box.querySelector('.hb-buy-day'), q ? 'Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '. Each one costs more.' : '');
+  text(box.querySelector('.hb-buy-quote'), !(q && q.available) ? '' : s.asking ? staminaAskWords(q) : t('hud.stam_quote', { hours: hoursWords(q.restoreMs), price: gold(q.price) }));
+  text(box.querySelector('.hb-buy-day'), q ? t('hud.stam_day', { n: whole(q.boughtToday), max: whole(q.perDay) }) : '');
   text(box.querySelector('.hb-buy-why'), why || '');
   cls(box.querySelector('.hb-buy-premium'), 'is-on', !isPremium(cs));
   const go = box.querySelector('.hb-buy-go');
-  text(go, !(q && q.available) ? 'Buy' : s.asking ? 'Buy for ' + gold(q.price) : 'Buy +' + hoursWords(q.restoreMs) + ' for ' + gold(q.price));
+  text(go, !(q && q.available) ? t('hud.stam_go') : s.asking ? t('hud.stam_go_for', { price: gold(q.price) }) : t('hud.stam_go_plus', { hours: hoursWords(q.restoreMs), price: gold(q.price) }));
   prop(box.querySelector('.hb-buy-no'), 'hidden', !s.asking);
   prop(go, 'disabled', !!why || s.pending);
   attr(go, 'title', why);
@@ -122,11 +123,11 @@ export function actStaminaBuy(ctx, el, action, ev, repaint) {
   }
   s.asking = false;
   s.pending = true;
-  s.msg = 'Buying stamina…';
+  s.msg = t('hud.stam_buying');
   repaint();
   answerWithin(() => cs.buyStamina(q.price)).then((r) => {
     s.pending = false;
-    s.msg = r.ok ? 'Stamina restored.' : refusalWords(r.error);
+    s.msg = r.ok ? t('hud.stam_done') : refusalWords(r.error);
     repaint();
   });
   return true;

@@ -19,11 +19,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES } from '../data/supplies.js?v=0.2.133';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.133';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.133';
-import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.133';
-import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.133';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.134';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.134';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.134';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.134';
+import { sessionModeOf } from '../data/session-modes.js?v=0.2.134';
+import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.134';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -316,6 +317,16 @@ export function skillDeathLoss(skillId, xp, fraction = DEATH_XP_LOSS) {
   const into = x - skillXpForLevel(skillId, skillLevelFromXp(skillId, x));
   return Math.max(0, Math.floor(into * f));
 }
+/* A SESSION MODE'S SHARE OF A DEATH (src/data/session-modes.js deathLossPm; Tyler 2026-11-14): the fraction deathXpLoss
+   prices at, in the mode `modeId` names (absent: the default). Worked in whole permilles, DEATH_XP_LOSS's (a whole permille:
+   tools/gen-hunt-sessions.mjs refuses any other) times the mode's, over a million: a mode at 1000 is DEATH_XP_LOSS to the bit,
+   so every hunt's death is priced exactly as before, and a mode at 0 prices nothing. The server's bound is
+   hr_death_xp_mode_max, the same product. An id no row has is a refusal, never a guess. */
+export function modeDeathShare(modeId) {
+  const mode = sessionModeOf(modeId);
+  if (!mode) throw new Error('modeDeathShare: ' + String(modeId) + ' is no session mode (src/data/session-modes.js)');
+  return Math.round(DEATH_XP_LOSS * 1000) * mode.deathLossPm / 1e6;
+}
 /** One death's loss as `{ level?: xp, <skill>?: xp }` (zeros omitted), skills in COMBAT_SKILLS order. */
 export function deathXpLoss(state, fraction = DEATH_XP_LOSS) {
   const out = {};
@@ -412,10 +423,13 @@ export function newHuntSession(o) {
        stamina and proposes none, and the database refuses the settle). */
     staminaMs: s.staminaMs === null || s.staminaMs === undefined ? null : Math.max(0, int(s.staminaMs, 0)),
     staminaMaxMs: Math.max(0, int(s.staminaMaxMs, 0)),
+    /* A TRAINING SESSION'S ITEM HOURS (the server's read, hr_hunt_member_read train_boost_ms): the ms of the trained skill this
+       window may play at the item's rate (src/core/hunt/training.js trainingTick spends them); 0 on any other hunt. */
+    trainBoostMs: Math.max(0, int(s.trainBoostMs, 0)),
     leaveAtMs: s.leaveAtMs ?? null,
     changeAtMs: s.changeAtMs ?? null,
     stopAtMs: s.stopAtMs ?? null,
-    tally: Object.assign({ swings: 0, kills: 0, deaths: 0, paidMs: 0, coins: 0,
+    tally: Object.assign({ swings: 0, kills: 0, deaths: 0, paidMs: 0, coins: 0, boostMs: 0,
       xp: {}, loot: {}, supplies: {}, bought: {}, covered: {} }, s.tally || {}),
     endedReason: s.endedReason || null,
     endedAtMs: s.endedAtMs ?? null,

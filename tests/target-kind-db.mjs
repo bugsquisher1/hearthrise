@@ -199,7 +199,9 @@ async function barInsideCatalogue(db) {
   return problems;
 }
 
-/* TK-6: FILE applied a second time on the booted chain (`again`: a mutant's edit to its text) applies, and moves no body, row or check. */
+/* TK-6: FILE applied a second time on the chain AS OF FILE (`again`: a mutant's edit to its text) applies, and moves no body, row or check. The
+   chain as of FILE, not its end: a later file restates hr_hunt_instance_read whole (2027-04-23-session-modes.sql) and FILE's pin rightly refuses
+   a body another file moved (combat-training-db TD-AGAIN stands the same way). */
 async function twice(db, again) {
   const problems = [];
   const print = async () => JSON.stringify({

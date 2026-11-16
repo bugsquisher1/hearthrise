@@ -37,17 +37,17 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.133';
-import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.133';
-import { rollDropTable, rollPrize } from './drops.js?v=0.2.133';
-import { applyGoldFind } from './pacing.js?v=0.2.133';
-import { COMBAT_XP } from '../data/core-model.js?v=0.2.133';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.133';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.133';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.133';
-import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.133';
-import { makeEvent } from './hunt/events.js?v=0.2.133';
-import { trainingSwing } from './hunt/training.js?v=0.2.133';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.134';
+import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.134';
+import { rollDropTable, rollPrize } from './drops.js?v=0.2.134';
+import { applyGoldFind } from './pacing.js?v=0.2.134';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.134';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.134';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.134';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.134';
+import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.134';
+import { makeEvent } from './hunt/events.js?v=0.2.134';
+import { trainingSwing } from './hunt/training.js?v=0.2.134';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -183,7 +183,7 @@ export function rewardSwing(members, events, world, ctx) {
   const presentIds = () => world.units.filter((u) => u.side === 'hero' && u.alive === true && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
   if (ctx.call) return calledSwing(members, events, unitOf, ctx.call.monster);
   /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
-  if (ctx.train) return trainingSwing(members, events, unitOf, ctx);
+  if (ctx.train) return trainingSwing(members, events, unitOf);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {

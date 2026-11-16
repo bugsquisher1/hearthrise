@@ -51,7 +51,7 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.133';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.134';
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain', over: true, help: 'windows.help_hunts' }),
@@ -101,6 +101,9 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'death', label: 'You died', key: null, glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
   /* Tyler 2026-11-01: the play cap's refusal opens a centered popup (windows/play-cap.js). It has nothing to say until the server refuses a start, so no key. */
   Object.freeze({ id: 'play-cap', label: 'Too many heroes playing', key: null, glyph: 'uiWarn', width: 420, object: 'plain', launcher: false, modal: true }),
+  /* Tyler 2026-11-14: after a hero's first Krell kill, Holly and Venn ask it to pick a side (windows/faction-join.js opens it once; the
+     Character window's Faction tab offers it again). Shown only while the server sends the `factions` section (its switch). */
+  Object.freeze({ id: 'faction-join', label: 'Choose a side', key: null, noShortcut: true, section: 'factions', glyph: 'uiFlame', width: 640, object: 'ledger', launcher: false, modal: true }),
   /* Tyler 2026-10-22: Chat opens floating at the bottom-left (never docked) and the player resizes it (kept in the residue).
      `besideCoach`: the coach's card stays up while it is open (played 2026-11-10: Chat is the window a new player leaves open, and with it open
      the screen said nothing at the minute the designer would have quit). It sits in the far corner from the card; a phone's sheet takes the

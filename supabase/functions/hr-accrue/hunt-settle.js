@@ -65,6 +65,7 @@ import { memberSide, frozenOf } from '../../../src/core/member.js';
 import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/world-state.js';
 import { seederFor } from './hunt-seed.js';
 import { trainingStopMs } from '../../../src/core/hunt/training.js';
+import { sessionModeOf } from '../../../src/data/session-modes.js';
 
 /* A DEPLOY IN FLIGHT (2026-12-11-hunt-deploy-no-forfeit.sql). The read carries the server catalogue's
    world shape (hr_hunt_instance_read instance.world_shape = hr_hunt_world_shape { v, s }). When it is not
@@ -77,6 +78,19 @@ import { trainingStopMs } from '../../../src/core/hunt/training.js';
 function worldShapePending(ws) {
   return ws != null && typeof ws === 'object' && (Number(ws.v) !== WORLD_VERSION || Number(ws.s) !== WORLD_SHAPE);
 }
+
+/* THE SESSION MODE (src/data/session-modes.js; 2027-04-23-session-modes.sql): frozen on the instance by the server when it started
+   (hunt_instances.session_mode, from its own ground catalogue) and read back here, the ONLY place the engine takes it from: no
+   intent, request or client field carries one. A read with none (a database before that file) or with a mode this engine has no
+   row for (a catalogue ahead of this deploy) is the same deploy gap as another world shape: nothing is proposed, nothing refused,
+   nothing counted, and the owed window settles whole once both have landed. Never a guess at the default: a guessed full-loss
+   death in a mode that costs nothing is exactly what the mode is for. */
+function modePending(id) {
+  return typeof id !== 'string' || sessionModeOf(id) === null;
+}
+
+/** The `nothing` reasons that OWE a window (a deploy in flight): a verb that settles before it mutates waits for them (set-activity.js). */
+export const OWED_WINDOW_REASONS = Object.freeze(['world_shape_pending', 'mode_pending']);
 
 /* THE LIVE VIEW (option B, Tyler 2026-10-19). The browser runs the SAME instance engine
    (src/core/combat-sim.js, the member assembly src/core/member.js) for the VIEWED character,
@@ -273,6 +287,9 @@ export function huntSessionFromRead(h, instanceId) {
        database's own hr_stamina_of / hr_stamina_cap, never a client value. */
     staminaMs: num(h.stamina_ms),
     staminaMaxMs: num(h.stamina_max_ms),
+    /* A TRAINING SESSION'S ITEM HOURS (2027-04-23-training-gear.sql hr_hunt_member_read train_boost_ms): the ms of the trained skill
+       this window may play at the item's rate, the server's own bank and the sealed items in the bag; absent = none. */
+    trainBoostMs: num(h.train_boost_ms),
     /* THE STORE (hr_hunt_basic_supplies) — catalogue rows; newHuntSession keeps
        well-formed ones. The hero's bar slots choose the row a use buys. */
     basics: (h.basics && typeof h.basics === 'object') ? h.basics : {},
@@ -494,6 +511,10 @@ export async function readHuntSettle(o, mode) {
     return { answer: { outcome: 'nothing', reason: 'world_shape_pending', status: 200,
       body: { ok: true, settled: false, reason: 'world_shape_pending', ...(await envOf()) } } };
   }
+  if (modePending(inst.session_mode)) {
+    return { answer: { outcome: 'nothing', reason: 'mode_pending', status: 200,
+      body: { ok: true, settled: false, reason: 'mode_pending', ...(await envOf()) } } };
+  }
   /* The server clock, floored to the engine's millisecond. */
   const nowMs = Math.floor(new Date(read.now).getTime());
   const fromMs = Number(inst.settled_to_ms);
@@ -581,6 +602,8 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
     window: { fromMs, toMs }, secret: String(inst.secret || ''),
     ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
     worldMaxBytes: plan.worldMaxBytes, ...(play.level !== null ? { scale: { level: play.level } } : {}),
+    /* the instance's frozen mode, the read's own (readHuntSettle proposes nothing without one this engine knows) */
+    sessionMode: inst.session_mode,
   });
   const engineMs = Math.max(0, tick() - t0);
   if (!out.accrued) return { out, commit: null, engineMs };

@@ -246,11 +246,11 @@ const cases = {
 
 const D = 'src/data/hunt-tiers.js';
 const SH = 'src/data/balance-sheet.js';
-const SHEET_DEADLY = 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1100, xpPm: 1250 }),';
+const SHEET_DEADLY = 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1300, xpPm: 1250 }),';
 const THICKET_DIALS = "dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),";
 const PC = 'src/core/hunt/pull-cycle.js';
 const mutants = [
-  { name: 'the sheet and the catalogue part: Deadly has more HP in the data only', case: 'catalogue', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('hpPm: 1100', 'hpPm: 1150')]] },
+  { name: 'the sheet and the catalogue part: Deadly has more HP in the data only', case: 'catalogue', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('hpPm: 1300', 'hpPm: 1350')]] },
   { name: 'a ground\'s row typed in hunt-tiers.js, not the sheet\'s', case: 'rows', edits: [[D, 'dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };', "dmgPm: g === 'mosslight_glade' ? 1600 : r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };"]] },
   { name: 'the Glade loses its full box', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('pull: 8,', 'pull: 6,')]] },
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[SH, 'mill_cellar: Object.freeze({ normalOnly: true,', 'mill_cellar: Object.freeze({ normalOnly: false,']] },
@@ -278,7 +278,8 @@ const mutants = [
   { name: 'Deadly pays triple XP: nobody moves on', case: 'ladder', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('xpPm: 1250', 'xpPm: 4200')]] },
   /* the bigger pulls from Wickstead's and the Sewer's floor (8), not the Glade's (16), one for everyone: a lone hammer there out-earns the Glade (98k and 113k against 79k, lane/b-one-difficulty) */
   /* Q1 2026-11-12: a real Normal-vs-Normal inversion for a four still bites */
-  { name: 'the Glade pays a mixed four triple on Normal: it out-earns the Warrens', case: 'ladder', edits: [['src/data/party-class-xp.js', 'mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2730, 2940, 3000]),', 'mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2730, 2940, 9000]),']] },
+  /* (re-aimed, lane/d-flat-party-xp: one party table for every ground since Tyler 2026-11-16, so a ground's own cell is typed in the engine) */
+  { name: 'the Glade pays a mixed four triple on Normal: it out-earns the Warrens', case: 'ladder', edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'mosslight_glade' && heroes.length === 4 ? 3 : 1);"]] },
   { name: 'the bigger pulls start at Wickstead: it out-earns the Glade', case: 'ladder', edits: [[SH, 'export const TIER_PULL_FROM_FLOOR = 16;', 'export const TIER_PULL_FROM_FLOOR = 8;']] },
 ];
 

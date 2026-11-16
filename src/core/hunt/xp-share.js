@@ -7,8 +7,8 @@
 //   on a SCALED hunt a party's factor is thinned by the row's partyPm (src/data/scaled-hunts.js, on every scaled row: the kill
 //   carries it from damage.js); a hero alone is never thinned
 // THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
-// src/data/party-class-xp.js, read from the living heroes at each kill, on the
-// ground in `inst`, never latched: a death or a leave changes the next kill.
+// src/data/party-class-xp.js, ONE table for every ground and tier (Tyler 2026-11-16), read from the
+// living heroes at each kill, never latched: a death or a leave changes the next kill.
 // THE LEVEL SHARE (hunt-grounds.js underFloorSharePm) is read the same way: a seat
 // far under both the ground's floor and its party's top Level keeps less of its
 // share, and the rest is nobody's (nothing is passed to the others).
@@ -63,8 +63,7 @@ function splitKillXp(xp, heroes, sc, ground, partyPm = 1000) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   const raw = xp / heroes.length;
-  const groundId = ground ? ground.id : null;
-  const cell = partyClassXp(groundId, heroes.map((h) => h.role)).permille;
+  const cell = partyClassXp(heroes.map((h) => h.role)).permille;
   const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;
   const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);
   for (const h of heroes) {

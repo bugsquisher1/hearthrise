@@ -123,7 +123,7 @@ export async function fixturePack(gid, opts = {}, root = ROOT) {
     monsters[m] = { ...plain(MONSTERS[src]), name: 'Fixture ' + MONSTERS[src].name, ...(shift && Number.isInteger(MONSTERS[src].level) ? { level: MONSTERS[src].level + shift } : {}) };
     roster[m] = GROUND_ROSTER[gid][src];
   }
-  /* the ground's own rows on the shared tables come with it: its tier row, its XP fit, its party rows */
+  /* the ground's own rows on the shared tables come with it: its tier row, its XP fit, its Party window line (the party pay is one table, never a ground's) */
   const BS = await import(v('src/data/balance-sheet.js'));
   const PC = await import(v('src/data/party-class-xp.js'));
   const SU = await import(v('src/data/supplies.js'));
@@ -132,7 +132,6 @@ export async function fixturePack(gid, opts = {}, root = ROOT) {
   const extra = {
     ...(has(BS.TIER_PULL_OVERRIDES) ? { tierOverride: plain(BS.TIER_PULL_OVERRIDES[gid]) } : {}),
     ...(has(BS.GROUND_XP_FIT) ? { xpFit: { k: BS.GROUND_XP_FIT[gid], why: 'as ' + gid } } : {}),
-    ...(has(PC.PARTY_CLASS_XP) ? { partyClassXp: rowOf(PC.PARTY_CLASS_XP) } : {}),
     ...(has(PC.PARTY_VS_ALONE) ? { partyVsAlone: rowOf(PC.PARTY_VS_ALONE) } : {}),
     ...(has(SU.BAG_GUIDE_BY_HUNT) ? { bagGuide: plain(SU.BAG_GUIDE_BY_HUNT[gid]) } : {}),
   };

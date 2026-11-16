@@ -72,7 +72,7 @@ function leKill(M) {
   const bad = [];
   const sides = [{ mi: { key: 'a' }, member: { unitId: 1 } }, { mi: { key: 'b' }, member: { unitId: 2 } }];
   const hook = xpMultFor(sides, (s) => (s.mi.key === 'a' ? [[1000, 2000, 1250]] : null));
-  const pp = M.PCX.partyClassXp(null, ['tank', 'tank']).permille;
+  const pp = M.PCX.partyClassXp(['tank', 'tank']).permille;
   const kill = (atMs, withHook) => {
     const events = [];
     const inst = { world: { units: [{ id: 1, side: 'hero', alive: true, role: 'tank', heroLv: 10 }, { id: 2, side: 'hero', alive: true, role: 'tank', heroLv: 10 }] }, ground: null };

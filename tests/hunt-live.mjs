@@ -1709,7 +1709,7 @@ function rules(M) {
          split two ways hides a half: the paid sum sits between the cell on the floored shares and the cell on those shares plus the hidden (n-1)/n. One class
          reads its own cell (read from the data, never typed: lane/d-solo-fifteen scaled every cell x1150/1050 with the +15% solo boost, Tyler 2026-11-11) and
          always sits under the mixed one (since the lane/b-one-difficulty re-tune a one-class cell is over the even share). */
-      const cell = M.PCX.partyClassXp('mill_cellar', roles).permille, mixedCell = M.PCX.partyClassXp('mill_cellar', cast.mixed).permille;
+      const cell = M.PCX.partyClassXp(roles).permille, mixedCell = M.PCX.partyClassXp(cast.mixed).permille;
       const want = evs.reduce((s, e) => s + Math.floor((e.raw * cell) / 1000 + 1e-9), 0);
       const most = evs.reduce((s, e) => s + Math.floor(((e.raw + (roles.length - 1) / roles.length) * cell) / 1000 + 1e-9), 0);
       ok('LV-CLASS', name === 'same' ? paid >= want && paid <= most && cell < mixedCell : paid >= want && paid > raw, name + ': ' + paid + ' Level XP on ' + raw + ' even shares (the cell ' + cell + ', ' + want + '-' + most + ' on the whole shares)');

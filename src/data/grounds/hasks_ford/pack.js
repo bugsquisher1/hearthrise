@@ -149,6 +149,10 @@ export default definePack({
      1378 x L^1.298, was 975 x L^1.421: 238k an hour at 53, was 276k). At 1.28 the median lone way read 1.26 of the contract at the band middle
      (quick grade, the Slake's weapons on the ladder, 1 seed x 1 h). A fit scales every way alike, so 1.28 x 1.00 / 1.26 = 1.02. The Warrens'
      own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
+  /* Dangerous brings Deadly's 8 here (lane/d-flat-party-xp, 2026-11-16): with one party table for every ground a four on the table's 5 read 0.91-0.95
+     of its heroes alone, on 6 0.93 and on 7 0.93 (party-tier-xp, 2 seeds x 0.5 h), on 8 1.04-1.06. The two harder tiers differ by their blows,
+     their HP and their pay here, like the Muster's. */
+  tierOverride: { dangerous: 8, why: 'Dangerous brings eight at once here, like Deadly: on five, six or seven a group of four earned less a head than the same heroes alone' },
   xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
@@ -170,30 +174,6 @@ export default definePack({
     ledger_leaf: 'A page from a Ledger Wight\'s account book. It lists the pay Hask\'s soldiers never got',
     toll_token: 'Hask\'s men handed out these lead tokens to anyone who paid to cross the river. Bannermen still carry a bag of them',
   },
-  /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes): better only with different
-     classes (Tyler 10-31), and since one difficulty the mixed cells are the lever (Tyler 11-08, "Same monsters, re-tune"). Measured
-     as opened with every cell at 1000 (the full grid in 1 h cells, 2 seeds): against the median lone way a mixed four read
-     0.75-0.80, a three 0.71-0.82 and a pair 0.85-0.93. At these cells a four reads 1.165 to 1.226 at the floor, the middle and the top
-     (the ruling's 1.15-1.25) and a pair 1.06-1.16. A fourth class pays a little more than three (tests/hunt-core/xp-share.mjs
-     party-class-every-cell). The one-class cells hold every one-class party under its heroes alone: the best reads 0.91
-     (tests/party-class-xp-line.mjs, two wands).
-     RE-READ 2026-11-10 (systems) on the grader's own full grid, played as it ships (pairs and fours 2 seeds x 2 h, the lone ways
-     6 x 4 h). At 1545 and 1555 the four of three classes (tank, hammer, bow, wand) read 1.14 at the middle and the top. The four's
-     two cells now 1565 and 1570, held for both ways it can open: alone, the four of three reads 1.15-1.17 and of four 1.19-1.21; with
-     the Slake (its weapons on the ladder, the faster party kills) 1.18-1.20 and 1.22-1.24. Pairs 1.01-1.12 alone, 1.06-1.16 with it. */
-  /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11; lane/d-packs-retune, 2026-11-12). With no party pull a party walks the same route a
-     hero alone walks and splits each kill, so at the cells above a four of four classes read 0.59-0.61 of the median lone way (quick grade,
-     floor and middle) and a tank and Healer pair 0.71, where 10-25 §5 asks a four 1.15-1.25, a pair about 1.10 and a three about 1.15. A cell
-     is a straight factor on the share, so each mixed cell is its old one times its target over its reading: the four's 1570 x 1.20 / 0.60 =
-     3150 (the three-class four 0.98 of it and the two-class 0.90, the base grounds' spread), the pair 1230 x 1.10 / 0.71 = 1905, the threes
-     between (x1.77, the two sizes' mean). One-class cells stay at 1150: they already hold every one-class party under solo (party-class-xp-line),
-     and a raise would carry it over solo on the big-pull tiers (10-31).
-     RE-READ ON THE FULL GRADE (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h; the Slake's weapons on the ladder): the median of eight lone ways sits
-     under the quick grade's four, so every mixed cell read about 5% high: the four of four classes 1.30 / 1.25 / 1.24 at the floor, middle and top
-     at 3150, the four of three 1.25 / 1.21 / 1.20 at 3090, the pairs 1.17-1.24 at 1905, the threes 1.25-1.42 at 2670. Each cell scaled to its
-     target once more: the four 3000 (reads about 1.24 / 1.19 / 1.18) over the three-class four at 2980, the pair 1760 (about 1.08-1.15), the threes
-     2310 and 2145 (about 1.08-1.23; a three with no tank earns most). A four's spread from the floor to the top is 5%, inside the band's 8.7%. */
-  partyClassXp: { 2: [990, 1760], 3: [1150, 2145, 2310], 4: [1150, 2700, 3025, 3030] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
      Measured at the floor on the default pull, as it ships (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10
      late, the four's cells at 1565 and 1570). One class is the mean of its five one-class parties (pairs 0.80-0.89, threes

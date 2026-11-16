@@ -31,7 +31,9 @@
 //               real spend RPC (hr_unlock_buy key_ring.0) charges the price once (a replay charges nothing) and moves the bag's keys onto
 //               the ring; a key minted after it lands on the ring and the bag's stack count does not move; a reload (hr_load) still shows the
 //               ring and its keys and no key in the bag (hr_state_of, the envelope hr_load answers); the held count counts ring keys; a key opens from the ring (ring first); ring keys
-//               go into Storage; a hero short of gold is refused and gets no ring
+//               go into Storage; a hero short of gold is refused and gets no ring; while the Tower is hidden a hand-made unlock_buy is
+//               refused feature_off with the purse untouched; a key withdrawn from Storage into a FULL bag lands on the ring (bag_full
+//               without one)
 //   TCH-OPEN    the open on a real hero: a key's chance is the base x its warmth x its stoke, the warmth grows by a dry key and caps at 3x,
 //               a weapon cools it to nothing; a stoke multiplies the chance and burns its Cinders from the bag, then Storage, net of what
 //               the press paid; a press short of Cinders stokes what they cover; the saved default stokes a key sent with none; the
@@ -422,6 +424,46 @@ async function ringArm(db, M) {
     return { res, owned: await one(db, 'select public.hr_key_ring_owned($1, 0)', [UID]), bagKeys: await bagKeys() };
   });
   if (!poor.res || poor.res.ok === true || poor.owned !== false || poor.bagKeys !== 1) bad.push(`TCH-RING a hero short of gold answered ${JSON.stringify(poor.res).slice(0, 160)} (owned ${poor.owned})`);
+  /* THE TOWER HIDDEN (CLAUDE.md §3.5): a hand-made unlock_buy of the ring is refused, the purse untouched, no ring */
+  const hidden = await H.inTx(db, async () => {
+    await H.character(db, M, UID, { level: 12, inv: { tower_key_bronze: 1 }, gold: 100000 });
+    await db.query("update public.hr_feature_switches set scope = 'off' where switch_id = 'burning_tower'");
+    const g0 = await one(db, 'select gold from public.account_wallet where user_id = $1', [UID]);
+    const res = await buy(idem());
+    return { res, g0, g1: await one(db, 'select gold from public.account_wallet where user_id = $1', [UID]), owned: await one(db, 'select public.hr_key_ring_owned($1, 0)', [UID]),
+      rows: Number(await one(db, "select count(*) from public.player_ledger where user_id = $1 and intent like 'unlock_buy:key_ring%'", [UID])) };
+  });
+  if (!hidden.res || hidden.res.error !== 'feature_off' || Number(hidden.g1) !== Number(hidden.g0) || hidden.owned !== false || hidden.rows !== 0) {
+    bad.push(`TCH-RING the Tower hidden, a hand-made buy answered ${JSON.stringify(hidden.res).slice(0, 160)} (gold ${hidden.g0} -> ${hidden.g1}, owned ${hidden.owned}, ${hidden.rows} rows)`);
+  }
+  /* A KEY WITHDRAWN INTO A FULL BAG: onto the ring with one; bag_full without */
+  const full = {};
+  for (const withRing of [true, false]) {
+    full[withRing] = await H.inTx(db, async () => {
+      await H.character(db, M, UID, { level: 12, inv: {}, gold: 100000 });
+      await db.query("update public.hr_feature_switches set scope = 'accounts', accounts = array[$1::uuid] where switch_id = 'burning_tower'", [UID]);
+      if (withRing) await db.query("insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values ($1, 0, 'unlock', 'key_ring', '', 1, now())", [UID]);
+      await db.query("insert into public.account_bank (user_id, item_id, qty) values ($1, 'tower_key_gold', 2) on conflict (user_id, item_id) do update set qty = 2", [UID]);
+      /* the bag filled to its cap with stacks of other kinds (bank_cap has a floor, so the bag fills rather than the cap shrinks) */
+      await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty)
+        select $1, 0, i.item_id, 1 from public.hr_items i
+         where not exists (select 1 from public.player_inventory v where v.user_id = $1 and v.slot = 0 and v.item_id = i.item_id)
+           and not exists (select 1 from public.hr_chest_keys k where k.item_id = i.item_id)
+         order by i.item_id
+         limit greatest(0, (select bank_cap from public.player_state where user_id = $1 and slot = 0)
+                           - (select count(*) from public.player_inventory where user_id = $1 and slot = 0))`, [UID]);
+      const s0 = await stacks();
+      const cap = Number(await one(db, 'select bank_cap from public.player_state where user_id = $1 and slot = 0', [UID]));
+      if (s0 < cap) throw new Error('the bag did not fill: ' + s0 + ' of ' + cap);
+      const res = await call(db, 'select public.hr_bank_move(0, $1, 2, $2, $3::uuid)', ['tower_key_gold', 'withdraw', idem()]);
+      return { res, s0, s1: await stacks(), ring: await ring(), storage: await store(db, 'tower_key_gold') };
+    });
+  }
+  const w = full.true, wo = full.false;
+  if (!w.res || w.res.ok !== true || w.ring.tower_key_gold !== 2 || w.s1 !== w.s0 || w.storage !== 0) {
+    bad.push(`TCH-RING a key withdrawn into a full bag with a ring answered ${JSON.stringify(w.res).slice(0, 160)} (ring ${JSON.stringify(w.ring)}, stacks ${w.s0} -> ${w.s1})`);
+  }
+  if (!wo.res || wo.res.error !== 'bag_full' || wo.storage !== 2 || wo.s1 !== wo.s0) bad.push(`TCH-RING a key withdrawn into a full bag with no ring answered ${JSON.stringify(wo.res).slice(0, 160)}`);
   return bad;
 }
 
@@ -694,6 +736,10 @@ const MUTANTS = [
     find: '  v_n := public.hr_key_ring_sweep(new.user_id, new.slot);', replace: '  v_n := 0;' },
   { name: 'the open ignores the ring', arm: 'ring', want: /^TCH-RING a key from the ring/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
     find: "  v_ring := least((v_keys->>'ring')::bigint, p_count);", replace: '  v_ring := 0;' },
+  { name: 'the ring is sold while the Tower is hidden', arm: 'ring', want: /^TCH-RING the Tower hidden/, fn: 'public.hr_key_ring_gate()',
+    find: "  if not public.hr_feature_on('burning_tower', new.user_id) then", replace: '  if false then' },
+  { name: 'a key into a full bag ignores the ring', arm: 'ring', want: /^TCH-RING a key withdrawn into a full bag with a ring/, fn: 'public.hr_bank_move_stack(uuid,integer,text,bigint,text,integer)',
+    find: '       and not (exists (select 1 from public.hr_chest_keys k where k.item_id = p_item) and public.hr_key_ring_owned(p_user, p_slot)) then', replace: '       then' },
   { name: 'the held count misses the ring', arm: 'ring', want: /^TCH-RING a key dropped/, fn: 'public.hr_chest_family_held(uuid,integer,text)',
     find: '+ coalesce((select sum(r.qty) from public.player_key_ring r', replace: '+ 0 * coalesce((select sum(r.qty) from public.player_key_ring r' },
   { name: 'the count is not clamped', arm: 'forged', want: /^TCH-FORGED 21 keys/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',

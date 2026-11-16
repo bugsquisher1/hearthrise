@@ -61,6 +61,12 @@
 --   ring at once (hr_key_ring_on_unlock) and every NEW bag stack of one moves there as it lands (hr_key_ring_on_bag: the mint, a Storage
 --   withdraw, whatever wrote it), so keys take no bag slot. Ring keys count toward the family's held limit and open exactly as bag keys do
 --   (the ring first, then the bag, then Storage). player_key_ring (user_id, slot, item_id, qty) NEW: RLS own read, no client write.
+-- THE RING STAYS HIDDEN WITH THE TOWER (CLAUDE.md §3.5): a BEFORE trigger on its ownership row (hr_key_ring_gate) refuses it while
+--   burning_tower is off for the account, through hr_reject, so hr_unlock_buy's protected block answers feature_off and its purse debit
+--   rolls back with the grant (a hand-made unlock_buy of key_ring.0 buys nothing and costs nothing while the Tower is hidden).
+-- A KEY WITHDRAWN INTO A FULL BAG goes onto the ring: hr_bank_move_stack RESTATED (2027-04-13-bank-move-many.sql's live image, §0 pins it,
+--   one condition more): a chest key withdrawn by a hero with a ring opens no bag stack, so the bag fuse is not asked; without a ring a full
+--   bag still answers bag_full. AFTER APPLYING: live-hash-drift wants hr_bank_move_stack re-measured (Coordinator).
 -- hr_key_ring_store(p_slot int, p_item text, p_qty int, p_idem uuid) -> jsonb   CLIENT VERB. Ring keys into the account's Storage (Tyler
 --   2026-11-14: keys pass between one account's heroes through Storage), through the bank's own per-stack deposit (hr_bank_move_stack: its
 --   room check and its bank_deposit ledger row). Refusals, each moving nothing: not_signed_in, bad_slot, bad_idem, bad_qty (not 1..1e6),
@@ -150,6 +156,16 @@ begin
      or to_regprocedure('public.hr_feature_on(text,uuid)') is null or to_regprocedure('public.hr_utc_day_start(timestamp with time zone)') is null
      or to_regclass('public.hr_client_rpc_baseline') is null or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
+end $mig$;
+
+-- §0 THE PIN: hr_bank_move_stack is exactly 2027-04-13-bank-move-many.sql's live image, or this file's own (a second apply): md5 of
+-- pg_get_functiondef, whitespace runs as one.
+do $mig$
+declare v_md5 text;
+begin
+  v_md5 := md5(regexp_replace(pg_get_functiondef('public.hr_bank_move_stack(uuid,integer,text,bigint,text,integer)'::regprocedure), '[[:space:]]+', ' ', 'g'));
+  if v_md5 not in ('4d9192c9a31f1818fee1fabf8bceb95f', '3ad648b1b268eb3e7916b4167efad3cf') then
+    raise exception 'PIN: hr_bank_move_stack is neither 2027-04-13-bank-move-many.sql''s image (4d9192c9a31f1818fee1fabf8bceb95f) nor this file''s (3ad648b1b268eb3e7916b4167efad3cf): md5 % - another file moved it', v_md5; end if;
 end $mig$;
 
 -- ── §1 THE TABLES (no client write: no policy but the owner's read, no grant but select) ─────────
@@ -344,6 +360,104 @@ begin
 end $fn$;
 drop trigger if exists hr_key_ring_on_bag on public.player_inventory;
 create trigger hr_key_ring_on_bag after insert on public.player_inventory for each row execute function public.hr_key_ring_on_bag();
+
+-- THE RING STAYS HIDDEN WITH THE TOWER: its ownership row is refused while burning_tower is off for the account (hr_unlock_buy catches the
+-- HR000 and answers feature_off; its purse debit rolls back with the grant).
+create or replace function public.hr_key_ring_gate()
+returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
+begin
+  -- KEY-RING (2027-04-27-tower-chest.sql)
+  if not public.hr_feature_on('burning_tower', new.user_id) then
+    perform public.hr_reject('feature_off', jsonb_build_object('feature', 'burning_tower', 'unlock', 'key_ring')); end if;
+  return new;
+end $fn$;
+drop trigger if exists hr_key_ring_gate on public.player_progress;
+create trigger hr_key_ring_gate before insert or update of value on public.player_progress for each row
+  when (new.kind = 'unlock' and new.key = 'key_ring')
+  execute function public.hr_key_ring_gate();
+
+-- A KEY WITHDRAWN INTO A FULL BAG GOES ONTO THE RING: the bank's per-stack body, RESTATED WHOLE (2027-04-13-bank-move-many.sql's live image
+-- with one condition more on its bag fuse; §0 pins it). Nothing else in it moves.
+create or replace function public.hr_bank_move_stack(p_user uuid, p_slot integer, p_item text, p_qty bigint, p_dir text, p_bag_cap integer)
+returns jsonb language plpgsql set search_path = public, pg_catalog as $$
+declare
+  v_cap    int;
+  v_have   bigint;
+  v_stacks int;
+begin
+  if p_dir = 'deposit' then
+    -- ── BAG → DEPOT ─────────────────────────────────────────────────────────
+    -- DEBIT the bag (this select-for-update IS the ownership check).
+    select qty into v_have from public.player_inventory
+      where user_id = p_user and slot = p_slot and item_id = p_item for update;
+    if coalesce(v_have, 0) < p_qty then
+      return jsonb_build_object('ok', false, 'error', 'insufficient_item',
+        'item_id', p_item, 'have', coalesce(v_have, 0), 'need', p_qty);
+    end if;
+    -- THE DEPOT'S ROOM: only when this deposit adds a NEW kind to the account's room
+    -- (kinds in Storage + kinds it has listed on the market, which come back here).
+    -- The account's own capacity (base + storage chests), never above the fuse.
+    if not public.hr_storage_room_fits(p_user, p_item) then
+      v_cap := public.hr_storage_room_cap(p_user);
+      v_stacks := public.hr_storage_room_used(p_user);
+      return jsonb_build_object('ok', false, 'error', 'bank_full', 'cap', v_cap,
+        'listed', v_stacks - (select count(*)::int from public.account_bank where user_id = p_user));
+    end if;
+    if v_have = p_qty then
+      delete from public.player_inventory
+        where user_id = p_user and slot = p_slot and item_id = p_item;
+    else
+      update public.player_inventory set qty = qty - p_qty
+        where user_id = p_user and slot = p_slot and item_id = p_item;
+    end if;
+    insert into public.account_bank as b (user_id, item_id, qty, updated_at)
+      values (p_user, p_item, p_qty, now())
+      on conflict (user_id, item_id) do update set qty = b.qty + excluded.qty, updated_at = now();
+  else
+    -- ── DEPOT → BAG ─────────────────────────────────────────────────────────
+    -- DEBIT the depot (ownership check: the account's own row, locked).
+    select qty into v_have from public.account_bank
+      where user_id = p_user and item_id = p_item for update;
+    if coalesce(v_have, 0) < p_qty then
+      return jsonb_build_object('ok', false, 'error', 'insufficient_bank',
+        'item_id', p_item, 'have', coalesce(v_have, 0), 'need', p_qty);
+    end if;
+    -- BAG STACK FUSE: mirror hr_apply's bank_cap ceiling on player_inventory
+    -- stacks (bank_cap is the BAG's stack cap, per character), only when this
+    -- withdraw opens a NEW bag stack.
+    -- KEY-RING (2027-04-27-tower-chest.sql): a chest key withdrawn by a hero who owns a Key Ring opens no bag stack (hr_key_ring_on_bag puts
+    -- it on the ring as it is written), so the fuse is not asked for it; without a ring it is a bag stack like any other.
+    if not exists (select 1 from public.player_inventory
+                    where user_id = p_user and slot = p_slot and item_id = p_item)
+       and not (exists (select 1 from public.hr_chest_keys k where k.item_id = p_item) and public.hr_key_ring_owned(p_user, p_slot)) then
+      select count(*) into v_stacks from (
+        select 1 from public.player_inventory
+         where user_id = p_user and slot = p_slot limit p_bag_cap + 1) s;
+      if v_stacks >= p_bag_cap then
+        return jsonb_build_object('ok', false, 'error', 'bag_full', 'cap', p_bag_cap);
+      end if;
+    end if;
+    if v_have = p_qty then
+      delete from public.account_bank
+        where user_id = p_user and item_id = p_item;
+    else
+      update public.account_bank set qty = qty - p_qty, updated_at = now()
+        where user_id = p_user and item_id = p_item;
+    end if;
+    insert into public.player_inventory as pi (user_id, slot, item_id, qty)
+      values (p_user, p_slot, p_item, p_qty)
+      on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
+  end if;
+
+  -- JOURNAL: one aggregate row per move (rule 6 — never per-tick). qty carries
+  -- the BAG-side signed delta (deposit removes from bag = negative); the slot is
+  -- the acting character's, meta.depot says the other side is the account's.
+  insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, meta)
+    values (p_user, p_slot, 'bank', 'bank_' || p_dir, p_item,
+            case when p_dir = 'deposit' then -p_qty else p_qty end,
+            jsonb_build_object('dir', p_dir, 'qty', p_qty, 'depot', 'account'));
+  return null;
+end $$;
 
 -- THE `key_ring` SECTION (every envelope; plpgsql: the settle reads every section, tests/settle-budget.mjs SB-3). Null while the Tower is
 -- off for the account (no tab, no button).
@@ -692,6 +806,7 @@ revoke all on function public.hr_key_ring_owned(uuid, int) from public, anon, au
 revoke all on function public.hr_key_ring_sweep(uuid, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_key_ring_on_unlock() from public, anon, authenticated, service_role;
 revoke all on function public.hr_key_ring_on_bag() from public, anon, authenticated, service_role;
+revoke all on function public.hr_key_ring_gate() from public, anon, authenticated, service_role;
 revoke all on function public.hr_key_ring_section(uuid, int) from public, anon, authenticated, service_role;
 do $mig$ begin
   if exists (select 1 from pg_roles where rolname = 'hr_engine') then
@@ -779,6 +894,8 @@ begin
     raise exception 'tower-chest §9(a): chest_opens is not append-only'; end if;
   if not exists (select 1 from pg_trigger where tgname = 'hr_key_ring_on_bag' and tgrelid = 'public.player_inventory'::regclass and not tgisinternal)
      or not exists (select 1 from pg_trigger where tgname = 'hr_key_ring_on_unlock' and tgrelid = 'public.player_progress'::regclass and not tgisinternal)
+     or not exists (select 1 from pg_trigger where tgname = 'hr_key_ring_gate' and tgrelid = 'public.player_progress'::regclass and not tgisinternal)
+     or strpos(pg_get_functiondef('public.hr_bank_move_stack(uuid,integer,text,bigint,text,integer)'::regprocedure), 'hr_key_ring_owned(p_user, p_slot)') = 0
      or (select fn from public.hr_state_sections where key = 'key_ring') is distinct from 'hr_key_ring_section' then
     raise exception 'tower-chest §9(a): the Key Ring''s triggers or its section are missing'; end if;
   perform public.hr_assert_grant_hygiene(true);
@@ -897,6 +1014,15 @@ begin
     if public.hr_key_ring_section(v_u, 0)->>'unlocked' is distinct from 'false' then raise exception 'tower-chest §9(d): a hero owns a ring unbought'; end if;
     v_stacks := (select count(*) from public.player_inventory where user_id = v_u and slot = 0);
     v_keys := (select coalesce(sum(i.qty), 0) from public.player_inventory i join public.hr_chest_keys ck on ck.item_id = i.item_id where i.user_id = v_u and i.slot = 0);
+    -- the Tower hidden: no ring can be stored (hr_unlock_buy answers feature_off, the purse untouched: tests/tower-chest.mjs TCH-RING)
+    update public.hr_feature_switches set scope = 'off' where switch_id = 'burning_tower';
+    begin
+      insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values (v_u, 0, 'unlock', 'key_ring', '', 1, now());
+      raise exception 'tower-chest §9(d): a ring was stored while the Tower was hidden';
+    exception when sqlstate 'HR000' then
+      if sqlerrm <> 'feature_off' then raise; end if;
+    end;
+    update public.hr_feature_switches set scope = 'accounts', accounts = array[v_u] where switch_id = 'burning_tower';
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values (v_u, 0, 'unlock', 'key_ring', '', 1, now());
     if exists (select 1 from public.player_inventory i join public.hr_chest_keys ck on ck.item_id = i.item_id where i.user_id = v_u and i.slot = 0)
        or (select coalesce(sum(qty), 0) from public.player_key_ring where user_id = v_u and slot = 0) <> v_keys or v_keys < 1

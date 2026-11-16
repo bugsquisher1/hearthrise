@@ -30,7 +30,8 @@
 //      floor is laid in its cycle order
 //   G  scene routing; missing art compiles and draws as a stub; the canvas
 //      draws the layers in the plan's order, and every canvas text size floors at 12 CSS px; a training
-//      session's World line says where the hero trains, never "isn't in the World yet" (idle-banner.js)
+//      session's World line says where the hero trains, never "isn't in the World yet" (idle-banner.js), and
+//      stands above the shell's bottom inset, never under the action bar (G7)
 //   N  NAME PLATES (src/world/core/plates.js; Tyler 2026-11-08: "Fingerguns / The Rat catcher (centered of
 //      course)"): a titled hero's plate is two centred lines, the title under the name, the block's foot
 //      where a one-line plate's is; an untitled plate is one line; a crowd of plates on one spot never
@@ -600,6 +601,13 @@ async function check(M) {
     ok('G6', /Wren is training Magic on your dummy at home\./.test(home), 'a house dummy session must say it trains at home: ' + home);
     const ridge = M.bannerM.unmappedBanner({ activeMonster: 'wolf', _huntId: 'meadowbrook_thicket' }, town, mon) || '';
     ok('G6', /isn’t in the World yet/.test(ridge) && /data-world-go="hunt"/.test(ridge), 'a hunt with no map keeps its line: ' + ridge);
+    /* G7 (lane/a-training-display): at 1440x900 the line sat 10 px off the stage's foot, under the action bar that the shell lays over
+       the same foot, at every size the gate plays (1440x900, 1280x720, 922x423, 667x375). Its foot is the shell's bottom inset (the
+       unmoved bottom widgets, src/shell/shell.js insetNow -> runtime.setInset) plus a gap, so neither covers the other. */
+    const foot = (o) => (typeof M.bannerM.bannerFoot === 'function' ? M.bannerM.bannerFoot(o) : null);
+    const bar = foot({ left: 0, right: 0, top: 120, bottom: 180 }), none = foot(null);
+    ok('G7', bar !== null && bar > 180 && bar <= 200 && none !== null && none > 0 && none <= 20 && foot({ bottom: -5 }) === none && foot({ bottom: NaN }) === none,
+      'the World\'s line must stand just above the shell\'s bottom inset (180 px -> 181..200; none -> a small gap): ' + JSON.stringify({ bar, none }));
     /* G5 (Krell's Hall showed the town, 2026-11-14): every hunt, called room and keyed hall routes to the map its fight is
        fought on (its ground row's `map`). An open one through WORLD_MAPS, the client's own table; a staged one through
        WORLD_MAPS + STAGED_MAPS, so a pack's map lists all its rooms before the pack ships. */
@@ -803,6 +811,7 @@ const MUTANTS = [
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G6', 'a training session reads as a fight the World is missing (audit F25)', 'src/world/idle-banner.js', [['  if (train) {', '  if (false) {']]],
+  ['G7', 'the World\'s line sits under the action bar again (its foot ignores the shell\'s inset)', 'src/world/idle-banner.js', [['  return Math.round(Math.max(0, b) + BANNER_GAP);', '  return Math.round(BANNER_GAP);']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G5', 'a keyed hall left off its map (Krell\'s Hall showed the town)', 'src/data/grounds/krells_hold/map.js', [["hunts: Object.freeze(['krells_hold', 'krells_hold_hall'])", "hunts: Object.freeze(['krells_hold'])"]]],
   ['G5', 'a called room left off its map', 'src/data/world/maps/coppercap_warrens.js', [["hunts: Object.freeze(['coppercap_warrens', 'coppercap_warrens_called'])", "hunts: Object.freeze(['coppercap_warrens'])"]]],

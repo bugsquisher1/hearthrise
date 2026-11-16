@@ -43,7 +43,7 @@ import { createViewSheets } from './view-sheets.js?v=0.2.132';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.132';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.132';
 import { huntOfMap } from './hunt-maps.js?v=0.2.132';
-import { OPEN_HUNT, unmappedBanner } from './idle-banner.js?v=0.2.132';
+import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.132';
 import { createHuntScene } from './hunt-scene.js?v=0.2.132';
 import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.132';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.132';
@@ -552,7 +552,14 @@ export async function bootWorld(panel, opts) {
      * from the next frame on, so a window never covers the hero: drawn now only
      * when the loop is not running (sync's rule; the shell hands a new pane its inset at once).
      */
-    setInset(o) { if (gone) return; backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
+    setInset(o) {
+      if (gone) return;
+      backend.setInset(o);
+      /* the World's one line stands above the HUD along the foot (the action bar), never under it (idle-banner.js bannerFoot) */
+      const foot = bannerFoot(o) + 'px';
+      if (idle.style.bottom !== foot) idle.style.bottom = foot;
+      if (panel.classList.contains('active') && !(running && live())) step(0);
+    },
     destroy() {
       gone = true;
       if (tokenWatch) tokenWatch.disconnect();

@@ -14,11 +14,13 @@ import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.132';
 import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.132';
 import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.132';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.132';
-import { clock } from '../../render/format.js?v=0.2.132';
+import { clock, whole } from '../../render/format.js?v=0.2.132';
 import { track } from '../../net/observability.js?v=0.2.132';
 import { refusalText } from '../intent-words.js?v=0.2.132';
 import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.132';
 import { connection } from '../../net/connection.js?v=0.2.132';
+import { t } from '../../render/player-text.js?v=0.2.132';
+import { trainingNowOf } from '../training-now.js?v=0.2.132';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -38,12 +40,17 @@ function leavingLine(cd, waitedMs, state) {
 /** The skeleton (built once). */
 export function renderHuntTopbar() {
   return '<div class="ht-bar" role="group" aria-label="Hunt">'
-    + '<b class="ht-ground"></b><span class="ht-clock" title="Time in this hunt"></span>'
+    /* A TRAINING SESSION (../training-now.js; lane/a-training-display) says what it does and where ("Training Melee", and on a wide bar
+       "at the Training Yard"), its time left and the hour's fee, every figure the server's; Hunt details reads Details and Leave hunt
+       Stop training. */
+    + '<b class="ht-ground"><span class="ht-name"></span><span class="ht-wide ht-at"></span></b><span class="ht-clock" title="Time in this hunt"></span>'
+    + '<span class="ht-wide ht-fee" hidden></span>'
     /* The phone's bar has the width beside the Party panel only: "Details" and "Leave" there (hunt.css .ht-wide). */
-    + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="Hunt details"><span class="ht-wide">Hunt </span>details</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="Hunt details"><span class="ht-wide ht-hunt-word">Hunt </span><span class="ht-det-word">details</span></button>'
     + '<button type="button" class="hh-tool" data-hs-act="summary">Summary</button>'
     + '<span class="ht-leaving" role="timer" hidden></span>'
-    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="Leave hunt">Leave<span class="ht-wide"> hunt</span></button>'
+    + '<button type="button" class="hh-tool is-leave" data-hs-act="leave" aria-label="Leave hunt"><span class="ht-leave-hunt">Leave<span class="ht-wide"> hunt</span></span>'
+    + '<span class="ht-leave-train" hidden>' + t('training.bar_stop') + '<span class="ht-wide"> ' + t('training.bar_stop_wide') + '</span></span></button>'
     + '<span class="hh-intent-msg" role="status" aria-live="polite"></span></div>'
     /* The phone's one line under the bar while a leave counts down (hunt.css): what the wait is for. */
     + '<p class="ht-why" hidden>' + LEAVE_WHY + '</p>';
@@ -61,10 +68,24 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* The harder tier this hunt froze, in the same plain word as the picker (Normal says nothing: it is the ground as it stands). */
   const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
   const hard = tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? ' (' + TIER_NAME[tiers.playing] + ')' : '';
-  text(el.querySelector('.ht-ground'), h && h.ended && ground ? 'Last hunt: ' + gname : gname + hard);
-  const ms = sessionClockMs(a, serverNowOf(ctx.character));
-  text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));
+  const now = serverNowOf(ctx.character);
+  const train = trainingNowOf(ctx.character, now);
+  text(el.querySelector('.ht-name'), train ? train.doing : h && h.ended && ground ? 'Last hunt: ' + gname : gname + hard);
+  text(el.querySelector('.ht-at'), train ? ' ' + train.at : '');
+  const ms = sessionClockMs(a, now);
+  const left = !!train && train.leftMs !== null;
+  const clk = el.querySelector('.ht-clock');
+  text(clk, left ? t('training.bar_left', { time: clock(train.leftMs) }) : ms === null ? '' : clock(ms));
+  attr(clk, 'title', left ? t('training.bar_left_title') : 'Time in this hunt');
+  const fee = el.querySelector('.ht-fee');
+  text(fee, train && train.feeH !== null ? t('training.bar_fee', { gold: whole(train.feeH) }) : '');
+  prop(fee, 'hidden', !(train && train.feeH !== null));
+  prop(el.querySelector('.ht-hunt-word'), 'hidden', !!train);
+  text(el.querySelector('.ht-det-word'), train ? 'Details' : 'details');
   const leave = el.querySelector('.is-leave');
+  prop(leave.querySelector('.ht-leave-hunt'), 'hidden', !!train);
+  prop(leave.querySelector('.ht-leave-train'), 'hidden', !train);
+  attr(leave, 'aria-label', train ? t('training.bar_stop') + ' ' + t('training.bar_stop_wide') : 'Leave hunt');
   /* LEAVING (the leave pends until the server's leave_at, 2026-10-31-live-horizon.sql): from the press
      until the hunt is over the button is off, and the line beside it says how long is left, counted
      to the SERVER's leave_at on the server's clock (CharacterSession.leaveCountdown), never a device
@@ -86,6 +107,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
      no Leave hunt, no Hunt details, no clock. Follows the server's hunt section, replaced each envelope. */
   prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));
   const details = el.querySelector('[data-hs-act="details"]');
+  attr(details, 'aria-label', train ? 'Details' : 'Hunt details');
   prop(details, 'hidden', over);
   attr(details, 'aria-pressed', String(analyzerOpen(ctx)));
   prop(el.querySelector('.ht-clock'), 'hidden', over);

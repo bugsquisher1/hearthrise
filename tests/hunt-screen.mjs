@@ -119,6 +119,10 @@
 //         envelope's value replaces it
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
 //         XP per hour only when the server sent it (premium)
+//   HS-30 A TRAINING SESSION'S HUNT BAR says what is happening (lane/a-training-display): "Training Melee at the Training Yard",
+//         the time left (the server's start plus its longest run), the hour's fee and Stop training; the hero's tab says the same
+//   HS-31 ITS ANALYZER shows the trained skill's level, its XP an hour, the fee and the gold paid (the server's training section and
+//         skill_levels), and none of the hunt's rows (it read "Monsters killed 0, Level XP 0, Gold 0")
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -131,7 +135,7 @@ import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
-const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+const { charXpForLevel, skillXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
 /* The Glade's Dangerous row and the tier's plain words, never typed: HS-8 reads them from the data (hunt-tiers.js GROUND_TIERS, TIER_LINES). */
 const TIERS = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
 const GLADE_DANGEROUS = TIERS.GROUND_TIERS.mosslight_glade.dangerous;
@@ -1128,6 +1132,50 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!(await until(() => s.sent('hr-accrue').length > asked))) fails.push('HS-16 the late close is not asked again');
         if (errors.length) fails.push('HS-16 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('HS-16 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-30 A TRAINING SESSION'S HUNT BAR SAYS WHAT IS HAPPENING; HS-31 ITS ANALYZER SHOWS TRAINING, NEVER HUNTING ZEROS
+      /* lane/a-training-display (lane/a-training-words, left over): at the yard the bar read "Training Yard 00:20:13 ... Leave hunt", the
+         hero's tab "Hunting in Training Yard", and the analyzer "Monsters killed 0, Level XP 0, Gold 0". Every figure is the server's
+         `training` section (src/session/training-sections.js) and `skill_levels`; the time left is its start plus its longest run. */
+      let iso = null;
+      const { ctx, page, s, errors, up } = await open({ prep: (sc) => { sc.clock = () => Date.now(); iso = (ago) => new Date(sc.clock() - ago).toISOString(); } });
+      if (up) {
+        s.env.hunt = Object.assign({}, s.env.hunt, { hunt_id: 'training_yard_melee' });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'combat', active_id: 'training_yard_melee' });
+        s.env.skills = Object.assign({}, s.env.skills, { melee: { xp: skillXpForLevel('melee', 20) + 1000, level: 20 } });   // the server's skill_levels follow (_server-level.mjs)
+        s.env.training = { skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12,
+          quotes: [{ skill: 'melee', level: 20, fee_h: 170, xp_h: 30000, hours_to_next: 1 }],
+          run: { skill: 'melee', where: 'yard', since: iso(20 * 60000), fee_h: 170, paid: 340, boosted: false, boost_ms: 0 },
+          last_stop: null, rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 20 }, gear: [], offers: [], shop: { on: false, today: 0, max: 10 } };
+        await pushEnvelope(page, s);
+        const read = () => page.evaluate(() => {
+          const shown = (n) => !!n && n.getClientRects().length > 0;
+          const q = (sel) => document.querySelector(sel);
+          const b = q('.ht-bar');
+          const an = q('.ha-analyzer');
+          return {
+            ground: b && b.querySelector('.ht-ground').textContent, clock: b && b.querySelector('.ht-clock').textContent,
+            fee: b && shown(b.querySelector('.ht-fee')) ? b.querySelector('.ht-fee').textContent : null,
+            leave: b && (b.querySelector('[data-hs-act="leave"]').innerText || '').trim(),
+            tab: (q('.char-tab[data-slot="0"] .char-tab-doing') || {}).textContent || null,
+            train: an && shown(an.querySelector('.ha-train')) ? an.querySelector('.ha-train').innerText.replace(/\s+/g, ' ').trim() : null,
+            huntRows: an ? ['[data-sec="totals"]', '.ha-tabs'].filter((sel) => shown(an.querySelector(sel))) : null,
+          };
+        });
+        const ok = await wait(page, () => /^Training Melee/.test(document.querySelector('.ht-bar .ht-ground').textContent), null, 4000);
+        const r = await read();
+        if (!ok || r.ground !== 'Training Melee at the Training Yard' || !/^11:[34]\d:\d\d left$/.test(r.clock) || r.fee !== '170 gold/h'
+          || r.leave !== 'Stop training' || r.tab !== 'Training Melee at the Training Yard') {
+          fails.push('HS-30 a training session\'s hunt bar does not say what is happening (want "Training Melee at the Training Yard", time left, 170 gold/h, Stop training): ' + JSON.stringify(r));
+        }
+        if (!r.train || !/Melee level 20/.test(r.train) || !/Melee XP per hour 30,000/.test(r.train) || !/Fee per hour 170 gp/.test(r.train)
+          || !/Paid so far 340 gp/.test(r.train) || !r.huntRows || r.huntRows.length) {
+          fails.push('HS-31 a training session\'s analyzer shows hunting rows, or not the server\'s training figures: ' + JSON.stringify(r));
+        }
+        if (errors.length) fails.push('HS-30 console errors: ' + errors.slice(0, 3).join(' | '));
+      } else fails.push('HS-30 the screen did not mount');
       await ctx.close();
     }
 
@@ -2173,6 +2221,8 @@ const MUTANTS = [
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
   ['a docked window covers the analyzer again (HS-26)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
   ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],
+  ['a training session\'s hunt bar reads as a hunt again (HS-30)', 'src/shell/widgets/hunt-topbar.js', '  const train = trainingNowOf(ctx.character, now);', '  const train = null;'],
+  ['a training session\'s analyzer shows the hunt\'s zeros again (HS-31)', 'src/shell/widgets/analyzer.js', '  const tn = trainingNowOf(ctx.character, serverNowOf(ctx.character));', '  const tn = null;'],
 ];
 
 /* Seconds per mutant on a GitHub runner (tests/hunt-screen.mutant-times.json); none read = every mutant booked alike. */

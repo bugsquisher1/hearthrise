@@ -108,6 +108,24 @@ export const TRAINING_TEXT = Object.freeze({
   card_again: 'Train again',
   card_again_title: 'Opens the Training window.',
 
+  /* THE HUNT BAR AND THE ANALYZER WHILE A HERO TRAINS (src/shell/training-now.js): what it does, where, and the server's figures.
+     The hero's tab line says the two together ("Training Melee at the Training Yard", src/session/party-sections.js). */
+  bar_doing: 'Training {skill}',
+  bar_at_yard: 'at the Training Yard',
+  bar_at_house: 'on your dummy at home',
+  bar_left: '{time} left',
+  bar_left_title: 'Time before this training session stops',
+  bar_fee: '{gold} gold/h',
+  bar_stop: 'Stop',
+  bar_stop_wide: 'training',
+  an_title: 'Training',
+  an_level: '{skill} level {level}',
+  an_xp_h: '{skill} XP per hour',
+  an_xp_h_item: '{xp} (200%)',
+  an_fee_h: 'Fee per hour',
+  an_fee_house: 'None at home',
+  an_paid: 'Paid so far',
+
   /* THE WORLD WHILE A HERO TRAINS (src/world/world-boot.js): where it is, and the window that runs it. */
   world_line: '{name} is training {skill} at the Training Yard.',
   world_line_house: '{name} is training {skill} on your dummy at home.',

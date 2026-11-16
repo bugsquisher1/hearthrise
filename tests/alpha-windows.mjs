@@ -2923,7 +2923,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const afterOf = () => page.evaluate((w) => { const sel = document.querySelector(w + '.hw-after-pick'); const sec = sel && sel.closest('.hw-after');
           return sel ? { hidden: sec.hidden, options: Array.from(sel.options).map((o) => o.textContent), value: sel.value, off: sel.disabled, note: sec.querySelector('.hw-after-note').textContent } : null; }, W);
         const bare = await afterOf();
-        if (!bare || !bare.hidden) fails.push('AW-35 a server with no hunt_after section still draws the control: ' + JSON.stringify(bare));
+        if (!bare) fails.push('AW-35 the Hunts page has no When the hunt ends control');
+        else if (!bare.hidden) fails.push('AW-35 a server with no hunt_after section still draws the control: ' + JSON.stringify(bare));
+        if (bare) {
         s.env.hunt_after = { choice: 'job', skill: null, grace_s: 60, job: null, now: null, last: null };
         s.env.training = { skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12, quotes: ['melee', 'ranged', 'magic', 'defense'].map((skill) => ({ skill, level: 12, fee_h: 122 })),
           rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 12 } };
@@ -2950,6 +2952,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!back || back.value !== 'train:melee') fails.push('AW-35 the control kept a pick the server did not send back: ' + JSON.stringify(back && back.value));
         delete s.env.hunt_after; delete s.env.training;
         await pushEnvelope(page, s);
+        }
         const enters = () => sent(s, 'hr_hunt_enter').length;
         const applies = () => sent(s, 'hr_hunt_preset_apply').length;
         let e0 = enters(), a0 = applies();

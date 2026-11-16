@@ -83,6 +83,9 @@ export function prizeLines(hall, first) {
 
 export function hallHtml() {
   return '<section class="hw-hd-call hw-hd-hall" aria-label="' + BOSS_HALL_WORDS.heading + '" hidden><h4 class="hw-hd-h"></h4>'
+    /* HIS PRIZE TABLE, folded, under the name and above the door: what he can drop is read before the key is spent, and one line here
+       is one line less under the press, so at the page's end a 423 px phone still shows the press whole (tests/phone-touch.mjs PH-32) */
+    + '<details class="hw-hall-table"><summary class="hh-tool"></summary><ul class="hw-before hw-hall-drops"></ul></details>'
     /* THE DOOR FIRST, THEN WHAT WINS: the key line, this bar's red food line and the press stand together under the head, so the
        press and its warning are in view at once on a 423 px phone, never the press under Enter with its warning a screen above */
     + '<p class="hw-call-line"></p><p class="hw-before-line is-short hw-hall-food" hidden></p>'
@@ -94,8 +97,6 @@ export function hallHtml() {
     + '<button type="button" class="hh-tool" data-hs-act="hall-no"></button></div></div>'
     /* the day's prize, label lines under the door (the door itself stays where a 423 px phone shows it whole) */
     + '<ul class="hw-before hw-hall-loot" aria-label="' + BOSS_HALL_WORDS.loot.label + '"></ul>'
-    /* his prize table, folded: sixteen lines would push the tuning tips off a phone */
-    + '<details class="hw-hall-table"><summary class="hh-tool"></summary><ul class="hw-before hw-hall-drops"></ul></details>'
     + '<p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul></section>';
 }
 

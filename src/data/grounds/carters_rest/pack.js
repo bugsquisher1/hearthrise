@@ -155,7 +155,7 @@ export default definePack({
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
   /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
      the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
-  partyVsAlone: { 2: [-30, 0], 3: [-40, -15, -5], 4: [-50, -5, 5, 5] },
+  partyVsAlone: { 2: [-35, 0], 3: [-40, -10, -5], 4: [-50, -5, 5, 5] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 22472, deadlyFourNeeds: 'healer' },
   map,
 });

@@ -159,7 +159,7 @@ export default definePack({
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
   /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
      the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
-  partyVsAlone: { 2: [-30, 15], 3: [-35, -5, 5], 4: [-50, 5, 15, 20] },
+  partyVsAlone: { 2: [-30, 15], 3: [-35, -5, 10], 4: [-45, 5, 20, 20] },
   /* DEADLY BRINGS SIX (the Hold's and the Pyre Field's row): on eight a four of four classes died 9 times in 4 hero-hours at the floor (36 in 16,
      where the sheet allows 9). Six is the least Deadly may bring, one over Dangerous's five. */
   tierOverride: { deadly: 6, why: 'on the full box a group of four died 9 times in 4 hours at the floor, where the rule allows about 2. On six they hold it' },

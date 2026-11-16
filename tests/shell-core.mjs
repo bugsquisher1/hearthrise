@@ -1100,7 +1100,7 @@ async function runTests(mods) {
     eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Then Wrenna went to the yard to train Melee.', 'started');
     eq(came({ state: 'pending', skill: 'melee', place: 'yard' }), 'Wrenna is on the way to the yard to train Melee.', 'pending');
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: 30 }),
-      'Wrenna couldn\'t pay the yard. An hour of Melee costs 122 gold and you had 30, so Wrenna waited in town.', 'too little gold says the fee and the purse');
+      'Wrenna waited in town (Melee costs 122 gold/h, you had 30)', 'too little gold says the fee and the purse');
     eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'The yard takes heroes from Level 10, so Wrenna waited in town.', 'under the Level');
     eq(came({ state: 'waited', why: 'chose_wait' }), 'Then Wrenna waited in town, as you asked.', 'chose to wait');
     eq(came({ state: 'resumed', kind: 'gather', id: 'copper_rock' }), '', 'back on the job: the pointer\'s own line says it');

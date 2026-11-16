@@ -56,7 +56,7 @@ export const AWAY_TEXT = Object.freeze({
   done_pending: '{name} is on the way to the yard to train {skill}.',
   done_started: 'Then {name} went to the yard to train {skill}.',
   done_chose_wait: 'Then {name} waited in town, as you asked.',
-  done_gold: '{name} waited in town ({skill} costs {fee} gold, you had {purse})',
+  done_gold: '{name} waited in town ({skill} costs {fee} gold/h, you had {purse})',
   done_level: 'The yard takes heroes from Level {level}, so {name} waited in town.',
   done_party: '{name} waited in town (training is solo, still in a party)',
   done_no_train: '{name} couldn\'t start training {skill}, so {name} waited in town.',

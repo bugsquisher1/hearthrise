@@ -898,3 +898,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-15 lane/d-coherence-133 (coherence pass: v0.2.133 + the day's lanes, CLAUDE.md §3.5)
+- `cell.mjs` takes `skillsBySeat: [{ melee, ranged, magic, defense }]` and `options: { tier }`, so a +skill or "trains every spare hour" question is one scratch script and a few seconds a cell. Use the career's skill at a Level (the training lane's table: 22 at Level 10, 37 at 25), never skill = Level, or a training gain reads 2 to 3 times too big.
+- "+Magic does nothing" at the Hold is the Mage being spawn-bound (lowest typical HP 98.8%, 1.47x a hammer), not a flat formula (`abilities.js` lvPm is +2% of base a level). Before calling a stat worthless, check whether the hero measured is already capped by monster supply.
+- "Less damage from every blow" already exists as `steadyPm` (capes, food, joined with Tempering in `mitigation.js`). Grep the engine for an effect before a lane proposes a new hook for it.
+- A walk-through written yesterday can be stale today: the Ox Road's "can't target the Drover" was false (`widgets/first-target.js`, `targeting.js` tkind). Re-grep every "missing control" claim before ruling on it.
+- Driving the pane: coordinates from `getBoundingClientRect` scaled by 800 / innerWidth beat refs, which go stale on every repaint. A `skip` that answers `moved: 0` means the Enter never landed.
+- Two lanes on one day placed the same idea twice (Kingstooth and Widow's Fang, an Iron Sword with crit on the Sewer). A catalogue's placement map must list call-only and daily-prize rows too, or the next lane duplicates them.

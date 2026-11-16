@@ -142,7 +142,7 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 
 export const REFUSAL_WORDS = Object.freeze({
   /* The factions (2027-04-22-faction-standing.sql, 2027-04-23-faction-section.sql). The ones with the server's numbers are
-     src/shell/faction-words.js's. */
+     src/shell/faction-words.js's. feature_off is every switched-off feature's line (the training items' too), written once. */
   feature_off: 'That isn\'t open yet.',
   join_locked: 'You can pick a side after your first Lord Krell kill.',
   already_joined: 'This hero already has a side.',
@@ -348,7 +348,6 @@ export const REFUSAL_WORDS = Object.freeze({
   dummy_max: 'Your dummy trains every skill already.',
   /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
   buy_limit: 'That is all you can buy today. Try again after midnight UTC.',
-  feature_off: 'That isn\'t open yet.',
   still_open: 'That skill\'s training item still has hours left. The next one opens by itself when they run out.',
   none_held: 'You don\'t have one in your bag or Storage.',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per

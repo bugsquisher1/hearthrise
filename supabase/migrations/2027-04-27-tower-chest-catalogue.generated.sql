@@ -8,7 +8,7 @@
 -- hr_chests (one row today); hr_chest_keys (4 rows: the open table, a landing's key is the highest row at or under it); hr_chest_stokes
 --   (3: a stoke count's multiplier and its price in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family
 --   weight, the per-call and per-day clamps); hr_chest_families (the 7 weapon families, the "types"); hr_chest_weapons (each key's
---   weapon a family: 0 built today, so no key is ready and the open refuses chest_not_ready); hr_chest_weapon_families (76
+--   weapon a family: 7 built today, so no key is ready and the open refuses chest_not_ready); hr_chest_weapon_families (83
 --   weapon items and their family). All rewritten whole: no player row points at any of them (the key and Cinders items are hr_items rows).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower.
 -- REVERSIBLE: drop the seven tables after 2027-04-27-tower-chest.sql's reversal.
@@ -99,7 +99,14 @@ insert into public.hr_chest_families (family, ord) values
   ('wand', 5),
   ('hatchets', 6),
   ('crossbow', 7);
--- (no tower weapon is built: every key waits on its seven, src/data/chests.js chestShipBlockers)
+insert into public.hr_chest_weapons (key_id, family, item_id) values
+  ('silver', 'sword', 'tollkeepers_sword'),
+  ('silver', 'warhammer', 'quarry_maul'),
+  ('silver', 'bow', 'ferrymans_bow'),
+  ('silver', 'staff', 'old_ash_rake'),
+  ('silver', 'wand', 'chandlers_wand'),
+  ('silver', 'hatchets', 'raftwright_hatchets'),
+  ('silver', 'crossbow', 'drovers_crossbow');
 delete from public.hr_chest_weapon_families;
 insert into public.hr_chest_weapon_families (item_id, family) values
   ('alphaheart_longbow', 'bow'),
@@ -109,6 +116,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('bramble_blade', 'sword'),
   ('bronze_sword', 'sword'),
   ('captains_ribblade', 'sword'),
+  ('chandlers_wand', 'wand'),
   ('chief_blade', 'sword'),
   ('dawn_hatchets', 'hatchets'),
   ('dawn_sword', 'sword'),
@@ -117,6 +125,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('dragonfang_pike', 'sword'),
   ('dragonrend_greatblade', 'sword'),
   ('dragonrib_bow', 'bow'),
+  ('drovers_crossbow', 'crossbow'),
   ('duskwood_bow', 'bow'),
   ('duskwood_crossbow', 'crossbow'),
   ('duskwood_staff', 'staff'),
@@ -126,6 +135,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('ember_warhammer', 'warhammer'),
   ('emberfang_blade', 'sword'),
   ('fangdart_recurve', 'bow'),
+  ('ferrymans_bow', 'bow'),
   ('heartgarnet_maul', 'warhammer'),
   ('iron_hatchets', 'hatchets'),
   ('iron_sword', 'sword'),
@@ -144,6 +154,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('oak_practice_blade', 'sword'),
   ('oak_staff', 'staff'),
   ('oak_wand', 'wand'),
+  ('old_ash_rake', 'staff'),
   ('practice_bow', 'bow'),
   ('practice_club', 'warhammer'),
   ('practice_crossbow', 'crossbow'),
@@ -151,6 +162,8 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('practice_staff', 'staff'),
   ('practice_sword', 'sword'),
   ('practice_wand', 'wand'),
+  ('quarry_maul', 'warhammer'),
+  ('raftwright_hatchets', 'hatchets'),
   ('rat_stick', 'warhammer'),
   ('rune_hatchets', 'hatchets'),
   ('rune_sword', 'sword'),
@@ -164,6 +177,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('steel_sword', 'sword'),
   ('steel_warhammer', 'warhammer'),
   ('stone_maul', 'warhammer'),
+  ('tollkeepers_sword', 'sword'),
   ('verdite_blade', 'sword'),
   ('void_censer', 'staff'),
   ('voidmaw_scepter', 'wand'),

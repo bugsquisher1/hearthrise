@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/world-art/tower-chest-icons.mjs — INTERIM ICONS FOR THE BURNING TOWER'S FOUR KEYS AND ITS CINDERS (lane/c-tower-chest,
-// 2026-11-15; src/data/chests.js CHEST_ITEM_ROWS).
+// tools/world-art/tower-chest-icons.mjs — INTERIM ICONS FOR THE BURNING TOWER'S FOUR KEYS, ITS CINDERS AND ITS WEAPONS (lane/c-tower-chest,
+// 2026-11-15; src/data/chests.js CHEST_ITEM_ROWS; the weapons lane/d-tower-weapons, src/data/tower-weapons.js).
 //
 // The chest, its keys and the Cinders are hidden behind the `burning_tower` switch until the Tower's window and art land (the design's
 // "Art Director: the one chest on the ledge, the flue room kit, the fire tint, the Tower window, the opening reveal"). Until their own
 // drawings land, each key is the Hall Key's drawing (hall_key: a Keeper's key is a key) with its metal's pip baked in top right, and the
-// Cinders are the coal lump with a torch-orange pip, the training items' interim rule (tools/world-art/training-icons.mjs). Every mark is
+// Cinders are the coal lump with a torch-orange pip, the training items' interim rule (tools/world-art/training-icons.mjs). Each tower
+// weapon is the drawing of the standard weapon it shares its numbers with (the family's rung at its key's tier) with ITS KEY'S pip, so a
+// weapon reads as the one that came out of that lock and never wears its twin's exact bytes. Every mark is
 // a palette entry (art/world/palette.json hr-world-56-v2) in a 1 px #0b0a0c box, binary alpha, 32x32, nothing scaled:
 // tests/pixel-icons.mjs's rules hold, and no two of the five share bytes.
 //
@@ -18,6 +20,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePNG, encodePNG } from './png.mjs';
 import { CHEST_KEYS, CINDERS } from '../../src/data/chests.js';
+import { WEAPON_FAMILIES } from '../../src/data/gear-tiers.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -50,6 +53,8 @@ function from(base, c) {
 export const DRAW = Object.freeze({
   ...Object.fromEntries(CHEST_KEYS.map((k) => [k.item, () => from('hall_key', PIP[k.id])])),
   [CINDERS]: () => from('coal', PIP.cinders),
+  ...Object.fromEntries(CHEST_KEYS.flatMap((k) => Object.entries(k.weapons).map(([fam, id]) =>
+    [id, () => from(WEAPON_FAMILIES.find((f) => f.key === fam).ids[k.weaponTier - 1], PIP[k.id])]))),
 });
 
 function main() {

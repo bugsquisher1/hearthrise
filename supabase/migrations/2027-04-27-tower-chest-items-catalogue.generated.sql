@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: ce8fc9240304324ce9ea073818fb80869069e56ad38d1e84be569054c471bfd2
---   rows: 636 items (19 untradeable) ·
---         347 item-slot pairs · 14 equip slots ·
+--   catalogue digest: 95a753e3a4884c091abf4ee20802b9378c924071541079f9808158b64b9631b7
+--   rows: 643 items (19 untradeable) ·
+--         354 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 380 activities ·
 --         0 runes
 --
@@ -292,6 +292,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('chalked_poison_rune','Chalked Poison Rune',true,'ammo',0,'magic',1,null,false,null,false),
   ('chalked_rupture_rune','Chalked Rupture Rune',true,'ammo',0,'magic',1,null,false,null,false),
   ('chalked_water_rune','Chalked Water Rune',true,'ammo',0,'magic',1,null,false,null,false),
+  ('chandlers_wand','Chandler''s Wand',true,'weapon',1350,'level',45,null,false,null,false),
   ('chief_blade','Chief''s Blade',true,'weapon',900,'level',15,null,false,null,false),
   ('chitin_belt','Chitin Belt',true,'armor',840,'level',45,null,false,'medium',false),
   ('chitin_body','Chitin Body',true,'armor',3150,'level',45,null,false,'medium',false),
@@ -385,6 +386,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dragonhide_pants','Dragonhide Chaps',true,'armor',20020,'level',75,null,false,'medium',false),
   ('dragonrend_greatblade','Dragonrend',true,'weapon',17600,'level',88,null,false,null,false),
   ('dragonrib_bow','Dragonrib Bow',true,'weapon',13650,'level',75,null,false,null,true),
+  ('drovers_crossbow','Drover''s Crossbow',true,'weapon',1500,'level',45,null,false,null,false),
   ('dry_husk','Dry Husk',true,null,1,null,null,null,false,null,false),
   ('duskweave_belt','Duskweave Sash',true,'armor',20160,'level',88,null,false,'light',false),
   ('duskweave_body','Duskweave Robe Top',true,'armor',75600,'level',88,null,false,'light',false),
@@ -431,6 +433,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('fang_studs','Fang Studs',true,'jewelry',130,'level',15,null,false,null,false),
   ('fangdart_recurve','Fangdart Recurve',true,'weapon',7200,'level',36,null,false,null,true),
   ('farmhands_tag','Farmhand''s Tag',true,null,172,null,null,null,false,null,false),
+  ('ferrymans_bow','Ferryman''s Bow',true,'weapon',1575,'level',45,null,false,null,true),
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
   ('fine_temper_salts','Fine Tempering Salts',true,null,60,null,null,null,false,null,false),
@@ -565,6 +568,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('oak_spellbook','Oakboard Spellbook',true,'offhand',105,'level',15,null,false,null,false),
   ('oak_staff','Oak Staff',true,'weapon',130,'level',15,null,false,null,true),
   ('oak_wand','Oak Wand',true,'weapon',115,'level',15,null,false,null,false),
+  ('old_ash_rake','Old Ash Rake',true,'weapon',1500,'level',45,null,false,null,true),
   ('orchard_boar_tusk','Orchard Boar Tusk',true,null,24,null,null,null,false,null,false),
   ('packlord_band','Packlord''s Band',true,'jewelry',420,'level',22,null,false,null,false),
   ('panthers_eye_pendant','Panther''s Eye Pendant',true,'jewelry',13600,'level',68,null,false,null,false),
@@ -590,8 +594,10 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('pumpkin_cider','Pumpkin Cider',true,null,50,null,null,null,false,null,false),
   ('pumpkin_pie','Pumpkin Pie',true,null,420,null,null,420,false,null,false),
   ('pumpkin_seed','Pumpkin Seed',true,null,50,null,null,null,false,null,false),
+  ('quarry_maul','Quarry Maul',true,'weapon',1650,'level',45,null,false,null,true),
   ('queens_comb','Queen''s Comb',true,null,60,null,null,null,false,null,false),
   ('quiet_coat','Quiet Coat',true,'armor',27300,'level',75,null,false,'light',false),
+  ('raftwright_hatchets','Raftwright Hatchets',true,'weapon',1500,'level',45,null,false,null,true),
   ('rake_tine','Rake Tine',true,null,148,null,null,null,false,null,false),
   ('rat_incisor','Drain Rat Incisor',true,null,20,null,null,null,false,null,false),
   ('rat_kings_crown','Rat King''s Crown',true,'trophy',4000,null,null,null,false,null,false),
@@ -721,6 +727,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('tidecallers_pearl','Tidecaller''s Pearl',false,'trophy',0,null,null,null,false,null,false),
   ('timber_beam','Timber Beam',true,null,230,null,null,null,false,null,false),
   ('toll_token','Toll Token',true,null,112,null,null,null,false,null,false),
+  ('tollkeepers_sword','Toll-Keeper''s Sword',true,'weapon',1500,'level',45,null,false,null,false),
   ('tomato','Tomato',true,null,90,null,null,48,true,null,false),
   ('tomato_juice','Tomato Juice',true,null,30,null,null,null,false,null,false),
   ('tomato_seed','Tomato Seed',true,null,30,null,null,null,false,null,false),
@@ -905,6 +912,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('chalked_poison_rune','ammo'),
   ('chalked_rupture_rune','ammo'),
   ('chalked_water_rune','ammo'),
+  ('chandlers_wand','weapon'),
   ('chief_blade','weapon'),
   ('chitin_belt','belt'),
   ('chitin_body','body'),
@@ -953,6 +961,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('dragonhide_pants','pants'),
   ('dragonrend_greatblade','weapon'),
   ('dragonrib_bow','weapon'),
+  ('drovers_crossbow','weapon'),
   ('duskweave_belt','belt'),
   ('duskweave_body','body'),
   ('duskweave_boots','boots'),
@@ -984,6 +993,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('etched_water_rune','ammo'),
   ('fang_studs','earrings'),
   ('fangdart_recurve','weapon'),
+  ('ferrymans_bow','weapon'),
   ('gold_amulet','necklace'),
   ('gold_ring','ring1'),
   ('gold_ring','ring2'),
@@ -1047,6 +1057,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('oak_spellbook','shield'),
   ('oak_staff','weapon'),
   ('oak_wand','weapon'),
+  ('old_ash_rake','weapon'),
   ('packlord_band','ring1'),
   ('packlord_band','ring2'),
   ('panthers_eye_pendant','necklace'),
@@ -1060,7 +1071,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('practice_staff','weapon'),
   ('practice_sword','weapon'),
   ('practice_wand','weapon'),
+  ('quarry_maul','weapon'),
   ('quiet_coat','body'),
+  ('raftwright_hatchets','weapon'),
   ('rat_stick','weapon'),
   ('regent_helm','helmet'),
   ('riftmaw_carapace','body'),
@@ -1133,6 +1146,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('studded_gloves','gloves'),
   ('studded_helmet','helmet'),
   ('studded_pants','pants'),
+  ('tollkeepers_sword','weapon'),
   ('traveler_cape','cape'),
   ('trollhide_cape','cape'),
   ('tusker_charm','necklace'),
@@ -2158,7 +2172,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'ce8fc9240304324ce9ea073818fb80869069e56ad38d1e84be569054c471bfd2', now())
+  values (true, '95a753e3a4884c091abf4ee20802b9378c924071541079f9808158b64b9631b7', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2186,11 +2200,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 636 then raise exception 'hr_items has % rows, generator emitted 636', v_n; end if;
+  if v_n <> 643 then raise exception 'hr_items has % rows, generator emitted 643', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '70753039aa872cb1751d9b0b9383293b' then
-    raise exception 'hr_items names differ from src/data (expected digest 70753039aa872cb1751d9b0b9383293b)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'a275f097f8e87f9dd39584c45c09af07' then
+    raise exception 'hr_items names differ from src/data (expected digest a275f097f8e87f9dd39584c45c09af07)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2276,8 +2290,8 @@ begin
      and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
   if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
   select count(*) into v_n from public.hr_items where req_skill = 'level';
-  if v_n <> 287 then
-    raise exception 'hr_items holds % Level-gated rows, the generator emitted 287', v_n;
+  if v_n <> 294 then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted 294', v_n;
   end if;
 
   -- No client write policy may exist on a catalogue table.
@@ -2390,7 +2404,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ce8fc9240304324ce9ea073818fb80869069e56ad38d1e84be569054c471bfd2',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 95a753e3a4884c091abf4ee20802b9378c924071541079f9808158b64b9631b7',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

@@ -102,35 +102,35 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
   /* Combat training (lane/c-combat-training hr_training_start, hr_house_dummy_unlock). The ones with the server's numbers are
      src/shell/training-words.js's. */
   training_start: Object.freeze({
-    quote_changed: 'Price changed. Check it and press Start training again.',
-    low_level: 'Training opens at Level 10. Hunt a little longer first.',
-    hunt_open: 'Your hero is out hunting. Come back to town to train.',
-    in_party: 'Training is solo. Leave the party first.',
-    insufficient_gold: 'You don\'t have enough gold for the first hour.',
-    not_owned: 'Your dummy can\'t train that skill yet (unlock it in the House)',
-    dummy_busy: 'Another hero is on your dummy at home right now.',
-    bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
+    quote_changed: 'Price changed',
+    low_level: 'Level too low',
+    hunt_open: 'Not available while hunting',
+    in_party: 'Not available in a party',
+    insufficient_gold: 'Not enough gold',
+    not_owned: 'Skill locked on the home dummy',
+    dummy_busy: 'Dummy in use',
+    bad_skill: 'Melee, Ranged, Magic or Defense only',
   }),
   scaled_hunt_buy: Object.freeze({ quote_changed: 'Price changed. Check it and buy again.' }),
   /* The training items (2027-04-23-training-gear.sql). The ones with the server's numbers are src/shell/training-words.js's. */
   training_gear_buy: Object.freeze({
-    quote_changed: 'The price changed. Look at the new price and press Buy again.',
-    feature_off: 'Training items aren\'t for sale yet.',
-    not_for_sale: 'The Arms Master doesn\'t sell that one.',
-    bad_item: 'That isn\'t a training item.',
-    buy_limit: 'Daily limit reached. The Arms Master sells more tomorrow',
-    insufficient_gold: 'You don\'t have enough gold for that.',
-    bag_full: 'Your bag is full. Make room and buy it again.',
+    quote_changed: 'Price changed',
+    feature_off: 'Not for sale yet',
+    not_for_sale: 'Not for sale',
+    bad_item: 'Not a training item',
+    buy_limit: 'Daily limit reached',
+    insufficient_gold: 'Not enough gold',
+    bag_full: 'Bag full',
   }),
   training_gear_open: Object.freeze({
-    feature_off: 'Training items aren\'t open yet.',
-    bad_item: 'That isn\'t a training item.',
-    still_open: 'That skill\'s item still has hours left (next opens after it)',
-    none_held: 'You don\'t have one in your bag or Storage.',
+    feature_off: 'Not available yet',
+    bad_item: 'Not a training item',
+    still_open: 'Training item already active',
+    none_held: 'None in bag or Storage',
   }),
   training_gear_switch: Object.freeze({
-    feature_off: 'Training items aren\'t open yet.',
-    bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
+    feature_off: 'Not available yet',
+    bad_skill: 'Melee, Ranged, Magic or Defense only',
   }),
   /* When the hunt ends (hr_hunt_after_set): the page lists only what the server offers, so these answer a page that fell behind. */
   hunt_after_set: Object.freeze({
@@ -358,9 +358,9 @@ export const REFUSAL_WORDS = Object.freeze({
   training_only: 'That spot is for training. Start it from the Training window.',
   dummy_max: 'Your dummy trains every skill already.',
   /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
-  buy_limit: 'That is all you can buy today. Try again after midnight UTC.',
-  still_open: 'That skill\'s item still has hours left (next opens after it)',
-  none_held: 'You don\'t have one in your bag or Storage.',
+  buy_limit: 'Daily limit reached',
+  still_open: 'Training item already active',
+  none_held: 'None in bag or Storage',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
      internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
   /* These two open the centered popup (src/shell/windows/play-cap.js), never a window's foot line. */

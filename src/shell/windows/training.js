@@ -20,7 +20,7 @@
 import { trainingOf, quoteFor, runForMs, gearFor, offersFor } from '../../session/training-sections.js?v=0.2.134';
 import { startTraining, stopTraining, buyGear, openGear, useGear } from '../../session/training-intents.js?v=0.2.134';
 import { itemName } from '../widgets/bits.js?v=0.2.134';
-import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.134';
+import { goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.134';
 import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
 import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.134';
 import { whole } from '../../render/format.js?v=0.2.134';
@@ -55,13 +55,12 @@ export function wherePicked(sc, tr, skill) {
  * server's own record: out hunting, in a party, no quote, a purse under the first hour, a dummy in use.
  */
 export function startBlock(cs, tr, skill, where) {
-  const name = nameOf(cs) || t('training.your_hero');
   const h = huntOf(cs);
-  if (h && !h.ended && h.huntId !== YARD_GROUND) return t('training.hunting', { name });
+  if (h && !h.ended && h.huntId !== YARD_GROUND) return t('training.hunting');
   /* THE LEVEL GATE (the server's rate row: the Level it opens at and this hero's) */
   const r = tr.rate;
-  if (r && r.level !== null && r.minLevel !== null && r.level < r.minLevel) return t('training.low_level', { need: r.minLevel, level: r.level });
-  if (partyOf(cs)) return t('training.in_party', { name });
+  if (r && r.level !== null && r.minLevel !== null && r.level < r.minLevel) return t('training.low_level', { need: r.minLevel });
+  if (partyOf(cs)) return t('training.in_party');
   const q = quoteFor(tr, skill);
   if (!skill || !q) return t('training.closed');
   if (where === 'house') {
@@ -92,13 +91,13 @@ export function renderTraining(ctx) {
     + '<button type="button" class="tw-place" role="radio" data-hs-act="where" data-where="yard">' + esc(t('training.where_yard')) + '</button>'
     + '<button type="button" class="tw-place" role="radio" data-hs-act="where" data-where="house">' + esc(t('training.where_house')) + '</button>'
     + '</div></div>'
-    + '<p class="hs-note tw-terms"></p>'
+    + '<p class="hs-note tw-terms"></p><p class="hs-note tw-max"></p>'
     + '</div>'
     + '<section class="tw-gear" hidden><h3 class="hs-sub">' + esc(t('training.gear_head')) + '</h3>'
     + '<p class="tw-line tw-gear-left"></p>'
     + '<label class="tw-gear-use" hidden><input type="checkbox" class="tw-gear-on" data-hs-act="gear-use"><span class="tw-gear-use-text"></span></label>'
     + '<div class="tw-gear-held"></div><div class="tw-gear-shop"></div>'
-    + '<p class="hs-note tw-gear-note"></p></section>'
+    + '<p class="hs-note tw-gear-note"></p><p class="hs-note tw-gear-day"></p></section>'
     + '<div class="tw-foot"><p class="hw-why tw-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tw-go" data-hs-act="train-start">' + esc(t('training.press_start')) + '</button>'
     + '<button type="button" class="hh-tool tw-stop" data-hs-act="train-stop" hidden>' + esc(t('controls.stop')) + '</button>'
@@ -181,8 +180,10 @@ function patchGear(root, tr, skill, sc) {
       prop(b, 'disabled', sc.pending);
     },
   });
-  text(root.querySelector('.tw-gear-note'), !shopOn ? t('training.gear_closed')
-    : t('training.gear_card', { skill: skillWord(skill) }) + (tr.shop.max !== null ? ' ' + t('training.gear_today', { today: tr.shop.today, max: tr.shop.max }) : ''));
+  text(root.querySelector('.tw-gear-note'), !shopOn ? t('training.gear_closed') : t('training.gear_card', { skill: skillWord(skill) }));
+  const day = shopOn && tr.shop.max !== null ? t('training.gear_today', { today: tr.shop.today, max: tr.shop.max }) : '';
+  prop(root.querySelector('.tw-gear-day'), 'hidden', !day);
+  text(root.querySelector('.tw-gear-day'), day);
 }
 
 /* A minute clock while the window shows a run: the patch asks itself again; a closed window drops it. */
@@ -199,7 +200,6 @@ renderTraining.patch = function patchTraining(body, ctx) {
   const tr = trainingOf(cs);
   if (!tr) { if (ctx.wm && typeof ctx.wm.close === 'function') ctx.wm.close('training'); return; }
   const sc = scratchOf(cs);
-  const name = nameOf(cs) || t('training.your_hero');
   const purse = goldOf(cs);
   text(root.querySelector('.tw-purse'), purse === null ? '' : t('training.purse', { gold: whole(purse) }));
 
@@ -207,13 +207,13 @@ renderTraining.patch = function patchTraining(body, ctx) {
   const run = tr.run;
   prop(root.querySelector('.tw-run'), 'hidden', !run);
   if (run) {
-    text(root.querySelector('.tw-now'), t('training.run_now', { name, skill: skillWord(run.skill) }));
+    text(root.querySelector('.tw-now'), t('training.run_now', { skill: skillWord(run.skill) }));
     text(root.querySelector('.tw-run-where'), run.where === 'house' ? t('training.run_where_house') : t('training.run_where_yard', { gold: whole(run.feeH) }));
     text(root.querySelector('.tw-run-clock'), t('training.run_clock', { time: timeWords(runForMs(run, serverNow(cs))) }));
     text(root.querySelector('.tw-run-paid'), run.where === 'yard' ? t('training.run_paid', { gold: whole(run.paid) }) : '');
   }
   armClock(ctx, root, sc, !!run);
-  const ended = run ? '' : endedWords(tr.lastStop, nameOf(cs));
+  const ended = run ? '' : endedWords(tr.lastStop);
   prop(root.querySelector('.tw-ended'), 'hidden', !ended);
   text(root.querySelector('.tw-ended'), ended);
 
@@ -231,8 +231,12 @@ renderTraining.patch = function patchTraining(body, ctx) {
   const owned = !!(tr.dummy && tr.dummy.owned.includes(skill));
   prop(root.querySelector('.tw-where-box'), 'hidden', !owned);
   for (const b of root.querySelectorAll('.tw-place')) attr(b, 'aria-checked', String(b.getAttribute('data-where') === where));
-  text(root.querySelector('.tw-terms'), where === 'house' ? (tr.maxHours ? t('training.max_hours', { hours: tr.maxHours }) : '')
-    : t('training.paid_ahead') + (tr.maxHours ? ' ' + t('training.max_hours', { hours: tr.maxHours }) : ''));
+  /* two labels, a line each: the yard's fee is paid as each hour starts; the longest one session runs */
+  const terms = where === 'house' ? '' : t('training.paid_ahead'), most = tr.maxHours ? t('training.max_hours', { hours: tr.maxHours }) : '';
+  prop(root.querySelector('.tw-terms'), 'hidden', !terms);
+  text(root.querySelector('.tw-terms'), terms);
+  prop(root.querySelector('.tw-max'), 'hidden', !most);
+  text(root.querySelector('.tw-max'), most);
   for (const b of root.querySelectorAll('.tw-skill, .tw-place')) prop(b, 'disabled', sc.pending);
   patchGear(root, tr, run ? run.skill : skill, sc);
 
@@ -263,7 +267,7 @@ renderTraining.act = function actTraining(ctx, body, action, ev, el) {
     const skill = skillPicked(sc, tr), where = wherePicked(sc, tr, skill), q = quoteFor(tr, skill);
     if (startBlock(cs, tr, skill, where) || !q) { repaint(); return true; }
     runIntent(sc, repaint, () => startTraining(ctx.account, cs, { skill, where, feeSeen: where === 'house' ? 0 : q.feeH }), t('training.busy_start'),
-      () => t('training.started', { name: nameOf(cs) || t('training.your_hero'), skill: skillWord(skill) }), cs);
+      () => t('training.started'), cs);
     return true;
   }
   if (action === 'train-stop') {
@@ -281,7 +285,7 @@ renderTraining.act = function actTraining(ctx, body, action, ev, el) {
     const item = el.getAttribute('data-item');
     const g = tr.gear.find((x) => x.bag.concat(x.stored).some((h) => h.item === item));
     if (!g) { repaint(); return true; }
-    runIntent(sc, repaint, () => openGear(ctx.account, cs, item), t('training.busy_open'), () => t('training.opened', { item: itemName(item), skill: skillWord(g.skill) }), cs);
+    runIntent(sc, repaint, () => openGear(ctx.account, cs, item), t('training.busy_open'), () => t('training.opened', { item: itemName(item) }), cs);
     return true;
   }
   if (action === 'gear-use') {

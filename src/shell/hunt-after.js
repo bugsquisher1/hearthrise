@@ -21,8 +21,6 @@ import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.134';
 import { trainingOf } from '../session/training-sections.js?v=0.2.134';
 import { townActivityWords, partyMembershipOf } from '../session/party-sections.js?v=0.2.134';
 import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.134';
-import { trainingOf as trainingHuntOf } from '../data/training.js?v=0.2.134';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.134';
 import { skillName } from './widgets/bits.js?v=0.2.134';
 
 /* The server's job in words ("working on Cooked Shrimp", "mining the Copper Rock"), or null. */
@@ -81,23 +79,21 @@ export function afterChoices(cs) {
   return { options, picked, note: fell ? t('away.note_no_job') : notes[picked] || '' };
 }
 
-/* A plan in words, from a choice, its skill and the job it would go back to. `session`: what runs now, in a word ("hunt"). */
-function planWords(choice, skill, job, session) {
+/* A plan as a label ("Then: wait in town"), from a choice, its skill and the job it would go back to. A hunt and a training session read
+   the same: the label names no session, so a yard session never says "hunt" (lane/a-training-leftovers). */
+function planWords(choice, skill, job) {
   const row = AFTER_INDEX[choice];
   const doing = doingOf(job);
-  if (row && row.runs === 'training' && skill) return t('away.then_train', { session, skill: skillName(skill) });
-  if (row && row.runs === 'job' && doing) return job.left !== null ? t('away.then_job_left', { session, doing, n: whole(job.left) }) : t('away.then_job', { session, doing });
-  return t('away.then_wait', { session });
+  if (row && row.runs === 'training' && skill) return t('away.then_train', { skill: skillName(skill) });
+  if (row && row.runs === 'job' && doing) return job.left !== null ? t('away.then_job_left', { doing, n: whole(job.left) }) : t('away.then_job', { doing });
+  return t('away.then_wait');
 }
-
-/* What the running session is, in a word: a training ground's session is a training session (src/data/training.js), any other a hunt. */
-const sessionWord = (h) => t(h && h.huntId && trainingHuntOf(h.huntId) ? 'away.session_training' : 'away.session_hunt');
 
 /** The running session's own plan, or '' when none runs or the server has not said. Pure. */
 export function thenWords(cs) {
   const a = huntAfterOf(cs);
   if (!a || !a.now) return '';
-  return planWords(a.now.choice, a.now.skill, a.job, sessionWord(huntOf(cs)));
+  return planWords(a.now.choice, a.now.skill, a.job);
 }
 
 /**

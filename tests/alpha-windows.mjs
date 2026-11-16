@@ -1123,6 +1123,8 @@ async function itemTruthRules(base) {
     if (it.slot === 'ammo' && it.reqSkill === 'magic' && !/^Rune/.test(kindWords(id))) fails.push('AW-60 the rune ' + id + ' is headed ' + kindWords(id));
     if (/Sell it at the shop/.test(said) && !(Number(it.v) > 0)) fails.push('AW-60 ' + id + ' says to sell it, and the shop bids nothing on it');
     if (it.seed && !/Plant it on the Farm/.test(said)) fails.push('AW-60 the seed ' + id + ' reads ' + said);
+    /* a training item is opened in Training (its skill and hours, the row's own), never "sell it" (lane/c-training-gear-arm read it so) */
+    if (it.type === 'training' && (said !== 'Open in Training: ' + it.training.hours + ' h of 200% ' + ({ melee: 'Melee', ranged: 'Ranged', magic: 'Magic', defense: 'Defense' })[it.training.skill] + ' XP' || kindWords(id) !== 'Training item')) fails.push('AW-60 the training item ' + id + ' reads ' + JSON.stringify([kindWords(id), said]));
     if (kindWords(id) === 'Junk' && /(Made|Gathered|Grown) with/.test(srcs)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + srcs);
     if (kindWords(id) === 'Junk' && /^Used in /.test(said)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + said);
     if (it.type === 'tool') {

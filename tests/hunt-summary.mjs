@@ -262,8 +262,8 @@ async function runTests(M) {
     eq(MD.withTrainingStop(early, stop).train, c.train, 'the stop fills the fee and levels');
     eq([MD.withTrainingStop(early, { ...stop, session: 'sess-other' }), MD.withTrainingStop(c, stop)], [null, null], 'another session\'s stop, or a card already full: nothing');
     /* why it ended: the Training window's words, never a hunt's */
-    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'You stopped Wren\'s Defense training.', 'stopped');
-    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Wren finished Defense training. That was the longest one session can run.', 'the 12-hour end');
+    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'Defense training stopped', 'stopped');
+    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Defense training ended: max session reached', 'the 12-hour end');
     eq(MD.endWords('hours', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.hours, 'a hunt keeps its own words');
     eq(card(sess({ hunt: 'wickstead' }), stop).train, null, 'a hunt is no training card');
   });
@@ -508,7 +508,7 @@ const MUTANTS = [
   { test: 'S7', file: MODEL, from: "    tier: typeof s.tier === 'string' ? s.tier : null,\n", to: '' },
   { test: 'S7', file: SUMMARIES, from: "    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,\n", to: '' },
   { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
-  { test: 'S8', file: MODEL, from: "  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill }, hero);\n", to: '' },
+  { test: 'S8', file: MODEL, from: "  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill });\n", to: '' },
   { test: 'S8', file: MODEL, from: "fee: mine ? mine.paid : null,", to: "fee: null," },
   { test: 'S8', file: MODEL, from: "  if (train) {\n    const dur", to: "  if (false) {\n    const dur" },
   { test: 'S8', file: SUMMARIES, from: "    train: trainOf(v.train),\n", to: '' },

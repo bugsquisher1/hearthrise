@@ -47,14 +47,11 @@ export const AWAY_TEXT = Object.freeze({
   train_party: 'Training is solo (waits in town while in a party)',
   after_hunting: 'You can change this once the hunt is over.',
   saving: 'Saving…',
-  /* The running session's own plan, on the analyzer. {session} names what is running: a hunt, or a training session at the
-     yard or the house dummy (a training session is a hunt session, src/data/training.js). */
-  then_wait: 'After this {session} your hero waits in town.',
-  then_job: 'After this {session} your hero goes back to {doing}.',
-  then_job_left: 'After this {session} your hero goes back to {doing} ({n} left)',
-  then_train: 'After this {session} your hero trains {skill} at the yard.',
-  session_hunt: 'hunt',
-  session_training: 'training session',
+  /* The running session's own plan, on the analyzer: a label (Tyler 2026-11-14), the same for a hunt and a training session. */
+  then_wait: 'Then: wait in town',
+  then_job: 'Then: back to {doing}',
+  then_job_left: 'Then: back to {doing} ({n} left)',
+  then_train: 'Then: train {skill} at the yard',
   /* What came of the ended hunt's choice, on the summary and the away card. */
   done_pending: '{name} is on the way to the yard to train {skill}.',
   done_started: 'Then {name} went to the yard to train {skill}.',

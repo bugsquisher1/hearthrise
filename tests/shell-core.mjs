@@ -1090,16 +1090,17 @@ async function runTests(mods) {
       '[{"choice":"train","skill":"melee"},{"choice":"wait","skill":null},null,null,null]', 'afterPick');
     /* the running hunt's own plan */
     const run = (choice, skill, job) => HA.thenWords(hero({ choice: 'wait', skill: null, job, now: { session: 's-9', choice, skill } }));
-    eq(run('job', null, ROCK), 'After this hunt your hero goes back to mining the Copper Rock.', 'then: the job');
+    eq(run('job', null, ROCK), 'Then: back to mining the Copper Rock', 'then: the job');
     ok(/\(7 left\)$/.test(run('job', null, { kind: 'artisan', id: 'cook_shrimp', left: 7 })), 'then: a bench and its count');
-    eq(run('job', null, null), 'After this hunt your hero waits in town.', 'then: no job is waiting');
-    eq(run('train', 'melee', ROCK), 'After this hunt your hero trains Melee at the yard.', 'then: the yard');
+    eq(run('job', null, null), 'Then: wait in town', 'then: no job is waiting');
+    eq(run('train', 'melee', ROCK), 'Then: train Melee at the yard', 'then: the yard');
     eq(HA.thenWords(hero({ choice: 'job', skill: null, job: ROCK })), '', 'no hunt running: no plan line');
-    /* a training session names itself, never a hunt (lane/a-training-leftovers: the yard's analyzer read "After this hunt ..."); a hunt keeps its word */
+    /* a training session never reads as a hunt (lane/a-training-leftovers: the yard's analyzer read "After this hunt ..."): the plan is a label
+       that names no session (lane/c-training-gear-arm), the same for the yard, the house dummy and a hunt */
     const on = (huntId) => HA.thenWords({ read: (k) => ({ hunt_after: { choice: 'wait', skill: null, job: null, now: { session: 's-9', choice: 'wait', skill: null } },
       training: TR, hunt: { session_id: 's-9', hunt_id: huntId } })[k] });
     eq([on('training_yard_melee'), on('training_house_defense'), on('mill_cellar')],
-      ['After this training session your hero waits in town.', 'After this training session your hero waits in town.', 'After this hunt your hero waits in town.'], 'then: the session\'s own word');
+      ['Then: wait in town', 'Then: wait in town', 'Then: wait in town'], 'then: no session word, so never "hunt" for a training session');
     /* what came of the ended hunt's choice */
     const came = (done, id = 's-1') => HA.afterDoneWords(hero({ choice: 'job', skill: null, job: null, last: { session: 's-1', choice: 'train', skill: 'melee', done } }), id, 'Wrenna');
     eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Then Wrenna went to the yard to train Melee.', 'started');

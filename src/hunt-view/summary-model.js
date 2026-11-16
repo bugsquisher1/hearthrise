@@ -71,10 +71,10 @@ export const FORFEIT_WORDS = Object.freeze({ server: t('summary.forfeit_server')
     (`why`, end_by_why) and itself (`hero`), "Mira ran out of stamina, so Oren came home too." (party-words.js cameHomeWords). */
 export function endWords(reason, forfeit, by, hero, why, hunt) {
   if (typeof by === 'string' && by && (reason === 'party_member_left' || reason === 'party_member_died')) return cameHomeWords(reason, by, why, hero);
-  /* A TRAINING SESSION (src/data/training.js) is no hunt: the Training window's own words ("Wren finished Defense training. That was the
-     longest one session can run."), never "The hunt reached its time limit." or "You left the hunt." */
+  /* A TRAINING SESSION (src/data/training.js) is no hunt: the Training window's own label ("Defense training ended: max session
+     reached"), never "The hunt reached its time limit." or "You left the hunt." */
   const train = hunt ? trainedBy(hunt) : null;
-  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill }, hero);
+  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill });
   /* A KEYED HALL'S KILL (src/data/boss-halls.js) names him and no title: END_WORDS.boss_felled is a called room's. */
   const room = reason === 'boss_felled' && hunt ? roomOfHunt(hunt) : null;
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.felled.replace('{Boss}', room.Boss);

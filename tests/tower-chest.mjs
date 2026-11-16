@@ -170,6 +170,26 @@ async function oddsArm(db, M) {
   const a = await one(db, `select public.hr_chest_roll($1, 0, 77, 160000, 'bow', $2::text[])`, [UID, FAMS]);
   const b = await one(db, `select public.hr_chest_roll($1, 0, 77, 160000, 'bow', $2::text[])`, [UID, FAMS]);
   if (JSON.stringify(a) !== JSON.stringify(b)) bad.push('TCH-ODDS one key rolled twice read two numbers');
+  /* END TO END: a day's 200 Bronze Keys through the verb itself, 20 a press: the weapons found sum to the chances the rows were rolled at
+     (the warmth moving between keys), within the same tolerance */
+  const e2e = await H.inTx(db, async () => {
+    await hero(db, M, { tower_key_bronze: 200 }, ['bronze']);
+    const refused = [];
+    /* a press that throws (chest_opens_hit: the table itself refuses a weapon recorded over its roll) is a refusal here too */
+    for (let i = 0; i < 10; i++) {
+      await db.query('savepoint tch_e2e');
+      try { const res = await open(db, 'bronze', 20, 0); if (!res || res.ok !== true) refused.push(res); await db.query('release savepoint tch_e2e'); }
+      catch (e) { await db.query('rollback to savepoint tch_e2e'); refused.push({ threw: String(e.message).slice(0, 160) }); }
+    }
+    return { refused, rows: await opensOf(db) };
+  });
+  if (e2e.refused.length) bad.push('TCH-ODDS end to end: a press was refused: ' + JSON.stringify(e2e.refused[0]).slice(0, 200));
+  else {
+    const mean = e2e.rows.reduce((s, x) => s + x.chance_ppm / 1e6, 0), sd = Math.sqrt(e2e.rows.reduce((s, x) => s + (x.chance_ppm / 1e6) * (1 - x.chance_ppm / 1e6), 0));
+    const hits = e2e.rows.filter((x) => x.weapon).length, z = (hits - mean) / sd;
+    if (e2e.rows.length !== 200 || !(Math.abs(z) < Z)) bad.push(`TCH-ODDS end to end: ${hits} weapons in ${e2e.rows.length} keys against ${mean.toFixed(1)} expected (z ${z.toFixed(1)})`);
+    if (e2e.rows.some((x) => (x.weapon !== null) !== (x.roll < x.chance_ppm) || x.chance_ppm !== M.CH.chestChancePpm(by.bronze, x.dry, 0))) bad.push('TCH-ODDS end to end: a row\'s weapon or chance is not its roll\'s and warmth\'s');
+  }
   return bad;
 }
 
@@ -459,6 +479,8 @@ const MUTANTS = [
     find: '  if v_r >= coalesce(p_chance, 0) or', replace: '  if v_r >= 2 * coalesce(p_chance, 0) or' },
   { name: 'the family worn has no weight', arm: 'odds', want: /^TCH-ODDS .*wearing/, fn: 'public.hr_chest_roll(uuid,integer,bigint,integer,text,text[])',
     find: '  if p_own is not null and p_own = any (p_families) then', replace: '  if false then' },
+  { name: 'the open rolls a chance it does not record', arm: 'odds', want: /^TCH-ODDS end to end/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: 'v_roll := public.hr_chest_roll(v_uid, p_slot, v_n, v_chance, v_own, v_fams);', replace: 'v_roll := public.hr_chest_roll(v_uid, p_slot, v_n, 2 * v_chance, v_own, v_fams);' },
   { name: 'a landing mints two keys', arm: 'mint', want: /^TCH-MINT/, fn: 'public.hr_tower_key_mint()',
     find: 'values (new.user_id, new.slot, v_k.item_id, 1)', replace: 'values (new.user_id, new.slot, v_k.item_id, 2)' },
   { name: 'a landing mints the lowest key', arm: 'mint', want: /^TCH-MINT/, fn: 'public.hr_tower_key_mint()',

@@ -4331,8 +4331,8 @@ jobs:
       # THE HEARTH CHEST (2027-04-27-tower-chest.sql; Tyler 2026-11-14, the Burning Tower board §5): a key from every landing row, both paths
       # (browser closed, hunt viewed), once; the open on the server's seeded dice at 16 / 8 / 4.5 / 2% x the warmth x the stoke, half the
       # family worn; the warmth grows and caps, a weapon cools it, a stoke burns its Cinders bag then Storage; every forged chest, key,
-      # count and stoke refused, a key used once, the bag checked before any roll. --mutate (16).
-      - name: Hearth Chest — keys from landings, the server's dice, forged values refused (16 mutants)
+      # count and stoke refused, a key used once, the bag checked before any roll. --mutate (17).
+      - name: Hearth Chest — keys from landings, the server's dice, forged values refused (17 mutants)
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-chests.mjs --check

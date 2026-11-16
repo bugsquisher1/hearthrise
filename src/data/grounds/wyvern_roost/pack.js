@@ -124,11 +124,13 @@ export default definePack({
     tail_sweep: { n: 'Tail Sweep', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 16000, hitPm: 1000, element: null },
     fire_breath: { n: 'Fire Breath', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
   },
-  /* THE BAG: the Hold's store food, and the ice rune (wyverns take 15% more from ice). Not measured for cost. */
+  /* THE BAG: Swordfish, the store food from Level 120 (the armor ruling's handoff 1, board 2026-11-15 Armor past Dawnsteel: the Hold's Lobster heals
+     9% of a tank here and a Deadly four died 6.5 times in 16 hero-hours on the line in it, 1 in Swordfish), and the ice rune (wyverns take 15% more from
+     ice). Its deaths are the full grade's (lane/a-grader-uniques). */
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
+    ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_swordfish', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.10 / 1.06 of the contract at the floor and middle (the bow 1.15, the best lone way after the Mage), so 0.94.
      A four of four classes read 0.58 / 0.53 and a tank and Healer 0.77 / 0.72, so the four 1000 x 1.20 / 0.514 = 2335, the pair 1000 x 1.10 / 0.69 = 1595, the

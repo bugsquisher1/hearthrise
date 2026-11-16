@@ -6,7 +6,7 @@
 // src/data/chests.js holds the chest's open key table, what each key always holds, the weapon chance, the Hearth's warmth and the stokes.
 // Postgres must know them to do what only it may: mint a landing's key (hr_tower_key_mint), work out a key's chance again inside the open
 // (hr_chest_chance_ppm), roll it on its own dice, take the stokes' Cinders and pay the haul (hr_chest_open). Emitted as hr_chests,
-// hr_chest_keys, hr_chest_stokes, hr_chest_luck, hr_chest_families, hr_chest_weapons (each key's weapon a family: none built today) and
+// hr_chest_keys, hr_chest_stokes, hr_chest_luck, hr_chest_families, hr_chest_weapons (each key's weapon a family: src/data/tower-weapons.js) and
 // hr_chest_weapon_families (every weapon item's family, the "type you have equipped" the open reads from the hero's own equipment row).
 // Read by supabase/migrations/2027-04-27-tower-chest.sql.
 //
@@ -24,6 +24,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
 import { CHESTS, CHEST_KEYS, CHEST_LUCK, CINDERS, WEAPON_FAMILY_KEYS, weaponFamilyOf, keySalts, validateChests } from '../src/data/chests.js';
+import { TOWER_WEAPONS } from '../src/data/tower-weapons.js';
 import { WEAPON_FAMILIES } from '../src/data/gear-tiers.js';
 import { TOWER_RULES } from '../src/data/tower.js';
 import { ITEMS } from '../src/data/items.js';
@@ -34,8 +35,8 @@ export const OUT_NAME = '2027-04-27-tower-chest-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. */
-export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = ITEMS, families = WEAPON_FAMILIES } = {}) {
-  const problems = validateChests(keys, luck, TOWER_RULES.landingEvery);
+export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = ITEMS, families = WEAPON_FAMILIES, tower = TOWER_WEAPONS } = {}) {
+  const problems = validateChests(keys, luck, TOWER_RULES.landingEvery, undefined, tower);
   const isItem = (id) => Object.hasOwn(items, id);
   if (!isItem(CINDERS)) problems.push('the Cinders (' + CINDERS + ') are no item');
   for (const k of keys) {
@@ -78,7 +79,7 @@ export function build(input) {
 -- hr_chests (one row today); hr_chest_keys (${r.keys.length} rows: the open table, a landing's key is the highest row at or under it); hr_chest_stokes
 --   (${L.stokes.length}: a stoke count's multiplier and its price in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family
 --   weight, the per-call and per-day clamps); hr_chest_families (the ${WEAPON_FAMILY_KEYS.length} weapon families, the "types"); hr_chest_weapons (each key's
---   weapon a family: ${r.weapons.length} built today, so no key is ready and the open refuses chest_not_ready); hr_chest_weapon_families (${r.weaponFamilies.length}
+--   weapon a family: ${r.weapons.length} rows; a key short of its ${WEAPON_FAMILY_KEYS.length} is refused chest_not_ready); hr_chest_weapon_families (${r.weaponFamilies.length}
 --   weapon items and their family). All rewritten whole: no player row points at any of them (the key and Cinders items are hr_items rows).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower.
 -- REVERSIBLE: drop the seven tables after 2027-04-27-tower-chest.sql's reversal.
@@ -175,8 +176,9 @@ begin
               where b.weapon_pm > a.weapon_pm or b.cinders <= a.cinders or b.skill_plus <= a.skill_plus) then
     raise exception 'chest-catalogue §4: a higher key is no better than the one under it'; end if;
   if (select count(*) from public.hr_chest_stokes) <> ${L.stokes.length} or (select count(*) from public.hr_chest_luck) <> 1
-     or (select count(*) from public.hr_chest_families) <> ${WEAPON_FAMILY_KEYS.length} or (select count(*) from public.hr_chests) <> ${Object.keys(CHESTS).length} then
-    raise exception 'chest-catalogue §4: the stokes, the luck row, the families or the chests are not the data''s'; end if;
+     or (select count(*) from public.hr_chest_families) <> ${WEAPON_FAMILY_KEYS.length} or (select count(*) from public.hr_chests) <> ${Object.keys(CHESTS).length}
+     or (select count(*) from public.hr_chest_weapons) <> ${r.weapons.length} then
+    raise exception 'chest-catalogue §4: the stokes, the luck row, the families, the chests or the tower weapons are not the data''s'; end if;
   if exists (select 1 from public.hr_chest_stokes a join public.hr_chest_stokes b on b.stokes = a.stokes + 1 where b.pm <= a.pm or b.keys <= a.keys) then
     raise exception 'chest-catalogue §4: a stoke buys no more chance for more Cinders than the one before'; end if;
   if exists (select 1 from public.hr_chest_keys k where not exists (select 1 from public.hr_items i where i.item_id = k.item_id and not i.tradeable and i.value = 0))
@@ -229,6 +231,12 @@ function selftest() {
   bites('a stoke that costs less than the one before', 'is not more chance for more Cinders', { luck: { ...CHEST_LUCK, stokes: [CHEST_LUCK.stokes[0], { pm: 2500, keys: 2 }] } });
   bites('a warmth cap under the base', 'warmthCapPm is under the base', { luck: { ...CHEST_LUCK, warmthCapPm: 900 } });
   bites('a family rung that reads another family', 'is a sword rung', { families: [{ key: 'sword', ids: ['shortbow'] }] });
+  /* the tower weapons' own rows (src/data/tower-weapons.js): one a key and family, each of a key that exists, each its own id and name */
+  const T = TOWER_WEAPONS, tw = (i, row) => T.map((w, j) => (j === i ? { ...w, ...row } : w));
+  bites('two tower weapons of one family for one key', 'a second sword for the bronze key', { tower: tw(1, { family: 'sword' }) });
+  bites('a tower weapon of a key no row has', 'is no key', { tower: tw(0, { key: 'diamond' }) });
+  bites('two tower weapons with one name', 'another tower weapon is called', { tower: tw(1, { name: T[0].name }) });
+  bites('a tower weapon with no line', 'no line', { tower: tw(2, { line: ' ' }) });
   /* the rows are the data's: every weapon item and its own family, the salts derived from the tempering table */
   const r = catalogueRows();
   const ok = r.weaponFamilies.length > 50 && r.weaponFamilies.every((w) => weaponFamilyOf(ITEMS[w.item]) === w.family)

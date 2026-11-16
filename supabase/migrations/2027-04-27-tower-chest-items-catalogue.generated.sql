@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 2fc9a1b157624caf48d3fb2735673475204f5334f26f65d1bdf439ee15eaa670
---   rows: 657 items (19 untradeable) ·
---         368 item-slot pairs · 14 equip slots ·
+--   catalogue digest: e8f99f551168c32906bab5248c5a976944d3ccc8f737f79bcfedf12084ce8552
+--   rows: 664 items (19 untradeable) ·
+--         375 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 380 activities ·
 --         0 runes
 --
@@ -307,6 +307,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('choirbone_gauntlets','Choirbone Gauntlets',true,'armor',63000,'level',88,null,false,'heavy',false),
   ('cistern_venom_gland','Cistern Venom Gland',true,null,40,null,null,null,false,null,false),
   ('coal','Coal',true,null,10,null,null,null,false,null,false),
+  ('coalbearers_sword','Coalbearer''s Sword',true,'weapon',36000,'level',88,null,false,null,false),
   ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'melee',1,null,false,null,false),
   ('coffin_nail','Coffin Nail',true,null,114,null,null,null,false,null,false),
   ('color_cord','Color Cord',true,null,116,null,null,null,false,null,false),
@@ -440,7 +441,10 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('field_cookbook','Field Cookbook',true,null,0,null,null,null,false,null,false),
   ('field_ration','Field Ration',true,null,90,null,null,null,false,null,false),
   ('fine_temper_salts','Fine Tempering Salts',true,null,60,null,null,null,false,null,false),
+  ('first_keepers_staff','First Keeper''s Staff',true,'weapon',36000,'level',88,null,false,null,true),
+  ('firstfell_hatchets','Firstfell Hatchets',true,'weapon',36000,'level',88,null,false,null,true),
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,408,false,null,false),
+  ('flue_watch_crossbow','Flue-Watch Crossbow',true,'weapon',36000,'level',88,null,false,null,false),
   ('flux_salt','Fluxsalt',true,null,15,null,null,null,false,null,false),
   ('ford_weed','Ford Weed',true,null,100,null,null,null,false,null,false),
   ('foremans_lash','Foreman''s Lash',true,null,92,null,null,null,false,null,false),
@@ -477,6 +481,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('hasks_coin','Hask''s Coin',true,null,150,null,null,null,false,null,false),
   ('heartgarnet','Heartgarnet',true,null,30,null,null,null,false,null,false),
   ('heartgarnet_maul','Heartgarnet Maul',true,'weapon',990,'level',42,null,false,null,false),
+  ('hearth_masons_maul','Hearth-Mason''s Maul',true,'weapon',39600,'level',88,null,false,null,true),
   ('hearth_token','Hearth Token',true,null,25000,null,null,null,false,null,false),
   ('hell_ember','Hell Ember',true,null,600,null,null,null,false,null,false),
   ('herring','Raw Herring',true,null,14,null,null,48,true,null,false),
@@ -507,6 +512,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('jarls_rimetorc','Jarl''s Collar',true,'jewelry',3300,'level',66,null,false,null,false),
   ('kennel_tag','Kennel Tag',true,null,144,null,null,null,false,null,false),
   ('keystone','Keystone',true,null,3000,null,null,null,false,null,false),
+  ('kindling_wand','Kindling Wand',true,'weapon',32400,'level',88,null,false,null,false),
   ('kingsgrate','Kingsgrate',true,'offhand',300,'level',15,null,false,null,false),
   ('klappas_club','Klappa''s Club',true,'weapon',100,'level',5,null,false,null,true),
   ('knotted_tails','Knotted Tails',true,null,50,null,null,null,false,null,false),
@@ -724,6 +730,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('steel_warhammer','Steel Warhammer',true,'weapon',550,'level',30,null,false,null,true),
   ('steel_whetstone','Steel Whetstone',true,'ammo',11,'melee',45,null,false,null,false),
   ('steelgrate','Steelgrate',true,'offhand',750,'level',30,null,false,null,false),
+  ('steeplejacks_bow','Steeplejack''s Bow',true,'weapon',37800,'level',88,null,false,null,true),
   ('sticky_core','Sticky Core',true,null,4,null,null,null,false,null,false),
   ('stone_maul','Stone Maul',true,'weapon',110,'level',1,null,false,null,true),
   ('studded_belt','Studded Leather Belt',true,'armor',75,'level',15,null,false,'medium',false),
@@ -938,6 +945,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('chitin_pants','pants'),
   ('chitinweave_cloak','cape'),
   ('choirbone_gauntlets','gloves'),
+  ('coalbearers_sword','weapon'),
   ('coarse_whetstone','ammo'),
   ('copper_ring','ring1'),
   ('copper_ring','ring2'),
@@ -1011,6 +1019,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('fang_studs','earrings'),
   ('fangdart_recurve','weapon'),
   ('ferrymans_bow','weapon'),
+  ('first_keepers_staff','weapon'),
+  ('firstfell_hatchets','weapon'),
+  ('flue_watch_crossbow','weapon'),
   ('fowling_bow','weapon'),
   ('gold_amulet','necklace'),
   ('gold_ring','ring1'),
@@ -1024,6 +1035,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('grayjaws_ruff','cape'),
   ('graypelt_cloak','cape'),
   ('heartgarnet_maul','weapon'),
+  ('hearth_masons_maul','weapon'),
   ('hollow_sigil_ring','ring1'),
   ('hollow_sigil_ring','ring2'),
   ('houndskin_cloak','cape'),
@@ -1042,6 +1054,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('iron_whetstone','ammo'),
   ('ironbound_shield','shield'),
   ('jarls_rimetorc','necklace'),
+  ('kindling_wand','weapon'),
   ('kingsgrate','shield'),
   ('klappas_club','weapon'),
   ('lamplighters_wand','weapon'),
@@ -1165,6 +1178,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('steel_warhammer','weapon'),
   ('steel_whetstone','ammo'),
   ('steelgrate','shield'),
+  ('steeplejacks_bow','weapon'),
   ('stone_maul','weapon'),
   ('studded_belt','belt'),
   ('studded_body','body'),
@@ -2200,7 +2214,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '2fc9a1b157624caf48d3fb2735673475204f5334f26f65d1bdf439ee15eaa670', now())
+  values (true, 'e8f99f551168c32906bab5248c5a976944d3ccc8f737f79bcfedf12084ce8552', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2228,11 +2242,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 657 then raise exception 'hr_items has % rows, generator emitted 657', v_n; end if;
+  if v_n <> 664 then raise exception 'hr_items has % rows, generator emitted 664', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '34aba4d968d3994cae2ce0d6551b2d81' then
-    raise exception 'hr_items names differ from src/data (expected digest 34aba4d968d3994cae2ce0d6551b2d81)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '8413e63dca6e396c919ed217256fa086' then
+    raise exception 'hr_items names differ from src/data (expected digest 8413e63dca6e396c919ed217256fa086)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2318,8 +2332,8 @@ begin
      and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
   if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
   select count(*) into v_n from public.hr_items where req_skill = 'level';
-  if v_n <> 308 then
-    raise exception 'hr_items holds % Level-gated rows, the generator emitted 308', v_n;
+  if v_n <> 315 then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted 315', v_n;
   end if;
 
   -- No client write policy may exist on a catalogue table.
@@ -2432,7 +2446,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 2fc9a1b157624caf48d3fb2735673475204f5334f26f65d1bdf439ee15eaa670',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest e8f99f551168c32906bab5248c5a976944d3ccc8f737f79bcfedf12084ce8552',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

@@ -60,6 +60,15 @@ export const TOWER_WEAPONS = Object.freeze([
   row('gold', 'wand', 'sextons_wand', 'Sexton\'s Wand', 'The sexton started the dead\'s fires with it, back when the Hearth was only a hearth'),
   row('gold', 'hatchets', 'cordwood_hatchets', 'Cordwood Hatchets', 'They split the wood for every burning at the Hearth, and nothing else'),
   row('gold', 'crossbow', 'lychgate_crossbow', 'Lychgate Crossbow', 'The dead waited at the lychgate before their burning. Its guard kept the wolves off them with this'),
+  /* PLATINUM (worn at Level 88, the Dawnsteel or Duskwood numbers, +4): the third batch. "First" is the lock's theme, so it is said in two
+     names and one line, not in every line. */
+  row('platinum', 'sword', 'coalbearers_sword', 'Coalbearer\'s Sword', 'She carried the coal that lit the Hearth, and this sword kept her alive on the road'),
+  row('platinum', 'warhammer', 'hearth_masons_maul', 'Hearth-Mason\'s Maul', 'It set every stone of the Great Hearth, and not one of them has cracked since'),
+  row('platinum', 'bow', 'steeplejacks_bow', 'Steeplejack\'s Bow', 'He climbed the chimney to look for the top, long before the fire got in. He came back down with this and never said what he saw'),
+  row('platinum', 'staff', 'first_keepers_staff', 'First Keeper\'s Staff', 'The Keepers\' own staff, from before anybody wrote their names down. Every Keeper since has wanted it back'),
+  row('platinum', 'wand', 'kindling_wand', 'Kindling Wand', 'It lit the Great Hearth. The fire\'s been going ever since'),
+  row('platinum', 'hatchets', 'firstfell_hatchets', 'Firstfell Hatchets', 'They felled the tree the Hearth burned on its first night'),
+  row('platinum', 'crossbow', 'flue_watch_crossbow', 'Flue-Watch Crossbow', 'The old Keepers kept a guard at the chimney\'s mouth, and the guard kept this'),
 ]);
 
 /* One line an item (src/data/item-descriptions.js spreads it). */

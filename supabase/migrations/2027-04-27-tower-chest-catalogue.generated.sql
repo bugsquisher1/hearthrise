@@ -8,7 +8,7 @@
 -- hr_chests (one row today); hr_chest_keys (4 rows: the open table, a landing's key is the highest row at or under it); hr_chest_stokes
 --   (3: a stoke count's multiplier and its price in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family
 --   weight, the per-call and per-day clamps); hr_chest_families (the 7 weapon families, the "types"); hr_chest_weapons (each key's
---   weapon a family: 21 built today, so no key is ready and the open refuses chest_not_ready); hr_chest_weapon_families (97
+--   weapon a family: 28 rows; a key short of its 7 is refused chest_not_ready); hr_chest_weapon_families (104
 --   weapon items and their family). All rewritten whole: no player row points at any of them (the key and Cinders items are hr_items rows).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower.
 -- REVERSIBLE: drop the seven tables after 2027-04-27-tower-chest.sql's reversal.
@@ -120,7 +120,14 @@ insert into public.hr_chest_weapons (key_id, family, item_id) values
   ('gold', 'staff', 'mourners_staff'),
   ('gold', 'wand', 'sextons_wand'),
   ('gold', 'hatchets', 'cordwood_hatchets'),
-  ('gold', 'crossbow', 'lychgate_crossbow');
+  ('gold', 'crossbow', 'lychgate_crossbow'),
+  ('platinum', 'sword', 'coalbearers_sword'),
+  ('platinum', 'warhammer', 'hearth_masons_maul'),
+  ('platinum', 'bow', 'steeplejacks_bow'),
+  ('platinum', 'staff', 'first_keepers_staff'),
+  ('platinum', 'wand', 'kindling_wand'),
+  ('platinum', 'hatchets', 'firstfell_hatchets'),
+  ('platinum', 'crossbow', 'flue_watch_crossbow');
 delete from public.hr_chest_weapon_families;
 insert into public.hr_chest_weapon_families (item_id, family) values
   ('alphaheart_longbow', 'bow'),
@@ -134,6 +141,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('captains_ribblade', 'sword'),
   ('chandlers_wand', 'wand'),
   ('chief_blade', 'sword'),
+  ('coalbearers_sword', 'sword'),
   ('cordwood_hatchets', 'hatchets'),
   ('dawn_hatchets', 'hatchets'),
   ('dawn_sword', 'sword'),
@@ -153,11 +161,16 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('emberfang_blade', 'sword'),
   ('fangdart_recurve', 'bow'),
   ('ferrymans_bow', 'bow'),
+  ('first_keepers_staff', 'staff'),
+  ('firstfell_hatchets', 'hatchets'),
+  ('flue_watch_crossbow', 'crossbow'),
   ('fowling_bow', 'bow'),
   ('heartgarnet_maul', 'warhammer'),
+  ('hearth_masons_maul', 'warhammer'),
   ('iron_hatchets', 'hatchets'),
   ('iron_sword', 'sword'),
   ('iron_warhammer', 'warhammer'),
+  ('kindling_wand', 'wand'),
   ('klappas_club', 'warhammer'),
   ('lamplighters_wand', 'wand'),
   ('lazlos_maul', 'warhammer'),
@@ -202,6 +215,7 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('steel_hatchets', 'hatchets'),
   ('steel_sword', 'sword'),
   ('steel_warhammer', 'warhammer'),
+  ('steeplejacks_bow', 'bow'),
   ('stone_maul', 'warhammer'),
   ('tollkeepers_sword', 'sword'),
   ('verdite_blade', 'sword'),
@@ -233,8 +247,9 @@ begin
               where b.weapon_pm > a.weapon_pm or b.cinders <= a.cinders or b.skill_plus <= a.skill_plus) then
     raise exception 'chest-catalogue §4: a higher key is no better than the one under it'; end if;
   if (select count(*) from public.hr_chest_stokes) <> 3 or (select count(*) from public.hr_chest_luck) <> 1
-     or (select count(*) from public.hr_chest_families) <> 7 or (select count(*) from public.hr_chests) <> 1 then
-    raise exception 'chest-catalogue §4: the stokes, the luck row, the families or the chests are not the data''s'; end if;
+     or (select count(*) from public.hr_chest_families) <> 7 or (select count(*) from public.hr_chests) <> 1
+     or (select count(*) from public.hr_chest_weapons) <> 28 then
+    raise exception 'chest-catalogue §4: the stokes, the luck row, the families, the chests or the tower weapons are not the data''s'; end if;
   if exists (select 1 from public.hr_chest_stokes a join public.hr_chest_stokes b on b.stokes = a.stokes + 1 where b.pm <= a.pm or b.keys <= a.keys) then
     raise exception 'chest-catalogue §4: a stoke buys no more chance for more Cinders than the one before'; end if;
   if exists (select 1 from public.hr_chest_keys k where not exists (select 1 from public.hr_items i where i.item_id = k.item_id and not i.tradeable and i.value = 0))

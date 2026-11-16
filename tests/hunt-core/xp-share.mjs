@@ -80,7 +80,7 @@ function scaledKillOn(M, id, roles, xp, partyPm) {
 
 const cases = {
   /* THE OVER-FITTED GROUNDS' BIG-PULL CELLS (Tyler 2026-11-16, party-class-xp.js PARTY_TIER_PM): on Hask's Ford a mixed four is paid its cell x 555 on
-     Deadly and x 765 on Dangerous, the cell whole on Normal and with no tier; a pair and a one-class four are paid their cells on every tier. The kill
+     Deadly and x 675 on Dangerous, the cell whole on Normal and with no tier; a pair and a one-class four are paid their cells on every tier. The kill
      reads the hunt's tier off the instance (inst.tier, the tier row: its id), the one call both paths make. */
   'party-tier-cut': async (M) => {
     const { PARTY_CLASS_XP, PARTY_TIER_PM } = await pc(M);

@@ -66,16 +66,17 @@ export const SOLO_XP_PM = 1150;
    the Dangerous four already reads only 1.6-1.7x its heroes alone, so the Deadly cut would carry it under solo. So each over-fitted ground's MIXED cells
    (two classes and up) of a three and a four take a permille ON THE TIER, read at each kill from the hunt's tier (xp-share.js): a Deadly mixed four
    lands at most about 2.45x the contract (andy's hammer + bow + mage + a Healer five under, and tank + Healer + bow + mage, floor and middle), every
-   Dangerous and Deadly mix stays over the same heroes alone (the tank four at least 1.05x) and Dangerous pays no more than Deadly. Normal, pairs,
+   Dangerous and Deadly mix stays over the same heroes alone (the tank four at least 1.05x), and a Dangerous four earns about 0.90-0.97x a Deadly one
+   (at least 1.10x its Normal: on the Glade, whose Normal four reads 1.98x at the floor, that floor sets it). Normal, pairs,
    one-class cells and every other ground are untouched (Normal isn't meant for parties, Tyler 2026-11-16, so no bar asks it to, and none is cut).
    The cost, on the Glade alone: its Deadly four reads under 1.25x its Normal four at the floor (balance-sheet.js tiers.deadly, a grader line).
    Ground → tier → { party size: permille on that size's mixed cells }. A tier or size not named pays the cell as written. */
 const PARTY_TIER_PM = Object.freeze({
-  mosslight_glade: Object.freeze({ dangerous: Object.freeze({ 3: 890, 4: 700 }), deadly: Object.freeze({ 3: 780, 4: 545 }) }),
-  hasks_ford: Object.freeze({ dangerous: Object.freeze({ 3: 900, 4: 765 }), deadly: Object.freeze({ 3: 805, 4: 555 }) }),
-  the_slake: Object.freeze({ dangerous: Object.freeze({ 3: 945, 4: 790 }), deadly: Object.freeze({ 3: 895, 4: 630 }) }),
-  krells_hold: Object.freeze({ dangerous: Object.freeze({ 4: 720 }), deadly: Object.freeze({ 4: 670 }) }),
-  pyre_field: Object.freeze({ dangerous: Object.freeze({ 4: 875 }), deadly: Object.freeze({ 4: 855 }) }),
+  mosslight_glade: Object.freeze({ dangerous: Object.freeze({ 3: 890, 4: 670 }), deadly: Object.freeze({ 3: 780, 4: 545 }) }),
+  hasks_ford: Object.freeze({ dangerous: Object.freeze({ 3: 900, 4: 675 }), deadly: Object.freeze({ 3: 805, 4: 555 }) }),
+  the_slake: Object.freeze({ dangerous: Object.freeze({ 3: 945, 4: 705 }), deadly: Object.freeze({ 3: 895, 4: 630 }) }),
+  krells_hold: Object.freeze({ dangerous: Object.freeze({ 4: 640 }), deadly: Object.freeze({ 4: 670 }) }),
+  pyre_field: Object.freeze({ dangerous: Object.freeze({ 4: 790 }), deadly: Object.freeze({ 4: 855 }) }),
 });
 export { PARTY_TIER_PM };
 

@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-16 lane/d-weapon-line: the weapon line past Dawnsteel, a budget and not a template
+- **A ceiling has to hold on every ground, not just the piece's home.** A heavy piece budgeted on the hard-skinned Vaults reads over the line on the soft Ox Road. Holding it at or under the line on every late ground is what makes each piece's trade real: it's under the line somewhere else.
+- **Accuracy is nearly free past 110 because it caps.** At 95% against most heads, a third more attack moved the Watchman's Sword's power by a few percent; only Keeper Dunn and the Bone Walls pay it. Size a precise piece on the hard heads, or it's a worse sword.
+- **"Each wins somewhere" needs a pair.** One unique of a family at a Level beats Dawnsteel everywhere by design; the trade only shows between two uniques of a family at one Level (the two Vaults swords split the ground by head, and by Level: the Watchman's at 165, the Limewashed at 185).
+- **A budget piece can look worse on its card.** The Wagon Guard's Sword reads 43 / 32 against Dawnsteel's 42 / 35 and is 7% better on the Roost. Without a "on this ground" line the player throws away the right sword.
+- **A file's name in a comment can trip another guard.** special-attributes SA1 greps for the filename text, so a comment naming it reads as an import.
+
 ## 2026-11-16 lane/d-morrow-cleanup: the four late grounds' last reds, the lone Healer, gold on Normal
 - **`pack check` stamps its folder with a hash of everything a cell reads** (`tools/pack.mjs inputsHash`: src, the settle, the simulator), so any edit, a comment included, re-plays every cell. Write the pack's comments before the last check, and rename the folder first to keep the before. `grade.mjs` run directly has no stamp: give it its own `--out`.
 - **Gold isn't graded, so a green pack check can lose money for six ways of eight.** The Vaults' floor did (-8k to -92k an hour on Normal). Print every way's net at the floor, middle and top before calling a ground done.

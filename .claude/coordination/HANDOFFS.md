@@ -1,5 +1,12 @@
 # Handoffs
 
+### 2026-11-16 · GAME DESIGNER (lane/d-weapon-line) → TYLER, COORDINATOR, ART DIRECTOR, the armor line's owner · the weapon line past Dawnsteel
+Board "2026-11-16 The weapon line past Dawnsteel". Hidden rows only (src/data/weapon-line.js); nothing served.
+1. **Tyler:** approve the rule (a power ceiling: the Dawnsteel weapon x Level / 110, read on the engine's rolls on every ground from 110 up; each unique spends it its own way and wins somewhere) and the sample of five.
+2. **The armor line's owner (lane/d-armor-past-dawnsteel):** re-read it as a budget (the board section's part 4 lists the four changes: the header, AL3/AL4 to a measured ceiling plus "each wins somewhere", the five twin rows, and the Pauper's Shroud's `magicStrB` 36, already red on AL4 since lane/d-mage-110).
+3. **Art Director:** a budget piece can read worse than Dawnsteel on its card and be better on its ground (DISCOVERIES 2026-11-16). The card (and the bag's upgrade pick, which offers it only as a choice) needs a "here" line before the rows ship.
+4. **Coordinator:** register tests/weapon-line.mjs (plain and --mutate) with armor-line.mjs when smoke.yml frees (guards-unregistered.json names it).
+
 ### 2026-11-16 · GAME DESIGNER (lane/d-morrow-cleanup) → TYLER, COORDINATOR, SYSTEMS · the late grounds cleaned up; one red left
 Board "2026-11-16 The late grounds, cleaned up". Carter's Rest and the Ox Road `pack check --mode full --uniques` exit 0; Wyvern Roost and the Vaults exit 1 on one line only, a lone sword's and axes' Normal low point (58.3-59.1 against 60).
 1. **Tyler, the weapon line past Dawnsteel:** measured as a what-if (Melee weapons x R/110), it clears both reds and turns the hammer and tank's floor gold positive on both grounds. Without it, Melee alone at a floor past 120 pays to hunt on Normal (the Vaults' sword -35k to -92k an hour). Your call; no pack dial does it without a named exception.

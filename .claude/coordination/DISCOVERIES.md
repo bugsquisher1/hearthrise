@@ -4,6 +4,13 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-16 · game-designer (lane/d-weapon-line) · past Dawnsteel a unique can be better and read worse
+- **DISCOVERY.** Under the weapon line's budget a unique spends its power its own way, so its card numbers can be lower than Dawnsteel's and it still wins where it's meant to. The Wagon Guard's Sword is 43 attack / 32 damage against the Dawnsteel Sword's 42 / 35 and 7% stronger on Wyvern Roost (every head a Dragon, its bane); the two Vaults swords trade places by ground and by Level. Measured: `node tools/balance-sim/weapon-power.mjs`.
+- **AFFECTED.** The item card; the bag's one-press upgrade (`src/shell/upgrade-plan.js` picks only a piece better on every number, so a lower-damage bane weapon is offered as the player's choice, never as the upgrade, with nothing saying where it wins); gear setups.
+- **REQUIRED ACTION.** Art Director: when the rows ship, the card needs a line for what a weapon does on the ground being hunted (its power there against the worn one), or the player has no way to know the Roost's sword is the Wagon Guard's. Systems: gear setups remembered per ground (the Morrow's missing item 5), so the choice is made once.
+
+---
+
 ## 2026-11-16 · game-designer (lane/d-morrow-cleanup) · a staged thrower lands on every lone ranged hero on Normal, and the gold isn't graded
 - **DISCOVERY.** A shooter aims at the hero farthest back in its pack's area (`src/core/hunt/shooters.js aimOf`); alone, that is always the hero, on every tier. Keeper Dunn's throw (the Vaults, built for the kiting Mage on Dangerous) tripled a lone Normal bow's food (28 to 80 Sharks an hour, +9.5k to -26.1k gold an hour) and the pack check stayed green on it, because gold is printed, never graded (Tyler 11-13). Separately: `pack check`'s out folder is stamped with a hash of src, the settle and the simulator (`tools/pack.mjs inputsHash`), so after ANY edit, a comment included, a re-run plays every cell again; `grade.mjs` run directly has no stamp and resumes by cell id.
 - **AFFECTED.** Any monster `range` on a ground with a Normal tier; any lane quoting a pack check's gold; any lane timing a re-check.

@@ -1,6 +1,6 @@
-// src/data/grounds/pauper_vaults/map.js — THE PAUPER VAULTS: the vaults under Havora's Great Hearth where the Keepers laid the dead nobody
+// src/data/grounds/unmarked_catacombs/map.js — UNMARKED CATACOMBS: the vaults under Havora's Great Hearth where the Keepers laid the dead nobody
 // could pay to burn. Row shape and lint: src/world/core/map-compile.js. Rebuild the hash with `node tests/world-core.mjs --hashes` after changing
-// what blocks a step. Shape of the pack: src/data/grounds/shape.js. Design: the board's "2026-11-15 The Pauper Vaults" (lane/d-catacombs).
+// what blocks a step. Shape of the pack: src/data/grounds/shape.js. Design: the board's "2026-11-15 Unmarked Catacombs" (lane/d-catacombs).
 //
 // THE GRID (lane/d-catacombs, drawn new: rooms and corridors under the town, not an open field). In from the Night Carters' tunnel off the
 // Sewer side (x2-4, north edge), the route is six rooms and back up the hoist shaft:
@@ -24,10 +24,10 @@
 // match these rows). Every placed piece is a Greenhaven kit prop standing in for the vault kit the art list owes (the board's section 8): the
 // niche candles, the bone walls, the Wood Book's lectern, the bier, the hoist. The pack opens only with its own painted ground and pieces.
 export default Object.freeze({
-  id: 'pauper_vaults',
-  name: 'The Pauper Vaults',
+  id: 'unmarked_catacombs',
+  name: 'Unmarked Catacombs',
   kind: 'hunt',
-  hunts: Object.freeze(['pauper_vaults']),
+  hunts: Object.freeze(['unmarked_catacombs']),
   outdoor: false,
   light: 'cellar',
   ground: 'sewer_ground',

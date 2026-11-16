@@ -23,25 +23,25 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.132';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.132';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.132';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.132';
-import { ITEMS } from '../data/items.js?v=0.2.132';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.132';
-import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.132';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.132';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.132';
-import { ABILITIES } from '../data/abilities.js?v=0.2.132';
-import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.132';
-import { itemName, runeWords } from './widgets/bits.js?v=0.2.132';
-import { ownCount } from './rune-supply.js?v=0.2.132';
-import { shortOf } from './item-lore.js?v=0.2.132';
-import { whole, gold } from '../render/format.js?v=0.2.132';
-import { t } from '../render/player-text.js?v=0.2.132';
-import { storeFloorFor } from '../data/supplies.js?v=0.2.132';
-import { heroVitalsOf } from '../session/character-sections.js?v=0.2.132';
-import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.132';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.133';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.133';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.133';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.133';
+import { ITEMS } from '../data/items.js?v=0.2.133';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.133';
+import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.133';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.133';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.133';
+import { ABILITIES } from '../data/abilities.js?v=0.2.133';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.133';
+import { itemName, runeWords } from './widgets/bits.js?v=0.2.133';
+import { ownCount } from './rune-supply.js?v=0.2.133';
+import { shortOf } from './item-lore.js?v=0.2.133';
+import { whole, gold } from '../render/format.js?v=0.2.133';
+import { t } from '../render/player-text.js?v=0.2.133';
+import { storeFloorFor } from '../data/supplies.js?v=0.2.133';
+import { heroVitalsOf } from '../session/character-sections.js?v=0.2.133';
+import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.133';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;

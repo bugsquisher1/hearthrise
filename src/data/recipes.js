@@ -276,6 +276,16 @@ const BASE_RECIPES = {
        demolition 2026-10-14): id, inputs, xp and req unchanged, so every room
        and property offer that spends keystones still resolves. */
     {id:'craft_keystone', name:'Set Keystone', icon:'🧱', inputs:{timber_beam:3, iron_fitting:3, ancient_fragment:2, cracked_spellstone:1}, output:'keystone', outputQty:1, xp:900, req:60, ms:6500},
+    /* THE MARCH'S SALTS, PACKED AT THE WORKBENCH (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's verdict on Crafting:
+       "planks and two cloaks, a one-press grind with no decisions"). From 30 to 88 Crafting made planks, one crossbow and arrows. Now each
+       tempering salt of the March has a second way in: the old case-hardener's pack of charred wood and bone, at the same Crafting level as
+       its metal's Smithing level, the same xp and time as the forge's row (Smithing's mix_*_temper_salts). THE DECISION: feed Tempering from the
+       forge (bars, so coal and the Mithril Rock or the Emberstone Vein) or from the workbench (planks, so the trees), by whichever skill and
+       stock the account has. Each asks a little more book than the forge's (355 against 345, 415 against 395, 345 against 245): no route is
+       free money, and the last one buys freedom from Mining 75. */
+    {id:'pack_mithril_temper_salts', name:'Pack Mithril Tempering Salts', icon:'🧂', inputs:{maple_plank:4, grave_dust:1}, output:'mithril_temper_salts', xp:120, req:45, ms:5000},
+    {id:'pack_rune_temper_salts', name:'Pack Rune Tempering Salts', icon:'🧂', inputs:{yew_plank:2, magic_essence:1, grave_dust:1}, output:'rune_temper_salts', xp:240, req:60, ms:6000},
+    {id:'pack_ember_temper_salts', name:'Pack Ember Tempering Salts', icon:'🧂', inputs:{runewood_plank:1, grave_dust:1}, output:'ember_temper_salts', xp:340, req:75, ms:6400},
   ],
   /* ── INNER FLAME: FUEL THE HEARTH (Tyler 2026-10-25, replacing Prayer's burying rites) ──────────────
      One row per fuel, BUILT from src/data/hearth.js HEARTH_FUELS (the ladder lives there; this bench is its

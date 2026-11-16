@@ -906,3 +906,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - The sim's tank picks the best reachable shield by itself (gear.mjs), so new shields re-dress every March measurement. Hold the old piece with `gear: { also: { shield } }` for the before row, and re-run the boss table from a scratch `git worktree` of the commit before.
 - This shell's heredocs eat one backslash level even when quoted: a script that writes `\'` must be made with the Write tool, or use sed with `.` for the quote.
 - `cd X && (A) & (B)` backgrounds the cd with A: B runs in the session's folder. Run two background jobs as two commands.
+## 2026-11-15 lane/d-audit-balance-2 (the playthrough audit's F14, F17/F20, F28 and Crafting)
+- A food warning is only true where it was measured: 400 store-food cells found one ground (the Barrows) where a store food kills in range. A line on every card would have been false on nine.
+- A "next tier wins" check must be read where the next tier is worn. At the Pyre Field a plate hero in Emberforged already sits at the armor cap, so a maxed ladder there out-guards bare Dawnsteel by 1.2%; at the Hold, where Dawnsteel is worn, it wins by 3.3%.
+- A per-hero cap on a shared purse is the same gift pressed four times. Ask what a cap limits (who finishes a one-time project, how fast) before raising it as a sink: the Works' capacity is its goal, not its cap.
+- Un-holding rows leaves their unreachable items with no use (C2). Check what else a held row was the only use of before re-costing it.
+- Two recipes for one output is the cheapest real decision a bench can get: same xp and time, different skills and stock, a little more book on the new route so neither is free money.
+- A paused lane's measurements live in its scratchpad (career-tank.txt): re-derive the board's numbers from them before re-running a 590-hour career.

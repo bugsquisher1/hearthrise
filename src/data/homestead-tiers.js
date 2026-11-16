@@ -24,11 +24,13 @@
     runes, dragon bones, a dragon gem), and it is far past a beta's first 100 hours: 150,000-320,000 gold, Crafting and
     Smithing 60+. A held row is refused by name (unlock-catalogue.js) and so never reaches the House window (hr_home_view
     lists sellable rows only). SHRINK-ONLY: tests/catalogue-coherence.mjs C12 fails a row whose items have all become
-    reachable, and any row a rung above a visible one could skip to. */
-export const HELD_HOME_OFFERS = Object.freeze([
-  'property.castle',
-  'room.cellar.5', 'room.forge.5', 'room.garden.5', 'room.kitchen.5', 'room.library.5', 'room.shrine.5', 'room.trophy.5', 'room.workshop.5',
-]);
+    reachable, and any row a rung above a visible one could skip to.
+    EMPTY SINCE THE MARCH (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F20: "8 million gold and nothing to
+    spend it on", an account at 4.49M with every hero slot bought). The Castle and the eight fifth rungs are re-costed to what the Barrow
+    March drops and the top crafts make, and priced as the account's long chase: the Castle 2,500,000, the rooms 600,000 to 900,000 each,
+    8,450,000 in all, against the 4.76M one hero banks from Level 45 to 90 (src/data/shops.js `property.castle` carries the table). The
+    list stays, empty, for the next row whose content isn't built. */
+export const HELD_HOME_OFFERS = Object.freeze([]);
 
 /** PROPERTY_TIERS[i] is property tier i. `rooms` are the rooms tier i first opens. */
 export const PROPERTY_TIERS = Object.freeze([
@@ -121,10 +123,10 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 5,
       "cost": {
-        "gold": 400000,
-        "keystone": 2,
-        "duskwood_plank": 30,
-        "dragon_scale": 8
+        "gold": 800000,
+        "cooked_shark": 100,
+        "ember_bar": 8,
+        "runewood_plank": 40
       }
     }
   ],
@@ -165,10 +167,10 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 4,
       "cost": {
-        "gold": 480000,
-        "keystone": 2,
-        "mithril_bar": 20,
-        "dragon_scale": 6
+        "gold": 900000,
+        "ember_bar": 30,
+        "iron_fitting": 40,
+        "rake_tine": 20
       }
     }
   ],
@@ -209,10 +211,10 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 5,
       "cost": {
-        "gold": 450000,
-        "keystone": 2,
-        "duskwood_plank": 30,
-        "ancient_rune": 12
+        "gold": 850000,
+        "magic_essence": 60,
+        "priests_cord": 20,
+        "runewood_plank": 40
       }
     }
   ],
@@ -247,10 +249,10 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 4,
       "cost": {
-        "gold": 300000,
-        "keystone": 2,
-        "duskwood_plank": 40,
-        "moonbloom": 12
+        "gold": 600000,
+        "ford_weed": 30,
+        "moonbloom": 12,
+        "runewood_plank": 40
       }
     }
   ],
@@ -285,10 +287,11 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 4,
       "cost": {
-        "gold": 290000,
-        "keystone": 2,
-        "dragon_scale": 6,
-        "dragon_gem": 1
+        "gold": 600000,
+        "hasks_coin": 5,
+        "runewood_plank": 30,
+        "war_crown": 1,
+        "warrant_seal": 10
       }
     }
   ],
@@ -323,10 +326,10 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 5,
       "cost": {
-        "gold": 320000,
-        "keystone": 2,
+        "gold": 700000,
+        "barrow_nail": 20,
         "moonbloom_elixir": 4,
-        "duskwood_plank": 20
+        "runewood_plank": 30
       }
     }
   ],
@@ -366,10 +369,10 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 4,
       "cost": {
-        "gold": 480000,
-        "keystone": 2,
+        "gold": 900000,
         "duskwood_plank": 25,
-        "rune_bar": 6
+        "rune_bar": 6,
+        "timber_beam": 30
       }
     }
   ],
@@ -404,10 +407,10 @@ export const ROOM_RUNGS = Object.freeze({
     {
       "tier": 4,
       "cost": {
-        "gold": 270000,
-        "keystone": 2,
-        "dragon_bones": 30,
-        "war_crown": 4
+        "gold": 600000,
+        "big_bones": 100,
+        "grave_dust": 100,
+        "shroud_pin": 20
       }
     }
   ]

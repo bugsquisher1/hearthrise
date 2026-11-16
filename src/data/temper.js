@@ -41,7 +41,8 @@ export const TEMPER_MATERIALS = Object.freeze({
   2: Object.freeze({ item: 'temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
   3: Object.freeze({ item: 'fine_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
   /* One salt a tier, mixed at the Smithing level its metal opens at (45, 60, 75), from that metal and the March's Grave Dust: no coal in
-     any of them (src/data/recipes.js mix_mithril_temper_salts and its two sisters carry the why). */
+     any of them (src/data/recipes.js mix_mithril_temper_salts and its two sisters carry the why). Or packed at Crafting's same level from
+     that tier's planks and the dust (pack_mithril_temper_salts and its sisters): the forge or the workbench, the player's call. */
   4: Object.freeze({ item: 'mithril_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
   5: Object.freeze({ item: 'rune_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),
   6: Object.freeze({ item: 'ember_temper_salts', qty: Object.freeze([10, 20, 40, 80, 160]) }),

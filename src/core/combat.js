@@ -99,6 +99,37 @@ export const DEFAULT_PROFILE = {
 };
 
 
+/* ── +SKILL ON WORN GEAR (Tyler 2026-11-14, the Burning Tower's weapons: "+ respective combat skill. bronze +1, silver +2, gold +3,
+   plat +4", and "correct, it functions like it does in tibia": the mechanic only). An item's `<skill>Plus` field (a whole number above 0)
+   raises the hero's level in that combat skill WHILE IT IS WORN, wherever a fight reads that skill: a blow's accuracy and max hit
+   (playerCombatRolls), a monster's chance to land (monsterCombatRolls, the snapshot's `def`), a spell's or heal's output and a bleed's
+   strength (hunt/abilities.js powerLevel). It is never skill XP or a skill level: a rune's version, an ability's unlock, an item's
+   requirement, a task, a title and the boards read the BASE level (levelOf), so they never see it. Summed over every worn piece. */
+export const SKILL_PLUS_FIELDS = Object.freeze({ melee: 'meleePlus', ranged: 'rangedPlus', magic: 'magicPlus', defense: 'defensePlus' });
+
+/** The worn +skill to `skill` in an equipmentStats result (0 with none). Pure. */
+export function skillPlusOf(eq, skill) {
+  const p = eq && eq.skillPlus;
+  const n = p && Object.prototype.hasOwnProperty.call(p, skill) ? p[skill] : 0;
+  return Number.isInteger(n) && n > 0 ? n : 0;
+}
+
+/* The summed +skill of a worn set, { skill: n }, or null when no piece carries one (so every other hero's stats are what they were). */
+function skillPlusWorn(equipment, items) {
+  /** @type {Record<string, number>} */
+  const out = {};
+  let any = false;
+  for (const id of Object.values(equipment || {})) {
+    const it = id && items && Object.prototype.hasOwnProperty.call(items, id) ? items[id] : null;
+    if (!it) continue;
+    for (const [skill, field] of Object.entries(SKILL_PLUS_FIELDS)) {
+      const n = it[field];
+      if (Number.isInteger(n) && n > 0) { out[skill] = (out[skill] || 0) + n; any = true; }
+    }
+  }
+  return any ? out : null;
+}
+
 // ── Derived equipment state ──────────────────────────────────────────────
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -183,6 +214,9 @@ export function equipmentStats(equipment, items) {
      carries any, which no item does yet, so every hero's stats are what they were. */
   const resist = resistOf(equipment, items);
   if (resist) Object.assign(s, { resistPm: resist });
+  /* +SKILL (SKILL_PLUS_FIELDS above): present only on a hero whose gear carries any, so every other hero's stats are what they were. */
+  const plus = skillPlusWorn(equipment, items);
+  if (plus) Object.assign(s, { skillPlus: plus });
   return s;
 }
 
@@ -348,8 +382,9 @@ export function playerCombatRolls(monster, ctx) {
     accBonus += (it[profile.accuracyBonusField] || 0) * share;
     strBonus += (it[profile.strengthBonusField] || 0) * share;
   });
-  const accLvl = levelOf(skills, profile.accuracySkill);
-  const dmgLvl = levelOf(skills, profile.damageSkill);
+  /* the skill a blow reads, with what the worn gear adds to it (+SKILL, above) */
+  const accLvl = levelOf(skills, profile.accuracySkill) + skillPlusOf(eq, profile.accuracySkill);
+  const dmgLvl = levelOf(skills, profile.damageSkill) + skillPlusOf(eq, profile.damageSkill);
 
   const defScore = monsterDefScore(monster);
 
@@ -413,7 +448,7 @@ export function monsterCombatRolls(monster, ctx) {
   const c = ctx || {};
   const eq = c.eq || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
-  const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.guardB || 0);
+  const playerDefense = levelOf(c.skills || {}, 'defense') + skillPlusOf(eq, 'defense') + (eq.guardB || 0);
   return { accuracy: monsterAccuracy(monster, playerDefense), maxHit: monsterMaxHit(monster) };
 }
 

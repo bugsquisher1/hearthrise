@@ -29,10 +29,12 @@
 //   food        the cooked food it always holds: the store food a climb at that height eats (the board's §5). Gold and Platinum read
 //               the Barrow March's bag guides: every ground from 45 to 110 guides Cooked Lobster (src/data/grounds/*/pack.js bagGuide)
 //   weapons     family -> the item a weapon roll of that family gives (gear-tiers.js WEAPON_FAMILIES keys). ONE WEAPON A FAMILY, SEVEN
-//               A KEY (the design's "one of each type"). EMPTY TODAY: the tower weapons' names are the designer's (a sample of five
-//               Silver ones exists, the rest are unnamed), their icons the Art Director's and their +skill the engine's, and none is
-//               built. A key whose seven are not all here is NOT READY: the server refuses to open it (`chest_not_ready`, the key kept),
-//               so nobody is ever paid a roll the table can't honour (chestShipBlockers lists what the switch waits on).
+//               A KEY (the design's "one of each type"). Read from src/data/tower-weapons.js TOWER_WEAPONS (lane/d-tower-weapons: who
+//               left each one, its name and line); the item rows are towerWeaponItems below (the standard weapon of the key's rank,
+//               every number copied, plus the key's skillPlus on the family's own combat skill: src/core/combat.js
+//               SKILL_PLUS_FIELDS). A key whose seven are not all here is NOT READY: the server refuses to open it
+//               (`chest_not_ready`, the key kept), so nobody is ever paid a roll the table can't honour (chestShipBlockers lists what
+//               the switch waits on).
 //
 // THE LUCK (`hr_chest_luck`, one row; the design's "Bad luck, handled in the open", Tyler 2026-11-14):
 //   warmthStepPm  every key that finds no weapon warms the Hearth for that hero's next key by this much of the key's OWN base chance
@@ -52,6 +54,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { TEMPER_MATERIALS } from './temper.js?v=0.2.132';
 import { WEAPON_FAMILIES } from './gear-tiers.js?v=0.2.132';
+import { TOWER_WEAPONS } from './tower-weapons.js?v=0.2.132';
+import { SKILL_PLUS_FIELDS } from '../core/combat.js?v=0.2.132';
 
 /* The one chest today, on the Great Hearth's ledge in Havora (world/stations.js `hearth`). A later chest is a row. */
 export const CHESTS = Object.freeze({
@@ -62,7 +66,8 @@ export const CHESTS = Object.freeze({
 export const CINDERS = 'tower_cinders';
 
 const key = (id, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty) => Object.freeze({
-  id, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty, weapons: Object.freeze({}) });
+  id, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty,
+  weapons: Object.freeze(Object.fromEntries(TOWER_WEAPONS.filter((w) => w.key === id).map((w) => [w.family, w.id]))) });
 
 /* The design's four (§5, Tyler 2026-11-14), in `from` order. Counts are the designer's; none is measured in play. Platinum: the
    coherence pass's C4 says "Ember salts and more Cinders" until a tier 7 ladder exists, with no number for the Cinders: 600 stays the
@@ -156,7 +161,7 @@ export function chestChancePpm(k, dry, stokes, luck = CHEST_LUCK) {
 }
 
 /** Everything wrong with the chest table, as strings (empty: valid). `landingEvery` is TOWER_RULES.landingEvery. Pure. */
-export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = TEMPER_MATERIALS) {
+export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = TEMPER_MATERIALS, tower = TOWER_WEAPONS) {
   const out = [];
   const ID = /^[a-z0-9_]{1,40}$/;
   if (!Array.isArray(keys) || !keys.length) return ['the key table is empty'];
@@ -191,6 +196,20 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
       if (k.cinders <= prev.cinders) out.push(n + ': no more Cinders than ' + prev.id);
     }
     prev = k;
+  }
+  /* THE TOWER WEAPONS' OWN ROWS (tower-weapons.js): a key and a family each, one row a pair (the key's `weapons` map keeps only the last
+     of two), an id no other row takes, a name and a line */
+  const pairs = new Set(), ids = new Set(), names = new Set();
+  for (const w of Array.isArray(tower) ? tower : []) {
+    const n = (w && w.id) || '?';
+    if (!w || !ID.test(String(w.id))) { out.push('tower weapon ' + n + ': its id is not an id'); continue; }
+    if (!seen.has(w.key)) out.push('tower weapon ' + n + ': ' + w.key + ' is no key');
+    if (!WEAPON_FAMILY_KEYS.includes(w.family)) out.push('tower weapon ' + n + ': ' + w.family + ' is no weapon family');
+    if (pairs.has(w.key + ':' + w.family)) out.push('tower weapon ' + n + ': a second ' + w.family + ' for the ' + w.key + ' key');
+    if (ids.has(w.id)) out.push('tower weapon ' + n + ': a second row with this id');
+    for (const f of ['name', 'line']) if (typeof w[f] !== 'string' || !w[f].trim()) out.push('tower weapon ' + n + ': no ' + f);
+    if (names.has(w.name)) out.push('tower weapon ' + n + ': another tower weapon is called ' + w.name);
+    pairs.add(w.key + ':' + w.family); ids.add(w.id); names.add(w.name);
   }
   const allWeapons = keys.flatMap((k) => Object.values(k.weapons || {}));
   if (new Set(allWeapons).size !== allWeapons.length) out.push('one weapon item is named by two keys or families');
@@ -230,6 +249,31 @@ export const CHEST_ITEM_ROWS = Object.freeze({
     towerKey: k.id })])),
   [CINDERS]: Object.freeze({ n: 'Tower Cinders', v: 0, bop: true, tag: 'fuel' }),
 });
+
+/* THE COMBAT SKILL A WEAPON'S +SKILL RAISES, by its weaponType (the design's §6: "Sword, Hammer, Hatchets: Melee. Bow, Crossbow: Ranged.
+   Wand, Staff: Magic"), the same skill its blows read (src/core/member.js deriveProfile). */
+const PLUS_SKILL_OF_TYPE = Object.freeze({ sword: 'melee', hammer: 'melee', axe: 'melee', ranged: 'ranged', magic: 'magic' });
+
+/** The tower weapons' item rows, { id: row }, from the catalogue `items` they join (src/data/items.js calls it once the ladder's
+    hand-authored rungs are backfilled): each the standard weapon of its key's rank (the family's rung at the key's weaponTier,
+    gear-tiers.js WEAPON_FAMILIES), EVERY field copied (accuracy, damage, tier, rarity, Level requirement, book value, hands), its own
+    name, and the key's skillPlus on the family's combat skill (combat.js SKILL_PLUS_FIELDS). Tradeable like any gear (Tyler 2026-10-23:
+    no bound gear). `towerKey` names the lock it came out of. Throws when a rung is missing or reads another family. Pure. */
+export function towerWeaponItems(items, keys = CHEST_KEYS, tower = TOWER_WEAPONS, families = WEAPON_FAMILIES) {
+  /** @type {Record<string, any>} */
+  const out = {};
+  for (const w of tower) {
+    const k = keys.find((x) => x.id === w.key);
+    const fam = families.find((f) => f.key === w.family);
+    const rung = k && fam ? fam.ids[k.weaponTier - 1] : null;
+    const base = rung && Object.prototype.hasOwnProperty.call(items, rung) ? items[rung] : null;
+    if (!base || weaponFamilyOf(base) !== w.family) throw new Error('src/data/chests.js: tower weapon ' + w.id + ' has no ' + w.family + ' rung at tier ' + (k && k.weaponTier));
+    const skill = PLUS_SKILL_OF_TYPE[base.weaponType];
+    if (!skill) throw new Error('src/data/chests.js: tower weapon ' + w.id + ' raises no combat skill');
+    out[w.id] = { ...base, n: w.name, [SKILL_PLUS_FIELDS[skill]]: k.skillPlus, towerKey: k.id };
+  }
+  return out;
+}
 
 /* One line an item (src/data/item-descriptions.js spreads it). Drafts in the design's voice, not through the reader gate. */
 export const CHEST_ITEM_DESC = Object.freeze({

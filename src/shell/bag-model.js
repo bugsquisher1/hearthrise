@@ -357,6 +357,8 @@ const STATS = Object.freeze([
   ['rangeAtkB', 'Ranged accuracy'], ['rangeStrB', 'Ranged damage'],
   ['magicAtkB', 'Magic accuracy'], ['magicStrB', 'Magic damage'],
   ['critB', 'Critical chance', 'pct'], ['steadyPm', 'Damage taken', 'cut'],
+  /* +SKILL while worn (src/core/combat.js SKILL_PLUS_FIELDS: a tower weapon's) */
+  ['meleePlus', 'Melee skill'], ['rangedPlus', 'Ranged skill'], ['magicPlus', 'Magic skill'], ['defensePlus', 'Defense skill'],
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);

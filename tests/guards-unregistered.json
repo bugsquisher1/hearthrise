@@ -159,13 +159,13 @@
       }
     },
     "armor-line.mjs": {
-      "reason": "THE HIDDEN SAMPLE'S RULES (designer, lane/d-armor-past-dawnsteel, PRIORITY_BOARD 2026-11-15 Armor past Dawnsteel): the five line rows in src/data/armor-line.js are in no catalogue and no src/ file imports them, so nothing shipped depends on this guard yet. Not in smoke.yml for special-attributes.mjs's reason (lane/a-133-ci-time holds smoke.yml and tests/ci-shape.baseline.json this cycle). It is registered, plain and --mutate, by the lane that moves the sample into its catalogues, or by the Coordinator once the CI lane lands, whichever is first.",
+      "reason": "THE HIDDEN SAMPLE'S RULES (designer, lane/d-armor-past-dawnsteel, re-done as a budget in lane/d-armor-line-v2, PRIORITY_BOARD 2026-11-16 The armor line past Dawnsteel, as a budget): the eight line rows in src/data/armor-line.js are in no catalogue and no src/ file imports them, so nothing shipped depends on this guard yet. Not in smoke.yml for special-attributes.mjs's reason (lane/a-133-ci-time holds smoke.yml and tests/ci-shape.baseline.json this cycle). It is registered, plain and --mutate, by the lane that moves the sample into its catalogues, or by the Coordinator once the CI lane lands, whichever is first.",
       "owner": "game-designer",
       "disposition": "register-when-the-sample-ships",
       "verified": {
         "asserts": true,
         "selftest": true,
-        "runner": "by hand: node tests/armor-line.mjs && node tests/armor-line.mjs --mutate (both EXIT 0 on lane/d-armor-past-dawnsteel, 18 of 18 mutants caught)"
+        "runner": "by hand: node tests/armor-line.mjs && node tests/armor-line.mjs --mutate (both EXIT 0 on lane/d-armor-line-v2, 29 of 29 mutants caught)"
       }
     },
     "weapon-line.mjs": {
@@ -245,7 +245,7 @@
       "runner": "by hand: node tests/special-attributes.mjs --mutate"
     },
     "tests/armor-line.mjs": {
-      "reason": "THE HIDDEN SAMPLE'S RULES (designer, lane/d-armor-past-dawnsteel, PRIORITY_BOARD 2026-11-15 Armor past Dawnsteel): the five line rows in src/data/armor-line.js are in no catalogue and no src/ file imports them, so nothing shipped depends on this guard yet. Not in smoke.yml for special-attributes.mjs's reason (lane/a-133-ci-time holds smoke.yml this cycle). It is registered, plain and --mutate, by the lane that moves the sample into its catalogues, or by the Coordinator once the CI lane lands, whichever is first.",
+      "reason": "THE HIDDEN SAMPLE'S RULES (designer, lane/d-armor-past-dawnsteel, re-done as a budget in lane/d-armor-line-v2, PRIORITY_BOARD 2026-11-16 The armor line past Dawnsteel, as a budget): the eight line rows in src/data/armor-line.js are in no catalogue and no src/ file imports them, so nothing shipped depends on this guard yet. Not in smoke.yml for special-attributes.mjs's reason (lane/a-133-ci-time holds smoke.yml this cycle). It is registered, plain and --mutate, by the lane that moves the sample into its catalogues, or by the Coordinator once the CI lane lands, whichever is first.",
       "owner": "game-designer",
       "disposition": "register-when-the-sample-ships",
       "runner": "by hand: node tests/armor-line.mjs --mutate"

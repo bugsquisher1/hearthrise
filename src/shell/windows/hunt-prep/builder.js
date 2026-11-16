@@ -202,7 +202,7 @@ export function saveDraft(ctx, sc, repaint, andUse) {
 
 /** BASIC SETUP: the copy's bar becomes the basic setup of the weapon type the picked setup fights as (its discipline, the server's),
     with the moves the server's skill levels allow and the food and drink the hero carries (basic-setup.js). The fight options stay. */
-export function loadBasic(ctx, sc) {
+function loadBasic(ctx, sc) {
   const cs = ctx.character;
   const bar = sc.draft && sc.view ? basicBar({ discipline: sc.view.discipline, skills: skillsOf(cs), carried: carriedOf(cs) }) : null;
   if (!bar) return false;

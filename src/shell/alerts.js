@@ -325,7 +325,7 @@ export function createAlertCenter(account, opts) {
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);
     /* A level-up in this record that unlocked moves (spell-news.js): one line for all of them, never on a load. */
-    const spell = spells.news(cs, (id) => wasSeen(cs, id));
+    const spell = spells.news(cs, (id) => wasSeen(cs, id), who(cs));
     if (spell) now.push(spell);
     /* Before it fires: firing writes the residue, and the listeners' scan runs inside that write. */
     if (away && !seenOf(cs.slot).has(away.id)) youngAway.set(cs.slot, { at: Date.now(), seen: residueOf(cs).seen, off: residueOf(cs).off });

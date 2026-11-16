@@ -41,8 +41,8 @@ export function movesOnBar(set) {
 export function spellWatch() {
   const base = new Map();
   return {
-    /** The prompt this record raises, or null. `seen(id)`: has the centre shown that id already. */
-    news(cs, seen) {
+    /** The prompt this record raises, or null. `seen(id)`: has the centre shown that id already; `hero`: the hero's name as the centre says it. */
+    news(cs, seen, hero) {
       const now = skillsOf(cs);
       if (!now) return null;
       const was = base.get(cs.slot);
@@ -54,7 +54,7 @@ export function spellWatch() {
       const ids = unlockedBetween(was, now, set.discipline).filter((id) => !held.has(id) && !seen(spellNewsId(id)));
       if (!ids.length) return null;
       return { id: spellNewsId(ids[0]), also: ids.slice(1).map(spellNewsId), kind: 'spell', session: null, spells: ids,
-        text: t('bar.new_spell', { count: ids.length, names: ids.map((id) => ABILITIES[id].n).join(', ') }) };
+        text: t('bar.new_spell', { count: ids.length, hero, names: ids.map((id) => ABILITIES[id].n).join(', ') }) };
     },
     forget(slot) { base.delete(slot); },
   };

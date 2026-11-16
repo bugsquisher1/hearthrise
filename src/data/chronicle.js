@@ -29,8 +29,13 @@ const at = (hunt) => ({ kind: 'ground', hunt });
 export const CHRONICLE = Object.freeze([
   page('havora', { kind: 'start' }),
   page('cellar', at('mill_cellar')),
+  page('thicket', at('meadowbrook_thicket')),
   page('sewer', at('millrace_sewer')),
   /* the Sewer's boss, alone in his Hall or with a party in the last room: either title counts his kills */
   page('rat_king', { kind: 'kills', titles: Object.freeze(['knotcutter', 'grate_thief']) }),
   page('wickstead', at('wickstead')),
+  page('glade', at('mosslight_glade')),
+  page('warrens', at('coppercap_warrens')),
+  /* the road north (the Barrow March, open since v0.2.132): the Road North's own facts, approved 2026-11-11 */
+  page('ford', at('hasks_ford')),
 ]);

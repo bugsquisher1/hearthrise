@@ -1625,12 +1625,22 @@ async function planRules(base) {
     {
       const BM = await imp('src/shell/bag-model.js');
       const line = (id, key) => { const s = BM.statLines(id).find((x) => x.key === key); return s ? s.label + ' ' + s.text : 'no line'; };
-      if (line('banded_legguards', 'resistPm.physical') !== 'Physical damage taken −3%') fails.push('AW-21 the Banded Legguards\' card reads ' + line('banded_legguards', 'resistPm.physical') + ', not Physical damage taken −3%');
+      /* less from every hit is ONE stat with one name (coherence pass 2026-11-15 C3: the Legguards' physical resistance merged into a cape's steadyPm) */
+      if (line('banded_legguards', 'steadyPm') !== 'Damage taken −3%' || BM.statLines('banded_legguards').some((s) => /^resistPm/.test(s.key))) fails.push('AW-21 the Banded Legguards\' card reads ' + JSON.stringify(BM.statLines('banded_legguards')) + ', not Damage taken −3% and no resistance');
       if (line('krells_tollgate', 'resistPm.ember') !== 'Fire damage taken −10%') fails.push('AW-21 Krell\'s Tollgate\'s card reads ' + line('krells_tollgate', 'resistPm.ember') + ', not Fire damage taken −10%');
       if (line('krells_tollgate', 'defB') !== 'Defense +15' || BM.statLines('krells_tollgate').length !== 2) fails.push('AW-21 Krell\'s Tollgate\'s card is not its guard and its one attribute: ' + JSON.stringify(BM.statLines('krells_tollgate')));
       if (BM.statLines('dawn_platelegs').some((s) => /^resistPm/.test(s.key))) fails.push('AW-21 a piece with no resistance shows a resistance line');
+      /* each element by its own word: a what-if ice row (no shipped piece resists anything but fire yet) */
+      const { ITEMS: RI } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+      RI.aw21_ice_cape = { n: 'Ice Test Cape', slot: 'cape', type: 'armor', resistPm: { frost: 100 } };
+      try {
+        if (line('aw21_ice_cape', 'resistPm.frost') !== 'Ice damage taken −10%') fails.push('AW-21 an ice resistance reads ' + line('aw21_ice_cape', 'resistPm.frost') + ', not Ice damage taken −10%');
+        /* the comparison names each resistance gained and lost: the ice cape against the Tollgate */
+        const swap = JSON.stringify(BM.compare('aw21_ice_cape', 'krells_tollgate').filter((x) => / damage taken$/.test(x.label)));
+        if (swap !== '[{"label":"Fire damage taken","delta":-100,"text":"+10%"},{"label":"Ice damage taken","delta":100,"text":"−10%"}]') fails.push('AW-21 the ice cape against the Tollgate reads ' + swap + ', not +10% fire and −10% ice taken');
+      } finally { delete RI.aw21_ice_cape; }
       const cmp = JSON.stringify(BM.compare('banded_legguards', 'dawn_platelegs'));
-      if (cmp !== '[{"label":"Physical damage taken","delta":30,"text":"−3%"}]') fails.push('AW-21 the Banded Legguards against Dawnsteel Platelegs read ' + cmp + ', not the 3% alone');
+      if (cmp !== '[{"label":"Damage taken","delta":30,"text":"−3%"}]') fails.push('AW-21 the Banded Legguards against Dawnsteel Platelegs read ' + cmp + ', not the 3% alone');
       /* WHERE THEY COME FROM (found on the card at runtime, lane/c-krell-uniques: every one of Krell's pieces read "Dropped by creatures on grounds that
          aren't open yet", his 14 standard pieces too): an open hall's boss is a place a player can reach, and the link opens the ground his door is on. */
       const LORE = await imp('src/shell/item-lore.js'), GF = await imp('src/shell/hunt-ground-facts.js');
@@ -1640,7 +1650,7 @@ async function planRules(base) {
       }
       if (LORE.sourcesOf('hall_key').join() !== 'Dropped by Gatekeeper at Krell\'s Hold') fails.push('AW-21 the Hall Key\'s source moved: ' + LORE.sourcesOf('hall_key'));
       const back = BM.compare('dawn_platelegs', 'banded_legguards');
-      if (back.length !== 1 || back[0].delta !== -30 || back[0].text !== '+3%') fails.push('AW-21 taking the Banded Legguards off for Dawnsteel Platelegs does not read as +3% physical damage taken: ' + JSON.stringify(back));
+      if (back.length !== 1 || back[0].delta !== -30 || back[0].text !== '+3%') fails.push('AW-21 taking the Banded Legguards off for Dawnsteel Platelegs does not read as +3% damage taken: ' + JSON.stringify(back));
     }
     const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
     if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));

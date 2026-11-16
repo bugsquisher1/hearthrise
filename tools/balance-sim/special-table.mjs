@@ -9,15 +9,15 @@
 //   node tools/balance-sim/special-table.mjs chief       [--tries 60]              fire resistance and + Defense in Chief Coppercap's called fight
 //   node tools/balance-sim/special-table.mjs mitts       [--seeds 3] [--hours 2]   Mudlark's Mitts (+2 Ranged) on the Slake
 //   node tools/balance-sim/special-table.mjs demoncaller [--seeds 3] [--hours 2]   Demoncaller (Undead bane) on the Pyre Field
-//   node tools/balance-sim/special-table.mjs legs        [--seeds 3] [--hours 2]   Banded Legguards (3% physical) on Krell's Hold, the ground
+//   node tools/balance-sim/special-table.mjs legs        [--seeds 3] [--hours 2]   Banded Legguards (3% less from every hit) on Krell's Hold, the ground
 //   node tools/balance-sim/special-table.mjs krell       [--tries 60] [--level 88] Tollgate and Legguards in Krell's Hall, the door's bar
 //   node tools/balance-sim/special-table.mjs crit        [--seeds 3] [--hours 2]   Widow's Fang (+6% crit) on the Sewer and the Glade, and the crit ladder's upper rungs
 //   node tools/balance-sim/special-table.mjs skill       [--ground G --level L --tier T --who tank:defense,bow:ranged]   + skill on armor, +1 to +8
 //
 // ONE ATTRIBUTE HAS NO ENGINE HOOK YET, so it is measured through a stand-in, named on every table:
-//   (physical resistance was a planted copy of the engine until lane/c-krell-uniques built the hook: src/core/elements.js
-//    heroElementPermille reads `physical` for a blow with no element, under data/elements.js HERO_RESIST_PM.physicalMax. It is
-//    measured on the real engine now.)
+//   (the Legguards' attribute is a cape's `steadyPm`, less from every hit, which the engine has always read: coherence pass
+//    2026-11-15 C3 merged the proposed physical resistance into it. A plate tank at the Hold is at the armour chain's total cap,
+//    so the what-if row at 10% shows how little more a cut buys him there.)
 //   + skill              the hero's own skill raised by the bonus (cell.mjs skillsBySeat), as the Tower's table did. Combat reads
 //                        the same number either way; skill XP earned is not what is being read.
 // Exit 0 when every cell ran; 1 otherwise.
@@ -45,7 +45,7 @@ async function engine(root, extra = {}) {
   for (const t of tables) for (const [id, row] of Object.entries(rows)) { if (t[id]) throw new Error('special-table: ' + id + ' is already an item'); t[id] = JSON.parse(JSON.stringify(row)); }
   return { R, tables, v, root };
 }
-/* The engine the physical tables play on: the real one (the hook is built; this was a planted copy before lane/c-krell-uniques). */
+/* The engine the Legguards' tables play on: the real one (steadyPm needs no plant). */
 async function planted() {
   return { root: ROOT, done() {} };
 }
@@ -142,17 +142,17 @@ async function crit() {
   }
 }
 
-/* ── Banded Legguards on the Hold's ground: the tier-6 legs a tank wears today, plain Dawnsteel numbers, and the 3%. Planted engine. ── */
+/* ── Banded Legguards on the Hold's ground: the tier-6 legs a tank wears today, plain Dawnsteel numbers, and the 3% cut on every hit. ── */
 async function legs() {
   const P = await planted();
   try {
-    const E = await engine(P.root, { whatif_legs_100: { n: 'what-if', type: 'armor', slot: 'pants', defB: 64, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32, resistPm: { physical: 100 }, tier: 7, reqSkill: 'level', reqLv: 88 } });
+    const E = await engine(P.root, { whatif_legs_100: { n: 'what-if', type: 'armor', slot: 'pants', defB: 64, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32, steadyPm: 100, tier: 7, reqSkill: 'level', reqLv: 88 } });
     const FOUR = ['tank', 'healer', 'hammer', 'mage'];
     head('BANDED LEGGUARDS on Krell\'s Hold (the ground), Level 90. ' + SEEDS + ' seeds x ' + HOURS + ' h a cell, the same dice.',
       ['Who', 'Tier', 'Legs', 'Tank damage taken / h', 'vs Emberforged', 'vs plain Dawnsteel', 'Tank supplies g / h', 'Deaths', 'Close calls / 12 h', 'Level XP / h']);
     for (const [who, party, tier] of [['Tank alone', ['tank'], 'normal'], ['Tank alone', ['tank'], 'dangerous'], ['Tank in a four', FOUR, 'dangerous'], ['Tank in a four', FOUR, 'deadly']]) {
       let ember = null, dawn = null;
-      for (const [name, id] of [['Emberforged Platelegs (worn today)', null], ['Dawnsteel numbers, no attribute', 'dawn_platelegs'], ['Banded Legguards (3%)', 'sample_banded_legguards'], ['what-if: at the 10% cap', 'whatif_legs_100']]) {
+      for (const [name, id] of [['Emberforged Platelegs (worn today)', null], ['Dawnsteel numbers, no attribute', 'dawn_platelegs'], ['Banded Legguards (3% less from every hit)', 'sample_banded_legguards'], ['what-if: 10% less from every hit', 'whatif_legs_100']]) {
         const r = read(E.R.runCell(cellOf('krells_hold', party, 90, { ...tierOpt(tier), gearBySeat: party.map((_, i) => (i === 0 && id ? { also: { pants: id } } : {})) })));
         const h = r.heroes[0];
         if (!id) ember = h; if (id === 'dawn_platelegs') dawn = h;
@@ -237,7 +237,7 @@ const ring = (el, pm) => ({ n: 'what-if', slot: 'ring', type: 'jewelry', resistP
 const krell = () => bossRoom({ hall: 'krells_hold', level: 88, bar: arg('bar', 'door'), element: 'ember', title: 'KRELL\'S HALL',
   extra: { whatif_shield_15: { n: 'what-if', type: 'offhand', slot: 'shield', offhand: 'shield', defB: 15, tier: 7, reqSkill: 'level', reqLv: 88 }, whatif_ember_100: ring('ember', 100), whatif_ember_300: ring('ember', 300) } },
 [['what the ladder gives (tier-3 shield, tier-6 legs)', null], ['a plain guard-15 shield', { 0: { shield: 'whatif_shield_15' } }], ['Krell\'s Tollgate (guard 15, 10% fire)', { 0: { shield: 'sample_krells_tollgate' } }],
-  ['plain Dawnsteel legs', { 0: { pants: 'dawn_platelegs' } }], ['Banded Legguards (3% physical)', { 0: { pants: 'sample_banded_legguards' } }],
+  ['plain Dawnsteel legs', { 0: { pants: 'dawn_platelegs' } }], ['Banded Legguards (3% less from every hit)', { 0: { pants: 'sample_banded_legguards' } }],
   ['Tollgate and Banded Legguards', { 0: { shield: 'sample_krells_tollgate', pants: 'sample_banded_legguards' } }],
   ['what-if: everyone 10% fire, no Tollgate', { all: { ring: 'whatif_ember_100' } }], ['what-if: everyone 30% fire (a Sealed lining), no Tollgate', { all: { ring: 'whatif_ember_300' } }]]);
 

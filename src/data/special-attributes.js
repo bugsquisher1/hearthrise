@@ -22,7 +22,7 @@ export const SPECIAL_TIERS = Object.freeze([2, 3, 4, 5, 6, 7]);
 /* ── THE ATTRIBUTES. One a piece. `field` is the item field the engine reads and `keys` what it may name; `at` is the
    strength at each gear tier (a tier the table doesn't name has no piece of that kind); `cap` is the most a hero gets from
    everything worn, and where that cap lives (NEW: the build lane adds it). `hook` is null when the engine reads the field
-   today (physical resistance since lane/c-krell-uniques: src/core/elements.js heroElementPermille). Every size was measured or is marked in the design (tools/balance-sim/special-table.mjs). ── */
+   today. Every size was measured or is marked in the design (tools/balance-sim/special-table.mjs). ── */
 export const SPECIAL_ATTRIBUTES = Object.freeze({
   /* 10% less damage from one element, the same at every tier. Linings (imbuements.js) share the cap, so a Sealed lining
      (30%) and one piece is the top, and so is a Stitched lining (20%) and two. Only fire has a job today (the bosses). */
@@ -32,11 +32,14 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
     cap: Object.freeze({ value: 400, where: 'src/data/elements.js HERO_RESIST_PM.max' }),
     slots: Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt', 'cape', 'shield']), hook: null,
   }),
-  /* Less damage from every blow that carries no element (a swing, a bite, an arrow, a bleed). None under tier 5. */
-  resist_physical: Object.freeze({
-    field: 'resistPm', keys: Object.freeze(['physical']), unit: 'permille',
+  /* Less damage from every hit: a cape's `steadyPm`, the one such stat (coherence pass 2026-11-15 C3: the proposed physical
+     resistance merged into it, so there is no second stat and no second cap). It cuts every blow, fire as much as a swing, and it
+     sums with a cape, Tempering's Armor rung and a food on one hook, never past the armour chain's total cap (src/core/mitigation.js
+     mitigate). A plate tank already at that cap from his armor gets little of it. None under tier 5. */
+  steady: Object.freeze({
+    field: 'steadyPm', keys: null, unit: 'permille',
     at: Object.freeze({ 5: 20, 6: 30, 7: 30 }),
-    cap: Object.freeze({ value: 100, where: 'src/data/elements.js HERO_RESIST_PM.physicalMax' }),
+    cap: Object.freeze({ value: 600, where: 'src/data/core-model.js ARMOUR_MITIGATION.capPm, the armour chain total, shared with capes, Tempering and food' }),
     slots: Object.freeze(['pants', 'boots', 'belt', 'shield']), hook: null,
   }),
   /* + Defense while worn. One level is 4 to 6% less damage taken at Levels 40 to 90, so it is +1 at every tier and capped at +2. */
@@ -86,10 +89,10 @@ export const SPECIAL_SAMPLE = Object.freeze({
   }),
   banded_legguards: Object.freeze({
     row: Object.freeze({ n: 'Banded Legguards', icon: '🛡️', v: 79200, type: 'armor', slot: 'pants', defB: 64, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32,
-      resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
-    base: 'dawn_platelegs', attr: Object.freeze(['resist_physical', 'physical']),
+      steadyPm: 30, tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
+    base: 'dawn_platelegs', attr: Object.freeze(['steady', null]),
     source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
-    text: 'Swings, bites and arrows do 3% less to you. Krell\'s smith made these from the Banded Company\'s armor. He left the bronze bands on so everyone would know whose they were.',
+    text: 'Every hit you take does 3% less. Krell\'s smith made these from the Banded Company\'s armor. He left the bronze bands on so everyone would know whose they were.',
   }),
   mudlarks_mitts: Object.freeze({
     row: Object.freeze({ n: 'Mudlark\'s Mitts', icon: '🎽', v: 735, type: 'armor', slot: 'gloves', defB: 4, armourClass: 'leather', rangeAtkB: 4, critB: 0.016, magicAtkB: -1,

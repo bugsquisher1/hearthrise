@@ -384,7 +384,7 @@ const ARMS = {
       for (const d of krell.drops) if (!X.I.ITEMS[d.id]) bad.push('HL-DAILY Krell\'s prize row ' + d.id + ' is not an item');
       for (const id of UNIQUE) {
         const it = X.I.ITEMS[id];
-        if (it && (it.tier !== 7 || it.reqLv !== 88 || it.bop || !it.resistPm)) bad.push('HL-DAILY ' + id + ' is not a tradeable tier 7 piece worn from 88 with its attribute: ' + JSON.stringify(it));
+        if (it && (it.tier !== 7 || it.reqLv !== 88 || it.bop || !(it.resistPm || it.steadyPm > 0))) bad.push('HL-DAILY ' + id + ' is not a tradeable tier 7 piece worn from 88 with its attribute: ' + JSON.stringify(it));
       }
     }
     return bad;

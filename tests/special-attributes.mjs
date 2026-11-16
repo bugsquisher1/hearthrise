@@ -38,7 +38,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
 /* the fields a row may carry beyond its base's numbers: its words and its one attribute */
 const WORDS = new Set(['n', 'icon']);
-const ATTR_FIELDS = new Set(['resistPm', 'skillB', 'bane', 'effects']);
+const ATTR_FIELDS = new Set(['resistPm', 'skillB', 'bane', 'effects', 'steadyPm']);
 const SHIELD_GUARD = (tier) => 3 + 2 * (tier - 1);
 
 /* every src file's text, once (SA1) */
@@ -66,6 +66,8 @@ function attributesOf(row, base) {
   for (const [k, v] of Object.entries(row.resistPm || {})) if (!(base && base.resistPm && base.resistPm[k] === v)) out.push({ field: 'resistPm', key: k, value: v });
   for (const [k, v] of Object.entries(row.skillB || {})) out.push({ field: 'skillB', key: k, value: v });
   if (row.bane && !(base && base.bane)) out.push({ field: 'bane', key: row.bane.class, value: row.bane.mult });
+  /* less from every hit: `steadyPm`, a cape's stat, the one such stat (the old physical resistance merged into it, coherence pass 2026-11-15 C3) */
+  if ((row.steadyPm || 0) > ((base && base.steadyPm) || 0)) out.push({ field: 'steadyPm', key: null, value: (row.steadyPm || 0) - ((base && base.steadyPm) || 0) });
   if ((row.critB || 0) > ((base && base.critB) || 0) + 1e-9) out.push({ field: 'critB', key: null, value: Math.round(((row.critB || 0) - ((base && base.critB) || 0)) * 1000) / 1000 });
   return out;
 }
@@ -113,7 +115,7 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
       }
     } else if (row.slot === 'shield') {
       if (row.defB !== SHIELD_GUARD(row.tier)) out.push('SA2 ' + id + ': guard ' + row.defB + ', the shield ladder\'s tier ' + row.tier + ' rung is ' + SHIELD_GUARD(row.tier));
-      for (const k of ['atkB', 'strB', 'rangeAtkB', 'magicAtkB', 'critB', 'steadyPm']) if (row[k]) out.push('SA2 ' + id + '.' + k + ' is a stat the shield ladder doesn\'t carry');
+      for (const k of ['atkB', 'strB', 'rangeAtkB', 'magicAtkB', 'critB', 'steadyPm']) if (row[k] && !(k === 'steadyPm' && s.attr[0] === 'steady')) out.push('SA2 ' + id + '.' + k + ' is a stat the shield ladder doesn\'t carry');
     } else out.push('SA2 ' + id + ' has no base and is not a shield');
     /* SA3 */
     const found = attributesOf(row, base), def = A[s.attr[0]];
@@ -159,7 +161,7 @@ const MUTANTS = [
   ['a hidden row\'s ground reads the file', 'SA1', (S, A, o) => { o.importers = [join(ROOT, 'src/data/grounds/the_slake/pack.js')]; }],
   ['a hidden row becomes an item', 'SA1', (S, A, o) => { o.items = { ...o.items, mudlarks_mitts: structuredClone(S.mudlarks_mitts.row) }; }],
   ['a hidden row lands on a drop table', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, mudlark: { ...o.monsters.mudlark, drops: [...o.monsters.mudlark.drops, { id: 'mudlarks_mitts', ch: 0.01, band: 'rare' }] } }; }],
-  ['the shipped Legguards drift from their row (5% in the game)', 'SA1', (S, A, o) => { o.items = { ...o.items, banded_legguards: { ...o.items.banded_legguards, resistPm: { physical: 50 } } }; }],
+  ['the shipped Legguards drift from their row (5% in the game)', 'SA1', (S, A, o) => { o.items = { ...o.items, banded_legguards: { ...o.items.banded_legguards, steadyPm: 50 } }; }],
   ['the shipped Tollgate is on no drop table', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, lord_krell: { ...o.monsters.lord_krell, drops: o.monsters.lord_krell.drops.filter((d) => d.id !== 'krells_tollgate') } }; }],
   ['the Tollgate rolls at 10%, not its 3%', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, lord_krell: { ...o.monsters.lord_krell, drops: o.monsters.lord_krell.drops.map((d) => (d.id === 'krells_tollgate' ? { ...d, ch: 0.1 } : d)) } }; }],
   ['a second monster drops the Legguards', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, gatekeeper: { ...o.monsters.gatekeeper, drops: [...o.monsters.gatekeeper.drops, { id: 'banded_legguards', ch: 0.01, band: 'rare' }] } }; }],
@@ -167,7 +169,10 @@ const MUTANTS = [
   ['a stat stick: the Legguards gain 6 armor', 'SA2', (S) => { S.banded_legguards.row.defB = 70; }],
   ['the Tollgate leaves its ladder rung', 'SA2', (S) => { S.krells_tollgate.row.defB = 17; }],
   ['a second attribute on the Mitts', 'SA3', (S) => { S.mudlarks_mitts.row.resistPm = { ember: 100 }; }],
-  ['the Legguards read 5%', 'SA3', (S) => { S.banded_legguards.row.resistPm = { physical: 50 }; }],
+  ['the Legguards read 5%', 'SA3', (S) => { S.banded_legguards.row.steadyPm = 50; }],
+  ['the Legguards go back to the retired physical resistance', 'SA3', (S) => { delete S.banded_legguards.row.steadyPm; S.banded_legguards.row.resistPm = { physical: 30 }; }],
+  ['less from every hit on a weapon', 'SA3', (S) => { delete S.widows_fang.row.critB; S.widows_fang.row.steadyPm = 30; S.widows_fang.attr = ['steady', null]; }],
+  ['a shield carries less from every hit beside its fire', 'SA3', (S) => { S.krells_tollgate.row.steadyPm = 30; }],
   ['a + Magic piece ships unproven', 'SA3', (S) => { S.mudlarks_mitts.row.skillB = { magic: 2 }; S.mudlarks_mitts.attr = ['skill', 'magic']; }],
   ['Demoncaller goes back to x1.4', 'SA3', (S) => { S.demoncaller_staff.row.bane = { class: 'undead', mult: 1.4 }; }],
   ['a crit piece of armor', 'SA3', (S, A) => { A.crit.slots = ['helmet']; }],

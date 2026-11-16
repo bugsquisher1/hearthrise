@@ -12,9 +12,9 @@
 //   spots-avoid-marks    a ranged hero's spot and a kiter's retreat never land on a mark; with no mark, nothing moves
 //   group-strikes-all    a group strike lands on every hero of a party of four, wherever they stand, and on a lone hero; it marks
 //                        no ground, and every hero counts it as casting at them
-//   physical-resist      a hero's resistPm.physical (Tyler 2026-11-14: "maybe the legs have a % physical resistance") takes its share off a
-//                        blow with NO element (a swing, a bleed) and off no elemental one, under its own 10% cap whatever the gear sums to;
-//                        the settle (browser closed) and a frozen peer's row (viewed) both carry it; Krell's two unique pieces as they ship
+//   steady-every-hit     "less from every hit" is ONE stat, `steadyPm` (coherence pass 2026-11-15 C3: the proposed physical resistance merged
+//                        into it): no resistance profile names `physical`; the Banded Legguards carry steadyPm, sum with a cape, ride the
+//                        snapshot's armorPm, and take the same share off a swing and a frost strike; a frozen peer's row carries it
 //   resist-takes-less    a hero's resistPm takes its share off an elemental blow (never a physical one), clamped; gear sums it; the
 //                        settle carries it from the snapshot to the unit, and the frozen peer row carries it to the browser
 //   spell-trains-defense-plain  a spell's landing on a shield tank pays Defense XP at the plain rate, braced or not, and a caster at the
@@ -379,58 +379,39 @@ const cases = {
       return JSON.stringify(peer.member.snapshot().resistPm) === '{"frost":500}' ? null : "a frozen peer's snapshot lost its resistPm";
     });
   },
-  'physical-resist': (M) => {
-    const D = M.DEL.HERO_RESIST_PM;
-    if (D.physicalMax !== 100 || D.max !== 400) return 'the caps are not 10% physical under 40% an element: ' + JSON.stringify(D);
+  'steady-every-hit': (M) => {
+    /* ONE "LESS FROM EVERY HIT" (coherence pass 2026-11-15 C3, after Tyler 2026-11-14 "maybe the legs have a % physical resistance"): the
+       proposed physical resistance is the stat the engine already had, a cape's `steadyPm`. A resistance profile names the three elements
+       and nothing else, so a blow with no element reads none, whatever a row or a forged snapshot carries. */
+    if (M.EL.resistProfile({ physical: 30 }) !== null || JSON.stringify(M.EL.resistProfile({ physical: 30, frost: 100 })) !== '{"frost":100}') return 'a resistance profile keeps a physical key: ' + JSON.stringify(M.EL.resistProfile({ physical: 30, frost: 100 }));
+    for (const none of [null, undefined, '', 'physical']) if (M.EL.heroElementPermille({ physical: 30, frost: 100 }, none) !== 1000) return 'a blow whose element is ' + JSON.stringify(none) + ' read a resistance';
+    /* THE PIECE AS IT SHIPS (the Hold's pack reads the designer's row): the Banded Legguards cut every hit and resist nothing; worn with the
+       Tollgate, the gear reads the shield's 10% fire and the legs' cut, and the legs' cut sums with a cape's on the one stat */
+    const legs = M.ITEMS.banded_legguards, cloak = M.ITEMS.houndskin_cloak;
+    if (!legs || !(legs.steadyPm > 0) || legs.resistPm) return 'the Banded Legguards do not carry a cut on every hit alone: ' + JSON.stringify(legs);
+    const worn = M.C.equipmentStats({ shield: 'krells_tollgate', pants: 'banded_legguards' }, M.ITEMS);
+    if (JSON.stringify(worn.resistPm) !== '{"ember":100}' || worn.steadyPm !== legs.steadyPm) return 'Krell\'s Tollgate and the Banded Legguards do not read 10% fire and the legs\' cut when worn: ' + JSON.stringify([worn.resistPm, worn.steadyPm]);
+    if (worn.guardB !== M.C.equipmentStats({ shield: 'krells_tollgate' }, M.ITEMS).guardB || !(worn.guardB >= 15)) return 'the Tollgate\'s guard 15 is not read: ' + worn.guardB;
+    if (M.C.equipmentStats({ pants: 'banded_legguards', cape: 'houndskin_cloak' }, M.ITEMS).steadyPm !== legs.steadyPm + cloak.steadyPm) return 'the legs\' cut does not sum with a cape\'s';
+    /* THE SNAPSHOT: the worn cut rides Tempering's hook (member.js heroSnapshot armorPm), the one the settle and a peer's row carry */
+    const snapOf = (eqp) => { const { eq, setBonus, profile } = M.memberMod.loadoutOf(eqp, M.ITEMS);
+      return M.memberMod.heroSnapshot({ skills: { melee: 0, defense: 0 }, levelXp: 0 }, { eq, equipment: eqp, items: M.ITEMS, bonus: () => 0, setBonus, profile }); };
+    const snap = snapOf({ pants: 'banded_legguards' });
+    if (snap.armorPm !== legs.steadyPm || 'resistPm' in snap) return 'the Legguards snap to ' + JSON.stringify([snap.armorPm, snap.resistPm]);
+    if (snapOf({ pants: 'banded_legguards', cape: 'houndskin_cloak' }).armorPm !== legs.steadyPm + cloak.steadyPm) return 'the snapshot does not sum the legs\' and the cape\'s cut';
+    /* THE BLOW (damage.js hurt, through mitigation.js mitigate): a swing and a frost strike land lighter by the same share. 1000 a blow, no
+       armour (no floor near), so the cut is whole and draws no dice. */
     const inst = fightOf(M, []);
     const r = mon(M, 10, 0, 14, 3, {});
-    const plain = H(M, 1, 13, 3, 'tank');
-    const legs = Object.assign(H(M, 2, 13, 4, 'tank'), { resistPm: M.EL.resistProfile({ physical: 30 }) });
-    const over = Object.assign(H(M, 3, 12, 3, 'tank'), { resistPm: M.EL.resistProfile({ physical: 900, frost: 900 }) });
-    const hit = (t, el, n) => M.damage.hurt(inst, t, n || 100, r, el, null, M.rng.createRng(1)).dmg;
-    /* THE SEAM: a blow with no element reads the `physical` key; 3% off, and never past the 10% cap or below 0 */
-    for (const none of [null, undefined, '', 'physical']) {
-      if (M.EL.heroElementPermille({ physical: 30 }, none) !== 970) return 'a 3% physical resist does not take 3% off a blow whose element is ' + JSON.stringify(none);
-    }
-    if (M.EL.heroElementPermille({ physical: 900 }, null) !== 900 || M.EL.heroElementPermille({ physical: -300 }, null) !== 1000) return 'the seam reads a physical resist past the 10% cap or below 0: ' + M.EL.heroElementPermille({ physical: 900 }, null);
-    if (M.EL.heroElementPermille({ physical: 100 }, 'frost') !== 1000 || M.EL.heroElementPermille({ frost: 400 }, null) !== 1000) return 'physical resistance and an element\'s read each other';
-    if (M.EL.heroElementPermille({ physical: 100 }, 'bogus') !== 1000) return 'an unknown element was read as physical';
-    /* THE BLOW (damage.js hurt, through targeting.js elementOn and mitigation.js mitigate): a swing and a bleed tick alike */
-    if (hit(plain, null) !== 100 || hit(legs, null) !== 97 || hit(legs, 'physical') !== 97) return 'a 100 swing on 3% physical resist: ' + hit(legs, null) + ' / ' + hit(legs, 'physical') + ' (plain ' + hit(plain, null) + ')';
-    if (hit(over, null) !== 90) return 'a 90% physical resist is not held to the 10% cap: ' + hit(over, null);
-    if (hit(over, 'frost') !== 60 || hit(legs, 'frost') !== 100 || hit(legs, 'ember') !== 100) return 'physical resistance touched an elemental blow, or moved an element\'s 40% cap';
-    /* a monster is never read through a hero's profile */
-    if (hit(Object.assign(mon(M, 11, 0, 14, 5, {}), { resistPm: { physical: 100 } }), null, 100) !== hit(mon(M, 12, 0, 14, 6, {}), null, 100)) return 'a monster carrying resistPm took less';
-    /* THE PROFILE: physical is kept under its own cap, after the elements (one JSON on both runtimes) */
-    const prof = M.EL.resistProfile({ physical: 900, frost: 900, bogus: 5 });
-    if (JSON.stringify(prof) !== '{"frost":400,"physical":100}' || M.EL.resistProfile({ physical: 0 }) !== null || M.EL.resistProfile({ physical: -50 }) !== null) return 'resistProfile does not hold physical to its cap: ' + JSON.stringify(prof);
-    /* GEAR SUMS IT, AND FOUR PIECES OF 3% AND MORE STOP AT 10% */
-    const items = { legs: { slot: 'pants', resistPm: { physical: 30 } }, boots: { slot: 'boots', resistPm: { physical: 30 } }, belt: { slot: 'belt', resistPm: { physical: 30 } }, shield: { slot: 'shield', resistPm: { physical: 30, ember: 100 } } };
-    const two = M.C.equipmentStats({ pants: 'legs', boots: 'boots' }, items), four = M.C.equipmentStats({ pants: 'legs', boots: 'boots', belt: 'belt', shield: 'shield' }, items);
-    if (JSON.stringify(two.resistPm) !== '{"physical":60}' || JSON.stringify(four.resistPm) !== '{"ember":100,"physical":100}') return 'gear does not sum physical resistance to the cap: ' + JSON.stringify([two.resistPm, four.resistPm]);
-    /* KRELL'S TWO PIECES AS THEY SHIP (the Hold's pack reads the designer's rows): worn together, 10% fire and 3% physical */
-    const worn = M.C.equipmentStats({ shield: 'krells_tollgate', pants: 'banded_legguards' }, M.ITEMS);
-    if (JSON.stringify(worn.resistPm) !== '{"ember":100,"physical":30}') return 'Krell\'s Tollgate and the Banded Legguards do not read 10% fire and 3% physical when worn: ' + JSON.stringify(worn.resistPm);
-    if (worn.guardB !== M.C.equipmentStats({ shield: 'krells_tollgate' }, M.ITEMS).guardB || !(worn.guardB >= 15)) return 'the Tollgate\'s guard 15 is not read: ' + worn.guardB;
-    /* THE SETTLE (browser closed): the same span on the same dice twice, hero a bare and then with physical resistance past the cap. The
-       resistance draws no dice, so up to and including a's first landed swing the two spans are one fight: that blow lands 10% lighter. */
-    const span = (resist) => {
-      const a = member(M, 'a', { unitId: 1, seat: 0, hp: 5000, maxHp: 5000 }), b = member(M, 'b', { unitId: 2, seat: 1, hp: 5000, maxHp: 5000 });
-      if (resist) { const snap = a.snapshot; a.snapshot = (st) => Object.assign(snap(st), { resistPm: resist }); }
-      const fx = spanFixture(M, 11, { members: [a, b], spanMs: 90000 });
-      return JSON.parse(runSpan(M, fx, [])).events.filter((e) => e.type === 'dmg' && e.t === 1 && !e.element && e.ability === 'basic');
-    };
-    const bare = span(null), held = span({ physical: 500 });
-    if (!bare.length || !held.length) return 'the span landed no swing on hero a (bare ' + bare.length + ', resisting ' + held.length + ')';
-    const big = bare.findIndex((e) => e.amount >= 10);
-    if (big < 0) return 'no swing of 10 or more landed on the bare hero, so 10% is not readable: ' + JSON.stringify(bare.slice(0, 5).map((e) => e.amount));
-    for (let i = 0; i <= big; i++) {
-      const want = Math.max(1, Math.floor((bare[i].amount * 900) / 1000));
-      if (!held[i] || held[i].atMs !== bare[i].atMs || held[i].amount !== want) return 'swing ' + i + ' on the resisting hero: ' + JSON.stringify(held[i] && [held[i].atMs, held[i].amount]) + ', the bare one took ' + JSON.stringify([bare[i].atMs, bare[i].amount]) + ' so 10% off is ' + want;
-    }
-    /* THE BROWSER'S PEER (viewed): a frozen row's snap reaches its engine member with its physical resistance (member.js frozenSide) */
-    const peer = M.memberMod.frozenSide({ key: 'p', seat: 1, unitId: 3, frozen: { hp: 10, maxHp: 10, maxMana: 0, regenPm: 1000, snap: { acc: 1, maxHit: 1, def: 0, armour: null, resistPm: { physical: 30 } }, hero: {} } });
-    return JSON.stringify(peer.member.snapshot().resistPm) === '{"physical":30}' ? null : "a frozen peer's snapshot lost its physical resistance";
+    /* a fresh hero for every blow, deep in HP, so each reads one landing */
+    const plain = { pm: 0 }, cut = { pm: snap.armorPm };
+    const hit = (t, el) => M.damage.hurt(inst, Object.assign(H(M, 1, 13, 3, 'tank', { hp: 99999, maxHp: 99999 }), t.pm ? { armorPm: t.pm } : {}), 1000, r, el, null, M.rng.createRng(1)).dmg;
+    const want = 1000 - snap.armorPm;
+    if (hit(plain, null) !== 1000 || hit(plain, 'frost') !== 1000) return 'a bare hero took less: ' + hit(plain, null) + ' / ' + hit(plain, 'frost');
+    if (hit(cut, null) !== want || hit(cut, 'physical') !== want || hit(cut, 'frost') !== want) return 'a 1000 blow on the Legguards: swing ' + hit(cut, null) + ', bleed ' + hit(cut, 'physical') + ', frost ' + hit(cut, 'frost') + ', not ' + want;
+    /* THE BROWSER'S PEER (viewed): a frozen row's snap reaches its engine member with the cut (member.js frozenSide) */
+    const peer = M.memberMod.frozenSide({ key: 'p', seat: 1, unitId: 3, frozen: { hp: 10, maxHp: 10, maxMana: 0, regenPm: 1000, snap: { acc: 1, maxHit: 1, def: 0, armour: null, armorPm: snap.armorPm }, hero: {} } });
+    return peer.member.snapshot().armorPm === snap.armorPm ? null : "a frozen peer's snapshot lost its cut on every hit";
   },
   'shield-braces-marked': (M) => {
     /* the same fight twice on the same dice, the tank's shield worn and not: a marked hit lands SHIELD_BRACE lighter, a group one the same */
@@ -658,16 +639,15 @@ const mutants = [
   { name: 'enemy_casting reads only ground marks', case: 'group-strikes-all', edits: [['src/core/hunt/marks.js', "    const s = castShape(m);\n    if (s && heroes.some((h) => h && covers(s, h.x, h.y))) out.push(m);", "    const s = groundOf(m);\n    if (s && heroes.some((h) => h && covers(s, h.x, h.y))) out.push(m);"]] },
   { name: 'a hero ignores its resistance', case: 'resist-takes-less', edits: [['src/core/hunt/targeting.js', ': heroElementPermille(unit.resistPm, element));', ': 1000);']] },
   { name: 'the settle never carries resistPm to the unit', case: 'resist-takes-less', edits: [['src/core/combat-sim.js', '  if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;\n', '']] },
-  { name: 'a resist past the 40% cap', case: 'resist-takes-less', edits: [['src/data/elements.js', 'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400, physicalMax: 100 });', 'export const HERO_RESIST_PM = Object.freeze({ min: -1000, max: 750, physicalMax: 100 });']] },
-  { name: 'the combat seam reads past the cap', case: 'resist-takes-less', edits: [['src/core/elements.js', '  return Number.isFinite(v) ? 1000 - Math.min(heroResistCap(key), Math.max(HERO_RESIST_PM.min, v)) : 1000;', '  return Number.isFinite(v) ? 1000 - v : 1000;']] },
-  { name: 'the hook is gone: a blow with no element reads no resistance', case: 'physical-resist', edits: [['src/core/elements.js', '  const key = element ? element : PHYSICAL;', '  const key = element;']] },
-  { name: 'only an unnamed blow is physical (a bleed tick says `physical`)', case: 'physical-resist', edits: [['src/core/elements.js', "  if (!resistPm || !(key === PHYSICAL || isElement(key)) || !Object.prototype.hasOwnProperty.call(resistPm, key)) return 1000;", "  if (!resistPm || !(!element || isElement(key)) || !Object.prototype.hasOwnProperty.call(resistPm, key)) return 1000;"]] },
-  { name: 'physical resistance shares the elements\' 40% cap', case: 'physical-resist', edits: [['src/data/elements.js', 'export const heroResistCap = (key) => (key === PHYSICAL ? HERO_RESIST_PM.physicalMax : HERO_RESIST_PM.max);', 'export const heroResistCap = (key) => HERO_RESIST_PM.max;']] },
-  { name: 'the physical cap is raised to 40%', case: 'physical-resist', edits: [['src/data/elements.js', 'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400, physicalMax: 100 });', 'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400, physicalMax: 400 });']] },
-  { name: 'the profile drops the physical key', case: 'physical-resist', edits: [['src/data/elements.js', 'export const HERO_RESIST_KEYS = Object.freeze([...ELEMENTS, PHYSICAL]);', 'export const HERO_RESIST_KEYS = Object.freeze([...ELEMENTS]);']] },
-  { name: 'the combat seam reads physical past its cap', case: 'physical-resist', edits: [['src/core/elements.js', '  return Number.isFinite(v) ? 1000 - Math.min(heroResistCap(key), Math.max(HERO_RESIST_PM.min, v)) : 1000;', '  return Number.isFinite(v) ? 1000 - Math.max(HERO_RESIST_PM.min, v) : 1000;']] },
-  { name: 'the settle never carries physical resistance to the unit', case: 'physical-resist', edits: [['src/core/combat-sim.js', '  if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;\n', '']] },
-  { name: 'the Legguards ship with no attribute', case: 'physical-resist', edits: [['src/data/special-attributes.js', "      resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),", "      tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),"]] },
+  { name: 'a resist past the 40% cap', case: 'resist-takes-less', edits: [['src/data/elements.js', 'export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400 });', 'export const HERO_RESIST_PM = Object.freeze({ min: -1000, max: 750 });']] },
+  { name: 'the combat seam reads past the cap', case: 'resist-takes-less', edits: [['src/core/elements.js', '  return Number.isFinite(v) ? 1000 - Math.min(HERO_RESIST_PM.max, Math.max(HERO_RESIST_PM.min, v)) : 1000;', '  return Number.isFinite(v) ? 1000 - v : 1000;']] },
+  { name: 'a resistance profile names physical again (a second "less from every hit")', case: 'steady-every-hit', edits: [['src/core/elements.js', '  for (const e of ELEMENTS) {', "  for (const e of [...ELEMENTS, 'physical']) {"]] },
+  { name: 'a blow with no element reads a physical resistance', case: 'steady-every-hit', edits: [['src/core/elements.js', '  if (!resistPm || !isElement(element) || !Object.prototype.hasOwnProperty.call(resistPm, element)) return 1000;', "  if (!element) element = 'physical';\n  if (!resistPm || !(isElement(element) || element === 'physical') || !Object.prototype.hasOwnProperty.call(resistPm, element)) return 1000;"]] },
+  { name: 'the Legguards ship with no attribute', case: 'steady-every-hit', edits: [['src/data/special-attributes.js', "      steadyPm: 30, tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),", "      tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),"]] },
+  { name: 'the Legguards go back to the retired physical resistance', case: 'steady-every-hit', edits: [['src/data/special-attributes.js', "      steadyPm: 30, tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),", "      resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),"]] },
+  { name: 'gear never sums its steadyPm', case: 'steady-every-hit', edits: [['src/core/combat.js', '    s.steadyPm += it.steadyPm || 0;\n', '']] },
+  { name: 'the snapshot drops the worn cut', case: 'steady-every-hit', edits: [['src/core/member.js', ' + steadyPmOf(c.eq, c.bonus)', '']] },
+  { name: 'the cut is not taken off a blow', case: 'steady-every-hit', edits: [['src/core/mitigation.js', '  if (armorPm) x = temperedAmount(x, -armorPm, rng);\n', '']] },
   { name: 'gear never sums its resistPm', case: 'resist-takes-less', edits: [['src/core/combat.js', '  if (resist) Object.assign(s, { resistPm: resist });\n', '']] },
   { name: 'the engine never reads the switch', case: 'switch-off-no-cast', edits: [[S, '    const list = castsOf(rowOf(inst, u.kind));', '    const list = (rowOf(inst, u.kind).spells || []).filter((id) => spellRow(id));']] },
   { name: 'the switch is always on', case: 'switch-off-no-cast', edits: [['src/data/monster-spells.js', 'export const castsOf = (m) => (SPELL_SWITCH.live === true ? spellsOf(m) : []);', 'export const castsOf = (m) => spellsOf(m);']] },

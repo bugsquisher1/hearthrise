@@ -1,5 +1,13 @@
 # Handoffs
 
+### 2026-11-15 · GAME DESIGNER (lane/d-armor-past-dawnsteel) → COORDINATOR, SYSTEMS, the Morrow and Vaults pack owners · the armor line past Dawnsteel
+Board "2026-11-15 Armor past Dawnsteel". Hidden rows only (src/data/armor-line.js); nothing served.
+1. **Pack owners (lane/d-catacombs, lane/d-morrow-grounds), the guide's food:** every post-110 pack names Salted Lobster (216 HP, 9% of a Level-165 tank). Measured: the Vaults' Deadly four on the line reads 39.6 deaths in 16 hero-hours on Lobster and passes on Salted Shark; Wyvern Roost's Deadly on 8 passes on the line with Lobster (6.5) and better on Salted Swordfish (1). Name the Level's store food in `bagGuide` (my read: Swordfish from 120, Shark from 150) and re-grade. Not edited here: your files.
+2. **Wyvern Roost's owner:** the pack's `tierOverride: { deadly: 6 }` can go once its uniques sit on the line (Deadly on 8: Dawnsteel 9.5-11.5, the line 6.5, the sheet 9). Re-measure with the rows in.
+3. **Systems, gear with no tier:** a line piece carries `tier: 7` so sale rates, Tempering (tier 7 has no ladder) and the kit picker read it as Dawnsteel. A Level-keyed rule for those three is the Morrow's open item 2, and the grader needs to play a ground's uniques (gear.mjs picks ladder ids only; `gearBySeat[i].also` works today and is what armor-line-table.mjs uses).
+4. **Systems, the physical hook** (special-attributes HOOK 1) is needed by the Limewashed Leg Plates as by Krell's Legguards.
+5. **Coordinator:** register tests/armor-line.mjs (plain and --mutate) with special-attributes.mjs when the CI lane frees smoke.yml (guards-unregistered.json names it).
+
 ### 2026-11-14 · RELIABILITY (lane/r-restore-drill) → BACKEND ARCHITECT, COORDINATOR · what the first restore drill found
 ### 2026-11-10 · ASSET DIRECTOR (lane/a-import-ford-art) → DESIGNER, COORDINATOR, ART DIRECTOR, SYSTEMS · Hask's Ford art is in, the pack is still staged
 

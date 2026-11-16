@@ -2,6 +2,14 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-15 lane/d-armor-past-dawnsteel: the armor line past tier 7
+- **Read what the sim actually dressed before trusting a what-if.** My first sweep "gave" the tank a guard-15 shield through the practice shield's row; the kit picker never wore it (a fallback is unshifted, then the top tier is picked), so every number labelled "Tollgate" was the Coppercap. Print `h.kit` for one cell of every variant.
+- **A grader job's tier is two things: `options.tier` AND `density` (the tier row's pull).** An in-process cell with only `options` plays Deadly on Normal's pull and reads 0 deaths.
+- **Guard is Level-free, armor is not.** To-hit is base + (atk - Defense - guard) x 2%, with base fitted to a same-Level hero, so a guard point is 2% at any Level. Absorb and dodge are P / (P + k x L) against the attacker's Level, so armor must grow in step with L to hold. Past tier 7 only armor needs a line.
+- **On Deadly the monsters' to-hit sits at the 85% cap**, so guard does nothing there and armor is the whole lever. On Normal guard is the bigger lever (the Tollgate over the Coppercap: tank low 59% to 70% at the Vaults).
+- **Heavy armor saturates at the 60% cap.** Past the point that holds the cap against a ground's top monster, more plate does nothing; the line is "hold the cap", not "grow".
+- Death counts at 1 seed x 1 h are noise; the same variant read 9.5 and 21 deaths in two harnesses. Quote 3-4 seeds x 2 h, same dice across variants, and read the typical low beside them.
+
 ## 2026-11-15 lane/d-special-attributes: the attribute catalogue, measured before it was written down
 - **Measure the attribute before naming the item.** Two of my first five sample rows did nothing: 5% poison on the Glade (a four at the floor dies 0 times on Deadly, bare) and +1 Magic (+8 Magic is +0.5% for a wand at 90). Both were cut after one table each.
 - **Element resistance is a boss attribute today.** It moved no death on any open ground and it moves win rates at the Chief and Krell. Place a resist piece on the ground whose boss uses that element.

@@ -115,11 +115,14 @@ export default definePack({
     coal_tongs: 'One of Krell\'s priests came through here carrying a live coal in these. The trolls kept the tongs',
     cellar_tally: 'The innkeeper\'s tally stick for the cellar. The Landlord can\'t read it, and he won\'t give it up',
   },
-  /* THE BAG: the Hold's store food and the fire rune (Humanoid: poison does 15% more, a caster may swap). Not measured for cost. */
+  /* THE BAG: Swordfish and the fire rune (Humanoid: poison does 15% more, a caster may swap). MEASURED on the full grade (lane/a-grader-uniques, the
+     armor ruling's handoff 1, every hero in the best piece it can get): on the Hold's Lobster a Deadly four with no Healer died 43 times in 16 hero-hours
+     at the floor (the bar is 9), on Swordfish 6; the four with a Healer 0 on both. So the guide names Swordfish here, ten Levels before the 120 the
+     ruling first read. The same HP as the Lobster bag; quantities not measured for cost. */
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
+    ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_swordfish', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.08 / 1.04 of the contract at the floor and middle, so 0.96. A four of four classes read 0.54 / 0.51 of it and a
      tank and Healer 0.79 / 0.74, so the four 1000 x 1.20 / 0.523 = 2295, the pair 1000 x 1.10 / 0.764 = 1440, the cells between at the Hold's proportions. */

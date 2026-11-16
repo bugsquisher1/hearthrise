@@ -145,9 +145,11 @@ export default definePack({
   /* THE BAG: the Ox Road's store food, and the fire rune (18 heads in 24 are Undead or the Bone Wall). A caster keeps an ice slot for the Bone Wall
      (fire does 25% less on it). `storeFloor` (the March's rule, lane/d-march-balance): MEASURED on the quick grade (1 seed x 1 h, lane/d-catacombs
      2026-11-15), a lone tank at the floor on the start bar's Salted Shrimp died 7 times in the hour (Keeper Dunn 5, the Paupers 2) and lived on
-     Salted Lobster, so Before you go names the lobster. The bag's food is Shark, the store food from Level 150 (the armor ruling's handoff 1, board
-     2026-11-15 Armor past Dawnsteel: Lobster heals 9% of a 2,291 HP tank here, and a Deadly four on the line died 39.6 times in 16 hero-hours in it,
-     2.7 in Shark). Its deaths are the full grade's (lane/a-grader-uniques). */
+     Salted Lobster, so Before you go names the lobster (the full grade below still reads it so: the lone tank on Lobster 0 deaths in 24 hours, low 73%).
+     The bag's food is Shark (the armor ruling's handoff 1, board 2026-11-15 Armor past Dawnsteel). MEASURED on the full grade (lane/a-grader-uniques,
+     every hero in the best piece it can get, the Vaults sample worn from 165): a Deadly four with a Healer at the floor died 40.5 times in 16 hero-hours
+     on Lobster and 1 on Shark (the bar is 9); no Normal death in 192 lone hero-hours. The four with no Healer still dies 70 times on Shark, the store's
+     biggest food: that is not the bag's to fix. The same HP as the Lobster bag; quantities not measured for cost. */
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_shark', qty: 55 } },
     ranged: { heal: { id: 'cooked_shark', qty: 45 }, ammo: { id: 'barbed_arrows', qty: 5100 } },

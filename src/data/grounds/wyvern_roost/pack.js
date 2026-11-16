@@ -124,9 +124,10 @@ export default definePack({
     tail_sweep: { n: 'Tail Sweep', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 16000, hitPm: 1000, element: null },
     fire_breath: { n: 'Fire Breath', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 1200, element: 'ember' },
   },
-  /* THE BAG: Swordfish, the store food from Level 120 (the armor ruling's handoff 1, board 2026-11-15 Armor past Dawnsteel: the Hold's Lobster heals
-     9% of a tank here and a Deadly four died 6.5 times in 16 hero-hours on the line in it, 1 in Swordfish), and the ice rune (wyverns take 15% more from
-     ice). Its deaths are the full grade's (lane/a-grader-uniques). */
+  /* THE BAG: Swordfish (the armor ruling's handoff 1, board 2026-11-15 Armor past Dawnsteel), and the ice rune (wyverns take 15% more from ice).
+     MEASURED on the full grade (lane/a-grader-uniques, every hero in the best piece it can get): on Swordfish no Normal death in 192 lone hero-hours,
+     and a Deadly four at the floor 0 deaths in 16 hero-hours with a Healer, 1 without (the bar is 9). The same HP as the Lobster bag; quantities not
+     measured for cost. */
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
     ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },

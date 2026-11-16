@@ -130,11 +130,14 @@ export default definePack({
     hot_coal: { n: 'Hot Coal', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: 'ember' },
     goad: { n: 'Goad', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
   },
-  /* THE BAG: the Hold's store food, and the fire rune (three of the five are Undead, fire does 15% more). Not measured for cost. */
+  /* THE BAG: Swordfish, and the fire rune (three of the five are Undead, fire does 15% more). MEASURED on the full grade (lane/a-grader-uniques, the
+     armor ruling's handoff 1, every hero in the best piece it can get): on the Hold's Lobster a Deadly four with no Healer died 66 times in 16 hero-hours
+     at the floor (the bar is 9), on Swordfish 5; the four with a Healer 0 on both. So the guide names Swordfish here, eight Levels before the 120 the
+     ruling first read. The same HP as the Lobster bag; quantities not measured for cost. */
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
+    ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_swordfish', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.16 / 1.10 of the contract at the floor and middle (the hammer 1.24, Undead), so 0.91. A four of four classes read
      0.57 / 0.53 and a tank and Healer 0.80 / 0.74, so the four 1000 x 1.20 / 0.489 = 2455, the pair 1000 x 1.10 / 0.684 = 1610, the cells between at the

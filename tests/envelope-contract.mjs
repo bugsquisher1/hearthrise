@@ -203,6 +203,13 @@ function contract(R, cs, body, tl) {
   const hm = R.JW.hallmarkOf(cs);
   need('hallmark', !!hm && Array.isArray(hm.offers) && hm.offers.length === 0 && hm.today === 0 && hm.perDay >= 1,
     'hallmarkOf yields ' + JSON.stringify(hm) + ' from ' + JSON.stringify(body.hallmark));
+  // crafted jewelry's rolled jobs (2027-04-24-jewel-guarantees.sql): each open job's odds at the hero's server Crafting level, the bench's
+  // odds line; the guarantee jobs behind jewel_guarantees are off for this account, so none of them
+  const jj = R.JW.jewelJobsOf(cs);
+  need('jewel_jobs', !!jj && Number.isInteger(jj.level) && jj.jobs.size >= 2
+    && [...jj.jobs.values()].every((j) => j.fine + j.hallmarked + j.plain === 10000 && Array.isArray(j.rolls) && j.rolls.length > 0)
+    && [...jj.jobs.keys()].every((id) => !/^set_crown_shard_|^set_rat_kings_crown_/.test(id)),
+    'jewelJobsOf yields ' + JSON.stringify(jj && { level: jj.level, jobs: [...jj.jobs.entries()] }) + ' from ' + JSON.stringify(body.jewel_jobs));
   // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
@@ -315,7 +322,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'jewel_jobs', 'level', 'skill_levels', 'live_events', 'training', 'factions']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -503,6 +510,7 @@ const DB_MUTANTS = [
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
   ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
+  ['jewel_jobs', 'public.hr_jewel_jobs_view(uuid,integer)', "'hallmarked', o.hallmarked, 'plain',", "'hall', o.hallmarked, 'plain',"],
   /* lane/c-level-from-server: the client reads the Level from the server's block and nowhere else, so each of its fields is contract */
   ['level', 'public.hr_level_block(bigint)', "jsonb_build_object('xp', x, 'level', lv,", "jsonb_build_object('xp', x, 'lv', lv,"],
   ['level', 'public.hr_level_block(bigint)', "'into', x - public.hr_char_xp_for_level(lv),", "'in_to', x - public.hr_char_xp_for_level(lv),"],

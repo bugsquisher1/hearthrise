@@ -74,10 +74,10 @@ export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'set_activity';
 
-/** Is a recipe's `switch` on for this account, as the server's state says (its `features` section)? A row with no switch is. */
-export function switchedOn(state, sw) {
+/** Is a recipe's `switch` on for this account, as the server's envelope says (hr_state_of's `features` section, beside `state`)? A row with no switch is. */
+export function switchedOn(env, sw) {
   if (!sw) return true;
-  const on = state && state.features;
+  const on = env && env.features;
   return Array.isArray(on) && on.includes(sw);
 }
 
@@ -372,10 +372,10 @@ export async function runSetActivity(o) {
      the server's: `features` is hr_features_view's list (2027-03-21-feature-switches.sql), read inside this one gate-then-read,
      and the client's bench never offers the job without it, so only a forged intent meets this. Answered before the collect:
      nothing settles for a switch that cannot happen. */
-  if (decl.kind === 'artisan' && !switchedOn(st, ARTISAN_RECIPES_ALL[decl.id].switch)) {
+  if (decl.kind === 'artisan' && !switchedOn(env, ARTISAN_RECIPES_ALL[decl.id].recipe.switch)) {
     return {
       status: 409,
-      body: { ok: false, error: INTENT_ERRORS.ACTIVITY_UNSUPPORTED, kind: decl.kind, id: decl.id, switch: ARTISAN_RECIPES_ALL[decl.id].switch },
+      body: { ok: false, error: INTENT_ERRORS.ACTIVITY_UNSUPPORTED, kind: decl.kind, id: decl.id, switch: ARTISAN_RECIPES_ALL[decl.id].recipe.switch },
     };
   }
 

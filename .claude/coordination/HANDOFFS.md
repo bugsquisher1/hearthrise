@@ -1,5 +1,12 @@
 # Handoffs
 
+### 2026-11-16 · GAME DESIGNER (lane/d-temper-dawnsteel) → COORDINATOR, the weapon-line lane, SYSTEMS + ART DIRECTOR · Tempering Dawnsteel
+Board "2026-11-16 Tempering Dawnsteel". Tier 7 built as data, both tracks, 0.4% a rung, 2% a track, 1.24M a track; not sold until the catalogue is regenerated.
+1. **Coordinator, regenerate after set/v0.2.134** (with balance-2's tiers 4-6): `node tools/gen-temper.mjs --new <file>`; in the same change the Ember Tempering Salts' description adds Dawnsteel, Dawnhide, Duskweave and Duskwood, and `tests/temper-uniques.mjs` (TU6 now guards a sold ladder) is registered plain and --mutate.
+2. **Weapon-line lane:** a unique weapon worn from under about 118 does not out-hit a fully tempered Dawnsteel weapon on damage alone (what-if, `temper-dawn-table.mjs next` Blows). Start the line at 122, or make the attribute the reason, or give weapon bands a Blows ladder.
+3. **Tyler via Coordinator:** a unique worn from 110 carries Dawnsteel's own armor (the line's anchor), so no Dawnsteel ladder keeps a bare 110 unique ahead on armor; it wins on its attribute and its bigger band ladder (2.5%). Moving that is the armor line's anchor, not this cap.
+4. **Systems + Art Director:** at Krell's Hold plate and cloth get about 1% of the 2% (the cap, the ward floor); the row prints 2%. Same read as the uniques' handoff 3.
+
 ### 2026-11-15 · GAME DESIGNER (lane/d-temper-uniques) → COORDINATOR, SYSTEMS, ART DIRECTOR, the lane that ships the armor line · Tempering past Dawnsteel
 Board "2026-11-15 Tempering past Dawnsteel". Four bands built as data, all shut; nothing sold; the edge bundle moves with every live fight unchanged.
 1. **Coordinator, regenerate later:** the Tempering catalogue is not regenerated here (set/v0.2.133 is being assembled; its salts must be in hr_items first). Have the designer run `node tools/gen-temper.mjs --new` once v0.2.133 lands; with every band shut the rows equal lane/d-audit-balance-2's (checked byte for byte).

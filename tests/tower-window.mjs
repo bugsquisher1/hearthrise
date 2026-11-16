@@ -14,8 +14,10 @@
 // tests/envelope-contract.mjs; the whole loop on the real engine is tests/tower-world.mjs.
 //   TW-1  SWITCH OFF: no `tower` section, so the Havora window's Hearth tab has no Tower door, no Tower window opens, the Hearth's tap row
 //         falls back to the bag (shell-windows.js orElse), and no Tower verb is ever sent
-//   TW-2  THE CLIMB: the six plain lines, what a kill gives (the mode's own permille), the floors the server lists as the only picks (the
-//         highest picked), the week's keys and limits; Enter sends ONE hr_tower_start naming only the slot, the picked floor and a key
+//   TW-2  THE CLIMB: the six plain lines, what a kill gives (the mode's own permille), the Start Floor picker as ONE control (a select) whose
+//         options are only the floors the server lists (the highest, the hero's best checkpoint, picked; Tyler 2026-11-16 CHECKPOINTS, and no
+//         "week starts under your best" words anywhere), the week's keys and limits; Enter sends ONE hr_tower_start naming only the slot,
+//         the picked floor and a key
 //   TW-3  FORGED AND STALE: a start list that isn't the server's shape draws no pick and Enter stays off; a floor picked then dropped by the
 //         next envelope is never sent (the press takes the server's list again); a hunt running holds Enter off with why; a bad_floor
 //         refusal says so in words and re-reads the character
@@ -125,9 +127,11 @@ const climbView = (page) => page.evaluate(() => {
   if (!w) return null;
   const go = w.querySelector('.tt-go');
   return { sum: Array.from(w.querySelectorAll('.tt-sum li')).filter((l) => !l.hidden).map((l) => l.textContent),
-    xp: w.querySelector('.tt-xp').textContent, starts: Array.from(w.querySelectorAll('.tt-start')).map((b) => b.textContent + (b.getAttribute('aria-checked') === 'true' ? '*' : '')),
+    xp: w.querySelector('.tt-xp').textContent, starts: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.value + (o.selected ? '*' : '')),
+    pickers: w.querySelectorAll('[data-pane="climb"] select, [data-pane="climb"] [role="radiogroup"]').length, optionText: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.textContent),
+    note: w.querySelector('.tt-start-note').textContent, pane: w.querySelector('[data-pane="climb"]').textContent,
     best: w.querySelector('.tt-best').textContent, week: w.querySelector('.tt-week').textContent, next: w.querySelector('.tt-next').textContent,
-    limits: w.querySelector('.tt-limits').textContent, startOn: w.querySelector('.tt-start-on').textContent, go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent,
+    limits: w.querySelector('.tt-limits').textContent, startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent,
     msg: w.querySelector('.hh-intent-msg').textContent };
 });
 const chestView = (page) => page.evaluate(() => {
@@ -185,12 +189,14 @@ async function checks(overrides, shots) {
         if (!v || v.sum.length !== 6 || !/^The Tower is a climb/.test(v.sum[0]) || !/lose no XP/.test(v.sum[2]) || v.sum[3] !== 'Every 10th floor gives you a key, and higher floors give better keys.')
           fails.push('TW-2 the six plain lines read ' + JSON.stringify(v && v.sum));
         if (!v || v.xp !== 'Kill XP: 37.5% of normal') fails.push('TW-2 the XP line reads ' + JSON.stringify(v && v.xp));
-        if (!v || v.starts.join() !== '1,11,21*') fails.push('TW-2 the start picks read ' + JSON.stringify(v && v.starts));
+        if (!v || v.starts.join() !== '1,11,21*' || v.pickers !== 1 || v.optionText.join() !== 'Floor 1,Floor 11,Floor 21') fails.push('TW-2 the Start Floor picker reads ' + JSON.stringify(v && [v.starts, v.pickers, v.optionText]));
+        if (!v || v.note !== 'Checkpoints: every 10th floor, up to your best' || /under your best|cleared this week|60 floors/i.test(v.pane))
+          fails.push('TW-2 the start words read ' + JSON.stringify(v && v.note));
         if (!v || v.best !== 'Best floor: 27' || v.week !== 'Keys this week: 2' || v.next !== 'Next landing: floor 30, Bronze Key'
           || v.limits !== 'Time limit: 3 min per floor, 10 min per landing') fails.push('TW-2 the week reads ' + JSON.stringify(v));
-        if (!v || v.go !== 'on' || v.why || v.startOn !== 'Start: floor 21') fails.push('TW-2 Enter in town with a listed floor is ' + JSON.stringify(v && [v.go, v.why, v.startOn]));
+        if (!v || v.go !== 'on' || v.why || v.startOn !== 'Floor 21') fails.push('TW-2 Enter in town with a listed floor is ' + JSON.stringify(v && [v.go, v.why, v.startOn]));
         if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-climb-desktop-1440x900.png') }); }
-        await page.click('[data-hs-win="tower"] .tt-start[data-floor="11"]');
+        await page.selectOption('[data-hs-win="tower"] .tt-start-pick', '11');
         await page.click('[data-hs-win="tower"] .tt-go');
         await wait(page, () => /entered the Tower/.test(document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || ''));
         const sent = verbs(s);
@@ -207,7 +213,7 @@ async function checks(overrides, shots) {
       const { ctx, page, errors, s } = await open({ width: 1440, height: 900 }, { tower: section({ starts: [1, 'x', 11] }) });
       await openTower(page);
       let v = await climbView(page);
-      if (!v || v.starts.length !== 0 || v.go !== 'off' || v.why !== 'Pick a floor') fails.push('TW-3 a forged start list reads ' + JSON.stringify(v));
+      if (!v || v.starts.length !== 0 || v.go !== 'off' || v.why !== 'No start floor available') fails.push('TW-3 a forged start list reads ' + JSON.stringify(v));
       await page.click('[data-hs-win="tower"] .tt-go', { force: true }).catch(() => {});
       await page.waitForTimeout(300);
       if (verbs(s).length) fails.push('TW-3 an Enter that was off sent ' + verbs(s).map((c) => c.name));
@@ -215,15 +221,15 @@ async function checks(overrides, shots) {
          re-reads, and the next press takes the server's list again, never the stale pick */
       s.tower = section({ starts: [1, 11, 21] });
       await replay(page); await openTower(page);
-      await page.click('[data-hs-win="tower"] .tt-start[data-floor="21"]');
+      await page.selectOption('[data-hs-win="tower"] .tt-start-pick', '21');
       s.tower = section({ starts: [1, 11] });
       s.answer = (name) => (name === 'hr_tower_start' ? { ok: false, error: 'bad_floor', starts: [1, 11] } : { ok: true });
       const before = loads(s);
       await page.click('[data-hs-win="tower"] .tt-go');
-      const said = await wait(page, () => /^Floor not available this week$/.test(document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || ''));
+      const said = await wait(page, () => /^Floor not available$/.test(document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || ''));
       if (!said) fails.push('TW-3 bad_floor reads ' + JSON.stringify((await climbView(page)).msg));
       if (loads(s) <= before) fails.push('TW-3 a bad_floor refusal did not re-read the character');
-      await wait(page, () => document.querySelectorAll('[data-hs-win="tower"] .tt-start').length === 2);
+      await wait(page, () => document.querySelectorAll('[data-hs-win="tower"] .tt-start-pick option').length === 2);
       v = await climbView(page);
       if (!v || v.starts.join() !== '1,11*') fails.push('TW-3 after the server dropped 21 the picks read ' + JSON.stringify(v && v.starts));
       if (!(await page.click('[data-hs-win="tower"] .tt-go', { timeout: 2000 }).then(() => true, () => false))) fails.push('TW-3 after the drop Enter is off: ' + JSON.stringify(v && v.why));

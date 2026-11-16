@@ -203,6 +203,7 @@ export const REASONS = Object.freeze({
   ],
   /* the Burning Tower (lane/b-tower-window): Enter and Use each have the line above them that says why they're off */
   'src/shell/windows/tower.js': [
+    { cond: 'pending || !tw.starts.length', words: "t('tower.off_no_start')", where: 'Start Floor: off while a press is out (the busy line says so) or when the server lists no floor, which the line above Enter says (No start floor available)' },
     { cond: '!!block', words: "text(root.querySelector('.tt-off-why'), block)", where: 'Enter: the line above it says why (out hunting, already climbing, in a party, no floor the server lists), and data-off-why says it on a press' },
   ],
   'src/shell/windows/tower-chest.js': [

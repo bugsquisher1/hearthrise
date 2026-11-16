@@ -39,9 +39,9 @@ export const TOWER_TEXT = Object.freeze({
      like that for everything outside of actual lore"); the summary above is the plain-language one he asked for, the story is lore. */
   best: 'Best floor: {floor}',
   best_none: 'Best floor: none yet',
-  start_head: 'Start floor',
-  start_on: 'Start: floor {floor}',
-  start_note: 'Starts: floor {first}, or after a landing you cleared this week',
+  start_head: 'Start Floor',
+  start_floor: 'Floor {floor}',
+  start_note: 'Checkpoints: every {every}th floor, up to your best',
   limits: 'Time limit: {floor} min per floor, {landing} min per landing',
   week_taken: 'Keys this week: {count}',
   week_open: 'Keys to claim: {list}',
@@ -59,7 +59,8 @@ export const TOWER_TEXT = Object.freeze({
   off_climbing: 'Already climbing',
   off_party: 'Solo only: leave your party',
   off_pick: 'Pick a floor',
-  bad_floor: 'Floor not available this week',
+  off_no_start: 'No start floor available',
+  bad_floor: 'Floor not available',
 
   /* THE CHEST (the design's "one menu that shows all of it"). */
   keys_head: 'Keys',

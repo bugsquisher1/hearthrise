@@ -87,7 +87,7 @@ try {
   await sql(`update public.hr_feature_switches set scope = 'accounts', accounts = array[$1]::uuid[] where switch_id = 'burning_tower'`, [uid]);
   await play();
   const opened = await openTower();
-  const starts = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-start')).map((b) => b.textContent));
+  const starts = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-start-pick option')).map((o) => o.value));
   step('TOW-2 switch on: the window opens on floor 1, the one start', opened && starts.join() === '1', JSON.stringify({ opened, starts }));
   await p.shot('tower-climb-1440x900');
   await p.page.click('[data-hs-win="tower"] .tt-go');
@@ -150,8 +150,8 @@ try {
   // ── TOW-5 browser closed ──
   await closeWins();
   await openTower('climb');
-  const starts2 = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-start')).map((b) => b.textContent));
-  await p.page.click('[data-hs-win="tower"] .tt-start[data-floor="11"]').catch(() => {});
+  const starts2 = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-start-pick option')).map((o) => o.value));
+  await p.page.selectOption('[data-hs-win="tower"] .tt-start-pick', '11').catch(() => {});
   await p.page.click('[data-hs-win="tower"] .tt-go');
   await until(p.page, () => !!document.querySelector('[data-hs-act="leave"]'), null, 60000);
   const run2 = await sql('select session_id, start_floor from public.tower_runs where user_id = $1 order by started_at desc limit 1', [uid]);

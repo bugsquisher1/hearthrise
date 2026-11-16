@@ -28,8 +28,9 @@
 //   P  8-way A* never cuts a corner
 //   W  the Wang vertex grid melts lone tiles and keeps plains whole; a fill
 //      floor is laid in its cycle order
-//   G  scene routing; missing art compiles and draws as a stub; the canvas
-//      draws the layers in the plan's order, and every canvas text size floors at 12 CSS px
+//   G  scene routing (every ground, the Tower's included, shows the map it is fought on; the Tower's seats and slots stand on its
+//      floor); missing art compiles and draws as a stub; the canvas draws the layers in the plan's order, and every canvas text
+//      size floors at 12 CSS px
 //   N  NAME PLATES (src/world/core/plates.js; Tyler 2026-11-08: "Fingerguns / The Rat catcher (centered of
 //      course)"): a titled hero's plate is two centred lines, the title under the name, the block's foot
 //      where a one-line plate's is; an untitled plate is one line; a crowd of plates on one spot never
@@ -612,14 +613,23 @@ async function check(M) {
        fought on (its ground row's `map`). An open one through WORLD_MAPS, the client's own table; a staged one through
        WORLD_MAPS + STAGED_MAPS, so a pack's map lists all its rooms before the pack ships. */
     const allIdx = M.route.huntMapIndex([...M.maps.WORLD_MAPS, ...M.maps.STAGED_MAPS], M.hunts.HUNT_INDEX);
-    const fought = [...Object.values(M.grounds.HUNT_GROUNDS), ...Object.values(M.grounds.CALLED_GROUNDS), ...Object.values(M.grounds.HALL_GROUNDS)];
+    /* the Tower too (2026-11-16, "why is the tower lopsided"): its climb was fought on the Sewer's grid while the scene drew the flue, so the
+       flue was bent round the Rat King's hall. Its ground's map is the room the scene shows, and its seats and slots stand on that room's floor. */
+    const towers = Object.values(M.grounds.TOWER_GROUNDS);
+    const fought = [...Object.values(M.grounds.HUNT_GROUNDS), ...Object.values(M.grounds.CALLED_GROUNDS), ...Object.values(M.grounds.HALL_GROUNDS), ...towers];
     const wrong = fought.filter((g) => {
       const staged = !M.hunts.HUNT_INDEX[g.hunt] || M.hunts.HUNT_INDEX[g.hunt].staged === true;
       const r = M.route.sceneFor({ kind: 'combat', id: g.hunt }, 'town', staged ? allIdx : idx, M.maps.SCENE_MAPS);
       return r.kind !== 'hunt' || r.map !== g.map;
     });
-    ok('G5', fought.length >= 10 && fought.some((g) => g.hall) && !wrong.length,
-      'every hunt, called room and hall must show its own map (' + fought.length + ' grounds; wrong: ' + wrong.map((g) => g.hunt + '->' + g.map).join(', ') + ')');
+    ok('G5', fought.length >= 10 && fought.some((g) => g.hall) && towers.length >= 1 && !wrong.length,
+      'every hunt, called room, hall and the Tower must show its own map (' + fought.length + ' grounds; wrong: ' + wrong.map((g) => g.hunt + '->' + g.map).join(', ') + ')');
+    const shut = towers.flatMap((g) => {
+      const m = compiled(g.map);
+      return [...g.start, ...g.pockets.flatMap((p) => p.spawns.map((s) => [s.x, s.y]))]
+        .filter(([x, y]) => !(x < m.w && y < m.h && m.mask[y * m.w + x] === 0)).map(([x, y]) => g.id + ' ' + x + ',' + y);
+    });
+    ok('G5', !shut.length, 'every Tower seat and slot must stand on open floor of its own map (shut: ' + shut.join(', ') + ')');
     const miss = book.frame('no_such_sprite');
     ok('G2', miss.set === '' && miss.w === M.bookm.STUB_SPRITE.frame[0] && book.sprite('no_such_sprite') === M.bookm.STUB_SPRITE, 'a sprite no atlas carries must resolve to the stub record and frame');
     const lost = M.bookm.createBook({ heroes: M.manifests.heroes });
@@ -900,6 +910,8 @@ const MUTANTS = [
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G5', 'a keyed hall left off its map (Krell\'s Hall showed the town)', 'src/data/grounds/krells_hold/map.js', [["hunts: Object.freeze(['krells_hold', 'krells_hold_hall'])", "hunts: Object.freeze(['krells_hold'])"]]],
   ['G5', 'a called room left off its map', 'src/data/world/maps/coppercap_warrens.js', [["hunts: Object.freeze(['coppercap_warrens', 'coppercap_warrens_called'])", "hunts: Object.freeze(['coppercap_warrens'])"]]],
+  ['G5', 'the Tower fought on the Sewer\'s grid under the flue\'s art again', 'src/data/hunt-grounds.js', [["map: 'burning_tower', tower: true", "map: 'millrace_sewer', tower: true"]]],
+  ['G5', 'a Tower seat in the flue\'s brick', 'src/data/hunt-grounds.js', [['start: Object.freeze([[30, 21], [29, 21]', 'start: Object.freeze([[30, 21], [22, 21]']]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(Object.values(OUTFITS));', '  const ids = new Set();']]],
   ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],

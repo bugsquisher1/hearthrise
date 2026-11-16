@@ -414,13 +414,15 @@ export const TRAINING_GROUNDS = Object.freeze(Object.fromEntries(Object.keys(TRA
    verb, hr_tower_start. Not in HUNT_GROUNDS, so nothing that lists grounds sees it; the engine and the scene reach it by hunt (groundOfHunt). `tower`
    marks the ground: the engine fields each floor's room from the stat formula at Level F, opens the stair when the last of it falls and ends the climb
    `floor_time` when a floor runs out of time (src/core/hunt/tower.js); `mode` is the session mode the server freezes on it (session-modes.js `tower`:
-   a death costs nothing, no coin, no drops, no Bestiary). Its as-built spawns are the catalogue's placeholders, one a slot of the room. THE ROOM IS A
-   STAND-IN: the Rat King's hall on the Sewer's map, until the flue's own room kit lands with the window and art (the board's §1). */
+   a death costs nothing, no coin, no drops, no Bestiary). Its as-built spawns are the catalogue's placeholders, one a slot of the room. THE ROOM IS THE
+   FLUE'S OWN (src/data/world/maps/burning_tower.js, lane/a-tower-art-gen 2026-11-16): the pocket the whole round shaft, the five slots on the ash in
+   an arc under the climbing irons (slot 0, a landing's Keeper, on the axis), the four seats on the ash at the iron landing's lip, the party
+   stepping up the stair at the south. */
 export const TOWER_GROUNDS = Object.freeze({
   [TOWER_RULES.hunt]: Object.freeze({
-    id: TOWER_RULES.hunt, hunt: TOWER_RULES.hunt, map: 'millrace_sewer', tower: true, mode: 'tower',
-    start: Object.freeze([[51, 23], [51, 22], [51, 24], [50, 23]]),
-    pockets: Object.freeze([pocket([51, 17, 57, 29], ['rat', 55, 23], ['rat', 56, 18], ['rat', 56, 28], ['rat', 53, 18], ['rat', 53, 28])]),
+    id: TOWER_RULES.hunt, hunt: TOWER_RULES.hunt, map: 'burning_tower', tower: true, mode: 'tower',
+    start: Object.freeze([[30, 21], [29, 21], [31, 21], [30, 22]]),
+    pockets: Object.freeze([pocket([23, 14, 37, 25], ['rat', 30, 16], ['rat', 27, 17], ['rat', 33, 17], ['rat', 25, 19], ['rat', 35, 19])]),
     route: Object.freeze([0]),
     respawnMs: TOWER_RULES.stairMs, pullDist: 1.5, groupFit: 'both',
   }),

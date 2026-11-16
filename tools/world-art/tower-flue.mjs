@@ -6,8 +6,8 @@
 //
 // Every pixel is a kept tile's or a kept wall slice's (art/world-src/gen-2026-11-16/01-note.json), moved along the palette's own ramps.
 //   FLOOR  src/data/world/maps/burning_tower.js rows → a paint grid: I the iron landing (the plate), A the swept ash (the Pyre Field's
-//          own ash, chained: both sets share base tile ed88d179 byte for byte), H hearthstone patches where the ash is thin, laid only
-//          off the fight area (its median #6a6865 is too dark under a pocket, tower-pours.mjs --check), # the brick mass.
+//          own ash, chained: both sets share base tile ed88d179 byte for byte), # the brick mass. The room is one round flue, mirror-
+//          symmetric about x30 (round 5); the hearthstone (median #6a6865, too dark under a pocket) is the walls' top only.
 //   FINISH (round 3) a hand-placed list (FINISH): the climbers' worn path, ash drifts against the walls, pale and warm patches, cinder
 //          scatter, and the landing's 64 px sections and raised rim. It throws if the floor's median under the spawns leaves #8a867d.
 //          The plain ash it leaves is varied per cell at runtime (art/world/tower/flue_ash_variety.json, src/world/core/ground-variety.js).
@@ -46,40 +46,39 @@ function remap(img, map) {
   return img;
 }
 
-/** The room's paint rows: I the iron landing, A ash, H hearthstone (a noise patch off the fight area, every neighbour ash, patch or wall), # mass. */
+/** The flue's floor in cells: its bounds and its mirror axis (the room is symmetric about the middle of its widest row). */
+export function flueShape(map = TOWER_MAP) {
+  let x0 = Infinity, x1 = -1, y0 = Infinity, y1 = -1;
+  map.rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '#') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } }));
+  return { x0, y0, x1, y1, axis: (x0 + x1) / 2 };
+}
+
+/** The room's paint rows: I the iron landing, A ash, # mass. THE ASH RUNS TO THE WALLS (round 5): in the round flue every cell off the fight
+    is a rim cell, so hearthstone patches laid there read as straight slab bands boxing the room in; the drifts and pale patches break the ash. */
 export function flueGrid(rows) {
-  const h = rows.length, w = rows[0].length;
-  const base = rows.map((row) => [...row].map((ch) => (ch === '#' ? '#' : ch === 'i' ? 'I' : 'A')));
-  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? '#' : base[y][x]);
-  /* the fight area (the engine's pockets x51-57 y17-29 and the lane to the landing) stays swept ash: bright, 3:1 under the charred */
-  const fight = (x, y) => x >= 51 && x <= 58 && y >= 18 && y <= 29;
-  const out = base.map((r) => r.slice());
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (base[y][x] !== 'A' || fight(x, y) || noise(x * T, y * T, 3 * T, 61) <= 0.4) continue;
-    let ok = true;
-    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) { const q = at(x + dx, y + dy); if (q !== 'A' && q !== '#') { ok = false; break; } }
-    if (ok) out[y][x] = 'H';
-  }
-  return out.map((r) => r.join(''));
+  return rows.map((row) => [...row].map((ch) => (ch === '#' ? '#' : ch === 'i' ? 'I' : 'A')).join(''));
 }
 
 /* ── THE FLOOR'S FINISH, BY HAND (round 3, 2026-11-16: "break the flat pale ash; give the iron landing a rim and seams") ──
    Every feature is a row here in map cells, placed by eye against the room and moved by editing the row. Fight cells take paint, never
    props. No colour is new: a pixel moves one step along its own ramp, to a warmer twin of about its value, or takes a cinder
-   from the soot and fire ramps. Seeds are fixed, so the paint is the same on every run. */
+   from the soot and fire ramps. Seeds are fixed, so the paint is the same on every run. The room is mirror-symmetric about x30 (cell
+   centre 30.5 here), so every feature off the axis has its twin at 61 - cx (a drift's turn negated); the scatter inside each is its own. */
+const mirror = (list, turnAt = -1) => list.flatMap((r) => [r, r.map((v, i) => (i === 0 ? 61 - v : i === turnAt ? -v : v))]);
 export const FINISH = Object.freeze({
-  /* the climbers' worn path: from the stair at the landing's west, over the iron, across the ash to the irons in the north wall */
-  path: Object.freeze([[41.5, 23.5], [50.5, 23.5], [53.2, 22.2], [54.5, 19.5], [54.5, 15.6]]),
+  /* the climbers' worn path, up the axis: from the stair at the landing's south edge, over the iron, across the ash to the irons in the north wall */
+  path: Object.freeze([[30.5, 25.7], [30.5, 14.6]]),
   /* ash drifts blown against the walls and round the curves: [cx, cy, rx, ry, turn] (cells; turn in radians) */
-  drifts: Object.freeze([[57.3, 22.4, 0.5, 3.1, 0], [52.1, 17.4, 1.6, 0.5, -0.45], [55.0, 29.8, 1.8, 0.45, 0.12], [50.5, 27.9, 0.55, 1.5, 0.25]]),
-  /* the draught down the flue leaves pale, clean ash in the north and along the east wall; the heap's embers and the stair's braziers warm
-     theirs: [cx, cy, r] */
-  pale: Object.freeze([[54.5, 17.0, 3.2], [57.2, 24.6, 2.6]]),
-  warm: Object.freeze([[53.8, 29.0, 2.6], [51.4, 23.0, 1.8], [54.2, 24.6, 2.2]]),
-  /* cinders: what falls from the flue under the irons, what spills round the heap and the scuttle: [cx, cy, r, count] */
-  cinders: Object.freeze([[53.5, 31.0, 1.4, 90], [56.2, 31.2, 0.6, 30], [54.5, 15.8, 0.8, 40], [55.3, 20.4, 1.0, 26], [52.4, 26.4, 1.0, 26], [50.8, 22.1, 0.5, 14], [56.6, 27.2, 0.7, 18]]),
-  /* the landing's plate sections: a heavy seam every 64 px on the tile's own 16 px seams (x at 9, y at 7 within the plate) */
-  section: Object.freeze({ x0: 41 * T + 9, y0: 21 * T + 7, every: 64 }),
+  drifts: Object.freeze(mirror([[23.5, 19.6, 0.5, 2.0, 0], [26.0, 16.0, 1.7, 0.45, -0.72], [25.5, 23.4, 1.3, 0.42, 0.78]], 4)),
+  /* the draught down the flue leaves pale, clean ash under the irons and along the side walls; the heaps' embers and the landing's braziers
+     warm theirs: [cx, cy, r] */
+  pale: Object.freeze([[30.5, 16.4, 3.0], ...mirror([[24.0, 18.6, 1.4]])]),
+  warm: Object.freeze(mirror([[24.4, 20.6, 1.5], [26.4, 23.4, 1.3]])),
+  /* cinders: what falls from the flue under the irons, what spills round the heaps, the sacks and the scuttle: [cx, cy, r, count] */
+  cinders: Object.freeze([[30.5, 14.9, 0.8, 40], ...mirror([[24.2, 20.6, 1.1, 60], [24.6, 22.6, 0.6, 16], [27.6, 19.6, 0.9, 22], [26.6, 15.6, 0.6, 14]])]),
+  /* the landing's plate sections: a heavy seam every 64 px on the tile's own 16 px seams (x at 9, y at 7 within the plate), the
+     verticals as near the axis's mirror as those seams allow */
+  section: Object.freeze({ x0: 29 * T + 9, y0: 24 * T + 23, every: 64 }),
 });
 const R = (ramp, i) => RAMPS[ramp][i];
 /* the landing's own colours (its plate, seams, soot, and the bars and seams this finish lays); the ash lip the transition draws is none of them */
@@ -142,18 +141,14 @@ export function finishFloor(img, rows) {
   };
   const TROD = { [R('stone', 4)]: R('stone', 3), [R('bone', 0)]: R('stone', 4), [R('steel', 2)]: R('stone', 3) };
   const POLISH = { [R('iron', 0)]: R('iron', 1), [R('shadow', 2)]: R('iron', 0) };
-  for (let y = 19 * T; y < 27 * T; y++) for (let x = 40 * T; x < 57 * T; x++) {
+  /* the floor's own bounds, a cell round (src/data/world/maps/burning_tower.js rows), so the finish follows the room wherever it is drawn */
+  const S = flueShape();
+  for (let y = (S.y0 - 1) * T; y < (S.y1 + 2) * T; y++) for (let x = (S.x0 - 1) * T; x < (S.x1 + 2) * T; x++) {
     const hw = 13 + (noise(x, y, 14, 91) - 0.5) * 10, d = segD(x, y);
     if (d >= hw) continue;
     const core = 1 - d / hw, cell = cellOf(x, y), h = hexAt(img, x, y);
     if (cell === 'I') { if (POLISH[h] && hash2(x, y, 93) < 0.26 * core) { setHex(img, x, y, POLISH[h]); counts.path++; } continue; }
-    if (TROD[h]) { setHex(img, x, y, TROD[h]); counts.path++; }
-    else if (h === R('stone', 3) && hash2(x, y, 95) < 0.06 + 0.24 * core) { setHex(img, x, y, R('stone', 2)); counts.path++; }
-  }
-  for (let y = 13 * T; y < 19 * T; y++) for (let x = 52 * T; x < 57 * T; x++) {
-    const hw = 12 + (noise(x, y, 14, 91) - 0.5) * 10, d = segD(x, y);
-    if (d >= hw || !ash(x, y)) continue;
-    const core = 1 - d / hw, h = hexAt(img, x, y);
+    if (cell !== 'A' && cell !== 'H') continue;
     if (TROD[h]) { setHex(img, x, y, TROD[h]); counts.path++; }
     else if (h === R('stone', 3) && hash2(x, y, 95) < 0.06 + 0.24 * core) { setHex(img, x, y, R('stone', 2)); counts.path++; }
   }
@@ -198,7 +193,7 @@ export function finishFloor(img, rows) {
   /* the rim: per iron pixel, the nearest edge within 4 px by side; a lit bar on the north and west, a duller one south and east */
   const RIM = { lit: [R('shadow', 1), R('iron', 3), R('iron', 2), R('shadow', 1)], dull: [R('shadow', 1), R('iron', 2), R('iron', 1), R('iron', 1)] };
   const marks = [];
-  for (let y = 20 * T; y < 27 * T; y++) for (let x = 40 * T; x < 52 * T; x++) {
+  for (let y = (S.y0 - 1) * T; y < (S.y1 + 2) * T; y++) for (let x = (S.x0 - 1) * T; x < (S.x1 + 2) * T; x++) {
     if (!iron(x, y)) continue;
     let best = 9, side = null;
     for (const [dx, dy, sd] of [[0, -1, 'n'], [-1, 0, 'w'], [0, 1, 's'], [1, 0, 'e']]) {
@@ -235,7 +230,7 @@ export function paintFloor() {
   const rows = flueGrid(TOWER_MAP.rows);
   const grid = 'art/briefs/burning-tower-grid-2026-11-16.txt';
   writeFileSync(abs(grid), ['THE BURNING TOWER\'S PAINT GRID (lane/a-tower-art-gen, 2026-11-16), cut from src/data/world/maps/burning_tower.js rows by flueGrid in',
-    'tools/world-art/tower-flue.mjs: I the iron landing, A swept ash, H hearthstone patches (off the fight area), # the brick mass (void, walls laid over).', '', 'PAINT', ...rows, ''].join('\n'));
+    'tools/world-art/tower-flue.mjs: I the iron landing, A swept ash, # the brick mass (void, walls laid over).', '', 'PAINT', ...rows, ''].join('\n'));
   run('port-pixellab.mjs', ['paint', '--set', 'tower', '--id', 'burning_tower_ground', '--grid', abs(grid), '--tilesets', dirs.map(abs).join(','), '--use', metas.map((m) => m.id.slice(0, 8)).join(','),
     '--legend', `I=${iron.slice(0, 8)},A=${ash.slice(0, 8)},H=${stone.slice(0, 8)}`, '--void', '#', '--void-fill', '#0b0a0c', '--material', 'native']);
   /* wear (ART_DIRECTION §5, decals on a jittered grid, never two alike in a row): the sweep's soot and scorch on the ash, the iron's own cracks and soot */
@@ -301,7 +296,9 @@ export function layWalls() {
     if (floor(x - 1, y)) { blit(img, capV, 0, 0, CAP, T, x * T, y * T, true); sides++; }
     if (floor(x + 1, y)) { blit(img, capV, 0, 0, CAP, T, x * T + T - CAP, y * T, true); sides++; }
   }
-  /* 2: the faces, north to south */
+  /* 2: the faces, north to south. A face's slice is picked by its distance from the flue's axis, so the rhythm (an ember crack every sixth,
+     a pier every twelfth) mirrors left and right: the cracks flank the irons, the piers stand where the curve meets the straight sides */
+  const { axis } = flueShape();
   let faces = 0, cracked = 0;
   for (let y = 0; y < h; y++) {
     let x = 0;
@@ -309,7 +306,7 @@ export function layWalls() {
       if (!(wall(x, y) && floor(x, y + 1))) { x++; continue; }
       let e = x; while (e + 1 < w && wall(e + 1, y) && floor(e + 1, y + 1)) e++;
       for (let c = x; c <= e; c++) {
-        const i = c - x;
+        const i = Math.abs(c - axis);
         const slice = i % 12 === 7 ? S.pier : i % 6 === 3 ? S.ember[Math.floor(i / 6) % 3] : S.plain[i % 2];
         if (slice !== S.pier && i % 6 === 3) cracked++;
         blit(img, slice, 0, 0, T, WALL_H, c * T, y * T + T - WALL_H, true);
@@ -328,7 +325,7 @@ export function layWalls() {
       if (!(wall(x, y) && floor(x, y - 1) && !floor(x, y + 1))) { x++; continue; }
       let e = x; while (e + 1 < w && wall(e + 1, y) && floor(e + 1, y - 1) && !floor(e + 1, y + 1)) e++;
       for (let c = x; c <= e; c++) {
-        const i = c - x + y;
+        const i = Math.abs(c - axis) + y;
         const slice = i % 6 === 3 ? S.ember[Math.floor(i / 6) % 3] : S.plain[i % 2];
         blit(img, slice, 0, capY, T, WALL_H - capY, c * T, y * T, true);
         south++;

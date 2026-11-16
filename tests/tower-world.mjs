@@ -122,9 +122,9 @@ try {
     await p.page.click('[data-hs-act="leave"]');
     await world.skip(1);
   }
-  const card = await until(p.page, () => /floor/.test(document.querySelector('.hsum-reason')?.textContent || ''), null, 60000);
+  const card = await until(p.page, () => /Floors cleared/.test(document.querySelector('.hsum-reason')?.textContent || ''), null, 60000);
   const reason = await p.page.evaluate(() => document.querySelector('.hsum-reason')?.textContent || '');
-  step('TOW-3 the end card says the floors and the key, never "died"', card && /You climbed from floor 1 to floor \d+\./.test(reason) && /Bronze Key/.test(reason) && !/died/i.test(reason)
+  step('TOW-3 the end card says the floors and the key, never "died"', card && /Floors cleared: 1 to \d+/.test(reason) && /Bronze Key/.test(reason) && !/died/i.test(reason)
     && !(await p.page.$('[data-hs-win="death"]')), reason);
   await p.shot('tower-end-card-1440x900');
 
@@ -175,7 +175,7 @@ try {
   await p.page.waitForTimeout(1500);
   const back = await p.page.evaluate(() => ({ reason: document.querySelector('.hsum-reason')?.textContent || '', death: !!document.querySelector('[data-hs-win="death"]') }));
   const wantTop = r2.top_floor;
-  step('TOW-5 back on the page: the card reads the server\'s run, no death popup', !back.death && (back.reason === '' || (new RegExp('floor 11 to floor ' + wantTop).test(back.reason) && !/died/i.test(back.reason))),
+  step('TOW-5 back on the page: the card reads the server\'s run, no death popup', !back.death && (back.reason === '' || (new RegExp('Floors cleared: 11 to ' + wantTop).test(back.reason) && !/died/i.test(back.reason))),
     JSON.stringify({ back, r2 }));
   await closeWins();
   await openTower('climb');

@@ -232,6 +232,11 @@
 //              both members the party panel draws: unit (= the session's world
 //              unit), name, role, HP / mana off the pose, dealt, DPS; leader and
 //              self are units; `account.max_concurrent` is the server config.
+//   PARTY-STAMINA-POOL (2027-04-26-party-stamina-truth.sql, the audit's F7) a seat's low
+//              stamina in the `party` section is its POOL, never the stored column: a seat
+//              rested since its last hunt warns of nothing at the Start; once low, the
+//              leader is shown the number the seat's own `stamina` section shows; the tick
+//              (browser closed) and a viewer's settles leave the same.
 //   TOWN-DEFAULTS the bar's unset options read the engine's pick (2027-01-25-town-defaults.sql):
 //              alone in town, a party in town, a hunt before its first settle == roles.js
 //              defaultSettings for the role and party, GOLD_FLOOR.default; the first settle's
@@ -4168,6 +4173,36 @@ const DB_ARMS = {
     if (soloEnv !== null) problems.push(`a character with no hunt and no party has a party section: ${JSON.stringify(soloEnv).slice(0, 200)}`);
     return problems;
   }),
+  /* A SEAT'S LOW STAMINA IS ITS POOL, BOTH PATHS (2027-04-26-party-stamina-truth.sql; the full-game audit's F7, 2026-11-15). Seat 1 ran
+     dry and rested 16 minutes before this hunt: nothing wrote its pool, so the stored column is 0 while the pool is 16 min. At the Start
+     its leader's envelope warns of nothing (the column read "1 min left" there). Two minutes hunted, settled by the world tick with the
+     browser closed and again by a viewer's instants: the pool is at the line or under, the leader's envelope warns with the number the
+     seat's own stamina section shows, and both doors say the same. */
+  'PARTY-STAMINA-POOL': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    await db.query(`update public.player_state set stamina_ms = 0, stamina_at = (select hunt_from - interval '16 minutes' from public.hunt_sessions where id = $2)
+                     where user_id = $1 and slot = 0`, [UIDS[1], h.sids[1]]);
+    const seat1 = async (reader) => ((((await one(db, `select public.hr_state_of($1::uuid, 0)->'party'`, [reader])) || {}).members) || []).find((m) => m.seat === 1) || {};
+    const atStart = await seat1(UIDS[0]);
+    if (atStart.hunting !== true || atStart.stamina_low_ms !== null) problems.push(`[F7] at the Start a seat with 16 min rested (stored pool 0) is shown to its leader with ${atStart.stamina_low_ms} ms left`);
+    const go = async (cuts) => {
+      await run(db, M, h.from, cuts);
+      return { party: (await seat1(UIDS[0])).stamina_low_ms, self: (await seat1(UIDS[1])).stamina_low_ms,
+        own: await one(db, `select public.hr_state_of($1::uuid, 0)->'stamina'`, [UIDS[1]]) };
+    };
+    await db.query('savepoint party_stamina');
+    const tick = await go(ticksOf(10000, 120000));
+    await db.query('rollback to savepoint party_stamina');
+    const viewed = await go((from) => [from + 7001, from + 33333, from + 120000]);
+    for (const [door, s] of [['the browser closed', tick], ['the hunt viewed', viewed]]) {
+      if (!s.own || s.own.hunting !== true || !(s.own.ms > 0 && s.own.ms <= 900000)) { problems.push(`CONTROL (${door}): after two minutes the seat's own stamina section reads ${JSON.stringify(s.own)}, want a hunting pool at 15 min or under`); continue; }
+      if (s.party !== s.own.ms) problems.push(`${door}: the leader is shown ${s.party} ms for a seat whose own stamina section says ${s.own.ms}`);
+      if (s.self !== s.own.ms) problems.push(`${door}: the seat's party row shows itself ${s.self} ms, its stamina section ${s.own.ms}`);
+    }
+    if (tick.party !== viewed.party) problems.push(`the tick left the seat's warning at ${tick.party} ms and a viewer's settles at ${viewed.party}`);
+    return problems;
+  }),
   /* TOWN-DEFAULTS (Tyler 2026-10-25: the whole bar is configurable in town; 2027-01-25-town-defaults.sql + its generated
      hr_hunt_role_defaults): an option the hero never set reads what the ENGINE would play (hunt-spawn.js heroSetup over
      roles.js defaultSettings for its role and party; GOLD_FLOOR.default for the gold to keep): alone in town, in a party
@@ -5227,6 +5262,12 @@ const DB_MUTANTS = [
   /* (re-anchored on 2027-01-25-town-defaults.sql: a hunting member's mana falls back to its max mana) */
   { arm: 'PARTY-VIEW', name: 'the vitals are not read off the pose', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "        'mana', case when v_r.sid is not null then coalesce(v_v->'mana', v_mx->'max_mana') end,", replace: "        'mana', null::jsonb," },
+  /* PARTY-STAMINA-POOL (2027-04-26-party-stamina-truth.sql): the stored column again (F7), and a pool with no warning. */
+  { arm: 'PARTY-STAMINA-POOL', name: '[party stamina] the party section reads the stored column: a rested seat reads empty at the Start', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: 'then public.hr_stamina_of(v_r.user_id, v_r.slot, v_r.settled_to) end;',
+    replace: 'then (select q.stamina_ms from public.player_state q where q.user_id = v_r.user_id and q.slot = v_r.slot) end;' },
+  { arm: 'PARTY-STAMINA-POOL', name: '[party stamina] a seat at the line warns nobody', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: 'case when v_stam <= 900000 then', replace: 'case when v_stam <= 0 then' },
   /* TOWN DEFAULTS (2027-01-25-town-defaults.sql): each leg goes red on its own defect. */
   { arm: 'TOWN-DEFAULTS', name: '[town defaults] an unset option reads null again (no role default)', fn: 'public.hr_hunt_settings_view(uuid,integer)',
     find: "    v_val := coalesce(nullif(v_opt->v_o.opt, 'null'::jsonb), v_unit->v_o.opt, v_o.dflt, v_rdef->v_o.opt);",

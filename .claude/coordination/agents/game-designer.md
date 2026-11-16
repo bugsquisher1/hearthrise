@@ -905,3 +905,8 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A walk-through written yesterday can be stale today: the Ox Road's "can't target the Drover" was false (`widgets/first-target.js`, `targeting.js` tkind). Re-grep every "missing control" claim before ruling on it.
 - Driving the pane: coordinates from `getBoundingClientRect` scaled by 800 / innerWidth beat refs, which go stale on every repaint. A `skip` that answers `moved: 0` means the Enter never landed.
 - Two lanes on one day placed the same idea twice (Kingstooth and Widow's Fang, an Iron Sword with crit on the Sewer). A catalogue's placement map must list call-only and daily-prize rows too, or the next lane duplicates them.
+## 2026-11-16 lane/d-coherence-fixes (coherence fix lanes A and E)
+- `cell.mjs`'s `gear.also` only reads ids the ENGINE's item table holds. A row added to `R.gear.ITEMS` at runtime never reaches the engine (every made-up variant read the same, and above the Iron Sword). Measure a stat change by editing the data row itself, one variant a run.
+- At Levels 16 to 22 a lone sword is spawn-bound on the Sewer, the Glade and Wickstead: a 10% bane or a 6% crit moves Level XP an hour by 1 to 2%. A tier-2 or tier-3 attribute is a side-grade there, by design. Say so instead of selling it as power.
+- `boss-call-table.mjs` throws "A CALLED FIGHT PAID" on every win since `dropsLive` went true (it counts items). Its money line is a check: measure from a scratch copy and hand the tool to its owner, never loosen it in a lane.
+- A story fix that makes a mechanic a fact of the world beats one that hides it: Krell tied to his own fire explains the daily kill, the gatehouse seat and the road north in one sentence.

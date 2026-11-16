@@ -4,6 +4,13 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-16 · game-designer (lane/d-coherence-fixes) · the bag's stat lines don't show `bane` or `resistPm`
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 reads badly · `src/shell/bag-model.js` STATS words accuracy, damage, Defense, crit and `steadyPm` only. Kingstooth's "10% more to Vermin" and the Cauldron Lid's "10% less fire" (and every bane weapon and lined piece) show only in the item's description, and the compare lines show them as worse than the plain piece (Kingstooth -1 damage, the Lid -1 Defense) | bag, item card, Equip compare | Art Director: give the card and the compare a line for a piece's attribute (FORMULAS ARE PUBLIC) |
+| 2 | Tool · `tools/balance-sim/boss-call-table.mjs` throws "A CALLED FIGHT PAID" on every called win since `BOSS_CALL_RULES.dropsLive` is true: its money line still counts items | balance measurement of Call out | The tool's owner: XP and coin stay zero, items only on a win (a loss that drops is still an error). Not loosened in a design lane |
+
 ## 2026-11-14 · art-director (lane/b-map-audit) · a unit's feet land on its tile's SOUTH pixel row, so a bridge drawn on the tile rows misses them
 
 | # | Found | Affected | Action |

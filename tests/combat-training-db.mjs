@@ -276,7 +276,7 @@ const MUTANTS = [
   { name: 'a second apply moves a body', fn: FN.quote, find: 'declare v_t public.hr_training_grounds%rowtype; v_r public.hr_training_rules%rowtype;', repl: 'declare /* moved by a probe */ v_t public.hr_training_grounds%rowtype; v_r public.hr_training_rules%rowtype;', arm: 'again', want: /TD-AGAIN/ },
   { name: 'the section counts only the first hour', fn: FN.section, find: "and l.intent like 'training\\_%' and l.meta->>'session' = v_s.id::text", repl: "and l.intent like 'training\\_start%' and l.meta->>'session' = v_s.id::text", arm: 'doors', want: /TD-DOORS .* section mid-run/ },
   { name: 'the section forgets the last stop', fn: FN.section, find: "   where h.user_id = p_user and h.slot = p_slot and h.ended_at is not null\n", repl: "   where false\n", arm: 'doors', want: /TD-DOORS .* section after the end/ },
-  { name: 'a party may train', fn: FN.quote, find: "v_why := case when public.hr_hunt_party_of(p_user, p_slot) is not null then 'in_party'", repl: "v_why := case when false then 'in_party'", arm: 'verb', want: /TD-VERB/ },
+  { name: 'a party may train', fn: FN.quote, find: "when public.hr_hunt_party_of(p_user, p_slot) is not null then 'in_party'", repl: "when false then 'in_party'", arm: 'verb', want: /TD-VERB/ },
 ];
 
 async function main() {

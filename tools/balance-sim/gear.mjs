@@ -90,6 +90,7 @@ export async function loadGear(root) {
     const key = ids.join(',');
     if (!reaches.has(key)) {
       for (const g of ids) if (!own(HUNT_GROUNDS, g)) throw new Error('balance-sim gear: openAlso names no ground ' + g);
+      /* groundsWith carries the open keyed halls too (lane/d-mage-110: without them Carter's Rest was graded without Lord Krell's drops) */
       reaches.set(key, CC.reachableSources({ grounds: groundsWith(ids) }));
     }
     return reaches.get(key);

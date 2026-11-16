@@ -103,11 +103,32 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
      src/shell/training-words.js's. */
   training_start: Object.freeze({
     quote_changed: 'The price changed before you started. Look at the new price and press Start training again.',
+    low_level: 'Training opens at Level 10. Hunt a little longer first.',
     hunt_open: 'Your hero is out hunting. Come back to town to train.',
     in_party: 'Training is solo. Leave the party first.',
     insufficient_gold: 'You don\'t have enough gold for the first hour.',
     not_owned: 'Your dummy at home doesn\'t train that skill yet. Unlock it in the House.',
     dummy_busy: 'Another hero is on your dummy at home right now.',
+    bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
+  }),
+  /* The training items (2027-04-23-training-gear.sql). The ones with the server's numbers are src/shell/training-words.js's. */
+  training_gear_buy: Object.freeze({
+    quote_changed: 'The price changed. Look at the new price and press Buy again.',
+    feature_off: 'Training items aren\'t for sale yet.',
+    not_for_sale: 'The Arms Master doesn\'t sell that one.',
+    bad_item: 'That isn\'t a training item.',
+    buy_limit: 'You bought all the training items you can today. The Arms Master sells more tomorrow.',
+    insufficient_gold: 'You don\'t have enough gold for that.',
+    bag_full: 'Your bag is full. Make room and buy it again.',
+  }),
+  training_gear_open: Object.freeze({
+    feature_off: 'Training items aren\'t open yet.',
+    bad_item: 'That isn\'t a training item.',
+    still_open: 'That skill\'s training item still has hours left. The next one opens by itself when they run out.',
+    none_held: 'You don\'t have one in your bag or Storage.',
+  }),
+  training_gear_switch: Object.freeze({
+    feature_off: 'Training items aren\'t open yet.',
     bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
   }),
   house_dummy: Object.freeze({
@@ -120,6 +141,19 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
 });
 
 export const REFUSAL_WORDS = Object.freeze({
+  /* The factions (2027-04-22-faction-standing.sql, 2027-04-23-faction-section.sql). The ones with the server's numbers are
+     src/shell/faction-words.js's. feature_off is every switched-off feature's line (the training items' too), written once. */
+  feature_off: 'That isn\'t open yet.',
+  join_locked: 'You can pick a side after your first Lord Krell kill.',
+  already_joined: 'This hero already has a side.',
+  same_faction: 'This hero is already on that side.',
+  swap_open: 'A swap is already under way.',
+  swap_cooldown: 'You changed sides too recently to swap again.',
+  no_swap: 'There is no swap to finish.',
+  swap_short: 'Your swap needs more hunting on the new side\'s grounds.',
+  piece_owned: 'This hero already has that piece.',
+  standing_short: 'This hero needs more standing for that piece.',
+  not_member: 'This hero has no side yet.',
   /* The Game Master's wall and his tools (2027-03-13-gm-tools.sql). */
   gm_walled: 'The Game Master\'s account stays apart from other players, so that can\'t be done.',
   muted: 'The Game Master has muted you for now. You can still read chat.',
@@ -312,6 +346,10 @@ export const REFUSAL_WORDS = Object.freeze({
   same_hunt: 'You are already hunting there.',
   training_only: 'That spot is for training. Start it from the Training window.',
   dummy_max: 'Your dummy trains every skill already.',
+  /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
+  buy_limit: 'That is all you can buy today. Try again after midnight UTC.',
+  still_open: 'That skill\'s training item still has hours left. The next one opens by itself when they run out.',
+  none_held: 'You don\'t have one in your bag or Storage.',
   /* The play cap (2027-01-19-play-cap.sql; Tyler 2026-10-17): at most four heroes play at once per account and per
      internet connection. The number is SESSION_CONFIG.maxConcurrentCharacters (tests/play-cap.mjs holds the words to it). */
   /* These two open the centered popup (src/shell/windows/play-cap.js), never a window's foot line. */

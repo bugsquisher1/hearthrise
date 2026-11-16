@@ -50,6 +50,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Bargemen, 4 Mudlarks and the
      2 Sergeants who hold the barge. */
   hunt: {
+    region: 'barrow_march',
     name: 'The Slake', theme: 'The river slows down here and drops its copper in the mud, along with the dead soldiers it carried down from Hask\'s Ford.',
     band: [50, 65],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: BG, w: 6, rarity: 'uncommon' },
@@ -208,7 +209,9 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.68, threes 0.46-0.64, fours 0.18-0.51), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.06-1.15, threes 1.00-1.09, the four 1.09); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, 10], 3: [-45, -5, 5], 4: [-60, 0, 10, 10] },
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
+  partyVsAlone: { 2: [-35, 10], 3: [-40, 0, 10], 4: [-60, 5, 15, 15] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Warrens' tier-3 store food, the cheapest heal an HP (Salted Lobster, 0.83 g
      an HP. The tier-4 Swordfish is 1.50). The melee line holds about three hours of a lone tank's bill at the floor (6.3k g an
      hour, drop-tables). */

@@ -64,6 +64,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 9 Pikemen, 4 Stokers, 4 Lurchers, 4 Wraiths
      and 3 Provosts, two of them holding the Great Pyre. */
   hunt: {
+    region: 'barrow_march',
     name: 'The Pyre Field', theme: 'There were too many of Hask\'s dead soldiers to bury, so Lord Krell\'s priests burned them here. They keep getting back up.',
     band: [70, 90],
     spawns: [{ monster: CP, w: 9, rarity: 'common' }, { monster: ST, w: 4, rarity: 'uncommon' },
@@ -253,7 +254,9 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.60-0.72, threes 0.48-0.70, fours 0.36-0.57), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.92-1.05, threes 0.91-1.00, the four 1.02: a Mage or a Healer alone earns the most here, so a mix reads near even against its own heroes while it reads 1.20 against the median lone way, the band the grader binds); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, -5], 3: [-40, -10, -5], 4: [-50, -10, 0, 0] },
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
+  partyVsAlone: { 2: [-35, 0], 3: [-40, -10, 5], 4: [-50, -5, 10, 10] },
   /* THE PACK'S TEST FACTS (re-pinned 2026-11-10 for one difficulty). dropRef: a lone tank at the floor in its full own-tier set
      (tests/hunt-core/drop-tables.mjs, the harness's tier-5 kit). valueToday is COMPUTED, the 11-09 method: the hour's expected coin
      (10,090 g) and commons (3,930; re-pinned 2026-11-13 with the commons reverted) plus the gear-faucet's half of the coin (5,045). The

@@ -862,10 +862,11 @@ async function pureRules(M, base) {
       [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
       [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 30, 'Meadowbrook Thicket')],
-      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 15, 'The Sewer')],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 25, 'Coppercap Warrens')],
-      [['tank', 'ranger'], 'millrace_sewer', more(2, 40, 'The Sewer')],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 45, 'The Sewer')],
+      /* the Sewer's and the Warrens' rows as re-measured and written by party-class-xp-line --write (lane/d-party-lines, 2026-11-15) */
+      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 20, 'The Sewer')],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 20, 'Coppercap Warrens')],
+      [['tank', 'ranger'], 'millrace_sewer', more(2, 35, 'The Sewer')],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 30, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
       [[null, 'ranger'], 'wickstead', more(2, 45, 'Wickstead')],
       [[null, 'tank'], 'wickstead', less(1, 35, 'Wickstead')],
@@ -896,7 +897,7 @@ async function pureRules(M, base) {
       return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    if (shown !== more(2, 20, 'Mill Cellar')) return 'in town the tab reads ' + JSON.stringify(shown);
+    if (shown !== more(2, 25, 'Mill Cellar')) return 'in town the tab reads ' + JSON.stringify(shown);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
@@ -1369,7 +1370,7 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
-          if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 35% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');

@@ -134,6 +134,10 @@ export default definePack({
      armor ruling's handoff 1, every hero in the best piece it can get): on the Hold's Lobster a Deadly four with no Healer died 66 times in 16 hero-hours
      at the floor (the bar is 9), on Swordfish 5; the four with a Healer 0 on both. So the guide names Swordfish here, eight Levels before the 120 the
      ruling first read. The same HP as the Lobster bag; quantities not measured for cost. */
+  /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h). Deaths in the 4 h alone: at the floor
+     (112) a hammer 101, axes 183, a tank 121, a bow 45; at the top (128) a hammer 54, a tank 37, a bow 32. A Mage alone 0. With a Healer at the
+     floor: tank + Healer 0, hammer + Healer 1, the four 0 (a tank with a bow or a Mage and no Healer: 11 and 12). */
+  partyTiers: ['dangerous'],
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
     ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
@@ -146,7 +150,9 @@ export default definePack({
   partyClassXp: { 2: [990, 1610], 3: [1150, 1705, 1820], 4: [1150, 2210, 2445, 2455] },
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-30, 10], 3: [-35, -5, 0], 4: [-45, 5, 15, 15] },
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
+  partyVsAlone: { 2: [-30, 10], 3: [-35, -5, 0], 4: [-50, 0, 15, 15] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19318 },
   map,
 });

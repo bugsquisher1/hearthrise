@@ -45,6 +45,7 @@ export default definePack({
   sql: "2027-04-22-pack-krells_hold.generated.sql",
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 7 Farmhands, 5 Grave Guards, 3 Lookouts, 3 Pyre Priests, 2 Gatekeepers. */
   hunt: {
+    region: 'barrow_march',
     name: 'Krell\'s Hold', theme: 'Lord Krell lives here. His men guard the walls, and the officers he dug up out of the Muster Barrows guard the crypt.',
     band: [85, 110],
     spawns: [{ monster: LV, w: 7, rarity: 'common' }, { monster: WD, w: 5, rarity: 'uncommon' },
@@ -209,7 +210,9 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, 0], 3: [-40, -5, 0], 4: [-55, -10, 0, 0] },
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
+  partyVsAlone: { 2: [-35, 0], 3: [-40, 0, 5], 4: [-55, 0, 10, 15] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778, deadlyFourNeeds: 'healer' }, // designer Q4 2026-11-12: Deadly keeps six, bring a Healer
   /* KRELL'S HALL: one room, one fight, opened with a Hall Key (the design's section 3). Shaped to the KEYED HALL contract of engine piece 5
      (lane/b-barrow-boss-room: src/data/boss-halls.js, src/core/hunt/boss-room.js roomOf, tools/gen-hunt-sessions.mjs hallRows; CONFLICTS

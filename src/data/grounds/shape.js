@@ -50,7 +50,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      sql       the pack's additive server file (supabase/migrations/<date>-pack-<id>.generated.sql), written by
                `node tools/pack.mjs ship <id>`; null until then. The whole catalogue generators leave a pack out until a world
                move folds it (tools/pack/fold.mjs), so a pack never re-issues a whole catalogue.
-     hunt      a src/data/hunts.js row without its id; a Morrow ground's carries `region` and `standingFor` (FACTIONS below)
+     hunt      a src/data/hunts.js row without its id, its `region` one of REGIONS and `standingFor` (when present) one of STANDING_SIDES
      ground    a src/data/hunt-grounds.js row without its id and hunt
      map       the map row (src/data/world/maps' shape); ground.map names it
      monsters  { id: row }: the pack's NEW monsters, src/data/monsters.js rows (the numbers by `tools/pack.mjs propose --write`)
@@ -60,6 +60,9 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      partyClassXp, partyVsAlone   (optional) its party rows { 2: [...], 3: [...], 4: [...] } (party-class-xp.js): the pay cell when a
                same-class party would beat solo there, and the measured line the party window says (tests/party-class-xp-line.mjs)
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
+     partyTiers (optional) the harder tiers a lone Melee or Ranger hero can't hold here at any Level of the band, and a party with a Healer
+               can, measured on the real settle: ['dangerous'] or ['dangerous', 'deadly']. The Hunts page says so to a hero alone
+               (hunt-tiers.js PARTY_TIERS, hunt-list.js tierWords); tests/hunt-core/party-tiers.mjs plays the claim on every ground. Words only
      checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
                (its one-tile choke, tests/hunt-core/forest-cave.mjs), holders [monster, ...] (its room holders, no spawn weight), dropRef { roles, full } and valueToday (its measured value pin,
                tests/hunt-core/drop-tables.mjs). Measured once, then frozen here, so a guard never needs a row typed for a new ground
@@ -79,13 +82,17 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                one spell model: monster-spells.js folds them in (an id already taken is refused), validateSpell judges each row, and a row
                none of the pack's own monsters casts is refused (tools/pack.mjs lintFields) */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
-/* THE FACTION FIELDS on a pack's hunt row (the board's "2026-11-14 The Morrow Hills" section 6; Tyler 2026-11-14): `region` and
-   `standingFor`, the side that earns standing there. Every Morrow ground carries both; the settle hook and the per-region balance
-   guard are the faction lane's. */
-const FACTIONS = Object.freeze(['first_flame', 'last_ember']);
+
+/* A HUNT ROW'S PLACE (lane/c-faction-standing; the board's "2026-11-14 The Morrow Hills" §6). `region`: the regions in the order the road
+   walks them, one per hunt row. `standingFor`: the side a ground pays standing to, on every ground of a region after Krell's and on no
+   other (src/data/factions.js; catalogue-coherence.js factionGroundProblems holds the rule, the server reads hr_faction_grounds). */
+export const REGIONS = Object.freeze(['greenhaven', 'barrow_march', 'morrow_hills']);
+export const STANDING_SIDES = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyClassXp', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells', 'partyTiers']);
+/* the tiers a pack's partyTiers may name (hunt-tiers.js TIER_IDS less Normal, which is safe at the Level by definition) */
+const PARTY_TIER_IDS = Object.freeze(['dangerous', 'deadly']);
 const FUEL_KEYS = Object.freeze(['item', 'xp', 'req', 'flame', 'secs', 'chunk']);
 const SPELL_ROW_KEYS = Object.freeze(['n', 'shape', 'r', 'len', 'range', 'windupMs', 'cdMs', 'hitPm', 'element']);
 const posInt = (n) => Number.isInteger(n) && n > 0;
@@ -154,10 +161,13 @@ export function definePack(p) {
   if (p.sql != null && !new RegExp('^\\d{4}-\\d{2}-\\d{2}-pack-' + id + '(-\\d+)?\\.generated\\.sql$').test(p.sql)) no('sql is not <date>-pack-' + id + '[-N].generated.sql');
   if (p.status === 'open' && p.sql == null) no('an open pack is served, so it names its file (node tools/pack.mjs ship ' + id + ')');
   if (!isObj(p.hunt) || 'id' in p.hunt || 'staged' in p.hunt) no('hunt is not a hunts.js row without id and staged (status says staged)');
-  if ('standingFor' in p.hunt && !FACTIONS.includes(p.hunt.standingFor)) no('hunt.standingFor is not ' + FACTIONS.join(' | '));
-  if (('standingFor' in p.hunt) !== ('region' in p.hunt) || ('region' in p.hunt && !ID.test(String(p.hunt.region)))) no('hunt.region and hunt.standingFor come as a pair, region [a-z0-9_]');
+  if (!REGIONS.includes(p.hunt.region)) no('hunt.region is not one of ' + REGIONS.join(' | '));
+  if ('standingFor' in p.hunt && !STANDING_SIDES.includes(p.hunt.standingFor)) no('hunt.standingFor is not one of ' + STANDING_SIDES.join(' | '));
   if (!isObj(p.ground) || 'id' in p.ground || 'hunt' in p.ground) no('ground is not a hunt-grounds.js row without id and hunt');
   if (!isObj(p.map) || p.map.id !== p.ground.map) no('map is not the row ground.map names');
+  /* A pack plays the default session mode (src/data/session-modes.js): its additive file carries no hr_ground_session_modes row
+     (tools/pack/sql.mjs PACK_TABLES), so a mode named here would be one the server never froze. */
+  if ('mode' in p.ground || (isObj(p.hall) && isObj(p.hall.ground) && 'mode' in p.hall.ground)) no('a pack ground names a session mode, which a pack cannot carry to the server yet');
   for (const k of ['monsters', 'roster', 'items', 'itemText']) if (p[k] !== undefined && !isObj(p[k])) no(k + ' is not an object');
   for (const k of ['monsters', 'items']) for (const x of Object.keys(p[k] || {})) if (!ID.test(x)) no(k + ' id ' + x + ' is not [a-z0-9_]');
   for (const x of Object.keys(p.itemText || {})) if (!(p.items && x in p.items)) no('itemText names ' + x + ', which is not one of its items');
@@ -166,6 +176,8 @@ export function definePack(p) {
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');
   if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');
   for (const k of ['partyClassXp', 'partyVsAlone']) if (p[k] !== undefined && !(isObj(p[k]) && [2, 3, 4].every((n) => Array.isArray(p[k][n]) && p[k][n].length === n))) no(k + ' is not { 2: [2], 3: [3], 4: [4] }');
+  if (p.partyTiers !== undefined && !(Array.isArray(p.partyTiers) && p.partyTiers.length && p.partyTiers.every((x) => PARTY_TIER_IDS.includes(x))
+    && new Set(p.partyTiers).size === p.partyTiers.length)) no('partyTiers is not a list of ' + PARTY_TIER_IDS.join(' | ') + ', each once');
   if (p.hall !== undefined) { const why = hallWhy(p); if (why) no(why); }
   if (p.fuel !== undefined) { const why = fuelWhy(p); if (why) no(why); }
   if (p.spells !== undefined) { const why = spellsWhy(p); if (why) no(why); }

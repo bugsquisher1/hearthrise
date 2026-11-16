@@ -17,6 +17,11 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - **Lower weapon numbers are not a trade.** 85% of a staff's numbers cost 2%, x1.4 bane gave +15 to +26%. Size a multiplier on full numbers.
 - A what-if resistance for every hero is a ring-slot row with only `resistPm`: no other stat moves. `gear.also` dresses a cell in a named row today.
 - Physical resistance is three edits in `elements.js`, planted and measured (`special-table.mjs` `PHYSICAL_PLANT`). The board's `damage.js landHit` note was wrong.
+## 2026-11-15 lane/d-mage-110: the Mage at 110 and up was cloth, not spawns
+- **Move one lever at a time before naming the limit.** "+Magic does nothing, so the Mage is spawn-bound" read right and was wrong: respawn 60 s to 1 s moved nothing (424 vs 419 kills). Splitting the Mage's damage by source (`dealtBy`) said it in one line: 85% is the basic wand blow, so the gear term in max hit decides.
+- **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.
+- **Check the grader's kit before trusting a staged ground's spread.** `gear.mjs` reachWith dropped the open keyed halls, so the Morrow was graded with Melee and the bow a weapon tier short. Print the kit (`h.kit`) of every style once per ground.
+- **A cut has a floor where it stops paying.** 0.1 a point took the Carter's Rest Mage from 1.82 to 1.46 of the pace, and 0.05 only to 1.42. Measure one step past the pick, so the board can say what's left isn't the row's.
 
 ## 2026-11-14 lane/b-barrow-numbers: the Barrow March's numbers, the hall fitted, tier 7 renamed
 - **A monster that heals can stop a fight, not just slow it.** The Pyre Priest's first mend (a full hit every 8 s) put a lone tank at Level 110 on Dangerous into a pull he could never finish: 7.5k XP an hour, no death, nothing on the grade but one `feel-tier-less` row. Size a mend against the slowest way to fight in the biggest pull, and read the cell list for an hour with no XP and no death.
@@ -914,6 +919,13 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-15 lane/d-coherence-133 (coherence pass: v0.2.133 + the day's lanes, CLAUDE.md §3.5)
+- `cell.mjs` takes `skillsBySeat: [{ melee, ranged, magic, defense }]` and `options: { tier }`, so a +skill or "trains every spare hour" question is one scratch script and a few seconds a cell. Use the career's skill at a Level (the training lane's table: 22 at Level 10, 37 at 25), never skill = Level, or a training gain reads 2 to 3 times too big.
+- "+Magic does nothing" at the Hold is the Mage being spawn-bound (lowest typical HP 98.8%, 1.47x a hammer), not a flat formula (`abilities.js` lvPm is +2% of base a level). Before calling a stat worthless, check whether the hero measured is already capped by monster supply.
+- "Less damage from every blow" already exists as `steadyPm` (capes, food, joined with Tempering in `mitigation.js`). Grep the engine for an effect before a lane proposes a new hook for it.
+- A walk-through written yesterday can be stale today: the Ox Road's "can't target the Drover" was false (`widgets/first-target.js`, `targeting.js` tkind). Re-grep every "missing control" claim before ruling on it.
+- Driving the pane: coordinates from `getBoundingClientRect` scaled by 800 / innerWidth beat refs, which go stale on every repaint. A `skip` that answers `moved: 0` means the Enter never landed.
+- Two lanes on one day placed the same idea twice (Kingstooth and Widow's Fang, an Iron Sword with crit on the Sewer). A catalogue's placement map must list call-only and daily-prize rows too, or the next lane duplicates them.
 
 ## 2026-11-15 lane/d-catacombs: the Pauper Vaults (Tyler's catacombs hunt)
 - Past Dawnsteel the hero stops getting armor, so the one formula grows harder with Level: the same tree read a lone tank's Normal low 73% at Carter's Rest (110) and 59% at the Vaults (165), a four's Deadly 2 deaths against 38. Grade every post-Morrow ground beside Carter's Rest before blaming its own rows.
@@ -922,3 +934,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - spell-rows: a non-boss carries exactly one spell. Design the elite's one spell first.
 - Staged maps are lint-checked (world-core, forest-cave one-choke) but not kit-checked; a pillar next to a 1-wide water edge breaks the 3x3 rule on the row above it.
 - Python's text mode on Windows writes CRLF; read and write bytes when editing repo files.
+
+## 2026-11-15 lane/d-party-lines (the Party window's lines; Dangerous on the Morrow)
+- A number the player reads before a choice needs a guard that re-measures it, or it drifts the first time anything upstream moves. The party lines drifted 10-23 points in a week with nobody touching them. Measured text gets a writer (`--write`) and a tolerance guard, never a hand edit.
+- Ask where in the band a measured line is true. A mixed four's lead over the same heroes alone falls 10-15 points from a ground's floor to its middle (the Pyre Field +18 to +5). One number for a band should be read at more than one Level.
+- `runPool` hung (and node exited 0) when every worker died loading the engine; a planted tree for pool workers needs `src/shell/hunt-list.js` and `src/render` (worker.mjs loads recommendedHunt). Any guard on the pool sets exit 2 until it reaches a verdict.
+- A lone Melee's Dangerous problem is the pull (5 monsters swing at whoever stands in it, about 5x the swings a kiting caster takes), with armor at the 60% cap past Level 70 and Lobster heals that can't keep up. Before calling a ground "too hard alone", play the same way 8-15 Levels in and at the band's top: on the Pyre Field and Krell's Hold the lone Melee outgrows Dangerous inside the band; on the Morrow and the Vaults it never does.
+- Store food prices make "just eat better food" a non-answer at high Levels: a lone Melee on Shark held Dangerous but ran a 458k-699k gold an hour bill on 16k-30k of income. Check the bill before proposing food as a fix.

@@ -45,6 +45,8 @@ export default definePack({
     spawns: [{ monster: PA, w: 13, rarity: 'common' }, { monster: BW, w: 4, rarity: 'uncommon' }, { monster: LE, w: 3, rarity: 'uncommon' },
       { monster: CA, w: 3, rarity: 'uncommon' }, { monster: DU, w: 1, rarity: 'rare' }],
     family: 'Undead', art: PA, travelS: 0, pull: 4, respawnMs: 60000,
+    /* under Havora, painted from the Greenhaven kit (region-kits.js): a region before Krell's, so it pays no side (neutral; shape.js REGIONS) */
+    region: 'greenhaven',
   },
   /* THE ROUTE (map.js): in down the Night Carters' tunnel, the Cut, the Long Gallery, the Bone Room, the Flooded Vault, over the plank bridge to
      the Keepers' Room, west to the Loading Vault, and back up the hoist shaft to the Cut. */
@@ -150,6 +152,11 @@ export default definePack({
      every hero in the best piece it can get, the Vaults sample worn from 165): a Deadly four with a Healer at the floor died 40.5 times in 16 hero-hours
      on Lobster and 1 on Shark (the bar is 9); no Normal death in 192 lone hero-hours. The four with no Healer still dies 70 times on Shark, the store's
      biggest food: that is not the bag's to fix. The same HP as the Lobster bag; quantities not measured for cost. */
+  /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h, the Morrow's three open). Deaths alone:
+     at the floor (165) a hammer, axes and a tank 238 each (about one a minute), a bow 69 in 4 h; at the top (185) a hammer 207 in 2.2 h, a tank
+     159 in 2.9 h, a bow 52 in 4 h. A Mage alone 6. At the floor a pair with a Healer still dies (tank + Healer 28, hammer + Healer 39) and the
+     four holds (0): the Vaults' Dangerous is a four's tier, the armor past Dawnsteel this ground's own section names. */
+  partyTiers: ['dangerous'],
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_shark', qty: 55 } },
     ranged: { heal: { id: 'cooked_shark', qty: 45 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
@@ -164,7 +171,9 @@ export default definePack({
      way: one class is the mean of its five one-class parties (0.69 / 0.63 / 0.52), two of two the mean of three duos (1.16), three of three of two
      trios (1.10), four of four the one played (1.08), the cells between the size's mix times the cell ratio. Whole fives. Every same-class party is
      under solo (worst 0.75, two bows). */
-  partyVsAlone: { 2: [-30, 15], 3: [-35, 5, 10], 4: [-50, -5, 5, 10] },
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
+  partyVsAlone: { 2: [-30, 15], 3: [-35, 5, 10], 4: [-50, 0, 10, 10] },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value

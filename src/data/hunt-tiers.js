@@ -37,6 +37,8 @@
 import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.132';
 import { HUNT_INDEX } from './hunts.js?v=0.2.132';
 import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.132';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
+import { foldRows } from './grounds/shape.js?v=0.2.132';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';
@@ -56,6 +58,14 @@ export const TIER_LINES = Object.freeze({
 /* The one death line a harder tier's note ends on (hunt-sessions.js DEATH_XP_LOSS is the number; the wiki says it). It read "costs a little XP" while a
    death cost 2% and never took a Level; since Tyler 2026-11-09 it costs 6% of the total Level XP and can take a Level, so the line says so, still with no number. */
 export const TIER_DEATH_LINE = 'Dying ends the hunt and costs Level XP. You can lose a Level.';
+/* A PARTY'S TIER (designer 2026-11-15, lane/d-party-lines; the board's "Dangerous on the Morrow is a party tier"): ground id -> the harder
+   tiers a lone Melee or Ranger hero can't hold there at any Level of the band, while a party with a Healer can (a pack's `partyTiers`,
+   measured; tests/hunt-core/party-tiers.mjs plays it). The Hunts page says so to a hero alone (hunt-list.js tierWords). Words only:
+   nothing in a fight reads it, and a lone hero still walks in (Tyler 2026-11-08: "Either they are strong enough ... or they aren't"). */
+export const PARTY_TIERS = Object.freeze(foldRows('party tiers', {}, GROUND_PACKS, (p) => (p.partyTiers ? { [p.id]: Object.freeze([...p.partyTiers]) } : {})));
+/** True when `tierId` on `groundId` is a party's tier (PARTY_TIERS). */
+export const isPartyTier = (groundId, tierId) => !!(Object.prototype.hasOwnProperty.call(PARTY_TIERS, groundId) && PARTY_TIERS[groundId].includes(tierId));
+
 /* The dials a tier row carries (permille of the monster row). */
 export const DIALS = Object.freeze(['dmgPm', 'hpPm', 'xpPm']);
 

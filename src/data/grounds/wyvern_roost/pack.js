@@ -128,6 +128,10 @@ export default definePack({
      MEASURED on the full grade (lane/a-grader-uniques, every hero in the best piece it can get): on Swordfish no Normal death in 192 lone hero-hours,
      and a Deadly four at the floor 0 deaths in 16 hero-hours with a Healer, 1 without (the bar is 9). The same HP as the Lobster bag; quantities not
      measured for cost. */
+  /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h). Deaths in the 4 h alone: at the floor
+     (125) a hammer 202, axes 223, a tank 202, a bow 26; at the top (142) a hammer 83, a tank 42, a bow 14. A Mage alone 4. With a Healer at the
+     floor: tank + Healer 0, hammer + Healer 0, the four 0 (a tank with a bow or a Mage and no Healer: 11 and 12). */
+  partyTiers: ['dangerous'],
   bagGuide: { tier: 4,
     melee: { heal: { id: 'cooked_swordfish', qty: 75 } },
     ranged: { heal: { id: 'cooked_swordfish', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
@@ -140,7 +144,9 @@ export default definePack({
   partyClassXp: { 2: [990, 1595], 3: [1150, 1620, 1735], 4: [1150, 2100, 2325, 2335] },
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-30, 15], 3: [-25, 0, 10], 4: [-40, 15, 25, 25] },
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
+     the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
+  partyVsAlone: { 2: [-30, 10], 3: [-35, -5, 0], 4: [-50, 0, 10, 10] },
   /* DEADLY BRINGS SIX (the Hold's and the Pyre Field's row): on eight a four of four classes died 9 times in 4 hero-hours at the floor (36 in 16,
      where the sheet allows 9). Six is the least Deadly may bring, one over Dangerous's five. */
   tierOverride: { deadly: 6, why: 'on the full box a group of four died 9 times in 4 hours at the floor, where the rule allows about 2. On six they hold it' },

@@ -19,6 +19,10 @@
 //   SG-7  Klappa's Club (Tyler 2026-11-03, the tribute to Andy): the club hero's rung between the kit and the Iron Warhammer, reforged at a
 //         fresh bench from the kit's one club (so it is no wage) and what a Level 5 hero can reach; PLAYED: the bench run on the real span,
 //         then its blow and a real Thicket hunt on the settle
+//   SG-8  cloth's damage is a premium, not the hit (designer 2026-11-15, lane/d-mage-110): from tier 2 up, a Mage in its tier's wand,
+//         spellbook and six cloth pieces at that tier's Level (Magic at the Level) hits at most 1.3 times a warhammer at the same Level
+//         (Melee at the Level), the engine's own max hit (playerCombatRolls). At 0.4 of the plate twin's defence it was 1.5 at tier 3 and
+//         1.9 at tier 7 (today 1.19-1.28), and a lone Mage earned 1.4-1.8 times the pace from the Slake to the Pauper Vaults (the board's section)
 //
 //   node tests/style-gear.mjs            the shipped data
 //   node tests/style-gear.mjs --mutate   each arm driven red by a planted defect on the live objects
@@ -40,6 +44,7 @@ import { indexArtisanRecipes, simulateArtisanSpan } from '../src/core/artisan-si
 import { playerCombatRolls } from '../src/core/combat.js';
 import { deriveProfile } from '../src/core/member.js';
 import { skillXpForLevel } from '../src/core/xp.js';
+import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
 
 /* A weapon's power for its own style: accuracy + damage of the style it rolls (the engine sums these fields). */
 const power = (it) => {
@@ -103,6 +108,17 @@ export function check() {
     if (far.length) fails.push(`SG-5 ${r.id}: input(s) a player cannot reach: ${far.join(', ')}`);
     if (!(ARTISAN_RECIPES[skill] || []).some((x) => x.id === r.id)) fails.push(`SG-6 ${r.id}: not on the ${skill} bench (ARTISAN_RECIPES)`);
     else if (!recipeCategory(skill, r, ITEMS)) fails.push(`SG-6 ${r.id}: no Work-window category (recipeCategory returns null)`);
+  }
+  /* SG-8: cloth's damage is a premium on the wand and book, not the hit (the header). A zero-defence foe: the gear and the skill only. */
+  const lad = Object.fromEntries(GEAR_LADDERS.map((l) => [l.key, l.ids]));
+  const maxHitOf = (equipment, L) => playerCombatRolls({ def: 0, tier: 1 }, { items: ITEMS, equipment,
+    skills: { melee: skillXpForLevel('melee', L), magic: skillXpForLevel('magic', L) }, profile: deriveProfile(ITEMS[equipment.weapon].weaponType) }).maxHit;
+  for (let t = 1; t < 7; t++) {
+    const wand = lad['weapon:wand'][t], book = lad.spellbook[t], hammer = lad['weapon:warhammer'][t];
+    const L = Number((ITEMS[wand] || {}).reqLv);
+    const robes = Object.fromEntries(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'].map((sl) => [sl, lad['cloth:' + sl][t]]));
+    const mage = maxHitOf({ weapon: wand, shield: book, ...robes }, L), melee = maxHitOf({ weapon: hammer }, L);
+    if (!(mage <= 1.3 * melee)) fails.push(`SG-8 tier ${t + 1} at Level ${L}: a Mage in full cloth hits ${mage}, ${(mage / melee).toFixed(2)} times the warhammer's ${melee} (at most 1.3)`);
   }
   /* SG-7: the row reads; the bench and the blow are played in club() below (the hunt only in the plain run: it takes seconds). */
   const kclub = ITEMS.klappas_club, pclub = ITEMS.practice_club, iron = ITEMS.iron_warhammer;
@@ -191,6 +207,12 @@ function mutate() {
     return () => { ITEMS.silk_thread = was; };
   });
   run('a made rung whose output type no Work-window tab claims', 'SG-6', () => setField('oak_wand', 'type', 'trinket'));
+  /* the old cloth row on one piece: the Duskwood Robe Top at 0.4 of the Dawn Platebody's 90 (36, not 10) */
+  run('the Duskwood Robe Top back at 0.4 of its plate twin\'s defence', 'SG-8', () => setField('duskweave_body', 'magicStrB', 36));
+  run('the Scholar set back at 0.4 (the Mage 1.5 times the Willow Warhammer at Level 30)', 'SG-8', () => {
+    const undo = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'].map((sl, i) => setField('scholar_' + sl, 'magicStrB', [4, 9, 6, 3, 2, 3][i]));
+    return () => undo.reverse().forEach((u) => u());
+  });
   run('Klappa\'s Club worn from Level 1', 'SG-7', () => setField('klappas_club', 'reqLv', 1));
   run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', 7));
   run('Klappa\'s Club no harder than the Practice Club', 'SG-7', () => setField('klappas_club', 'strB', 7));

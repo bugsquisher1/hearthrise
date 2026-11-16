@@ -41,7 +41,7 @@ import { patchParts, placesParts } from '../goto.js?v=0.2.132';
 import { saleWords } from '../item-lore.js?v=0.2.132';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.132';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.132';
-import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.132';
+import { rollOddsOf, jobShown } from '../../session/jewelry-sections.js?v=0.2.132';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.132';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
@@ -70,10 +70,11 @@ function hasWork(skill) {
 /**
  * The rows a skill shows at the server's level: what it can do now, then the next AHEAD above the level, in
  * the station's picked order (src/shell/station-sort.js; by default what the bag covers first, best first,
- * the locked ones last). Pure over (skill, level, bag, sort).
+ * the locked ones last). Pure over (skill, level, bag, sort, shown). `shown` keeps a row the server offers this hero (a job behind a
+ * switch only where the server's section lists it: jewelry-sections.js jobShown); none keeps every row.
  */
-export function rowsFor(skill, level, inv, sort) {
-  const all = BY_SKILL.get(skill) || [];
+export function rowsFor(skill, level, inv, sort, shown) {
+  const all = (BY_SKILL.get(skill) || []).filter((w) => !shown || shown(w));
   const lv = Number.isInteger(level) ? level : 1;
   const open = all.filter((w) => (w.row.req || 1) <= lv);
   const ahead = all.filter((w) => (w.row.req || 1) > lv).sort((a, b) => (a.row.req || 1) - (b.row.req || 1)).slice(0, AHEAD);
@@ -91,16 +92,20 @@ function recipeWords(w) {
   const n = yieldOf(w);
   /* A ROLLED job (src/data/jewelry.js) names the grades it can make; its odds line says how likely each is. */
   if (out && w.row.roll === 'gem') return ins + ' → a Fine or Hallmarked ' + itemName(out);
+  if (out && w.row.roll === 'seal') return ins + ' → a Hallmarked ' + itemName(out);
   return out ? ins + ' → ' + (n > 1 ? whole(n) + ' ' : '') + itemName(out) : ins;
 }
 
-/* A rolled job's odds at the server's Crafting level, BEFORE the roll (Tyler 2026-11-05, call 6). No gold moves on a roll. */
+/* A rolled job's odds at the server's Crafting level, BEFORE the roll (Tyler 2026-11-05, call 6), and what a guarantee fixes
+   (the server's `jewel_jobs` section). No gold moves on a roll. */
 function oddsWords(cs, w) {
   const o = rollOddsOf(cs, w.row);
   if (!o) return '';
   const perks = o.perks.length > 1 ? o.perks.slice(0, -1).join(', ') + ' or ' + o.perks[o.perks.length - 1] : o.perks.join('');
-  return 'At your Crafting ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
-    : 'Hallmarked ' + o.hallmarked + ', otherwise Fine') + '. Perks: ' + perks + '. No bench fee on a roll.';
+  const sure = o.perk ? 'Always ' + o.perk + '. ' : '';
+  const grade = o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
+    : o.fine === '0%' ? 'always Hallmarked' : 'Hallmarked ' + o.hallmarked + ', otherwise Fine';
+  return sure + 'At your Crafting ' + o.level + ': ' + grade + '. ' + (o.perk ? 'Second perk' : 'Perks') + ': ' + perks + '. No bench fee on a roll.';
 }
 
 function rowHtml(g, w) {
@@ -241,7 +246,7 @@ renderWork.patch = function patchWork(body, ctx) {
     const bench = SKILLS_DEF[skill].cat === 'artisan';
     const sort = bench ? stationSortOf(residueOf(cs), skill) : DEFAULT_SORT;
     patchSortMenu(view.querySelector('.hw-work-sort'), bench && lv !== null, sort);
-    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs), sort), {
+    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs), sort, (w) => jobShown(cs, w.row)), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),

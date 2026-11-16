@@ -32,7 +32,7 @@
 import { TREES, ROCKS, FISH_SPOTS, EQUIP_SLOTS, expandItemSlot }
   from '../../../src/data/gathering.js';
 import { indexGatherNodes } from '../../../src/core/skill-sim.js';
-import { ARTISAN_RECIPES } from '../../../src/data/recipes.js';
+import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../../../src/data/recipes.js';   // the dark (switched) jobs too: set_activity asks the switch
 import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artisan-sim.js';
 import { SHOP_OFFERS, SUPPLY_PRICE_LIST } from '../../../src/data/shops.js';
 import { SHOP_LISTED_OFFER_IDS } from '../../../src/data/supply-basics.js';

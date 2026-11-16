@@ -36,7 +36,7 @@
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.132';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.132';
+import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.132';   // the dark (switched) jobs too: only a hero the server let start one runs one
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.132';
 import { ITEMS } from '../data/items.js?v=0.2.132';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';

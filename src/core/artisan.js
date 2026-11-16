@@ -82,8 +82,10 @@ export function rollJewel(recipe, level, rng) {
   const u = rng.next() * ODDS_SCALE;
   const grade = u < odds.hallmarked ? 'hallmarked' : u < odds.hallmarked + odds.fine ? 'fine' : 'plain';
   if (grade === 'plain') return { id: plain, grade, perks: [] };
-  const pool = perksFor(plain).slice();
-  const perks = [pool.splice(rng.int(0, pool.length - 1), 1)[0]];
+  /* A GUARANTEED perk (a boss gem's, JEWEL_GUARANTEES) is the first perk and costs no draw; the second rolls from the rest. */
+  const fixed = recipe.perk || null;
+  const pool = perksFor(plain).filter((p) => p !== fixed);
+  const perks = fixed ? [fixed] : [pool.splice(rng.int(0, pool.length - 1), 1)[0]];
   if (grade === 'hallmarked') perks.push(pool[rng.int(0, pool.length - 1)]);
   return { id: jewelId(plain, perks), grade, perks };
 }

@@ -1282,7 +1282,7 @@ end $$;
    does, so the server's check and the bench's stop cannot disagree. A function, not a table: one constant,
    read by one SQL body, no rows to census. */
 const { recipeInputs } = await imp('src/core/artisan.js');
-const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
+const { ARTISAN_RECIPES_EVERY: BENCH_RECIPES } = await imp('src/data/recipes.js');   // the dark (switched) jobs too: a resume reads their inputs
 /* INNER FLAME (lane b-inner-flame, 2026-10-27): 2027-01-20 is APPLIED history; the fuel_<item> rows (the bury_* rows retire). */
 /* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-01-31 is APPLIED history; stitch_graypelt_cloak's six Wolf Pelts. */
 /* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-05 is APPLIED history; the four new recipes' inputs. */

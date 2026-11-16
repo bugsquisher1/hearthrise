@@ -15,6 +15,9 @@
 // browser never rolls, and a job without a roll draws exactly what it drew before. ONE draw picks the grade from
 // ROLL_ODDS at the hero's server-held level in the recipe's skill; one more picks each perk, uniformly from the perks the
 // piece's slot can carry AND the engine plays (PERKS_PLAYED). So a perk the engine can't play is never rolled.
+// A GUARANTEE (JEWEL_GUARANTEES, a boss drop set in place of the tier's gem) fixes the first perk or the grade and draws the
+// rest the same way; its jobs sit behind JEWEL_SWITCH. The odds the bench shows are the server's (the `jewel_jobs` section,
+// tools/gen-jewel-jobs.mjs copies ROLL_ODDS per level and every rolled job to it), and the roll reads this same table.
 //
 // THE SAMPLE (CLAUDE.md §10, no mass generation): only the pieces in JEWEL_PIECES are crafted, and only the perks in
 // PERKS_PLAYED roll. A new piece is one row here (its plain row must exist); a new perk is one engine hook and one name
@@ -74,8 +77,30 @@ export const JEWEL_SKILL = 'crafting';
 export const ROLL_ODDS = Object.freeze({
   base: Object.freeze({ at: Object.freeze([15, 30, 60, 99]), fine: Object.freeze([500, 650, 950, 1200]), hallmarked: Object.freeze([0, 4, 7, 10]) }),
   gem: Object.freeze({ at: Object.freeze([15, 30, 60, 99]), hallmarked: Object.freeze([1000, 1300, 1900, 2500]) }),
+  /* A MINIMUM QUALITY (the board's "Master's Seal", 2026-11-15 section (d)): always Hallmarked, at every level. Its perks still roll. */
+  seal: Object.freeze({ at: Object.freeze([15, 30, 60, 99]), hallmarked: Object.freeze([10000, 10000, 10000, 10000]) }),
 });
 export const ODDS_SCALE = 10000;
+
+/* ── THE GUARANTEE LAYER (Tyler 2026-11-14: "with some items that can guarantee some things"; the designer's board section
+   "2026-11-15 Special-attribute gear" (d), "Boss gems: the guarantee layer on crafted jewelry"). A boss drop set in a plain piece
+   in place of its tier's gem fixes ONE thing about the roll and leaves the rest to the same shown odds:
+     perk    the piece ALWAYS carries that perk; the grade rolls at the gem roll's odds and, on a Hallmarked roll, the second
+             perk rolls from what the piece can carry. (A boss gem may name a perk the slot's pool lacks: that makes a named piece.)
+     grade   the roll is ALWAYS that grade (a minimum quality); its perks roll, or only the second when a perk gem is set with it.
+   Both are found, never bought, and neither moves a price: no gold on the roll (decision 5). Each row names the pieces it sets in.
+   The board's sample row is the Rat King's: his Crown Shard (Rare) fixes Follow-through, and his Crown (his Trophy, 100-150 h:
+   the board's "Master's Seal" role, a boss Trophy only) fixes Hallmarked. Both only sold before this. PROVISIONAL (designer). ── */
+export const JEWEL_GUARANTEES = Object.freeze({
+  /* `words` is how a job's name says the item (its article and its catalogue name: tests/jewelry-rolls.mjs J12 holds the name). */
+  crown_shard: Object.freeze({ perk: 'follow', words: 'a Crown Shard', pieces: Object.freeze(['banded_signet']) }),
+  rat_kings_crown: Object.freeze({ grade: 'hallmarked', words: 'the Rat King\'s Crown', pieces: Object.freeze(['banded_signet']) }),
+});
+
+/** THE SWITCH the guarantee jobs sit behind until they are played (hr_feature_switches, 2027-03-21-feature-switches.sql: off,
+    accounts, testers, everyone). A job row naming it is refused by the server (hr-accrue set-activity) for an account the
+    switch is off for, and the server's section leaves it out, so the bench never shows it there. */
+export const JEWEL_SWITCH = 'jewel_guarantees';
 
 /** The most Hallmark steps one ACCOUNT takes in a UTC day: a blast-radius bound on a money surface, not a pace (a gem is
     about 11 hours of hunting). hr_hallmark reads its generated copy. */
@@ -96,7 +121,9 @@ const plainOf = (id) => SLOT_ITEMS[id] || null;
 /** A grade's row id: the plain id, then its perks in the slot's own order (keen, then follow). */
 export function jewelId(plain, perks) {
   const pool = JEWEL_POOLS[(plainOf(plain) || {}).slot] || [];
-  return [plain].concat([...perks].sort((a, b) => pool.indexOf(a) - pool.indexOf(b))).join('_');
+  /* the slot's own order, then a gem-only perk (one the pool lacks) in JEWEL_PERKS order */
+  const order = pool.concat(Object.keys(JEWEL_PERKS).filter((p) => !pool.includes(p)));
+  return [plain].concat([...perks].sort((a, b) => order.indexOf(a) - order.indexOf(b))).join('_');
 }
 
 /** The perks a piece can roll: its slot's pool that the engine plays, in pool order. */
@@ -104,6 +131,15 @@ export function perksFor(plain) {
   const it = plainOf(plain);
   const pool = it ? JEWEL_POOLS[it.slot] || [] : [];
   return pool.filter((p) => PERKS_PLAYED.includes(p));
+}
+
+/** The perks only a boss gem puts on a piece (one its slot's pool lacks), in JEWEL_PERKS order: each makes a Fine row and a
+    Hallmarked row with every perk the piece rolls, and no roll ever draws it. */
+export function gemOnlyPerks(plain) {
+  const pool = perksFor(plain);
+  const want = new Set(Object.values(JEWEL_GUARANTEES).filter((g) => g.perk && g.pieces.includes(plain) && !pool.includes(g.perk)
+    && PERKS_PLAYED.includes(g.perk)).map((g) => g.perk));
+  return Object.keys(JEWEL_PERKS).filter((p) => want.has(p));
 }
 
 /** A perk's size on a piece of `tier`, permille (0 for a tier the table has no number for). */
@@ -118,7 +154,7 @@ const pairsOf = (list) => list.flatMap((a, i) => list.slice(i + 1).map((b) => [a
 function rowsOfPiece(plain) {
   const base = plainOf(plain);
   if (!base) throw new Error('jewelry.js: ' + plain + ' has no plain row in slot-ladders.js');
-  const perks = perksFor(plain);
+  const perks = perksFor(plain), extra = gemOnlyPerks(plain);
   const out = {};
   const put = (set, grade) => {
     const id = jewelId(plain, set);
@@ -130,8 +166,9 @@ function rowsOfPiece(plain) {
       jewelPerks: Object.freeze(Object.fromEntries(set.map((p) => [p, perkPm(p, base.tier)]))),
     });
   };
-  for (const p of perks) put([p], 'fine');
+  for (const p of perks.concat(extra)) put([p], 'fine');
   for (const pair of pairsOf(perks)) put(pair, 'hallmarked');
+  for (const e of extra) for (const p of perks) put([e, p], 'hallmarked');
   return out;
 }
 
@@ -149,14 +186,45 @@ export function gradeRows(plain, grade) {
    picked and `outcomes` every id it can make (recipeOutcomes). A gem roll spends a plain piece and never makes one. ── */
 export const JEWELRY_RECIPES = Object.freeze(Object.entries(JEWEL_PIECES).flatMap(([plain, p]) => {
   const tier = plainOf(plain).tier;
-  const fine = gradeRows(plain, 'fine'), hall = gradeRows(plain, 'hallmarked');
+  /* the grades a ROLL can make: never a gem-only perk (only its gem's job carries that) */
+  const rollable = (id) => Object.keys(JEWELRY_ITEMS[id].jewelPerks).every((k) => perksFor(plain).includes(k));
+  const fine = gradeRows(plain, 'fine').filter(rollable), hall = gradeRows(plain, 'hallmarked').filter(rollable);
   return [
     Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain, roll: 'base',
       outcomes: Object.freeze([plain].concat(fine, hall)) })),
     Object.freeze(Object.assign({}, p.gem, { inputs: { [plain]: 1, [JEWEL_TIERS[tier].gem]: 1 }, output: plain, roll: 'gem',
       outcomes: Object.freeze(fine.concat(hall)) })),
-  ];
+  ].concat(guaranteeJobs(plain, p));
 }));
+
+/* THE GUARANTEE JOBS of one piece: each perk gem alone, each grade item alone, and each perk gem with each grade item, set in the
+   plain piece IN PLACE of its tier's gem. Behind JEWEL_SWITCH. Its XP, time and level are the piece's gem job's (PROVISIONAL). */
+function guaranteeJobs(plain, p) {
+  const base = plainOf(plain);
+  const mine = Object.entries(JEWEL_GUARANTEES).filter(([, g]) => g.pieces.includes(plain));
+  const perkGems = mine.filter(([, g]) => g.perk), gradeItems = mine.filter(([, g]) => g.grade === 'hallmarked');
+  const sets = perkGems.map((x) => [x]).concat(gradeItems.map((x) => [x]), perkGems.flatMap((x) => gradeItems.map((y) => [x, y])));
+  return sets.map((set) => {
+    const perk = (set.find(([, g]) => g.perk) || [, {}])[1].perk || null;
+    const seal = set.some(([, g]) => g.grade === 'hallmarked');
+    const rest = perksFor(plain).filter((k) => k !== perk);
+    const outcomes = (seal ? [] : [jewelId(plain, [perk])])
+      .concat(perk ? rest.map((k) => jewelId(plain, [perk, k])) : pairsOf(rest).map((pair) => jewelId(plain, pair)));
+    return Object.freeze({
+      id: 'set_' + set.map(([id]) => id).join('_') + '_' + plain,
+      name: 'Set ' + set.map(([, g]) => g.words).join(' and ') + ' in a ' + base.n,
+      icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms,
+      inputs: Object.freeze(Object.assign({ [plain]: 1 }, ...set.map(([id]) => ({ [id]: 1 })))),
+      output: plain, roll: seal ? 'seal' : 'gem', ...(perk ? { perk } : {}), switch: JEWEL_SWITCH,
+      outcomes: Object.freeze(outcomes),
+    });
+  });
+}
+
+/** The perks a job's roll may still draw (its guarantee left out), in the order the bench names them. */
+export function jobRolls(r) {
+  return r && r.roll ? perksFor(r.output).filter((k) => k !== r.perk) : [];
+}
 
 /** Every id a recipe row can make: its rolled outcomes, else its one output. */
 export function recipeOutcomes(r) {
@@ -180,7 +248,8 @@ export function rollOdds(kind, level) {
     return ys[ys.length - 1];
   };
   const hallmarked = at('hallmarked');
-  const fine = kind === 'gem' ? ODDS_SCALE - hallmarked : at('fine');
+  /* a kind with no Fine column (a gem roll, a minimum quality) is never plain: what isn't Hallmarked is Fine */
+  const fine = !t.fine ? ODDS_SCALE - hallmarked : at('fine');
   return { fine, hallmarked, plain: ODDS_SCALE - fine - hallmarked };
 }
 

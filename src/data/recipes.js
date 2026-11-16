@@ -299,10 +299,21 @@ export const ARTISAN_RECIPES = {
      the made shields (shields.js, Tyler 2026-10-23). */
   smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES)),
   /* Crafted jewelry's rolled jobs (src/data/jewelry.js): a piece from the metal, and a gem set in a plain piece. */
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting, JEWELRY_RECIPES)),
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting, JEWELRY_RECIPES.filter((r) => !r.switch))),
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
+
+/* ── DARK JOBS: recipe rows behind a server switch (a row's `switch`; src/data/jewelry.js JEWEL_SWITCH) ─────────────────────────
+   They are NOT in ARTISAN_RECIPES, so nothing that reads the catalogue without asking the server (item tips, the bag's Junk and
+   Materials, skill unlocks, the coherence guard, the tutorial) shows or counts them. Only the switch-aware read ARTISAN_RECIPES_EVERY:
+   the server's own catalogues (hr-accrue's index, hr_activities, the bench inputs), and the bench window, which offers a dark job only
+   where the server's `jewel_jobs` section lists it (src/session/jewelry-sections.js jobShown). A row joins ARTISAN_RECIPES the day its
+   switch opens for everyone and loses its `switch`. */
+export const SWITCHED_RECIPES = Object.freeze({ crafting: Object.freeze(byReq(JEWELRY_RECIPES.filter((r) => r.switch))) });
+/** Every artisan recipe, the dark ones included, by bench: for the switch-aware readers only (above). */
+export const ARTISAN_RECIPES_EVERY = Object.freeze(Object.fromEntries(Object.entries(ARTISAN_RECIPES)
+  .map(([skill, list]) => [skill, SWITCHED_RECIPES[skill] ? byReq(list.concat(SWITCHED_RECIPES[skill])) : list])));
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — ARTISAN CATEGORIES (crafting-cooking-taxonomy §§3-5)

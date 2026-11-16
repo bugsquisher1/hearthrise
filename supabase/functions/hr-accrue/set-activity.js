@@ -74,6 +74,13 @@ export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'set_activity';
 
+/** Is a recipe's `switch` on for this account, as the server's state says (its `features` section)? A row with no switch is. */
+export function switchedOn(state, sw) {
+  if (!sw) return true;
+  const on = state && state.features;
+  return Array.isArray(on) && on.includes(sw);
+}
+
 /**
  * Validate the DECLARATION. Pure — no database, no clock.
  *
@@ -359,6 +366,18 @@ export async function runSetActivity(o) {
     return { status: 409, body: { ok: false, error: (env && env.error) || INTENT_ERRORS.NO_CHARACTER } };
   }
   const st = env.state;
+
+  /* ── (1-sw) A SWITCHED JOB (src/data/jewelry.js JEWEL_SWITCH: the guarantee jobs, until they are played) ──────────
+     A recipe row that names a `switch` is real for the accounts that switch is on for and for nobody else. The answer is
+     the server's: `features` is hr_features_view's list (2027-03-21-feature-switches.sql), read inside this one gate-then-read,
+     and the client's bench never offers the job without it, so only a forged intent meets this. Answered before the collect:
+     nothing settles for a switch that cannot happen. */
+  if (decl.kind === 'artisan' && !switchedOn(st, ARTISAN_RECIPES_ALL[decl.id].switch)) {
+    return {
+      status: 409,
+      body: { ok: false, error: INTENT_ERRORS.ACTIVITY_UNSUPPORTED, kind: decl.kind, id: decl.id, switch: ARTISAN_RECIPES_ALL[decl.id].switch },
+    };
+  }
 
   /* ── (1a) ON A HUNT? (lane C2) ───────────────────────────────────────────
      The pointer belongs to the session (C1's guard refuses any other writer

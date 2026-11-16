@@ -119,8 +119,8 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
   'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
   'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
-  /* the Pauper Vaults (lane/d-catacombs), the same promise */
-  'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer',
+  /* the Pauper Vaults (lane/d-catacombs), the same promise, and the Vault Leech's own Common, Junk that only sells */
+  'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -206,8 +206,8 @@ export const UNREACHABLE = Object.freeze({
     'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
     'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
     'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
-    /* THE PAUPER VAULTS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and Dunn's Candle, the ground's named fuel */
-    'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'dunns_candle',
+    /* THE PAUPER VAULTS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and the Vault Leech's Live Leech */
+    'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next

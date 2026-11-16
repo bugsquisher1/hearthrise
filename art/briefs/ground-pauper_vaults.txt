@@ -32,9 +32,9 @@ ICONS (11 owed of 16)
   OWED  head vault_leech           the monster's face in Hunts and the bestiary  -> icons
   OWED  candle_snuffer             a drop  -> icons
   OWED  carters_hook               a drop  -> icons
-  OWED  dunns_candle               a drop  -> icons
   OWED  leech_jaw                  a drop  -> icons
   OWED  lime_mortar                a drop  -> icons
+  OWED  live_leech                 a drop  -> icons
   OWED  owing_tag                  a drop  -> icons
   have  big_bones bone_chips bones gold_bar grave_dust
 
@@ -108,4 +108,5 @@ EFFECTS (the shared shapes exist; these are the looks)
   snuff_the_candles group, frost: every candle pool in view dims for the windup, a cold breath lands, the pools come back
 
 THE NAMED FUEL'S FLAME (src/data/hearth.js FLAMES): a new `tallow` row, "burns pale", the Hearth's fire re-poured on a pale yellow-white ramp by
-  tools/world-art/hearth-flames.mjs (scripted, no generation). Dunn's Candle stands in on `honey` until it lands. Its world chunk: fuel_dunns_candle.
+  tools/world-art/hearth-flames.mjs (scripted, no generation). Dunn's Candle (its 32 px icon, a stub of tallow candle with a
+  long wax beard) and this flame gate its row: the pack's header has the row to add. Its world chunk: fuel_dunns_candle.

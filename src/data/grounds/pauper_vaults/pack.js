@@ -25,7 +25,10 @@
 // THE LOOT. No standard gear: Dawnsteel is the last tier (Tyler 2026-11-14), and Carter's Rest, the Ox Road and Lord Krell drop all of it. The
 // Vaults' rare unique pieces (the board's section 6) wait on Carter's Rest's sample of five, as Wyvern Roost's do. Until then it pays in coin,
 // Hearth fuel that a Level 165 hero burns (Bones, Big Bones, Bone Chips, Grave Dust), the Carters' gold bars, one imbuement item a body (one of
-// each kind), and Dunn's Candle, the ground's named Hearth fuel, in the Rare band. The odds are the band's (no gear to fit).
+// each kind), and the Leech's Live Leech for the shop. The odds are the band's (no gear to fit).
+// DUNN'S CANDLE, the ground's named Hearth fuel and Dunn's Rare (the board's section 6), is NOT a row yet: a Rare is revealed with its own pixel
+// icon (tests/hunt-core/drop-tables.mjs loot-structure), and the icon is owed art. It comes in with its icon, as the pack's `fuel` (shape.js):
+// { item: 'dunns_candle', xp: 12000, req: 70, flame: 'tallow', secs: 120, chunk: 'fuel_dunns_candle' }, a Rare row at 0.0067 a Dunn kill.
 import { definePack, box, gather } from '../shape.js?v=0.2.132';
 import map from './map.js?v=0.2.132';
 
@@ -81,9 +84,10 @@ export default definePack({
     vault_leech: {
       name: 'Vault Leech', icon: '🪱', tier: 6, level: 169, cls: 'vermin', family: 'Vermin', speed: 2800,
       /* the glass: a leech as long as your arm that came in with the river and fed on the vaults for a hundred years. Vermin, one override on the
-         weapon axis: it's soft, so a blade opens it (arrows still go through without much). Living and boneless, so no bones. Its jaw. */
+         weapon axis: it's soft, so a blade opens it (arrows still go through without much). Living and boneless, so no bones. A live leech for
+         the shop, and its jaw. */
       weaponWeak: 'sword', weaponResist: ['ranged'],
-      drops: [{ id: 'leech_jaw', ch: 0.08, band: 'uncommon' }],
+      drops: [{ id: 'live_leech', ch: 0.4, band: 'common' }, { id: 'leech_jaw', ch: 0.08, band: 'uncommon' }],
       hp: 206, atk: 184, baseAcc: 0.45, def: 81, xp: 3271, gp: [43, 130], formula: true },
     bone_wall: {
       name: 'Bone Wall', icon: '💀', tier: 6, level: 173, cls: 'construct', family: 'Construct', speed: 2400,
@@ -105,22 +109,23 @@ export default definePack({
       name: 'Keeper Dunn', icon: '🕯️', tier: 6, level: 181, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite and the rare carrier: the Keeper who locked the door from the inside and stayed. He's still reading the names out of the Wood
          Book every night and lighting a candle for each. Undead, no override. When you come in he snuffs the candles, and the cold of the deep
-         vault hits everyone (Snuff the Candles, `spells` below): kill him first, or bring frost resistance. His snuffer, and his candle, the Rare. */
+         vault hits everyone (Snuff the Candles, `spells` below): kill him first, or bring frost resistance. His snuffer. His candle, the Rare,
+         waits on its reveal icon (the header). */
       spells: ['snuff_the_candles'],
-      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' },
-        { id: 'dunns_candle', ch: 0.0067, band: 'rare' }],
+      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
       hp: 471, atk: 178, baseAcc: 0.76, def: 138, xp: 7366, gp: [99, 297], formula: true },
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five
-     kinds. And THE NAMED FUEL, Dunn's Candle (`fuel` below): its use lands with the pack's ship (catalogue-coherence PENDING_USE until then). */
+     kinds. */
   items: {
     owing_tag: { n: 'Owing Tag', icon: '🏷️', v: 332, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
     leech_jaw: { n: 'Leech Jaw', icon: '🦷', v: 338, raw: true, imbue: { kind: 'life_leech', tier: 3 } },
     lime_mortar: { n: 'Lime Mortar', icon: '🪨', v: 346, raw: true, imbue: { kind: 'ward', tier: 3 } },
     carters_hook: { n: 'Carter\'s Hook', icon: '🪝', v: 352, raw: true, imbue: { kind: 'keen', tier: 3 } },
     candle_snuffer: { n: 'Candle Snuffer', icon: '🔔', v: 362, raw: true, imbue: { kind: 'mana_leech', tier: 3 } },
-    dunns_candle: { n: 'Dunn\'s Candle', icon: '🕯️', v: 400 },
+    /* the Leech's own Common (drop-tables four-slots: a part that sells), Junk: nothing in the game uses it, the shop buys it */
+    live_leech: { n: 'Live Leech', icon: '🪱', v: 60 },
   },
   itemText: {
     owing_tag: 'A wooden tag off a pauper\'s wrist. It has a name, a date, and "owed one burning"',
@@ -128,12 +133,8 @@ export default definePack({
     lime_mortar: 'A lump of the lime the Keepers set the old bones in. The walls didn\'t stay set',
     carters_hook: 'The hook a Night Carter drags a body with. They sold the dead up the north road by the cartload',
     candle_snuffer: 'Keeper Dunn\'s snuffer. He lights a candle for every name in the book, and snuffs them out when you come in',
-    dunns_candle: 'Burn it in the Great Hearth for a big burst of Inner Flame, and Havora\'s fire burns pale. Keeper Dunn lit it for the first name in the book',
+    live_leech: 'A leech off the vault floor, still alive. Somebody in town always buys leeches',
   },
-  /* THE NAMED FUEL (shape.js `fuel`, carried, folded into NAMED_FUELS at ship). PROPOSED, unmeasured: the March and the Morrow have no named fuel
-     to read a number from, so xp and req climb the Greenhaven five's line (1,500 at 1 to 4,500 at 19) to a Level 165 ground. The flame is a stand-in:
-     the design's is a new pale `tallow` flame, the art list's scripted re-pour of the Hearth's fire (tools/world-art/hearth-flames.mjs, no spend). */
-  fuel: { item: 'dunns_candle', xp: 12000, req: 70, flame: 'honey', secs: 120, chunk: 'fuel_dunns_candle' },
   /* THE VAULTS' THREE (src/data/monster-spells.js rows; numbers start from rows that already play: Venom Spray's ring, Blasting Charge's group, the
      Turncoat's rare group spell scaled down). Measured with the ground on the grade, not tuned one at a time. */
   spells: {
@@ -156,7 +157,10 @@ export default definePack({
      0.945 / 0.93 of the contract (the Mage 1.46, as on Carter's Rest), inside the sheet's 0.90-1.10, so no XP fit. partyVsAlone, the window's line,
      is the pack lane's (tests/party-class-xp-line.mjs --table --mixed). */
   partyClassXp: { 2: [990, 1705], 3: [1150, 1890, 2020], 4: [1150, 2150, 2380, 2390] },
-  /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room */
-  checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]] },
+  /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
+     THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
+     in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value
+     pin is that pair's floor hour, 17,655 g a head (coin 15,642, commons 2,013, no gear), measured 2026-11-15. */
+  checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655 },
   map,
 });

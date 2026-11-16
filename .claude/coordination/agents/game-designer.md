@@ -898,3 +898,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+
+## 2026-11-15 lane/d-catacombs: the Pauper Vaults (Tyler's catacombs hunt)
+- Past Dawnsteel the hero stops getting armor, so the one formula grows harder with Level: the same tree read a lone tank's Normal low 73% at Carter's Rest (110) and 59% at the Vaults (165), a four's Deadly 2 deaths against 38. Grade every post-Morrow ground beside Carter's Rest before blaming its own rows.
+- drop-tables plays its own reference group on its own bar: a lone tank that lives the grade on Salted Lobster can die there. A high-Level pack names a pair in checks.dropRef.
+- A Rare row needs its pixel icon before it can exist (loot-structure). A named fuel is a Rare, so it waits on art; write the row into the pack header instead of a stand-in.
+- spell-rows: a non-boss carries exactly one spell. Design the elite's one spell first.
+- Staged maps are lint-checked (world-core, forest-cave one-choke) but not kit-checked; a pillar next to a 1-wide water edge breaks the 3x3 rule on the row above it.
+- Python's text mode on Windows writes CRLF; read and write bytes when editing repo files.

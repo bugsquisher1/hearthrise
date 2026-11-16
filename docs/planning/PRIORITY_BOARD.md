@@ -101,12 +101,12 @@ Four families in five bodies, each a different job. The ground's identity is fir
 | From | Common | Uncommon (new, an imbuement piece) | Rare |
 |---|---|---|---|
 | Shrouded Pauper | `bones`, `grave_dust` | Owing Tag (element ward) | none |
-| Vault Leech | none (boneless, living) | Leech Jaw (life leech) | none |
+| Vault Leech | Live Leech (new, Junk: the shop buys it) | Leech Jaw (life leech) | none |
 | Bone Wall | `big_bones`, `bone_chips` | Lime Mortar (ward) | none |
 | Night Carter | `bones`, `gold_bar` | Carter's Hook (keen) | none |
-| Keeper Dunn | `big_bones`, `grave_dust` | Candle Snuffer (mana leech) | **Dunn's Candle**, the ground's named Hearth fuel |
+| Keeper Dunn | `big_bones`, `grave_dust` | Candle Snuffer (mana leech) | **Dunn's Candle**, the ground's named Hearth fuel (designed, not a row yet) |
 
-**Where every drop goes.** Bones, Big Bones, Bone Chips and Grave Dust burn at the Great Hearth for Inner Flame (`recipes.js` fuel rows, Inner Flame 1 / 15 / 40 / 46). Bone Chips are also a Smithing and Crafting input. Gold Bars sell (Gault paid the Carters in gold). The five pieces wait for the imbuer like every ground's, one of each kind, and sell until then. **Dunn's Candle** is the first pack to use the pack `fuel` field: burned at the Great Hearth it's a big burst of Inner Flame and the square's fire burns pale for everyone for two minutes. Proposed and unmeasured: 12,000 XP, Inner Flame 70, 120 s, about one every 15 hours at the floor (Rare band, 0.0067 a Dunn kill). It stands on the `honey` flame until the art list's `tallow` flame lands, and its use is a PENDING_USE row until the pack ships (the fuel folds into NAMED_FUELS then).
+**Where every drop goes.** Bones, Big Bones, Bone Chips and Grave Dust burn at the Great Hearth for Inner Flame (`recipes.js` fuel rows, Inner Flame 1 / 15 / 40 / 46). Bone Chips are also a Smithing and Crafting input. Gold Bars and Live Leeches sell (Gault paid the Carters in gold; somebody in town always buys leeches). The five pieces wait for the imbuer like every ground's, one of each kind, and sell until then. **Dunn's Candle** is designed as the first pack to use the pack `fuel` field: burned at the Great Hearth it's a big burst of Inner Flame and the square's fire burns pale for everyone for two minutes. Proposed and unmeasured: 12,000 XP, Inner Flame 70, 120 s, about one every 15 hours at the floor (Rare band, 0.0067 a Dunn kill). **It isn't a row yet**: a Rare is revealed with its own pixel icon (drop-tables loot-structure), and the icon and the pale `tallow` flame are owed art. The row, the `fuel` field and its NAMED_FUELS fold come in with them, written out in the pack's header.
 
 **Unique pieces (proposed, NOT rows).** Past Dawnsteel a ground has a few rare unique pieces (the Morrow's section 9). The Vaults' wait on Carter's Rest's sample of five, the same as Wyvern Roost's:
 | Piece, slot | From | Idea | Who gives up what |
@@ -124,7 +124,7 @@ The list is cut from the rows by `node tools/pack.mjs art pauper_vaults` and fil
 | pv_niche_candles, pv_sconce | kit props, hanging | Each needs a `terrain.js` LIGHTS row (radius 2 and 3, torch). These make the Gallery |
 | pv_bier, pv_hoist | kit props | The Flooded Vault's slab, the Loading Vault's hoist frame |
 | Five bodies with clips | body_object x4, body_character x1 | Told apart by shape at x2 (section brief) |
-| 11 icons | 32 px | Five heads, six drops |
+| 12 icons | 32 px | Five heads, seven drops (Dunn's Candle's is the one that gates a row) |
 | A `tallow` Hearth flame | scripted re-pour, no generation | Dunn's Candle |
 | Three effects' looks | vfx | Snuff dims every candle pool for the windup |
 
@@ -142,7 +142,7 @@ Sample first: one Shrouded Pauper, one run of gallery wall with a candle niche, 
 | Tank and Healer | 1.17, 1.13, 1.07 | 0, 82%, 371 | 1.60, 3 | 0.84, 59 |
 | Four (tank, Healer, bow, Mage) | 1.20, 1.16, 1.10 | 0, 88%, 544 | 2.05, 0 | 2.53, 38 |
 
-The same tree graded Carter's Rest at its own floor for comparison (pack check carters_rest, 22 ok, 0 fail): a lone tank's typical low on Normal 73%, a four on Deadly 2 deaths. The grader's verdict here is FAIL on 3 of 20 rules, all danger, read in item 4.
+The same tree graded Carter's Rest at its own floor for comparison (pack check carters_rest, 22 ok, 0 fail): a lone tank's typical low on Normal 73%, a four on Deadly 2 deaths. The grader's verdict here is FAIL on 3 of 20 rules, all danger, read in item 4. The drop guard (tests/hunt-core/drop-tables.mjs) plays its own reference at the floor: a lone tank on its bar died in the fifth minute, so the pack names a tank and Healer (`checks.dropRef`), who hold the hour clean at 17,655 g a head (coin 15,642, commons 2,013, no gear), pinned as `valueToday`.
 
 **What the numbers say.**
 1. **Normal is safe at every Level from 5 under the floor.** No death in any Normal cell on the ladder bar. On the start bar's Salted Shrimp a lone tank at the floor died 7 times (Dunn 5), so the pack names Salted Lobster as its `storeFloor` and Before you go says so, the March's rule.
@@ -150,7 +150,7 @@ The same tree graded Carter's Rest at its own floor for comparison (pack check c
 3. **Parties.** The pack's party row is fitted by the Hold's method (section in `pack.js`): a four of four classes reads 1.16 / 1.10 of the contract at the floor and middle, which is 1.23 / 1.18 of the median lone hero (the sheet asks 1.15-1.25), and a tank and Healer 1.13 / 1.07. Nobody in a party levels slower than going alone (feel-seat-below-solo: none).
 4. **The harder tiers are a wall, and harder than they should be.** Dangerous kills a lone melee every minute and a lone bow 23 times, a Mage alone dies once, a pair holds it with 3 deaths and a four clean. Deadly kills a four 38 times in its hour (Carter's Rest at 110 on the same tree: 2). Two reds stay on the sheet: `tier-deadly-four-held` and the tank's and hammer's typical low on Normal at the floor (59-60% against a bar of 60; Carter's Rest reads 73%).
 5. **Why it's harder, and it isn't this ground.** Every row is the one formula's, and the spells are a small share of what lands (on the Deadly four's tank, 27k of 459k taken). The difference is the hero: past Dawnsteel there's no better armor, so a Level 165 tank wears what a Level 110 tank wears while the formula's monsters keep climbing to a same-Level hero. Every ground past the Morrow will read this way until something carries the armor curve. **Tyler / Coordinator call:** the unique pieces carry it (their armor climbs with the band), or the formula reads the gear a hero can actually have at that Level. I haven't papered over it with a named exception on this one ground.
-6. **Gold, printed and not graded (NO PROFIT MOLDS).** Alone at the floor: tank -33.5k an hour, hammer -35.2k (each eats about 300-350 Salted Lobster), bow +13.7k, Mage +42.9k. A four nets about +16.5k a head. A lone melee at 165 living on store food loses gold here, which is the case-by-case look Tyler asked for if it's "way under": the store's food stops at Level-50 sizes (Salted Lobster heals 216 of a 2,291 HP tank), so the answer is the hero's own cooking or a party. Brought to Tyler with these numbers, not tuned.
+6. **Gold, printed and not graded (NO PROFIT MOLDS).** Alone at the floor: tank -33.0k an hour, hammer -34.4k (each eats about 300-350 Salted Lobster), bow +14.4k, Mage +44.3k. A pair nets about +23k a head and a four about +17k. A lone melee at 165 living on store food loses gold here, which is the case-by-case look Tyler asked for if it's "way under": the store's food stops at Level-50 sizes (Salted Lobster heals 216 of a 2,291 HP tank), so the answer is the hero's own cooking or a party. Brought to Tyler with these numbers, not tuned.
 
 #### 9. Walk-through (a Level 165 hero off the Bellows, in Dawnsteel, on the Hold's bar)
 | Step | Does | Has from the earlier steps | Doable? |
@@ -163,21 +163,21 @@ The same tree graded Carter's Rest at its own floor for comparison (pack check c
 | 6 | The Cut: a Night Carter's Lime Sack hits everyone | Step 5 | Yes on the engine: measured, 23-52 hits an hour a hero |
 | 7 | The Gallery: Bones, Grave Dust, an Owing Tag | Step 6 | Yes: real rows, the tag a staged row |
 | 8 | The Bone Room: the tank holds Bone Slide, the back line steps off | Step 7 | Yes: measured, the bow took 2 of 72 slides on Deadly |
-| 9 | Over the bridge to Dunn: Snuff the Candles, maybe Dunn's Candle | Step 8 | Yes on the engine. The candles dimming is owed art |
+| 9 | Over the bridge to Dunn: Snuff the Candles, maybe Dunn's Candle | Step 8 | Snuff yes on the engine (the candles dimming is owed art). The Candle not yet: no row until its icon |
 | 10 | Back in Havora: Fuel the hearth with the bones and dust | Step 7 | Yes: `fuel_bones`, `fuel_big_bones`, `fuel_bone_chips`, `fuel_grave_dust` |
-| 11 | Burns Dunn's Candle and the square goes pale | Step 9 | Not yet: its NAMED_FUELS row folds at the pack's ship, and the `tallow` flame is owed |
-| 12 | Sells the Gold Bars and the five pieces | Step 6-9 | Yes: vendor trash rows |
+| 11 | Burns Dunn's Candle and the square goes pale | Step 9 | Not yet: the row, its icon, the `tallow` flame and the NAMED_FUELS fold at ship |
+| 12 | Sells the Gold Bars, the Live Leeches and the five pieces | Step 6-9 | Yes: vendor trash rows |
 | 13 | Earns standing | A faction | Tyler's call (section 2) |
 
-Four of thirteen steps wait on something: the Morrow's own grounds, the art, the fuel's fold at ship, and one ruling.
+Five of thirteen steps wait on something: the Morrow's own grounds, the art (twice), the Candle's row, and one ruling.
 
 #### 10. For Tyler, in order
 1. **The name.** The Pauper Vaults, or Under the Hearth, or the Keepers' Vaults.
 2. **Standing.** Neutral ground under the neutral town: pays nobody (my pick) or both sides.
 3. **Armor past Dawnsteel.** Every ground past the Morrow gets harder than its Level says until uniques (or the formula) carry the armor curve. Section 8, item 5.
-4. **A lone melee's food bill at 165.** -33k to -35k an hour on Salted Lobster. Printed for the case-by-case look, not tuned.
+4. **A lone melee's food bill at 165.** -33k to -34k an hour on Salted Lobster. Printed for the case-by-case look, not tuned.
 
-**Files.** `src/data/grounds/pauper_vaults/` (pack.js, map.js, staged), `src/data/grounds/index.js` (one row), `src/data/catalogue-coherence.js` (staged and vendor-trash rows), `tests/catalogue-coherence.mjs` (one PENDING_USE row), `src/data/world/region-kits.js` (the vault family, the ground, its pending pieces), `art/briefs/ground-pauper_vaults.txt`. The Morrow's three staged packs are merged in for the grade (their stand-in maps' mask hashes re-pinned after main's Wickstead bridge fix).
+**Files.** `src/data/grounds/pauper_vaults/` (pack.js, map.js, staged), `src/data/grounds/index.js` (one row), `src/data/catalogue-coherence.js` (staged and vendor-trash rows), `src/data/world/region-kits.js` (the vault family, the ground, its pending pieces), `art/briefs/ground-pauper_vaults.txt`. The Morrow's three staged packs are merged in for the grade (their stand-in maps' mask hashes re-pinned after main's Wickstead bridge fix).
 
 ### 2026-11-14 The Barrow March hand play, ruled (designer, lane/d-march-balance; the hidden March played by hand on the local world said NOT READY; Tyler 2026-11-14: "Krell should be a daily kill maybe", unique Krell pieces "a pair of pally legs a tank shield ... just no weapon", "by unique i mean having a special attribute", "maybe the legs have a % physical resistance"). Measured on the real settle (tools/balance-sim cell/grade, boss-call-table). Still STAGED
 1. **Muster Barrows solo deaths: the LABEL lied, not the Knight.** A Level 55 tank in tier 4, 12 h each: Salted Lobster 0 deaths, Salted Trout 1, Salted Shrimp after 100 Cooked Lobster 12 (the hand play's bar). The grader ate the guide food's store row, a bar nobody has until they pick it. BUILT: the pack's `bagGuide.storeFloor` (Muster only: on the Ford, the Slake, the Pyre Field and the Hold Salted Shrimp alone died 0 in 8 h each), a red Before you go line with the fix and no "Safe at your level" under it (hunt-go.js weakFoodLine), and a grader cell on that food (grade.mjs `storefood`, rule normal-deaths-store-food, selftest mutant). Still open: a lone hero's binding rules are advisory on a party ground, so the Muster's lone deaths only ever report.

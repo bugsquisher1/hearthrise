@@ -2115,7 +2115,7 @@ const MUTANTS = [
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
   /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */
-  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), ...alone, TIER_DEATH_LINE].join(' ');", "[tierLine(r, tier, size), ...alone, TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join(' ');"],
+  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), ...alone, ...healer, TIER_DEATH_LINE].join(' ');", "[tierLine(r, tier, size), ...alone, ...healer, TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join(' ');"],
   ['the tier note reads one line whatever the pull', 'src/shell/hunt-list.js', 'tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same;', 'L.same;'],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],

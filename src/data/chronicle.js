@@ -38,4 +38,8 @@ export const CHRONICLE = Object.freeze([
   page('warrens', at('coppercap_warrens')),
   /* the road north (the Barrow March, open since v0.2.132): the Road North's own facts, approved 2026-11-11 */
   page('ford', at('hasks_ford')),
+  page('slake', at('the_slake')),
+  page('barrows', at('muster_barrows')),
+  page('pyre', at('pyre_field')),
+  page('hold', at('krells_hold')),
 ]);

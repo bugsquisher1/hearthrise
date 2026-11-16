@@ -105,4 +105,42 @@ export const CHRONICLE_TEXT = Object.freeze({
     + 'Krell\'s men didn\'t burn a single body, so you can guess what happened next. The dead got back up right where they fell, and '
     + 'that spot is called Hask\'s Ford now. Their flag bearer still walks around the toll stone with the company flag, like he never '
     + 'heard the fight ended.',
+
+  /* @sentence: the story, told out loud (lore). The Road North's own facts (approved 2026-11-11). */
+  slake_title: 'The Slake',
+  slake_teaser: 'This is where the river drops what it carries.',
+  slake_page: 'Plenty of the bodies at the Ford went into the river, and the Meadowbrook carried them down to the Slake along with the '
+    + 'company\'s supply barge. The river slows down here and drops everything it\'s carrying into the mud, copper included.\n\n'
+    + 'The barge never made it back upstream, and the bargemen never left it. The dead washed up on the mudflats and got up there too, '
+    + 'and they\'ve been lying in that copper silt so long they\'ve turned green.',
+
+  /* @sentence: the story, told out loud (lore). The Road North's own facts (approved 2026-11-11). */
+  barrows_title: 'The Muster Barrows',
+  barrows_teaser: 'Krell buried somebody here.',
+  barrows_page: 'Krell knew that many bodies would get people asking questions, so he started cleaning up. He buried the company\'s '
+    + 'officers with full honors in the Muster Barrows, so it would look like they lost a fair fight.\n\n'
+    + 'He put Hask in the ground with them. A man who would sell out his own soldiers would sell out Krell just as fast, and Krell '
+    + 'wasn\'t about to take that chance.\n\n'
+    + 'The officers never went to the Great Hearth either, so they got back up like everybody else. Captain Hask is still down there '
+    + 'in the barrows with his knights, in charge of the company he sold.',
+
+  /* @sentence: the story, told out loud (lore). The Road North's own facts (approved 2026-11-11). */
+  pyre_title: 'The Pyre Field',
+  pyre_teaser: 'There were too many to bury.',
+  pyre_page: 'There were way too many regular soldiers to bury, so Krell\'s priests burned them out on the Pyre Field. That should have '
+    + 'been the end of it.\n\n'
+    + 'The trouble is they lit those pyres from the fire in Krell\'s own hall, and whatever they chanted over the bodies tied the dead '
+    + 'to that fire instead of letting them rest. The castle sends its Stokers down to keep the pyres burning, and the burned soldiers '
+    + 'keep climbing back out of the ash.',
+
+  /* @sentence: the story, told out loud (lore). The Road North's own facts (approved 2026-11-11). */
+  hold_title: 'Lord Krell',
+  hold_teaser: 'There\'s a castle at the end of the road.',
+  hold_page: 'Krell\'s castle sits on top of the hill at the end of the road north. His men walk the walls, along with farmhands he '
+    + 'forced into the job, and the lookouts Hask pulled off the crossing that night ended up on his payroll too. The officers he dug back '
+    + 'up out of the Muster Barrows guard his crypt.\n\n'
+    + 'Krell is an old man now. He spends his days in his hall with the company\'s roster on the table and that fire at his back, and '
+    + 'he can\'t ever let it go out. The second it does, every soldier he killed is loose, and they all know where he lives.\n\n'
+    + 'His Gatekeeper carries the key to the hall. If the stories are right, those soldiers only get to rest once somebody kills Krell '
+    + 'and burns that roster in the Great Hearth.',
 });

@@ -420,6 +420,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
   if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
+  /* Change setups: Hunt prep, opened from here so its Back comes back to this ground (window-manager.js from) */
+  if (action === 'go-prep') { ctx.wm.open('hunt-prep'); return true; }
   if (action === 'bring') {
     const slot = Number(el.getAttribute('data-slot'));
     const who = freeHeroes(cs, ctx.peers()).find((x) => x.slot === slot);

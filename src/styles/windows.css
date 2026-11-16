@@ -449,6 +449,8 @@
 .hw-go-bar .hh-icon { width: 32px; height: 32px; }
 .hw-go-note { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-go-note:empty { display: none; }
+/* Change setups: Hunt prep, under the setups it makes (the bar's groups took its icon, 2026-11-16) */
+.hw-go-prep { margin-top: 8px; }
 /* Before you go: plain lines, what the bar spends and what it costs; a line that stops the hunt reads red. */
 .hw-before { margin: 0; padding: 0; list-style: none; }
 .hw-before-line { padding: 1px 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
@@ -1200,6 +1202,18 @@
 .wk-rows tr + tr td { border-top: 1px solid var(--steel-sep); }
 .wk-example { margin: 8px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
 .wk-example b { margin-right: 6px; color: var(--gold-2); }
+/* THE CHRONICLE (wiki.js chronicleHtml): a book's pages, read top to bottom. The story reads at the body's size with a book's
+   leading; a shut page keeps its title, dimmed under a lock, a line about itself and what opens it. */
+.ck-found { margin: 0 0 4px; font-size: var(--t-micro); color: var(--ink-3); }
+.ck-found[hidden] { display: none; }
+.ck-text { font-size: var(--t-body); line-height: 1.6; color: var(--ink); text-wrap: pretty; }
+.ck-text + .ck-text { margin-top: 10px; }
+.ck-page.is-shut { padding-bottom: 10px; }
+.ck-page.is-shut .wk-name { color: var(--ink-3); }
+.ck-page.is-shut .wk-name .hs-glyph { width: 16px; height: 16px; color: var(--ink-3); }
+.ck-teaser { margin: 0 0 4px; font-size: var(--t-small); font-style: italic; color: var(--ink-2); }
+.ck-how { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.ck-band { margin-left: 8px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .wk-name { font-size: var(--t-small); }
   .wk-table th, .wk-table td { padding-right: 10px; }

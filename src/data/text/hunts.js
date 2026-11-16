@@ -85,6 +85,8 @@ export const HUNTS_TEXT = Object.freeze({
   head_best: 'Your best here',
   head_go_as: 'Go as',
   head_before: 'Before you go',
+  /* under Go as: Hunt prep, where the setups are made (its icon left the top bar, 2026-11-16) */
+  go_prep: 'Change setups',
   head_party: 'With a party',
   rares_per: 'chance per kill of its creature',
   per_kill_alone: 'chance per kill, hunting alone',

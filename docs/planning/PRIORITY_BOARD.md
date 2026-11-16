@@ -29,6 +29,156 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-15 The Pauper Vaults: a catacombs hunt deep under Havora (designer, lane/d-catacombs. Tyler 2026-11-14: "one of my favorite hunts in tibia is called 'catacombs' i would like a hunt like that", what he loves is "the map/atmosphere/rooms etc", "a later on hunt deep underneath havora or something"; "Havora is a neutral town"): DESIGNED, drafted as a STAGED pack with its own map, MEASURED on the real engine (quick grade). Nothing served, no art, no spend, no server work
+**The call.** Under the Great Hearth there are vaults where Havora put the dead it couldn't afford to burn. One ground, Levels 165-185, after the Morrow Hills. Six rooms joined by corridors and one plank bridge, each lit its own way: torches, a long row of candles, braziers, nothing at all over black water, then a ring of candles round the Keeper who stayed down there. It's undead again, so it's kept apart from the Barrow March on purpose: the March is soldiers murdered by a lord, out in the open. The Vaults are the town's own poor, under the town, and the villains are a couple of grave robbers and a debt.
+
+**What I cut.** A keyed boss room (the March has two and the Morrow plans one; Keeper Dunn is the named room's rare carrier instead, and his candle is the prize). A mend on Dunn (spell-rows allows a non-boss one spell, and Krell's Pyre Priest already teaches "kill the healer first"). New standard gear (Dawnsteel is the last tier). A second ground under Havora (one first, sampled, then decide).
+
+#### 1. The name
+Every name was checked free in `src/data`, `src/shell` and `src/app`.
+
+| Thing | Pick | Why | Other options |
+|---|---|---|---|
+| The ground | **The Pauper Vaults** | Says what it is the way a Havora local would: where the paupers went. A pauper's grave is a real phrase | Under the Hearth, the Keepers' Vaults, the Owing Vaults |
+| The ledger | **the Wood Book** | Each name is a burning the town owes, and a burning costs wood | the Owing Book |
+| The Keeper who stayed | **Keeper Dunn** | To dun someone is to chase them for a debt. Short and hard, like Krell, Hask and Gault | Keeper Marl, Keeper Cobb |
+| The grave robbers | **the Night Carters** | They carted the dead out at night. It ties to Carter's Rest and the Ox Road, the road they sold them up | the Sack Men |
+
+#### 2. The story (a draft in the approved voice. It hasn't been through the reader gate, and I can't approve my own copy)
+> The dead only rest if they're burned at the Great Hearth, and burning somebody takes a lot of wood. Wood costs money.
+>
+> One hard winter more people died in Havora than there was wood to burn. The Keepers carried the rest down into the vaults under the Hearth, wrote every name in a big book and promised to burn them all in the spring. Spring came, and wood stayed dear. Every bad winter after that the book got longer. People started calling it the Wood Book, because every name in it is owed a burning.
+>
+> One Keeper, Dunn, couldn't stand it. He took a box of candles down, locked the door from the inside and stayed with them. He read the names out every night and lit a candle for each one. Nobody went after him. After a while nobody remembered the door.
+>
+> Years later some men digging off the Sewer found the vaults. Father Gault's priests up north needed bodies that had never been burned, and the vaults were full of them. So the Night Carters sacked them up and carted them up the north road at night, a load at a time. When Gault fell, his books said where his dead came from. Havora.
+>
+> The ones the Carters didn't get to are still down there. So are some of the Carters, and so is Dunn. He's still reading.
+
+**How it ties back.** Nothing approved changes. The Great Hearth rule (11-11) is the reason the vaults exist. Harry hauls firewood to the Great Hearth, so the price of wood is his trade and a line he'd say. The way in is off the Sewer, the first party ground, so a Level 165 hero goes back under the streets they started under. Gault and his books are the Morrow's (staged, not ruled): if Tyler changes Gault, the buyer becomes "somebody up north" and nothing else moves.
+
+**Both factions have a reason to go down, and neither owns it.** The First Flame want every name in the book burned properly, the way the rite says. The Last Ember say this is what the old way did to people who couldn't pay. Keeper Rowe (staged) is the one person in town who knows the door was there. Havora stays neutral, and so does this ground: no `region`, no `standingFor`. **Tyler's call:** a neutral ground can pay standing to nobody (my pick: it's under the neutral town, and a region of one ground can't be split evenly) or to both sides.
+
+#### 3. Where it sits
+| Ground | Band | Status |
+|---|---|---|
+| Carter's Rest, the Ox Road | 110-128 | staged packs (lane/d-morrow-grounds) |
+| Wyvern Roost, the Night Shift | 122-142 | Roost staged, Night Shift a ladder row |
+| The Old Guard, the Bellows (Gault) | 138-165 | ladder rows |
+| **The Pauper Vaults** | **165-185** | **this pack, staged** |
+
+After the Bellows because the story needs Gault's books, and because a deep vault under the starting town reads as late content. 185 leaves Levels 185-200 for whatever comes next, so the Vaults are the long road toward 200, not the end of it. At the 10-25 pace (about 10.8 hours a Level from 100 to 200) the band is about 215 hunting hours.
+
+#### 4. The map (drawn new, `src/data/grounds/pauper_vaults/map.js`, 60 x 44, cellar light)
+| # | Room | Who's there | What it teaches | Light |
+|---|---|---|---|---|
+| 1 | **The Carters' Cut**, where they broke through the vault wall off their tunnel | A Night Carter and the Paupers he was hauling | The soft door. The gold seam their tunnel cut and never worked (the gather nodes) | The Carters' torches |
+| 2 | **The Long Gallery**, 34 tiles of hall with six pillars down the middle | Paupers, a Bone Wall come loose | The common majority, fire and the hammer | A candle at the foot of the wall every few tiles |
+| 3 | **The Bone Room**, the ossuary | Bone Walls | Fire does 25% less here. Keep an ice slot | A brazier in each corner |
+| 4 | **The Flooded Vault**, the lowest vault, standing water and two causeways round the bier platform | Vault Leeches | A blade, in the dark | None. The hero's lamp and four candles on the bier |
+| | **The plank bridge**, the one 1-tile choke (KIT §4b), over deep water | | The way down | None |
+| 5 | **The Keepers' Room**, the Wood Book on its lectern | Keeper Dunn and the dead he keeps | Kill him first, or bring frost resistance. The hardest pull | A ring of candles |
+| 6 | **The Loading Vault**, the Carters' yard under the hoist shaft | Night Carters | Shoot the living ones. Then up the shaft passage to the Cut | The Carters' torch |
+
+Every other passage is three tiles or more (forest-cave one-choke). The light is the renderer's own (`light: 'cellar'`, compose.js point lights from `terrain.js` LIGHTS): no new engine. Walking it goes warm, small and many, warm, black, then candlelight.
+
+#### 5. The sample of five
+One difficulty for every group. Stats are the formula's (`node tools/pack.mjs propose pauper_vaults --write`: tier 6, floor 165, fit both). Weights are the head-count at a pull of 4: 13 / 4 / 3 / 3 / 1.
+
+| Creature | Level, role | Who it is | Class, weak to | What it does | Formula row |
+|---|---|---|---|---|---|
+| **Shrouded Pauper** | 166, swarm | Somebody's grandmother, sewn into a gray sheet with a wooden tag on the wrist | Undead. Hammer, fire +15% | Nothing special. The majority | hp 216, atk 140, xp 2,838, gp 45-136 |
+| **Vault Leech** | 169, glass | A leech as long as your arm that came in with the river | Vermin, one override: a blade (soft body) | Fragile and quick to land | hp 206, atk 184, xp 3,271, gp 43-130 |
+| **Bone Wall** | 173, heavy | A stretch of the ossuary, bones set in lime, that got up | Construct. Hammer, ice +15%, fire 25% less | Bone Slide, a marked ring round it: the tank holds, everyone else steps off | hp 338, atk 137, xp 4,966, gp 71-213 |
+| **Night Carter** | 176, regular | One of the men who sold the dead up the north road | Human. Arrows, poison +15% | Lime Sack, a group hit on every hero (poison) | hp 286, atk 174, xp 3,846, gp 60-180 |
+| **Keeper Dunn** | 181, elite, the rare carrier | The Keeper who locked himself in | Undead | Snuff the Candles, a group hit (frost): every candle in the room goes out, then the cold comes | hp 471, atk 178, xp 7,366, gp 99-297 |
+
+Four families in five bodies, each a different job. The ground's identity is fire and the hammer (18 heads in 24), with the Bone Wall punishing an all-fire bar and the Carters punishing an all-melee one. **Sample rule:** these five get built, played and read by the art director before a sixth is written.
+
+**First principle.** The ice slot is a one-time setup, not a chore: the fire slot puts the Bone Wall on its Ignored monsters list (Configure action, `src/core/hunt/conditions.js`) and the ice slot sits after it, saved in the setup. Nothing here asks the player to swap anything by hand per room.
+
+#### 6. Drops (every existing id read in `ITEMS` on this branch)
+| From | Common | Uncommon (new, an imbuement piece) | Rare |
+|---|---|---|---|
+| Shrouded Pauper | `bones`, `grave_dust` | Owing Tag (element ward) | none |
+| Vault Leech | none (boneless, living) | Leech Jaw (life leech) | none |
+| Bone Wall | `big_bones`, `bone_chips` | Lime Mortar (ward) | none |
+| Night Carter | `bones`, `gold_bar` | Carter's Hook (keen) | none |
+| Keeper Dunn | `big_bones`, `grave_dust` | Candle Snuffer (mana leech) | **Dunn's Candle**, the ground's named Hearth fuel |
+
+**Where every drop goes.** Bones, Big Bones, Bone Chips and Grave Dust burn at the Great Hearth for Inner Flame (`recipes.js` fuel rows, Inner Flame 1 / 15 / 40 / 46). Bone Chips are also a Smithing and Crafting input. Gold Bars sell (Gault paid the Carters in gold). The five pieces wait for the imbuer like every ground's, one of each kind, and sell until then. **Dunn's Candle** is the first pack to use the pack `fuel` field: burned at the Great Hearth it's a big burst of Inner Flame and the square's fire burns pale for everyone for two minutes. Proposed and unmeasured: 12,000 XP, Inner Flame 70, 120 s, about one every 15 hours at the floor (Rare band, 0.0067 a Dunn kill). It stands on the `honey` flame until the art list's `tallow` flame lands, and its use is a PENDING_USE row until the pack ships (the fuel folds into NAMED_FUELS then).
+
+**Unique pieces (proposed, NOT rows).** Past Dawnsteel a ground has a few rare unique pieces (the Morrow's section 9). The Vaults' wait on Carter's Rest's sample of five, the same as Wyvern Roost's:
+| Piece, slot | From | Idea | Who gives up what |
+|---|---|---|---|
+| Pauper's Shroud, body (cloth) | Shrouded Pauper | Low armor, 10% less frost | A Healer or Mage holding Dunn's room on Deadly. Less magic than Duskweave |
+| Mortar Maul, two-handed hammer | Bone Wall | Hits Undead 20% harder (`bane`, built) | A hammer on undead grounds. Worse than Dawnsteel everywhere else |
+| Keeper's Lantern, off-hand | Keeper Dunn | Mana, and the hero's lamp a tile wider in a cellar (display only) | A caster. Less than the Duskwood Codex |
+
+#### 7. Art (for the art director; no generations in this lane)
+The list is cut from the rows by `node tools/pack.mjs art pauper_vaults` and filled with the designer's asks in `art/briefs/ground-pauper_vaults.txt`. The ground is registered in the Greenhaven kit (`src/data/world/region-kits.js`) with a new `vault` tile family, two signature pieces and four pending kit props. Owed: 19 of 56 pieces, about 217-320 generations by the tool's prices.
+| What | Kind | Note |
+|---|---|---|
+| The vault floor family | tileset_pro, 4-5 materials | Worn flagstone, the Keepers' setts, the Carters' earth, black standing water, cut vault rock. Dark (the Hold's 0.027 median) |
+| pv_wood_book, pv_ossuary_wall | signature | The ledger chained on a lectern; skulls and long bones set in lime |
+| pv_niche_candles, pv_sconce | kit props, hanging | Each needs a `terrain.js` LIGHTS row (radius 2 and 3, torch). These make the Gallery |
+| pv_bier, pv_hoist | kit props | The Flooded Vault's slab, the Loading Vault's hoist frame |
+| Five bodies with clips | body_object x4, body_character x1 | Told apart by shape at x2 (section brief) |
+| 11 icons | 32 px | Five heads, six drops |
+| A `tallow` Hearth flame | scripted re-pour, no generation | Dunn's Candle |
+| Three effects' looks | vfx | Snuff dims every candle pool for the windup |
+
+Sample first: one Shrouded Pauper, one run of gallery wall with a candle niche, and the floor pair, read at x2 beside the Sewer.
+
+#### 8. Measured on the real engine
+`node tools/pack.mjs check pauper_vaults --mode quick --with carters_rest,ox_road,wyvern_roost` (73 cells, 1 seed x 1 h a cell, the Morrow's three packs open so the hero wears the full Dawnsteel set from them). Deaths are for the whole cell, so a small count is a first read, not a rate. XP is Level XP an hour a head as a share of the pace contract.
+
+| Who | Normal XP at 160, 165, 175 | Normal at 165: deaths, typical low HP, kills an hour | Dangerous at 165: XP, deaths | Deadly at 165: XP, deaths |
+|---|---|---|---|---|
+| Tank alone | 0.72, 0.70, 0.71 | 0, 59%, 172 | 0.29, 59 (can't) | 0.00, 59 (can't) |
+| Hammer alone | 0.98, 0.97, 0.95 | 0, 60%, 236 | 0.68, 59 (can't) | 0.05, 59 (can't) |
+| Bow alone | 0.95, 0.92, 0.91 | 0, 77%, 225 | 1.27, 23 | 0.75, 55 |
+| Mage alone | 1.49, 1.46, 1.38 | 0, 96%, 356 | 1.93, 1 | 1.61, 44 |
+| Tank and Healer | 1.17, 1.13, 1.07 | 0, 82%, 371 | 1.60, 3 | 0.84, 59 |
+| Four (tank, Healer, bow, Mage) | 1.20, 1.16, 1.10 | 0, 88%, 544 | 2.05, 0 | 2.53, 38 |
+
+The same tree graded Carter's Rest at its own floor for comparison (pack check carters_rest, 22 ok, 0 fail): a lone tank's typical low on Normal 73%, a four on Deadly 2 deaths. The grader's verdict here is FAIL on 3 of 20 rules, all danger, read in item 4.
+
+**What the numbers say.**
+1. **Normal is safe at every Level from 5 under the floor.** No death in any Normal cell on the ladder bar. On the start bar's Salted Shrimp a lone tank at the floor died 7 times (Dunn 5), so the pack names Salted Lobster as its `storeFloor` and Before you go says so, the March's rule.
+2. **The median lone hero is on pace** (0.945 of the contract at the floor, 0.93 in the middle), so no XP fit. The Mage reads 1.46, the same pattern as Carter's Rest at 110: it's the Mage at high Levels, not this ground, and it's the Morrow board's open item.
+3. **Parties.** The pack's party row is fitted by the Hold's method (section in `pack.js`): a four of four classes reads 1.16 / 1.10 of the contract at the floor and middle, which is 1.23 / 1.18 of the median lone hero (the sheet asks 1.15-1.25), and a tank and Healer 1.13 / 1.07. Nobody in a party levels slower than going alone (feel-seat-below-solo: none).
+4. **The harder tiers are a wall, and harder than they should be.** Dangerous kills a lone melee every minute and a lone bow 23 times, a Mage alone dies once, a pair holds it with 3 deaths and a four clean. Deadly kills a four 38 times in its hour (Carter's Rest at 110 on the same tree: 2). Two reds stay on the sheet: `tier-deadly-four-held` and the tank's and hammer's typical low on Normal at the floor (59-60% against a bar of 60; Carter's Rest reads 73%).
+5. **Why it's harder, and it isn't this ground.** Every row is the one formula's, and the spells are a small share of what lands (on the Deadly four's tank, 27k of 459k taken). The difference is the hero: past Dawnsteel there's no better armor, so a Level 165 tank wears what a Level 110 tank wears while the formula's monsters keep climbing to a same-Level hero. Every ground past the Morrow will read this way until something carries the armor curve. **Tyler / Coordinator call:** the unique pieces carry it (their armor climbs with the band), or the formula reads the gear a hero can actually have at that Level. I haven't papered over it with a named exception on this one ground.
+6. **Gold, printed and not graded (NO PROFIT MOLDS).** Alone at the floor: tank -33.5k an hour, hammer -35.2k (each eats about 300-350 Salted Lobster), bow +13.7k, Mage +42.9k. A four nets about +16.5k a head. A lone melee at 165 living on store food loses gold here, which is the case-by-case look Tyler asked for if it's "way under": the store's food stops at Level-50 sizes (Salted Lobster heals 216 of a 2,291 HP tank), so the answer is the hero's own cooking or a party. Brought to Tyler with these numbers, not tuned.
+
+#### 9. Walk-through (a Level 165 hero off the Bellows, in Dawnsteel, on the Hold's bar)
+| Step | Does | Has from the earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Reaches Level 165 | The Morrow grounds | Not yet: the Bellows is a ladder row, and only three Morrow packs are staged |
+| 2 | Opens Hunts and sees The Pauper Vaults, 165-185 | Level 165 | Once the pack opens (`hunt-list.js` reads it). Staged today, listed nowhere (forest-cave staged-until-art, green) |
+| 3 | Before you go names Salted Lobster | Step 2 | Yes: `bagGuide.storeFloor` (`salted_lobster`, supply-basics.js) |
+| 4 | Puts a Chalked Fire Rune slot with the Bone Wall on its Ignored monsters list, then a Chalked Ice Rune slot | The Hold's bar | Yes: `chalked_fire_rune`, `chalked_ice_rune` (and the store's `plain_fire_rune`, `plain_ice_rune`), Ignored monsters in Configure action |
+| 5 | Enters down the Carters' tunnel | Step 2 | Not yet: the map is drawn and lints (world-core, forest-cave green), its painted floor and pieces are owed |
+| 6 | The Cut: a Night Carter's Lime Sack hits everyone | Step 5 | Yes on the engine: measured, 23-52 hits an hour a hero |
+| 7 | The Gallery: Bones, Grave Dust, an Owing Tag | Step 6 | Yes: real rows, the tag a staged row |
+| 8 | The Bone Room: the tank holds Bone Slide, the back line steps off | Step 7 | Yes: measured, the bow took 2 of 72 slides on Deadly |
+| 9 | Over the bridge to Dunn: Snuff the Candles, maybe Dunn's Candle | Step 8 | Yes on the engine. The candles dimming is owed art |
+| 10 | Back in Havora: Fuel the hearth with the bones and dust | Step 7 | Yes: `fuel_bones`, `fuel_big_bones`, `fuel_bone_chips`, `fuel_grave_dust` |
+| 11 | Burns Dunn's Candle and the square goes pale | Step 9 | Not yet: its NAMED_FUELS row folds at the pack's ship, and the `tallow` flame is owed |
+| 12 | Sells the Gold Bars and the five pieces | Step 6-9 | Yes: vendor trash rows |
+| 13 | Earns standing | A faction | Tyler's call (section 2) |
+
+Four of thirteen steps wait on something: the Morrow's own grounds, the art, the fuel's fold at ship, and one ruling.
+
+#### 10. For Tyler, in order
+1. **The name.** The Pauper Vaults, or Under the Hearth, or the Keepers' Vaults.
+2. **Standing.** Neutral ground under the neutral town: pays nobody (my pick) or both sides.
+3. **Armor past Dawnsteel.** Every ground past the Morrow gets harder than its Level says until uniques (or the formula) carry the armor curve. Section 8, item 5.
+4. **A lone melee's food bill at 165.** -33k to -35k an hour on Salted Lobster. Printed for the case-by-case look, not tuned.
+
+**Files.** `src/data/grounds/pauper_vaults/` (pack.js, map.js, staged), `src/data/grounds/index.js` (one row), `src/data/catalogue-coherence.js` (staged and vendor-trash rows), `tests/catalogue-coherence.mjs` (one PENDING_USE row), `src/data/world/region-kits.js` (the vault family, the ground, its pending pieces), `art/briefs/ground-pauper_vaults.txt`. The Morrow's three staged packs are merged in for the grade (their stand-in maps' mask hashes re-pinned after main's Wickstead bridge fix).
+
 ### 2026-11-14 The Barrow March hand play, ruled (designer, lane/d-march-balance; the hidden March played by hand on the local world said NOT READY; Tyler 2026-11-14: "Krell should be a daily kill maybe", unique Krell pieces "a pair of pally legs a tank shield ... just no weapon", "by unique i mean having a special attribute", "maybe the legs have a % physical resistance"). Measured on the real settle (tools/balance-sim cell/grade, boss-call-table). Still STAGED
 1. **Muster Barrows solo deaths: the LABEL lied, not the Knight.** A Level 55 tank in tier 4, 12 h each: Salted Lobster 0 deaths, Salted Trout 1, Salted Shrimp after 100 Cooked Lobster 12 (the hand play's bar). The grader ate the guide food's store row, a bar nobody has until they pick it. BUILT: the pack's `bagGuide.storeFloor` (Muster only: on the Ford, the Slake, the Pyre Field and the Hold Salted Shrimp alone died 0 in 8 h each), a red Before you go line with the fix and no "Safe at your level" under it (hunt-go.js weakFoodLine), and a grader cell on that food (grade.mjs `storefood`, rule normal-deaths-store-food, selftest mutant). Still open: a lone hero's binding rules are advisory on a party ground, so the Muster's lone deaths only ever report.
 2. **Krell was fitted in tier 3 steel.** boss-call-table dressed a hall's party from the open grounds only; in the Hold's tier 6 he died in 108 s and every row won (the hand play's 5 of 5). Tool fixed (a hall plays every staged ground as open). Re-fit: 14,000 HP, atk 247, to-hit 0.95, enrage x1.8, Rake 0.96x, Hask atk 170 and Cleave 1.4x (blow cap 55% held). At 98 good 100 / never touched 88 / bad 43 / tier behind 95; pair 85 / 15 / 45; four dps 3%. At 88 good 100 / bad 30 / tier behind 90. Prize cut 0.1 -> 0.035 a row as the interim (a four's tier 7 went from about 1.7 an hour to 0.5). **RE-RULED after the v0.2.132 re-play (0 of 6 on the bars a party is handed):** the loss was the start bar's Salted Shrimp (a four on it wins 0 / 0 / 5% at 85 / 88 / 98), which can't be fitted without making him nothing on real food. **CHALLENGE IS THE PLAYER'S CALL (Tyler 2026-11-14: "the player should decide whether or not challenge should be on"; "kind of weird advice").** No text anywhere says turn Challenge on or off: the guard warning says only that the adds shield him, the loss lines say kill them first and keep the healer on them, the hall labels cover food, eating, healing and party. Both bosses re-fitted so on and off are fair trades (Challenge stacks the adds on a tank already taking the boss: the Chief's 130 swing made that a trap; Krell's hastened Hall Fire made going without one). Chief Coppercap (live): 6,000 HP, atk 110, Slag Rain 0.4x -> 0.8x; at 45, on / off: tuned 100 / 95, untouched 35 / 45 (was 23 / 90), bad 0 / 0. Krell, fitted on the DOOR'S BAR (default moves and Target, eating at 75%, the healer's two heals: what the hints alone build; the v0.2.133 check found the old "good" bar re-ordered the Mage, which no hint says): 18,000 HP, enrage x1.8, Hall Fire 0.65x; door's bar on / off 90 / 88, 90 / 80, 90 / 90 at 85 / 88 / 98; untouched on Salted Lobster 68 / 65, 80 / 60, 90 / 73; bad 8 / 0, 20 / 3, 30 / 20; start bar 0. General hints can't open more than about 25 points over an untouched bar here without making a Challenge choice a trap (the Coordinator's 20-30% untouched target is not met: the call is his). A win costs a tank about 7,700 gp of Salted Lobster against about 200 gp of his coin; his prize (tier 7, about 1 piece in 2 kills now, 40% personal on the daily spec) covers it many times at market, so his coin stays the formula's (no profit molds). The red food line now checks every hero of this account in the party; another account's bar is not in this browser (the live-engine projection rule), so a server `food_short` flag per seat is handed to Systems. Phone (922x423): the red line falls below the fold and "Open Krell's Hall" sits half under the Enter bar: handed to the Art Director. The hall door says the food to everyone and in red to a bar under it (`hall.storeFloor`), then label lines (`hall.words.bars`). The death popup no longer tells a party with a Healer to bring one.

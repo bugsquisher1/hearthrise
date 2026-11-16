@@ -142,11 +142,20 @@ export default definePack({
     snuff_the_candles: { n: 'Snuff the Candles', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 1500, element: 'frost' },
   },
   /* THE BAG: the Ox Road's store food, and the fire rune (18 heads in 24 are Undead or the Bone Wall). A caster keeps an ice slot for the Bone Wall
-     (fire does 25% less on it). Not measured for cost. */
-  bagGuide: { tier: 4,
+     (fire does 25% less on it). `storeFloor` (the March's rule, lane/d-march-balance): MEASURED on the quick grade (1 seed x 1 h, lane/d-catacombs
+     2026-11-15), a lone tank at the floor on the start bar's Salted Shrimp died 7 times in the hour (Keeper Dunn 5, the Paupers 2) and lived on
+     Salted Lobster, so Before you go names the lobster. */
+  bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+  /* PARTY LEVEL XP (the Hold's method, as Carter's Rest: quick grade, 1 seed x 1 h, the Morrow's three packs open on the ladder, lane/d-catacombs
+     2026-11-15). With no row a four of four classes read 0.48 / 0.46 of the pace contract at the floor and middle and a tank and Healer 0.66 / 0.63, so
+     the pair 1000 x 1.10 / 0.645 = 1705 and a first four of 2555. At 2555 the four read 1.31 / 1.26 of the median lone way (the sheet's four-xp asks
+     1.15-1.25), so the four is 2555 x 0.935 = 2390 (1.22 / 1.18), the cells between at Carter's Rest's proportions. The median lone way read
+     0.945 / 0.93 of the contract (the Mage 1.46, as on Carter's Rest), inside the sheet's 0.90-1.10, so no XP fit. partyVsAlone, the window's line,
+     is the pack lane's (tests/party-class-xp-line.mjs --table --mixed). */
+  partyClassXp: { 2: [990, 1705], 3: [1150, 1890, 2020], 4: [1150, 2150, 2380, 2390] },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room */
   checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]] },
   map,

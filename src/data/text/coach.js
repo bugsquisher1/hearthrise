@@ -25,5 +25,10 @@ export const COACH_TEXT = Object.freeze({
   back_down_title: 'Back down for Level {level}',
   back_down: 'Send your hero back to the {ground}. Level {level} is about ten minutes away, and you don\'t have to watch. Close the game. Your hero keeps hunting.',
   back_down_in: 'Press the {ground}, then Enter. You don\'t have to watch. Close the game and your hero keeps hunting.',
-  keep_hunting: 'You don\'t have to watch. Close the game and your hero keeps hunting. Level {level} is about ten minutes away, and that\'s when you\'re ready for {next}. Everything it earns will be waiting for you.',
+  /* THE FIRST DANGEROUS RUN (lane/a-next-steps; board "2026-11-15 The audit's balance findings" F5: on Normal a hero eats 0 to 0.5 meals an hour
+     from Level 1 to 15, and Dangerous costs real food and gives more XP): {ground} is a ground in the hero's range that has a Dangerous tier */
+  first_dangerous_title: 'Try a Dangerous hunt',
+  first_dangerous: 'Open Hunts, pick {ground}, press Dangerous, then Enter. The monsters hit harder, so you\'ll eat a lot more food and you might die, but every kill gives more XP.',
+  first_dangerous_in: 'Pick {ground}, press Dangerous, then Enter. The monsters hit harder, so you\'ll eat a lot more food and you might die, but every kill gives more XP.',
+  keep_hunting:'You don\'t have to watch. Close the game and your hero keeps hunting. Level {level} is about ten minutes away, and that\'s when you\'re ready for {next}. Everything it earns will be waiting for you.',
 });

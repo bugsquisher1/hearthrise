@@ -25,7 +25,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.132';
 import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.132';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.132';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, huntTierOf } from './hunt-sections.js?v=0.2.132';
 import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.132';
 import { farmFieldOf } from './farm-sections.js?v=0.2.132';
 import { homeOf, chestsOf } from './home-sections.js?v=0.2.132';
@@ -34,6 +34,8 @@ import { temperFirstRungOf } from './temper-sections.js?v=0.2.132';
 import { partyMembershipOf } from './party-sections.js?v=0.2.132';
 import { wearsArmour } from '../core/vitals.js?v=0.2.132';
 import { ITEMS } from '../data/items.js?v=0.2.132';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.132';
+import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.132';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -99,6 +101,15 @@ function chestFact(cs) {
   return n ? { name: n.name, gold: n.gold, items: n.items } : null;
 }
 
+/* Has this hero hunted on a harder tier (the coach's first Dangerous run)? A pick on any ground (hunt_tier.picks: the server keeps only the
+   harder ones), the tier its running hunt froze, or the one its latest hunt ended on (hr_hunt_view `tier`). Null until the server sends hunt_tier. */
+function tierTakenOf(cs, h) {
+  const tiers = huntTierOf(cs);
+  if (!tiers) return null;
+  const hard = (x) => !!x && x !== DEFAULT_TIER;
+  return Object.values(tiers.picks).some(hard) || hard(tiers.playing) || hard(h && h.tier);
+}
+
 /**
  * The facts currentCard judges, or null until the server has told the Level XP. `sh`: the shell's facts (above).
  * Exported for the walk-through tests, which build the facts from a real envelope.
@@ -149,6 +160,10 @@ export function tutorialFactsOf(cs, sh) {
     ammo: eq ? eq.ammo || null : undefined,
     /* wears armor or a shield, so Defense trains (the engine's own test over the server's worn set) */
     armoured: eq ? wearsArmour(eq, ITEMS) : undefined,
+    /* the armor slots that wear a piece with an armor weight (the first Dangerous run's DANGER_KIT) */
+    armourWorn: eq ? ARMOUR_SLOTS.filter((s) => !!eq[s] && !!ITEMS[eq[s]] && !!ARMOUR_WEIGHT[ITEMS[eq[s]].armourClass]) : null,
+    /* the latest hunt, open or ended (the hunt section keeps it until the next), and whether the hero has hunted a harder tier */
+    lastHunt: h && h.huntId ? h.huntId : null, tierTaken: tierTakenOf(cs, h),
     blessings: blessFacts(cs), death: deathFacts(cs),
     /* this hunt's supplies, as the analyzer counts them (none once it ended: the hunt the card speaks of is over) */
     supplies: an && !an.ended && open ? an.hero.supplies : null, huntMs: an && open ? an.sessionMs : null,

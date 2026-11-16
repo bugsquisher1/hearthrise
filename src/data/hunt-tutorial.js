@@ -48,7 +48,8 @@
 //   name, slots (the bar the server SHOWS: [{ type, id, store, conditions, enabled, usable, count } | null]),
 //   stored (the bar it STORED: [{ type, id, conditions } | null]), discipline, role, stance, store (the server's
 //   store rows), carried { item: n } (the hunt bag in a hunt, else the bag), bag { item: n }, stacks, bagCap,
-//   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), blessings { held, of, freeUntil, prices },
+//   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), armourWorn [slot] (the armor slots wearing a
+//   piece with an armor weight), lastHunt (the latest hunt, open or ended), tierTaken (a harder tier picked, running or last hunted), blessings { held, of, freeUntil, prices },
 //   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
 //   home { owned, next }, gold, staminaMs, tally { held, paid, weight, tasks { task: { kills, target, done } }, paidTasks [task] }, sessionId (the open hunt's), and from the SHELL (the lane 1 / lane 2
@@ -66,7 +67,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { HUNT_INDEX } from './hunts.js?v=0.2.132';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.132';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.132';
+import { tiersOf } from './hunt-tiers.js?v=0.2.132';
 import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.132';
 import { nextUnlock } from './skill-unlocks.js?v=0.2.132';
 import { SKILLS_DEF } from './skills.js?v=0.2.132';
@@ -205,6 +207,16 @@ export const WEIGHHOUSE_LEVEL = 10;
 export const WEIGHHOUSE_BENCH = 30;
 export const ROLL_LEVEL = 16;
 const PULL_LEVEL = 10;
+/* THE FIRST DANGEROUS RUN (lane/a-next-steps; board "2026-11-15 The audit's balance findings" F5, measured on the real settle): on Normal a hero
+   in its Level's gear eats 0 to 0.5 meals an hour from Level 1 to 15, so food has no stakes; Dangerous at the Thicket and Wickstead from Level 5 costs real
+   food (a tank at 8 in its gear: 74.5 meals an hour) and gives more XP, while the practice kit with no armor dies there (22 and 24 deaths in 2 h at 5).
+   So one card offers it at about Level 8, to a hero the server shows in armor on its head and body (DANGER_KIT: the helm-and-body kit Tyler's
+   11-02 test holds a ground's floor to), and never again once read or taken. */
+const DANGER_LEVEL = 8;
+export const DANGER_KIT = Object.freeze(['helmet', 'body']);
+const DANGER_TIER = 'dangerous';
+/** The card's id: the Hunts window records a harder tier's pick as its read (hunts.js saveTier). */
+export const FIRST_DANGEROUS = 'first_dangerous';
 /* A hero past the guide's last ground has found them. */
 const WANT_BELOW = HUNT_INDEX.millrace_sewer.band[1] + 1;
 /* THE CARDS THAT SAY "JUST NOW" stand aside in a hunt the player has just come back to: they speak of what nobody watched. */
@@ -477,9 +489,15 @@ export const HUNT_TUTORIAL = Object.freeze([
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
   /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
      can kill, so it is named once with its price. The tier is that decision since 2026-11-04 (hunt-tiers.js). */
+  /* THE FIRST DANGEROUS RUN (DANGER_LEVEL above): finished by its Got it or by the hero taking it (the server's tier picks and hunts: tier_taken), and the
+     Hunts window records the take as its read (hunts.js), so a hero who goes back to Normal is not offered it again. */
+  step(FIRST_DANGEROUS, t('coach.first_dangerous_title'), t('coach.first_dangerous', { ground: HUNT_INDEX[THICKET].name }),
+    'hunt_picker', orGotIt({ kind: 'tier_taken' }), { reactive: true, knowledge: true, gotIt: true,
+      when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }, { kind: 'danger_kit' }] }),
+  /* After the offer above was read or taken, the hero has heard this: it is not said twice. */
   step('pull_goal', 'How hard can you hunt?',
     'Most hunts can be Dangerous or Deadly. The monsters hit harder, more of them often come at once, and every kill earns more XP. These hunts cost more food, and they can kill you. Better armor and a higher Level let you handle them.',
-    'hunt_picker', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),
+    'hunt_picker', { kind: 'any', of: [READ, { kind: 'card_read', card: FIRST_DANGEROUS }, { kind: 'tier_taken' }] }, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),
 ]);
 
 /* The kinds the SERVER finishes on its own (no press of the player's): the shell keeps such a card up long enough
@@ -681,6 +699,12 @@ const FACTS = Object.freeze({
   wields: (p, f) => (f.weapon === undefined ? null : f.weapon === p.item),
   /* worn armor or a shield, the pieces Defense trains in (core/vitals.js wearsArmour over the server's worn set) */
   armoured: (p, f) => known(f.armoured, (a) => a === true),
+  /* armor (a piece with an armor weight) on every DANGER_KIT slot, from the server's worn set */
+  danger_kit: (p, f) => known(f.armourWorn, (w) => DANGER_KIT.every((s) => w.includes(s))),
+  /* a harder tier picked on any ground, running now, or the latest hunt's (the server's hunt_tier section and the hunt's own tier); unknown without the section */
+  tier_taken: (p, f) => known(f.tierTaken, (v) => v === true),
+  /* another card the player has read (Got it, or on screen long enough) */
+  card_read: (p, f) => (f.read instanceof Set ? f.read.has(p.card) : null),
   unarmoured: (p, f) => known(f.armoured, (a) => a === false),
   /* the bag holds at least `n` of the fuels Inner Flame 1 burns (Bones and the family fuels) */
   fuel_held: (p, f) => known(f.bag, (b) => FIRST_FUELS.reduce((n, id) => n + (Number(b[id]) || 0), 0) >= p.n),
@@ -706,7 +730,7 @@ const FACTS = Object.freeze({
   /* a press the shell recorded (Got it), or a reactive card on screen long enough to read */
   read: (p, f, c) => (f.read instanceof Set ? f.read.has(c.id) : null),
 });
-const PARAMS = Object.freeze({ tally_counted: ['task'], tally_idle: ['task'], tally_paid_for: ['task'], in_hunt: ['hunt'], lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
+const PARAMS = Object.freeze({ card_read: ['card'], tally_counted: ['task'], tally_idle: ['task'], tally_paid_for: ['task'], in_hunt: ['hunt'], lesson_time: ['hunt'], enter: ['hunt'], been: ['hunt'], not_elsewhere: ['hunt'], unlock: ['hunt'], level_at: ['at'], skill_xp: ['skill'],
   tally_taken: ['task'], hunt_age: ['min', 'past'], pull: ['ground', 'pocket'], eaten_at_least: ['n'], eating_fast: ['n', 'perHour'], heroes: ['atLeast'], drink_slot: ['item'],
   carries: ['item'], club_hand: ['item', 'made'], wields: ['item'], kills: ['atLeast'], fuel_held: ['n'], bought_drinks: ['n'] });
 
@@ -745,6 +769,7 @@ export function validate(rows = HUNT_TUTORIAL) {
     if (d.kind === 'tally_paid' && d.task !== undefined && !tallyTask(d.task)) bad('task ' + d.task + ' is not one of Tamsin\'s tasks');
     if (['drink_slot', 'carries', 'club_hand', 'wields'].includes(d.kind) && !ITEMS[d.item]) bad(d.kind + ' item ' + d.item + ' is not an item');
     if (d.kind === 'club_hand' && !ITEMS[d.made]) bad('club_hand made ' + d.made + ' is not an item');
+    if (d.kind === 'card_read' && !rows.some((x) => x.id === d.card)) bad('card_read card ' + d.card + ' is not a card');
     if (d.kind === 'pull') {
       const gr = HUNT_GROUNDS[d.ground];
       if (!gr) bad('ground ' + d.ground + ' is not in hunt-grounds.js');
@@ -849,7 +874,22 @@ const STANCE_WORDS = (() => {
 /* MEASURED on the real settle (lane/c-caster-starter-bars: the Thicket at its floor on free Bronze Arrows, store rune on, at 2+, 2 h x 6 seeds, medians):
    Level XP +13.6% bow, +13.2% crossbow; net gold -6.7% bow, -4.3% crossbow. Bought shots read far worse (ranger-floor +3.3%), so a hero on them is not told this. */
 const VOLLEY_TRADE = ' On free arrows at the Thicket it earns about 14% more Level XP and about 5% less gold.';
+/* THE GROUND THE FIRST DANGEROUS RUN NAMES: of the open grounds whose band holds the hero's Level and that have a Dangerous tier, the one it hunted last,
+   else the highest it has hunted, else the lowest (the Thicket at 8). Null when none has one: the card is passed by. */
+function dangerGround(f) {
+  const floor = (g) => HUNT_INDEX[g.hunt].band[0];
+  const fits = Object.values(OPEN_GROUNDS).filter((g) => { const h = HUNT_INDEX[g.hunt]; return !!h && f.charLevel >= h.band[0] && f.charLevel <= h.band[1] && tiersOf(g.id).includes(DANGER_TIER); });
+  const seen = been(f);
+  return fits.find((g) => g.hunt === f.lastHunt) || fits.filter((g) => seen.includes(g.hunt)).sort((a, b) => floor(b) - floor(a))[0]
+    || fits.sort((a, b) => floor(a) - floor(b))[0] || null;
+}
 const SAY = Object.freeze({
+  [FIRST_DANGEROUS]: (f) => {
+    const g = dangerGround(f);
+    if (!g) return null;
+    const words = { ground: HUNT_INDEX[g.hunt].name };
+    return { text: t('coach.first_dangerous', words), textIn: t('coach.first_dangerous_in', words), ring: { hunt: g.hunt, tier: DANGER_TIER } };
+  },
   /* THE SECOND TRIP (back from Tamsin's pay): the invitation leads, and the wait is the shorter one the designer measured from Level 3. */
   earn_the_thicket: (f) => ({ text: FACTS.tally_paid_for({ task: RATS.id }, f) === true ? t('coach.keep_hunting', RATS_WORDS) : BROOK }),
   /* THE COUNT IS THE SERVER'S (audit 2026-11-15 F3: "Hunt the Thicket until your 200 Gray Wolves are down" stood beside a tally reading 200/200): once her

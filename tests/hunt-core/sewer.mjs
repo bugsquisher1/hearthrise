@@ -15,6 +15,8 @@
 //   tutorial-town-chain    sell or keep, Blessings (the server's numbers), Tamsin's weight per role, paid, setups
 //   tutorial-reactive      ate, drank, a beating, more heroes, hunt together, upgrades, storage, stamina, a death,
 //                          paid Blessings, juice, a house, own runes: each on its own fact and worded from it
+//   first-dangerous-run    ONE card offers the first Dangerous run at Level 8 to a hero in armor on head and body (server facts), names a ground
+//                          of its range with the tier, rings its Dangerous press, and never comes back once read or taken
 //   tutorial-second-hero   a second hero skips the knowledge cards and keeps the ones that set its own state
 //   tutorial-no-wall       no Got it recorder or shell facts: never a wall; no card names an empty slot
 //   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
@@ -1262,6 +1264,57 @@ const cases = {
   /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):
      it stays up while an open plot is bare and a seed is held; a full field, no seed, or a harvest's XP finishes it. The
      facts' `empty` is the server's field: open plots (under the cap, not an extra) holding no crop. */
+  /* THE FIRST DANGEROUS RUN (lane/a-next-steps; board "2026-11-15 The audit's balance findings" F5: food has no stakes on Normal from Level 1 to 15, and
+     Dangerous from Level 5 costs real food and gives more XP): ONE card at Level 8, to a hero the server shows in armor on head and body, naming a ground of
+     its range that has the tier (the last one it hunted first), ringing that ground's Dangerous press; never again once read or taken, and "How hard can you
+     hunt?" is not said after it. Every fact through the real envelope (equipment, hunt_tier, the hunt's ended tier). */
+  'first-dangerous-run': async (M) => {
+    const T = tutKit(M, 'tank');
+    const chainDone = walkChain(M, T).pop().facts;
+    const say = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const tsb = await imp('src/session/tutorial-sections.js');
+    const L = await imp('src/shell/launcher.js');
+    const DRESSED = { weapon: 'practice_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody' };
+    /* the facts the envelope gives (tutorialFactsOf), over a hero who has walked the chain */
+    const envFacts = (o) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(o.lv) }, level: srvLevel(M, M.xp.charXpForLevel(o.lv)), equipment: o.eq,
+      ...(o.tiers === undefined ? {} : { hunt_tier: o.tiers }),
+      ...(o.last ? { hunt: { session_id: 's-1', hunt_id: o.last, ended: true, session: { end_reason: 'stamina', ...(o.lastTier ? { tier: o.lastTier } : {}) }, hero: {}, pose: { units: [] } } } : {}) })[k], slot: 0 });
+    const at = (o, ...read) => { const e = envFacts(o); return { ...chainDone, levelXp: e.levelXp, charLevel: e.charLevel, armourWorn: e.armourWorn, tierTaken: e.tierTaken, lastHunt: e.lastHunt,
+      huntId: null, visited: new Set([...(chainDone.visited || []), ...(o.last ? [o.last] : [])]), read: new Set([...chainDone.read, 'weighhouse', 'roll_of_honor', ...read]) }; };
+    const id = (o, ...read) => (say(at(o, ...read)) || {}).id;
+    const base = { lv: 8, eq: DRESSED, tiers: { picks: {}, playing: null } };
+    const offer = say(at(base));
+    if (!offer || offer.id !== 'first_dangerous' || offer.title !== 'Try a Dangerous hunt' || !offer.gotIt
+      || offer.text !== 'Open Hunts, pick Meadowbrook Thicket, press Dangerous, then Enter. The monsters hit harder, so you\'ll eat a lot more food and you might die, but every kill gives more XP.'
+      || !/^Pick Meadowbrook Thicket, press Dangerous, then Enter\./.test(offer.textIn || '') || M.tut.coachIcon(offer, () => false) !== 'hunts')
+      return 'at Level 8 in helm and body the offer reads ' + JSON.stringify(offer && { id: offer.id, title: offer.title, text: offer.text, textIn: offer.textIn });
+    /* the ring: the named ground's Dangerous press, unpressed, then its Enter */
+    const ring = L.ringPlan(offer, { open: (w) => w === 'hunts' });
+    if (!ring[0] || !ring[0].includes('[data-tier="dangerous"][data-hunt="meadowbrook_thicket"][aria-pressed="false"]') || !ring[1].includes('.hw-hunt-enter[data-hunt="meadowbrook_thicket"]')) return 'the offer rings ' + JSON.stringify(ring);
+    /* the ground it last hunted, when it has the tier and the Level is in its band */
+    if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('pick Wickstead,')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
+    if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('pick Meadowbrook Thicket,')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
+    /* not before its Level, not without armor on head and body, not unknown */
+    if (id({ ...base, lv: 7 }) === 'first_dangerous') return 'the offer came at Level 7';
+    if (id({ ...base, eq: { weapon: 'practice_sword', shield: 'practice_shield' } }) === 'first_dangerous') return 'the offer came to a hero in the practice kit (22 deaths in 2 h on the board)';
+    if (id({ ...base, eq: { ...DRESSED, body: undefined } }) === 'first_dangerous') return 'the offer came with no armor on the body';
+    if (id({ ...base, tiers: undefined }) === 'first_dangerous') return 'the offer came with no hunt_tier section (the picker shows no tier)';
+    /* never again: read, a pick on any ground, the running hunt's, the last hunt's */
+    if (id(base, 'first_dangerous') === 'first_dangerous') return 'Got it does not pass the offer';
+    if (id({ ...base, tiers: { picks: { wickstead: 'dangerous' }, playing: null } }) === 'first_dangerous') return 'a Dangerous pick on another ground does not pass the offer';
+    if (id({ ...base, tiers: { picks: {}, playing: 'deadly' } }) === 'first_dangerous') return 'a Deadly hunt running does not pass the offer';
+    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'dangerous' }) === 'first_dangerous') return 'a last hunt on Dangerous does not pass the offer';
+    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'normal' }) !== 'first_dangerous') return 'a last hunt on Normal passes the offer';
+    /* "How hard can you hunt?" is not said after it */
+    if (id({ ...base, lv: 10 }, 'first_dangerous') === 'pull_goal') return 'How hard can you hunt? came after the offer was read';
+    if (id({ ...base, lv: 10, tiers: { picks: { meadowbrook_thicket: 'dangerous' }, playing: null } }) === 'pull_goal') return 'How hard can you hunt? came to a hero who took Dangerous';
+    if (id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } }) !== 'pull_goal') return 'a hero never offered the run lost How hard can you hunt?: ' + id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } });
+    /* the Hunts window records a harder pick as the offer's read (so Normal again never brings it back) */
+    const hw = readFileSync(join(M.root, 'src/shell/windows/hunts.js'), 'utf8');
+    if (!hw.includes('if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });')) return 'the Hunts window no longer records a harder pick as the offer read';
+    return null;
+  },
   'tutorial-plant-every-plot': async (M) => {
     const T = tutKit(M, 'tank');
     const at = (land, more) => M.tut.currentCard(tutAt(M, T, 2, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']),
@@ -1862,6 +1915,20 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'the first Dangerous run is offered to a hero in the practice kit', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }, { kind: 'danger_kit' }] }),", "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }] }),"]] },
+  { name: 'a last hunt on Dangerous does not count as taken', case: 'first-dangerous-run',
+    edits: [['src/session/tutorial-sections.js', '|| hard(tiers.playing) || hard(h && h.tier);', '|| hard(tiers.playing);']] },
+  { name: 'the first Dangerous run comes back after it is taken', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', orGotIt({ kind: 'tier_taken' }), {", "'hunt_picker', orGotIt(READ), {"]] },
+  { name: 'How hard can you hunt? is said again after the offer', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'any', of: [READ, { kind: 'card_read', card: FIRST_DANGEROUS }, { kind: 'tier_taken' }] }", 'READ']] },
+  { name: 'the offer rings no Dangerous press', case: 'first-dangerous-run',
+    edits: [['src/shell/launcher.js', "const tier = g.tier ? [inWin(", "const tier = false ? [inWin("]] },
+  { name: 'the offer names the lowest ground, not the one just hunted', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', 'return fits.find((g) => g.hunt === f.lastHunt) || ', 'return ']] },
+  { name: 'the Hunts window forgets the offer was taken', case: 'first-dangerous-run',
+    edits: [['src/shell/windows/hunts.js', '    if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });\n', '']] },
   { name: 'her Cellar task is 120 rats again (27 minutes of a ground the game sends a hero out of at 16)', case: 'tamsin-first',
     edits: [['src/data/tally-tasks.js', "label: 'Giant Rats', count: 25, gold: 25,", "label: 'Giant Rats', count: 120, gold: 100,"]] },
   { name: 'her rats are asked of a hero who has already hunted', case: 'tamsin-first',

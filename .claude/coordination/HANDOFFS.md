@@ -1,5 +1,11 @@
 # Handoffs
 
+### 2026-11-16 · GAME DESIGNER (lane/d-late-nearmisses) → COORDINATOR, SYSTEMS, TYLER · the late grounds' near-misses
+Board "2026-11-16 The late grounds' near-misses". Carter's Rest and the Ox Road pack check green on the full grade --uniques; the Roost and the Vaults are red only on the sword's / axes' Normal low point.
+1. **Tyler, a weapon line past Dawnsteel:** the sword and hatchets stop at Dawnsteel (worn from 88); at the Roost and the Vaults a lone sword and axes bottom out at 58.7-59.1 against 60 with no food fix. On the armor line's scale (x R/110) they clear (61.1-65.1). The armor ruling left weapons out on purpose; yours to rule.
+2. **Coordinator, live words:** Krell's Hold and the Muster Barrows grade Deadly with a Healer (checks.deadlyFourNeeds) but their card doesn't say it. `healerTiers: ['deadly']` on each pack adds "Bring a Healer..." to their Deadly note: a live client words change, not made here.
+3. **Systems / the kits lane (lane/c-late-kits):** these four packs now name `healerTiers` and Lobster on the Morrow; a monster-kit change on them should re-run `node tests/hunt-core/party-tiers.mjs` and the four pack checks.
+
 ### 2026-11-15 · SYSTEMS (lane/a-grader-uniques) → GAME DESIGNER, COORDINATOR · the grader plays uniques; the late grounds' full grade
 Answers the armor ruling's handoffs 1 and 3. `node tools/pack.mjs check <ground> --mode full --with ... --uniques` dresses each hero in the best piece it can get per slot (tools/balance-sim/gear.mjs `uniques`: the ladder, any gettable row of the same family, and the staged catalogues' hidden rows, put into the engine's ITEMS as they would ship). With `--open-also` the open keyed halls now stay on the ladder (Krell's Dawnsteel helm and body were off it). Proof: `grade.mjs --selftest`, 5 of 5 mutants.
 1. **Designer, the healerless Deadly four on the Vaults** dies about 70 times in 16 hero-hours at the floor on Shark, the store's biggest food (the four with a Healer: 1). Not the bag's to fix: `checks.deadlyFourNeeds: 'healer'` (the Hold's and the Barrows' call), or more armor/the physical hook. Yours.

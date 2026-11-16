@@ -7,6 +7,13 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.
 - **Check the grader's kit before trusting a staged ground's spread.** `gear.mjs` reachWith dropped the open keyed halls, so the Morrow was graded with Melee and the bow a weapon tier short. Print the kit (`h.kit`) of every style once per ground.
 - **A cut has a floor where it stops paying.** 0.1 a point took the Carter's Rest Mage from 1.82 to 1.46 of the pace, and 0.05 only to 1.42. Measure one step past the pick, so the board can say what's left isn't the row's.
+## 2026-11-16 lane/d-late-nearmisses: Deadly needs a Healer past 110, Lobster on the Morrow, the bags measured
+- **Re-grade the merged tree before fixing someone's near-miss.** Two of the three four-xp misses I was sent had already cleared after the merge, and a new one (the Roost, low) had appeared.
+- **The guide's food feeds the claims.** Swordfish made a lone bow hold the Roost's Dangerous at the top: the food broke a word guard in another lane. The cheapest food that keeps the measured bars wins.
+- **A low point near the bar's eat line is the eat line.** Food moves it 0.6 at most; a weapon on the line's scale moves it 2-6.
+- **A grade's healerless four ends early on deaths**, so its per-16 number is deaths over the hours actually played (69.7, 93.0), not over 16.
+- Pack checks run 4 at a time with 3 workers each take about 70 minutes under the CPU hold; start them before writing anything else, and don't touch `src/` while they run.
+
 ## 2026-11-15 lane/d-armor-past-dawnsteel: the armor line past tier 7
 - **Read what the sim actually dressed before trusting a what-if.** My first sweep "gave" the tank a guard-15 shield through the practice shield's row; the kit picker never wore it (a fallback is unshifted, then the top tier is picked), so every number labelled "Tollgate" was the Coppercap. Print `h.kit` for one cell of every variant.
 - **A grader job's tier is two things: `options.tier` AND `density` (the tier row's pull).** An in-process cell with only `options` plays Deadly on Normal's pull and reads 0 deaths.

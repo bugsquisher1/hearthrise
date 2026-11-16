@@ -6,25 +6,34 @@
 //   node tests/wiki-window.mjs --mutate         every planted defect must turn a rule RED
 //   node tests/wiki-window.mjs --shots <dir>    also write the desktop and phone screenshots
 //
-// mutant-anchors: src/data/settings.js src/core/combat.js src/core/action-rules.js src/core/xp.js src/shell/wiki-model.js src/shell/windows/wiki.js
+// mutant-anchors: src/data/settings.js src/core/combat.js src/core/action-rules.js src/core/xp.js src/shell/wiki-model.js src/shell/windows/wiki.js src/shell/chronicle-model.js src/session/hunt-sections.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs); the hero is
-// tests/fixtures/alpha-envelope.json in town.
+// tests/fixtures/alpha-envelope.json in town. Since the top bar's groups (2026-11-16) the wiki is the Book: the Chronicle first, then
+// the wiki's three sections.
 //   WK-1  (no browser) every skill row, every open ground and the seven formulas have a page, and each formula's worked
 //         example equals the arithmetic of the terms it states, done HERE by hand (never through the engine)
-//   WK-2  the slash opens the Wiki with zero console errors; the search finds a skill (Melee), a ground (the first open one)
-//         and a formula (Your max hit) and hides what does not match; nonsense finds nothing and says so; a tab shows its section
+//   WK-2  the slash opens the Book on the Chronicle with zero console errors; the search finds a skill (Melee), a ground (the first
+//         open one) and a formula (Your max hit) and hides what does not match; nonsense finds nothing and says so; a tab shows its section
 //   WK-3  THE GUARD, in the page: every Formulas example the player reads carries its stated terms and the engine's answer
 //         (computed in the page by the engine's own function), and the answer equals the stated terms' arithmetic and is the
 //         number the sentence says. A constant changed in the engine but not in the words (or the reverse) is red.
-//   WK-4  the phone (922x423): Settings, Help opens it (the way in on every screen: no top-bar icon), the wiki is a sheet, nothing overflows sideways and no text is under 12 px
+//   WK-4  the phone (922x423): Settings, Help opens it (a door on every screen, beside the row's Book icon), the Book is a sheet,
+//         nothing overflows sideways and no text is under 12 px
+//   WK-5  (no browser) THE CHRONICLE IS THE SERVER'S (Tyler 2026-11-16 "Yeah build the chronicle"; CLAUDE.md §6): every page has its
+//         words, only open grounds have pages, and a page opens only on the server's word: with nothing said only the start is
+//         open; a personal best on a ground or the latest hunt there opens its page; a title's kill count of one opens the Rat
+//         King's, and zero keeps it shut; nothing else opens one
+//   WK-6  THE CHRONICLE FOLLOWS THE SERVER, IN THE PAGE (1440x900): the pages an envelope opens are the ones shown, a shut page says
+//         what opens it and its ground's name opens that ground in Hunts; an envelope that adds a ground opens its page while
+//         the Book is open; a RELOAD on the same envelope shows the same pages (nothing kept by the browser)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 
 const src = (p) => import(pathToFileURL(join(ROOT, p)).href);
@@ -133,6 +142,51 @@ async function search(page, q) {
   return shownPages(page);
 }
 
+/* ── THE CHRONICLE (WK-5, WK-6) ── A hero's sections as the server sends them: a personal best on `grounds`, the latest hunt on
+   `latest` (ended), and `kills` for the titles (title id -> the server's count). */
+const BEST = { solo: { xp_h: 1000, balance_h: 100 }, party: null };
+function chronicleEnv(e, o) {
+  e.hunt_bests = { min_ms: 600000, grounds: Object.fromEntries((o.grounds || []).map((g) => [g, BEST])) };
+  if (o.latest) e.hunt = Object.assign({}, e.hunt || {}, { session_id: 'cccccccc-0000-4000-8000-000000000001', hunt_id: o.latest, ended: true });
+  else delete e.hunt;
+  e.titles = { rows: Object.entries(o.kills || {}).map(([id, have]) => ({ id, words: 'the Crownbreaker', price: 0, kills: 250, have, held: false, worn: false })) };
+  return e;
+}
+const fakeHero = (o) => { const e = chronicleEnv({}, o); return { read: (k) => e[k] }; };
+const openOf = (c) => c.pages.filter((p) => p.open).map((p) => p.id).join(',');
+
+async function chronicleRules() {
+  const fails = [];
+  const { CHRONICLE } = await src('src/data/chronicle.js');
+  const { CHRONICLE_TEXT } = await src('src/data/text/chronicle.js');
+  const { chronicleOf } = await src('src/shell/chronicle-model.js');
+  const open = new Set(Object.values(OPEN_GROUNDS).map((g) => g.hunt));
+  for (const p of CHRONICLE) {
+    for (const k of ['_title', '_teaser', '_page']) if (!CHRONICLE_TEXT[p.id + k]) fails.push('WK-5 the page ' + p.id + ' has no ' + k.slice(1) + ' words');
+    if (p.open.kind === 'ground' && !open.has(p.open.hunt)) fails.push('WK-5 the page ' + p.id + ' opens on ' + p.open.hunt + ', which is no open ground');
+    if (p.open.kind === 'kills' && !CHRONICLE_TEXT[p.id + '_how']) fails.push('WK-5 the page ' + p.id + ' never says which fight opens it');
+    if (!['start', 'ground', 'kills'].includes(p.open.kind)) fails.push('WK-5 the page ' + p.id + ' opens on ' + p.open.kind);
+  }
+  const start = CHRONICLE.filter((p) => p.open.kind === 'start').map((p) => p.id).join(',');
+  const order = (ids) => CHRONICLE.map((p) => p.id).filter((id) => ids.includes(id)).join(',');
+  const cases = [
+    ['nothing said', fakeHero({}), start],
+    ['no hero at all', null, start],
+    ['a best in Wickstead', fakeHero({ grounds: ['wickstead'] }), order([start, 'wickstead'])],
+    ['the latest hunt in the Sewer', fakeHero({ latest: 'millrace_sewer' }), order([start, 'sewer'])],
+    ['one Rat King kill', fakeHero({ kills: { knotcutter: 1 } }), order([start, 'rat_king'])],
+    ['one win in his Hall', fakeHero({ kills: { grate_thief: 1 } }), order([start, 'rat_king'])],
+    ['Rat King kills at zero, a wolf title at 500', fakeHero({ kills: { knotcutter: 0, wolfer: 500 } }), start],
+  ];
+  for (const [what, cs, want] of cases) {
+    const got = openOf(chronicleOf(cs));
+    if (got !== want) fails.push('WK-5 with ' + what + ' the Chronicle opens ' + JSON.stringify(got) + ', want ' + JSON.stringify(want));
+  }
+  return fails;
+}
+const CK = '[data-hs-win="wiki"] .ck-page';
+const ckOpen = (page) => page.evaluate((q) => Array.from(document.querySelectorAll(q + ':not(.is-shut)')).map((e) => e.getAttribute('data-wk-id')).join(','), CK);
+
 async function checks(overrides, shots) {
   const fails = [];
   if (!overrides) { // WK-1
@@ -149,29 +203,36 @@ async function checks(overrides, shots) {
       const m = (await readFile(join(ROOT, p), 'utf8')).match(GATE_WORDS);
       if (m) fails.push('WK-1 ' + p + ' says a ground opens at a Level, but none is gated: "' + m[0] + '"');
     }
+    fails.push(...await chronicleRules());
   }
   const firstGround = Object.values(OPEN_GROUNDS).map((g) => HUNT_INDEX[g.hunt]).sort((a, b) => a.band[0] - b.band[0])[0];
   const { server, port } = await serve(overrides);
   const browser = await leaseBrowser(chromium);
-  const open = async (viewport, touch) => {
+  const open = async (viewport, touch, prep) => {
     const ctx = await browser.newContext({ viewport, hasTouch: !!touch, isMobile: false });
     const page = await ctx.newPage();
     page.setDefaultTimeout(20000);
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-    await stub(page, { env: Object.assign(clone(BASE_ENV), clone(TOWN)), version: 1 });
+    const s = { env: Object.assign(clone(BASE_ENV), clone(TOWN)), version: 1 };
+    if (prep) prep(s.env);
+    await stub(page, s);
     const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
-    return { ctx, page, errors, up };
+    return { ctx, page, errors, up, s };
   };
   try {
     { // WK-2, WK-3
       const { ctx, page, errors, up } = await open({ width: 1440, height: 900 });
       if (!up) fails.push('WK-2 the World never came up');
-      else if (!(await openWiki(page, 'key'))) fails.push('WK-2 the slash did not open the Wiki');
+      else if (!(await openWiki(page, 'key'))) fails.push('WK-2 the slash did not open the Book');
       else {
         const first = await shownPages(page);
-        if (!first.length || !first.every((p) => p.startsWith('skills:'))) fails.push('WK-2 the Wiki opens on ' + JSON.stringify(first.slice(0, 3)) + ', not the Skills');
+        if (!first.length || !first.every((p) => p.startsWith('chronicle:'))) fails.push('WK-2 the Book opens on ' + JSON.stringify(first.slice(0, 3)) + ', not the Chronicle');
+        await page.click(W + ' .hw-tab[data-tab="skills"]');
+        await page.waitForTimeout(150);
+        const skills = await shownPages(page);
+        if (!skills.length || !skills.every((p) => p.startsWith('skills:'))) fails.push('WK-2 the Skills tab shows ' + JSON.stringify(skills.slice(0, 3)));
         if (shots) { await page.waitForTimeout(300); await page.screenshot({ path: join(shots, 'wiki-desktop-1440x900.png') }); }
         const melee = await search(page, 'melee');
         if (!melee.includes('skills:melee') || melee.includes('skills:fishing')) fails.push('WK-2 searching "melee" shows ' + JSON.stringify(melee));
@@ -225,6 +286,49 @@ async function checks(overrides, shots) {
       if (errors.length) fails.push('WK-4 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
+    { // WK-6
+      /* a best in the Cellar, the latest hunt at Wickstead (ended), the Rat King at zero kills and another title at 40 */
+      const said = { grounds: ['mill_cellar'], latest: 'wickstead', kills: { knotcutter: 0, ratcatcher: 40 } };
+      const { ctx, page, errors, up, s } = await open({ width: 1440, height: 900 }, false, (e) => chronicleEnv(e, said));
+      const want = 'havora,cellar,wickstead';
+      if (!up || !(await openWiki(page, 'key'))) fails.push('WK-6 the Book did not open');
+      else {
+        await page.waitForTimeout(300);
+        const got = await ckOpen(page);
+        if (got !== want) fails.push('WK-6 the envelope opens ' + JSON.stringify(got) + ', want ' + JSON.stringify(want));
+        if (shots) await page.screenshot({ path: join(shots, 'chronicle-desktop-1440x900.png') });
+        /* a shut page says what opens it; its ground's name opens that ground's page in Hunts */
+        const how = await page.evaluate((q) => { const p = document.querySelector(q + '[data-wk-id="sewer"]'); return p ? { shut: p.classList.contains('is-shut'), how: (p.querySelector('.ck-how') || {}).textContent || '',
+          link: !!p.querySelector('.ck-how [data-hs-goto]') } : null; }, CK);
+        if (!how || !how.shut || !/The Sewer/.test(how.how) || !how.link) fails.push('WK-6 the shut Sewer page reads ' + JSON.stringify(how));
+        const king = await page.evaluate((q) => { const p = document.querySelector(q + '[data-wk-id="rat_king"]'); return p ? (p.querySelector('.ck-how') || {}).textContent : null; }, CK);
+        if (!king || !/Rat King/.test(king)) fails.push('WK-6 the shut Rat King page says ' + JSON.stringify(king));
+        /* the server adds the Sewer and a Rat King kill: both pages open while the Book is open, nothing pressed */
+        s.env = chronicleEnv(s.env, { grounds: ['mill_cellar', 'millrace_sewer'], latest: 'wickstead', kills: { knotcutter: 1 } });
+        const env = Object.assign(clone(s.env), { version: ++s.version, ok: true });
+        await page.evaluate(([uid, e]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: e.version, env: e }), [UID, env]);
+        const live = 'havora,cellar,sewer,rat_king,wickstead';
+        if (!(await wait(page, ([q, w]) => Array.from(document.querySelectorAll(q + ':not(.is-shut)')).map((e) => e.getAttribute('data-wk-id')).join(',') === w, [CK, live], 4000)))
+          fails.push('WK-6 a new envelope left the open Book at ' + JSON.stringify(await ckOpen(page)) + ', want ' + JSON.stringify(live));
+        /* a reload on the same envelope: the same pages, nothing kept by the browser */
+        await page.reload({ waitUntil: 'load' });
+        await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"], .hs-launchers .hs-launch'));
+        if (await page.$('[data-app="play"][data-slot="0"]')) await page.click('[data-app="play"][data-slot="0"]');
+        await wait(page, () => document.querySelector('.hs-launchers .hs-launch'));
+        if (!(await openWiki(page, 'key'))) fails.push('WK-6 after a reload the slash did not open the Book');
+        else {
+          await page.waitForTimeout(300);
+          const again = await ckOpen(page);
+          if (again !== live) fails.push('WK-6 after a reload the Chronicle opens ' + JSON.stringify(again) + ', want ' + JSON.stringify(live));
+          /* the shut Slake page's ground opens Hunts on the Slake */
+          await page.click(CK + '[data-wk-id="slake"] .ck-how [data-hs-goto]');
+          const picked = await wait(page, () => !!document.querySelector('[data-hs-win="hunts"] .hw-hunt-enter[data-hunt="the_slake"]'), null, 4000);
+          if (!picked) fails.push('WK-6 the Slake\'s name on its shut page did not open the Slake in Hunts');
+        }
+      }
+      if (errors.length) fails.push('WK-6 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
   } finally {
     server.close();
   }
@@ -243,6 +347,12 @@ const MUTANTS = [
   ['the wiki states a base chance the engine does not use', 'src/shell/wiki-model.js', 'terms: { base: B.playerBaseAccuracy,', 'terms: { base: B.playerBaseAccuracy + 0.05,'],
   ['Settings, Help has no door to the Wiki', 'src/data/settings.js', "  type: 'action', open: 'wiki',", "  type: 'action', open: 'report',"],
   ['the search never finds a page', 'src/shell/windows/wiki.js', 'const on = q ? findText(p).includes(q) :', 'const on = q ? false :'],
+  ['the Book opens on the Skills, not the story', 'src/shell/windows/wiki.js', "s = { tab: 'chronicle', query: '' }", "s = { tab: 'skills', query: '' }"],
+  ['a title with no kills opens its page', 'src/shell/chronicle-model.js', '(kills.get(id) || 0) >= 1', '(kills.get(id) || 0) >= 0'],
+  ['any title\'s kills open the Rat King\'s page', 'src/shell/chronicle-model.js', "if (o.kind === 'kills') return o.titles.some((id) => (kills.get(id) || 0) >= 1);", "if (o.kind === 'kills') return Array.from(kills.values()).some((n) => n >= 1);"],
+  ['the latest hunt opens nothing', 'src/session/hunt-sections.js', '  if (h && h.huntId) seen.add(h.huntId);\n  return seen;', '  return seen;'],
+  ['the Chronicle is drawn once and never follows the server', 'src/shell/windows/wiki.js', "if (sec.getAttribute('data-ck') === c.key) return;", "if (sec.hasAttribute('data-ck')) return;"],
+  ['a shut page\'s ground is no link', 'src/shell/windows/wiki.js', "linkHtml(h.ground, targetOf({ kind: 'hunt', hunt: h.hunt }))", 'esc(h.ground)'],
   ['an example\'s sentence drops its answer', 'src/shell/windows/wiki.js', "example: t('wiki.max_example', { level: I.level, monster: I.monster, result: r }) };", "example: t('wiki.max_example', { level: I.level, monster: I.monster, result: '?' }) };"],
 ];
 

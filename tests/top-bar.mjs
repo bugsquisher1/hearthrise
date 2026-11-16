@@ -1,0 +1,318 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tests/top-bar.mjs — THE TOP BAR STAYS SHORT, AND EVERY WINDOW IS STILL TWO PRESSES AWAY (Tyler 2026-11-16).
+//
+//   node tests/top-bar.mjs                 the rules
+//   node tests/top-bar.mjs --mutate        every planted defect must turn a named rule RED
+//   node tests/top-bar.mjs --shots <dir>   also write the bar and each group's menu at each size
+//
+// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/styles/shell.css src/shell/widgets/action-bar.js
+//
+// Tyler 2026-11-16: "Our top menu bar is starting to get long again, are there some things we can either combine or move to clean
+// it up? It's getting a bit overwhelming." The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8). The windows a player
+// opens now and then moved one press under a group's icon (src/data/shell-windows.js LAUNCHER_GROUPS: Town, Social, Menu); every key
+// stayed. play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs) on tests/fixtures/alpha-envelope.json.
+//   TB-1  (no browser) THE ROW IS SHORT: the plan (launcher.js barPlan) holds at most BAR_MAX buttons for any hero, a Game Master too;
+//         every group is in LAUNCHER_GROUPS and holds two windows or more (a group of one is a wasted press); every window with an
+//         icon is in the row or in exactly one group
+//   TB-2  (no browser) THE RING'S WAY: a card whose way starts at a grouped window's icon rings that window's line in the open menu,
+//         else its group's icon; a card at a window in the row rings that icon alone
+//   TB-3  EVERY WINDOW IN TWO PRESSES (1440x900, 922x423 and 667x375, a touch screen on the phones): the row's buttons are each on
+//         screen, a thumb wide, and overlap nothing; every window the row reaches opens by mouse (or tap) in one or two presses and
+//         the menu shuts behind the pick; every window with a key opens by that key in one press (Esc: Settings; Enter: Chat); Hunt
+//         prep opens from the bar's setup press and by P; zero console errors
+//   TB-4  THE MENU BEHAVES (1440x900): a press opens it (aria-expanded), a second press shuts it; Esc shuts it and opens nothing;
+//         a press on the World shuts it; a key that opens a window shuts it; the arrows walk its lines
+//   TB-5  THE COACH'S RING STILL LANDS (1440x900 and 922x423): a new hero's "Tamsin's rats" rings the Town icon, the menu opened
+//         rings Tamsin's line, and her window opened from there carries the card; never two rings at once
+//   TB-6  A PHONE'S MENU IS A SHEET (922x423 and 667x375): it stands at the right edge under the row, as tall as the screen allows,
+//         every line inside it at a thumb's height, none cut, no text under 12 px; never a bottom bar
+// ════════════════════════════════════════════════════════════════════════
+import { chromium } from 'playwright';
+import { leaseBrowser } from './_chrome.mjs';
+import { readFile, mkdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { pinFonts } from './_test-fonts.mjs';
+import { withServerLevel } from './_server-level.mjs';
+import { pressBar, groupOf } from './_bar.mjs';
+
+const src = (p) => import(pathToFileURL(join(ROOT, p)).href);
+
+/* The row's most buttons: Hunts, Bag, Character, Skills, the Book and one icon a group (Tyler 2026-11-16, the Coordinator's ~7). */
+export const BAR_MAX = 8;
+
+const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const wait = (page, fn, arg, ms = 20000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+const SIZES = [{ width: 1440, height: 900, touch: false }, { width: 922, height: 423, touch: true }, { width: 667, height: 375, touch: true }];
+
+/* A hero in town who has hunted nothing yet, with Tamsin's board offering her rats: the "Tamsin's rats" card is the coach's. */
+function fresh(e) {
+  for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party', 'hunt_bests']) delete e[k];
+  e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 });
+  for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'inner_flame', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 };
+  e.tally = { held: [], paid_today: 0, per_day: 10, held_max: 3, weight: null, order: [], recent: [], day_ends_at: '2099-01-01T00:00:00Z' };
+}
+function town(e) {
+  for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events']) delete e[k];
+  e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+}
+
+async function stub(page, s) {
+  await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
+  await pinFonts(page);
+  await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
+    const name = r.request().url().split('?')[0].split('/').pop();
+    const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
+    if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(withServerLevel(clone(s.env)), { version: ++s.version, ok: true, client_state: clone(s.residue) }));
+    return json({ ok: true });
+  });
+}
+async function signInAndPlay(page, base) {
+  await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 45000 });
+  await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+  await page.fill('input[name=email]', 'qa@example.test');
+  await page.fill('input[name=password]', 'not-a-real-password');
+  await page.click('.auth-submit');
+  await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+  await page.click('[data-app="play"][data-slot="0"]');
+  return wait(page, () => document.querySelector('.hs-launchers .hs-launch'));
+}
+
+const openWins = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win]:not(.is-leaving)')).map((w) => w.getAttribute('data-hs-win')));
+/* Close every window (Esc closes the top one; with none open it would open Settings) and shut any menu. */
+async function closeAll(page) {
+  for (let i = 0; i < 5 && (await openWins(page)).length; i++) {
+    await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(170);
+  }
+  if (await page.$('.hs-launch-menu')) { await page.keyboard.press('Escape'); await page.waitForTimeout(80); }
+}
+const opened = (page, id) => wait(page, (w) => !!document.querySelector('[data-hs-win="' + w + '"]:not(.is-leaving)'), id, 3000);
+const ringed = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-coach-ring]')).filter((e) => e.getClientRects().length)
+  .map((e) => e.getAttribute('data-hs-open') || (e.getAttribute('data-hs-group') ? 'group:' + e.getAttribute('data-hs-group') : e.className)));
+
+async function checks(overrides, shots) {
+  const fails = [];
+  const { SHELL_WINDOWS, LAUNCHER_GROUPS } = await src('src/data/shell-windows.js');
+  if (!overrides) { // TB-1, TB-2 (pure: a mutant of these files is read by the page rules below)
+    const L = await src('src/shell/launcher.js');
+    const icons = SHELL_WINDOWS.filter((r) => r.launcher !== false);
+    const plan = L.barPlan(icons);
+    if (plan.length > BAR_MAX) fails.push('TB-1 the row holds ' + plan.length + ' buttons for a Game Master with every section on, over ' + BAR_MAX);
+    const ids = new Set(LAUNCHER_GROUPS.map((g) => g.id));
+    for (const e of plan) if (e.group && e.rows.length < 2) fails.push('TB-1 the ' + e.group.id + ' group holds ' + e.rows.length + ' window: a group of one is a wasted press');
+    for (const r of icons) if (r.group && !ids.has(r.group)) fails.push('TB-1 ' + r.id + ' names no group');
+    const reached = plan.flatMap((e) => (e.row ? [e.row.id] : e.rows.map((r) => r.id)));
+    for (const r of icons) if (reached.filter((x) => x === r.id).length !== 1) fails.push('TB-1 ' + r.id + ' is reached ' + reached.filter((x) => x === r.id).length + ' times by the row');
+    const T = await src('src/data/hunt-tutorial.js');
+    const tally = T.HUNT_TUTORIAL.find((c) => c.anchor === 'tally'), hunts = T.HUNT_TUTORIAL.find((c) => c.anchor === 'hunt_picker');
+    const shut = { open: () => false };
+    const a = L.ringPlan(tally, shut), b = L.ringPlan(hunts, shut);
+    if (a.join() !== '.hs-launchers [data-hs-open="tally"],.hs-launchers [data-hs-group="' + groupOf('tally') + '"]') fails.push('TB-2 a card at Tamsin\'s tally rings ' + JSON.stringify(a));
+    if (b.join() !== '.hs-launchers [data-hs-open="hunts"]') fails.push('TB-2 a card at Hunts rings ' + JSON.stringify(b));
+  }
+  const { server, port } = await serve(overrides);
+  const browser = await leaseBrowser(chromium);
+  const open = async (size, prep, residue) => {
+    const ctx = await browser.newContext({ viewport: { width: size.width, height: size.height }, hasTouch: !!size.touch, isMobile: false });
+    const page = await ctx.newPage();
+    page.setDefaultTimeout(20000);
+    const errors = [];
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+    const env = clone(BASE_ENV);
+    prep(env);
+    await stub(page, { env, version: 1, residue: residue || {} });
+    const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
+    return { ctx, page, errors, up };
+  };
+  const tag = (s) => s.width + 'x' + s.height;
+  try {
+    for (const size of SIZES) { // TB-3, TB-6
+      const { ctx, page, errors, up } = await open(size, town);
+      if (!up) { fails.push('TB-3 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
+      await page.waitForTimeout(400);
+      const row = await page.evaluate(() => {
+        const r = (e) => { const q = e.getBoundingClientRect(); return { l: q.left, r: q.right, t: q.top, b: q.bottom, w: q.width }; };
+        const bs = Array.from(document.querySelectorAll('.hs-launchers > .hs-launch, .hs-launchers > .hs-launch-group > .hs-launch'));
+        return { n: bs.length, boxes: bs.map(r), vw: innerWidth, vh: innerHeight,
+          reach: bs.map((b) => b.getAttribute('data-hs-open') || 'group:' + b.getAttribute('data-hs-group')) };
+      });
+      if (row.n > BAR_MAX) fails.push('TB-3 [' + tag(size) + '] the row shows ' + row.n + ' buttons, over ' + BAR_MAX);
+      const small = size.touch ? 39.5 : 39.5;
+      for (const [i, q] of row.boxes.entries()) {
+        if (q.w < small || q.l < 0 || q.r > row.vw + 0.5 || q.t < 0) fails.push('TB-3 [' + tag(size) + '] ' + row.reach[i] + ' is ' + Math.round(q.w) + ' px wide or off screen');
+        const next = row.boxes[i + 1];
+        if (next && next.l < q.r - 0.5) fails.push('TB-3 [' + tag(size) + '] ' + row.reach[i] + ' and ' + row.reach[i + 1] + ' overlap');
+      }
+      if (shots) await page.screenshot({ path: join(shots, 'bar-' + tag(size) + '.png') });
+      /* TB-1 in the page: each group's menu lists two windows or more */
+      for (const g of row.reach.filter((x) => x.startsWith('group:')).map((x) => x.slice(6))) {
+        await closeAll(page);
+        await (size.touch ? page.tap('[data-hs-group="' + g + '"]') : page.click('[data-hs-group="' + g + '"]'));
+        await page.waitForTimeout(120);
+        const n = await page.evaluate(() => document.querySelectorAll('.hs-launch-menu .hs-launch-item').length);
+        if (n < 2) fails.push('TB-1 [' + tag(size) + '] the ' + g + ' menu lists ' + n + ' window: a group of one is a wasted press');
+      }
+      /* every window the row reaches, in two presses or fewer */
+      const want = SHELL_WINDOWS.filter((r) => r.launcher !== false && !r.gm && !r.section).map((r) => r.id);
+      for (const id of want) {
+        await closeAll(page);
+        let presses = 0;
+        try { presses = await pressBar(page, id, { tap: size.touch }); } catch (e) { fails.push('TB-3 [' + tag(size) + '] ' + id + ' has no way in from the row: ' + String(e.message).split('\n')[0]); continue; }
+        if (!(await opened(page, id))) fails.push('TB-3 [' + tag(size) + '] ' + presses + ' presses from the row did not open ' + id);
+        else if (presses > 2) fails.push('TB-3 [' + tag(size) + '] ' + id + ' took ' + presses + ' presses');
+        if (await page.$('.hs-launch-menu')) fails.push('TB-3 [' + tag(size) + '] the menu stayed open after ' + id + ' was picked');
+        if (shots && presses === 2 && size.touch && id === want.find((x) => groupOf(x) === groupOf(id))) {
+          await closeAll(page);
+          await page.tap('.hs-launchers [data-hs-group="' + groupOf(id) + '"]');
+          await page.waitForTimeout(250);
+          await page.screenshot({ path: join(shots, 'menu-' + groupOf(id) + '-' + tag(size) + '.png') });
+        }
+      }
+      /* TB-6 the phone's menu is a sheet */
+      if (size.touch) {
+        await closeAll(page);
+        await page.tap('.hs-launchers [data-hs-group="town"]');
+        await page.waitForTimeout(250);
+        const m = await page.evaluate(() => {
+          const el = document.querySelector('.hs-launch-menu');
+          if (!el) return null;
+          const r = el.getBoundingClientRect(), row = document.querySelector('.hs-launchers').getBoundingClientRect();
+          const lines = Array.from(el.querySelectorAll('.hs-launch-item')).map((b) => { const q = b.getBoundingClientRect(); const s = b.querySelector('.hs-launch-label');
+            return { h: q.height, cut: s.scrollWidth > s.clientWidth + 1, in: q.top >= r.top - 0.5 && q.bottom <= r.bottom + 0.5, fs: parseFloat(getComputedStyle(s).fontSize) }; });
+          return { right: Math.round(innerWidth - r.right), top: Math.round(r.top - row.bottom), bottom: Math.round(innerHeight - r.bottom), lines };
+        });
+        if (!m) fails.push('TB-6 [' + tag(size) + '] a tap on Town opened no menu');
+        else {
+          if (m.right !== 0 || Math.abs(m.top) > 1 || m.bottom !== 0) fails.push('TB-6 [' + tag(size) + '] the menu is not a sheet at the right under the row: ' + JSON.stringify({ right: m.right, top: m.top, bottom: m.bottom }));
+          const bad = m.lines.filter((l) => l.h < 44 || l.cut || !l.in || l.fs < 12);
+          if (!m.lines.length || bad.length) fails.push('TB-6 [' + tag(size) + '] a menu line is under a thumb\'s height, cut, outside the sheet or under 12 px: ' + JSON.stringify(bad[0] || 'no lines'));
+        }
+      }
+      /* every key, one press */
+      for (const r of SHELL_WINDOWS.filter((x) => x.key && x.launcher !== false && !x.gm && !x.section)) {
+        await closeAll(page);
+        await page.keyboard.press(r.key === 'escape' ? 'Escape' : r.key === 'enter' ? 'Enter' : r.key);
+        if (!(await opened(page, r.id))) fails.push('TB-3 [' + tag(size) + '] its key ' + r.key + ' did not open ' + r.id);
+      }
+      /* Hunt prep: no icon, the bar's setup press and P */
+      await closeAll(page);
+      await page.click('[data-hs-widget="action-bar"] [data-hs-act="setups"]', { timeout: 2500 }).catch(() => null);
+      if (!(await opened(page, 'hunt-prep'))) fails.push('TB-3 [' + tag(size) + '] the bar\'s setup press did not open Hunt prep');
+      await closeAll(page);
+      await page.keyboard.press('p');
+      if (!(await opened(page, 'hunt-prep'))) fails.push('TB-3 [' + tag(size) + '] P did not open Hunt prep');
+      if (errors.length) fails.push('TB-3 [' + tag(size) + '] console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+    { // TB-4
+      const { ctx, page, up } = await open(SIZES[0], town);
+      if (!up) fails.push('TB-4 the World never came up');
+      else {
+        const menu = () => page.evaluate(() => { const m = document.querySelector('.hs-launch-menu'); const g = document.querySelector('[data-hs-group][aria-expanded="true"]');
+          return m ? (g ? g.getAttribute('data-hs-group') : 'no-expanded') : null; });
+        await page.click('[data-hs-group="social"]');
+        if ((await menu()) !== 'social') fails.push('TB-4 a press on Social opened ' + JSON.stringify(await menu()));
+        await page.click('[data-hs-group="social"]');
+        await page.waitForTimeout(100);
+        if ((await menu()) !== null) fails.push('TB-4 a second press left the menu open');
+        await page.click('[data-hs-group="town"]');
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(250);
+        if ((await menu()) !== null || (await openWins(page)).length) fails.push('TB-4 Esc over the open menu left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page) }) + ', want it shut and nothing opened');
+        await page.click('[data-hs-group="town"]');
+        await page.mouse.click(400, 450);
+        await page.waitForTimeout(150);
+        if ((await menu()) !== null) fails.push('TB-4 a press on the World left the menu open');
+        await page.click('[data-hs-group="town"]');
+        await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+        await page.keyboard.press('m');
+        if (!(await opened(page, 'market')) || (await menu()) !== null) fails.push('TB-4 M with the menu open: market ' + (await openWins(page)).join(',') + ', menu ' + (await menu()));
+        await closeAll(page);
+        await page.focus('[data-hs-group="town"]');
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('ArrowDown');
+        const at = await page.evaluate(() => { const a = document.activeElement; return a ? a.getAttribute('data-hs-open') : null; });
+        const second = (await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch-menu .hs-launch-item')).map((b) => b.getAttribute('data-hs-open'))))[1];
+        if (!second || at !== second) fails.push('TB-4 two ArrowDowns from the Town icon focus ' + at + ', want its second line ' + second);
+        await page.keyboard.press('Enter');
+        if (!(await opened(page, second || 'market'))) fails.push('TB-4 Enter on a focused line did not open ' + second);
+      }
+      await ctx.close();
+    }
+    for (const size of SIZES.slice(0, 2)) { // TB-5
+      const { ctx, page, up } = await open(size, fresh, { coach: { read: ['styles'] } });
+      if (!up) { fails.push('TB-5 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
+      await page.waitForTimeout(600);
+      const card = await page.evaluate(() => { const p = document.querySelector('.hs-launchers .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
+      if (card !== 'tamsins_rats') { fails.push('TB-5 [' + tag(size) + '] CONTROL: the new hero\'s card is ' + card + ', not tamsins_rats'); await ctx.close(); continue; }
+      const r0 = await ringed(page);
+      if (r0.join() !== 'group:' + groupOf('tally')) fails.push('TB-5 [' + tag(size) + '] with the menu shut the ring is on ' + JSON.stringify(r0) + ', want the ' + groupOf('tally') + ' icon alone');
+      await (size.touch ? page.tap('[data-hs-group="' + groupOf('tally') + '"]') : page.click('[data-hs-group="' + groupOf('tally') + '"]'));
+      await page.waitForTimeout(400);
+      const r1 = await ringed(page);
+      if (r1.join() !== 'tally') fails.push('TB-5 [' + tag(size) + '] with the menu open the ring is on ' + JSON.stringify(r1) + ', want Tamsin\'s line alone');
+      if (shots) await page.screenshot({ path: join(shots, 'ring-' + tag(size) + '.png') });
+      await (size.touch ? page.tap('.hs-launch-menu [data-hs-open="tally"]') : page.click('.hs-launch-menu [data-hs-open="tally"]'));
+      if (!(await opened(page, 'tally'))) fails.push('TB-5 [' + tag(size) + '] Tamsin\'s line did not open her tally');
+      else {
+        await page.waitForTimeout(400);
+        const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="tally"] > .hs-win-coach .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
+        if (inWin !== 'tamsins_rats') fails.push('TB-5 [' + tag(size) + '] her window holds the card ' + inWin);
+      }
+      await ctx.close();
+    }
+  } finally {
+    server.close();
+  }
+  return fails;
+}
+
+/* Each plants one defect the rules above exist for. [name, file, from, to] */
+const MUTANTS = [
+  ['Tamsin\'s tally back in the row', 'src/data/shell-windows.js', "id: 'tally', label: 'Tamsin\\'s tally', key: 'q', group: 'town',", "id: 'tally', label: 'Tamsin\\'s tally', key: 'q',"],
+  ['the Menu group holds Settings alone', 'src/data/shell-windows.js', "id: 'report', label: 'Report a problem', key: 'f', group: 'menu',", "id: 'report', label: 'Report a problem', key: 'f', launcher: false,"],
+  ['a pick leaves the menu open', 'src/shell/launcher.js', "if (ev.type === 'click') { setMenu(ctx, el, null); ctx.wm.open(id); return true; }", "if (ev.type === 'click') { ctx.wm.open(id); return true; }"],
+  ['a window opened by key leaves the menu open', 'src/shell/launcher.js', '  if (m && m.seen !== openKey(ctx.wm)) { MENU.delete(ctx.wm); return null; }', ''],
+  ['Esc over the menu opens Settings too', 'src/shell/launcher.js', '    e.preventDefault(); e.stopPropagation();\n    shut(true);', '    shut(true);'],
+  ['a press elsewhere leaves the menu open', 'src/shell/launcher.js', "  doc.addEventListener('pointerdown', (e) => { if (!(e.target.closest && e.target.closest('.hs-launch-group.is-menu'))) shut(false); }, true);", ''],
+  ['the arrows do not walk the menu', 'src/shell/launcher.js', '      items[to].focus();', '      void to;'],
+  ['a grouped window\'s card rings its line even while the menu is shut', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ ''"],
+  ['the ring\'s way never reaches the group', 'src/shell/launcher.js', "group ? ['.hs-launchers [data-hs-group=\"' + group + '\"]'] : []", '[]'],
+  ['the phone\'s menu is a dropdown, not a sheet', 'src/styles/shell.css', '    position: fixed; top: 40px; right: 0; bottom: 0; width: min(400px, 48vw);', '    width: min(400px, 48vw);'],
+  ['the phone\'s menu lines lose a thumb\'s height', 'src/styles/shell.css', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: var(--tap); padding: 0 6px; }', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: 30px; padding: 0 6px; }'],
+  ['Hunt prep loses the bar\'s setup press', 'src/shell/widgets/action-bar.js', "  if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }", ''],
+];
+
+async function main() {
+  const at = process.argv.indexOf('--shots');
+  const shots = at > 0 ? resolve(process.argv[at + 1] || 'top-bar-shots') : null;
+  if (shots) await mkdir(shots, { recursive: true });
+  if (!process.argv.includes('--mutate')) {
+    const fails = await checks(null, shots);
+    for (const f of fails) console.log('  ✗ ' + f);
+    console.log(fails.length ? 'top-bar: ' + fails.length + ' rule(s) RED'
+      : 'top-bar: ' + BAR_MAX + ' buttons at most; every window two presses from the row and one by its key at 1440x900, 922x423 and 667x375; the menu shuts as a menu should; the coach rings the group, then the line; a phone\'s menu is a sheet');
+    process.exit(fails.length ? 1 : 0);
+  }
+  const clean = await checks(null);
+  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
+  let bad = 0;
+  for (const [name, file, from, to] of MUTANTS) {
+    const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
+    if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
+    const fails = await checks({ [file]: text.replace(from, () => to) });
+    if (fails.length && fails.every((f) => /^TB-\d/.test(f))) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
+    else if (fails.length) { console.log('  ✗ ' + name + ' — red by no named rule: ' + fails[0]); bad++; }
+    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+  }
+  console.log(bad ? 'top-bar --mutate: ' + bad + ' escaped' : 'top-bar --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  process.exit(bad ? 1 : 0);
+}
+
+main();

@@ -116,9 +116,9 @@ export const TRAINING_TEXT = Object.freeze({
   bar_left: '{time} left',
   bar_left_title: 'Time before this training session stops',
   bar_fee: '{gold} gold/h',
+  bar_details: 'Details',
   bar_stop: 'Stop',
   bar_stop_wide: 'training',
-  bar_details: 'Details',
   an_title: 'Training',
   an_level: '{skill} level {level}',
   an_xp_h: '{skill} XP per hour',
@@ -126,6 +126,9 @@ export const TRAINING_TEXT = Object.freeze({
   an_fee_h: 'Fee per hour',
   an_fee_house: 'None at home',
   an_paid: 'Paid so far',
+
+  /* THE COACH'S "WHAT NEXT" WHILE A HERO TRAINS (src/data/hunt-tutorial.js nextGoal): the trained skill's next level, the server's hours. */
+  coach_next: 'About {hours} more training to {skill} {level}.',
 
   /* THE WORLD WHILE A HERO TRAINS (src/world/world-boot.js): where it is, and the window that runs it. */
   world_line: '{name} is training {skill} at the Training Yard.',

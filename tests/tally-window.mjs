@@ -907,7 +907,7 @@ const MUTANTS = [
   ['a tally with nothing to show keeps its box', 'src/shell/widgets/tally-hud.js', "  cls(el, 'is-quiet', !tl || (!held.length && (hunting || !met)));", "  cls(el.querySelector('.hs-tally'), 'is-quiet', !tl || (!held.length && (hunting || !met)));"],
   ['a new hero\'s first screen carries Tamsin\'s line beside the coach', 'src/shell/widgets/tally-hud.js', '  const met = !!tl && (!!tl.weight || tl.recent.length > 0);', '  const met = !!tl;'],
   /* TW-11: move and fold (Tyler 2026-10-25) */
-  ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';", "      el.style.minHeight = row.min[1] + 'px';"],
+  ['a folded analyzer keeps its full minimum height', 'src/shell/shell.js', "      el.style.minHeight = L.folded ? '' : phoneMq.matches", "      el.style.minHeight = phoneMq.matches"],
   ['the fold press does nothing', 'src/shell/widget-move.js', '    hud.setFolded(id, !hud.layoutOf(id).folded);', ''],
   ['a moved tally still stacks under the analyzer', 'src/shell/widget-stack.js', '      if (!row.below || hud.isMoved(row.id)) continue;', '      if (!row.below) continue;'],
   ['the drop is never kept', 'src/shell/widget-move.js', '      hud.setPlace(id, hud.layoutOf(id), true);', '      hud.setPlace(id, hud.layoutOf(id), false);'],

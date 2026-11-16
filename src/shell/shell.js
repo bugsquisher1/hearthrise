@@ -220,7 +220,10 @@ export function mountShell(root, o) {
       /* A folded widget is its title's width, or its empty box would still take presses and the camera's room
          (and at 1024 px a folded analyzer as wide as the open one stepped under the hunt bar, into the fight). */
       el.style.minWidth = L.folded ? '' : row.min[0] + 'px';
-      el.style.minHeight = L.folded ? '' : row.min[1] + 'px';
+      /* On a phone the floor yields to the room the panel has above the action bar (hud-room.js: under the hunt bar over the town,
+         667x375 leaves 110 px), or the floor pushed it below the bar, off the screen. */
+      const floor = row.min[1] + 'px';
+      el.style.minHeight = L.folded ? '' : phoneMq.matches ? 'min(' + floor + ', var(--hs-room, ' + floor + '))' : floor;
       paintMove(el, L, hud.isMoved(row.id));
       if (sized && !sized.watched.has(el)) { sized.watched.add(el); sized.ro.observe(el, { box: 'border-box' }); }
     }

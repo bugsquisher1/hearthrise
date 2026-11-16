@@ -3,6 +3,8 @@
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
 ## 2026-11-16 lane/d-weapon-line: the weapon line past Dawnsteel, a budget and not a template
+- **Kills an hour is not the low point.** A bane on the soft heads matched the line on kills (223 against 226) and lost 2 points of low point, because the heads that hurt don't take it. Measure a weapon on safety (each head weighted by its threat) as well as pace.
+- **Before blaming the weapon, swap the armor.** The Roost's lone sword stayed under 60 with the line's own sword (59.8) and an 8% stronger line (60.0); the armor line's plate took it to 61.1. A what-if that changes two things at once reads like one.
 - **A ceiling has to hold on every ground, not just the piece's home.** A heavy piece budgeted on the hard-skinned Vaults reads over the line on the soft Ox Road. Holding it at or under the line on every late ground is what makes each piece's trade real: it's under the line somewhere else.
 - **Accuracy is nearly free past 110 because it caps.** At 95% against most heads, a third more attack moved the Watchman's Sword's power by a few percent; only Keeper Dunn and the Bone Walls pay it. Size a precise piece on the hard heads, or it's a worse sword.
 - **"Each wins somewhere" needs a pair.** One unique of a family at a Level beats Dawnsteel everywhere by design; the trade only shows between two uniques of a family at one Level (the two Vaults swords split the ground by head, and by Level: the Watchman's at 165, the Limewashed at 185).

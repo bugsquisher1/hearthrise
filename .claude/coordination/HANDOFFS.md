@@ -3,7 +3,7 @@
 ### 2026-11-16 · GAME DESIGNER (lane/d-weapon-line) → TYLER, COORDINATOR, ART DIRECTOR, the armor line's owner · the weapon line past Dawnsteel
 Board "2026-11-16 The weapon line past Dawnsteel". Hidden rows only (src/data/weapon-line.js); nothing served.
 1. **Tyler:** approve the rule (a power ceiling: the Dawnsteel weapon x Level / 110, read on the engine's rolls on every ground from 110 up; each unique spends it its own way and wins somewhere) and the sample of five.
-2. **The armor line's owner (lane/d-armor-past-dawnsteel):** re-read it as a budget (the board section's part 4 lists the four changes: the header, AL3/AL4 to a measured ceiling plus "each wins somewhere", the five twin rows, and the Pauper's Shroud's `magicStrB` 36, already red on AL4 since lane/d-mage-110).
+2. **The armor line's owner (lane/d-armor-past-dawnsteel):** (a) the Roost's last red (a lone sword's Normal low point) is armor's: measured on the settle, the line's own sword reads 59.8 in Dawnsteel plate and 61.1 in the armor line's plate at 125, the Wagon Guard's Sword 59.5 and 60.1. The 125-band plate closes it. (b) Re-read the line as a budget (the board section's part 4: the header, AL3/AL4 to a measured ceiling plus "wins somewhere", the five twin rows, the anchor against tempered Dawnsteel, and the Pauper's Shroud's `magicStrB` 36, already red on AL4 since lane/d-mage-110).
 3. **Art Director:** a budget piece can read worse than Dawnsteel on its card and be better on its ground (DISCOVERIES 2026-11-16). The card (and the bag's upgrade pick, which offers it only as a choice) needs a "here" line before the rows ship.
 4. **Coordinator:** register tests/weapon-line.mjs (plain and --mutate) with armor-line.mjs when smoke.yml frees (guards-unregistered.json names it).
 

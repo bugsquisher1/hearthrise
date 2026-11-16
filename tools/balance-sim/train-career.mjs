@@ -8,10 +8,11 @@
 // it trains its main skill at the yard for the rest of the day, hour by hour, ON THE REAL ENGINE (play-ground.mjs run on the
 // training ground, the server's xp carry, the item's hours as the server reads them: trainBoostMs). The yard's fee is the server's
 // rule (training.js trainingFee at the skill's level at each hour's first instant: hr_training_fee) and is paid from the purse the
-// hunts filled (coin and sold loot with rares, less the store bill: audit-table.mjs gold's measure). With `--items` the hero buys a
-// training item with its own gold whenever its bank for that skill is empty and the purse holds the price (24 h first, else 12 h).
+// hunts filled (coin and sold loot with rares, less the store bill: audit-table.mjs gold's measure). With `--train items` the hero buys a
+// training item with its own gold whenever its bank for that skill is empty and the purse holds the price (24 h first, else 12 h);
+// `--train crowns` trains every hour at the item's rate with no gold (the Crowns store's bound copy: the pay-to-win ceiling).
 //
-//   node tools/balance-sim/train-career.mjs --style hammer [--to 60] [--day 12:12] [--train plain|items|none] [--skill melee]
+//   node tools/balance-sim/train-career.mjs --style hammer [--to 60] [--day 12:12] [--train plain|items|crowns|none] [--skill melee]
 //                                           [--seed 0] [--json out.json]
 //   node tools/balance-sim/train-career.mjs compare a.json b.json ...   the runs side by side: by Level and by hunting hour
 //   node tools/balance-sim/train-career.mjs probe a.json b.json [--levels 20,30,40,50] [--hours 2] [--seeds 2]
@@ -94,6 +95,8 @@ export async function loadTrainCareer(root) {
             const size = st.gold >= T.TRAINING_GEAR.gold[24] ? 24 : st.gold >= T.TRAINING_GEAR.gold[12] ? 12 : 0;
             if (size) { st.gold -= T.TRAINING_GEAR.gold[size]; tot.itemGold += T.TRAINING_GEAR.gold[size]; tot.items++; st.bank += size * HOUR; }
           }
+          /* `crowns`: the Crowns store's bound copy, every hour (no gold: the item count is what a Crowns buyer pays for) */
+          if (job.train === 'crowns' && st.bank <= 0) { tot.items++; st.bank += 24 * HOUR; }
           const boostMs = Math.min(HOUR, st.bank);
           const L = lvOf(st);
           const r = play.run(id, L, [role], { ground: G.TRAINING_GROUNDS[id], spanMs: HOUR, windowMs: 600000, xpFrac: true,
@@ -148,7 +151,7 @@ function compare(files) {
     console.log('  ' + tag(r).padEnd(24) + ' L' + r.reached + ' in ' + Math.round(t.huntH * 10) / 10 + ' hunting h + ' + t.trainH + ' training h (' + last.day + ' days), deaths ' + t.deaths
       + ', earned ' + t.earned.toLocaleString('en-US') + ', fees ' + t.fees.toLocaleString('en-US') + ', items ' + t.items + ' = ' + t.itemGold.toLocaleString('en-US')
       + ' (' + Math.round((100 * (t.fees + t.itemGold)) / Math.max(1, t.earned)) + '% of earned), purse ' + last.purse.toLocaleString('en-US') + ', item hours used ' + t.itemHUsed
-      + ', gold-out hours ' + t.goldOut + ', breaches ' + r.breaches.length + ', skills ' + JSON.stringify(last.skills));
+      + ', gold-out stops ' + t.goldOut + ', breaches ' + r.breaches.length + ', skills ' + JSON.stringify(last.skills));
   }
 }
 

@@ -906,3 +906,9 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-16 lane/d-training-career-run (the train-every-spare-hour career owed before `training_gear` goes on)
+- A training hour is cheap on the real engine (about 0.2 s) and exact (30,000 a whole hour through the carry), so a career can play every training hour instead of adding XP by arithmetic, and check each one for Level XP, coin, items and other skills as it goes.
+- Compressed time on the replayed chain: one world-tick call settles a capped span (about 2 min), and the per-user rate window refuses the rest (`rate_limited`, the session's `refusals` climbs). Loop until `settled_to` reaches the step and empty `hr_rate_counters` between calls. A "stuck" read before that is the harness, not the game.
+- Skill buys little Level pace where the advice holds a hero (an over-levelled Glade is walk-bound): +8-10 main skill is +2-4% Level XP an hour there, +7-14% one ground up. Training's value is skill numbers, safety (a tank's Defense) and the ammo gates, not Level.
+- The only skill gates are ammo (arrows, runes, whetstones at 15/30/45/60/75/88, abilities.js `shotLocked`); gear is worn by Level. Look there first when asked whether a skill lead skips something.
+- Side finding, not training's: at Level 20 every way to fight hunts the Warrens (floor 32) on Normal with no death in 4 h at 1.5-1.9x the Glade's Level XP (a gold loss for melee). The advice keeps a lone hero on the Glade from 16 to 47.

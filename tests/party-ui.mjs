@@ -969,6 +969,93 @@ async function pureRules(M, base) {
     return true;
   });
 
+  /* AL-LIVE  A LIVE LINE IS THE ENVELOPE'S (CLAUDE.md §6; the full-game audit's F7, 2026-11-15: "Corwen has 1 min of stamina left. Their hunt
+     ends then, and Ilsa comes home too." stood on screen after the server had stopped saying it, for a hero it held eleven hours for). A
+     friend's low stamina and a supply at zero say what the record says NOW: the words are this read's, the line goes when the server stops
+     saying it, and it is news again if the server says it again; while it stands it is never repeated, and a dismissed one stays gone.
+     BOTH PATHS (§4): the hero on screen, and the return to a hunt that ran on with the browser closed. */
+  await t('AL-LIVE', async () => {
+    const open = async (edit, residue) => {
+      const srv = fakeServer(residue ? { residue } : {});
+      const e = srv.env[0];
+      e.hunt_events = [];
+      e.hunt.hero.falls = 0;
+      if (!e.hunt || e.hunt.ended || !e.party.members.some((m) => m.seat !== e.party.self_seat && m.hunting)) return null;
+      edit(e);
+      const acc = account(M, srv);
+      acc.viewed = 0;
+      const centre = M.AL.createAlertCenter(acc);
+      const cs = (await acc.open(0)).session;
+      return cs ? { srv, e, centre, cs } : null;
+    };
+    const friend = (e) => e.party.members.find((m) => m.seat !== e.party.self_seat);
+    const says = async (w, ms) => { friend(w.e).stamina_low_ms = ms; await w.cs.load(); return w.centre.list().filter((a) => /^lowstam:/.test(a.id)); };
+    const words = (lines) => JSON.stringify(lines.map((a) => a.text));
+
+    /* (1) THE HUNT VIEWED, F7 as it played: the Start's read says 0 ms of the friend; the first settle's read says nothing of her. */
+    const v = await open((e) => { friend(e).stamina_low_ms = 0; });
+    if (!v) return 'HARNESS: the fixture is not a hunting party of two';
+    const name = friend(v.e).name;
+    let lines = v.centre.list().filter((a) => /^lowstam:/.test(a.id));
+    if (lines.length !== 1 || lines[0].text !== name + ' has 1 min of stamina left. Their hunt ends then, and Tyler comes home too.') return 'the Start\'s read raised ' + words(lines);
+    lines = await says(v, null);
+    if (lines.length) return '[F7] the server stopped saying it and the line stood: ' + words(lines);
+    if (M.PP.rosterOf(v.cs).members.find((m) => m.seat === friend(v.e).seat).staminaLowMs !== null) return '[F7] the party panel still shows a low stamina the server no longer says';
+    /* (2) SAID AGAIN IS NEWS AGAIN, and the number is each read's: 13.5 min, then 4.2 min, one line re-worded. */
+    lines = await says(v, 13.5 * 60000);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 14 min of stamina left.')) return 'the server said it again (13.5 min) and the lines read ' + words(lines);
+    const key = lines[0].key;
+    lines = await says(v, 4.2 * 60000);
+    if (lines.length !== 1 || lines[0].key !== key || !lines[0].text.startsWith(name + ' has 5 min of stamina left.')) return 'the server said 4.2 min and the lines read ' + words(lines);
+    /* (3) DISMISSED STAYS GONE while the server keeps saying it; a refill and a second low spell is a new warning. */
+    v.centre.dismiss(key);
+    if ((await says(v, 3.9 * 60000)).length) return 'a dismissed warning came back while the server still said it';
+    if ((await says(v, null)).length) return 'a refill raised a line';
+    lines = await says(v, 9 * 60000);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 9 min of stamina left.')) return 'low again after a refill, the lines read ' + words(lines);
+    /* (4) AN EVENT IS NOT A LIVE LINE: "ran out: slot 2 takes over" happened, and no later read takes it back. */
+    v.centre.say(v.cs, { id: 'out:' + v.e.hunt.session_id + ':k1', kind: 'low', session: v.e.hunt.session_id, text: 'Tyler’s Cooked Shrimp ran out.' });
+    await v.cs.load();
+    if (!v.centre.list().some((a) => a.id === 'out:' + v.e.hunt.session_id + ':k1')) return 'a re-read took back a line about something that happened (a supply that ran out)';
+
+    /* (5) A SUPPLY AT ZERO, the same rule: own stock, "end the hunt", no food: out of it; the store set to pay: the line goes. Ended with
+       the line up, the hunt keeps it (a new hunt retires it: AL-3). */
+    const starve = (e) => {
+      e.hunt_settings.on_empty = 'end';
+      e.hunt_settings.supply_source = 'mine';
+      e.hunt_settings.slots = [{ action: { type: 'consume', id: 'cooked_shrimp' } }].concat(Array(19).fill(null));
+      for (const id of ['wheat_bread', 'cooked_shrimp']) delete e.inventory[id];
+    };
+    const lows = (w) => w.centre.list().filter((a) => /^low:/.test(a.id));
+    const s = await open(starve);
+    if (!s || lows(s).length !== 1 || !/ is out of Cooked Shrimp\.$/.test(lows(s)[0].text)) return 'HARNESS: no out-of-food line to judge: ' + (s && words(lows(s)));
+    s.e.hunt_settings.on_empty = 'switch';
+    await s.cs.load();
+    if (lows(s).length) return 'the store pays now and the line still says ' + words(lows(s));
+    const k = await open(starve);
+    k.e.hunt.ended = true;
+    k.e.hunt.session = Object.assign({}, k.e.hunt.session, { end_reason: 'heals_out', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+    await k.cs.load();
+    if (lows(k).length !== 1) return 'the hunt ended for lack of food and its out-of-food line went with it';
+
+    /* (6) THE BROWSER CLOSED. Page one showed the warning (its id is saved with the hero); the hunt ran on, the friend refilled. On return
+       the first read says nothing of her: no line. Later she is low again: that is news, whatever page one saved. And a plain reload while
+       the server still says it repeats nothing (the rule of every line). */
+    const p1 = await open((e) => { friend(e).stamina_low_ms = 12 * 60000; });
+    if (!p1 || p1.centre.list().filter((a) => /^lowstam:/.test(a.id)).length !== 1) return 'HARNESS: page one raised no warning';
+    await p1.cs.flushResidue();
+    const saved = p1.srv.residue[0];
+    if (!(saved && saved.alerts && Array.isArray(saved.alerts.seen) && saved.alerts.seen.some((id) => /^lowstam:/.test(id)))) return 'HARNESS: page one did not save the warning\'s id: ' + JSON.stringify(saved);
+    const again = await open((e) => { friend(e).stamina_low_ms = 12 * 60000; }, clone(p1.srv.residue));
+    if (!again || again.centre.list().some((a) => /^lowstam:/.test(a.id))) return 'a reload repeated a warning already shown';
+    const back = await open((e) => { friend(e).stamina_low_ms = null; }, clone(p1.srv.residue));
+    if (!back || back.centre.list().some((a) => /^lowstam:/.test(a.id))) return 'on return a warning stood that the server does not say';
+    lines = await says(back, 8 * 60000);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 8 min of stamina left.')) return 'back from a closed browser, a friend who refilled and ran low again raised ' + words(lines);
+    if ((await says(back, null)).length) return 'on the return path the line outlived the server\'s word';
+    return true;
+  });
+
   await t('PR-1', async () => {
     const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' },{ seat: 1, weapon: 'wand', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
     const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 0, members } : undefined) };
@@ -1469,6 +1556,15 @@ const PURE_MUTANTS = [
   ['a low-stamina warning outlives its hunt (PR-TRUTH)', 'src/shell/alerts.js', "const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);", 'const stale = a.kind === \'partywarn\' && !a.session && !!open;'],
   ['a warned ground stays up over the hunt it warned of (PR-TRUTH)', 'src/shell/alerts.js', "const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);", 'const stale = a.kind === \'partywarn\' && !!a.session && a.session !== open;'],
   ['the roster loses a seat\'s low stamina (PR-TRUTH)', 'src/shell/widgets/party-panel.js', 'seatMs: s.seatMs, staminaLowMs: s.staminaLowMs,', 'seatMs: s.seatMs,'],
+  /* AL-LIVE (the full-game audit's F7, 2026-11-15): a live line is the envelope's. */
+  ['[F7] a live line stands after the server stopped saying it (AL-LIVE)', 'src/shell/alerts.js', '      if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }\n', ''],
+  ['a live line keeps the words of the read that raised it (AL-LIVE)', 'src/shell/alerts.js', '      if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }\n', ''],
+  ['a live line the server stopped saying is never news again (AL-LIVE)', 'src/shell/alerts.js', '    forget(cs, unsaid);\n', ''],
+  ['the saved list keeps a live id the server stopped saying: no news after a return (AL-LIVE)', 'src/shell/alerts.js',
+    'if (Array.isArray(r.seen) && r.seen.some(unsaid)) cs.setResidue(', 'if (false) cs.setResidue('],
+  ['a line about something that happened is judged as a live one (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:low|lowstam|out):/;'],
+  ['only a friend\'s stamina is live: a supply line stands when the store pays (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:lowstam):/;'],
+  ['a live line goes with its hunt\'s end (AL-LIVE)', 'src/shell/alerts.js', "const unsaid = (id) => !!open && LIVE.test(id) && id.split(':')[1] === open && !said.has(id);", 'const unsaid = (id) => LIVE.test(id) && !said.has(id);'],
   ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'On your own hunt. Leave it, then invite from town.' }),", ''],
   ['a hero sent home by a leave raises a plain end line', 'src/shell/alerts.js', "  else if (h.ended && h.endReason === 'party_member_left') out.push(", '  else if (false) out.push('],
   ['the summary says the hunt ended (no member, no hero)', 'src/hunt-view/summary-model.js', "  if (typeof by === 'string' && by && (reason === 'party_member_left'", "  if (false && (reason === 'party_member_left'"],

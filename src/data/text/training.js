@@ -9,7 +9,7 @@
 
 export const TRAINING_TEXT = Object.freeze({
   /* What the yard is, said once at the top. */
-  lead: 'One skill, paid hourly. Skill XP only (no Level XP, loot, stamina)',
+  lead: 'Any skill, same rate, paid hourly. Skill XP only, no stamina',
   your_hero: 'Your hero',
   purse: 'You have {gold} gold.',
 
@@ -22,7 +22,8 @@ export const TRAINING_TEXT = Object.freeze({
   /* The picked skill's quote, every number the server's. */
   fee: '{gold} gold an hour',
   fee_house: 'No fee at home',
-  xp: 'About {xp} {skill} XP an hour',
+  xp: '{xp} {skill} XP/h',
+  xp_item: '{xp} {skill} XP/h (200%)',
   to_level: 'About {hours} to {skill} {level}',
   max_hours: 'Training stops after {hours} hours. Start it again to keep going.',
   paid_ahead: 'You pay each hour when it starts.',
@@ -51,7 +52,32 @@ export const TRAINING_TEXT = Object.freeze({
   hunting: '{name} is out hunting. Come back to town to train.',
   in_party: '{name} is in a party (training is solo)',
   short_gold: 'The first hour costs {fee} gold. You have {purse}.',
+  low_level: 'Training opens at Level {need}. You are Level {level}.',
   dummy_busy: 'Dummy in use by {who} (one hero at a time)',
+
+  /* THE TRAINING ITEMS (2027-04-23-training-gear.sql, Tyler 2026-11-14): labels, the server's numbers, and one card line. */
+  gear_head: 'Training item',
+  gear_left: '{item} switched off, {time} left',
+  gear_left_on: '{item} at 200%, {time} left',
+  gear_use: 'Use {item}',
+  gear_held: '{item} ({hours} h)',
+  gear_bound: '{item} ({hours} h), bound',
+  gear_in_bag: '{count} in bag',
+  gear_in_storage: '{count} in Storage',
+  gear_price: '{gold} gold',
+  gear_today: '{today} of {max} bought today',
+  gear_card: '200% {skill} XP (yard or home dummy), hours run only while training',
+  gear_closed: 'Training items aren\'t for sale yet.',
+  press_buy: 'Buy',
+  press_open: 'Open',
+  busy_buy: 'Buying…',
+  busy_open: 'Opening…',
+  bought: 'You bought a {item}.',
+  opened: '{item} opened. Your {skill} training is at 200% while its hours last.',
+  gear_short: 'It costs {price} gold. You have {purse}.',
+  gear_limit: 'You bought {max} training items today. The Arms Master sells more tomorrow.',
+  gear_still_open: '{item} still has hours left (next one opens after it)',
+  gear_none_held: 'You don\'t have one in your bag or Storage.',
 
   /* THE HOUSE DUMMY (the House window). */
   dummy_head: 'Training dummy',

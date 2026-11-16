@@ -147,12 +147,12 @@ export const LINE_SAMPLE = Object.freeze({
     text: 'You take 10% less ice damage. The Keepers stood their watches in the cold vaults for years, and these are lined against it.',
   }),
   haulers_jerkin: Object.freeze({
-    row: Object.freeze({ n: 'Hauler\'s Jerkin', icon: '🎽', v: 113400, type: 'armor', slot: 'body', defB: 85, armourClass: 'leather', rangeAtkB: 35, magicAtkB: -14,
-      resistPm: Object.freeze({ poison: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
-    base: 'dawnhide_body', attr: Object.freeze(['resist_element', 'poison']),
-    spend: 'dodge over damage: more armor than the line, no critical chance, and the lime sacks do less',
+    row: Object.freeze({ n: 'Hauler\'s Jerkin', icon: '🎽', v: 113400, type: 'armor', slot: 'body', defB: 60, armourClass: 'leather', rangeAtkB: 45, critB: 0.056, magicAtkB: -14,
+      tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
+    base: 'dawnhide_body', attr: null,
+    spend: 'light: damage over dodge, 15 under the line\'s armor and twice Dawnhide\'s critical chance',
     source: Object.freeze({ monster: 'night_carter', ground: 'pauper_vaults', how: 'rare', ch: 0.0031 }), use: 'worn',
-    text: 'You take 10% less poison damage, and you dodge more and land no extra critical hits in it. The Night Carters carried the lime sacks on their backs, and this coat is stiff with it.',
+    text: 'You land a critical hit 5.6% more often in it, twice a Dawnhide Body, and it carries 60 armor. The Night Carters cut their coats loose at the shoulders to swing the sacks up, and it draws a bow the same way.',
   }),
   paupers_shroud: Object.freeze({
     row: Object.freeze({ n: 'Pauper\'s Shroud', icon: '🧥', v: 113400, type: 'armor', slot: 'body', defB: 62, armourClass: 'cloth', magicAtkB: 54, magicStrB: 2, atkB: -23, rangeAtkB: -18,

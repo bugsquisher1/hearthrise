@@ -255,7 +255,7 @@ export function upgradeNeeds(home, chests) {
   if (!home) return null;
   const want = new Set();
   const step = (s) => { for (const it of s.items) want.add(it.id); };
-  const deed = home.tiers.find((t) => !t.owned);
+  const deed = home.tiers.find((row) => !row.owned);
   if (deed) step(deed);
   for (const r of home.rooms) if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);
   if (chests && chests.next && chests.next.canBuild) step(chests.next);

@@ -4,6 +4,13 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-16 · game-designer (lane/d-late-nearmisses) · a ground's guide food is a claim input too, and a full grade belongs to its tree
+- **DISCOVERY.** The grader plays the bag guide's food (cell.mjs `barFor`: the store partner of `bagGuide.melee.heal`), and so does `tests/hunt-core/party-tiers.mjs`. Better food makes a lone hero hold more, so naming Swordfish at Wyvern Roost (one lane) made the "Alone, Melee and Ranger heroes die here fast" claim (another lane) false at the band's top: both green alone, red merged. Separately, a grade copied from another branch's tree is not this tree's: after the Mage-at-110 merge every four-xp and Deadly number on the Morrow moved (the Roost's four went from passing to failing low).
+- **AFFECTED.** Every pack's `bagGuide`, `partyTiers`, `healerTiers`, `partyClassXp`; any lane that quotes another lane's grade.
+- **REQUIRED ACTION.** Changing a pack's guide food: re-run `party-tiers.mjs` and the pack check. Re-measure on the merged tree before fixing a near-miss from someone else's grade. And the Normal low point of a heavy eater sits at the bar's 60% eat line whatever the food (58.5-59.1 on Swordfish, Shark, Lobster): fix it with damage or kill speed, never food.
+
+---
+
 ## 2026-11-15 · game-designer (lane/d-armor-past-dawnsteel) · past Dawnsteel only ARMOR falls behind; the Vaults' gap is armor, the shield and the guide's food
 
 | # | Found | Affected | Action |

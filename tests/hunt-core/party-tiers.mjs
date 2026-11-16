@@ -133,7 +133,7 @@ const mutants = [
     edits: [['src/shell/hunt-list.js', "const healer = isHealerTier(r.hunt, tier.id) ? [t('hunts.tier_healer')] : [];", 'const healer = [];']] },
   { name: 'only a hero alone is told to bring a Healer', case: 'healer', also: ['src/shell/hunt-list.js', 'src/render'],
     edits: [['src/shell/hunt-list.js', "const healer = isHealerTier(r.hunt, tier.id) ? [t('hunts.tier_healer')] : [];", "const healer = size <= 1 && isHealerTier(r.hunt, tier.id) ? [t('hunts.tier_healer')] : [];"]] },
-  { name: 'the Vaults say bring a Healer and the grader grades its four without one', case: 'healer', also: ['src/data/grounds'],
+  { name: 'the Vaults say bring a Healer and the grader grades its four without one', case: 'healer', also: ['src/shell/hunt-list.js', 'src/render', 'src/data/grounds'],
     edits: [[PACK('pauper_vaults'), "deadlyFourNeeds: 'healer'", "deadlyFourNeeds: null"]] },
 ];
 

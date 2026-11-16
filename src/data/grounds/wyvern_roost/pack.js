@@ -136,10 +136,12 @@ export default definePack({
   partyTiers: ['dangerous'],
   /* DEADLY IS A HEALER'S TIER HERE (lane/d-late-nearmisses, 2026-11-16, as Carter's Rest; the Deadly pull of six, tierOverride below). */
   healerTiers: ['deadly'],
+  /* THE COUNTS, MEASURED (as Carter's Rest; Salted Lobster an hour, a lone hero at the floor on Normal): tank 63, hammer 167, axes 199, sword 230,
+     bow 61, crossbow 18, casters 0. Three hours in Cooked Lobster: Melee the median (183) = 395, Ranged the mean (39) = 85, Magic 10. */
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_lobster', qty: 75 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_lobster', qty: 395 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 85 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_lobster', qty: 10 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_ice_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.10 / 1.06 of the contract at the floor and middle (the bow 1.15, the best lone way after the Mage), so 0.94.
      A four of four classes read 0.58 / 0.53 and a tank and Healer 0.77 / 0.72, so the four 1000 x 1.20 / 0.514 = 2335, the pair 1000 x 1.10 / 0.69 = 1595, the
@@ -155,7 +157,7 @@ export default definePack({
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
   /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
      the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
-  partyVsAlone: { 2: [-30, 10], 3: [-35, -5, 0], 4: [-50, 0, 10, 10] },
+  partyVsAlone: { 2: [-30, 15], 3: [-35, -5, 5], 4: [-50, 5, 15, 20] },
   /* DEADLY BRINGS SIX (the Hold's and the Pyre Field's row): on eight a four of four classes died 9 times in 4 hero-hours at the floor (36 in 16,
      where the sheet allows 9). Six is the least Deadly may bring, one over Dangerous's five. */
   tierOverride: { deadly: 6, why: 'on the full box a group of four died 9 times in 4 hours at the floor, where the rule allows about 2. On six they hold it' },

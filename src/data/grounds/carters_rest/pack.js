@@ -118,20 +118,23 @@ export default definePack({
   /* THE BAG: the Hold's Lobster and the fire rune (Humanoid: poison does 15% more, a caster may swap). lane/a-grader-uniques named Swordfish
      here to keep a Deadly four with no Healer alive (43 deaths in 16 hero-hours on Lobster, 6 on Swordfish, the bar 9). On the merged tree
      (lane/d-late-nearmisses, the full grade --uniques) Swordfish no longer does it (15), and on the Ox Road 18: Deadly is a Healer's tier here
-     (healerTiers below), and the four with a Healer dies 0 on either food. Lobster is 0.83 g a point of HP against Swordfish's 1.50, and with
+     (healerTiers below), and the four with a Healer dies 0 on Swordfish and 6 on Lobster (the bar is 9). Lobster is 0.83 g a point of HP against Swordfish's 1.50, and with
      Swordfish a lone sword nearly holds Dangerous at the band's top (3 deaths in 6 h), which the party's-tier line below says it can't. */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, the board's "Dangerous on the Morrow is a party tier"; real settle, 2 seeds
      x 2 h, the ladder kit, the bag's store food). Deaths in the 4 h alone: at the floor (110) a hammer 84, axes 109, a tank 56, a bow 34; at the
      top (125) a hammer 46, a tank 17, a bow 26. A Mage alone 0. With a Healer at the floor: tank + Healer 0, hammer + Healer 0, the four 0. */
   partyTiers: ['dangerous'],
   /* DEADLY IS A HEALER'S TIER HERE (lane/d-late-nearmisses, 2026-11-16; the Hold's and the Barrows' call, designer Q4 2026-11-12). MEASURED on
-     the full grade --uniques at the floor: the four with no Healer dies 15 times in 16 hero-hours (the bar is 9), the four with one 0. The
+     the full grade --uniques at the floor: the four with no Healer dies 15 times in 16 hero-hours (the bar is 9), the four with one 6 on Lobster. The
      card says so to every group (hunts.tier_healer) and the grader grades the four with a Healer (checks.deadlyFourNeeds). */
   healerTiers: ['deadly'],
+  /* THE COUNTS, MEASURED (lane/d-late-nearmisses, the full grade --uniques, a lone hero at the floor on Normal, Salted Lobster an hour): tank 18,
+     sword 102, hammer 106, axes 130, bow 18, crossbow 7, Mage and Healer 0. BAG_TARGET_HOURS (3) of the style's eating in Cooked Lobster (300 HP to
+     the store's 216): Melee the median of the four ways (104) = 225, Ranged the mean of the two (12.6) = 25, Magic none alone, so 10 for a stray pull. */
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_lobster', qty: 75 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 60 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 75 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_lobster', qty: 225 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 25 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_lobster', qty: 10 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.08 / 1.04 of the contract at the floor and middle, so 0.96. A four of four classes read 0.54 / 0.51 of it and a
      tank and Healer 0.79 / 0.74, so the four 1000 x 1.20 / 0.523 = 2295, the pair 1000 x 1.10 / 0.764 = 1440, the cells between at the Hold's proportions. */
@@ -144,7 +147,7 @@ export default definePack({
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
   /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
      the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
-  partyVsAlone: { 2: [-30, -5], 3: [-40, -15, -5], 4: [-50, -5, 5, 5] },
+  partyVsAlone: { 2: [-30, 0], 3: [-40, -15, -5], 4: [-50, -5, 5, 5] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 22472, deadlyFourNeeds: 'healer' },
   map,
 });

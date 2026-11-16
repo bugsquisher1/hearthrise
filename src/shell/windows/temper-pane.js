@@ -37,7 +37,8 @@ function rowWords(track, r) {
   if (!r.ladder) return 'Your ' + r.piece + ' can\'t be tempered' + (r.below || !r.span ? '. Gear worn from Level 15 can.'
     : t('temper.cant_yet', { from: r.span.from, to: r.span.to }) + (bands && !r.unique ? t('temper.unique_span', { from: bands[0] }) : ''));
   const now = 'Rung ' + r.ladder.rung + ' of ' + r.ladder.max + ': ';
-  const also = r.unique && bands ? ' ' + (bands.length > 1 ? t('temper.unique_row', { bands: listWords(bands.map(String), Infinity) }) : t('temper.unique_row_one', { bands: bands[0] })) : '';
+  const also = r.unique && bands ? ' ' + (bands.length > 1 ? t('temper.unique_row', { bands: listWords(bands.map(String), Infinity) }) : t('temper.unique_row_one', { bands: bands[0] }))
+    : r.smallPm ? ' ' + t('temper.small_row', { step: pct(r.smallPm) }) : '';
   if (!r.ladder.offer) return now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. The most this gear takes.' + also;
   return (r.ladder.rung ? now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. Next rung ' + pct(r.nextPm) + '.'
     : 'Not tempered yet. First rung: ' + track.effect + ' ' + pct(r.nextPm) + ' ' + track.worse + '.') + also;

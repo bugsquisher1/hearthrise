@@ -28,7 +28,7 @@ export const TEMPER_TRACKS = Object.freeze(['blows', 'armor']);
 /* TIER 7, DAWNSTEEL, WORN FROM 88 (Tyler 2026-11-16 "yes": its own ladder, so the sink keeps growing from Level 88 to 110; designer,
    lane/d-temper-dawnsteel; the measured table is PRIORITY_BOARD "2026-11-16 Tempering Dawnsteel"). Both tracks: Lord Krell drops a Dawnsteel
    weapon for every way to fight and the helm and body in every weight, and Carter's Rest the rest of the set. SMALLER RUNGS, 0.4% each and 2% a
-   track (TEMPER_TIER_RUNG_PM): past Dawnsteel there is no tier 8, the next armor is the armor line's (src/data/armor-line.js), and its first
+   track (TEMPER_TIER_RUNG_PM): past Dawnsteel there is no tier 8, the next armor is the armor line's (LINE_BANDS, read by the guard, never imported here), and its first
    piece above Dawnsteel is worn from 122 at only x1.11. 2% is the largest round step at which full Dawnsteel, fully tempered, still lets more
    through than the line's bare set worn from 122, for every weight on every drafted ground at or past 122 (measured,
    `node tools/balance-sim/temper-dawn-table.mjs next`: thinnest leather at Wyvern Roost, 0.45%; at 2.5% it is -0.06%). A piece worn from 110

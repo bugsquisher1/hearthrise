@@ -22,6 +22,9 @@ export const TEMPER_TEXT = Object.freeze({
   unique_row: 'Unique armor takes smaller rungs, half a step each, and gets a new ladder at Levels {bands}.',
   unique_row_one: 'Unique armor takes smaller rungs, half a step each, and gets its own ladder at Level {bands}.',
   unique_span: ' The smith also tempers unique armor worn from Level {from}.',
+  /* DAWNSTEEL (lane/d-temper-dawnsteel): said only on a ladder the server sells whose rung is smaller than the tiers before it
+     (src/data/temper.js TEMPER_TIER_RUNG_PM). {step} is a rung's worth ("0.4%"): the player sees "Next rung 0.8%" and needs the why. */
+  small_row: 'The finest gear takes smaller rungs, {step} each.',
   /* SAY WHY (the playthrough audit's F17): gear past the server's ladders. {from} and {to} are the Levels the SERVER's ladders cover
      (temper-sections.js `span`), so the line is true before and after a new tier's rungs are sold. */
   cant_yet: ' yet. The smith only has rungs for gear worn from Level {from} to Level {to}.',

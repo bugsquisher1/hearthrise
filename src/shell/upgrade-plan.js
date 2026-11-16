@@ -69,7 +69,6 @@ import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.132';
 import { loadoutOf } from '../core/member.js?v=0.2.132';
 import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.132';
 import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.132';
-import { skillXpForLevel } from '../core/xp.js?v=0.2.132';
 import { MONSTERS } from '../data/monsters.js?v=0.2.132';
 import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.132';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.132';
@@ -116,8 +115,9 @@ function preyAt(level) {
   PREY.set(level, out);
   return out;
 }
-/* The server's skills as the engine reads them ({ skill: xp }); a row with no xp reads from its level. */
-const xpOf = (skills) => Object.fromEntries(Object.entries(skills || {}).map(([k, r]) => [k, r && Number.isFinite(r.xp) ? r.xp : skillXpForLevel(k, (r && r.level) || 1)]));
+/* The server's skills as the engine reads them ({ skill: xp }: item-sections.js skillsOf keeps only rows with their xp). No curve is read here
+   (session-core LVL-0): a skill the server has not sent reads as 0 xp, the weakest blow, so it never makes a bane look stronger than it is. */
+const xpOf = (skills) => Object.fromEntries(Object.entries(skills || {}).map(([k, r]) => [k, r && Number.isFinite(r.xp) ? r.xp : 0]));
 
 /* The numbers a worn set fights with, for the style its weapon sets; `set` false leaves the set bonus out. `prey`: the blow it lands
    (accuracy x largest hit, the engine's) on each monster a bane could matter against (preyAt), by kind. */

@@ -1620,11 +1620,14 @@ async function planRules(base) {
     /* A BANE IS A REASON ONLY WHERE IT WINS (audit 2026-11-15 F15: Equip upgrades pressed from Level 15 to 55 kept the Bramble Blade over 40 Mithril Swords, "each piece is
        better at something", and the hero died twice at the Barrows, where nothing is a plant). The trade above stands because a plant lives on a ground of the hero's Level
        (Level 16: the Glade's Walking Vine, where the bane lands more a blow); with no plant on any ground of the Level, the bigger numbers go on. */
-    const seasoned = { defense: { level: 50 }, melee: { level: 50 }, ranged: { level: 1 }, magic: { level: 1 } };
+    /* skills as the server sends them, each with its xp (item-sections.js skillsOf): the engine's blow reads the xp */
+    const XPC = await imp('src/core/xp.js');
+    const sk = (melee) => ({ defense: { level: 50, xp: XPC.skillXpForLevel('defense', 50) }, melee: { level: melee, xp: XPC.skillXpForLevel('melee', melee) }, ranged: { level: 1, xp: 0 }, magic: { level: 1, xp: 0 } });
+    const seasoned = sk(50);
     const past = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 3], ['mithril_sword', 40]], seasoned, 55);
     if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Wear Mithril Sword (+12 Melee accuracy).')
       fails.push('AW-21 a Level 55 hero in a Bramble Blade with Mithril Swords in the bag reads ' + ops2(past) + ' / ' + JSON.stringify(past.choices) + ' / ' + UP.upgradeWords(past));
-    const vines = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 2]], { ...seasoned, melee: { level: 30 } }, 30);
+    const vines = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 2]], sk(30), 30);
     if (ops2(vines) !== '{}' || JSON.stringify(vines.choices) !== '[{"slot":"weapon","ids":["steel_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]')
       fails.push('AW-21 a real trade stopped asking: Level 30 (the Glade, Walking Vines) in a Bramble Blade with Steel Swords reads ' + ops2(vines) + ' / ' + JSON.stringify(vines.choices));
     /* A WORN OFF-HAND TAKES A BETTER ONE OF ITS KIND (audit 2026-11-15 F8: a Level 31 tank still held the Practice Shield): a shield for a shield, a spellbook for a

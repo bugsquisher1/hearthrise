@@ -4,6 +4,13 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-16 · game-designer (lane/d-morrow-cleanup) · a grade re-run after a data change reads the old cells
+- **DISCOVERY.** `tools/balance-sim/grade.mjs` resumes from `<out>/cells.jsonl`, and a cell's id names the ground, tier, Level, comp, kit and a what-if's hash, never the pack's own rows. `tools/pack.mjs check <g>` always writes to the same folder (`tools/balance-sim/out/pack-<g>-<mode>[-with-...][-uniques]`), so a check run again after editing the pack plays nothing new and grades the old rows.
+- **AFFECTED.** Every lane that edits a pack and re-checks it; any before/after table built from two runs of `pack check`.
+- **REQUIRED ACTION.** Move (or rename) the folder before the re-run; keep it as the "before". Systems: worth a tree hash in the cell id, or a refusal when the pack's rows moved since the folder was written.
+
+---
+
 ## 2026-11-15 · game-designer (lane/d-mage-110) · the balance-sim graded every staged ground without Krell's hall drops
 - `tools/balance-sim/gear.mjs` reachWith built a staged ground's reach from `OPEN_GROUNDS` plus the ground and left out `OPEN_HALL_GROUNDS`, which `reachableSources`' own default carries. At Carter's Rest a Level 110 hammer wore the Ember Warhammer and Ember plate and a bow the Runewood Bow, while the Mage kept its Duskwood wand. Fixed on lane/d-mage-110. Every Morrow and Pauper Vaults grade before it read Melee and the bow a weapon tier short (Carter's Rest hammer 0.97 of the contract where it is 1.09).
 - The Mage's high-Level lead was cloth's `magicStrB` (0.4 of plate's defence a slot), not spawn density: the board's "2026-11-15 The Mage at 110 and up".

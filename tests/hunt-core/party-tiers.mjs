@@ -23,6 +23,10 @@
 //            the named grounds' floor Mages die at least once every two grounds between them. Before the throwers two of the four paid a lone Mage
 //            28-37k gold an hour there, and the four floors' Mages died once in 8 h (3 after, and every one loses gold there). The line's words name Melee and Ranger heroes only:
 //            a Mage is threatened there, never told it dies fast.
+//            THE LONE HEALER (lane/d-morrow-cleanup, 2026-11-16, ruled): it holds a party's tier alone (it heals itself; the class built to
+//            survive), and that's fine because it pays for it: at the floor it keeps under half the gold it nets on Normal there (HEALER_KEEPS),
+//            for a fifth more XP. Measured on the full grade --uniques: Carter's Rest +7.6k against +28.5k on Normal, the Ox Road -27.4k against
+//            +27.0k, Wyvern Roost -1.4k against +29.1k, the Vaults -24.1k against +33.7k (Tyler 2026-11-06: "waste money but get more exp").
 //
 // Measured when written (2 seeds x 2 h): named, at the top of the band the hammer died 46-207 times, the sword 34-213, the bow 14-52 and the
 // crossbow 14-33; the four at the floor 0. Unnamed, the hammer at the top 0 on every ground (the bow 0-1). The guard plays the hammer and the
@@ -44,6 +48,8 @@ const FOUR = Object.freeze(['tank', 'healer', 'bow', 'mage']);
 const FAST_PER_H = 1, HOLDS_MAX = 1;
 /* the kiting Mage on a named tier, at the floor: "possibly die a few times", at least this many deaths a named ground on average (2 h a ground) */
 const MAGE_DEATHS_PER_GROUND = 0.5;
+/* the lone Healer on a named tier, at the floor (lane/d-morrow-cleanup): it keeps under this share of its Normal gold there */
+const HEALER_KEEPS = 0.5;
 const bandOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band;
 const isOpen = (g) => Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g);
 /* a staged ground is played as it ships, with every staged ground at or under its floor (packs ship in road order: party-class-xp-line's rule) */
@@ -116,6 +122,11 @@ const claims = (grounds) => async (RUN, root) => {
       const mage = cell(g, ['mage'], floor, tier, 'floor').heroes[0];
       named++; mageDeaths += mage.deaths;
       if (!(mage.profitPerH < 0)) return g + ' ' + tier + ': named a party\'s tier, and a lone Mage at the floor (' + floor + ') nets ' + mage.profitPerH + ' gold an hour (income ' + mage.incomePerH + ', supplies ' + mage.storePerH + ') with ' + mage.deaths + ' deaths in ' + HOURS + ' h: standing back, nothing there threatens it';
+      /* the lone Healer holds (it heals itself) and pays for it: at the floor it keeps under half the gold it nets there on Normal */
+      const healerT = cell(g, ['healer'], floor, tier, 'floor').heroes[0];
+      const healerN = RUN.runCell({ id: 'pt:' + [g, 'healer', floor, T.DEFAULT_TIER, 'floor'].join(':'), ground: g, party: ['healer'], level: floor, hours: HOURS, seeds: 1,
+        windowMs: 120000, ...gearOf(g) }).heroes[0];
+      if (!(healerT.profitPerH < HEALER_KEEPS * healerN.profitPerH)) return g + ' ' + tier + ': named a party\'s tier, and a lone Healer at the floor (' + floor + ') nets ' + healerT.profitPerH + ' gold an hour there against ' + healerN.profitPerH + ' on Normal (it keeps more than ' + HEALER_KEEPS * 100 + '%): holding it alone costs it nothing';
       const four = cell(g, FOUR, floor, tier, 'floor');
       if (deaths(four) > 0) return g + ' ' + tier + ': named a party\'s tier, and a four with a Healer at the floor (' + floor + ') died ' + deaths(four) + ' times in ' + HOURS + ' h';
     }
@@ -140,8 +151,14 @@ const mutants = [
   { name: 'Carter\'s Rest\'s throwers come down to melee: a lone Mage profits there on Dangerous', case: 'claims', grounds: ['carters_rest'],
     edits: [[PACK('carters_rest'), "      range: 6,\n      spells: ['poachers_volley'],", "      spells: ['poachers_volley'],"],
       [PACK('carters_rest'), "      range: 6,\n      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally'", "      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally'"]] },
-  { name: 'the Vaults\' Keeper Dunn comes down to melee: a lone Mage at the floor never dies there', case: 'claims', grounds: ['pauper_vaults'],
-    edits: [[PACK('pauper_vaults'), "      range: 6,\n      spells: ['snuff_the_candles'],", "      spells: ['snuff_the_candles'],"]] },
+  /* (the Vaults' Keeper Dunn stands at his lectern again, lane/d-morrow-cleanup: his throw cost a lone Normal bow 33k gold an hour and bought
+     the grade nothing, so his mutant moved to the Ox Road's two throwers, whose Mage the throw does reach) */
+  { name: 'the Ox Road\'s Drover and Wagonmaster come down to melee: a lone Mage profits there on Dangerous', case: 'claims', grounds: ['ox_road'],
+    edits: [[PACK('ox_road'), "      range: 6,\n      spells: ['goad'],", "      spells: ['goad'],"],
+      [PACK('ox_road'), "      range: 6,\n      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'waybill'", "      drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'waybill'"]] },
+  /* the lone Healer: Greater Mend heals ten times as much, so it holds Carter's Rest's Dangerous on its own spells and keeps its Normal gold */
+  { name: 'Greater Mend heals ten times as much: a lone Healer holds Carter\'s Rest\'s Dangerous for free', case: 'claims', grounds: ['carters_rest'],
+    edits: [['src/data/abilities.js', "heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600,", "heal: [400, 600], whenBelowPct: 70, magicXpMult: 1600,"]] },
   /* the page: the line is never added */
   { name: 'the Hunts page never says it', case: 'words', also: ['src/shell/hunt-list.js', 'src/render'],
     edits: [['src/shell/hunt-list.js', "const alone = size <= 1 && isPartyTier(r.hunt, tier.id) ? [t('hunts.tier_party')] : [];", 'const alone = [];']] },

@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-16 lane/d-morrow-cleanup: the four late grounds' last reds, the lone Healer, gold on Normal
+- **A re-run after a data change resumes stale cells.** A grade cell's id carries the ground, tier, Level, comp and kit, never the pack's rows, so `pack check` after an edit reads the old cells unless the out folder moves first (`tools/balance-sim/out/pack-<g>-...`). Rename it to keep the before.
+- **Gold isn't graded, so a green pack check can lose money for six ways of eight.** The Vaults' floor did (-8k to -92k an hour on Normal). Print every way's net at the floor, middle and top before calling a ground done.
+- **A thrower aims at whoever stands farthest back, and alone that is always you.** Keeper Dunn's throw put the lone Normal bow's food bill from 19k to 55k (28 to 80 Sharks an hour) and bought the Dangerous Mage nothing the best-piece grade sees. Price a new reach on every way's Normal bill, not only the tier it was built for.
+- **Probe the decisive cells before a 90-minute check.** Lobster at the Vaults was dead at the Normal floor's ranged deaths (bow 2, crossbow 1 in 24 h), visible in the first 50 cells; I couldn't stop my own run (taskkill is refused here), so the rest of it was wasted CPU.
+
 ## 2026-11-15 lane/d-mage-110: the Mage at 110 and up was cloth, not spawns
 - **Move one lever at a time before naming the limit.** "+Magic does nothing, so the Mage is spawn-bound" read right and was wrong: respawn 60 s to 1 s moved nothing (424 vs 419 kills). Splitting the Mage's damage by source (`dealtBy`) said it in one line: 85% is the basic wand blow, so the gear term in max hit decides.
 - **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.

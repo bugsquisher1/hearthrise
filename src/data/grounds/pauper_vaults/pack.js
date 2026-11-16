@@ -111,11 +111,12 @@ export default definePack({
       name: 'Keeper Dunn', icon: '🕯️', tier: 6, level: 181, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite and the rare carrier: the Keeper who locked the door from the inside and stayed. He's still reading the names out of the Wood
          Book every night and lighting a candle for each. Undead, no override. When you come in he snuffs the candles, and the cold of the deep
-         vault hits everyone (Snuff the Candles, `spells` below): kill him first, or bring frost resistance. He won't leave his
-         lectern: he throws his candle stubs at whoever stands farthest back, from 6 tiles (`range`, src/core/hunt/shooters.js: lane/c-late-kits,
-         the board's "2026-11-15 The late grounds' throwers"). Not the Night Carter: a regular thrower put a lone bow on Normal into close calls
-         (4 in 12 h). His snuffer. His candle, the Rare, waits on its reveal icon (the header). */
-      range: 6,
+         vault hits everyone (Snuff the Candles, `spells` below): kill him first, or bring frost resistance. He fights from his lectern, hand to
+         hand. NO THROW (lane/d-morrow-cleanup, 2026-11-16, the board's "The late grounds, cleaned up"): lane/c-late-kits gave him one (`range: 6`,
+         candle stubs at whoever stands farthest back), and alone that is always the hero. MEASURED on the full grade --uniques at the floor: a lone
+         bow on Normal ate 80 Sharks an hour against 28 and netted -26.1k gold against +9.5k, the crossbow -7.7k against +18.4k, and a Deadly four
+         with a Healer died 11 times in 16 hours against the bar's 9; the Mage it was for already lost gold on Dangerous here without it (supplies
+         75k an hour on 45k) and died 0 times either way on the best-piece kit. His snuffer. His candle, the Rare, waits on its reveal icon (the header). */
       spells: ['snuff_the_candles'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
       hp: 471, atk: 178, baseAcc: 0.76, def: 138, xp: 7366, gp: [99, 297], formula: true },
@@ -169,6 +170,7 @@ export default definePack({
      on the merged tree at the floor, on Shark: the four with no Healer dies 93 times in 16 hero-hours, the four with one 8 (the bar is 9).
      No food answers the first (Shark is the store's biggest); a Healer does. */
   healerTiers: ['deadly'],
+  tierOverride: { deadly: 6, why: 'on the full box a group of four with a Healer died 11 times in 16 hours at the floor, where the rule allows 9. On six they hold it' },
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_shark', qty: 305 } },
     ranged: { heal: { id: 'cooked_shark', qty: 50 }, ammo: { id: 'barbed_arrows', qty: 5100 } },

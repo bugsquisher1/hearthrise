@@ -23,7 +23,8 @@
 --   (hr_hunt_enter_for: hunt_open, activity_running, the play cap, an empty stamina pool, ...). The floors a hero may start from
 --   (hr_tower_starts, the server clock): its week's first floor, the floor after (best landing - weekBack) (floor 1 for a new hero), and the
 --   floor after any landing it cleared this UTC week (Monday 00:00). On success ONE journal-only hr_apply on the caller's key
---   (kind combat, intent tower_start:<floor>), so a replay answers once and opens once; tower_runs gets the run's row.
+--   (kind combat, intent tower_start:<floor>), so a replay answers once and opens once (the key read again under the door's lock: a press
+--   that waited on another of the same key answers its receipt); tower_runs gets the run's row.
 -- hr_hunt_instance_read RESTATED WHOLE (the 2027-04-23-session-modes.sql image, §0 pins it): the instance carries `tower_floor` (hr_tower_floor_of:
 --   the open runs' highest floor cleared + 1, or the run's start; null on every other ground). hr-accrue reads it there and nowhere else
 --   (hunt-settle.js; none on the Tower's ground: `tower_pending`, the deploy-gap rule, nothing proposed, refused or counted).
@@ -59,9 +60,12 @@
 --   Rat King hall, a stand-in).
 --
 -- ── CONCURRENCY / IDEMPOTENCY ──────────────────────────────────────────────
--- hr_tower_start: the key replay first (hr_intent_replay), the rate gate, then hr_hunt_enter_for takes the character (its usual locks) BEFORE
---   the start floor is read: the floor check reads tower_progress and tower_landings under the same character lock the settle writes them
---   under, so a start can't race a settle into an unearned floor. A refused floor raises inside the block and rolls the opened session back.
+-- hr_tower_start: the key replay first (hr_intent_replay), the rate gate, then the hero's own Tower door lock (hr:tower:<uid>:<slot>, taken by
+--   this verb alone, before any other lock it takes) and the key READ AGAIN under it (2027-04-19-key-under-lock.sql; tests/key-under-lock.mjs
+--   KL-CLASS): a second press of one key that waited on the first answers the first's decision, and an hr_apply that still says `replayed`
+--   rolls its climb back out. Then hr_hunt_enter_for takes the character (its usual locks) BEFORE the start floor is read: the floor check reads
+--   tower_progress and tower_landings under the same character lock the settle writes them under, so a start can't race a settle into an
+--   unearned floor. A refused floor raises inside the block and rolls the opened session back.
 -- The settle: hr_hunt_apply_instance holds the instance, then each member's character (hr_hunt_lock), and hr_tower_check takes the run row
 --   `for update`: the floors, the run, the landings and the best are one transaction with the world they were played in. tower_landings'
 --   key makes a landing's row once a week whatever retries; a replayed settle intent returns before any of it (hr_apply's replay).
@@ -196,33 +200,39 @@ comment on table public.tower_runs is '2027-04-24-tower-climb.sql: one row a cli
 comment on table public.tower_landings is '2027-04-24-tower-climb.sql: one row a hero, UTC week (Monday) and landing cleared over the week''s base: the weekly cap is its key, and the chest lane mints a key from each row. Written only by hr_tower_write. RLS: own rows readable, no client write.';
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
+-- PL/pgSQL, never SQL: a SQL function with a SET clause is never inlined, and PostgreSQL 17 (production) re-plans its body on every call
+-- (tests/settle-budget.mjs SB-3; 2027-02-10-settle-plan-cache.generated.sql's form). The settle reads hr_tower_floor_of on every instance read
+-- of every hunt, and hr_tower_week on every climb window that clears a floor; plpgsql plans each once a backend.
 -- The UTC week an instant is in, as its Monday (Tyler 2026-11-14: "6 a week"; the board: the week starts Monday 00:00 UTC).
 create or replace function public.hr_tower_week(p_at timestamptz)
-returns date language sql stable set search_path = public, pg_catalog as $$
+returns date language plpgsql stable set search_path = public, pg_catalog as $$
+begin
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql)
-  select (date_trunc('week', p_at at time zone 'UTC'))::date
-$$;
+  return (date_trunc('week', p_at at time zone 'UTC'))::date;
+end $$;
 
 -- The floors a hero may start a climb from now: its week's first floor (the floor after best landing - weekBack; floor 1 for a new hero), and
 -- the floor after any landing it cleared this week. Sorted, never empty.
 create or replace function public.hr_tower_starts(p_user uuid, p_slot int)
-returns int[] language sql stable set search_path = public, pg_catalog as $$
+returns int[] language plpgsql stable set search_path = public, pg_catalog as $$
+begin
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql)
-  select coalesce(array_agg(distinct x.s order by x.s), array[1])
-    from (select greatest(0, coalesce((select p.best_landing from public.tower_progress p where p.user_id = p_user and p.slot = p_slot), 0)
-                             - r.week_back) + 1 as s
-            from public.hr_tower_rules r
-          union all
-          select l.landing + 1 from public.tower_landings l
-           where l.user_id = p_user and l.slot = p_slot and l.week = public.hr_tower_week(now())) x
-$$;
+  return (select coalesce(array_agg(distinct x.s order by x.s), array[1])
+            from (select greatest(0, coalesce((select p.best_landing from public.tower_progress p where p.user_id = p_user and p.slot = p_slot), 0)
+                                     - r.week_back) + 1 as s
+                    from public.hr_tower_rules r
+                  union all
+                  select l.landing + 1 from public.tower_landings l
+                   where l.user_id = p_user and l.slot = p_slot and l.week = public.hr_tower_week(now())) x);
+end $$;
 
 -- The floor whose room stands, or stands next, in an instance: the open runs' highest floor cleared + 1, or the run's start. Null: no climb.
 create or replace function public.hr_tower_floor_of(p_instance uuid)
-returns int language sql stable set search_path = public, pg_catalog as $$
+returns int language plpgsql stable set search_path = public, pg_catalog as $$
+begin
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql)
-  select max(coalesce(r.top_floor + 1, r.start_floor)) from public.tower_runs r where r.instance_id = p_instance and r.ended_at is null
-$$;
+  return (select max(coalesce(r.top_floor + 1, r.start_floor)) from public.tower_runs r where r.instance_id = p_instance and r.ended_at is null);
+end $$;
 
 -- WHAT A WINDOW PAYS THAT ITS MODE DOES NOT: 'gold', 'items' (an item or a Hearthfind), 'bestiary' (the journal's kills by monster, which the
 -- tally tasks read, or an `ev:` progress op: the goals', the Bestiary's and the collection's counters), or null. Pure: it reads the mode row.
@@ -371,6 +381,13 @@ begin
   v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  -- THE LOCK: this hero's own Tower door, which only this verb takes (hr_boss_hall_enter's move, 2027-04-20-boss-hall.sql), before every lock
+  -- hr_hunt_enter_for takes below (the character, its bag, the play cap): two presses of one hero's door run one after the other.
+  perform pg_advisory_xact_lock(hashtextextended('hr:tower:' || v_uid::text || ':' || p_slot::text, 0));
+  -- A SECOND PRESS OF ONE KEY that waited on that lock answers the first one's decision (2027-04-19-key-under-lock.sql): the read above ran
+  -- before the first press committed, and past this point hr_apply answers a decided key ok and replayed, under a climb this call opened.
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   -- A CLIMB IS SOLO in this build: a hero seated in a party starts none (a party's start floor needs a rule for heroes whose weeks differ).
   -- (the party helper training's door reads too: a seat in an open party)
   if public.hr_hunt_party_of(v_uid, p_slot) is not null then
@@ -394,6 +411,8 @@ begin
     v_a := public.hr_apply(v_uid, p_slot, v_ver, p_idem, jsonb_build_object('journal', jsonb_build_object('kind', 'combat', 'intent', v_verb,
              'meta', jsonb_build_object('reason', 'tower_start', 'hunt', v_hunt, 'floor', p_floor, 'session', v_sid))));
     if coalesce(v_a->>'ok', 'false') <> 'true' then v_no := v_a; raise exception using errcode = 'HR879', message = 'tower_refused'; end if;
+    -- A KEY THIS CALL DID NOT DECIDE (never reached while the read under the lock holds) opens nothing: its climb rolls back out.
+    if coalesce(v_a->>'replayed', 'false') = 'true' then v_no := v_a; raise exception using errcode = 'HR879', message = 'tower_refused'; end if;
   exception when sqlstate 'HR879' then
     perform set_config('hr.tower', '', true);
     return public.hr_note_rejection(c_verb, p_slot, v_no);
@@ -1126,7 +1145,7 @@ do $$
 declare
   v_u      constant uuid := '000000c0-0000-4000-a000-0000704e0001';
   k        constant text := '000000c0-0000-4000-b000-704e';
-  v        jsonb; v_sig text; v_role text; t text; v_sid uuid; v_tw jsonb; v_hunt text; v_t0 timestamptz;
+  v        jsonb; v_sig text; v_role text; t text; v_sid uuid; v_tw jsonb; v_hunt text; v_t0 timestamptz; v_src text;
   v_end    jsonb := '{"accrued_to":"x"}'::jsonb;
 begin
   select hunt_id into v_hunt from public.hr_tower_rules where id;
@@ -1163,6 +1182,19 @@ begin
     if strpos((select prosrc from pg_proc where oid = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), t) = 0 then
       raise exception 'tower-climb §10(b): hr_hunt_apply_member lost %', t; end if;
   end loop;
+  -- THE READ HELPERS ARE PLANNED ONCE (plpgsql: a SET-clause SQL body is re-planned per call on PostgreSQL 17), and THE DOOR READS ITS KEY
+  -- AGAIN UNDER ITS LOCK, before it opens anything (a second press of one key answers the first's receipt).
+  if exists (select 1 from pg_proc p join pg_language l on l.oid = p.prolang
+              where p.oid in ('public.hr_tower_week(timestamp with time zone)'::regprocedure, 'public.hr_tower_starts(uuid,integer)'::regprocedure,
+                              'public.hr_tower_floor_of(uuid)'::regprocedure)
+                and l.lanname <> 'plpgsql') then
+    raise exception 'tower-climb §10(b): a Tower read helper is a SQL function again (re-planned on every call on PostgreSQL 17)'; end if;
+  v_src := (select prosrc from pg_proc where oid = 'public.hr_tower_start(integer,integer,uuid)'::regprocedure);
+  if strpos(v_src, '''hr:tower:''') = 0
+     or strpos(substr(v_src, strpos(v_src, '''hr:tower:''')), 'public.hr_intent_replay(') = 0
+     or strpos(substr(v_src, strpos(v_src, '''hr:tower:''')), 'public.hr_intent_replay(') > strpos(substr(v_src, strpos(v_src, '''hr:tower:''')), 'public.hr_hunt_enter_for(')
+     or strpos(v_src, 'v_a->>''replayed''') = 0 then
+    raise exception 'tower-climb §10(b): hr_tower_start does not read its key again under its door''s lock before it opens a climb'; end if;
   -- (c) WHAT A MODE PAYS: the Tower's mode refuses each thing it doesn't pay, and passes a window that pays only XP; a hunt passes all of it.
   if public.hr_mode_pays('tower', '{"gold": 5}') is distinct from 'gold'
      or public.hr_mode_pays('tower', '{"items": {"bones": 1}}') is distinct from 'items'

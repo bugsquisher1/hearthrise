@@ -244,8 +244,8 @@ export default definePack({
        THE CARD IS PLAYED AS WRITTEN (the QA audit's F22, 2026-11-15; tests/boss-hall-advice.mjs reads these lines, builds that bar and party, and
        plays them in the gear a hero holds BEFORE his first win: his tier 7 drops only here, so nobody reading the card wears it). On Salted Lobster
        a tank, a healer and a third hero won 56 to 99 of 100 at 85 by who the third was (a sword alone 56, a bow 62, a second tank 63): the tank
-       dies under his enrage. On Salted Swordfish every third wins 90 to 100% at 85, Challenge on or off, for about 2x the food (15-22k a head a
-       fight, from 8-12k). So the floor is Swordfish. A tank and a healer alone run out of time whatever they eat: in tier 6, 0% at 88, 45% at 100,
+       dies under his enrage. On Salted Swordfish every third wins 94 to 100% at 85 (88% or better with Challenge off), for about 2x the food
+       (15-22k a head a fight, from 8-12k). So the floor is Swordfish. A tank and a healer alone run out of time whatever they eat: in tier 6, 0% at 88, 45% at 100,
        77% at 104, 92% at 106 (60 tries a row). The first fix's "Level 88" was measured in his own tier 7 (78%), which no first-time pair wears. */
     storeFloor: 'salted_swordfish',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',

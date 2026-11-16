@@ -22,6 +22,7 @@
 //   Healer: <spell> when N are under P%               the healer's slot, N allies under P%
 //   Healer: <spell> under P%                          the healer's slot, the lowest ally under P%
 //   Party: a tank, a healer and a third hero          a tank, a healer and one more of every kind, at the hall's floor
+//   Party: a tank and a healer                        the two, at the hall's floor (the card the audit read)
 //   Two heroes: Level L or higher                     the tank and the healer alone, at Level L
 //
 // Exit: 0 green · 1 red · 2 harness.
@@ -69,7 +70,7 @@ export async function loadAll(root) {
 }
 
 /* ── THE CARD, READ ──────────────────────────────────────────────────────────── */
-/** A hall's card as a plan: { eat, slots: { healer: [slot] }, parties: [{ line, party: [style], L }] }, or { unread: [line] }. */
+/** A hall's card as a plan: { eat, slots: { healer: [slot] }, parties: [{ line, party: [style], L }], unread: [the lines it can't play] }. */
 export function readCard(X, hall) {
   const floor = X.H.HUNT_INDEX[hall.hunt].band[0];
   const abilityNamed = (n) => Object.values(X.AB.ABILITIES).find((a) => a && a.n === n) || null;
@@ -85,6 +86,7 @@ export function readCard(X, hall) {
     else if ((m = /^Healer: (.+) when (\d+) are under (\d+)%$/.exec(line))) slot('healer', m[1], [{ metric: 'allies_below', op: 'gte', value: Number(m[2]), subject: 'under_' + m[3] }], line);
     else if ((m = /^Healer: (.+) under (\d+)%$/.exec(line))) slot('healer', m[1], [{ metric: 'ally_hp_pct', op: 'lt', value: Number(m[2]), subject: 'lowest' }], line);
     else if (line === 'Party: a tank, a healer and a third hero') for (const s of Object.keys(STYLES)) plan.parties.push({ line, party: ['tank', 'healer', s], L: floor });
+    else if (line === 'Party: a tank and a healer') plan.parties.push({ line, party: ['tank', 'healer'], L: floor });
     else if ((m = /^Two heroes: Level (\d+) or higher$/.exec(line))) plan.parties.push({ line, party: ['tank', 'healer'], L: Number(m[1]) });
     else plan.unread.push(line);
   }
@@ -165,7 +167,8 @@ const PACK = 'src/data/grounds/krells_hold/pack.js';
 const LINES = "'Party: a tank, a healer and a third hero', 'Two heroes: Level 106 or higher'] },";
 const MUTANTS = [
   /* the card the audit read (F22): a tank and a healer, nothing about a third */
-  { name: 'the card says a tank and a healer (the audit\'s card)', edits: [[PACK, LINES, "'Party: a tank and a healer'] },"]], want: /HA-READ krells_hold's card says "Party: a tank and a healer"/ },
+  { name: 'the card says a tank and a healer (the audit\'s card)', edits: [[PACK, LINES, "'Party: a tank and a healer'] },"]], want: /HA-WIN krells_hold's card says "Party: a tank and a healer" and tank \+ healer at Level 85/ },
+  { name: 'a party line nobody measured', edits: [[PACK, LINES, "'Party: four mages'] },"]], want: /HA-READ krells_hold's card says "Party: four mages"/ },
   /* the line the first fix shipped: measured in Krell's own tier 7, which nobody wears before his first win */
   { name: 'two heroes from Level 88', edits: [[PACK, "'Two heroes: Level 106 or higher'", "'Two heroes: Level 88 or higher'"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 88 or higher" and tank \+ healer at Level 88/ },
   /* the first fix's food: a tank, a healer and a sword won 56 of 100 at 85, the tank dead under his enrage */

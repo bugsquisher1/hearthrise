@@ -4790,3 +4790,10 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *Fit the tier order too, not only the cap:* the first fit let Dangerous pay a four what Deadly did; the Dangerous four is now ~0.90-0.97x the Deadly one.
 4. *A contract-ratio cap means nothing on the first Levels:* on the Sewer, Thicket and Wickstead a hero alone reads 2.2x at Level 5-8 too, and their Deadly brings no bigger pull, so the guard's cap binds only where Deadly's pull > 0.
 5. *Left:* the Glade's Deadly four reads ~1.15x its Normal four at the floor (the grader's tiers.deadly 1.25 line) because Normal is untouched; a scaled hunt's tier row carries no id, so it reads Normal's cells (its partyPm 700 thins them).
+## 2026-11-14 · lane/b-faction-ui (the factions' client half, hidden behind the `factions` switch)
+1. *A switch belongs at the server's door, not only the page's.* 2027-04-23-faction-section.sql serves the section NULL while `factions` is off AND restates the verbs' shared door (hr_faction_locked) with feature_off after the key replay, so an account the switch is off for can't join through a raw RPC either. The page reads the section's presence and nothing else (CLAUDE.md §6).
+2. *A section can carry what a view leaves out without restating the view.* hr_faction_section = hr_faction_view || the swap's need and the cooldown; lane C's body stays untouched.
+3. *jsonb objects come back with keys sorted by length,* so "last_ember" outranked "first_flame". The page orders sides by the pieces array (the catalogue's ord); faction-window FW-2 holds it with a mutant.
+4. *ONE GOLD PER WINDOW demotes the second plate:* two equal choices must be two steel tools, or the prompt is unfair by construction (FW-2 compares both presses' computed look).
+5. *"Not now" rides the death popup's residue list* (`faction:join` in alerts.seen): no new residue field, a reload never asks again, the Faction tab always offers it.
+6. *Left:* the outfit art and the 16 px marks (glyph placeholders uiFlame / uiFire, for the art lane); Bulwark and Reap; the Coordinator applies the file and turns the switch on (testers first).

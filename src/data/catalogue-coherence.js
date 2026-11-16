@@ -45,6 +45,7 @@ import { TEMPER_OFFERS } from './temper.js?v=0.2.132';
 import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.132';
 import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.132';
 import { HUNT_INDEX } from './hunts.js?v=0.2.132';
+import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.132';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js?v=0.2.132';
@@ -115,6 +116,12 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'coffin_nail', 'urn_shard', 'sergeant_spur', 'hasks_coin',
   'pike_ferrule', 'rake_tine', 'kennel_tag', 'shroud_pin', 'warrant_seal',
   'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain',
+  /* the Morrow Hills' first three grounds (lane/d-morrow-grounds): Carter's Rest, the Ox Road and Wyvern Roost, five each, the same promise */
+  'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
+  'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
+  'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
+  /* the Pauper Vaults (lane/d-catacombs), the same promise, and the Vault Leech's own Common, Junk that only sells */
+  'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -132,9 +139,8 @@ export const AWAITING_ROSTER = Object.freeze([
   'bronze_hammer', 'bronze_knife',
   'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
-  'dawn_boots', 'dawn_gauntlets',
-  'dawn_platelegs', 'dawnbound_amulet', 'dawnforged_signet',
+  'choirbone_gauntlets', 'crown_of_the_fallen_king',
+  'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
   'dragon_relic', 'dragonfang_pike', 'dragonrend_greatblade',
   'duskwood_rod', 'elderscale_heart', 'elderscale_platebody',
@@ -149,10 +155,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle',
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
-  /* tier 7 leather and cloth, Dawnhide and Duskweave (Tyler 2026-11-14), renamed from voidhide_ and voidweave_. Their bodies and helmets are Lord Krell's
-     prize (his hall opened with the March); the other four slots of each have no source yet */
-  'duskweave_belt', 'duskweave_boots', 'duskweave_gloves', 'duskweave_pants',
-  'dawnhide_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants',
+  /* tier 7's boots, gloves, legs and belts in three weights left for Carter's Rest (lane/d-morrow-grounds, UNREACHABLE.staged) */
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
   'voidwoven_sigil', 'warband_bulwark',
   'warboss_standard', 'warden_girdle', 'warden_seal',
@@ -195,7 +198,18 @@ export const UNREACHABLE = Object.freeze({
   /* THE BARROW MARCH OPENED (lane/b-open-march, 2026-11-14): the five packs shipped (tools/pack.mjs ship), so every row the five staged packs
      held (lane/d-packs-retune 2026-11-12, lane/b-barrow-integrate 2026-11-14: the tier 4-7 sets, weapons, imbuement items, Grave Dust, Razor Claw,
      Wraith Veil, the Hall Key and Lord Krell's prize) is reachable and left this list. Only a ground whose opening C11 proves may add rows here. */
-  staged: Object.freeze([]),
+  staged: Object.freeze([
+    /* THE MORROW HILLS' FIRST THREE STAGED PACKS (lane/d-morrow-grounds, 2026-11-14). Carter's Rest: tier 7's boots, gloves, legs and belts in
+       three weights (they were AWAITING_ROSTER rows), Troll Hide and five imbuement items. The Ox Road: the eight tier-7 weapons again (Krell's
+       prize above) and five imbuement items. Wyvern Roost: Dragon Bones and Dragon Scale (they were `later`) and five imbuement items. */
+    'dawn_boots', 'dawn_gauntlets', 'dawn_platelegs', 'dawn_belt', 'dawnhide_boots', 'dawnhide_gloves', 'dawnhide_pants', 'dawnhide_belt',
+    'duskweave_boots', 'duskweave_gloves', 'duskweave_pants', 'duskweave_belt', 'troll_hide', 'dragon_bones', 'dragon_scale',
+    'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
+    'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
+    'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
+    /* THE PAUPER VAULTS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and the Vault Leech's Live Leech */
+    'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
+  ]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
@@ -211,7 +225,7 @@ export const UNREACHABLE = Object.freeze({
     'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
     'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
     'keystone',
-    'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
+    'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
     /* the Hunter's Feast waits on its troll hide (the Bear Pelt it also asks for drops from the Brook Bear) */
     'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
@@ -239,7 +253,8 @@ export const UNREACHABLE = Object.freeze({
 /* 100 -> 64 (lane/d-packs-retune, 2026-11-12): the five Barrow March packs stage every tier-4, tier-5 and tier-6 rung that was `later`
    (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
-export const UNREACHABLE_CEILING = 64;
+/* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
+export const UNREACHABLE_CEILING = 61;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:
@@ -260,6 +275,8 @@ export function reachableSources(opts = {}) {
   for (const id of Object.keys(START_INVENTORY)) put(id, 'start kit');
   for (const id of Object.values(START_EQUIPMENT)) put(id, 'start kit');
   for (const id of gatherProductIds()) put(id, 'gathered');
+  /* the Arms Master sells the gold rows of the training items (hr_training_gear_buy); the bound rows are the Crowns store's */
+  for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) put(g.id, 'the Arms Master');
   for (const id of Object.keys(CODED_SOURCES)) put(id, CODED_SOURCES[id].label);
   if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
   for (const t of HEARTHFIND_TABLE) if (t.kind === 'node' || met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
@@ -330,6 +347,9 @@ export function itemSources() {
   addSet(m, HEARTHFIND_ITEMS, 'hearthfind');
   /* The premium daily login claim (hr_login_claim pays this row, generated from premium.js). */
   if (PREMIUM_LOGIN_REWARD.item) push(m, PREMIUM_LOGIN_REWARD.item, 'premium login reward');
+  /* The training items' gold rows: the Arms Master (src/data/training.js; hr_training_gear_buy, 2027-04-23-training-gear.sql). The bound
+     rows' door is the Crowns store, which waits on the Crowns ledger (tests/catalogue-coherence.mjs PENDING_SOURCE). */
+  for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) push(m, g.id, 'the Arms Master');
   for (const id of Object.keys(CODED_SOURCES)) push(m, id, CODED_SOURCES[id].label);
   return m;
 }
@@ -360,6 +380,8 @@ export function itemUses() {
     if (Number(it.mana) > 0) push(m, id, 'drunk for mana on a hunt');
   }
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
+  /* a training item is opened into its hero's training hours for its skill (hr_training_gear_open; the settle opens the next by itself) */
+  for (const g of TRAINING_GEAR_ITEMS) push(m, g.id, 'opened into training hours');
   /* a named fuel is burnt alone in the Great Hearth (src/data/hearth.js; hr_hearth_burn, 2027-01-31-inner-flame.sql) */
   for (const id of Object.keys(NAMED_FUELS)) push(m, id, 'burnt in the Great Hearth (a named fuel)');
   return m;

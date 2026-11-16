@@ -806,7 +806,9 @@ export const MONSTERS = {
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
       { id: 'willow_wand', ch: .011, band: 'rare' }, { id: 'willow_spellbook', ch: .011, band: 'rare' }, { id: 'willow_staff', ch: .011, band: 'rare' },
-      { id: 'verdigris_cake', ch: .011, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .00122, band: 'trophy' }] },
+      /* the Cauldron .00122 to .0014 (lane/d-mage-110): cloth's smaller damage slowed the reference four (Level 32, a Mage and a Healer in
+         Scholar cloth), and the Cauldron came every 161 h a hero, past the trophy band's 150 (tests/hunt-core/drop-tables.mjs trophy-pace) */
+      { id: 'verdigris_cake', ch: .011, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .0014, band: 'trophy' }] },
 
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED ROW PAYS NOTHING: xp 0, gp [0, 0], no drops (tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling, so Defense and a shield count. Art: monster-art.js HUNT_ART_ALIAS. ══ */
   rat_king_called: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, called: true, boss: true,

@@ -9,6 +9,11 @@
 //                     (CharacterSession.leaveHunt, hr_hunt_leave).
 //   unlockDummy(account, cs, skill, priceSeen)  ONE hr_house_dummy_unlock at the price the player SAW; every open hero
 //                     of the account is re-read (the dummy is the account's).
+//   buyGear(account, cs, item, priceSeen)  ONE hr_training_gear_buy: a training item's id and the price the player SAW (the server
+//                     prices it, refuses quote_changed, a bound row, past the account's day). Re-read; refused, resync'd.
+//   openGear(account, cs, item)  ONE hr_training_gear_open: a sealed item of the hero's into its bank for that skill.
+//   useGear(account, cs, skill, on)  ONE hr_training_gear_switch: the hero's "Use the training item" switch for one skill.
+//   (2027-04-23-training-gear.sql, Tyler 2026-11-14: the training items, one a skill, 200%.)
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.132';
 import { quoted } from './quoted-ask.js?v=0.2.132';
@@ -25,7 +30,8 @@ const newIdem = () => globalThis.crypto.randomUUID();
 function refused(ans, verb) {
   const b = bodyOf(ans);
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb,
-    fee: int(b.fee), price: int(b.price), purse: int(b.purse), busy: typeof b.busy === 'string' ? b.busy.slice(0, 40) : null };
+    fee: int(b.fee), price: int(b.price), purse: int(b.purse), busy: typeof b.busy === 'string' ? b.busy.slice(0, 40) : null,
+    today: int(b.today), max: int(b.max) };
 }
 
 function rereadOthers(account, cs) {
@@ -51,6 +57,41 @@ export function startTraining(account, cs, o) {
 export function stopTraining(cs) {
   if (!cs || typeof cs.leaveHunt !== 'function') return Promise.resolve({ ok: false, error: 'bad_intent' });
   return cs.leaveHunt();
+}
+
+/** Buy one training item from the Arms Master at the price the player saw. Resolves to { ok: true, item } or the refusal. */
+export function buyGear(account, cs, item, priceSeen) {
+  if (!usable(account, cs) || !WORD.test(String(item)) || !Number.isSafeInteger(priceSeen) || priceSeen < 1) {
+    return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'training_gear_buy' });
+  }
+  return askVia(cs, 'training_gear_buy', async () => {
+    const ans = await quoted(cs, () => account.server.rpc('hr_training_gear_buy', { p_slot: cs.slot, p_item: item, p_price_seen: priceSeen, p_idem: newIdem() }))();
+    if (!(ans && ans.ok && bodyOf(ans).ok === true)) return refused(ans, 'training_gear_buy');
+    if (typeof cs.load === 'function') await cs.load();
+    return { ok: true, item };
+  });
+}
+
+/** Open one sealed training item of the hero's (bag first, then Storage) into its bank for that skill. */
+export function openGear(account, cs, item) {
+  if (!usable(account, cs) || !WORD.test(String(item))) return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'training_gear_open' });
+  return askVia(cs, 'training_gear_open', async () => {
+    const ans = await account.server.rpc('hr_training_gear_open', { p_slot: cs.slot, p_item: item, p_idem: newIdem() });
+    if (!(ans && ans.ok && bodyOf(ans).ok === true)) return refused(ans, 'training_gear_open');
+    if (typeof cs.load === 'function') await cs.load();
+    return { ok: true, item };
+  });
+}
+
+/** The hero's "Use the training item" switch for one skill. */
+export function useGear(account, cs, skill, on) {
+  if (!usable(account, cs) || !WORD.test(String(skill)) || typeof on !== 'boolean') return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'training_gear_switch' });
+  return askVia(cs, 'training_gear_switch', async () => {
+    const ans = await account.server.rpc('hr_training_gear_switch', { p_slot: cs.slot, p_skill: skill, p_on: on, p_idem: newIdem() });
+    if (!(ans && ans.ok && bodyOf(ans).ok === true)) return refused(ans, 'training_gear_switch');
+    if (typeof cs.load === 'function') await cs.load();
+    return { ok: true, skill, on };
+  });
 }
 
 /** Unlock one skill on the account's house dummy at the price the player saw. */

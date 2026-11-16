@@ -1,5 +1,13 @@
 # Handoffs
 
+### 2026-11-15 · GAME DESIGNER (lane/d-temper-uniques) → COORDINATOR, SYSTEMS, ART DIRECTOR, the lane that ships the armor line · Tempering past Dawnsteel
+Board "2026-11-15 Tempering past Dawnsteel". Four bands built as data, all shut; nothing sold; the edge bundle moves with every live fight unchanged.
+1. **Coordinator, regenerate later:** the Tempering catalogue is not regenerated here (set/v0.2.133 is being assembled; its salts must be in hr_items first). Have the designer run `node tools/gen-temper.mjs --new` once v0.2.133 lands; with every band shut the rows equal lane/d-audit-balance-2's (checked byte for byte).
+2. **The lane that ships the armor line's sample:** open band 165 in the same change (`open: true`), regenerate, update hunt-core/temper the-table-is-the-sale and the Ember Tempering Salts' description, register tests/temper-uniques.mjs plain and --mutate. TU5 is red until the piece and the band ship together.
+3. **Systems + Art Director:** the smith's row prints a rung's nominal % (2.5% a band ladder); plate on the line gets 1.5-2.1% of it (the 60% cap), as tier 6 at the Pyre Field already does. A line that says what a rung does against monsters of the hero's Level is a read for you.
+4. **Coordinator, Tyler's call:** Levels 88-110 still have no growing sink (standard Dawnsteel and Krell's pieces have no ladder). A tier-7 ladder priced the same way is the fill; not in this ruling, not built.
+5. **Coordinator, inherited reds on origin/lane/d-audit-balance-2's tip** (not this lane's, left alone): gen-temper --check (tiers 4-6 unregenerated, expected), special-attributes SA1 (shields.js imports special-attributes.js), mutant-anchors (alpha-windows AW-27's anchor no longer in hunt-go.js after F14 moved the call to four arguments). This lane paid down one of its pane reds: temper-pane is back at 32 under text-home's ceiling.
+
 ### 2026-11-15 · GAME DESIGNER (lane/d-armor-past-dawnsteel) → COORDINATOR, SYSTEMS, the Morrow and Vaults pack owners · the armor line past Dawnsteel
 Board "2026-11-15 Armor past Dawnsteel". Hidden rows only (src/data/armor-line.js); nothing served.
 1. **Pack owners (lane/d-catacombs, lane/d-morrow-grounds), the guide's food:** every post-110 pack names Salted Lobster (216 HP, 9% of a Level-165 tank). Measured: the Vaults' Deadly four on the line reads 39.6 deaths in 16 hero-hours on Lobster and passes on Salted Shark; Wyvern Roost's Deadly on 8 passes on the line with Lobster (6.5) and better on Salted Swordfish (1). Name the Level's store food in `bagGuide` (my read: Swordfish from 120, Shark from 150) and re-grade. Not edited here: your files.

@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-15 · game-designer (lane/d-temper-uniques) · leather sets the Tempering cap past Dawnsteel; every h2 mutant was caught by a missing module
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 design · On the armor line leather's dodge is flat (50.2% at every band), so a band step buys leather under 1% of a swing. A fully tempered set a band behind beats the next band's bare set at 3% (leather 110 vs 125 at the Roost, -0.09%); 2.5% is the largest round step that holds for every weight on every drafted ground. Any later armor-% source past 110 (a lining, a cape step) must be read against the same margin. | src/data/temper.js TEMPER_UNIQUE_*, armor-line.js | Measure with `node tools/balance-sim/temper-uniques-table.mjs next`; tests/temper-uniques.mjs TU2 holds it |
+| 2 | P1 tooling · tests/hunt-core/fixtures/h2.js planted mutants into copies holding only src/core and src/data, and src/data/hunt-tutorial.js imports src/render/player-text.js, so EVERY mutant in the five h2 suites (damage, pull-cycle, roles, targeting, temper) was "caught" by a module-not-found, proving nothing (on main too). Fixed: the plant carries src/render; all five re-run green with real catches (H2_WHY=1 shows each reason). | tests/hunt-core/fixtures/h2.js | Done here. Any harness that plants a partial tree: run once with its why-flag and read the reasons |
+| 3 | P2 balance · Past 110 a lone tank's coin and loot run flat at 19-25k g/h; what grows is the hours a band takes (175, 295, 355, 338 h). The Vaults' floor eats 21k g/h of Salted Lobster, so a lone tank nets 674 g/h at 165. | staged packs past 110 | Gold sinks past 110 are priced on hours, not on g/h; re-measure the 165 band when the guide food moves |
+
 ## 2026-11-15 · game-designer (lane/d-armor-past-dawnsteel) · past Dawnsteel only ARMOR falls behind; the Vaults' gap is armor, the shield and the guide's food
 
 | # | Found | Affected | Action |

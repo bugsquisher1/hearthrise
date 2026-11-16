@@ -29,6 +29,82 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-15 Tempering past Dawnsteel: a small ladder for each band of unique armor (designer, lane/d-temper-uniques. Tyler 2026-11-15, "ok then yes" to the Coordinator's recommendation: a PURE GOLD SINK on the unique armor past Dawnsteel with a SMALL cap, about +2-3% at most, sized with the simulator before anything is built; on the pre-EA Security list. Why: Tempering stops at tier 7, so the sink stops growing at Level 88 while gold piles up, 8.4M by Level 87): SIZED and PRICED on the real engine (`node tools/balance-sim/temper-uniques-table.mjs next | gold | bars`), BUILT as data with every band SHUT, the fight reads it, guarded (`tests/temper-uniques.mjs` 15 of 15 mutants, `tests/hunt-core/temper.mjs` a-unique-reads-its-band 5 of 5). Nothing sold, no catalogue moves, the edge bundle moves (src/core/temper.js, src/data/temper.js) with every live hero's fight byte for byte the same
+**The shape.** Armor only (the line moves armor; weapons, shields and capes have no line). One ladder per BAND of the Level a piece is worn from, not per tier: every piece past Dawnsteel carries `tier: 7`, so a tier key would be one ladder from 110 to 200 and the sink would stall again. A piece worn from Level R reads the band at or under R: **110, 125, 145, 165** (the Night Shift's 122 pieces read 110, the Old Guard's 138 read 125); a new region is a new row. The key is the band's Level (`temper:armor:165`), a number no gear tier reaches, so hr_unlocks, hr_temper_view and the perks map read it as they read a tier (no server change). **Five rungs of 0.5%, 2.5% a ladder** (`TEMPER_UNIQUE_RUNG_PM` 5). Same hook as every rung: the chain's last step, under the 60% total cap. Standard Dawnsteel (worn from 88) and Krell's pieces read no band.
+
+#### 1. The cap: why 2.5% (`temper-uniques-table.mjs next`, mitigation.js itself, no fights)
+Each weight's set of a band on the line, fully tempered, against the next band's bare set, on every drafted ground at or past the next band. Positive = the next band still lets less through.
+
+| Tempered band | Next band, bare | Weight | Ground | at 2.5% | at 2% | at 3% | at 4% |
+|---|---|---|---|---|---|---|---|
+| 110 | 125 | plate | Wyvern Roost | 1.23% | 1.74% | 0.73% | -0.31% |
+| 110 | 125 | **leather** | **Wyvern Roost** | **0.43%** | 0.93% | **-0.09%** | -1.13% |
+| 110 | 125 | cloth | Wyvern Roost | 9.20% | 9.66% | 8.73% | 7.78% |
+| 125 | 145 | leather | the Vaults | 0.94% | 1.45% | 0.43% | -0.61% |
+| 145 | 165 | plate | the Vaults | 1.39% | 1.89% | 0.88% | -0.13% |
+| 145 | 165 | leather | the Vaults | 0.82% | 1.33% | 0.31% | -0.73% |
+
+(12 rows in the tool; these are the thin ones.) Leather's dodge sits flat on the line (50.2% at every band), so a band step buys leather little, and **3% already lets a tempered 110 set beat a bare 125 set**. 2.5% is the largest round step that holds for every weight on every drafted ground. What a full ladder takes off on its own grounds: leather 2.50%, cloth 1.8-2.5%, plate 1.5-2.1% (plate on the line sits near the cap against each ground's top monsters, so the cap eats part of it).
+
+#### 2. The gold: priced on the curve (`temper-uniques-table.mjs gold`)
+As lane/d-audit-balance-2 priced tiers 4-6: one sword-and-shield tank alone on Normal, on the line at its Level with Krell's Tollgate, the guide food, 4 seeds x 2 h at the floor, middle and top of each drafted ground (Carter's Rest, the Ox Road, Wyvern Roost, the Pauper Vaults, all staged packs opened). A band's hours and gold are the sum over its Levels of (XP to the next Level / XP an hour) and that times net gold an hour, on the in-band ground paying the most XP. Coin and loot run flat at 19-25k g/h from 110 to 185; what grows is the hours.
+
+| Band | Levels | Read on | Hours | Gold banked | Ladder (5 rungs) | Share | Ember Tempering Salts |
+|---|---|---|---|---|---|---|---|
+| 110 | 110-125 | Carter's Rest | 175 | 4.00M | 60k / 120k / 240k / 480k / 960k = **1.86M** | 47% | 10 / 20 / 40 / 80 / 160 |
+| 125 | 125-145 | Carter's Rest, the Roost | 295 | 5.82M | 80k to 1.28M = **2.48M** | 43% | same |
+| 145 | 145-165 | the Roost, held (the Bellows isn't drafted) | 355 | 7.95M | 100k to 1.6M = **3.10M** | 39% | same |
+| 165 | 165-185 | the Pauper Vaults | 338 | 5.24M | 100k to 1.6M = **3.10M** | 59% | same |
+
+Tiers 2-6 ask 40-52% of their band. 165 holds level with 145 instead of dropping under it (a later ladder never costs less): the Vaults' floor eats 21k g/h of Salted Lobster (a lone tank nets 674 g/h at 165), the guide-food handoff from the armor line. Across 110-185 the four ladders take 10.5M of the 23.0M a hero banks, 46%. On Salted Shark the lone tank banks less, not more (it needs no Shark alone; Shark is the Deadly four's food), so the price is read on the guide's.
+
+**The material: Ember Tempering Salts, the tier-6 salt.** No new item: Smithing 75 (`mix_ember_temper_salts`: Emberstone Ore from the Emberstone Vein, Mining 75, and 2 Grave Dust) or Crafting 75 (`pack_ember_temper_salts`: a Runewood Plank and a Grave Dust), no coal (TB-MATERIAL). Grave Dust drops at the Ox Road and the Pauper Vaults as well as the March. 310 a band, book 73k, 2% of the band's gold and half a tier-6 ladder's salt: the gold is the sink, the salt keeps Tyler's 11-05 "require some sort of crafting".
+
+#### 3. The bars don't move (`temper-uniques-table.mjs bars`, 3 seeds x 2 h, the same dice in every row)
+| Ground, kit | Food | Normal: tank / hammer / bow / Mage alone (low point) | Dangerous, tank and Healer | Deadly, a four (sheet: 9) |
+|---|---|---|---|---|
+| The Vaults 165, on the line, bare | Salted Shark | 74 / 67 / 81 / 96% | 0 | 2.7 |
+| The Vaults 165, on the line, **fully tempered** | Salted Shark | 74 / 66 / 81 / 96% | 0 | 2 |
+| The Vaults 165, a band behind (145), bare | Salted Shark | 73 / 65 / 81 / 96% | 0 | 2 |
+| The Vaults 165, a band behind, **fully tempered** | Salted Shark | 72 / 64 / 82 / 96% | 0 | 2 |
+| The Vaults 165, on the line, bare / tempered | the guide's (Lobster) | 74 / 67 / 81 / 96% both | 2.7 / 1.3 | 39.6 / 24 |
+| Wyvern Roost 125, on the line, bare / tempered | the guide's | 77 / 68 / 80 / 96% and 76 / 66 / 81 / 96% | 0 / 0 | 0 / 0 |
+| Wyvern Roost 125, a band behind, bare / tempered | the guide's | 75 / 66 / 80 / 96% and 74 / 66 / 79 / 96% | 0 / 0 | 0 / 0.7 |
+
+No cell crosses its line. Normal moves within 2 points (the dice: a rung's part of a point is a draw, so tempered rows play different swings). Deadly on the Level's food stays green (2.7 and 2). On the guide's Lobster the Vaults' Deadly four is red either way (39.6 and 24): the armor line's handoff 1, not this ladder.
+
+#### 4. The smith's words (`src/data/text/temper.js`, said only when the server sells a band)
+- The Armor row, wearing unique armor: "Rung 2 of 5: blows reach you 0.8% softer. Next rung 1.3%. Unique armor takes smaller rungs, half a step each, and gets a new ladder at Levels 110 and 165." (a mixed set reads its share, measured on the real reader).
+- Wearing Dawnsteel: "Your Dawnsteel armor can't be tempered yet. The smith only has rungs for gear worn from Level 15 to Level 75. The smith also tempers unique armor worn from Level 110."
+- With every band shut (today) every line is what it was. The band list is the server's ladders, never this build's table.
+
+#### 5. Walk-through (a Level 165 hero in the Limewashed Plate; every id read on this branch)
+| Step | Does | Holds from the steps before and the real kit | Doable? |
+|---|---|---|---|
+| 1 | Wears a unique worn from 165 (`limewashed_plate`, armor-line LINE_SAMPLE) | The armor line's walk-through steps 1-6 | **Not yet**: the sample is hidden (armor line section 3) |
+| 2 | Opens the Shop, Services tab, Tempering; the Armor row names "unique armor" and the 165 ladder | Step 1 | **Not yet**: band 165 is shut; it opens with step 1's rows (TU5 holds the two together) |
+| 3 | Mixes 10 Ember Tempering Salts | Smithing 75 + Emberstone Ore (`emberstone_rock`, Mining 75) + Grave Dust (drops at `pauper_vaults`, `ox_road`), or Crafting 75 + Runewood Plank (`saw_runewood`) + Grave Dust | Yes: `mix_ember_temper_salts`, `pack_ember_temper_salts` exist |
+| 4 | Buys rung 1: 100,000 g and 10 salts, from the bag then Storage | Steps 2-3 and the purse (a hero banks about 5M in the band) | Yes once open: `hr_unlock_buy`, the existing sale |
+| 5 | Every blow at it lands 0.5% softer on that plate's share | Step 4 | Yes: armorPmOf reads the band (hunt-core/temper a-unique-reads-its-band) |
+| 6 | At 185 moves to the next region's piece; the 165 rungs still count on the 165 pieces it keeps | Step 5 | Partly: no band past 165 yet (a row when that region lands) |
+
+Two of six steps wait on the armor line's sample.
+
+#### 6. To open a band (the build lane, after Tyler approves the armor line's sample)
+1. Put the band's first piece in ITEMS and set its band `open: true` in `src/data/temper.js` (TU5 is red until both happen together).
+2. Regenerate the Tempering catalogue (`node tools/gen-temper.mjs --new`), with set/v0.2.133's salts already in hr_items. **Not done here: set/v0.2.133 is being assembled; the Coordinator should have the designer regenerate later.**
+3. Update `tests/hunt-core/temper.mjs` the-table-is-the-sale (it counts two tracks a tier), the Ember Tempering Salts' description (it names only tier 6's gear), and register `tests/temper-uniques.mjs` plain and `--mutate` (guards-unregistered.json names it).
+4. Pre-EA Security list (§3.7): the band rungs are hr_unlock_buy rows like every rung; nothing new crosses to Postgres but the rows.
+
+#### 7. Open, for Tyler and the Coordinator
+1. **Levels 88 to 110 still have no growing sink.** Standard Dawnsteel and Krell's pieces (worn from 88) have no ladder, and this ruling covers only uniques past Dawnsteel. A tier-7 ladder (both tracks, 5%) is the obvious fill, priced the same way; Tyler's call, not built.
+2. The 145 band's gold is read on the Roost held flat; re-measure when the Bellows is drafted. The 165 band's on the Vaults' guide food; re-measure when the guide names the Level's food.
+3. Plate on the line gets 1.5-2.1% of the 2.5% (the cap). The smith's row prints the rung's 2.5% for it; showing what a rung does against monsters of the hero's Level is a Systems and Art Director read, handed off.
+
+**Done and verified.** EXIT 0, run here: `tests/temper-uniques.mjs` and `--mutate` (15 of 15), `tests/hunt-core/temper.mjs` (17 cases, 37 mutants, every one caught by its rule: h2's planted copies were missing `src/render`, so every h2 mutant in five suites was "caught" by a missing module; fixed, and damage, pull-cycle, roles and targeting stay green with real catches), `hunt-core/temper-play`, `armor-line`, `catalogue-coherence`, `text-home` (the pane is back under its ceiling of 32: lane/d-audit-balance-2 left it at 34), `copy-lint`, `guard-hygiene`, `typecheck-ratchet`, `cache-buster-guard`, `client-module-size`, `envelope-contract`, `storage-view`, `say-why`, `town-criers`, `gen-temper --selftest`. TEMPER_UNLOCKS, OFFERS, IDS, MATERIALS and TIERS are byte-identical to lane/d-audit-balance-2's. **Inherited reds, not this lane's**: `gen-temper --check` (balance-2's tiers 4-6 await the regeneration), `special-attributes` SA1 (shields.js imports special-attributes.js) and `mutant-anchors` (alpha-windows AW-27's anchor in hunt-go.js), all three red on origin/lane/d-audit-balance-2's tip. **Not verified**: nothing played by hand (no band is sold); the smith's words read through the real temper-sections and pane reader in Node, not in the browser.
+
+**Files.** `src/data/temper.js`, `src/core/temper.js`, `src/session/temper-sections.js`, `src/shell/windows/temper-pane.js`, `src/data/text/temper.js`, `tools/balance-sim/temper-uniques-table.mjs` (new), `tests/temper-uniques.mjs` (new), `tests/hunt-core/temper.mjs`, `tests/hunt-core/fixtures/h2.js`, `tests/guards-unregistered.json`.
+
 ### 2026-11-15 Armor past Dawnsteel: one armor line, carried by unique pieces (designer, lane/d-armor-past-dawnsteel. Tyler 2026-11-14: "There is no level cap, so technically there will always be better gear being released as long as the game is alive. I think after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades, more like tibia", "Boss gear to mix and match, rare drops from hunts"; the finding is lane/d-catacombs' DISCOVERIES 2026-11-15 and the Pauper Vaults' section 8 item 5): RULED by the designer, MEASURED on the real engine (`node tools/balance-sim/armor-line-table.mjs curve|vaults|roost`), a HIDDEN sample of five rows (`src/data/armor-line.js`) and its guard (`tests/armor-line.mjs`, 18 of 18 mutants caught). Nothing served, no art, no catalogue migration, the edge does not move
 **The call.** Past Dawnsteel the armor curve is ONE public line, and unique pieces carry it. A piece worn from Level R has the armor of the Dawnsteel piece of its slot and weight, times R / 110 (never less than Dawnsteel's): `armor = round(Dawnsteel's x max(1, R / 110))`. The line moves armor only. Every other number on the piece is its Dawnsteel twin's, and it adds one attribute from the special-attribute catalogue. A unique may sit under the line as its trade (Carter's Rest's proposed five do). None sits over it. No tier 8, no change to the stat formula.
 

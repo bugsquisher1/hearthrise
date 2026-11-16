@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-15 lane/d-temper-uniques: Tempering past Dawnsteel
+- **Size a % bonus by the thinnest weight, not the average.** Leather's dodge is flat on the line, so its band step is under 1%; 3% Tempering let a set a band behind beat the next band for leather only. The next-band check per weight per ground (mitigation.js, no fights, 0 s) is the sizing tool; fights only confirm the bars.
+- **Key a ladder on what grows.** Uniques all carry tier 7; a tier key would have stalled the sink again. The band's Level as the key reads through the server untouched (it parses an int).
+- **Price past 110 on hours.** Coin and loot are flat at ~22k g/h from 110 to 185; band gold grows only because a band takes 175 to 355 hours.
+- **Read a harness's why before trusting its "caught".** Every h2 mutant was caught by a missing module (the plant had no src/render). H2_WHY=1 showed it in one run.
+- The Bash tool on this box eats backslashes inside python heredocs: write JS strings with an apostrophe through Edit, not a heredoc.
+
 ## 2026-11-15 lane/d-armor-past-dawnsteel: the armor line past tier 7
 - **Read what the sim actually dressed before trusting a what-if.** My first sweep "gave" the tank a guard-15 shield through the practice shield's row; the kit picker never wore it (a fallback is unshifted, then the top tier is picked), so every number labelled "Tollgate" was the Coppercap. Print `h.kit` for one cell of every variant.
 - **A grader job's tier is two things: `options.tier` AND `density` (the tier row's pull).** An in-process cell with only `options` plays Deadly on Normal's pull and reads 0 deaths.

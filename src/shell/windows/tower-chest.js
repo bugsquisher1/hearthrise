@@ -27,7 +27,7 @@ import { t } from '../../render/player-text.js?v=0.2.133';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
 import { runIntent } from '../intent-words.js?v=0.2.133';
 import { itemName } from '../widgets/bits.js?v=0.2.133';
-import { ppmWords, familyWord, keyFamilyWord, stokeLabel, stokeWord, timesWords, haulWords } from '../tower-words.js?v=0.2.133';
+import { ppmWords, familyWord, keyFamilyWord, stokeLabel, timesWords, lootList } from '../tower-words.js?v=0.2.133';
 import { localWhen } from '../../render/format.js?v=0.2.133';
 
 /* The one chest today (src/data/chests.js CHESTS: a later chest is a row). */
@@ -69,10 +69,10 @@ export function useBlock(cs, tw, k) {
 
 /** The pane's skeleton (inside the Tower window, built once). */
 export function chestHtml() {
-  return '<p class="hs-note tc-lead">' + esc(t('tower.chest_lead')) + '</p>'
+  return '<h3 class="hs-sub tc-head">' + esc(t('tower.chest_head')) + '</h3>'
     + '<p class="tt-line tc-cinders"></p>'
     + '<div class="tc-fams"></div><p class="hs-note tc-resets"></p>'
-    + '<p class="tt-line tc-none" hidden></p>'
+    + '<p class="tt-line tc-none" hidden></p><p class="hs-note tc-drop"></p>'
     + '<div class="tc-keys" role="radiogroup" aria-label="' + esc(t('tower.keys_head')) + '"></div>'
     + '<section class="tc-key" hidden>'
     + '<h3 class="hs-sub tc-have"></h3><p class="hs-note tc-where"></p>'
@@ -142,18 +142,18 @@ function patchFamilies(host, families) {
   });
 }
 
-/* The last press's answer: each key's weapon or none, and what came out (the server's answer, drawn once). */
+/* The last press's answer as a loot list (the server's answer, drawn once): "Loot", the keys used when more than one, each tower weapon
+   found in gold, then every other item "Name xN". A press that found no weapon lists only what came out. */
 function patchResult(host, r) {
   prop(host, 'hidden', !r);
   if (!r) return;
-  const weapons = r.opens.filter((o) => o.weapon);
-  const lines = r.opens.length > 1 ? [t('tower.opened_many', { count: r.opens.length, weapons: weapons.length })] : [];
-  for (const o of weapons) lines.push(t('tower.opened_weapon', { item: itemName(o.weapon) }));
-  if (!weapons.length) lines.push(t('tower.opened_none'));
-  const rest = Object.fromEntries(Object.entries(r.haul).filter(([id]) => !weapons.some((o) => o.weapon === id)));
-  if (Object.keys(rest).length) lines.push(t('tower.haul', { list: haulWords(rest) }));
-  const found = new Set(weapons.map((o) => t('tower.opened_weapon', { item: itemName(o.weapon) })));
-  host.innerHTML = lines.map((l) => '<p class="' + (found.has(l) ? 'tt-found' : 'tt-line') + '">' + esc(l) + '</p>').join('');
+  const weapons = r.opens.filter((o) => o.weapon).map((o) => o.weapon);
+  const rest = Object.fromEntries(Object.entries(r.haul).filter(([id]) => !weapons.includes(id)));
+  const row = (cls, l) => '<p class="' + cls + '">' + esc(l) + '</p>';
+  host.innerHTML = '<h4 class="tc-stoke-head">' + esc(t('tower.loot_head')) + '</h4>'
+    + (r.opens.length > 1 ? row('hs-note', t('tower.opened_many', { count: r.opens.length })) : '')
+    + weapons.map((id) => row('tt-found', itemName(id))).join('')
+    + lootList(rest).map((l) => row('tt-line', l)).join('');
 }
 
 /** The Chest tab, every number from the section. */
@@ -167,7 +167,8 @@ export function patchChest(pane, cs, tw, sc) {
   patchFamilies(pane.querySelector('.tc-fams'), c ? c.families : []);
   const none = pane.querySelector('.tc-none');
   prop(none, 'hidden', !!k);
-  text(none, k ? '' : t('tower.no_keys', { every: tw.rules.landingEvery }));
+  text(none, k ? '' : t('tower.no_keys'));
+  text(pane.querySelector('.tc-drop'), t('tower.key_drop', { every: tw.rules.landingEvery }));
   patchKeys(pane.querySelector('.tc-keys'), held, k, sc.pending);
   const panel = pane.querySelector('.tc-key');
   prop(panel, 'hidden', !k);
@@ -179,11 +180,11 @@ export function patchChest(pane, cs, tw, sc) {
       ? where.map(([id, n]) => t(id, { count: whole(n) })).join(', ') : '');
     text(pane.querySelector('.tc-base'), k.basePm !== null ? t('tower.key_base', { pct: ppmWords(k.basePm * 1000) }) : '');
     const warm = c.dry !== null && c.dry > 0 && c.warmthPm !== null && c.warmthPm > 1000;
-    text(pane.querySelector('.tc-warm'), warm ? t('tower.key_warm', { count: c.dry, times: timesWords(c.warmthPm) }) : t('tower.key_cold'));
+    text(pane.querySelector('.tc-warm'), warm ? t('tower.key_warm', { times: timesWords(c.warmthPm) }) : t('tower.key_cold'));
     patchStokes(pane.querySelector('.tc-stokes'), k, sc.pending);
     const st = k.stokesDefault ? stokeRow(k, k.stokesDefault) : null;
     /* one label a line: the saved stokes and their Cinders, short of Cinders, saved for the key */
-    text(pane.querySelector('.tc-stoked'), st ? t('tower.stoked', { times: stokeWord(st.n), mult: timesWords(st.pm), cost: whole(st.cost), cinders: whole(c.cindersAll || 0) })
+    text(pane.querySelector('.tc-stoked'), st ? t('tower.stoked', { mult: timesWords(st.pm), cost: whole(st.cost) })
       : k.stokesDefault === 0 ? t('tower.stoke_off') : '');
     const short = !!st && c.cindersAll !== null && c.cindersAll < st.cost;
     prop(pane.querySelector('.tc-stoke-short'), 'hidden', !short);
@@ -191,7 +192,7 @@ export function patchChest(pane, cs, tw, sc) {
     text(pane.querySelector('.tc-stoke-saved'), st ? t('tower.stoke_saved', { key: k.name || itemName(k.item) }) : '');
     text(pane.querySelector('.tc-own'), c.ownFamily && c.ownPm !== null ? t('tower.own', { family: familyWord(c.ownFamily), pct: ppmWords(c.ownPm * 1000) })
       : c.ownFamily ? '' : t('tower.own_none'));
-    text(pane.querySelector('.tc-inside'), Object.keys(k.inside).length ? t('tower.inside', { list: haulWords(k.inside) }) : '');
+    text(pane.querySelector('.tc-inside'), Object.keys(k.inside).length ? t('tower.inside', { list: lootList(k.inside).join(', ') }) : '');
     text(pane.querySelector('.tc-plus'), k.skillPlus !== null ? t('tower.skill_plus', { plus: k.skillPlus }) : '');
   }
   text(pane.querySelector('.tc-chance'), k && k.chancePpm !== null ? t('tower.chance', { pct: ppmWords(k.chancePpm) }) : '');

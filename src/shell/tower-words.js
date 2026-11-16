@@ -7,15 +7,15 @@
 // refusalText asks here first.
 // ════════════════════════════════════════════════════════════════════════
 import { t, hasText } from '../render/player-text.js?v=0.2.133';
-import { chance, listWords, whole } from '../render/format.js?v=0.2.133';
+import { chance, whole } from '../render/format.js?v=0.2.133';
 import { itemName } from './widgets/bits.js?v=0.2.133';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.133';
 
 const VERBS = Object.freeze(['tower_start', 'chest_open', 'chest_stoke_default']);
 const num = (v) => Number.isSafeInteger(v) && v >= 0;
 
-/** The Havora window's Hearth tab line and press into the Tower window (hidden until the window shows it: the server's section). */
-export const towerDoorHtml = () => '<p class="hv-tower" hidden><span>' + esc(t('tower.havora_line')) + '</span> '
+/** The Havora window's Hearth tab press into the Tower window (hidden until the window shows it: the server's section). */
+export const towerDoorHtml = () => '<p class="hv-tower" hidden>'
   + '<button type="button" class="hh-tool" data-hs-act="tower">' + esc(t('tower.havora_open')) + '</button></p>';
 
 /** A chance in parts per million as a player reads it ("16%", "2.4%"), or '' when the server sent none. */
@@ -30,23 +30,20 @@ export const keyFamilyWord = (f) => t('tower.key_family', { name: (f && (f.name 
 
 /** How many stokes, as a button says it ("None", "Once", "Twice", "3 times"). */
 export const stokeLabel = (n) => (n === 0 ? t('tower.stoke_none') : n === 1 ? t('tower.stoke_1') : n === 2 ? t('tower.stoke_2') : t('tower.stoke_n', { count: n }));
-/** ... and inside a sentence ("once", "twice", "3 times"). */
-export const stokeWord = (n) => (n === 1 ? t('tower.stoke_word_1') : n === 2 ? t('tower.stoke_word_2') : t('tower.stoke_word_n', { count: n }));
 
 /** A multiplier in permille as a player reads it: 1700 -> "1.7", 2500 -> "2.5", 3000 -> "3". */
 export const timesWords = (pm) => (num(pm) ? String(Math.round(pm / 100) / 10) : '');
 
-/** "50 Tower Cinders, 15 Tempering Salts and 20 Cooked Shrimp" from { item: qty } (the server's own row). */
-export function haulWords(items) {
-  const rows = Object.entries(items || {}).filter(([, q]) => num(q) && q > 0);
-  return listWords(rows.map(([id, q]) => whole(q) + ' ' + itemName(id)), Infinity);
+/** A loot list, one label an item ("Tempering Salts x15", "Hearth Cinders x50"), from { item: qty } (the server's own row). */
+export function lootList(items) {
+  return Object.entries(items || {}).filter(([, q]) => num(q) && q > 0).map(([id, q]) => t('tower.loot_item', { item: itemName(id), count: whole(q) }));
 }
 
 /**
- * THE END CARD OF A CLIMB, in the Tower's words, or null for a card that is no climb. `tw` is the `tower` section (its `last` run is
- * the newest climb that ended, the server's floors and keys); `card` the summary (summary-model.js: id, hunt, reason). A climb never
- * says "died": the Hearth spits you out (the board's §1 "In the game's words"). The run's numbers only when the section's last run IS
- * this card's session; an older card says the plain words.
+ * THE END CARD OF A CLIMB, one label a row, or null for a card that is no climb. `tw` is the `tower` section (its `last` run is the
+ * newest climb that ended, the server's floors and keys); `card` the summary (summary-model.js: id, hunt, reason). A climb never says
+ * "died": "Spat out" (the board's §1 "In the game's words"). The run's numbers only when the section's last run IS this card's session;
+ * an older card says the bare label.
  */
 export function climbEndLines(tw, card, towerHunt) {
   if (!card || card.hunt !== towerHunt) return null;
@@ -57,12 +54,13 @@ export function climbEndLines(tw, card, towerHunt) {
   if (card.reason === 'died') lines.push(on !== null ? t('tower.end_spat', { floor: on }) : t('tower.end_spat_plain'));
   else if (card.reason === 'floor_time') lines.push(t('tower.end_time'));
   else lines.push(null);
+  /* the mode's own death loss, the server's: none in the Tower */
+  if (card.reason === 'died' && tw && tw.pays && tw.pays.deathLossPm === 0) lines.push(t('tower.end_xp'));
   if (run) lines.push(run.top !== null ? t('tower.end_climbed', { from: run.start, to: run.top }) : t('tower.end_no_floor'));
   /* every landing a run clears mints its key (no weekly earn cap, Tyler 2026-11-16): one entry a kind, "Bronze Key x2" */
   const named = run ? run.keys.map((k) => keyName(tw, k.key)).filter(Boolean) : [];
   const kinds = [...new Set(named)].map((n) => { const c = named.filter((x) => x === n).length; return c > 1 ? t('tower.end_key_count', { key: n, count: c }) : n; });
-  if (named.length === 1) lines.push(t('tower.end_key', { key: kinds[0] }));
-  else if (named.length > 1) lines.push(t('tower.end_keys', { list: listWords(kinds, Infinity) }));
+  if (named.length) lines.push(t('tower.end_keys', { list: kinds.join(', ') }));
   /* the keys the family's held limit kept back (the mint's tower_key_withheld rows): the card says why they did not drop */
   if (run && run.withheld > 0) lines.push(t('tower.end_withheld', { count: run.withheld }));
   return { lines, keys: named.length };

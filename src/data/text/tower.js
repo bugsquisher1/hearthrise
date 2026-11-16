@@ -2,10 +2,10 @@
 // src/data/text/tower.js — THE BURNING TOWER'S AND THE HEARTH CHEST'S WORDS (src/shell/windows/tower.js, tower-chest.js,
 // src/shell/tower-words.js, the hunt bar and the end card).
 //
-// One row per sentence, read by t('tower.<key>'). Tyler's voice (2026-11-09): what happens to the player, short, plain, "you". The
-// summary, the card and the chest lines are the designer's drafts (the board's "2026-11-14 The Burning Tower" §5 (c) and §8, and
-// "2026-11-15 The Hearth Chest" C5), not through the reader gate. The story is Tyler's, LOCKED (2026-11-14, "I like it for the lore /
-// story"): never reword it here. Every number in a row is the server's (the `tower` section, a refusal's or an answer's own figures).
+// One row per label, read by t('tower.<key>'). LABELS, NOT SENTENCES (Tyler 2026-11-14, widened; 2026-11-16 on this window: "weird AI
+// text"): everything outside the Story is a genre-standard label and value ("Best Floor: 50", "Key drop: every 10th floor", "Opened this
+// week: 2 / 6"), never an explanation and never "you". The story is Tyler's, LOCKED (2026-11-14, "I like it for the lore / story"): the
+// only sentences here; never reword it. Every number in a row is the server's (the `tower` section, a refusal's or an answer's own figures).
 // ════════════════════════════════════════════════════════════════════════
 
 export const TOWER_TEXT = Object.freeze({
@@ -15,14 +15,15 @@ export const TOWER_TEXT = Object.freeze({
   story_link: 'Story',
   story_hide: 'Hide',
 
-  /* What the Tower is, in plain words: the first thing the window shows (Tyler 2026-11-14: "a quick summary"). */
-  sum_climb: 'The Tower is a climb. Every floor is one room of monsters, and every floor is harder than the last.',
-  sum_hunt: 'Your hero fights it like a hunt, alone or with your party. It uses your stamina and your supplies.',
-  sum_death: 'Dying here costs you nothing. You go back to town and you lose no XP.',
-  sum_keys: 'Every {every}th floor gives you a key, and higher floors give better keys.',
-  sum_chest: 'Use a key on the chest at the Great Hearth. You always get something, and sometimes a tower weapon you can use or trade.',
-  sum_xp: 'Alone you get about half the XP you would hunting, and no gold or loot.',
-  xp_rule: 'Kill XP: {pct}% of normal',
+  /* What the Tower is: the first rows the Climb tab shows, each a label the server's own rows fill (the mode's pay, the rules). */
+  sum_floors: 'Floors: one room each, harder each floor',
+  sum_party: 'Party: solo or party',
+  sum_death: 'Death penalty: none',
+  sum_uses: 'Uses: stamina and supplies',
+  sum_loot: 'Gold and loot: none',
+  sum_keys: 'Key drop: every {every}th floor',
+  sum_chest: 'Keys open: the Hearth Chest',
+  xp_rule: 'Kill XP: {pct}%',
 
   /* The story (LOCKED, Tyler 2026-11-14). */
   story_1: 'The Great Hearth has a chimney, and everybody in Havora calls it the Burning Tower. It goes up a lot farther on the inside than it does on the outside, and nobody\'s found the top.',
@@ -31,24 +32,22 @@ export const TOWER_TEXT = Object.freeze({
   story_4: 'Here\'s the good part. It can\'t kill you. It\'s the Hearth\'s own fire, and the Hearth only takes the dead. The second you feel death coming for you, it spits you out. You land on the ledge smelling like smoke, no worse off, and Holly tells you to mind the ash pile.',
   story_5: 'Keeper Rowe says any key you can reach is yours. Harry says he\'s hauled wood to that Hearth for years and never seen anybody carry a stick of it up there, so he\'d like to know what\'s burning.',
 
-  /* The Havora window's Hearth tab: the Tower's second door. */
-  havora_line: 'The Burning Tower is up the Hearth\'s chimney.',
+  /* The Havora window's Hearth tab: the Tower's second door (a button, no line). */
   havora_open: 'Burning Tower',
 
-  /* THE CLIMB. Status lines and page facts are labels, the genre's own form (Tyler 2026-11-14: "Recommended: 4+ players" ... "do it
-     like that for everything outside of actual lore"); the summary above is the plain-language one he asked for, the story is lore. */
-  best: 'Best floor: {floor}',
-  best_none: 'Best floor: none yet',
+  /* THE CLIMB. */
+  best: 'Best Floor: {floor}',
+  best_none: 'Best Floor: none',
   start_head: 'Start Floor',
   start_floor: 'Floor {floor}',
-  start_note: 'Checkpoints: every {every}th floor, up to your best',
-  start_note_party: 'Checkpoints: every {every}th floor, up to your party\'s lowest best',
+  start_note: 'Checkpoints: every {every}th floor, up to Best Floor',
+  start_note_party: 'Checkpoints: every {every}th floor, up to the party\'s lowest Best Floor',
   limits: 'Time limit: {floor} min per floor, {landing} min per landing',
   week_resets: 'Week resets: {when}',
   run_now: 'Climbing: {name}, floor {floor}',
   run_ready: 'Entering: {name}, floor {floor}',
   busy_start: 'Entering…',
-  started: '{name} entered the Tower.',
+  started: 'Climb started: {name}',
 
   /* Why Enter is off, said before the press; the same words answer the server's refusal. */
   off_hunting: 'Not available while hunting',
@@ -60,45 +59,42 @@ export const TOWER_TEXT = Object.freeze({
   bad_floor: 'Floor not available',
 
   /* THE CHEST (the design's "one menu that shows all of it"). */
+  chest_head: 'Hearth Chest',
   keys_head: 'Keys',
-  chest_lead: 'One chest on the Hearth\'s ledge, and every key opens it. Higher keys hold more.',
   cinders: '{name}: {count}',
-  no_keys: 'No keys held (every {every}th floor gives one)',
+  no_keys: 'Keys: 0',
+  key_drop: 'Key drop: every {every}th floor',
   key_have: '{key}: {count}',
   key_bag: 'Bag: {count}',
   key_storage: 'Storage: {count}',
   key_ring: 'Key Ring: {count}',
   key_base: 'Weapon chance: {pct}',
-  key_warm: 'Hearth\'s warmth: x{times} ({count} keys without a weapon)',
-  key_cold: 'Hearth\'s warmth: none (each key without a weapon adds some)',
+  key_warm: 'Hearth\'s Warmth: x{times}',
+  key_cold: 'Hearth\'s Warmth: none',
   stoke_head: 'Stokes',
   stoke_none: 'None',
   stoke_1: 'Once',
-  stoke_word_1: 'once',
-  stoke_word_2: 'twice',
-  stoke_word_n: '{count} times',
   stoke_2: 'Twice',
   stoke_n: '{count} times',
-  stoked: 'Stoked {times}: x{mult} chance, {cost} of your {cinders} Cinders',
-  stoke_short: 'Not enough Cinders (fewer stokes are used)',
-  stoke_saved: 'Saved for every {key}',
-  stoke_off: 'No stokes (Cinders kept for Inner Flame)',
-  chance: 'Your chance: {pct}',
-  own: 'Equipped type: {family} ({pct} of weapons)',
-  own_none: 'Equipped type: none (every type even)',
-  inside: 'Always inside: {list}',
+  stoked: 'Stoke cost: {cost} Cinders (x{mult})',
+  stoke_short: 'Not enough Cinders',
+  stoke_saved: 'Default for {key}',
+  stoke_off: 'Stokes: none',
+  chance: 'Chance: {pct}',
+  own: 'Equipped type ({family}): {pct}',
+  own_none: 'Equipped type: none',
+  inside: 'Contents: {list}',
   skill_plus: 'Weapon bonus: +{plus} combat skill',
-  not_ready: 'Weapons not in the chest yet',
+  not_ready: 'Not available yet',
   busy_open: 'Opening…',
   busy_stoke: 'Saving…',
-  opened_weapon: 'Found: {item}',
-  opened_none: 'No weapon',
-  opened_many: 'Keys used: {count}, weapons found: {weapons}',
-  haul: 'Received: {list}',
+  loot_head: 'Loot',
+  opened_many: 'Keys used: {count}',
+  loot_item: '{item} x{count}',
 
   /* KEY FAMILIES (Tyler 2026-11-16): the cap is chests OPENED a week per hero per family, and a family's held keys have a limit. Both
      numbers and the family's name are the server's (src/session/tower-sections.js familyOf, hr_chest_section's families). */
-  week_opened: 'Chests opened: {count} / {max}',
+  week_opened: 'Opened this week: {count} / {max}',
   keys_held: 'Keys held: {count} / {max}',
   key_family: '{name} Keys',
 
@@ -119,19 +115,19 @@ export const TOWER_TEXT = Object.freeze({
   bar_floor: 'Floor {floor}',
   bar_keeper: 'Floor {floor}, Keeper',
   bar_left: '{time} left',
-  bar_keeper_tip: 'A landing. Beat its Keeper for a {key}.',
+  bar_keeper_tip: 'Keeper: {key}',
 
-  /* THE END CARD of a climb. */
-  end_spat: 'The Hearth spat you out on floor {floor}. You lost no XP.',
-  end_spat_plain: 'The Hearth spat you out. You lost no XP.',
-  end_time: 'You didn\'t clear that floor in time, so the climb ended and you came back to the ledge.',
-  again_off: 'You start a climb from the Tower window, at the Great Hearth.',
-  end_climbed: 'You climbed from floor {from} to floor {to}.',
-  end_no_floor: 'You didn\'t clear a floor this time.',
-  end_key: 'You got a {key}. Use it on the chest at the Great Hearth.',
-  end_keys: 'You got {list}. Use them on the chest at the Great Hearth.',
+  /* THE END CARD of a climb: one label a row. */
+  end_spat: 'Spat out: floor {floor}',
+  end_spat_plain: 'Spat out',
+  end_xp: 'XP lost: none',
+  end_time: 'Ended: floor time limit',
+  again_off: 'Start: Tower window, Great Hearth',
+  end_climbed: 'Floors cleared: {from} to {to}',
+  end_no_floor: 'Floors cleared: none',
+  end_keys: 'Keys: {list}',
   end_key_count: '{key} x{count}',
   end_withheld: 'Key limit reached: {count} not dropped',
   end_open: 'Open chest',
-  alert_spat: '{name} was spat out of the Burning Tower. No XP lost.',
+  alert_spat: '{name}: spat out of the Burning Tower, no XP lost',
 });

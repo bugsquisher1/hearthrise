@@ -162,7 +162,10 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     /* A CLIMB (the Burning Tower) says it in the Tower's words: spat out, the floors, the keys (../tower-words.js climbEndLines) */
     const climb = climbEndLines(towerOf(cs), cur, TOWER_RULES.hunt);
     const why = climb && climb.lines[0] ? climb.lines[0] : reasonWords(cur, nameOf(cs), st ? st.msLeft : null);
-    text(root.querySelector('.hsum-reason'), [why].concat(climb ? climb.lines.slice(1) : []).join(' ') + (after ? ' ' + after : ''));
+    /* a climb's card is one label a row (the Tower's words are labels, Tyler 2026-11-14); every other card one line of words */
+    const sep = climb ? '\n' : ' ';
+    text(root.querySelector('.hsum-reason'), [why].concat(climb ? climb.lines.slice(1).filter(Boolean) : []).join(sep) + (after ? sep + after : ''));
+    cls(root.querySelector('.hsum-reason'), 'is-rows', !!climb);
     const toTower = root.querySelector('[data-hs-act="tower"]');
     prop(toTower, 'hidden', !climb || !towerOf(cs));
     text(toTower, climb && climb.keys ? t('tower.end_open') : t('tower.havora_open'));

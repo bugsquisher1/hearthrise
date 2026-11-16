@@ -28,7 +28,7 @@
 //               Dawnsteel and Duskwood 7
 //   skillPlus   the +combat skill its weapons give while worn (Tyler 2026-11-14: "bronze +1, silver +2, gold +3, plat +4"; an equipment
 //               bonus "like it does in tibia": the engine's half, one item field summed over what is worn, is the Systems lane's)
-//   cinders     the Tower Cinders it always holds
+//   cinders     the Hearth Cinders it always holds
 //   saltsQty    the tempering salts it always holds. WHICH salts is DERIVED, never written here: the material of the highest tempering
 //               tier at or under weaponTier (src/data/temper.js TEMPER_MATERIALS; keySalts). The coherence pass's C4: the Silver Key paid
 //               tier 3's salts to heroes wearing tier 4; with tier 4 to 6 ladders (lane/d-audit-balance-2) Silver pays Mithril salts and
@@ -50,7 +50,7 @@
 //                 (40 = 4%); a weapon cools it back to nothing. One count a hero, shared by every kind of key.
 //   warmthCapPm   the warmth tops out here, in permille of the base (3000 = three times, reached after 50 dry keys)
 //   stokes        stoking the chest once, twice or three times before a key: { pm: the multiplier on the chance, keys: its cost in
-//                 that key's own Cinders, as a number of keys' worth } (x1.7 for 3, x2.5 for 7, x3.3 for 12). Paid in Tower Cinders
+//                 that key's own Cinders, as a number of keys' worth } (x1.7 for 3, x2.5 for 7, x3.3 for 12). Paid in Hearth Cinders
 //                 from the hero's bag, then the account's Storage. No gold, no second currency.
 //   ownPm         a weapon is the family the hero has equipped this often (500 = half: Tyler 2026-11-14, "I like the 2nd option"); the rest
 //                 is spread evenly over the key's other families. No weapon worn (or one no family names): even over all of them.
@@ -70,7 +70,7 @@ export const CHESTS = Object.freeze({
   great_hearth: Object.freeze({ id: 'great_hearth', name: 'The Hearth Chest' }),
 });
 
-/* The Tower Cinders item: the chest's own fuel, burnt in the Hearth for Inner Flame (src/data/hearth.js) or spent on stokes. */
+/* The Hearth Cinders item (id tower_cinders; renamed by the catacomb design: every key family pays them): the chest's own fuel, burnt in the Hearth for Inner Flame (src/data/hearth.js) or spent on stokes. */
 export const CINDERS = 'tower_cinders';
 
 /* The key families and their caps (Tyler 2026-11-16: "6 per family per hero per week" opened; a held limit of "about 30, ~5 weeks", the
@@ -162,7 +162,7 @@ export function stokePm(stokes, luck = CHEST_LUCK) {
   return s ? s.pm : null;
 }
 
-/** A stoke count's price in Tower Cinders for key row `k` (0 stokes: 0), or null for a count no row has. Pure. */
+/** A stoke count's price in Hearth Cinders for key row `k` (0 stokes: 0), or null for a count no row has. Pure. */
 export function stokeCost(k, stokes, luck = CHEST_LUCK) {
   if (stokes === 0) return 0;
   const s = Number.isInteger(stokes) && stokes > 0 ? luck.stokes[stokes - 1] : null;
@@ -275,7 +275,7 @@ if (PROBLEMS.length) throw new Error('src/data/chests.js does not load: ' + PROB
 export const CHEST_ITEM_ROWS = Object.freeze({
   ...Object.fromEntries(CHEST_KEYS.map((k) => [k.item, Object.freeze({ n: k.name, v: 0, bop: true, type: 'key', tag: 'tower_key',
     towerKey: k.id })])),
-  [CINDERS]: Object.freeze({ n: 'Tower Cinders', v: 0, bop: true, tag: 'fuel' }),
+  [CINDERS]: Object.freeze({ n: 'Hearth Cinders', v: 0, bop: true, tag: 'fuel' }),
 });
 
 /* THE COMBAT SKILL A WEAPON'S +SKILL RAISES, by its weaponType (the design's §6: "Sword, Hammer, Hatchets: Melee. Bow, Crossbow: Ranged.

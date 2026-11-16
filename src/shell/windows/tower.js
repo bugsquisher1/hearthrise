@@ -66,9 +66,10 @@ export function renderTower(ctx) {
     + '<section class="tt-story" hidden>' + STORY.map((k) => '<p>' + esc(t(k)) + '</p>').join('') + '</section>'
     + '<section class="hw-pane tt-pane" data-pane="climb">'
     + '<p class="tt-now" hidden></p>'
-    + '<ul class="tt-sum"><li class="tt-sum-climb">' + esc(t('tower.sum_climb')) + '</li><li>' + esc(t('tower.sum_hunt')) + '</li>'
-    + '<li class="tt-sum-death"></li><li class="tt-sum-keys"></li><li>' + esc(t('tower.sum_chest')) + '</li><li>' + esc(t('tower.sum_xp')) + '</li></ul>'
-    + '<p class="hs-note tt-xp"></p>'
+    /* what the Tower is, one label a row: the mode's pay and the rules are the server's, each row hidden when its row does not say it */
+    + '<ul class="tt-sum"><li>' + esc(t('tower.sum_floors')) + '</li><li>' + esc(t('tower.sum_party')) + '</li>'
+    + '<li class="tt-xp"></li><li class="tt-sum-loot"></li><li class="tt-sum-death"></li><li class="tt-sum-uses"></li>'
+    + '<li class="tt-sum-keys"></li><li>' + esc(t('tower.sum_chest')) + '</li></ul>'
     + '<p class="tt-line tt-best"></p><p class="hs-note tt-limits"></p>'
     /* the Start Floor picker stands on the foot beside Enter: the floor the press sends is never scrolled away from it */
     + '<div class="tt-foot"><label class="hr-pick tt-start-row"><span>' + esc(t('tower.start_head')) + '</span>'
@@ -100,13 +101,14 @@ function patchClimb(root, cs, tw, sc) {
   const now = root.querySelector('.tt-now');
   prop(now, 'hidden', !run);
   text(now, run ? t(run.floor !== null ? 'tower.run_now' : 'tower.run_ready', { name, floor: run.floor !== null ? run.floor : run.start }) : '');
-  const free = !!(tw.pays && tw.pays.deathLossPm === 0);
-  const death = root.querySelector('.tt-sum-death');
-  prop(death, 'hidden', !free);
-  text(death, free ? t('tower.sum_death') : '');
+  const p = tw.pays;
+  const row = (sel, on, words) => { const li = root.querySelector(sel); prop(li, 'hidden', !on); text(li, on ? words : ''); };
+  row('.tt-sum-death', !!p && p.deathLossPm === 0, t('tower.sum_death'));
+  row('.tt-sum-loot', !!p && !p.coin && !p.drops, t('tower.sum_loot'));
+  row('.tt-sum-uses', !!p && p.stamina, t('tower.sum_uses'));
   /* no weekly EARN cap is said: Tyler 2026-11-16 put the cap on chests opened per key family, the Chest tab's line (KEY FAMILIES) */
   text(root.querySelector('.tt-sum-keys'), t('tower.sum_keys', { every: tw.rules.landingEvery }));
-  text(root.querySelector('.tt-xp'), tw.pays ? t('tower.xp_rule', { pct: tw.pays.xpPm / 10 }) : '');
+  row('.tt-xp', !!p, p ? t('tower.xp_rule', { pct: p.xpPm / 10 }) : '');
   const landing = landingPicked(sc, tw);
   patchStarts(root.querySelector('.tt-start-pick'), tw, landing, sc.pending);
   /* in a party the list is its lowest seat's record (the server's), and the note says whose */

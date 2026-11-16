@@ -14,18 +14,21 @@
 // tests/envelope-contract.mjs; the whole loop on the real engine is tests/tower-world.mjs.
 //   TW-1  SWITCH OFF: no `tower` section, so the Havora window's Hearth tab has no Tower door, no Tower window opens, the Hearth's tap row
 //         falls back to the bag (shell-windows.js orElse), and no Tower verb is ever sent
-//   TW-2  THE CLIMB: the six plain lines, what a kill gives (the mode's own permille), the Start Floor picker as ONE control (a select) whose
+//   TW-2  THE CLIMB: what the Tower is as label rows (the mode's own pay: kill XP, loot, death, stamina; the key drop), the Start Floor picker as ONE control (a select) whose
 //         options are only the checkpoints the server lists, each said as the floor the climb starts on (the highest, the hero's best,
 //         picked; Tyler 2026-11-16 CHECKPOINTS, and no "week starts under your best" words anywhere), the limits; Enter sends ONE
 //         hr_tower_start naming only the slot, the picked checkpoint (p_landing) and a key
 //   TW-3  FORGED AND STALE: a checkpoint list that isn't the server's shape draws no pick and Enter stays off; a checkpoint picked then
 //         dropped by the next envelope is never sent (the press takes the server's list again); a hunt running holds Enter off with why; a
 //         party seat that does not lead holds it off (the leader's press starts every seat); a bad_landing refusal says so and re-reads
-//   TW-4  THE CHEST: the key held, where it is, its chance, the warmth, the saved stokes and their Cinders, "Your chance" = the server's
+//   TW-4  THE CHEST: the key held, where it is, its chance, the warmth, the saved stokes and their Cinders, "Chance" = the server's
 //         chance_ppm; a stoke press saves the default (ONE hr_chest_stoke_default); Use sends ONE hr_chest_open with p_stokes null (the saved
 //         default, never a number of the page's); Use all the server's own count; the answer's weapon drawn; Use off while out hunting, for a
 //         key whose weapons aren't built; a key held on the Key Ring counts where it is
-//   TW-7  KEY FAMILIES (Tyler 2026-11-16): "Chests opened: N / 6", "Keys held: N / 30" and the week's reset are the server's family row and
+//   TW-8  LABELS, NOT SENTENCES (Tyler 2026-11-14 widened; 2026-11-16 "weird AI text"): every visible line of the Climb and Chest tabs and
+//         the climb's end card is a label (no line ends in a period, none says "you"); a chest press that finds no weapon shows the loot
+//         list only ("Hearth Cinders x50"), never "No weapon"
+//   TW-7  KEY FAMILIES (Tyler 2026-11-16): "Opened this week: N / 6", "Keys held: N / 30" and the week's reset are the server's family row and
 //         week_ends (hr_chest_section); the week's cap holds Use off and clamps Use all; a family's cap is its own (a full catacomb week never
 //         holds a Tower key), named by the server; with no family row the pane draws no cap line and gates nothing on it
 //   TW-5  THE PHONE (922x423): the Tower window is a sheet inside the screen, nothing overflows sideways, no text under 12 px, Enter reachable
@@ -134,6 +137,14 @@ const climbView = (page) => page.evaluate(() => {
     limits: w.querySelector('.tt-limits').textContent, startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent,
     msg: w.querySelector('.hh-intent-msg').textContent };
 });
+/* Every visible line of a pane (a leaf element with its own text): the label rule reads them all. */
+const paneLines = (page, pane) => page.evaluate((p) => {
+  const w = document.querySelector('[data-hs-win="tower"] [data-pane="' + p + '"]');
+  if (!w) return null;
+  return Array.from(w.querySelectorAll('*')).filter((e) => e.getClientRects().length && [...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()))
+    .map((e) => e.textContent.trim());
+}, pane);
+const notLabels = (lines) => (lines || []).filter((l) => /\.$/.test(l) || /\byour?\b/i.test(l) || /\. [A-Z]/.test(l));
 const chestView = (page) => page.evaluate(() => {
   const w = document.querySelector('[data-hs-win="tower"] [data-pane="chest"]');
   const tx = (q) => (w.querySelector(q) ? w.querySelector(q).textContent : null);
@@ -186,18 +197,20 @@ async function checks(overrides, shots) {
       else {
         const v = await climbView(page);
         /* no weekly EARN cap is said (Tyler 2026-11-16: the cap is chests opened per key family, the Chest tab's line) */
-        if (!v || v.sum.length !== 6 || !/^The Tower is a climb/.test(v.sum[0]) || !/lose no XP/.test(v.sum[2]) || v.sum[3] !== 'Every 10th floor gives you a key, and higher floors give better keys.')
-          fails.push('TW-2 the six plain lines read ' + JSON.stringify(v && v.sum));
-        if (!v || v.xp !== 'Kill XP: 37.5% of normal') fails.push('TW-2 the XP line reads ' + JSON.stringify(v && v.xp));
+        if (!v || v.sum.join(' | ') !== 'Floors: one room each, harder each floor | Party: solo or party | Kill XP: 37.5% | Gold and loot: none | Death penalty: none | Uses: stamina and supplies | Key drop: every 10th floor | Keys open: the Hearth Chest')
+          fails.push('TW-2 the summary rows read ' + JSON.stringify(v && v.sum));
+        if (!v || v.xp !== 'Kill XP: 37.5%') fails.push('TW-2 the XP line reads ' + JSON.stringify(v && v.xp));
         if (!v || v.starts.join() !== '0,10,20*' || v.pickers !== 1 || v.optionText.join() !== 'Floor 1,Floor 11,Floor 21') fails.push('TW-2 the Start Floor picker reads ' + JSON.stringify(v && [v.starts, v.pickers, v.optionText]));
-        if (!v || v.note !== 'Checkpoints: every 10th floor, up to your best' || /under your best|cleared this week|60 floors/i.test(v.pane))
+        if (!v || v.note !== 'Checkpoints: every 10th floor, up to Best Floor' || /under your best|cleared this week|60 floors/i.test(v.pane))
           fails.push('TW-2 the start words read ' + JSON.stringify(v && v.note));
-        if (!v || v.best !== 'Best floor: 27' || v.limits !== 'Time limit: 3 min per floor, 10 min per landing' || /this week|Keys to claim|Next landing/.test(v.pane)) fails.push('TW-2 the week reads ' + JSON.stringify(v));
+        if (!v || v.best !== 'Best Floor: 27' || v.limits !== 'Time limit: 3 min per floor, 10 min per landing' || /this week|Keys to claim|Next landing/.test(v.pane)) fails.push('TW-2 the week reads ' + JSON.stringify(v));
         if (!v || v.go !== 'on' || v.why || v.startOn !== 'Floor 21') fails.push('TW-2 Enter in town with a listed floor is ' + JSON.stringify(v && [v.go, v.why, v.startOn]));
+        const bad = notLabels(await paneLines(page, 'climb'));
+        if (bad.length) fails.push('TW-8 the Climb tab says sentences: ' + JSON.stringify(bad));
         if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-climb-desktop-1440x900.png') }); }
         await page.selectOption('[data-hs-win="tower"] .tt-start-pick', '10');
         await page.click('[data-hs-win="tower"] .tt-go');
-        await wait(page, () => /entered the Tower/.test(document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || ''));
+        await wait(page, () => /^Climb started: /.test(document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || ''));
         const sent = verbs(s);
         if (sent.length !== 1 || sent[0].name !== 'hr_tower_start' || Object.keys(sent[0].body).sort().join() !== 'p_idem,p_landing,p_slot' || sent[0].body.p_landing !== 10 || sent[0].body.p_slot !== 0)
           fails.push('TW-2 Enter sent ' + JSON.stringify(sent));
@@ -241,7 +254,7 @@ async function checks(overrides, shots) {
       s.env.party = party(1);
       await replay(page); await openTower(page);
       v = await climbView(page);
-      if (!v || v.go !== 'off' || v.why !== 'Party leader only' || !/party's lowest best/.test(v.note)) fails.push('TW-3 a seat that does not lead reads ' + JSON.stringify(v && [v.go, v.why, v.note]));
+      if (!v || v.go !== 'off' || v.why !== 'Party leader only' || !/party's lowest Best Floor/.test(v.note)) fails.push('TW-3 a seat that does not lead reads ' + JSON.stringify(v && [v.go, v.why, v.note]));
       s.env.party = party(0);
       await replay(page); await openTower(page);
       v = await climbView(page);
@@ -260,30 +273,33 @@ async function checks(overrides, shots) {
       const { ctx, page, errors, s } = await open({ width: 1440, height: 900 }, st);
       s.answer = (name, body) => {
         if (name === 'hr_chest_stoke_default') { s.tower = section({ held: { bronze: { bag: 2, storage: 1, ring: 0 } }, stokes: body.p_stokes, chance: 480000 }); return { ok: true, key: body.p_key, stokes: body.p_stokes }; }
-        if (name === 'hr_chest_open') return { ok: true, count: body.p_count, opens: [{ n: 13, stokes: 1, chance_ppm: 326400, weapon: 'palisade_sword', family: 'sword' }],
+        /* one key finds the Palisade Sword; Use all's three find no weapon (the result is the loot list only) */
+        if (name === 'hr_chest_open' && body.p_count === 1) return { ok: true, count: 1, opens: [{ n: 13, stokes: 1, chance_ppm: 326400, weapon: 'palisade_sword', family: 'sword' }],
           haul: { palisade_sword: 1, tower_cinders: 50, temper_salts: 15, cooked_shrimp: 20 }, cinders_spent: 150 };
+        if (name === 'hr_chest_open') return { ok: true, count: body.p_count, opens: Array.from({ length: body.p_count }, (_, i) => ({ n: 14 + i, stokes: 1, chance_ppm: 326400, weapon: null })),
+          haul: { tower_cinders: 50 * body.p_count, temper_salts: 15 * body.p_count, cooked_shrimp: 20 * body.p_count }, cinders_spent: 450 };
         return { ok: true };
       };
       await openTower(page, 'chest');
       let c = await chestView(page);
-      if (c.cinders !== 'Tower Cinders: 400' || c.picks.join() !== 'Bronze Key 3' || c.have !== 'Bronze Key: 3' || c.where !== 'Bag: 2, Storage: 1')
+      if (c.cinders !== 'Hearth Cinders: 400' || c.picks.join() !== 'Bronze Key 3' || c.have !== 'Bronze Key: 3' || c.where !== 'Bag: 2, Storage: 1')
         fails.push('TW-4 the key reads ' + JSON.stringify(c));
-      if (c.base !== 'Weapon chance: 16%' || c.warm !== 'Hearth\'s warmth: x1.2 (5 keys without a weapon)'
-        || c.stokes.join() !== 'None,Once*,Twice,3 times' || c.stoked !== 'Stoked once: x1.7 chance, 150 of your 400 Cinders' || c.saved !== 'Saved for every Bronze Key'
-        || c.chance !== 'Your chance: 33%')
+      if (c.base !== 'Weapon chance: 16%' || c.warm !== 'Hearth\'s Warmth: x1.2'
+        || c.stokes.join() !== 'None,Once*,Twice,3 times' || c.stoked !== 'Stoke cost: 150 Cinders (x1.7)' || c.saved !== 'Default for Bronze Key'
+        || c.chance !== 'Chance: 33%')
         fails.push('TW-4 the odds read ' + JSON.stringify(c));
-      if (c.own !== 'Equipped type: Bow (50% of weapons)' || c.inside !== 'Always inside: 50 Tower Cinders, 15 Tempering Salts and 20 Cooked Shrimp')
+      if (c.own !== 'Equipped type (Bow): 50%' || c.inside !== 'Contents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20')
         fails.push('TW-4 the inside reads ' + JSON.stringify([c.own, c.inside]));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-4 Use/Use all with keys in town read ' + JSON.stringify([c.use, c.all]));
       if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-chest-desktop-1440x900.png') }); }
       await page.click('[data-hs-win="tower"] .tc-stoke[data-stokes="2"]');
-      const saved = await wait(page, () => /^Your chance: 48%$/.test(document.querySelector('[data-hs-win="tower"] .tc-chance')?.textContent || ''));
+      const saved = await wait(page, () => /^Chance: 48%$/.test(document.querySelector('[data-hs-win="tower"] .tc-chance')?.textContent || ''));
       let sent = verbs(s);
       if (sent.length !== 1 || sent[0].name !== 'hr_chest_stoke_default' || Object.keys(sent[0].body).sort().join() !== 'p_idem,p_key,p_slot,p_stokes' || sent[0].body.p_stokes !== 2)
         fails.push('TW-4 a stoke press sent ' + JSON.stringify(sent));
       if (!saved) fails.push('TW-4 the chance after the save is not the server\'s re-read: ' + JSON.stringify((await chestView(page)).chance));
       await page.click('[data-hs-win="tower"] .tc-use');
-      const drawn = await wait(page, () => /Found: Palisade Sword/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''));
+      const drawn = await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-result .tt-found')?.textContent === 'Palisade Sword');
       sent = verbs(s).slice(1);
       if (sent.length !== 1 || sent[0].name !== 'hr_chest_open' || Object.keys(sent[0].body).sort().join() !== 'p_chest,p_count,p_idem,p_key,p_slot,p_stokes'
         || sent[0].body.p_stokes !== null || sent[0].body.p_count !== 1 || sent[0].body.p_key !== 'bronze' || sent[0].body.p_chest !== 'great_hearth') fails.push('TW-4 Use sent ' + JSON.stringify(sent));
@@ -292,13 +308,19 @@ async function checks(overrides, shots) {
       await page.waitForTimeout(600);
       sent = verbs(s).slice(2);
       if (sent.length !== 1 || sent[0].body.p_count !== 3 || sent[0].body.p_stokes !== null) fails.push('TW-4 Use all sent ' + JSON.stringify(sent));
+      /* three keys, no weapon: the loot list only (TW-8), never "No weapon" */
+      await wait(page, () => /Keys used: 3/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''));
+      const loot = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-result > *')).map((e) => e.textContent));
+      if (loot.join(' | ') !== 'Loot | Keys used: 3 | Hearth Cinders x150 | Tempering Salts x45 | Cooked Shrimp x60') fails.push('TW-8 a press with no weapon reads ' + JSON.stringify(loot));
+      const badChest = notLabels(await paneLines(page, 'chest'));
+      if (badChest.length) fails.push('TW-8 the Chest tab says sentences: ' + JSON.stringify(badChest));
       /* a key on the Key Ring counts where it is (lane/c-key-ring): the bag, Storage and the ring each said */
       s.tower = section({ held: { bronze: { bag: 1, storage: 0, ring: 2 } } });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
       if (c.picks.join() !== 'Bronze Key 3' || c.where !== 'Bag: 1, Key Ring: 2' || c.use !== 'on') fails.push('TW-4 a key on the ring reads ' + JSON.stringify([c.picks, c.where, c.use]));
       /* off: a key not built, out hunting */
-      for (const [o, env, want] of [[{ notReady: true }, null, /^Weapons not in the chest yet$/], [{}, 'hunt', /^Not available while hunting$/]]) {
+      for (const [o, env, want] of [[{ notReady: true }, null, /^Not available yet$/], [{}, 'hunt', /^Not available while hunting$/]]) {
         s.tower = section(Object.assign({ held: { bronze: { bag: 2, storage: 1, ring: 0 } } }, o));
         if (env) s.env.hunt = clone(BASE_ENV.hunt);
         const n = verbs(s).length;
@@ -319,7 +341,7 @@ async function checks(overrides, shots) {
       await openTower(page, 'chest');
       let c = await chestView(page);
       /* one family: its two lines, no family name (the window's only family) */
-      if (c.fams.join(' || ') !== 'Chests opened: 2 / 6 | Keys held: 3 / 30' || !/^Week resets: /.test(c.resets || '')) fails.push('TW-7 the Tower family reads ' + JSON.stringify([c.fams, c.resets]));
+      if (c.fams.join(' || ') !== 'Opened this week: 2 / 6 | Keys held: 3 / 30' || !/^Week resets: /.test(c.resets || '')) fails.push('TW-7 the Tower family reads ' + JSON.stringify([c.fams, c.resets]));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-7 Use/Use all with 4 chests left read ' + JSON.stringify([c.use, c.all]));
       /* one chest left of the week: Use on, Use all off (it would open past the server's week) */
       s.tower = section({ held: { bronze: { bag: 2, storage: 1, ring: 0 } }, opened: 5 });
@@ -330,7 +352,7 @@ async function checks(overrides, shots) {
       s.tower = section({ held: { bronze: { bag: 2, storage: 1, ring: 0 } }, opened: 6 });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
-      if (c.use !== 'off' || c.why !== 'Weekly limit reached (6)' || c.fams[0] !== 'Chests opened: 6 / 6 | Keys held: 3 / 30') fails.push('TW-7 at the week\'s cap reads ' + JSON.stringify([c.use, c.why, c.fams]));
+      if (c.use !== 'off' || c.why !== 'Weekly limit reached (6)' || c.fams[0] !== 'Opened this week: 6 / 6 | Keys held: 3 / 30') fails.push('TW-7 at the week\'s cap reads ' + JSON.stringify([c.use, c.why, c.fams]));
       const n = verbs(s).length;
       await page.click('[data-hs-win="tower"] .tc-use', { force: true }).catch(() => {});
       await page.waitForTimeout(250);
@@ -339,7 +361,7 @@ async function checks(overrides, shots) {
       s.tower = section({ held: { bronze: { bag: 2, storage: 1, ring: 0 } }, families: [fam('catacomb', 6, 12), fam('tower', 1)] });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
-      if (c.fams.join(' || ') !== 'Catacomb Keys | Chests opened: 6 / 6 | Keys held: 12 / 30 || Tower Keys | Chests opened: 1 / 6 | Keys held: 3 / 30')
+      if (c.fams.join(' || ') !== 'Catacomb Keys | Opened this week: 6 / 6 | Keys held: 12 / 30 || Tower Keys | Opened this week: 1 / 6 | Keys held: 3 / 30')
         fails.push('TW-7 two families read ' + JSON.stringify(c.fams));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-7 a full catacomb week holds the Tower key: ' + JSON.stringify([c.use, c.all, c.why]));
       /* no family row from the server (the chest lane's projection not landed): no cap line, nothing gated on a guessed 6 */
@@ -396,11 +418,11 @@ async function checks(overrides, shots) {
       s.tower = section({ last: { session: SID, start: 21, top: 29, floors: 9, end_reason: 'died', ended_at: new Date().toISOString(), keys: [{ landing: 20, key: 'bronze' }], withheld: 1 } });
       await replay(page);
       await page.keyboard.press('l');
-      const card = await wait(page, () => /spat you out/.test(document.querySelector('.hsum-reason')?.textContent || ''), null, 8000);
+      const card = await wait(page, () => /^Spat out/.test(document.querySelector('.hsum-reason')?.textContent || ''), null, 8000);
       const got = await page.evaluate(() => ({ reason: document.querySelector('.hsum-reason')?.textContent || '', again: (() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'); return !b ? null : b.hidden ? 'hidden' : b.disabled ? 'off' : 'on'; })(),
         tower: (() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower"]'); return b && !b.hidden ? b.textContent : null; })(),
         death: !!document.querySelector('[data-hs-win="death"]') }));
-      if (!card || !/^The Hearth spat you out on floor 30\. You lost no XP\. You climbed from floor 21 to floor 29\. You got a Bronze Key\./.test(got.reason) || !/Key limit reached: 1 not dropped/.test(got.reason) || /died/i.test(got.reason))
+      if (!card || !got.reason.startsWith('Spat out: floor 30\nXP lost: none\nFloors cleared: 21 to 29\nKeys: Bronze Key\nKey limit reached: 1 not dropped') || /died|\byou\b/i.test(got.reason))
         fails.push('TW-6 the end card reads ' + JSON.stringify(got.reason));
       if (got.again !== 'hidden' || got.tower !== 'Open chest') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
       if (got.death) fails.push('TW-6 the death popup opened for the Tower');

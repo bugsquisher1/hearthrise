@@ -21,6 +21,7 @@ import { mkdirSync } from 'node:fs';
 import { openWorld } from '../tools/qa/local-world.mjs';
 import { gmSql } from '../tools/gm-allow.mjs';
 import { pressBar, menuLines, groupOf } from './_bar.mjs';
+import { REFUSAL_WORDS } from '../src/data/refusal-words.js';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -163,13 +164,15 @@ async function main() {
     await p.page.click('[data-hs-win="chat"] [data-tab="global"]');
     await p.page.fill('[data-hs-win="chat"] .hc-field', 'anyone there');
     await p.page.press('[data-hs-win="chat"] .hc-field', 'Enter');
-    const mutedWords = await p.page.waitForFunction(() => { const t = document.querySelector('[data-hs-win="chat"]').innerText; return /muted you/.test(t) ? t : null; }, null, { timeout: 20000 }).then((h) => h.jsonValue(), () => '');
+    /* the words are the refusal row's (src/data/refusal-words.js muted), never a phrase typed here: a reworded row turned this red for no reason */
+    const MUTED = REFUSAL_WORDS.muted;
+    const mutedWords = await p.page.waitForFunction((w) => { const t = document.querySelector('[data-hs-win="chat"]').innerText; return t.includes(w) ? t : null; }, MUTED, { timeout: 20000 }).then((h) => h.jsonValue(), () => '');
     await shot(p.page, 'player-muted');
     await gm.page.fill(WIN + ' .gm-why', 'served');
     await gm.page.waitForFunction((w) => !document.querySelector(w + ' [data-hs-act="gm-unmute"]').disabled, WIN);
     await gm.page.click(WIN + ' [data-hs-act="gm-unmute"]');
     await saidIs(gm.page, /can chat again/);
-    step('GW-5 a muted player\'s chat says why, in words; Unmute lifts it', /muted you/.test(mutedWords) && !(await sql(`select public.hr_chat_muted_until($1) u`, [pId])).u, mutedWords.slice(0, 200));
+    step('GW-5 a muted player\'s chat says why, in words; Unmute lifts it', mutedWords.includes(MUTED) && !(await sql(`select public.hr_chat_muted_until($1) u`, [pId])).u, mutedWords.slice(0, 200));
 
     /* GW-6 */
     await gm.page.fill(WIN + ' .gm-grant-why', 'testing a price');

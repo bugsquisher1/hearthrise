@@ -59,7 +59,7 @@ import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../da
 import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.132';
 import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.132';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.132';
-import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.132';
+import { setupsOf, beforeLines, freeHeroes, partiedHeroes, openOthers, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.132';
 import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.132';
 import { openFinderOn } from './party-finder.js?v=0.2.132';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.132';
@@ -327,7 +327,7 @@ function patchPage(det, ctx, sc, v) {
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
       why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r) + '.',
       find: party ? 'Open the party finder' : 'Find a party',
-      bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
+      bring: freeHeroes(cs, ctx.peers()), away: partiedHeroes(cs, ctx.peers()), others: openOthers(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });

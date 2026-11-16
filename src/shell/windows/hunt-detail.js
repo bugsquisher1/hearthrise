@@ -124,7 +124,19 @@ export function patchGo(det, ctx, v) {
     patch: (b, h) => { text(b, 'Bring ' + h.name); prop(b, 'disabled', v.off || v.partyBlock.full); },
   });
   const none = pb.querySelector('.hw-bring-none');
-  text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.');
+  text(none, v.partyBlock.bring.length ? '' : bringNone(v.partyBlock));
+}
+
+/* Nobody to bring: the heroes in another party say whose and how to free them; heroes all in this party say nothing; none open, how to play one. */
+export function bringNone(b) {
+  const away = Array.isArray(b.away) ? b.away : [];
+  if (away.length) {
+    return away.map((g) => (g.leader
+      ? t('hunts.party_others_in', { count: g.names.length, names: listWords(g.names, Infinity), leader: g.leader })
+      : t('hunts.party_others_in_a', { count: g.names.length, names: listWords(g.names, Infinity) }))).join(' ');
+  }
+  if (b.others) return '';
+  return 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.';
 }
 
 /* "Level 2 · common"; a boss says so in place of its share. A narrow card puts the share under the Level, with no dot (format.js sepHtml). */

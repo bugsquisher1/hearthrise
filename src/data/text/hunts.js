@@ -16,6 +16,16 @@ export const HUNTS_TEXT = Object.freeze({
   /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is a number word (count_2 …). */
   party_boss: '{boss} is built for a group of {n} or more. Alone, you still fight him, and he can kill you.',
   party_hall: 'One hall here is built for a group of {n} or more. Alone, you still fight it, and it can kill you.',
+  /* "Bring your heroes" empty because this account's other heroes sit in a party this one is not in (audit 2026-11-15 F23):
+     who, whose party, and the way out. {names} is a list ("Corwen, Ilsa and Maren"); {count} how many it names. */
+  party_others_in: {
+    one: '{names} is in {leader}\'s party. Switch to {names} and press Leave party to bring them.',
+    other: '{names} are in {leader}\'s party. Switch to each and press Leave party to bring them.',
+  },
+  party_others_in_a: {
+    one: '{names} is in another party. Switch to {names} and press Leave party to bring them.',
+    other: '{names} are in another party. Switch to each and press Leave party to bring them.',
+  },
   count_1: 'one',
   count_2: 'two',
   count_3: 'three',

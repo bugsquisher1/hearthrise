@@ -78,7 +78,14 @@ A lone sword, Wyvern Roost, Level 125, Normal, 6 seeds x 4 h, the same dice, the
 Every trade under the ceiling lands 59.6-59.9. The lone sword at the Roost is short of accuracy, so pace counts as much as safety, and the line's own armor is the most the budget allows there. Only the line on all six slots clears 60, and that is a template. Fire would do it (Fire Breath is the Roost's spike), but a fire piece reads 0.4-0.8% over the line where plate is at the cap. **Open 2 for Tyler.**
 
 #### 3. The full grade (`node tools/pack.mjs check <g> --mode full --with <the other three> --uniques`, on this branch's tip, each exit code seen)
-GRADE_TABLE_PENDING
+| Ground | The weapon line's tip | This tip | `pack check` exit |
+|---|---|---|---|
+| Carter's Rest 110 | 0 fail | 0 fail (no armor unique is worn under 125) | **0** |
+| The Ox Road 112 | 0 fail | 0 fail (from 125 the Roost's three are worn, and nothing moves) | **0** |
+| Wyvern Roost 125 | 1: the lone sword's Normal low point 59.5 | 1: **59.9**, the Roost's three on the sword (section 2) | 1 -> **1** |
+| Pauper Vaults 165 | 0 fail (the first sample's twins, over the line) | 0 fail: lone sword 60.4, axes 60.9; lone median XP 0.907 at 175; the four over the lone median 1.163 | **0** |
+
+The Vaults took three re-cuts, each on its own full grade: 2 fails (sword 59.9, median XP 0.897), then 1 (the four 1.144), then 0 (section 1's "Where they trade").
 
 #### 4. Walk-through (a sword hero in plate from 125 to 165)
 | Step | Does | Has from the earlier steps and the real kit | Doable? |

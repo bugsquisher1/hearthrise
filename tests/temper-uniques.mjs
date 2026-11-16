@@ -16,6 +16,12 @@
 //   TU5  SHUT UNTIL REAL: a band is open exactly when an item in ITEMS is armor that reads it; a shut band adds no ladder and no rung
 //        to the catalogue; an open band's rungs carry its gold and its salt.
 //
+//   TU6  DAWNSTEEL'S LADDER (lane/d-temper-dawnsteel; Tyler 2026-11-16 "yes" to its own ladder, Levels 88 to 110, small cap): tier 7 has
+//        a ladder with a rung worth less than a gear tier's and a whole ladder of at most 20 permille (2%, measured), under the first band's;
+//        each weight's whole Dawnsteel set fully tempered lets more of a swing through than the armor line's bare set worn from its first
+//        Level above Dawnsteel (the Night Shift, 122), on every drafted ground at or past that Level; it asks more gold than tier 6 and
+//        takes a salt a gear tier already takes, no more of it than tier 6.
+//
 //   node tests/temper-uniques.mjs            the guard
 //   node tests/temper-uniques.mjs --mutate   each rule driven red by a defect planted on a copy of the data
 //
@@ -29,15 +35,20 @@ import { monsterLevelOf } from '../src/data/monsters.js';
 import { monsterMaxHit } from '../src/core/combat.js';
 import { mitigationOf, mitigate, armourValues } from '../src/core/mitigation.js';
 import { MATERIAL_TIERS } from '../src/data/gear-tiers.js';
-import { LINE_ANCHOR_LEVEL, LINE_BASE, lineArmor } from '../src/data/armor-line.js';
+import { LINE_ANCHOR_LEVEL, LINE_BANDS, LINE_BASE, lineArmor } from '../src/data/armor-line.js';
 
 const SLOTS = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'];
 const WEIGHTS = ['plate', 'leather', 'cloth'];
 /* The drafted grounds past Dawnsteel, by their floor (each pack's `band`). A new drafted ground joins here. */
 const FLOORS = { carters_rest: 110, ox_road: 112, wyvern_roost: 125, pauper_vaults: 165 };
 
+/* Dawnsteel's ladder as the fight reads it (src/data/temper.js temperLadder), null with none. */
+const dawnOf = () => {
+  const l = TD.temperLadder('armor', 7);
+  return l ? { gold: [...TD.TEMPER_TIERS[7]], pm: l.pm, rungs: l.rungs, blowsPm: (TD.temperLadder('blows', 7) || {}).pm, mat: structuredClone(TD.TEMPER_MATERIALS[7] || null) } : null;
+};
 const real = () => ({ bands: structuredClone(TD.TEMPER_UNIQUE_BANDS), pm: TD.TEMPER_UNIQUE_RUNG_PM, from: TD.TEMPER_UNIQUE_FROM, item: TD.TEMPER_UNIQUE_ITEM,
-  items: ITEMS, unlocks: TD.TEMPER_UNLOCKS, offers: TD.TEMPER_OFFERS, floors: { ...FLOORS } });
+  items: ITEMS, unlocks: TD.TEMPER_UNLOCKS, offers: TD.TEMPER_OFFERS, floors: { ...FLOORS }, dawn: dawnOf() });
 const bandsOf = (D) => Object.keys(D.bands).map(Number).sort((a, b) => a - b);
 /* the band a piece reads under D: the module's rule (temper.js temperTierOf), read over D's numbers */
 const bandOf = (D, it) => {
@@ -127,6 +138,32 @@ export function problems(D = real()) {
     }
   }
   for (const x of D.unlocks) if (/^temper:blows:/.test(x.unlock_id) && Number(x.unlock_id.split(':')[2]) >= D.from) out.push('TU5 a band sells Blows: ' + x.unlock_id);
+  /* TU6 */
+  const dw = D.dawn;
+  if (!dw) out.push('TU6 Dawnsteel (tier 7, worn from 88) has no ladder: from 88 to 110 no sink grows with the hero (Tyler 2026-11-16)');
+  else {
+    const full = dw.rungs * dw.pm;
+    if (!(dw.pm > 0) || !(dw.pm < TD.TEMPER_RUNG_PM) || dw.blowsPm !== dw.pm) out.push('TU6 a Dawnsteel rung is ' + dw.pm + ' pm (Blows ' + dw.blowsPm + '), a gear tier\'s ' + TD.TEMPER_RUNG_PM + ': both tracks take the smaller step');
+    if (!(full > 0) || full > 20) out.push('TU6 a whole Dawnsteel ladder is ' + full + ' pm; the ruling is a small cap, measured at 20 (2%)');
+    if (bands.length && !(full < D.bands[bands[0]].gold.length * D.pm)) out.push('TU6 a whole Dawnsteel ladder (' + full + ' pm) is not under the ' + bands[0] + ' band\'s: a unique worn from ' + bands[0] + ' carries Dawnsteel\'s armor and must win once both are tempered');
+    const above = LINE_BANDS.map((b) => b.reqLv).filter((r) => r > LINE_ANCHOR_LEVEL).sort((a, b) => a - b)[0];
+    for (const cls of WEIGHTS) {
+      const vals = { heavy: 0, medium: 0, light: 0 }, key = { plate: 'heavy', leather: 'medium', cloth: 'light' }[cls];
+      for (const id of Object.values(LINE_BASE[cls].ids)) vals[key] += Number(ITEMS[id].defB) || 0;
+      for (const [g, fl] of Object.entries(D.floors)) {
+        if (fl < above) continue;
+        const mons = monstersOf(g), t = swing(vals, full, mons), n = swing(lineValues(cls, above), 0, mons);
+        if (!(n < t)) out.push('TU6 ' + cls + ' Dawnsteel fully tempered lets ' + t.toFixed(2) + ' of a swing through at ' + g + ', the line\'s set worn from ' + above + ' bare ' + n.toFixed(2) + ': the next armor must win');
+      }
+    }
+    const t6 = TD.TEMPER_TIERS[6].reduce((s, n) => s + n, 0), t7 = dw.gold.reduce((s, n) => s + n, 0);
+    if (dw.gold.length !== dw.rungs || dw.gold.some((n, i) => !Number.isSafeInteger(n) || n <= 0 || (i > 0 && !(n > dw.gold[i - 1])))) out.push('TU6 Dawnsteel\'s rungs ' + dw.gold + ' do not climb');
+    if (!(t7 > t6)) out.push('TU6 a Dawnsteel track asks ' + t7 + ', no more than tier 6\'s ' + t6 + ': a later ladder never costs less');
+    const m6 = TD.TEMPER_MATERIALS[6];
+    const before7 = Object.entries(TD.TEMPER_MATERIALS).filter(([t]) => Number(t) < 7).map(([, m]) => m);
+    if (!dw.mat || !before7.some((m) => m.item === dw.mat.item) || !D.items[dw.mat.item]) out.push('TU6 Dawnsteel takes ' + JSON.stringify(dw.mat) + ', not a salt a gear tier already takes');
+    else if (dw.mat.qty.reduce((s, n) => s + n, 0) > m6.qty.reduce((s, n) => s + n, 0)) out.push('TU6 Dawnsteel asks more ' + dw.mat.item + ' a track than tier 6');
+  }
   return out;
 }
 
@@ -151,6 +188,16 @@ const MUTANTS = [
     D.offers = [...D.offers, ...D.bands[165].gold.map((gold, i) => ({ unlock_id: 'temper:armor:165', value: i + 1, gold, items: { rune_temper_salts: D.bands[165].qty[i] } }))];
   }],
   ['a band sells Blows', 'TU5', (D) => { D.unlocks = [...D.unlocks, { unlock_id: 'temper:blows:165', max_value: 5 }]; }],
+  ['Dawnsteel has no ladder', 'TU6', (D) => { D.dawn = null; }],
+  ['a Dawnsteel ladder of 2.5%', 'TU6', (D) => { D.dawn.pm = 5; D.dawn.blowsPm = 5; }],
+  ['a Dawnsteel rung worth a tier rung', 'TU6', (D) => { D.dawn.pm = 10; D.dawn.blowsPm = 10; }],
+  ['Dawnsteel Blows at a tier rung', 'TU6', (D) => { D.dawn.blowsPm = 10; }],
+  ['the first band no bigger than Dawnsteel', 'TU6', (D) => { D.pm = 4; }],
+  ['Carter\'s Rest read as a 122 ground, where plate sits at the cap', 'TU6', (D) => { D.floors.carters_rest = 122; }],
+  ['Dawnsteel cheaper than Emberforged', 'TU6', (D) => { D.dawn.gold = TD.TEMPER_TIERS[6].map((n) => n / 2); }],
+  ['a Dawnsteel rung no dearer than the last', 'TU6', (D) => { D.dawn.gold[4] = D.dawn.gold[3]; }],
+  ['a Dawnsteel salt no tier takes', 'TU6', (D) => { D.dawn.mat.item = 'dawn_bar'; }],
+  ['Dawnsteel asks twice the salt', 'TU6', (D) => { D.dawn.mat.qty = D.dawn.mat.qty.map((n) => n * 2); }],
 ];
 
 function mutate() {
@@ -174,5 +221,5 @@ if (isMain(import.meta.url)) {
   const bad = problems();
   if (bad.length) { console.error('temper-uniques: RED\n  ' + bad.join('\n  ')); process.exit(1); }
   const open = bandsOf(real()).filter((b) => TD.TEMPER_UNIQUE_BANDS[b].open);
-  console.log('temper-uniques: ' + bandsOf(real()).length + ' bands past Dawnsteel (' + (open.length ? 'open: ' + open.join(', ') : 'all shut, nothing sold') + '), a ladder at most 2.5%, the next band wins on every drafted ground, no ladder cheaper than the one before');
+  console.log('temper-uniques: ' + bandsOf(real()).length + ' bands past Dawnsteel (' + (open.length ? 'open: ' + open.join(', ') : 'all shut, nothing sold') + '), a ladder at most 2.5%, the next band wins on every drafted ground, no ladder cheaper than the one before; Dawnsteel a ladder of ' + (real().dawn.rungs * real().dawn.pm / 10) + '%, under the line\'s next set');
 }

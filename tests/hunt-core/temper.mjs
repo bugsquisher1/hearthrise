@@ -93,6 +93,33 @@ const cases = {
     if (blowsPmOf({ weapon: 'iron_sword', ...line }, I, { 'temper:armor:165': 5 }) !== 0) return "the band's rungs raise blows";
     return null;
   },
+  /* DAWNSTEEL (lane/d-temper-dawnsteel, Tyler 2026-11-16): tier 7, worn from 88, has both tracks at 0.4% a rung, 2% a ladder, read the
+     same way as every tier (its weapon's tier, its pieces' tier), clamped, never paid by tier 6's rungs or a band's; and a full Dawnsteel
+     ladder is smaller than the 110 band's, so a unique worn from 110 (Dawnsteel's own armor on the line) wins once each is tempered. */
+  'dawnsteel-takes-smaller-rungs': (M) => {
+    const { armorPmOf, blowsPmOf, temperRung, armorLineOf } = M.temper;
+    const D = M.temperData, I = M.ITEMS;
+    const DAWN = { weapon: 'dawn_sword', helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets', belt: 'dawn_belt' };
+    if (I.dawn_sword.tier !== 7 || I.dawn_platebody.tier !== 7 || I.dawn_platebody.reqLv !== 88) return 'fixture: Dawnsteel is not tier 7 worn from 88';
+    const ladder = D.temperLadder('armor', 7), blows = D.temperLadder('blows', 7);
+    if (!ladder || !blows) return 'Dawnsteel has no ladder: ' + JSON.stringify({ ladder, blows });
+    const full = ladder.rungs * ladder.pm;
+    if (ladder.rungs !== 5 || full !== 20 || blows.rungs * blows.pm !== 20) return 'a full Dawnsteel ladder is ' + ladder.rungs + ' x ' + ladder.pm + ' pm: the ruling is a small cap, measured 2% (tools/balance-sim/temper-dawn-table.mjs next)';
+    const max = { 'temper:blows:7': 5, 'temper:armor:7': 5 };
+    if (blowsPmOf(DAWN, I, max) !== 20 || armorPmOf(DAWN, I, max) !== 20) return 'a whole Dawnsteel kit at rung 5 reads ' + blowsPmOf(DAWN, I, max) + ' and ' + armorPmOf(DAWN, I, max) + ' pm, want 20 and 20';
+    if (blowsPmOf(DAWN, I, { 'temper:blows:7': 2 }) !== 8) return 'a Dawnsteel Sword at rung 2 reads ' + blowsPmOf(DAWN, I, { 'temper:blows:7': 2 }) + ' pm, want 8';
+    if (temperRung({ 'temper:blows:7': 99 }, 'blows', 7) !== 5 || blowsPmOf(DAWN, I, { 'temper:blows:7': 99 }) !== 20) return 'a forged Dawnsteel rung reads ' + blowsPmOf(DAWN, I, { 'temper:blows:7': 99 }) + ' pm';
+    const others = { 'temper:blows:6': 5, 'temper:armor:6': 5, 'temper:armor:110': 5 };
+    if (blowsPmOf(DAWN, I, others) !== 0 || armorPmOf(DAWN, I, others) !== 0) return "tier 6's or the 110 band's rungs pay on Dawnsteel";
+    const ember = { weapon: 'ember_sword', body: 'ember_platebody' };
+    if (blowsPmOf(ember, I, max) !== 0 || armorPmOf(ember, I, max) !== 0) return "Dawnsteel's rungs pay on Emberforged";
+    if (blowsPmOf(ember, I, { 'temper:blows:6': 5 }) !== 50) return 'tier 6 stopped reading 1% a rung: ' + blowsPmOf(ember, I, { 'temper:blows:6': 5 });
+    const top = armorLineOf(DAWN, I);
+    if (!top || top.tier !== 7) return 'the smith offers ' + JSON.stringify(top) + ' for full Dawnsteel, want tier 7';
+    const band = D.TEMPER_UNIQUE_BANDS[D.TEMPER_UNIQUE_FROM];
+    if (!(full < band.gold.length * D.TEMPER_UNIQUE_RUNG_PM)) return 'a full Dawnsteel ladder (' + full + ' pm) is not under the ' + D.TEMPER_UNIQUE_FROM + " band's (" + band.gold.length * D.TEMPER_UNIQUE_RUNG_PM + ')';
+    return null;
+  },
   /* A mixed set reads piece by piece, by the armor the piece wears: moving one piece up costs that piece's share, never the ladder. */
   'a-mixed-set-reads-each-piece': (M) => {
     const { armorPmOf } = M.temper;
@@ -294,7 +321,12 @@ const mutants = [
   { name: 'no rung still draws', case: 'no-rung-draws-nothing', edits: [[T, '  if (!pm || !(amount > 0)) return amount;\n', '  rng.chance(0);\n  if (!(amount > 0)) return amount;\n']] },
   { name: 'no clamp: a forged rung is a number', case: 'a-rung-is-clamped', edits: [[T, 'Math.min(n, ladder.rungs)', 'n']] },
   { name: 'tier 1 has a ladder', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', '  2: Object.freeze([2000,', '  1: Object.freeze([1, 2, 3, 4, 5]),\n  2: Object.freeze([2000,']] },
-  { name: 'Blows reads the first ladder whatever the weapon', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'blows', it.tier) * TEMPER_RUNG_PM", "temperRung(temper, 'blows', 2) * TEMPER_RUNG_PM"]] },
+  { name: 'Blows reads the first ladder whatever the weapon', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'blows', it.tier) * rungPmOf('blows', it.tier)", "temperRung(temper, 'blows', 2) * rungPmOf('blows', 2)"]] },
+  { name: "Blows pays a gear tier's 1% a rung on every ladder", case: 'dawnsteel-takes-smaller-rungs', edits: [[T, "temperRung(temper, 'blows', it.tier) * rungPmOf('blows', it.tier)", "temperRung(temper, 'blows', it.tier) * 10"]] },
+  { name: 'a Dawnsteel rung is worth a tier rung', case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({ 7: 4 });', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({ 7: 10 });']] },
+  { name: "the ladder forgets its tier's smaller rung", case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', 'pm: TEMPER_TIER_RUNG_PM[tier] || TEMPER_RUNG_PM', 'pm: TEMPER_RUNG_PM']] },
+  { name: 'Dawnsteel has no ladder', case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', '  7: Object.freeze([40000, 80000, 160000, 320000, 640000]),\n', '']] },
+  { name: "Dawnsteel reads tier 6's rungs", case: 'dawnsteel-takes-smaller-rungs', edits: [[T, "  return it ? temperRung(temper, 'blows', it.tier)", "  return it ? temperRung(temper, 'blows', Math.min(6, it.tier))"]] },
   { name: 'Armor reads the first ladder whatever the piece', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'armor', t)", "temperRung(temper, 'armor', 2)"]] },
   { name: 'a unique reads its gear tier, not its band', case: 'a-unique-reads-its-band', edits: [[T, 'const def = armorPointsOf(it), t = def > 0 ? temperTierOf(it) : 0;', 'const def = armorPointsOf(it), t = def > 0 ? it.tier : 0;']] },
   { name: 'a band rung is worth a tier rung', case: 'a-unique-reads-its-band', edits: [['src/data/temper.js', 'export const TEMPER_UNIQUE_RUNG_PM = 5;', 'export const TEMPER_UNIQUE_RUNG_PM = 10;']] },

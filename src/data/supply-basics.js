@@ -78,8 +78,16 @@ const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, par
    PLAIN STAYS 1 G because of the first grounds, not because it is right (Tyler: "runes being 1 gold each is wildly cheap"): every
    +1 g costs the Sewer floor party 119 g/h and it clears the Thicket by 5.5 (tests/hunt-core/forest-cave.mjs first-grounds-net-chain),
    so Plain can move only with a coin change. Each deeper price stands above what a crafter can list at (tests/craft-wages.mjs W-RUNE).
-   A deeper rune is the player's own pick on a slot: no default bar names one, and nothing rewrites a saved bar. */
-export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 16, 24]);
+   A deeper rune is the player's own pick on a slot: no default bar names one, and nothing rewrites a saved bar.
+   CARVED 16 -> 28 AND GRAVEN 24 -> 44 (designer 2026-11-16, lane/d-andy-march-feedback; Andy: "Right now you're inting if you're not
+   going BIS runes"). Measured on the real settle (the board, "2026-11-16 Andy's March feedback"): at 16 / 24, on Deadly every deeper rune
+   paid for itself, because a faster kill is less time taking hits, so less food. Andy's four (hammer, bow, mage, a Healer five under)
+   on Carved earned 7-12% more XP AND 6-13k more gold a head an hour than on Plain, and a lone Mage on the Slake's Deadly at 60 on Graven
+   +44% XP and +20k gold. Price can't take that back below Carved without punishing Normal (Carved breaks even in his four at about
+   52-71 g). So Plain, Scored and Etched keep Tyler's numbers (Etched 12, 2026-11-05) and stay the sensible Deadly kit, and the top two
+   become a real trade on every tier: the Carved step in his four on Deadly now reads -0.7k to +0.5k a head for +2-4% XP, and on Normal
+   the top rune costs a lone Mage 23-48% of its gold for 12-22% more XP. */
+export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 28, 44]);
 /* A deeper store rune is called by its tier's own name, "Scored Fire Rune" (Tyler 2026-11-08: "Plain Scored Fire Rune" read wrong
    beside "the store's"); Plain names only the tier-1 row, the store's own cheap rune. The ids keep their `plain_` prefix. */
 const storeRune = (family, t) => shot(t.tier === 1 ? 'plain_' + family + '_rune' : 'plain_' + runeId(family, t.tier),

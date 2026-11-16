@@ -40,6 +40,7 @@ Read this before touching any sprite, icon, tile, effect, CSS or screen layout. 
 
 ## 5. Tiles and transitions (decided)
 - Terrain is `wang16` corner tiles for every pair of materials that touch, or a `fill` with a variant cycle of at least 4×2 tiles (`art-budget.js`). **Two fills never meet on a hard seam.**
+- **A floor never shows its tile repeat (Tyler 2026-11-16).** A floor drawn from one tile (a wang pair's interior, a painted ground's plain cells) gets a `variety`: 96 variants of that tile made by `tools/world-art/variety.mjs` from its own pixels (tone patches one ramp step down that run across tiles, its texture shifted inside the tile, a kept decal at about one cell in ten, never two touching), picked per cell by a seeded hash (`src/world/core/ground-variety.js`), never a cycle. A variant's edge on a plain side is the tile's own, so it never seams against a transition or a painted wall. Held by `tests/world-core.mjs` family V.
 - **Wear is authored, not tiled:** decals (cracks, moss, puddles, straw, scattered grain) at least one per 12 floor tiles, never on a grid, never two of the same in a row.
 - **Edges are framed:** a road ends in an edging (kerb stones, a grass transition); a room's floor meets its wall on a one-tile darker skirting (a contact strip decal).
 - Walls are wall-class slices (32×60, a 48 px face and a cap) cycled every 32 px; a wall run of more than 6 tiles needs a feature (a door, a torch, a support post, a broken stone).

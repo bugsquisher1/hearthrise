@@ -1,0 +1,18 @@
+{
+  "id": "havora_grass_variety",
+  "class": "terrain",
+  "kind": "variety",
+  "style": "s1",
+  "of": "common/havora_grass_earth",
+  "key": "0000",
+  "lower": "grass",
+  "upper": "grass",
+  "seed": 1,
+  "tone": "soft",
+  "shift": true,
+  "detail": [
+    "common/square_decal_tuft_b",
+    "common/square_decal_leaves_a"
+  ],
+  "notes": "One floor tile made into 96 (tools/world-art/variety.mjs), picked per cell by src/world/core/ground-variety.js: the floor no longer shows its 32 px repeat (Tyler 2026-11-16)."
+}

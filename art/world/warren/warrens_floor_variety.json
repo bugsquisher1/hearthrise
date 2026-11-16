@@ -1,0 +1,17 @@
+{
+  "id": "warrens_floor_variety",
+  "class": "terrain",
+  "kind": "variety",
+  "style": "s1",
+  "of": "warren/warrens_ground",
+  "at": [
+    9,
+    0
+  ],
+  "lower": "painted",
+  "upper": "painted",
+  "seed": 12,
+  "tone": "soft",
+  "notes": "One floor tile made into 96 (tools/world-art/variety.mjs), picked per cell by src/world/core/ground-variety.js: the floor no longer shows its 32 px repeat (Tyler 2026-11-16).",
+  "shift": true
+}

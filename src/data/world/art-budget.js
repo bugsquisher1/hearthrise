@@ -126,6 +126,9 @@ export const CLASSES = Object.freeze({
 // '1' = the upper material, all 16 keys present. kind 'fill': one material, key
 // '1111' only, its variants laid as a cycle [cols, rows] (variant index =
 // (y mod rows)·cols + (x mod cols)) so a pattern wider than a tile repeats seamlessly.
+// kind 'variety': one floor tile's variants (tools/world-art/variety.mjs), key '1111' only,
+// picked per cell by src/world/core/ground-variety.js; `of` the terrain whose tile it varies,
+// `key` (a wang interior) or `at` [x, y] (a painted ground's cell), `seed`.
 export const WANG_KEYS = Object.freeze(Array.from({ length: 16 }, (_, i) => i.toString(2).padStart(4, '0')));
 
 // ── GRID PROFILES (one row per art grid) ─────────────────────────────────────
@@ -193,7 +196,7 @@ export const READABLE = Object.freeze({ ring: 3, kits: Object.freeze(['barrow_ma
 //            Wall slices (classes wall, stub) carry their frames as a horizontal
 //            CYCLE: the slice at tile column x uses frame (x mod frames), so a
 //            128 px stone pattern repeats without a seam every 32 px.
-//   terrain  { id: { kind, lower, upper, cycle?, tiles: { NWNESWSE: [[x,y], …] } } }
+//   terrain  { id: { kind, lower, upper, cycle?, of?, key?, at?, seed?, tiles: { NWNESWSE: [[x,y], …] } } }
 export const MANIFEST_VERSION = 1;
 export const atlasPaths = (set) => Object.freeze({
   image: `assets/world/atlas-${set}.png`,

@@ -133,7 +133,7 @@ begin
   for v_r in select * from (values
     ('public.hr_training_quote(uuid,integer,text,text)', '2bbfea96fad5c835318f5a257ced5d7e', '96f6ff5050f6b80466ca802da5f1ec7c'),
     ('public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)', 'a396047961d1fccbd116c392c8bbc3db', 'a18bad4f4a26d4243b4e2c6e712f0b5a'),
-    ('public.hr_training_section(uuid,integer)', '24b243ffdf16736de5f987eced185a86', '6bc2a9f36cc4142dd6a8116020723d81'),
+    ('public.hr_training_section(uuid,integer)', '24b243ffdf16736de5f987eced185a86', '3dcb331da76367e7f571ccacb822f8ce'),
     ('public.hr_hunt_member_read(public.hunt_sessions)', '14cd77882a9bfba0be7624652017aaf6', 'a34a1041fb1d9762d4eaac94d9b91c48')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then

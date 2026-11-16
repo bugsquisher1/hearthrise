@@ -203,10 +203,11 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const trainAgain = !!cur.train;
     text(go, trainAgain ? t('training.card_again') : t('controls.hunt_again'));
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
-    if (trainAgain) prop(go, 'disabled', sc.pending || huntOpen);
-    attr(go, 'title', huntOpen ? 'A hunt is already running.' : trainAgain ? t('training.card_again_title') : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
+    /* ...only opens a window, which says itself whether Start can go (a session running, out hunting, the purse): never off for a rule */
+    if (trainAgain) prop(go, 'disabled', sc.pending);
+    attr(go, 'title', trainAgain ? t('training.card_again_title') : huntOpen ? 'A hunt is already running.' : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = huntOpen ? 'Hunt again is off. A hunt is already running.' : trainAgain ? '' : !again ? 'Hunt again is off. ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
+    againWhy = trainAgain ? '' : huntOpen ? 'Hunt again is off. A hunt is already running.' : !again ? 'Hunt again is off. ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);

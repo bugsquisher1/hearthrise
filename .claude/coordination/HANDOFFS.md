@@ -255,3 +255,8 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 - **The Mosslight Springs (P3):** no water is painted there; its moss_puddle and cw_puddle read as black holes on bright grass. A glowing-moss spring piece would be the signature the Glade has none of.
 - **Rook's Hide (Glade P4):** the ruined spring-house is four sewer cobble patches in a square; no wall stub says "house".
 - **Wickstead's Burned House:** a bare pale flagstone rectangle in the painted ground, with no char and no wall stubs.
+
+## 2026-11-16 · art-director (lane/a-visual-audit) → systems-engineer, game designer · what the display-scale pass left open
+- **Outfit canvases stretch at 125 %** (systems-engineer, client): `src/render/outfit-sprite.js` drawOutfit sizes the bitmap in CSS px, so the hero-create preview (192 px, x3) is 3.75 device px an art px at 125 %, and the Character portrait and outfit list the same. Do what `drawCreature` now does: k = floor(scale x DPR) device px an art px, the canvas shown at exactly bitmap/DPR (AW-25 holds the creature case); its owner test needs the same scaled case.
+- **The town Inventory covers half the action bar at 1280x720** (150 % on a 1080p panel): slots 6-10, 16-20 and Setup lie under the window. AW-95 keeps windows off the bar in a hunt only. Designer: is the town bar meant to stay reachable with a window open?
+- **Modal windows centre with translate(-50%, -50%)** (shell.css `.hs-win.is-modal`), which can land a modal on half a device px at 125 %; not measured here.

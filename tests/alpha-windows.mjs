@@ -12,7 +12,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/windows/inventory/selection.js src/data/text/bag.js src/shell/prep-draft.js src/shell/windows/hunt-prep/builder.js src/shell/windows/hunt-prep/setups.js src/session/preset-read.js src/shell/window-fit.js src/shell/window-manager.js src/shell/window-head.js src/styles/market.css
+// mutant-anchors: src/shell/press-ack.js src/shell/town-ticker.js src/session/refusal.js src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/render/creature-sprite.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css src/session/residue.js src/shell/panel-alpha.js src/styles/shell.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/shell/windows/item-tip.js src/data/armour-weights.js src/data/hunt-tutorial.js src/data/how-to-play.js src/shell/carry-in.js src/shell/action-facts.js src/shell/social-watch.js src/shell/windows/inventory/index.js src/shell/windows/inventory/elsewhere.js src/shell/station-sort.js src/shell/windows/inventory/selection.js src/data/text/bag.js src/shell/prep-draft.js src/shell/windows/hunt-prep/builder.js src/shell/windows/hunt-prep/setups.js src/session/preset-read.js src/shell/window-fit.js src/shell/window-manager.js src/shell/window-head.js src/styles/market.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -169,7 +169,9 @@
 //         lives there from the world's style-1 idle frames at x2, standing on one ground
 //         line, common / uncommon / rare from the spawn points, the rare and its ONE
 //         carrier, the bests (one "No best here yet" line when none, the server's best
-//         replacing it); on the phone the list, then the page as the sheet, then back
+//         replacing it); on the phone the list, then the page as the sheet, then back. On a scaled
+//         screen (Tyler 2026-11-16, 125 % and 150 %) a creature's bitmap is whole device px an art px,
+//         the most no bigger than x2 (2 at 125 %, 3 at 150 %), shown at exactly its own size
 //   AW-26 GO AS: the setups as lines (weapon, role, the bar's first four on the setup
 //         on now; a set with no setup row is not offered); Enter as the setup on now is
 //         ONE hr_hunt_enter; as another it is ONE hr_hunt_preset_apply then ONE
@@ -1014,6 +1016,13 @@ async function huntsPure(imp) {
   const stubArt = new Map([['rat', { image: {}, row: { frame: [4, 4], anchor: [2, 3], anims: { idle: { dirs: { e: [[0, 0]], s: [[40, 0]], n: [[80, 0]] } } } } }]]);
   if (!drawCreature(shown, stubArt, 'rat', LINEUP_SPRITE) || drewAt[drewAt.length - 1] !== 40 || shown.width !== 8)
     fails.push('AW-25 the lineup draws frame x ' + drewAt[drewAt.length - 1] + ' at ' + shown.width + ' px, wanted the front (south) frame at x 40, x2');
+  /* a scaled screen: the 4 art px body drawn whole device px an art px and shown at its own size, never stretched by the browser */
+  for (const [dpr, k] of [[1.25, 2], [1.5, 3], [1.75, 3], [2, 4]]) {
+    const scaled = Object.assign(fakeCanvas(), { style: {}, ownerDocument: { createElement: fakeCanvas, defaultView: { devicePixelRatio: dpr } } });
+    drawCreature(scaled, stubArt, 'rat', LINEUP_SPRITE);
+    if (scaled.width !== 4 * k || scaled.style.width !== (4 * k) / dpr + 'px')
+      fails.push('AW-25 at ' + dpr + 'x a creature is a ' + scaled.width + ' px bitmap shown ' + scaled.style.width + ' wide, wanted ' + 4 * k + ' px shown ' + (4 * k) / dpr + 'px');
+  }
   const head = detailHtml();
   if (!head.includes('<h4 class="hw-hd-h">Drops <small') || /about every hour|no odds/i.test(head)) fails.push('AW-25 the drops heading reads ' + (/<h4 class="hw-hd-h">([^<]*)<small class="hw-hd-per hw-hd-per-size"/.exec(head) || [, '?'])[1]);
   const worn = [wornWeightOf({ helmet: 'leather_helmet', body: 'bronze_platebody', pants: 'leather_pants' }), wornWeightOf({ weapon: 'practice_sword' }), wornWeightOf({ helmet: 'adept_helmet', body: 'iron_platebody' })].join();
@@ -4755,9 +4764,9 @@ const MUTANTS = [
   ['item truth: the rune says Next at level 12: Blank Rune', 'src/data/skill-unlocks.js', 'r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name', 'r.output ? nameOf(r.output) : r.name'],
   ['armor words: her window stops naming the weights', 'src/shell/windows/tally.js', "WEIGHT_ORDER.map(weightSentence).join(' ')", "''"],
   ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],
-  ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
-  ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
-  ['the bag wells stay 36 px on Steam', 'src/styles/windows.css', 'width: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px);', 'width: 36px; height: 36px;'],
+  ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
+  ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
+  ['the bag wells stay 36 px on Steam', 'src/styles/windows.css', 'width: max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px)); height: max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px));', 'width: 36px; height: 36px;'],
   ['a bulk sale names a locked stack', 'src/shell/bag-model.js', '    if (locked.has(id)) { kept.push(id); continue; }\n', ''],
   ['the bag keeps a count the server dropped', 'src/session/item-sections.js', '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  return items;',
     '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  const prev = globalThis.__bag || [];\n  for (const p of prev) { const i = items.find((x) => x.id === p.id); if (!i) items.push(p); else i.qty = Math.max(i.qty, p.qty); }\n  globalThis.__bag = items.map((x) => ({ ...x }));\n  return items;'],
@@ -4885,6 +4894,7 @@ const MUTANTS = [
   ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
   ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);', '  const ok = false;'],
   ['AW-25 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
+  ['AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],
   ['AW-30 the opacity fades the whole window, words and all', 'src/styles/shell.css', '  image-rendering: pixelated; opacity: var(--panel-alpha);\n}', '  image-rendering: pixelated;\n}\n.hs-win { opacity: var(--panel-alpha); }'],

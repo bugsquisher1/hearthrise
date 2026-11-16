@@ -194,7 +194,7 @@ export function patchGround(det, ctx, r, o) {
     },
   });
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
-  const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
+  const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => parseFloat(c.style.height) || c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
   const casts = castsWords(residents);
   text(det.querySelector('.hw-hd-casts'), casts);

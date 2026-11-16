@@ -79,6 +79,8 @@
     "node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=10/12": "in-page-16",
     "node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=11/12": "in-page-22",
     "node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=12/12": "in-page-26",
+    "node tests/device-px.mjs": "in-page-26",
+    "node tools/mutant-gate.mjs node tests/device-px.mjs --mutate": "in-page-26",
     "node tests/test-fonts.mjs": "in-page-23",
     "node tools/mutant-gate.mjs node tests/test-fonts.mjs --selftest": "in-page-23",
     "node tests/auth-lock.mjs": "in-page-23",

@@ -77,9 +77,9 @@
   width: min(26rem, 100%); box-sizing: border-box;
   display: flex; flex-direction: column; gap: 12px;
   padding: 0 20px 18px;
-  background: url('../../assets/ui/steel-grain.png') 0 0 / 64px 64px repeat, var(--bg-1); background-clip: padding-box;
-  border: 12px solid transparent; border-radius: 0;
-  border-image: url('../../assets/ui/steel-frame.png') 6 / 12px stretch;
+  background: url('../../assets/ui/steel-grain.png') 0 0 / calc(32 * var(--art-px)) calc(32 * var(--art-px)) repeat, var(--bg-1); background-clip: padding-box;
+  border: var(--art-6) solid transparent; border-radius: 0;
+  border-image: url('../../assets/ui/steel-frame.png') 6 / var(--art-6) stretch;
   image-rendering: pixelated;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
 }
@@ -134,8 +134,8 @@
 .auth-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -20px -18px; padding: 10px 20px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .auth-foot .auth-submit { padding: 0 16px 0 20px; }
 /* A press that goes somewhere carries the dark steel arrow (as the Hunts window's Enter does). */
-.auth-submit.is-go::after { content: ''; display: inline-block; width: 6px; height: 10px; margin-left: 10px; vertical-align: 1px;
-  background: url('../../assets/ui/steel-arrow.png') 0 0 / 6px 10px no-repeat; image-rendering: pixelated; }
+.auth-submit.is-go::after { content: ''; display: inline-block; width: calc(3 * var(--art-px)); height: calc(5 * var(--art-px)); margin-left: 10px; vertical-align: 1px;
+  background: url('../../assets/ui/steel-arrow.png') 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
 
 /* Landscape phone: the crest (1:2) beside the card, both inside 423 px with no scroll. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -211,8 +211,8 @@
   gap: 0.25rem;
   padding: 0 0.5rem;
   background: var(--bg-1);
-  border-bottom: 6px solid transparent;
-  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 0 0 6px 0 stretch;
+  border-bottom: var(--art-3) solid transparent;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 0 0 var(--art-3) 0 stretch;
   image-rendering: pixelated;
   flex-shrink: 0;
 }
@@ -272,7 +272,7 @@
 .char-unopened.is-full .char-unopened-play { display: none; }
 /* The strip's one line (character-strip.js say): why a press on a not-open hero opened nothing. On the page, under the strip. */
 .char-strip-note { position: fixed; z-index: 80; box-sizing: border-box; width: max-content; max-width: min(380px, calc(100vw - 16px)); margin: 0; padding: 4px 10px 4px 14px; pointer-events: none;
-  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; box-shadow: inset 4px 0 0 var(--gold);
+  background: var(--bg-2); border: var(--art-3) solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated; box-shadow: inset 4px 0 0 var(--gold);
   font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.35; color: var(--ink); }
 .char-strip-note:not(.is-on) { display: none; }
 /* The tools stand at the strip's right end, never behind the tabs: a tab arriving or a hero's status changing slid Characters under
@@ -318,7 +318,7 @@
 }
 /* The connection's one line (src/net/connection.js): solid, over everything, taking no press. */
 .conn-line { position: fixed; top: 56px; left: 50%; z-index: 70; transform: translateX(-50%); box-sizing: border-box; width: max-content; max-width: calc(100vw - 24px); margin: 0; padding: 2px 10px 2px 14px; pointer-events: none;
-  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; box-shadow: inset 4px 0 0 var(--gold);
+  background: var(--bg-2); border: var(--art-3) solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated; box-shadow: inset 4px 0 0 var(--gold);
   font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); }
 .conn-line[hidden] { display: none; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -340,7 +340,7 @@
 /* The real hero in the colors being picked: the outfit it starts in, large, and three more on the same ground, so every pick shows on something. */
 .hero-look { flex: none; width: 192px; display: flex; flex-direction: column; gap: 4px; }
 .hero-preview { display: block; width: 192px; height: 192px; image-rendering: pixelated;
-  background: url('../../assets/ui/ground-shadow.png') 50% calc(100% - 8px) / 96px 20px no-repeat, var(--bg-2); box-shadow: var(--steel-well); }
+  background: url('../../assets/ui/ground-shadow.png') 50% calc(100% - 8px) / calc(48 * var(--art-px)) calc(10 * var(--art-px)) no-repeat, var(--bg-2); box-shadow: var(--steel-well); }
 .hero-others { display: flex; justify-content: space-between; }
 .hero-other { display: block; width: 64px; height: 64px; image-rendering: pixelated; background: var(--bg-2); box-shadow: var(--steel-well); }
 .hero-note { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }

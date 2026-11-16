@@ -580,6 +580,8 @@ export async function openWorld(o = {}) {
       for (const c of driver.contexts) await c.close().catch(() => {});
       driver.contexts.clear();
       if (driver.browser) await driver.browser.close().catch(() => {});
+      for (const b of driver.scaled.values()) await (await b).close().catch(() => {});
+      driver.scaled.clear();
       push.close();
       server.closeAllConnections();
       await new Promise((r) => server.close(r));
@@ -614,7 +616,7 @@ export async function openWorld(o = {}) {
 }
 
 // ── THE DRIVER ───────────────────────────────────────────────────────────
-const driver = { browser: null, contexts: new Set() };
+const driver = { browser: null, scaled: new Map(), contexts: new Set() };
 async function browserOf() {
   if (driver.browser && driver.browser.isConnected()) return driver.browser;
   const { chromium } = await import('playwright');
@@ -622,12 +624,28 @@ async function browserOf() {
   driver.browser = await chromium.launch(launchOptions({ headless: true }));
   return driver.browser;
 }
+/* A DISPLAY SCALE AS WINDOWS SETS ONE (125 %, 150 %): Chromium's own device scale (--force-device-scale-factor, the page
+   the window's size), never DevTools' deviceScaleFactor. Measured 2026-11-16: the emulation lays a 6 px border out at 7 CSS px
+   at 1.25, where a real 125 % screen snaps it to 7 DEVICE px (5.6 CSS), so what it drew was not what a player sees.
+   One browser per scale and window size, closed with the world. */
+function scaledBrowserOf(scale, viewport) {
+  const key = scale + '@' + viewport.width + 'x' + viewport.height;
+  if (!driver.scaled.has(key)) driver.scaled.set(key, (async () => {
+    const { chromium } = await import('playwright');
+    const { launchOptions } = await import(pathToFileURL(join(ROOT, 'tests/_chrome.mjs')).href);
+    return chromium.launch(launchOptions({ headless: true, args: ['--force-device-scale-factor=' + scale, '--window-size=' + viewport.width + ',' + viewport.height] }));
+  })());
+  return driver.scaled.get(key);
+}
 
 async function play(world, { account, viewport = { width: 1280, height: 720 }, touch = false, shots = null, scale = 1 } = {}) {
   if (!/^[a-z0-9_-]{1,40}$/i.test(String(account || ''))) throw new Error('local-world: play({ account }) wants a plain name');
-  const browser = await browserOf();
-  /* scale: the display's devicePixelRatio (Windows laptops run 125-150 %: viewport 1536x864 at scale 1.25 is a 1920x1080 panel) */
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: Number(scale) > 0 ? Number(scale) : 1, hasTouch: !!touch, isMobile: !!touch });
+  /* scale: the display's devicePixelRatio (Windows laptops run 125-150 %: viewport 1536x864 at scale 1.25 is a 1920x1080
+     panel); a touch screen keeps the emulation, which its viewport and touch need */
+  const dpr = Number(scale) > 0 ? Number(scale) : 1;
+  const real = dpr !== 1 && !touch;
+  const browser = real ? await scaledBrowserOf(dpr, viewport) : await browserOf();
+  const ctx = await browser.newContext(real ? { viewport: null } : { viewport, deviceScaleFactor: dpr, hasTouch: !!touch, isMobile: !!touch });
   driver.contexts.add(ctx);
   const errors = [], offsite = [];
   const local = new URL(world.origin).host;

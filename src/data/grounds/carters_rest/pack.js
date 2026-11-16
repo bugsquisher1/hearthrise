@@ -131,7 +131,7 @@ export default definePack({
   partyClassXp: { 2: [990, 1440], 3: [1150, 1595, 1705], 4: [1150, 2065, 2285, 2295] },
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the floor,
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
      the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
   partyVsAlone: { 2: [-30, -5], 3: [-40, -15, -5], 4: [-50, -5, 5, 5] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 22472 },

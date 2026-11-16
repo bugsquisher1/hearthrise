@@ -4,15 +4,15 @@
 // "Party exp should only be better if there are different classes in the party." The table that pays it is
 // src/data/party-class-xp.js, on the room as built for every group (Tyler 2026-11-11 retired a party's own Normal pull); this plays the line itself on
 // the REAL engine, through tools/balance-sim's cell runner (the settle the world tick runs): every ground (HUNT_GROUNDS,
-// never a typed list, so a new ground with no row is judged too), at the party's default pull and at 8 each, on several
-// seeds, at the ground's floor Level, in the ladder kit.
+// never a typed list, so a new ground with no row is judged too), at the party's default pull and at 8 each at the ground's floor
+// Level, and at the default pull at the band's middle Level too (lane/d-party-lines), on several seeds, in the ladder kit.
 //
 // THE MEASURE: Level XP per hero per hour in the party, over the mean of what the SAME heroes (each its own way to fight)
 // earn per hour alone, seeds pooled (one seed is dice: a short cell swings several percent, designer 11-01). The worst
 // single seed is printed beside it. A Melee pair of a shield and two axes is compared with the mean of its two solos: how
 // the two fare together against how those two fare apart.
 //
-// THE BAR IS 1.00. At the default pull, against each hero alone AS BUILT (what no pick spawns for either). At 8 each, against
+// THE BAR IS 1.00. At the default pull (floor and middle), against each hero alone AS BUILT at that Level (what no pick spawns for either). At 8 each, against
 // each hero alone at ITS better pull (as built or 8 each: the board's "best pull against the members' best pull alone"), since
 // a lone hero can press + too: a lone hero at 8 earns up to 1.5x its as-built, so a party at 8 against a lone hero as built
 // reads 1.2-1.7 on the solo grounds whatever the class. That reading is printed on every 8-each cell and is not the bar.
@@ -24,14 +24,15 @@
 //   --lines      every ground's Party window line, measured, beside what the data says
 //   --write      writes the measured lines into the rows (the default cut only, so what the guard reads is what is written)
 //   --seed-base N   plays seeds N.. instead of 0.. (the designer's read of how far fresh dice move a line; never with --write)
-//   --middle     plays the band's middle Level instead of its floor (the designer's read of how a line moves through the band; never with --write)
 //
 // THE PARTY WINDOW'S LINE IS MEASURED TOO (lane/d-party-lines, 2026-11-15). Before a hunt the Party window says "Each of you gets about
 // N% more (or less) Level XP than hunting alone" (party-class-xp.js PARTY_VS_ALONE, a pack's partyVsAlone). The same cells answer it, by
 // the method the rows were always measured with: one class is the mean of the size's five one-class parties; two of two the mean of
 // the three duo mixes, three of three of the two trio mixes, four of four the four; a cell between (three of two, four of two and of
-// three) is its size's mix times the pay cell's ratio (a party's XP cell moves no blow). Each against the same heroes alone as built.
-// A line more than LINE_TOL points from that measurement is RED: a pay cell, a lone hero or a monster moved and nobody re-measured
+// three) is its size's mix times the pay cell's ratio (a party's XP cell moves no blow). Each against the same heroes alone as built, read at
+// the band's floor and at its middle and the two averaged: the window says one number for the band, and a mixed four's lead shrinks
+// through it (the Pyre Field's four +18 at the floor, +5 at the middle; the Glade's +41 and +31). The middle arm also holds the one-class
+// bar there. A line more than LINE_TOL points from that measurement is RED: a pay cell, a lone hero or a monster moved and nobody re-measured
 // what the player reads. --write puts the fresh measurement into the rows, never a hand.
 //
 // NO EXCEPTION (lane/b-one-difficulty, 2026-11-08): every cell answers to 1.00. Tyler 11-02's one accepted over-solo party, a Thicket four of
@@ -54,7 +55,14 @@ const WIDE = process.argv.includes('--wide');
 const HOURS = WIDE ? 0.5 : 0.25;
 const SOLO_HOURS = 0.5;
 /* null = no pick: the party's default pull (the room as built where a ground has none, and for a lone hero). */
-const ARMS = Object.freeze([{ id: 'pull', density: null, words: 'default pull' }, { id: 'eight', density: 8, words: '8 each' }]);
+/* `at`: the band's floor or its middle Level; `built`: the arm a party there is judged against (each hero alone as built, at the same Level).
+   THE MIDDLE ARM (lane/d-party-lines): a mixed four's lead shrinks through the band (the Pyre Field's four +18 at the floor, +5 at the middle),
+   so the Party window's line is the mean of the two, and the one-class bar holds at both. */
+const ARMS = Object.freeze([{ id: 'pull', density: null, at: 'floor', built: 'pull', words: 'default pull' }, { id: 'mid', density: null, at: 'middle', built: 'mid', words: 'band middle' },
+  { id: 'eight', density: 8, at: 'floor', built: 'pull', words: '8 each' }]);
+const armOf = (id) => ARMS.find((a) => a.id === id);
+/* the arms a party is judged against alone as built (the bar is 1.00 there), and the arms the line is read on */
+const asBuilt = (id) => armOf(id).density === null;
 /* Every party is ONE class by the game's map (oneClassProblems holds it). */
 const DUOS = Object.freeze({ shields: ['tank', 'tank'], melee: ['tank', 'axes'], bows: ['bow', 'bow'], wands: ['mage', 'mage'], staves: ['healer', 'healer'] });
 const LARGER = Object.freeze({ shields3: ['tank', 'tank', 'tank'], melee3: ['tank', 'axes', 'axes'], bows3: ['bow', 'bow', 'bow'], wands3: ['mage', 'mage', 'mage'], staves3: ['healer', 'healer', 'healer'],
@@ -68,8 +76,8 @@ const ONE_CLASS_OF = Object.freeze({ 2: Object.keys(DUOS), 3: Object.keys(LARGER
 const MIXES_OF = Object.freeze({ 2: ['duo tank+healer', 'duo tank+bow', 'duo tank+wand'], 3: ['trio tank+healer+bow', 'trio tank+healer+wand'], 4: ['four'] });
 /* HOW FAR A LINE MAY SIT FROM A FRESH MEASUREMENT, in points of the percent the player reads. The rows are whole fives, so a line
    written from one set of dice reads up to 2.5 off it by rounding, and fresh dice move a measured line too. Measured (lane/d-party-lines,
-   2026-11-15, all 135 lines): seeds 3-5 against seeds 0-2 moved a line by a median 0.9 points and at most 4.8, and lines written from
-   either set read at most 6.0 off the other. 7.5 sits over that, and a red means a line a step and a half off or more: the drift that
+   2026-11-15, all 135 lines, read at the floor alone): seeds 3-5 against seeds 0-2 moved a line by a median 0.9 points and at most 4.8, and
+   lines written from either set read at most 6.0 off the other. The guard's line is the mean of two such reads, so it moves less. 7.5 sits over that, and a red means a line a step and a half off or more: the drift that
    opened this (the board's "The Mage at 110 and up") was 10-20 points, Pyre Field's four saying +0 where it measured +20. */
 const LINE_TOL = 7.5;
 
@@ -85,9 +93,7 @@ const { STYLES } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/gear
 
 const groundIds = Object.keys(G.HUNT_GROUNDS);
 const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
-/* --middle: the band's middle Level instead of its floor (a designer's read; never with --write) */
-const MIDDLE = process.argv.includes('--middle');
-const levelOf = (g) => { const b = HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band; return MIDDLE ? Math.round((b[0] + b[1]) / 2) : b[0]; };
+const levelOf = (g, arm) => { const b = HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band; return arm.at === 'middle' ? Math.round((b[0] + b[1]) / 2) : b[0]; };
 /* A STAGED ground (a pack not yet open) is played as it ships, its own drops on the gear ladder (tools/balance-sim/gear.mjs openAlso,
    the grader's rule): otherwise a ground whose tier drops only there is played a tier under. With it, every staged ground at or under its
    floor: packs ship in road order, so the Pauper Vaults (165) is reached in the Morrow's Dawnsteel (tools/pack.mjs check --with, its board
@@ -96,7 +102,7 @@ const isOpen = (g) => Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g);
 const stagedGear = (g) => (isOpen(g) ? {} : { gear: { openAlso: groundIds.filter((x) => !isOpen(x) && floorOf(x) <= floorOf(g)) } });
 
 const cellOf = (g, arm, seed, party, name) => ({
-  id: [g, arm.id, seed, name].join(':'), ground: g, party, level: levelOf(g), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: SEED_BASE + seed,
+  id: [g, arm.id, seed, name].join(':'), ground: g, party, level: levelOf(g, arm), hours: party.length === 1 && arm.density === null ? SOLO_HOURS : HOURS, seeds: 1, seedBase: SEED_BASE + seed,
   ...(arm.density === null ? {} : { density: arm.density }), ...stagedGear(g),
 });
 
@@ -123,19 +129,23 @@ function planOf(seeds, only = {}) {
   return jobs;
 }
 
-/** THE PARTY WINDOW'S LINE, MEASURED: { ground: { size: [percent at 1 class, at 2, ...] } }, unrounded, read off judge's default-pull rows
-    and the pay table `PC` (the tree's own party-class-xp.js). A ground with no pay row is left out; a cell whose parties weren't played is NaN. */
-function linesOf(rows, PC) {
-  const at = new Map(rows.filter((r) => r.armId === 'pull').map((r) => [r.g + ':' + r.name, r.ratio]));
-  const mean = (g, names) => { const v = names.map((n) => at.get(g + ':' + n)); return v.every(Number.isFinite) ? meanOf(v) : NaN; };
+/** THE PARTY WINDOW'S LINE, MEASURED: { ground: { size: [percent at 1 class, at 2, ...] } }, unrounded: the mean of the line read at the band's
+    floor ('pull') and at its middle ('mid'), off judge's rows, with the pay table `PC` (the tree's own party-class-xp.js). The window says one
+    number for the whole band, and a mixed four's lead shrinks through it, so the floor alone overstated it by up to 15 points (the Pyre Field).
+    `arms` narrows the read (the --lines print). A ground with no pay row is left out; a cell whose parties weren't played is NaN. */
+function linesOf(rows, PC, arms = ['pull', 'mid']) {
+  const at = new Map(rows.filter((r) => arms.includes(r.armId)).map((r) => [r.g + ':' + r.armId + ':' + r.name, r.ratio]));
+  const mean = (g, arm, names) => { const v = names.map((n) => at.get(g + ':' + arm + ':' + n)); return v.every(Number.isFinite) ? meanOf(v) : NaN; };
   const out = {};
   for (const g of new Set(rows.map((r) => r.g))) {
     const pay = PC.PARTY_CLASS_XP[g];
     if (!pay) continue;
     const row = {};
     for (const n of [2, 3, 4]) {
-      const top = mean(g, MIXES_OF[n]), c = pay[n];
-      row[n] = c.map((_, i) => (i === 0 ? mean(g, ONE_CLASS_OF[n]) : (top * c[i]) / c[c.length - 1])).map((r) => (r - 1) * 100);
+      const c = pay[n];
+      const one = (arm) => { const top = mean(g, arm, MIXES_OF[n]); return c.map((_, i) => (i === 0 ? mean(g, arm, ONE_CLASS_OF[n]) : (top * c[i]) / c[c.length - 1])); };
+      const per = arms.map(one);
+      row[n] = c.map((_, i) => (meanOf(per.map((p) => p[i])) - 1) * 100);
     }
     out[g] = row;
   }
@@ -205,7 +215,7 @@ function judge(jobs, at) {
     if (!name.startsWith('solo-')) continue;
     const xp = at(j.id).heroes[0].levelXpPerH;
     solo.set([g, armId, j.party[0], seed].join(':'), xp);
-    if (armId === 'pull' && !(xp > 0)) problems.push(j.id + ': a hero alone earned no Level XP, so nothing can be judged against it');
+    if (asBuilt(armId) && !(xp > 0)) problems.push(j.id + ': a hero alone earned no Level XP, so nothing can be judged against it');
   }
   const cells = new Map();
   for (const j of jobs) {
@@ -214,7 +224,7 @@ function judge(jobs, at) {
     const key = [g, armId, name].join(':');
     const c = cells.get(key) || { g, armId, name, party: j.party, heads: [], built: [], picked: [], perSeed: [] };
     const head = at(j.id).party.levelXpPerHeroPerH;
-    const built = meanOf(j.party.map((w) => soloOf(g, 'pull', w, seed)));
+    const built = meanOf(j.party.map((w) => soloOf(g, armOf(armId).built, w, seed)));
     c.heads.push(head); c.built.push(built);
     c.picked.push(j.party.map((w) => soloOf(g, armId, w, seed)));
     c.perSeed.push(head / built);
@@ -223,7 +233,7 @@ function judge(jobs, at) {
   const rows = [...cells.values()].map((c) => {
     const head = meanOf(c.heads), built = meanOf(c.built);
     /* The same heroes alone at THEIR better pull: each way's as-built or the arm's own, seeds pooled (a lone hero can press + too). */
-    const best = meanOf(c.party.map((w, i) => Math.max(meanOf(c.built.map((_, s) => soloOf(c.g, 'pull', w, s))), meanOf(c.picked.map((p) => p[i])))));
+    const best = meanOf(c.party.map((w, i) => Math.max(meanOf(c.built.map((_, s) => soloOf(c.g, armOf(c.armId).built, w, s))), meanOf(c.picked.map((p) => p[i])))));
     return { ...c, head: Math.round(head), mean: Math.round(built), ratio: head / built, worstSeed: Math.max(...c.perSeed), best: Math.round(best), vsBest: head / best };
   });
   return { rows, problems };
@@ -231,7 +241,7 @@ function judge(jobs, at) {
 
 const armWords = (id) => ARMS.find((a) => a.id === id).words;
 const cellWords = (r) => r.g + ', ' + armWords(r.armId) + ', ' + r.party.join('+') + ': ' + r.head + ' Level XP/h per head, ' + r.mean + ' alone as built = ' + r.ratio.toFixed(3)
-  + ' (worst of ' + r.perSeed.length + ' seeds ' + r.worstSeed.toFixed(3) + ')' + (r.armId === 'pull' ? '' : ', ' + r.best + ' alone at the better pull = ' + r.vsBest.toFixed(3));
+  + ' (worst of ' + r.perSeed.length + ' seeds ' + r.worstSeed.toFixed(3) + ')' + (asBuilt(r.armId) ? '' : ', ' + r.best + ' alone at the better pull = ' + r.vsBest.toFixed(3));
 
 /* ── THE PROOF. Each mutant reaches the rule the way a data row or a code slip would, and plays the cell it should move. ── */
 const MUTANTS = [
@@ -277,7 +287,7 @@ const LINE_MUTANTS = [
 
 /** One line cell measured on the tree at `root`: { got, said } in points. */
 async function lineCellOn(root, [g, n, k]) {
-  const jobs = planOf(3, { grounds: [g], arms: [ARMS[0]], parties: k === 1 ? ONE_CLASS_OF[n] : MIXES_OF[n] });
+  const jobs = planOf(3, { grounds: [g], arms: ARMS.filter((a) => asBuilt(a.id)), parties: k === 1 ? ONE_CLASS_OF[n] : MIXES_OF[n] });
   const played = await playAll(root, jobs, 4);
   if (!played) return { got: NaN, said: NaN };
   const PC = await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V);
@@ -339,7 +349,7 @@ async function main() {
   /* red until a verdict is reached: a sweep that stops short never exits 0 */
   process.exitCode = 2;
   const writing = process.argv.includes('--write');
-  if (writing && (WIDE || MIDDLE || seeds !== 3 || SEED_BASE !== 0)) { console.log('  ✗ --write reads the guard\'s own cut only (no --wide, --middle, --seeds or --seed-base): what is written is what the guard measures'); process.exitCode = 1; return; }
+  if (writing && (WIDE || seeds !== 3 || SEED_BASE !== 0)) { console.log('  ✗ --write reads the guard\'s own cut only (no --wide, --seeds or --seed-base): what is written is what the guard measures'); process.exitCode = 1; return; }
   const jobs = planOf(seeds);
   const mixedNames = Object.keys(MIXED);
   const t0 = Date.now();
@@ -356,18 +366,22 @@ async function main() {
     const lines = linesOf(rows, PCX_HERE);
     if (writing) for (const [file, g] of writeLines(lines)) console.log('  wrote ' + g + "'s line into " + file);
     const drift = writing ? [] : lineDrift(lines, PCX_HERE.PARTY_VS_ALONE);
-    if (process.argv.includes('--lines') || writing) for (const [g, row] of Object.entries(lines)) {
-      const said = PCX_HERE.PARTY_VS_ALONE[g] || {};
-      console.log('  LINE ' + g.padEnd(20) + [2, 3, 4].map((n) => n + ': ' + row[n].map((x, i) => (said[n] ? said[n][i] : '-') + '/' + x.toFixed(1)).join(' ')).join('   ') + '   (said/measured)');
+    if (process.argv.includes('--lines') || writing) {
+      const floor = linesOf(rows, PCX_HERE, ['pull']), mid = linesOf(rows, PCX_HERE, ['mid']);
+      for (const [g, row] of Object.entries(lines)) {
+        const said = PCX_HERE.PARTY_VS_ALONE[g] || {};
+        console.log('  LINE ' + g.padEnd(20) + [2, 3, 4].map((n) => n + ': ' + row[n].map((x, i) => (said[n] ? said[n][i] : '-') + '/' + x.toFixed(1)
+          + ' (' + floor[g][n][i].toFixed(0) + '..' + mid[g][n][i].toFixed(0) + ')').join(' ')).join('   ') + '   (said/measured (floor..middle))');
+      }
     }
     for (const g of groundIds) for (const arm of ARMS) {
-      const on = (r) => (arm.id === 'pull' ? r.ratio : r.vsBest);
+      const on = (r) => (asBuilt(arm.id) ? r.ratio : r.vsBest);
       const top = same.filter((r) => r.g === g && r.armId === arm.id).sort((a, b) => on(b) - on(a))[0];
       console.log('  ' + g.padEnd(20) + arm.words.padEnd(13) + ' worst ' + on(top).toFixed(3) + ' ' + top.party.join('+'));
     }
     const eight = same.filter((r) => r.armId === 'eight');
     console.log('  8 each against alone as built (read, not the bar): ' + eight.filter((r) => r.ratio > BAR).length + ' of ' + eight.length + ' cells over ' + BAR.toFixed(2));
-    const reds = same.filter((r) => (r.armId === 'pull' ? r.ratio : r.vsBest) > BAR);
+    const reds = same.filter((r) => (asBuilt(r.armId) ? r.ratio : r.vsBest) > BAR);
     for (const p of problems) console.log('  ✗ ' + p);
     for (const r of reds) console.log('  ✗ ' + cellWords(r));
     for (const d of drift) console.log('  ✗ ' + lineWords(d) + ' (more than ' + LINE_TOL + ' points: node tests/party-class-xp-line.mjs --write re-measures it)');

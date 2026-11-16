@@ -121,16 +121,18 @@ export const PARTY_CLASS_XP = Object.freeze(foldRows('party class row', BASE_CLA
    RE-READ 2026-11-11 UNDER SOLO +15% (lane/d-solo-fifteen; party-class-xp-line --table --mixed, the floor, 3 seeds): every cell lands on its number or one 5-step
    from it (the Cellar's four 28, the Glade's four 34, the Warrens' three 29, Wickstead's three 43), so the lines stand.
    RE-MEASURED 2026-11-15 AND WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut). Cloth's smaller
-   Magic damage (lane/d-mage-110) and the packs since moved 27 of the 135 cells on all grounds more than 7.5 points (Krell's Hold's four said +0 and
-   measured +23). The guard now measures every line on every run and holds each within 7.5 points; a row is never typed by hand. */
+   Magic damage (lane/d-mage-110) and the packs since moved 27 of the 135 cells on all grounds more than 7.5 points at the floor (Krell's Hold's four said
+   +0 and measured +23). A line is now the mean of its reading at the band's floor and at its middle, since the window says one number for the band and
+   a mixed four's lead shrinks through it (the Pyre Field's four +18 at the floor, +5 at the middle). The guard measures every line on every run and
+   holds each within 7.5 points; a row is never typed by hand. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 const BASE_VS_ALONE = Object.freeze({
   mill_cellar: said([-40, 25], [-50, 10, 20], [-60, 15, 15, 30]),
-  meadowbrook_thicket: said([-30, 45], [-50, 35, 50], [-55, 35, 40, 45]),
-  wickstead: said([-35, 45], [-40, 30, 40], [-50, 35, 40, 45]),
-  mosslight_glade: said([-25, 35], [-30, 25, 30], [-45, 30, 40, 40]),
-  millrace_sewer: said([-20, 35], [-15, 35, 40], [-25, 25, 30, 35]),
-  coppercap_warrens: said([-10, 20], [-20, 15, 20], [-25, 10, 25, 30]),
+  meadowbrook_thicket: said([-30, 45], [-50, 30, 45], [-55, 30, 35, 40]),
+  wickstead: said([-35, 45], [-40, 25, 40], [-50, 30, 35, 40]),
+  mosslight_glade: said([-25, 35], [-30, 20, 30], [-45, 25, 35, 35]),
+  millrace_sewer: said([-20, 35], [-20, 35, 40], [-30, 20, 25, 30]),
+  coppercap_warrens: said([-15, 20], [-20, 15, 20], [-25, 10, 25, 30]),
 });
 /* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));

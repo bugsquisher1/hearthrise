@@ -167,9 +167,9 @@ export default definePack({
      way: one class is the mean of its five one-class parties (0.69 / 0.63 / 0.52), two of two the mean of three duos (1.16), three of three of two
      trios (1.10), four of four the one played (1.08), the cells between the size's mix times the cell ratio. Whole fives. Every same-class party is
      under solo (worst 0.75, two bows). */
-  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the floor,
+  /* RE-MEASURED 2026-11-15 and WRITTEN BY ITS TOOL (lane/d-party-lines; node tests/party-class-xp-line.mjs --write, the guard's own cut: 3 seeds, the mean of the floor and the band's middle,
      the room as built, every staged pack at or under this floor open). The guard holds this row within 7.5 points of a fresh measurement. */
-  partyVsAlone: { 2: [-30, 15], 3: [-35, 5, 15], 4: [-45, 0, 10, 15] },
+  partyVsAlone: { 2: [-30, 15], 3: [-35, 5, 10], 4: [-50, 0, 10, 10] },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value

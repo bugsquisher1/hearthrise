@@ -32,7 +32,7 @@
 //   LD-COPY    one hero takes another's plan (2027-04-24-loot-plan-copy.sql, audit 2026-11-15 F11): a copy lands (the source's plans, the
 //              destination's own plan back to keep, its lock kept) and answers the destination's section; a source slot that holds only
 //              ANOTHER account's hero is refused no_source and writes nothing; the same key again answers the same and writes nothing
-//   LD-IDEM    a second apply of the file is byte-identical (bodies, schema, baseline rows)
+//   LD-IDEM    a second apply of the file, and of 2027-04-24-loot-plan-copy.sql, is byte-identical (bodies, schema, baseline rows)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,6 +43,7 @@ import { goldOf } from './_gold.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const FILE = '2027-01-23-loot-dispatch.sql';
+const COPY_FILE = '2027-04-24-loot-plan-copy.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
 const idem = () => crypto.randomUUID();
 
@@ -314,7 +315,8 @@ const ARMS = {
       from pg_proc p where p.pronamespace = 'public'::regnamespace order by 1`)).rows);
     const rows = async () => JSON.stringify((await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows);
     const before = JSON.stringify([await inventory(db), await bodies(), await rows()]);
-    try { await db.exec(readFileSync(MIG, 'utf8').replace(/\r\n/g, '\n')); }
+    /* this file and 2027-04-24-loot-plan-copy.sql (F11), each applied again: nothing moves (each one's self-check runs again and rolls back) */
+    try { for (const m of [MIG, join(ROOT, 'supabase', 'migrations', '2027-04-24-loot-plan-copy.sql')]) await db.exec(readFileSync(m, 'utf8').replace(/\r\n/g, '\n')); }
     catch (e) { return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
     const after = JSON.stringify([await inventory(db), await bodies(), await rows()]);
     return before === after ? [] : ['a second apply moved the schema, a body or a baseline row'];
@@ -323,6 +325,14 @@ const ARMS = {
 
 /* Each mutant, planted in this file's body (the chain's last author of each), its self-check turned off. */
 const MUTANTS = [
+  /* F11 (2027-04-24-loot-plan-copy.sql): `file` names the body's author */
+  { arm: 'LD-COPY', file: COPY_FILE, why: 'the source is read across accounts',
+    pairs: [['  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_from) then', '  if not exists (select 1 from public.player_state where slot = p_from) then'],
+      ["             where r.user_id = v_uid and r.slot = p_from and r.loot_rule <> 'keep') s", "             where r.slot = p_from and r.loot_rule <> 'keep' and r.user_id = (select ps.user_id from public.player_state ps where ps.slot = p_from order by ps.user_id = v_uid desc limit 1)) s"]] },
+  { arm: 'LD-COPY', file: COPY_FILE, why: 'a decided key copies again',
+    find: '  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n  if not public.hr_rpc_gate', repl: '  if not public.hr_rpc_gate' },
+  { arm: 'LD-COPY', file: COPY_FILE, why: 'the copy writes nothing',
+    find: '    perform public.hr_item_rule_put(v_uid, p_slot, v_row.item_id, v_row.locked, v_row.want, v_row.restock);\n', repl: '' },
   { arm: 'LD-FULL', why: 'a deposit ignores the Storage room',
     find: '      if not public.hr_storage_room_fits(v_uid, v_row.item_id) then', repl: '      if false and not public.hr_storage_room_fits(v_uid, v_row.item_id) then' },
   { arm: 'LD-PLAY', why: 'the sale pays twice the catalogue bid',
@@ -344,10 +354,10 @@ const MUTANTS = [
     find: "    when p_plan = 'sell' and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)", repl: "    when p_plan in ('sell', 'deposit') and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)" },
 ];
 
-function selfCheckOff() {
-  const src = readFileSync(MIG, 'utf8').replace(/\r\n/g, '\n');
+function selfCheckOff(file = FILE) {
+  const src = readFileSync(join(ROOT, 'supabase', 'migrations', file), 'utf8').replace(/\r\n/g, '\n');
   const m = src.match(/\n(-- (?:── )?§\d+ SELF-CHECK[^\n]*(?:\n--[^\n]*)*)\n(do \$(\w*)\$)/);
-  if (!m) throw new Error('no self-check heading in ' + FILE);
+  if (!m) throw new Error('no self-check heading in ' + file);
   return [m[1] + '\n' + m[2], m[1] + '\ncreate or replace function pg_temp.ld_selfcheck_off() returns void language plpgsql as $' + m[3] + '$'];
 }
 
@@ -382,7 +392,7 @@ async function main() {
   let missed = 0;
   for (const mu of MUTANTS) {
     let db;
-    try { ({ db } = await bootReplay({ patches: new Map([[FILE, [selfCheckOff(), ...(mu.pairs || [[mu.find, mu.repl]])]]]),
+    try { ({ db } = await bootReplay({ patches: new Map([[mu.file || FILE, [selfCheckOff(mu.file), ...(mu.pairs || [[mu.find, mu.repl]])]]]),
       /* The arms play a real hunt on today's engine: a chain cut here holds an older world shape (2027-02-11-no-fight's
          catalogue moved it), so every settle answers world_shape_pending and the hunt picks up nothing. */
       fullChain: 'the arms play a hunt on the engine of today, which needs the catalogue and world shape of the files after this one' })); }

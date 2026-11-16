@@ -340,12 +340,6 @@ export class CharacterSession {
   }
 
   /** The item's loot plan (keep in bag, deposit in storage, sell: run by loot-intents.js) or its pickup filter (ignore). */
-  /** This hero takes the loot plan of the account's hero in slot `from` (2027-04-24-loot-plan-copy.sql): ONE intent, two slots; the answer's bag_rules is the plan now. */
-  async copyLootPlan(from) {
-    if (!Number.isInteger(from) || from < 0 || from === this.slot) return { ok: false, error: 'bad_intent' };
-    return this._ask('loot_plan_copy', () => this._server.rpc('hr_loot_plan_copy', { p_slot: this.slot, p_from: from, p_idem: newIdem() }));
-  }
-
   async setLootRule(item, rule) {
     if (this._closed || !ITEM.test(String(item)) || !LOOT_RULES.includes(rule)) return { ok: false, error: 'bad_intent' };
     return this._ask('loot_rule_set', () => this._server.rpc('hr_loot_rule_set', { p_slot: this.slot, p_item: item, p_rule: rule, p_idem: newIdem() }));

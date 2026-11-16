@@ -30,6 +30,7 @@ import { glyphSvg } from '../../launcher.js?v=0.2.132';
 import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.132';
 import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.132';
 import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.132';
+import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.132';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.132';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.132';
 import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.132';
@@ -82,7 +83,7 @@ export function toolsHtml(g) {
     + '<button type="button" class="hh-tool" data-hs-act="clear-sel">' + t('controls.clear') + '</button></div>'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
-    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
+    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>' + planCopyHtml()
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
@@ -196,6 +197,7 @@ export function patchTools(root, st, ctx) {
   attr(db, 'title', dWhy || 'Deposits every stack planned "Deposit" and sells every stack planned "Sell"');
   prop(db, 'disabled', sc.pending || !!dWhy);
   whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);
+  patchPlanCopy(root, st, ctx, onBag);
   const cb = tools.querySelector('[data-hs-act="sell-cat"]');
   const catLabel = (BAG_CATS.find(([id]) => id === prefs.cat) || [])[1] || '';
   cls(cb, 'is-on', prefs.cat !== 'all');

@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-14",
- "digest": "24fd2a1968d6e831370e678006931fb67c5a5e61e31f6017e4ef882bd613a16a",
+ "generated": "2026-11-15",
+ "digest": "da881b15ceb47ba3d97e32232f02e5a491c0b112c630ee56d3abf6886f666a31",
  "counts": {
   "relations": 277,
-  "functions": 716,
+  "functions": 717,
   "policies": 120,
   "indexes": 393,
   "triggers": 94,
@@ -717,6 +717,7 @@
    "hr_login_claim_verify(p_uid uuid, p_slot integer, p_period text, p_delta jsonb)",
    "hr_login_view(p_user uuid, p_slot integer)",
    "hr_loot_dispatch(p_slot integer, p_idem uuid)",
+   "hr_loot_plan_copy(p_slot integer, p_from integer, p_idem uuid)",
    "hr_loot_plan_refusal(p_item text, p_plan text)",
    "hr_loot_rule_set(p_slot integer, p_item text, p_rule text, p_idem uuid)",
    "hr_mark_seen(p_slot integer, p_session uuid, p_event_id bigint)",

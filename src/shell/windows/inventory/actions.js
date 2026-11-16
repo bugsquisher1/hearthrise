@@ -52,6 +52,7 @@ import { offerForSale } from '../market/state.js?v=0.2.132';
 import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.132';
 import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.132';
 import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.132';
+import { actPlanCopy } from './plan-copy.js?v=0.2.132';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.132';
 import { askElsewhere } from './elsewhere.js?v=0.2.132';
 import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.132';
@@ -468,6 +469,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'lock-sel': doLockMany(st, repaint); return true;
     case 'clear-sel': clearSelection(sc); repaint(); return true;
     case 'dispatch': doDispatch(ctx, st, repaint); return true;
+    case 'plan-copy': case 'plan-copy-yes': case 'plan-copy-no': return actPlanCopy(ctx, st, action, el, repaint);
     case 'sell-cat': askSell(st, st.shown.map((r) => r.id), 'Sell all', repaint); return true;
     case 'confirm-yes': doSell(st, repaint); return true;
     case 'confirm-no': sc.confirm = null; repaint(); return true;

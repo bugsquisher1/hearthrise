@@ -257,14 +257,17 @@ function healsSelf(a) {
  * THE HEAL WARNING (designer ruling 2026-10-21, Andy's Sewer death): a heal slot whose HP % (its
  * own "My HP % below" test) is fewer HP than the biggest blow the hunt can land,
  * so one hit can kill before it fires. `blow` is pull-cycle.js biggestBlowOn, `hpMax` the server's.
- * '' when it is safe or a number is unknown.
+ * Lines of parts (the window draws format.js sepHtml between two parts of a line); [] when it is safe or a number is unknown.
+ * @returns {string[][]}
  */
 export function healWarning(w, set, blow, hpMax) {
-  if (!w || !w.action || !w.action.id || !blow || !(hpMax > 0) || !healsSelf(w.action)) return '';
+  if (!w || !w.action || !w.action.id || !blow || !(hpMax > 0) || !healsSelf(w.action)) return [];
   const c = w.conditions.find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
-  if (!c) return '';
+  if (!c) return [];
   const at = Math.floor((hpMax * c.value) / 100);
-  return at < blow.hit ? t(w.action.type === 'consume' ? 'bar.heal_warning_eat' : 'bar.heal_warning_heal', { monster: blow.name, hit: blow.hit, pct: c.value, hp: at }) : '';
+  /* Tyler 2026-11-14: "Max Hit {hit} · Your HP {hp}", then "Eat earlier" on its own line */
+  return at < blow.hit ? [[t('bar.heal_warning_hit', { hit: blow.hit }), t('bar.heal_warning_hp', { hp: at })],
+    [t(w.action.type === 'consume' ? 'bar.heal_warning_eat' : 'bar.heal_warning_heal')]] : [];
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A is On, ignores no monster B fights, and A's conditions are all among B's

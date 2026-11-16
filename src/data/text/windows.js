@@ -3,7 +3,7 @@
 // the help button and each window's one help line.
 //
 // One row per sentence or label, read by t('windows.<key>'). A row in src/data/shell-windows.js names its help
-// line with `help: 'windows.help_<id>'`; the shell adds key_line ("H opens this window.") when the row has a key
+// line with `help: 'windows.help_<id>'`; the shell adds key_line ("Shortcut: H") when the row has a key
 // and the screen has a keyboard. Back and Close are the glossary's (src/data/text/controls.js).
 // ════════════════════════════════════════════════════════════════════════
 
@@ -12,9 +12,9 @@ export const WINDOWS_TEXT = Object.freeze({
   back_to: 'Back to {window}',
   /* The help button's label and the key sentence added to a help line. */
   help: 'Help',
-  key_line: '{key} opens this window.',
+  key_line: 'Shortcut: {key}',
 
-  /* Each window's one help line: what it is for, in a sentence or two. */
+  /* Each window's one help line: what it is for, in a sentence or two. @sentence: the ? button teaches the window, a label can't. */
   help_hunts: 'Pick a hunt and press Enter. Your hero heads out and fights on its own, even after you close the game.',
   help_inventory: 'Press a stack to pick it, then press Equip, Use or Sell under the bag.',
   help_storage: 'Every hero on your account shares Storage. Press a stack to move one over, from your bag to Storage or back.',

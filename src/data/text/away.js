@@ -13,7 +13,7 @@ export const AWAY_TEXT = Object.freeze({
   /* {name} when the server has not sent the hero's name yet. */
   your_hero: 'Your hero',
   /* Out of stamina (after-hunt.js NEXT.stamina): what uses none while it comes back. {level} the yard's first Level (src/data/training.js). */
-  next_stamina: 'While your stamina comes back, {name} can work at a bench, or train at the Training Yard from Level {level}. Neither uses stamina. Start mining, chopping or fishing before you hunt, and {name} will go back to it when the hunt ends.',
+  next_stamina: 'Stamina refilling: work a bench or train at the Yard (Level {level}+)',
   /* A training session that reached its longest run (after-hunt.js TRAIN_NEXT). */
   next_train_again: 'Training uses no stamina, so start it again to keep going.',
   /* {doing} is the server's job in words ("mining the Copper Rock", party-sections.js townActivityWords). */
@@ -21,14 +21,14 @@ export const AWAY_TEXT = Object.freeze({
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */
   after_waited: 'Then {name} waited in town for {time}.',
   /* The one next thing that would have filled the time, by what ended the hunt (after-hunt.js NEXT). */
-  next_gather: 'Start mining, chopping or fishing before you hunt, and {name} will go back to it when the hunt ends.',
-  next_longer: 'Set a longer hunt next time, up to the stamina you have.',
-  next_food: 'Pack more food next time, and the hunt can run longer.',
-  next_ammo: 'Pack more ammo next time, and the hunt can run longer.',
-  next_runes: 'Pack more runes next time, and the hunt can run longer.',
-  next_gold: 'Keep more gold on hand for the store\'s supplies, or pack your own, and the hunt can run longer.',
+  next_gather: 'Start mining, chopping or fishing before a hunt to resume it after.',
+  next_longer: 'Set a longer hunt, up to your stamina.',
+  next_food: 'Pack more food for a longer hunt.',
+  next_ammo: 'Pack more ammo for a longer hunt.',
+  next_runes: 'Pack more runes for a longer hunt.',
+  next_gold: 'Lower your gold reserve, carry more gold, or pack your own supplies.',
   /* gold_out with food or drink in the bag that no slot of the bar uses (after-hunt.js spareSupplyOf): {item} its name. */
-  next_bar: '{item} was in your bag but not on your bar, so {name} bought supplies until the gold ran out. Put it on your bar next time.',
+  next_bar: 'Tip: put {item} on your bar ({name} bought store supplies instead)',
 
   /* WHEN THE HUNT ENDS (Tyler 2026-11-15, the itinerary; src/shell/hunt-after.js). The hunt page's one control: its heading,
      its choices ({doing} the server's job in words, {skill} a skill's name) and the line under the picked one. */
@@ -39,19 +39,19 @@ export const AWAY_TEXT = Object.freeze({
   note_wait: 'Your hero stands in town until you come back.',
   note_job: 'Your hero carries on with it until you stop it.',
   /* {n} what the bench still had to make, the server's count. */
-  note_job_left: 'Your hero makes the {n} it still had left to make, and no more.',
-  note_no_job: 'Your hero has no job to go back to, so it waits in town. Start one before you leave and it goes back to it.',
+  note_job_left: 'Your hero makes the {n} still left, no more',
+  note_no_job: 'Waits in town (no job to go back to). Start one first',
   /* {fee} the yard's fee for an hour at this hero's skill, {hours} its longest stay; both the server's. */
-  train_cost: 'The yard costs {fee} gold an hour, paid as each hour starts, for up to {hours} hours. If you can\'t pay, your hero waits in town.',
-  train_level: 'The yard takes heroes from Level {level}. Until then your hero waits in town.',
-  train_party: 'Training is solo. While your hero is in a party it waits in town.',
+  train_cost: '{fee} gold/h, up to {hours} h (can\'t pay: waits in town)',
+  train_level: 'Yard from Level {level} (waits in town until then)',
+  train_party: 'Training is solo (waits in town while in a party)',
   after_hunting: 'You can change this once the hunt is over.',
   saving: 'Saving…',
   /* The running session's own plan, on the analyzer. {session} names what is running: a hunt, or a training session at the
      yard or the house dummy (a training session is a hunt session, src/data/training.js). */
   then_wait: 'After this {session} your hero waits in town.',
   then_job: 'After this {session} your hero goes back to {doing}.',
-  then_job_left: 'After this {session} your hero goes back to {doing}, with {n} left to make.',
+  then_job_left: 'After this {session} your hero goes back to {doing} ({n} left)',
   then_train: 'After this {session} your hero trains {skill} at the yard.',
   session_hunt: 'hunt',
   session_training: 'training session',
@@ -59,8 +59,8 @@ export const AWAY_TEXT = Object.freeze({
   done_pending: '{name} is on the way to the yard to train {skill}.',
   done_started: 'Then {name} went to the yard to train {skill}.',
   done_chose_wait: 'Then {name} waited in town, as you asked.',
-  done_gold: '{name} couldn\'t pay the yard. An hour of {skill} costs {fee} gold and you had {purse}, so {name} waited in town.',
+  done_gold: '{name} waited in town ({skill} costs {fee} gold/h, you had {purse})',
   done_level: 'The yard takes heroes from Level {level}, so {name} waited in town.',
-  done_party: 'Training is solo and {name} is still in a party, so {name} waited in town.',
+  done_party: '{name} waited in town (training is solo, still in a party)',
   done_no_train: '{name} couldn\'t start training {skill}, so {name} waited in town.',
 });

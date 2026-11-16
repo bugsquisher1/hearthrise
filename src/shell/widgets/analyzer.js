@@ -47,7 +47,7 @@ import { t } from '../../render/player-text.js?v=0.2.132';
 /* A TRAINING SESSION (../training-now.js; lane/a-training-display): it showed "Monsters killed 0, Level XP 0, Gold 0". While one runs the
    panel shows the trained skill's level and its progress (the server's skill_levels), its XP an hour, the hour's fee and the gold paid
    (the server's training section), and none of the hunt's rows (hunt.css .is-training). Not premium: the Training window shows them all. */
-const TRAIN_HTML = '<div class="ha-train" hidden><div class="ha-train-level"><span class="ha-train-lv"></span>' + skillBarHtml(t('hunts.an_skill'))
+const TRAIN_HTML = '<div class="ha-train" hidden><div class="ha-train-level"><span class="ha-train-lv"></span>' + skillBarHtml(t('hud.an_skill'))
   + '<small class="hw-skill-xp"></small></div><dl class="ha-stats">'
   + '<dt class="ha-train-xp-label"></dt><dd data-train="xp"></dd>'
   + '<dt>' + esc(t('training.an_fee_h')) + '</dt><dd data-train="fee"></dd>'
@@ -71,13 +71,13 @@ function patchTraining(box, tn, cs) {
 }
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
-const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
-const RATE_LATER_PREMIUM = 'Per hour and your next level after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
+const RATE_LATER = t('hud.an_later', { min: Math.round(ANALYZER_RATE_AFTER_MS / 60000) });
+const RATE_LATER_PREMIUM = t('hud.an_later_premium', { min: Math.round(ANALYZER_RATE_AFTER_MS / 60000) });
 /* A row the server prices by the whole (store supplies, loot: their totals are in the Session section) leaves its
    column empty: a dash beside every line read as a missing price. */
 const orBlank = (v) => (v === null || v === undefined ? '' : gold(v));
 
-const TABS = Object.freeze([['session', 'Session'], ['training', 'Training'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
+const TABS = Object.freeze([['session', t('hud.an_tab_session')], ['training', t('hud.an_tab_training')], ['taken', t('hud.an_tab_taken')], ['dealt', t('hud.an_tab_dealt')]]);
 /* What only a premium character sees: these stats (section.stat), and every section off the Session tab. */
 const PREMIUM_STATS = new Set(['totals.waste', 'rates.rawLevelXp', 'rates.waste', 'rates.balance']);
 const premiumTab = (tab) => tab !== 'session';
@@ -85,18 +85,18 @@ const premiumTab = (tab) => tab !== 'session';
 /* Each section: its tab, its title and its body (a fixed list of stat rows, or a keyed list). A stat row is
    [key, label, format, from?]: v[key], or v[from][key]; its node is data-stat="key" (from-prefixed: "perHour.key"). */
 const SECTIONS = Object.freeze([
-  { id: 'totals', tab: 'session', title: 'Session', stats: [['kills', 'Monsters killed', whole], ['levelXp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold], ['waste', 'Supplies cost', gold], ['balance', 'Balance (gold + loot value − supplies)', gold]] },
-  { id: 'rates', tab: 'session', title: 'Per hour', stats: [['levelXp', 'Level XP per hour', whole, 'perHour'], ['rawLevelXp', 'Level XP per hour before bonuses', whole, 'perHour'], ['goldAndLoot', 'Gold and loot value per hour', gold, 'perHour'], ['waste', 'Supplies per hour', gold, 'perHour'], ['balance', 'Balance per hour', gold, 'perHour']] },
-  { id: 'supplies', tab: 'session', title: 'Supplies used', list: 'supplies' },
-  { id: 'loot', tab: 'session', title: 'Loot collected', list: 'loot' },
+  { id: 'totals', tab: 'session', title: t('hud.an_sec_totals'), stats: [['kills', t('hud.an_kills'), whole], ['levelXp', t('hud.an_level_xp'), whole], ['gold', t('hud.an_gold'), gold], ['lootValue', t('hud.an_loot_value'), gold], ['waste', t('hud.an_supplies_cost'), gold], ['balance', t('hud.an_balance'), gold]] },
+  { id: 'rates', tab: 'session', title: t('hud.an_sec_rates'), stats: [['levelXp', t('hud.an_level_xp_h'), whole, 'perHour'], ['rawLevelXp', t('hud.an_raw_xp_h'), whole, 'perHour'], ['goldAndLoot', t('hud.an_gold_loot_h'), gold, 'perHour'], ['waste', t('hud.an_supplies_h'), gold, 'perHour'], ['balance', t('hud.an_balance_h'), gold, 'perHour']] },
+  { id: 'supplies', tab: 'session', title: t('hud.an_sec_supplies'), list: 'supplies' },
+  { id: 'loot', tab: 'session', title: t('hud.an_sec_loot'), list: 'loot' },
   /* TRAINING (premium): what the combat skills earned from blows dealt, blows taken and mana spent — never
      part of Level XP. Per skill: this session's XP and, for this hero, its XP an hour (the party's is a sum). */
-  { id: 'training', tab: 'training', title: 'Training', stats: [['trainingXp', 'Training XP', whole], ['trainingXp', 'Training XP per hour', whole, 'perHour']] },
-  { id: 'bySkill', tab: 'training', title: 'By skill', list: 'training' },
-  { id: 'byMonster', tab: 'taken', title: 'Taken from each monster', map: 'takenByMonster', name: monsterName },
-  { id: 'takenEl', tab: 'taken', title: 'Taken by damage type', map: 'takenByElement', name: elementName },
-  { id: 'byAbility', tab: 'dealt', title: 'Dealt by each attack', map: 'dealtByAbility', name: abilityName },
-  { id: 'dealtEl', tab: 'dealt', title: 'Dealt by damage type', map: 'dealtByElement', name: elementName },
+  { id: 'training', tab: 'training', title: t('hud.an_sec_training'), stats: [['trainingXp', t('hud.an_training_xp'), whole], ['trainingXp', t('hud.an_training_xp_h'), whole, 'perHour']] },
+  { id: 'bySkill', tab: 'training', title: t('hud.an_sec_skill'), list: 'training' },
+  { id: 'byMonster', tab: 'taken', title: t('hud.an_sec_by_monster'), map: 'takenByMonster', name: monsterName },
+  { id: 'takenEl', tab: 'taken', title: t('hud.an_sec_taken_el'), map: 'takenByElement', name: elementName },
+  { id: 'byAbility', tab: 'dealt', title: t('hud.an_sec_by_attack'), map: 'dealtByAbility', name: abilityName },
+  { id: 'dealtEl', tab: 'dealt', title: t('hud.an_sec_dealt_el'), map: 'dealtByElement', name: elementName },
 ]);
 
 const statId = (k, from) => (from ? from + '.' + k : k);
@@ -107,7 +107,7 @@ function sectionHtml(s) {
     + (s.id === 'rates' ? '<p class="hs-note ha-later" hidden>' + esc(RATE_LATER) + '</p>' : '') : '';
   return '<section class="ha-sec" data-sec="' + s.id + '" data-tab="' + s.tab + '"' + (premiumTab(s.tab) ? ' data-premium' : '') + '>'
     + '<h3 class="ha-sec-head"><button type="button" class="ha-fold" data-hs-act="fold" aria-expanded="true">' + esc(s.title) + '</button></h3>'
-    + '<div class="ha-sec-body">' + stats + (s.stats ? '' : '<ul class="ha-list"></ul><p class="ha-none">Nothing yet.</p>') + '</div></section>';
+    + '<div class="ha-sec-body">' + stats + (s.stats ? '' : '<ul class="ha-list"></ul><p class="ha-none">' + t('hud.an_none') + '</p>') + '</div></section>';
 }
 
 /** The skeleton (built once). Its title row is the name, the fold and the close (shown on a phone only, hunt.css),
@@ -115,22 +115,22 @@ function sectionHtml(s) {
  *  out was the 13 px box in Settings). The hero / party switch is the body's, under the clocks: beside the name and
  *  the fold it wrapped the name onto two lines at 290 px (2026-10-25). */
 export function renderAnalyzer(ctx) {
-  const scope = '<span class="ha-scope" role="group" aria-label="Whose numbers">'
-    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="hero" aria-pressed="true">This hero</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="false">Party</button></span>';
-  const tools = foldButtonHtml('Hunt analyzer')
-    + '<button type="button" class="hs-close ha-close" data-hs-act="hide" aria-label="Close the hunt analyzer" title="Close (Hunt details opens it again)">'
+  const scope = '<span class="ha-scope" role="group" aria-label="' + t('hud.an_scope') + '">'
+    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="hero" aria-pressed="true">' + t('hud.an_hero') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="false">' + t('hud.an_party') + '</button></span>';
+  const tools = foldButtonHtml(t('hud.an_title'))
+    + '<button type="button" class="hs-close ha-close" data-hs-act="hide" aria-label="' + t('hud.an_close') + '" title="' + t('hud.an_close_title') + '">'
     + (glyphSvg(ctx && ctx.glyphs, 'uiClose') || '×') + '</button>';
-  const body = '<p class="ha-wait">The analyzer fills in once the hunt has run for a moment.</p>'
+  const body = '<p class="ha-wait">' + t('hud.an_wait') + '</p>'
     + '<div class="ha-main">'
-    + '<p class="ha-ended" role="status">Hunt ended. This is the session summary.</p>'
-    + '<div class="ha-clocks"><span><small>Session</small><b data-clock="session"></b></span><span data-premium><small>Next level in</small><b data-clock="next"></b></span></div>'
+    + '<p class="ha-ended" role="status">' + t('hud.an_ended') + '</p>'
+    + '<div class="ha-clocks"><span><small>' + t('hud.an_session') + '</small><b data-clock="session"></b></span><span data-premium><small>' + t('hud.an_next') + '</small><b data-clock="next"></b></span></div>'
     + scope
     + '<p class="ha-then"></p>'
     + '<div class="ha-tabs" role="tablist">' + TABS.map(([id, label], i) => '<button type="button" role="tab" class="ha-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (premiumTab(id) ? ' data-premium' : '') + '>' + label + '</button>').join('') + '</div>'
     + '<div class="ha-scroll">' + TRAIN_HTML + SECTIONS.map(sectionHtml).join('') + '</div>'
-    + '<p class="hs-note ha-more" hidden>More detail with premium.</p></div>';
-  return panelHtml('ha-analyzer', t('hunts.an_title'), tools, body, true);
+    + '<p class="hs-note ha-more" hidden>' + t('hud.an_more') + '</p></div>';
+  return panelHtml('ha-analyzer', t('hud.an_title'), tools, body, true);
 }
 
 function lineHtml() {
@@ -177,14 +177,14 @@ function patchView(root, v, ctx, premium) {
       patchList(sec.querySelector('.ha-list'), v.training, (it) => it.skill, (li, it) => {
         text(li.querySelector('.ha-name'), skillName(it.skill));
         text(li.querySelector('.ha-count'), '+' + whole(it.xp));
-        text(li.querySelector('.ha-val'), it.perHour === null ? '–' : whole(it.perHour) + ' an hour');
-        text(li.querySelector('.ha-eta'), it.nextMs === null ? '' : 'next level in ' + hoursMinutes(it.nextMs));
+        text(li.querySelector('.ha-val'), it.perHour === null ? '–' : t('hud.an_per_hour', { n: whole(it.perHour) }));
+        text(li.querySelector('.ha-eta'), it.nextMs === null ? '' : t('hud.an_next_in', { time: hoursMinutes(it.nextMs) }));
       }, ctx);
     } else if (s.list === 'supplies') {
       patchList(sec.querySelector('.ha-list'), v.supplies, (it) => it.item + ':' + it.source, (li, it) => {
         text(li.querySelector('.ha-name'), itemName(it.item) + (it.source === 'own' ? ' (own)' : ' (store)'));
         text(li.querySelector('.ha-count'), '×' + whole(it.count));
-        text(li.querySelector('.ha-val'), it.source === 'own' ? 'from bag' : orBlank(it.gold));
+        text(li.querySelector('.ha-val'), it.source === 'own' ? t('hud.an_from_bag') : orBlank(it.gold));
       }, ctx);
     } else if (s.list === 'loot') {
       patchList(sec.querySelector('.ha-list'), v.loot, (it) => it.item, (li, it) => {
@@ -209,7 +209,7 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   const tn = trainingNowOf(ctx.character, serverNowOf(ctx.character));
   cls(panel, 'is-training', !!tn);
   prop(panel.querySelector('.ha-train'), 'hidden', !tn);
-  text(panel.querySelector('.hh-panel-title'), t(tn ? 'training.an_title' : 'hunts.an_title'));
+  text(panel.querySelector('.hh-panel-title'), t(tn ? 'training.an_title' : 'hud.an_title'));
   if (tn) patchTraining(panel.querySelector('.ha-train'), tn, ctx.character);
   cls(panel, 'is-waiting', !a && !tn);
   /* The premium rows: shown only to a premium character; a free one gets the one quiet line. */

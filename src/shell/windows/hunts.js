@@ -105,7 +105,7 @@ const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((x) => x.hunt === hu
  * WHY THIS HERO'S ENTER IS OFF, or '' when it is live: a party member's belongs to its leader (the server refuses it: not_party_leader). No Level ever turns it off. Pure.
  */
 export function enterOffWords(party) {
-  if (party && !party.isLeader) return 'You\'re in ' + (party.leaderName || 'your leader') + '\'s party, and they pick the hunt. Leave the party to pick your own.';
+  if (party && !party.isLeader) return t('hunts.off_follower', { leader: party.leaderName || t('hunts.your_leader') });
   return '';
 }
 
@@ -181,8 +181,8 @@ async function asChosen(cs, sc, go) {
 
 /* The hunt under way: what its hunt bag holds now (the server's; Enter moved it out of the bag, Brannoc 10-22). */
 function carriedWords(lines) {
-  if (!lines.length) return 'Your hunt bag is empty.';
-  return 'Your hunt bag holds ' + lines.map((l) => whole(l.qty) + ' ' + itemName(l.id)).join(', ') + '.';
+  if (!lines.length) return t('hunts.bag_empty');
+  return t('hunts.bag_holds', { items: lines.map((l) => whole(l.qty) + ' ' + itemName(l.id)).join(', ') });
 }
 
 /** The skeleton (built once per opening): the notes, then the list beside the picked ground's page. A fresh opening
@@ -191,11 +191,11 @@ export function renderHunts(ctx) {
   if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.closeOnHunt = false; sc.shown = null; }
   return '<div class="hw-hunts">'
     + '<p class="hs-note hw-hunts-now"></p><p class="hs-note hw-hunts-reco" hidden></p>'
-    + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
+    + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="' + t('hunts.win_list') + '"></ul>'
     /* The page scrolls in its own box and Enter stands below it (windows.css), never over the lineup or the drops. */
-    + '<section class="hw-hunt-detail" aria-label="The picked hunt"><div class="hw-hd-page">' + detailHtml()
-    + '<h4 class="hw-hd-h">The packs</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
-    + '<span class="hw-tiers" role="group" aria-label="Tiers"><span class="hh-segs">'
+    + '<section class="hw-hunt-detail" aria-label="' + t('hunts.win_page') + '"><div class="hw-hd-page">' + detailHtml()
+    + '<h4 class="hw-hd-h">' + t('hunts.head_packs') + '</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
+    + '<span class="hw-tiers" role="group" aria-label="' + t('hunts.head_tiers') + '"><span class="hh-segs">'
     + TIER_IDS.map((id) => '<button type="button" class="hh-seg" data-hs-act="tier" data-tier="' + id + '">' + TIER_NAME[id] + '</button>').join('')
     + '</span><output class="hw-tier-read"></output></span></div>'
     + '<p class="hw-tier-note"></p>'
@@ -212,7 +212,7 @@ function lineHtml(r, glyphs) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-glyph" title="' + esc(heroWords(r)) + '">' + glyphSvg(glyphs, 'uiPeople') + '</span>'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b>'
-    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">Level ' + r.band[0] + '–' + r.band[1] + '</span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></small>'
+    + '<small class="hw-hunt-band"><span class="hw-hunt-lv">' + t('hunts.level_band', { lo: r.band[0], hi: r.band[1] }) + '</span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></small>'
     /* a reader gets a space between the parts (it got "Level 1–8In range"); the dot never starts or ends a line (format.js sepHtml) */
     + '<small class="hw-hunt-sub"><span class="hw-hunt-fits"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-bestline"></span></small>'
     + '<small class="hw-hunt-tally"></small><span class="hw-hunt-events"></span></span></li>';
@@ -249,10 +249,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
   if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
   const nowEl = root.querySelector('.hw-hunts-now');
-  text(nowEl, now ? 'You are hunting in ' + huntName(now.huntId) + '. Leave that hunt to go somewhere else.'
-    : follower ? 'Your party leader picks the hunt and starts it. You walk in with everyone, with your own setup.'
-    : party ? 'Pick a hunt, then Enter with party. Everyone walks in together, each with their own setup.'
-    : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
+  text(nowEl, now ? t('hunts.lead_hunting', { ground: huntName(now.huntId) })
+    : follower ? t('hunts.lead_follower') : party ? t('hunts.lead_party') : t('hunts.lead_solo'));
   /* The how-to (not a running hunt) gives its room to the ground's page on the phone sheet. */
   cls(nowEl, 'is-hint', !now);
   /* No ground built for this group holds its level: said plainly (the pick is the nearest below). */
@@ -313,7 +311,7 @@ function patchPage(det, ctx, sc, v) {
   const under = party && !follower ? seatsUnder(r, party).under : [];
   /* the death line says the share a death would really take with the Blessings the server says are on (designer re-read 2026-11-11) */
   const blessed = blessingsOf(cs);
-  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join(' '));
+  text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join('\n'));
   /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */
   const carried = now ? huntBagOf(cs) : null;
   text(det.querySelector('.hw-hunt-pack'), now && now.huntId === r.hunt && carried ? carriedWords(carried) : '');
@@ -326,8 +324,8 @@ function patchPage(det, ctx, sc, v) {
     setups, chosen, off: sc.pending || !!now || follower,
     before,
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
-      why: party ? 'You lead a party of ' + party.seats.length + '.' : heroWords(r) + '.',
-      find: party ? 'Open the party finder' : 'Find a party',
+      why: party ? t('hunts.party_lead', { n: party.seats.length }) : heroWords(r),
+      find: party ? t('hunts.party_finder') : t('hunts.party_find'),
       bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
@@ -365,12 +363,12 @@ function patchPage(det, ctx, sc, v) {
     attr(b, 'aria-pressed', String(id === tier));
     attr(b, 'data-pending', String(id === tier && !!(sc.draft || sc.saving)));
   }
-  text(det.querySelector('.hw-tier-read'), follower && tier ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + TIER_NAME[tier] : '');
+  text(det.querySelector('.hw-tier-read'), follower && tier ? t('hunts.tier_set_by', { leader: party.leaderName || t('hunts.your_leader'), tier: TIER_NAME[tier] }) : '');
   /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks, and with store food
      too weak for the ground Before you go says the fix (hunt-go.js weakFoodLine: the hand play died twice under "Safe at your level"). */
   const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + ' ';
-  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? 'Your party leader picks the tier.'
-    : size > 1 ? safe + 'As the leader, your pick holds for everyone, and it\'s kept for this ground.' : safe + 'Your pick is kept for this ground.'));
+  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? t('hunts.tier_leader_picks')
+    : size > 1 ? safe + t('hunts.tier_kept_party') : safe + t('hunts.tier_kept')));
 }
 
 renderHunts.act = function actHunts(ctx, body, action, ev, el) {
@@ -425,7 +423,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (action === 'bring') {
     const slot = Number(el.getAttribute('data-slot'));
     const who = freeHeroes(cs, ctx.peers()).find((x) => x.slot === slot);
-    if (who) runIntent(sc, repaint, () => inviteOwn(ctx.account, cs, slot), 'Bringing ' + who.name + '…', () => who.name + ' joined your party.', cs);
+    if (who) runIntent(sc, repaint, () => inviteOwn(ctx.account, cs, slot), t('hunts.bringing', { name: who.name }), () => t('hunts.joined', { name: who.name }), cs);
     return true;
   }
   /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
@@ -456,19 +454,19 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     const row = huntRows().find((x) => x.hunt === hunt);
     const low = row ? seatsUnder(row, lead) : { under: [] };
     if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {
-      runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-        () => underWords(row, low.under) + ' They have been told. Press Enter anyway to go.', cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
+      runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), t('hunts.telling'),
+        () => underWords(row, low.under) + '. ' + t('hunts.party_warned'), cs).then(() => { sc.warned = warnKey(hunt, low.under); repaint(); });
       return true;
     }
     if (!low.under.length && row && rangeWords(row, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {
       sc.warned = warnKey(hunt, []);
-      sc.msg = 'Press Enter anyway to go.';
+      sc.msg = t('hunts.enter_anyway_hint');
       repaint();
       return true;
     }
     sc.warned = null;
-    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), 'Gathering the party for ' + huntName(hunt) + '…',
-      () => 'Your party is on its way to ' + huntName(hunt) + '.', cs).then(thenClose);
+    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), t('hunts.gathering', { ground: huntName(hunt) }),
+      () => t('hunts.party_on_way', { ground: huntName(hunt) }), cs).then(thenClose);
     return true;
   }
   if (action === 'enter') {
@@ -477,13 +475,13 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     const above = huntRows().find((x) => x.hunt === hunt);
     if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {
       sc.warned = warnKey(hunt, []);
-      sc.msg = 'Press Enter anyway to go.';
+      sc.msg = t('hunts.enter_anyway_hint');
       repaint();
       return true;
     }
     sc.warned = null;
     /* What the hunt carries is the bag's own supplies, read after any setup change has landed. */
-    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
+    runIntent(sc, repaint, () => afterTier(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), t('hunts.setting_off', { ground: huntName(hunt) }), (res) => { sc.enterMsg = t('hunts.on_way', { ground: huntName(hunt) }) + (res && res.belowRange ? '. ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs)
       .then(thenClose);
     return true;
   }

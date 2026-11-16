@@ -3,7 +3,7 @@
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
 ## 2026-11-16 lane/d-morrow-cleanup: the four late grounds' last reds, the lone Healer, gold on Normal
-- **A re-run after a data change resumes stale cells.** A grade cell's id carries the ground, tier, Level, comp and kit, never the pack's rows, so `pack check` after an edit reads the old cells unless the out folder moves first (`tools/balance-sim/out/pack-<g>-...`). Rename it to keep the before.
+- **`pack check` stamps its folder with a hash of everything a cell reads** (`tools/pack.mjs inputsHash`: src, the settle, the simulator), so any edit, a comment included, re-plays every cell. Write the pack's comments before the last check, and rename the folder first to keep the before. `grade.mjs` run directly has no stamp: give it its own `--out`.
 - **Gold isn't graded, so a green pack check can lose money for six ways of eight.** The Vaults' floor did (-8k to -92k an hour on Normal). Print every way's net at the floor, middle and top before calling a ground done.
 - **A thrower aims at whoever stands farthest back, and alone that is always you.** Keeper Dunn's throw put the lone Normal bow's food bill from 19k to 55k (28 to 80 Sharks an hour) and bought the Dangerous Mage nothing the best-piece grade sees. Price a new reach on every way's Normal bill, not only the tier it was built for.
 - **Probe the decisive cells before a 90-minute check.** Lobster at the Vaults was dead at the Normal floor's ranged deaths (bow 2, crossbow 1 in 24 h), visible in the first 50 cells; I couldn't stop my own run (taskkill is refused here), so the rest of it was wasted CPU.

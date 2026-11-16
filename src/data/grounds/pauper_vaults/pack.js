@@ -159,18 +159,27 @@ export default definePack({
      THE COUNTS, MEASURED (lane/d-late-nearmisses, the full grade --uniques on the merged tree, a lone hero at the floor on Normal, Salted Shark
      an hour): tank 63, hammer 115, axes 157, sword 166, bow 28, crossbow 15, Mage and Healer 0. A bag is BAG_TARGET_HOURS (3) of its style's
      eating in Cooked Shark (528 HP to the store's 396): Melee the median of the four Melee ways (136 an hour) = 305, Ranged the mean of the
-     two (21.5) = 50; Magic eats none alone, so 10 for a stray pull. */
+     two (21.5) = 50; Magic eats none alone, so 10 for a stray pull. RE-MEASURED with Keeper Dunn in melee again (lane/d-morrow-cleanup): the same
+     counts to the Shark (tank 63, hammer 115, axes 157, sword 166, bow 28, crossbow 15). LOBSTER TRIED AGAIN, twice, for Normal's gold (it halves a
+     Melee bill: a lone sword at the floor -92k to -35k an hour, the tank -22k to 0). With Keeper Dunn throwing, a lone bow on Normal died 2 times and a
+     crossbow once in 24 h each (close calls 2.75 in 12 h, the bar 1). With Dunn in melee Normal holds (0 and 0), but Dangerous stops costing a caster:
+     a lone Mage nets +10.2k there and a Healer +22.2k (62% of its Normal gold) on the best-piece kit, past the party's-tier claims' bars, and on Deadly at seven the Healer
+     four dies 168 times two Levels under. Shark stays; the Melee gold is the weapon line's (the board's "The late grounds, cleaned up"). */
   /* DANGEROUS IS A PARTY'S TIER HERE (lane/d-party-lines, 2026-11-15, as Carter's Rest; 2 seeds x 2 h, the Morrow's three open). Deaths alone:
      at the floor (165) a hammer, axes and a tank 238 each (about one a minute), a bow 69 in 4 h; at the top (185) a hammer 207 in 2.2 h, a tank
      159 in 2.9 h, a bow 52 in 4 h. A Mage alone 6 (the
-     ladder kit; since Keeper Dunn throws, lane/c-late-kits, the best-piece kit: 0 at the floor and the top, supplies 75k to 135k an hour). At the floor a pair with a Healer still dies (tank + Healer 28, hammer + Healer 39) and the
+     ladder kit; the best-piece kit, Keeper Dunn in melee again, lane/d-morrow-cleanup: 0 at the floor, -27.7k gold an hour there, and a lone Healer
+     -1.1k against +35.5k on Normal). At the floor a pair with a Healer still dies (tank + Healer 28, hammer + Healer 39) and the
      four holds (0): the Vaults' Dangerous is a four's tier, the armor past Dawnsteel this ground's own section names. */
   partyTiers: ['dangerous'],
   /* DEADLY IS A HEALER'S TIER HERE (lane/d-late-nearmisses, 2026-11-16; the Hold's and the Barrows' call). MEASURED on the full grade --uniques
      on the merged tree at the floor, on Shark: the four with no Healer dies 93 times in 16 hero-hours, the four with one 8 (the bar is 9).
      No food answers the first (Shark is the store's biggest); a Healer does. */
   healerTiers: ['deadly'],
-  tierOverride: { deadly: 6, why: 'on the full box a group of four with a Healer died 11 times in 16 hours at the floor, where the rule allows 9. On six they hold it' },
+  /* THE DEADLY PULL OF SEVEN (lane/d-morrow-cleanup, the full grade --uniques at the floor, deaths in 16 hours, a four with a Healer / with none): on the
+     full box 8 / 93 before the throwers (the bar is 9) and 11 / 99 with Keeper Dunn's throw; with Dunn in melee, on six 0 / 4 (no longer a Healer's tier:
+     the card would overstate it) and on seven 3 / 80. */
+  tierOverride: { deadly: 7, why: 'on the full box a group of four with a Healer died 8 to 11 times in 16 hours at the floor, where the rule allows 9. On seven they die 3 times, and a four with no Healer still dies 80' },
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
     melee: { heal: { id: 'cooked_shark', qty: 305 } },
     ranged: { heal: { id: 'cooked_shark', qty: 50 }, ammo: { id: 'barbed_arrows', qty: 5100 } },

@@ -1,5 +1,10 @@
 # Handoffs
 
+### 2026-11-16 · GAME DESIGNER (lane/d-morrow-cleanup) → TYLER, COORDINATOR, SYSTEMS · the late grounds cleaned up; one red left
+Board "2026-11-16 The late grounds, cleaned up". Carter's Rest and the Ox Road `pack check --mode full --uniques` exit 0; Wyvern Roost and the Vaults exit 1 on one line only, a lone sword's and axes' Normal low point (58.3-59.1 against 60).
+1. **Tyler, the weapon line past Dawnsteel:** measured as a what-if (Melee weapons x R/110), it clears both reds and turns the hammer and tank's floor gold positive on both grounds. Without it, Melee alone at a floor past 120 pays to hunt on Normal (the Vaults' sword -35k to -92k an hour). Your call; no pack dial does it without a named exception.
+2. **Systems / any kits lane:** Keeper Dunn's `range` is gone (the Vaults only, measured). A new thrower on a staged ground: price it on the lone bow's Normal food bill too, and re-run `tests/hunt-core/party-tiers.mjs` (it now also holds the lone Healer to under half its Normal gold on a party's tier).
+
 ### 2026-11-16 · GAME DESIGNER (lane/d-late-nearmisses) → COORDINATOR, SYSTEMS, TYLER · the late grounds' near-misses
 Board "2026-11-16 The late grounds' near-misses". Carter's Rest and the Ox Road pack check green on the full grade --uniques; the Roost and the Vaults are red only on the sword's / axes' Normal low point.
 1. **Tyler, a weapon line past Dawnsteel:** the sword and hatchets stop at Dawnsteel (worn from 88); at the Roost and the Vaults a lone sword and axes bottom out at 58.7-59.1 against 60 with no food fix. On the armor line's scale (x R/110) they clear (61.1-65.1). The armor ruling left weapons out on purpose; yours to rule.

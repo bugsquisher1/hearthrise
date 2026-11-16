@@ -29,6 +29,48 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-16 The late grounds, cleaned up: the Ox Road re-fit, Keeper Dunn back at his lectern, the lone Healer and gold on Normal ruled, the one red left is the weapon line (designer, lane/d-morrow-cleanup, on lane/c-late-kits + lane/d-late-nearmisses): RULED, MEASURED on the full grade (`node tools/pack.mjs check <g> --mode full --with <the other three> --uniques`; every before and after in its own out folder), a guard EXTENDED. Staged packs only: no migration, no edge move, no live ground's numbers move (engine-parity's 4 pins hold, 10 mutants; `gen-catalogues --check` in sync)
+**The merge first.** The throwers (lane/c-late-kits) on the near-misses (lane/d-late-nearmisses): the four pack.js conflicts were the bag notes (the near-miss lane's Lobster and `healerTiers` kept, the throwers' Mage numbers kept); the board had interleaved the two sections and is put back whole. Graded on the merged tree: Carter's Rest passes; the Ox Road fails one line (four-xp 1.269 at the floor); Wyvern Roost one (a lone sword's Normal low point 58.8); the Vaults three (a sword's and axes' low point 58.7 / 59.1, and a Deadly four WITH a Healer 11 deaths in 16 hours, bar 9: Keeper Dunn's throw). The throwers lane's lone-bow losses (Carter's Rest -8k, the Ox Road -21k) were on its Swordfish bag: on the merged Lobster bag they read +7.4k and +2.6k.
+
+**Rulings.**
+1. **Gold on Normal: in range, a hero alone doesn't pay to hunt.** Tyler 10-18 ("in range = decent profit") stands under 11-13 NO PROFIT MOLDS, which took away the margin target, not the floor ("if a certain hunt is way under and needs rebalanced, we'll treat it one at a time"). Read every way at the band's floor and middle, on the guide's food. Printed, never graded: the grader refuses a gold rule by design. Where a pack's data makes it true without moving a measured bar, the pack does it; where the loss is a Melee hero's own power past Dawnsteel, it is the weapon line's (ruling 4).
+2. **The lone Healer may hold a party's tier.** It heals itself (the class built to survive), and it pays: at the floor it keeps under half its Normal gold there, for 3-24% more XP (Tyler 11-06: "waste money but get more exp"). The card's words name Melee and Ranger heroes only, and stay true. Measured (lone, floor, Dangerous against Normal, gold an hour): Carter's Rest +7.6k against +28.5k; the Ox Road -27.4k against +27.0k; Wyvern Roost -1.4k against +29.1k; the Vaults -1.1k against +35.5k. Guarded (below).
+3. **Keeper Dunn fights from his lectern again** (the Vaults alone; the other five throwers stay). Alone, "whoever stands farthest back" is always the hero, so his throw landed on every lone ranged hero on Normal: the bow ate 80 Sharks an hour against 28 and netted -26.1k against +9.5k, the crossbow -7.7k against +18.4k; and the Healer four's Deadly read 11. What it was for, the kiting Mage on Dangerous, it didn't change on the best-piece kit: 0 deaths with or without, and already a loss there (supplies 75k on 45k of income before it). `tests/hunt-core/party-tiers.mjs` stays green without it (the four grounds' Mages still die and lose there between them).
+4. **The weapon line past Dawnsteel is Tyler's** (as the near-miss lane said). It is the one red left on Wyvern Roost and the Vaults, and the same cause is most of the gold lost on Normal below.
+5. **The Vaults' Deadly pull is seven, and its food stays Shark.** At the floor, deaths in 16 hours for a four with a Healer / with none: the full box 11 / 99 with Dunn's throw (8 / 93 before it, the bar 9); with Dunn in melee, six 0 / 4 (a four with no Healer would hold, and the card's "Bring a Healer" would overstate it) and seven 3 / 80. Lobster, for Normal's gold, was tried twice. With Dunn's throw a lone bow died on Normal (2, and the crossbow 1, in 24 h each; close calls 2.75 in 12 h, the bar 1). With Dunn in melee Normal holds and a Melee bill halves (a lone sword at the floor -92k to -35k an hour, the tank -22k to 0), but on the best-piece kit Dangerous stops costing a caster (a lone Mage +10.2k there, a Healer +22.2k, 62% of its Normal gold) and at seven the Healer four dies 168 times two Levels under. So Shark stays, and the Melee gold waits on the weapon line.
+
+**The Ox Road re-fit** (the throwers lane's handoff). `xpFit` 0.91 -> 0.97 (0.91 x 0.97 / 0.910: the median lone way read 0.910 of the contract at the middle, the bar 0.90), its five rows re-written by `pack.mjs propose ox_road --write`. The four of four classes' cell 2455 -> 2360 (x 0.961, from 1.269 / 1.250 / 1.238 at the floor, middle and +10), and its three-class cell with it, 2445 -> 2350, so more classes still pay more. An XP fit moves the four and the lone way alike, so the two dials don't cross.
+
+**The final grade** (binding lines; each exit code seen):
+| Ground | Merged tree | After | `pack check` exit |
+|---|---|---|---|
+| Carter's Rest 110 | 0 fail (four-xp 1.199 / 1.171 / 1.158, contract 0.969, Deadly Healer four 2) | not touched | 0 -> **0** |
+| The Ox Road 112 | four-xp 1.269 FAIL / 1.250 / 1.238; contract 0.910 | four-xp 1.220 / 1.201 / 1.190; contract 0.970; Deadly Healer four 3 | 1 -> **0** |
+| Wyvern Roost 125 | a lone sword's Normal low point 58.8 FAIL | not touched (the weapon line) | 1 -> 1 |
+| Pauper Vaults 165 | Deadly Healer four 11 FAIL; sword 58.7, axes 59.1 FAIL | VAULTS_GRADE | 1 -> 1 |
+
+**Gold on Normal, a hero alone, on the guide's food** (thousands an hour, after; the floor / the middle):
+| Ground | Tank | Sword | Hammer | Axes | Bow | Crossbow | Mage | Healer |
+|---|---|---|---|---|---|---|---|---|
+| Carter's Rest | 19.4 / 23.8 | 6.3 / 19.0 | 6.7 / 21.0 | 0.0 / 14.7 | 7.4 / 15.3 | 17.8 / 22.9 | 32.5 / 33.4 | 28.5 / 29.0 |
+| The Ox Road | 14.1 / 19.9 | **-6.2** / 10.5 | 17.4 / 26.0 | 3.0 / 15.3 | 2.6 / 11.5 | 13.7 / 21.5 | 30.7 / 32.0 | 27.0 / 27.7 |
+| Wyvern Roost | 9.2 / 20.1 | **-19.8** / 4.2 | **-3.4** / 15.3 | **-12.3** / 8.7 | 16.6 / 24.3 | 24.8 / 28.9 | 34.1 / 34.5 | 29.1 / 29.9 |
+| Pauper Vaults | **-22.2** / 14.2 | **-91.8** / **-29.8** | **-50.1** / **-1.3** | **-84.3** / **-25.0** | 9.5 / 20.5 (was -26.1) | 18.4 / 25.6 (was -7.7) | 39.8 / 40.7 | 35.5 / 36.4 |
+Every way profits at the band's top on all four. What's left is Melee alone at a floor past 120, the slowest killers taking the most blows.
+
+**The weapon line, measured as a what-if** (the Melee weapons' attack and strength x R/110, the armor line's own scale: x1.14 at the Roost, x1.36 at the Vaults; `tools/balance-sim` cells, the grade's own jobs and dice, Shark at the Vaults and Lobster at the Roost; floor, gold an hour and the low point):
+| Ground | Sword | Axes | Hammer | Tank |
+|---|---|---|---|---|
+| Wyvern Roost | -19.8 (58.8) -> -7.3 (61.1) | -12.3 (60.3) -> -2.2 (63.9) | -3.4 -> +9.3 | +9.2 -> +15.0 |
+| Pauper Vaults | -91.8 (58.7) -> -35.4 (63.5) | -84.3 (59.1) -> -26.8 (65.1) | -50.1 -> +9.1 | -22.2 -> +10.3 |
+At the middle every one of the eight cells profits (+4.7k to +31.0k). A line clears both reds on both grounds, and three of the four ways' floor gold; the sword and axes, the lightest Melee, still pay at the floor.
+
+**Regression coverage.** `tests/hunt-core/party-tiers.mjs` claims: where a tier is a party's, a lone Healer at the floor keeps under half its Normal gold there (`HEALER_KEEPS` 0.5; two cells a ground, Dangerous and Normal). One mutant added (Greater Mend heals ten times as much: Carter's Rest's lone Healer nets 33.1k there against 28.5k on Normal, caught), and the Vaults' Dunn mutant moved to the Ox Road's Drover and Wagonmaster (back in melee, its lone Mage nets +27.5k there, caught): 11 of 11.
+
+**Checks** (each exit code seen): party-tiers 0 (3 cases, 11 mutants), engine-parity 0, hunt-data 0, drop-tables 0 (75 mutants), spell-rows 0, monster-kinds 0, ground-pack 0, supplies-catalogue 0, mutant-anchors 0, guard-hygiene 0, gen-catalogues --check 0, party-class-xp-line 0 (600 party cells, 135 Party window lines at 7.5 points; `--write` re-wrote Carter's Rest's, the Ox Road's and Wyvern Roost's rows, no live ground's), hunt-floor-warning 0, balance-grade 0.
+
+**Open.** (a) The weapon line, for Tyler: the two reds and the Melee gold. (b) A thrower lands on every lone ranged hero on Normal, and the pack check can't see the gold it costs (DISCOVERIES 2026-11-16): a kits lane prices it on the grade's gold table.
+
 ### 2026-11-16 The late grounds' near-misses: Deadly is a Healer's tier past 110, the Morrow's food back to Lobster, two pay rows re-fit, the bags measured (designer, lane/d-late-nearmisses, on lane/a-grader-uniques + lane/d-party-lines): RULED, MEASURED on the full grade (`node tools/pack.mjs check <ground> --mode full --with <the other three> --uniques`, every cell played twice: before and after), one card line ADDED with its guard. Staged packs and client words only: no migration, no edge move, no live ground's numbers move
 **The merge changed the numbers first.** On the merged tree (the Mage at 110's row is in) the grader lane's grade does not reproduce: Carter's Rest's and the Ox Road's four now clear (1.20 / 1.18 / 1.17 and 1.23 / 1.20 / 1.21), the Roost's four reads LOW (1.152 / 1.12 / 1.108) and eleven party seats sit under the median lone hero (Roost 8, Carter's Rest 3; 0.935-0.995), and Swordfish no longer saves a healerless Deadly four (Carter's Rest 15, the Ox Road 18 in 16 hero-hours; bar 9). And the two lanes collide: with the grader's Swordfish at Wyvern Roost, `tests/hunt-core/party-tiers.mjs` goes red (a lone bow at the top, 142, dies 6 times in 6 h on Dangerous and a crossbow once, so "Alone, Melee and Ranger heroes die here fast" stops being true).
 

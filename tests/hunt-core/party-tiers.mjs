@@ -26,7 +26,7 @@
 //            THE LONE HEALER (lane/d-morrow-cleanup, 2026-11-16, ruled): it holds a party's tier alone (it heals itself; the class built to
 //            survive), and that's fine because it pays for it: at the floor it keeps under half the gold it nets on Normal there (HEALER_KEEPS),
 //            for a fifth more XP. Measured on the full grade --uniques: Carter's Rest +7.6k against +28.5k on Normal, the Ox Road -27.4k against
-//            +27.0k, Wyvern Roost -1.4k against +29.1k, the Vaults -24.1k against +33.7k (Tyler 2026-11-06: "waste money but get more exp").
+//            +27.0k, Wyvern Roost -1.4k against +29.1k, the Vaults -1.1k against +35.5k (Tyler 2026-11-06: "waste money but get more exp").
 //
 // Measured when written (2 seeds x 2 h): named, at the top of the band the hammer died 46-207 times, the sword 34-213, the bow 14-52 and the
 // crossbow 14-33; the four at the floor 0. Unnamed, the hammer at the top 0 on every ground (the bow 0-1). The guard plays the hammer and the

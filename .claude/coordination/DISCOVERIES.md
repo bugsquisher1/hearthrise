@@ -4,10 +4,10 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-## 2026-11-16 · game-designer (lane/d-morrow-cleanup) · a grade re-run after a data change reads the old cells
-- **DISCOVERY.** `tools/balance-sim/grade.mjs` resumes from `<out>/cells.jsonl`, and a cell's id names the ground, tier, Level, comp, kit and a what-if's hash, never the pack's own rows. `tools/pack.mjs check <g>` always writes to the same folder (`tools/balance-sim/out/pack-<g>-<mode>[-with-...][-uniques]`), so a check run again after editing the pack plays nothing new and grades the old rows.
-- **AFFECTED.** Every lane that edits a pack and re-checks it; any before/after table built from two runs of `pack check`.
-- **REQUIRED ACTION.** Move (or rename) the folder before the re-run; keep it as the "before". Systems: worth a tree hash in the cell id, or a refusal when the pack's rows moved since the folder was written.
+## 2026-11-16 · game-designer (lane/d-morrow-cleanup) · a staged thrower lands on every lone ranged hero on Normal, and the gold isn't graded
+- **DISCOVERY.** A shooter aims at the hero farthest back in its pack's area (`src/core/hunt/shooters.js aimOf`); alone, that is always the hero, on every tier. Keeper Dunn's throw (the Vaults, built for the kiting Mage on Dangerous) tripled a lone Normal bow's food (28 to 80 Sharks an hour, +9.5k to -26.1k gold an hour) and the pack check stayed green on it, because gold is printed, never graded (Tyler 11-13). Separately: `pack check`'s out folder is stamped with a hash of src, the settle and the simulator (`tools/pack.mjs inputsHash`), so after ANY edit, a comment included, a re-run plays every cell again; `grade.mjs` run directly has no stamp and resumes by cell id.
+- **AFFECTED.** Any monster `range` on a ground with a Normal tier; any lane quoting a pack check's gold; any lane timing a re-check.
+- **REQUIRED ACTION.** Price a new thrower on every way's Normal bill (the grade's gold table) before shipping it. Finish a pack's comments before its last check, or the check costs a full re-play.
 
 ---
 

@@ -23,7 +23,9 @@
 //   FS-GRANT  the four verbs are the client's and baselined, anon reaches none, no helper or table reaches a client; the one state section
 //             is hr_faction_section, behind the `factions` switch (2027-04-23-faction-section.sql): off, it reads null and a verb refuses
 //             feature_off; the one client module that names a verb is the client lane's src/session/faction-intents.js
-//   FS-AGAIN  the three files applied a second time move nothing: every body, the settle, the catalogue rows
+//   FS-AGAIN  the three files applied a second time AT THEIR OWN CHAIN POSITION move nothing: every body, the settle, the catalogue rows;
+//             and at the chain end the settle a later file left (2027-04-24-tower-climb.sql's floor_time splice) keeps every line of
+//             this file's image in order and credits standing once (the body diff)
 //   Every arm but FS-GRANT's off half runs with the `factions` switch on for everyone (runArm), as the Coordinator turns it on.
 //
 // TRUE CONCURRENCY is unverified here (PGlite is one backend): two presses of one hero are ordered by hr_hunt_lock (the migration's header).
@@ -310,7 +312,40 @@ const ARMS = {
     return bad;
   },
 
+  /* FS-AGAIN, TWO LEGS (lane/c-tower-paydown, 2026-11-16). 2027-04-24-tower-climb.sql splices its `floor_time` arm into the settle this file
+     restates whole, so over the WHOLE chain this file's §0 pin refuses a second apply, by design: its whole restatement would erase that arm.
+     (1) AT THE FILES' OWN CHAIN POSITION (market-v2 M0's move): "are the three files idempotent" is asked where they are the chain end, a
+         second database replayed up to the last of them; a second apply there moves nothing, as before.
+     (2) AT THE CHAIN END, THE BODY DIFF: the settle any later file left is still this file's image, every line of it kept and in order (a
+         later file may only add lines), and it credits standing exactly once. A later restatement from a stale template, or one that drops
+         this file's credit, is red here, not only at the next re-apply. */
   'FS-AGAIN': async (db, M, X, mutant) => {
+    const bad = [];
+    const settleDef = async (d) => String(await one(d, `select pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure)`)).replace(/\r/g, '');
+    const { db: own } = await bootReplay({ upTo: FILES[FILES.length - 1] });
+    let mine;
+    try {
+      /* the factions open, as runArm opens them on the chain end (a re-apply must keep the Coordinator's flip) */
+      await own.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'factions'");
+      mine = await settleDef(own);
+      bad.push(...await againAt(own, mutant));
+    } finally { await own.close().catch(() => {}); }
+    const end = await settleDef(db);
+    const endLines = end.split('\n');
+    let at = 0;
+    for (const line of mine.split('\n')) {
+      const i = endLines.indexOf(line, at);
+      if (i < 0) { bad.push('FS-AGAIN the settle at the chain end is not this file\'s image plus a later file\'s lines: it lost, or moved, ' + JSON.stringify(line.trim()).slice(0, 140)); break; }
+      at = i + 1;
+    }
+    const credits = end.split('perform public.hr_faction_credit(').length - 1;
+    if (credits !== 1) bad.push(`FS-AGAIN the settle at the chain end credits standing ${credits} times (want once)`);
+    return bad;
+  },
+};
+
+/* A second apply of the three files over `db` (a mutant's file text edited for it): byte-identical, or what moved. */
+async function againAt(db, mutant) {
     const image = () => one(db, `select jsonb_build_object(
         'defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
                    from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname like 'hr\\_faction\\_%' or p.proname = 'hr_hunt_settle_session')),
@@ -329,8 +364,7 @@ const ARMS = {
     }
     const after = await image();
     return JSON.stringify(after) === JSON.stringify(before) ? [] : ['FS-AGAIN a second apply moved ' + Object.keys(after).filter((k) => JSON.stringify(after[k]) !== JSON.stringify(before[k])).join(', ')];
-  },
-};
+}
 
 /* ── THE PLANTED DEFECTS: a live body edited (fn, find, replace), a statement run (ddl), or a file's text edited for its re-apply (sql). ── */
 const JOIN = 'public.hr_faction_join(integer,text,uuid)', START = 'public.hr_faction_swap_start(integer,text,uuid)';
@@ -368,6 +402,12 @@ export const MUTANTS = {
     sql: ['2027-04-22-faction-standing.sql', /and v_md5 is distinct from '[0-9a-f]{32}' then/, "and v_md5 is distinct from '00000000000000000000000000000000' then"] },
   stale_template: { arm: 'FS-AGAIN', why: 'the settle is restated from a template that lost another file\'s line',
     sql: ['2027-04-22-faction-standing.sql', "      when 'hours' then v_s.hours_limit is not null and v_end_at >= v_s.hunt_from + make_interval(hours => v_s.hours_limit)\n", ''] },
+  /* the chain end's leg: a LATER file's settle (2027-04-24-tower-climb.sql splices it today) */
+  later_lost_line: { arm: 'FS-AGAIN', why: 'a later file restates the settle from a template that lost one of this file\'s lines',
+    db: [SETTLE, "      when 'hours' then v_s.hours_limit is not null and v_end_at >= v_s.hunt_from + make_interval(hours => v_s.hours_limit)\n", ''] },
+  later_credits_twice: { arm: 'FS-AGAIN', why: 'a later file\'s settle credits standing twice',
+    db: [SETTLE, '  perform public.hr_faction_credit(p_user, p_slot, v_s.hunt_id, v_s.settled_to, coalesce(v_end_at, v_to));\n',
+      '  perform public.hr_faction_credit(p_user, p_slot, v_s.hunt_id, v_s.settled_to, coalesce(v_end_at, v_to));\n  perform public.hr_faction_credit(p_user, p_slot, v_s.hunt_id, v_s.settled_to, coalesce(v_end_at, v_to));\n'] },
 };
 
 async function plant(db, m) {

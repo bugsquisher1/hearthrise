@@ -122,7 +122,8 @@ begin
      or to_regprocedure('public.hr_hunt_saved_bag(uuid,integer)') is null or to_regprocedure('public.hr_hunt_active_set(uuid,integer)') is null
      or to_regprocedure('public.hr_intent_replay(uuid,integer,uuid,text)') is null or to_regprocedure('public.hr_note_rejection(text,integer,jsonb)') is null
      or to_regprocedure('public.hr_rpc_gate(text)') is null or to_regprocedure('public.hr_apply(uuid,integer,bigint,uuid,jsonb)') is null
-     or to_regprocedure('public.hr_reject(text,jsonb)') is null or to_regclass('public.hr_client_rpc_baseline') is null then
+     or to_regprocedure('public.hr_reject(text,jsonb)') is null or to_regclass('public.hr_client_rpc_baseline') is null
+     or to_regprocedure('public.hr_hunt_party_of(uuid,integer)') is null then
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
   for v_r in select * from (values
     ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'add877806bb908e8e79416f2baafe912', '9d74efde14648725682a5a7fa48d4311'),
@@ -371,7 +372,8 @@ begin
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   -- A CLIMB IS SOLO in this build: a hero seated in a party starts none (a party's start floor needs a rule for heroes whose weeks differ).
-  if exists (select 1 from public.hunt_party_members pm where pm.user_id = v_uid and pm.slot = p_slot) then
+  -- (the party helper training's door reads too: a seat in an open party)
+  if public.hr_hunt_party_of(v_uid, p_slot) is not null then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'in_party')); end if;
   begin
     -- THE SESSION FIRST (its locks: the character's), THEN THE FLOOR under them: a start can't race a settle into an unearned floor.

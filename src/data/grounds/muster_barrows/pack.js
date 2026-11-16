@@ -254,7 +254,11 @@ export default definePack({
      the four with no Healer reads about 1.09 / 1.15 / 1.11, under at the floor and top. The sheet names a well-built four (10-25 §5). */
   /* TIER-5 HATCHETS AND CROSSBOW (lane/d-barrow-data, 2026-11-13): the axes and crossbow ways alone now wear a tier-5 rung, so the median lone
      way rose and the three-class four (tank, hammer, bow, mage) read 1.13 at the middle on the full grade. 1400 x 1.17 / 1.13 = 1450. */
-  partyClassXp: { 2: [990, 1460], 3: [990, 1255, 1500], 4: [970, 1185, 1450, 1455] },
+  /* CLOTH'S SMALLER DAMAGE (lane/d-mage-110, 2026-11-15, the board's "The Mage at 110 and up"): this is the March's damage-bound party ground,
+     so its fours lost the most when a Mage's and a Healer's cloth stopped carrying their blow. The four of four classes read 1.07 / 1.05 / 1.00
+     of the median lone way at 55 / 65 / 75 (it was 1.19 / 1.19 / 1.14), and at 55 it levelled slower than on the Slake (tests/hunt-core/
+     forest-cave.mjs harder-pays-more). The three-class four (tank, hammer, bow, mage) read 0.99 at 75 (1.05). Cells x1.12 and x1.06. */
+  partyClassXp: { 2: [990, 1460], 3: [990, 1255, 1500], 4: [970, 1185, 1535, 1630] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours
@@ -265,7 +269,10 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.80-0.86, threes 0.73-0.81, fours 0.65-0.77), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.02-1.06, threes 1.01-1.08, the four 1.07); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-15, 5], 3: [-25, 0, 5], 4: [-30, -10, 5, 5] },
+  /* RE-MEASURED 2026-11-15 (lane/d-mage-110, the same tool and method, after cloth's smaller Magic damage and the four's cells above): a Healer and a Mage
+     alone now earn less, so every mixed party reads more against them. One class: pairs 0.77-0.86 (0.83), threes 0.75-0.83 (0.78), fours 0.67-0.76
+     (0.73); two of two 1.21-1.27 (1.24), three of three 1.20 and 1.22, the four 1.25. */
+  partyVsAlone: { 2: [-15, 25], 3: [-20, 0, 20], 4: [-25, -10, 20, 25] },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's

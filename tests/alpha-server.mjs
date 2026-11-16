@@ -461,15 +461,17 @@ async function blessArm(db, { H, M }, attended) {
    2027-03-25-death-share.sql §2 restated plus 2027-04-08-member-write-once.sql §1's splice (tests/patch-chain-guard.mjs PATCH-3,
    v0.2.121). Each restatement pins its pre-image, so a plant in any earlier file trips a pin and the chain never boots: a
    memberPlant mutant is planted into the live body (plantLive), the text that runs. Shared with tests/settle-hooks.mjs.
-   2027-04-16-combat-training.sql restates it WHOLE once more (04-12's text with the TRAINING arms), so it is the last author now. */
-export const MEMBER_LAST = '2027-04-16-combat-training.sql';
+   2027-04-16-combat-training.sql restated it WHOLE once more (04-12's text with the TRAINING arms), and 2027-04-23-session-modes.sql
+   once more after it (that text with the SESSION-MODES arms), so it is the last author now. */
+export const MEMBER_LAST = '2027-04-23-session-modes.sql';
 /* A PATCH IS AN AUTHOR: hr_hunt_section_view is restated last by READ_RESTATE_LAST and then spliced in place (anchored replaces of
    pg_get_functiondef) by READ_PATCH_LAST, so its last author is a patch. (Re-aimed 2026-11-14, lane/c-target-kind: the probe was
    hr_hunt_instance_read, which 2027-04-22-target-kind.sql restates WHOLE after its two splices, so it has no patch on top any more.) */
 const READ_RESTATE_LAST = '2026-10-27-core-bodies.sql';
 const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
-/* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it. */
-const READ_LAST = '2027-04-22-target-kind.sql';
+/* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it
+   (2027-04-23-session-modes.sql: 2027-04-22-target-kind.sql's text plus the instance's session_mode). */
+const READ_LAST = '2027-04-23-session-modes.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
@@ -522,7 +524,7 @@ const MUTANTS = [
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2027-01-19-play-cap.sql (after 2026-12-07-party-finder.sql): the mutant is planted in the body that runs. */
   /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member.
-     hr_hunt_instance_read is RESTATED last by READ_LAST (2027-04-22-target-kind.sql, whole): planted there, in the live body. */
+     hr_hunt_instance_read is RESTATED last by READ_LAST (2027-04-23-session-modes.sql, whole): planted there, in the live body. */
   { arm: 'A-PARTY', file: READ_LAST, why: "a kicked member's end sends the ticked leader home",
     find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'A-PARTY', file: '2027-01-19-play-cap.sql', why: "the shared start loads the leader's bag into every member",

@@ -73,7 +73,8 @@ export function renderTower(ctx) {
     + '<p class="hs-note tt-start-note"></p>'
     + '<p class="tt-line tt-best"></p><p class="tt-line tt-week"></p><p class="tt-line tt-open"></p><p class="tt-line tt-next"></p>'
     + '<p class="hs-note tt-resets"></p><p class="hs-note tt-limits"></p>'
-    + '<div class="tt-foot"><p class="hw-why tt-off-why"></p>'
+    /* the floor Enter starts on stands beside it: the picks may be scrolled away */
+    + '<div class="tt-foot"><p class="tt-start-on"></p><p class="hw-why tt-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tt-go" data-hs-act="tower-enter">' + esc(t('controls.enter')) + '</button></div>'
     + '</section>'
     + '<section class="hw-pane tt-pane" data-pane="chest">' + chestHtml() + '</section>'
@@ -120,6 +121,7 @@ function patchClimb(root, cs, tw, sc) {
   text(root.querySelector('.tt-resets'), tw.weekEndsAt !== null ? t('tower.week_resets', { when: localWhen(tw.weekEndsAt, serverNow(cs), true) }) : '');
   text(root.querySelector('.tt-limits'), t('tower.limits', { floor: tw.rules.floorLimitMs / 60000, landing: tw.rules.landingLimitMs / 60000 }));
   const block = enterBlock(cs, tw, floor);
+  text(root.querySelector('.tt-start-on'), !block && floor !== null ? t('tower.start_on', { floor }) : '');
   const go = root.querySelector('.tt-go');
   prop(go, 'disabled', sc.pending || !!block);
   attr(go, 'data-off-why', block || null);

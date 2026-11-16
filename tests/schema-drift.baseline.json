@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-16",
- "digest": "fb70861852cf6e72f074b210f48f9dba484a6e029f07f301073fff9628a0aed2",
+ "digest": "77ea034e37dcaae4c91d9c245dddebeafd94f521d71c58fb8736f4508b09eeac",
  "counts": {
   "relations": 306,
-  "functions": 753,
+  "functions": 754,
   "policies": 126,
   "indexes": 432,
   "triggers": 101,
@@ -991,6 +991,7 @@
    "hr_tower_floor_of(p_instance uuid)",
    "hr_tower_key_mint()",
    "hr_tower_run_end()",
+   "hr_tower_section(p_user uuid, p_slot integer)",
    "hr_tower_start(p_slot integer, p_floor integer, p_idem uuid)",
    "hr_tower_starts(p_user uuid, p_slot integer)",
    "hr_tower_week(p_at timestamp with time zone)",

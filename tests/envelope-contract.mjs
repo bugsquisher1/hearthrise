@@ -191,6 +191,15 @@ function contract(R, cs, body, tl) {
   need('factions', !!fx && fx.side === null && fx.canJoin === false && fx.sides.length === 2 && fx.sides.every((x) => fx.standing[x] === 0)
     && fx.pieces.length > 0 && fx.pieces.every((x) => x.needMs > 0 && fx.sides.includes(x.side) && x.held === false) && fx.swapNeedMs > 0 && fx.cooldownMs > 0,
     'factionOf yields ' + JSON.stringify(fx) + ' from ' + JSON.stringify(body.factions).slice(0, 240));
+  // the Burning Tower (2027-04-28-tower-section.sql, the switch on inside this test): a hero who never climbed, floor 1 its one start, the
+  // Tower mode's own pay (no coin, no death loss), the rules the window says, and the chest's menu with every key row the server lists
+  const tw = R.TWR.towerOf(cs);
+  need('tower', !!tw && tw.starts.join() === '1' && tw.bestFloor === 0 && tw.run === null && tw.last === null && tw.rules.landingEvery > 0
+    && tw.rules.floorLimitMs > 0 && tw.rules.landingLimitMs >= tw.rules.floorLimitMs && !!tw.pays && tw.pays.deathLossPm === 0 && tw.pays.coin === false
+    && tw.pays.xpPm > 0 && tw.pays.xpPm < 1000 && tw.nextLanding === tw.rules.landingEvery && tw.weekEndsAt !== null
+    && !!tw.chest && tw.chest.keys.length >= 4 && tw.chest.keys.every((k) => k.basePm > 0 && k.chancePpm > 0 && k.stokes.length > 0 && k.heldAll === 0)
+    && tw.chest.perCall > 0 && tw.chest.maxDay > 0,
+    'towerOf yields ' + JSON.stringify(tw).slice(0, 300) + ' from ' + JSON.stringify(body.tower).slice(0, 300));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
@@ -315,7 +324,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'tower']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -375,6 +384,7 @@ async function readers(root) {
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
+    TWR: await import(u('src/session/tower-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };
@@ -409,6 +419,8 @@ async function realBody(db, M, H) {
   await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'open_halls'");
   /* THE FACTIONS (2027-04-23-faction-section.sql): their switch on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'factions'");
+  /* THE BURNING TOWER (2027-04-28-tower-section.sql): its switch on for everyone, inside this test's transaction only. */
+  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'burning_tower'");
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,
@@ -520,6 +532,10 @@ const DB_MUTANTS = [
   /* lane/b-faction-ui: the Faction tab reads each piece's need and the swap's need */
   ['factions', 'public.hr_faction_view(uuid,integer)', "'need_ms', o.need_ms,", "'need', o.need_ms,"],
   ['factions', 'public.hr_faction_section(uuid,integer)', "jsonb_build_object('swap_need_ms', r.swap_ms,", "jsonb_build_object('swap_ms', r.swap_ms,"],
+  /* lane/b-tower-window: the Tower window lists the server's start floors and says each key's chance from the chest's menu */
+  ['tower', 'public.hr_tower_section(uuid,integer)', "'starts', to_jsonb(public.hr_tower_starts(p_user, p_slot)),", "'start_floors', to_jsonb(public.hr_tower_starts(p_user, p_slot)),"],
+  ['tower', 'public.hr_tower_section(uuid,integer)', "'floor_limit_ms', r.floor_limit_ms,", "'floor_ms', r.floor_limit_ms,"],
+  ['tower', 'public.hr_chest_section(uuid,integer)', "'chance_ppm', public.hr_chest_chance_ppm(", "'chance', public.hr_chest_chance_ppm("],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

@@ -68,11 +68,11 @@ export function chestHtml() {
     + '<h4 class="tc-stoke-head">' + esc(t('tower.stoke_head')) + '</h4>'
     + '<div class="tc-stokes" role="radiogroup" aria-label="' + esc(t('tower.stoke_head')) + '"></div>'
     + '<p class="hs-note tc-stoked"></p>'
-    + '<p class="tc-chance"></p>'
     + '<p class="tt-line tc-own"></p><p class="tt-line tc-inside"></p><p class="hs-note tc-plus"></p><p class="hs-note tc-today"></p>'
     + '</section>'
     + '<div class="tt-result" hidden></div>'
-    + '<div class="tt-foot"><p class="hw-why tc-off-why"></p>'
+    /* the chance you'd use the key at stands on the foot beside Use: the number the press acts on is never scrolled away from it */
+    + '<div class="tt-foot"><p class="tc-chance"></p><p class="hw-why tc-off-why"></p>'
     + '<button type="button" class="hh-tool is-primary tc-use" data-hs-act="chest-use">' + esc(t('controls.use')) + '</button>'
     + '<button type="button" class="hh-tool tc-use-all" data-hs-act="chest-use-all">' + esc(t('controls.use_all')) + '</button></div>';
 }
@@ -149,12 +149,12 @@ export function patchChest(pane, cs, tw, sc) {
       lines.push(t('tower.stoke_saved', { key: k.name || itemName(k.item) }));
     } else if (k.stokesDefault === 0) lines.push(t('tower.stoke_off'));
     text(pane.querySelector('.tc-stoked'), lines.join(' '));
-    text(pane.querySelector('.tc-chance'), k.chancePpm !== null ? t('tower.chance', { pct: ppmWords(k.chancePpm) }) : '');
     text(pane.querySelector('.tc-own'), c.ownFamily ? t('tower.own', { family: familyWord(c.ownFamily) }) : t('tower.own_none'));
     text(pane.querySelector('.tc-inside'), Object.keys(k.inside).length ? t('tower.inside', { list: haulWords(k.inside) }) : '');
     text(pane.querySelector('.tc-plus'), k.skillPlus !== null ? t('tower.skill_plus', { plus: k.skillPlus }) : '');
     text(pane.querySelector('.tc-today'), c.today !== null && c.maxDay !== null && c.today > 0 ? t('tower.today', { today: c.today, max: c.maxDay }) : '');
   }
+  text(pane.querySelector('.tc-chance'), k && k.chancePpm !== null ? t('tower.chance', { pct: ppmWords(k.chancePpm) }) : '');
   patchResult(pane.querySelector('.tt-result'), sc.result);
   const block = useBlock(cs, tw, k);
   const all = useAllCount(tw, k);

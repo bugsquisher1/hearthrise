@@ -1273,8 +1273,8 @@
 .tt-start:disabled, .tc-pick:disabled, .tc-stoke:disabled { opacity: .5; cursor: default; }
 .tc-key { margin: 4px 0 8px; }
 .tc-stoke-head { margin: 8px 2px 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
-.tc-chance { margin: 6px 2px 4px; font-weight: 700; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
-.tc-chance:empty { display: none; }
+.tc-chance, .tt-start-on { margin: 6px 2px 4px; font-weight: 700; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.tc-chance:empty, .tt-start-on:empty { display: none; }
 .tt-result { margin: 0 0 8px; padding: 6px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .tt-found { margin: 0 0 2px; font-weight: 700; color: var(--gold-2); }
 .tt-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
@@ -1289,5 +1289,6 @@
 .hv-tower[hidden] { display: none; }
 .hv-tower .hh-tool { min-height: 32px; padding: 0 10px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .tt-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
+  /* a phone sheet is 423 px tall: the foot scrolls with the pane, or the presses would hide the odds they act on */
+  .tt-foot { position: static; margin-bottom: 0; padding-bottom: 4px; }
 }

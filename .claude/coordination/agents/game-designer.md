@@ -898,3 +898,15 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+
+
+## 2026-11-16 lane/d-flat-party-xp (ONE party table for every ground; Tyler: "just balance the hunting grounds xp vs having a unique formula everywhere")
+- A party's cell moves no blow, so a measured mix's "vs its heroes alone" divided by its cell (rho) is the ground's own party throughput. Read rho per ground x tier before picking a table: on 2026-11-16 a four's rho ran 0.35 (Thicket, Wickstead) to 0.83 (the Muster's Deadly), and that spread, not the cells, is what a flat table has to live with.
+- The two bars bind at different corners of a ground: "a mix at or over its heroes alone" binds at Dangerous and the band middle (smaller pull, stronger heroes alone), the 2.5x cap at Deadly and the floor (the contract is lowest there and the full box pays a party most). Per ground, max Deadly-floor xC over min Dangerous rho must sit under the cap with room, or no table fits it.
+- Deadly HP is the clean dial for the floor heat: on the full box a four is kill-bound like the heroes alone, so +18% HP took Andy's four from 2.46x to 2.20x at the Glade's floor and left Dangerous untouched. Deadly XP can't do it (it must stay over Dangerous's and at most 1250).
+- On the first grounds a four is WALK-bound (revisit ~60 s, kill time 0.1 s): a faster respawn bought it nothing (respawn 30 s: 0.37 -> 0.39), and bigger pulls feed lone area heroes as much as the four there. Measure a party's revisit time against respawnMs before reaching for density.
+- A pool cache is keyed by cell id only: a config change under the same cache silently reuses old cells. New config, new cache name, always.
+- Python's text-mode write on Windows turns LF into CRLF: write with newline='' (or bytes), then `git ls-files --eol` before committing.
+- A bigger Dangerous pull can starve a lone hero of a fill-row monster: on the Glade at 8 a lone tank at the floor never met the Brook Bear in an hour, at 7 the Keep's pelts took 2.7 h. Run drop-tables big-pull on any tier pull change, and pick the largest pull that still feeds the pelt (6 here: 1.63 h, a four 1.04 of alone).
+- "Make it a solo ground" can be the wrong fix for a party number: Tyler 11-16 wants every hunt the same for everyone, the solo boost the only difference. A number that can't move without breaking the ladder STANDS and is printed by its guard, never hidden by a tag.
+- A String.replace replacement and shell heredocs both eat an apostrophe escape. Player names with apostrophes (Hask's Ford) in a test pin go in through the Edit tool, then `node --check` before a long run.

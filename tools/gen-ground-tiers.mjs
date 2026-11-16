@@ -42,8 +42,9 @@ export const OUT_NAME = '2027-04-24-flat-party-xp-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
 const FILE_NOTE = `-- THIS FILE (lane/d-flat-party-xp, Tyler 2026-11-16: "just balance the hunting grounds xp vs having a unique formula everywhere"):
 -- the party's Level XP bonus is ONE table for every ground (src/data/party-class-xp.js, engine data, no table here), and the grounds
--- carry the rest. Dangerous brings Deadly's pull on the table, 8 (was 5): the Glade, the Warrens and Hask's Ford {8,8,8,8} (were
--- {5,5,5,5}), the Slake too (its own 6 retired), Krell's Hold 6 like its Deadly (was 5), the Muster as before. Deadly's monsters have
+-- carry the rest. Dangerous brings Deadly's pull on the table, 8 (was 5): the Warrens and Hask's Ford {8,8,8,8} (were
+-- {5,5,5,5}), the Slake too (its own 6 retired), the Glade 6 (was 5; on 8 a hero alone at its floor met the Brook Bear too seldom),
+-- Krell's Hold 6 like its Deadly (was 5), the Muster as before. Deadly's monsters have
 -- 1300 permille HP on the table (was 1100): every ground on the table's Deadly moves its hp_pm, the Muster's too (it kept 1000; its
 -- Dangerous still does). The first grounds (the Thicket, Wickstead, the Sewer) bring no more monsters, as before. Damage and XP as they stand.
 -- ORDER: after 2027-04-23-open-march-scaled-hunts-catalogue.generated.sql (the March open, APPLIED). Idempotent: the rows are rewritten

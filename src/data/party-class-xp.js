@@ -101,9 +101,11 @@ export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE
    alone. Whole percent to the nearest 5, against the same heroes alone (1 h x 2 seeds, Levels 5 and 10: shields -12, -15; hammers -11, -9; bows -9, -8; staffs -12, -11; wands +4, +5). first-week-bands vs-alone plays it.
    Since the solo boost (2026-11-08) each is its number over 1.05: shields -20, the rest -15, and wands no longer over a hero alone (0).
    RE-MEASURED 2026-11-08, same monsters re-tuned (the vs-alone cell itself: Level 10, 1 h x 2 seeds): shields -38.7, axes -42.0, bows -36.5, wands -28.6, staves -32.2.
-   At the one-class cell 1190 (the lane's fifth commit): shields -22.9, axes -27.1, bows -20.1, wands -10.1, staves -14.7. */
+   At the one-class cell 1190 (the lane's fifth commit): shields -22.9, axes -27.1, bows -20.1, wands -10.1, staves -14.7.
+   RE-MEASURED 2026-11-16 on the one table (one-class four 970; lane/d-flat-party-xp, tests/party-class-xp-line.mjs --table --mixed, the floor): shields -60.7,
+   axes -70.5, bows -67.0, wands -69.3, staves -62.8. */
 const ONE_ROLE_VS_ALONE = Object.freeze({
-  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -50, melee_dps: -60, ranger: -55, mage: -60, healer: -50 }) }),
+  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -60, melee_dps: -70, ranger: -65, mage: -70, healer: -65 }) }),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));

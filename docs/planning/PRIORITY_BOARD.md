@@ -29,6 +29,37 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-15 The late grounds' throwers: Dangerous reaches the kiting Mage (systems, lane/c-late-kits, on lane/d-party-lines + lane/a-grader-uniques): SIX MONSTER ROWS on four STAGED packs, a guard EXTENDED, MEASURED on the real settle. No engine change, no migration, no live ground moved (engine-parity's four pins hold; `gen-catalogues --check` in sync)
+**The problem** (the section below, "For Tyler"): on Carter's Rest, the Ox Road, Wyvern Roost and the Pauper Vaults a lone Mage held Dangerous for profit. Monsters swing at whoever is in reach, and a Mage kites at 6 tiles, so it met a tenth of a hammer's damage there (27-81k an hour against 272-408k) and earned the most of any lone way. Tyler 2026-11-06: "Yes, make it risky" ... "you're gonna waste money but get more exp and possibly die a few times".
+
+**What moved it, one lever at a time** (2 seeds x 2 h, the best-piece kit `--uniques`, the bag's food, Dangerous at the floor; Mage deaths in 4 h, CR / Ox / Roost / Vaults):
+| Lever | Lone Mage deaths | Why |
+|---|---|---|
+| None | 0 / 0 / 3 / 0 | |
+| The swarm faster than a hero (4400) | 0 / 0 / 0 / 0 | +30% swings; a kiter still out-walks a pack |
+| The glass thrower at 5 tiles (Roost's already was) | 0 / 0 / 3 / 2 | double the damage, but a kiter keeps 6 from every monster, the thrower too |
+| The glass thrower at 6 | 0 / 0 / 4 / 24 | reaches a Mage at its 6 |
+| **Two throwers at 6 where the story has two** | **2 / 13 / 4 / 3** | the change |
+
+**The change** (`range: 6`, `src/core/hunt/shooters.js`, the Krell's Hold piece every client already draws). Each one is a monster whose story already throws: Carter's Rest's Slate Thrower (slates off the roof) and Troll Brewer (her mugs, by the kettles); the Ox Road's Coal Runner (stones between coals) and Drover (a drover walks behind his teams); Wyvern Roost's Ledge Wyvern, 5 to 6; the Vaults' Night Carter (lumps of his lime). A thrower aims at whoever stands farthest back, a bow's 7 still out-reaches it, and a Challenge turns it on the tank. No Leech, Ox or Wyvern breath became a shooter: that would end its own kit.
+
+**Before and after** (same cells; deaths in 4 h; supplies per hour):
+| Ground | Lone Mage, Dangerous floor / top | Its supplies at the floor | Lone bow, floor / top | Lone Healer, floor / top | Four with a Healer, floor | Mage + Healer, floor | Normal at the floor, every way |
+|---|---|---|---|---|---|---|---|
+| Carter's Rest 110 | 0 / 0 to 2 / 0 | 7k to 184k (income 40k) | 31 / 19 to 47 / 58 | 0 / 0 to 0 / 0 | 0 to 0 | 0 to 1 | 0 deaths; the Mage's typical low 84% to 66% |
+| The Ox Road 112 | 0 / 0 to 13 / 1 | 12k to 226k | 30 / 25 to 64 / 57 | 0 / 1 to 0 / 1 | 0 to 0 | 0 to 1 | 0; Mage 87% to 71% |
+| Wyvern Roost 125 | 3 / 0 to 4 / 0 | 83k to 103k | 8 / 5 to 14 / 10 | 0 / 0 to 2 / 0 | 0 to 0 | 0 to 0 | 0; Mage 77% to 76% |
+| Pauper Vaults 165 | 0 / 0 to 3 / 1 | 75k to 254k | 17 / 13 to 51 / 32 | 0 / 0 to 1 / 1 | 0 to 0 | 0 to 1 | 0; Mage 78% to 63% |
+A lone Melee doesn't move: a lone hero pulls from 1.5 tiles, so every thrower starts in reach and is a melee monster to it (the hammer's and tank's Normal cells are the same to the digit). At dist 7 (a Mage out-ranging the throwers) it still dies 3 / 14 / 4 / 1 at the floors: a kiter is cornered inside its pack's area. The lone Mage's XP moves +1% to -10% (the time spent eating), the four's within 1%, a Mage + Healer pair's down 4-5%.
+
+**Read for the designer.** The Mage now does what the weight-class rule asks: dies a few times at a floor, holds at the top, and pays 2.5-7x its income in supplies to be there alone. The Healer alone still holds (self-heals; its bill goes 3-41k to 60-156k): that's "waste money", and if Tyler wants it to die too it's the same lever on the same rows. Wyvern Roost moved least (it had its thrower); its Mage dies 4 at the floor. The bow dies about twice as often as before: those grounds already say a Ranger dies there fast, and the line stays true.
+
+**Also found: the merge with lane/a-grader-uniques turned party-tiers red** (the bag's Swordfish let Wyvern Roost's lone bow hold the top: 1 death in 2 h, the bar 2). With the throwers it's 4; the guard is green again.
+
+**Regression coverage** (`tests/hunt-core/party-tiers.mjs`, in `hunt-core/run-all`, so CI). Where Dangerous is named a party's tier, a lone Mage at the floor spends more than it earns (now -65k to -255k an hour; before, Carter's Rest and the Ox Road paid it 28-37k), and the named floors' Mages die at least once a ground between them (10 in 8 h; before, 1). Two new mutants, both caught (7 of 7): Carter's Rest's throwers back in melee (the Mage nets +36,709 an hour, 0 deaths), the Vaults' Night Carter back in melee (its floor Mage dies 0). The line's words still name Melee and Ranger heroes: a Mage is threatened there, not told it dies fast.
+
+**Checks** (each exit code seen): party-tiers 0 (2 cases, 7 mutants), engine-parity 0 (4 pins, 10 mutants), spell-rows 0, monster-kinds 0, ground-pack 0, mutant-anchors 0, guard-hygiene 0, gen-catalogues --check 0. party-class-xp-line and `pack check --mode full --uniques` on the four: LINES_AND_CHECKS.
+
 ### 2026-11-15 The Party window's lines, re-measured and guarded; Dangerous on the Morrow is a party's tier (designer, lane/d-party-lines, on lane/d-mage-110): MEASURED on the real settle, every line WRITTEN BY ITS TOOL, a guard EXTENDED and one ADDED, one line of card text ADDED. Client data and text only: no migration, no edge move (`gen-catalogues --check` in sync; the party lines and `partyTiers` are in no server catalogue)
 **The finding held.** Read the documented way (`party-class-xp-line --table --mixed` at the floor, one class the mean of the five one-class parties, two of two the mean of three duo mixes, three of three of the two trios, four of four the four, the cells between the mix times the pay cell's ratio), 12 of 15 grounds' rows differed from a fresh measurement, and 27 of the 135 cells were more than 7.5 points off. The worst: Krell's Hold's four said +0 and measured +23, the Pyre Field's four +0 and +18, the Glade's four +30 and +41, Wyvern Roost's four +25 and +13.
 
@@ -88,7 +119,7 @@ At the top of the band a sword alone died 34-213 times and a crossbow 14-33 on t
 
 **Regression coverage.** `tests/hunt-core/party-tiers.mjs` (run by `hunt-core/run-all`, so CI runs it): **words** (every ground and every tier it offers, a hero alone reads the line exactly where PARTY_TIERS names the tier, and a party never does) and **claims** (on the real engine, every ground offering Dangerous: where it's named, a lone hammer and a lone bow at the band's top each die at least once an hour and a four with a Healer at the floor dies none; where it isn't, a lone hammer at the top dies at most once in 2 h). A new ground where a lone Melee can't hold Dangerous goes red until its pack names it. Five mutants, all caught: Wyvern Roost loses its row (its hammer dies 29 times at 142), the Slake is named (its hammer and bow die 0), Dangerous at twice the damage (the four dies 59 times at Carter's Rest), the page never says it, a party is told it too.
 
-**For Tyler (open, not ruled here).** On these grounds a lone Mage holds Dangerous with 0-6 deaths in 4 h while earning the most of any lone way. On 2026-11-06 Tyler answered "Yes, make it risky" when asked whether the harder tiers should carry real risk for a hero hunting alone. For a caster who kites, they don't. Making Dangerous reach a kiting caster is a monster-kit question (ranged monsters, area spells that land on the back line), so it's Systems' and Tyler's, not a data row.
+**For Tyler (open, not ruled here).** On these grounds a lone Mage holds Dangerous with 0-6 deaths in 4 h while earning the most of any lone way. On 2026-11-06 Tyler answered "Yes, make it risky" when asked whether the harder tiers should carry real risk for a hero hunting alone. For a caster who kites, they don't. Making Dangerous reach a kiting caster is a monster-kit question (ranged monsters, area spells that land on the back line), so it's Systems' and Tyler's, not a data row. **DONE with six monster rows, lane/c-late-kits: the section above ("The late grounds' throwers").**
 
 ### 2026-11-15 The Mage at 110 and up (designer, lane/d-mage-110; fix lane F and Morrow condition 3 of the coherence pass below): RULED, ONE FORMULA ROW CHANGED (three knock-on rows below), a grader bug FIXED, MEASURED on the real settle. The edge moves (items are engine data). No migration (`tools/gen-catalogues.mjs --check` stays in sync: item combat stats aren't in `hr_items`)
 **The ruling.** The Mage isn't held back by how many monsters spawn. Each cloth piece now adds **1 Magic damage plus a tenth of its plate twin's defence** (`src/data/gear-tiers.js`, the cloth line's `magicStrB`, was 0.4 of that defence). A full cloth set adds 7 / 9 / 14 / 16 / 22 / 27 / 33 by tier, down from 7 / 15 / 27 / 41 / 61 / 84 / 113. Tier 1 doesn't change. Cloth still carries damage (Tyler 2026-08-15: "cloth should give the character dps regardless of the weapon type"). It's the size that was wrong, not the stat.

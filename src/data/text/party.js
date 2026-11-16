@@ -15,4 +15,5 @@ export const PARTY_TEXT = Object.freeze({
   class_same: 'Each of you gets about the same Level XP as hunting alone in {place}.',
   class_more: 'Each of you gets about {pct}% more Level XP than hunting alone in {place}.',
   class_less: 'Each of you gets about {pct}% less Level XP than hunting alone in {place}. Mix {classes} to get more.',
+  class_less_full: 'Each of you gets about {pct}% less Level XP than hunting alone in {place}.',
 });

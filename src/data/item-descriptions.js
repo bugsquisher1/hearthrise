@@ -6,20 +6,20 @@
 // Original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
-import { foldRows } from './grounds/shape.js?v=0.2.132';
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.132';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.132';
-import { LIB2_DESC } from './library2-items.js?v=0.2.132';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.132';
-import { CHAMPION_DESC } from './champions.js?v=0.2.132';
-import { DRINK_DESC } from './drinks.js?v=0.2.132';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.132';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.132';
-import { SHIELD_DESC } from './shields.js?v=0.2.132';
-import { TRAINING_GEAR_DESC } from './training.js?v=0.2.132';
-import { CHEST_ITEM_DESC } from './chests.js?v=0.2.132';
-import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.132';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.133';
+import { foldRows } from './grounds/shape.js?v=0.2.133';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.133';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.133';
+import { LIB2_DESC } from './library2-items.js?v=0.2.133';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.133';
+import { CHAMPION_DESC } from './champions.js?v=0.2.133';
+import { DRINK_DESC } from './drinks.js?v=0.2.133';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.133';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.133';
+import { SHIELD_DESC } from './shields.js?v=0.2.133';
+import { TRAINING_GEAR_DESC } from './training.js?v=0.2.133';
+import { CHEST_ITEM_DESC } from './chests.js?v=0.2.133';
+import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.133';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */

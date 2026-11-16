@@ -25,6 +25,7 @@ import { invitesOf, partyMembershipOf, huntName } from '../../session/party-sect
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.132';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
 import { runIntent } from '../intent-words.js?v=0.2.132';
+import { nameOf } from '../../session/item-sections.js?v=0.2.132';
 import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.132';
 import { rosterHtml, patchRoster, actRoster } from './party-roster.js?v=0.2.132';
 import { t } from '../../render/player-text.js?v=0.2.132';
@@ -114,7 +115,10 @@ renderParty.act = function actParty(ctx, body, action, ev, el) {
     const box = body.querySelector('.hw-invite-in');
     const name = box.value.trim();
     if (name.length < 2) { sc.msg = 'Type the name of the player to invite.'; repaint(); return true; }
-    runIntent(sc, repaint, () => cs.inviteByName(name).then((r) => (r.ok ? r : { ...r, verb: 'party_invite' })), 'Inviting…', () => { box.value = ''; return 'Invite sent to ' + name + '.'; });
+    /* the invitee as the account's own roster spells it when it is one of this account's heroes (the server finds a name in any case) */
+    const own = ctx.account && typeof ctx.account.characters === 'function'
+      ? ctx.account.characters().map((o) => nameOf(o)).find((n) => typeof n === 'string' && n.toLowerCase() === name.toLowerCase()) : null;
+    runIntent(sc, repaint, () => cs.inviteByName(name).then((r) => (r.ok ? r : { ...r, verb: 'party_invite', invitee: own || name })), 'Inviting…', () => { box.value = ''; return 'Invite sent to ' + name + '.'; });
     return true;
   }
   if (action === 'accept' || action === 'decline') {

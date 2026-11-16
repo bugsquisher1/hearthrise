@@ -15,4 +15,7 @@ export const PARTY_TEXT = Object.freeze({
   class_same: 'Each of you gets about the same Level XP as hunting alone in {place}.',
   class_more: 'Each of you gets about {pct}% more Level XP than hunting alone in {place}.',
   class_less: 'Each of you gets about {pct}% less Level XP than hunting alone in {place}. Mix {classes} to get more.',
+  /* An invite by name refused `already_in_party`: the server says it of the hero invited, never of the one inviting
+     (hr_party_seat_own; audit 2026-11-15 F16 read "You are already in a party" to a hero in none). */
+  invitee_partied: '{name} is already in a party. Switch to {name} and press Leave party in the Party window, then invite again.',
 });

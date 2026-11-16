@@ -1015,7 +1015,7 @@ async function pureRules(M, base) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 function scripted() {
-  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300, startReplies: [], t0: Date.now() };
+  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300, startReplies: [], inviteReplies: [], t0: Date.now() };
   s.next = (slot) => Object.assign(clone(s.env[slot]), { version: ++s.version, client_state: clone(s.residue[slot] || {}) });
   return s;
 }
@@ -1035,7 +1035,8 @@ async function stub(page, s) {
       seats: [{ seat: 0, weapon: 'shield', name: 'Oren' }, { seat: 1, weapon: 'club', name: 'Pell' }] }] });
     if (PARTY_RPCS.includes(name)) {
       await new Promise((ok) => setTimeout(ok, s.delayMs));
-      return json(name === 'hr_hunt_party_start' && s.startReplies.length ? s.startReplies.shift() : { ok: true });
+      return json(name === 'hr_hunt_party_start' && s.startReplies.length ? s.startReplies.shift()
+        : name === 'hr_hunt_party_invite' && s.inviteReplies.length ? s.inviteReplies.shift() : { ok: true });
     }
     return json({ ok: true });
   });
@@ -1317,6 +1318,14 @@ async function pageRules(overrides, shots) {
         const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name'), how = document.querySelector(q + '.hw-invite-how'), sw = document.querySelector(q + '.hw-list-party');
           return { box: !!box && box.getClientRects().length > 0, how: how ? how.textContent : '', sw: !!sw && sw.getClientRects().length > 0 }; }, P);
         if (!way.box || !/Invite to party\.$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        /* UI-18 (audit 2026-11-15 F16): Druid, in no party, invites Tyler by name while Tyler leads one. The server's already_in_party is
+           TYLER's (hr_party_seat_own), so the line names him as the roster spells him; it read "You are already in a party" to a hero in none. */
+        s.inviteReplies.push({ ok: false, error: 'already_in_party' });
+        await page.fill(P + '.hw-invite-in', 'tyler');
+        await page.click(P + '[data-hs-act="invite-name"]');
+        await wait(page, (q) => /in a party/.test((document.querySelector(q + '.hh-intent-msg') || {}).textContent || ''), P, 3000);
+        const said = await page.evaluate((q) => (document.querySelector(q + '.hh-intent-msg') || {}).textContent || '', P);
+        if (said !== 'Tyler is already in a party. Switch to Tyler and press Leave party in the Party window, then invite again.') fails.push('UI-18 [' + tag + '] an invite refused already_in_party reads ' + JSON.stringify(said));
         await page.click(P + '.hw-tab[data-tab="invites"]');
         await shot('party-invites');
         const acc1 = sent(s, 'hr_hunt_party_accept').length;
@@ -1479,6 +1488,7 @@ const PURE_MUTANTS = [
 ];
 const PAGE_MUTANTS = [
   ['the finder tab has no way to invite (UI-17)', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');"],
+  ['an invitee already partied reads as the inviter (UI-18, audit F16)', 'src/shell/windows/party.js', "verb: 'party_invite', invitee: own || name }", "verb: 'party_invite' }"],
   ['the finder tab never says how to invite (UI-17)', 'src/shell/windows/party.js', "text(root.querySelector('.hw-invite-how'), tab === 'find' ?", "text(root.querySelector('.hw-invite-how'), tab === 'nowhere' ?"],
   ['a hero with no party reads that its party is private (UI-17)', 'src/styles/windows.css', '.hw-list-party[hidden], .hw-invite-how:empty { display: none; }', '.hw-invite-how:empty { display: none; }'],
   ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],

@@ -79,6 +79,28 @@ function scaledKillOn(M, id, roles, xp, partyPm) {
 }
 
 const cases = {
+  /* THE OVER-FITTED GROUNDS' BIG-PULL CELLS (Tyler 2026-11-16, party-class-xp.js PARTY_TIER_PM): on Hask's Ford a mixed four is paid its cell x 555 on
+     Deadly and x 765 on Dangerous, the cell whole on Normal and with no tier; a pair and a one-class four are paid their cells on every tier. The kill
+     reads the hunt's tier off the instance (inst.tier, the tier row: its id), the one call both paths make. */
+  'party-tier-cut': async (M) => {
+    const { PARTY_CLASS_XP, PARTY_TIER_PM } = await pc(M);
+    const on = (tier, roles) => {
+      const w = worldOf(M, [...roles.map((role, i) => unit(M, i + 1, 'hero', { role })), unit(M, 99, 'mon')]);
+      return M.xpshare.shareKillXp({ world: w, ground: { id: 'hasks_ford' }, grid: null, occ: null, ...(tier ? { tier: { id: tier } } : {}) }, { t: 99, u: 1, xp: BIG }, ctx35(M, 5));
+    };
+    const row = PARTY_CLASS_XP.hasks_ford, four = ['tank', 'healer', 'ranger', 'mage'], pair = ['tank', 'healer'];
+    for (const [tier, pm] of [[null, 1000], ['normal', 1000], ['dangerous', PARTY_TIER_PM.hasks_ford.dangerous[4]], ['deadly', PARTY_TIER_PM.hasks_ford.deadly[4]]]) {
+      const want = Math.floor((BIG / 4) * Math.round((row[4][3] * pm) / 1000) / 1000 + 1e-9);
+      const got = on(tier, four);
+      if (Object.values(got).some((v) => v !== want)) return 'a mixed four on ' + (tier || 'no tier') + ' paid ' + JSON.stringify(got) + ', want ' + want + ' (cell ' + row[4][3] + ' x ' + pm + ')';
+      const two = on(tier, pair), wantTwo = Math.floor((BIG / 2) * row[2][1] / 1000 + 1e-9);
+      if (Object.values(two).some((v) => v !== wantTwo)) return 'a pair on ' + (tier || 'no tier') + ' paid ' + JSON.stringify(two) + ', want its cell ' + wantTwo;
+      const one = on(tier, ['tank', 'tank', 'tank', 'tank']), wantOne = Math.floor((BIG / 4) * row[4][0] / 1000 + 1e-9);
+      if (Object.values(one).some((v) => v !== wantOne)) return 'a one-class four on ' + (tier || 'no tier') + ' paid ' + JSON.stringify(one) + ', want its cell ' + wantOne;
+    }
+    if (!(PARTY_TIER_PM.hasks_ford.deadly[4] < 1000)) return 'Hask\'s Ford has no Deadly cut to read';
+    return null;
+  },
   /* ON A SCALED HUNT A PARTY KEEPS partyPm OF ITS CELL, A HERO ALONE THE WHOLE SOLO BOOST (designer 2026-11-11, lane/d-solo-fifteen): the kill carries the
      scaled row's partyPm; an unscaled kill carries none and pays the cell whole. Both paths share splitKillXp, so the one call is the proof. */
   'scaled-party-share': async (M) => {
@@ -401,8 +423,12 @@ const mutants = [
     edits: [['src/data/party-class-xp.js', "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['tank', 'melee_dps']) }),",
       "melee: Object.freeze({ label: 'Melee', roles: Object.freeze(['melee_dps']) }), tanks: Object.freeze({ label: 'Tank', roles: Object.freeze(['tank']) }),"]] },
   { name: 'the table is read once, at the first kill, and latched', case: 'party-class-death-changes-next-kill',
-    edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(groundId, heroes.map((h) => h.role)).permille;',
-      'const cell = (globalThis.__partyLatch = globalThis.__partyLatch || partyClassXp(groundId, heroes.map((h) => h.role)).permille);']] },
+    edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(groundId, heroes.map((h) => h.role), tierId).permille;',
+      'const cell = (globalThis.__partyLatch = globalThis.__partyLatch || partyClassXp(groundId, heroes.map((h) => h.role), tierId).permille);']] },
+  { name: 'the hunt\'s tier is never read (every tier pays Normal\'s cells)', case: 'party-tier-cut',
+    edits: [['src/core/hunt/xp-share.js', "const tierId = inst && inst.tier && typeof inst.tier.id === 'string' ? inst.tier.id : 'normal';", "const tierId = 'normal';"]] },
+  { name: 'the tier cut lands on a one-class four too', case: 'party-tier-cut',
+    edits: [['src/data/party-class-xp.js', 'const onTier = classes.length > 1 && ', 'const onTier = classes.length > 0 && ']] },
   { name: 'the ground is ignored: every ground reads the Cellar\'s row', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', "partyClassXp(groundId, heroes", "partyClassXp('mill_cellar', heroes"]] },
   { name: 'one Sewer cell drifts (a same-class duo back to the even share)', case: 'party-class-every-cell',

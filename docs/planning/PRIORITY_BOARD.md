@@ -227,6 +227,157 @@ No Normal cell died, before or after. The lone Mage's XP moves +1% to -9% (time 
 
 **Checks** (each exit code seen): party-tiers 0 (2 cases, 7 of 7 mutants), engine-parity 0 (4 pins, 10 mutants), spell-rows 0, monster-kinds 0, ground-pack 0, mutant-anchors 0, guard-hygiene 0, gen-catalogues --check 0, party-class-xp-line 0 (135 Party window lines, the four Morrow grounds' within 2.5 points of before, no row rewritten). `pack check --mode full --uniques` exit 1 on all four before and after (staged grades, red before this lane).
 
+### 2026-11-16 Tempering Dawnsteel: tier 7 gets its own small ladder, Levels 88 to 110 (designer, lane/d-temper-dawnsteel. Tyler 2026-11-16 "yes" to the uniques section's open 1: Dawnsteel and the tier-7 pieces worn from 88 get their own Tempering ladder so the gold sink keeps growing from 88 to 110, small cap, sized with the simulator like the uniques ladder): SIZED and PRICED on the real engine (`node tools/balance-sim/temper-dawn-table.mjs gold | next | bars`), BUILT as data (`src/data/temper.js` TEMPER_TIERS[7], TEMPER_TIER_RUNG_PM, TEMPER_MATERIALS[7]), the fight reads it (`src/core/temper.js` Blows now reads its ladder's worth a rung), the smith says why the rungs are smaller, guarded. **Not sold until the Tempering catalogue is regenerated** (gen-temper, after set/v0.2.134, with balance-2's tiers 4-6): until then the server's ladders are what they were and every live fight is byte for byte the same (no hero holds a tier-7 rung)
+
+**The shape.** Both tracks, like tiers 2 to 6: Lord Krell drops a Dawnsteel or Duskwood weapon for every way to fight and the helm and body in every weight (`krells_hold` pack, 3.5% a row); Carter's Rest (staged) drops the boots, legs, gloves and belt. Five rungs of **0.4%, 2% a track** (`TEMPER_TIER_RUNG_PM` { 7: 4 }; tiers 2-6 stay 1% and 5%, the unique bands 0.5% and 2.5%). Same hooks, same 60% total cap. A mixed set reads piece by piece: Krell's helm and body over Emberforged, both ladders full, reads 3.3% (tier 6's pieces keep their 1% rungs).
+
+#### 1. The cap: why 2% (`temper-dawn-table.mjs next`, mitigation.js itself, no fights)
+Past Dawnsteel there is no tier 8; the next armor is the armor line's. The line at 110 IS Dawnsteel's armor (its anchor), so **no ladder at all keeps a fully tempered Dawnsteel set under a bare unique worn from 110**: there the unique wins by its attribute and, once tempered, by its bigger band ladder (2.5% > 2%, TU6). The first line piece that carries more armor is the Night Shift's, worn from 122 (x1.11). The rule, as TU2 reads the bands: whole Dawnsteel fully tempered lets more of a swing through than the line's bare set from 122, every weight, on every drafted ground at or past 122.
+
+| Weight | Ground | at 1% | at 1.5% | **at 2%** | at 2.5% | at 3% | at 5% |
+|---|---|---|---|---|---|---|---|
+| plate | Wyvern Roost | 2.22% | 1.72% | **1.22%** | 0.72% | 0.20% | -1.72% |
+| **leather** | **Wyvern Roost** | 1.46% | 0.96% | **0.45%** | **-0.06%** | -0.58% | -2.69% |
+| leather | the Vaults | 1.60% | 1.10% | **0.59%** | 0.08% | -0.43% | -2.54% |
+| cloth | the Vaults | 4.67% | 4.19% | **3.70%** | 3.20% | 2.70% | 0.66% |
+| plate | the Ox Road (112-128, floor under 122) | 0.74% | 0.30% | -0.06% | -0.33% | -0.56% | -0.99% |
+
+2% is the largest round step that holds; at 2.5% leather crosses at the Roost. Against the Roost's own 125 set the thinnest is leather 0.93%. The Ox Road row is the plate cap at work, not a ladder problem: there both plate sets sit at 59.8% against monsters of 112-128, so the 122 plate is worth 0.7% over bare Dawnsteel at any ladder, and at Krell's Hold plate is at the cap outright. **What a full ladder takes off where Dawnsteel is worn (Krell's Hold):** leather 2.0%, plate 1.0%, cloth 1.0% (at the Pyre Field cloth 0%: its ward already holds blows at the keep floor). **Blows** (what-if, the weapon line ruled 11-16, not built: damage stat x Level / 110, a Level 110 hero): a full 2% ladder is about the line's step from 110 to 117; every family's line weapon from 122 still out-hits a fully tempered Dawnsteel one, by 1.2% (hatchets, sword) to 2.9% (warhammer).
+
+#### 2. The gold (`temper-dawn-table.mjs gold`, as lane/d-audit-balance-2 and lane/d-temper-uniques priced theirs)
+A lone sword-and-shield tank on Normal where the game sends it (`recommendedHunt`: Krell's Hold at every Level from 85 to 110) in the gear ladder's kit (from 88 it reads Krell's drops: Dawnsteel helm, body and sword over Emberforged), 4 seeds x 2 h at 88, 95, 102, 109.
+
+| Level | Level XP/h | coin+loot g/h | store g/h | net g/h | deaths | low |
+|---|---|---|---|---|---|---|
+| 88 | 422,980 | 20,868 | 4,230 | 16,675 | 0 | 83% |
+| 95 | 442,843 | 21,600 | 787 | 20,946 | 0 | 90% |
+| 102 | 459,197 | 23,761 | 22 | 23,786 | 0 | 95% |
+| 109 | 476,802 | 23,819 | 0 | 23,935 | 0 | 97% |
+
+| Span | Hours | Gold banked | A track (5 rungs) | Both tracks | Share | Ember Tempering Salts |
+|---|---|---|---|---|---|---|
+| 88-110 | 260 | 5.66M | 40k / 80k / 160k / 320k / 640k = **1.24M** | **2.48M** | **44%** (46% with the salts at book) | 10 / 20 / 40 / 80 / 160 a track, 620 (146k) |
+
+Tiers 2-6 ask 40-52%, the bands 39-59%. A track is dearer than tier 6's (496k) and cheaper than the 110 band's ladder (1.86M): a later ladder never costs less. (Balance-2's -8,087 g/h at the Hold was Level 85 in tier 6; from 88 in Krell's kit the store bill falls to almost nothing.)
+
+**The material: Ember Tempering Salts**, tier 6's salt, no new item: Smithing 75 `mix_ember_temper_salts` (Emberstone Ore from `emberstone_rock`, Mining 75, and 2 Grave Dust) or Crafting 75 `pack_ember_temper_salts` (a Runewood Plank and a Grave Dust). Grave Dust drops at Krell's Hold itself. Both tracks take about 3 hours of a resting hero's mixing (TB-MATERIAL's 6-hour ceiling holds).
+
+#### 3. The bars don't move (`temper-dawn-table.mjs bars`, 3 seeds x 2 h, the same dice in both rows, every seat in its weight's whole Dawnsteel set and weapon)
+| Ground, Dawnsteel | Normal: tank / hammer / bow / Mage alone, low point | Dangerous, tank and Healer | Deadly, a four |
+|---|---|---|---|
+| Krell's Hold 98, bare | 92 / 89 / 92 / 100% | 0 deaths (tank low 71%) | 0 (68%) |
+| Krell's Hold 98, both tracks full | 93 / 89 / 92 / 100% | 0 (72%) | 0 (69%) |
+| the Pyre Field 89, bare | 97 / 93 / 99 / 100% | 0 (83%) | 0 (83%) |
+| the Pyre Field 89, both tracks full | 97 / 94 / 98 / 100% | 0 (83%) | 0 (84%) |
+
+XP an hour moves -0.4% to +1.7% (the hammer at the Pyre Field; the Mage's -0.4% is the dice: its blows read the rung's part of a point as a draw). No cell crosses a line. Every grade and the sheet are read at rung 0, which plays byte for byte as before (`hunt-core/temper-play` rung-zero), so no live grade moves.
+
+#### 4. The smith's words (`src/data/text/temper.js` small_row, said only on a ladder the server sells)
+- Blows, a Dawnsteel Sword at rung 2: "Rung 2 of 5: your blows and heals land 0.8% harder. Next rung 1.2%. The finest gear takes smaller rungs, 0.4% each."
+- Armor, full: "Rung 5 of 5: blows reach you 2% softer. The most this gear takes. The finest gear takes smaller rungs, 0.4% each."
+- Until the regeneration: "Your Dawnsteel Sword can't be tempered yet. The smith only has rungs for gear worn from Level 15 to Level 30." (the server's ladders; 75 once balance-2's rows ship, 88 with these). Read in Chromium: `tests/services-window.mjs` SV-7.
+
+#### 5. Walk-through (a Level 95 sword-and-shield hero; every id read on this branch)
+| Step | Does | Holds from the steps before and the real kit | Doable? |
+|---|---|---|---|
+| 1 | Wields a Dawnsteel Sword (`dawn_sword`, tier 7, Level 88) | a Krell's Hold hall kill (`lord_krell` drops, 3.5% a row) | Yes, live |
+| 2 | Shop, Services, Tempering: the Blows row names the Dawnsteel Sword and its rungs | step 1 | **Not yet**: the server sells tiers 2-3 until gen-temper runs (TB-IDEM red, inherited from balance-2) |
+| 3 | Mixes 10 Ember Tempering Salts | Smithing 75 + Emberstone Ore (`emberstone_rock`, Mining 75) + Grave Dust (drops at `krells_hold`), or Crafting 75 + Runewood Plank (`saw_runewood`) + Grave Dust | Yes: both recipes exist |
+| 4 | Buys rung 1: 40,000 g and 10 salts, bag then Storage | steps 2-3; the purse (about 21k g/h at the Hold) | Yes once sold: `hr_unlock_buy`, the existing sale |
+| 5 | Every blow lands 0.4% harder | step 4 | Yes: `blowsPmOf` reads the tier-7 ladder (hunt-core/temper dawnsteel-takes-smaller-rungs) |
+| 6 | Wears Krell's Dawnsteel helm and body; the Armor row offers the tier-7 ladder (the most armor), and the Emberforged pieces keep their tier-6 rungs | a Krell drop in its weight | Yes (`armorLineOf` tier 7; mixed set reads 1.1% on tier 7 alone, 3.3% with tier 6 full) |
+| 7 | At 110 moves to a unique; its band ladder starts at 0 and Dawnsteel's rungs still count on the Dawnsteel pieces it keeps | step 6 | Partly: the bands are shut (the uniques section) |
+
+#### 6. To sell it (the regeneration, after set/v0.2.134)
+1. `node tools/gen-temper.mjs --new <file>`: the catalogue then carries tiers 2-7 and TB-IDEM and `gen-temper --check` go green. Not done here, by the brief.
+2. With it: the Ember Tempering Salts' description (`item-descriptions.js`, today "Emberforged, Dragonhide and Archmage gear") adds Dawnsteel, Dawnhide, Duskweave and Duskwood, so it never names gear the smith won't take yet.
+3. Register `tests/temper-uniques.mjs` (plain and `--mutate`): TU6 now guards a ladder that will be sold (guards-unregistered.json still names it, for the bands).
+
+#### 7. Open, for Tyler and the Coordinator
+1. **A unique worn from 110 carries Dawnsteel's armor**, so a fully tempered Dawnsteel set out-armors a bare 110 unique by the ladder (2%) until that unique's band is tempered. That is the armor line's anchor, not this ladder; the unique's case is its attribute. If Tyler wants a bare 110 unique to always out-armor tempered Dawnsteel, the line's anchor moves (armor line lane), not this cap.
+2. **The weapon line** (ruled 11-16, not built): its first unique weapon worn from under about 118 does not out-hit a fully tempered Dawnsteel weapon on damage alone. Handed to the weapon-line lane: start the line's weapons at 122 or carry the attribute as the reason, or give the weapon bands a Blows ladder.
+3. Plate and cloth get about 1% of the 2% at Krell's Hold (the cap and the ward floor); the row prints the rung's 2%. Same handoff as the uniques section's open 3 (Systems and Art Director).
+
+**Done and verified.** EXIT 0, run here: `tests/temper-uniques.mjs` and `--mutate` (25 of 25: TU6 ten new), `tests/hunt-core/temper.mjs` (18 cases, 42 mutants: dawnsteel-takes-smaller-rungs five new), `hunt-core/temper-play`, `tests/services-window.mjs` and `--mutate` (SV-7: Dawnsteel's words, two new mutants), `town-criers`, `text-home`, `copy-lint`, `catalogue-coherence`, `armor-line`, `guard-hygiene`, `typecheck-ratchet`, `cache-buster-guard`, `client-module-size`, `envelope-contract`, `storage-view`, `say-why`, `gen-temper --selftest`. `tests/temper-buy.mjs` TB-MATERIAL now names tier 7 (green); **inherited reds, not this lane's**: TB-IDEM and `gen-temper --check` (the catalogue awaits the regeneration since balance-2), `mutant-anchors` (alpha-windows AW-27's anchor in hunt-go.js). **Not verified**: nothing bought by hand (no tier-7 rung is sold).
+
+**Files.** `src/data/temper.js`, `src/core/temper.js`, `src/session/temper-sections.js`, `src/shell/windows/temper-pane.js`, `src/data/text/temper.js`, `tools/balance-sim/temper-dawn-table.mjs` (new), `tests/temper-uniques.mjs`, `tests/hunt-core/temper.mjs`, `tests/temper-buy.mjs`, `tests/services-window.mjs`.
+
+### 2026-11-15 Tempering past Dawnsteel: a small ladder for each band of unique armor (designer, lane/d-temper-uniques. Tyler 2026-11-15, "ok then yes" to the Coordinator's recommendation: a PURE GOLD SINK on the unique armor past Dawnsteel with a SMALL cap, about +2-3% at most, sized with the simulator before anything is built; on the pre-EA Security list. Why: Tempering stops at tier 7, so the sink stops growing at Level 88 while gold piles up, 8.4M by Level 87): SIZED and PRICED on the real engine (`node tools/balance-sim/temper-uniques-table.mjs next | gold | bars`), BUILT as data with every band SHUT, the fight reads it, guarded (`tests/temper-uniques.mjs` 15 of 15 mutants, `tests/hunt-core/temper.mjs` a-unique-reads-its-band 5 of 5). Nothing sold, no catalogue moves, the edge bundle moves (src/core/temper.js, src/data/temper.js) with every live hero's fight byte for byte the same
+**The shape.** Armor only (the line moves armor; weapons, shields and capes have no line). One ladder per BAND of the Level a piece is worn from, not per tier: every piece past Dawnsteel carries `tier: 7`, so a tier key would be one ladder from 110 to 200 and the sink would stall again. A piece worn from Level R reads the band at or under R: **110, 125, 145, 165** (the Night Shift's 122 pieces read 110, the Old Guard's 138 read 125); a new region is a new row. The key is the band's Level (`temper:armor:165`), a number no gear tier reaches, so hr_unlocks, hr_temper_view and the perks map read it as they read a tier (no server change). **Five rungs of 0.5%, 2.5% a ladder** (`TEMPER_UNIQUE_RUNG_PM` 5). Same hook as every rung: the chain's last step, under the 60% total cap. Standard Dawnsteel (worn from 88) and Krell's pieces read no band.
+
+#### 1. The cap: why 2.5% (`temper-uniques-table.mjs next`, mitigation.js itself, no fights)
+Each weight's set of a band on the line, fully tempered, against the next band's bare set, on every drafted ground at or past the next band. Positive = the next band still lets less through.
+
+| Tempered band | Next band, bare | Weight | Ground | at 2.5% | at 2% | at 3% | at 4% |
+|---|---|---|---|---|---|---|---|
+| 110 | 125 | plate | Wyvern Roost | 1.23% | 1.74% | 0.73% | -0.31% |
+| 110 | 125 | **leather** | **Wyvern Roost** | **0.43%** | 0.93% | **-0.09%** | -1.13% |
+| 110 | 125 | cloth | Wyvern Roost | 9.20% | 9.66% | 8.73% | 7.78% |
+| 125 | 145 | leather | the Vaults | 0.94% | 1.45% | 0.43% | -0.61% |
+| 145 | 165 | plate | the Vaults | 1.39% | 1.89% | 0.88% | -0.13% |
+| 145 | 165 | leather | the Vaults | 0.82% | 1.33% | 0.31% | -0.73% |
+
+(12 rows in the tool; these are the thin ones.) Leather's dodge sits flat on the line (50.2% at every band), so a band step buys leather little, and **3% already lets a tempered 110 set beat a bare 125 set**. 2.5% is the largest round step that holds for every weight on every drafted ground. What a full ladder takes off on its own grounds: leather 2.50%, cloth 1.8-2.5%, plate 1.5-2.1% (plate on the line sits near the cap against each ground's top monsters, so the cap eats part of it).
+
+#### 2. The gold: priced on the curve (`temper-uniques-table.mjs gold`)
+As lane/d-audit-balance-2 priced tiers 4-6: one sword-and-shield tank alone on Normal, on the line at its Level with Krell's Tollgate, the guide food, 4 seeds x 2 h at the floor, middle and top of each drafted ground (Carter's Rest, the Ox Road, Wyvern Roost, the Pauper Vaults, all staged packs opened). A band's hours and gold are the sum over its Levels of (XP to the next Level / XP an hour) and that times net gold an hour, on the in-band ground paying the most XP. Coin and loot run flat at 19-25k g/h from 110 to 185; what grows is the hours.
+
+| Band | Levels | Read on | Hours | Gold banked | Ladder (5 rungs) | Share | Ember Tempering Salts |
+|---|---|---|---|---|---|---|---|
+| 110 | 110-125 | Carter's Rest | 175 | 4.00M | 60k / 120k / 240k / 480k / 960k = **1.86M** | 47% | 10 / 20 / 40 / 80 / 160 |
+| 125 | 125-145 | Carter's Rest, the Roost | 295 | 5.82M | 80k to 1.28M = **2.48M** | 43% | same |
+| 145 | 145-165 | the Roost, held (the Bellows isn't drafted) | 355 | 7.95M | 100k to 1.6M = **3.10M** | 39% | same |
+| 165 | 165-185 | the Pauper Vaults | 338 | 5.24M | 100k to 1.6M = **3.10M** | 59% | same |
+
+Tiers 2-6 ask 40-52% of their band. 165 holds level with 145 instead of dropping under it (a later ladder never costs less): the Vaults' floor eats 21k g/h of Salted Lobster (a lone tank nets 674 g/h at 165), the guide-food handoff from the armor line. Across 110-185 the four ladders take 10.5M of the 23.0M a hero banks, 46%. On Salted Shark the lone tank banks less, not more (it needs no Shark alone; Shark is the Deadly four's food), so the price is read on the guide's.
+
+**The material: Ember Tempering Salts, the tier-6 salt.** No new item: Smithing 75 (`mix_ember_temper_salts`: Emberstone Ore from the Emberstone Vein, Mining 75, and 2 Grave Dust) or Crafting 75 (`pack_ember_temper_salts`: a Runewood Plank and a Grave Dust), no coal (TB-MATERIAL). Grave Dust drops at the Ox Road and the Pauper Vaults as well as the March. 310 a band, book 73k, 2% of the band's gold and half a tier-6 ladder's salt: the gold is the sink, the salt keeps Tyler's 11-05 "require some sort of crafting".
+
+#### 3. The bars don't move (`temper-uniques-table.mjs bars`, 3 seeds x 2 h, the same dice in every row)
+| Ground, kit | Food | Normal: tank / hammer / bow / Mage alone (low point) | Dangerous, tank and Healer | Deadly, a four (sheet: 9) |
+|---|---|---|---|---|
+| The Vaults 165, on the line, bare | Salted Shark | 74 / 67 / 81 / 96% | 0 | 2.7 |
+| The Vaults 165, on the line, **fully tempered** | Salted Shark | 74 / 66 / 81 / 96% | 0 | 2 |
+| The Vaults 165, a band behind (145), bare | Salted Shark | 73 / 65 / 81 / 96% | 0 | 2 |
+| The Vaults 165, a band behind, **fully tempered** | Salted Shark | 72 / 64 / 82 / 96% | 0 | 2 |
+| The Vaults 165, on the line, bare / tempered | the guide's (Lobster) | 74 / 67 / 81 / 96% both | 2.7 / 1.3 | 39.6 / 24 |
+| Wyvern Roost 125, on the line, bare / tempered | the guide's | 77 / 68 / 80 / 96% and 76 / 66 / 81 / 96% | 0 / 0 | 0 / 0 |
+| Wyvern Roost 125, a band behind, bare / tempered | the guide's | 75 / 66 / 80 / 96% and 74 / 66 / 79 / 96% | 0 / 0 | 0 / 0.7 |
+
+No cell crosses its line. Normal moves within 2 points (the dice: a rung's part of a point is a draw, so tempered rows play different swings). Deadly on the Level's food stays green (2.7 and 2). On the guide's Lobster the Vaults' Deadly four is red either way (39.6 and 24): the armor line's handoff 1, not this ladder.
+
+#### 4. The smith's words (`src/data/text/temper.js`, said only when the server sells a band)
+- The Armor row, wearing unique armor: "Rung 2 of 5: blows reach you 0.8% softer. Next rung 1.3%. Unique armor takes smaller rungs, half a step each, and gets a new ladder at Levels 110 and 165." (a mixed set reads its share, measured on the real reader).
+- Wearing Dawnsteel: "Your Dawnsteel armor can't be tempered yet. The smith only has rungs for gear worn from Level 15 to Level 75. The smith also tempers unique armor worn from Level 110."
+- With every band shut (today) every line is what it was. The band list is the server's ladders, never this build's table.
+
+#### 5. Walk-through (a Level 165 hero in the Limewashed Plate; every id read on this branch)
+| Step | Does | Holds from the steps before and the real kit | Doable? |
+|---|---|---|---|
+| 1 | Wears a unique worn from 165 (`limewashed_plate`, armor-line LINE_SAMPLE) | The armor line's walk-through steps 1-6 | **Not yet**: the sample is hidden (armor line section 3) |
+| 2 | Opens the Shop, Services tab, Tempering; the Armor row names "unique armor" and the 165 ladder | Step 1 | **Not yet**: band 165 is shut; it opens with step 1's rows (TU5 holds the two together) |
+| 3 | Mixes 10 Ember Tempering Salts | Smithing 75 + Emberstone Ore (`emberstone_rock`, Mining 75) + Grave Dust (drops at `pauper_vaults`, `ox_road`), or Crafting 75 + Runewood Plank (`saw_runewood`) + Grave Dust | Yes: `mix_ember_temper_salts`, `pack_ember_temper_salts` exist |
+| 4 | Buys rung 1: 100,000 g and 10 salts, from the bag then Storage | Steps 2-3 and the purse (a hero banks about 5M in the band) | Yes once open: `hr_unlock_buy`, the existing sale |
+| 5 | Every blow at it lands 0.5% softer on that plate's share | Step 4 | Yes: armorPmOf reads the band (hunt-core/temper a-unique-reads-its-band) |
+| 6 | At 185 moves to the next region's piece; the 165 rungs still count on the 165 pieces it keeps | Step 5 | Partly: no band past 165 yet (a row when that region lands) |
+
+Two of six steps wait on the armor line's sample.
+
+#### 6. To open a band (the build lane, after Tyler approves the armor line's sample)
+1. Put the band's first piece in ITEMS and set its band `open: true` in `src/data/temper.js` (TU5 is red until both happen together).
+2. Regenerate the Tempering catalogue (`node tools/gen-temper.mjs --new`), with set/v0.2.133's salts already in hr_items. **Not done here: set/v0.2.133 is being assembled; the Coordinator should have the designer regenerate later.**
+3. Update `tests/hunt-core/temper.mjs` the-table-is-the-sale (it counts two tracks a tier), the Ember Tempering Salts' description (it names only tier 6's gear), and register `tests/temper-uniques.mjs` plain and `--mutate` (guards-unregistered.json names it).
+4. Pre-EA Security list (§3.7): the band rungs are hr_unlock_buy rows like every rung; nothing new crosses to Postgres but the rows.
+
+#### 7. Open, for Tyler and the Coordinator
+1. **Levels 88 to 110 still have no growing sink.** Standard Dawnsteel and Krell's pieces (worn from 88) have no ladder, and this ruling covers only uniques past Dawnsteel. A tier-7 ladder (both tracks, 5%) is the obvious fill, priced the same way; Tyler's call, not built. **RULED 2026-11-16 ("yes") and BUILT at 2%, not 5%: the section "2026-11-16 Tempering Dawnsteel".**
+2. The 145 band's gold is read on the Roost held flat; re-measure when the Bellows is drafted. The 165 band's on the Vaults' guide food; re-measure when the guide names the Level's food.
+3. Plate on the line gets 1.5-2.1% of the 2.5% (the cap). The smith's row prints the rung's 2.5% for it; showing what a rung does against monsters of the hero's Level is a Systems and Art Director read, handed off.
+
+**Done and verified.** EXIT 0, run here: `tests/temper-uniques.mjs` and `--mutate` (15 of 15), `tests/hunt-core/temper.mjs` (17 cases, 37 mutants, every one caught by its rule: h2's planted copies were missing `src/render`, so every h2 mutant in five suites was "caught" by a missing module; fixed, and damage, pull-cycle, roles and targeting stay green with real catches), `hunt-core/temper-play`, `armor-line`, `catalogue-coherence`, `text-home` (the pane is back under its ceiling of 32: lane/d-audit-balance-2 left it at 34), `copy-lint`, `guard-hygiene`, `typecheck-ratchet`, `cache-buster-guard`, `client-module-size`, `envelope-contract`, `storage-view`, `say-why`, `town-criers`, `gen-temper --selftest`. TEMPER_UNLOCKS, OFFERS, IDS, MATERIALS and TIERS are byte-identical to lane/d-audit-balance-2's. **Inherited reds, not this lane's**: `gen-temper --check` (balance-2's tiers 4-6 await the regeneration), `special-attributes` SA1 (shields.js imports special-attributes.js) and `mutant-anchors` (alpha-windows AW-27's anchor in hunt-go.js), all three red on origin/lane/d-audit-balance-2's tip. **Not verified**: nothing played by hand (no band is sold); the smith's words read through the real temper-sections and pane reader in Node, not in the browser.
+
+**Files.** `src/data/temper.js`, `src/core/temper.js`, `src/session/temper-sections.js`, `src/shell/windows/temper-pane.js`, `src/data/text/temper.js`, `tools/balance-sim/temper-uniques-table.mjs` (new), `tests/temper-uniques.mjs` (new), `tests/hunt-core/temper.mjs`, `tests/hunt-core/fixtures/h2.js`, `tests/guards-unregistered.json`.
+
 ### 2026-11-15 Armor past Dawnsteel: one armor line, carried by unique pieces (designer, lane/d-armor-past-dawnsteel. Tyler 2026-11-14: "There is no level cap, so technically there will always be better gear being released as long as the game is alive. I think after tier 7 we start getting unique with the itemization and it goes away from being just standard upgrades, more like tibia", "Boss gear to mix and match, rare drops from hunts"; the finding is lane/d-catacombs' DISCOVERIES 2026-11-15 and the Pauper Vaults' section 8 item 5): RULED by the designer, MEASURED on the real engine (`node tools/balance-sim/armor-line-table.mjs curve|vaults|roost`), a HIDDEN sample of five rows (`src/data/armor-line.js`) and its guard (`tests/armor-line.mjs`, 18 of 18 mutants caught). Nothing served, no art, no catalogue migration, the edge does not move
 **The call.** Past Dawnsteel the armor curve is ONE public line, and unique pieces carry it. A piece worn from Level R has the armor of the Dawnsteel piece of its slot and weight, times R / 110 (never less than Dawnsteel's): `armor = round(Dawnsteel's x max(1, R / 110))`. The line moves armor only. Every other number on the piece is its Dawnsteel twin's, and it adds one attribute from the special-attribute catalogue. A unique may sit under the line as its trade (Carter's Rest's proposed five do). None sits over it. No tier 8, no change to the stat formula.
 
@@ -880,8 +1031,111 @@ In no catalogue, no drop table, no recipe and no generator. No `src/` file impor
 4. **Krell's two unique pieces (spec; rows wait on icons, tests/pixel-icons).** Tollgate, tier 7 tank shield, worn from 88: guard 15 (the shield ladder's +2 a tier), plus 10% less fire damage (`resistPm: { ember: 100 }`, an existing field, no hook). "Krell had his toll house gate cut down into a shield. Every coin that crossed the ford went through it." Banded Legguards, tier 7 plate legs, Dawnsteel Platelegs' stats (defense 64) plus 3% less physical damage. HOOK NEEDED: `resistPm.physical` (elements.js resistProfile accepts PHYSICAL, damage.js landHit applies it when the blow has no element, under HERO_RESIST_PM's 40% cap). Proxy measured (Krell atk -3%, which credits the whole party, so an upper bound): at 88 the bad bar stays 25%, one gear tier behind 83 -> 98%. "Krell's smith made these from the Banded Company's armor. He left the bronze bands on so everyone would know whose they were." Both trade like any gear. Art: two icons, the shield on the hero's off hand, the legs as an outfit layer (bronze bands on dark plate).
 5. **Hall Key: any member's key should open it** (a key dropping to seat 2 means a hand move every key, the first principle). Handed to Systems: hr_boss_hall_enter takes the leader's key, else the first seat's that holds one. Until then the page says it plainly (BUILT): "You have a Hall Key, but only your party's leader can open the hall. Give it to them first. Your own heroes can pass it through Storage." and with none "You don't have a Hall Key. The Gatekeeper drops them now and then."
 6. **Mend the Dead fires and reads** ("Pyre Priest is casting Mend the Dead.", then "heals Grave Guard for N"). A lone hammer saw 10 casts an hour, a four 6; a lone tank 0, because the default pick kills the Priest first, the fight's right answer. KEEP. Backlog: if it should matter, stand the Priest behind his Guard.
-7. **Smaller.** Tank shields above tier 3 (none from 45 to 110): FIX, backlog, tiers 4-6 as March drops with icons (Tollgate is tier 7). Power Strike flat 7-13 (8 a cast at 85 against a swing's 15): FIX, backlog to a balance lane with a full re-grade (Power Strike, Precision Shot and Cleave onto `hitPm` like Turning Cut). 22 March imbuement items sell only: BACKLOG, imbuing is their promised use (catalogue-coherence VENDOR_TRASH). 2 Levels on one death at 85: the 6% rule working (6% of total XP is 1.55 Levels at 85, 1.89 at 98, 4.5 at 200). Lookout shots: BUILT ("Hask's Lookout shoots Tester for 30."). No XP an hour before a best: BACKLOG, show the grader's measured median for the hero's Level, never a formula.
+7. **Smaller.** Tank shields above tier 3 (none from 45 to 110): FIX, backlog, tiers 4-6 as March drops with icons (Tollgate is tier 7) BUILT as rows 2026-11-15 (the audit section below: three plain shields, guard 9 / 11 / 13). Power Strike flat 7-13 (8 a cast at 85 against a swing's 15): FIX, backlog to a balance lane with a full re-grade (Power Strike, Precision Shot and Cleave onto `hitPm` like Turning Cut). 22 March imbuement items sell only: BACKLOG, imbuing is their promised use (catalogue-coherence VENDOR_TRASH). 2 Levels on one death at 85: the 6% rule working (6% of total XP is 1.55 Levels at 85, 1.89 at 98, 4.5 at 200). Lookout shots: BUILT ("Hask's Lookout shoots Tester for 30."). No XP an hour before a best: BACKLOG, show the grader's measured median for the hero's Level, never a formula.
 
+### 2026-11-15 The audit's balance findings: F2, F5 (and F4), F8, F12 (designer, lane/d-audit-balance-1; the full-game playthrough audit, `origin/claude/qa-full-audit-9712be:tools/qa/audit-2026-11-15/findings.md`). MEASURED on the real settle (`tools/balance-sim/audit-table.mjs food | gold | shield`, `boss-call-table.mjs`). F2, F5 and F8 BUILT as data; F12 RULED, nothing built. **The three shields are data rows only: the items, recipes and hunt-sessions catalogues and four packs' drop rows are NOT regenerated here (they collide with set/v0.2.133), so nothing is served until that step**
+**F2 (Hive Wasp drops "spider silk"): BUILT.** Silk Thread reads "Fine thread wound off spider webs and the silk caps on a wasp nest. It goes into cloth, wand grips and bowstrings", and Dry Husk names the wasp beside the spider. The class is held: `tests/item-flavour-coverage.mjs` FLV-10 fails a line that names the creature a drop comes from while another creature on an open ground drops it too.
+
+**F5 (food has no stakes from Level 1 to 12 on Normal): RULED, the lessons move; Normal stays safe.** Normal at a ground's Level is near-zero risk by Tyler's 10-25 §3 and 11-06 rulings, so the fix is not harder monsters. Measured with the start bar as shipped (eat under 60%), 2 x 1 h a row, four ways to fight, meals an hour:
+
+| Where | In the Level's gear | In the practice kit, no armor |
+|---|---|---|
+| Mill Cellar, Normal, 1 and 3 | 0 | 0 |
+| Thicket, Normal, 5 / 8 / 12 | 0 to 0.5 | tank 31.5 / 22.5 / 4.5, hammer 22 / 11 / 1.5, bow and mage 0 to 5.5 |
+| Wickstead, Normal, 8 / 12 / 15 | 0 | 0 to 6.5 |
+| Thicket, Dangerous, 5 / 8 / 12 | tank 96 / 74.5 / 36, hammer 73 / 53 / 20.5, bow 63.5 / 53 / 31, mage 8.5 / 1 / 2 | 22 and 24 deaths in 2 h at 5 for a tank and a hammer |
+| Wickstead, Dangerous, 8 / 12 / 15 | tank 59.5 / 21 / 1, bow 71 / 44.5 / 11, mage 36 / 23.5 / 3 | tank 298 / 186 / 110 |
+
+So food has stakes in two places a new player really reaches: the Thicket before the hero wears armor, and the first Dangerous run, where a tank at 5 in full gear pays 1,434 g/h of Salted Shrimp out of 2,423 g/h earned for +6% XP. Nowhere else under 15. **The rule: a food lesson shows only to a hero who is spending food.** BUILT (`src/data/hunt-tutorial.js` `SPENDING_FOOD`): "Eat on time" and "Your own food first" wait for 6 meals in the hunt at 12 an hour or more (they came after 3 meals in a hunt of any length: the audit's 8 in two hours). The audit's hero on Normal in armor never sees them. A hero in the practice kit or on a first Dangerous run sees them within about ten minutes. The cards are not cut: Tyler's 10-25 ruling asks the tutorial to teach conditions on the real control, and this is the moment the control matters.
+**F4 with it: one visit sets both.** "Eat on time" told the player to lower their own food to 55% and so made the next card (the store food at 60% now ate first). The card now ends "Then set slot 4 (Salted Shrimp) to 55% too, so your own food eats first." Guards: `tests/hunt-core/sewer.mjs` first-hour-never-walls (three meals is not the lesson, 8 in 2 h is not, 6 in 10 min is) and tutorial-bar-chain (the card names the store slot; none named when there is none), 3 new mutants, 160 of 160 caught.
+**Not taken from the audit:** "Cooking's first goal should be mana". Reported only: a mage's bill at 5 to 15 is drinks and runes (630 to 1,360 g/h, 38 to 100 drinks an hour), so Turnip Juice from the farm is already the craft that pays a caster, and the farm card comes in the Cellar. Still open for the coach lane: a card that offers the first Dangerous run at about Level 8 (the Level 10 "How hard can you hunt?" card names the tiers but does not send anyone).
+
+**F8 (no shield from Level 30 to 110): BUILT as rows, three plain shields, guard +2 a tier as tiers 1 to 3 climb.** This re-rules item 7 of the 11-14 hand play ("tiers 4-6 as March drops") to drops and one forge. The special-attribute plan (11-15, `origin/lane/d-special-attributes`) already places the Bier Shield (tier 5, the Barrow Knight) and Krell's Tollgate (tier 7). Neither is placed again: the Runebound Shield is the plain tier-5 piece (guard 11) that the Bier Shield adds its 2% to, and tier 7 stays the Tollgate alone (its `base: null` in that plan stays true: there is no plain tier-7 shield).
+
+| Shield (id) | Tier, worn from | Guard | Book | Where it comes from | Use |
+|---|---|---|---|---|---|
+| Mithril-Faced Shield (`mithril_faced_shield`) | 4, Level 45 | 9 | 1,100 | Rare 0.33% on the Slake's Color Sergeant, beside the Mage's spellbook. Forged at Smithing 45 from 4 Mithril Bars and 2 Maple Planks | worn |
+| Runebound Shield (`runebound_shield`) | 5, Level 60 | 11 | 3,750 | Rare 0.11% on the Muster's Barrow Pikeman and 0.08% on the Pyre Field's Charred Pikeman, beside their Scarce Rune Sword | worn |
+| Emberforged Tower Shield (`ember_tower_shield`) | 6, Level 75 | 13 | 9,750 | Rare 0.2% on the Pyre Field's Provost (with every tier-6 weapon) and 0.12% on the Hold's Grave Guard | worn |
+
+Rare and not Scarce because the Mage's off-hand is a Rare on the same grounds and a monster carries one Scarce weapon (`SLOT_LIMITS`). Every Rare still reads 13 to 18 h a piece at each floor (`tests/hunt-core/drop-tables.mjs`, green). No attack penalty: the heavy line (Kingsgrate, Steelgrate) ends at tier 3 and special attributes take its place. Icons by pixel script, 0 generations (`tools/world-art/march-shield-icons.mjs`; `tests/pixel-icons.mjs` `drawn` holds them). The Art Director may replace them.
+**What it does, measured (a lone tank, 2 h a row, the Coppercap Shield against the tier's own):**
+
+| Ground, Level | Monsters land | Damage taken an hour | Food bill g/h | Deaths |
+|---|---|---|---|---|
+| Hask's Ford 45 | 56.7% to 53% | 27,273 to 26,035 | 4,320 to 3,690 | 0 / 0 |
+| The Slake 58 | 41.1% to 35.2% | 23,629 to 20,428 | 450 to 180 | 0 / 0 |
+| Muster Barrows 60 | 28.6% to 20.8% | 34,593 to 26,043 | 17,370 to 12,060 | 0 / 0 |
+| Pyre Field 70 | 61.6% to 53.5% | 49,901 to 43,526 | 10,980 to 7,110 | 0 / 0 |
+| Pyre Field 78 | 43.8% to 32.5% | 32,344 to 24,255 | 630 to 90 | 0 / 0 |
+| Krell's Hold 85 | 65.9% to 54% | 57,036 to 49,101 | 13,230 to 9,810 | 0 / 0 |
+
+It is a food-bill upgrade worth 3,000 to 5,000 g/h where a tank eats, and it changes no death count and no XP. Krell's fit holds (Level 88, 40 tries a row, before to after): the door's bar 93 to 93, without Challenge 83 to 83, default moves 78 to 80, the bad bar with Challenge 35 to 40, the start bar 0 to 0.
+**Walk-through (each step from the steps before and real rows):**
+
+| Step | What the hero holds | Proof the step can be done |
+|---|---|---|
+| 1. Level 30, Coppercap Shield | Smithing 30 or a smith on the account | `forge_coppercap_shield`, on main |
+| 2. Level 45, forge the Mithril-Faced | Mithril Bars (`smelt_mithril`, Smithing 45, Mithril Rock at Mining 60) and Maple Planks (`saw_maple`, Crafting 45) | recipe `forge_mithril_faced_shield`, Smithing 45; inputs book 1,130 against 1,100 (style-gear SG-4 green) |
+| 3. Level 50 to 65, the Slake | nothing needed | the Slake is open, band 50 to 65; the Color Sergeant is its rare carrier |
+| 4. Level 60, the Runebound | nothing needed | Muster Barrows open, band 55 to 75; the Barrow Pikeman is its common body |
+| 5. Level 75, the Tower Shield | nothing needed | Pyre Field open, band 70 to 90 (Provost); Krell's Hold 85 to 110 (Grave Guard) |
+| 6. Level 88, Krell's Tollgate | a Hall Key | the special-attribute plan's row, not built here |
+
+A hero with no smith on the account waits for the Rare at tier 4 (about 15 h on the Slake). That is the same wait a Mage has for its wand and book. **The audit's second half, "Equip upgrades never names the Shop's Bronze-Rimmed Shield over the Practice Shield": HANDED to the shell lane** (the Back-in-town line should name a Shop gear row that beats what is worn in an empty or practice slot; `supply-basics.js` holds the row at 140 gp).
+
+**F12 (a million gold by Level 50 with little to spend it on): MEASURED and RULED. No new system.** One hero's life where the game sends it, every drop sold (`audit-table.mjs gold`):
+
+| Level | Tank: hours, gold banked | Mage: hours, gold banked |
+|---|---|---|
+| 20 | 32 h, 139k | 24 h, 134k |
+| 30 | 62 h, 386k | 46 h, 374k |
+| 40 | 119 h, 931k | 84 h, 895k |
+| 50 | 187 h, 1.57M | 128 h, 1.58M |
+| 60, 65, 74 (tank only) | 258 h 2.39M, 304 h 3.05M, 400 h 3.90M | |
+
+The audit's 1.01M after 150 hero-hours agrees. A hero nets 9,000 to 10,000 g/h from 25 to 45 and 11,000 to 15,000 on the Slake.
+1. **"Little to spend it on" is wrong as a count and right as a read.** One-time sinks open before 50, from the data rows: hero slots 300k / 750k / 1.5M; house rooms 1.27M for the first three rungs of eight rooms (5.37M for all five) plus materials; Tempering 558k a hero for tiers 2 and 3; the house dummy 1.4M; chests 122k; Storage rungs 141k for ten; setup slots 55k. That is about 3.9M counting only the first extra hero slot, against 1.57M earned by 50. The audit's hero had bought the slots and then was told nothing: the Back-in-town line names a hero slot, a deed and the first Tempering rung, and never a room rung, the dummy or a chest. **HANDED to the shell lane:** when the purse covers it, that line names the next room rung (it also ends that skill's bench tax) and then the dummy.
+2. **Training gear absorbs what is left, and it is enough.** A 12-hour item is 250,000, which is 26 hunted hours at the Glade. A hero that trains with an item in its 12 resting hours every day spends 250k a day against about 114k earned in its 12 hunted hours. It repeats, it has no cap, and a player who wants skill levels will always want it. The yard's own fee (50 + 6 a skill level, about 350 g/h at 50) is nothing beside it.
+3. **The Tower absorbs none.** It pays no coin and costs food and stamina, so an hour there is 9,000 to 15,000 g not earned. Its Salts make Tempering's gold easier to spend.
+4. **The one real hole is Tempering above tier 3.** Tempering is the sink that scales with Level ("gold is asked again at every tier", 11-05), and it has no rows for tiers 4 to 6, which the March has worn since v0.2.132. From 45 to 88 the only sink that grows with the hero is the stamina refill. **PROPOSED rows, not built** (they need one crafted salt a tier, icons, and the next-tier-wins measure in `tests/hunt-core/temper-play`):
+
+| Gear tier, Levels | Rungs 1 to 5, gold | A track | Both tracks | Tank's measured income in the band |
+|---|---|---|---|---|
+| 4, 45 to 60 | 8k / 16k / 32k / 64k / 128k | 248k | 496k | 1.04M |
+| 5, 60 to 75 | 12k / 24k / 48k / 96k / 192k | 372k | 744k | about 1.5M (60 to 74) |
+| 6, 75 to 88 | 16k / 32k / 64k / 128k / 256k | 496k | 992k | not measured |
+
+Tiers 2 and 3 take 40% and 45% of their band's income, and these take about half. Same 1% a rung and 5% a track, so the next tier still wins.
+5. **Reported, not graded (no profit molds):** a lone tank sent to the Pyre Field at 70 pays 11,000 to 20,000 g/h for food in the Coppercap Shield and nets -3,600 to +3,400 g/h in the career. The Runebound Shield takes about a third off that bill.
+
+### 2026-11-15 The audit's balance findings, part 2: F14, F17/F20, F28 and Crafting (designer, lane/d-audit-balance-2; `origin/claude/qa-full-audit-9712be:tools/qa/audit-2026-11-15/findings.md`, FINAL). MEASURED on the real settle (`tools/balance-sim/audit-table.mjs storefood | tally | gold --to 90`). All BUILT as data. **Staged migration: `2027-04-24-house-top-unlock-offers.generated.sql` (the House). NOT regenerated here, they wait for set/v0.2.133 like part 1's shields: the items, bench-inputs, bench-tax and activities catalogues (three salts, six salt recipes), the Tempering catalogue (`gen-temper`, its self-check needs the salts in hr_items) and the Tally catalogue (`gen-tally-tasks`, it reads the March packs v0.2.133 moves).** Until then the tiers 4-6 rungs and the five March tasks are not served.
+**F14 (in range on Normal, dead in 8 minutes, nothing said the food was weak): BUILT.** 400 cells: a lone hero on Normal at the floor and middle of all ten grounds, four ways to fight, on each store food and nothing carried, 2 h a cell. The Barrows are the only ground where a store food kills in range; every other cell died 0 times on Salted Shrimp, so no other card says anything (a line there would be false). Deaths in 2 h at the Barrows, shield / hammer / bow / mage: Level 55 Shrimp 8 / 19 / 11 / 0, Trout 0 / 5 / 3 / 0, Lobster 0; Level 60 Shrimp 0 / 14 / 6, Trout 0 / 0 / 2; Level 65 Trout 0. What a lone hero nets there on Lobster: -20,649 / -42,949 / -28,165 g/h at 55, +2,810 / +336 / +3,224 at 65; beside a Healer at 55, +4,702 to +12,476 a head and 0 deaths. So: (1) the Hunts page and (2) the bar's food slot during the hunt say "Salted Shrimp heals 72 of your 850 HP, too little for the monsters here ... pick Salted Lobster" with the server's HP, at the floor measured for the hero's Level (Lobster to 64, Trout from 65); (3) the Barrows page says "A Barrow Knight here hits harder than food can keep up with. Bring a Healer. Alone, you'll spend more on food than the hunt pays." to a melee or ranged hero under 65 with no Healer, as Krell's hall teaches his fight. No line names Challenge (Tyler 11-14). Guard: `tests/alpha-windows.mjs` AW-27 (two hand mutants red).
+**F17/F20 (Tempering stops at Steel; the sinks can't take a day's gold): BUILT.** Measured, one sword and shield hero sent where the game sends it, every drop sold: it banks 1.10M from Level 45 to 60, 1.77M from 60 to 75, 1.89M from 75 to 90 (Krell's Hold at 85 nets a lone tank -8,087 g/h, reported). Before this lane nothing that grows with the hero took any of it after 45 but the stamina refill.
+
+| Sink | Gold | Plus | Share of the band a hero banks |
+|---|---|---|---|
+| Tempering tier 4 (Mithril, Snakeskin, Warlock; 45 to 60), both tracks | 8k / 16k / 32k / 64k / 128k a track, 496k | 620 Mithril Tempering Salts (book 130) | 45% gold, 52% with the salts |
+| Tempering tier 5 (Rune, Wyvernhide, Sorcerer; 60 to 75) | 12k to 192k, 744k | 620 Rune Tempering Salts (180) | 42%, 48% |
+| Tempering tier 6 (Emberforged, Dragonhide, Archmage; 75 to 90) | 16k to 256k, 992k | 620 Ember Tempering Salts (235) | 52%, 60% |
+| The House's top, ONCE AN ACCOUNT | the Castle 2,500,000; eight fifth rungs 600k to 900k; 8,450,000 | March drops (Krell's gate chains, rake tines, priests' cords, Hask's coins, seals, nails, shroud pins, Ford Weed, Grave Dust) and top crafts (Emberforged Bars, Runewood and Duskwood Planks, Cooked Shark) | 1.8 one-hero careers from 45 to 90 |
+
+Tiers 2 and 3 ask 40% and 45%. Same 1% a rung and 5% a track. **Next tier still wins, measured exact** (`tests/hunt-core/temper-play.mjs` armor-below-the-next-set now holds tiers 4 to 6): a maxed set lets 1.8% to 18.9% more through a swing than the next tier's bare set on the grounds each is worn (thinnest: leather tier 5 at the Barrows). Tier 6 is read at the Hold, where Dawnsteel is worn: at the Pyre Field a plate hero in Emberforged sits at the armor cap (a full ladder takes 3.4%, Dawnsteel 2.3%), so neither moves much there. Blows not re-played: weapon strength climbs 30 to 35% a tier from 4 to 7 against the ladder's 5%. The smith now says why ("can't be tempered yet. The smith only has rungs for gear worn from Level 15 to Level 75.", the Levels the SERVER's ladders cover). The House was held since 10-31 for dragon scales nothing drops; a fifth rung is +2% at its bench, a farm bed or a mount: capacity and comfort, never power. **WORKS CAPS: RULED, no change.** The Works is one project of 1,000,000 for the whole server; its cap changes who finishes it and how fast, not how much it takes. Per hero is wrong on a shared purse (Tyler 10-23): a 4-hero account would give the same gift four times by hand, and alts would buy plaque places. The sink lever is the next project's row once the Weighhouse stands (handed to the Coordinator).
+**F28 (Tamsin's board stops at Level 32): BUILT, five rows, the sample and the set.** One task a March ground, measured (`audit-table.mjs tally`, a lone tank at each floor, 2 h): the count is about an hour of that monster, the gold 35% of that hour's coin, as her other rows. Fordsunk 40 for 2,560 g (Ford's own pieces); Mudlarks 45 for 3,040 (the Barrows' Rune, Wyvernhide and Sorcerer pieces: finish the set before the Barrow Knights); Barrow Knights 30 for 3,400 (party; two hours alone, 22 minutes in a four); Stokers 35 for 3,880 (the Hold's tier 6 pieces, which drop nowhere under 85); Gatekeepers 20 for 4,290 (the Hall Key carrier, a monster a hero there already hunts). Her pick is armor in the hero's weight, skipping what it wears, then Grave Dust and coal for the salts. Her three a day cap it at 11,570 g against the 110,000 a hero earns in 12 hours there.
+**CRAFTING ("planks and two cloaks, a one-press grind with no decisions"): FIX, the smallest change that adds one.** From 30 to 88 Crafting made planks, one crossbow and arrows. Now (a) each March salt has a second recipe at the same Crafting level as its Smithing one (`pack_mithril_temper_salts` 45: a Maple Plank and a Grave Dust; `pack_rune_temper_salts` 60: a Yew Plank and a Grave Dust; `pack_ember_temper_salts` 75: a Runewood Plank and a Grave Dust), same xp and time. The decision: feed Tempering from the forge (raw ore: the Mithril Rock at Mining 60, the Emberstone Vein at 75) or the workbench (a plank: Maple at Woodcutting 45), by the account's skills and stock; a Level 45 hero with no Mining 60 tempers Mithril only from the workbench. Each workbench row asks a little more book (160 vs 135, 230 vs 185, 345 vs 245), so neither is free money. The forge rows take raw ore, not bars: a Mithril Bar eats 3 coal and the rule since 11-05 is no coal in any salt (TB-MATERIAL). (b) The House's top asks for Runewood (Crafting 75) and Duskwood (88) Planks: the top planks have a buyer. Keep Crafting; the jewelry rolls (lane/d-crafted-jewelry) stay its identity.
+**Walk-through (each step from the steps before and real rows):**
+
+| Step | What the hero holds | Proof |
+|---|---|---|
+| 1. Level 45, Mithril worn | Mithril pieces (Ford, Slake drops; `forge_mithril_*`) | gear-tiers tier 4 at 45; `temper:armor:4` / `temper:blows:4` ladders (temper.js) |
+| 2. A Mithril Tempering Salt | Grave Dust (a common drop on every March ground: 0.16 to 0.3 a kill on the Ford) + Mithril Ore (Mithril Rock, Mining 60) OR a Maple Plank (`saw_maple`, Crafting 45; Maple Tree, Woodcutting 45) | recipes `mix_mithril_temper_salts` / `pack_mithril_temper_salts`, req 45 |
+| 3. Rung 1, tier 4 | 8,000 g + 10 salts | TEMPER_TIERS[4], TEMPER_MATERIALS[4] |
+| 4. Level 60 and 75, again | Rune: Mithril Ore + Magic Essence (walking vine) + dust, or a Yew Plank (Crafting 60) + dust; Ember: Emberstone Ore (Emberstone Vein, Mining 75) + 2 dust, or a Runewood Plank (Crafting 75) + dust | `mix_/pack_rune_*` 60, `mix_/pack_ember_*` 75 |
+| 5. Tamsin past 32 | a hero on the Ford, Slake, Barrows, Pyre Field or Hold | `tally-tasks.js` five rows; monsters fordsunk, mudlark, muster_knight, stoker, gatekeeper spawn there (tests/tally-tasks.mjs) |
+| 6. The Keep, then the Castle | the Keep (`property.keep`), 2.5M, 20 Emberforged Bars, 10 Gatekeeper's Chains (the Hold), 30 Iron Fittings, 60 Runewood Planks, 30 Timber Beams | `property.castle` req tier 4; every item reachable (catalogue-coherence C12, house-pelts HP-3) |
+| 7. Rung 5 rooms | rung 4 of the room; the Keep (forge, garden, trophy, workshop, shrine) or the Castle (kitchen, library, cellar) | ROOM_RUNGS `tier` gates; shop rows equal the ladder (craft-wages W-BENCH) |
+
+Known limits: the Hold's Krell is the lone tier-7 source and has no ladder (his prize has no weapon); `keystone`, `ancient_rune` and `dragon_gem` lost their one use (the held House) and wait in PENDING_USE for the next region or Tyler's cut.
 ### 2026-11-14 Krell's Hold design pass (designer, lane/d-hold-pass, the v0.2.130 visual gate's opens): RULED, BUILT as data, MEASURED on the real settle (`tools/balance-sim/boss-call-table.mjs --hall krells_hold`, Level 98, 200 tries a row unless named). Still STAGED. No migration (no catalogue carries Krell's rows). The edge bundle moves (pack.js, boss-calls.js)
 
 | Open | Ruling | Evidence |

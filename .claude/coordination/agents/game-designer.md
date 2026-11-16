@@ -28,6 +28,12 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - **A low point near the bar's eat line is the eat line.** Food moves it 0.6 at most; a weapon on the line's scale moves it 2-6.
 - **A grade's healerless four ends early on deaths**, so its per-16 number is deaths over the hours actually played (69.7, 93.0), not over 16.
 - Pack checks run 4 at a time with 3 workers each take about 70 minutes under the CPU hold; start them before writing anything else, and don't touch `src/` while they run.
+## 2026-11-15 lane/d-temper-uniques: Tempering past Dawnsteel
+- **Size a % bonus by the thinnest weight, not the average.** Leather's dodge is flat on the line, so its band step is under 1%; 3% Tempering let a set a band behind beat the next band for leather only. The next-band check per weight per ground (mitigation.js, no fights, 0 s) is the sizing tool; fights only confirm the bars.
+- **Key a ladder on what grows.** Uniques all carry tier 7; a tier key would have stalled the sink again. The band's Level as the key reads through the server untouched (it parses an int).
+- **Price past 110 on hours.** Coin and loot are flat at ~22k g/h from 110 to 185; band gold grows only because a band takes 175 to 355 hours.
+- **Read a harness's why before trusting its "caught".** Every h2 mutant was caught by a missing module (the plant had no src/render). H2_WHY=1 showed it in one run.
+- The Bash tool on this box eats backslashes inside python heredocs: write JS strings with an apostrophe through Edit, not a heredoc.
 
 ## 2026-11-15 lane/d-armor-past-dawnsteel: the armor line past tier 7
 - **Read what the sim actually dressed before trusting a what-if.** My first sweep "gave" the tank a guard-15 shield through the practice shield's row; the kit picker never wore it (a fallback is unshifted, then the top tier is picked), so every number labelled "Tollgate" was the Coppercap. Print `h.kit` for one cell of every variant.
@@ -963,3 +969,23 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - `runPool` hung (and node exited 0) when every worker died loading the engine; a planted tree for pool workers needs `src/shell/hunt-list.js` and `src/render` (worker.mjs loads recommendedHunt). Any guard on the pool sets exit 2 until it reaches a verdict.
 - A lone Melee's Dangerous problem is the pull (5 monsters swing at whoever stands in it, about 5x the swings a kiting caster takes), with armor at the 60% cap past Level 70 and Lobster heals that can't keep up. Before calling a ground "too hard alone", play the same way 8-15 Levels in and at the band's top: on the Pyre Field and Krell's Hold the lone Melee outgrows Dangerous inside the band; on the Morrow and the Vaults it never does.
 - Store food prices make "just eat better food" a non-answer at high Levels: a lone Melee on Shark held Dangerous but ran a 458k-699k gold an hour bill on 16k-30k of income. Check the bill before proposing food as a fix.
+## 2026-11-15 lane/d-audit-balance-1 (the playthrough audit's F2, F5, F8, F12)
+- "Nothing to spend gold on" is usually a reading finding. Sum the one-time sinks from the data rows before proposing one (3.9M open before Level 50 against 1.57M earned); then look for where the ladder that scales with Level stops (Tempering had no rows for the tiers the March wears).
+- A lesson card gated on a count fires on any long hunt. Gate it on a rate measured on the settle, with the line between the heroes it should miss (0 to 6.5 meals an hour) and the ones it is for (20 and up).
+- A card whose advice creates the next card's trigger is one card. Check each lesson's fix against the next lesson's `when`.
+- A new shield is a world move: hr_hunt_shields (gen-hunt-sessions) decides what the server treats as a shield, and tests/ground-pack.mjs reds on it as "not additive". Items + recipes + hunt-sessions + every pack whose drops changed all regenerate together.
+- The sim's tank picks the best reachable shield by itself (gear.mjs), so new shields re-dress every March measurement. Hold the old piece with `gear: { also: { shield } }` for the before row, and re-run the boss table from a scratch `git worktree` of the commit before.
+- This shell's heredocs eat one backslash level even when quoted: a script that writes `\'` must be made with the Write tool, or use sed with `.` for the quote.
+- `cd X && (A) & (B)` backgrounds the cd with A: B runs in the session's folder. Run two background jobs as two commands.
+## 2026-11-15 lane/d-audit-balance-2 (the playthrough audit's F14, F17/F20, F28 and Crafting)
+- A food warning is only true where it was measured: 400 store-food cells found one ground (the Barrows) where a store food kills in range. A line on every card would have been false on nine.
+- A "next tier wins" check must be read where the next tier is worn. At the Pyre Field a plate hero in Emberforged already sits at the armor cap, so a maxed ladder there out-guards bare Dawnsteel by 1.2%; at the Hold, where Dawnsteel is worn, it wins by 3.3%.
+- A per-hero cap on a shared purse is the same gift pressed four times. Ask what a cap limits (who finishes a one-time project, how fast) before raising it as a sink: the Works' capacity is its goal, not its cap.
+- Un-holding rows leaves their unreachable items with no use (C2). Check what else a held row was the only use of before re-costing it.
+- Two recipes for one output is the cheapest real decision a bench can get: same xp and time, different skills and stock, a little more book on the new route so neither is free money.
+- A paused lane's measurements live in its scratchpad (career-tank.txt): re-derive the board's numbers from them before re-running a 590-hour career.
+## 2026-11-16 lane/d-temper-dawnsteel (Tyler: tier 7 gets its own Tempering ladder, 88 to 110)
+- A "keep it under the next piece" rule needs the next piece to carry more of the stat. The armor line's anchor IS Dawnsteel's armor, so "under a bare 110 unique" can't hold at any cap; read it against the first piece that adds armor (122) and say the anchor case plainly.
+- Check what the gear ladder already dresses before adding `also`: from 88 the sim's kit reads Krell's drops, so the "with Krell's pieces" and "ladder kit" gold runs were the same run.
+- Python on Windows writes CRLF in text mode; mutant anchors with a newline then match nothing. Use the Edit tool, or open(..., newline='').
+- A regex guard that greps src/ for a file name (armor-line AL2) reads comments too: name the data, not the file.

@@ -16,6 +16,9 @@ export const HUNTS_TEXT = Object.freeze({
   /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is a number word (count_2 …). */
   party_boss: '{boss} is built for a group of {n} or more. Alone, you still fight him, and he can kill you.',
   party_hall: 'One hall here is built for a group of {n} or more. Alone, you still fight it, and it can kill you.',
+  /* A ground where a hero alone spends more on food than the hunt pays (supplies.js healerWanted, measured): said under the ground's
+     name to a party with no Healer. A warning, never a gate. {monster} is the ground's hardest hitter. */
+  wants_healer: 'A {monster} here hits harder than food can keep up with. Bring a Healer. Alone, you\'ll spend more on food than the hunt pays.',
   count_1: 'one',
   count_2: 'two',
   count_3: 'three',

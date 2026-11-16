@@ -90,9 +90,10 @@ export function baseLiteralKeys(srcText) {
  * @param {Record<string,string>} desc
  * @param {string} srcText
  * @param {Set<string>} [spreadKeys]
+ * @param {Record<string,{name:string, carrier:boolean}[]>} [droppers] item id -> the monsters on OPEN grounds that drop it (FLV-10)
  * @returns {{id:string, msg:string}[]}
  */
-export function check(items, desc, srcText, spreadKeys = new Set()) {
+export function check(items, desc, srcText, spreadKeys = new Set(), droppers = {}) {
   const problems = [];
   const add = (id, msg) => problems.push({ id, msg });
 
@@ -152,7 +153,40 @@ export function check(items, desc, srcText, spreadKeys = new Set()) {
       + 'base entry silently shadows the spread one');
   }
 
+  // FLV-10 — a line that says which creature a drop comes from is true of every creature that grows it (the full-game audit 2026-11-15, F2:
+  // Silk Thread read "spun from spider silk" under "Dropped by Hive Wasp at Mill Cellar"; the Dry Husk was "the papery shell a spider
+  // sheds" off a Barn Wasp). A creature's KIND is the last word of its name, and it counts as a species when two open creatures share it
+  // (Hive Wasp and Barn Wasp, Cistern Spider and Barn Spider). Held: an item some dropper's kind is named on, dropped by another species
+  // the line doesn't name. Never held: people and the dead, who carry what they didn't grow (a Poacher's wolf pelt), and a one-off name
+  // (Dire Gray, the Rat King).
+  const names = (line, kind) => new RegExp('\\b' + kind + "(s|es|'s)?\\b", 'i').test(line);
+  const all = Object.values(droppers).flat();
+  const seen = new Map();
+  for (const m of new Map(all.map((x) => [x.name, x])).values()) seen.set(creatureKind(m.name), (seen.get(creatureKind(m.name)) || 0) + 1);
+  const species = (m) => !m.carrier && seen.get(creatureKind(m.name)) > 1;
+  for (const [id, who] of Object.entries(droppers)) {
+    const line = desc[id];
+    if (typeof line !== 'string' || !who.some((m) => names(line, creatureKind(m.name)))) continue;
+    const unnamed = who.filter((m) => species(m) && !names(line, creatureKind(m.name))).map((m) => m.name);
+    if (unnamed.length) add('FLV-10', `"${id}" line names the creature it comes from, and ${unnamed.join(', ')} drops it too and isn't named: ${JSON.stringify(line)}`);
+  }
+
   return problems;
+}
+
+/** A creature's kind: the last word of its name (Hive Wasp -> wasp). */
+export const creatureKind = (name) => String(name).toLowerCase().split(/[^a-z]+/).filter(Boolean).pop();
+/* who carries what it didn't grow (src/data/monster-classes.js ids) */
+const CARRIERS = new Set(['human', 'humanoid', 'undead']);
+/** item id -> the monsters on open grounds that drop it, as { name, carrier } (the rows the item's "Dropped by" line reads). */
+export function openDroppers(monsters, openGrounds) {
+  const out = {};
+  const here = new Set(Object.values(openGrounds).flatMap((g) => g.pockets.flatMap((p) => (p.pack || p.spawns).concat(p.spawns).map((s) => s.monster))));
+  for (const id of here) {
+    const m = monsters[id];
+    for (const dr of (m && m.drops) || []) (out[dr.id] = out[dr.id] || []).push({ name: m.name || id, carrier: CARRIERS.has(m.cls) });
+  }
+  return out;
 }
 
 async function loadReal() {
@@ -163,12 +197,14 @@ async function loadReal() {
   const { LIB2_DESC } = await import('../src/data/library2-items.js');
   const srcText = readFileSync(DESC_PATH, 'utf8');
   const spreadKeys = new Set([...Object.keys(WAVE3_DESC), ...Object.keys(SLOT_DESC), ...Object.keys(LIB2_DESC)]);
-  return { items: ITEMS, desc: ITEM_DESC, srcText, spreadKeys };
+  const { MONSTERS } = await import('../src/data/monsters.js');
+  const { OPEN_GROUNDS } = await import('../src/data/hunt-grounds.js');
+  return { items: ITEMS, desc: ITEM_DESC, srcText, spreadKeys, droppers: openDroppers(MONSTERS, OPEN_GROUNDS) };
 }
 
 function run() {
-  return loadReal().then(({ items, desc, srcText, spreadKeys }) => {
-    const problems = check(items, desc, srcText, spreadKeys);
+  return loadReal().then(({ items, desc, srcText, spreadKeys, droppers }) => {
+    const problems = check(items, desc, srcText, spreadKeys, droppers);
     const total = Object.keys(items).length;
     const covered = total - problems.filter((p) => p.id === 'FLV-1').length;
     if (problems.length) {
@@ -185,7 +221,7 @@ function run() {
    A synthetic fixture, not the real 538 items — the real tree is what this
    guard protects; the proof is that the CHECKER bites, on a small dataset
    where every arm's effect is exact and legible. A clean arm first (the
-   false-positive floor), then the nine mutations the brief names, each
+   false-positive floor), then the ten mutations the brief names, each
    required to be caught by its OWN named FLV id. */
 function fixture() {
   const items = {
@@ -215,7 +251,10 @@ function fixture() {
     '};',
   ].join('\n');
   const spreadKeys = new Set(['some_spread_only_item']);
-  return { items, desc, srcText, spreadKeys };
+  /* the Goblin Seal's line names the goblin, and goblins drop it. A Poacher carries one too. Wasps are a species here (two of them) */
+  const mob = (name, carrier = false) => ({ name, carrier });
+  const droppers = { goblin_seal: [mob('Cave Goblin'), mob('Glade Poacher', true)], bronze_axe: [mob('Hive Wasp'), mob('Barn Wasp')] };
+  return { items, desc, srcText, spreadKeys, droppers };
 }
 
 function selftest() {
@@ -227,8 +266,8 @@ function selftest() {
 
   console.log('item-flavour-coverage --selftest\n  ── the clean arm ──');
   {
-    const { items, desc, srcText, spreadKeys } = fixture();
-    const problems = check(items, desc, srcText, spreadKeys);
+    const { items, desc, srcText, spreadKeys, droppers } = fixture();
+    const problems = check(items, desc, srcText, spreadKeys, droppers);
     say(problems.length === 0, 'the unmutated fixture reports 0 problems',
       problems.length ? `  → ${problems.map((p) => `${p.id}: ${p.msg}`).join('; ')}` : '');
   }
@@ -251,6 +290,8 @@ function selftest() {
       srcText: srcText.replace("  'goblin_seal':",
         "  'goblin_seal': 'A second, conflicting line for the same key that must never be authored',\n  'goblin_seal':"),
     })],
+    /* the audit's F2, planted: a wasp drops what the line calls a goblin's */
+    ['a second creature drops what the line calls a goblin\'s', 'FLV-10', ({ droppers }) => ({ droppers: { ...droppers, goblin_seal: [...droppers.goblin_seal, { name: 'Hive Wasp', carrier: false }] } })],
   ];
 
   for (const [label, wantId, mutate] of arms) {
@@ -260,7 +301,7 @@ function selftest() {
     const desc = patch.desc || f.desc;
     const srcText = patch.srcText || f.srcText;
     const spreadKeys = patch.spreadKeys || f.spreadKeys;
-    const problems = check(items, desc, srcText, spreadKeys);
+    const problems = check(items, desc, srcText, spreadKeys, patch.droppers || f.droppers);
     const hit = problems.filter((p) => p.id === wantId);
     if (hit.length) console.log(`  CAUGHT   ${label} — ${wantId}: ${hit[0].msg.split(': ')[0]}`);
     else {
@@ -270,7 +311,7 @@ function selftest() {
     }
   }
 
-  console.log(`\n  ${bad ? `${bad} arm(s) FAILED` : 'clean arm green, all 9 mutations caught by their named FLV id'}`);
+  console.log(`\n  ${bad ? `${bad} arm(s) FAILED` : 'clean arm green, all 10 mutations caught by their named FLV id'}`);
   return bad ? 1 : 0;
 }
 

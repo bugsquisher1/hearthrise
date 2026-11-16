@@ -6,8 +6,8 @@
 // worth is the one rule the fight uses (src/core/temper.js), read over the server's rungs and the server's worn set.
 // ════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.132';
-import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.132';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.132';
+import { TEMPER_TIERS, TEMPER_RUNG_PM, TEMPER_UNIQUE_FROM, temperLadder, temperUnlockId } from '../data/temper.js?v=0.2.132';
+import { armourLineWord, MATERIAL_TIERS } from '../data/gear-tiers.js?v=0.2.132';
 import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.132';
 import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.132';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.132';
@@ -56,11 +56,32 @@ function needsOf(cs, ladder) {
   });
 }
 
+/* The Levels of the gear the SERVER has rungs for: { from, to } (the lowest and highest tier among its ladders, each as the Level that
+   tier is worn at, gear-tiers.js), or null with none. The smith's "can't be tempered" line says them (temper-pane.js), so it is the
+   server's answer, never this build's price table. */
+function spanOf(ladders) {
+  const levels = ladders.map((l) => (MATERIAL_TIERS.find((m) => m.tier === l.tier) || {}).level).filter(Number.isInteger);
+  return levels.length ? { from: Math.min(...levels), to: Math.max(...levels) } : null;
+}
+
+/* The unique bands past Dawnsteel the SERVER sells, by their first Level, ascending ([] while every band is shut: src/data/temper.js
+   TEMPER_UNIQUE_BANDS). The smith's words name them from here, never from this build's table. */
+const bandsOf = (ladders) => [...new Set(ladders.filter((l) => l.track === 'armor' && l.tier >= TEMPER_UNIQUE_FROM).map((l) => l.tier))].sort((a, b) => a - b);
+
 const mapOf = (ladders) => Object.fromEntries(ladders.map((l) => [temperUnlockId(l.track, l.tier), l.rung]));
 
+/* A gear tier whose rungs are smaller than the tiers before it (Dawnsteel, 0.4%: src/data/temper.js TEMPER_TIER_RUNG_PM): the rung's
+   permille, so the row can say why, or 0. A unique band says its own line (`unique`). */
+const smallStepOf = (ladder) => {
+  const l = ladder && ladder.tier < TEMPER_UNIQUE_FROM ? temperLadder(ladder.track, ladder.tier) : null;
+  return l && l.pm < TEMPER_RUNG_PM ? l.pm : 0;
+};
+
 /**
- * The two rows the smith's window shows: { blows, armor }, each { piece, below, ladder, needs, nowPm, nextPm } for what this hero wears now,
- * `ladder` null on gear with none (`below`: under the first ladder), `piece` null when it wears nothing of the kind. Null until the server has said.
+ * The two rows the smith's window shows: { blows, armor }, each { piece, below, span, ladder, needs, nowPm, nextPm } for what this hero wears now
+ * (the armor row also `bands`, the unique bands the server sells, and `unique`, whether its ladder is one of them; each row `smallPm`, a rung's
+ * permille on a gear tier with smaller rungs, else 0),
+ * `ladder` null on gear with none (`below`: under the first ladder; `span`: the Levels the server's ladders cover), `piece` null when it wears nothing of the kind. Null until the server has said.
  */
 export function temperRowsOf(cs) {
   const ladders = temperOf(cs), eq = /** @type {Record<string, string> | null} */ (equipmentOf(cs));
@@ -72,10 +93,12 @@ export function temperRowsOf(cs) {
   const blowsLadder = weapon ? ladderOf('blows', weapon.tier) : null;
   const line = armorLineOf(eq, ITEMS);
   const armorLadder = line ? ladderOf('armor', line.tier) : null;
-  const worn = line ? armourLineWord(line.armourClass, line.tier) : null;
+  /* past Dawnsteel a ladder is a band of unique pieces, not a metal: the row says "unique armor" (src/data/temper.js temperTierOf) */
+  const worn = line ? (line.tier >= TEMPER_UNIQUE_FROM ? 'unique' : armourLineWord(line.armourClass, line.tier)) : null;
+  const span = spanOf(ladders), bands = bandsOf(ladders);
   return {
-    blows: { piece: weapon ? weapon.n : null, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },
-    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, below: !!line && belowLadders(line.tier), ladder: armorLadder, needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
+    blows: { piece: weapon ? weapon.n : null, span, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, smallPm: smallStepOf(blowsLadder), needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },
+    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, span, bands, unique: !!line && line.tier >= TEMPER_UNIQUE_FROM, below: !!line && belowLadders(line.tier), ladder: armorLadder, smallPm: smallStepOf(armorLadder), needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
   };
 }
 

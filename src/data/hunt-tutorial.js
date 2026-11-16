@@ -164,6 +164,15 @@ const MORE_HEROES_MS = 5 * 60000;
    tank eats 35-50 an hour at the Thicket's floor, 170-250 in the Glade under its floor, and 0-5 in armor in band. */
 const BEATING_EATS = 3;
 const BEATING_PER_HOUR = 30;
+/* THE FOOD LESSONS WAIT FOR A HERO WHO IS SPENDING FOOD (designer 2026-11-15, the playthrough audit's F5 and F4; PRIORITY_BOARD "2026-11-15 The
+   audit's balance findings"). "Eat on time" came after three meals in a hunt, however long the hunt: the audit's hero ate 8 in two hours of the
+   Thicket and 0 of 216 in ten hours of Wickstead, and was walked through two windows to save 4 HP a bite. Measured on the real settle
+   (tools/balance-sim/audit-table.mjs food, the start bar, 2 x 1 h a row): on Normal a hero in its Level's gear eats 0 to 0.5 times an hour from
+   Level 1 to 15 and one in the practice kit 0 to 6.5 on Wickstead; the heroes food matters to eat 20 to 96 an hour (Dangerous in gear from Level 5)
+   and 11 to 31 (the Thicket at 5 to 8 with no armor). The line sits between: this many meals in the hunt, at this many an hour or more. */
+const FOOD_LESSON_EATS = 6;
+const FOOD_LESSON_PER_HOUR = 12;
+const SPENDING_FOOD = Object.freeze({ kind: 'eating_fast', n: FOOD_LESSON_EATS, perHour: FOOD_LESSON_PER_HOUR });
 /* The bag counts as nearly full at this share of its stacks (the designer's 80 of 100). */
 const BAG_NEAR_FULL = 0.8;
 /* "Drink your own juice" waits for a hunt that has bought this many of the store's drinks (designer 2026-10-31,
@@ -350,11 +359,11 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', orGotIt({ kind: 'rune_ready' }), { gotIt: true, when: [LESSON, { kind: 'rune_struck' }], hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]'] }),
   step('food_when', 'Eat on time',
     'A food slot on your bar eats for you below an HP you set.',
-    'action_bar', orGotIt({ kind: 'food_cond' }), { gotIt: true, when: [{ kind: 'eaten_at_least', n: BEATING_EATS }, { kind: 'food_slot' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
+    'action_bar', orGotIt({ kind: 'food_cond' }), { gotIt: true, when: [SPENDING_FOOD, { kind: 'food_slot' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
   /* Was "Order matters": the lesson is what it costs, not slot arithmetic (first-hour play 2026-10-31). */
   step('food_order', 'Your own food first',
     'A store food slot eats before your own food at some HP.',
-    'action_bar', orGotIt({ kind: 'food_order' }), { gotIt: true, when: [LESSON, { kind: 'food_order_bad' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
+    'action_bar', orGotIt({ kind: 'food_order' }), { gotIt: true, when: [LESSON, SPENDING_FOOD, { kind: 'food_order_bad' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
   /* A SPELL IS A CHOICE (designer 2026-10-29, lane/a-starter-bars; 2026-11-05 for the bow and the axes): a weapon hero's default bar
      holds no rune spell (Flame Strike, Flame Volley and Rend each measured against the first grounds, rule-subjects.js), so the hero
      would meet neither "Spells need runes" nor "Make your own runes" (Tyler 2026-10-25: the tutorial teaches spells and their runes).
@@ -919,8 +928,12 @@ const SAY = Object.freeze({
     const left = wasteAt(heal, to, max);
     const how = to === pct ? 'set it with − or +' : 'press − until it reads ' + to + '% (' + (left > 0 ? 'only ' + left + ' is wasted there, and you still eat before a big hit'
       : 'nothing is wasted there') + ')';
+    /* ONE VISIT SETS BOTH (the audit's F4): lowering the own slot alone leaves the store food eating first between the two lines, and that was a
+       second card and a second window ("Your own food first") made by this one's advice. */
+    const j = to < pct ? slotOf(f, (x) => isFood(x) && isStore(x) && hpBelow(x) !== null && hpBelow(x) > to) : -1;
+    const both = j >= 0 ? ' Then set ' + slotWords([j]) + ' (' + name(f.slots[j].id) + ') to ' + to + '% too, so your own food eats first.' : '';
     return { text: head + uc(anA(food)) + ' heals ' + heal + ', and at ' + pct + '% of your ' + max + ' HP you\'re missing ' + missing + ', so ' + lost
-      + ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.', barSlot: i, goal: to < pct ? to : null };
+      + ' of it is wasted. Press ' + slotWords([i]) + ', ' + how + ', then Save.' + both, barSlot: i, goal: to < pct ? to : null };
   },
   food_order: (f) => {
     const p = storeFirst(f);

@@ -174,7 +174,9 @@ function chainOf(id, recipes, rocks) {
 function materialProblems({ materials, recipes, rocks, items, bid }) {
   const out = [];
   const TIERS = Object.keys(materials).map(Number);
-  if (TIERS.join() !== '2,3') out.push('TB-MATERIAL: the ladders with a material are tiers ' + TIERS.join());
+  /* tiers 4 to 6 joined 2026-11-15 (lane/d-audit-balance-2: the March's Mithril, Rune and Emberforged), tier 7 2026-11-16 (lane/d-temper-dawnsteel:
+     Dawnsteel, on tier 6's Ember Tempering Salts), every rule below unchanged */
+  if (TIERS.join() !== '2,3,4,5,6,7') out.push('TB-MATERIAL: the ladders with a material are tiers ' + TIERS.join());
   for (const tier of TIERS) {
     const m = materials[tier];
     const r = recipes.smithing.find((x) => x.output === m.item);

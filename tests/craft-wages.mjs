@@ -65,7 +65,9 @@ const CHAIN_CAP = (req) => Math.round(huntingAt(req) * 0.9);
 /* Tier 3 sells at 0.14 of book by the 10-23 ruling and tier 4 at 0.075 (designer 2026-11-08), one price per item however it came: these are
    made to be carried. */
 const TIER_3_USE = Object.freeze({ forge_coppercap_shield: 'the Warrens-tier shield', reforge_steelgrate: 'a Rare Kingsgrate reforged',
-  forge_mithril_hatchets: 'the tier-4 pair no ground drops', string_maple_crossbow: 'the tier-4 crossbow no ground drops' });
+  forge_mithril_hatchets: 'the tier-4 pair no ground drops', string_maple_crossbow: 'the tier-4 crossbow no ground drops',
+  /* the tier-4 shield (designer 2026-11-15, the audit's F8): forged to be worn the day a tank reaches 45; its only other door is a Rare, about every 15 h */
+  forge_mithril_faced_shield: 'the tier-4 shield, a Rare on the Slake otherwise' });
 const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_earth_rune', 'chalked_water_rune', 'chalked_fire_rune',
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 

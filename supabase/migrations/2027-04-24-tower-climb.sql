@@ -68,8 +68,8 @@
 --   Rat King hall, a stand-in).
 --
 -- ── CONCURRENCY / IDEMPOTENCY ──────────────────────────────────────────────
--- hr_tower_start: the key replay first (hr_intent_replay), the rate gate, then the caller's own Tower door lock (hr:tower:<uid>:<slot>, taken
---   by this verb alone, before any other lock it takes) and the key READ AGAIN under it (2027-04-19-key-under-lock.sql; tests/key-under-lock.mjs
+-- hr_tower_start: the key replay first (hr_intent_replay), the rate gate, then the hero's own Tower door lock (hr:tower:<uid>:<slot>, taken by
+--   this verb alone, before any other lock it takes) and the key READ AGAIN under it (2027-04-19-key-under-lock.sql; tests/key-under-lock.mjs
 --   KL-CLASS): a second press of one key that waited on the first answers the first's decision, and an hr_apply that still says `replayed`
 --   rolls its climb back out. Then hr_hunt_enter_for takes the character (its usual locks) BEFORE the record is read (a party:
 --   hr_hunt_party_start takes every seat's character first): the checkpoint check reads tower_progress under the same character locks the
@@ -199,16 +199,19 @@ comment on table public.tower_progress is '2027-04-24-tower-climb.sql: each hero
 comment on table public.tower_runs is '2027-04-24-tower-climb.sql: one row a climb (a hunt session on the Tower): its start, the highest floor it cleared, floors, kills, party, end. Written only by hr_tower_start, hr_tower_write and the end trigger. The record a rank is audited from. RLS: own rows readable, no client write.';
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
+-- PL/pgSQL, never SQL: a SQL function with a SET clause is never inlined, and PostgreSQL 17 (production) re-plans its body on every call
+-- (tests/settle-budget.mjs SB-3; 2027-02-10-settle-plan-cache.generated.sql's form). The settle reads hr_tower_floor_of on every instance read
+-- of every hunt; plpgsql plans each once a backend.
 -- THE CHECKPOINTS a run in mode p_mode may start from, for a record p_best (Tyler 2026-11-16): 0 (the start) and every multiple of the
 -- mode's checkpoint_every up to the record, ascending. A mode with none: {0}. No mode row: null (the caller refuses). GENERIC: the Tower reads
--- it with a hero's best floor (its landings), a descent with its deepest door. PL/pgSQL like every Tower read helper (SB-3: the Tower's
--- section reads this and hr_tower_record on every settle that reads sections).
+-- it with a hero's best floor (its landings), a descent with its deepest door.
 create or replace function public.hr_mode_checkpoints(p_mode text, p_best int)
 returns int[] language plpgsql stable set search_path = public, pg_catalog as $$
 begin
   -- TOWER-CHECKPOINTS (2027-04-24-tower-climb.sql)
   return (select case when m.checkpoint_every <= 0 then array[0]
-                      else array(select g * m.checkpoint_every from generate_series(0, greatest(coalesce(p_best, 0), 0) / m.checkpoint_every) g order by g) end
+                      else array(select g * m.checkpoint_every from generate_series(0, greatest(coalesce(p_best, 0), 0) / m.checkpoint_every) g
+                                  order by g) end
             from public.hr_session_modes m where m.mode_id = p_mode);
 end $$;
 
@@ -219,16 +222,15 @@ returns int language plpgsql stable set search_path = public, pg_catalog as $$
 declare v_party uuid := public.hr_hunt_party_of(p_user, p_slot);
 begin
   -- TOWER-CHECKPOINTS (2027-04-24-tower-climb.sql)
-  return coalesce(case when v_party is null
-                         then (select p.best_floor from public.tower_progress p where p.user_id = p_user and p.slot = p_slot)
-                         else (select min(coalesce(p.best_floor, 0)) from public.hunt_party_members m
-                                 left join public.tower_progress p on p.user_id = m.user_id and p.slot = m.slot
-                                where m.party_id = v_party) end, 0);
+  if v_party is null then
+    return coalesce((select p.best_floor from public.tower_progress p where p.user_id = p_user and p.slot = p_slot), 0);
+  end if;
+  return coalesce((select min(coalesce(p.best_floor, 0)) from public.hunt_party_members m
+                     left join public.tower_progress p on p.user_id = m.user_id and p.slot = m.slot
+                    where m.party_id = v_party), 0);
 end $$;
 
 -- The floor whose room stands, or stands next, in an instance: the open runs' highest floor cleared + 1, or the run's start. Null: no climb.
--- PL/pgSQL, never SQL: a SQL function with a SET clause is never inlined, and PostgreSQL 17 (production) re-plans its body on every call
--- (tests/settle-budget.mjs SB-3; 2027-02-10-settle-plan-cache.generated.sql's form). The settle reads it on every instance read of every hunt.
 create or replace function public.hr_tower_floor_of(p_instance uuid)
 returns int language plpgsql stable set search_path = public, pg_catalog as $$
 begin
@@ -376,8 +378,7 @@ begin
   if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   -- THE LOCK: this hero's own Tower door, which only this verb takes (hr_boss_hall_enter's move, 2027-04-20-boss-hall.sql), before every lock
-  -- hr_hunt_enter_for / hr_hunt_party_start take below (the characters, their bags, the play cap): two presses of one hero's door run one
-  -- after the other.
+  -- hr_hunt_enter_for takes below (the character, its bag, the play cap): two presses of one hero's door run one after the other.
   perform pg_advisory_xact_lock(hashtextextended('hr:tower:' || v_uid::text || ':' || p_slot::text, 0));
   -- A SECOND PRESS OF ONE KEY that waited on that lock answers the first one's decision (2027-04-19-key-under-lock.sql): the read above ran
   -- before the first press committed, and past this point hr_apply answers a decided key ok and replayed, under a climb this call opened.
@@ -1203,8 +1204,8 @@ begin
   -- THE READ HELPERS ARE PLANNED ONCE (plpgsql: a SET-clause SQL body is re-planned per call on PostgreSQL 17), and THE DOOR READS ITS KEY
   -- AGAIN UNDER ITS LOCK, before it opens anything (a second press of one key answers the first's receipt).
   if exists (select 1 from pg_proc p join pg_language l on l.oid = p.prolang
-              where p.oid in ('public.hr_tower_floor_of(uuid)'::regprocedure, 'public.hr_mode_checkpoints(text,integer)'::regprocedure,
-                              'public.hr_tower_record(uuid,integer)'::regprocedure)
+              where p.oid in ('public.hr_mode_checkpoints(text,integer)'::regprocedure, 'public.hr_tower_record(uuid,integer)'::regprocedure,
+                              'public.hr_tower_floor_of(uuid)'::regprocedure)
                 and l.lanname <> 'plpgsql') then
     raise exception 'tower-climb §10(b): a Tower read helper is a SQL function again (re-planned on every call on PostgreSQL 17)'; end if;
   v_src := (select prosrc from pg_proc where oid = 'public.hr_tower_start(integer,integer,uuid)'::regprocedure);

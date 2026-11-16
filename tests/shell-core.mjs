@@ -1030,7 +1030,7 @@ async function runTests(mods) {
   t('R3n out of stamina, the next line names the yard and a bench as well as gathering', () => {
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1'), STAMINA_NEXT, 'the stamina end');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'died'), 's-1'),
-      'Start mining, chopping or fishing before you hunt, and Wrenna will go back to it when the hunt ends.', 'a death keeps the gathering line');
+      'Start mining, chopping or fishing before a hunt to resume it after.', 'a death keeps the gathering line');
   });
   /* R3t (walk row 7): a 12-hour yard session ended "Set a longer hunt next time, up to the stamina you have." Training uses no stamina
      and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
@@ -1039,7 +1039,7 @@ async function runTests(mods) {
     eq(yard('hours'), 'Training uses no stamina, so start it again to keep going.', 'the 12-hour cap');
     eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
     eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job is still said');
-    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt next time, up to the stamina you have.', 'a hunt\'s own limit keeps its line');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt, up to your stamina.', 'a hunt\'s own limit keeps its line');
   });
   /* R3e (Barrow March play-through 2026-11-14): each card's next line fits its end. A boss room is one fight: the Krell win card
      said "Start mining, chopping or fishing before you hunt". A purse run dry with food in the bag the bar never named said

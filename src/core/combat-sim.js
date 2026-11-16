@@ -58,7 +58,7 @@ import { pullLeader } from './hunt/pull-cycle.js?v=0.2.132';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.132';
 import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.132';
 import { roomOf } from './hunt/boss-room.js?v=0.2.132';
-import { trainOf } from './hunt/training.js?v=0.2.132';
+import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.132';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
 export { stepSwing } from './hunt/world-step.js?v=0.2.132';
@@ -372,6 +372,8 @@ export function simulateHuntInstance(inst, ctx) {
         m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, true, m.hs.staminaMaxMs);
       }
       m.hs.tally.paidMs += tick; m.hs.tally.swings += 1; o.ticks += 1;
+      /* A TRAINING GROUND PAYS ITS TIME (src/core/hunt/training.js): this interval's slice of the hour to the trained skill. */
+      if (train) trainingTick(m, train, tick);
       /* The whetstone wears on this swing (member.js wear), so the snapshot below already drops a spent one. */
       if (typeof m.wear === 'function') m.wear(atMs);
       if (u) syncUnit(u, m);
@@ -384,7 +386,8 @@ export function simulateHuntInstance(inst, ctx) {
       for (const m of members) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
-        heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
+        /* A TRAINING GROUND SHUTS THE BAR (src/core/hunt/training.js): the plain basic alone, no stop rule: the yard spends no supply. */
+        heroes[m.unitId] = { hs: m.hs, slots: train ? TRAINING_SLOTS : m.hero.slots, stopRules: train ? [] : m.hero.stopRules, actionSet: m.hero.actionSet,
           range: m.hero.range, rollsVs: m.rollsVs, shotRolls: m.shotRolls, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills };
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),

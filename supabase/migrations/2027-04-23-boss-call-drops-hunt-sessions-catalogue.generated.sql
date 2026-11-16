@@ -8,15 +8,15 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 11863e81e281f5d8f1db585ba8cc9fbe94f7305604e07ca1ecdbad509123d491
+--   digest: 647084706144d1252a9868521029e218e62159d1d2c87da421cd591e13f24eca
 --   82 supplies, 165 hunts (named + training), 47 limits, 16 end reasons,
---   592 vendor values, 49 store supplies paid per use, 5 target modes,
+--   600 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 22 hunt grounds
 --
 -- NEW IN THIS FILE (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: "it should definitely have a chance for an item drop otherwise there is no
 -- point"): the two called bosses' hr_hunt_kill_bounds rows carry drops (rat_king_called: the Rat King's table and the Kingstooth; chief_coppercap_called:
 -- Chief Coppercap's table and the Cauldron Lid), still gold 0 and xp 0, and hr_hunt_kill_bounds_xp_max_check lets a called row carry drops, never XP or
--- coin. hr_hunt_vendor_value gains the two pieces (567 -> 569), hr_hunt_weapons the Kingstooth (76 -> 77), hr_hunt_shields the Cauldron Lid (6 -> 7).
+-- coin. hr_hunt_vendor_value gains the two pieces, hr_hunt_weapons the Kingstooth (76 -> 77), hr_hunt_shields the Cauldron Lid (6 -> 7).
 -- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-04-23-boss-call-drops-items-catalogue.generated.sql (the self-check wants
 -- both pieces in hr_items); then 2027-04-24-boss-call-series.sql (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
 -- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
@@ -24,6 +24,17 @@
 -- fee and per_day. 2027-04-24-boss-call-series.sql restates every reader of those columns and applies RIGHT AFTER this file; between the two the old quote
 -- names a column that is gone, so Call out answers an error and charges nothing. hr_boss_calls also carries its drops column (audit F24): what a win can drop, his table
 -- with each row's odds in parts per million, for the ground's page (hr_boss_call_quote hands it over; the settle's bound stays hr_hunt_kill_bounds).
+--
+-- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
+-- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
+-- hr_training_rules gains xp_per_hour (30000, the fixed rate), min_level (10, the Level a hero trains from),
+-- boost_pm (2000, an item's rate) and buy_per_day (10, the Arms Master's clamp an account a UTC day);
+-- hr_training_grounds LOSES xp_permille (the pay is the settled time, never a share of a blow); NEW hr_training_gear, the 16 training
+-- items (a Sword, Bow, Wand and Shield in 12 and 24 hours, each a gold row and the Crowns store's bound copy: item, skill, hours in ms, bound, gold
+-- price or null); hr_hunt_vendor_value gains the eight gold rows' bids (1% of the price). No ground, spawn, kill bound, limit, end reason or world shape
+-- moves. ORDER: after 2027-04-23-training-gear-items-catalogue.generated.sql (the self-check wants the items in hr_items) and 2027-04-20-boss-hall
+-- (carried whole), right before 2027-04-23-training-gear.sql, which restates the bodies that read the dropped share: between the two, a training start
+-- or a training settle is refused (the old bodies read xp_permille), so the two apply back to back, then the hr-accrue at once.
 --
 -- CARRIED FROM 2027-04-20-boss-hall-hunt-sessions-catalogue (lane/b-barrow-integrate, 2026-11-14; from lane/b-barrow-boss-room, the Krell's Hold design's engine piece 5, src/data/boss-halls.js,
 -- and lane/d-barrow-data): the keyed halls' table, hr_boss_halls (the room a Hall Key opens, the boss whose kill ends it, the key it spends, its limit),
@@ -468,8 +479,9 @@ alter table public.hr_boss_calls add column if not exists drops jsonb, add colum
 alter table public.hr_boss_calls drop column if exists fee, drop column if exists per_day;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
--- COMBAT TRAINING (training.js): the rules, one row, and each training ground's place, skill, fee and share. Read by hr_training_start, the settle's
--- hourly charge (hr_training_hour) and its window check (hr_training_window), 2027-04-16-combat-training.sql.
+-- COMBAT TRAINING (training.js): the rules, one row, each training ground's place, skill and fee, and the training items. Read by hr_training_start,
+-- the settle's hourly charge (hr_training_hour), its window check and the items' spend (hr_training_window), the items' verbs and the section
+-- (2027-04-16-combat-training.sql, 2027-04-23-training-gear.sql).
 create table if not exists public.hr_training_rules (
   id            boolean primary key default true check (id),
   fee_base      int     not null check (fee_base >= 0),
@@ -480,20 +492,40 @@ create table if not exists public.hr_training_rules (
   house_tier_id text    not null check (house_tier_id ~ '^[a-z0-9_]{1,32}$'),
   constraint hr_training_rules_fee_ck check (fee_base + fee_per_level > 0)
 );
+-- THE FIXED RATE AND THE ITEMS (lane/c-training-gear): the table an earlier revision of this file made widens here, nullable until the row below
+-- fills it, then NOT NULL (the same shape however the table was made).
+alter table public.hr_training_rules
+  add column if not exists xp_per_hour int check (xp_per_hour between 1 and 1000000),
+  add column if not exists min_level   int check (min_level between 1 and 200),
+  add column if not exists boost_pm    int check (boost_pm between 1001 and 10000),
+  add column if not exists buy_per_day int check (buy_per_day between 1 and 100);
 create table if not exists public.hr_training_grounds (
   hunt_id     text    primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   place       text    not null check (place in ('yard', 'house')),
   skill       text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
   ord         int     not null check (ord >= 0),
   fee         boolean not null,
-  xp_permille int     not null check (xp_permille between 1 and 1000),
   constraint hr_training_grounds_place_skill unique (place, skill),
   constraint hr_training_grounds_fee_ck check (fee = (place = 'yard'))
 );
+-- THE PAY IS THE TIME (Tyler 2026-11-14): the per-skill share of a blow is gone (2027-04-23-training-gear.sql restates the bodies that read it).
+alter table public.hr_training_grounds drop column if exists xp_permille;
+-- THE TRAINING ITEMS (training.js TRAINING_GEAR): each item's skill, its hours (ms), whether it is the Crowns store's bound copy, and the Arms
+-- Master's gold price (null for a bound row: no gold door sells it). The items themselves are hr_items rows (tools/gen-catalogues.mjs).
+create table if not exists public.hr_training_gear (
+  item_id  text    primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
+  skill    text    not null check (skill ~ '^[a-z0-9_]{1,64}$'),
+  hours_ms bigint  not null check (hours_ms between 3600000 and 172800000),
+  bound    boolean not null,
+  price    bigint  check (price between 1 and 1000000000),
+  constraint hr_training_gear_price_ck check ((price is null) = bound)
+);
+comment on table public.hr_training_gear is
+  'tools/gen-hunt-sessions.mjs from src/data/training.js TRAINING_GEAR: the training items, their skill, hours, bound flag and gold price (lane/c-training-gear). Names no player; character wipe c_no_player.';
 comment on table public.hr_training_rules is
-  'tools/gen-hunt-sessions.mjs from src/data/training.js: the training yard''s fee, the dummy''s floor, the longest session, the house dummy''s property tier (lane/c-combat-training). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/training.js: the training rate and the Level it starts at, an item''s rate, the yard''s fee, the dummy''s floor, the longest session, the house dummy''s property tier, the Arms Master''s day clamp (lane/c-combat-training, lane/c-training-gear). Names no player; character wipe c_no_player.';
 comment on table public.hr_training_grounds is
-  'tools/gen-hunt-sessions.mjs from src/data/training.js and hunt-grounds.js TRAINING_GROUNDS: each training ground''s place, trained skill, hourly fee and XP share (lane/c-combat-training). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/training.js and hunt-grounds.js TRAINING_GROUNDS: each training ground''s place, trained skill and hourly fee (lane/c-combat-training). Names no player; character wipe c_no_player.';
 -- KEYED HALLS (boss-halls.js): which room a Hall Key opens, the boss whose kill ends it, the key it spends and its limit. Read by hr_hunt_admit,
 -- hr_boss_hall_enter and the settle's proof of the room's ends (2027-04-20-boss-hall.sql). A hall's room is its ground's id and _hall.
 create table if not exists public.hr_boss_halls (
@@ -509,7 +541,7 @@ comment on table public.hr_boss_halls is
 do $$
 declare v_t text;
 begin
-  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls'] loop
+  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls', 'hr_training_gear'] loop
     execute format('alter table public.%I enable row level security', v_t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
   end loop;
@@ -1899,6 +1931,14 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('tomato_seed', 15),
   ('tomato_soup', 260),
   ('torn_company_badge', 6),
+  ('training_bow_12h', 2500),
+  ('training_bow_24h', 4500),
+  ('training_shield_12h', 2500),
+  ('training_shield_24h', 4500),
+  ('training_sword_12h', 2500),
+  ('training_sword_24h', 4500),
+  ('training_wand_12h', 2500),
+  ('training_wand_24h', 4500),
   ('traveler_cape', 75),
   ('troll_hide', 16),
   ('trollhide_cape', 270),
@@ -1996,17 +2036,37 @@ alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
          and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
-insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id) values
-  (true, 50, 6, 500, 12, 1, 'homestead');
-insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee, xp_permille) values
-  ('training_house_melee', 'house', 'melee', 0, false, 215),
-  ('training_house_ranged', 'house', 'ranged', 1, false, 245),
-  ('training_house_magic', 'house', 'magic', 2, false, 340),
-  ('training_house_defense', 'house', 'defense', 3, false, 215),
-  ('training_yard_melee', 'yard', 'melee', 0, true, 215),
-  ('training_yard_ranged', 'yard', 'ranged', 1, true, 245),
-  ('training_yard_magic', 'yard', 'magic', 2, true, 340),
-  ('training_yard_defense', 'yard', 'defense', 3, true, 215);
+insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id, xp_per_hour, min_level, boost_pm, buy_per_day) values
+  (true, 50, 6, 500, 12, 1, 'homestead', 30000, 10, 2000, 10);
+alter table public.hr_training_rules
+  alter column xp_per_hour set not null, alter column min_level set not null, alter column boost_pm set not null, alter column buy_per_day set not null;
+insert into public.hr_training_grounds (hunt_id, place, skill, ord, fee) values
+  ('training_house_melee', 'house', 'melee', 0, false),
+  ('training_house_ranged', 'house', 'ranged', 1, false),
+  ('training_house_magic', 'house', 'magic', 2, false),
+  ('training_house_defense', 'house', 'defense', 3, false),
+  ('training_yard_melee', 'yard', 'melee', 0, true),
+  ('training_yard_ranged', 'yard', 'ranged', 1, true),
+  ('training_yard_magic', 'yard', 'magic', 2, true),
+  ('training_yard_defense', 'yard', 'defense', 3, true);
+delete from public.hr_training_gear;
+insert into public.hr_training_gear (item_id, skill, hours_ms, bound, price) values
+  ('training_sword_12h', 'melee', 43200000, false, 250000),
+  ('training_sword_12h_bound', 'melee', 43200000, true, null),
+  ('training_sword_24h', 'melee', 86400000, false, 450000),
+  ('training_sword_24h_bound', 'melee', 86400000, true, null),
+  ('training_bow_12h', 'ranged', 43200000, false, 250000),
+  ('training_bow_12h_bound', 'ranged', 43200000, true, null),
+  ('training_bow_24h', 'ranged', 86400000, false, 450000),
+  ('training_bow_24h_bound', 'ranged', 86400000, true, null),
+  ('training_wand_12h', 'magic', 43200000, false, 250000),
+  ('training_wand_12h_bound', 'magic', 43200000, true, null),
+  ('training_wand_24h', 'magic', 86400000, false, 450000),
+  ('training_wand_24h_bound', 'magic', 86400000, true, null),
+  ('training_shield_12h', 'defense', 43200000, false, 250000),
+  ('training_shield_12h_bound', 'defense', 43200000, true, null),
+  ('training_shield_24h', 'defense', 86400000, false, 450000),
+  ('training_shield_24h_bound', 'defense', 86400000, true, null);
 delete from public.hr_boss_halls;
 insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values
   ('krells_hold', 'krells_hold_hall', 'lord_krell', 'hall_key', 600000);
@@ -2019,7 +2079,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 165
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 16
-     or (select count(*) from public.hr_hunt_vendor_value) <> 592
+     or (select count(*) from public.hr_hunt_vendor_value) <> 600
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -2043,6 +2103,7 @@ begin
      or (select count(*) from public.hr_boss_calls) <> 2
      or (select count(*) from public.hr_training_rules) <> 1
      or (select count(*) from public.hr_training_grounds) <> 8
+     or (select count(*) from public.hr_training_gear) <> 16
      or (select count(*) from public.hr_boss_halls) <> 1
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
@@ -2128,6 +2189,19 @@ begin
      or exists (select 1 from public.hr_hunt_roster o where o.monster_id = 'yard_dummy')
      or exists (select 1 from public.hr_hunt_travel v where v.hunt_id = 'yard_dummy') then
     raise exception 'a training ground holds more than its dummy, or the dummy pays, or it stands where it trains nobody'; end if;
+  -- THE TRAINING ITEMS, THE MONEY LINE (Tyler 2026-11-14: Crowns-bought goods never trade): every item is its own hr_items row of kind 'training'
+  -- and trains a skill a ground trains; a bound row is untradeable, worth nothing, with no gold price and no shop bid; a gold row trades at its
+  -- price / 100 as book, and the shop bids at most half its price (buying one to sell it back never pays).
+  if exists (select 1 from public.hr_training_gear g
+              where not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.kind = 'training')
+                 or not exists (select 1 from public.hr_training_grounds t where t.skill = g.skill)
+                 or g.hours_ms % 3600000 <> 0
+                 or (g.bound and (exists (select 1 from public.hr_items i where i.item_id = g.item_id and (i.tradeable or i.value <> 0))
+                                  or exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id)))
+                 or (not g.bound and (not exists (select 1 from public.hr_items i where i.item_id = g.item_id and i.tradeable and i.value * 100 = g.price)
+                                      or not exists (select 1 from public.hr_hunt_vendor_value v where v.item_id = g.item_id and v.unit * 2 <= g.price))))
+     or exists (select 1 from public.hr_items i where i.kind = 'training' and not exists (select 1 from public.hr_training_gear g where g.item_id = i.item_id)) then
+    raise exception 'a training item is not its catalogue row, a bound one trades or is worth something, or a gold one sells back for more than half'; end if;
   -- KEYED HALLS: every hall stands in hr_hunts, hr_hunt_travel and hr_hunt_grounds (one pocket), its boss among its spawns and on no other ground,
   -- its key a catalogued item, and every row in its room a paying one (a called row never stands in a hall: the kill bounds' CHECK tells them apart).
   if exists (select 1 from public.hr_boss_halls h
@@ -2862,11 +2936,11 @@ begin
     raise exception 'drink_mana_per_min_max is under the store drinks at one per consumable lane'; end if;
   -- No client role reads or writes any of them; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
-    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls'] loop
+    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls', 'hr_training_gear'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
   end loop;
-  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls')) then
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles', 'hr_hunt_shields', 'hr_boss_calls', 'hr_training_rules', 'hr_training_grounds', 'hr_boss_halls', 'hr_training_gear')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

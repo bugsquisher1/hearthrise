@@ -1245,6 +1245,13 @@
 .tw-go, .tw-stop { display: block; width: 100%; min-height: 40px; margin: 6px 0; }
 .tw-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .tw-foot .hw-why { margin: 4px 2px 0; }
+/* THE TRAINING ITEM (2027-04-23-training-gear.sql): the hours left, the switch, the sealed ones held and the Arms Master's rows, as ledger lines. */
+.tw-gear { margin: 0 0 8px; }
+.tw-gear-use { display: flex; align-items: center; gap: 8px; min-height: 36px; margin: 0 2px; font-size: var(--t-small); color: var(--ink); cursor: pointer; }
+.tw-gear-row { display: flex; align-items: center; gap: 8px; min-height: 40px; border-top: 2px solid var(--steel-sep); font-size: var(--t-small); font-variant-numeric: lining-nums tabular-nums; }
+.tw-gear-name { flex: 1 1 auto; min-width: 0; color: var(--ink); }
+.tw-gear-fig { flex: 0 0 auto; white-space: nowrap; color: var(--gold-2); }
+.tw-gear-press { min-height: 32px; padding: 0 12px; }
 /* THE HOUSE'S DUMMY (src/shell/windows/house-dummy.js): four skills as ledger lines, the held ones gold. */
 .hd-dummy[hidden], .hd-confirm[hidden] { display: none; }
 .hd-skills { list-style: none; margin: 0 0 6px; padding: 0; }

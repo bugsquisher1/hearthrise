@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 5f6c815b406681f546a9a7559515d4cdb2d71116bbe5b593f27886fd3bf6411a
---   rows: 617 items (6 untradeable) ·
+--   catalogue digest: 6cbce76bd712308b0d31f1f0da89078a876d42eefbdf08f7288fd12f206cc95c
+--   rows: 633 items (14 untradeable) ·
 --         349 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 379 activities ·
 --         0 runes
@@ -728,6 +728,22 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('tomato_seed','Tomato Seed',true,null,30,null,null,null,false,null,false),
   ('tomato_soup','Tomato Soup',true,null,260,null,null,336,false,null,false),
   ('torn_company_badge','Torn Company Badge',true,null,32,null,null,null,false,null,false),
+  ('training_bow_12h','Training Bow',true,'training',2500,null,null,null,false,null,false),
+  ('training_bow_12h_bound','Training Bow',false,'training',0,null,null,null,false,null,false),
+  ('training_bow_24h','Training Bow',true,'training',4500,null,null,null,false,null,false),
+  ('training_bow_24h_bound','Training Bow',false,'training',0,null,null,null,false,null,false),
+  ('training_shield_12h','Training Shield',true,'training',2500,null,null,null,false,null,false),
+  ('training_shield_12h_bound','Training Shield',false,'training',0,null,null,null,false,null,false),
+  ('training_shield_24h','Training Shield',true,'training',4500,null,null,null,false,null,false),
+  ('training_shield_24h_bound','Training Shield',false,'training',0,null,null,null,false,null,false),
+  ('training_sword_12h','Training Sword',true,'training',2500,null,null,null,false,null,false),
+  ('training_sword_12h_bound','Training Sword',false,'training',0,null,null,null,false,null,false),
+  ('training_sword_24h','Training Sword',true,'training',4500,null,null,null,false,null,false),
+  ('training_sword_24h_bound','Training Sword',false,'training',0,null,null,null,false,null,false),
+  ('training_wand_12h','Training Wand',true,'training',2500,null,null,null,false,null,false),
+  ('training_wand_12h_bound','Training Wand',false,'training',0,null,null,null,false,null,false),
+  ('training_wand_24h','Training Wand',true,'training',4500,null,null,null,false,null,false),
+  ('training_wand_24h_bound','Training Wand',false,'training',0,null,null,null,false,null,false),
   ('traveler_cape','Traveler Cape',true,'armor',150,'level',1,null,false,null,false),
   ('troll_hide','Troll Hide',true,null,80,null,null,null,false,null,false),
   ('trollhide_cape','Trollhide Cape',true,'armor',3600,'level',50,null,false,null,false),
@@ -2140,7 +2156,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '5f6c815b406681f546a9a7559515d4cdb2d71116bbe5b593f27886fd3bf6411a', now())
+  values (true, '6cbce76bd712308b0d31f1f0da89078a876d42eefbdf08f7288fd12f206cc95c', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2168,11 +2184,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 617 then raise exception 'hr_items has % rows, generator emitted 617', v_n; end if;
+  if v_n <> 633 then raise exception 'hr_items has % rows, generator emitted 633', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '17ee71503aa0b7834496d3a2a6c6346b' then
-    raise exception 'hr_items names differ from src/data (expected digest 17ee71503aa0b7834496d3a2a6c6346b)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '27ed7b2c878fe60b87f830e391c9c62f' then
+    raise exception 'hr_items names differ from src/data (expected digest 27ed7b2c878fe60b87f830e391c9c62f)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2182,8 +2198,8 @@ begin
     raise exception 'hr_items jarls_rimetorc name is not the source''s (Jarl''s Collar)';
   end if;
   select count(*) into v_n from public.hr_items where not tradeable;
-  if v_n <> 6 then
-    raise exception 'untradeable count is %, generator emitted 6', v_n;
+  if v_n <> 14 then
+    raise exception 'untradeable count is %, generator emitted 14', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
   if v_n <> 379 then raise exception 'hr_activities has % rows, expected 379', v_n; end if;
@@ -2372,7 +2388,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5f6c815b406681f546a9a7559515d4cdb2d71116bbe5b593f27886fd3bf6411a',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 6cbce76bd712308b0d31f1f0da89078a876d42eefbdf08f7288fd12f206cc95c',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

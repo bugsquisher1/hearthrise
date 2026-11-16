@@ -121,8 +121,12 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Duskwood Wand and Codex), and tier 7 leather and cloth RENAMED, ids and names (Tyler 2026-11-14: Dawnhide and Duskweave, voidhide_ -> dawnhide_, voidweave_ ->
    duskweave_; the designer's 11-10 Slakehide and Shroudweave never applied; twelve rows of each table; no hero can hold one, no ground or recipe a player reaches gives it), in ONE forward file, the same full
    delete+insert replace. Staged, never applied before this rename joined it. */
+/* THE TRAINING ITEMS (lane/c-training-gear, Tyler 2026-11-14; src/data/training.js TRAINING_GEAR): 2027-04-17-barrow-data-items-catalogue is
+   APPLIED history. Sixteen new hr_items rows: a Training Sword, Bow, Wand and Shield in 12 and 24 hours, each the Arms Master's tradable
+   row (book value its price / 100) and the Crowns store's bound copy (`_bound`, tradeable false, value 0: every trade surface refuses it),
+   in ONE forward file, the same full delete+insert replace. No other row moves. */
 /* BOSS CALL DROPS (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: a called boss's win drops his table plus one call-only piece):
-   2027-04-17-barrow-data-items-catalogue is APPLIED history; the two call-only pieces (hr_items, hr_item_slots: the Kingstooth, a weapon, and the
+   2027-04-23-training-gear-items-catalogue is the file before this one and this one carries it whole; the two call-only pieces (hr_items, hr_item_slots: the Kingstooth, a weapon, and the
    Cauldron Lid, a shield; src/data/boss-calls.js CALL_ITEMS) land in ONE forward file, the same full delete+insert replace. No hero holds one until
    lane C's call-drops migration lets a felled window carry them. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-23-boss-call-drops-items-catalogue.generated.sql');

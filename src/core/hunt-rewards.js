@@ -169,7 +169,7 @@ export function rewardSwing(members, events, world, ctx) {
   const presentIds = () => livingIds(world, members);
   if (ctx.call) return calledSwing(members, events, world, unitOf, ctx.call.monster, ctx);
   /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
-  if (ctx.train) return trainingSwing(members, events, unitOf, ctx);
+  if (ctx.train) return trainingSwing(members, events, unitOf);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {

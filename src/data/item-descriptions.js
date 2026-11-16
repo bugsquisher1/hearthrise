@@ -17,6 +17,7 @@ import { DRINK_DESC } from './drinks.js?v=0.2.132';
 import { IMBUE_DESC } from './imbuements.js?v=0.2.132';
 import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.132';
 import { SHIELD_DESC } from './shields.js?v=0.2.132';
+import { TRAINING_GEAR_DESC } from './training.js?v=0.2.132';
 import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.132';
 
 export const ITEM_DESC = {
@@ -52,6 +53,7 @@ export const ITEM_DESC = {
   ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
   ...STYLE_GEAR_DESC, // lane c-style-gear: the two new tier-2 weapons
   ...SHIELD_DESC,     // lane b-spell-roles: the five shields
+  ...TRAINING_GEAR_DESC, // lane/c-training-gear: the training items, one line a skill
   ...CALL_ITEM_DESC,  // lane/d-boss-call-drops: the call-only pieces
   /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */
   'chalked_earth_rune': 'Your Earth spells, the stone shields, use one of these each cast. It feels heavy for something with just a chalk mark',

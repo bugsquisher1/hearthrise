@@ -898,3 +898,9 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-16 lane/d-catacomb-mode (the Unmarked Catacombs descent, design only)
+- A second mode on a built one is mostly a list of where the first hard-codes its name: `TOWER_RULES` in the room engine, the `tower_*` tables, the chest's weapon-only table, "Tower Cinders" paid by every key. Read the built stack for those first, and rename while the migrations are still unapplied.
+- A ruling that moves a cap (earned to opened) changes the first mode too. Put the shared change in ONE lane on the first mode's stack, not in the new mode's.
+- Two slots a key make a wanted piece about 1.4x the wait of a one-slot key at the same odds. Say that number when copying odds across.
+- A held limit counted per bag makes players shuffle items into Storage to make room (a repeated decision). Count it across the account.
+- The odds arithmetic reproduced the Tower board's own 4.7 / 9.3 weeks before I used it for armor. Check a new calculator against a published number first.

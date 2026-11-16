@@ -4,6 +4,10 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-15 · game-designer (lane/d-mage-110) · the balance-sim graded every staged ground without Krell's hall drops
+- `tools/balance-sim/gear.mjs` reachWith built a staged ground's reach from `OPEN_GROUNDS` plus the ground and left out `OPEN_HALL_GROUNDS`, which `reachableSources`' own default carries. At Carter's Rest a Level 110 hammer wore the Ember Warhammer and Ember plate and a bow the Runewood Bow, while the Mage kept its Duskwood wand. Fixed on lane/d-mage-110. Every Morrow and Pauper Vaults grade before it read Melee and the bow a weapon tier short (Carter's Rest hammer 0.97 of the contract where it is 1.09).
+- The Mage's high-Level lead was cloth's `magicStrB` (0.4 of plate's defence a slot), not spawn density: the board's "2026-11-15 The Mage at 110 and up".
+
 ## 2026-11-15 · game-designer (lane/d-catacombs) · past Dawnsteel the one formula gets harder with every Level
 
 | # | Found | Affected | Action |

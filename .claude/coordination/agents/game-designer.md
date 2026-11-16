@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-15 lane/d-mage-110: the Mage at 110 and up was cloth, not spawns
+- **Move one lever at a time before naming the limit.** "+Magic does nothing, so the Mage is spawn-bound" read right and was wrong: respawn 60 s to 1 s moved nothing (424 vs 419 kills). Splitting the Mage's damage by source (`dealtBy`) said it in one line: 85% is the basic wand blow, so the gear term in max hit decides.
+- **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.
+- **Check the grader's kit before trusting a staged ground's spread.** `gear.mjs` reachWith dropped the open keyed halls, so the Morrow was graded with Melee and the bow a weapon tier short. Print the kit (`h.kit`) of every style once per ground.
+- **A cut has a floor where it stops paying.** 0.1 a point took the Carter's Rest Mage from 1.82 to 1.46 of the pace, and 0.05 only to 1.42. Measure one step past the pick, so the board can say what's left isn't the row's.
+
 ## 2026-11-14 lane/b-barrow-numbers: the Barrow March's numbers, the hall fitted, tier 7 renamed
 - **A monster that heals can stop a fight, not just slow it.** The Pyre Priest's first mend (a full hit every 8 s) put a lone tank at Level 110 on Dangerous into a pull he could never finish: 7.5k XP an hour, no death, nothing on the grade but one `feel-tier-less` row. Size a mend against the slowest way to fight in the biggest pull, and read the cell list for an hour with no XP and no death.
 - **Grade a staged pack with the packs under it** (`pack.mjs check <g> --mode full --with <lower packs>`). Alone, its heroes have no gear from the grounds below and the grade reads deaths that won't ship.

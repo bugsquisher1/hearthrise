@@ -156,7 +156,7 @@ The Rat King called out (set's row, 30 tries a row): a good-bar four at Level 25
 | C. Tower phase 2 (designer text, then lane C) | The Burning Tower section's §5 chest table, the plain summary, the §1 landing line, and the 130 key paired with the Ox Road | C4, C5, C6, C8 |
 | D. lane/d-steady-merge (designer, then Systems) | `src/data/special-attributes.js` (physical becomes `steadyPm`), HOOK 1 struck from the plan (`src/core/elements.js` untouched), re-measure with `tools/balance-sim/boss-call-table.mjs --hall krells_hold` | C3 |
 | E. Morrow text (designer) | The Morrow Hills section's §6 seat and §10 walk-through step 8 | C9, condition 5 |
-| F. The Mage at 110 and up (designer, balance) | The Morrow and Hold packs' Mage-facing rows and the Mage rows in `src/data/abilities.js`, graded with `tools/balance-sim` | Condition 3. Before the first Morrow pair |
+| F. The Mage at 110 and up (designer, balance) | The Morrow and Hold packs' Mage-facing rows and the Mage rows in `src/data/abilities.js`, graded with `tools/balance-sim` | Condition 3. Before the first Morrow pair. **RULED 2026-11-15** ("The Mage at 110 and up", top of Decisions): it was cloth's damage, not spawns |
 
 **For Tyler (three calls).** (1) C3: should "% physical resistance" become the one "less from every hit" stat the game already has? It also cuts fire. (2) C5: change the Tower's XP words, or add a second XP number under floor 32. (3) Krell's first-win guarantee stays, though it's the same idea he turned down for the Tower's first key.
 

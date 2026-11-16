@@ -11,6 +11,7 @@ import { ABILITIES } from '../data/abilities.js?v=0.2.132';
 import { MONSTERS } from '../data/monsters.js?v=0.2.132';
 import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.132';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.132';
+import { whole } from '../render/format.js?v=0.2.132';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
 /* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */
@@ -34,7 +35,7 @@ export function seriesLine(c) {
   const S = BOSS_CALL_WORDS.series;
   const done = (c.fight === 1 ? S.done.one : S.done.other).replace('{won}', String(c.won)).replace('{fought}', String(c.fight));
   if (!Number.isFinite(c.paidStaminaMs) || !Number.isFinite(c.paidGold)) return done + '.';
-  const paid = (c.paidGold === 0 ? S.paidFree : S.paid).replace('{stamina}', minutes(c.paidStaminaMs)).replace('{gold}', Number(c.paidGold).toLocaleString('en-US'));
+  const paid = (c.paidGold === 0 ? S.paidFree : S.paid).replace('{stamina}', minutes(c.paidStaminaMs)).replace('{gold}', whole(c.paidGold));
   return done + '. ' + paid + '.';
 }
 

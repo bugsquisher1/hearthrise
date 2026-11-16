@@ -31,6 +31,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { pressBar, menuLines, groupOf } from './_bar.mjs';
 
 const ARGS = process.argv.slice(2);
 const SHOTS = ARGS.includes('--shots') ? ARGS[ARGS.indexOf('--shots') + 1] : null;
@@ -126,7 +127,7 @@ async function checks() {
       if (!await wait(page, () => { const b = document.querySelector('[data-hs-win="characters"] .hw-icon-names [data-hs-open="training"]'); return !!b && b.offsetParent !== null; }, null, 4000)) return false;
       await page.click('[data-hs-win="characters"] .hw-icon-names [data-hs-open="training"]');
     } else {
-      try { await page.click('[data-hs-open="training"]', { timeout: 2000 }); } catch { return false; }
+      try { await pressBar(page, 'training', { timeout: 2000 }); } catch { return false; }
     }
     return wait(page, () => !!document.querySelector('[data-hs-win="training"] .tw-train'), null, 4000);
   };
@@ -148,7 +149,8 @@ async function checks() {
     {
       const s = world({ training: null });
       const { ctx, page } = await open(s);
-      if (await page.evaluate(() => !!document.querySelector('[data-hs-open="training"]'))) fails.push('TR-1 a Training icon shows with no `training` section');
+      /* its line in the bar's Town menu (tests/_bar.mjs), and anything else in the page that would open it */
+      if ((await menuLines(page, groupOf('training'))).includes('training') || await page.evaluate(() => !!document.querySelector('[data-hs-open="training"]'))) fails.push('TR-1 a Training line shows with no `training` section');
       await ctx.close();
     }
     /* TR-2 */

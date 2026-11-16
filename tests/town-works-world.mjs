@@ -22,6 +22,7 @@
 import { mkdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
+import { pressBar, groupOf } from './_bar.mjs';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -82,7 +83,7 @@ try {
   await sql('update public.account_wallet set gold = 2000000 where user_id = $1', [uid]);
   await sql('update public.player_state set level_xp = public.hr_char_xp_for_level(17) where user_id = $1', [uid]);
   await p.reload();
-  await page.waitForSelector('[data-hs-open="havora"]', { timeout: 30000 });
+  await page.waitForSelector('.hs-launchers [data-hs-group="' + groupOf('havora') + '"]', { timeout: 30000 });
 
   // ── WW-1 ── every stage, from the town read alone. The hero is set down on the high street, in front of the plaque (plan 103, 54 = map 127, 54).
   const stageArt = [[0, null, 'staked'], [100000, 'havora_weighhouse_footings', 'footings'], [300000, 'havora_weighhouse_framed', 'framed'], [600000, 'havora_weighhouse_walled', 'walled'], [1000000, 'havora_weighhouse_finished', 'finished']];
@@ -144,8 +145,8 @@ try {
   await page.click(WIN + ' [data-hs-act="works-typed"]');
   await waitText(WIN + ' .hh-intent-msg', /Gave 700 gp/);
   await p.reload();
-  await page.waitForSelector('[data-hs-open="havora"]', { timeout: 30000 });
-  await page.click('[data-hs-open="havora"]');
+  await page.waitForSelector('.hs-launchers [data-hs-group="' + groupOf('havora') + '"]', { timeout: 30000 });
+  await pressBar(page, 'havora');
   await page.click(WIN + ' [data-tab="works"]');
   await waitText(WIN + ' .hv-works-stage', /Footings/);
   const remembered = await page.waitForFunction((s) => { const e = document.querySelector(s); return !!e && e.value === '700'; }, WIN + ' .hv-works-amount', { timeout: 15000 }).then(() => true, () => false);
@@ -227,7 +228,7 @@ try {
   await page.waitForTimeout(500);
   await p.shot('finished-market');
   await closeWindow('market');
-  await page.click('[data-hs-open="havora"]');
+  await pressBar(page, 'havora');
   await page.click(WIN + ' [data-tab="works"]');
   const doneWords = await waitText(WIN + ' .hv-works-next', /The Weighhouse is finished\. Nothing else is being built right now\./);
   const stays = await waitText(WIN + ' .hv-works-plaque', /Marlow/);

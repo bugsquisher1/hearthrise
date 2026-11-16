@@ -43,6 +43,7 @@ import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { pressBar, barWindows } from './_bar.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -258,12 +259,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // HR-5 windows
       const { ctx, page, up } = await open();
       if (up) {
-        const ids = await page.$$eval('[data-hs-open]', (els) => els.map((e) => e.getAttribute('data-hs-open')));
-        if (ids.length < 8) fails.push('HR-5 CONTROL: only ' + ids.length + ' launchers');
+        /* every window the top bar reaches: its icons and its groups' lines (tests/_bar.mjs) */
+        const ids = await barWindows(page);
+        if (ids.length < 8) fails.push('HR-5 CONTROL: the top bar reaches only ' + ids.length + ' windows');
         for (const [w, h] of [[1024, 600], [1366, 650]]) {
           await size(page, w, h);
           for (const id of ids) {
-            await page.click('[data-hs-open="' + id + '"]');
+            await pressBar(page, id).catch(() => null);
             if (!(await wait(page, (i) => document.querySelector('[data-hs-win="' + i + '"]'), id, 5000))) { fails.push('HR-5 ' + id + ' did not open at ' + w + 'x' + h); continue; }
             await settle(page);
             for (const g of await presses(page, '.hs-win-head .hs-close, .hs-win-head [data-hs-close]', '[data-hs-win="' + id + '"]')) {
@@ -272,7 +274,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             const q = await page.evaluate((i) => { const e = document.querySelector('[data-hs-win="' + i + '"]'); if (!e) return null; const r = e.getBoundingClientRect(); return { top: r.top, left: r.left, right: r.right, bottom: r.bottom }; }, id);
             if (!q) { fails.push('HR-5 ' + w + 'x' + h + ': window ' + id + ' closed by itself'); continue; }
             if (q.top < 0 || q.left < 0 || q.right > w + 0.5 || q.bottom > h + 0.5) fails.push('HR-5 ' + w + 'x' + h + ': window ' + id + ' runs off the window: ' + JSON.stringify(q));
-            await page.click('[data-hs-open="' + id + '"]');
+            await page.click('[data-hs-win="' + id + '"] [data-hs-close="' + id + '"]');
             await wait(page, (i) => !document.querySelector('[data-hs-win="' + i + '"]'), id, 5000);
           }
         }

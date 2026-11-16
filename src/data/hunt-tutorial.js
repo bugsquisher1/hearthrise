@@ -425,7 +425,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'The Sewer is a party hunt. Pick The Sewer and press Enter with party, and everyone walks in together. The Rat King holds the last room and only comes out for a party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('save_setup', 'Keep this bar',
-    'A setup is your whole loadout, bar and gear. Press the check mark by Setup on your bar to open Hunt prep, then press New setup and name it. Now you can come back to it after trying another style.',
+    'A setup is your whole loadout, bar and gear. Press the check mark by Setup on your bar, then New setup, and name it. Try another style and come back to it.',
     'hunt_prep', { kind: 'setup_saved' }, { when: [IN_TOWN, { kind: 'bar_saved' }, { kind: 'been', hunt: THICKET }],
       inWindow: 'Press New setup, name it and press Save. Your bar and the gear you wear are kept under its name.',
       hooks: ['[data-hs-act="setups"]', '[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]'] }),

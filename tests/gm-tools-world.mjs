@@ -20,6 +20,7 @@ import { join, resolve as resolvePath } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { openWorld } from '../tools/qa/local-world.mjs';
 import { gmSql } from '../tools/gm-allow.mjs';
+import { pressBar, menuLines, groupOf } from './_bar.mjs';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -63,11 +64,13 @@ async function main() {
     for (let i = 0; i < 40 && !stamped; i++) await p.page.waitForTimeout(500);
     await p.page.waitForTimeout(1500);
     await shot(p.page, 'player-sees-gm-in-town');
-    await gm.page.waitForSelector('[data-hs-open="game-master"]', { timeout: 30000 });
-    await gm.page.click('[data-hs-open="game-master"]');
+    /* the GM's tools sit in the bar's Menu group (tests/_bar.mjs): its line shows once the server says GM */
+    await gm.page.waitForSelector('.hs-launchers [data-hs-group="' + groupOf('game-master') + '"]', { timeout: 30000 });
+    for (let i = 0; i < 30 && !(await menuLines(gm.page, groupOf('game-master'))).includes('game-master'); i++) await gm.page.waitForTimeout(1000);
+    await pressBar(gm.page, 'game-master');
     await gm.page.waitForSelector(WIN + ' .gm-part');
     await shot(gm.page, 'gm-window');
-    const noIcon = !(await p.page.$('[data-hs-open="game-master"]'));
+    const noIcon = !(await menuLines(p.page, groupOf('game-master'))).includes('game-master') && !(await p.page.$('[data-hs-open="game-master"]'));
     const preloaded = WINDOW_CODE.test(await p.page.evaluate(() => [...document.querySelectorAll('link[rel=modulepreload]')].map((l) => l.href).join(' ')));
     step('GW-1 the GM has the icon and the window; a player has neither, and its page asked for none of the window', noIcon && !preloaded && !asked.player.length && asked.gm.length >= 2, JSON.stringify({ noIcon, preloaded, asked }));
 
@@ -139,7 +142,7 @@ async function main() {
     await p.page.click('.hsum-card [data-hs-act], [data-hs-win="hunt-summary"] [data-hs-close]').catch(() => {});
 
     /* GW-4 */
-    await p.page.click('[data-hs-open="chat"]');
+    await pressBar(p.page, 'chat');
     await p.page.waitForSelector('[data-hs-win="chat"]');
     await gm.page.fill(WIN + ' .gm-say', 'The world restarts in ten minutes.');
     await gm.page.click(WIN + ' [data-hs-act="gm-say"]');
@@ -183,12 +186,12 @@ async function main() {
     step('GW-6 gold and a Level land on the GM\'s own hero and show on its page; the player\'s purse is untouched', mine.lv === 30 && Number(mine.g) >= 75000 && shows && Number(realGold.g) < 75000, JSON.stringify({ mine, shows, realGold }));
 
     /* GW-7: both in town. The plate is a canvas mark, read from the cast the world draws. */
-    await gm.page.click('[data-hs-open="game-master"]').catch(() => {});
+    await gm.page.click(WIN + ' [data-hs-close]').catch(() => {});
     const look = await sql(`select look from public.town_bodies where user_id = $1 and slot = 0`, [gmId]);
     step('GW-7 the server stamps the GM\'s body, and the player\'s own town read carries the stamp (the plate: world-town-home T, and the picture)', look && look.look && look.look.gm === true && stamped && stamped.gm === true, JSON.stringify({ look, stamped }));
 
     /* GW-8 */
-    await gm.page.click('[data-hs-open="game-master"]').catch(() => {});
+    await pressBar(gm.page, 'game-master').catch(() => {});
     await gm.page.waitForSelector(WIN + ' .gm-part');
     await gm.page.fill(WIN + ' .gm-why', 'rmt spam');
     await gm.page.waitForFunction((w) => !document.querySelector(w + ' [data-hs-act="gm-ban"]').disabled, WIN);
@@ -213,11 +216,10 @@ async function main() {
     const ph = await world.play({ account: 'warden', viewport: { width: 922, height: 423 }, touch: true });
     await ph.page.waitForSelector('.char-row, .hs-launchers');
     if (await ph.page.$('[data-app="play"][data-slot="0"]')) { await ph.page.click('[data-app="play"][data-slot="0"]'); await ph.page.waitForSelector('.hs-launchers'); }
-    /* A phone's row holds no icon for it: All characters names it under "Also here" (src/data/shell-windows.js phoneIcon). */
-    await ph.page.keyboard.press('o');
+    /* A phone reaches it as a desktop does: the bar's Menu group, a sheet, then its line (tests/_bar.mjs). */
     let opened = false;
-    const named = await ph.page.waitForSelector('.hw-icon-names [data-hs-open="game-master"]', { timeout: 15000 }).catch(() => null);
-    if (named) { await named.click(); opened = true; }
+    for (let i = 0; i < 15 && !opened; i++) opened = (await menuLines(ph.page, groupOf('game-master'), { tap: true }).catch(() => [])).includes('game-master') || (await ph.page.waitForTimeout(1000), false);
+    if (opened) opened = await pressBar(ph.page, 'game-master', { tap: true }).then(() => true, () => false);
     await ph.page.waitForSelector(WIN + ' .gm-part', { timeout: 15000 }).catch(() => { opened = false; });
     await ph.page.waitForTimeout(600);   // the sheet's slide
     await shot(ph.page, 'gm-sheet-922x423');

@@ -227,6 +227,7 @@ import { harnessFail, ruleOf, judge, report, exitOf, cleanControl } from './_mut
 import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel, levelBlock } from './_server-level.mjs';
+import { pressBar, barWindows, hasIcon } from './_bar.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -2073,15 +2074,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const { ctx, page, errors, s, up } = await open();
       if (!up) fails.push('AW-1 the shell did not mount for the fixture character');
       else {
-        const launchers = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch')).map((b) => b.getAttribute('data-hs-open')));
+        /* the windows the top bar reaches: its icons and its groups' menus (tests/_bar.mjs); Hunt prep has no icon (the bar's setup press, tests/top-bar.mjs) */
+        const launchers = await barWindows(page);
         for (const [key, id] of WINDOWS) {
-          if (!launchers.includes(id)) fails.push('AW-1 the launcher row has no ' + id);
+          if (hasIcon(id) && !launchers.includes(id)) fails.push('AW-1 the top bar does not reach ' + id);
           if (!(await openWin(page, key, id))) fails.push('AW-1 the ' + key.toUpperCase() + ' key did not open ' + id);
           else if (shots) await shot(page, 'alpha-1440x900-' + id);
         }
         /* AW-1 Havora (vitals 11-12: powders, rounds and gifts at zero for two days): its icon, not only a map building, opens it. */
         for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
-        await page.click('.hs-launch[data-hs-open="havora"]', { timeout: 2500 }).catch(() => null);
+        await pressBar(page, 'havora').catch(() => null);
         if (!(await wait(page, () => document.querySelector('[data-hs-win="havora"] [data-hs-built]'), null, 3000))) fails.push('AW-1 the Havora icon did not open Havora');
         /* AW-15 (Tyler 10-18): one Inventory, no Gear and no Find window, and the item search only inside Inventory and Storage. */
         if (launchers.some((id) => /^(bag|gear|find)$/.test(id))) fails.push('AW-15 the launcher row still opens a separate bag, gear or find window: ' + launchers.join(','));
@@ -3167,8 +3169,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
         await page.waitForTimeout(200);
         /* SERVICES IN THE SHOP (Tyler 2026-10-25): no Services icon; R opens the Shop on its Services tab, from the Sell tab too */
-        const icons = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch')).map((b) => b.getAttribute('data-hs-open')));
-        if (icons.includes('services') || !icons.includes('shop')) fails.push('AW-31 the icon row reads ' + icons.join(','));
+        const icons = await barWindows(page);
+        if (icons.includes('services') || !icons.includes('shop')) fails.push('AW-31 the top bar reaches ' + icons.join(','));
         await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
         /* at once, in the same task as the key (not at the next display tick) */
         const atOnce = await page.evaluate(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', bubbles: true }));

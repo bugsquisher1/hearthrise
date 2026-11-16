@@ -110,7 +110,7 @@ export function validateWindowRows(rows) {
     if (r.over !== undefined && !(r.over === true && !r.modal && !r.home)) throw new Error('shell windows: ' + r.id + ' over is true on a docked row, or absent');
     if (r.pageOf !== undefined && !(Array.isArray(r.pageOf) && r.pageOf.length && r.pageOf.every((x) => typeof x === 'string' && x !== r.id) && r.launcher === false)) throw new Error('shell windows: ' + r.id + ' pageOf lists its hosts, on a row with no launcher icon');
     if (r.help !== undefined && !/^[a-z]+\.[a-z0-9_]+$/.test(r.help)) throw new Error('shell windows: ' + r.id + ' help names a text row');
-    /* a group's menu holds icons: a row kept off the icon row has none to put there (launcher.js barPlan names the group) */
+    /* a group's menu holds icons: a row kept off the icon row has none to put there (launcher-menu.js barPlan names the group) */
     if (r.group !== undefined && !(typeof r.group === 'string' && /^[a-z]+$/.test(r.group) && r.launcher !== false)) throw new Error('shell windows: ' + r.id + ' group names a group, on a row with an icon');
     if (r.escape) escapes++;
     byId.set(r.id, r);

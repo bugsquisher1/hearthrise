@@ -13,7 +13,7 @@ import { titlesOf } from '../session/character-sections.js?v=0.2.133';
 import { t } from '../render/player-text.js?v=0.2.133';
 
 /** Is page `p` open for what the server said: `seen` the grounds hunted (a Set), `kills` title id -> the server's count (a Map). Pure. */
-export function pageOpen(p, seen, kills) {
+function pageOpen(p, seen, kills) {
   const o = p.open;
   if (o.kind === 'start') return true;
   if (o.kind === 'ground') return seen.has(o.hunt);
@@ -35,10 +35,10 @@ export function chronicleOf(cs) {
     const g = p.open.kind === 'ground' ? HUNT_INDEX[p.open.hunt] : null;
     return {
       id: p.id, open,
-      title: t('chronicle.' + p.id + '_title'),
-      teaser: t('chronicle.' + p.id + '_teaser'),
-      paras: open ? t('chronicle.' + p.id + '_page').split('\n\n') : [],
-      how: open ? null : g ? { hunt: g.id, ground: g.name, band: g.band || null } : { words: t('chronicle.' + p.id + '_how') },
+      title: t('chronicle.title_' + p.id),
+      teaser: t('chronicle.teaser_' + p.id),
+      paras: open ? t('chronicle.page_' + p.id).split('\n\n') : [],
+      how: open ? null : g ? { hunt: g.id, ground: g.name, band: g.band || null } : { words: t('chronicle.opens_' + p.id) },
     };
   });
   const found = pages.filter((p) => p.open).length;

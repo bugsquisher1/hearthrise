@@ -6,13 +6,13 @@
 //   node tests/top-bar.mjs --mutate        every planted defect must turn a named rule RED
 //   node tests/top-bar.mjs --shots <dir>   also write the bar and each group's menu at each size
 //
-// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/styles/shell.css src/shell/widgets/action-bar.js
+// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/shell/widgets/action-bar.js src/shell/shell.js
 //
 // Tyler 2026-11-16: "Our top menu bar is starting to get long again, are there some things we can either combine or move to clean
 // it up? It's getting a bit overwhelming." The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8). The windows a player
 // opens now and then moved one press under a group's icon (src/data/shell-windows.js LAUNCHER_GROUPS: Town, Social, Menu); every key
 // stayed. play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs) on tests/fixtures/alpha-envelope.json.
-//   TB-1  (no browser) THE ROW IS SHORT: the plan (launcher.js barPlan) holds at most BAR_MAX buttons for any hero, a Game Master too;
+//   TB-1  (no browser) THE ROW IS SHORT: the plan (launcher-menu.js barPlan) holds at most BAR_MAX buttons for any hero, a Game Master too;
 //         every group is in LAUNCHER_GROUPS and holds two windows or more (a group of one is a wasted press); every window with an
 //         icon is in the row or in exactly one group
 //   TB-2  (no browser) THE RING'S WAY: a card whose way starts at a grouped window's icon rings that window's line in the open menu,
@@ -22,9 +22,11 @@
 //         the menu shuts behind the pick; every window with a key opens by that key in one press (Esc: Settings; Enter: Chat); Hunt
 //         prep opens from the bar's setup press and by P; zero console errors
 //   TB-4  THE MENU BEHAVES (1440x900): a press opens it (aria-expanded), a second press shuts it; Esc shuts it and opens nothing;
-//         a press on the World shuts it; a key that opens a window shuts it; the arrows walk its lines
+//         a press on the World shuts it; a key that opens a window shuts it; a pick of the window already on top shuts it and
+//         leaves that window open; the arrows walk its lines
 //   TB-5  THE COACH'S RING STILL LANDS (1440x900 and 922x423): a new hero's "Tamsin's rats" rings the Town icon, the menu opened
-//         rings Tamsin's line, and her window opened from there carries the card; never two rings at once
+//         rings Tamsin's line, and her window opened from there carries the card; never two rings at once; the row draws the ring
+//         itself, so with nothing changing no paint rebuilds it (2.5 s watched, the menu shut and open)
 //   TB-6  A PHONE'S MENU IS A SHEET (922x423 and 667x375): it stands at the right edge under the row, as tall as the screen allows,
 //         every line inside it at a thumb's height, none cut, no text under 12 px; never a bottom bar
 // ════════════════════════════════════════════════════════════════════════
@@ -33,7 +35,7 @@ import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 import { pressBar, groupOf } from './_bar.mjs';
@@ -92,16 +94,20 @@ async function closeAll(page) {
   if (await page.$('.hs-launch-menu')) { await page.keyboard.press('Escape'); await page.waitForTimeout(80); }
 }
 const opened = (page, id) => wait(page, (w) => !!document.querySelector('[data-hs-win="' + w + '"]:not(.is-leaving)'), id, 3000);
+/* A press a mutant may take away: false, never a thrown run (a missing control is a red rule, named by its caller). */
+const tryPress = (page, q, touch) => (touch ? page.tap(q, { timeout: 2500 }) : page.click(q, { timeout: 2500 })).then(() => true, () => false);
 const ringed = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-coach-ring]')).filter((e) => e.getClientRects().length)
   .map((e) => e.getAttribute('data-hs-open') || (e.getAttribute('data-hs-group') ? 'group:' + e.getAttribute('data-hs-group') : e.className)));
 
-async function checks(overrides, shots) {
+/* `firstRed`: a mutant run stops at the first section that goes red (a verdict needs one named rule, not all of them). */
+async function checks(overrides, shots, firstRed = false) {
   const fails = [];
   const { SHELL_WINDOWS, LAUNCHER_GROUPS } = await src('src/data/shell-windows.js');
   if (!overrides) { // TB-1, TB-2 (pure: a mutant of these files is read by the page rules below)
     const L = await src('src/shell/launcher.js');
+    const { barPlan } = await src('src/shell/launcher-menu.js');
     const icons = SHELL_WINDOWS.filter((r) => r.launcher !== false);
-    const plan = L.barPlan(icons);
+    const plan = barPlan(icons);
     if (plan.length > BAR_MAX) fails.push('TB-1 the row holds ' + plan.length + ' buttons for a Game Master with every section on, over ' + BAR_MAX);
     const ids = new Set(LAUNCHER_GROUPS.map((g) => g.id));
     for (const e of plan) if (e.group && e.rows.length < 2) fails.push('TB-1 the ' + e.group.id + ' group holds ' + e.rows.length + ' window: a group of one is a wasted press');
@@ -126,12 +132,111 @@ async function checks(overrides, shots) {
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const env = clone(BASE_ENV);
     prep(env);
-    await stub(page, { env, version: 1, residue: residue || {} });
+    const s = { env, version: 1, residue: residue || {} };
+    await stub(page, s);
     const up = await signInAndPlay(page, 'http://127.0.0.1:' + port);
-    return { ctx, page, errors, up };
+    return { ctx, page, errors, up, s };
   };
   const tag = (s) => s.width + 'x' + s.height;
+  /* The server says the last thing again (a settle that moved nothing): the shell paints, and the row has nothing new to draw. */
+  const sayAgain = (page, s) => { const env = Object.assign(withServerLevel(clone(s.env)), { version: ++s.version, ok: true, client_state: clone(s.residue) });
+    return page.evaluate(([uid, e]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: e.version, env: e }), [UID, env]); };
   try {
+    { // TB-4
+      const { ctx, page, up, s } = await open(SIZES[0], town);
+      if (!up) fails.push('TB-4 the World never came up');
+      else {
+        const menu = () => page.evaluate(() => { const m = document.querySelector('.hs-launch-menu'); const g = document.querySelector('[data-hs-group][aria-expanded="true"]');
+          return m ? (g ? g.getAttribute('data-hs-group') : 'no-expanded') : null; });
+        await tryPress(page, '[data-hs-group="social"]');
+        if ((await menu()) !== 'social') fails.push('TB-4 a press on Social opened ' + JSON.stringify(await menu()));
+        await tryPress(page, '[data-hs-group="social"]');
+        await page.waitForTimeout(100);
+        if ((await menu()) !== null) fails.push('TB-4 a second press left the menu open');
+        await tryPress(page, '[data-hs-group="town"]');
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(250);
+        if ((await menu()) !== null || (await openWins(page)).length) fails.push('TB-4 Esc over the open menu left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page) }) + ', want it shut and nothing opened');
+        await tryPress(page, '[data-hs-group="town"]');
+        await page.mouse.click(400, 450);
+        await page.waitForTimeout(150);
+        if ((await menu()) !== null) fails.push('TB-4 a press on the World left the menu open');
+        await tryPress(page, '[data-hs-group="town"]');
+        await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+        await page.keyboard.press('m');
+        if (!(await opened(page, 'market')) || (await menu()) !== null) fails.push('TB-4 M with the menu open: market ' + (await openWins(page)).join(',') + ', menu ' + (await menu()));
+        /* a pick of the window already on top opens nothing new, and the menu still shuts behind it (the line opens, never toggles) */
+        await tryPress(page, '[data-hs-group="town"]');
+        await tryPress(page, '.hs-launch-menu [data-hs-open="market"]');
+        await page.waitForTimeout(150);
+        if ((await menu()) !== null || !(await openWins(page)).includes('market')) fails.push('TB-4 a pick of the Market already open left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page) }) + ', want it open and the menu shut');
+        await closeAll(page);
+        await page.focus('[data-hs-group="town"]', { timeout: 2500 }).catch(() => null);
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('ArrowDown');
+        const at = await page.evaluate(() => { const a = document.activeElement; return a ? a.getAttribute('data-hs-open') : null; });
+        const second = (await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch-menu .hs-launch-item')).map((b) => b.getAttribute('data-hs-open'))))[1];
+        if (!second || at !== second) fails.push('TB-4 two ArrowDowns from the Town icon focus ' + at + ', want its second line ' + second);
+        /* an envelope that changes nothing leaves the menu as it was: open, the keyboard on the same line */
+        await sayAgain(page, s);
+        await page.waitForTimeout(400);
+        const kept = await page.evaluate(() => { const a = document.activeElement; return a ? a.getAttribute('data-hs-open') : null; });
+        if (kept !== at || (await menu()) !== 'town') fails.push('TB-4 an envelope with nothing new took the keyboard from ' + at + ' to ' + kept + ' (menu ' + (await menu()) + ')');
+        await page.keyboard.press('Enter');
+        if (!(await opened(page, second || 'market'))) fails.push('TB-4 Enter on a focused line did not open ' + second);
+      }
+      await ctx.close();
+      if (firstRed && fails.length) return fails;
+    }
+    for (const size of SIZES.slice(0, 2)) { // TB-5
+      const { ctx, page, up, s } = await open(size, fresh, { coach: { read: ['styles'] } });
+      if (!up) { fails.push('TB-5 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
+      await page.waitForTimeout(600);
+      const card = await page.evaluate(() => { const p = document.querySelector('.hs-launchers .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
+      if (card !== 'tamsins_rats') { fails.push('TB-5 [' + tag(size) + '] CONTROL: the new hero\'s card is ' + card + ', not tamsins_rats'); await ctx.close(); continue; }
+      const r0 = await ringed(page);
+      if (r0.join() !== 'group:' + groupOf('tally')) fails.push('TB-5 [' + tag(size) + '] with the menu shut the ring is on ' + JSON.stringify(r0) + ', want the ' + groupOf('tally') + ' icon alone');
+      /* The row draws the ring itself, where the coach would put it, so a paint finds the row unchanged and leaves it be: rings
+         that only the coach set (src/shell/launcher.js ringCoach) make every paint rebuild the row. Watched 2.5 s round an envelope that
+         repeats the last one. */
+      const rebuilt = () => {
+        const watch = page.evaluate(() => new Promise((ok) => { const box = document.querySelector('.hs-launchers').parentElement; let n = 0, was = box.innerHTML, diff = '';
+          const mo = new MutationObserver((rs) => { const k = rs.filter((r) => r.type === 'childList' && r.target === box).length;
+            if (k && !diff) { const now = box.innerHTML; let i = 0; while (i < was.length && was[i] === now[i]) i++; diff = JSON.stringify([was.slice(Math.max(0, i - 60), i + 60), now.slice(Math.max(0, i - 60), i + 60)]); }
+            n += k; }); mo.observe(box, { childList: true });
+          setTimeout(() => { mo.disconnect(); ok(n ? n + ' (' + diff + ')' : 0); }, 2500); }));
+        return page.waitForTimeout(500).then(() => sayAgain(page, s)).then(() => watch);
+      };
+      /* A row rebuilt for a reason carries its ring already: the coach (ringCoach) never has to add or move one after it. */
+      const churn = (act) => {
+        const watch = page.evaluate(() => new Promise((ok) => { const box = document.querySelector('.hs-launchers').parentElement, seen = [];
+          const mo = new MutationObserver((rs) => { for (const r of rs) seen.push((r.target.getAttribute('data-hs-open') || 'group:' + r.target.getAttribute('data-hs-group'))
+            + (r.target.hasAttribute('data-coach-ring') ? ' ringed' : ' unringed')); });
+          mo.observe(box, { attributes: true, attributeFilter: ['data-coach-ring'], subtree: true });
+          setTimeout(() => { mo.disconnect(); ok(seen.join(', ')); }, 1600); }));
+        return page.waitForTimeout(200).then(act).then(() => watch);
+      };
+      const moved0 = await churn(async () => { await page.keyboard.press('h'); await page.waitForTimeout(400); await page.keyboard.press('Escape'); });
+      if (moved0) fails.push('TB-5 [' + tag(size) + '] Hunts opened and shut, the row came back and the coach had to ring it: ' + moved0);
+      const still0 = await rebuilt();
+      if (still0) fails.push('TB-5 [' + tag(size) + '] with the menu shut a repeated envelope rebuilt the row: ' + still0);
+      const moved1 = await churn(() => tryPress(page, '[data-hs-group="' + groupOf('tally') + '"]', size.touch));
+      if (moved1) fails.push('TB-5 [' + tag(size) + '] the menu opened and the coach had to move its ring: ' + moved1);
+      const r1 = await ringed(page);
+      if (r1.join() !== 'tally') fails.push('TB-5 [' + tag(size) + '] with the menu open the ring is on ' + JSON.stringify(r1) + ', want Tamsin\'s line alone');
+      const still1 = await rebuilt();
+      if (still1) fails.push('TB-5 [' + tag(size) + '] with the menu open a repeated envelope rebuilt the row: ' + still1);
+      if (shots) await page.screenshot({ path: join(shots, 'ring-' + tag(size) + '.png') });
+      if (!(await tryPress(page, '.hs-launch-menu [data-hs-open="tally"]', size.touch))) fails.push('TB-5 [' + tag(size) + '] the open menu holds no line for her tally');
+      else if (!(await opened(page, 'tally'))) fails.push('TB-5 [' + tag(size) + '] Tamsin\'s line did not open her tally');
+      else {
+        await page.waitForTimeout(400);
+        const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="tally"] > .hs-win-coach .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
+        if (inWin !== 'tamsins_rats') fails.push('TB-5 [' + tag(size) + '] her window holds the card ' + inWin);
+      }
+      await ctx.close();
+      if (firstRed && fails.length) return fails;
+    }
     for (const size of SIZES) { // TB-3, TB-6
       const { ctx, page, errors, up } = await open(size, town);
       if (!up) { fails.push('TB-3 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
@@ -153,7 +258,7 @@ async function checks(overrides, shots) {
       /* TB-1 in the page: each group's menu lists two windows or more */
       for (const g of row.reach.filter((x) => x.startsWith('group:')).map((x) => x.slice(6))) {
         await closeAll(page);
-        await (size.touch ? page.tap('[data-hs-group="' + g + '"]') : page.click('[data-hs-group="' + g + '"]'));
+        if (!(await tryPress(page, '[data-hs-group="' + g + '"]', size.touch))) { fails.push('TB-1 [' + tag(size) + '] the ' + g + ' icon took no press'); continue; }
         await page.waitForTimeout(120);
         const n = await page.evaluate(() => document.querySelectorAll('.hs-launch-menu .hs-launch-item').length);
         if (n < 2) fails.push('TB-1 [' + tag(size) + '] the ' + g + ' menu lists ' + n + ' window: a group of one is a wasted press');
@@ -167,9 +272,9 @@ async function checks(overrides, shots) {
         if (!(await opened(page, id))) fails.push('TB-3 [' + tag(size) + '] ' + presses + ' presses from the row did not open ' + id);
         else if (presses > 2) fails.push('TB-3 [' + tag(size) + '] ' + id + ' took ' + presses + ' presses');
         if (await page.$('.hs-launch-menu')) fails.push('TB-3 [' + tag(size) + '] the menu stayed open after ' + id + ' was picked');
-        if (shots && presses === 2 && size.touch && id === want.find((x) => groupOf(x) === groupOf(id))) {
+        if (shots && presses === 2 && id === want.find((x) => groupOf(x) === groupOf(id))) {
           await closeAll(page);
-          await page.tap('.hs-launchers [data-hs-group="' + groupOf(id) + '"]');
+          await tryPress(page, '.hs-launchers [data-hs-group="' + groupOf(id) + '"]', size.touch);
           await page.waitForTimeout(250);
           await page.screenshot({ path: join(shots, 'menu-' + groupOf(id) + '-' + tag(size) + '.png') });
         }
@@ -177,7 +282,7 @@ async function checks(overrides, shots) {
       /* TB-6 the phone's menu is a sheet */
       if (size.touch) {
         await closeAll(page);
-        await page.tap('.hs-launchers [data-hs-group="town"]');
+        await tryPress(page, '.hs-launchers [data-hs-group="town"]', true);
         await page.waitForTimeout(250);
         const m = await page.evaluate(() => {
           const el = document.querySelector('.hs-launch-menu');
@@ -209,63 +314,7 @@ async function checks(overrides, shots) {
       if (!(await opened(page, 'hunt-prep'))) fails.push('TB-3 [' + tag(size) + '] P did not open Hunt prep');
       if (errors.length) fails.push('TB-3 [' + tag(size) + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
-    }
-    { // TB-4
-      const { ctx, page, up } = await open(SIZES[0], town);
-      if (!up) fails.push('TB-4 the World never came up');
-      else {
-        const menu = () => page.evaluate(() => { const m = document.querySelector('.hs-launch-menu'); const g = document.querySelector('[data-hs-group][aria-expanded="true"]');
-          return m ? (g ? g.getAttribute('data-hs-group') : 'no-expanded') : null; });
-        await page.click('[data-hs-group="social"]');
-        if ((await menu()) !== 'social') fails.push('TB-4 a press on Social opened ' + JSON.stringify(await menu()));
-        await page.click('[data-hs-group="social"]');
-        await page.waitForTimeout(100);
-        if ((await menu()) !== null) fails.push('TB-4 a second press left the menu open');
-        await page.click('[data-hs-group="town"]');
-        await page.keyboard.press('Escape');
-        await page.waitForTimeout(250);
-        if ((await menu()) !== null || (await openWins(page)).length) fails.push('TB-4 Esc over the open menu left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page) }) + ', want it shut and nothing opened');
-        await page.click('[data-hs-group="town"]');
-        await page.mouse.click(400, 450);
-        await page.waitForTimeout(150);
-        if ((await menu()) !== null) fails.push('TB-4 a press on the World left the menu open');
-        await page.click('[data-hs-group="town"]');
-        await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
-        await page.keyboard.press('m');
-        if (!(await opened(page, 'market')) || (await menu()) !== null) fails.push('TB-4 M with the menu open: market ' + (await openWins(page)).join(',') + ', menu ' + (await menu()));
-        await closeAll(page);
-        await page.focus('[data-hs-group="town"]');
-        await page.keyboard.press('ArrowDown');
-        await page.keyboard.press('ArrowDown');
-        const at = await page.evaluate(() => { const a = document.activeElement; return a ? a.getAttribute('data-hs-open') : null; });
-        const second = (await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch-menu .hs-launch-item')).map((b) => b.getAttribute('data-hs-open'))))[1];
-        if (!second || at !== second) fails.push('TB-4 two ArrowDowns from the Town icon focus ' + at + ', want its second line ' + second);
-        await page.keyboard.press('Enter');
-        if (!(await opened(page, second || 'market'))) fails.push('TB-4 Enter on a focused line did not open ' + second);
-      }
-      await ctx.close();
-    }
-    for (const size of SIZES.slice(0, 2)) { // TB-5
-      const { ctx, page, up } = await open(size, fresh, { coach: { read: ['styles'] } });
-      if (!up) { fails.push('TB-5 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
-      await page.waitForTimeout(600);
-      const card = await page.evaluate(() => { const p = document.querySelector('.hs-launchers .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
-      if (card !== 'tamsins_rats') { fails.push('TB-5 [' + tag(size) + '] CONTROL: the new hero\'s card is ' + card + ', not tamsins_rats'); await ctx.close(); continue; }
-      const r0 = await ringed(page);
-      if (r0.join() !== 'group:' + groupOf('tally')) fails.push('TB-5 [' + tag(size) + '] with the menu shut the ring is on ' + JSON.stringify(r0) + ', want the ' + groupOf('tally') + ' icon alone');
-      await (size.touch ? page.tap('[data-hs-group="' + groupOf('tally') + '"]') : page.click('[data-hs-group="' + groupOf('tally') + '"]'));
-      await page.waitForTimeout(400);
-      const r1 = await ringed(page);
-      if (r1.join() !== 'tally') fails.push('TB-5 [' + tag(size) + '] with the menu open the ring is on ' + JSON.stringify(r1) + ', want Tamsin\'s line alone');
-      if (shots) await page.screenshot({ path: join(shots, 'ring-' + tag(size) + '.png') });
-      await (size.touch ? page.tap('.hs-launch-menu [data-hs-open="tally"]') : page.click('.hs-launch-menu [data-hs-open="tally"]'));
-      if (!(await opened(page, 'tally'))) fails.push('TB-5 [' + tag(size) + '] Tamsin\'s line did not open her tally');
-      else {
-        await page.waitForTimeout(400);
-        const inWin = await page.evaluate(() => { const p = document.querySelector('[data-hs-win="tally"] > .hs-win-coach .hs-pointer'); return p ? p.getAttribute('data-tutorial') : null; });
-        if (inWin !== 'tamsins_rats') fails.push('TB-5 [' + tag(size) + '] her window holds the card ' + inWin);
-      }
-      await ctx.close();
+      if (firstRed && fails.length) return fails;
     }
   } finally {
     server.close();
@@ -277,15 +326,18 @@ async function checks(overrides, shots) {
 const MUTANTS = [
   ['Tamsin\'s tally back in the row', 'src/data/shell-windows.js', "id: 'tally', label: 'Tamsin\\'s tally', key: 'q', group: 'town',", "id: 'tally', label: 'Tamsin\\'s tally', key: 'q',"],
   ['the Menu group holds Settings alone', 'src/data/shell-windows.js', "id: 'report', label: 'Report a problem', key: 'f', group: 'menu',", "id: 'report', label: 'Report a problem', key: 'f', launcher: false,"],
-  ['a pick leaves the menu open', 'src/shell/launcher.js', "if (ev.type === 'click') { setMenu(ctx, el, null); ctx.wm.open(id); return true; }", "if (ev.type === 'click') { ctx.wm.open(id); return true; }"],
-  ['a window opened by key leaves the menu open', 'src/shell/launcher.js', '  if (m && m.seen !== openKey(ctx.wm)) { MENU.delete(ctx.wm); return null; }', ''],
-  ['Esc over the menu opens Settings too', 'src/shell/launcher.js', '    e.preventDefault(); e.stopPropagation();\n    shut(true);', '    shut(true);'],
-  ['a press elsewhere leaves the menu open', 'src/shell/launcher.js', "  doc.addEventListener('pointerdown', (e) => { if (!(e.target.closest && e.target.closest('.hs-launch-group.is-menu'))) shut(false); }, true);", ''],
-  ['the arrows do not walk the menu', 'src/shell/launcher.js', '      items[to].focus();', '      void to;'],
-  ['a grouped window\'s card rings its line even while the menu is shut', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ ''"],
+  ['a pick leaves the menu open', 'src/shell/launcher-menu.js', "if (ev.type === 'click') { setMenu(ctx, el, null, draw); ctx.wm.open(id); return true; }", "if (ev.type === 'click') { ctx.wm.open(id); return true; }"],
+  ['a window opened by key leaves the menu open', 'src/shell/launcher-menu.js', '  if (m && m.seen !== openKey(ctx.wm)) { MENU.delete(ctx.wm); return null; }', ''],
+  ['Esc over the menu opens Settings too', 'src/shell/launcher-menu.js', '    e.preventDefault(); e.stopPropagation();\n    shut(true);', '    shut(true);'],
+  ['a press elsewhere leaves the menu open', 'src/shell/launcher-menu.js', "  doc.addEventListener('pointerdown', (e) => { if (!(e.target.closest && e.target.closest('.hs-launch-group.is-menu'))) shut(false); }, true);", ''],
+  ['the arrows do not walk the menu', 'src/shell/launcher-menu.js', '      items[to].focus();', '      void to;'],
+  ['the row leaves the group\'s ring to the coach, so every paint rebuilds it', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ ''"],
+  ['the group keeps its ring while its menu is open', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ (inside ? ' data-coach-ring=\"\"' : '')"],
   ['the ring\'s way never reaches the group', 'src/shell/launcher.js', "group ? ['.hs-launchers [data-hs-group=\"' + group + '\"]'] : []", '[]'],
   ['the phone\'s menu is a dropdown, not a sheet', 'src/styles/shell.css', '    position: fixed; top: 40px; right: 0; bottom: 0; width: min(400px, 48vw);', '    width: min(400px, 48vw);'],
   ['the phone\'s menu lines lose a thumb\'s height', 'src/styles/shell.css', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: var(--tap); padding: 0 6px; }', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: 30px; padding: 0 6px; }'],
+  ['every paint rebuilds the row, so an envelope takes the keyboard off the open menu', 'src/shell/shell.js', '      else markup(el, render(ctx));', "      else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }"],
+  ['the menu opens past the row\'s record, so the next paint rebuilds it', 'src/shell/launcher-menu.js', '  if (el.isConnected) markup(el, draw(ctx));', '  if (el.isConnected) el.innerHTML = draw(ctx);'],
   ['Hunt prep loses the bar\'s setup press', 'src/shell/widgets/action-bar.js', "  if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }", ''],
 ];
 
@@ -306,7 +358,7 @@ async function main() {
   for (const [name, file, from, to] of MUTANTS) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, () => to) });
+    const fails = await checks({ [file]: text.replace(from, () => to) }, null, true);
     if (fails.length && fails.every((f) => /^TB-\d/.test(f))) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else if (fails.length) { console.log('  ✗ ' + name + ' — red by no named rule: ' + fails[0]); bad++; }
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }

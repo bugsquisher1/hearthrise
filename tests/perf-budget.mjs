@@ -56,6 +56,7 @@ import { LOG_MAX_LINES } from '../src/data/combat-text.js';
 import { STATIONS } from '../src/data/world/stations.js';
 import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { pressBar } from './_bar.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
@@ -714,7 +715,7 @@ async function scenario(o) {
     const phone = o.width <= 1024 && o.height <= 540;
     /* the combat log open on its tab (players watch it fight): its lines are the page's longest list */
     const showLog = async () => {
-      if (!(await page.isVisible('.hc-chat').catch(() => false))) await page.click('[data-hs-open="chat"]').catch((e) => errors.push('chat: ' + e.message.split('\n')[0]));
+      if (!(await page.isVisible('.hc-chat').catch(() => false))) await pressBar(page, 'chat').catch((e) => errors.push('chat: ' + e.message.split('\n')[0]));
       await page.click('.hc-chat [data-hs-act="tab"][data-tab="combat"]').catch(() => null);
     };
     await page.waitForTimeout(15000);   // warm-up: atlases, the first start point, both heroes open

@@ -24,6 +24,8 @@
     "node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=5/15": "in-page-18",
     "node tests/preset-names.mjs": "in-page-19",
     "node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate": "in-page-19",
+    "node tests/top-bar.mjs": "in-page-19",
+    "node tools/mutant-gate.mjs node tests/top-bar.mjs --mutate": "in-page-19",
     "node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=6/15": "in-page-27",
     "node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=7/15": "in-page-28",
     "node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=8/15": "in-page-29",

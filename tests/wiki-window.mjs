@@ -162,9 +162,9 @@ async function chronicleRules() {
   const { chronicleOf } = await src('src/shell/chronicle-model.js');
   const open = new Set(Object.values(OPEN_GROUNDS).map((g) => g.hunt));
   for (const p of CHRONICLE) {
-    for (const k of ['_title', '_teaser', '_page']) if (!CHRONICLE_TEXT[p.id + k]) fails.push('WK-5 the page ' + p.id + ' has no ' + k.slice(1) + ' words');
+    for (const k of ['title_', 'teaser_', 'page_']) if (!CHRONICLE_TEXT[k + p.id]) fails.push('WK-5 the page ' + p.id + ' has no ' + k.slice(0, -1) + ' words');
     if (p.open.kind === 'ground' && !open.has(p.open.hunt)) fails.push('WK-5 the page ' + p.id + ' opens on ' + p.open.hunt + ', which is no open ground');
-    if (p.open.kind === 'kills' && !CHRONICLE_TEXT[p.id + '_how']) fails.push('WK-5 the page ' + p.id + ' never says which fight opens it');
+    if (p.open.kind === 'kills' && !CHRONICLE_TEXT['opens_' + p.id]) fails.push('WK-5 the page ' + p.id + ' never says which fight opens it');
     if (!['start', 'ground', 'kills'].includes(p.open.kind)) fails.push('WK-5 the page ' + p.id + ' opens on ' + p.open.kind);
   }
   const start = CHRONICLE.filter((p) => p.open.kind === 'start').map((p) => p.id).join(',');
@@ -296,7 +296,14 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(300);
         const got = await ckOpen(page);
         if (got !== want) fails.push('WK-6 the envelope opens ' + JSON.stringify(got) + ', want ' + JSON.stringify(want));
-        if (shots) await page.screenshot({ path: join(shots, 'chronicle-desktop-1440x900.png') });
+        if (shots) {
+          await page.screenshot({ path: join(shots, 'chronicle-desktop-1440x900.png') });
+          /* the first shut page in view: its title, its line and where it opens */
+          await page.evaluate((q) => { const p = document.querySelector(q + '.is-shut'); if (p) p.scrollIntoView({ block: 'start' }); }, CK);
+          await page.waitForTimeout(150);
+          await page.screenshot({ path: join(shots, 'chronicle-shut-desktop-1440x900.png') });
+          await page.evaluate((q) => { const p = document.querySelector(q); if (p) p.scrollIntoView({ block: 'start' }); }, CK);
+        }
         /* a shut page says what opens it; its ground's name opens that ground's page in Hunts */
         const how = await page.evaluate((q) => { const p = document.querySelector(q + '[data-wk-id="sewer"]'); return p ? { shut: p.classList.contains('is-shut'), how: (p.querySelector('.ck-how') || {}).textContent || '',
           link: !!p.querySelector('.ck-how [data-hs-goto]') } : null; }, CK);
@@ -321,9 +328,10 @@ async function checks(overrides, shots) {
           const again = await ckOpen(page);
           if (again !== live) fails.push('WK-6 after a reload the Chronicle opens ' + JSON.stringify(again) + ', want ' + JSON.stringify(live));
           /* the shut Slake page's ground opens Hunts on the Slake */
-          await page.click(CK + '[data-wk-id="slake"] .ck-how [data-hs-goto]');
-          const picked = await wait(page, () => !!document.querySelector('[data-hs-win="hunts"] .hw-hunt-enter[data-hunt="the_slake"]'), null, 4000);
-          if (!picked) fails.push('WK-6 the Slake\'s name on its shut page did not open the Slake in Hunts');
+          /* a link the page hides is a red rule, never a thrown run */
+          const pressed = await page.click(CK + '[data-wk-id="slake"] .ck-how [data-hs-goto]', { timeout: 3000 }).then(() => true, () => false);
+          const picked = pressed && await wait(page, () => !!document.querySelector('[data-hs-win="hunts"] .hw-hunt-enter[data-hunt="the_slake"]'), null, 4000);
+          if (!picked) fails.push('WK-6 the Slake\'s name on its shut page did not open the Slake in Hunts' + (pressed ? '' : ' (no visible link to press)'));
         }
       }
       if (errors.length) fails.push('WK-6 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -364,7 +372,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'wiki-window: ' + fails.length + ' rule(s) RED'
-      : 'wiki-window: every skill, open ground and formula has a page; the slash opens it; the search finds a skill, a ground and a formula; every worked example is the engine\'s answer and equals its stated terms; a sheet on the phone');
+      : 'wiki-window: every skill, open ground and formula has a page; the slash opens the Book on the Chronicle, whose pages open only on the server\'s word and follow every envelope and a reload; the search finds a skill, a ground and a formula; every worked example is the engine\'s answer and equals its stated terms; a sheet on the phone');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

@@ -34,6 +34,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { groupOf } from './_bar.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -139,9 +140,14 @@ async function checks(overrides, shots) {
       const drawn = await wait(page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length >= 4);
       const r = await readRoll(page);
       if (!drawn || !r) fails.push('HP-1 Z did not open Leaderboards with the server\'s rows');
-      /* Tyler 2026-11-01: "Just leaderboards is fine": the window's title and its icon's name. */
-      const named = await page.evaluate(() => [document.querySelector('[data-hs-win="honor"] .hs-win-title').textContent, document.querySelector('.hs-launch[data-hs-open="honor"]').getAttribute('aria-label')]);
-      if (named[0] !== 'Leaderboards' || named[1] !== 'Leaderboards (Z)') fails.push('HP-1 the window is named ' + JSON.stringify(named));
+      /* Tyler 2026-11-01: "Just leaderboards is fine": the window's title, and its line's name and key in the bar's Social menu (tests/_bar.mjs). */
+      const title = await page.evaluate(() => document.querySelector('[data-hs-win="honor"] .hs-win-title').textContent);
+      await page.click('.hs-launchers [data-hs-group="' + groupOf('honor') + '"]', { timeout: 2500 }).catch(() => null);
+      const line = await page.evaluate(() => { const b = document.querySelector('.hs-launch-menu [data-hs-open="honor"]');
+        return b ? [b.querySelector('.hs-launch-label').textContent, (b.querySelector('.hs-launch-key') || {}).textContent] : null; });
+      if (await page.$('.hs-launch-menu')) await page.keyboard.press('Escape');   // Esc over the menu shuts it alone (tests/top-bar.mjs TB-4)
+      const named = [title].concat(line || []);
+      if (named.join('|') !== 'Leaderboards|Leaderboards|Z') fails.push('HP-1 the window and its line are named ' + JSON.stringify(named));
       else {
         const got = r.lines.map((l) => [l.place, l.name, l.value, l.xp].join(' ')).join(' | ');
         const want = '1st Wennet Level 12 90,210 XP | 2nd Osric Level 9 40,000 XP | 2nd Maela Level 9 40,000 XP | 4th Tyler Level 6 9,001 XP';

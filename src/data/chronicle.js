@@ -4,8 +4,8 @@
 // Tyler 2026-11-16, "Yeah build the chronicle": a lore book that fills in as you play, the Book's first tab
 // (src/shell/windows/wiki.js). The story is the living-world one on the priority board (the Road North, approved 11-11,
 // and its facts are canon), told page by page in the order a hero walks it. Every word is a row of
-// src/data/text/chronicle.js: `<id>_title`, `<id>_teaser` (what a shut page says about itself) and `<id>_page` (the
-// story, paragraphs split by a blank line).
+// src/data/text/chronicle.js: `title_<id>`, `teaser_<id>` (what a shut page says about itself), `page_<id>` (the
+// story, paragraphs split by a blank line) and, for a page a fight opens, `opens_<id>`.
 //
 // A PAGE OPENS ON THE SERVER'S WORD, NEVER THE CLIENT'S (CLAUDE.md §6). `open` names what opens it:
 //   { kind: 'start' }                     open from the first minute

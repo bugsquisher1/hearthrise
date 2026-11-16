@@ -86,7 +86,7 @@ async function check(base) {
 }
 
 const MUTANTS = [
-  { name: 'a window row with no renderer', file: FILES.windows, from: 'Object.freeze([\n', to: "Object.freeze([\n  Object.freeze({ id: 'ghost', label: 'Ghost', key: 'g', glyph: 'uiSettings', width: 300, object: 'plain' }),\n", want: 'window row `ghost`' },
+  { name: 'a window row with no renderer', file: FILES.windows, from: 'export const SHELL_WINDOWS = Object.freeze([\n', to: "export const SHELL_WINDOWS = Object.freeze([\n  Object.freeze({ id: 'ghost', label: 'Ghost', key: 'g', glyph: 'uiSettings', width: 300, object: 'plain' }),\n", want: 'window row `ghost`' },
   { name: 'a widget row with no renderer', file: FILES.widgets, from: 'Object.freeze([\n', to: "Object.freeze([\n  Object.freeze({ id: 'ghost', label: 'Ghost', layer: 'world', anchor: 'tl', dx: 0, dy: 0, min: [1, 1], opacity: 1, visible: true, removable: true, when: 'always', phone: {} }),\n", want: 'widget row `ghost`' },
   { name: 'a window renderer with no row', file: FILES.renderers, from: 'export const WINDOW_RENDERERS = Object.freeze({\n', to: 'export const WINDOW_RENDERERS = Object.freeze({\n  ghost: () => \'<p>x</p>\',\n', want: 'window renderer `ghost`' },
   { name: 'a widget renderer with no row', file: FILES.renderers, from: 'export const WIDGET_RENDERERS = Object.freeze({\n', to: 'export const WIDGET_RENDERERS = Object.freeze({\n  ghost: () => \'<p>x</p>\',\n', want: 'widget renderer `ghost`' },

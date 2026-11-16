@@ -35,6 +35,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { pressBar } from './_bar.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -126,7 +127,7 @@ async function checks(overrides) {
     await page.keyboard.press('u');
     await page.waitForTimeout(400);
     const hud = await page.evaluate(() => !!document.querySelector('[data-hs-wshow="events"]'));
-    await page.click('[data-hs-open="settings"]');
+    await pressBar(page, 'settings');
     await page.waitForTimeout(500);
     const settings = await page.evaluate(() => { const r = document.querySelector('[data-row="panel.events"]'); return !!r && !r.hasAttribute('hidden'); });
     return { hud, settings };

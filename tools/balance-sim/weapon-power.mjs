@@ -106,4 +106,14 @@ if (isMain(import.meta.url)) {
     const M = Object.fromEntries(P.spawnsOf('pauper_vaults').map((s) => [s.monster, can.map((id) => [id, P.blow(line.WEAPON_SAMPLE[id].row, mods.MONSTERS[s.monster], L).e]).sort((a, b) => b[1] - a[1])[0][0]]));
     if (can.length > 1) console.log('  ' + fam + ' @' + L + ' best blow by monster at the Vaults: ' + JSON.stringify(M));
   }
+  /* the Mage bar (tests/weapon-line.mjs WL9, style-gear SG-8's 1.3): max hit on a zero-defence foe, Magic and Melee at the Level */
+  console.log('\nTHE MAGE ON THE LINE (wand on the line, Duskwood Codex, full Duskweave) OVER A WARHAMMER ON THE LINE, max hit, the bar 1.3');
+  const robes = ['duskweave_helmet', 'duskweave_body', 'duskweave_pants', 'duskweave_boots', 'duskweave_gloves', 'duskweave_belt'];
+  for (const L of [88, 110, 125, 145, 165, 185, 200]) {
+    const items = { ...mods.ITEMS, __wand: P.lineRow('wand', L), __hammer: P.lineRow('warhammer', L) };
+    const mh = (eq) => mods.combat.playerCombatRolls({ def: 0, tier: 1 }, { items, equipment: eq, skills: { melee: mods.skillXpForLevel('melee', L), magic: mods.skillXpForLevel('magic', L) },
+      profile: mods.deriveProfile(items[eq.weapon].weaponType) }).maxHit;
+    const m = mh({ weapon: '__wand', shield: 'duskwood_codex', ...Object.fromEntries(robes.map((d) => [mods.ITEMS[d].slot, d])) }), h = mh({ weapon: '__hammer' });
+    console.log('  Level ' + L + ': Mage ' + m + ', warhammer ' + h + ', ' + (m / h).toFixed(2));
+  }
 }

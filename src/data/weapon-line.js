@@ -65,7 +65,7 @@ export function lineWeapon(family, reqLv) {
 
 /* ── THE SAMPLE OF FIVE. Wyvern Roost's sword (its one red), and the Pauper Vaults' Melee: two swords that split one budget two
    ways, the hatchets and the warhammer. Shape as the armor line's sample: `row` is the item row as it would ship, `family` the
-   line it sits under (its Dawnsteel base copies every field but its own), `attr` the special-attributes.js attribute and key,
+   line it sits under (its Dawnsteel base copies every field but its own), `attr` the special-attribute catalogue's attribute and key,
    `spend` how it spends the budget (the identity, one line), `source` where it drops (`ch` a kill, proposed: about one every 15
    hours for a lone hero at the floor at 172 kills an hour, by the monster's share of the spawn, as the armor line's; the drop
    guard fits it when the rows go in), `use` what catalogue-coherence files it under, `text` the item card's line. Every bane

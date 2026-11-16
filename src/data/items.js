@@ -15,6 +15,7 @@ import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.132';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.132';
 import { foldRows } from './grounds/shape.js?v=0.2.132';
 import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.132';
+import { CHEST_ITEM_ROWS } from './chests.js?v=0.2.132';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -56,6 +57,8 @@ export const ITEMS={
   ...SHIELD_ITEMS,
   /* The training items (src/data/training.js, Tyler 2026-11-14): one a combat skill in 12 and 24 hours, the Arms Master's for gold and the Crowns store's bound copy. New ids only. */
   ...TRAINING_GEAR_ITEM_ROWS,
+  /* The Burning Tower's chest (src/data/chests.js, Tyler 2026-11-14): the four keys a landing mints and the Tower Cinders the chest pays. Bound to the account. New ids only. */
+  ...CHEST_ITEM_ROWS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool

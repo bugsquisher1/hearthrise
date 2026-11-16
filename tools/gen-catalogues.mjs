@@ -125,7 +125,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    APPLIED history. Sixteen new hr_items rows: a Training Sword, Bow, Wand and Shield in 12 and 24 hours, each the Arms Master's tradable
    row (book value its price / 100) and the Crowns store's bound copy (`_bound`, tradeable false, value 0: every trade surface refuses it),
    in ONE forward file, the same full delete+insert replace. No other row moves. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-23-training-gear-items-catalogue.generated.sql');
+/* THE BURNING TOWER'S CHEST (lane/c-tower-chest, Tyler 2026-11-14; src/data/chests.js): 2027-04-23-training-gear-items-catalogue is the file
+   before this one (STAGED with lane/c-training-gear) and this one carries it. Five new hr_items rows, the four Tower keys and the Tower Cinders
+   (bound, value 0: every trade surface refuses them), and the Cinders' Inner Flame rung (hr_activities artisan:fuel_tower_cinders, src/data/
+   hearth.js HEARTH_FUELS), in ONE forward file, the same full delete+insert replace. No other row moves. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-27-tower-chest-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1295,7 +1299,8 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* TEMPERING'S MATERIAL (lane/c-temper-craft, 2026-11-05): 2027-02-25-houndskin is APPLIED history; the mixes' bars and bones. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, 2026-11-05): 2027-02-28-temper-craft is APPLIED history; the two rolled jobs' inputs. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-14-jewelry-bench-inputs is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches land in ONE forward file. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-bench-inputs.generated.sql');
+/* THE BURNING TOWER'S CHEST (lane/c-tower-chest): 2027-03-27-phase0-tier4-bench-inputs is APPLIED history; the Tower Cinders' Inner Flame bench (fuel_tower_cinders) lands in ONE forward file. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-04-27-tower-chest-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

@@ -34,10 +34,15 @@
 export const SESSION_MODES = Object.freeze({
   /* Every ground today. A death takes the full 6% and uses the Blessings up. */
   hunt: Object.freeze({ id: 'hunt', deathLossPm: 1000, blessings: true, xpPm: 1000, coin: true, drops: true, bestiary: true, stamina: true }),
-  /* The Burning Tower (Tyler 2026-11-14): "it spits you out". A death takes nothing and leaves the Blessings alone. About half
-     the XP of an hour's hunting: 200 permille a kill (the designer's fit of Tyler's "start 50% exp", the board's §7), no coin,
-     no drops, no Bestiary. Stamina drains. */
-  tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 200, coin: false, drops: false, bestiary: false, stamina: true }),
+  /* The Burning Tower (Tyler 2026-11-14): "it spits you out". A death takes nothing and leaves the Blessings alone. No coin, no
+     drops, no Bestiary. Stamina drains. XP: Tyler's "start 50% exp" (the board's §7: an hour against an hour, between 35 and 65% of
+     hunting for the median hero alone at the top Level measured, and no cell over hunting). The designer's 200 permille, fitted on
+     proxy rooms, read 0.24 on real climbs (lane/c-tower-climb); 375 is fitted on REAL climbs (lane/c-tower-chest,
+     `node tools/balance-sim/tower-climb.mjs --levels 10,20,30,45 --seeds 3 --starts -10,0,10 --who solo,pair,three,four`): the
+     median hero alone reads 0.44 of hunting at Level 45 (0.47 / 0.43 / 0.64 at 10 / 20 / 30), a party a head about a third,
+     the best of 96 cells, three seeds each (a Level 30 bow restarting on its top landing) 0.80, none over; the best skill cell 0.94 of a Training
+     Yard hour (the yard costs gold and no stamina). The player's words are src/data/text/tower.js `xp`. */
+  tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false, bestiary: false, stamina: true }),
 });
 
 /* The mode of every ground that names none. */

@@ -15,7 +15,7 @@ export const BAG_TEXT = Object.freeze({
   /* (The bulk tools beside it say the glossary's words: controls.sell_selected, deposit, lock / unlock, clear.) */
   /* Select outgrown (audit F18): the selection becomes the gear below what the hero wears in its slot, Rares in, locked stacks out. */
   select_outgrown: 'Select outgrown ({count})',
-  select_outgrown_tip: 'Gear below the tier you wear in its slot. Locked items stay out.',
+  select_outgrown_tip: 'Gear below your worn tier',
   /* A sale's confirmation: the Rares in it, and the stacks one sale leaves for the next press (64 a sale). */
   confirm_rares: 'Rares: {count}',
   confirm_remaining: { one: 'Remaining: {count} stack', other: 'Remaining: {count} stacks' },

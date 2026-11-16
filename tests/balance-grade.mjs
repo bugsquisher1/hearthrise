@@ -169,6 +169,14 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
   let refused = false;
   try { await buildGrid(ROOT, 'quick', { grounds: [open], openAlso: ['no_such_ground'] }); } catch { refused = true; }
   check(refused, 'as it ships: --open-also with no such ground is refused');
+  /* AN OPEN HALL STAYS OPEN (lane/a-grader-uniques): opening a staged ground keeps every open keyed hall's prize on the ladder (Krell's tier 7) */
+  const hallPrize = Object.values(G.OPEN_HALL_GROUNDS).flatMap((h) => h.pockets.flatMap((p) => p.spawns)).flatMap((s) => (MONSTERS[s.monster].drops || []).map((d) => d.id))
+    .filter((id) => gear && gear.reach.has(id));
+  if (staged.length && hallPrize.length) check(hallPrize.every((id) => gear.reachWith([staged[0]]).has(id)), 'as it ships: ' + hallPrize.length + ' open-hall prizes stay gettable with ' + staged[0] + ' opened');
+  /* --uniques: its own cell ids and gear on every ladder and store-food cell; the fresh hero keeps the start kit */
+  const uq = await buildGrid(ROOT, 'quick', { grounds: [open], uniques: true });
+  check(uq.length > 0 && uq.every((j) => j.id.includes(',uniq') && (j.grade.gear === 'practice' ? j.gear.starter === true && !j.gear.uniques : j.gear.uniques === true)),
+    'uniques: every cell id says ,uniq and every ladder cell wears the uniques kit (the practice cells the start kit)');
 }
 
 if (fails.length) { console.error('balance-grade: ' + fails.length + ' FAILED'); process.exit(1); }

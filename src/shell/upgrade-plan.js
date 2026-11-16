@@ -63,7 +63,8 @@ import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.132
 import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.132';
 import { itemName } from './widgets/bits.js?v=0.2.132';
 import { t } from '../render/player-text.js?v=0.2.132';
-import { reqHave, baneKindName } from './item-lore.js?v=0.2.132';
+import { reqHave } from './item-lore.js?v=0.2.132';
+import { baneKindName } from './bag-model.js?v=0.2.132';
 import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.132';
 import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.132';
 

@@ -4,7 +4,7 @@
 // One floating tooltip per page, shown on hover or keyboard focus of an item:
 //   the name in its rarity, what kind of thing it is, its line of flavour,
 //   its stats and — for gear — what changes against the piece worn in that
-//   slot, a bane's damage against its monster kind, what its armor weight gives, where it comes from, what it is for, what the shop pays for it
+//   slot (a bane, a resistance or a skill bonus among them), what its armor weight gives, where it comes from, what it is for, what the shop pays for it
 //   (the server's bid, never a client price), its lock and loot rule.
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
@@ -12,8 +12,7 @@
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.132';
 import { whole, gold } from '../../render/format.js?v=0.2.132';
 import { itemName } from '../widgets/bits.js?v=0.2.132';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.132';
-import { t } from '../../render/player-text.js?v=0.2.132';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords } from '../item-lore.js?v=0.2.132';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.132';
 import { planWords } from '../loot-dispatch.js?v=0.2.132';
 import { pieceWords } from '../../data/armour-weights.js?v=0.2.132';
@@ -34,15 +33,14 @@ function tipHtml(id, o) {
     + '<span class="hw-tip-kind">' + esc(kindWords(id)) + '</span>';
   const fl = flavourOf(id);
   if (fl) h += '<i class="hw-tip-flavour">' + esc(fl) + '</i>';
+  /* The ladder's numbers and the piece's own attribute (a bane, a resistance, a skill bonus) in the engine's numbers, one list
+     (designer re-read 2026-11-11: the Bramble Blade's tip said only +2/+2; bag-model.js specialStats). */
   const stats = statLines(id);
   if (stats.length) h += '<dl class="hw-tip-stats">' + stats.map((s) => '<dt>' + esc(s.label) + '</dt><dd>' + esc(s.text) + '</dd>').join('') + '</dl>';
   /* A crafted piece's perks (src/data/jewelry.js), each in what a player sees; each counts once on a hero, however many pieces carry it. */
   const perks = ITEMS[id] && ITEMS[id].jewelPerks ? Object.entries(ITEMS[id].jewelPerks) : [];
   if (perks.length) h += '<dl class="hw-tip-stats hw-tip-perks">' + perks.map(([p, pm]) => '<dt>' + esc(JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p) + '</dt><dd>' + esc(perkWords(p, pm)) + '</dd>').join('') + '</dl>'
     + '<p class="hw-tip-line"><small>Perks</small>Each perk counts once, however many pieces you wear with it.</p>';
-  /* A bane: what the weapon does against one kind of monster, the engine's own number (designer re-read 2026-11-11: the Bramble Blade's tip said only +2/+2). */
-  const banes = baneWords(id);
-  if (banes.length) h += '<p class="hw-tip-line hw-tip-bane"><small>' + esc(t('item.bane_label')) + '</small>' + esc(banes.join('. ')) + '</p>';
   if (stats.length && opt.worn !== undefined) {
     if (opt.worn === id) h += '<p class="hw-tip-cmp">You are wearing this.</p>';
     else {

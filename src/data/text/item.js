@@ -31,9 +31,12 @@ export const ITEM_TEXT = Object.freeze({
   kind_food: 'Food that heals {heals} health',
   kind_junk: 'Junk',
   kind_material: 'Material',
+  /* A piece's own attribute on its stat lines and its compare (src/shell/bag-model.js specialStats): the label beside its number. */
+  stat_bane: 'Damage to {kind} monsters',
+  stat_resist: '{element} damage taken',
+  stat_skill: '{skill} skill',
 
   /* A bane weapon: its damage against one kind of monster (src/core/bane.js). */
-  bane_label: 'Bane',
   bane_more: '+{pct}% damage to {kind} monsters',
 
   /* Where it comes from. */

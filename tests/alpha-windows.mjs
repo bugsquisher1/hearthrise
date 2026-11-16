@@ -1619,7 +1619,19 @@ async function planRules(base) {
       fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
-    if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
+    /* A PIECE'S OWN ATTRIBUTE IS ON ITS CARD AND ITS COMPARE (lane/d-coherence-fixes DISCOVERIES 1: Kingstooth read "-1 Melee damage" against the Iron Sword and the
+       Cauldron Lid "-1 Defense" against the Coppercap Shield, a side-grade shown as a loss): the stat lines and the compare carry the bane (the engine's clamped
+       number) and the resistance, a gain when the new piece has it and a loss when the worn one does, from the rows, so every unique gets it. */
+    const BM = await imp('src/shell/bag-model.js');
+    const said = (l) => l.map((x) => x.text + ' ' + x.label + (x.delta === undefined ? '' : x.delta > 0 ? ' (gain)' : ' (loss)')).join(', ');
+    for (const [got, want] of [
+      [said(BM.statLines('bramble_blade')), '+6 Melee accuracy, +5 Melee damage, +40% Damage to Plant monsters'],
+      [said(BM.statLines('cauldron_lid')), '+6 Defense, −10% Fire damage taken'],
+      [said(BM.compare('kingstooth', 'iron_sword')), '+1 Melee accuracy (gain), −1 Melee damage (loss), +10% Damage to Vermin monsters (gain)'],
+      [said(BM.compare('iron_sword', 'kingstooth')), '−1 Melee accuracy (loss), +1 Melee damage (gain), −10% Damage to Vermin monsters (loss)'],
+      [said(BM.compare('cauldron_lid', 'coppercap_shield')), '−1 Defense (loss), −10% Fire damage taken (gain)'],
+      [said(BM.compare('coppercap_shield', 'cauldron_lid')), '+1 Defense (gain), +10% Fire damage taken (loss)'],
+    ]) if (got !== want) fails.push('AW-21 a piece\'s own attribute: wanted "' + want + '", read "' + got + '"');
     const steelOverIron = plan({ weapon: 'practice_sword' }, [['iron_sword'], ['steel_sword']], lv1, 30);
     if (ops2(steelOverIron) !== '{"weapon":"steel_sword"}') fails.push('AW-21 of two better swords it would put on ' + ops2(steelOverIron));
     const LADDER = (await imp('src/data/style-gear.js')).STYLE_LADDER;
@@ -4775,6 +4787,9 @@ const MUTANTS = [
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
   ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
   ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
+  ['plans: AW-21 the card drops a piece\'s own attribute', 'src/shell/bag-model.js', '  for (const [k, label, v, kind] of specialStats(it)) out.push({ key: k, label, value: v, text: statText(kind, v) });\n', ''],
+  ['plans: AW-21 the compare drops a piece\'s own attribute', 'src/shell/bag-model.js', '  const mine = specialStats(a), theirs = new Map(specialStats(b).map((s) => [s[0], s]));', '  const mine = [], theirs = new Map();'],
+  ['plans: AW-21 the compare reads a resistance as a loss', 'src/shell/bag-model.js', "  if (kind === 'less') return (d > 0 ? '−' : '+') + pctWords(Math.abs(d));\n", ''],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',", "  shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',"],

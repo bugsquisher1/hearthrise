@@ -16,7 +16,8 @@
 //   sellPlan(items, ids)  the lines a bulk sale sends; LOCKED stacks are never named
 //   bagValue(items, bids) the bag's worth at the server's bids
 //   isNew / markSeen      the "new" mark (residue `bagSeen`, display only)
-//   statLines / compare   an item's stats in words, and the change against the worn one
+//   statLines / compare   an item's stats in words, and the change against the worn one: the ladder's numbers and
+//                         its own attribute (a bane, a resistance, a skill bonus: specialStats)
 //   equipSlotFor(id, eq)  the slot an item would go into
 //   riteOf / cookOf       the bench recipe that spends a whole stack (Fuel the hearth, Cook all)
 //   namedFuelOf(id)       a named Hearth fuel's row (src/data/hearth.js): burnt alone, never sold in bulk
@@ -37,6 +38,11 @@ import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.132';
 import { recipeInputs } from '../core/artisan.js?v=0.2.132';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.132';
 import { itemName } from './widgets/bits.js?v=0.2.132';
+import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.132';
+import { resistProfile } from '../core/elements.js?v=0.2.132';
+import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.132';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.132';
+import { t } from '../render/player-text.js?v=0.2.132';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -363,26 +369,75 @@ const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);
 const pctWords = (v) => (Math.round(v * 1000) / 10) + '%';
 const cutWords = (v) => Math.abs(v) / 10 + '%';
 
-/** An item's stats as [{ key, label, value, text }] (non-zero only). */
+/** A monster kind's name as the Bestiary says it: bane.js keys "extra_dimensional", the class table "extradimensional". */
+export function baneKindName(cls) {
+  const row = MONSTER_CLASSES[cls] || MONSTER_CLASSES[String(cls).replace(/_/g, '')];
+  return row ? row.name : String(cls);
+}
+
+/* THE PIECE'S OWN ATTRIBUTE (src/data/special-attributes.js's shape; lane/d-coherence-fixes DISCOVERIES 1: Kingstooth read "-1 Melee damage"
+   against the Iron Sword and the Cauldron Lid "-1 Defense" against the Coppercap Shield, their bane and their fire resistance nowhere on
+   the card or the compare). Every value is the one the engine plays (FORMULAS ARE PUBLIC): a bane through bane.js baneIndex and its
+   clamp baneMultFor, a resistance through core/elements.js resistProfile (the keys the engine reads, capped), a skill bonus from the
+   row's `skillB` (levels). Generic: any row carrying the field gets the line, a new unique needs no code. As [key, label, value, kind]
+   in the STATS order's sense; `value` is a fraction of damage (bane: more dealt, `less`: less taken) or whole levels. */
+function specialStats(it) {
+  const out = [];
+  if (!it) return out;
+  const ix = baneIndex({ worn: 'piece' }, { piece: it });
+  for (const c of BANE_CLASSES) {
+    const m = baneMultFor(c, ix);
+    if (m > 1) out.push(['bane:' + c, t('item.stat_bane', { kind: baneKindName(c) }), m - 1, 'pct']);
+  }
+  for (const [e, pm] of Object.entries(resistProfile(it.resistPm) || {})) out.push(['resist:' + e, t('item.stat_resist', { element: t('monster.el_' + e) }), pm / 1000, 'less']);
+  const sk = it.skillB && typeof it.skillB === 'object' ? it.skillB : {};
+  for (const s of Object.keys(sk)) if (Object.prototype.hasOwnProperty.call(SKILLS_DEF, s) && Number.isFinite(sk[s]) && sk[s]) out.push(['skill:' + s, t('item.stat_skill', { skill: SKILLS_DEF[s].name }), sk[s], 'num']);
+  return out;
+}
+
+/* One stat's words: `cut` permille less taken (steadyPm), `less` a fraction less taken, `pct` a fraction, else whole numbers. */
+function statText(kind, v) {
+  if (kind === 'cut') return '−' + cutWords(v);
+  if (kind === 'less') return '−' + pctWords(v);
+  return (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v);
+}
+/* One stat's change in words: `cut` and `less` are a gain when there is MORE of them (less taken), shown with a minus. */
+function deltaText(kind, d) {
+  if (kind === 'cut') return (d > 0 ? '−' : '+') + cutWords(d);
+  if (kind === 'less') return (d > 0 ? '−' : '+') + pctWords(Math.abs(d));
+  return (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d));
+}
+
+/** An item's stats as [{ key, label, value, text }] (non-zero only): the ladder's numbers, then its own attribute (specialStats). */
 export function statLines(id) {
   const it = ITEMS[id];
   const out = [];
   for (const [k, label, kind] of STATS) {
     const v = statValue(it, k);
     if (!v) continue;
-    out.push({ key: k, label, value: v, text: kind === 'cut' ? '−' + cutWords(v) : (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v) });
+    out.push({ key: k, label, value: v, text: statText(kind, v) });
   }
+  for (const [k, label, v, kind] of specialStats(it)) out.push({ key: k, label, value: v, text: statText(kind, v) });
   return out;
 }
 
-/** The change wearing `id` instead of `worn` makes, stat by stat: [{ label, delta, text }]. */
+/** The change wearing `id` instead of `worn` makes, stat by stat: [{ label, delta, text }]. An attribute only one of the two
+    carries is a whole gain or a whole loss (Kingstooth against the Iron Sword: +10% damage to Vermin monsters). */
 export function compare(id, worn) {
   const a = ITEMS[id], b = worn ? ITEMS[worn] : null;
   const out = [];
   for (const [k, label, kind] of STATS) {
     const d = statValue(a, k) - statValue(b, k);
     if (Math.abs(d) < 1e-9) continue;
-    out.push({ label, delta: d, text: kind === 'cut' ? (d > 0 ? '−' : '+') + cutWords(d) : (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d)) });
+    out.push({ label, delta: d, text: deltaText(kind, d) });
+  }
+  const mine = specialStats(a), theirs = new Map(specialStats(b).map((s) => [s[0], s]));
+  const rows = mine.concat([...theirs.values()].filter((s) => !mine.some((m) => m[0] === s[0])));
+  for (const [k, label, , kind] of rows) {
+    const own = mine.find((m) => m[0] === k), was = theirs.get(k);
+    const d = (own ? own[2] : 0) - (was ? was[2] : 0);
+    if (Math.abs(d) < 1e-9) continue;
+    out.push({ label, delta: d, text: deltaText(kind, d) });
   }
   return out;
 }

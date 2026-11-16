@@ -99,8 +99,8 @@ export function refusalText(r, cs) {
   /* The factions: the server's standing, swap time and cooldown in their sentences (faction-words.js). */
   const faction = factionRefusal(r, cs);
   if (faction) return faction;
-  /* The Burning Tower and the Hearth Chest: the hero's own name, the day's keys (tower-words.js). */
-  const tower = towerRefusal(r, cs ? nameOf(cs) : null);
+  /* The Burning Tower and the Hearth Chest: the day's and the week's keys, as labels (tower-words.js). */
+  const tower = towerRefusal(r);
   if (tower) return tower;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {

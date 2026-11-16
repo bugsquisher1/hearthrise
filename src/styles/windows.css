@@ -1272,7 +1272,7 @@
 .tt-start:focus-visible, .tc-pick:focus-visible, .tc-stoke:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .tt-start:disabled, .tc-pick:disabled, .tc-stoke:disabled { opacity: .5; cursor: default; }
 .tc-key { margin: 4px 0 8px; }
-.tc-stoke-head { margin: 8px 2px 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
+.tc-stoke-head, .tc-fam-name { margin: 8px 2px 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
 .tc-chance, .tt-start-on { margin: 6px 2px 4px; font-weight: 700; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .tc-chance:empty, .tt-start-on:empty { display: none; }
 .tt-result { margin: 0 0 8px; padding: 6px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }

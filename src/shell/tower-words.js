@@ -21,8 +21,12 @@ export const towerDoorHtml = () => '<p class="hv-tower" hidden><span>' + esc(t('
 /** A chance in parts per million as a player reads it ("16%", "2.4%"), or '' when the server sent none. */
 export const ppmWords = (ppm) => (num(ppm) ? chance(ppm / 1000000) : '');
 
-/** "a bow", by the server's family id; a family this client has no words for reads as its id spelled out. */
+/** "Bow", by the server's weapon family id; a family this client has no words for reads as its id spelled out. */
 export const familyWord = (id) => (hasText('tower.family_' + id) ? t('tower.family_' + id) : String(id || '').replace(/_/g, ' '));
+
+/** "Tower keys", by the server's KEY family id (Tyler 2026-11-16: tower, catacomb, later more); an id this client has no words for
+    reads as its id spelled out, so a new family the server adds still draws its row. */
+export const keyFamilyWord = (id) => (hasText('tower.key_family_' + id) ? t('tower.key_family_' + id) : String(id || '').replace(/_/g, ' '));
 
 /** How many stokes, as a button says it ("None", "Once", "Twice", "3 times"). */
 export const stokeLabel = (n) => (n === 0 ? t('tower.stoke_none') : n === 1 ? t('tower.stoke_1') : n === 2 ? t('tower.stoke_2') : t('tower.stoke_n', { count: n }));
@@ -68,16 +72,19 @@ export function climbEndLines(tw, card, towerHunt) {
 }
 const keyName = (tw, id) => { const k = tw && tw.chest ? tw.chest.keys.find((x) => x.key === id) : null; return k ? k.name || itemName(k.item) : null; };
 
-/** A Tower refusal that carries the server's numbers or needs the Tower's own words, in a sentence, or null (the shared table says it). */
-export function towerRefusal(r, name) {
+/**
+ * A Tower refusal that carries the server's numbers or needs the Tower's own words, as a label, or null (the shared table says it).
+ * TODO(lane/c-tower-chest KEY-FAMILIES): `week_limit` { opened, max } is this window's PROPOSED name for the weekly per-family open cap
+ * (Tyler 2026-11-16); the chest lane renames it here when its refusal lands. `day_limit` is the server's today.
+ */
+export function towerRefusal(r) {
   if (!r || !VERBS.includes(r.verb)) return null;
-  const who = typeof name === 'string' && name ? name : t('training.your_hero');
   if (r.error === 'bad_floor') return t('tower.bad_floor');
   if (r.error === 'in_party') return t('tower.off_party');
-  if (r.error === 'hunt_open' || r.error === 'activity_running') return t('tower.off_hunting', { name: who });
-  if (r.error === 'in_hunt') return t('tower.off_out', { name: who });
+  if (r.error === 'hunt_open' || r.error === 'activity_running' || r.error === 'in_hunt') return t('tower.off_hunting');
   if (r.error === 'no_key') return t('tower.off_no_key');
   if (r.error === 'day_limit' && num(r.max)) return t('tower.off_day', { max: r.max });
+  if (r.error === 'week_limit' && num(r.max)) return t('tower.off_week', { max: r.max });
   if (r.error === 'chest_not_ready') return t('tower.not_ready');
   return null;
 }

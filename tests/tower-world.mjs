@@ -134,8 +134,8 @@ try {
   const chest = await p.page.evaluate(() => ({ have: document.querySelector('[data-hs-win="tower"] .tc-have')?.textContent, chance: document.querySelector('[data-hs-win="tower"] .tc-chance')?.textContent,
     use: document.querySelector('[data-hs-win="tower"] .tc-use')?.disabled }));
   const sec = (await sql('select public.hr_tower_section($1, 0)->\'chest\'->\'keys\'->0 as k', [uid]))[0].k;
-  const want = 'Your chance is ' + Number((sec.chance_ppm / 10000).toPrecision(2)) + '%.';
-  step('TOW-4 the chest shows the minted key and the server\'s chance', chest.have === 'Bronze Key. You have 1.' && chest.chance === want && chest.use === false, JSON.stringify({ chest, want }));
+  const want = 'Your chance: ' + Number((sec.chance_ppm / 10000).toPrecision(2)) + '%';
+  step('TOW-4 the chest shows the minted key and the server\'s chance', chest.have === 'Bronze Key: 1' && chest.chance === want && chest.use === false, JSON.stringify({ chest, want }));
   await p.shot('tower-chest-1440x900');
   const cinders0 = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_cinders'`, [uid]);
   await p.page.click('[data-hs-win="tower"] .tc-use');
@@ -181,7 +181,7 @@ try {
   await openTower('climb');
   const best2 = await p.page.evaluate(() => document.querySelector('[data-hs-win="tower"] .tt-best')?.textContent);
   const bestRow = (await sql('select best_floor from public.tower_progress where user_id = $1', [uid]))[0];
-  step('TOW-5 the window\'s best is the server\'s', best2 === 'Your best is floor ' + bestRow.best_floor + '.', JSON.stringify({ best2, bestRow }));
+  step('TOW-5 the window\'s best is the server\'s', best2 === 'Best floor: ' + bestRow.best_floor, JSON.stringify({ best2, bestRow }));
   await p.page.setViewportSize({ width: 922, height: 423 });
   await p.page.waitForTimeout(800);
   await p.shot('tower-climb-922x423');

@@ -10,8 +10,17 @@
 //     run { session, start, top, floors, floor } | null,
 //     last { session, start, top, floors, end_reason, ended_at, keys [{ landing, key }] } | null,
 //     chest { on, dry, opens, today, max_day, per_call, own_pm, own_family, warmth_pm, cinders { bag, storage },
-//             keys [{ key, item, name, from, held { bag, storage }, base_pm, chance_ppm, stokes_default, stokes [{ n, pm, cost }],
-//                     inside { item: qty }, ready, skill_plus }] } }
+//             keys [{ key, item, name, from, family, held { bag, storage }, base_pm, chance_ppm, stokes_default, stokes [{ n, pm, cost }],
+//                     inside { item: qty }, ready, skill_plus }],
+//             families [{ family, opened_week, max_week, held, max_held }] } }   <- PROVISIONAL, see KEY FAMILIES below
+//
+// KEY FAMILIES (Tyler 2026-11-16, rulings-of-record): every key belongs to a family (tower, catacomb, later more); the weekly cap is CHESTS
+// OPENED per hero per family (6), not keys earned, and a hero holds at most about 30 keys of a family. The server half is
+// lane/c-tower-chest's, in flight: origin/lane/c-tower-chest (50b37bc0b) has no field names for it yet.
+// TODO(lane/c-tower-chest KEY-FAMILIES): the names `family` (key row) and `families` / `opened_week` / `max_week` / `held` / `max_held`
+// (chest) are this window's PROPOSAL, read in ONE place (familyOf / keyOf below). Until the server sends them every reader
+// answers null and the window draws no cap line and gates nothing on it (it never guesses a 6 or a 30); when the chest lane lands
+// its projection, rename here and in tests/tower-window.mjs section() and nothing else moves.
 // Every envelope replaces it, and nothing here holds a number of its own (CLAUDE.md §6). A row that is not the server's shape is
 // dropped, never mended: the window shows less, never something the server did not say. A number the server did not send is null.
 // ════════════════════════════════════════════════════════════════════════
@@ -73,6 +82,16 @@ function stokeOf(s) {
   return Object.freeze({ n: s.n, pm: s.pm, cost: s.cost });
 }
 
+/* One key family's week as the server states it (PROVISIONAL names, KEY FAMILIES above): chests opened this week and the cap, keys held
+   (bag and Storage) and the limit. A row without its family id or its week numbers is not the server's shape and is dropped; the held
+   pair is optional on its own (null when the server sends none). */
+function familyOf(f) {
+  if (!isObj(f) || !word(f.family) || nat(f.opened_week) === null || pos(f.max_week) === null) return null;
+  const held = nat(f.held), maxHeld = pos(f.max_held);
+  return Object.freeze({ family: f.family, openedWeek: f.opened_week, maxWeek: f.max_week,
+    held: held !== null && maxHeld !== null ? held : null, maxHeld: held !== null && maxHeld !== null ? maxHeld : null });
+}
+
 function keyOf(k) {
   if (!isObj(k) || !word(k.key) || !word(k.item) || pos(k.from) === null) return null;
   const held = heldOf(k.held);
@@ -82,7 +101,7 @@ function keyOf(k) {
   if (isObj(k.inside)) for (const [id, q] of Object.entries(k.inside)) if (word(id) && pos(q) !== null) inside[id] = q;
   const def = nat(k.stokes_default);
   return Object.freeze({
-    key: k.key, item: k.item, name: name(k.name), from: k.from, held, heldAll: held.bag + held.storage,
+    key: k.key, item: k.item, name: name(k.name), from: k.from, family: word(k.family), held, heldAll: held.bag + held.storage,
     basePm: nat(k.base_pm), chancePpm: Number.isSafeInteger(k.chance_ppm) && k.chance_ppm >= 0 && k.chance_ppm <= 1000000 ? k.chance_ppm : null,
     /* the saved default must be a stoke count the server lists (or none) */
     stokesDefault: def === 0 || stokes.some((s) => s.n === def) ? def : null,
@@ -98,6 +117,9 @@ function chestOf(c) {
     ownPm: nat(c.own_pm), ownFamily: word(c.own_family), warmthPm: nat(c.warmth_pm),
     cinders, cindersAll: cinders ? cinders.bag + cinders.storage : null,
     keys: Object.freeze(c.keys.slice(0, 32).map(keyOf).filter(Boolean)),
+    /* one row a family, the first the server lists for an id kept (a repeat is not its shape) */
+    families: Object.freeze((Array.isArray(c.families) ? c.families : []).slice(0, 16).map(familyOf)
+      .filter((f, i, all) => f && all.findIndex((g) => g && g.family === f.family) === i)),
   });
 }
 
@@ -130,6 +152,9 @@ export function keyForLanding(tw, landing) {
   for (const k of tw.chest.keys) if (k.from <= landing && (!best || k.from > best.from)) best = k;
   return best;
 }
+
+/** The week of the family a key belongs to (chests opened, the cap, keys held, the limit), or null while the server sends none. Pure. */
+export const familyRow = (tw, k) => (tw && tw.chest && k && k.family ? tw.chest.families.find((f) => f.family === k.family) || null : null);
 
 /** A stoke count's row (cost, multiplier) for a key, or null (0 stokes has none). Pure. */
 export const stokeRow = (k, n) => (k ? k.stokes.find((s) => s.n === n) || null : null);

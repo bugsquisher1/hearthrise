@@ -44,9 +44,8 @@ export function floorPicked(sc, tw) {
 
 /** Why Enter is off now, said above it, or '' when the server is to judge. Only what the screen already knows from the server's record. */
 export function enterBlock(cs, tw, floor) {
-  const name = nameOf(cs) || t('training.your_hero');
   const h = huntOf(cs);
-  if (h && !h.ended) return t(h.huntId === tw.hunt ? 'tower.off_climbing' : 'tower.off_hunting', { name });
+  if (h && !h.ended) return t(h.huntId === tw.hunt ? 'tower.off_climbing' : 'tower.off_hunting');
   if (partyMembershipOf(cs)) return t('tower.off_party');
   if (floor === null || !tw.starts.includes(floor)) return t('tower.off_pick');
   return '';
@@ -107,14 +106,15 @@ function patchClimb(root, cs, tw, sc) {
   const death = root.querySelector('.tt-sum-death');
   prop(death, 'hidden', !free);
   text(death, free ? t('tower.sum_death') : '');
-  text(root.querySelector('.tt-sum-keys'), t('tower.sum_keys', { every: tw.rules.landingEvery, keys: Math.floor(tw.rules.weekBack / tw.rules.landingEvery) }));
+  /* no weekly EARN cap is said: Tyler 2026-11-16 put the cap on chests opened per key family, the Chest tab's line (KEY FAMILIES) */
+  text(root.querySelector('.tt-sum-keys'), t('tower.sum_keys', { every: tw.rules.landingEvery }));
   text(root.querySelector('.tt-xp'), tw.pays ? t('tower.xp_rule', { pct: tw.pays.xpPm / 10 }) : '');
   const floor = floorPicked(sc, tw);
   patchStarts(root.querySelector('.tt-starts'), tw, floor, sc.pending);
   text(root.querySelector('.tt-start-note'), tw.starts.length ? t('tower.start_note', { first: tw.starts[0] }) : '');
   text(root.querySelector('.tt-best'), tw.bestFloor > 0 ? t('tower.best', { floor: tw.bestFloor }) : t('tower.best_none'));
   const n = tw.landings.length;
-  text(root.querySelector('.tt-week'), n === 0 ? t('tower.week_none') : n === 1 ? t('tower.week_taken_one') : t('tower.week_taken', { count: n }));
+  text(root.querySelector('.tt-week'), t('tower.week_taken', { count: n }));
   text(root.querySelector('.tt-open'), tw.open.length ? t('tower.week_open', { list: floorList(tw.open) }) : '');
   const nextKey = tw.nextLanding !== null ? keyForLanding(tw, tw.nextLanding) : null;
   text(root.querySelector('.tt-next'), nextKey ? t('tower.week_next', { floor: tw.nextLanding, key: nextKey.name || '' }) : '');

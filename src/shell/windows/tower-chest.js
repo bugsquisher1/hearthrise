@@ -9,14 +9,17 @@
 //   and "Your chance", the server's chance_ppm at your SAVED stokes. A press on a stoke count SAVES it (hr_chest_stoke_default) and the
 //   chance shown is re-read from the server, so Use (hr_chest_open with p_stokes null: the saved default) can only send what you saw.
 //   What's always inside, the type you have equipped and how often it comes, the tower weapon's +skill.
-//   Use spends one key, Use all as many as the server's own numbers allow (held, the press's cap, the day's cap). Both are off, with why,
-//   while the hero is out, the key isn't held, its weapons aren't built, or the day's keys are used; the server judges the rest.
+//   KEY FAMILIES (Tyler 2026-11-16): each family the server lists (tower, catacomb, later more) has its own week: "Chests opened this
+//   week: N / 6" and "Keys held: N / 30", both the server's numbers (tower-sections.js familyOf; the field names are PROVISIONAL until
+//   lane/c-tower-chest lands them, TODO KEY-FAMILIES there). With no family row the pane draws no cap line and gates nothing on it.
+//   Use spends one key, Use all as many as the server's own numbers allow (held, the press's cap, the day's cap when the server sends
+//   one, the key family's week). Both are off, with why, while the hero is out, the key isn't held, its weapons aren't built, or the
+//   day's or the family's week of chests is used; the server judges the rest.
 // The answer of a press (each key's weapon or none, what came out) is drawn from the server's answer; the counts come back with the envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { keyRow, stokeRow } from '../../session/tower-sections.js?v=0.2.133';
+import { keyRow, stokeRow, familyRow } from '../../session/tower-sections.js?v=0.2.133';
 import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.133';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { nameOf } from '../../session/item-sections.js?v=0.2.133';
 import { CHESTS } from '../../data/chests.js?v=0.2.133';
 import { text, attr, prop, rows } from '../../render/paint.js?v=0.2.133';
 import { whole } from '../../render/format.js?v=0.2.133';
@@ -24,7 +27,7 @@ import { t } from '../../render/player-text.js?v=0.2.133';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
 import { runIntent } from '../intent-words.js?v=0.2.133';
 import { itemName } from '../widgets/bits.js?v=0.2.133';
-import { ppmWords, familyWord, stokeLabel, stokeWord, timesWords, haulWords } from '../tower-words.js?v=0.2.133';
+import { ppmWords, familyWord, keyFamilyWord, stokeLabel, stokeWord, timesWords, haulWords } from '../tower-words.js?v=0.2.133';
 
 /* The one chest today (src/data/chests.js CHESTS: a later chest is a row). */
 const CHEST_ID = Object.keys(CHESTS)[0];
@@ -38,11 +41,16 @@ export function keyPicked(sc, tw) {
   return held.find((k) => k.key === sc.key) || held[0] || null;
 }
 
-/** How many keys Use all spends: the held count, the press's cap and what's left of the day, by the server's numbers; 0 when unknown. Pure. */
+/** How many keys Use all spends: the held count, the press's cap, what's left of the day (when the server sends a day) and of the key
+    family's week (when it sends the family), by the server's numbers; 0 when the press's cap is unknown. Pure. */
 export function useAllCount(tw, k) {
   const c = tw && tw.chest;
-  if (!c || !k || c.perCall === null || c.maxDay === null || c.today === null) return 0;
-  return Math.max(0, Math.min(k.heldAll, c.perCall, c.maxDay - c.today));
+  if (!c || !k || c.perCall === null) return 0;
+  let n = Math.min(k.heldAll, c.perCall);
+  if (c.maxDay !== null && c.today !== null) n = Math.min(n, c.maxDay - c.today);
+  const f = familyRow(tw, k);
+  if (f) n = Math.min(n, f.maxWeek - f.openedWeek);
+  return Math.max(0, n);
 }
 
 /** Why Use is off now, said above it, or '' when the server is to judge. Pure over the server's record. */
@@ -50,8 +58,10 @@ export function useBlock(cs, tw, k) {
   const c = tw && tw.chest;
   if (!c || !k || k.heldAll < 1) return t('tower.off_no_key');
   const h = huntOf(cs);
-  if (h && !h.ended) return t('tower.off_out', { name: nameOf(cs) || t('training.your_hero') });
+  if (h && !h.ended) return t('tower.off_hunting');
   if (!k.ready) return t('tower.not_ready');
+  const f = familyRow(tw, k);
+  if (f && f.openedWeek >= f.maxWeek) return t('tower.off_week', { max: f.maxWeek });
   if (c.maxDay !== null && c.today !== null && c.today >= c.maxDay) return t('tower.off_day', { max: c.maxDay });
   return '';
 }
@@ -60,6 +70,7 @@ export function useBlock(cs, tw, k) {
 export function chestHtml() {
   return '<p class="hs-note tc-lead">' + esc(t('tower.chest_lead')) + '</p>'
     + '<p class="tt-line tc-cinders"></p>'
+    + '<div class="tc-fams"></div>'
     + '<p class="tt-line tc-none" hidden></p>'
     + '<div class="tc-keys" role="radiogroup" aria-label="' + esc(t('tower.keys_head')) + '"></div>'
     + '<section class="tc-key" hidden>'
@@ -67,7 +78,7 @@ export function chestHtml() {
     + '<p class="tt-line tc-base"></p><p class="tt-line tc-warm"></p>'
     + '<h4 class="tc-stoke-head">' + esc(t('tower.stoke_head')) + '</h4>'
     + '<div class="tc-stokes" role="radiogroup" aria-label="' + esc(t('tower.stoke_head')) + '"></div>'
-    + '<p class="hs-note tc-stoked"></p>'
+    + '<p class="hs-note tc-stoked"></p><p class="hs-note tc-stoke-short" hidden></p><p class="hs-note tc-stoke-saved"></p>'
     + '<p class="tt-line tc-own"></p><p class="tt-line tc-inside"></p><p class="hs-note tc-plus"></p><p class="hs-note tc-today"></p>'
     + '</section>'
     + '<div class="tt-result" hidden></div>'
@@ -108,6 +119,27 @@ function patchStokes(host, k, pending) {
   });
 }
 
+/* Each key family's week, the server's rows in its order: the family's name (only when it lists more than one), chests opened this week
+   against the cap, and keys held against the limit when it sends them. */
+function patchFamilies(host, families) {
+  const named = families.length > 1;
+  rows(host, families, {
+    key: (f) => f.family,
+    build: () => { const d = host.ownerDocument.createElement('div'); d.className = 'tc-fam';
+      d.innerHTML = '<h4 class="tc-fam-name"></h4><p class="tt-line tc-fam-week"></p><p class="tt-line tc-fam-held"></p>'; return d; },
+    patch: (d, f) => {
+      attr(d, 'data-family', f.family);
+      const head = d.querySelector('.tc-fam-name');
+      prop(head, 'hidden', !named);
+      text(head, named ? keyFamilyWord(f.family) : '');
+      text(d.querySelector('.tc-fam-week'), t('tower.week_opened', { count: whole(f.openedWeek), max: whole(f.maxWeek) }));
+      const held = d.querySelector('.tc-fam-held');
+      prop(held, 'hidden', f.held === null);
+      text(held, f.held !== null ? t('tower.keys_held', { count: whole(f.held), max: whole(f.maxHeld) }) : '');
+    },
+  });
+}
+
 /* The last press's answer: each key's weapon or none, and what came out (the server's answer, drawn once). */
 function patchResult(host, r) {
   prop(host, 'hidden', !r);
@@ -128,6 +160,7 @@ export function patchChest(pane, cs, tw, sc) {
   const held = heldKeys(tw);
   const k = keyPicked(sc, tw);
   text(pane.querySelector('.tc-cinders'), c && c.cindersAll !== null ? t('tower.cinders', { count: whole(c.cindersAll) }) : '');
+  patchFamilies(pane.querySelector('.tc-fams'), c ? c.families : []);
   const none = pane.querySelector('.tc-none');
   prop(none, 'hidden', !!k);
   text(none, k ? '' : t('tower.no_keys', { every: tw.rules.landingEvery }));
@@ -142,14 +175,15 @@ export function patchChest(pane, cs, tw, sc) {
     text(pane.querySelector('.tc-warm'), warm ? t('tower.key_warm', { count: c.dry, times: timesWords(c.warmthPm) }) : t('tower.key_cold'));
     patchStokes(pane.querySelector('.tc-stokes'), k, sc.pending);
     const st = k.stokesDefault ? stokeRow(k, k.stokesDefault) : null;
-    const lines = [];
-    if (st) {
-      lines.push(t('tower.stoked', { times: stokeWord(st.n), mult: timesWords(st.pm), cost: whole(st.cost), cinders: whole(c.cindersAll || 0) }));
-      if (c.cindersAll !== null && c.cindersAll < st.cost) lines.push(t('tower.stoke_short'));
-      lines.push(t('tower.stoke_saved', { key: k.name || itemName(k.item) }));
-    } else if (k.stokesDefault === 0) lines.push(t('tower.stoke_off'));
-    text(pane.querySelector('.tc-stoked'), lines.join(' '));
-    text(pane.querySelector('.tc-own'), c.ownFamily ? t('tower.own', { family: familyWord(c.ownFamily) }) : t('tower.own_none'));
+    /* one label a line: the saved stokes and their Cinders, short of Cinders, saved for the key */
+    text(pane.querySelector('.tc-stoked'), st ? t('tower.stoked', { times: stokeWord(st.n), mult: timesWords(st.pm), cost: whole(st.cost), cinders: whole(c.cindersAll || 0) })
+      : k.stokesDefault === 0 ? t('tower.stoke_off') : '');
+    const short = !!st && c.cindersAll !== null && c.cindersAll < st.cost;
+    prop(pane.querySelector('.tc-stoke-short'), 'hidden', !short);
+    text(pane.querySelector('.tc-stoke-short'), short ? t('tower.stoke_short') : '');
+    text(pane.querySelector('.tc-stoke-saved'), st ? t('tower.stoke_saved', { key: k.name || itemName(k.item) }) : '');
+    text(pane.querySelector('.tc-own'), c.ownFamily && c.ownPm !== null ? t('tower.own', { family: familyWord(c.ownFamily), pct: ppmWords(c.ownPm * 1000) })
+      : c.ownFamily ? '' : t('tower.own_none'));
     text(pane.querySelector('.tc-inside'), Object.keys(k.inside).length ? t('tower.inside', { list: haulWords(k.inside) }) : '');
     text(pane.querySelector('.tc-plus'), k.skillPlus !== null ? t('tower.skill_plus', { plus: k.skillPlus }) : '');
     text(pane.querySelector('.tc-today'), c.today !== null && c.maxDay !== null && c.today > 0 ? t('tower.today', { today: c.today, max: c.maxDay }) : '');

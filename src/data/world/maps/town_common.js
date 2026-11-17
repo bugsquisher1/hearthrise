@@ -80,6 +80,8 @@ export default Object.freeze({
      9465b065 -> 73d6bf6b: the Hearth's fuel corners and the market's stalls no longer mirror or repeat (lane/fix137-hearth-chest-art, Tyler
      2026-11-17: "symmetry is kind of weird"): the east woodpile and fire bucket became the chopping block and the charcoal sacks, the east
      split log went, the fourth stall became a trader's stock; the gate and harbour yards' twin crates and barrels became other props in place.
-     No way, stand or door moved; every open cell still reached */
-  maskHash: '73d6bf6b',
+     No way, stand or door moved; every open cell still reached
+     73d6bf6b -> 1adfc0d6: the square's six identical benches became two benches and a flower barrel, a hay bale, a bench and a stool at
+     uneven gaps over the same bench stands (three cells opened); no way, stand or door moved */
+  maskHash: '1adfc0d6',
 });

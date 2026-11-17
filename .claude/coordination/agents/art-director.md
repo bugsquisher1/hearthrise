@@ -3620,3 +3620,7 @@ Lessons: (1) an ambient row draws as an effect, after the light and with no shad
 shade; (2) a test that pins "left of the fire" pins a side, not the rule: assert "beside, never over" (tower-window besideFire);
 (3) to kill a stamped look, scan the placed rows (same sprite within 2 tiles, an evenly spaced run of 3+, mirror pairs) before eyeballing;
 (4) a solid prop moved anywhere in town moves the walk mask's hash AND the edge payload (maps/index.js is vendored by hunt-ground.js).
+Round 2 (the Coordinator's review): the square's six identical benches in two even rows became two benches and a flower barrel, a hay
+bale, a bench and a stool at uneven gaps (mask 73d6bf6b -> 1adfc0d6). Lesson: the bench STANDS are generated into server migrations
+(2027-01-28-town-stands.sql and the town-stations.generated files), so a seat row moves its props, never its stands; a stand south of an
+empty cell just stands.

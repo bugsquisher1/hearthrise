@@ -46,8 +46,12 @@ export const SCENERY = Object.freeze([
      west's chips where the logs are carried to the fire */
   ['fuel_log', 111, 48], ['bucket', 111, 49],
   ['sack_pile', 123, 45], ['square_decal_chips_b', 113, 51],
-  ['ty_bench_pair', 123, 55], ['ty_bench_pair', 125, 55], ['ty_bench_pair', 127, 55],
-  ['ty_bench_pair', 123, 58], ['ty_bench_pair', 125, 58], ['ty_bench_pair', 127, 58],
+  /* the square's seats over the bench stands (stations.js square_benches, x123-128 on y56 and y59: the stands are the server's, so the
+     seats move, never the stands): not two rows of three identical benches (lane/fix137-hearth-chest-art, the Coordinator's review), but a
+     sitting corner at uneven gaps: two benches and a flower barrel on the back row, a hay bale, a bench and a stool on the front, the two
+     rows' benches off each other's columns */
+  ['ty_bench_pair', 123, 55], ['barrel_planter', 125, 55], ['ty_bench_pair', 127, 55],
+  ['hay_bale', 123, 58], ['ty_bench_pair', 124, 58], ['table', 127, 58],
   ['square_decal_chips_a', 123, 48], ['square_decal_moss_a', 131, 59],
   ['square_decal_leaves_a', 110, 58], ['square_decal_tuft_a', 103, 59],
   ['lamppost', 101, 47],

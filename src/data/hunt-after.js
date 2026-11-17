@@ -53,6 +53,6 @@ export function validateAfter(choices = AFTER_CHOICES, def = AFTER_DEFAULT, grac
   if (!ids.has(def)) out.push('the default ' + def + ' is no choice');
   else if (choices.find((c) => c.id === def).runs === 'training') out.push('the default may not cost gold');
   if (!choices.some((c) => c.runs === 'nothing')) out.push('no choice waits in town');
-  if (!Number.isInteger(graceS) || graceS < 0 || graceS > 3600) out.push('the grace is not a whole number of seconds up to an hour');
+  if (!Number.isInteger(graceS) || graceS < 0 || graceS > 3600) out.push('grace: not whole seconds within an hour');
   return out;
 }

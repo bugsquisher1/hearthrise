@@ -18,12 +18,12 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.134';
-import { VITALS } from '../data/core-model.js?v=0.2.134';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.134';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.134';
-import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.134';
-import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.134';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.135';
+import { VITALS } from '../data/core-model.js?v=0.2.135';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.135';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.135';
+import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.135';
+import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.135';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -64,6 +64,12 @@ export function leaveAtOf(h) {
   return Number.isFinite(ms) ? ms : null;
 }
 
+/* A session's Call out series as the server wrote it: whole numbers, or null. */
+export function callOf(c) {
+  if (!isObj(c) || int(c.fights) === null || int(c.fight) === null || int(c.won) === null || c.fights < 1 || c.fight < 1 || c.won < 0) return null;
+  return { fights: c.fights, fight: c.fight, won: c.won, paidGold: int(c.paid_gold), paidStaminaMs: int(c.paid_stamina_ms) };
+}
+
 /** `hunt`: the session (and why it ended), the viewed hero's vitals and the instance's units (who is who). */
 export function huntOf(cs) {
   const h = section(cs, 'hunt');
@@ -84,6 +90,8 @@ export function huntOf(cs) {
     tier: isObj(h.session) && TIER_IDS.includes(h.session.tier) ? h.session.tier : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
+    /* A CALL OUT SERIES (hr_hunt_view `call`, 2027-04-24-boss-call-series.sql): the server's own count of fights and wins and what it charged; null on every other hunt. */
+    call: callOf(isObj(h.session) ? h.session.call : null),
     units: unitsOf(h.pose),
     /* the server instant the pose's units stand at (its last commit), or null */
     poseAtMs: isObj(h.pose) ? int(h.pose.at_ms) : null,
@@ -357,6 +365,18 @@ export function huntBestsOf(cs) {
     }
   }
   return { minMs: b.min_ms, grounds };
+}
+
+/**
+ * WHERE THE SERVER HAS SEEN THIS HERO HUNT (#58): every ground it holds a personal best on (`hunt_bests`), and its latest session's,
+ * ended too (the `hunt` section keeps it until the next hunt). Never "where it is now" alone. A Set of hunt ids, empty when the
+ * server said nothing. The tutorial's `visited` and the Chronicle's pages read this one answer.
+ */
+export function groundsSeenOf(cs) {
+  const seen = new Set(Object.keys((huntBestsOf(cs) || {}).grounds || {}));
+  const h = huntOf(cs);
+  if (h && h.huntId) seen.add(h.huntId);
+  return seen;
 }
 
 /**

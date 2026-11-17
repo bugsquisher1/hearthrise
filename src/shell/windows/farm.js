@@ -35,18 +35,18 @@
 // on the server's `ready`, never on the clock. Every control is off while an
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.134';
-import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.134';
-import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.134';
-import { CROPS } from '../../data/gathering.js?v=0.2.134';
-import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.134';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.134';
-import { whole, gold } from '../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.134';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.134';
-import { t, hasText } from '../../render/player-text.js?v=0.2.134';
-import { patchParts, targetOf } from '../goto.js?v=0.2.134';
+import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.135';
+import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.135';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.135';
+import { CROPS } from '../../data/gathering.js?v=0.2.135';
+import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.135';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.135';
+import { whole, gold } from '../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.135';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.135';
+import { t, hasText } from '../../render/player-text.js?v=0.2.135';
+import { patchParts, targetOf } from '../goto.js?v=0.2.135';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };
@@ -231,7 +231,7 @@ renderFarm.patch = function patchFarm(body, ctx) {
   /* The land's plots, then any EXTRA plot past them (the server's `extra`), in index order. */
   const extras = Array.from(land.plots.keys()).filter((i) => i >= land.cap).sort((a, b) => a - b);
   text(root.querySelector('.hw-farm-land'), t('farm.land_room', { count: land.cap })
-    + (extras.length ? ' ' + t('farm.land_extra', { count: extras.length }) : ''));
+    + (extras.length ? ' · ' + t('farm.land_extra', { count: extras.length }) : ''));
   const ids = Array.from({ length: land.cap }, (_, i) => i).concat(extras);
   rows(root.querySelector('.hw-field'), ids, { key: String, build: (i) => element(ctx.doc, plotHtml(i)), patch: (li, i) => patchPlot(li, i, st, now) });
   patchSow(root, st, ctx);
@@ -247,7 +247,8 @@ function harvestLine(r) {
   const rep = b.replant || null;
   /* Whole sentences, one after another. */
   const s = [t('farm.harvested', { qty: whole(b.qty), item: itemName(b.produce), xp: whole(b.xp) })];
-  if (b.extra) return s.concat(t('farm.harvested_extra_gone')).join(' ');
+  const said = (parts) => parts.map((x) => String(x).replace(/\.$/, '')).join('. ');
+  if (b.extra) return said(s.concat(t('farm.harvested_extra_gone')));
   if (b.withered) s.push(t('farm.harvested_withered'));
   else if (b.regrew) s.push(!Number.isInteger(b.regrows_left) ? t('farm.harvested_regrows')
     : b.regrows_left > 0 ? t('farm.harvested_regrows_n', { count: b.regrows_left }) : t('farm.harvested_regrows_last'));
@@ -256,7 +257,7 @@ function harvestLine(r) {
     s.push(rep.ok ? (rep.bought ? t('farm.replanted_bought', { price: gold(rep.bought) }) : t('farm.replanted'))
       : rep.error === 'cannot_afford' ? t('farm.not_replanted_price', { price: gold(rep.price) }) : t('farm.not_replanted', { why: farmWords(rep) }));
   }
-  return s.join(' ');
+  return said(s);
 }
 
 function run(sc, repaint, send, busy, done) {

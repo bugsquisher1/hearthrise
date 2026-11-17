@@ -22,6 +22,9 @@
 //              nothing by any blow, cast or hit, and a death is answered
 //   CT-FREE    the yard spends no supply: no store bill, no own use, the bar shut (a Ranger with store arrows loaded, every skill's hero
 //              taken to its floor by the dummy: no food bought)
+//   CT-NOBLOW  (Tyler 2026-11-16: a yard session ended "10 minutes without landing a blow") a bow with nothing loaded and an empty bag
+//              shoots the dummy past the no-fight span at the Ranged and Magic yards, browser closed (the tick's 10-minute cut) and
+//              viewed (10 s settles): no end, the exact rate paid; and a quiet stretch longer than the span ends no training session
 //   CT-DUMMY   damage.js: a blow that empties the dummy finds it whole and no kill; its blow at a hero on the floor lands nothing; any
 //              other monster is untouched
 //   CT-STAMINA a training window proposes no stamina and never ends `stamina`, on an empty pool too; a hunting ground still drains
@@ -50,6 +53,7 @@ async function loadAll(root) {
   return { root, play: await loadPlay(root),
     T: await import(u('src/data/training.js')),
     G: await import(u('src/data/hunt-grounds.js')),
+    S: await import(u('src/data/hunt-sessions.js')),
     H: await import(u('src/data/hunts.js')),
     M: await import(u('src/data/monsters.js')),
     MC: await import(u('src/data/monster-classes.js')),
@@ -70,7 +74,7 @@ function yard(X, skill, role, o = {}) {
   const res = X.play.run(id, o.L || 20, [role], { ground: X.G.TRAINING_GROUNDS[id], spanMs: o.spanMs || 20 * MINUTE, windowMs: o.windowMs || 60000, xpFrac: true,
     ...(o.session ? { session: o.session } : {}), ...(o.bag ? { bag: o.bag } : {}), ...(o.equipment ? { equipment: o.equipment } : {}),
     ...(Number.isInteger(o.density) ? { density: o.density } : {}),
-    onWindow: (w) => windows.push(w) });
+    onWindow: (w, mems) => { windows.push(w); if (o.onWindow) o.onWindow(w, mems); } });
   return { res, windows, members: windows.flatMap((w) => w.members) };
 }
 
@@ -164,6 +168,45 @@ async function guard(X) {
     if (res.store || uses || buys) bad.push(`CT-FREE the ${skill} yard spent: store ${res.store}, own uses ${uses}, buys ${buys}`);
   }
 
+  /* CT-NOBLOW (Tyler 2026-11-16: a yard session ended "10 minutes without landing a blow"): a bow with nothing loaded and an empty bag
+     shoots the dummy for free at the Ranged and the Magic yard, past the no-fight span, cut as the tick cuts it (browser closed) and
+     as a viewer's settles do; and a quiet stretch longer than the span (the stored world's last blow an hour before the hunt) ends
+     no training session */
+  {
+    const span = (X.S.NO_FIGHT_END_MIN + 4) * MINUTE, quietMs = X.S.NO_FIGHT_END_MIN * MINUTE;
+    const bare = { bag: () => ({}), equipment: (r, i, L) => { const k = { ...X.play.kitFor(L, r) }; delete k.ammo; return k; } };
+    /* a window's hero blows on the dummy (the units book names each unit's kind) */
+    const onDummy = (w) => (w.events || []).filter((e) => e.type === 'dmg' && w.units && w.units[e.t] && w.units[e.t][0] === dId);
+    /* THE QUIET CLOCK (damage.js landHit, the stored world's fightAt): the one integer of the world row equal to the window's last blow
+       on a monster, moved an hour before the hunt; true when it was found exactly once */
+    const fightAtBack = (w, t0) => {
+      const last = Math.max(...onDummy(w).map((e) => e.atMs));
+      const o = JSON.parse(w.world);
+      const at = o.w.flatMap((v, i) => (v === last ? [i] : []));
+      if (at.length !== 1) return false;
+      o.w[at[0]] = t0 - HOUR;
+      w.world = JSON.stringify(o);
+      return true;
+    };
+    for (const skill of ['ranged', 'magic']) {
+      for (const [cut, windowMs] of [['closed', 10 * MINUTE], ['viewed', 10000]]) {
+        let late = 0;
+        const { res, members } = yard(X, skill, 'ranger', { L: 30, spanMs: span, windowMs, ...bare,
+          onWindow: (w, mems) => { late += onDummy(w).filter((e) => e.atMs > mems[0].huntSession.huntFromMs + quietMs).length; } });
+        const xp = (res.heroXp.ranger0 || {})[skill];
+        const ends = members.filter((p) => p.hunt.ended).map((p) => p.hunt.ended.reason);
+        if (ends.length || res.playedMs !== span || xp !== rate * span / HOUR) bad.push(`CT-NOBLOW ${cut}: a bow with no arrows at the ${skill} yard ended ${JSON.stringify(ends)} after ${res.playedMs} ms, paid ${xp} (want no end, ${span} ms, ${rate * span / HOUR})`);
+        if (!(late > 0)) bad.push(`CT-NOBLOW ${cut}: a bow with no arrows landed no blow on the dummy past the no-fight span at the ${skill} yard`);
+      }
+    }
+    let quiet = false;
+    const { res, members } = yard(X, 'melee', 'melee_dps', { L: 30, spanMs: span, windowMs: 2 * MINUTE,
+      onWindow: (w, mems) => { const t0 = mems[0].huntSession.huntFromMs; if (!quiet && w.settledTo - t0 >= quietMs + 2 * MINUTE) quiet = fightAtBack(w, t0); } });
+    const ends = members.filter((p) => p.hunt.ended).map((p) => p.hunt.ended.reason);
+    if (!quiet) bad.push('CT-NOBLOW harness: the stored world\'s last-blow instant was not found');
+    if (ends.length || res.playedMs !== span) bad.push(`CT-NOBLOW a training session ${X.S.NO_FIGHT_END_MIN}+ quiet minutes in ended ${JSON.stringify(ends)} after ${res.playedMs} ms`);
+  }
+
   /* CT-DUMMY: damage.js on the dummy and from it */
   {
     const row = X.EM[dId];
@@ -232,7 +275,8 @@ const MUTANTS = [
   { name: 'the item time never runs out', edits: [['src/core/hunt/training.js', '    hs.trainBoostMs -= tickMs;\n', '']], want: /CT-BOOST/ },
   { name: 'the item time is never claimed', edits: [['src/core/hunt/training.js', '    hs.tally.boostMs = (Number(hs.tally.boostMs) || 0) + tickMs;\n', '']], want: /CT-BOOST|CT-TICK/ },
   { name: 'the yard\'s bar stays open', edits: [['src/core/combat-sim.js', 'slots: train ? TRAINING_SLOTS : m.hero.slots', 'slots: m.hero.slots']], want: /CT-FREE/ },
-  { name: 'the yard charges a shot', edits: [['src/core/hunt/abilities.js', '  if (trainingFree(inst && inst.ground)) return true;\n', '']], want: /CT-FREE/ },
+  { name: 'the yard\'s basic is the bar\'s: a bow waits for arrows and pays for a shot', edits: [['src/core/hunt/damage.js', '      if (yard) return yard;\n', '']], want: /CT-FREE|CT-NOBLOW/ },
+  { name: 'a training session ends after ten quiet minutes', edits: [['src/core/combat-sim.js', '    if (train) for (const m of members) m.hs.fightAtMs = null;\n', '']], want: /CT-NOBLOW/ },
   { name: 'the dummy falls', edits: [['src/core/hunt/damage.js', "  if (target.side === 'mon') dummyStands(rowOf(inst, target.kind), target);\n", '']], want: /CT-DUMMY/ },
   { name: 'the dummy\'s blow has no floor', edits: [['src/core/hunt/damage.js', "dummyBlow(source && source.side === 'mon' ? rowOf(inst, source.kind) : null, target, Math.min(target.hp, n - absorbed))", 'Math.min(target.hp, n - absorbed)']], want: /CT-DUMMY/ },
   { name: 'a training session drains stamina', edits: [['src/core/combat-sim.js', '  if (train) for (const m of members) m.hs.staminaMs = null;\n', '']], want: /CT-STAMINA/ },

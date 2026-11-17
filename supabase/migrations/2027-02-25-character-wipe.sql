@@ -16,7 +16,7 @@
 --   Then, 30 s later, read: select count(*) from public.player_state;   (players may have started again: heroes they made are theirs)
 --
 -- ── WHAT GOES, WHAT STAYS ────────────────────────────────────────────────────
---   GOES (c_wipe, 108 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
+--   GOES (c_wipe, 109 tables): heroes and every row keyed on one; the account's gold, Storage, house and land; names; parties;
 --     hunts and their instances, worlds and leases; the ledger and its rollup; chat lines, whispers and world notices (a line names a
 --     hero); presence, town bodies and the play cap's claims; the rate counters, refusal aggregates and intent journal; the tick's
 --     per-character rows; clans; the town snapshot (its own 25 s cron rebuilds it); bought hero slots (flag rows in player_progress);
@@ -80,6 +80,8 @@ declare
     'player_scaled_hours',
     /* a hero's training-item hours (2027-04-23-training-gear.sql): bought with gold or Crowns the wipe also clears */
     'player_training_gear',
+    /* a keyed hall's daily prize, the days each hero made its roll (2027-04-25-boss-daily.sql): a hero's, gone with it */
+    'player_boss_loot_day',
     /* the live-event announcer's record of the window edges it passed (2027-03-22-live-events.sql), with the System lines the wipe clears */
     'hr_live_event_notices',
     /* a hero's side, its standing, its days, its claims and the journal of them (2027-04-22-faction-standing.sql) */

@@ -2,15 +2,15 @@
   "id": "well",
   "class": "fixture",
   "style": "s1",
-  "material": "stone",
+  "material": "native",
   "source": "well.png",
   "frame": [
-    36,
-    43
+    39,
+    47
   ],
   "anchor_px": [
-    18,
-    42
+    19,
+    46
   ],
   "footprint": [
     1,
@@ -27,9 +27,8 @@
     }
   ],
   "pixellab": {
-    "tool": "create_image_pro_flash",
-    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
-    "cell": 3
+    "tool": "create_object_pro_flash",
+    "object": "80ea6463"
   },
-  "notes": "Cell 3 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "THE ONE WELL (lane/a-havora-art 2026-11-16; style audit #8: four wells in four looks): the drawing of hold/kh_well (PixelLab object 80ea6463, warm stone, a timber roof), copied here so Havora and Krell's Hold draw one well; the old cell-3 prop (cold grey, a thinner outline) is retired."
 }

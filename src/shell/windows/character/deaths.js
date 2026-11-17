@@ -8,13 +8,13 @@
 // event id (data-event) for the death explanation (src/hunt-view/death-explain.js).
 // Nothing here is the client's: no death is counted or priced in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNTS } from '../../../data/hunts.js?v=0.2.134';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.134';
-import { deathLogOf } from '../../../session/character-sections.js?v=0.2.134';
-import { rows, text, cls, attr, element } from '../../../render/paint.js?v=0.2.134';
-import { whole } from '../../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
-import { monsterName } from '../../widgets/bits.js?v=0.2.134';
+import { HUNTS } from '../../../data/hunts.js?v=0.2.135';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.135';
+import { deathLogOf } from '../../../session/character-sections.js?v=0.2.135';
+import { rows, text, cls, attr, element } from '../../../render/paint.js?v=0.2.135';
+import { whole } from '../../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { monsterName } from '../../widgets/bits.js?v=0.2.135';
 
 const HUNT_NAME = new Map(HUNTS.map((h) => [h.id, h.name]));
 
@@ -31,7 +31,7 @@ function whenWords(atMs, nowMs) {
 /** The Deaths tab's skeleton. */
 export function deathsHtml() {
   return '<section class="hw-cs-deaths"><ul class="hw-dl-list"></ul>'
-    + '<p class="hh-empty hw-dl-none">No deaths on record. The server keeps the deaths of your recent hunts.</p></section>';
+    + '<p class="hh-empty hw-dl-none">No deaths on record</p></section>';
 }
 
 /** Patch the Deaths tab. */

@@ -20,6 +20,10 @@
 //                        back as the same node (its <img> is never fetched again)
 //   keyedChild(host, key, build)  host shows the ONE child for `key`, built once;
 //                        '' empties it; a key that comes back gets its old node
+//   markup(host, html)   a host drawn from one markup string (the icon row): rebuilt only when the
+//                        string differs from the last one written here, never by comparing it with
+//                        host.innerHTML (the browser writes an SVG's <path/> back as <path></path>
+//                        and an &#39; as ', so that test was never equal and every paint rebuilt it)
 //
 // writes() counts every DOM write this module made (tests read it to prove an
 // unchanged repaint writes nothing). PURE apart from the elements it is handed.
@@ -28,6 +32,7 @@
 let WRITES = 0;
 const KEYED = new WeakMap();
 const KEPT = new WeakMap();   // host -> Map(key -> a row or child that left, ready to come back)
+const DRAWN = new WeakMap();  // host -> the markup string markup() last wrote into it
 
 /** How many DOM writes this module has made since load (a test probe). */
 export function writes() { return WRITES; }
@@ -134,6 +139,16 @@ export function keyedChild(host, key, build) {
   if (el) m.set(k, el);
   if (el ? host.childNodes.length === 1 && host.firstChild === el : !host.firstChild) return false;
   if (el) host.replaceChildren(el); else host.replaceChildren();
+  WRITES++;
+  return true;
+}
+
+export function markup(host, html) {
+  if (!host) return false;
+  const s = String(html);
+  if (DRAWN.get(host) === s) return false;
+  host.innerHTML = s;
+  DRAWN.set(host, s);
   WRITES++;
   return true;
 }

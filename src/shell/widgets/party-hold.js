@@ -18,11 +18,11 @@
 //     when the pick is far weaker than the strongest tank (the engine's own
 //     floor, targeting.js underHoldFloor, over the server's max HP).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.134';
-import { underHoldFloor } from '../../core/hunt/targeting.js?v=0.2.134';
-import { setHoldSeat } from '../../session/party-intents.js?v=0.2.134';
-import { runIntent } from '../intent-words.js?v=0.2.134';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.134';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.135';
+import { underHoldFloor } from '../../core/hunt/targeting.js?v=0.2.135';
+import { setHoldSeat } from '../../session/party-intents.js?v=0.2.135';
+import { runIntent } from '../intent-words.js?v=0.2.135';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.135';
 
 const isTank = (m) => !!(m.role && HUNT_ROLES[m.role] && HUNT_ROLES[m.role].tank);
 const FLOOR = Math.round(CHALLENGE.holderMinHpPm / 10) + '%';
@@ -32,23 +32,21 @@ export function turnWords(turn, healer) {
   if (turn === 'every') return 'Holds every lap';
   if (turn === 'now') return 'Holding this lap';
   if (turn === 'later-every') return 'Holds every lap from next lap';
-  if (turn === 'guard') return healer ? 'Guards your healer' : 'Guards the party';
+  if (turn === 'guard') return healer ? 'Guards the healer' : 'Guards the party';
   if (turn === 'weak') return 'Too weak to hold';
   return turn === 1 ? 'Holds next lap' : 'Holds in ' + turn + ' laps';
 }
 
 /* The note while the tanks take turns: the engine's count of tanks in the turns and out of them (in town, all in). */
 function turnsNote(rotation, weak) {
-  if (rotation > 1 && weak) return 'Your tanks take turns holding the pack, one lap each. A tank with under ' + FLOOR + ' of the strongest tank’s max health never holds.';
-  if (rotation > 1) return 'Your tanks take turns holding the pack, one lap each. '
-    + (rotation === 2 ? 'The other tank pulls' : 'The other tanks pull') + ' monsters off the rest of the party.';
-  return rotation === 1 && weak ? 'Your strongest tank holds the pack every lap. A tank with under ' + FLOOR + ' of its max health never holds.' : '';
+  if (rotation > 1 && weak) return 'Tanks take turns, one lap each, under ' + FLOOR + ' max health skipped';
+  if (rotation > 1) return 'Tanks take turns, one lap each';
+  return rotation === 1 && weak ? 'Strongest tank holds every lap, under ' + FLOOR + ' max health skipped' : '';
 }
 
 /* The note while one tank holds. */
 function holdNote(name, others) {
-  return name + ' holds the pack every lap. ' + (others.length === 1 ? others[0] + ' takes over' : 'Your other tanks take turns')
-    + ' if ' + name + ' leaves. Only ' + name + ' trains Defense from holding.';
+  return name + ' holds every lap, ' + (others.length === 1 ? others[0] + ' takes over if ' + name + ' leaves' : 'the others take turns if ' + name + ' leaves');
 }
 
 /**
@@ -95,7 +93,7 @@ export function patchHold(el, v, pending, doc) {
   const box = el.querySelector('.hp-hold');
   prop(box, 'hidden', !v.show);
   cls(box, 'is-read', !v.isLeader);
-  text(el.querySelector('.hp-hold-label'), v.isLeader ? 'Who holds the pack' : 'Who holds the pack (the leader chooses)');
+  text(el.querySelector('.hp-hold-label'), v.isLeader ? 'Who holds the pack' : 'Who holds the pack, leader picks');
   const off = !v.isLeader || pending;
   for (const [act, on] of [['hold-turns', !v.one], ['hold-one', v.one]]) {
     const b = el.querySelector('[data-hs-act="' + act + '"]');

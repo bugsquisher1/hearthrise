@@ -17,21 +17,21 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.134';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.134';
-import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.134';
-import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.134';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.134';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
-import { glyphSvg } from '../../launcher.js?v=0.2.134';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.134';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.134';
-import { needOf } from '../../item-lore.js?v=0.2.134';
-import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.134';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.134';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.134';
-import { showTip } from '../item-tip.js?v=0.2.134';
-import { t } from '../../../render/player-text.js?v=0.2.134';
+import { ITEMS } from '../../../data/items.js?v=0.2.135';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.135';
+import { bagOf, skillsOf, shopOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.135';
+import { wornWeights, weightSentence, WEIGHT_ORDER } from '../../../data/armour-weights.js?v=0.2.135';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { glyphSvg } from '../../launcher.js?v=0.2.135';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.135';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.135';
+import { needOf } from '../../item-lore.js?v=0.2.135';
+import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.135';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.135';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.135';
+import { showTip } from '../item-tip.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -75,7 +75,7 @@ export function slotLineHtml() {
   return '<div class="hw-slotline"><h3 class="hw-slothead"></h3>'
     + '<div class="hw-worn"><span class="hw-ico"></span><span class="hw-worn-name"></span><button type="button" class="hh-tool" data-hs-act="unequip">' + t('controls.unequip') + '</button></div>'
     + '<p class="hw-why hw-slot-why" role="status" aria-live="polite"></p>'
-    + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in your bag fits here.</p></div>';
+    + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in bag fits here</p></div>';
 }
 
 /* Bag stacks that fit an equip slot, best first by the change against what is worn. */

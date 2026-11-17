@@ -105,28 +105,29 @@ export const TRAINING_GEAR = Object.freeze({
   /* The id's word for each skill's item: training_<word>_<hours>h, and _bound after it for the Crowns store's copy. */
   words: Object.freeze({ melee: 'sword', ranged: 'bow', magic: 'wand', defense: 'shield' }),
   /* One line an item, its look (src/data/item-descriptions.js reads TRAINING_GEAR_DESC): the designer's line for the skill (the Arms
-     Master's rack, the archery lane, the rune corner, a shield that takes a beating), the size, and on the bound copy the hero's name. */
+     Master's rack, the archery lane, the rune corner, a shield that takes a beating), the 24 h one heavier, and on the bound copy the owner's
+     name. One short line, no rule in it: the hours are the item's name and its tooltip label (the label form, Tyler 2026-11-14). */
   flavour: Object.freeze({
     melee: Object.freeze({
-      12: 'A blunt sword from the Arms Master\'s own rack. It\'ll take half a day of your swings',
-      24: 'A blunt sword from the Arms Master\'s own rack, weighted to last a full day of your swings',
-      '12b': 'A blunt sword from the Arms Master\'s rack with your name burned into the grip. Half a day of drills',
-      '24b': 'A blunt sword from the Arms Master\'s rack with your name burned into the grip. A full day of drills' }),
+      12: 'A blunt sword from the Arms Master\'s own rack',
+      24: 'A weighted blunt sword from the Arms Master\'s own rack',
+      '12b': 'A blunt sword with its owner\'s name burned into the grip',
+      '24b': 'A weighted blunt sword with its owner\'s name burned into the grip' }),
     ranged: Object.freeze({
-      12: 'A heavy-draw bow from the archery lane. It\'ll take half a day of your shots before the string gives',
-      24: 'A heavy-draw bow from the archery lane with a spare string. It lasts a full day of your shots',
-      '12b': 'A heavy-draw bow from the archery lane with your name cut into the limb. Half a day of shots',
-      '24b': 'A heavy-draw bow from the archery lane with your name cut into the limb. A full day of shots' }),
+      12: 'A heavy-draw bow from the archery lane',
+      24: 'A heavy-draw bow from the archery lane, with a spare string',
+      '12b': 'A heavy-draw bow with its owner\'s name cut into the limb',
+      '24b': 'A heavy-draw bow and spare string, its owner\'s name on the limb' }),
     magic: Object.freeze({
-      12: 'A practice wand kept by the lectern in the rune corner. It holds half a day of your casting',
-      24: 'A thick practice wand kept by the lectern in the rune corner. It holds a full day of your casting',
-      '12b': 'A practice wand from the rune corner with your name etched near the tip. Half a day of casting',
-      '24b': 'A practice wand from the rune corner with your name etched near the tip. A full day of casting' }),
+      12: 'A practice wand kept by the lectern in the rune corner',
+      24: 'A thick practice wand kept by the lectern in the rune corner',
+      '12b': 'A practice wand with its owner\'s name etched near the tip',
+      '24b': 'A thick practice wand with its owner\'s name etched near the tip' }),
     defense: Object.freeze({
-      12: 'A dented practice shield that takes a beating so you learn to take one. Good for half a day',
-      24: 'A thick practice shield that takes a beating so you learn to take one. Good for a full day',
-      '12b': 'A practice shield with your name painted on the rim. It takes half a day of beatings for you',
-      '24b': 'A practice shield with your name painted on the rim. It takes a full day of beatings for you' }),
+      12: 'A dented practice shield that has taken a thousand blows',
+      24: 'A thick practice shield, dented by a thousand blows',
+      '12b': 'A practice shield with its owner\'s name painted on the rim',
+      '24b': 'A thick practice shield with its owner\'s name painted on the rim' }),
   }),
 });
 
@@ -142,10 +143,14 @@ export function trainingGearOf(id) {
   return TRAINING_GEAR_ITEMS.find((g) => g.id === id) || null;
 }
 
+/** An item's name: the skill's item and its size, "Training Sword (12 h)" (the Coordinator 2026-11-16: the two sizes read alike in the
+    bag, Storage and the market). The size is the row's own hours. */
+const trainingGearName = (skill, hours) => TRAINING_GEAR.names[skill] + ' (' + hours + ' h)';
+
 /** The catalogue rows (src/data/items.js spreads them). `type: 'training'`: its one use is to be opened into a hero's training bank. A
     bound row is `bop` (hr_items.tradeable false) and worth nothing; a gold row's book is its price / bidShare. `training` names it. */
 export const TRAINING_GEAR_ITEM_ROWS = Object.freeze(Object.fromEntries(TRAINING_GEAR_ITEMS.map((g) => [g.id, Object.freeze({
-  n: TRAINING_GEAR.names[g.skill], v: g.bound ? 0 : g.gold / TRAINING_GEAR.bidShare, type: 'training', tag: 'training',
+  n: trainingGearName(g.skill, g.hours), v: g.bound ? 0 : g.gold / TRAINING_GEAR.bidShare, type: 'training', tag: 'training',
   ...(g.bound ? { bop: true } : {}), training: Object.freeze({ skill: g.skill, hours: g.hours, bound: g.bound }) })])));
 
 /** One flavour line an item (src/data/item-descriptions.js spreads it). */

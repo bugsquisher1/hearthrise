@@ -27,24 +27,24 @@
 // Storage has room and sells every stack planned "Sell"; off with its reason (a
 // hunt, nothing planned), and its line is the server's answer.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf, shopOf, bagExpandOf, goldOf } from '../../session/item-sections.js?v=0.2.134';
-import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.134';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.134';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.134';
-import { whole, gold } from '../../render/format.js?v=0.2.134';
-import { glyphSvg } from '../launcher.js?v=0.2.134';
-import { itemName } from '../widgets/bits.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.134';
-import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.134';
-import { runIntent } from '../intent-words.js?v=0.2.134';
-import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.134';
-import { showTip, hideTip } from './item-tip.js?v=0.2.134';
-import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.134';
-import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.134';
-import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.134';
-import { toolLossWords } from '../town-work.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
+import { bagOf, bankOf, depotOf, shopOf, bagExpandOf, goldOf } from '../../session/item-sections.js?v=0.2.135';
+import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.135';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.135';
+import { whole, gold } from '../../render/format.js?v=0.2.135';
+import { glyphSvg } from '../launcher.js?v=0.2.135';
+import { itemName } from '../widgets/bits.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.135';
+import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.135';
+import { runIntent } from '../intent-words.js?v=0.2.135';
+import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.135';
+import { showTip, hideTip } from './item-tip.js?v=0.2.135';
+import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.135';
+import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.135';
+import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.135';
+import { toolLossWords } from '../town-work.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
@@ -69,7 +69,7 @@ export function renderStorage(ctx) {
     /* Expand: the bag's next rung, at the server's price (hr_bag_expand_view); one unlock_buy naming the offer and no number. */
     + '<div class="hw-tools hw-store-grow"><button type="button" class="hh-tool" data-hs-act="expand"></button><p class="hw-why"></p></div>'
     + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button><p class="hw-why"></p></div>'
-    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
+    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
        (windows.css, sticky), and its coming moves no stack from under the hand. Above the grids, a bag scrolled into reach left it out of sight, and a
        press read as nothing at all (Andy 10-26, a refused 12k-arrow press; 11-02, 14 presses in 25 s). */

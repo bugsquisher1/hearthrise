@@ -33,9 +33,13 @@
 //             placeholder tones (Hearth Square's paving), in its cycle from the rect's corner
 //   blend     { pairs: [terrain…], alias?: { material: material } } (ground: null only) the town's ground as
 //             wang16 PAIRS drawn on the dual grid (compose.js groundTiles): a material with no pair stays a
-//             placeholder tone; alias draws one material with another's art (cobble with flagstone)
+//             placeholder tone; alias draws one material with another's art (cobble with flagstone);
+//             rough?: { seed, pairs: [[lower, upper]], spill, bite, scale, deep } draws a natural edge ragged
+//             (ground-rough.js: how an edge is drawn, never what is walkable)
 //   ambient   [{ id, x, y, lift }] a looping effect the map places (the Great Hearth's fire), its
 //             anchor `lift` art px above tile (x, y)'s foot row; it blocks nothing
+//   life      [material] (optional) the surfaces that catch the light here ('water'): the compiled map's `life`
+//             is those glints plus every placed sprite's smoke and sparks (core/ambient.js lifeOf); it blocks nothing
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
 //             the heart of the place stays in view wherever the hero stands
 //   maskHash  hash of the collision mask (maskHash below)
@@ -44,9 +48,10 @@
 //             renderer reads the tile size from the map, never from a constant.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=0.2.134';
-import { reachFrom } from './path.js?v=0.2.134';
-import { GRIDS, gridOf } from '../../data/world/art-budget.js?v=0.2.134';
+import { rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=0.2.135';
+import { reachFrom } from './path.js?v=0.2.135';
+import { GRIDS, gridOf } from '../../data/world/art-budget.js?v=0.2.135';
+import { lifeOf } from './ambient.js?v=0.2.135';
 
 /* 'sandbox': the look-and-walk scene of another art grid (src/data/world/sandbox.js), walked like a town with nobody else in it. */
 export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home', 'sandbox']);
@@ -133,8 +138,10 @@ export function compileMap(row, tables) {
     path: expandPath(row.path) || [], spawns: row.spawns || [], stations: row.stations || {},
     exits: row.exits || [], start: row.start, frame: row.frame ? rectOf(row.frame) : null, focus: row.focus || null,
     patches: (row.patches || []).map((p) => ({ terrain: p.terrain, rect: rectOf(p.rect) })),
-    blend: row.blend ? { pairs: row.blend.pairs.slice(), alias: Object.assign({}, row.blend.alias || {}) } : null,
+    blend: row.blend ? Object.assign({ pairs: row.blend.pairs.slice(), alias: Object.assign({}, row.blend.alias || {}) },
+      row.blend.rough ? { rough: row.blend.rough } : {}) : null,
     ambient: (row.ambient || []).map((a) => ({ id: a.id, x: a.x, y: a.y, lift: a.lift || 0 })),
+    life: lifeOf(row, objects, ground, sprites, w, h, grid.T),
     overlap: bodyOverlap(w, h, objects, buildings, sprites, grid),
   };
 }

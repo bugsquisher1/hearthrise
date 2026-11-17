@@ -50,8 +50,8 @@
 // Each body drops its own imbuement item, one of each of the five kinds, a Material that only sells until linings are built (its
 // book value is twice its dropper's Level). The ground's named fuel, Pyre Ash (the board's), waits on a pack field for NAMED_FUELS
 // (src/data/hearth.js): no row.
-import { definePack, box, gather } from '../shape.js?v=0.2.134';
-import map from './map.js?v=0.2.134';
+import { definePack, box, gather } from '../shape.js?v=0.2.135';
+import map from './map.js?v=0.2.135';
 
 const CP = 'charred_pikeman', ST = 'stoker', LU = 'lurcher', PW = 'pyre_wraith', PV = 'provost';
 /* the pyres burned them once: fire does 25% less, frost full, poison still little (the class's 50) */
@@ -124,7 +124,7 @@ export default definePack({
         { id: 'rune_sword', ch: 0.0115, band: 'scarce' },
         /* the front rank's shield (shields.js, the audit's F8): a Rare beside his Scarce sword */
         { id: 'runebound_shield', ch: 0.0008, band: 'rare' }],
-      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 770, gp: [20, 58], formula: true },
+      hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 770, gp: [14, 41], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Hold's woodmen who fed the pyres and forged in their heat. Worked in the
@@ -134,7 +134,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.029, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.029, band: 'scarce' },
         { id: 'rune_belt', ch: 0.0019, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0019, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0019, band: 'rare' }],
-      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1368, gp: [31, 92], formula: true },
+      hp: 147, atk: 47, baseAcc: 1.14, def: 45, xp: 1368, gp: [22, 64], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
@@ -143,7 +143,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.2, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
-      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 904, gp: [19, 57], formula: true },
+      hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 904, gp: [13, 40], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 3600,
       /* the regular: a dead man Krell's rite bound into the pyre smoke, still in his shroud. A spell undoes the binding and a blade goes
@@ -153,7 +153,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wraith_veil', ch: 0.2, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.028, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0019, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0019, band: 'rare' }],
-      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1078, gp: [26, 80], formula: true },
+      hp: 126, atk: 61, baseAcc: 1, def: 34, xp: 1078, gp: [19, 55], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 80, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's provosts, who hanged its deserters (Wickstead's Turncoats ran from them), burned
@@ -169,7 +169,7 @@ export default definePack({
         { id: 'ember_hatchets', ch: 0.002, band: 'rare' }, { id: 'runewood_crossbow', ch: 0.002, band: 'rare' },
         /* the tier-6 shield beside every tier-6 weapon (shields.js, the audit's F8) */
         { id: 'ember_tower_shield', ch: 0.002, band: 'rare' }],
-      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2129, gp: [45, 133], formula: true },
+      hp: 212, atk: 63, baseAcc: 1.04, def: 56, xp: 2129, gp: [31, 94], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority
@@ -212,6 +212,7 @@ export default definePack({
      little back, 0.94 -> 0.89, and Krell's Hold takes a little (0.95 -> 0.98): the tank then levels about 3% faster at Krell's floor. The full
      grade's median lone way at 80 read 1.07 of the contract, so about 1.01. */
   xpFit: { k: 0.89, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   /* THE TIER PULLS (TIER_PULL_OVERRIDES' shape: ONE number a tier for every group), measured as opened, full grade. Dangerous brings six,
      one over the table's five: on five a Melee and Healer pair two Levels under the floor still netted gold on Dangerous, where the
      weight-class ruling (11-06) asks them to lose it. On six they lose 1.9k an hour, 3.4k three under and 7.5k five under. Deadly brings six

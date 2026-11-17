@@ -33,18 +33,19 @@
 //   (combat.js weaknessInfo, what the settle hands the roller: hunt-rewards.js payKill), the same for every party size (Tyler 2026-11-08:
 //   one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.134';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
-import { MONSTERS } from '../data/monsters.js?v=0.2.134';
-import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.134';
-import { ITEMS } from '../data/items.js?v=0.2.134';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.134';
-import { weaknessInfo } from '../core/combat.js?v=0.2.134';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.134';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.134';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.134';
-import { listWords } from '../render/format.js?v=0.2.134';
-import { isSpentMaterial } from './bag-model.js?v=0.2.134';
+import { HUNT_GROUNDS, OPEN_GROUNDS, OPEN_HALL_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.135';
+import { hallOfHunt, hallBossOf } from '../data/boss-halls.js?v=0.2.135';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.135';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.135';
+import { weaknessInfo } from '../core/combat.js?v=0.2.135';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.135';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.135';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.135';
+import { listWords } from '../render/format.js?v=0.2.135';
+import { isSpentMaterial } from './bag-model.js?v=0.2.135';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -125,8 +126,17 @@ function dropsAt(item) {
     }
     if (names.length) standing.push({ g, names });
   }
+  /* AN OPEN KEYED HALL'S BOSS (src/data/boss-halls.js): his rows are the hall's prize, so the hall is where the piece comes from
+     ("Dropped by Lord Krell at Krell's Hall"). Before lane/c-krell-uniques every one of Krell's pieces read "grounds that aren't open yet". */
+  for (const g of Object.values(OPEN_HALL_GROUNDS)) {
+    const boss = hallBossOf(g);
+    if (boss && ((MONSTERS[boss] || {}).drops || []).some((d) => d && d.id === item)) standing.push({ g, names: [MONSTERS[boss].name] });
+  }
   return { standing: standing.sort((a, b) => groundFloor(a.g) - groundFloor(b.g)), best: pulled.sort((a, b) => a.pull - b.pull)[0] || null };
 }
+
+/* The Hunts page a ground's line opens: its own, or for a keyed hall the ground its door is on (the hall is a page of that ground). */
+const pageOf = (g) => { const h = hallOfHunt(g.hunt); return h && HUNT_GROUNDS[h.id] ? HUNT_GROUNDS[h.id].hunt : g.hunt; };
 
 /**
  * WHERE A MONSTER MATERIAL COMES FROM, the one answer the tip, the House and the recipe rows give. Only creatures on grounds
@@ -149,7 +159,7 @@ export function dropWhereWords(item) {
     hunt summons, its facts, { kind: 'monster', id }; null with no line. */
 export function dropPlaceOf(item) {
   const { standing, best } = dropsAt(item);
-  return standing.length ? { kind: 'hunt', hunt: standing[0].g.hunt } : best ? { kind: 'monster', id: best.id } : null;
+  return standing.length ? { kind: 'hunt', hunt: pageOf(standing[0].g) } : best ? { kind: 'monster', id: best.id } : null;
 }
 
 /* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */

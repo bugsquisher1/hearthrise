@@ -2,6 +2,35 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-16 lane/d-supply-prices (Tyler: raise supply costs for the gold imbalance)
+- Supplies scale with RISK, not with hours played. A lone hero on Normal in its range buys almost nothing (the career tank 0 g/h from 30 to 39 and 60 to 69, the Mage under 1k in Plain runes), so no store price reaches the audit's F12 hero; only coin and loot do. Read a career's bill by item before promising a sink.
+- A store price never changes a fight, so play a cell once, keep its buys by row (cell.mjs `buysPerH`), and price them at any list. `tools/balance-sim/supply-prices-table.mjs` does it; its "was" column reproduced the separate old-price run to the gold.
+- Food and deeper runes are coupled: a deeper rune pays back in food (faster kills, fewer blows). Raise food and re-measure the rune ladder in the same lane (Carved and Graven moved 28 -> 34, 44 -> 55 to stay a trade).
+- One store food (Salted Lobster) is every guide's pick from 32 to 185, so "by tier" lands on that one row. The deeper rows have no measured buyer.
+- Never run a test loop across a `git merge`: conflict markers in src/core crash every engine test mid-loop. Merge first, then run.
+- REWORKED the same day (Tyler: "cut income instead"): a per-ground `gpFit` on coin (the formula) and on the SALE (loot-sale.js in vendorPriceOf), never on book `v`. 93 drops are shared across grounds, so a per-ground sale needs a rule (the highest dial of its grounds; gathered or made items exempt). Book `v` is the crafting measure, not the faucet.
+- A per-ground dial can't split a ground's in-band Levels from its over-levelled ones: the lone career lives on the Glade from 16 to 44, so "cut from 30" and "leave 1-31 alone" can't both hold. Say which one you broke.
+- Deadly's cut runs 2x Normal's under an income dial (its supply bill doesn't shrink); report both.
+
+## 2026-11-15 lane/d-mage-110: the Mage at 110 and up was cloth, not spawns
+- **Move one lever at a time before naming the limit.** "+Magic does nothing, so the Mage is spawn-bound" read right and was wrong: respawn 60 s to 1 s moved nothing (424 vs 419 kills). Splitting the Mage's damage by source (`dealtBy`) said it in one line: 85% is the basic wand blow, so the gear term in max hit decides.
+- **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.
+- **Check the grader's kit before trusting a staged ground's spread.** `gear.mjs` reachWith dropped the open keyed halls, so the Morrow was graded with Melee and the bow a weapon tier short. Print the kit (`h.kit`) of every style once per ground.
+- **A cut has a floor where it stops paying.** 0.1 a point took the Carter's Rest Mage from 1.82 to 1.46 of the pace, and 0.05 only to 1.42. Measure one step past the pick, so the board can say what's left isn't the row's.
+## 2026-11-16 lane/d-turning-cut-melee (Tyler, from Andy: "Give it to all melee that doesn't have a shield on")
+- **A before/after on a move needs no second tree.** The balance-sim cell's `slotsByRole` sets the bar's move list, so "the default bar without the move" on the new tree reproduced the old tree's numbers to the digit (same seeds). Use that for any move what-if.
+- **Judge a move by who gains, not only by who leads.** Turning Cut gave the sword +31-62% alone on Dangerous and the club and axes +16-34% (they had Cleave). The share wasn't too big for the new weapons. The lead the hammer took at the Glade comes from the iron weapon rung (strength 16 vs the sword's 6).
+- **A move's weapon words read its first discipline only.** `weaponsFor(r.disciplines[0])` made Power Strike say "Works with Shield" to every melee hero. Words now come from every discipline, with "Melee weapon" and "Melee weapon (no shield)" for the two melee groups.
+- **A discipline change is a server row too.** hr_hunt_abilities.disciplines drives the bar view's default slots and `usable`, so data alone would show a club's Turning Cut struck while the engine cast it. Bump the hunt-sessions forward file, and list it away from the order's tail so lanes that append there merge clean.
+- The local world equips through the paper doll: `[data-hs-open="inventory"]`, `.hw-slot[data-slot="shield"]` -> `.hw-worn [data-hs-act="unequip"]`, then `.hw-slot[data-slot="weapon"]` -> `[data-hs-act="wear"][data-item=...]`. Equipment lives in player_equipment (equip_slot, item_id), skills in player_skills (skill_id, xp).
+
+## 2026-11-15 lane/d-special-attributes: the attribute catalogue, measured before it was written down
+- **Measure the attribute before naming the item.** Two of my first five sample rows did nothing: 5% poison on the Glade (a four at the floor dies 0 times on Deadly, bare) and +1 Magic (+8 Magic is +0.5% for a wand at 90). Both were cut after one table each.
+- **Element resistance is a boss attribute today.** It moved no death on any open ground and it moves win rates at the Chief and Krell. Place a resist piece on the ground whose boss uses that element.
+- **A skill level is worth little and moves in steps.** +1 Defense is 4 to 6% less damage. +1 Melee is about 1%. +2 Ranged is 0%, 2.8% or 0.9% by Level. Read + skill at three Levels before quoting it, never one.
+- **Lower weapon numbers are not a trade.** 85% of a staff's numbers cost 2%, x1.4 bane gave +15 to +26%. Size a multiplier on full numbers.
+- A what-if resistance for every hero is a ring-slot row with only `resistPm`: no other stat moves. `gear.also` dresses a cell in a named row today.
+- Physical resistance is three edits in `elements.js`, planted and measured (`special-table.mjs` `PHYSICAL_PLANT`). The board's `damage.js landHit` note was wrong.
 ## 2026-11-14 lane/d-labels-sweep (Tyler: "Recommended: 4+ players" for everything outside lore)
 - A label has no period. "Label: lower-case clause." trips label-sentence, and a placeholder right after the colon counts as lower case: end a label without a period, or open its value on a number.
 - Several labels on one line read as one sentence to colon-join and run together for the eye: break them per line (white-space: pre-line on the element). The lint now treats a line break as a boundary.
@@ -921,3 +950,23 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Un-holding rows leaves their unreachable items with no use (C2). Check what else a held row was the only use of before re-costing it.
 - Two recipes for one output is the cheapest real decision a bench can get: same xp and time, different skills and stock, a little more book on the new route so neither is free money.
 - A paused lane's measurements live in its scratchpad (career-tank.txt): re-derive the board's numbers from them before re-running a 590-hour career.
+## 2026-11-15 lane/d-coherence-133 (coherence pass: v0.2.133 + the day's lanes, CLAUDE.md §3.5)
+- `cell.mjs` takes `skillsBySeat: [{ melee, ranged, magic, defense }]` and `options: { tier }`, so a +skill or "trains every spare hour" question is one scratch script and a few seconds a cell. Use the career's skill at a Level (the training lane's table: 22 at Level 10, 37 at 25), never skill = Level, or a training gain reads 2 to 3 times too big.
+- "+Magic does nothing" at the Hold is the Mage being spawn-bound (lowest typical HP 98.8%, 1.47x a hammer), not a flat formula (`abilities.js` lvPm is +2% of base a level). Before calling a stat worthless, check whether the hero measured is already capped by monster supply.
+- "Less damage from every blow" already exists as `steadyPm` (capes, food, joined with Tempering in `mitigation.js`). Grep the engine for an effect before a lane proposes a new hook for it.
+- A walk-through written yesterday can be stale today: the Ox Road's "can't target the Drover" was false (`widgets/first-target.js`, `targeting.js` tkind). Re-grep every "missing control" claim before ruling on it.
+- Driving the pane: coordinates from `getBoundingClientRect` scaled by 800 / innerWidth beat refs, which go stale on every repaint. A `skip` that answers `moved: 0` means the Enter never landed.
+- Two lanes on one day placed the same idea twice (Kingstooth and Widow's Fang, an Iron Sword with crit on the Sewer). A catalogue's placement map must list call-only and daily-prize rows too, or the next lane duplicates them.
+
+## 2026-11-15 lane/d-catacombs: the Pauper Vaults (Tyler's catacombs hunt)
+- Past Dawnsteel the hero stops getting armor, so the one formula grows harder with Level: the same tree read a lone tank's Normal low 73% at Carter's Rest (110) and 59% at the Vaults (165), a four's Deadly 2 deaths against 38. Grade every post-Morrow ground beside Carter's Rest before blaming its own rows.
+- drop-tables plays its own reference group on its own bar: a lone tank that lives the grade on Salted Lobster can die there. A high-Level pack names a pair in checks.dropRef.
+- A Rare row needs its pixel icon before it can exist (loot-structure). A named fuel is a Rare, so it waits on art; write the row into the pack header instead of a stand-in.
+- spell-rows: a non-boss carries exactly one spell. Design the elite's one spell first.
+- Staged maps are lint-checked (world-core, forest-cave one-choke) but not kit-checked; a pillar next to a 1-wide water edge breaks the 3x3 rule on the row above it.
+- Python's text mode on Windows writes CRLF; read and write bytes when editing repo files.
+## 2026-11-16 lane/d-audit-f22 (Krell's card must win as written)
+- A boss's own prize is on the gear ladder once his hall opens: boss-call-table dressed a pair at 88 in Krell's tier 7, so "two heroes from 88" read 78% and was 0% for anyone reading the card. Fit a hall's advice with `--first` (his prize held out).
+- At a boss the lever that moved was food, not the hints: eat at 85% or Greater Mend at 90% left the weak trios at 58-70%; Salted Swordfish took every third to 90-100% (the tank dies under his enrage on Lobster). A pair fails on the clock, so food doesn't help it, only Levels do.
+- Test advice by reading the words the player reads (a small label grammar, an unreadable line is red) and playing them; then the card and the measurement can't drift apart.
+- Backticks inside `node -e "..."` ran the guard twice by command substitution. Use a script file for any text with backticks.

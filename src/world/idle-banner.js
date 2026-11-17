@@ -8,12 +8,12 @@
 //     isn't in the World yet. The Mill Cellar is." while the yard stood in the town): the yard is in the World, so the line says
 //     where the hero trains and its button opens the Training window.
 // ════════════════════════════════════════════════════════════════════════
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.134';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
-import { trainingOf } from '../data/training.js?v=0.2.134';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.134';
-import { t } from '../render/player-text.js?v=0.2.134';
-import { huntOfMap } from './hunt-maps.js?v=0.2.134';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.135';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
+import { trainingOf } from '../data/training.js?v=0.2.135';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { huntOfMap } from './hunt-maps.js?v=0.2.135';
 
 /** The hunt the World can show today — the first hunt map's — named from the data. */
 export const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));
@@ -48,7 +48,7 @@ export function unmappedBanner(G, sc, monsterName) {
   if (!G.activeMonster || sc.kind === 'hunt' || !OPEN_HUNT) return null;
   const train = G._huntId ? trainingOf(G._huntId) : null;
   if (train) {
-    const o = { name: G.playerName || t('training.your_hero'), skill: (SKILLS_DEF[train.skill] && SKILLS_DEF[train.skill].name) || train.skill };
+    const o = { skill: (SKILLS_DEF[train.skill] && SKILLS_DEF[train.skill].name) || train.skill };
     /* `world-idle-said`: the hunt bar says it too ("Training Melee", src/shell/widgets/hunt-topbar.js), so a phone shows the button alone
        (world.css), clear of the hero and of the coach card under the bar. */
     return '<p class="world-idle-line world-idle-said">' + esc(t(train.place === 'house' ? 'training.world_line_house' : 'training.world_line', o)) + '</p>'

@@ -34,9 +34,9 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.134';
-import { HUNT_INDEX } from './hunts.js?v=0.2.134';
-import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.134';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.135';
+import { HUNT_INDEX } from './hunts.js?v=0.2.135';
+import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.135';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';
@@ -45,17 +45,17 @@ export const TIER_NAME = Object.freeze({ normal: 'Normal', dangerous: 'Dangerous
 /* WHAT A TIER IS, IN PLAIN WORDS (Tyler 2026-11-08 on the old numbers note: "Simplify this holy shit it's way too 'exact' it seems AI").
    The hunt page says the line for the picked tier, never a percent, an HP or a blow: those numbers live in the wiki's tier text.
    `more`: the tier brings more monsters at once than Normal does for this group; `same`: it brings the same monsters (the Thicket,
-   Wickstead and the Sewer, under the floor-16 pull rule). The line beside Enter is the first sentence, after the tier's name. */
+   Wickstead and the Sewer, under the floor-16 pull rule). Labels, one a line (Tyler 2026-11-14); the line beside Enter is the first, after the tier's name. */
 export const TIER_LINES = Object.freeze({
-  normal: 'Safe at your level.',
-  dangerous: Object.freeze({ more: 'More monsters at once, and they hit harder. More XP for each kill. You can die here.',
-    same: 'The monsters hit harder. More XP for each kill. You can die here.' }),
-  deadly: Object.freeze({ more: 'Big groups that hit hard. The most XP for each kill. Bring plenty of food. You can die here.',
-    same: 'The monsters hit much harder. The most XP for each kill. Bring plenty of food. You can die here.' }),
+  normal: 'Low risk',
+  dangerous: Object.freeze({ more: 'More monsters that hit harder\nMore XP per kill',
+    same: 'Monsters hit harder\nMore XP per kill' }),
+  deadly: Object.freeze({ more: 'Big groups that hit hard\nMost XP per kill\nBring plenty of food',
+    same: 'Monsters hit much harder\nMost XP per kill\nBring plenty of food' }),
 });
 /* The one death line a harder tier's note ends on (hunt-sessions.js DEATH_XP_LOSS is the number; the wiki says it). It read "costs a little XP" while a
    death cost 2% and never took a Level; since Tyler 2026-11-09 it costs 6% of the total Level XP and can take a Level, so the line says so, still with no number. */
-export const TIER_DEATH_LINE = 'Dying ends the hunt and costs Level XP. You can lose a Level.';
+export const TIER_DEATH_LINE = 'Death: hunt ends, Level XP lost, can drop a Level';
 /* The dials a tier row carries (permille of the monster row). */
 export const DIALS = Object.freeze(['dmgPm', 'hpPm', 'xpPm']);
 

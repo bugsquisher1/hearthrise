@@ -35,22 +35,22 @@
 // A count rides the ONE set_activity (2026-12-01-bench-count.sql: the server stops
 // the bench after that many); a dish is always the whole stack (Cook all).
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.134';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.134';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.134';
-import { whole } from '../../../render/format.js?v=0.2.134';
-import { itemName } from '../../widgets/bits.js?v=0.2.134';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.134';
-import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.134';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.134';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.134';
-import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.134';
-import { skillShortWords } from '../../intent-words.js?v=0.2.134';
-import { lineParts, lineText } from '../../town-ticker.js?v=0.2.134';
-import { namedFuelOf } from '../../bag-model.js?v=0.2.134';
-import { HUNT_INDEX } from '../../../data/hunts.js?v=0.2.134';
-import { nameOf } from '../../../session/item-sections.js?v=0.2.134';
-import { burnNamedFuel } from '../../../session/hearth-intents.js?v=0.2.134';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.135';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.135';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.135';
+import { whole } from '../../../render/format.js?v=0.2.135';
+import { itemName } from '../../widgets/bits.js?v=0.2.135';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.135';
+import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.135';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.135';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.135';
+import { startWork, stopWork, workRow, workOf, runParts, doWords, workBlock } from '../../town-work.js?v=0.2.135';
+import { skillShortWords } from '../../intent-words.js?v=0.2.135';
+import { lineParts, lineText } from '../../town-ticker.js?v=0.2.135';
+import { namedFuelOf } from '../../bag-model.js?v=0.2.135';
+import { HUNT_INDEX } from '../../../data/hunts.js?v=0.2.135';
+import { nameOf } from '../../../session/item-sections.js?v=0.2.135';
+import { burnNamedFuel } from '../../../session/hearth-intents.js?v=0.2.135';
 
 /* The Hearth's skill: every output-less bench row is a fuel (src/data/hearth.js). */
 const FLAME = 'inner_flame';
@@ -107,7 +107,7 @@ export function buryingOf(cs) {
 /* "Brannoc is hunting in The Sewer, and the Great Hearth is in town." (the board's refusal, Tyler 10-25: say why) */
 function huntingWords(cs, h) {
   const hunt = h.huntId && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null;
-  return (nameOf(cs) || 'Your hero') + ' is hunting' + (hunt ? ' in ' + hunt : '') + ', and the Great Hearth is in town.';
+  return 'Great Hearth is in town';
 }
 
 /** Why the stack cannot be spent now (plain words), or '' when it can. Every number is the server's. */
@@ -119,11 +119,11 @@ export function buryBlock(cs, e) {
   const sk = skillsOf(cs);
   const lv = sk && sk[e.skill] ? sk[e.skill].level : null;
   const name = skillName(e.skill);
-  if (lv === null) return 'Reading your ' + name + ' level…';
+  if (lv === null) return 'Loading ' + name + ' level…';
   /* "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — the sentence the server's refusal reads as too (town-work.js). */
   if (lv < e.recipe.req) { const w = workRow('artisan', e.recipe.id); return skillShortWords(e.skill, e.recipe.req, lv, w ? doWords(w) : ''); }
   const qty = buryQty(cs, e.input);
-  if (qty < e.need) return 'You need ' + e.need + ' ' + itemName(e.input) + ' for one. You have ' + whole(qty) + '.';
+  if (qty < e.need) return 'Need ' + e.need + ' ' + itemName(e.input) + ', have ' + whole(qty);
   /* The bag's room for the product, as the Work window says it (town-work.js workBlock: the engine's own test). */
   const why = workBlock(cs, workRow('artisan', e.recipe.id), false);
   if (/^Your bag is full/.test(why)) return why;
@@ -152,12 +152,12 @@ export function namedBlock(cs, id) {
   if (!f) return '';
   const h = huntOf(cs);
   if (h && !h.ended) return huntingWords(cs, h);
-  if (!(heldOf(cs)[id] > 0)) return 'You have no ' + itemName(id) + ' in your bag.';
+  if (!(heldOf(cs)[id] > 0)) return 'No ' + itemName(id) + ' in bag';
   const sk = skillsOf(cs);
   const lv = sk && sk[FLAME] ? sk[FLAME].level : null;
-  if (lv === null) return 'Reading your ' + skillName(FLAME) + ' level…';
+  if (lv === null) return 'Loading ' + skillName(FLAME) + ' level…';
   /* "Den Knot needs Inner Flame 3. You have 1." (the board's words) */
-  if (lv < f.req) return itemName(id) + ' needs ' + skillName(FLAME) + ' ' + f.req + '. You have ' + lv + '.';
+  if (lv < f.req) return itemName(id) + ': requires ' + skillName(FLAME) + ' ' + f.req;
   return '';
 }
 
@@ -168,7 +168,7 @@ export function namedBlock(cs, id) {
 export function burnNamed(account, cs, id, send) {
   /* a refusal reads through intent-words.js refusalText (the verb's own words, the server's numbers) */
   return send(() => burnNamedFuel(account, cs, id), 'Fueling the Great Hearth…',
-    (r) => '+' + whole(r.xp || 0) + ' ' + skillName(FLAME) + ' XP. The fire takes your ' + itemName(id) + '.');
+    (r) => '+' + whole(r.xp || 0) + ' ' + skillName(FLAME) + ' XP');
 }
 
 /** Stop: ONE set_activity idle (town-work.js stopWork); the engine pays what was spent first. */
@@ -185,10 +185,10 @@ export function stopBury(cs, sc, send) {
 export function buryParts(cs) {
   const e = buryingOf(cs);
   /* How far it has got: the server's bag and the ticker's pending part (town-work.js runParts); the open bag settles it as it goes. */
-  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs)), '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.');
+  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs)), '');
   const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
   const words = townActivityWords(s);
-  return words ? [{ key: 'lead', text: 'Your hero is ' + words + '. Starting a hunt ends it, or stop it here.' }] : [];
+  return words ? [{ key: 'lead', text: words.charAt(0).toUpperCase() + words.slice(1) }] : [];
 }
 
 /** The same line as words, or '' when the hero is free. */

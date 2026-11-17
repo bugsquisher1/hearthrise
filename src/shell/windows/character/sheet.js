@@ -14,16 +14,16 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.134';
-import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.134';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.134';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.134';
-import { roleIdOf } from '../../../session/party-sections.js?v=0.2.134';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.134';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
-import { combatLedger } from '../skills.js?v=0.2.134';
-import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.134';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.135';
+import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.135';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.135';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.135';
+import { roleIdOf } from '../../../session/party-sections.js?v=0.2.135';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.135';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { combatLedger } from '../skills.js?v=0.2.135';
+import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.135';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
@@ -32,17 +32,17 @@ const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], 
 /* What each armour line means, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
    a blow meets them in that order: dodge, absorb, resistances, ward, then health). */
 const COMBAT_TIPS = Object.freeze({
-  defence: 'Your Defense skill and shield make monsters miss more often.',
-  dodge: 'Medium armor: the chance a blow misses you completely.',
-  absorb: 'Heavy armor: the share of every blow that lands which your armor takes.',
-  ward: 'Light armor: a flat amount taken off every blow that lands. Best against many small blows.',
-  steady: 'Your cape and some foods take a share off every blow that reaches you, last of all.',
-  temper: 'What the smith has done for what you wear now. Shop, Services.',
+  defence: 'Monsters miss more. Source: Defense skill, shield',
+  dodge: 'Chance a blow misses. Source: Medium armor',
+  absorb: 'Share of each blow blocked. Source: Heavy armor',
+  ward: 'Flat damage off each blow. Source: Light armor',
+  steady: 'Share off each blow, applied last. Source: cape, some foods',
+  temper: 'Smith upgrades on worn gear. Get: Shop → Services',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
-const LEVEL_TIP = 'Level rises only from monsters you defeat. Each Level adds max health and max mana. '
-  + 'Heavy armor adds more health, and light armor more mana. Dying costs a little Level XP, never a Level.';
+const LEVEL_TIP = 'Level XP: monster kills only. Each Level: more health and mana\n'
+  + 'Heavy: more health. Light: more mana. Death: lose XP, even a Level';
 
 const lineHtml = ([k, l], kind, tips) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"'
   + (tips && tips[k] ? ' title="' + esc(tips[k]) + '"' : '') + '><dt>' + esc(l) + '</dt><dd></dd></div>';
@@ -104,7 +104,7 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   /* Vitals: max HP and max mana, the engine's regeneration and walk speed, the bag's spaces, the stamina pool. */
   line(root, '[data-vital="hp"]', hv.hpMax !== null ? whole(hv.hpMax) : null);
   line(root, '[data-vital="mana"]', hv.manaMax !== null ? whole(hv.manaMax) : null);
-  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? signedPct((c.regenPct - 100) / 100) + ' (Inner Flame)' : null);
+  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? 'Inner Flame ' + signedPct((c.regenPct - 100) / 100) : null);
   line(root, '[data-vital="speed"]', c && c.moveSpeed !== null ? (Math.round(c.moveSpeed / 100) / 10) + ' tiles a second' : null);
   line(root, '[data-vital="cap"]', cap !== null ? whole(cap) + ' bag spaces' : null);
   line(root, '[data-vital="stamina"]', st ? hoursMinutes(st.msLeft) : null);
@@ -115,15 +115,15 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   line(root, '[data-combat="crit"]', c && c.critPct !== null ? c.critPct + '%' : null);
   line(root, '[data-combat="defence"]', c && c.defence !== null ? whole(c.defence) : null);
   /* The armour's mitigation (ruling K7), the engine's numbers against a monster of this Level: a stronger one gets through more. */
-  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows at your Level' : null);
-  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow at your Level' : null);
+  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows vs same Level' : null);
+  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow vs same Level' : null);
   line(root, '[data-combat="ward"]', c && c.ward !== null ? whole(c.ward) + ' off each blow' : null);
   line(root, '[data-combat="steady"]', c && c.steadyPct ? c.steadyPct + '% off each blow' : null);
   /* Tempering: the server's rungs through the fight's own rule, over the server's worn set (src/session/temper-sections.js). */
   const tempered = temperNowOf(cs);
   line(root, '[data-combat="temper"]', tempered ? [tempered.blowsPm ? 'blows +' + tempered.blowsPm / 10 + '%' : '', tempered.armorPm ? 'damage taken -' + tempered.armorPm / 10 + '%' : ''].filter(Boolean).join(', ') : null);
   const wait = root.querySelector('.hw-cs-wait');
-  text(wait, !sh ? '' : c ? '' : 'Working out your combat numbers…');
+  text(wait, !sh ? '' : c ? '' : 'Loading combat stats…');
   cls(wait, 'is-on', !!sh && !c);
   /* The bestiary: distinct monsters slain over the server's roster. */
   const b = sh && sh.bestiary;

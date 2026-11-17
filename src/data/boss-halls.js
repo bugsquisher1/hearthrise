@@ -26,11 +26,11 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from './boss-calls.js?v=0.2.134';
-import { HUNT_INDEX } from './hunts.js?v=0.2.134';
-import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.134';
-import { MONSTERS } from './monsters.js?v=0.2.134';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.134';
+import { BOSS_CALLS } from './boss-calls.js?v=0.2.135';
+import { HUNT_INDEX } from './hunts.js?v=0.2.135';
+import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.135';
+import { MONSTERS } from './monsters.js?v=0.2.135';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.135';
 
 export const BOSS_HALL_RULES = Object.freeze({
   /* The fight's limit from the first swing, the called rooms' ten minutes (the design: "a 10 minute limit"). */
@@ -86,34 +86,57 @@ export function roomOfHunt(huntId) {
 export const BOSS_HALL_WORDS = Object.freeze({
   heading: 'The hall',
   /* the confirm group's name for a screen reader (src/shell/windows/boss-hall-pane.js) */
-  sure: 'Are you sure?',
+  sure: 'Confirm',
   press: 'Open {hall}',
   /* WHERE A KEY COMES FROM (designer 2026-11-14, lane/d-march-balance: the hand play found the page never said). {source} is `source` with
      the monster whose drops name the hall's key, or nothing when no monster drops it. Labels (Tyler 2026-11-14). */
-  have: Object.freeze({ none: 'Requires {key}{source}', one: '{key}: 1', other: '{key}: {n}' }),
-  source: ' (drops from the {dropper})',
-  /* A key can drop to anyone in a party, and only the leader opens the hall (hr_boss_hall_enter takes the leader's key). Said plainly to a
-     member who holds one, until the open takes a key from any seat (the designer's ruling, handed to Systems the same day). */
-  memberKey: 'Party leader only. Give them your {key} (your heroes can pass it through Storage).',
+  /* `party`: nobody's own bag holds one here, and the server names the seat whose key the open takes ({name} that hero's; label style) */
+  have: Object.freeze({ none: 'Requires {key}{source}', one: '{key}: 1', other: '{key}: {n}', party: '{key}: held by {name}' }),
+  source: ', dropped by {dropper}',
+  /* ANY SEAT'S KEY OPENS THE HALL (2027-04-24-hall-key-any-seat.sql: the leader's own first, else the first seat's that holds one it has not
+     locked), and the leader still makes the press. So a member who holds one is told it counts, as a label (Tyler 2026-11-14: labels, never
+     sentences, outside lore). {n} this hero's keys. */
+  memberKey: '{key}: {n}, your leader opens the hall',
+  /* THE DAILY PRIZE (Tyler 2026-11-14 "a daily kill"; 2027-04-25-boss-daily.sql). Label lines, one a line, every one read from the server's
+     own `boss_halls` section (src/session/boss-quote.js hallStateOf), never from this browser's clock or bag. {in} the wait to the server's
+     next day ("6 h 12 m"), {n} of {m} the heroes this open marches in who can still take today's. `none` is the confirm's own line when
+     nobody would: the key is used all the same. `label` names the list for a screen reader. */
+  loot: Object.freeze({
+    label: 'Loot',
+    left: 'Loot: available',
+    taken: 'Loot: claimed today',
+    next: 'Next: {in}',
+    party: 'Party loot: {n} of {m}',
+    none: 'Loot: none today, the key is still used',
+    /* A HERO'S FIRST WIN ALWAYS PAYS A PIECE (2027-04-25-boss-daily.sql `first`): said while it is still ahead of this hero */
+    first: 'First win: one piece, guaranteed',
+    /* THE PRIZE TABLE, the numbers the server rolls (src/core/drops.js prizeSlices over the boss's own rows): `table` opens it, {n} its
+       pieces; `row` one piece and its share of a roll; `rowFirst` the same while this hero's first win is ahead, both numbers */
+    table: 'Loot table: {n} pieces, one roll a day',
+    row: '{item}: {pct}%',
+    rowFirst: '{item}: {pct}%, first win {first}%',
+  }),
   warnTitle: 'Fight {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14), the same shape as a called room's (boss-calls.js warn). */
   warn: Object.freeze([
-    'Hits hard\n50% HP: adds attack your non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
-    'Uses your {key}, win or lose\nTime limit: {minutes} min',
+    'Hits hard\n50% HP: adds attack non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
+    'Uses {whose} {key}, win or lose\nTime limit: {minutes} min',
   ]),
+  /* {whose} in the line above: this hero's own key, or the seat's the server names (any seat's key opens the hall) */
+  whose: Object.freeze({ own: 'your', seat: '{name}\'s' }),
   /* the same label as a called room's (boss-calls.js warnGuard): what his adds do, never a move to turn off */
   warnGuard: ' and shield him until killed',
   /* WHAT WINS (lane/d-march-balance, the v0.2.132 re-play: 0 of 6 on the bars a party is handed). A hall that names a store food (`storeFloor`)
      says it, and its bar line (`words.bars`, label style), under the key line; {food} the store food. `foodShort` is red: this hero's bar buys
      weaker food (src/shell/hunt-go.js storeFoodUnder). */
-  food: 'Requires {food} or better on every bar (Salted Shrimp can\'t keep up)',
-  foodShort: 'Your bar buys {have}. Pick {food} on that slot before you go in.',
+  food: 'Requires {food} or better on every bar',
+  foodShort: 'Bar food: {have}. Change that slot to {food}.',
   /* ...for another hero of this account in the party (boss-hall-pane.js foodShortWords) */
-  foodShortPeer: '{name}\'s bar buys {have}. Change that slot to {food}.',
+  foodShortPeer: '{name}\'s food: {have}. Change that slot to {food}.',
   /* a hero whose name the envelope has not sent yet */
   someHero: 'A hero',
   /* the lead-in to the hall's tips (its `words.bars`, label lines, each one change from the bar a party is handed) */
-  tips: 'What wins (default bars mostly lose here)',
+  tips: 'What wins',
   /* the tips list's name for a screen reader */
   tipsLabel: 'What wins',
   /* the boss row's phases.hasten: the spell that speeds up under his enrage line */
@@ -123,7 +146,7 @@ export const BOSS_HALL_WORDS = Object.freeze({
   confirm: 'Use the {key}',
   cancel: 'Not yet',
   opening: 'Opening {hall}…',
-  opened: Object.freeze({ party: 'Door open, party on the way', alone: 'Door open, on your way' }),
+  opened: Object.freeze({ party: 'Door open, party on the way', alone: 'Door open, heading in' }),
   hunting: 'Not while hunting',
   /* The end card's Hunt again, off for a hall (one door: the key on the ground's page). */
   again: 'Fight again: use another {key} from the hunt\'s page',
@@ -133,17 +156,17 @@ export const BOSS_HALL_WORDS = Object.freeze({
   bar: Object.freeze({ soon: '{spell} in {s} s', casting: '{spell} is coming', named: '{pct}%', namedRage: 'Enraged' }),
   /* The combat log's line when his adds come with a named add among them (src/hunt-view/combat-log.js), after his name. */
   log: Object.freeze({
-    named: 'calls up {names} and his adds (they attack non-tanks)',
-    namedGuarded: 'calls up {names} and his adds (they attack non-tanks and shield him)',
-    namedOnly: 'calls up {names} (they attack non-tanks)',
-    namedOnlyGuarded: 'calls up {names} (they attack non-tanks and shield him)',
+    named: 'calls up {names} and his adds to attack non-tanks',
+    namedGuarded: 'calls up {names} and his adds to shield him and attack non-tanks',
+    namedOnly: 'calls up {names} to attack non-tanks',
+    namedOnlyGuarded: 'calls up {names} to shield him and attack non-tanks',
   }),
   /* The verb's own refusals, each moving nothing (supabase/migrations/2027-04-20-boss-hall.sql): each says nothing was used. */
   refused: Object.freeze({
     hall_leader: 'Party leader only',
     no_key: 'Requires {key}, nothing used',
     hall_unknown: 'Hall not open, nothing used',
-    not_ready: 'Party not ready (see Party window), nothing used',
+    not_ready: 'Party not ready, nothing used',
     party_hunting: 'Party still hunting, nothing used',
   }),
 });

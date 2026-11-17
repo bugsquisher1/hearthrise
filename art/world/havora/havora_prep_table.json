@@ -3,6 +3,9 @@
   "class": "station",
   "style": "s1",
   "material": "wood",
+  "restyle": {
+    "outline": true
+  },
   "source": "havora_prep_table.png",
   "frame": [
     47,
@@ -38,5 +41,5 @@
     "cost": 10,
     "style": "havora/havora_tavern"
   },
-  "notes": "A rough kitchen table with a board, a knife, vegetables and a fish: the cook yard's prep table (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 5 of 16, cropped to its art."
+  "notes": "A rough kitchen table with a board, a knife, vegetables and a fish: the cook yard's prep table (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 5 of 16, cropped to its art. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 11, tools/world-art/restyle.mjs): its rim given the world's line, as the cook yard's oven, cauldron and the tavern have."
 }

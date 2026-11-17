@@ -182,11 +182,11 @@ async function checks(overrides) {
         await wait(page, () => document.querySelector('[data-hs-win="farm"] .hw-sow.is-on'), null, 2000);
         const turnip = await txt(page, W + '.hw-seeds li[data-crop="turnip"] small');
         const carrot = await txt(page, W + '.hw-seeds li[data-crop="carrot"] small');
-        if (!/8 seeds in your bag/.test(turnip || '') || !/Needs Farming 10/.test(carrot || '')) fails.push('FW-2 the picker reads turnip ' + JSON.stringify(turnip) + ', carrot ' + JSON.stringify(carrot));
+        if (!/8 seeds in bag/.test(turnip || '') || !/Needs Farming 10/.test(carrot || '')) fails.push('FW-2 the picker reads turnip ' + JSON.stringify(turnip) + ', carrot ' + JSON.stringify(carrot));
         if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-seeds li[data-crop="carrot"] button').disabled))) fails.push('FW-2 carrot can be planted at Farming 1');
         /* the tier line agrees with the picker (playtest 2026-10-29 #12): the soil needs Farming 5, the carrot itself 10 */
         const tier = await txt(page, W + '.hw-tier');
-        if (!/Tier 2 adds Carrot \(Farming 10 to plant\)[^:]*: .*, at Farming 5\./.test(tier || '')) fails.push('FW-2 the tier line reads ' + JSON.stringify(tier) + ' beside "Needs Farming 10"');
+        if (!/^Tier 1 grows Turnip\. Tier 2 adds Carrot \(Farming 10\)[^.]*\. .+ · Requires Farming 5$/.test(tier || '')) fails.push('FW-2 the tier line reads ' + JSON.stringify(tier) + ' beside "Needs Farming 10"');
         /* the tier is priced in gold only: the Farmer's Deed left the catalogue with its sources (2026-10-23) and its server
            payment with lane/c-dead-plot-deed (2026-11-07), so the line never offers one */
         if (/Deed/.test(tier || '')) fails.push('FW-2 the tier line offers a Farmer\'s Deed, which no player can get: ' + JSON.stringify(tier));
@@ -219,7 +219,7 @@ async function checks(overrides) {
         await press(page, W + '.hw-seeds li[data-crop="turnip"] button', 'FW-5');
         await idle(page);
         const line = await txt(page, W + '.hh-intent-msg');
-        if (!/no room/.test(line || '')) fails.push('FW-5 a refused plant reads ' + JSON.stringify(line));
+        if (!/No room/.test(line || '')) fails.push('FW-5 a refused plant reads ' + JSON.stringify(line));
       }
       await ctx.close();
     }
@@ -235,7 +235,7 @@ async function checks(overrides) {
         if (by0 !== 'Planted by Bren') fails.push('FW-7 plot 0 says ' + JSON.stringify(by0) + ', want "Planted by Bren"');
         const by3 = await txt(page, W + '.hw-plot[data-plot="3"] .hw-plot-by');
         if (!/^Planted by Alda\. Extra plot: gone once harvested$/.test(by3 || '') || !(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-plot[data-plot="3"]').classList.contains('is-extra')))) fails.push('FW-7 the extra plot says ' + JSON.stringify(by3));
-        if (!/1 extra plot goes once harvested\./.test((await txt(page, W + '.hw-farm-land')) || '')) fails.push('FW-7 the land line reads ' + JSON.stringify(await txt(page, W + '.hw-farm-land')));
+        if (!/^Room for 2 plots · 1 extra plot, gone once harvested$/.test((await txt(page, W + '.hw-farm-land')) || '')) fails.push('FW-7 the land line reads ' + JSON.stringify(await txt(page, W + '.hw-farm-land')));
         const lone = await txt(page, W + '.hw-plot[data-plot="3"] .hw-harvest');
         if (lone !== 'Harvest') fails.push('FW-7 the extra plot\'s one button reads ' + JSON.stringify(lone) + ', want "Harvest" (it never replants)');
         await press(page, W + '.hw-plot[data-plot="3"] .hw-harvest', 'FW-7');
@@ -243,7 +243,7 @@ async function checks(overrides) {
         const hv = s.calls.filter((c) => /harvest/.test(c.name));
         if (hv.length !== 1 || hv[0].name !== 'hr_farm_harvest' || hv[0].body.p_plot_idx !== 3 || hv[0].body.p_slot !== 0) fails.push('FW-7 the extra plot\'s Harvest sent ' + JSON.stringify(hv));
         const line = await txt(page, W + '.hh-intent-msg');
-        if (!/Harvested 2 Turnip/.test(line || '') || !/That extra plot is gone now\./.test(line || '')) fails.push('FW-7 the line reads ' + JSON.stringify(line));
+        if (!/Harvested 2 Turnip/.test(line || '') || !/That extra plot is gone now$/.test(line || '')) fails.push('FW-7 the line reads ' + JSON.stringify(line));
       }
       await ctx.close();
     }
@@ -266,13 +266,13 @@ async function checks(overrides) {
         const cl = s.calls.filter((c) => /harvest/.test(c.name));
         if (cl.length !== 1 || cl[0].name !== 'hr_farm_harvest_clear' || cl[0].body.p_plot_idx !== 1 || cl[0].body.p_slot !== 0) fails.push('FW-8 Harvest and clear sent ' + JSON.stringify(cl));
         const line = await txt(page, W + '.hh-intent-msg');
-        if (!/Harvested 3 Tomato/.test(line || '') || !/The plot is clear\./.test(line || '')) fails.push('FW-8 the line reads ' + JSON.stringify(line));
+        if (!/Harvested 3 Tomato/.test(line || '') || !/The plot is clear$/.test(line || '')) fails.push('FW-8 the line reads ' + JSON.stringify(line));
         await press(page, W + '.hw-plot[data-plot="1"] [data-hs-act="leave"]', 'FW-8');
         await idle(page);
         const hv = s.calls.filter((c) => /harvest/.test(c.name)).slice(1);
         if (hv.length !== 1 || hv[0].name !== 'hr_farm_harvest' || hv[0].body.p_plot_idx !== 1) fails.push('FW-8 Harvest (grows back) sent ' + JSON.stringify(hv));
         const line2 = await txt(page, W + '.hh-intent-msg');
-        if (!/Harvested 2 Tomato .*It grows back, then 2 more times\.$/.test(line2 || '')) fails.push('FW-8 the regrow line reads ' + JSON.stringify(line2));
+        if (!/^Harvested 2 Tomato, .*\. It grows back, then 2 more times$/.test(line2 || '')) fails.push('FW-8 the regrow line reads ' + JSON.stringify(line2));
       }
       await ctx.close();
     }
@@ -316,7 +316,7 @@ async function checks(overrides) {
         const pl = sent(s, 'hr_farm_plant').map((c) => c.body.p_plot_idx + ':' + c.body.p_crop);
         if (pl.join() !== '0:carrot,2:carrot,3:carrot') fails.push('FW-9 the plants sent ' + JSON.stringify(pl) + ', want plot 0, then 2 and 3 in order, then stop');
         const line = await txt(page, W + '.hh-intent-msg');
-        if (!/^Planted Carrot in 1 plot\. Stopped at plot 4: No seed for that crop/.test(line || '')) fails.push('FW-9 the sweep\'s line reads ' + JSON.stringify(line));
+        if (!/^Planted Carrot in 1 plot\. Stopped at plot 4: No seed/.test(line || '')) fails.push('FW-9 the sweep\'s line reads ' + JSON.stringify(line));
       }
       await ctx.close();
     }
@@ -373,7 +373,7 @@ const MUTANTS = [
   ['the reader invents room', 'src/session/farm-sections.js', 'cap: Math.min(cap, MAX_PLOTS)', 'cap: Math.max(cap, 4)'],
   ['the reader invents a field', 'src/session/farm-sections.js', "  const raw = read(cs, 'farm_land');\n", "  const raw = read(cs, 'farm_land') || { cap: 2, plot_level: 1, plots: [] };\n"],
   ['plant names another plot', 'src/session/farm-intents.js', 'p_plot_idx: plot, p_crop: crop', 'p_plot_idx: plot + 1, p_crop: crop'],
-  ['a refusal reads as a generic line', 'src/data/text/farm.js', "  refused_plot_cap: 'Your land has no room for that plot yet.',\n", ''],
+  ['a refusal reads as a generic line', 'src/data/text/farm.js', "  refused_plot_cap: 'No room for another plot',\n", ''],
   ['the window never says the land is shared', 'src/shell/windows/farm.js', "    + '<p class=\"hs-note hw-farm-shared\">' + esc(t('farm.shared')) + '</p>'\n", ''],
   ['a plot never says who planted it', 'src/shell/windows/farm.js', "text(li.querySelector('.hw-plot-by'), !p ? '' :", "text(li.querySelector('.hw-plot-by'), true ? '' :"],
   ['an extra plot is not drawn', 'src/shell/windows/farm.js', '(_, i) => i).concat(extras);', '(_, i) => i);'],

@@ -11,17 +11,17 @@
 // Nothing here builds a list from the envelopes open on this page (§1, §6).
 // Read only.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.134';
-import { whole } from '../../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.134';
+import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.135';
+import { whole } from '../../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.135';
 
 const WHERE = Object.freeze({ bag: 'in the bag', worn: 'worn' });
 const DEBOUNCE_MS = 300;
 const MIN_QUERY = 2;
 const SEARCHING = 'Searching…';
-const FROM_SERVER = 'All your characters';
-const NO_ANSWER = 'The search did not go through, so nothing is listed. Change the search to try again.';
+const FROM_SERVER = 'All characters';
+const NO_ANSWER = 'Search failed, try again';
 const SCRATCH = new WeakMap();
 /* `want`: the search last sent; `asked` and `rows`: the search the server answered and its rows (null: refused or lost). */
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { rows: null, timer: null, asked: '', want: '' }; SCRATCH.set(cs, s); } return s; };
@@ -46,7 +46,7 @@ export function patchElsewhere(pane, ctx, query) {
   rows(box.querySelector('.hw-found'), list, {
     key: (r) => (r.slot === null ? 'account' : r.slot) + ':' + r.where + ':' + r.item,
     build: (r) => element(ctx.doc, '<li class="hw-line"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, r.item) + '</span><span class="hw-line-name"><b>' + esc(itemName(r.item)) + '</b><small></small></span></li>'),
-    patch: (li, r) => text(li.querySelector('small'), (r.where === 'bank' ? 'In storage (all your characters)'
+    patch: (li, r) => text(li.querySelector('small'), (r.where === 'bank' ? 'In storage, shared'
       : (r.slot === cs.slot ? 'This character' : (r.name || 'Character ' + (r.slot + 1))) + ', ' + WHERE[r.where]) + (r.where === 'worn' ? '' : ', ×' + whole(r.qty))),
   });
   /* "Nowhere else." comes only from the server's answer: never while it searches, never after a read that failed. */

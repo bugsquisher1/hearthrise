@@ -15,17 +15,17 @@
 // server's answer held as window scratch — never the record, and nothing can
 // spend them: Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.134';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.134';
-import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.134';
-import { roleOf } from '../../session/item-sections.js?v=0.2.134';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { refusalWords, runIntent } from '../intent-words.js?v=0.2.134';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.134';
-import { listParty } from '../../session/party-intents.js?v=0.2.134';
-import { huntRows } from '../hunt-list.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
+import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.135';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.135';
+import { finderRows, huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.135';
+import { roleOf } from '../../session/item-sections.js?v=0.2.135';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { refusalWords, runIntent } from '../intent-words.js?v=0.2.135';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.135';
+import { listParty } from '../../session/party-intents.js?v=0.2.135';
+import { huntRows } from '../hunt-list.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
 
 const SCRATCH = new WeakMap();
 
@@ -92,11 +92,11 @@ export function patchFinder(root, ctx, sc) {
   const listed = listedOf(ctx.character);
   const sw = root.querySelector('.hw-list-party');
   prop(sw, 'hidden', !(mine && mine.isLeader));
-  text(sw.querySelector('.hw-list-why'), listed ? 'Your party shows in the finder.' : 'Your party is private. Only players you invite can join.');
+  text(sw.querySelector('.hw-list-why'), listed ? 'Listed in the finder' : 'Private: invite only');
   text(sw.querySelector('button'), listed ? t('controls.hide_from_finder') : t('controls.show_in_finder'));
   prop(sw.querySelector('button'), 'disabled', sc.pending);
   const why = root.querySelector('.hw-find-why');
-  text(why, inParty ? 'You are in a party. Leave it to join another.' : '');
+  text(why, inParty ? 'Already in a party' : '');
   prop(why, 'hidden', !inParty);
   rows(root.querySelector('.hw-found'), sc.found || [], {
     key: (r) => r.id,
@@ -126,7 +126,7 @@ function search(ctx, cs, sc, repaint) {
     const r = await cs.findParties(hunt, weapon);
     sc.found = r.ok ? finderRows(r.body) : null;
     sc.findMsg = !r.ok ? refusalWords(r.error) : sc.found && sc.found.length ? ''
-      : (hunt ? 'No open party lists ' + huntName(hunt) + ' right now. ' : 'No open party matches. ') + (ctx.isPhone && ctx.isPhone() ? 'Hold' : 'Right-click') + ' a player’s name to invite them and start your own.';
+      : (hunt ? 'No open parties for ' + huntName(hunt) : 'No open parties');
     return { ok: true };
   }, 'Searching…', () => '');
 }
@@ -157,12 +157,12 @@ export function actFinder(ctx, body, action, el, repaint) {
   }
   if (action === 'list-party') {
     const on = !listedOf(cs);
-    runIntent(sc, repaint, () => listParty(ctx.account, cs, on), on ? 'Listing your party…' : 'Hiding your party…',
-      () => (on ? 'Your party shows in the finder.' : 'Your party is private again.'));
+    runIntent(sc, repaint, () => listParty(ctx.account, cs, on), on ? 'Listing the party…' : 'Hiding the party…',
+      () => (on ? 'Listed in the finder' : 'Private again'));
     return true;
   }
   if (action === 'join') {
-    runIntent(sc, repaint, () => cs.joinParty(el.getAttribute('data-party')), 'Joining…', () => { sc.found = null; return 'You joined the party.'; });
+    runIntent(sc, repaint, () => cs.joinParty(el.getAttribute('data-party')), 'Joining…', () => { sc.found = null; return 'Joined the party'; });
     return true;
   }
   return false;

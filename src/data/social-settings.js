@@ -16,7 +16,7 @@ export const SOCIAL_SETTINGS = Object.freeze([
     id: 'social.blocked',
     category: 'chat_social',
     label: 'Blocked players',
-    help: 'You see nothing they say, and they cannot message you, ask to be friends or inspect you.',
+    help: 'Hides their chat, blocks messages, friend requests and inspect',
     type: 'action',
     open: 'friends',
   }),

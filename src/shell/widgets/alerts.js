@@ -15,18 +15,23 @@
 //   Join / No thanks             a party invite's answer, that character's
 //                                answerInvite INTENT, the same way (PARTY_SPEC
 //                                §1.3: the toast reaches a player anywhere)
+//   Add to bar                   a new spell (src/shell/spell-news.js): that
+//                                character's ONE bar intent (bar-assign.js
+//                                addMovesOrOpen), the same way; with the bar full
+//                                it opens Hunt prep on that hero instead
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.134';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.134';
-import { glyphSvg } from '../launcher.js?v=0.2.134';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.134';
-import { cardFacts, shareCard } from '../share-card.js?v=0.2.134';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.135';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.135';
+import { glyphSvg } from '../launcher.js?v=0.2.135';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.135';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.135';
+import { addMovesOrOpen } from '../bar-assign.js?v=0.2.135';
 
-const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends' });
+const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends', training: 'training' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
 const SHARE_WORDS = Object.freeze({
-  copied: 'Card copied. Paste it anywhere.', shared: 'Card shared.', saved: 'Card saved to your downloads.',
-  cancelled: '', card_failed: 'The card could not be made.',
+  copied: 'Card copied', shared: 'Card shared', saved: 'Card saved to downloads',
+  cancelled: '', card_failed: 'Card failed',
 });
 
 /** The skeleton (built once). */
@@ -110,6 +115,8 @@ renderAlerts.act = async function actAlerts(ctx, el, action, ev, t) {
   /* A party invite: Join / No thanks, that character's one answer. */
   if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }
   if (action !== 'alert-do') return;
+  /* A new spell: that character's ONE bar intent; with no empty slot for it, Hunt prep opens on that hero's bar instead. */
+  if (a.action === 'addspell') { await settle(ctx, el, a, (cs) => addMovesOrOpen(cs, a.spells, () => { if (ctx.goTo) ctx.goTo(a.slot, 'hunt-prep'); })); return; }
   if (a.action !== 'restart') {
     ctx.alerts.dismiss(key);
     /* a private message opens on its own conversation */

@@ -28,26 +28,32 @@ export const SITES = Object.freeze([
 
 /* the buildings and things with style-1 art, in plan coordinates (a sprite's footprint from its x, y) */
 export const SCENERY = Object.freeze([
-  /* HEARTH SQUARE: the Great Hearth (footprint 11 x 4, x112-122 y45-48; its fire is the map's ambient loop),
-     the ring of halls, the market stalls (trade, later), the benches, and the wear of the paving */
+  /* HEARTH SQUARE: the Great Hearth (footprint 11 x 4, x112-122 y45-48; its fire is the map's ambient loop) on its ring of
+     hearthstone (the paving, tools/world-art/hearth-plaza.mjs), the ring of halls, the market stalls (trade, later), the benches,
+     and the wear of the paving. lane/a-havora-art (Tyler 2026-11-16, "the hearth area to be perfect"): two iron braziers framing
+     the ring's south corners (y54: no stand behind them), the six benches one family (two seats to each), and
+     no street lamp, ink-blot soot or stray puddle on the square: the Hearth is its light and its soot is in the paving */
   ['great_hearth', 112, 45],
   ['square_general_store', 106, 30], ['square_depot', 118, 30], ['square_bank', 113, 16], ['square_barracks', 108, 66],
   ['square_market_stall', 129, 44], ['square_market_stall', 129, 48], ['square_market_stall', 129, 52], ['square_market_stall', 129, 56],
-  ['square_bench_wood', 123, 55], ['square_bench_stone', 125, 55], ['square_bench_log', 127, 55],
-  ['square_bench_stone', 123, 58], ['square_bench_wood', 125, 58], ['square_bench_log', 127, 58],
-  ['square_decal_soot', 115, 51], ['square_decal_chips_a', 120, 51], ['square_decal_puddle_a', 104, 53], ['square_decal_moss_a', 131, 59],
+  ['hearth_brazier', 111, 54], ['hearth_brazier', 124, 54],
+  /* the fuel corners either side of the Hearth (step 2b): the woodpile, a split log waiting to be thrown, the fire bucket, bark chips where the fuel is thrown */
+  ['fuel_log', 111, 48], ['bucket', 111, 49], ['fuel_log', 123, 48], ['bucket', 123, 49], ['square_decal_chips_b', 114, 51],
+  ['ty_bench_pair', 123, 55], ['ty_bench_pair', 125, 55], ['ty_bench_pair', 127, 55],
+  ['ty_bench_pair', 123, 58], ['ty_bench_pair', 125, 58], ['ty_bench_pair', 127, 58],
+  ['square_decal_chips_a', 120, 51], ['square_decal_moss_a', 131, 59],
   ['square_decal_leaves_a', 110, 58], ['square_decal_tuft_a', 103, 59],
-  ['lamppost', 105, 57], ['lamppost', 123, 43], ['lamppost', 101, 47],
+  ['lamppost', 101, 47],
   /* the smithy and the mill (whole sprites) and their yards */
   ['smithy', 76, 38], ['npc_smith', 78, 43], ['flower_bed', 79, 45],
   ['mill', 89, 28], ['hatch', 88, 34], ['barrels', 86, 30], ['flour_sack', 87, 30], ['water_trough', 86, 33], ['hay_bale', 87, 33],
   ['floor_grate', 46, 67],
   /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
-     the tavern on P07 over its cook yard, the bridge over the river (walked on: its cells stay planks) */
-  ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
+     the tavern on P07 over its cook yard, the great bridge cut to its river (havora_bridge_span, tools/world-art/bridge-span.mjs: its deck cells are 'B' deck, walked on and drawn as the river under it) */
+  ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge_span', 87, 48],
   /* lane/b-havora-polish: the gate road's bridge over the mill race (the road east to the bank no longer runs into the water)
-     and the south road's bridge to the hunter's yard (its deck spans the river's bend below P10) */
-  ['havora_bridge', 89, 15], ['havora_bridge', 86, 72],
+     and the south road's bridge to the hunter's yard; lane/a-havora-art: both the span too, the river straight under each */
+  ['havora_bridge_span', 92, 15], ['havora_bridge_span', 89, 72],
   ['havora_guild_hall', 114, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
   /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
   ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
@@ -82,7 +88,7 @@ export const SCENERY = Object.freeze([
      a basket, sacks and a trough among the farm plots */
   ['water_trough', 62, 37], ['bellows', 64, 37], ['water_trough', 67, 38], ['bellows', 69, 38], ['water_trough', 60, 42], ['bellows', 62, 42],
   ['water_trough', 65, 43], ['bellows', 67, 43], ['weapon_rack', 65, 37], ['crates', 70, 38], ['sack_pile', 59, 43], ['barrels', 64, 42],
-  ['barrels', 72, 32], ['flour_sack', 74, 34], ['bucket', 66, 33],
+  ['barrels', 72, 32], ['flour_sack', 72, 33], ['bucket', 66, 33],
   ['hay_bale', 70, 67], ['armour_stand', 59, 66], ['barrels', 77, 69],
   /* THE TRAINING YARD (art lane 2026-11-09, the art director's yard kit): the eight dummies stand where the stations put them (stations.js,
      three fighters to each) on a ring of raked sand (ground.js). A MELEE ROW along the north edge (banners, the sword rack with the arms
@@ -133,7 +139,14 @@ export const BLEND = Object.freeze({
     'havora_earth_setts', 'havora_water_setts', 'havora_setts_planks',
     /* the Training Yard's raked sand ring on the town dirt (art/world/yard) */
     'havora_earth_sand']),
-  alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
+  alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass', deck: 'water' }),
+  /* lane/a-havora-art (Tyler 2026-11-16, "the ground transitions look like shit"): the grass and the dirt meet on a ragged
+     edge, not the blueprint's ruled one (src/world/core/ground-rough.js: drawn only, the walk mask is the plan's); each
+     edge tile is one of four drawn by tools/world-art/havora-seams.mjs (seams.mjs: ragged grass and dirt, a bank on the river,
+     the square's setts scattered whole into the dirt and grass) */
+  rough: Object.freeze({ seed: 23, pairs: Object.freeze([Object.freeze(['grass', 'earth']),
+    /* the cobble lanes fray too, more sparingly: a lane was laid to a line, its edge only lost a sett here and there */
+    Object.freeze(['earth', 'flagstone', 0.64, 0.36]), Object.freeze(['grass', 'flagstone', 0.64, 0.36])]), spill: 0.62, bite: 0.38, scale: 2.6, deep: 4 }),
 });
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,

@@ -15,7 +15,8 @@
 //   Builder    (hunt-prep/builder.js, hunt-prep/grid.js) Fights as (read only: the worn weapon decides it),
 //              stance, target, chase and distance, the gold to keep, and the 2 x 10 slot grid at the HUD's
 //              own tiles: drag to move, drop on a filled slot to swap, a press opens Configure action on
-//              that slot (every condition the engine has), Sort (bar-sort.js) and Clear. All of it edits a
+//              that slot (every condition the engine has), Basic setup (basic-setup.js: the weapon type's basic
+//              bar, Tyler 2026-11-16), Sort (bar-sort.js) and Clear. All of it edits a
 //              COPY of the picked setup (prep-draft.js); Save sends it as ONE hr_action_set_options with
 //              every key, Save and use then ONE hr_hunt_preset_apply. The setup in use is the envelope's
 //              projection; another setup is read on demand (session/preset-read.js).
@@ -26,15 +27,15 @@
 // Built once per opening (a fresh opening starts from the server's row, never a stale draft), patched in
 // place; every control is off while an intent is in flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.134';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.134';
-import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.134';
-import { itemName } from '../widgets/bits.js?v=0.2.134';
-import { whole } from '../../render/format.js?v=0.2.134';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
-import { setupsHtml, patchSetups, actSetups } from './hunt-prep/setups.js?v=0.2.134';
-import { builderHtml, patchBuilder, actBuilder, dropDraft } from './hunt-prep/builder.js?v=0.2.134';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.135';
+import { carryRows, carryWords, askCarry } from '../carry-in.js?v=0.2.135';
+import { itemName } from '../widgets/bits.js?v=0.2.135';
+import { whole } from '../../render/format.js?v=0.2.135';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
+import { setupsHtml, patchSetups, actSetups } from './hunt-prep/setups.js?v=0.2.135';
+import { builderHtml, patchBuilder, actBuilder, dropDraft } from './hunt-prep/builder.js?v=0.2.135';
 
 const SCRATCH = new WeakMap();
 /* The window's state for one character: `pending` and `msg` (intent-words.js runIntent), `naming` the setup whose name
@@ -42,7 +43,7 @@ const SCRATCH = new WeakMap();
    the builder's draft (builder.js): `picked`, `draft`, `base`, `read`, `stale`, `sorted`, `drag`. */
 export const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { pending: false, msg: '', naming: null, arming: null, armingEquipped: false, adding: false, readyOpen: false, picked: null, draft: null, draftFor: null, base: '', read: null, stale: false, sorted: false, cleared: false, roleHint: null, drag: null }; SCRATCH.set(cs, s); }
+  if (!s) { s = { pending: false, msg: '', naming: null, arming: null, armingEquipped: false, adding: false, readyOpen: false, picked: null, draft: null, draftFor: null, base: '', read: null, stale: false, sorted: false, cleared: false, basic: false, roleHint: null, drag: null }; SCRATCH.set(cs, s); }
   return s;
 };
 

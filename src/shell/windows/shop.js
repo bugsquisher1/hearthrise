@@ -21,37 +21,37 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.134';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.134';
-import { whole, gold } from '../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.134';
-import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds, upgradeWanted } from '../bag-model.js?v=0.2.134';
-import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.134';
-import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.134';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.134';
-import { toolLossWords } from '../town-work.js?v=0.2.134';
-import { runIntent } from '../intent-words.js?v=0.2.134';
-import { showTip, hideTip } from './item-tip.js?v=0.2.134';
-import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.134';
-import { gearLocked } from '../gear-gate.js?v=0.2.134';
-import { revealInWindow } from '../widgets/bits.js?v=0.2.134';
-import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.134';
-import { CROPS } from '../../data/gathering.js?v=0.2.134';
-import { requiredPlotLevel } from '../../core/farm.js?v=0.2.134';
-import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
+import { shopOf, bagOf, rulesOf, goldOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.135';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.135';
+import { whole, gold } from '../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.135';
+import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds, upgradeWanted } from '../bag-model.js?v=0.2.135';
+import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.135';
+import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.135';
+import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.135';
+import { toolLossWords } from '../town-work.js?v=0.2.135';
+import { runIntent } from '../intent-words.js?v=0.2.135';
+import { showTip, hideTip } from './item-tip.js?v=0.2.135';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.135';
+import { gearLocked } from '../gear-gate.js?v=0.2.135';
+import { revealInWindow } from '../widgets/bits.js?v=0.2.135';
+import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.135';
+import { CROPS } from '../../data/gathering.js?v=0.2.135';
+import { requiredPlotLevel } from '../../core/farm.js?v=0.2.135';
+import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
 
 const TABS = Object.freeze([['buy', t('controls.buy')], ['sell', t('controls.sell')], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
 /* The Buy tab's lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
    why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
 const BUY_GROUPS = Object.freeze([
-  ['gear', 'Gear', 'Gloves and belts are armor. Wear one and Defense trains. Helmets, bodies, legs and boots come from monsters.'],
+  ['gear', 'Gear', 'Gloves and belts: armor that trains Defense'],
   ['tool', 'Tools', ''],
   /* The seed counter (designer 2026-10-22): one seed grows one crop on a farm plot; the crop's Farming level and the
      land's plot tier gate the planting, not the purchase. */
-  ['seed', 'Seeds', 'One seed grows one crop on a farm plot. A crop needs a Farming level and a plot tier before you can plant it.'],
+  ['seed', 'Seeds', 'One seed, one crop on a farm plot'],
 ]);
 /* Each seed's crop, from the data (gathering.js CROPS). */
 const CROP_OF_SEED = new Map(Object.entries(CROPS).map(([id, c]) => [c.seed, id]));
@@ -82,14 +82,14 @@ export function renderShop() {
     + BUY_GROUPS.map(([kind, head, note]) => '<h3 class="hw-ledger-head hw-buy-head" data-kind="' + kind + '">' + esc(head) + '</h3>'
       + (note ? '<p class="hw-cap hw-buy-note" data-kind="' + kind + '">' + esc(note) + '</p>' : '')
       + '<ul class="hw-ledger hw-buy-list" data-kind="' + kind + '"></ul>').join('')
-    + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p>' + upgradeLineHtml() + '</section>'
+    + '<p class="hh-empty hw-buy-none">No prices yet</p>' + upgradeLineHtml() + '</section>'
     + '<section class="hw-pane" data-pane="sell">'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button><button type="button" class="hh-tool" data-hs-act="sell-spare" hidden></button></div><p class="hw-sell-note"></p>'
     /* the confirmation beside the press, never under the list (the coach rings its Sell: data-coach-hook) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
-    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'
+    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing to sell</p></section>'
     + '<section class="hw-pane" data-pane="services">' + servicesPaneHtml() + '</section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -121,13 +121,13 @@ function patchBuy(root, st, ctx) {
         const plant = o.kind === 'seed' ? seedNeedWords(st.cs, o.item) : '';
         /* "0 in the bag" is said only when it is not 0 (first-30 play 2026-11-12: it wrapped every new hero's row to three lines) */
         const held = st.qty.get(o.item) || 0;
-        text(li.querySelector('small'), gold(o.price) + ' each' + (held ? ', ' + whole(held) + ' in the bag' : '') + (does ? ', ' + does + ' while in your bag' : '') + (plant ? '. ' + plant : '')
-          + (short ? '. You need ' + gold(short) + ' more.' : ''));
+        text(li.querySelector('small'), gold(o.price) + ' each' + (held ? ', ' + whole(held) + ' in the bag' : '') + (does ? ', ' + does + ' in bag' : '') + (plant ? ', ' + plant : '')
+          + (short ? ', need ' + gold(short) + ' more' : ''));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');
         text(b, 'Buy ' + n + ' for ' + gold(o.price * n));
         prop(b, 'disabled', st.sc.pending || short > 0);
-        attr(b, 'data-off-why', short ? 'You need ' + gold(short) + ' more.' : null);
+        attr(b, 'data-off-why', short ? 'Need ' + gold(short) + ' more' : null);
       },
     });
   }
@@ -144,7 +144,7 @@ function spareOf(cs, items, rules, shop) {
 /* What Sell all junk leaves out and why, so its price and the list under it add up (say-why). */
 function sellNote(plan, kept, spare) {
   const parts = [];
-  if (spare.lines.length) parts.push('Sell spare gear keeps what you wear, anything of a higher tier and Rare pieces.');
+  if (spare.lines.length) parts.push('Keeps worn, higher-tier and Rare pieces');
   if (kept.ids.length) parts.push(t('shop.junk_keeps', { count: kept.ids.length, worth: gold(kept.worth) }));
   if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
   return parts.join(' ');
@@ -212,7 +212,7 @@ renderShop.patch = function patchShop(body, ctx) {
   const root = body.querySelector('.hw-shop');
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === st.sc.tab));
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === st.sc.tab);
-  text(root.querySelector('.hw-gold'), 'Your gold ' + gold(st.gold));
+  text(root.querySelector('.hw-gold'), 'Gold: ' + gold(st.gold));
   text(root.querySelector('.hw-shop-note'), st.shop ? '' : 'Prices load from the server.');
   if (st.sc.tab === 'buy') patchBuy(root, st, ctx);
   else if (st.sc.tab === 'sell') patchSell(root, st, ctx);

@@ -16,14 +16,13 @@
 //   width    docked width on desktop, CSS px (the phone uses one sheet width)
 //   object   the frame's object variant (ART_DIRECTION §6): plain | satchel | doll | ledger | deed | book
 //   launcher false keeps a window off the icon row (reached from another window)
+//   group    a LAUNCHER_GROUPS id: the row's icon lives in that group's menu, one press under the group's own icon (launcher.js)
 //   escape   true on at most one row: Esc with nothing open opens it (Settings)
 //   home     'bl': opens floating at the World's bottom-left, never docked (window-manager.js)
 //   resizable true: a grip resizes it, the size kept per character (src/shell/window-sizes.js)
 //   height   the starting height of a home or resizable row, CSS px
 //   tabKeys  { letter: tab }: more shortcuts, each opening this window on that tab (window-manager.js openTab)
 //   title   the frame's words when they are not the label (the Market's "The Weighhouse")
-//   phoneIcon false keeps a launcher row off the phone's icon row, which holds 15 at a thumb's width on the
-//            narrowest phone (tests/phone-touch.mjs PH-11); the All characters sheet names it under "Also here"
 //   gm       true: shown only when the server's `gm` section says so (launcher.js, characters.js)
 //   section  a section key: shown only while the server sends that section for the hero on screen (launcher.js
 //            rowOffered, the icon row, a place's tap); hidden, it never opens
@@ -51,7 +50,18 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.134';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.135';
+
+/* THE TOP BAR'S GROUPS (Tyler 2026-11-16: "Our top menu bar is starting to get long again ... It's getting a bit overwhelming").
+   The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8), so the windows a player opens now and then sit one press
+   under a group's icon, in the order listed here: the places in town, the people, and the system menu. Every window keeps its key,
+   so a group costs a key player nothing and a mouse player one press. A phone shows the same groups, each menu a slide-out sheet.
+   A group's icon stands in the row where its first member's would. */
+export const LAUNCHER_GROUPS = Object.freeze([
+  Object.freeze({ id: 'town', label: 'Town', glyph: 'uiCastle' }),
+  Object.freeze({ id: 'social', label: 'Social', glyph: 'uiPeople' }),
+  Object.freeze({ id: 'menu', label: 'Menu', glyph: 'navMore' }),
+]);
 
 export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 960, object: 'plain', over: true, help: 'windows.help_hunts' }),
@@ -61,36 +71,35 @@ export const SHELL_WINDOWS = Object.freeze([
     beside: Object.freeze(['storage', 'shop', 'character']) }),
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
   Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger', help: 'windows.help_skills' }),
-  Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 540, object: 'satchel', help: 'windows.help_storage' }),
   /* Services (stamina, Blessings) is the Shop's third tab (Tyler 2026-10-25: "Lets move services to the 'shop' menu"):
      its old key R opens the Shop on it. */
-  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 480, object: 'ledger', help: 'windows.help_shop', tabKeys: Object.freeze({ r: 'services' }) }),
+  Object.freeze({ id: 'shop', label: 'Shop', key: 'v', group: 'town', glyph: 'navStore', width: 480, object: 'ledger', help: 'windows.help_shop', tabKeys: Object.freeze({ r: 'services' }) }),
   /* The Weighhouse (market design 2026-10-24): one window with four tabs, for every hero, hunting or not. */
-  Object.freeze({ id: 'market', label: 'Market', title: 'The Weighhouse', key: 'm', glyph: 'navMarket', width: 820, object: 'ledger' }),
+  Object.freeze({ id: 'market', label: 'Market', title: 'The Weighhouse', key: 'm', group: 'town', glyph: 'navMarket', width: 820, object: 'ledger' }),
+  Object.freeze({ id: 'storage', label: 'Storage', key: 't', group: 'town', glyph: 'uiChest', width: 540, object: 'satchel', help: 'windows.help_storage' }),
+  /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
+     Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
+  Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', group: 'town', glyph: 'navBounty', width: 460, object: 'ledger' }),
+  /* What gold buys in town (Tyler 2026-11-04; the designer's gold sinks section): Hearth powders, a round at the Tavern, later the Town Works. X is its shortcut (every
+     other letter is taken and WASD walks; You died gave X up, a popup only the game opens). The Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives.
+     Its glyph is the Hearth's fire: the castle is the Town group's own (LAUNCHER_GROUPS). */
+  Object.freeze({ id: 'havora', label: TOWN_NAME, key: 'x', group: 'town', glyph: 'uiFire', width: 420, object: 'ledger' }),
   /* The farm plots (P1 2026-10-22: no client door to farming). Per hero: each hero has its own plots on the server. */
-  Object.freeze({ id: 'farm', label: 'Farm', key: 'j', glyph: 'uiSprout', width: 440, object: 'plain' }),
+  Object.freeze({ id: 'farm', label: 'Farm', key: 'j', group: 'town', glyph: 'uiSprout', width: 440, object: 'plain' }),
   /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */
   /* The account's one house (Tyler 2026-10-15): the property, its rooms and the storage chests, bought from any character. */
-  Object.freeze({ id: 'house', label: 'House', key: 'e', phoneIcon: false, glyph: 'navHouse', width: 480, object: 'deed' }),
+  Object.freeze({ id: 'house', label: 'House', key: 'e', group: 'town', glyph: 'navHouse', width: 480, object: 'deed' }),
   /* Combat training (the designer's "2026-11-13 Combat training spec"): one combat skill for gold by the hour at the yard, or free
      on the house dummy. Shown only while the server sends the `training` section; the yard's dummies open it, and while it is
      hidden the yard opens Hunts, as before. No letter: the yard and the icon open it. */
-  Object.freeze({ id: 'training', label: 'Training', title: 'Training Yard', key: null, noShortcut: true, phoneIcon: false, section: 'training', orElse: 'hunts',
+  Object.freeze({ id: 'training', label: 'Training', title: 'Training Yard', key: null, noShortcut: true, group: 'town', section: 'training', orElse: 'hunts',
     glyph: 'uiSword', width: 420, object: 'ledger' }),
-  /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
-     Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
-  Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),
-  /* Leaderboards (lane/b-leaderboards, 2026-10-31; named by Tyler 2026-11-01): Havora's heroes in order, one board at a
-     time, every place and number the server's (src/data/honor-roll.js names the boards). */
-  Object.freeze({ id: 'honor', label: 'Leaderboards', key: 'z', phoneIcon: false, glyph: 'uiTrophy', width: 440, object: 'book' }),
-  /* What gold buys in town (Tyler 2026-11-04; the designer's gold sinks section): Hearth powders, a round at the Tavern, later the Town Works. X is its shortcut (every
-     other letter is taken and WASD walks; You died gave X up, a popup only the game opens). The Tavern on the map opens it on Round. Its label is the city's name, read from the one place it lives. */
-  Object.freeze({ id: 'havora', label: TOWN_NAME, key: 'x', glyph: 'uiCastle', width: 420, object: 'ledger' }),
-  /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. */
-  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 1040, object: 'plain', over: true, help: 'windows.help_prep' }),
+  /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. No icon of its
+     own since the bar's groups (2026-11-16): the bar's setup press opens it, so does Change setups under a ground's Go as, and P. */
+  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', launcher: false, glyph: 'uiCheck', width: 1040, object: 'plain', over: true, help: 'windows.help_prep' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */
-  Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', glyph: 'uiPeople', width: 440, object: 'plain' }),
+  Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', group: 'social', glyph: 'uiBanner', width: 440, object: 'plain' }),
   Object.freeze({ id: 'characters', label: 'All characters', key: 'o', glyph: 'navProfile', width: 460, object: 'ledger', launcher: false }),
   Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
@@ -98,7 +107,7 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true,
     pageOf: Object.freeze(['hunt-prep']) }),
   /* Tyler 2026-10-19: a death opens a centred popup (src/shell/death-popup.js opens it; its key shows the last death). */
-  Object.freeze({ id: 'death', label: 'You died', key: null, glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
+  Object.freeze({ id: 'death', label: 'Defeated', key: null, glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
   /* Tyler 2026-11-01: the play cap's refusal opens a centered popup (windows/play-cap.js). It has nothing to say until the server refuses a start, so no key. */
   Object.freeze({ id: 'play-cap', label: 'Too many heroes playing', key: null, glyph: 'uiWarn', width: 420, object: 'plain', launcher: false, modal: true }),
   /* Tyler 2026-11-14: after a hero's first Krell kill, Holly and Venn ask it to pick a side (windows/faction-join.js opens it once; the
@@ -108,22 +117,26 @@ export const SHELL_WINDOWS = Object.freeze([
      `besideCoach`: the coach's card stays up while it is open (played 2026-11-10: Chat is the window a new player leaves open, and with it open
      the screen said nothing at the minute the designer would have quit). It sits in the far corner from the card; a phone's sheet takes the
      right half and the card the left. */
-  Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, height: 280, home: 'bl', resizable: true, object: 'plain', besideCoach: true }),
+  Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', group: 'social', glyph: 'uiChat', width: 400, height: 280, home: 'bl', resizable: true, object: 'plain', besideCoach: true }),
   /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear
      (opened from the player menu, so it takes no launcher icon). */
-  Object.freeze({ id: 'friends', label: 'Friends', key: 'n', glyph: 'navProfile', width: 380, object: 'ledger' }),
+  Object.freeze({ id: 'friends', label: 'Friends', key: 'n', group: 'social', glyph: 'navProfile', width: 380, object: 'ledger' }),
+  /* Leaderboards (lane/b-leaderboards, 2026-10-31; named by Tyler 2026-11-01): Havora's heroes in order, one board at a
+     time, every place and number the server's (src/data/honor-roll.js names the boards). */
+  Object.freeze({ id: 'honor', label: 'Leaderboards', key: 'z', group: 'social', glyph: 'uiTrophy', width: 440, object: 'book' }),
   Object.freeze({ id: 'inspect', label: 'Inspect', key: 'i', glyph: 'navCharacter', width: 340, object: 'doll', launcher: false }),
-  Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
+  /* THE BOOK (the wiki, work ledger item 9, Tyler: public formulas; and the Chronicle, Tyler 2026-11-16 "Yeah build the chronicle"): the story
+     so far as this hero has lived it, then skills, grounds and formulas generated from the data rows and the engine's own functions
+     (src/shell/wiki-model.js), so it can never disagree with a hunt. Every letter is taken, so its key is the slash. The bar's groups made room
+     for its icon; Settings, Help opens it too (src/data/settings.js). The Chronicle is its first tab (src/shell/windows/wiki.js). */
+  Object.freeze({ id: 'wiki', label: 'Book', key: '/', glyph: 'uiBook', width: 620, object: 'book', help: 'windows.help_wiki' }),
+  Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', group: 'menu', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
   /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help: a phone's way in). */
-  Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', phoneIcon: false, glyph: 'uiWarn', width: 420, object: 'plain' }),
+  Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', group: 'menu', glyph: 'uiWarn', width: 420, object: 'plain' }),
   /* One monster's facts, a page of the encyclopedia (Tyler 2026-11-09: every monster's stats are visible). A creature on a hunt's page opens it
      (src/shell/goto.js), so it has no icon and no key. It opens at the bottom-left, beside the Hunts window it was opened from: docked, it would close it. */
   Object.freeze({ id: 'monster', label: 'Monster facts', key: null, noShortcut: true, launcher: false, glyph: 'uiBook', width: 420, height: 560, home: 'bl', object: 'book',
     pageOf: Object.freeze(['hunts']) }),
-  /* The wiki (work ledger item 9, Tyler: public formulas): skills, grounds and formulas generated from the data rows and the engine's own
-     functions (src/shell/wiki-model.js), so it can never disagree with a hunt. Every letter is taken, so its key is the slash. The top bar has no
-     room for another icon at a laptop's width (tests/alpha-windows.mjs AW-62), so Settings, Help opens it on every screen (src/data/settings.js). */
-  Object.freeze({ id: 'wiki', label: 'Wiki', key: '/', launcher: false, glyph: 'uiBook', width: 620, object: 'book', help: 'windows.help_wiki' }),
   /* The owner's tools (2027-03-13-gm-tools.sql). No key: nobody else's keyboard reaches an empty window; the icon is the way in. */
-  Object.freeze({ id: 'game-master', label: 'Game Master', key: null, phoneIcon: false, gm: true, glyph: 'uiTarget', width: 520, object: 'ledger' }),
+  Object.freeze({ id: 'game-master', label: 'Game Master', key: null, group: 'menu', gm: true, glyph: 'uiTarget', width: 520, object: 'ledger' }),
 ]);

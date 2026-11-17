@@ -19,22 +19,22 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.134';
-import { summaryOf } from '../command-model.js?v=0.2.134';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.134';
-import { huntName } from '../../session/party-sections.js?v=0.2.134';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.134';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.134';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.134';
-import { gmOf } from '../../session/character-sections.js?v=0.2.134';
-import { runIntent } from '../intent-words.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.134';
-import { glyphSvg } from '../launcher.js?v=0.2.134';
-import { entriesFor } from '../context-menu.js?v=0.2.134';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
-import { rowOffered } from '../launcher.js?v=0.2.134';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.135';
+import { summaryOf } from '../command-model.js?v=0.2.135';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.135';
+import { huntName } from '../../session/party-sections.js?v=0.2.135';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.135';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.135';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.135';
+import { gmOf } from '../../session/character-sections.js?v=0.2.135';
+import { runIntent } from '../intent-words.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.135';
+import { glyphSvg } from '../launcher.js?v=0.2.135';
+import { entriesFor } from '../context-menu.js?v=0.2.135';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
+import { rowOffered } from '../launcher.js?v=0.2.135';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
@@ -44,17 +44,14 @@ const cleanName = (v) => String(v || '').trim().replace(/\s+/g, ' ');
 const RENAME_WHY = Object.freeze({ hunt_open: 'heroes.rename_hunting', renamed_today: 'heroes.rename_today' });
 
 /* THE PHONE'S ROUTES (playtest 2026-10-31, shown under the phone query only, windows.css): a hero's Invite button (the
-   right-click menu's own entry, so its rule and its words stay in one place); every icon of the top row by name, each a
-   press (the row has no words and a phone no hover); the windows the phone's row has no room for (shell-windows.js
-   phoneIcon: they have no other press here); and Characters and Sign out, which no longer fit beside the row. */
+   right-click menu's own entry, so its rule and its words stay in one place); every window the top row reaches by name,
+   each a press (the row has no words and a phone no hover; a grouped one sits in its group's menu, which names it too);
+   and Characters and Sign out, which no longer fit beside the row. */
 const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" class="hw-icon-name" data-hs-open="' + esc(r.id) + '">'
   + glyphSvg(ctx.glyphs, r.glyph) + '<span>' + esc(r.label) + '</span></button></li>').join('');
 const iconRows = (ctx) => ctx.wm.rows().filter((r) => r.launcher !== false && rowOffered(r, ctx.character));
 const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">' + esc(t('heroes.icons_head')) + '</h3><ul class="hw-icon-names">'
-  + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon !== false)) + '</ul></div>';
-/* "Also here" is the sheet's first row: these have no icon on a phone, so a long scroll hid them (panel 2026-11-01: ~700 px down). */
-const alsoHereHtml = (ctx) => '<div class="hw-phone-only"><ul class="hw-icon-names is-more" aria-label="' + esc(t('heroes.also_here_aria')) + '">'
-  + iconNames(ctx, iconRows(ctx).filter((r) => r.phoneIcon === false)) + '</ul></div>';
+  + iconNames(ctx, iconRows(ctx)) + '</ul></div>';
 const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">' + esc(t('heroes.character_list')) + '</button>'
   + '<button type="button" class="hh-tool" data-app="sign-out">' + esc(t('controls.sign_out')) + '</button></div>';
 
@@ -69,7 +66,6 @@ function inviteEntry(ctx, x) {
 /** The skeleton (built once per opening). */
 export function renderCharacters(ctx) {
   return '<div class="hw-command">'
-    + alsoHereHtml(ctx)
     + '<ul class="hw-chars"></ul>'
     + '<div class="hw-rename"><h3 class="hs-sub hw-rename-head"></h3>'
     + '<p class="hs-note hw-rename-quote"></p>'

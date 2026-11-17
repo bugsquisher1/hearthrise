@@ -16,14 +16,14 @@
 // The share is by ARMOUR_SLOTS worn of that weight (ruling K7: mixed pieces blend,
 // no mixing penalty); shields and capes carry no weight. PURE: no DOM.
 // ════════════════════════════════════════════════════════════════════════
-import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.134';
-import { ITEMS } from './items.js?v=0.2.134';
+import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.135';
+import { ITEMS } from './items.js?v=0.2.135';
 
 /* pool: the vital the weight raises ('hp' | 'mana' | null), fullPm: that raise for a full set, permille. */
 const WEIGHT_RULES = Object.freeze({
-  heavy: Object.freeze({ name: 'Heavy', pool: 'hp', fullPm: VITALS.heavyHpPermille, guard: 'absorbs part of each blow that lands' }),
-  medium: Object.freeze({ name: 'Medium', pool: null, fullPm: 0, guard: 'makes more blows miss you' }),
-  light: Object.freeze({ name: 'Light', pool: 'mana', fullPm: VITALS.lightManaPermille, guard: 'takes a set amount off each blow that lands' }),
+  heavy: Object.freeze({ name: 'Heavy', pool: 'hp', fullPm: VITALS.heavyHpPermille, guard: 'absorbs part of each blow' }),
+  medium: Object.freeze({ name: 'Medium', pool: null, fullPm: 0, guard: 'more blows miss' }),
+  light: Object.freeze({ name: 'Light', pool: 'mana', fullPm: VITALS.lightManaPermille, guard: 'takes a set amount off each blow' }),
 });
 export const WEIGHT_ORDER = Object.freeze(['heavy', 'medium', 'light']);
 const POOL_WORDS = Object.freeze({ hp: 'max HP', mana: 'max mana' });
@@ -49,14 +49,14 @@ function sharePm(w, n) {
 export function weightSentence(w) {
   const r = WEIGHT_RULES[w];
   if (!r) return '';
-  const pool = r.pool ? 'adds ' + POOL_WORDS[r.pool] + ' (up to ' + pct(r.fullPm) + ' for a full set) and ' : 'adds no HP or mana but ';
-  return r.name + ' armor ' + pool + r.guard + '.';
+  const pool = r.pool ? POOL_WORDS[r.pool] + ' up to ' + pct(r.fullPm) + ', ' : 'no HP or mana, ';
+  return r.name + ': ' + pool + r.guard;
 }
 
 /** The same, short, for a coach card: "Heavy adds max HP and absorbs part of each blow that lands." */
 export function weightShort(w) {
   const r = WEIGHT_RULES[w];
-  return r ? r.name + (r.pool ? ' adds ' + POOL_WORDS[r.pool] + ' and ' : ' ') + r.guard + '.' : '';
+  return r ? r.name + ': ' + (r.pool ? POOL_WORDS[r.pool] + ', ' : '') + r.guard : '';
 }
 
 /** The tooltip's line for an armor piece: { head, text }, or null. */
@@ -79,8 +79,8 @@ export function wornWeights(equipment) {
   return WEIGHT_ORDER.map((w, i) => {
     const r = WEIGHT_RULES[w];
     if (!n[w]) return { w, n: 0, text: none && i === 0 ? NONE_WORN : '' };
-    return { w, n: n[w], text: n[w] + ' ' + w + (r.pool ? ' (' + pct(sharePm(w, n[w])) + ' ' + POOL_WORDS[r.pool] + ')' : ' (more blows miss)') };
+    return { w, n: n[w], text: n[w] + ' ' + w + (r.pool ? ', ' + pct(sharePm(w, n[w])) + ' ' + POOL_WORDS[r.pool] : ', more blows miss') };
   });
 }
 
-const NONE_WORN = 'None yet. Your outfit is only a look.';
+const NONE_WORN = 'None worn';

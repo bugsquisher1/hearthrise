@@ -44,6 +44,7 @@ import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
 import { cheapestShopUnitPrice } from '../../../src/core/shop-buyback.js';
 import { VENDOR_GEAR_TYPES, gearSaleRate } from '../../../src/data/loot-bands.js';
+import { dialedSale, SALE_FIT_PM, LOWER_TWIN } from '../../../src/data/loot-sale.js';
 
 /**
  * `{ [nodeId]: { skill, node } }` over all 23 gathering nodes.
@@ -345,7 +346,14 @@ export function vendorPriceOf(items, id) {
   const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * gearSaleRate(it))) : book;
   /* Floored at 1: a raw worth anything at all is still worth something, and a
      0g bid reads as "this item is broken" rather than "this is cheap". */
-  const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  /* A GROUND'S INCOME DIAL (src/data/loot-sale.js): the sale of a drop of a dialed ground, at the highest dial of the grounds that drop it, and
+     never under the piece a tier below it in its line where the DIAL put it there (LOWER_TWIN: the sale ladder holds under the dial; a piece
+     whose own book already sells under its twin is a data error the sale ladder must still see, so it is not floored). */
+  const whole = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const dialed = dialedSale(whole, id);
+  const twin = catalogueGet(SALE_FIT_PM, id) && catalogueGet(LOWER_TWIN, id);
+  const twinBid = twin ? vendorPriceOf(items, twin) : 0;
+  const bid = twin && whole >= twinBid ? Math.max(dialed, twinBid) : dialed;
   const unit = catalogueGet(SHOP_UNIT_PRICE, id);
   return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;
 }

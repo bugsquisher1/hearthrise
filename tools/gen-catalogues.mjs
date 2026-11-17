@@ -125,7 +125,23 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    APPLIED history. Sixteen new hr_items rows: a Training Sword, Bow, Wand and Shield in 12 and 24 hours, each the Arms Master's tradable
    row (book value its price / 100) and the Crowns store's bound copy (`_bound`, tradeable false, value 0: every trade surface refuses it),
    in ONE forward file, the same full delete+insert replace. No other row moves. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-23-training-gear-items-catalogue.generated.sql');
+/* THE TRAINING ITEMS' SIZES (lane/c-training-gear-arm, the Coordinator 2026-11-16: the 12 h and 24 h items read alike in the bag, Storage
+   and the market): 2027-04-23-training-gear-items-catalogue is APPLIED history. hr_items.name of the sixteen training rows takes its size,
+   "Training Sword (12 h)" (src/data/training.js trainingGearName), in ONE forward file, the same full delete+insert replace, ids, values
+   and tradeability unchanged. The emitted self-check pins every landed name to the source by digest. */
+/* BOSS CALL DROPS (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: a called boss's win drops his table plus one call-only piece):
+   2027-04-23-training-gear-items-catalogue is the file before this one and this one carries it whole; the two call-only pieces (hr_items, hr_item_slots: the Kingstooth, a weapon, and the
+   Cauldron Lid, a shield; src/data/boss-calls.js CALL_ITEMS) land in ONE forward file, the same full delete+insert replace. No hero holds one until
+   lane C's call-drops migration lets a felled window carry them. */
+/* ...AND KRELL'S HOLD AS RE-SHIPPED (lane/c-krell-uniques: 2027-04-25-pack-krells_hold-2, Krell's two unique pieces). The applied training-gear whole files fold the
+   pack as its first file shipped it; the re-ship applies BEFORE this file (tests/schema-apply-order.json), so this file folds it as re-shipped
+   (tools/pack/whole.mjs). The 2027-04-26-krell-reship pair lane/d-audit-f22 staged for that alone was collapsed into this one when the lanes met
+   (one generator vouches for one file). */
+/* ONE FORWARD FILE FOR v0.2.135 (set/v0.2.135, 2026-11-17; the Coordinator 2026-11-16: regenerate ONCE on the assembled set and drop the per-lane
+   files): the three notes above met on one set, so 2027-04-30-training-gear-names-items-catalogue and 2027-04-23-boss-call-drops-items-catalogue
+   (both STAGED, never applied) are collapsed into this one file, which carries the training names, the two call-only pieces and Krell's re-shipped
+   pack. ORDER: after 2027-04-25-pack-krells_hold-2.generated.sql; before the v0.2.135 hunt-sessions file and 2027-04-30-training-gear-arm.sql. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-01-v0135-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1295,7 +1311,9 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* TEMPERING'S MATERIAL (lane/c-temper-craft, 2026-11-05): 2027-02-25-houndskin is APPLIED history; the mixes' bars and bones. */
 /* CRAFTED JEWELRY (lane/c-jewelry-sample, 2026-11-05): 2027-02-28-temper-craft is APPLIED history; the two rolled jobs' inputs. */
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-14-jewelry-bench-inputs is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches land in ONE forward file. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-03-27-phase0-tier4-bench-inputs.generated.sql');
+/* THE MARCH'S MADE PIECES (lane/a-next-steps with d-audit-balance-2, set v0.2.135): 2027-03-27-phase0-tier4 is APPLIED history; the Mithril-Faced Shield's
+   forge and the March salts' mixes and packs land in ONE forward file. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-01-v0135-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

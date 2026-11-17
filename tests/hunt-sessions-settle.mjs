@@ -4893,7 +4893,7 @@ const MUTANTS = [
   { arm: 'SPLIT', name: 'the rotation is not carried across a settle cut', file: 'src/core/party-split.js',
     from: "world: Object.freeze([['rareWon', 'json']])", to: 'world: Object.freeze([])' },
   { arm: 'RARE-DROP', name: 'a rare drop is never a world event (no alert, no float)', file: 'src/core/hunt-rewards.js',
-    from: "      if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop',", to: "      if (false) ctx.emit(makeEvent('rare_drop'," },
+    from: "    if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop',", to: "    if (false) ctx.emit(makeEvent('rare_drop'," },
   { arm: 'RARE-DROP', name: 'the session never journals a rare drop (no hint)', file: join(FN, 'accrual.js'),
     from: "    else if (e.type === 'rare_drop' && e.item) hints.rare_drop.push(", to: "    else if (false) hints.rare_drop.push(" },
   { arm: 'SPLIT', name: 'only the killer counts the kill', file: 'src/core/hunt-rewards.js',

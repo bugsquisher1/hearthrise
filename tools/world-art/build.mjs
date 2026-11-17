@@ -24,8 +24,14 @@
 //   in FACINGS order (s,e,n,w, then se,sw,ne,nw), frames left to right at the frame size.
 // Terrain sidecar: { id, class: 'terrain', material, source, lower, upper,
 //   tiles: { NWNESWSE: [[col, row], …] }, shade?, pixellab } — T×T cells of the source.
+// Variety sidecar (tools/world-art/variety.mjs): { id, class: 'terrain', kind: 'variety', of: 'set/terrain', key | at,
+//   lower, upper, seed, tone?, shift?, spots?, detail?: ['set/decal', …] } — no source of its own: its base is the of-terrain's
+//   first tile of corners `key` (a wang pair's interior), or the tile of map cell `at` [x, y] of a painted ground, locked
+//   exactly as that terrain locks it, so every variant meets the floor it varies with no seam.
 //   lift (a sprite) / shade (a terrain): whole value steps up a body's ramps or down a painted floor's, after the lock (lockOf),
 //   for the [ring] readability rule (tests/world-assets.mjs); never another hue.
+//   restyle (a sprite, tools/world-art/restyle.mjs): whole-pixel repaints on the palette just after the lock (a ramp stepped or
+//   clamped, the rim given the world's line), so a drawing in another hand meets the dominant style; the source stays the drawing.
 // THE SET'S GRID: art/world/<set>/_set.json { "grid": "hd64" } names the art grid the set is
 // drawn on (src/data/world/art-budget.js GRIDS); no file is the base grid. The grid's T, class
 // table, shadow rule and measuring bands build and validate the set, and the manifest records
@@ -40,6 +46,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePNG, encodeSheetPNG, crop, pixelHash, createImage } from './png.mjs';
 import { lock, regradeFinding, liftBody, shadeGround } from './lock.mjs';
+import { restyle, restyleProblems } from './restyle.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
 import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, MASK_PALETTE, REGRADE_KEPT } from './validate.mjs';
 import { pack } from './pack.mjs';
@@ -47,6 +54,8 @@ import { FACINGS, MANIFEST_VERSION, atlasPaths, gridOf } from '../../src/data/wo
 import { PALETTE_ID } from './palette.mjs';
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
 import { MASK_SETS } from '../../src/data/world/atlas-sets.js';
+import { VARIETY_COUNT } from '../../src/world/core/ground-variety.js';
+import { varietyTiles, decalOf } from './variety.mjs';
 import { isMain as isEntryModule } from '../../tests/_is-main.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -80,10 +89,11 @@ export function keyFrame(img) {
   return out;
 }
 
-/** The lock, then a body's `lift` (that many value steps up its ramps, lock.mjs liftBody) or a painted floor's `shade` (that many
-    down, shadeGround): the readability steps a sidecar declares (ART_DIRECTION section 4), done here so the source stays the drawing. */
+/** The lock, then a sidecar's `restyle` (restyle.mjs: whole-pixel repaints on the palette), then a body's `lift` (that many value
+    steps up its ramps, lock.mjs liftBody) or a painted floor's `shade` (that many down, shadeGround): the readability steps a
+    sidecar declares (ART_DIRECTION section 4), done here so the source stays the drawing. */
 export function lockOf(sc, img) {
-  const locked = lock(img, sc.material);
+  const locked = sc.restyle && !restyleProblems(sc.restyle).length ? restyle(lock(img, sc.material), sc.restyle) : lock(img, sc.material);
   return sc.lift ? liftBody(locked, sc.lift) : sc.shade ? shadeGround(locked, sc.shade) : locked;
 }
 
@@ -134,6 +144,28 @@ function contactOf(sc, m, k = 1) {
   return spans.length ? [spans[0][0], spans[spans.length - 1][1]] : [m.box.x0, m.box.x1];
 }
 
+/** A variety sidecar's variants (tools/world-art/variety.mjs), from the base its of-terrain locks: { tiles } or { findings }. */
+function varietyOf(root, sc, T) {
+  const bad = (detail) => ({ findings: [{ rule: 'variety', id: sc.id, detail }] });
+  const [ofSet, ofId] = String(sc.of || '').split('/');
+  const ofFile = join(root, ART_DIR, ofSet || '', (ofId || '') + '.json');
+  if (!ofSet || !ofId || !existsSync(ofFile)) return bad(`of "${sc.of}" is not a terrain sidecar (set/id)`);
+  const of = JSON.parse(readFileSync(ofFile, 'utf8'));
+  if (of.class !== 'terrain' || of.kind === 'variety') return bad(`of "${sc.of}" is not a floor terrain`);
+  let cell;
+  if (Array.isArray(sc.at)) {
+    if (!of.painted || !of.cycle) return bad(`at [x, y] names a cell of a painted ground; ${sc.of} is not one`);
+    const [x, y] = sc.at;
+    cell = x >= 0 && y >= 0 && x < of.cycle[0] && y < of.cycle[1] ? of.tiles['1111'][y * of.cycle[0] + x] : null;
+  } else cell = ((of.tiles || {})[sc.key] || [])[0];
+  if (!cell) return bad(`no base tile: ${sc.at ? 'cell ' + JSON.stringify(sc.at) : 'key ' + sc.key} of ${sc.of}`);
+  const sheet = decodePNG(readFileSync(join(root, ART_DIR, ofSet, of.source)));
+  const base = lockOf(of, crop(sheet, cell[0] * T, cell[1] * T, T, T));
+  const details = (sc.detail || []).map((ref) => decalOf(root, ART_DIR, ref));
+  const tiles = varietyTiles(base, { seed: sc.seed | 0, tone: sc.tone, shift: !!sc.shift, spots: sc.spots, details });
+  return tiles.length === VARIETY_COUNT ? { tiles, findings: [] } : bad(`${tiles.length} variants, the picker reads ${VARIETY_COUNT}`);
+}
+
 /** Build one set in memory. */
 export function buildSet(root, set) {
   const findings = [];
@@ -141,12 +173,20 @@ export function buildSet(root, set) {
   const masks = !!MASK_SETS[set];
   const sprites = [], terrains = [];
   for (const sc of readSidecars(root, set)) {
+    if (sc.class === 'terrain' && sc.kind === 'variety') {
+      const v = varietyOf(root, sc, T);
+      findings.push(...v.findings);
+      if (v.tiles) { findings.push(...validateTerrain({ id: sc.id, kind: 'variety', tiles: { 1111: v.tiles } }, grid)); terrains.push({ sc, tiles: { 1111: v.tiles } }); }
+      continue;
+    }
     const src = join(root, ART_DIR, set, sc.source || '');
     if (!sc.source || !existsSync(src)) { findings.push({ rule: 'source', id: sc.id, detail: `missing source ${sc.source}` }); continue; }
     const sheet = decodePNG(readFileSync(src));
     /* palette-locked art is never graded (lock.mjs): a set that would is not written */
     const regrade = masks ? null : regradeFinding(sc, sheet, REGRADE_KEPT);
     if (regrade) findings.push(regrade);
+    /* a restyle the build cannot read is refused, never half-applied (restyle.mjs) */
+    if (sc.restyle) for (const p of restyleProblems(sc.restyle)) findings.push({ rule: 'restyle', id: sc.id, detail: p });
     if (sc.class === 'terrain') {
       const tiles = {};
       for (const [k, cells] of Object.entries(sc.tiles)) tiles[k] = cells.map(([c, r]) => lockOf(sc, crop(sheet, c * T, r * T, T, T)));
@@ -192,7 +232,8 @@ export function buildSet(root, set) {
   for (const { sc, tiles } of terrains.sort((a, b) => (a.sc.id < b.sc.id ? -1 : 1))) {
     const out = {};
     for (const k of Object.keys(tiles).sort()) out[k] = tiles[k].map((_, i) => packed.rects.get(`${sc.id}:${k}:${i}`));
-    manifest.terrain[sc.id] = { kind: sc.kind || 'wang16', lower: sc.lower, upper: sc.upper, ...(sc.cycle ? { cycle: sc.cycle } : {}), ...(sc.painted ? { painted: true } : {}), tiles: out };
+    const variety = sc.kind === 'variety' ? { of: sc.of.split('/')[1], ...(sc.at ? { at: sc.at } : { key: sc.key }), seed: sc.seed | 0 } : {};
+    manifest.terrain[sc.id] = { kind: sc.kind || 'wang16', lower: sc.lower, upper: sc.upper, ...(sc.cycle ? { cycle: sc.cycle } : {}), ...(sc.painted ? { painted: true } : {}), ...variety, tiles: out };
   }
   return { set, findings, manifest, atlas: packed.image, sprites, grid };
 }

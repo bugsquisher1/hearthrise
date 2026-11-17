@@ -27,41 +27,43 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.134';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.134';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.134';
-import { MONSTERS } from '../data/monsters.js?v=0.2.134';
-import { compileMap } from './core/map-compile.js?v=0.2.134';
-import { createBook } from './core/book.js?v=0.2.134';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.134';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.134';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.134';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.134';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.134';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.134';
-import { createViewSheets } from './view-sheets.js?v=0.2.134';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.134';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.134';
-import { huntOfMap } from './hunt-maps.js?v=0.2.134';
-import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.134';
-import { createHuntScene } from './hunt-scene.js?v=0.2.134';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.134';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.134';
-import { createWalkScene } from './walk-scene.js?v=0.2.134';
-import { createTownZoom } from './town-zoom.js?v=0.2.134';
-import { createIdleMotion } from './idle-motion.js?v=0.2.134';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.134';
-import { runAction } from './steer-local.js?v=0.2.134';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.134';
-import { heroDyeOf } from './hero-dye.js?v=0.2.134';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.134';
-import { homeOf } from '../session/home-sections.js?v=0.2.134';
-import { skillsOf } from '../session/item-sections.js?v=0.2.134';
-import { createHearthView } from './hearth-burn.js?v=0.2.134';
-import { townWorksSwap } from './town-works.js?v=0.2.134';
-import { farmCropProps } from './town-farm.js?v=0.2.134';
-import { farmFieldOf } from '../session/farm-sections.js?v=0.2.134';
-import { createTownShows } from './town-shows.js?v=0.2.134';
+import { BUILD } from '../build-info.js?v=0.2.135';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.135';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.135';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { compileMap } from './core/map-compile.js?v=0.2.135';
+import { createBook } from './core/book.js?v=0.2.135';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.135';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.135';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.135';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.135';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.135';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.135';
+import { createViewSheets } from './view-sheets.js?v=0.2.135';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.135';
+import { folkExtras } from './town-folk.js?v=0.2.135';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.135';
+import { huntOfMap } from './hunt-maps.js?v=0.2.135';
+import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.135';
+import { createHuntScene } from './hunt-scene.js?v=0.2.135';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.135';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.135';
+import { createWalkScene } from './walk-scene.js?v=0.2.135';
+import { createTownZoom } from './town-zoom.js?v=0.2.135';
+import { createIdleMotion } from './idle-motion.js?v=0.2.135';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.135';
+import { runAction } from './steer-local.js?v=0.2.135';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.135';
+import { heroDyeOf } from './hero-dye.js?v=0.2.135';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.135';
+import { homeOf } from '../session/home-sections.js?v=0.2.135';
+import { skillsOf } from '../session/item-sections.js?v=0.2.135';
+import { createHearthView } from './hearth-burn.js?v=0.2.135';
+import { townWorksSwap } from './town-works.js?v=0.2.135';
+import { farmCropProps } from './town-farm.js?v=0.2.135';
+import { farmFieldOf } from '../session/farm-sections.js?v=0.2.135';
+import { createTownShows } from './town-shows.js?v=0.2.135';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -291,7 +293,8 @@ export async function bootWorld(panel, opts) {
       if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
       walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character), heroDye: () => heroDye(character) },
-        sandboxExtras(map, mapSprites)));
+        /* the townsfolk at their work (town-folk.js, display only), then the sandbox's signs */
+        folkExtras(map, mapSprites), sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     /* THE SERVER MOVED ITS STAND (an activity, a hunt's end, a counter): it walks there, display only (town-stands) */

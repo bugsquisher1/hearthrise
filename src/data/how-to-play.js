@@ -23,68 +23,68 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.134';
-import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.134';
-import { STARTER_SETS } from './start-kit.js?v=0.2.134';
-import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.134';
-import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.134';
+import { ITEMS } from './items.js?v=0.2.135';
+import { HUNT_ROLES, roleForWeapon, roleKeyOf } from './hunt-roles.js?v=0.2.135';
+import { STARTER_SETS } from './start-kit.js?v=0.2.135';
+import { WEIGHT_ORDER, weightSentence } from './armour-weights.js?v=0.2.135';
+import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.135';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
    START_EQUIPMENT); a player can make more heroes and play several at once (1 slot to start, Tyler 2026-11-09; up to 4 at once). */
-export const HOW_YOU_FIGHT_LEAD = 'There\'s no class to pick, and nothing to choose here. Your hero owns every weapon below, and the one in your hand decides how you fight. You start with the sword and shield on, and the rest are in your bag. To switch, equip another in town, any time.';
+export const HOW_YOU_FIGHT_LEAD = 'No classes: the weapon sets the style, switch any time in town';
 /* The lead's last sentence: not about fighting, so a phone's short card leaves it to the Help page (app.css). */
-export const HOW_YOU_FIGHT_SLOTS = 'You start with one hero slot, and gold buys up to three more. All four heroes can play at once.';
+export const HOW_YOU_FIGHT_SLOTS = 'Hero slots: 1, buy 3 more, all 4 play at once';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',
-    'Holds the monsters on you, so your party isn\'t hit.', 'Uses food.'),
+    'Holds monsters off the party', 'Uses food'),
   /* Each name says the weapons the hero holds, by their item names (fresh-account play 11-13: this said "Two axes or a hammer"
      while the bag tip said "Hatchets or a club" over Practice Hatchets and a Practice Club). Ruling 4 (10-24) names the crush
      family Hammer; the starter item is still a Club, so the item's name wins here until the item is renamed. */
   style('hit', 'melee_dps', ['practice_hatchets', 'practice_club'], 'Hatchets or a club',
-    'Hits hardest, up close.', 'Uses food.'),
+    'Hits hardest, up close', 'Uses food'),
   style('shoot', 'ranger', ['practice_bow', 'practice_crossbow'], 'Bow or crossbow',
-    'Shoots from a distance.', 'Bronze Arrows are free and never run out. Better ammo costs a little per shot. Uses food.'),
+    'Shoots from range', 'Free Bronze Arrows, uses food'),
   style('cast', 'mage', ['practice_wand', 'practice_spellbook'], 'Wand and spellbook',
-    'Casts spells at the monsters.', 'Spells cost mana, and drinks bring it back.'),
+    'Casts spells', 'Uses mana and drinks'),
   style('heal', 'healer', ['practice_staff'], 'Staff',
-    'Heals you and your party.', 'Heals cost mana, and drinks bring it back.'),
+    'Heals the party', 'Uses mana and drinks'),
 ]);
 
 const note = (id, label, text) => Object.freeze({ id, label, text });
 
 export const HELP_NOTES = Object.freeze([
-  note('idle', 'Your hero fights by itself',
-    'Pick a hunt and your hero walks, fights and loots on its own. You never click to attack. You choose where it hunts, and the action bar tells it what to use and when.'),
-  note('away', 'It keeps hunting with the game closed',
-    'Hunts run on our server, so you can close the game and come back to what your hero earned. A hunt stops when stamina runs out, when your hero dies, when it cannot pay for supplies, or when you press Leave hunt.'),
-  note('stamina', 'Stamina is hunting time',
-    'Every minute of hunting uses a minute of stamina, and every minute out of a hunt gives one back, even with the game closed. A hero holds up to 8 hours, or 12 with premium, and every hero has premium during the beta. The hourglass on your bar shows how much you have.'),
-  note('weapon', 'Your weapon is how you fight',
-    'There is no class. A sword and shield hold monsters on you, two axes or a hammer hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
+  note('idle', 'Auto-fight',
+    'Pick a hunt: the hero walks, fights and loots on its own\nAction bar: what to use and when'),
+  note('away', 'Offline hunting',
+    'Hunts keep running with the game closed\nEnds on: no stamina, death, no gold for supplies, Leave hunt'),
+  note('stamina', 'Stamina',
+    'Hunting: one minute of stamina a minute\nOutside a hunt: refills minute for minute, even offline\nMax: 8 hours, 12 with premium\nBeta: every hero has premium'),
+  note('weapon', 'Weapons and styles',
+    'No classes: the weapon sets the style\nSword and shield: hold monsters\nAxes or hammer: hit hard\nBow or crossbow: shoot from range\nWand and spellbook: cast spells\nStaff: heal\nSwitch: equip another weapon from the bag'),
   note('supplies', 'Food and drink',
-    'Food heals and drink brings back mana. What you carry is used first, for free. Store supplies cost gold each time your hero uses one, and if the gold runs out the hunt ends. Raw meat and fish cook into food. Pick them in your bag and choose Cook all.'),
-  note('bar', 'The action bar',
-    'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
+    'Food heals, drink restores mana\nCarried supplies: used first, free\nStore supplies: gold each use, the hunt ends when gold runs out\nRaw meat and fish: Bag → Cook all'),
+  note('bar', 'Action bar',
+    'Each slot: one spell, food or drink, up to 3 conditions\nThe first slot that can fire, fires\nPut the most important slot first'),
   note('loot', 'Selling and keeping loot',
-    'Loot lands in your bag as it drops, even while the hunt runs. Your bag files what a recipe, the House or Tempering uses under Materials, and the rest under Junk. In the Shop, Sell all junk sells only the Junk, so Bones (fuel for the Great Hearth, which raises your Inner Flame), food you can cook and parts for your recipes stay. Sell spare gear sells the armor and weapons you have outgrown, and keeps what you wear, anything of a higher tier and Rare pieces. Give a thing a plan once (Sell, or Deposit) from its menu in your bag, and Dispatch loot does every plan in one press when you are back in town.'),
-  note('gold', 'What gold is for',
-    'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewelry and tools, and its Services tab sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
+    'Loot lands in the bag as it drops\nMaterials: used by recipes, the House or Tempering\nJunk: Shop → Sell all junk\nSell spare gear: outgrown armor and weapons, never worn or Rare\nPlans: set Sell or Deposit once in an item\'s menu\nDispatch loot: every plan in one press, in town'),
+  note('gold', 'Gold',
+    'Store supplies: gold as they are used\nShop: gloves, belts, jewelry and tools\nServices: stamina and Blessings\nCharacters: another hero slot'),
   note('armour', 'Armor and Defense',
-    'Defense rises only while your hero wears armor and takes blows. Monsters drop helmets, bodies, legs and boots. Gloves and belts count as armor too, and the Shop sells them. '
-    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces of different weights mix freely. Any hero can wear any piece once its Level is high enough.'),
-  note('farm', 'Your farm',
-    'Open the Farm (J) and plant a seed in an empty plot. Your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest and replant puts the same crop back in, from your own seeds or one bought at the Shop\'s price. Harvest only leaves the plot empty. Some crops, such as tomatoes, grow back after a harvest. The plot says how many more times, and Harvest and clear plot pulls the plant out.'),
+    'Defense: rises only in armor, from blows taken\nMonster drops: helmets, bodies, legs and boots\nGloves and belts: the Shop\n'
+    + WEIGHT_ORDER.map(weightSentence).join('\n') + '\nWeights mix freely, any piece at its Level'),
+  note('farm', 'Farm',
+    'Farm (J): plant a seed in an empty plot\nStarting kit: turnip seeds\nCrops grow while hunting or offline\nWatering: twice as fast for 2 hours\nHarvest and replant: the same crop again\nHarvest only: the plot is left empty\nSome crops grow back after a harvest'),
   note('levels', 'Level and skills',
-    'Every kill earns Level XP, and each Level raises your health and mana. Your Level decides which gear you can wear, while arrows, whetstones and runes need their own skill instead. Melee, Ranged, Magic and Defense rise as you use them, by fighting with that weapon or taking blows in armor. Level has no cap.'),
+    'Every kill earns Level XP\nEach Level: more health and mana\nGear: worn by Level\nOwn skill: arrows, whetstones and runes\nCombat skills: rise with use\nLevel: no cap'),
   note('town', 'Work in town',
-    'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed. Making something uses what is in your bag. Starting a hunt stops either one. Under When the hunt ends on the hunt\'s page you pick where your hero goes next. It can go back to the job, wait in town or train at the yard. A bench only makes what it still had left to make when you set off, however much loot you bring home. If you leave the hunt yourself, your hero waits in town.'),
-  note('heroes', 'Several heroes at once',
-    'Your account starts with one hero slot, and gold buys up to three more. All four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
-  note('death', 'If your hero dies',
-    'The hunt ends and your hero wakes in town. A death costs ' + Math.round(DEATH_XP_LOSS * 100) + '% of your Level XP, and that can take a Level. Blessings from the Shop\'s Services tab cut the loss, and they are free below Level 30.'),
+    'Between hunts: chop, mine, fish, cook, smith, craft and bind runes\nGathering and crafting (G): press a skill, then a job\nGathering: keeps going offline\nCrafting: uses the bag\nStarting a hunt stops the job\nAfter the hunt: back to the job, wait or train'),
+  note('heroes', 'Several heroes',
+    'Hero slots: 1 to start, gold buys up to 3 more\nAll 4 heroes play at once\nOwn heroes join the party at once'),
+  note('death', 'Death',
+    'The hunt ends, the hero returns to town\nCost: ' + Math.round(DEATH_XP_LOSS * 100) + '% of Level XP, can take a Level\nBlessings: Shop → Services, free below Level 30'),
 ]);
 
 /** Every problem with the tables, as strings. Empty = valid. */

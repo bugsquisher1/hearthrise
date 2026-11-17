@@ -303,8 +303,11 @@ const swap = (file, find, repl) => (f, sql) => {
   if (sql.split(find).length !== 2) throw new Error('HARNESS: ' + file + ' holds ' + (sql.split(find).length - 1) + ' of ' + JSON.stringify(find.slice(0, 70)));
   return sql.replace(find, () => repl);
 };
+/* (Turning Cut's row as the area batch's catalogue wrote it, read off that file: the file is history, and today's row lists more weapons, every
+   melee one without a shield, Tyler 2026-11-16) */
 const TC = ABILITIES.turning_cut;
-const TURNING_ROW = "  ('turning_cut', array[" + [...TC.disciplines].sort().map((d) => "'" + d + "'").join(', ') + "]::text[], '" + TC.lane + "', " + TC.cdMs + ', ' + TC.mana + ', null, ' + (TC.ammo || 0) + ', ';
+const TURNING_ROW = (sqlOf(CAT).match(new RegExp("\\n( {2}\\('turning_cut', array\\[[^\\]]*\\]::text\\[\\], '" + TC.lane + "', " + TC.cdMs + ', ' + TC.mana + ', null, ' + (TC.ammo || 0) + ', )true, ')) || [])[1]
+  || 'HARNESS: no Turning Cut row in ' + CAT;
 const MUTANTS = [
   { name: 'the catalogue rolls the death share back to 2%', patch: swap(CAT, "  ('death_xp_permille', " + DEATH_PM + '),', "  ('death_xp_permille', 20),"), want: /AS-4 the limits that moved|AS-4 the death share/ },
   { name: 'the catalogue loses runes_out', patch: swap(CAT, "  ('runes_out', ", "  ('runes_gone', "), want: /AS-4/ },

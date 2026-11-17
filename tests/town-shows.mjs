@@ -199,7 +199,7 @@ export const MUTANTS = {
   show_is_a_moment: { arm: 'TS-SHOW', why: 'a paid round is over in a few seconds', js: ['src/data/gold-sinks.js', [['  ].map(Object.freeze)),\n});\n\n/** One row per sink', '  ].slice(0, 6).map(Object.freeze)),\n});\n\n/** One row per sink']]] },
   show_in_one_place: { arm: 'TS-SHOW', why: 'every shell bursts on one spot', js: ['src/world/town-shows.js', [['x: fire.x + dx, y: fire.y + dy }); continue; }', 'x: fire.x, y: fire.y + dy }); continue; }']]] },
   show_every_frame: { arm: 'TS-SHOW', why: 'a shell moves on every frame, so a show repaints the town at the screen\'s rate', js: ['src/world/town-shows.js', [['const t = Math.floor((now - round.startedAt) / beatMs) * beatMs;', 'const t = now - round.startedAt;']]] },
-  hearth_claims_the_square: { arm: 'TS-WINDOW', why: 'the Hearth tab promises a color the square never shows', js: ['src/shell/windows/havora/index.js', [["It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees", "Its color fills ' + esc(TOWN_NAME) + '\\'s square for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone there sees"]]] },
+  hearth_claims_the_square: { arm: 'TS-WINDOW', why: 'the Hearth tab promises a color the square never shows', js: ['src/shell/windows/havora/index.js', [["Lights the Great Hearth for ' + whole(SINK_RULES.powder.seconds) + ' s, thrower shown to all", "Fills the square for ' + whole(SINK_RULES.powder.seconds) + ' s, thrower shown to all"]]] },
   powder_over_purse_on: { arm: 'TS-WINDOW', why: 'a powder the purse can\'t pay stays live and is refused after the press', js: ['src/shell/windows/havora/index.js', [["prop(buyPowder, 'disabled', sc.pending || pPrice === null || pShort > 0);", "prop(buyPowder, 'disabled', sc.pending || pPrice === null);"]]] },
   visit_job_write_moves: { arm: 'TS-VISIT', why: 'a gather tick\'s pointer write takes the woodcutter off the fire mid-walk',
     db: ['public.hr_town_moves_settle(text,integer,uuid,integer)', "and b.why = 'visit' and b.visit_until > now()) then", 'and false) then'] },
@@ -691,7 +691,7 @@ const ARMS = {
     const hunt = await firstHunt(db);
     const entered = await as(db, A, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())", [hunt]);
     if (!entered || entered.ok !== true) return ['hr_hunt_enter: ' + JSON.stringify(entered)];
-    for (const [show, price, verb, words] of [['cinnabar', 2000, 'town_powder', 'Your hero is out hunting. The Great Hearth is in town.'], ['round', 5000, 'town_round', 'Your hero is out hunting. The Tavern is in town.']]) {
+    for (const [show, price, verb, words] of [['cinnabar', 2000, 'town_powder', 'Great Hearth is in town'], ['round', 5000, 'town_round', 'Tavern is in town']]) {
       const r = await bought(db, A, 0, show, price);
       if (r.error !== 'hunting' || r.hunt !== hunt) out.push(`a hunting hero's ${show} answered ${JSON.stringify(r)}`);
       const said = X.IW.refusalText({ ok: false, error: r.error, verb }, null);
@@ -847,11 +847,11 @@ const ARMS = {
     const out = [];
     const R = (o) => X.IW.refusalText({ ok: false, ...o }, null);
     const want = [
-      [{ error: 'show_limit', verb: 'town_powder', perDay: 7 }, 'Daily limit: 7 powders per account. Resets at midnight UTC.'],
+      [{ error: 'show_limit', verb: 'town_powder', perDay: 7 }, 'Daily limit: 7 powders per account, resets at midnight UTC'],
       [{ error: 'show_busy', verb: 'town_powder', bookedS: 360, waitS: 60 }, 'Hearth powders booked for 6 min, not charged'],
-      [{ error: 'show_limit', verb: 'town_round', perDay: 4 }, 'Daily limit: 4 rounds per account. Resets at midnight UTC.'],
-      [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Round in progress, not charged. Try again in 20 s.'],
-      [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'Price changed to 4,000 gp, not charged. Press again to pay.'],
+      [{ error: 'show_limit', verb: 'town_round', perDay: 4 }, 'Daily limit: 4 rounds per account, resets at midnight UTC'],
+      [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Round in progress, not charged, retry in 20 s'],
+      [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'Price now 4,000 gp, not charged'],
       [{ error: 'not_a_show', verb: 'town_powder' }, 'Havora doesn\'t sell that.'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(JSON.stringify(r) + ' reads: ' + R(r));
@@ -867,7 +867,7 @@ const ARMS = {
     /* ONLY THE FLAME CHANGES COLOR, so the Hearth tab says so, with the rules row's own seconds */
     const lead = (/data-pane="hearth"><p class="hv-lead">([^<]*)</.exec(html) || [])[1] || '';
     if (/fills|square/i.test(lead)) out.push('the Hearth tab promises the square a color: ' + lead);
-    if (!lead.includes('burns that color for ' + X.GS.SINK_RULES.powder.seconds + ' seconds') || !lead.includes('everyone in Havora sees who threw it')) out.push('the Hearth tab reads: ' + lead);
+    if (!lead.includes('Great Hearth for ' + X.GS.SINK_RULES.powder.seconds + ' s') || !lead.includes('thrower shown to all')) out.push('the Hearth tab reads: ' + lead);
     /* THE DAY'S LINE AND THE ANSWER STAND IN THE FOOT, one line per tab: a short window scrolls the pane under them */
     const foot = (/<div class="hv-foot">(.*)<\/div><\/div>$/.exec(html) || [])[1] || '';
     for (const id of ['hearth', 'round', 'works']) if (!foot.includes('hv-count" data-of="' + id + '"')) out.push('the foot has no line for ' + id + ': ' + foot);
@@ -881,8 +881,8 @@ const ARMS = {
     /* A PRICE THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS BY HOW MUCH (v0.2.97 gate, the Works tab's class: "Throw Cinnabar: 2,000 gp" live on a 500 gp purse).
        The real patch over plain elements, the envelope's purse against the server's quote; with no purse stated the server judges. */
     const poor = await buysOf(X, view, 500), flush = await buysOf(X, view, 9000), unsaid = await buysOf(X, view, null);
-    if (!poor.powder.off || poor.powder.why !== 'You need 1,500 gp more.' || poor.powder.line !== 'You need 1,500 gp more.') out.push('with 500 gp the powder reads ' + JSON.stringify(poor.powder));
-    if (!poor.round.off || poor.round.line !== 'You need 4,500 gp more.') out.push('with 500 gp the round reads ' + JSON.stringify(poor.round));
+    if (!poor.powder.off || poor.powder.why !== 'Need 1,500 gp more' || poor.powder.line !== 'Need 1,500 gp more') out.push('with 500 gp the powder reads ' + JSON.stringify(poor.powder));
+    if (!poor.round.off || poor.round.line !== 'Need 4,500 gp more') out.push('with 500 gp the round reads ' + JSON.stringify(poor.round));
     if (flush.powder.off || flush.round.off || flush.powder.line || flush.round.line || flush.powder.why !== null) out.push('with 9,000 gp the buys read ' + JSON.stringify(flush));
     if (unsaid.powder.off || unsaid.round.off) out.push('with no purse stated a buy is off: ' + JSON.stringify(unsaid));
     /* THE TAVERN OPENS ITS ROUND TAB */

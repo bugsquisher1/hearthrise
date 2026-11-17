@@ -52,7 +52,10 @@ const SEED = '-4611686018427387904';
    putting the old row back alone (the bear's gp [13, 40]: every pin holds, exit 0): src/data/monsters.js brook_bear gp [13, 40] -> [11, 32], the purse
    back on the formula when the +10% floor it served was retired (NO PROFIT MOLDS). The Cellar's XP fit (rat 15 -> 16 XP) is on no pinned ground.
    UN-PINNED 2026-11-15 (lane/d-chief-spell): warrens-4 is back on its 11-13 pin. lane/a-open-march-scaled had re-pinned it over cf3fbb21d's Slag Rain 400 -> 800,
-   a row the field Chief shared with the called one; the called Chief now casts his own slag_rain_called and the field row is 400 again. Opening the March moves no pin. */
+   a row the field Chief shared with the called one; the called Chief now casts his own slag_rain_called and the field row is 400 again. Opening the March moves no pin.
+   RE-PINNED 2026-11-15 (lane/d-mage-110), DATA ONLY: warrens-4 (kills 231 -> 209) and glade-4 (536 -> 515) moved. Cause: src/data/gear-tiers.js cloth's
+   magicStrB 0.4 of the plate twin's defence -> 1 plus a tenth of it (the Adept set 15 -> 9, the Scholar set 27 -> 14), so each four's Mage and Healer hit softer; and the Chief's
+   Cauldron .00122 -> .0014 (src/data/monsters.js). Proof: this file and the current src/core over the old two rows hold every pin (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

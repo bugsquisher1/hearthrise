@@ -24,24 +24,24 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.134';
-import { STATUSES } from '../../data/statuses.js?v=0.2.134';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.134';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.134';
-import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.134';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.134';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.134';
-import { startSupply } from '../rune-supply.js?v=0.2.134';
-import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.134';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.134';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.134';
-import { glyphSvg } from '../launcher.js?v=0.2.134';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.134';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.134';
-import { whole, sepHtml } from '../../render/format.js?v=0.2.134';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.135';
+import { STATUSES } from '../../data/statuses.js?v=0.2.135';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.135';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.135';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.135';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.135';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.135';
+import { startSupply } from '../rune-supply.js?v=0.2.135';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.135';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.135';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.135';
+import { glyphSvg } from '../launcher.js?v=0.2.135';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.135';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.135';
+import { whole, sepHtml } from '../../render/format.js?v=0.2.135';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -84,7 +84,7 @@ export function renderConfigureAction(ctx) {
   /* The phone sheet has no title band: its close is the window's own square steel close. */
   const close = glyphSvg(ctx && ctx.glyphs, 'uiClose') || '×';
   return '<div class="ca">'
-    + '<p class="ca-loading">Your bar loads from the server…</p>'
+    + '<p class="ca-loading">Loading action bar…</p>'
     + '<div class="ca-form">'
     + '<div class="ca-top"><span class="ca-rank"></span>'
     + '<span class="ca-tabs" role="tablist" aria-label="Kind of action">'
@@ -111,7 +111,7 @@ export function renderConfigureAction(ctx) {
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
     + '</div></div></div>'
     + '<p class="hh-intent-msg ca-msg" role="status" aria-live="polite"></p>'
-    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Your hero uses this by itself. Here you choose when.</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
+    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Fires automatically, set when below</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
     + '</div></div>';
 }
 
@@ -172,7 +172,7 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-store', r.carry === 'store');
   cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells');
   cls(el, 'is-locked', !!r.locked);
-  attr(el, 'title', r.locked ? (r.lockWhy || (r.kind === 'ammo' ? 'Your weapon can’t shoot this' : 'Your weapon can’t cast this')) : '');
+  attr(el, 'title', r.locked ? (r.lockWhy || (r.kind === 'ammo' ? 'Wrong ammo for this weapon' : 'This weapon can’t cast it')) : '');
   prop(el, 'disabled', off);
 }
 
@@ -216,7 +216,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const cl = root.querySelector('.ca-carry');
   prop(cl, 'hidden', !carry);
   if (carry) {
-    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in your backpack, ' + whole(carry.inHunt) + ' in this hunt.' + (carry.wait ? ' ' + carry.wait : ''));
+    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in backpack, ' + whole(carry.inHunt) + ' in this hunt' + (carry.wait ? '. ' + carry.wait : ''));
     const b = cl.querySelector('[data-x="carry"]');
     text(b, carryWords(carry));
     attr(b, 'data-item', carry.id);
@@ -273,7 +273,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   if (icon.getAttribute('data-for') !== ik) { icon.innerHTML = shown ? actionIconHtml(ctx.glyphs, shown.action) : ''; attr(icon, 'data-for', ik); }
   text(root.querySelector('.ca-d-name'), shown ? shown.name : '');
   const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];
-  text(root.querySelector('.ca-vs'), cmp.length ? 'vs your ' + picked.name : '');
+  text(root.querySelector('.ca-vs'), cmp.length ? 'vs ' + picked.name : '');
   rows(root.querySelector('.ca-cmp'), cmp, { key: (x) => x, build: () => element(ctx.doc, '<li></li>'), patch: (li, x) => text(li, x) });
   const max = shown && shown.kind === 'drink' ? vitalsOf(cs).manaMax : vitalsOf(cs).hpMax;
   text(root.querySelector('.ca-waste'), shown ? wasteLine(shown, threshold(d, shown.kind), max) : '');

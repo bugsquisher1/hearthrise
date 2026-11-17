@@ -69,24 +69,24 @@
 //     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.134';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.134';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.134';
-import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.134';
-import { loadoutOf } from '../core/member.js?v=0.2.134';
-import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.134';
-import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.134';
-import { MONSTERS } from '../data/monsters.js?v=0.2.134';
-import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.134';
-import { castsOf, spellRow, mends, SPELL_SWITCH } from '../data/monster-spells.js?v=0.2.134';
-import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.134';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.134';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.134';
-import { itemName } from './widgets/bits.js?v=0.2.134';
-import { t } from '../render/player-text.js?v=0.2.134';
-import { reqHave, baneKindName } from './item-lore.js?v=0.2.134';
-import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.134';
-import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.134';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.135';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.135';
+import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.135';
+import { loadoutOf } from '../core/member.js?v=0.2.135';
+import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.135';
+import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.135';
+import { castsOf, spellRow, mends, SPELL_SWITCH } from '../data/monster-spells.js?v=0.2.135';
+import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.135';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.135';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { reqHave, baneKindName } from './item-lore.js?v=0.2.135';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.135';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.135';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);
@@ -336,7 +336,7 @@ export function upgradePlan(o) {
 
 const listWords = (parts, last = ' and ') => (parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + last + parts[parts.length - 1]);
 
-/** The preview: "Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)." naming at most `names` pieces
+/** The preview: "Upgrade: Leather Gloves +1 Melee accuracy and Bronze Belt +2 Defense" naming at most `names` pieces
     with `gains` gains each (the button's title passes more). A slot left for the player says so after it. With
     nothing to put on but a tie standing, the line says why the button is off and which pieces trade off (playtest
     2026-10-29 #11: it said nothing). '' when there is neither. */
@@ -361,17 +361,15 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   const groups = Array.from(byId.values());
   /* a perk the piece's own name already says ("Banded Signet (Follow-through)") is not said twice; the tooltip holds its sentence */
   const said = (p) => p.gains.filter((g) => !(g.perk && itemName(p.id).includes(g.label))).slice(0, gains);
-  /* a name that ends in its own bracket takes the gains inside it: "Banded Signet (Follow-through, +1 Melee accuracy)", never two brackets in a row */
+  /* the gains follow the name in a bracket, "Leather Hood (+2 Defense)"; a catalogue name with its own bracket takes a comma, "Banded Signet (Keen), +2 Defense" */
   const named = groups.slice(0, names).map(({ p, n }) => {
-    const name = itemName(p.id), many = n > 1 ? ' ×' + n : '', own = /^(.*) \((.*)\)$/.exec(name);
-    if (!said(p).length) return name + many;
-    const words = said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '');
-    return own ? own[1] + many + ' (' + own[2] + ', ' + words + ')' : name + many + ' (' + words + ')';
+    const name = itemName(p.id) + (n > 1 ? ' ×' + n : '');
+    return said(p).length ? name + (name.includes('(') ? ', ' : ' (') + said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '') + (name.includes('(') ? '' : ')') : name;
   });
   const more = groups.length - named.length;
   if (more > 0) named.push(more + (more === 1 ? ' more piece' : ' more pieces'));
   const left = plan.choices.map((c) => (EQUIP_SLOT_META[c.slot] || {}).label || c.slot);
   const ends = plan.picks.reduce((n, p) => n + num(p.ends), 0);
-  return 'Wear ' + listWords(named) + '.' + (ends > EPS ? ' Your full set\'s +' + (Math.round(ends * 1000) / 10) + '% critical chance ends.' : '')
-    + (left.length ? ' ' + listWords(left) + ': two pieces trade off, so pick on the doll.' : '');
+  return 'Upgrade: ' + listWords(named) + (ends > EPS ? '. Set bonus lost: +' + (Math.round(ends * 1000) / 10) + '% critical chance' : '')
+    + (left.length ? '. ' + listWords(left) + ': pick on the doll' : '');
 }

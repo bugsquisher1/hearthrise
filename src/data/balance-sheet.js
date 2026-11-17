@@ -21,9 +21,9 @@
 // PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads only the tier rows (hunt-tiers.js builds GROUND_TIERS from tierRowFor, lane/b-tier-dials).
 // ════════════════════════════════════════════════════════════════════════
 
-import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.134';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.134';
-import { foldRows } from './grounds/shape.js?v=0.2.134';
+import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.135';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.135';
+import { foldRows } from './grounds/shape.js?v=0.2.135';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole
@@ -274,6 +274,16 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    x0.84 left its lone median 1.12x the re-measured contract, x0.76 lands it in band. Measured below (the grade) and in level-curve (C5). */
 export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.28, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
+/* A GROUND'S INCOME DIAL (designer 2026-11-16, lane/d-supply-prices; Tyler 2026-11-16 chose "cut income instead" over dearer supplies): one
+   number a ground, x the coin each of its kills pays (the formula's mean below) and x what the loot it drops sells for (loot-sale.js, the
+   shop's bid, which the Weighhouse floors on). A ground with no row is x1. Why income and not supplies: a hero on Normal in its range buys
+   almost nothing (the career tank 0 g an hour from 30 to 39 and 60 to 69), so only what a kill pays reaches the hero the audit found
+   banking 1.57M by Level 50 (F12). Why per ground: the gold piles up from the Glade on, and a new hero under Level 16 isn't gold-rich.
+   The Glade carries one too, though its band starts at 16, because a lone hero hunts it to Level 44 (recommendedHunt: the Warrens is a
+   party ground) and earns 80% of its first 1.57M there. A pack carries its own (`gpFit`). Measured on the real settle, the board's
+   "2026-11-16 Income dial". */
+export const GROUND_GP_FIT = Object.freeze(foldRows('gp fit', { mosslight_glade: 0.7, coppercap_warrens: 0.7 }, GROUND_PACKS, (p) => (p.gpFit ? { [p.id]: p.gpFit.k } : {})));
+
 /* NAMED EXCEPTIONS: { monster: { field: 'the reason' } }, a field a row keeps by hand. Empty: none has earned one. */
 export const FORMULA_EXCEPTIONS = Object.freeze({
   /* (the Brook Bear's [13, 40] purse, kept by hand to clear the Glade's +10% floor, went back to the formula's [11, 32] when that floor was
@@ -305,7 +315,7 @@ export function dangerAt(floor, lift = 0, F = STAT_FORMULA) {
  * { hp, atk, baseAcc, def, xp, gp: [lo, hi], hitVsSameLevel, blowShare }: whole numbers where the row stores
  * them, baseAcc to two places.
  * @param {any} spec
- * @param {{ formula?: any, roles?: any, groundXp?: any }} [opts]
+ * @param {{ formula?: any, roles?: any, groundXp?: any, groundGp?: any }} [opts]
  */
 export function formulaStats(spec, opts = {}) {
   const F = opts.formula || STAT_FORMULA;
@@ -338,7 +348,8 @@ export function formulaStats(spec, opts = {}) {
   const xp = Math.max(1, Math.round(Math.max(F.xp.min || 0, F.xp.a * L ** F.xp.b) * hp * R.xp * fit.xp * gx * xFloor));
   const g0 = fit.gp === undefined ? 1 : fit.gp, fitGp = fit.gpFull === undefined ? g0 : g0 + (fit.gpFull - g0) * dz.ramp;
   const line = F.gp.line ? F.gp.line.lo + (F.gp.line.hi - F.gp.line.lo) * clamp01((Number(spec.floor) - F.gp.line.from) / (F.gp.line.to - F.gp.line.from)) : 1 + (F.gp.danger || 0) * dz.ramp;
-  const mean = F.gp.perHp * line * hp * R.gp * fitGp;
+  const gk = (opts.groundGp || GROUND_GP_FIT)[spec.ground] || 1;
+  const mean = F.gp.perHp * line * hp * R.gp * fitGp * gk;
   const lo = Math.max(1, Math.round(mean * F.gp.lo));
   const gp = F.gp.keepMean ? [lo, Math.max(lo, Math.round(2 * mean - lo))] : [lo, Math.max(1, Math.round(mean * F.gp.hi))];
   return { hp, atk, baseAcc, def, xp, gp, hitVsSameLevel: Math.round(hit * 100) / 100, blowShare: Math.round(blowShare * 1000) / 1000 };

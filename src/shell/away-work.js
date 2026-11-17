@@ -15,14 +15,14 @@
 // past the stamp the line waits (awayWorkSettled), and so does the stamp. "It stopped about 25 min in" is the actions the server paid
 // times the action time for the tool the server says the hero holds: display only, and worded as an estimate.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.134';
-import { recipeInputs } from '../core/artisan.js?v=0.2.134';
-import { whole } from '../render/format.js?v=0.2.134';
-import { itemName } from './widgets/bits.js?v=0.2.134';
-import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.134';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.134';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.134';
-import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.134';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
+import { recipeInputs } from '../core/artisan.js?v=0.2.135';
+import { whole } from '../render/format.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
+import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.135';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.135';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.135';
+import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.135';
 
 const TOWN_STAMP = /^town:(gather|artisan):([A-Za-z0-9_.-]+)$/;
 /* A record settled this recently is the return's answer; an older one waits for the sign-in's settle. */
@@ -106,10 +106,10 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const ran = gained > 0 ? Math.ceil(gained / yieldOf(w)) * actionMs(cs, w) : 0;
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
   const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') : ' It stopped' + when + whyStopped(cs, w) + '.';
-  const name = nameOf(cs) || 'Your hero';
+  const name = nameOf(cs) || 'Hero';
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     action: made ? 'bag' : 'show', button: made ? 'Open your inventory' : 'See your hero',
-    text: 'While you were away (' + awayWords(now - was.at) + '), ' + name + ' ' + didWords(w) + ': ' + parts.join(', ') + '.' + tail,
+    text: 'Away ' + awayWords(now - was.at) + ': ' + name + ' ' + didWords(w) + ', ' + parts.join(', ') + '.' + tail,
   };
 }

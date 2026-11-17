@@ -132,6 +132,7 @@ export async function fixturePack(gid, opts = {}, root = ROOT) {
   const extra = {
     ...(has(BS.TIER_PULL_OVERRIDES) ? { tierOverride: plain(BS.TIER_PULL_OVERRIDES[gid]) } : {}),
     ...(has(BS.GROUND_XP_FIT) ? { xpFit: { k: BS.GROUND_XP_FIT[gid], why: 'as ' + gid } } : {}),
+    ...(has(BS.GROUND_GP_FIT) ? { gpFit: { k: BS.GROUND_GP_FIT[gid], why: 'as ' + gid } } : {}),
     ...(has(PC.PARTY_CLASS_XP) ? { partyClassXp: rowOf(PC.PARTY_CLASS_XP) } : {}),
     ...(has(PC.PARTY_VS_ALONE) ? { partyVsAlone: rowOf(PC.PARTY_VS_ALONE) } : {}),
     ...(has(SU.BAG_GUIDE_BY_HUNT) ? { bagGuide: plain(SU.BAG_GUIDE_BY_HUNT[gid]) } : {}),

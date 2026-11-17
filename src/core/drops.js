@@ -9,7 +9,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.134';
+import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.135';
 
 export const DROP_BAND_MAX = { rare: 0.05, uncommon: 0.15, common: 1.0 };
 
@@ -86,4 +86,49 @@ export function rollDropTable(drops, mods, rng) {
     events.push({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
   }
   return { dropped, events };
+}
+
+/** A prize table's whole roll: the sum of its rows' slices (src/data/boss-halls.js: at most 1; the generator refuses more). */
+export function prizeChance(rows) {
+  let sum = 0;
+  for (const d of Array.isArray(rows) ? rows : []) sum += Math.max(0, Number(d && d.ch) || 0);
+  return sum;
+}
+
+/**
+ * What each prize row is worth on ONE roll, in the rows' order: [{ id, ch }] (a wiki formula; the hall page shows these numbers).
+ *   an everyday roll:        ch = the row's own slice
+ *   a hero's FIRST roll:     a row marked `first` takes its slice plus its share of the roll's empty part,
+ *                            ch = slice + (1 - sum of every slice) x slice / (sum of the `first` rows' slices),
+ *                            so a piece always lands; a row not marked keeps its own slice (a unique piece's odds never move).
+ * A table with no `first` row rolls its first roll like any other.
+ */
+export function prizeSlices(rows, first) {
+  const list = (Array.isArray(rows) ? rows : []).map((d) => ({ id: d && d.id, ch: Math.max(0, Number(d && d.ch) || 0), sure: !!d && d.first === true }));
+  const sum = list.reduce((s, d) => s + d.ch, 0), sure = list.reduce((s, d) => s + (d.sure ? d.ch : 0), 0);
+  const empty = first === true && sure > 0 ? Math.max(0, 1 - sum) : 0;
+  return list.map((d) => ({ id: d.id, ch: d.sure && empty ? d.ch + (empty * d.ch) / sure : d.ch }));
+}
+
+/**
+ * A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js): ONE roll over the boss's rows. Each row's `ch` is its SLICE of that one roll, so
+ * the rows are exclusive (a hero takes one piece or none) and no multiplier moves them: what a row says is what a hero's roll is.
+ * `first`: this is the hero's first roll on the boss, ever (the server's word): the sure roll (prizeSlices), the last `first` row taking
+ * whatever a rounding leaves. ALWAYS ONE DRAW, whatever lands, so the seeded stream after it never depends on the table.
+ *
+ * @returns the row's event { type: 'drop', id, band, rare }, or null when the roll lands past the last slice
+ */
+export function rollPrize(rows, rng, first) {
+  const u = rng.next();
+  const list = Array.isArray(rows) ? rows : [];
+  const slices = prizeSlices(list, first);
+  const hit = (d) => { const band = bandOf(d); return { type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) }; };
+  let edge = 0;
+  for (let i = 0; i < list.length; i++) {
+    edge += slices[i].ch;
+    if (u < edge) return hit(list[i]);
+  }
+  /* a sure roll never lands nothing: a draw past the last edge (float dust under 1) is the last `first` row's */
+  if (first === true) for (let i = list.length - 1; i >= 0; i--) if (list[i] && list[i].first === true) return hit(list[i]);
+  return null;
 }

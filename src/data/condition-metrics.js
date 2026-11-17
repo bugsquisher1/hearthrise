@@ -50,8 +50,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.134';
-import { STATUSES } from './statuses.js?v=0.2.134';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.135';
+import { STATUSES } from './statuses.js?v=0.2.135';
 
 /* Three, all of which must match (Tyler's ruling, 2026-10-19 audit C2; a stop rule may still join
    "any"). The `pass` bitmask is one bit a condition. Server: 2026-10-26-bar-three-conditions.sql. */
@@ -148,10 +148,10 @@ export function validate() {
     if (m.value === 'bool' && m.ops.join() !== 'eq') out.push(at + 'a bool takes eq only');
     if (m.value === 'effect' && m.ops.some((o) => !o.endsWith('_effect'))) out.push(at + 'an effect takes has_effect / lacks_effect only');
     if (m.subject && !Object.keys(m.subject).every((k) => /^[a-z0-9_]{1,32}$/.test(k))) out.push(at + 'bad subject key');
-    if (typeof m.say !== 'string' || !m.say) out.push(at + 'no words for the slot sentence (say)');
+    if (typeof m.say !== 'string' || !m.say) out.push(at + 'say: no words for the slot sentence');
     /* A number has its unit, read after it ("50%", "2 monsters"): a percent's %, a count's noun, or a subject read as its unit. */
-    if (m.value === 'pct' && m.unit !== PCT) out.push(at + 'a percent reads its % after the number (unit)');
-    if (m.value === 'count' && !(Array.isArray(m.unit) && m.unit.length === 2 && m.unit.every((w) => typeof w === 'string' && w)) && !(m.subjectAfter && m.subject)) out.push(at + 'a count names its noun (unit [one, other]) or reads its subject after the number');
+    if (m.value === 'pct' && m.unit !== PCT) out.push(at + 'unit: a percent reads its % after the number');
+    if (m.value === 'count' && !(Array.isArray(m.unit) && m.unit.length === 2 && m.unit.every((w) => typeof w === 'string' && w)) && !(m.subjectAfter && m.subject)) out.push(at + 'unit: a count needs [one, other] nouns or a subject after it');
     if (m.subjectAfter && !(numeric && m.subject)) out.push(at + 'only a number test with a subject reads it after the number');
     /* Every comparison it takes has words for its kind of value. */
     for (const o of m.ops) if (OPERATORS[o] && typeof OPERATORS[o][numeric ? m.value : 'say'] !== 'string') out.push(at + 'operator ' + o + ' has no words for a ' + m.value);

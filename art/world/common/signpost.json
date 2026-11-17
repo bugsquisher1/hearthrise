@@ -3,6 +3,13 @@
   "class": "fixture",
   "style": "s1",
   "material": "wood",
+  "restyle": {
+    "step": {
+      "earth": -1,
+      "bronze": -1
+    },
+    "outline": true
+  },
   "source": "signpost.png",
   "frame": [
     28,
@@ -31,5 +38,5 @@
     "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
     "cell": 5
   },
-  "notes": "Cell 5 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Cell 5 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 9, tools/world-art/restyle.mjs): its planks one step down the earth and bronze ramps onto the buildings' timber, and its rim given the world's line, as the buildings have."
 }

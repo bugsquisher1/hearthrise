@@ -41,8 +41,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    step and adds hr_tally_tiers; 2027-04-08-tally-worn.sql, the pick that reads it, applies right after.
    2027-04-08-tally-worn.generated.sql is APPLIED history too. TIER 7'S NAMES (lane/b-barrow-numbers, Tyler 2026-11-14: Dawnhide and
    Duskweave): hr_tally_tiers names every wearable item, so the twelve tier-7 leather and cloth ids move with the items catalogue
-   (2027-04-17-barrow-data-items-catalogue) in this forward file, the same full rewrite of the same tables. No function body moves. */
-export const OUT_FILE = '2027-04-21-tally-tier7-names.generated.sql';
+   (2027-04-17-barrow-data-items-catalogue) in 2027-04-21-tally-tier7-names.generated.sql, APPLIED history now. KRELL'S UNIQUE LEGS
+   (lane/c-krell-uniques, 2026-11-15; Tyler 2026-11-14: "a pair of pally legs"): the Banded Legguards are a new wearable in one of her
+   slots (tier 7 pants), so hr_tally_tiers gains their row in this forward file, the same full rewrite of the same tables: without it
+   her pick would read a hero in them as wearing nothing on the legs and hand over pants under them. No function body moves. */
+export const OUT_FILE = '2027-04-25-tally-krell-uniques.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /**

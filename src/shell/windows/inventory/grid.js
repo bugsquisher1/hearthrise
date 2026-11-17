@@ -18,28 +18,28 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.134';
-import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.134';
-import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.134';
-import { patchParts, placeLink } from '../../goto.js?v=0.2.134';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.134';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.134';
-import { whole, gold } from '../../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
-import { glyphSvg } from '../../launcher.js?v=0.2.134';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.134';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.134';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.134';
-import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.134';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.134';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.134';
-import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.134';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.134';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.134';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.134';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.134';
-import { t } from '../../../render/player-text.js?v=0.2.134';
-import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.134';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.135';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.135';
+import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.135';
+import { patchParts, placeLink } from '../../goto.js?v=0.2.135';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.135';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.135';
+import { whole, gold } from '../../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { glyphSvg } from '../../launcher.js?v=0.2.135';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.135';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.135';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.135';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.135';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.135';
+import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.135';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.135';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.135';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.135';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
+import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.135';
+import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.135';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -63,7 +63,7 @@ export function gridHtml() {
     + '<p class="hh-empty hw-none"></p>' + elsewhereHtml() + '</section>'
     + '<section class="hw-pane" data-pane="hunt">'
     + '<p class="hw-cap"><span class="hw-loot-sum"></span></p>'
-    + '<ul class="hw-loot"></ul><p class="hh-empty hw-loot-none">Nothing picked up yet. What a hunt brings back shows here, with what to do with each item next time.</p>'
+    + '<ul class="hw-loot"></ul><p class="hh-empty hw-loot-none">Nothing picked up yet</p>'
     + '<p class="hw-loot-note"></p></section>';
 }
 
@@ -136,7 +136,7 @@ function patchBagPane(root, st, ctx) {
   });
   const none = pane.querySelector('.hw-none');
   cls(none, 'is-on', st.loaded && !st.shown.length);
-  text(none, !st.loaded ? '' : !st.items.length ? 'Your bag is empty. Loot from hunts and things you buy land here.' : 'Nothing in the bag matches. Clear the search or pick All.');
+  text(none, !st.loaded ? '' : !st.items.length ? 'Bag empty' : 'No matches');
   patchElsewhere(pane, ctx, sc.query);
 }
 
@@ -211,7 +211,7 @@ export function patchTools(root, st, ctx) {
   prop(ob, 'hidden', !st.outgrown.length);
   prop(ob, 'disabled', sc.pending);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
-  text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + ' unpriced)' : ''));
+  text(tools.querySelector('.hw-value'), !st.shop ? 'Loading shop prices…' : !val ? 'Value –' : 'Worth: ' + gold(val.total) + (val.unpriced ? ', ' + val.unpriced + ' unpriced' : ''));
 
   const cf = root.querySelector('.hw-confirm');
   cls(cf, 'is-on', !!sc.confirm);
@@ -256,8 +256,8 @@ function patchHuntPane(root, st, ctx) {
     },
   });
   cls(pane.querySelector('.hw-loot-none'), 'is-on', !loot.length);
-  text(pane.querySelector('.hw-loot-note'), st.rules ? 'Loot goes into your bag as it drops. Back in town, Dispatch loot (in the Bag tab or Storage) stores and sells each item by its plan. Don\'t pick up leaves it on the ground.'
-    : 'Reading your loot plans…');
+  text(pane.querySelector('.hw-loot-note'), st.rules ? 'Dispatch loot stores and sells by plan, in town'
+    : 'Loading loot plans…');
 }
 
 /** The grid column for the open tab. */

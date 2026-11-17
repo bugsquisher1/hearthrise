@@ -19,12 +19,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES } from '../data/supplies.js?v=0.2.134';
-import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.134';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.134';
-import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.134';
-import { sessionModeOf } from '../data/session-modes.js?v=0.2.134';
-import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.134';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.135';
+import { END_ORDER, NO_FIGHT_END_MIN, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.135';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.135';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.135';
+import { sessionModeOf } from '../data/session-modes.js?v=0.2.135';
+import { skillLevelFromXp, skillXpForLevel } from './xp.js?v=0.2.135';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -397,6 +397,9 @@ export function newHuntSession(o) {
     /* CALL OUT (src/data/boss-calls.js), both set by combat-sim.js from the ground, never stored: the called boss is down; the instant the fight's limit falls. */
     bossFelled: s.bossFelled === true,
     callEndsAtMs: s.callEndsAtMs ?? null,
+    /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js): this hero's roll for today was made this span (hunt-rewards.js payPrize), whether
+       a piece landed or not; a flag of the span, never stored: the member's proposal carries it and the database stamps the day. */
+    prizeRolled: s.prizeRolled === true,
     /* The leader removed this member (the server's read: still hunting in its party's instance, no longer seated):
        its end sends nobody home (Coordinator ruling 2026-10-23; combat-sim.js cascadeFrom). */
     kicked: s.kicked === true,

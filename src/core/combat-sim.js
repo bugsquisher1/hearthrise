@@ -44,24 +44,24 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.134';
-import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js?v=0.2.134';
-import { createRng } from './rng.js?v=0.2.134';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.134';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.134';
-import { MONSTERS } from '../data/monsters.js?v=0.2.134';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.134';
-import { stepSwing } from './hunt/world-step.js?v=0.2.134';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.134';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.134';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.134';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.134';
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.134';
-import { roomOf } from './hunt/boss-room.js?v=0.2.134';
-import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.134';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.135';
+import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js?v=0.2.135';
+import { createRng } from './rng.js?v=0.2.135';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.135';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.135';
+import { stepSwing } from './hunt/world-step.js?v=0.2.135';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.135';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.135';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.135';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.135';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.135';
+import { roomOf } from './hunt/boss-room.js?v=0.2.135';
+import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.135';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.134';
+export { stepSwing } from './hunt/world-step.js?v=0.2.135';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -271,9 +271,13 @@ export function simulateHuntInstance(inst, ctx) {
   let fresh = false;
   /* A BOSS ROOM (src/core/hunt/boss-room.js: a called room or a keyed hall): its limit from the party's first swing (one instant for every member however the windows were cut), and ONE
      FIGHT: whatever ends one hero's ends everyone's, box ticked or not (the box is the hero's own word for a hunt, and this isn't one). CALL OUT (src/data/boss-calls.js) alone pays
-     nothing: only a called room hands the rewards its call (hunt-rewards.js calledSwing); a hall pays like any ground. */
+     only his drops, on his kill: only a called room hands the rewards its call (hunt-rewards.js calledSwing); a hall pays like any ground. */
   const room = roomOf(ctx.ground);
   const call = ctx.ground && ctx.ground.call ? BOSS_CALLS[ctx.ground.call] : null;
+  /* A CALLED ROOM'S TIME SPENDS NO STAMINA (Tyler 2026-11-14: each FIGHT costs stamina, charged by the server as it starts,
+     2027-04-24-boss-call-series.sql): no pool is drained or proposed here, so none can end a fight; the same for every member, never stored.
+     THE SERIES IS THE SERVER'S: this span plays one fight, his kill ends it `boss_felled`, and the settle starts the next or ends the series. */
+  if (call) for (const m of members) m.hs.staminaMs = null;
   if (room) {
     const ends = Math.min(...members.map((m) => Number(m.hs.huntFromMs) || 0)) + room.limitMs;
     for (const m of members) { m.hs.callEndsAtMs = ends; m.hero = Object.assign({}, m.hero, { leaveTogether: true }); }
@@ -320,6 +324,8 @@ export function simulateHuntInstance(inst, ctx) {
     //     LEAVE TOGETHER: every member whose own end holds at this boundary sends the ticked others home with
     //     it, here (they meet the flag in the end checks below), however the members are ordered.
     for (const m of members) m.hs.fightAtMs = world && m.unitId !== null ? world.fightAt : null;
+    /* A TRAINING GROUND HAS NO NO-FIGHT END (src/core/hunt/training.js): it pays the time whatever the blows. */
+    if (train) for (const m of members) m.hs.fightAtMs = null;
     const own = new Map();
     for (const m of members) {
       if (m.left || m.hs.nextSwingAtMs > atMs) continue;
@@ -410,8 +416,9 @@ export function simulateHuntInstance(inst, ctx) {
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
+      /* A KEYED HALL'S BOSS pays his rows as the hall's DAILY PRIZE (boss-halls.js; hunt-rewards.js payPrize): the room names him. */
       const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
-        ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
+        ...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
       /* THE ROOM'S BOSS IS DOWN: everyone still in the fight ends `boss_felled` at their next boundary. */
       if (room && r.events.some((e) => e.type === 'kill' && kinds[e.t] === room.monster)) for (const m of members) if (!m.left) m.hs.bossFelled = true;
       for (const f of deaths) {

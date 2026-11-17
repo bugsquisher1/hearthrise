@@ -21,17 +21,17 @@
 // payout (src/shell/town-ticker.js) as a pending segment: the level stays the
 // server's and the bar fills no further than its level.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.134';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.134';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.134';
-import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.134';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.134';
-import { whole } from '../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { glyphSvg } from '../launcher.js?v=0.2.134';
-import { tickOf } from '../town-work.js?v=0.2.134';
-import { aheadXp } from '../town-ticker.js?v=0.2.134';
-import { characterSheetOf } from '../../session/character-sections.js?v=0.2.134';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.135';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.135';
+import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.135';
+import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.135';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.135';
+import { whole } from '../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { glyphSvg } from '../launcher.js?v=0.2.135';
+import { tickOf } from '../town-work.js?v=0.2.135';
+import { aheadXp } from '../town-ticker.js?v=0.2.135';
+import { characterSheetOf } from '../../session/character-sections.js?v=0.2.135';
 
 /* Is this the skill's last level? The server says so: no XP across it (need 0, a capped skill at 99). */
 const mastered = (r) => r.need === 0;
@@ -86,7 +86,7 @@ function skillsWindow(groups) {
   const render = function renderSkills() {
     return '<div class="hw-skills">'
       + groups.map(([cat, label]) => '<section class="hw-skill-group"><h3 class="hw-skill-head">' + esc(label) + '</h3><ul class="hw-skill-list" data-cat="' + cat + '"></ul></section>').join('')
-      + '<p class="hh-empty hw-skill-none">Reading your skills…</p></div>';
+      + '<p class="hh-empty hw-skill-none">Loading skills…</p></div>';
   };
   render.patch = function patchSkills(body, ctx) {
     const sk = skillLevelsOf(ctx.character);

@@ -21,22 +21,22 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.134';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.134';
-import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.134';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.134';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.134';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.134';
-import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.134';
-import { gotoAttr, patchParts } from '../goto.js?v=0.2.134';
-import { factsTarget } from './monster.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
-import { groundLines } from '../live-events-view.js?v=0.2.134';
-import { afterHtml } from './hunt-after-pane.js?v=0.2.134';
-import { scaleHtml } from './scale-pane.js?v=0.2.134';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.135';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.135';
+import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.135';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.135';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.135';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.135';
+import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.135';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.135';
+import { factsTarget } from './monster.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
+import { groundLines } from '../live-events-view.js?v=0.2.135';
+import { afterHtml } from './hunt-after-pane.js?v=0.2.135';
+import { scaleHtml } from './scale-pane.js?v=0.2.135';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -77,6 +77,8 @@ const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) 
 export function goHtml() {
   return '<h4 class="hw-hd-h">' + t('hunts.head_go_as') + '</h4><div class="hw-go-list" role="radiogroup" aria-label="' + t('hunts.head_go_as') + '"></div>'
     + '<p class="hw-go-note"></p>'
+    /* Hunt prep is a step of going hunting: its setups are what Go as lists (renderHunts.act opens it; Back comes here) */
+    + '<button type="button" class="hh-tool hw-go-prep" data-hs-act="go-prep">' + t('hunts.go_prep') + '</button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
     + afterHtml()
     + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'
@@ -131,7 +133,19 @@ export function patchGo(det, ctx, v) {
     patch: (b, h) => { text(b, t('hunts.party_bring', { name: h.name })); prop(b, 'disabled', v.off || v.partyBlock.full); },
   });
   const none = pb.querySelector('.hw-bring-none');
-  text(none, v.partyBlock.bring.length ? '' : t('hunts.party_others'));
+  text(none, v.partyBlock.bring.length ? '' : bringNone(v.partyBlock));
+}
+
+/* Nobody to bring: the heroes in another party say whose and how to free them; heroes all in this party say nothing; none open, how to play one. */
+export function bringNone(b) {
+  const away = Array.isArray(b.away) ? b.away : [];
+  if (away.length) {
+    return away.map((g) => (g.leader
+      ? t('hunts.party_others_in', { count: g.names.length, names: listWords(g.names, Infinity), leader: g.leader })
+      : t('hunts.party_others_in_a', { count: g.names.length, names: listWords(g.names, Infinity) }))).join('. ');
+  }
+  if (b.others) return '';
+  return t('hunts.party_others');
 }
 
 /* "Level 2 · common"; a boss says so in place of its share. A narrow card puts the share under the Level, with no dot (format.js sepHtml). */
@@ -201,7 +215,7 @@ export function patchGround(det, ctx, r, o) {
     },
   });
   /* One ground line: every creature stands at the height of the tallest drawn here, feet on the same row. */
-  const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => c.height));
+  const tallest = Math.max(0, ...Array.from(lineup.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => parseFloat(c.style.height) || c.height));
   style(lineup, '--stand-h', tallest ? tallest + 'px' : null);
   const casts = castsWords(residents);
   text(det.querySelector('.hw-hd-casts'), casts);

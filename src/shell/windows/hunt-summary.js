@@ -17,40 +17,40 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.134';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.134';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.134';
-import { runIntent } from '../intent-words.js?v=0.2.134';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.134';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.134';
-import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.134';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.134';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.134';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.134';
-import { observeSessions } from '../../session/character-session.js?v=0.2.134';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.134';
-import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.134';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.134';
-import { endCardAfter } from '../after-hunt.js?v=0.2.134';
-import { afterDoneWords } from '../hunt-after.js?v=0.2.134';
-import { heldStep, glyphSvg } from '../launcher.js?v=0.2.134';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.134';
-import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.134';
-import { targetOf, gotoKey } from '../goto.js?v=0.2.134';
-import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.134';
-import { blessAll } from '../bless-all.js?v=0.2.134';
-import { blessingsOf } from '../../session/item-sections.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
-import { skillWord } from '../training-words.js?v=0.2.134';
-import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.135';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.135';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.135';
+import { runIntent } from '../intent-words.js?v=0.2.135';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.135';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.135';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.135';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.135';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.135';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.135';
+import { observeSessions } from '../../session/character-session.js?v=0.2.135';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.135';
+import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.135';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { endCardAfter } from '../after-hunt.js?v=0.2.135';
+import { afterDoneWords } from '../hunt-after.js?v=0.2.135';
+import { heldStep, glyphSvg } from '../launcher.js?v=0.2.135';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.135';
+import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.135';
+import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.135';
+import { blessAll } from '../bless-all.js?v=0.2.135';
+import { blessingsOf } from '../../session/item-sections.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
+import { skillWord } from '../training-words.js?v=0.2.135';
+import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { targetOf, gotoKey } from '../goto.js?v=0.2.135';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => {
   const room = roomOfHunt(cur.hunt);
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
-  return callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.';
+  return callOfHunt(cur.hunt) ? 'Call him out from the ground\'s page' : 'Hunt settings not saved';
 };
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
@@ -69,7 +69,7 @@ const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.
    hunt showed a bare "–" there, core-loop play 2026-10-30); Level XP per hour before bonuses only when the server sent
    it (premium, the 10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab
    (Tyler 2026-10-22). */
-const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
+const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Unsold loot value', gold, true],
   ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
 /* A TRAINING SESSION'S ROWS (summary-model.js trainingCard), in place of the hunt's: the skill's XP, its level before and after, and the
@@ -92,10 +92,10 @@ function bagFull(cs) {
 /** The skeleton (built once). */
 export function renderHuntSummary() {
   return '<div class="hsum">'
-    + '<p class="hs-note hsum-none">No hunts have ended yet. When one does, what it came to lands here.</p>'
+    + '<p class="hs-note hsum-none">No finished hunts yet</p>'
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
-    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-loss" hidden></p>'
+    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-series" hidden></p><p class="hsum-loss" hidden></p>'
     /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps right under the reason, each one press with its count and
        value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. Above the numbers, so the
        first step's press is in view as the window opens (under them it sat behind the sticky foot at 1440x900). */
@@ -139,7 +139,7 @@ function itemLines(host, ctx, items) {
       + '<span class="hsum-name"><b></b><small></small></span><span class="hsum-n"></span></li>'),
     patch: (el, x) => {
       text(el.querySelector('b'), itemName(x.it));
-      text(el.querySelector('small'), x.from === 'store' ? 'from the store' : x.from ? 'from your bag' : '');
+      text(el.querySelector('small'), x.from === 'store' ? 'from the store' : x.from ? 'from the bag' : '');
       text(el.querySelector('.hsum-n'), '×' + whole(x.n));
     },
   });
@@ -172,6 +172,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     /* ...or what came of the choice the hunt carried (a training session it opened is a hunt of its own, so this one is said either way) */
     const after = afterDoneWords(cs, cur.id, nameOf(cs)) || (cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '');
     text(root.querySelector('.hsum-reason'), reasonWords(cur, nameOf(cs), st ? st.msLeft : null) + (after ? ' ' + after : ''));
+    /* A Call out series: how many fights the server counted, how many were won, what it charged (hunt-view/boss-loss.js seriesLine). */
+    text(root.querySelector('.hsum-series'), cur.series || '');
+    prop(root.querySelector('.hsum-series'), 'hidden', !cur.series);
     /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
@@ -208,9 +211,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
     /* ...only opens a window, which says itself whether Start can go (a session running, out hunting, the purse): never off for a rule */
     if (trainAgain) prop(go, 'disabled', sc.pending);
-    attr(go, 'title', trainAgain ? t('training.card_again_title') : huntOpen ? 'A hunt is already running.' : !again ? againOffWords(cur) : route.why || 'Same ground, action set and limits, with what your bag holds now.');
+    attr(go, 'title', trainAgain ? t('training.card_again_title') : huntOpen ? 'A hunt is already running' : !again ? againOffWords(cur) : route.why || 'Same ground, bar and limits');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = trainAgain ? '' : huntOpen ? 'Hunt again is off. A hunt is already running.' : !again ? 'Hunt again is off. ' + againOffWords(cur) : route.why ? 'Hunt again is off. ' + route.why : '';
+    againWhy = trainAgain ? '' : huntOpen ? 'Hunt again off: a hunt is already running' : !again ? 'Hunt again off: ' + againOffWords(cur) : route.why ? 'Hunt again off: ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);
@@ -339,10 +342,10 @@ function leadAgain(ctx, cs, sc, repaint, hunt) {
   const low = row ? seatsUnder(row, party) : { under: [] };
   const warned = hunt + ':' + low.under.map((s) => s.seat).join();
   if (low.under.length && sc.warned !== warned) {
-    runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling your party…',
-      () => underWords(row, low.under) + '. Party warned. Press Hunt again to go.', cs).then(() => { sc.warned = warned; repaint(); });
+    runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling the party…',
+      () => underWords(row, low.under) + ', party warned', cs).then(() => { sc.warned = warned; repaint(); });
     return;
   }
   sc.warned = null;
-  runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…', () => 'Your party is on its way to ' + huntName(hunt) + '.', cs);
+  runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…', () => 'Party heading to ' + huntName(hunt), cs);
 }

@@ -17,12 +17,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=0.2.134';
+import { levelOf } from './xp.js?v=0.2.135';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=0.2.134';
-import { elementMultFor, MAX_TOTAL_DAMAGE_MULT, resistProfile } from './elements.js?v=0.2.134';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.134';
+} from './bane.js?v=0.2.135';
+import { elementMultFor, MAX_TOTAL_DAMAGE_MULT, resistProfile } from './elements.js?v=0.2.135';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.135';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
@@ -178,9 +178,10 @@ export function equipmentStats(equipment, items) {
   /* CRAFTED JEWELRY'S PERKS (src/data/jewelry.js): present only on a hero that wears one, so every other hero's stats are what they were. */
   const jewel = jewelPerksOf(equipment, items);
   if (jewel) Object.assign(s, { jewel });
-  /* ELEMENTAL RESISTANCE (Tyler 2026-11-08: gear and imbuements answer a monster's group spell): the worn pieces' `resistPm`
-     { element: permille less taken }, summed and bounded (elements.js resistProfile); present only on a hero whose gear
-     carries any, which no item does yet, so every hero's stats are what they were. */
+  /* RESISTANCE (Tyler 2026-11-08: gear and imbuements answer a monster's group spell; 2026-11-14: "maybe the legs have a %
+     physical resistance"): the worn pieces' `resistPm` { element | physical: permille less taken }, summed and bounded, each
+     key under its own cap (elements.js resistProfile); present only on a hero whose gear carries any (Krell's Tollgate and the
+     Banded Legguards are the first), so every other hero's stats are what they were. */
   const resist = resistOf(equipment, items);
   if (resist) Object.assign(s, { resistPm: resist });
   return s;

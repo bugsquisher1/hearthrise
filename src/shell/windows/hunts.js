@@ -41,37 +41,36 @@
 // read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.134';
-import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.134';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.134';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.134';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.134';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.134';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.134';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.134';
-import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.134';
-import { glyphSvg, markCoachRead } from '../launcher.js?v=0.2.134';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.134';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.134';
-import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.134';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.134';
-import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js?v=0.2.134';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.134';
-import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.134';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.134';
-import { openFinderOn } from './party-finder.js?v=0.2.134';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.134';
-import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.134';
-import { callFromGround } from '../../data/boss-calls.js?v=0.2.134';
-import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.134';
-import { hallFromGround } from '../../data/boss-halls.js?v=0.2.134';
-import { rowLines } from '../live-events-view.js?v=0.2.134';
-import { patchParts } from '../goto.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
-import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.134';
-import { patchScale, actScale, scaleTag } from './scale-pane.js?v=0.2.134';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.135';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.135';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.135';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.135';
+import { startPartyHunt, settleTownActivity, inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.135';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.135';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.135';
+import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.135';
+import { glyphSvg, markCoachRead } from '../launcher.js?v=0.2.135';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.135';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.135';
+import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.135';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.135';
+import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js?v=0.2.135';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.135';
+import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js?v=0.2.135';
+import { openFinderOn } from './party-finder.js?v=0.2.135';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.135';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.135';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.135';
+import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.135';
+import { hallFromGround } from '../../data/boss-halls.js?v=0.2.135';
+import { rowLines } from '../live-events-view.js?v=0.2.135';
+import { patchParts } from '../goto.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
+import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.135';
+import { patchScale, actScale, scaleTag } from './scale-pane.js?v=0.2.135';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -333,7 +332,7 @@ function patchPage(det, ctx, sc, v) {
     partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
       why: party ? t('hunts.party_lead', { n: party.seats.length }) : heroWords(r),
       find: party ? t('hunts.party_finder') : t('hunts.party_find'),
-      bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
+      bring: freeHeroes(cs, ctx.peers()), away: partiedHeroes(cs, ctx.peers()), others: openOthers(cs, ctx.peers()), full: !!party && party.full,
     } : null,
   });
   /* WHEN THE HUNT ENDS: each hero's own choice, a party member's too (the leader picks the hunt, never where a friend goes after it). */
@@ -374,7 +373,7 @@ function patchPage(det, ctx, sc, v) {
   text(det.querySelector('.hw-tier-read'), follower && tier ? t('hunts.tier_set_by', { leader: party.leaderName || t('hunts.your_leader'), tier: TIER_NAME[tier] }) : '');
   /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks, and with store food
      too weak for the ground Before you go says the fix (hunt-go.js weakFoodLine: the hand play died twice under "Safe at your level"). */
-  const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + ' ';
+  const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + '\n';
   text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? t('hunts.tier_leader_picks')
     : size > 1 ? safe + t('hunts.tier_kept_party') : safe + t('hunts.tier_kept')));
 }
@@ -391,7 +390,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   const repaint = () => renderHunts.patch(body, ctx);
   /* Scaled hunt: its slider moves on 'input' (renderHunts.events), its presses run on the status line; its refusals read refusal-words.js */
   if (sc.pick && actScale(ctx, sc.pick, action, ev, el, repaint, (send, busy, done) => runIntent(sc, repaint, send, busy, done, cs))) return true;
-  if (ev.type !== 'click') return false;
+  /* Presses; and the Call out slider, which answers as it moves (an `input` a step, a `change` on release: boss-call-pane.js). */
+  if (ev.type !== 'click' && !(action === 'call-fights' && (ev.type === 'input' || ev.type === 'change'))) return false;
   const hunt = el.getAttribute('data-hunt');
   /* To a ground's page and back: the header's Back follows the page AT ONCE (the shell's refresh paints both), not on its next display tick. */
   const repage = () => (typeof ctx.refresh === 'function' ? ctx.refresh('hunts') : repaint());
@@ -430,6 +430,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
   if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
+  /* Change setups: Hunt prep, opened from here so its Back comes back to this ground (window-manager.js from) */
+  if (action === 'go-prep') { ctx.wm.open('hunt-prep'); return true; }
   if (action === 'bring') {
     const slot = Number(el.getAttribute('data-slot'));
     const who = freeHeroes(cs, ctx.peers()).find((x) => x.slot === slot);
@@ -445,7 +447,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }))) return true;
+  }), el)) return true;
   /* A keyed hall: its section's presses, the same way; its refusals read its own words, with the key's name. */
   const hall = hallFromGround(sc.pick);
   if (actHall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -498,7 +500,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   return false;
 };
 
-/* The DOM events beyond click and change: the scaled hunt's hours slider follows the thumb (scale-pane.js). */
+/* The DOM events beyond click and change: the scaled hunt's hours slider and the Call out series' slider follow the thumb (scale-pane.js,
+   boss-call-pane.js; shell.js onExtra routes only the types a renderer names). */
 renderHunts.events = Object.freeze(['input']);
 
 /* The header's Back (src/shell/window-head.js): on a phone, a ground's page goes back to the list. */

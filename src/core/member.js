@@ -13,25 +13,25 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.134';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.134';
-import { companionBonus } from './companion-perk.js?v=0.2.134';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.134';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.134';
-import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.134';
-import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.134';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.134';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.134';
-import { MONSTERS } from '../data/monsters.js?v=0.2.134';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.134';
-import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.134';
-import { isRune } from '../data/runes.js?v=0.2.134';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.134';
-import { STATUSES } from '../data/statuses.js?v=0.2.134';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.134';
-import { LANE_OF } from './hunt/conditions.js?v=0.2.134';
-import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.134';
-import { resistProfile } from './elements.js?v=0.2.134';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.135';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.135';
+import { companionBonus } from './companion-perk.js?v=0.2.135';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.135';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.135';
+import { charLevelFromXp, levelsOf, levelOf, skillXpForLevel } from './xp.js?v=0.2.135';
+import { vitalsOf, wearsArmour, holdsShield } from './vitals.js?v=0.2.135';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.135';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.135';
+import { armourValues, steadyPmOf } from './mitigation.js?v=0.2.135';
+import { isRune } from '../data/runes.js?v=0.2.135';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.135';
+import { STATUSES } from '../data/statuses.js?v=0.2.135';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.135';
+import { LANE_OF } from './hunt/conditions.js?v=0.2.135';
+import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.135';
+import { resistProfile } from './elements.js?v=0.2.135';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -125,8 +125,8 @@ export function heroSnapshot(state, c) {
      (Keen is already in the rolls' crit chance). */
   const jewel = (c.eq && c.eq.jewel) || null;
   const followPm = jewel && jewel.follow > 0 ? jewel.follow : 0, surgePm = jewel && jewel.surge > 0 ? jewel.surge : 0;
-  /* ELEMENTAL RESISTANCE (Tyler 2026-11-08), the same: { element: permille less taken } from the resolved gear (combat.js equipmentStats), only on a
-     hero whose gear carries any (none yet); damage.js hurt takes it at the armour chain's resistances step (targeting.js elementOn). */
+  /* RESISTANCE (Tyler 2026-11-08; physical 2026-11-14), the same: { element | physical: permille less taken } from the resolved gear (combat.js
+     equipmentStats), only on a hero whose gear carries any; damage.js hurt takes it at the armour chain's resistances step (targeting.js elementOn). */
   const resistPm = resistProfile(c.eq && c.eq.resistPm);
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
     ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(resistPm ? { resistPm } : {}) };
@@ -343,6 +343,12 @@ export function memberSide(mi, ctx) {
         const v = r && Object.prototype.hasOwnProperty.call(r, kind) ? Number(r[kind]) : NaN;
         return Number.isFinite(v) ? Math.min(RELIC_MULT_MAX, Math.max(1, v)) : 1;
       },
+      /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js): the server's own read says this hero has today's still to take
+         (hr_hunt_instance_read `prize_left`: no hr_boss_loot_day row for today). Anything but an explicit true rolls nothing: the
+         browser's prediction, an older server, any other ground. hunt-rewards.js payPrize reads it and clears it once rolled. */
+      prizeLeft: mi.prizeLeft === true,
+      /* ...and that roll is this hero's FIRST on the boss, ever (hr_hunt_instance_read `prize_first`): the sure roll. Only an explicit true. */
+      prizeFirst: mi.prizeFirst === true,
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, tier: h.tier || null, lead: h.lead === true,

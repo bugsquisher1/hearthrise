@@ -25,19 +25,19 @@ export const PREP_TEXT = Object.freeze({
   setup_name: 'Setup name',
   rename_label: 'New name for this setup',
   save: 'Save',
-  use_equipped_hint: 'Copy your worn gear into {name}',
-  use_equipped_ask: 'Replace {name} with your worn gear?',
+  use_equipped_hint: 'Copy worn gear into {name}',
+  use_equipped_ask: 'Replace {name} with worn gear?',
   count_line: '{n} of {max} setups',
-  town_only: 'Changes in town only (a running hunt keeps its bar)',
-  need_more: 'You need {gold} more.',
+  town_only: 'Changes in town only',
+  need_more: 'Need {gold} more',
 
   /* FIGHTS AS: read only, the worn weapon decides it. A dim role says how to get it. */
   fights_as: 'Fights as',
   fights_weapon: 'Weapon: {weapon}',
   fights_weapon_shield: 'Weapon: {weapon} and {shield}',
-  fights_none: 'Weapon: none (bare hands)',
+  fights_none: 'Weapon: none',
   fights_tank: 'Requires a sword and a shield',
-  fights_melee_dps: 'Requires a sword, two axes or a club, no shield',
+  fights_melee_dps: 'Requires a sword, hatchets, a hammer or a club (no shield)',
   fights_ranger: 'Requires a bow or a crossbow',
   fights_mage: 'Requires a wand',
   fights_healer: 'Requires a staff',
@@ -58,20 +58,22 @@ export const PREP_TEXT = Object.freeze({
   /* THE GOLD RESERVE (core/action-rules.js floorOf): a store buy never takes the purse below it; one that would sells this hunt's
      loot, cheapest first, just enough to pay, and only when that is not enough does the hunt end gold_out. */
   gold: 'Gold reserve',
-  keep_at_least: 'Gold reserve (gp)',
+  keep_at_least: 'Gold reserve, gp',
   gold_word: 'gp',
-  gold_line: 'Stops buying supplies below this. Sells loot first, then ends the hunt.',
+  gold_line: 'Below this, stops buying supplies and ends the hunt',
 
   /* THE ACTION BAR GRID. */
   bar: 'Action bar',
   bar_count: '{n} of {max} slots',
-  bar_hint: 'Drag to move or swap, + to fill, slot 1 fires first',
+  bar_hint: 'Drag to move or swap. + to fill. Slot 1 fires first',
   slot_empty: 'Slot {n}: empty',
   slot_filled: 'Slot {n}: {name}.',
   slot_off: 'Off',
   slot_always: 'Fires when ready',
   sorted: 'Sorted: moves, food and drink, then ammo',
-  cleared: 'Cleared (weapon moves only until you fill it)',
+  cleared: 'Cleared (weapon moves kept)',
+  /* a label, not a sentence (Tyler 2026-11-14: everything outside lore is a genre-standard label) */
+  basic_loaded: 'Basic setup: unsaved',
 
   /* THE FOOTER. */
   save_and_use: 'Save and use',
@@ -88,7 +90,7 @@ export const PREP_TEXT = Object.freeze({
   saved_on: 'Saved and equipped {name}',
   putting_on: 'Equipping setup…',
   put_on: 'Setup equipped',
-  replaced: 'Replaced {name} with your worn gear and bar',
+  replaced: 'Replaced {name} with worn gear and bar',
   deleting: 'Deleting…',
   deleted: 'Deleted {name}',
   renaming: 'Renaming…',
@@ -98,13 +100,13 @@ export const PREP_TEXT = Object.freeze({
 
   /* BEFORE YOU GO, STORE FOOD TOO WEAK FOR THE GROUND (src/shell/hunt-go.js weakFoodLine): {food} the bar's best store food, {want} the
      store food this ground's bag guide names. */
-  food_weak: '{food} heals too little here (death risk). Pick {want} on that slot.',
+  food_weak: '{food} heals too little here. Pick {want}',
   /* the same with the server's numbers, when it has sent this hero's HP: {heal} what one {food} heals, {hp} the hero's full HP */
-  food_weak_hp: '{food} heals {heal} of {hp} HP (death risk). Pick {want} instead.',
+  food_weak_hp: '{food} heals {heal} of {hp} HP. Pick {want}',
 
   /* CARRY IN, while this hero hunts (src/shell/carry-in.js). */
   carry_head: 'Carry into this hunt',
-  carry_note: 'Uses carried supplies, then the store. New items wait in your backpack',
+  carry_note: 'Uses carried supplies first, then the store',
   carry_none: 'Nothing to carry in',
   carry_line: '{have} in backpack, {inHunt} in hunt',
   carry_press: 'Carry {n}',
@@ -112,25 +114,25 @@ export const PREP_TEXT = Object.freeze({
   /* BEFORE YOU GO, THE BLESSINGS (src/shell/hunt-go.js blessingWords). Every number is the server's Blessings section:
      {on} held of {of}, {pct} the cut they give now, {price} the next one's price, {level} the Level they stop being free at.
      `_free` while the next one costs nothing, `_cost` once it has a price, the bare row if the server hasn't said which. */
-  blessings_none: 'Blessings: none (cut death XP loss, in the Shop)',
-  blessings_none_cost: 'Blessings: none (cut death XP loss, first one {price} in Shop)',
-  blessings_some: 'Blessings: {on} of {of}, -{pct}% death XP loss (more in Shop)',
-  blessings_some_cost: 'Blessings: {on} of {of}, -{pct}% death XP loss (next {price} in Shop)',
+  blessings_none: 'Blessings: none (Shop → Services)',
+  blessings_none_cost: 'Blessings: none (first: {price}, Shop → Services)',
+  blessings_some: 'Blessings: {on} of {of}, -{pct}% death XP loss',
+  blessings_some_cost: 'Blessings: {on} of {of}, -{pct}% death XP loss, next {price}',
   blessings_all: 'Blessings: {of} of {of}, -{pct}% death XP loss',
   /* How long the gold lasts (readiness.js): the gold, and the analyzer's supply spend an hour on the running hunt or, in town, the last one. */
   /* BEFORE YOU GO's own lines (src/shell/hunt-go.js). {left} "2 h 5 min"; {gold} "500 gp"; {setup} a setup's name. */
   go_bare_food: 'HP returns only between fights',
   go_bare_drink: 'Mana returns only between fights',
   go_no_cast: 'Nothing to cast',
-  go_no_tamsin: 'No Tamsin tasks count here.',
-  go_no_food_drink: 'Food and drink: none (HP and mana return only between fights)',
-  go_other_setup: 'Supplies: set by {setup}’s bar (shown once it’s on)',
-  go_no_weapon: 'Weapon: none (bare-handed, equip one from your bag)',
-  go_no_stamina: 'Stamina: none (rest in town first)',
-  go_stamina_low: 'Stamina: {left} left (then the hunt ends)',
-  go_stamina: 'Stamina: {left} (hunts that long, even with the game closed)',
-  go_gold: 'Gold: {gold} (pays the store as you go)',
-  go_no_gold: 'Gold: none (hunt ends when your supplies run out)',
+  go_no_tamsin: 'Tamsin tasks count elsewhere: {counts}',
+  go_no_food_drink: 'Food and drink: none',
+  go_other_setup: 'Supplies: set by {setup}’s bar',
+  go_no_weapon: 'Weapon: none',
+  go_no_stamina: 'Stamina: none',
+  go_stamina_low: 'Stamina: {left} left',
+  go_stamina: 'Stamina: {left}',
+  go_gold: 'Gold: {gold}',
+  go_no_gold: 'Gold: none (hunt ends when supplies run out)',
   /* EVERY HERO'S CHECKLIST (src/shell/readiness.js). {n} the slot, 1 first. */
   ready_character: 'Character {n}',
   ready_loading: 'Loading this character…',
@@ -140,9 +142,9 @@ export const PREP_TEXT = Object.freeze({
   ready_short_weapon: 'no weapon',
   ready_bar_later: 'Action bar: set when a hunt is picked',
   ready_stamina: 'Stamina: {left} left',
-  ready_no_stamina: 'Stamina: none (rest first)',
+  ready_no_stamina: 'Stamina: none',
   ready_short_stamina: 'no stamina',
   gold_only: 'Gold: {gold} gp',
   gold_spend_now: 'Gold: {gold} gp, about {hours} h at {spend} gp/h on this hunt',
-  gold_spend_last: 'Gold: {gold} gp, about {hours} h at {spend} gp/h (last hunt)',
+  gold_spend_last: 'Gold: {gold} gp, about {hours} h at {spend} gp/h last hunt',
 });

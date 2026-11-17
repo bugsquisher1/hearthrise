@@ -14,8 +14,8 @@
 .hh-panel {
   display: flex; flex-direction: column;
   background: var(--hud-fill);
-  border: 6px solid transparent;
-  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
+  border: var(--art-3) solid transparent;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch;
   image-rendering: pixelated;
   font-size: var(--t-micro); color: var(--ink);
 }
@@ -72,7 +72,7 @@
    The word spacing makes the space as wide as " · " in the same font. */
 .hh-sep { word-spacing: .45em; background: linear-gradient(currentColor, currentColor) 50% 55% / 2px 2px no-repeat; }
 .hh-sep-t { font-size: 0; word-spacing: 0; }
-.hh-icon { width: 32px; height: 32px; image-rendering: pixelated; display: inline-grid; place-items: center; flex: none; }
+.hh-icon { width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; display: inline-grid; place-items: center; flex: none; }
 .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; color: var(--ink-3); }
 
 /* ── Gauges: a sunk bar with its number on it ── */
@@ -86,7 +86,7 @@
 .hh-gauge-text { position: relative; display: block; padding: 0 6px; font-style: normal; font-size: var(--t-micro); line-height: 18px; font-weight: 700; color: var(--ink); paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Top bar ── */
-.ht-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 2px 4px 2px 8px; background: var(--hud-fill); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
+.ht-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 2px 4px 2px 8px; background: var(--hud-fill); border: var(--art-3) solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated; }
 /* The ground is named as a place is (ART_DIRECTION §10): Cinzel in gold. */
 .ht-ground { font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .08em; color: var(--gold-2); white-space: nowrap; }
 .ht-clock, .ht-fee { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 6px; margin-right: 2px; border-right: 2px solid var(--steel-sep); }
@@ -237,7 +237,7 @@
    with a gold rule along its top edge (--steel-rule, a window heading's rule); the slots are wells sunk into it
    (--steel-well, one art px deep). The plate is opaque so the world never reads through the wells.
    A DESKTOP NEVER GIVES WAY TO THE PHONE (Tyler 10-25): the phone has its own arrangement under the phone query. */
-.hb-bar { position: relative; display: flex; align-items: center; gap: 6px; padding: 2px 4px; background: var(--bg-0); border: 12px solid transparent; border-image: url('../../assets/ui/bar-plate.png') 6 / 12px stretch; image-rendering: pixelated; box-shadow: inset 0 2px 0 var(--steel-rule); }
+.hb-bar { position: relative; display: flex; align-items: center; gap: 6px; padding: 2px 4px; background: var(--bg-0); border: var(--art-6) solid transparent; border-image: url('../../assets/ui/bar-plate.png') 6 / var(--art-6) stretch; image-rendering: pixelated; box-shadow: inset 0 2px 0 var(--steel-rule); }
 /* Slots | hub | slots | fight panel: the markup puts the hub first (the phone's order), the desktop orders it between. */
 .hb-grid { display: contents; }
 .hb-grid > .hb-slots:first-child { order: 1; }
@@ -255,7 +255,7 @@
 .hb-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hb-slot.is-drop { outline: 2px solid var(--gold); outline-offset: -2px; }
 .hb-slot-ico { width: 100%; height: 100%; display: grid; place-items: center; }
-.hb-slot .hh-icon, .hb-socket-ico .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }
+.hb-slot .hh-icon, .hb-socket-ico .hh-icon { width: round(down, 100% - 4px, var(--icon-step)); height: round(down, 100% - 4px, var(--icon-step)); }
 .hb-slot .hh-icon.is-glyph .hs-glyph { width: 50%; height: 50%; color: var(--ink-2); }
 .hb-slot small { position: absolute; font-size: var(--t-micro); font-weight: 700; line-height: 1; font-variant-numeric: lining-nums tabular-nums; paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
 /* Gold where it earns its place: the slot's number is brass (it is the priority order); the count stays white (data). */
@@ -278,11 +278,11 @@
 /* THE FIGHT PANEL at the far right (Tyler 10-19, 10-25): the setup, its target, stance, chase and distance, each in
    view; the sliders fold out what does not fit (the gold to keep) above the bar's end. A groove cut down the plate
    (bar-socket.png's shadowed wall) parts it from the slots. */
-.hb-plaque { position: relative; align-self: stretch; width: 232px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding-left: 10px; border-left: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
+.hb-plaque { position: relative; align-self: stretch; width: 232px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding-left: 10px; border-left: var(--art-2) solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 0 0 0 var(--art-2) stretch; image-rendering: pixelated; }
 .hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
 .hb-pl-more { display: contents; }
 .hb-pl-fold { position: absolute; right: -16px; bottom: calc(100% + 20px); width: 284px; display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px; z-index: 3;
-  background: var(--modal-bg); border: 8px solid transparent; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; image-rendering: pixelated;
+  background: var(--modal-bg); border: var(--art-4) solid transparent; border-image: url('../../assets/ui/frame-iron.png') 4 / var(--art-4) stretch; image-rendering: pixelated;
   transform: translateY(8px); visibility: hidden; transition: transform 120ms ease-out, visibility 0s linear 120ms; }
 .hb-plaque.is-open .hb-pl-fold { transform: none; visibility: visible; transition: transform 120ms ease-out; }
 .hb-plaque .hb-more { display: inline-grid; }
@@ -316,11 +316,11 @@
 .hb-cd-ember { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--hud-ember); box-shadow: inset 0 1px 0 var(--hud-ember-edge); }
 .hb-cd-s { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--t-lead); font-weight: 800; color: var(--hud-ember-ink); paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); font-variant-numeric: lining-nums tabular-nums; }
 /* The drop menu: onto an action, swap or insert; Escape or a press elsewhere cancels. */
-.hb-drop { display: none; position: absolute; bottom: calc(100% + 6px); width: 240px; padding: 8px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; z-index: 3; }
+.hb-drop { display: none; position: absolute; bottom: calc(100% + 6px); width: 240px; padding: 8px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: var(--art-2) solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / var(--art-2) stretch; image-rendering: pixelated; z-index: 3; }
 .hb-drop.is-on { display: flex; }
 .hb-drop-t { color: var(--ink); font-size: var(--t-small); }
 .hb-drop .hh-tool { justify-content: flex-start; text-align: left; min-height: 34px; }
-.hb-tip { display: none; position: absolute; bottom: calc(100% + 6px); width: 260px; padding: 8px 10px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; pointer-events: none; z-index: 2; }
+.hb-tip { display: none; position: absolute; bottom: calc(100% + 6px); width: 260px; padding: 8px 10px; background: var(--modal-bg); border: var(--art-2) solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / var(--art-2) stretch; image-rendering: pixelated; pointer-events: none; z-index: 2; }
 .hb-tip.is-on { display: block; }
 .hb-tip b { color: var(--ink); }
 .hb-tip-n { float: right; font-size: var(--t-micro); color: var(--ink-3); }
@@ -378,7 +378,7 @@
 .hb-stam-buy:focus-visible > i { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 /* Its panel, from the bar over the stamina line: what one refill gives and its price (the server's quote), why it cannot
    be bought, the premium note for a hero without premium, Buy (the gold plate), the status line. */
-.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px; padding: 8px 10px 10px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; z-index: 3; }
+.hb-buy { display: none; position: absolute; bottom: calc(100% + 6px); width: 280px; padding: 8px 10px 10px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: var(--art-2) solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / var(--art-2) stretch; image-rendering: pixelated; z-index: 3; }
 .hb-buy.is-on { display: flex; }
 .hb-buy-do { display: flex; gap: 6px; }
 .hb-buy-do > .hb-buy-go { flex: 1; }
@@ -462,7 +462,7 @@
 .ca-row.is-on .ca-name::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--gold); vertical-align: middle; }
 .ca-row.is-none { color: var(--ink-3); }
 .ca-row:disabled { cursor: default; }
-.ca-ico, .ca-ico .hh-icon { width: 32px; height: 32px; }
+.ca-ico, .ca-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .ca-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-body); font-family: var(--f-ui); }
 .ca-namebox { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .ca-lock { display: none; flex: none; width: 14px; height: 14px; color: var(--ink-3); }
@@ -634,7 +634,7 @@
 .hi-line { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hi-gear { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
 .hi-item { display: grid; grid-template-columns: 36px 1fr; grid-template-rows: auto auto; column-gap: 6px; align-items: center; cursor: help; }
-.hi-item .hh-icon { grid-row: 1 / 3; width: 32px; height: 32px; image-rendering: pixelated; }
+.hi-item .hh-icon { grid-row: 1 / 3; width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; }
 .hi-slot { font-size: var(--t-micro); color: var(--ink-3); }
 .hi-name { font-size: var(--t-small); font-weight: 400; color: var(--ink); }
 .hs-blocks { margin: 0; padding: 0; list-style: none; }
@@ -714,7 +714,7 @@ label.st-line { cursor: pointer; }
      rows: stance, then the setup, Chase and distance. The sliders slide out a sheet with the target and the gold. */
   /* The phone's plate is the window frame (frame-iron.png, 4 art px = 8 px): the desktop's 12 px plate costs height a
      375 px screen does not have. */
-  .hb-bar { gap: 3px; padding: 0 2px; max-width: calc(100vw - 8px); border-width: 8px; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; }
+  .hb-bar { gap: 3px; padding: 0 2px; max-width: calc(100vw - 8px); border-width: var(--art-4); border-image: url('../../assets/ui/frame-iron.png') 4 / var(--art-4) stretch; }
   .hb-hub, .hb-grid > .hb-slots:first-child, .hb-grid > .hb-slots:last-child { order: 0; }
   .hb-grid { order: 1; display: flex; gap: 2px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
   .hb-grid::-webkit-scrollbar { display: none; }
@@ -772,11 +772,22 @@ label.st-line { cursor: pointer; }
   .hb-chase { grid-area: chase; }
   .hb-dist { grid-area: dist; gap: 2px; margin-left: 0; }
   .hb-plaque .hh-tool, .hb-plaque .hh-seg { min-height: 36px; }
+  /* BESIDE A TOWN SHEET THE BAR IS ITS TWENTY SLOTS, WHOLE (audit 2026-11-15 F27: a town sheet is full height, so the bar ran under
+     it and slots 9, 10, 19 and 20 could not be seen or pressed at 922x423, four columns of ten at 667x375, with the bag's "Put on
+     the bar" open beside them). The band ends short of the sheet (its own min(400px, 48vw), then 40 px: the World's 9 px edge twice, the dock's 12 px
+     gap), and the shell stands it clear (hud.js clearOfEdges: a centred widget takes the left that clears the dock once one
+     exists). Its hub and fight panel wait for the sheet to close: neither changes in town, and with them ten columns never fit.
+     Where ten still do not (667 px), the slots page as they always have (.hb-page). In a hunt the sheet ends above the bar instead (shell.js capDock). */
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }
+  /* The widget's own floor (320 px, written inline from its HUD row by shell.js) is 3 px wider than the room a 667 px screen
+     leaves beside the sheet, and the band would stay under it: beside a sheet the band's width above is the floor. */
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0 !important; }
   .hb-stance .hh-seg { flex: 1 0 auto; padding: 0 clamp(2px, calc((100vw - 667px) / 30), 6px); }
   .hb-dist .hb-label { letter-spacing: 0; }
   .hb-dist .hh-step .hh-seg { min-width: 30px; }
   .hb-pl-more { position: fixed; top: 0; right: 0; bottom: 0; width: 280px; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px; z-index: auto;
-    background: var(--modal-bg); border: 0 solid transparent; border-left-width: 4px; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated;
+    background: var(--modal-bg); border: 0 solid transparent; border-left-width: var(--art-2); border-image: url('../../assets/ui/frame-iron-thin.png') 2 / var(--art-2) stretch; image-rendering: pixelated;
     transform: translateX(100%); visibility: hidden; transition: transform 160ms ease-out, visibility 0s linear 160ms; }
   .hb-plaque.is-open .hb-pl-more { transform: none; visibility: visible; transition: transform 160ms ease-out; }
   /* Taller than the space under the hunt bar (667x375 with the First target row): it starts at its head and scrolls, never cut at both ends. */
@@ -826,7 +837,7 @@ label.st-line { cursor: pointer; }
   /* The heads stick to the sheet's scroller while their run scrolls under them: solid, so no row reads through. */
   .ca-head { min-height: 24px; background: var(--bg-0); }
   .ca-head .ca-c[data-c="1"], .ca-row .ca-c[data-c="1"] { display: none; }
-  .ca-ico, .ca-ico .hh-icon { width: 32px; height: 32px; } /* whole pixels: 28 drew 16-px art at 0.875x */
+  .ca-ico, .ca-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); } /* whole pixels: 28 drew 16-px art at 0.875x */
   .ca-token, .ca-step, .ca-cfg .hh-tool, .ca-form .hh-tool { min-height: 40px; }
   .ca-foot { flex: none; position: static; min-height: 48px; margin: 0 -8px; align-items: center; }
   /* a phone's press on a slot opens this, and a player may have meant to use it (QA 2026-11-04): the bar is idle by ruling, so the foot says so */

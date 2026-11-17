@@ -124,8 +124,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
   /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server's. */
-  hr_boss_call: 'the party leader pays the server\'s fee and the party enters the called room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
-  hr_boss_call_view: 'the call as the server prices it, read while the ground\'s page is open (boss-quote.js readCall)',
+  hr_boss_call: 'a series of called fights (the count bounded by the server, bad_fights): every seat pays the first fight, its own stamina and the server\'s fee, and enters the room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
+  hr_boss_call_view: 'the call as the server prices it (one fight\'s stamina and fee, the slider\'s top, each count\'s total), read while the ground\'s page is open (boss-quote.js readCall)',
   hr_boss_hall_enter: 'a hero alone, or a party\'s leader with every member, spends one of the hall\'s keys and enters its room; the server names the key (boss-intents.js openHall)',
   hr_hunt_party_warn: 'the leader, before Start, tells the seats under a ground; a catalogue ground only, display notices, no value (party-intents.js warnPartyGround)',
   hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',
@@ -163,7 +163,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_town_sinks_view: 'the Havora window\'s read of this account\'s quotes and last choices; a read, while the window is open (town-intents.js readSinks)',
   hr_town_show: 'a Hearth powder or a round by catalogue id, at the price the player saw, with a fresh key; never an amount, a color or a time (town-intents.js)',
   /* The Town Works (2027-03-04-town-works.sql): the gift is the one number; the server refuses it under its own clock, before any charge. */
-  hr_town_works_view: 'the Works tab\'s read of the project, today\'s allowance, this account\'s place and the plaque; a read, while the tab is on show (town-intents.js readWorks)',
+  hr_town_works_view: 'the Works tab\'s read of the project, today\'s allowance, this account\'s place and the plaque; a read, while the tab is on show, and once as the Market window opens with trading off (town-intents.js readWorks, market/state.js)',
   hr_town_works_give: 'a gift to a Town Works project: a catalogue id, the amount the player chose and a fresh key; never a total, a stage or a time (town-intents.js giveToWorks)',
   hr_crier_send: 'a paid line to Global, at the price the player saw, with a fresh key; the server names the sender and checks every word first (ChatStore.cry)',
   hr_tally_view: 'Tamsin\'s board for this hero: the tasks, what each pays and her pick now; a read (tally-intents.js tallyBoard)',

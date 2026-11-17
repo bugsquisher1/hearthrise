@@ -120,12 +120,29 @@ export const CLASSES = Object.freeze({
   // a projectile's tip). It never touches the floor and casts no shadow; frames may be
   // blank (an effect fades in and out). `blend` 'add' draws it additively (light), else over.
   vfx: row({ body: [2, 72], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'fx', blank: true }),
+  // AMBIENT LIFE (src/data/world/ambient-life.js, tools/world-art/town-life.mjs): a column of smoke over a chimney or the
+  // Great Hearth's flue, its anchor the mouth it leaves, drawn in the AIR (over the roofs, under the light and the vignette, as
+  // the world is); measured by how tall it climbs.
+  plume: row({ body: [24, 96], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'air', blank: true }),
+  // ...and daylight caught on a wave: a few pixels lying flat on the water, under everything standing; between flashes blank.
+  glint: row({ body: [1, 12], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal', blank: true }),
+  // ...and the water's ripples: one or two cells square of wave marks laid on the water in step (its anchor the corner), under everything standing.
+  ripple: row({ anchor: [0, 0], body: [8, 64], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'decal' }),
+  // A moving piece of a building, laid over it at its own pixels and drawn in the air after it (the mill's waterwheel turning): its
+  // anchor the piece's corner, its frames the building's own pixels moved inside the piece's outline (town-life.mjs wheel).
+  turning: row({ anchor: [0, 0], body: [16, 72], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'air' }),
+  // An animal painted into a building's art come alive (a hen pecking in a yard): its own pixels cut from a still twin of the
+  // building and drawn over it, its head moved a pixel or two (town-life.mjs stir); drawn in the air after the building.
+  stir: row({ anchor: [0, 0], body: [8, 48], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'air' }),
 });
 
 // Terrain is T×T, fully opaque. kind 'wang16': corner tiles keyed NW NE SW SE,
 // '1' = the upper material, all 16 keys present. kind 'fill': one material, key
 // '1111' only, its variants laid as a cycle [cols, rows] (variant index =
 // (y mod rows)·cols + (x mod cols)) so a pattern wider than a tile repeats seamlessly.
+// kind 'variety': one floor tile's variants (tools/world-art/variety.mjs), key '1111' only,
+// picked per cell by src/world/core/ground-variety.js; `of` the terrain whose tile it varies,
+// `key` (a wang interior) or `at` [x, y] (a painted ground's cell), `seed`.
 export const WANG_KEYS = Object.freeze(Array.from({ length: 16 }, (_, i) => i.toString(2).padStart(4, '0')));
 
 // ── GRID PROFILES (one row per art grid) ─────────────────────────────────────
@@ -193,7 +210,7 @@ export const READABLE = Object.freeze({ ring: 3, kits: Object.freeze(['barrow_ma
 //            Wall slices (classes wall, stub) carry their frames as a horizontal
 //            CYCLE: the slice at tile column x uses frame (x mod frames), so a
 //            128 px stone pattern repeats without a seam every 32 px.
-//   terrain  { id: { kind, lower, upper, cycle?, tiles: { NWNESWSE: [[x,y], …] } } }
+//   terrain  { id: { kind, lower, upper, cycle?, of?, key?, at?, seed?, tiles: { NWNESWSE: [[x,y], …] } } }
 export const MANIFEST_VERSION = 1;
 export const atlasPaths = (set) => Object.freeze({
   image: `assets/world/atlas-${set}.png`,

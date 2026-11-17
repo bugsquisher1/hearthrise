@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // tools/balance-sim/boss-call-table.mjs — CALL OUT, MEASURED ON THE REAL SETTLE (Tyler 2026-11-04; src/data/boss-calls.js).
 //
-//   node tools/balance-sim/boss-call-table.mjs --hall krells_hold [--level 98] [--spell hall_fire.hitPm=300,hall_fire.cdMs=20000] [--named-hp N --named-atk N --named-rage N] ...
-//                                          a KEYED HALL (src/data/boss-halls.js) on the same rows and bars. It pays, so the money line is not read
+//   node tools/balance-sim/boss-call-table.mjs --hall krells_hold [--level 98] [--first] [--spell hall_fire.hitPm=300,hall_fire.cdMs=20000] [--named-hp N --named-atk N --named-rage N] ...
+//                                          a KEYED HALL (src/data/boss-halls.js) on the same rows and bars. It pays, so the money line is not read.
+//                                          --first: every kit without the boss's own prize (the party reading his card for the first time)
 //   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 0.1 --addlvl 40 --adds 5 --guard 500] [--cliff] [--ship] [--focus] [--rows REGEX] [--stats]
 //
 // Each cell plays the called room to its end through accrueHunt (tests/hunt-core/fixtures/play-ground.mjs, the settle
@@ -50,7 +51,12 @@ const COND = await import(u('src/core/hunt/conditions.js') + v);
    Hall in tier 3 steel: he was fitted to the ship bar in gear nobody who holds his key wears, and in the Hold's own tier 6 he was a
    two-minute fight the hand play won 5 of 5. A hall plays every staged ground as open (gear.mjs openAlso), the ladder it ships on. */
 const STAGED = Object.keys(G.HUNT_GROUNDS).filter((g) => !Object.prototype.hasOwnProperty.call(G.OPEN_GROUNDS, g));
-const gearOpts = (call) => (call.hall ? { openAlso: STAGED } : {});
+/* --first: THE PARTY AT ITS FIRST WIN (the QA audit's F22, 2026-11-15). A hall's own prize drops only from its boss, so a party reading the
+   hall's card for the first time wears none of it: at Krell from 88 the ladder dressed it in his tier 7, and a pair that loses in tier 6
+   read as winning. --first holds the boss's own rows out of every kit. */
+const FIRST = process.argv.includes('--first');
+const prizeOf = (call) => (ENGINE_MONSTERS[call.monster].drops || []).map((d) => d.id);
+const gearOpts = (call) => (call.hall ? { openAlso: STAGED, ...(FIRST ? { exclude: prizeOf(call) } : {}) } : {});
 const secretOf = (seed) => {
   let h = 2166136261 >>> 0;
   for (const c of 'bosscall:' + seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
@@ -58,9 +64,11 @@ const secretOf = (seed) => {
 };
 const storeOf = (kind, cooked) => (SB.BASIC_SUPPLIES.find((b) => b.kind === kind && b.partner === cooked) || {}).id;
 /* The ground's guide food and drink on the start bar (play-ground.mjs refBar's shape): a hero who stocked for the ground. */
-const guideBar = (from, eatPct) => {
+const guideBar = (from, eatPct, store) => {
   const g = BAG_GUIDE_BY_HUNT[from];
   const item = g ? { d_food: g.melee.heal.id, d_food_store: storeOf('heal', g.melee.heal.id), d_drink: storeOf('mana', g.magic.mana.id) } : {};
+  /* `store`: a hall card's food (BOSS_HALLS storeFloor) on the store slot, its cooked partner on the own one */
+  if (store) Object.assign(item, { d_food: (SB.BASIC_SUPPLIES.find((b) => b.id === store) || {}).partner, d_food_store: store });
   return START_BAR.map((x) => {
     const y = JSON.parse(JSON.stringify(x));
     if (item[y.id]) y.action.id = item[y.id];
@@ -102,8 +110,9 @@ BARS.noPeel = { ...BARS.noChallenge, tmode: 'strongest' };
 BARS.badChallenge = { ...BARS.bad, spells: { ...BARS.bad.spells, tank: [['challenge'], ['power_strike']] } };
 /* THE DOOR'S BAR (lane/d-march-balance, the v0.2.133 hands-on check): what a player builds from a hall's hints and nothing else. Every role keeps
    its default moves (rule-subjects.js ROLE_RULES) and its default Target; the hints change eating (75%) and the healer's two heals. The "good"
-   bar above also re-orders the Mage and the Target, which no hint says, so a hall is fitted on this one. */
-BARS.door = { eat: 75, tmode: null, spells: { healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]] } };
+   bar above also re-orders the Mage and the Target, which no hint says, so a hall is fitted on this one. `card`: it eats the card's food (the
+   hall's storeFloor, lane/d-audit-f22), where every other bar eats the ground's guide food. */
+BARS.door = { eat: 75, tmode: null, card: true, spells: { healer: [['circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 2, subject: 'under_80' }]], ['greater_mend', [under_('ally_hp_pct', 85, 'lowest')]]] } };
 BARS.doorNoChallenge = { ...BARS.door, spells: { ...BARS.door.spells, tank: [['power_strike']] } };
 /* A role's slots on a bar, for this call (a list, or a list per call id). */
 const spellsOf = (named, style, callId) => { const v = named.spells[style]; return (Array.isArray(v) ? v : v && v[callId]) || []; };
@@ -147,7 +156,7 @@ const hallRoom = (id) => {
   const monster = hallBossOf(G.HALL_GROUNDS[h.hunt]);
   BOSS_MONSTERS.add(monster);
   ROOM_KINDS = new Set([monster, ...G.HALL_GROUNDS[h.hunt].pockets[0].adds.map((a) => a.monster)]);
-  return { id: h.id, hunt: h.hunt, from: h.id, monster, hall: true, fee: 'a ' + h.key };
+  return { id: h.id, hunt: h.hunt, from: h.id, monster, hall: true, fee: 'a ' + h.key, storeFloor: h.storeFloor || null };
 };
 /* is unit kind `k` one of the room's monsters (a called row, or a hall's boss and wave)? */
 let ROOM_KINDS = null;
@@ -160,7 +169,7 @@ function tryOnce(call, c, seed) {
   const roles = c.party.map((s) => STYLES[s].role);
   const named = c.bar ? BARS[c.bar] : null;
   const bar = (role, seat) => (named
-    ? [...spellsOf(named, c.party[seat], call.id).map(([id, when]) => slotWith(id, when)), ...guideBar(call.from, named.eat)]
+    ? [...spellsOf(named, c.party[seat], call.id).map(([id, when]) => slotWith(id, when)), ...guideBar(call.from, named.eat, named.card ? call.storeFloor : null)]
     : [...((c.spells && c.spells[c.party[seat]]) || []).map(slotOf), ...(c.starter ? starterBar() : guideBar(call.from, c.eatPct))]);
   let how = 'other', ms = 0, deaths = 0, store = 0, lowest = 100, dealt = 0, xp = 0, coin = 0, items = 0, lvl = 0, phase = 'first', fell = null;
   /* --stats: who hit whom (blows, landed, damage), what each role cast, how long each phase stood */
@@ -257,6 +266,15 @@ const shipRows = (L) => [
   ['Ship: good bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good' }],
   ['Ship: bad bar, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'bad' }],
   ['Ship: good bar, one gear tier behind, tank + healer', { level: L, party: ['tank', 'healer'], bar: 'good', gear: under(-1) }],
+  /* THE SMALL PARTY ON THE DOOR'S BAR (the QA audit's F22, 2026-11-15: a tank and a healer with every change on the hall card timed out, a third
+     hero won): the card's own bar for two, and for three with each kind of third. Labels start "Size:" so the ship rows' readers pass them by. */
+  ["Size: the door's bar, tank + healer", { level: L, party: ['tank', 'healer'], bar: 'door' }],
+  ["Size: the door's bar, tank + healer + hammer", { level: L, party: ['tank', 'healer', 'hammer'], bar: 'door' }],
+  ["Size: the door's bar, tank + healer + mage", { level: L, party: ['tank', 'healer', 'mage'], bar: 'door' }],
+  ["Size: the door's bar, tank + healer + bow", { level: L, party: ['tank', 'healer', 'bow'], bar: 'door' }],
+  /* ...and a third who deals none: is it the third hero, or the third hero's damage? (F22: "what it takes is damage") */
+  ["Size: the door's bar, tank + healer + healer", { level: L, party: ['tank', 'healer', 'healer'], bar: 'door' }],
+  ["Size: the door's bar, tank + healer + tank", { level: L, party: ['tank', 'healer', 'tank'], bar: 'door' }],
   ...[['noChallenge', 'no Challenge on the tank'], ['noArea', 'no area slot'], ['noTarget', 'damage stays on him'], ['noPeel', 'no Challenge and damage stays on him'], ['eatsLate', 'everyone eats at 40%'], ['healsLate', 'the healer waits for 40%, no party heal']]
     .map(([bar, words]) => ['Ship: good bar but ' + words + ', tank + healer + 2 dps', { level: L, party: ['tank', 'healer', 'hammer', 'mage'], bar }]),
 ];
@@ -363,7 +381,7 @@ for (const call of (HALL ? [hallRoom(HALL)] : Object.values(BOSS_CALLS))) {
     if (addlvl) m.level = Number(addlvl);
   }
   const row = ENGINE_MONSTERS[call.monster];
-  console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', fee ' + call.fee + ')');
+  console.log('\n' + call.id + ' (HP ' + row.hp + ', atk ' + row.atk + ', Level ' + row.level + ', a fight ' + call.fight.fee + ' gp and ' + call.fight.staminaMs / 60000 + ' min of stamina)');
   console.log('win%  kill(s)  dead time  food/head  low HP%   party');
   for (const [label, c] of (RUNS[call.id] || hallRows(Number(arg('level', String(Math.round((HUNT_BAND(call)[0] + HUNT_BAND(call)[1]) / 2))))))) {
     if (process.argv.includes('--cliff') && !CLIFF.test(label)) continue;

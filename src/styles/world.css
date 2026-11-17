@@ -131,8 +131,8 @@
   align-items: center;
   gap: 12px;
   padding: 2px 4px 2px 12px;
-  border: 6px solid transparent;
-  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
+  border: var(--art-3) solid transparent;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch;
   image-rendering: pixelated;
   background: var(--hud-fill);
   color: var(--ink-2);
@@ -148,9 +148,9 @@
   min-height: 36px;
   padding: 0 12px;
   border: solid transparent;
-  border-width: 6px 6px 10px;
+  border-width: var(--art-3) var(--art-3) var(--art-5);
   border-radius: 0;
-  border-image: url('../../assets/ui/gold-plate.png') 3 3 5 3 fill / 6px 6px 10px stretch;
+  border-image: url('../../assets/ui/gold-plate.png') 3 3 5 3 fill / var(--art-3) var(--art-3) var(--art-5) stretch;
   image-rendering: pixelated;
   background: none;
   color: var(--bg-0);

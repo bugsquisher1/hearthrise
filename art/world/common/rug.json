@@ -3,6 +3,19 @@
   "class": "decal",
   "style": "s1",
   "material": "native",
+  "restyle": {
+    "map": {
+      "#c9bfa0": "#a88457",
+      "#e6dcbc": "#c49a5c",
+      "#c8e6e0": "#a88457"
+    },
+    "clamp": {
+      "skin": [
+        0,
+        0
+      ]
+    }
+  },
   "source": "rug.png",
   "frame": [
     40,
@@ -31,5 +44,5 @@
     "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
     "cell": 10
   },
-  "notes": "Cell 10 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Cell 10 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 14, tools/world-art/restyle.mjs): its cream pattern laid in the earth's tan (bone onto earth 5 and 6, the fringe's pale cyan snap with them) and its light skin stitching one step down, so the rug reads at the room's contrast instead of a red and white flag."
 }

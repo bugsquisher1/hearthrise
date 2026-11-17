@@ -23,21 +23,21 @@
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
 //   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.134';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.134';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, huntTierOf } from './hunt-sections.js?v=0.2.134';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.134';
-import { farmFieldOf } from './farm-sections.js?v=0.2.134';
-import { homeOf, chestsOf } from './home-sections.js?v=0.2.134';
-import { tallyOf } from './tally-sections.js?v=0.2.134';
-import { temperFirstRungOf } from './temper-sections.js?v=0.2.134';
-import { partyMembershipOf } from './party-sections.js?v=0.2.134';
-import { trainingOf, quoteFor } from './training-sections.js?v=0.2.134';
-import { wearsArmour } from '../core/vitals.js?v=0.2.134';
-import { ITEMS } from '../data/items.js?v=0.2.134';
-import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.134';
-import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.134';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.134';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.135';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.135';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, groundsSeenOf, huntTierOf } from './hunt-sections.js?v=0.2.135';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.135';
+import { farmFieldOf } from './farm-sections.js?v=0.2.135';
+import { homeOf, chestsOf } from './home-sections.js?v=0.2.135';
+import { tallyOf } from './tally-sections.js?v=0.2.135';
+import { temperFirstRungOf } from './temper-sections.js?v=0.2.135';
+import { partyMembershipOf } from './party-sections.js?v=0.2.135';
+import { trainingOf, quoteFor } from './training-sections.js?v=0.2.135';
+import { wearsArmour } from '../core/vitals.js?v=0.2.135';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.135';
+import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.135';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -135,10 +135,8 @@ export function tutorialFactsOf(cs, sh) {
   const presets = presetsOf(cs);
   const ready = {};
   if (field) for (const p of field.plots.values()) if (p.ready) ready[p.crop] = (ready[p.crop] || 0) + 1;
-  /* Where the server has seen this hero hunt (#58): its latest session, ended too (the hunt section keeps
-     it until the next hunt), and every ground it holds a personal best on. Never "where it is now" alone. */
-  const visited = new Set(Object.keys((bests || {}).grounds || {}));
-  if (h && h.huntId) visited.add(h.huntId);
+  /* Where the server has seen this hero hunt (#58): hunt-sections.js groundsSeenOf, the Chronicle's answer too. */
+  const visited = groundsSeenOf(cs);
   return {
     levelXp: lv.xp, charLevel: lv.level, self: Number.isInteger(cs && cs.slot) ? cs.slot : null, name: nameOf(cs),
     skillLevel: sk ? Math.max(1, ...Object.values(sk).map((r) => r.level)) : 1,

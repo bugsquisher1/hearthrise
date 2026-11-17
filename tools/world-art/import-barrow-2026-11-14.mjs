@@ -90,7 +90,7 @@ const RING_LIFT = Object.freeze({
   'march/banded_pikeman': 2, 'march/fordsunk': 3, 'march/wight': 4, 'march/bannerman': 3, 'muster/barrow_knight': 2, 'muster/captain_hask': 3,
   'slake/greened_pikeman': 1, 'slake/bargeman': 1, 'holdguard/farmhand': 1, 'holdguard/hasks_lookout': 1, 'holdkeep/pyre_priest': 1,
 });
-const RING_SHADE = Object.freeze({ 'ford/hasks_ford_ground': 3, 'muster/muster_barrows_ground': 3 });
+const RING_SHADE = Object.freeze({ 'ford/hasks_ford_ground': 3, 'muster-floor/muster_barrows_ground': 3 });
 /** Set a sidecar's readability key (`lift` or `shade`) just after its `material`, as the build reads it. */
 function ringKey(path, key, n) {
   const f = join(ROOT, ART_DIR, path + '.json'), sc = JSON.parse(readFileSync(f, 'utf8')), out = {};
@@ -147,8 +147,10 @@ const hex = (d, i) => '#' + [0, 1, 2].map((k) => d[i + k].toString(16).padStart(
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const lumOf = (h) => { const [r, g, b] = rgb(h); return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); };
-/* brief 12 P3: the charred end of the palette, dark to light */
-const CHAR = Object.freeze(['#0b0a0c', '#17141a', '#231d1f', '#2f2723', '#2c2e33', '#4a4d54']);
+/* brief 12 P3: the charred end of the palette, dark to light. One step up since lane/a-style-fix (2026-11-16, style audit row 18):
+   poured from #0b0a0c the plate merged into its own outline (inner contrast 18 against a unit median of 42), so it starts at #17141a
+   and ends at #6e727a; the outline stays #0b0a0c and the ring still reads over 3:1 off the Pyre Field's bright ash. */
+const CHAR = Object.freeze(['#17141a', '#231d1f', '#2f2723', '#2c2e33', '#4a4d54', '#6e727a']);
 /** `img` with every pixel of the `ramps` colours, ranked by luminance, poured onto the steps of `onto` (dark to light). */
 function pourOnto(img, ramps, onto) {
   const warm = ramps.flatMap((r) => RAMPS[r]).sort((a, b) => lumOf(a) - lumOf(b));

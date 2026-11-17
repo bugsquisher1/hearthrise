@@ -169,7 +169,7 @@ export const MUTANTS = {
   over_says_nothing: { arm: 'TW-WORDS', why: 'over today\'s cap reads the plain line, without its number', js: ['src/shell/sink-words.js', [["if (r.error === 'works_over' && num(r.left)) return", 'if (false) return']]] },
   short_says_nothing: { arm: 'TW-WORDS', why: 'over the project reads the plain line, without its number', js: ['src/shell/sink-words.js', [["if (r.error === 'works_short' && num(r.left)) return", 'if (false) return']]] },
   join_forgets_works: { arm: 'TW-WORDS', why: 'Gold Given\'s join line leaves the Works out',
-    js: ['src/data/honor-roll.js', [["join: 'Give to the Town Works, throw a Hearth powder, stand a round or pay the Town Crier.'", "join: 'Throw a Hearth powder, stand a round or pay the Town Crier.'"]]] },
+    js: ['src/data/honor-roll.js', [["join: 'Give gold to Havora: Works, powders, rounds, Crier'", "join: 'Give gold to Havora: powders, rounds, Crier'"]]] },
   tab_hidden: { arm: 'TW-WINDOW', why: 'the Works tab stays hidden', js: ['src/shell/windows/havora/works.js', [["label: 'Works', shown: true", "label: 'Works', shown: false"]]] },
   answer_in_the_flow: { arm: 'TW-WINDOW', why: 'a refusal is drawn under the fold, where a short window never shows it', js: ['src/shell/windows/havora/works.js', [["  text(root.querySelector('.hh-intent-msg'), sc.msg);\n", "  text(pane.querySelector('.hv-works-msg'), sc.msg);\n"]]] },
   day_in_the_flow: { arm: 'TW-WINDOW', why: 'what the day leaves is cut off at the window\'s foot', js: ['src/shell/windows/havora/works.js', [["  text(root.querySelector('.hv-count[data-of=\"works\"]'), w ? todayWords(w) : '');\n", "  text(pane.querySelector('.hv-works-today'), w ? todayWords(w) : '');\n"]]] },
@@ -786,20 +786,20 @@ const ARMS = {
     const out = [];
     const R = (o) => X.IW.refusalText({ ok: false, verb: 'town_works', project: P, ...o }, null);
     const want = [
-      [{ error: 'works_limit', perDay: 25000 }, 'Daily limit: 25,000 gp given per account. Resets at midnight UTC.'],
+      [{ error: 'works_limit', perDay: 25000 }, 'Daily limit: 25,000 gp given per account, resets at midnight UTC'],
       [{ error: 'works_over', left: 4200 }, 'Max today: 4,200 gp more'],
       [{ error: 'works_short', left: 800 }, 'The Weighhouse needs only 800 gp more'],
       [{ error: 'works_small', min: 100 }, 'Minimum gift: 100 gp'],
-      [{ error: 'works_done' }, 'The Weighhouse is finished (nothing else being built)'],
+      [{ error: 'works_done' }, 'The Weighhouse finished, nothing else to build'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(`${r.error} reads "${R(r)}"`);
     /* the plain table says something for every code the verb can answer, in case a number is lost */
     const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [GIVE])) + String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [FAULT]));
     for (const m of def.matchAll(/'error', '((?:works_|not_a_|bad_a)[a-z_]+)'/g)) if (!X.RW.REFUSAL_WORDS[m[1]]) out.push('no words for ' + m[1]);
     const plain = X.IW.refusalText({ ok: false, error: 'works_over', verb: 'town_works', project: P }, null);
-    if (!/more than you can give/.test(plain)) out.push('with its number lost, works_over reads ' + plain);
+    if (!/^Over today's limit$/.test(plain)) out.push('with its number lost, works_over reads ' + plain);
     const join = X.HR.honorBoard('gold_given').join;
-    if (join !== 'Give to the Town Works, throw a Hearth powder, stand a round or pay the Town Crier.') out.push('Gold Given\'s join line reads ' + join);
+    if (join !== 'Give gold to Havora: Works, powders, rounds, Crier') out.push('Gold Given\'s join line reads ' + join);
     return out;
   },
 
@@ -816,26 +816,26 @@ const ARMS = {
        The patch itself, on the elements it reads: the walk measures them in a browser */
     if (/hv-works-today|hv-works-msg/.test(X.WK.worksHtml())) out.push('the pane draws its own day\'s line or answer, in the flow');
     const footed = await footOf(X, await as(db, A, 'select public.hr_town_works_view(0)'));
-    if (footed.day !== 'You can give 25,000 gp more today. More after midnight UTC.') out.push('the foot\'s day line reads ' + JSON.stringify(footed.day));
+    if (footed.day !== 'Left today: 25,000 gp, resets at midnight UTC') out.push('the foot\'s day line reads ' + JSON.stringify(footed.day));
     if (footed.said !== 'Minimum gift: 100 gp') out.push('the foot\'s answer reads ' + JSON.stringify(footed.said));
     /* A GIFT THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS WHY (v0.2.97 gate: a 500 gp purse saw "Give 1,000 gp", "Give 5,000 gp" and "Give the 25,000 gp left
        today" live, and "Not enough gold." only after the press). The purse is the envelope's; the room is the server's; the last button gives the smaller. */
     const room = await as(db, A, 'select public.hr_town_works_view(0)');
     const poor = await giftsOf(X, room, 500);
-    if (poor.gifts.some((g) => !g.off) || poor.gifts.map((g) => g.why).join('|') !== 'You need 500 gp more.|You need 4,500 gp more.') out.push('with 500 gp the gifts read ' + JSON.stringify(poor.gifts));
+    if (poor.gifts.some((g) => !g.off) || poor.gifts.map((g) => g.why).join('|') !== 'Need 500 gp more|Need 4,500 gp more') out.push('with 500 gp the gifts read ' + JSON.stringify(poor.gifts));
     /* the last button says the purse itself; a line more pushed the custom gift under a 1366x768 window's foot (chat-social CW-HAVORA measures it) */
-    if (poor.max.words !== 'Give the 500 gp you have' || poor.max.off || poor.max.hidden || poor.cap !== '500' || poor.why) out.push('with 500 gp the last button and its line read ' + JSON.stringify(poor));
+    if (poor.max.words !== 'Give all 500 gp' || poor.max.off || poor.max.hidden || poor.cap !== '500' || poor.why) out.push('with 500 gp the last button and its line read ' + JSON.stringify(poor));
     /* where the last button gives what the project still needs, the purse under a gift says it on the line */
     const near = await giftsOf(X, { ...room, left: 800, max_gift: 800 }, 900);
-    if (near.gifts[0].off !== true || near.max.words !== 'Give the 800 gp it still needs' || near.why !== 'You have 900 gp. A gift can\'t be more than your purse.') out.push('near the finish with 900 gp the window reads ' + JSON.stringify(near));
+    if (near.gifts[0].off !== true || near.max.words !== 'Give the 800 gp it still needs' || near.why !== 'Max gift: 900 gp') out.push('near the finish with 900 gp the window reads ' + JSON.stringify(near));
     if (poor.sent.join() !== '500') out.push('with 500 gp the last button sent ' + JSON.stringify(poor.sent));
     const flush = await giftsOf(X, room, 30000);
     if (flush.gifts.some((g) => g.off || g.why) || flush.max.words !== 'Give the 25,000 gp left today' || flush.why || flush.sent.join() !== '25000') out.push('with 30,000 gp the window reads ' + JSON.stringify(flush));
     const unsaid = await giftsOf(X, room, null);
     if (unsaid.gifts.some((g) => g.off) || unsaid.max.words !== 'Give the 25,000 gp left today' || unsaid.why) out.push('with no purse stated the window judges for the server: ' + JSON.stringify(unsaid));
     const empty = await giftsOf(X, room, 0), crumbs = await giftsOf(X, room, 50);
-    if (empty.gifts.some((g) => !g.off) || !empty.max.hidden || !empty.typed || empty.why !== 'Your purse is empty.' || empty.sent.length) out.push('an empty purse reads ' + JSON.stringify(empty));
-    if (!crumbs.max.hidden || !crumbs.typed || crumbs.why !== 'You have 50 gp, and the smallest gift is 100 gp.') out.push('a purse under the smallest gift reads ' + JSON.stringify(crumbs));
+    if (empty.gifts.some((g) => !g.off) || !empty.max.hidden || !empty.typed || empty.why !== 'Not enough gold' || empty.sent.length) out.push('an empty purse reads ' + JSON.stringify(empty));
+    if (!crumbs.max.hidden || !crumbs.typed || crumbs.why !== 'Minimum gift: 100 gp, have 50 gp') out.push('a purse under the smallest gift reads ' + JSON.stringify(crumbs));
     /* THE SERVER'S ANSWER, read field by field */
     await give(db, A, 0, 2000);
     const view = await as(db, A, 'select public.hr_town_works_view(0)');
@@ -848,14 +848,14 @@ const ARMS = {
       if (X.WK.maxWords(w) !== 'Give the 23,000 gp left today') out.push('the last button reads ' + X.WK.maxWords(w));
       if (X.WK.stageWords(w, row) !== 'Staked out: 2,000 of 1,000,000 gp') out.push('the stage line reads ' + X.WK.stageWords(w, row));
       if (X.WK.nextWords(w, row) !== '98,000 gp more and it has its footings.') out.push('the next line reads ' + X.WK.nextWords(w, row));
-      if (X.WK.todayWords(w) !== 'You can give 23,000 gp more today. More after midnight UTC.') out.push('today\'s line reads ' + X.WK.todayWords(w));
-      if (X.WK.meWords(w) !== 'You\'re 1st, with 2,000 gp given.') out.push('own line reads ' + X.WK.meWords(w));
+      if (X.WK.todayWords(w) !== 'Left today: 23,000 gp, resets at midnight UTC') out.push('today\'s line reads ' + X.WK.todayWords(w));
+      if (X.WK.meWords(w) !== 'Rank: 1st, 2,000 gp given') out.push('own line reads ' + X.WK.meWords(w));
       const near = { ...w, left: 800, maxGift: 800 };
       if (X.WK.maxWords(near) !== 'Give the 800 gp it still needs') out.push('near the finish the last button reads ' + X.WK.maxWords(near));
-      if (X.WK.todayWords({ ...w, maxGift: 0, perDay: 25000 }) !== 'Havora takes 25,000 gp a day from one account, and you\'ve given yours. More after midnight UTC.') out.push('a spent day reads ' + X.WK.todayWords({ ...w, maxGift: 0 }));
+      if (X.WK.todayWords({ ...w, maxGift: 0, perDay: 25000 }) !== 'Daily limit reached: 25,000 gp, resets at midnight UTC') out.push('a spent day reads ' + X.WK.todayWords({ ...w, maxGift: 0 }));
       if (X.WK.nextWords({ ...w, stage: 4 }, row) !== '') out.push('the finish still asks for more');
-      if (X.WK.meWords({ ...w, gold: 0 }) !== 'You haven\'t given to The Weighhouse yet.') out.push('no gift reads ' + X.WK.meWords({ ...w, gold: 0 }));
-      if (X.WK.meWords({ ...w, place: null }) !== 'You\'ve given 2,000 gp.') out.push('a hidden account reads ' + X.WK.meWords({ ...w, place: null }));
+      if (X.WK.meWords({ ...w, gold: 0 }) !== 'Given: none yet') out.push('no gift reads ' + X.WK.meWords({ ...w, gold: 0 }));
+      if (X.WK.meWords({ ...w, place: null }) !== 'Given: 2,000 gp') out.push('a hidden account reads ' + X.WK.meWords({ ...w, place: null }));
       for (const [n, s] of [[1, '1st'], [2, '2nd'], [3, '3rd'], [4, '4th'], [11, '11th'], [12, '12th'], [13, '13th'], [21, '21st'], [101, '101st'], [111, '111th']]) if (X.WK.placeWords(n) !== s) out.push(`place ${n} reads ${X.WK.placeWords(n)}`);
     }
     /* THE INTENT: the gift is the one number, and a fresh key every press */

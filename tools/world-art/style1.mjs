@@ -5,7 +5,8 @@
 // A world asset is style 1 when its sidecar says `style: 's1'` AND names where it came from:
 // a PixelLab object, image, map or tileset id (tools/world-art/port-pixellab.mjs), or the hunt
 // sim's style-1 assets (tools/world-art/port-hunt-sim.mjs), or for a combat effect only, a script
-// here that draws it by rule (`drawn`). Everything else is old art.
+// here that draws it by rule (`drawn`). A floor VARIETY (kind 'variety', tools/world-art/variety.mjs) draws no pixel of its
+// own: it is style 1 when the terrain it varies (`of`) and every decal it lays (`detail`) are. Everything else is old art.
 //
 //   [s1-retired]  a retired pre-style-1 set (hero, cellar, town, home) is loaded, or its art or
 //                 atlas is still in the tree
@@ -29,16 +30,26 @@ export const RETIRED_SETS = Object.freeze(['hero', 'cellar', 'town', 'home']);
 /* sprite ids the world scenes name in code rather than in data (src/world/hunt-scene.js, home-scene.js) */
 const CODE_SPRITES = Object.freeze(['loot_bag', 'signpost']);
 
-/** Is this sidecar style 1, with a style-1 source? */
-function isStyle1(sc, scripts = []) {
+/** Is this sidecar style 1, with a style-1 source? (`find`: 'set/id' -> that sidecar, for a variety's sources) */
+/* the classes a drawing script may make: nothing in them stands in the world (art-budget.js CLASSES) */
+const DRAWN_CLASSES = Object.freeze(['vfx', 'plume', 'glint', 'ripple', 'turning', 'stir']);
+function isStyle1(sc, scripts = [], find = () => null) {
   if (!sc || sc.style !== 's1') return false;
+  if (sc.class === 'terrain' && sc.kind === 'variety') {
+    return [sc.of].concat(sc.detail || []).every((ref) => { const o = find(ref); return !!o && o.kind !== 'variety' && isStyle1(o, scripts, find); });
+  }
   const pl = sc.pixellab || {};
   const fromLab = !!(pl.object || pl.image || pl.map || pl.tileset || pl.id);
   const fromSim = typeof sc.notes === 'string' && sc.notes.includes('prototypes/hunt-sim-assets');
-  /* A combat effect drawn by rule (`drawn`: a script here that exists, tools/world-art/glance-spark.mjs): hard
-     pixels in palette colours. An effect only: anything that stands in the world comes from the kit. */
-  const fromScript = sc.class === 'vfx' && typeof sc.drawn === 'string' && scripts.includes(sc.drawn);
-  return fromLab || fromSim || fromScript;
+  /* An effect drawn by rule (`drawn`: a script here that exists, tools/world-art/glance-spark.mjs): hard pixels in palette
+     colours. Effects only, and the air and the water are effects too (a plume of smoke, a glint, a ripple: town-life.mjs; a turning piece is a
+     building's own locked pixels moved inside their outline,
+     Art Director 2026-11-16): anything that stands in the world comes from the kit. */
+  const fromScript = DRAWN_CLASSES.includes(sc.class) && typeof sc.drawn === 'string' && scripts.includes(sc.drawn);
+  /* A TWIN of style-1 art drawn by a script here (`of`: set/id, town-life.mjs sway: its locked pixels with the cloth moved) */
+  const fromTwin = typeof sc.of === 'string' && typeof sc.drawn === 'string' && scripts.includes(sc.drawn) && sc.class !== 'terrain'
+    && (() => { const o = find(sc.of); return !!o && !o.of && isStyle1(o, scripts, find); })();
+  return fromLab || fromSim || fromScript || fromTwin;
 }
 
 /**
@@ -113,9 +124,10 @@ export function style1Findings(d) {
   for (const s of d.artSets) if (!loads(s) && !RETIRED_SETS.includes(s)) bad('s1-orphan', 'art/world/' + s + ' is not a set the renderer loads (src/data/world/atlas-sets.js)');
   for (const s of d.builtSets) if (!loads(s) && !RETIRED_SETS.includes(s)) bad('s1-orphan', 'assets/world/atlas-' + s + ' is not a set the renderer loads');
   const sprites = new Map(), terrains = new Map();
+  const find = (ref) => { const [set, id] = String(ref || '').split('/'); return (d.sidecars[set] || []).find((x) => x.id === id) || null; };
   for (const set of d.atlasSets) {
     for (const sc of d.sidecars[set] || []) {
-      if (!isStyle1(sc, d.scripts)) bad('s1-source', set + '/' + sc.id + ' is not style-1 art (no `style: "s1"` with a PixelLab or hunt-sim source, or an effect\'s drawing script)');
+      if (!isStyle1(sc, d.scripts, find)) bad('s1-source', set + '/' + sc.id + ' is not style-1 art (no `style: "s1"` with a PixelLab or hunt-sim source, an effect\'s drawing script, or a variety of style-1 art)');
       (sc.class === 'terrain' ? terrains : sprites).set(sc.id, set);
     }
   }

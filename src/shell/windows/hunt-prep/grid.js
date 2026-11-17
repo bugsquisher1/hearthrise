@@ -12,14 +12,14 @@
 // tile through the shell (pointerdown); the drag's own moves and release are listened for on the
 // document only while the drag runs, so no shell-wide pointermove listener ever exists.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, attr, keyedChild, element } from '../../../render/paint.js?v=0.2.134';
-import { actionIconHtml } from '../../widgets/bits.js?v=0.2.134';
-import { actionName } from '../../action-facts.js?v=0.2.134';
-import { conditionWords, openSlotIn } from '../../bar-draft.js?v=0.2.134';
-import { resetConfigureView } from '../configure-action.js?v=0.2.134';
-import { dropPlan, SLOTS } from '../../prep-draft.js?v=0.2.134';
-import { whole } from '../../../render/format.js?v=0.2.134';
-import { t } from '../../../render/player-text.js?v=0.2.134';
+import { text, cls, attr, keyedChild, element } from '../../../render/paint.js?v=0.2.135';
+import { actionIconHtml } from '../../widgets/bits.js?v=0.2.135';
+import { actionName } from '../../action-facts.js?v=0.2.135';
+import { conditionWords, openSlotIn } from '../../bar-draft.js?v=0.2.135';
+import { resetConfigureView } from '../configure-action.js?v=0.2.135';
+import { dropPlan, SLOTS } from '../../prep-draft.js?v=0.2.135';
+import { whole } from '../../../render/format.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
 
 /* A pointer that moved this far from its press is a drag, not a press. */
 const DRAG_START_PX = 6;
@@ -82,8 +82,8 @@ function openOn(ctx, sc, i) {
   const host = {
     bar: () => sc.draft.slots.slice(),
     set: () => sc.view,
-    write: (k, slot) => { sc.draft.slots[k] = slot; sc.sorted = false; sc.cleared = false; },
-    move: (a, b) => { const s = sc.draft.slots; [s[a], s[b]] = [s[b], s[a]]; sc.sorted = false; },
+    write: (k, slot) => { sc.draft.slots[k] = slot; sc.sorted = false; sc.cleared = false; sc.basic = false; },
+    move: (a, b) => { const s = sc.draft.slots; [s[a], s[b]] = [s[b], s[a]]; sc.sorted = false; sc.basic = false; },
     after: () => ctx.refresh('hunt-prep'),
   };
   openSlotIn(cs, i, host);
@@ -139,7 +139,7 @@ function startDrag(ctx, sc, repaint, ev, el) {
     endGhost(wrap);
     const to = e.type === 'pointerup' ? tileAt(doc, grid, e) : null;
     const plan = d() && to !== null ? dropPlan(d().slots, g.from, to) : null;
-    if (plan) { d().slots = plan; sc.sorted = false; sc.cleared = false; }
+    if (plan) { d().slots = plan; sc.sorted = false; sc.cleared = false; sc.basic = false; }
     sc.swallowUntil = ctx.now() + SWALLOW_MS;
     repaint();
   };

@@ -10,38 +10,37 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.134';
-import { goldOf } from '../../session/item-sections.js?v=0.2.134';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.134';
-import { gold, whole, listWords } from '../../render/format.js?v=0.2.134';
-import { runIntent } from '../intent-words.js?v=0.2.134';
-import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.134';
-import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.134';
-import { patchParts, targetOf } from '../goto.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.135';
+import { goldOf } from '../../session/item-sections.js?v=0.2.135';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.135';
+import { gold, whole, listWords } from '../../render/format.js?v=0.2.135';
+import { runIntent } from '../intent-words.js?v=0.2.135';
+import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.135';
+import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.135';
+import { patchParts, targetOf } from '../goto.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
 
 const TRACKS = Object.freeze([
-  { id: 'blows', label: 'Blows', effect: 'your blows and heals land', worse: 'harder', none: 'Wield a weapon to temper it.' },
-  { id: 'armor', label: 'Armor', effect: 'blows reach you', worse: 'softer', none: 'Wear armor to temper it.' },
+  { id: 'blows', label: 'Blows', effect: 'damage and heals', sign: '+', none: 'Requires a weapon' },
+  { id: 'armor', label: 'Armor', effect: 'damage taken', sign: '-', none: 'Requires armor' },
 ]);
 const pct = (pm) => String(pm / 10) + '%';
 
 /** What a row says: the rung, what it does now, what the next rung does. */
 function rowWords(track, r) {
   if (!r.piece) return track.none;
-  /* SAY WHY (Tyler 2026-10-25; the playthrough audit's F17: "can't be tempered yet" at Level 55 in Mithril, no reason): the smith has rungs
-     for some tiers of gear and this is not one. The Levels are the SERVER's ladders (temper-sections.js `span`), so the line is true before
-     and after a new tier's rungs are sold. */
-  if (!r.ladder) return r.below || !r.span ? 'Your ' + r.piece + ' can\'t be tempered. Gear worn from Level 15 can.'
-    : t('temper.no_rungs', { piece: r.piece, from: r.span.from, to: r.span.to });
-  const now = 'Rung ' + r.ladder.rung + ' of ' + r.ladder.max + ': ';
-  if (!r.ladder.offer) return now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. The most this gear takes.';
-  return (r.ladder.rung ? now + track.effect + ' ' + pct(r.nowPm) + ' ' + track.worse + '. Next rung ' + pct(r.nextPm) + '.'
-    : 'Not tempered yet. First rung: ' + track.effect + ' ' + pct(r.nextPm) + ' ' + track.worse + '.');
+  /* SAY WHY (the playthrough audit's F17: "can't be tempered yet" at Level 55 in Mithril, no reason): gear above every ladder names the
+     Levels the SERVER's ladders cover (temper-sections.js `span`), so the line is true before and after a new tier's rungs are sold. */
+  if (!r.ladder) return !r.below && r.span ? t('temper.no_rungs', { from: r.span.from, to: r.span.to })
+    : 'Not temperable' + (r.below ? ', requires gear from Level 15' : ' yet');
+  const now = 'Rung ' + r.ladder.rung + '/' + r.ladder.max + ': ';
+  if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max';
+  return (r.ladder.rung ? now + track.effect + ' ' + track.sign + pct(r.nowPm) + '. Next: ' + track.sign + pct(r.nextPm)
+    : 'Rung 0/' + r.ladder.max + '. Next: ' + track.effect + ' ' + track.sign + pct(r.nextPm));
 }
 
 /* What the next rung takes besides gold, and what this hero holds. */
-const needWords = (needs) => needs.map((n) => 'Needs ' + whole(n.need) + ' ' + n.name + '. You hold ' + whole(n.held) + (n.storage ? ' (' + whole(n.storage) + ' in Storage)' : '') + '.').join(' ');
+const needWords = (needs) => needs.map((n) => n.name + ': ' + whole(n.held) + '/' + whole(n.need) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '')).join('. ');
 
 /* Where an input only a hunt gets drops, from the monsters' rows and the open grounds, never typed (Tyler 2026-11-07: "what drops the
    Fine Tempering Salts?"): "Big Bones drop from Hobgoblin Foreman at Coppercap Warrens." */
@@ -66,13 +65,15 @@ function wayParts(rows) {
     ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf(dropPlaceOf(f.id)) })),
     { words: saleWords(n.id) ? '' : t('temper.way_weighhouse'), target: targetOf({ kind: 'market' }) }].filter((p) => p.words));
   }
-  return [...said.values()].flat().flatMap((p, i) => (i ? [' ', p] : [p]));
+  /* the smith's line is a label with no period: a sentence after it starts after one */
+  const parts = [...said.values()].flat();
+  return parts.flatMap((p, i) => (i ? [/[.!?]$/.test(parts[i - 1].words) ? ' ' : '. ', p] : [p]));
 }
 
 /** The section's skeleton, inside the Services tab. */
 export function temperPaneHtml() {
   return '<h3 class="hs-sub">Tempering</h3>'
-    + '<p class="hs-note">The smith works what this hero wears. A rung lasts and can\'t fail. Each tier of gear has its own five rungs, so new gear starts fresh and your old gear keeps its own.</p>'
+    + '<p class="hs-note">Permanent upgrades for worn gear, no fail</p><p class="hs-note">Rungs: 5 per gear tier, kept per tier</p>'
     + '<ul class="hw-ledger hw-temper"></ul>'
     + '<p class="hs-note hw-temper-way"></p>'
     + '<div class="hw-confirm hw-temper-ask" role="alertdialog" aria-label="Confirm the tempering"><p class="hw-confirm-q"></p>'
@@ -97,7 +98,7 @@ export function patchTemperPane(root, ctx, sc) {
       const short = offer && purse !== null && purse < r.ladder.gold ? r.ladder.gold - purse : 0;
       const itemsShort = r.needs.some((n) => n.short > 0);
       text(li.querySelector('b'), track.label + (r.piece ? ' (' + r.piece + ')' : ''));
-      text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? ' You need ' + gold(short) + ' more.' : ''));
+      text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? '. Need ' + gold(short) + ' more' : ''));
       text(li.querySelector('.hw-temper-need'), needWords(r.needs));
       const btn = li.querySelector('button');
       text(btn, offer ? 'Temper for ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');

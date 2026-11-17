@@ -6,24 +6,26 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.134';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.134';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.134';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.134';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.134';
-import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.134';
-import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.134';
-import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.134';
-import { TIPS } from '../data/tips.js?v=0.2.134';
-import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.134';
-import { t } from '../render/player-text.js?v=0.2.134';
-import { keepLastWords } from '../render/format.js?v=0.2.134';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.134';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.134';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.134';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.134';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.134';
-import { trackOnce } from '../net/observability.js?v=0.2.134';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.135';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.135';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.135';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.135';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.135';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.135';
+import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.135';
+import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.135';
+import { TIPS } from '../data/tips.js?v=0.2.135';
+import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { keepLastWords } from '../render/format.js?v=0.2.135';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.135';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.135';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.135';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.135';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.135';
+import { trackOnce } from '../net/observability.js?v=0.2.135';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.135';
+import { barPlan, menuOpenOf, actMenu } from './launcher-menu.js?v=0.2.135';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -406,32 +408,64 @@ export function rowOffered(r, cs) {
   return true;
 }
 
-/* The rows the icon row shows on this screen: a phone holds fewer (src/data/shell-windows.js phoneIcon). */
+/* The rows the icon row offers the hero on screen, in the catalogue's order (a grouped row inside its group's menu). */
 function launcherRows(ctx) {
-  const phone = typeof ctx.isPhone === 'function' && ctx.isPhone();
-  return ctx.wm.rows().filter((r) => r.launcher !== false && !(phone && r.phoneIcon === false) && rowOffered(r, ctx.character));
+  return ctx.wm.rows().filter((r) => r.launcher !== false && rowOffered(r, ctx.character));
 }
 
-/** The `launchers` widget body: one button per window row that has a launcher. The coach's ring is drawn here when
- *  the card's way starts at an icon (src/data/hunt-tutorial.js coachIcon), last of the button's attributes, exactly
- *  as ringCoach (below) would set it, so a repaint never finds this row changed. */
+/* The group a window's icon lives in, or null (its icon stands in the row): the ring's way reaches a grouped window through it. */
+const groupOfWindow = (id) => { const r = SHELL_WINDOWS.find((w) => w.id === id); return r && 'group' in r && r.group ? r.group : null; };
+
+const iconHtml = (ctx, r, on, ringed) => {
+  const key = keyLabel(r.key);
+  return '<button type="button" class="hs-launch' + (on ? ' is-open' : '') + '" data-hs-open="' + esc(r.id) + '"'
+    + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + (key ? ' (' + esc(key) + ')' : '') + '"'
+    + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '"' + (ringed ? ' data-coach-ring=""' : '') + '>'
+    + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
+};
+/* A member of a group's menu: its glyph, its name and its key (a touch screen has no keys: shell.css). */
+const itemHtml = (ctx, r, on, ringed) => {
+  const key = keyLabel(r.key);
+  return '<button type="button" role="menuitem" class="hs-launch-item' + (on ? ' is-open' : '') + '" data-hs-act="launch-pick" data-hs-open="' + esc(r.id) + '"'
+    + (ringed ? ' data-coach-ring=""' : '') + '>' + glyphSvg(ctx.glyphs, r.glyph) + '<span class="hs-launch-label">' + esc(r.label) + '</span>'
+    + (key ? '<span class="hs-launch-key" aria-hidden="true">' + esc(key) + '</span>' : '') + '</button>';
+};
+function groupHtml(ctx, e, open, ring, menu) {
+  const g = e.group, shown = menu === g.id;
+  const on = e.rows.some((r) => open.has(r.id));
+  const inside = e.rows.some((r) => r.id === ring);
+  return '<span class="hs-launch-group' + (shown ? ' is-menu' : '') + '" data-hs-group-box="' + esc(g.id) + '">'
+    + '<button type="button" class="hs-launch is-group' + (on ? ' is-open' : '') + '" data-hs-group="' + esc(g.id) + '" data-hs-act="launch-group"'
+    + ' aria-haspopup="menu" aria-expanded="' + shown + '" aria-label="' + esc(g.label) + '" data-tip="' + esc(g.label) + '" data-key=""'
+    + (inside && !shown ? ' data-coach-ring=""' : '') + '>' + glyphSvg(ctx.glyphs, g.glyph) + '</button>'
+    + (shown ? '<div class="hs-launch-menu" role="menu" aria-label="' + esc(g.label) + '"><p class="hs-launch-menu-h" aria-hidden="true">' + esc(g.label) + '</p>'
+      + e.rows.map((r) => itemHtml(ctx, r, open.has(r.id), r.id === ring)).join('') + '</div>' : '')
+    + '</span>';
+}
+
+/** The `launchers` widget body: one button per window row that has a launcher, and one per group (its menu under it while open).
+ *  The coach's ring is drawn here when the card's way starts at an icon (src/data/hunt-tutorial.js coachIcon): on the window's icon,
+ *  or, for a grouped window, on its item while the menu is open and on the group's icon while it is shut, last of the button's
+ *  attributes, exactly as ringCoach (below) would set it, so a row rebuilt for any reason comes back ringed and the coach never adds
+ *  or moves a ring after it. The shell redraws the row only when this string changes (src/render/paint.js markup). */
 export function renderLaunchers(ctx) {
   const open = new Set(ctx.wm.openIds());
   if (ctx.character && RESTED.has(ctx.character) && !open.has(RESTED.get(ctx.character))) RESTED.delete(ctx.character);
   const ring = ctx.character ? coachIcon(heldCard(ctx), (id) => open.has(id)) : null;
-  const buttons = launcherRows(ctx).map((r) => {
-    const on = open.has(r.id);
-    const key = keyLabel(r.key);
-    return '<button type="button" class="hs-launch' + (on ? ' is-open' : '') + '" data-hs-open="' + esc(r.id) + '"'
-      + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + (key ? ' (' + esc(key) + ')' : '') + '"'
-      + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '"' + (ring === r.id ? ' data-coach-ring=""' : '') + '>'
-      + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
-  });
-  return '<nav class="hs-launchers" aria-label="Windows">' + buttons.join('') + (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>';
+  const menu = menuOpenOf(ctx);
+  const items = barPlan(launcherRows(ctx)).map((e) => (e.row ? iconHtml(ctx, e.row, open.has(e.row.id), ring === e.row.id) : groupHtml(ctx, e, open, ring, menu)));
+  return '<nav class="hs-launchers" aria-label="Windows">' + items.join('') + (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>';
 }
 
-/* The row's own controls: the coach's fold and open (the icons are [data-hs-open], the shell's). */
-renderLaunchers.act = function actLaunchers(ctx, el, action, ev) { actCoach(ctx, el, action, ev); };
+/* The row's own controls: a group's icon (its menu), a menu's item (it opens its window), and the coach's fold and open (an icon
+   in the row is [data-hs-open], the shell's). The arrows walk a menu; Esc shuts it and gives the focus back to its group's icon. */
+renderLaunchers.events = Object.freeze(['keydown']);
+renderLaunchers.act = function actLaunchers(ctx, el, action, ev, hit) {
+  const menu = actMenu(ctx, el, action, ev, hit, renderLaunchers);
+  if (menu !== undefined) return menu;
+  if (ev.type === 'click') actCoach(ctx, el, action, ev);
+  return false;
+};
 
 /* ── THE COACH'S GOLD RING (designer playtest 2026-10-24, 5/10 desktop, 4/10 phone: no card rang a real control) ──
    Huntera's quick start (memory `huntera-tutorial-model`, mechanics only) rings the very control the card names.
@@ -456,7 +490,9 @@ export function ringPlan(card, at) {
        summary's Sell step, never the summary's gold press and not the Shop's icon while that row is on screen): of the card's hooks, those
        inside a window that is OPEN come before the icon of the closed window its way starts in, deepest first. */
     const near = (card.hooks || []).filter((q) => { const m = /^\[data-hs-win="([a-z0-9-]+)"\]/.exec(q); return !!m && open(m[1]); }).reverse();
-    return near.concat(['.hs-launchers [data-hs-open="' + icon + '"]']);
+    /* a grouped window's icon is an item of its group's menu: that item while the menu is open, else the group's own icon */
+    const group = groupOfWindow(icon);
+    return near.concat(['.hs-launchers [data-hs-open="' + icon + '"]'], group ? ['.hs-launchers [data-hs-group="' + group + '"]'] : []);
   }
   switch (card.anchor) {
     case 'hunt_picker': {

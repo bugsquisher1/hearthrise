@@ -16,9 +16,19 @@ export const HUNTS_TEXT = Object.freeze({
   casts: '{name} casts {spells}.',
   /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is the pocket's forParty, a digit (Tyler 2026-11-14). */
   party_size: 'Recommended: {n}+ players',
+  /* "Bring your heroes" empty because this account's other heroes sit in a party this one is not in (audit 2026-11-15 F23):
+     who, whose party, and the way out. {names} is a list ("Corwen, Ilsa and Maren"); {count} how many it names. Labels (Tyler 2026-11-14). */
+  party_others_in: {
+    one: 'In {leader}\'s party: {names} (switch to them, press Leave party)',
+    other: 'In {leader}\'s party: {names} (switch to each, press Leave party)',
+  },
+  party_others_in_a: {
+    one: 'In another party: {names} (switch to them, press Leave party)',
+    other: 'In another party: {names} (switch to each, press Leave party)',
+  },
   /* A ground where a hero alone spends more on food than the hunt pays (supplies.js healerWanted, measured): said under the ground's
-     name to a party with no Healer. A warning, never a gate. {monster} is the ground's hardest hitter. The party_size shape (a label). */
-  wants_healer: 'Recommended: Healer ({monster} hits harder than food heals)',
+     name to a party with no Healer. A warning, never a gate. {monster} is the ground's hardest hitter. The party_size shape. */
+  wants_healer: 'Recommended: Healer ({monster} outhits food)',
 
   /* How crowded a ground is. {size} is a count or pack_range. */
   pack_range: '{min} to {max}',
@@ -29,50 +39,50 @@ export const HUNTS_TEXT = Object.freeze({
   tier_choice: '{tier}: {head}.',
 
   /* The band, and a ground above the hero. */
-  band: 'Level {lo} to {hi}',
-  band_you: 'Level {lo} to {hi} (you: {level})',
+  band: 'Levels {lo}–{hi}',
+  band_you: 'Levels {lo}–{hi} (you: {level})',
   /* Three lines (Tyler 2026-11-14): "{n} Levels under" / "Higher risk, better loot" / "Death: −6% Level XP" */
   above_level: 'Higher risk, better loot',
   far_above_level: 'Much higher risk, better loot',
   range_under: { one: '{count} Level under', other: '{count} Levels under' },
   range_die: 'Death: −{loss}% Level XP',
   /* the same, with Blessings on: the share a death would really take, the server's held cut (hr_blessing_view permille) */
-  range_die_blessed: 'Death: −{loss}% Level XP (Blessings on)',
+  range_die_blessed: 'Death: −{loss}% Level XP (with Blessings)',
   /* The away card: the hunt's best find, gear or a Rare (src/shell/away-recap.js). */
   away_best: 'Best find: {item}',
-  seat_level: '{name} (Level {level})',
-  seats_under: { one: 'Under Level {level}, death risk: {who}', other: 'Under Level {level}, death risk: {who}' },
-  share_you: 'Your Level XP share: {pct}% (far under Level {top})',
+  seat_level: '{name}, Level {level}',
+  seats_under: { one: 'Under Level {level} (death risk): {who}', other: 'Under Level {level} (death risk): {who}' },
+  share_you: 'Level XP share: {pct}% (far under Level {top})',
   share_seat: '{name}\'s Level XP share: {pct}% (far under Level {top})',
 
   /* The advice: the ground at the Level and why, then the easier pick on its own line. */
   level_one: 'Level {level}',
-  levels_range: 'Levels {lo} to {hi}',
+  levels_range: 'Levels {lo}–{hi}',
   no_ground: 'No good hunt for {levels} yet',
-  nearest_below: 'Nearest below: {ground} (Level {lo} to {hi})',
+  nearest_below: 'Nearest below: {ground} (Levels {lo}–{hi})',
   /* A ground whose band holds the Level but is built tough (Tyler 2026-11-11: "no good hunt" over a row reading "In your range" was a lie). */
   right_but_tough: '{ground}: right for {levels}, tough monsters',
   right_easier: '{ground}: right for {levels}',
   /* the same, when the server's best alone there lost gold (hunt_bests balanceH < 0) */
-  right_but_lost: '{ground}: right for {levels}, lost {gold}/h alone',
-  easier: 'Easier: {easier} (Level {lo} to {hi})',
-  tag_right_party: 'Right for your party',
-  tag_right_level: 'Right for your level',
+  right_but_lost: '{ground}: right for {levels}, but lost {gold}/h solo',
+  easier: 'Easier: {easier} (Levels {lo}–{hi})',
+  tag_right_party: 'Recommended for the party',
+  tag_right_level: 'Recommended',
   tag_next_step: 'Next step up',
 
   /* This hero's bests. */
   best_rate: '{xp} Level XP/h, balance {gold}/h',
   best_alone: 'Best alone: {rate}',
   best_party: 'Best in a party: {rate}',
-  best_none: 'No best yet (hunt {min}+ min to set one)',
+  best_none: 'No record yet (hunt {min}+ min)',
   best_line: 'Best {xp} Level XP/h',
-  best_line_none: 'No best yet',
+  best_line_none: 'No record yet',
 
   /* Where the hero stands, and who may come. */
-  fit_above: 'Above your level',
-  fit_far: 'Far above your level',
-  fit_below: 'Below your level',
-  fit_in: 'In your range',
+  fit_above: 'Above level',
+  fit_far: 'Far above level',
+  fit_below: 'Below level',
+  fit_in: 'In range',
   heroes_up_to: 'Players: 1 to {max}',
   heroes_one: 'Players: 1',
 
@@ -85,40 +95,42 @@ export const HUNTS_TEXT = Object.freeze({
   head_drops: 'Drops',
   head_mats: 'Materials',
   head_rares: 'Rare drops',
-  head_best: 'Your best here',
+  head_best: 'Best here',
   head_go_as: 'Go as',
-  head_before: 'Before you go',
+  head_before: 'Before entering',
+  /* under Go as: Hunt prep, where the setups are made (its icon left the top bar, 2026-11-16) */
+  go_prep: 'Change setups',
   head_party: 'With a party',
   rares_per: 'chance per kill of its creature',
   per_kill_alone: 'chance per kill, hunting alone',
-  per_kill_party: 'chance per kill (party of {n}, one hero gets each drop)',
-  level_band: 'Level {lo}–{hi}',
+  per_kill_party: 'chance per kill in a party of {n} (one hero gets each drop)',
+  level_band: 'Levels {lo}–{hi}',
   /* the lead line over the list */
-  lead_hunting: 'Hunting in {ground} (leave it to go elsewhere)',
-  lead_follower: 'Your party leader picks the hunt. You enter with your own setup.',
-  lead_party: 'Pick a hunt, then Enter with party (each hero uses their setup)',
+  lead_hunting: 'Hunting in {ground}. Leave to switch hunts',
+  lead_follower: 'Party leader picks the hunt',
+  lead_party: 'Pick a hunt, then Enter with party',
   /* @sentence: the first line a new player reads in the window; it teaches the loop */
-  lead_solo: 'Pick a hunt, then Enter. Your hero walks there and fights on its own.',
-  off_follower: 'Party: {leader} picks the hunt (leave the party to pick your own)',
-  your_leader: 'your leader',
+  lead_solo: 'Pick a hunt, then Enter',
+  off_follower: 'Party: {leader} picks the hunt',
+  your_leader: 'the leader',
   bag_empty: 'Hunt bag: empty',
   bag_holds: 'Hunt bag: {items}',
-  party_lead: 'Party leader ({n} heroes)',
+  party_lead: 'Party leader, {n} heroes',
   party_finder: 'Open the party finder',
   party_find: 'Find a party',
   /* @sentence: how a second hero joins; the Characters screen is a step a label can't name */
-  party_others: 'Your other heroes can come too. Play one from Characters and it shows here. Up to four play at once.',
+  party_others: 'Play other heroes from Characters to bring them',
   party_bring: 'Bring {name}',
   go_on_now: 'on now',
-  go_puts_on: 'Enter equips {setup} first (gear and bar)',
+  go_puts_on: 'Enter equips {setup} first',
   tier_set_by: 'Set by {leader}: {tier}',
-  tier_leader_picks: 'Tier: set by your party leader',
-  tier_kept_party: 'Your pick: for the whole party, kept for this ground',
+  tier_leader_picks: 'Tier: set by the party leader',
+  tier_kept_party: 'Tier applies to the whole party, saved for this ground',
   tier_kept: 'Kept for this ground',
   bringing: 'Bringing {name}…',
-  joined: '{name} joined your party',
-  telling: 'Telling your party…',
-  party_warned: 'Party warned. Press Enter anyway to go.',
+  joined: '{name} joined the party',
+  telling: 'Telling the party…',
+  party_warned: 'Party warned. Press Enter anyway to go',
   enter_anyway_hint: 'Press Enter anyway to go',
   gathering: 'Gathering the party for {ground}…',
   party_on_way: 'Party heading to {ground}',

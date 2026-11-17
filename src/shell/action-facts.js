@@ -18,22 +18,22 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.134';
-import { ABILITIES, ABILITY_RULES, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.134';
-import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.134';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.134';
-import { STATUSES } from '../data/statuses.js?v=0.2.134';
-import { HUNT_ROLES, ROLE_KEYS, shootsItem } from '../data/hunt-roles.js?v=0.2.134';
-import { ITEMS } from '../data/items.js?v=0.2.134';
-import { isRune } from '../data/supplies.js?v=0.2.134';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.134';
-import { itemName, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.134';
-import { ownCount } from './rune-supply.js?v=0.2.134';
-import { shortOf } from './item-lore.js?v=0.2.134';
-import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.134';
-import { castOf, costLine, landed } from './cast-facts.js?v=0.2.134';
-import { listWords, whole } from '../render/format.js?v=0.2.134';
-import { t } from '../render/player-text.js?v=0.2.134';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.135';
+import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.135';
+import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.135';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.135';
+import { STATUSES } from '../data/statuses.js?v=0.2.135';
+import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-roles.js?v=0.2.135';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { isRune } from '../data/supplies.js?v=0.2.135';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.135';
+import { itemName, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.135';
+import { ownCount } from './rune-supply.js?v=0.2.135';
+import { shortOf } from './item-lore.js?v=0.2.135';
+import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.135';
+import { castOf, costLine, landed } from './cast-facts.js?v=0.2.135';
+import { listWords, whole } from '../render/format.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -55,9 +55,19 @@ export function actionName(a) {
   return own(ATTACK_KINDS, a.id) ? t('bar.loaded_ammo') : itemName(a.id);
 }
 
-/* The worn sets that give a discipline, in words ("Shield or Bare hands"), each word once: every role key playing it (ROLE_KEYS). */
-function weaponsFor(disc) {
-  return wordsOfKeys(Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].discipline === disc)) || disc;
+/* The melee disciplines (abilities.js DISCIPLINE_SKILL), and the ones a worn shield makes (hunt-roles.js SHIELD_ARM: the tank's). */
+const MELEE = DISCIPLINE_IDS.filter((d) => DISCIPLINE_SKILL[d] === 'melee');
+const SHIELDED = new Set(Object.values(SHIELD_ARM).map((k) => ROLE_KEYS[k].discipline));
+
+/* The worn sets that cast row `r`, in words, from EVERY discipline it names (a move's first one alone said Shield for Power Strike):
+   "Melee weapon" when every melee weapon casts it, "Melee weapon (no shield)" when every one but the tank's does (Turning Cut,
+   Tyler 2026-11-16), else each worn set's word once ("Shield or Sword"): every role key playing one of them (ROLE_KEYS). */
+function weaponsFor(r) {
+  const ds = r.disciplines;
+  const same = (list) => list.length === ds.length && list.every((d) => ds.includes(d));
+  if (same(MELEE)) return t('bar.weapons_melee');
+  if (same(MELEE.filter((d) => !SHIELDED.has(d)))) return t('bar.weapons_melee_no_shield');
+  return wordsOfKeys(Object.keys(ROLE_KEYS).filter((k) => ds.includes(ROLE_KEYS[k].discipline))) || ds.join(' or ');
 }
 
 /* The worn sets that play any of `roles`, in words ("Bow or Crossbow"), each word once (ROLE_KEYS). */
@@ -89,7 +99,7 @@ function shotProblem(a, role, skills) {
   if (isRune(it)) return t('bar.shot_rune');
   const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
   if (!by) return t('bar.shot_nobody');
-  return t(role && HUNT_ROLES[role] ? 'bar.shot_wrong_weapon' : 'bar.shot_no_weapon', { weapons: by });
+  return role && HUNT_ROLES[role] ? t('bar.shot_wrong_weapon', { weapons: by }) : t('bar.shot_no_weapon');
 }
 
 /** "Your weapon can’t cast this. It works once you hold a Shield." for a spell the hero's worn
@@ -100,7 +110,7 @@ export function weaponWarning(a, disc, role, skills) {
   if (a && a.type === 'attack_with_item') return shotProblem(a, role, skills);
   const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
   if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';
-  return t('bar.cast_wrong_weapon', { weapons: weaponsFor(r.disciplines[0]) });
+  return t('bar.cast_wrong_weapon', { weapons: weaponsFor(r) });
 }
 
 /* THE ALONE CALLOUT (Tyler 2026-11-09: "Make that callout clear to the player"): a spell marked `alone` (src/data/abilities.js)
@@ -203,7 +213,7 @@ export function factsOf(a, ctx) {
     const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status])] : []);
     /* (the universal self-heal needs no particular weapon) */
     return { type: targetLine(r), cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, unlock: unlockLine(r),
-      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r.disciplines[0]) }), alone: r.alone ? t('bar.alone') : null };
+      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r) }), alone: r.alone ? t('bar.alone') : null };
   }
   const cost = costLine(a, ctx) || null;
   if (a.type === 'consume') {
@@ -350,8 +360,8 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     if (!r) return { code: 'unknown', text: t('bar.unknown_ability'), glyph: 'uiLock', strike: true };
     if (!r.active) return { code: 'inactive', text: t('bar.inactive', { ability: abilityName(a.id) }), glyph: 'uiLock', strike: true };
     const disc = set && set.discipline ? set.discipline : null;
-    if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
-    if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
+    if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon'), glyph: 'uiLock', strike: true };
+    if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r) }), glyph: 'uiLock', strike: true };
     /* NOT UNLOCKED YET (`unlock`, a level in the row's own skill, the server's `skills`): the slot is kept and waits, as the engine's does (abilities.js 'level') */
     const have = r.unlock && skills ? (skills[abilitySkill(r)] || { level: 1 }).level : null;
     if (have !== null && have < r.unlock) return { code: 'unlock', text: t('bar.unlock_wait', { skill: skillName(abilitySkill(r)), level: r.unlock, have }), glyph: 'uiLock', strike: true };

@@ -28,7 +28,7 @@
 .hw-cap { display: flex; justify-content: space-between; gap: 8px; margin: 0 2px 8px; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
 .hw-cap:empty { display: none; }
 .hw-ico { width: 64px; height: 64px; display: grid; place-items: center; flex: none; }
-.hw-ico .hh-icon { width: 64px; height: 64px; }
+.hw-ico .hh-icon { width: var(--icon-2); height: var(--icon-2); }
 .hw-ico .hh-icon.is-glyph .hs-glyph { width: 32px; height: 32px; }
 .hw-ledger { margin: 0 0 6px; padding: 0; list-style: none; }
 /* Shown (.is-on), it is a Forged Steel section head (shell.css). */
@@ -36,15 +36,15 @@
 .hw-cap.hw-buy-note { display: none; margin-bottom: 6px; }
 .hw-cap.hw-buy-note.is-on { display: block; }
 .hw-line { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 2px 0; border-top: 2px solid var(--steel-sep); }
-.hw-line .hw-ico { width: 40px; height: 40px; }
-.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-line .hw-ico { width: max(40px, calc(var(--icon-1) + 4px)); height: max(40px, calc(var(--icon-1) + 4px)); }
+.hw-line .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-line-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-line-name b { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-line-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 /* The Shop's lines (Buy, Sell, Services) take the bag's treatment, not 2x (Tyler 10-25: "Shop is too big"): the same
    1x art in the bag's well size and the price at the supporting size from 1280; a phone keeps today's line. */
 .hw-shop .hw-line { min-height: round(down, clamp(52px, 52px + (100vw - 1024px) / 64, 56px), 2px); }
-.hw-shop .hw-line .hw-ico { width: round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px); height: round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px); background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-shop .hw-line .hw-ico { width: max(round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px), calc(var(--icon-1) + 4px)); height: max(round(down, clamp(40px, 40px + (100vw - 1024px) / 64, 44px), 2px), calc(var(--icon-1) + 4px)); background: var(--bg-1); box-shadow: var(--hw-well); }
 /* A long name wraps rather than clips beside the count and the price (667 wide, a wide fallback font). */
 .hw-shop .hw-line-name b { white-space: normal; line-height: 1.15; }
 .hw-shop .hw-line-name small { font-size: clamp(var(--t-micro), var(--t-micro) + (100vw - 1024px) / 170, var(--t-small)); }
@@ -100,7 +100,7 @@
 /* Its well and gold bar are the Forged Steel confirmation's (shell.css). */
 .hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }
-.hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
+.hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); white-space: pre-line; }
 .hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); white-space: pre-line; }
 .hw-confirm-note:empty { display: none; }
 .hw-sell-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
@@ -132,14 +132,15 @@
    Huntera-like density, our own iron and slate). Tyler 10-25 ("photo 2 bag icons are perfect", the C mock in
    art/review/window-icons-2026-10-25): the WELL grows, never the art. Sized like the action bar (hunt.css .hb-slots),
    by the viewport and not a new media query: 36 px at 1024 wide and under (every phone, unchanged), 44 px from 1280
-   (Steam), snapped to even px between. The art stays 32 px: 1x is the only sharp size under 64. */
-.hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px)); gap: round(down, clamp(2px, 2px + (100vw - 1024px) / 128, 4px), 1px); margin: 0; padding: 0; list-style: none; }
-.hw-pocket .hw-ico, .hw-slot .hw-ico { width: 32px; height: 32px; }
-.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }
+   (Steam), snapped to even px between. The art stays 32 px: 1x is the only sharp size under 64. At a display scale with no whole
+   scale near 32 px (150 %: 1x is 21 px, 2x 43 px) the art is 2x and the well grows to hold it (tokens.css --icon-1). */
+.hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px))); gap: round(down, clamp(2px, 2px + (100vw - 1024px) / 128, 4px), 1px); margin: 0; padding: 0; list-style: none; }
+.hw-pocket .hw-ico, .hw-slot .hw-ico { width: var(--icon-1); height: var(--icon-1); }
+.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-pocket .hw-ico .hh-icon.is-glyph .hs-glyph, .hw-slot .hw-ico .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; }
 .hw-pocket {
   position: relative; padding: 0;
-  width: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px);
+  width: max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px)); height: max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px));
   display: grid; place-items: center;
   background: var(--bg-1); box-shadow: var(--hw-well);
   border: 2px solid transparent; border-radius: 0;
@@ -202,8 +203,8 @@
 @media (prefers-reduced-motion: reduce) { .is-found { animation: none; box-shadow: inset 0 0 0 2px var(--gold-2); } }
 .hw-loot { margin: 0; padding: 0; list-style: none; }
 .hw-loot-row { display: flex; align-items: center; gap: 8px; min-height: 52px; border-top: 1px solid var(--line-soft); }
-.hw-loot-row .hw-ico { width: 40px; height: 40px; }
-.hw-loot-row .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-loot-row .hw-ico { width: max(40px, calc(var(--icon-1) + 4px)); height: max(40px, calc(var(--icon-1) + 4px)); }
+.hw-loot-row .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-loot-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-loot-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-loot-note { margin: 8px 2px 0; font-size: var(--t-micro); color: var(--ink-3); }
@@ -318,8 +319,8 @@
 .hw-slothead { margin: 0 2px 4px; }
 .hw-worn { display: none; align-items: center; gap: 8px; min-height: 40px; }
 .hw-worn.is-on { display: flex; }
-.hw-worn .hw-ico, .hw-fit .hw-ico { width: 36px; height: 36px; }
-.hw-worn .hw-ico .hh-icon, .hw-fit .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-worn .hw-ico, .hw-fit .hw-ico { width: max(36px, calc(var(--icon-1) + 4px)); height: max(36px, calc(var(--icon-1) + 4px)); }
+.hw-worn .hw-ico .hh-icon, .hw-fit .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-worn-name { flex: 1; font-weight: 700; color: var(--ink); }
 .hw-fits { margin: 0; padding: 0; list-style: none; }
 .hw-fit { display: flex; align-items: center; gap: 8px; min-height: 44px; border-top: 1px solid var(--line-soft); }
@@ -331,7 +332,7 @@
 .hw-fit-need:empty { display: none; }
 
 /* ── Storage (src/shell/windows/storage.js): the same pockets, two grids ── */
-.hw-store .hw-pockets { min-height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+.hw-store .hw-pockets { min-height: max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px)); padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
 .hw-store.is-off .hw-pocket { cursor: default; opacity: .6; }
 .hw-store-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
 .hw-store-note { margin: 0 2px 4px; }
@@ -376,8 +377,8 @@
 /* Under the level line, a dim gold rule with the small diamond at its middle (assets/ui/steel-diamond.png, x2). */
 .hw-hd-band { position: relative; margin: 2px 0 0; padding-bottom: 22px; font-size: var(--t-small); }
 .hw-hd-band::after { content: ''; position: absolute; left: -2px; right: -2px; bottom: 10px; height: 2px; background: var(--steel-rule); }
-.hw-hd-band::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 7px); bottom: 4px; width: 14px; height: 14px;
-  background: url('../../assets/ui/steel-diamond.png') 0 0 / 14px 14px no-repeat; image-rendering: pixelated; }
+.hw-hd-band::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 3.5 * var(--art-px)); bottom: 4px; width: calc(7 * var(--art-px)); height: calc(7 * var(--art-px));
+  background: url('../../assets/ui/steel-diamond.png') 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
 .hw-hd-who { margin: 0; font-size: var(--t-small); color: var(--ink-2); }
 /* A live event that reaches this ground (src/shell/live-events-view.js groundLines): what it adds in bold, then when it ends.
    Green only for a gain (Level XP, ART_DIRECTION §10); Open Halls moves a fee, so its bold is plain ink. */
@@ -400,7 +401,7 @@
 .hw-hd-lineup { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); row-gap: 14px; column-gap: 6px; margin: 0; padding: 0; list-style: none; }
 .hw-hd-mon { display: flex; flex-direction: column; align-items: center; padding: 0; text-align: center; min-width: 0; }
 .hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: calc(var(--stand-h, 45px) + 6px); padding: 0 0 4px;
-  background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
+  background: url('../../assets/ui/ground-shadow.png') 50% 100% / calc(24 * var(--art-px)) calc(5 * var(--art-px)) no-repeat; image-rendering: pixelated; }
 .hw-hd-mon-name { margin-top: 6px; padding: 0 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-small); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
 .hw-hd-mon-how { max-width: 100%; padding: 0 4px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-3); text-wrap: balance; }
 .hw-hd-sprite { display: block; image-rendering: pixelated; }
@@ -418,8 +419,8 @@
 .hw-hd-rare .hw-hd-odds { grid-column: 3; grid-row: 1 / 3; }
 .hw-hd-rare-name, .hw-hd-rare-by { grid-column: 2; }
 .hw-hd-rare { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; }
-.hw-hd-rare .hw-ico { grid-row: 1 / 3; width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
-.hw-hd-rare .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-hd-rare .hw-ico { grid-row: 1 / 3; width: max(40px, calc(var(--icon-1) + 4px)); height: max(40px, calc(var(--icon-1) + 4px)); background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-hd-rare .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-hd-rare-name { font-weight: 700; color: var(--rar-rare); }
 .hw-hd-rare.is-trophy .hw-hd-rare-name { color: var(--rar-legendary); }
 .hw-hd-rare-by { font-size: var(--t-micro); color: var(--ink-2); }
@@ -436,7 +437,7 @@
 .hw-tiers .hh-seg[hidden] { display: none; }
 .hw-tiers .hh-segs:not(:has(.hh-seg:not([hidden]))) { display: none; }
 .hw-tier-read:empty { display: none; }
-.hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); white-space: pre-line; }
 .hw-tier-note:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
@@ -450,14 +451,16 @@
 .hw-go:disabled:not(.is-picked) { opacity: .55; }
 .hw-go:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hw-go .hw-go-weapon { width: 36px; height: 36px; background: var(--bg-0); box-shadow: var(--hw-well); }
-.hw-go .hw-go-weapon .hh-icon { width: 32px; height: 32px; }
+.hw-go .hw-go-weapon .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-go-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-go-name { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-go-what { font-size: var(--t-micro); color: var(--ink-3); }
 .hw-go-bar { flex: none; display: flex; gap: 2px; }
-.hw-go-bar .hh-icon { width: 32px; height: 32px; }
+.hw-go-bar .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-go-note { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-go-note:empty { display: none; }
+/* Change setups: Hunt prep, under the setups it makes (the bar's groups took its icon, 2026-11-16) */
+.hw-go-prep { margin-top: 8px; }
 /* Before you go: plain lines, what the bar spends and what it costs; a line that stops the hunt reads red. */
 .hw-before { margin: 0; padding: 0; list-style: none; }
 .hw-before-line { padding: 1px 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
@@ -484,6 +487,23 @@
 .hw-call-line:empty { display: none; }
 .hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-call-press[hidden] { display: none; }
+/* THE SERIES (boss-call-pane.js): the slider that picks how many fights in a row, its count beside it, then what a fight costs as a short list.
+   The track and its gold plate are the windows' one slider (shell.css). */
+.hw-call-pick { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-pick input[type="range"] { flex: 1; min-width: 80px; }
+.hw-call-count { min-width: 76px; text-align: right; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-call-facts { margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; }
+.hw-call-facts li[hidden] { display: none; }
+.hw-call-f-total { color: var(--ink); font-weight: 700; }
+/* WHAT A WIN CAN DROP (the server's list, each row its odds) and THE DANGER lines, above the press (audit F24) */
+.hw-call-drops-h { margin: 0 0 2px; font-size: var(--t-micro); font-weight: 700; color: var(--ink); }
+.hw-call-drops-h[hidden] { display: none; }
+.hw-call-drops { margin: 0 0 6px; padding: 0; list-style: none; columns: 2; column-gap: 12px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-drops:empty, .hw-call-danger:empty { display: none; }
+.hw-call-drop { display: flex; justify-content: space-between; gap: 8px; break-inside: avoid; line-height: 1.5; }
+.hw-call-drop b { font-weight: 400; color: var(--ink); }
+.hw-call-drop span { white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-call-danger { margin: 0 0 6px; padding: 0; list-style: none; }
 /* A scaled hunt (scale-pane.js, audit F26): its facts, the dials in the small ink, Use scaled hours, then the hours slider with Buy beside it. */
 .hw-hd-scale[hidden], .hw-scale-use[hidden], .hw-scale-buy[hidden], .hw-scale-dials[hidden], .hw-scale-note[hidden] { display: none; }
 .hw-scale-facts { margin: 0 0 4px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
@@ -506,8 +526,8 @@
 .hw-hd-foot [data-hs-act="leave-party"] { flex: none; }
 .hw-hd-foot [data-hs-act="leave-party"][hidden] { display: none; }
 .hw-hd-foot .hw-primary { flex: none; margin-left: auto; min-height: 44px; padding: 0 16px 0 20px; font-size: var(--t-body); letter-spacing: .1em; }
-.hw-hunt-enter::after { content: ''; display: inline-block; width: 6px; height: 10px; margin-left: 10px; vertical-align: 1px;
-  background: url('../../assets/ui/steel-arrow.png') 0 0 / 6px 10px no-repeat; image-rendering: pixelated; }
+.hw-hunt-enter::after { content: ''; display: inline-block; width: calc(3 * var(--art-px)); height: calc(5 * var(--art-px)); margin-left: 10px; vertical-align: 1px;
+  background: url('../../assets/ui/steel-arrow.png') 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
 
 /* ── The skills: two ledgers, two compact entries to a row ── */
 .hw-skill-group { margin-bottom: 2px; }
@@ -547,6 +567,7 @@
 .hw-skill.is-working .hw-skill-name { color: var(--gold-2); }
 .hw-skill[data-hs-act] .hw-skill-lv::after { content: '\203A'; margin-left: 4px; color: var(--ink-3); }
 .hw-work-hint { margin-bottom: 4px; }
+.hw-work-use, .hw-work-tool, .hw-work-end { white-space: pre-line; }
 .hw-work { display: none; }
 .hw-work.is-on { display: block; }
 .hw-work-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -676,7 +697,7 @@
 .hpb-grid .hb-slot.is-drop { outline: 2px dashed var(--gold); outline-offset: -2px; }
 .hpb-ghost { position: absolute; left: 0; top: 0; width: clamp(40px, calc(9.375vw - 52px), 68px); height: clamp(40px, calc(9.375vw - 52px), 68px); display: grid; place-items: center; background: var(--bg-3);
   box-shadow: 0 6px 14px color-mix(in srgb, var(--world-shadow) 60%, transparent); z-index: 5; pointer-events: none; }
-.hpb-ghost .hh-icon { width: round(down, 100% - 4px, 32px); height: round(down, 100% - 4px, 32px); }
+.hpb-ghost .hh-icon { width: round(down, 100% - 4px, var(--icon-step)); height: round(down, 100% - 4px, var(--icon-step)); }
 .hpb-under { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hpb-msg { grid-column: 1 / -1; margin-top: 10px; }
 /* THE FOOTER, always in reach (sticky at the body's foot): the copy's state (not saved, sorted, changed on the bar), else the hero's readiness
@@ -855,8 +876,8 @@
 .hw-alert {
   display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px;
   padding: 2px 2px 2px 12px;
-  background: var(--hud-fill); border: 6px solid transparent;
-  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  background: var(--hud-fill); border: var(--art-3) solid transparent;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated;
   box-shadow: inset 4px 0 0 var(--ink-3);
   font-size: var(--t-small); color: var(--ink);
 }
@@ -930,7 +951,7 @@
 .hw-soil:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .hw-plot.is-picked .hw-soil { outline: 2px solid var(--ink); outline-offset: 2px; }
 .hw-plot:not(.is-empty) .hw-soil { cursor: default; }
-.hw-crop .hh-icon { width: 64px; height: 64px; image-rendering: pixelated; }
+.hw-crop .hh-icon { width: var(--icon-2); height: var(--icon-2); image-rendering: pixelated; }
 .hw-grow { display: block; height: 4px; background: var(--bg-0); }
 .hw-grow i { display: block; height: 100%; background: var(--green); }
 .hw-plot.is-ready .hw-grow i { background: var(--gold); }
@@ -1109,7 +1130,7 @@
 .ht-entry.is-done .ht-get { color: var(--ink); }
 /* The bag's pocket well: the piece she pays, at its one 32 px density. */
 .ht-pocket { position: relative; width: 44px; height: 44px; display: grid; place-items: center; background: var(--bg-1); box-shadow: var(--hw-well); }
-.ht-pocket .hh-icon { width: 32px; height: 32px; }
+.ht-pocket .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .ht-pocket .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; }
 /* HER BOARD: two lines a task, the ground a take-me-there link, her pay as the piece, a sunk Take. */
 .ht-board-why { display: none; align-items: center; gap: 8px; margin: 4px 2px 0; font-size: var(--t-micro); color: var(--gold-2); }
@@ -1158,7 +1179,7 @@
    lines: icon, name and band, the chance per kill at the right, what the item is for under it. ── */
 .mf-head { display: flex; align-items: flex-end; gap: 14px; margin: 2px 2px 0; }
 .mf-stand { display: flex; align-items: flex-end; justify-content: center; flex: none; min-width: 72px; min-height: 52px; padding: 0 0 4px;
-  background: url('../../assets/ui/ground-shadow.png') 50% 100% / 48px 10px no-repeat; image-rendering: pixelated; }
+  background: url('../../assets/ui/ground-shadow.png') 50% 100% / calc(24 * var(--art-px)) calc(5 * var(--art-px)) no-repeat; image-rendering: pixelated; }
 .mf-sprite { display: block; image-rendering: pixelated; }
 .mf-stand:not(.is-drawn) .mf-sprite { width: 0; height: 0; }
 /* The creature's head (art brief 15): the Tally's sunk well, the bust at its one 32 px density; no head, no well. */
@@ -1179,8 +1200,8 @@
 .mf-note { margin: 8px 2px 0; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-3); }
 .mf-note:empty { display: none; }
 .mf-drop { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 2px; align-items: center; margin: 0 2px 10px; }
-.mf-drop .hw-ico { grid-row: 1 / 3; align-self: start; width: 40px; height: 40px; background: var(--bg-0); box-shadow: var(--hw-well); }
-.mf-drop .hw-ico .hh-icon { width: 32px; height: 32px; }
+.mf-drop .hw-ico { grid-row: 1 / 3; align-self: start; width: max(40px, calc(var(--icon-1) + 4px)); height: max(40px, calc(var(--icon-1) + 4px)); background: var(--bg-0); box-shadow: var(--hw-well); }
+.mf-drop .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .mf-drop-what { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; }
 .mf-drop-name { font-size: var(--t-small); font-weight: 700; color: var(--ink); }
 .mf-drop-band { font-size: var(--t-micro); color: var(--ink-3); }
@@ -1222,6 +1243,18 @@
 .wk-rows tr + tr td { border-top: 1px solid var(--steel-sep); }
 .wk-example { margin: 8px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
 .wk-example b { margin-right: 6px; color: var(--gold-2); }
+/* THE CHRONICLE (wiki.js chronicleHtml): a book's pages, read top to bottom. The story reads at the body's size with a book's
+   leading; a shut page keeps its title, dimmed under a lock, a line about itself and what opens it. */
+.ck-found { margin: 0 0 4px; font-size: var(--t-micro); color: var(--ink-3); }
+.ck-found[hidden] { display: none; }
+.ck-text { font-size: var(--t-body); line-height: 1.6; color: var(--ink); text-wrap: pretty; }
+.ck-text + .ck-text { margin-top: 10px; }
+.ck-page.is-shut { padding-bottom: 10px; }
+.ck-page.is-shut .wk-name { color: var(--ink-3); }
+.ck-page.is-shut .wk-name .hs-glyph { width: 16px; height: 16px; color: var(--ink-3); }
+.ck-teaser { margin: 0 0 4px; font-size: var(--t-small); font-style: italic; color: var(--ink-2); }
+.ck-how { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.ck-band { margin-left: 8px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .wk-name { font-size: var(--t-small); }
   .wk-table th, .wk-table td { padding-right: 10px; }

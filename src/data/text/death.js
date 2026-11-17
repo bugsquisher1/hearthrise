@@ -18,17 +18,17 @@ export const DEATH_TEXT = Object.freeze({
   /* Said only when the row's level_to is under its level_from. */
   level_dropped: '{name}: Level {from} to Level {to}',
   /* No Blessing was held. {free} is free_until while Blessings are free for this hero, else nothing. */
-  no_blessing: 'No Blessings (they cut death loss, Shop, Services tab{free})',
-  free_until: ', free until Level {level}',
+  no_blessing: 'No Blessings{free}. Shop → Services',
+  free_until: ' (free until Level {level})',
   /* {count} is how many Blessings the death used up (the row's `blessings`), {xp} what they kept. */
-  blessing_kept: { one: 'Blessing saved {xp} (used up)', other: '{count} Blessings saved {xp} (used up)' },
+  blessing_kept: { one: 'Blessing saved {xp}, used up', other: '{count} Blessings saved {xp}, used up' },
   blessing_used: { one: 'Blessing used up', other: '{count} Blessings used up' },
   /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords): advice, kept as short sentences. A boss room (a call
      or a hall) is one pull, so it never says to pull less. */
-  why_in_range: 'Better armor, eating sooner or a smaller pull would help.',
-  why_in_room: 'Better armor, eating sooner or a healer in your party would help.',
+  why_in_range: 'Tip: better armor, eat sooner, or a smaller pull',
+  why_in_room: 'Tip: better armor, eat sooner, or bring a healer',
   /* ...for a party that had a Healer (death-popup.js hasHealer): never suggest what it already has */
-  why_in_room_healed: 'Better armor, better food or a healer who heals sooner would help.',
+  why_in_room_healed: 'Tip: better armor, better food, or heal sooner',
   /* {count} Levels under the ground's floor */
-  why_under: { one: '{count} Level under this ground (more Levels or better armor would help)', other: '{count} Levels under this ground (more Levels or better armor would help)' },
+  why_under: { one: '{count} Level under this ground', other: '{count} Levels under this ground' },
 });

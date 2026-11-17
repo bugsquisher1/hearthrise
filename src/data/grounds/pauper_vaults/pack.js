@@ -29,8 +29,8 @@
 // DUNN'S CANDLE, the ground's named Hearth fuel and Dunn's Rare (the board's section 6), is NOT a row yet: a Rare is revealed with its own pixel
 // icon (tests/hunt-core/drop-tables.mjs loot-structure), and the icon is owed art. It comes in with its icon, as the pack's `fuel` (shape.js):
 // { item: 'dunns_candle', xp: 12000, req: 70, flame: 'tallow', secs: 120, chunk: 'fuel_dunns_candle' }, a Rare row at 0.0067 a Dunn kill.
-import { definePack, box, gather } from '../shape.js?v=0.2.135';
-import map from './map.js?v=0.2.135';
+import { definePack, box, gather } from '../shape.js?v=0.2.136';
+import map from './map.js?v=0.2.136';
 
 const PA = 'shrouded_pauper', LE = 'vault_leech', BW = 'bone_wall', CA = 'night_carter', DU = 'keeper_dunn';
 

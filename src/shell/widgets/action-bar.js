@@ -28,28 +28,28 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.135';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.135';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.135';
-import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.135';
-import { whole } from '../../render/format.js?v=0.2.135';
-import { glyphSvg } from '../launcher.js?v=0.2.135';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
-import { actionIconHtml } from './bits.js?v=0.2.135';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.135';
-import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.135';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.135';
-import { actionName, carried, hoverLines, conflictsOf } from '../action-facts.js?v=0.2.135';
-import { whyFacts, slotWhy } from '../slot-waits.js?v=0.2.135';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.135';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.135';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.135';
-import { refusalWords } from '../intent-words.js?v=0.2.135';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldReserveHtml, effectsDoorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.135';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.135';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.135';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.135';
-import { firstTargetHtml, patchFirstTarget, sendFirstTarget } from './first-target.js?v=0.2.135';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.136';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.136';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.136';
+import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.136';
+import { whole } from '../../render/format.js?v=0.2.136';
+import { glyphSvg } from '../launcher.js?v=0.2.136';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
+import { actionIconHtml } from './bits.js?v=0.2.136';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.136';
+import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.136';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.136';
+import { actionName, carried, hoverLines, conflictsOf } from '../action-facts.js?v=0.2.136';
+import { whyFacts, slotWhy } from '../slot-waits.js?v=0.2.136';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.136';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.136';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.136';
+import { refusalWords } from '../intent-words.js?v=0.2.136';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldReserveHtml, effectsDoorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.136';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.136';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.136';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.136';
+import { firstTargetHtml, patchFirstTarget, sendFirstTarget } from './first-target.js?v=0.2.136';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';

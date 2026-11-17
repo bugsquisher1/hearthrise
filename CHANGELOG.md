@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.136 — 2026-11-17 (Ground and Stone)
+
+**Havora's mountain.** The mountain above Havora is real rock now, with cliff faces, terraces and loose scree. The quarry floor is worn granite and the mine yard has rough dirt edges.
+
+**Hunting grounds.** Softer ground edges and paths across the hunting grounds. The Slake's pools have real shores. The Pyre Field's coal beds are broken up. The Warrens' walls follow the tunnels. Wickstead, the Thicket and the Glade have stepping-stone fords.
+
 ## v0.2.135 — 2026-11-17 (The Burning Tower)
 
 **The Burning Tower.** Climb the Tower floor by floor, alone or with your party. Every 10th floor drops a key. Take your keys to the Hearth Chest in town to open it for Tower weapons, supplies and a rare chance at the Key Warden outfit. Each kind of key opens the chest 6 times a week. Unlock the Key Ring tab in your bag and it holds every key you carry.

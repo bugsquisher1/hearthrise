@@ -8,12 +8,12 @@
 // press is out, and the tab changes only from the answer's envelope. The keys themselves move on the server: a key that lands
 // goes onto the ring there, never here.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.135';
-import { gold } from '../../../render/format.js?v=0.2.135';
-import { t } from '../../../render/player-text.js?v=0.2.135';
-import { keyRingOf } from '../../../session/item-sections.js?v=0.2.135';
-import { runIntent } from '../../intent-words.js?v=0.2.135';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.135';
+import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.136';
+import { gold } from '../../../render/format.js?v=0.2.136';
+import { t } from '../../../render/player-text.js?v=0.2.136';
+import { keyRingOf } from '../../../session/item-sections.js?v=0.2.136';
+import { runIntent } from '../../intent-words.js?v=0.2.136';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.136';
 
 /** The tab (hidden until the server sends the section). */
 export const ringTabHtml = () => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="ring" aria-selected="false" hidden>'

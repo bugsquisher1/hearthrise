@@ -17,7 +17,7 @@
 // one paint. The art's layer picks where it is drawn (lifeDraws).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { EMITTERS, SURFACES, GLANCES, SWAYS, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.135';
+import { EMITTERS, SURFACES, GLANCES, SWAYS, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.136';
 
 /** An integer hash of three numbers (the same on every client). */
 function lifeHash(a, b, c) {

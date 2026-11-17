@@ -21,8 +21,8 @@
 // Shop sells a shield, the Hold's pattern). FITTED on the floor hour's kills (tests/hunt-core/drop-tables.mjs, a lone tank in its full set). No armor (Carter's Rest has the tier-7 boots, legs,
 // gloves and belts, Lord Krell the bodies and helms). The unique pieces (board section 9) wait on Carter's Rest's sample of five. Each body
 // drops one imbuement item.
-import { definePack, box, gather } from '../shape.js?v=0.2.135';
-import map from './map.js?v=0.2.135';
+import { definePack, box, gather } from '../shape.js?v=0.2.136';
+import map from './map.js?v=0.2.136';
 
 const TM = 'dead_teamster', RN = 'coal_runner', OX = 'yoke_ox', DR = 'drover', WM = 'wagonmaster';
 

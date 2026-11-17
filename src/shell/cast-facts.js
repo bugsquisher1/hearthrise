@@ -16,18 +16,18 @@
 // Every input is the server's: the bag (carriedOf), the store rows (hunt_settings.store), the skills (skillsOf)
 // and the supply setting (hunt_settings). Display only: nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.135';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.135';
-import { RUNE_FAMILIES, runeTierOf, versionLevel } from '../data/runes.js?v=0.2.135';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.135';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.135';
-import { ITEMS } from '../data/items.js?v=0.2.135';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.135';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.135';
-import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.135';
-import { itemName, skillName } from './widgets/bits.js?v=0.2.135';
-import { whole } from '../render/format.js?v=0.2.135';
-import { t } from '../render/player-text.js?v=0.2.135';
+import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js?v=0.2.136';
+import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.136';
+import { RUNE_FAMILIES, runeTierOf, versionLevel } from '../data/runes.js?v=0.2.136';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.136';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.136';
+import { ITEMS } from '../data/items.js?v=0.2.136';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.136';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.136';
+import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.136';
+import { itemName, skillName } from './widgets/bits.js?v=0.2.136';
+import { whole } from '../render/format.js?v=0.2.136';
+import { t } from '../render/player-text.js?v=0.2.136';
 
 /* The store's share in permille, as the engine rounds it (abilities.js BASIC_PM). */
 const STORE_PM = Math.round(BASIC_EFFECT_SHARE * 1000);

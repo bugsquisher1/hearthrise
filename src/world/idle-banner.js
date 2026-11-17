@@ -8,12 +8,12 @@
 //     isn't in the World yet. The Mill Cellar is." while the yard stood in the town): the yard is in the World, so the line says
 //     where the hero trains and its button opens the Training window.
 // ════════════════════════════════════════════════════════════════════════
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.135';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
-import { trainingOf } from '../data/training.js?v=0.2.135';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
-import { t } from '../render/player-text.js?v=0.2.135';
-import { huntOfMap } from './hunt-maps.js?v=0.2.135';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.136';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.136';
+import { trainingOf } from '../data/training.js?v=0.2.136';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.136';
+import { t } from '../render/player-text.js?v=0.2.136';
+import { huntOfMap } from './hunt-maps.js?v=0.2.136';
 
 /** The hunt the World can show today — the first hunt map's — named from the data. */
 export const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));

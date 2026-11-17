@@ -69,24 +69,24 @@
 //     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.135';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.135';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.135';
-import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.135';
-import { loadoutOf } from '../core/member.js?v=0.2.135';
-import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.135';
-import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.135';
-import { MONSTERS } from '../data/monsters.js?v=0.2.135';
-import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.135';
-import { castsOf, spellRow, mends, SPELL_SWITCH } from '../data/monster-spells.js?v=0.2.135';
-import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.135';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.135';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.135';
-import { itemName } from './widgets/bits.js?v=0.2.135';
-import { t } from '../render/player-text.js?v=0.2.135';
-import { reqHave, baneKindName } from './item-lore.js?v=0.2.135';
-import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.135';
-import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.135';
+import { ITEMS } from '../data/items.js?v=0.2.136';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.136';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.136';
+import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.136';
+import { loadoutOf } from '../core/member.js?v=0.2.136';
+import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.136';
+import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.136';
+import { MONSTERS } from '../data/monsters.js?v=0.2.136';
+import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.136';
+import { castsOf, spellRow, mends, SPELL_SWITCH } from '../data/monster-spells.js?v=0.2.136';
+import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.136';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.136';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.136';
+import { itemName } from './widgets/bits.js?v=0.2.136';
+import { t } from '../render/player-text.js?v=0.2.136';
+import { reqHave, baneKindName } from './item-lore.js?v=0.2.136';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.136';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.136';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);

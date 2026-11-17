@@ -12,15 +12,15 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.135';
-import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.135';
-import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js?v=0.2.135';
-import { MONSTERS, monsterRangeOf } from '../data/monsters.js?v=0.2.135';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.135';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.135';
-import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.135';
-import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.135';
-import { t } from '../render/player-text.js?v=0.2.135';
+import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.136';
+import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.136';
+import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js?v=0.2.136';
+import { MONSTERS, monsterRangeOf } from '../data/monsters.js?v=0.2.136';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.136';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.136';
+import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.136';
+import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.136';
+import { t } from '../render/player-text.js?v=0.2.136';
 
 const LOGS = new WeakMap();
 

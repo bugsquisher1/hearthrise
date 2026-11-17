@@ -17,13 +17,13 @@
 // PURE ESM, dual-runtime (the edge prices every sale with it). Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_GROUNDS, HALL_GROUNDS } from './hunt-grounds.js?v=0.2.135';
-import { MONSTERS } from './monsters.js?v=0.2.135';
-import { GROUND_GP_FIT } from './balance-sheet.js?v=0.2.135';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.135';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.135';
-import { recipeOutcomes } from './jewelry.js?v=0.2.135';
-import { GEAR_LADDERS } from './gear-tiers.js?v=0.2.135';
+import { HUNT_GROUNDS, HALL_GROUNDS } from './hunt-grounds.js?v=0.2.136';
+import { MONSTERS } from './monsters.js?v=0.2.136';
+import { GROUND_GP_FIT } from './balance-sheet.js?v=0.2.136';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.136';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.136';
+import { recipeOutcomes } from './jewelry.js?v=0.2.136';
+import { GEAR_LADDERS } from './gear-tiers.js?v=0.2.136';
 
 /** The monsters a ground places: its pockets' packs, spawns and a hall's adds. */
 const placed = (g) => (g.pockets || []).flatMap((p) => [...(p.pack || []), ...(p.spawns || []), ...(p.adds || [])].map((s) => s.monster));

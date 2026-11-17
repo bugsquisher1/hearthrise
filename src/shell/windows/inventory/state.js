@@ -20,20 +20,20 @@
 //                     pockets show it as pending; `items` and `qty`, which every
 //                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.135';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.135';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf, outgrownIds, upgradeWanted, isSuperRare } from '../../bag-model.js?v=0.2.135';
-import { isRareOnly } from '../../hunt-ground-facts.js?v=0.2.135';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.135';
-import { itemName } from '../../widgets/bits.js?v=0.2.135';
-import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.135';
-import { bundleOutfitOf, bundleUseBlock } from './outfit-bundle.js?v=0.2.135';
-import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.135';
-import { tickOf } from '../../town-work.js?v=0.2.135';
-import { ITEMS } from '../../../data/items.js?v=0.2.135';
-import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.135';
-import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.135';
-import { t } from '../../../render/player-text.js?v=0.2.135';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.136';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.136';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf, outgrownIds, upgradeWanted, isSuperRare } from '../../bag-model.js?v=0.2.136';
+import { isRareOnly } from '../../hunt-ground-facts.js?v=0.2.136';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.136';
+import { itemName } from '../../widgets/bits.js?v=0.2.136';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.136';
+import { bundleOutfitOf, bundleUseBlock } from './outfit-bundle.js?v=0.2.136';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.136';
+import { tickOf } from '../../town-work.js?v=0.2.136';
+import { ITEMS } from '../../../data/items.js?v=0.2.136';
+import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.136';
+import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.136';
+import { t } from '../../../render/player-text.js?v=0.2.136';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));

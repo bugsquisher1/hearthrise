@@ -272,12 +272,12 @@ export function upgradeWords(plan, names = 2, gains = 1) {
     const name = itemName(p.id), many = n > 1 ? ' ×' + n : '', own = /^(.*) \((.*)\)$/.exec(name);
     if (!said(p).length) return name + many;
     const words = said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '');
-    return own ? own[1] + many + ' (' + own[2] + ', ' + words + ')' : name + many + ' (' + words + ')';
+    return (own ? own[1] + ' (' + own[2] + ')' : name) + many + ' ' + words;
   });
   const more = groups.length - named.length;
   if (more > 0) named.push(more + (more === 1 ? ' more piece' : ' more pieces'));
   const left = plan.choices.map((c) => (EQUIP_SLOT_META[c.slot] || {}).label || c.slot);
   const ends = plan.picks.reduce((n, p) => n + num(p.ends), 0);
-  return 'Wear ' + listWords(named) + '.' + (ends > EPS ? ' Set bonus lost: +' + (Math.round(ends * 1000) / 10) + '% critical chance' : '')
-    + (left.length ? ' ' + listWords(left) + ': two pieces trade off, so pick on the doll.' : '');
+  return 'Upgrade: ' + listWords(named) + (ends > EPS ? '. Set bonus lost: +' + (Math.round(ends * 1000) / 10) + '% critical chance' : '')
+    + (left.length ? '. ' + listWords(left) + ': pick on the doll' : '');
 }

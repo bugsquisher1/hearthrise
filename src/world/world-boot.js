@@ -41,6 +41,7 @@ import { sceneSetsSliced } from './scene-sets.js?v=0.2.133';
 import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.133';
 import { createViewSheets } from './view-sheets.js?v=0.2.133';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.133';
+import { folkExtras } from './town-folk.js?v=0.2.133';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.133';
 import { huntOfMap } from './hunt-maps.js?v=0.2.133';
 import { createHuntScene } from './hunt-scene.js?v=0.2.133';
@@ -309,7 +310,8 @@ export async function bootWorld(panel, opts) {
       if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
       walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character), heroDye: () => heroDye(character) },
-        sandboxExtras(map, mapSprites)));
+        /* the townsfolk at their work (town-folk.js, display only), then the sandbox's signs */
+        folkExtras(map, mapSprites), sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     /* THE SERVER MOVED ITS STAND (an activity, a hunt's end, a counter): it walks there, display only (town-stands) */

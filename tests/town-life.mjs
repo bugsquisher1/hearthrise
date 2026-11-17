@@ -20,6 +20,11 @@
 //             smoke and sparks last among the raised (over the roofs, under the light), never with the effects (an effect is
 //             named for a phone's first view even off screen: client-boot B-21); nothing past compose's margin;
 //             each loop advances one frame per beat from its own phase, so the chimneys never puff in step
+//   TL-FOLK   the townsfolk (src/data/world/town/folk.js, src/world/town-folk.js): a body with idle and walk clips in a dye;
+//             every stop open, reached from the town's start, never a station stand or an exit; a path between stops; over a
+//             whole loop each changes only on FOLK_TICK_HZ and stands on whole art px (a walker costs that many paints a
+//             second, never the frame rate), reaches every stop, walks at most 40% of its loop (work in bursts, not pacing),
+//             carries no name plate and is never a player; only a map with townsfolk gets them
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -34,6 +39,10 @@ import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../src/data/world/terrain.js';
 import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
 import { EMITTERS, SURFACES, LIFE_BEAT_FPS } from '../src/data/world/ambient-life.js';
+import { FOLK, FOLK_TICK_HZ } from '../src/data/world/town/folk.js';
+import { createTownFolk, folkExtras } from '../src/world/town-folk.js';
+import { STATIONS } from '../src/data/world/stations.js';
+import { reachFrom } from '../src/world/core/path.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = (set) => JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8'));
@@ -158,10 +167,58 @@ export function problems(env) {
   if (!smokeA.length) bad('TL-DRAW', 'no smoke drawn over the whole town');
   if (smokeA.some((k, i) => k === smokeB[i])) bad('TL-DRAW', 'a chimney\'s smoke did not turn in one beat');
   if (new Set(smokeA).size < Math.min(4, smokeA.length)) bad('TL-DRAW', 'the chimneys puff in step (' + new Set(smokeA).size + ' different frames across ' + smokeA.length + ')');
+
+  /* TL-FOLK */
+  const rows = env.folk[town.id] || [];
+  if (rows.length < 2) bad('TL-FOLK', 'the town has ' + rows.length + ' townsfolk');
+  const stands = new Set(STATIONS.flatMap((s) => (s.stands || []).map(([x, y]) => x + ',' + y)));
+  const exits = new Set(town.exits.map((e) => e.x + ',' + e.y));
+  const reach = reachFrom(town.mask, town.w, town.h, town.start);
+  for (const r of rows) {
+    const s = book.sprite(r.body);
+    if (!s.anims || !s.anims.idle || !s.anims.walk) bad('TL-FOLK', r.id + ': its body ' + r.body + ' has no idle and walk clips');
+    const dye = String(r.dye || '').split('.').map(Number);
+    if (dye.length !== 4 || dye.some((v) => !Number.isInteger(v) || v < 0 || v > 15)) bad('TL-FOLK', r.id + ': its dye ' + r.dye + ' is not a dye key');
+    for (const [x, y] of r.route) {
+      const k = x + ',' + y, i = y * town.w + x;
+      if (town.mask[i] || !reach[i]) bad('TL-FOLK', r.id + ': its stop ' + k + ' is not an open tile the town reaches');
+      if (stands.has(k)) bad('TL-FOLK', r.id + ': its stop ' + k + ' is a station stand (a hero is set down there)');
+      if (exits.has(k)) bad('TL-FOLK', r.id + ': its stop ' + k + ' is a way out of town');
+    }
+  }
+  const folk = env.createTownFolk(town, book.sprites, rows);
+  const TICK = 1000 / FOLK_TICK_HZ;
+  for (const [n, l] of folk.loops().entries()) {
+    const r = rows[n];
+    const walked = l.legs.filter((g) => g.walk).reduce((a, g) => a + g.ms, 0);
+    if (walked / l.loop > 0.4) bad('TL-FOLK', r.id + ' walks ' + Math.round((100 * walked) / l.loop) + '% of its loop (work in bursts: at most 40%)');
+    for (const g of l.legs) if (g.walk && (g.pts.length < 2 || Math.hypot(g.pts[g.pts.length - 1][0] - g.pts[0][0], g.pts[g.pts.length - 1][1] - g.pts[0][1]) === 0)) bad('TL-FOLK', r.id + ': a walk with no path');
+  }
+  const loopMs = Math.max(...folk.loops().map((l) => l.loop));
+  let last = null, changes = 0, offTick = 0;
+  const seen = rows.map(() => new Set());
+  for (let t = t0; t < t0 + loopMs + 1000; t += 1000 / 60) {
+    const units = folk.frame(t);
+    const sig = JSON.stringify(units);
+    if (last !== null && sig !== last) { changes++; const q = Math.floor(t / TICK) * TICK; if (t - q >= 1000 / 60) offTick++; }
+    last = sig;
+    units.forEach((u, i) => {
+      seen[i].add(Math.round(u.x) + ',' + Math.round(u.y));
+      if (Math.abs(u.x * T - Math.round(u.x * T)) > 1e-6 || Math.abs(u.y * T - Math.round(u.y * T)) > 1e-6) bad('TL-FOLK', rows[i].id + ' off the art px grid at ' + u.x + ',' + u.y);
+      if (u.plate) bad('TL-FOLK', rows[i].id + ' carries a name plate');
+      if (u.ref && u.ref.player) bad('TL-FOLK', rows[i].id + ' is drawn as a player');
+    });
+  }
+  if (offTick) bad('TL-FOLK', 'the townsfolk changed between ticks ' + offTick + ' time(s): a walker would cost the frame rate');
+  if (changes / ((loopMs + 1000) / 1000) > FOLK_TICK_HZ) bad('TL-FOLK', 'the townsfolk changed ' + changes + ' times in ' + Math.round(loopMs / 1000) + ' s, over ' + FOLK_TICK_HZ + ' a second');
+  rows.forEach((r, i) => { for (const [x, y] of r.route) if (!seen[i].has(x + ',' + y)) bad('TL-FOLK', r.id + ' never reaches its stop ' + x + ',' + y); });
+  if (!env.folkExtras(town, book.sprites).units) bad('TL-FOLK', 'the walk scene of the town gets no townsfolk');
+  const cellar = compile(WORLD_MAPS.find((m) => m.id === 'mill_cellar'));
+  if (env.folkExtras(cellar, book.sprites).units) bad('TL-FOLK', 'a map with no townsfolk gets them');
   return out;
 }
 
-const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame });
+const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras });
 
 function selftest() {
   const ok = problems(real());
@@ -170,6 +227,9 @@ function selftest() {
   const sprites = (set, edit) => Object.assign({}, MANIFESTS, { [set]: Object.assign({}, MANIFESTS[set], { sprites: edit(Object.assign({}, MANIFESTS[set].sprites)) }) });
   const withLife = (fn) => (row, objects, ground, sp, w, h, T) => fn(lifeOf(row, objects, ground, sp, w, h, T), { row, objects, ground, w, h, T });
   const firstGlint = (l) => l.find((a) => /^water_/.test(a.id));
+  /* a copy of the town's townsfolk with person i edited; a stand tile of a station */
+  const folkWith = (i, edit) => ({ [TOWN.id]: FOLK[TOWN.id].map((r, j) => (j === i ? Object.assign({}, r, edit(r)) : r)) });
+  const stand = (id) => { const st = STATIONS.find((x) => x.id === id || x.kind === id); return [st.stands[0][0], st.stands[0][1], 9000, 's']; };
   const mutants = {
     'a chimney point in the sky beside it': { emitters: Object.assign({}, EMITTERS, { havora_home_p09: [{ clip: 'chimney_smoke', at: [3, 2] }] }) },
     'the smoke ignores the sprite anchor': { lifeOf: withLife((l) => l.map((a) => (/smoke/.test(a.id) ? Object.assign({}, a, { px: a.px + 16 }) : a))) },
@@ -209,6 +269,18 @@ function selftest() {
     'smoke drawn after the light': { composeFrame: (...a) => { const l = composeFrame(...a); const s = l.raised.filter((d) => d.kind === 'life'); return Object.assign({}, l, { raised: l.raised.filter((d) => d.kind !== 'life'), fx: l.fx.concat(s) }); } },
     'every chimney in step': { lifeOf: withLife((l) => l.map((a) => (a.id === 'chimney_smoke' ? Object.assign({}, a, { phase: 0 }) : a))) },
     'the smoke never turns': { lifeDraws: (map, book, t, ...r) => lifeDraws(map, book, 5_000_000, ...r) },
+    /* TL-FOLK */
+    'a townsperson rests on a station stand': { folk: folkWith(0, (r) => ({ route: [stand('idle')].concat(r.route.slice(1)) })) },
+    'a townsperson rests in a wall': { folk: folkWith(1, (r) => ({ route: [[0, 0, 9000, 's']].concat(r.route.slice(1)) })) },
+    'a townsperson paces (rests a second)': { folk: folkWith(0, (r) => ({ route: r.route.map(([x, y, , f]) => [x, y, 1000, f]) })) },
+    'a townsperson with no walk clip': { folk: folkWith(1, () => ({ body: 'npc_crier' })) },
+    'a townsperson in no dye': { folk: folkWith(0, () => ({ dye: 'red' })) },
+    'a walker moves every frame': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u) => (u.anim === 'walk' ? Object.assign({}, u, { x: u.x + (now % 62.5) / 32 / 62.5 }) : u)) }); } },
+    'a townsperson with a name plate': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u) => Object.assign({}, u, { plate: { text: 'Hob', kind: 'peer' } })) }); } },
+    'a townsperson drawn as a player': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u) => Object.assign({}, u, { ref: { player: { id: 'x', name: 'Hob' } } })) }); } },
+    'a townsperson never leaves its first stop': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u, i) => Object.assign({}, u, { x: a[2][i].route[0][0], y: a[2][i].route[0][1] })) }); } },
+    'the cellar gets townsfolk': { folkExtras: () => ({ units: () => [] }) },
+    'the town gets none': { folkExtras: () => ({}) },
   };
   let missed = 0;
   for (const [name, m] of Object.entries(mutants)) {

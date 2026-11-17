@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: e52f278da28a38e1022e5e3e2a02c5b5656cd90c2257d5b88347d939672d77ac
+--   digest: 5dec52523d0fbbdb2a71622b117fada2c345bd31e8d1904393ca6ae14567915c
 --   82 supplies, 166 hunts (named + training), 47 limits, 17 end reasons,
 --   637 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 23 hunt grounds
@@ -1710,7 +1710,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('ember_platelegs', 300),
   ('ember_sword', 136),
   ('ember_tart', 1300),
-  ('ember_temper_salts', 47),
+  ('ember_temper_salts', 36),
   ('ember_tower_shield', 102),
   ('ember_warhammer', 149),
   ('emberfang_blade', 216),
@@ -1852,7 +1852,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('mithril_platebody', 235),
   ('mithril_platelegs', 172),
   ('mithril_sword', 100),
-  ('mithril_temper_salts', 26),
+  ('mithril_temper_salts', 20),
   ('mithril_warhammer', 86),
   ('mithril_whetstone', 12),
   ('moonbloom', 170),
@@ -1938,7 +1938,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('rune_platebody', 311),
   ('rune_platelegs', 228),
   ('rune_sword', 115),
-  ('rune_temper_salts', 36),
+  ('rune_temper_salts', 27),
   ('rune_warhammer', 114),
   ('rune_whetstone', 20),
   ('runebound_shield', 86),

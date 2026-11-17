@@ -19,6 +19,7 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit, crop } from './png.mjs';
 import { ROOT, ART_DIR } from './build.mjs';
 import { reseam, fillTileOf } from './seams.mjs';
+import { lock } from './lock.mjs';
 import { mapRowOf } from '../../src/data/world/maps/index.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
@@ -30,7 +31,7 @@ const SRC = 'art/world-src/seams';
  *   rows     the map rows; `solid` maps a row character to the grid character it always is (water, a wall)
  *   samples  { ch: [cx, cy] } a plain cell of each open material; an open cell is the material most of its colours belong to
  */
-export function gridFromPixels(img, rows, { solid = {}, samples = {}, cells = {} }) {
+export function gridFromPixels(img, rows, { solid = {}, samples = {}, cells = {}, only = {} }) {
   const W = rows[0].length, H = rows.length;
   /* a cell's mean colour (the renders are not palette-locked, so colours are compared, never matched) */
   const mean = (cx, cy) => {
@@ -44,7 +45,8 @@ export function gridFromPixels(img, rows, { solid = {}, samples = {}, cells = {}
     if (solid[r]) return solid[r];
     const m = mean(x, y);
     let best = null, bd = Infinity;
-    for (const [ch, c] of refs) { const d = (m[0] - c[0]) ** 2 + (m[1] - c[1]) ** 2 + (m[2] - c[2]) ** 2; if (d < bd) { bd = d; best = ch; } }
+    /* `only`: a material a cell may be read as only where the rows allow it (water never on a walked ford) */
+    for (const [ch, c] of refs) { if (only[ch] && !only[ch].includes(r)) continue; const d = (m[0] - c[0]) ** 2 + (m[1] - c[1]) ** 2 + (m[2] - c[2]) ** 2; if (d < bd) { bd = d; best = ch; } }
     return best;
   }).join(''));
 }
@@ -90,6 +92,12 @@ export const GROUNDS = Object.freeze({
   meadowbrook_ground: { set: 'forest', map: 'meadowbrook_thicket', seed: 43, solid: { '#': 'T' },
     samples: Object.assign(meadow([0, 0], [6, 2], [16, 5]), { W: [30, 2] }), mats: MEADOW_MATS, pairs: BANKS(2),
     before: () => raft({ set: 'forest', id: 'mb_log_bridge_long', cells: 3, footprint: [1, 1], what: 'The Meadowbrook footbridge' }) },
+  /* the sewage channel's L was cut straight into the cobble with no edge: a built channel ends on a kerb course */
+  sewer_ground: { set: 'sewer', map: 'millrace_sewer', seed: 53, solid: { '#': 'X', '~': 'W' }, samples: { F: [4, 2] }, keep: 'X',
+    mats: { W: { z: 0, own: true }, F: { z: 1 } }, pairs: [{ a: 'W', b: 'F', style: 'kerb', course: 'F' }] },
+  /* the chasm was a hard rectangle cut into the cave floor; it is held to its own cells (it blocks a step) */
+  warrens_ground: { set: 'warren', map: 'coppercap_warrens', seed: 59, solid: { '#': 'X' }, samples: { E: [9, 0], C: [52, 21] }, keep: 'X',
+    mats: { C: { z: 0, own: true }, E: { z: 1 } }, pairs: [{ a: 'C', b: 'E', style: 'ragged', bias: { E: 0.3 }, sweep: 5, warp: 5 }] },
   /* the river was one straight band edged by a hairline the length of the map */
   mosslight_ground: { set: 'glade', map: 'mosslight_glade', seed: 47, solid: { '#': 'T' },
     samples: Object.assign(meadow([0, 0], [23, 2], [36, 6]), { W: [30, 21] }), mats: MEADOW_MATS, pairs: BANKS(2) },
@@ -98,7 +106,8 @@ export const GROUNDS = Object.freeze({
 function run(id) {
   const g = GROUNDS[id], row = mapRowOf(g.map);
   if (g.before) g.before();
-  const img = decodePNG(readFileSync(join(ROOT, SRC, id + '.png')));
+  /* locked to the palette first (the grade the build would give it), so a kerb's or a bank's one-step rims land on real ramps */
+  const img = lock(decodePNG(readFileSync(join(ROOT, SRC, id + '.png'))), g.material || 'terrain');
   const rows = gridFromPixels(img, row.rows, g);
   /* each open floor's fill is its sample cell's own tile (a one-tile path has no deep cell to take it from); the rest, the commonest */
   const fills = {};
@@ -116,6 +125,7 @@ function run(id) {
   const jp = file.replace(/\.png$/, '.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
   sc.notes = sc.notes.replace(/ Seams \(lane\/a-ground-seams.*$/, '') + ' Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from ' + SRC + '/' + id + '.png): '
     + r.changed + ' px of ' + g.pairs.length + ' borders redrawn from the fills\' own pixels (' + [...new Set(g.pairs.map((p) => p.style))].join(', ') + ').';
+  sc.material = 'native';   /* locked above: the build's lock is now the identity */
   writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
   mkdirSync(join(ROOT, 'art/review/ground-seams'), { recursive: true });
   writeFileSync(join(ROOT, 'art/review/ground-seams', id + '-grid.txt'), rows.join('\n') + '\n');

@@ -7,9 +7,9 @@
 // coach cards, crier lines and lore, never for a control (docs/DESIGN_STANDARDS.md §3 "Controls").
 //
 // Every control string in src/shell/** and src/app/** either reads a row here with t('controls.…') or matches one of
-// these words exactly; tests/copy-lint.mjs (control-long, control-period, control-synonym) holds the line: a control
-// longer than three words, one that ends in a period, or a near-synonym of a word here (Put away for Deposit, Wear for
-// Equip, Forget it for Cancel) is a slip. A feature keeps its name as a noun (Dispatch loot, Bless all, Hunt again).
+// these words exactly. A reader holds the line (no lint judges words since Tyler 2026-11-16): a control longer than
+// three words, one that ends in a period, or a near-synonym of a word here (Put away for Deposit, Wear for Equip,
+// Forget it for Cancel) is a slip. A feature keeps its name as a noun (Dispatch loot, Bless all, Hunt again).
 // The windows, 2026-11-11 (.claude/coordination/control-glossary-2026-11-11.md has the before/after table):
 //   Equip / Unequip      bag primary and menu, the doll (was Wear / Take off), the Outfit tab (was Wear this outfit),
 //                        the Titles tab (was Wear / Take off)

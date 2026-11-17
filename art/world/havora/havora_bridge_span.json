@@ -1,0 +1,41 @@
+{
+  "id": "havora_bridge_span",
+  "class": "bridge",
+  "style": "s1",
+  "material": "wood",
+  "source": "havora_bridge_span.png",
+  "frame": [
+    282,
+    192
+  ],
+  "anchor_px": [
+    141,
+    191
+  ],
+  "footprint": [
+    8,
+    6
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro",
+    "image": "a3e1aa6a-d836-48ca-ba23-f0f28f37ad1f",
+    "seed": 502,
+    "size": [
+      384,
+      192
+    ],
+    "cost": 15,
+    "style": "common/square_general_store"
+  },
+  "notes": "The great bridge on the high street, cut to its river (lane/a-havora-art 2026-11-16, Tyler: the twelve-tile bridge over a six-tile river was awkward): havora_bridge less two whole bays (tools/world-art/bridge-span.mjs), 282 px, so the deck spans the six-tile river and an abutment stands on each bank. Walked on (OPEN_CLASSES); the cells under its deck are deck (drawn as the river under it, BLEND alias)."
+}

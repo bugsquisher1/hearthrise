@@ -12,6 +12,7 @@
 //            the map's objects, the state's props (a home's furniture) and units
 //   raised   what sits at wall height: rock tops, capstones, roofs, chimneys
 //   lights   the map's light kind plus point lights
+//   (THE MAP'S LIFE, core/ambient.js lifeDraws: water light first among the standing, smoke and sparks last among the raised)
 //   plates   screen-resolution text anchors (names), bubbles (the crier's
 //            line over its speaker) and the walk mark (where a tap sent you)
 //
@@ -34,13 +35,15 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.133';
-import { heroBuilding } from './roofs.js?v=0.2.133';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.133';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.133';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.133';
-import { markShapes } from './mark-shapes.js?v=0.2.133';
-import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.133';
+import { ySort } from './zsort.js?v=0.2.135';
+import { heroBuilding } from './roofs.js?v=0.2.135';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.135';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.135';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.135';
+import { markShapes } from './mark-shapes.js?v=0.2.135';
+import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.135';
+import { roughEdges } from './ground-rough.js?v=0.2.135';
+import { lifeDraws, glanceOf, swayOf } from './ambient.js?v=0.2.135';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -109,14 +112,16 @@ function* blendSteps(map, book, T, inPatch, out) {
   /* a material's VARIETY (a variety of one of these pairs' own interior tiles): its all-one-material dual tiles draw a variant */
   const VAR = known.map((m) => pairs.map((id) => varietiesOf(book, id).find((v) => v.t.lower === m && v.t.upper === m)).find(Boolean) || null);
   /* each cell's material once (alias applied, -1 under a patch or with no pair), then four reads per dual tile */
-  const W = map.w, Hm = map.h, mat = new Int16Array(W * Hm);
+  const W = map.w, Hm = map.h, authored = new Int16Array(W * Hm);
   for (let cy = 0; cy < Hm; cy++) {
     for (let cx = 0; cx < W; cx++) {
-      if (inPatch(cx, cy)) { mat[cy * W + cx] = -1; continue; }
+      if (inPatch(cx, cy)) { authored[cy * W + cx] = -1; continue; }
       const m = map.ground[cy * W + cx], a = alias[m] || m, i = idOf.get(a);
-      mat[cy * W + cx] = i === undefined ? -1 : i;
+      authored[cy * W + cx] = i === undefined ? -1 : i;
     }
   }
+  /* a natural edge drawn ragged (ground-rough.js): the materials as DRAWN; the map's ground and its walk mask are untouched */
+  const mat = map.blend.rough ? roughEdges(authored, W, Hm, idOf, map.blend.rough) : authored;
   const matOf = (x, y) => mat[Math.min(Hm - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
   /* a cell is a dual-tile corner: it is OPEN for its variety when the cells round it (3 x 3, inside the map) are all its material */
   const same = (cx, cy) => {
@@ -406,6 +411,10 @@ export function composeFrame(map, book, state, view, tables, T) {
   const near = (x, y, w, h) => x < view.ox + view.w + 2 * T && y < view.oy + view.h + 2 * T && x + w > view.ox - 2 * T && y + h > view.oy - 2 * T;
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
+  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs */
+  const life = lifeDraws(map, book, state.t || 0, view, T);
+  for (const d of life.ground) { d.seq = seq++; stand.push(d); }
+  for (const d of life.air) { d.seq = seq++; raised.push(d); }
 
   /** @param {string} id @param {number} tx @param {number} ty
       @param {{anim?: string, dir?: string, i?: number, kind?: string, alpha?: number, ref?: any, bias?: number, raised?: boolean, shadow?: boolean,
@@ -490,8 +499,14 @@ export function composeFrame(map, book, state, view, tables, T) {
        The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
     const swap = state.objectSwap && state.objectSwap[o.id];
     /* townsfolk breathe and fires flicker through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
-    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
-    else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    /* ...and a keeper looks about her (core/ambient.js glanceOf: Tamsin to her board and back, the smith to his forge) */
+    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: glanceOf(o.id, o.x, o.y, state.t || 0), i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
+    else {
+      /* ...and cloth moves on the breeze: a banner or an awning drawn as its twin (core/ambient.js swayOf), an idle the switch holds */
+      const sway = !swap && swayOf(book, o.id, o.x, o.y, state.t || 0);
+      if (sway) place(sway.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: sway.i });
+      else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    }
   }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));

@@ -71,7 +71,7 @@ export function validateSessionModes(modes, def) {
     for (const f of FLAGS) if (typeof m[f] !== 'boolean') out.push(key + ': ' + f + ' is not true or false');
     if (!Number.isInteger(m.checkpointEvery) || m.checkpointEvery < 0 || m.checkpointEvery > 1000) out.push(key + ': checkpointEvery is not a whole number 0..1000');
     /* THE ANTI-FARM RULE: a death that costs less than a hunt's pays nothing a hunt pays. */
-    if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(key + ': a mode whose death costs less than a hunt\'s pays coin, drops or Bestiary');
+    if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(key + ': a cheaper death pays coin, drops or Bestiary');
     /* A Blessing is never spent on a death that costs nothing. */
     if (m.deathLossPm === 0 && m.blessings) out.push(key + ': a death that costs nothing uses up the Blessings');
   }

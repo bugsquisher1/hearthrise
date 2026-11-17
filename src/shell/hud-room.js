@@ -14,7 +14,7 @@
 // DOM reads and style writes only. Each writes only what changed, and reads no height of its own to set its room,
 // so the size change a write causes settles in the next pass (shell.js's observer).
 // ════════════════════════════════════════════════════════════════════════
-import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.133';
+import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.135';
 
 /* A stack of alerts is never squeezed shorter than one alert with its button. */
 const ALERTS_MIN_ROOM = 120;
@@ -22,6 +22,9 @@ const ALERTS_MIN_ROOM = 120;
 const ALERT_WIDE = 360;
 const ALERT_NARROW = 260;
 const BOTTOM_BAR = 'bc';
+const HUNT_BAR = 'hunt-topbar';
+/* On a phone the analyzer ends this far over the action bar (hunt.css's phone cap, 100vh - 219px under a 103 px hunt bar foot) */
+const PHONE_BAR_GAP = 2;
 
 /**
  * @param {object} o
@@ -37,6 +40,11 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
   const worldEls = () => Array.from(worldHud.querySelectorAll('[data-hs-widget]'));
   const idOf = (e) => e.getAttribute('data-hs-widget');
   const isBar = (e) => hud.layoutOf(idOf(e)).anchor === BOTTOM_BAR;
+  /* stacked under the hunt bar where it stands (a row's `below` names it) and not moved by the player: on screen only */
+  const stackedUnderHuntBar = (e) => {
+    const row = hud.row(idOf(e));
+    return !!row && !!row.below && row.below.includes(HUNT_BAR) && !hud.isMoved(row.id) && e.offsetWidth > 0;
+  };
   const setRoom = (el, r) => {
     const v = r === null || r === undefined ? '' : r + 'px';
     if (el.style.getPropertyValue('--hs-room') === v) return;
@@ -78,6 +86,12 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
       }
     }
     for (const e of els) {
+      /* THE PHONE'S OWN RULE: a panel stacked under the hunt bar (the analyzer, the Tally) ends PHONE_BAR_GAP over the action bar,
+         from the top it was stacked to, where its CSS cap (hunt.css) always ended it. Over the town the hunt bar's foot is 48 px lower:
+         at 667x375 the room left was under the analyzer's 120 px floor, so the floor stepped it down below the bar, off the screen
+         (lane/a-training-leftovers). Its floor yields to this room on a phone (shell.js paintWidgets). The Party panel and the rest
+         keep no room here (HR-8). */
+      if (phone && stackedUnderHuntBar(e)) { take(e, panelRoom(rel(e), bars, height, PHONE_BAR_GAP)); continue; }
       if (phone) { if (!room.has(e)) room.set(e, null); continue; }
       const L = hud.layoutOf(idOf(e)), moved = hud.isMoved(idOf(e));
       if (L.anchor === BOTTOM_BAR || (!moved && (L.anchor[0] !== 't' || L.anchor[1] === 'c'))) continue;

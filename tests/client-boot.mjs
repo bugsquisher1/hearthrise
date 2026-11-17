@@ -40,7 +40,8 @@
 //   B-21 THE TOWN OPENS ON ITS VIEW (phone, first visit: Play waited 6.5 s for six sheets, the view drew two): with the other sheets held the
 //        town opens and is painted, asks for nothing the view does not draw until the server has named its stand, then asks for all the others;
 //        a view that draws a held sheet waits for it, a shadow falling off it does not (v0.2.97); a failed sheet, a read that never
-//        answers and a sheet whose decode() never settles (v0.2.106) do not hold it shut. Its pixels: PB-VIEW
+//        answers and a sheet whose decode() never settles (v0.2.106) do not hold it shut (judged under a 10-minute hold, so never by the
+//        limit); a view sheet that never comes (report #81) keeps it shut under SHEET_HOLD_MS and opens it, with placeholders, after. Its pixels: PB-VIEW
 //   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-17 "WHILE YOU WERE AWAY" IS WRITTEN ON THE WAY OUT (beta cost 11-01: a put a minute per hero): a hunt on screen with a young
@@ -103,9 +104,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
+import { SHEET_HOLD_MS } from '../src/world/view-sheets.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { pressBar } from './_bar.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
 
@@ -582,7 +585,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
             links: l ? [...l.querySelectorAll('[data-auth-legal]')].map((b) => [b.getAttribute('data-auth-legal'), parseFloat(getComputedStyle(b).fontSize), r(b)]) : [],
             submit: r(document.querySelector('.auth-submit')), back: r(document.querySelector('[data-auth-go="sign-in"]')), across: document.scrollingElement.scrollWidth - innerWidth };
         });
-        if (sheet.text !== 'By creating an account you agree to the Terms of Service and the Privacy Policy.' || !sheet.shown) fails.push('B-20 ' + tag + 'Create account does not say what pressing it means: ' + JSON.stringify(sheet.text));
+        if (sheet.text !== 'Creating an account means agreeing to the Terms of Service and the Privacy Policy.' || !sheet.shown) fails.push('B-20 ' + tag + 'Create account does not say what pressing it means: ' + JSON.stringify(sheet.text));
         if (sheet.px < 12 || sheet.links.length !== 2 || sheet.links.some(([, px, on]) => px < 12 || !on)) fails.push('B-20 ' + tag + 'the legal line or its links are under 12 px or off the screen: ' + JSON.stringify([sheet.px, sheet.links]));
         if (!sheet.submit || !sheet.back || sheet.across > 0) fails.push('B-20 ' + tag + 'the legal line pushed Create account or Back to sign in off the screen (' + sheet.across + ' px across)');
         await page.fill('input[name=email]', 'new@example.test');
@@ -705,7 +708,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await r.page.click('.auth-submit');
       await wait(r.page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await r.page.click('[data-app="play"][data-slot="0"]');
-      if (!(await wait(r.page, () => /While you were away/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
+      if (!(await wait(r.page, () => /\bAway \d/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
       await r.page.reload({ waitUntil: 'load' });
       await r.page.waitForTimeout(500);
       const lost = owed.puts.filter((p) => p.p_patch && (Number.isFinite(p.p_patch.awaySeen && p.p_patch.awaySeen.at) && p.p_patch.awaySeen.at !== Date.parse('2026-10-17T00:00:00Z') - 60 * 60000
@@ -769,7 +772,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           }).filter((x) => x.lines > 1));
           if (wrapped.length) fails.push('B-18b a card button wraps at 1280 px: ' + JSON.stringify(wrapped));
         }
-        if (await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="tally"]'), null, 15000)) await page.click('.hs-launchers [data-hs-open="tally"]');
+        if (await wait(page, () => document.querySelector('.hs-launchers .hs-launch'), null, 15000)) await pressBar(page, 'tally').catch((e) => fails.push('B-18 the top bar has no way to her tally: ' + String(e.message).split('\n')[0]));
         else fails.push('B-18 the game screen never showed its launchers');
         if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');
         else {
@@ -844,10 +847,23 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       };
       const opened = (page, ms) => wait(page, () => document.querySelector('.hs-launchers') && document.querySelector('#panel-world canvas.world-canvas') && !document.querySelector('.world-status'), null, ms);
       const late = TOWN_SHEETS.order.filter((s) => !TOWN_VIEWS.quiet.drawn.includes(s));
+      /* A LATE SHEET HOLDS THE TOWN AT MOST SHEET_HOLD_MS (report #81), so a view that waited on a sheet it does not draw, or on a decode
+         that never settles, would now open late with stubs, not stay shut. Those cases are served a hold of 10 minutes, so each rule
+         is judged on its own: the view opens without a wait, never by the limit. The limit itself is the last case's. */
+      const longHold = async (page) => {
+        let served = null;
+        await page.route('**/src/world/view-sheets.js*', async (r) => {
+          const res = await r.fetch(), body = await res.text(), out = body.replace(/export const SHEET_HOLD_MS = \d+;/,'export const SHEET_HOLD_MS = 600000;');
+          served = out !== body;
+          return r.fulfill({ response: res, body: out });
+        });
+        return () => { if (served !== true) fails.push('B-21 harness: view-sheets.js was ' + (served === null ? 'never asked for' : 'served without its SHEET_HOLD_MS line') + ', so the hold was not lengthened'); };
+      };
       if (!late.includes('havora')) fails.push('B-21 harness: the first hearth stand now draws the Havora sheet (' + TOWN_VIEWS.quiet.drawn.join() + '): pick another stand');
 
       { // the first view opens with its other sheets held, asks for none of them on the town's start while the server has yet to name its stand, and asks for them all as it opens
         const { ctx, page, errors } = await fresh({}, PHONE);
+        const heldLong = await longHold(page);
         let named = null;
         const naming = new Promise((k) => { named = k; });
         await answerWith(page, TOWN_VIEWS.quiet);
@@ -882,6 +898,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           if (never.length) fails.push('B-21 behind the first view the page never asked for ' + never.join() + ' (asked: ' + asked.join() + ')');
         }
         for (const g of gates.values()) g.open();
+        heldLong();
         if (errors.length) fails.push('B-21 console errors: ' + errors.slice(0, 3).join(' | '));
         await ctx.close();
       }
@@ -934,11 +951,29 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       { // a sheet whose decode() never settles (a page that is not rendering; live v0.2.106: 60-100 s on "Still loading the world") is not waited on
         const { ctx, page, errors } = await fresh({}, PHONE);
         await answerWith(page, TOWN_VIEWS.quiet);
+        const heldLong = await longHold(page);
         await page.addInitScript(() => { window.__decodes = 0; HTMLImageElement.prototype.decode = function () { window.__decodes++; return new Promise(() => {}); }; });
         await toPlay(page);
         if (!(await opened(page, 15000))) fails.push('B-21 a sheet whose decode() never settles held the town shut: ' + await page.evaluate(() => (document.querySelector('.world-status') || {}).textContent || 'no line'));
         else if (!(await page.evaluate(() => window.__decodes))) fails.push('B-21 harness: no sheet called decode(), so a stuck decode was never met (src/render/images.js)');
+        heldLong();
         if (errors.length) fails.push('B-21 console errors: ' + errors.slice(0, 3).join(' | '));
+        await ctx.close();
+      }
+
+      { // a first-view sheet that never comes (report #81) holds the town no longer than SHEET_HOLD_MS: shut before it, open with placeholders after it
+        const { ctx, page } = await fresh({}, PHONE);
+        await answerWith(page, TOWN_VIEWS.onHavora);
+        let hits = 0;
+        await page.route('**/assets/world/atlas-havora.png*', () => { hits++; return new Promise(() => {}); });
+        await toPlay(page);
+        for (let k = 0; k < 400 && !hits; k++) await page.waitForTimeout(25);
+        const asked = Date.now();
+        const early = await opened(page, Math.max(500, SHEET_HOLD_MS - 2000));
+        const later = early || await opened(page, SHEET_HOLD_MS + 8000);
+        if (!hits) fails.push('B-21 harness: a view on the Havora sheet never asked for it');
+        else if (early) fails.push('B-21 a first view opened ' + (Date.now() - asked) + ' ms after asking for a sheet that never came, under the ' + SHEET_HOLD_MS + ' ms hold: a slow sheet must not show stubs');
+        else if (!later) fails.push('B-21 a first-view sheet that never came held the town shut past the ' + SHEET_HOLD_MS + ' ms hold (report #81): ' + await page.evaluate(() => (document.querySelector('.world-status') || {}).textContent || 'no line'));
         await ctx.close();
       }
     }
@@ -1022,7 +1057,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       /* The sign-in says what the game is, once, under the crest (newcomer panel 2026-11-01). */
       const pitch = await page.evaluate(() => { const p = document.querySelector('.auth-brand .auth-pitch'); return p && p.getClientRects().length ? p.textContent : null; });
-      if (pitch !== 'Your hero keeps hunting after you close the game.') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
+      if (pitch !== 'Hunts keep going with the game closed') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
       /* THE PRESS MOVES ON (friends' panel 2026-11-01): off with its words while the server is out; a lost answer's retry keeps its key; once made, no press asks again. */
       const press = await page.evaluate(async () => {
         const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
@@ -1051,8 +1086,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         step.destroy(); card.remove();
         return out;
       });
-      if (!press.working[0] || press.working[1] !== 'Making your hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
-        || !press.entering[0] || press.entering[1] !== 'Entering town…' || press.entering[2] !== 1 || !press.noAsk || press.stuck[0] || !/hero is made/.test(press.stuck[1]) || !press.again) fails.push('B-9 the Enter town press: ' + JSON.stringify(press));
+      if (!press.working[0] || press.working[1] !== 'Creating hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
+        || !press.entering[0] || press.entering[1] !== 'Entering town…' || press.entering[2] !== 1 || !press.noAsk || press.stuck[0] || !/Hero created/.test(press.stuck[1]) || !press.again) fails.push('B-9 the Enter town press: ' + JSON.stringify(press));
       /* Sign-up sent: the fields stand aside for the message and the way back (phone panel 2026-11-01: Back half off a 390 px screen). */
       const sent = await page.evaluate(async () => {
         const { renderAuthScreen } = await import(location.origin + '/src/app/sign-in.js');
@@ -1166,7 +1201,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           return { text: n && n.textContent, px: n && parseFloat(getComputedStyle(n).fontSize), on: !!r && r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth,
             play: b && getComputedStyle(b.querySelector('.char-unopened-play')).display, shown: (document.querySelector('#panel-world') || { dataset: {} }).dataset.slot,
             open: document.querySelectorAll('.char-tab').length }; });
-        if (!capped || !said || cap.text !== 'You can play one hero at a time. To play Fennick instead, sign out and pick Fennick.' || !(cap.px >= 12) || !cap.on
+        if (!capped || !said || cap.text !== 'Heroes at once: 1. Sign out to pick Fennick' || !(cap.px >= 12) || !cap.on
           || cap.play !== 'none' || cap.shown !== '0' || cap.open !== 1 || reads() !== before)
           fails.push('B-9 at the play-at-once limit a press on Fennick, not open, reads ' + JSON.stringify({ capped: !!capped, said: !!said, ...cap, asked: reads() - before }));
       }
@@ -1191,22 +1226,22 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* "Up to 4" beside two slots says how the other two come, at the server's price (blind playtest 2026-10-31). */
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
       /* The price is the offer block's own (the server's quote), so the line names none (designer 2026-11-09). */
-      if (!/You own 2 hero slots\. Up to 4 heroes can play at once, and more slots cost gold\./.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
+      if (!/Hero slots: 2 \(up to 4 play at once\)\. More cost gold/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
-        || b0.purse !== 'Your gold: 14,100' || !/^You need 900 more gold./.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');
+        || b0.purse !== 'Gold: 14,100' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
       else {
         o.purse = 80000; o.goldV = 8; o.lag = null;
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelector('[data-app="buy-slot"]') && !document.querySelector('[data-app="buy-slot"]').disabled);
         const b1 = await btn();
-        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Your gold: 80,000') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
+        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
         await page.click('[data-app="buy-slot"]');
         const b2 = await btn();
         if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
         /* The yes is on screen at once, over the list, with the button still off: "Reading your characters…" alone for 2.5 s let a player press again (board 11-04). */
         const told = await wait(page, () => /Hero slot bought/.test((document.querySelector('.auth-message') || {}).textContent || ''));
-        const between = await page.evaluate(() => ({ rows: document.querySelectorAll('.char-row').length, reading: /Reading your characters/.test(document.body.textContent),
+        const between = await page.evaluate(() => ({ rows: document.querySelectorAll('.char-row').length, reading: /Loading characters/.test(document.body.textContent),
           off: !!(document.querySelector('[data-app="buy-slot"]') || {}).disabled }));
         if (!told || between.rows !== 2 || between.reading || !between.off) fails.push('B-11 between the yes and the re-read: ' + JSON.stringify({ told: !!told, ...between }));
         o.slowReread = 0;
@@ -1294,7 +1329,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       if (!(await landOnNotice(page))) fails.push('B-7 the closed answer did not show the closed notice');
       else if (notice) {
         const said = await page.evaluate((q) => document.querySelector(q).innerText, NOTICE);
-        if (!/invite-only right now/i.test(said) || !/signed up/i.test(said) || !/whoever invited you/i.test(said)) fails.push('B-7 the notice does not say what is going on and what to do: ' + JSON.stringify(said));
+        if (!/Invite only: account not on the list yet/.test(said) || !/signed up/i.test(said) || !/Send this account id to your inviter/.test(said)) fails.push('B-7 the notice does not say what is going on and what to do: ' + JSON.stringify(said));
         if (!said.includes(UID)) fails.push('B-7 the notice does not show the account id: ' + JSON.stringify(said));
         if (/qa@example\.test/.test(said)) fails.push('B-7 the notice shows more of the account than its id');
 
@@ -1315,11 +1350,11 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const offAtPress = await page.evaluate((q) => { const b = document.querySelector(q); b.click(); return b.disabled; }, CHECK);
         if (!offAtPress) fails.push('B-7 Check again stayed on while it asked');
         await wait(page, (q) => !document.querySelector(q).disabled, CHECK, 4000);
-        if (!/not on the list yet/.test(await lineOf(page))) fails.push('B-7 a no does not say why: ' + JSON.stringify(await lineOf(page)));
+        if (!/^Not on the invite list yet$/.test(await lineOf(page))) fails.push('B-7 a no does not say why: ' + JSON.stringify(await lineOf(page)));
         o.down = true;
         await page.click(CHECK);
         await wait(page, (q) => !document.querySelector(q).disabled, CHECK, 4000);
-        if (!/didn't answer/.test(await lineOf(page))) fails.push('B-7 a failed check reads as ' + JSON.stringify(await lineOf(page)));
+        if (!/^Connection failed, try again$/.test(await lineOf(page))) fails.push('B-7 a failed check reads as ' + JSON.stringify(await lineOf(page)));
         o.down = false;
         if (await page.$('form[data-auth="sign-in"]')) fails.push('B-7 a check landed on the sign-in screen');
 
@@ -1376,7 +1411,7 @@ const MUTANTS = [
   ['a script that fails before the store is up is lost (B-19)', 'src/platform/load-shell.js', "if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', failedNow); else failedNow();", 'failedNow();'],
   ['the page paints no loading shell', 'play.html', '<p class="boot-shell-line">Loading Hearthrise…</p>', ''],
   ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
-  ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold('Entering town…');\n", ''],
+  ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold(t('heroes.entering'));\n", ''],
   ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name) tried =", '    tried ='],
   ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
@@ -1446,11 +1481,13 @@ const MUTANTS = [
   ['the first view asks before the server names its stand (B-21)', 'src/world/view-sheets.js', 'if (!waited && town && !town.placeOn(now.id)) {', 'if (false) {'],
   ['the sheets behind the view are never asked for (B-21)', 'src/world/view-sheets.js', '    sheets.ensure(needs.get(id));\n', ''],
   ['a frame asks for the sheets of the town start while the first view waits for its stand (B-21)', 'src/world/view-sheets.js', 'const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));', 'const held = check;'],
-  ['the frame loop runs while the first view waits (B-21)', 'src/world/view-sheets.js', 'sheets.ensure([set]).then(() => { if (!opening) wake(); });', 'sheets.ensure([set]).then(wake);'],
+  ['the frame loop runs while the first view waits (B-21)', 'src/world/view-sheets.js', 'const wakeUp = () => { if (!opening) wake(); };', 'const wakeUp = () => { wake(); };'],
   ['a sheet whose decode never settles holds the town shut (B-21, live v0.2.106)', 'src/render/images.js', 'return Promise.race([img.decode(), new Promise((late) => win.setTimeout(late, DECODE_WAIT_MS))]);', 'return img.decode();'],
   ['a read that never answers holds the town shut (B-21)', 'src/world/view-sheets.js', 'await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);', 'await new Promise(() => {});'],
   ['a shadow off the view holds the town for its sheet (B-21, v0.2.97: the Weighhouse plaque under the hearth view)', 'src/world/render/canvas-backend.js', " && sh.sprite.set && meets(castBox(sh.sprite, sh.m))) ", ' && sh.sprite.set) '],
-  ['a frame naming a sheet on its way is drawn anyway (B-21)', 'src/world/view-sheets.js', 'return miss.length > 0;', 'return false;'],
+  ['a frame naming a sheet on its way is drawn anyway (B-21)', 'src/world/view-sheets.js', 'return miss.some((set) => t - asked.get(set) < SHEET_HOLD_MS);', 'return false;'],
+  ['a first view waits on a sheet that never comes past the hold (B-21, report #81)', 'src/world/view-sheets.js', 'await Promise.race([sheets.ensure(missing(now.cast)), new Promise((done) => win.setTimeout(done, SHEET_HOLD_MS))]);', 'await sheets.ensure(missing(now.cast));'],
+  ['a sheet that never comes holds the town forever (B-21, report #81)', 'src/world/view-sheets.js', 'return miss.some((set) => t - asked.get(set) < SHEET_HOLD_MS);', 'return miss.length > 0;'],
   ['a failed sheet ends the town instead of drawing stubs (B-21)', 'src/world/atlas.js', "(e) => { console.warn('[world] atlas \"' + set + '\" did not load; its sprites draw as stubs', e && e.message); return false; })", '(e) => { throw e; })'],
   ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "could not be prepared', e));\n      }\n      return null;",
     "could not be prepared', e));\n      }"],

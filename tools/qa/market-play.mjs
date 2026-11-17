@@ -23,6 +23,7 @@ import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openWorld } from './local-world.mjs';
+import { pressBar, rowIcon } from '../../tests/_bar.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
@@ -33,7 +34,7 @@ const step = (name, ok, got) => { console.log((ok ? '  ok   ' : '  RED  ') + nam
 
 const WIN = '[data-hs-win="market"]';
 const openMarket = async (p) => {
-  if (!(await p.page.$(WIN))) await p.page.click('[data-hs-open="market"]');
+  if (!(await p.page.$(WIN))) await pressBar(p.page, 'market');
   await p.page.waitForSelector(WIN + ' .hw-mk');
 };
 const tab = async (p, id) => { await p.page.click(WIN + ' .hw-tab[data-tab="' + id + '"]'); };
@@ -240,7 +241,7 @@ async function main() {
     const phone = await world.play({ account: 'buyer', viewport: { width: 922, height: 423 }, touch: true, shots: shots && join(shots, 'phone') });
     await phone.page.waitForSelector('.hs-launchers').catch(() => {});
     if (await phone.page.$('[data-app="play"]')) await phone.page.click('[data-app="play"]').catch(() => {});
-    await phone.page.waitForSelector('[data-hs-open="market"]');
+    await phone.page.waitForSelector(rowIcon('market'));
     await openMarket(phone);
     const phoneRow = WIN + ' .hw-mk-browse .hw-mk-row[data-item="' + item + '"]';
     await phone.page.waitForSelector(phoneRow);

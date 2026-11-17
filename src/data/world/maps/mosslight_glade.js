@@ -9,7 +9,7 @@
 // (the ruined spring-house) and Vine Hollow, then back over the ford (x8-10, three wide). Every open tile
 // lies in an open 3x3 except the boards. The thicket ('#') blocks a step and a shot and counts as trees.
 //
-// ART (style 1): the ground is PixelLab map 4589f28b (`mosslight_ground`, art/world/glade), painted from
+// ART (style 1): the ground is PixelLab map 4589f28b (`mosslight_ground`, art/world/glade-floor), painted from
 // these rows in the Meadowbrook's tileset family with a dirt trail along the route; the brook keeps its
 // grassy banks (rows 19 and 23) as in the Thicket. The springs' moss, the sluice and Rook's ruined
 // spring-house are props. Every placed object is an existing style-1 sprite; the five creatures are the

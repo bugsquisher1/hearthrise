@@ -105,7 +105,7 @@ export function coverageMap() {
   }
   for (const b of BLESSING_TIERS) sinks.push({ id: 'blessing.' + b.tier, table: 'blessing', name: 'Blessing ' + b.tier, gold: null, items: [], verb: 'hr_blessing_buy' });
   for (const [id, t] of Object.entries(TITLES)) sinks.push({ id: 'title.' + id, table: 'title', name: t.name, gold: t.price, items: [], verb: 'hr_title_buy', kills: t.kills, monsters: t.monsters });
-  for (const [id, b] of Object.entries(BOSS_CALLS)) sinks.push({ id: 'boss_call.' + id, table: 'boss_call', name: 'Call out ' + b.boss, gold: b.fee, items: [], verb: 'hr_boss_call', from: b.from });
+  for (const [id, b] of Object.entries(BOSS_CALLS)) sinks.push({ id: 'boss_call.' + id, table: 'boss_call', name: 'Call out ' + b.boss, gold: b.fight.fee, items: [], verb: 'hr_boss_call', from: b.from });
   for (const id of Object.keys(TOWN_WORKS)) sinks.push({ id: 'town_works.' + id, table: 'town_works', name: TOWN_WORKS[id].name, gold: TOWN_WORKS[id].minGift, items: [], verb: 'hr_town_works_give' });
   for (const [kind, r] of Object.entries(SINK_RULES)) sinks.push({ id: 'sink.' + kind, table: 'sink', name: kind, gold: (r.prices || [r.priceBase || 0])[0], items: [], verb: 'hr_' + kind });
   sinks.push({ id: 'stamina_refill', table: 'stamina', name: 'Stamina refill', gold: null, items: [], verb: 'hr_stamina_refill' });

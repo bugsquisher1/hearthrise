@@ -11,24 +11,25 @@
 // Anonymous: no seller or buyer name reaches this window; the server's reads hold listing
 // ids only. Every number is the server's and every control is off until it has answered.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { whole } from '../../../render/format.js?v=0.2.133';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.133';
-import { MARKET_TABS } from '../../market-model.js?v=0.2.133';
-import { lockedWords } from '../../market-words.js?v=0.2.133';
-import { hideTip } from '../item-tip.js?v=0.2.133';
-import { marketScratch, rereadAll, readMine, readItem } from './state.js?v=0.2.133';
-import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.133';
-import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.133';
-import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.133';
-import { t } from '../../../render/player-text.js?v=0.2.133';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { whole } from '../../../render/format.js?v=0.2.135';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.135';
+import { MARKET_TABS } from '../../market-model.js?v=0.2.135';
+import { lockedWords } from '../../market-words.js?v=0.2.135';
+import { hideTip } from '../item-tip.js?v=0.2.135';
+import { marketScratch, rereadAll, readMine, readItem, MARKET_WORKS, buildingWorks } from './state.js?v=0.2.135';
+import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.135';
+import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.135';
+import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.135';
+import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
 
 /** The skeleton (built once per opening). An opening reads the server again. */
 export function renderMarket(ctx) {
   if (ctx && ctx.character) marketScratch(ctx.character).fresh = true;
   return '<div class="hw-mk">'
-    + '<p class="hw-mk-greet"><span>Aldous Pell, weighmaster: I hold what you list and pay you the moment it sells.</span><b class="hw-gold hw-mk-purse"></b></p>'
+    + '<p class="hw-mk-greet"><span>Aldous Pell, weighmaster</span><b class="hw-gold hw-mk-purse"></b></p>'
     + '<div class="hw-tabs" role="tablist">' + MARKET_TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('')
     + '<button type="button" class="hh-tool hw-mk-refresh" data-hs-act="refresh">' + t('controls.refresh') + '</button></div>'
     + '<p class="hs-note hw-mk-state" role="status"></p>'
@@ -37,8 +38,12 @@ export function renderMarket(ctx) {
 }
 
 /* What stands between this account and a trade, in the server's own terms ('' = nothing). */
-function blockWords(sc) {
-  if (sc.closed) return 'The Weighhouse isn\'t trading right now. Your listings are safe, and you can still take them back.';
+export function blockWords(sc) {
+  if (sc.closed && buildingWorks(sc.works)) {
+    const w = sc.works;
+    return t('shop.market_being_built', { building: TOWN_WORKS[MARKET_WORKS].name, total: whole(w.total), goal: whole(w.goal) }) + '. ' + t('shop.market_listings_safe');
+  }
+  if (sc.closed) return 'Weighhouse closed, listings safe';
   if (sc.locked && sc.rules && sc.rules.minLevel) return lockedWords(sc.rules.minLevel, sc.rules.minSkillLevel) + ' Until then, have a look around.';
   return '';
 }
@@ -54,7 +59,7 @@ renderMarket.patch = function patchMarket(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   const purse = goldOf(cs);
-  text(root.querySelector('.hw-mk-purse'), purse === null ? '' : 'Your gold ' + whole(purse));
+  text(root.querySelector('.hw-mk-purse'), purse === null ? '' : 'Gold: ' + whole(purse));
   const why = blockWords(sc);
   const state = root.querySelector('.hw-mk-state');
   text(state, why || sc.readMsg);

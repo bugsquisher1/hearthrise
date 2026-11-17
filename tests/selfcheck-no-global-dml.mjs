@@ -874,6 +874,18 @@ export function scan(sources, playerTables) {
 // finding (an entry that matches nothing is RED — the list may not rot), and a
 // `proof` entry's strings must all still be present in the file.
 export const ACKNOWLEDGED = {
+  '2027-04-24-boss-call-series.sql :: dml :: update hunt_session_tally': {
+    verdict: 'scoped-by-proof',
+    sites: 1,
+    why: 'Not a self-check and not run by the block: the statement is TEXT spliced into hr_hunt_apply_instance\'s body (an anchored patch '
+       + 'builds the function and `execute`s its definition), so it runs inside a settle, on the settling instance\'s open sessions only '
+       + '(p_instance), clearing ONE fight\'s record before the next fight of a Call out series. The proof strings are that scope and the splice.',
+    proof: [
+      'update public.hunt_session_tally t set fight = null',
+      'from public.hunt_sessions h where h.instance_id = p_instance and h.ended_at is null and t.session_id = h.id and t.fight is not null;',
+      "v_def := replace(pg_get_functiondef('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure), chr(13), '');",
+    ],
+  },
   '2027-02-25-character-wipe.sql :: dml :: update hr_name_holds': {
     verdict: 'scoped-by-proof',
     why: 'The file\'s WORK, not a self-check: a declared wipe of every hero is global on purpose. It is `excluded` from the chain and '

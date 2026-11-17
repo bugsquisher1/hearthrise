@@ -51,6 +51,7 @@ import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verd
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { barWindows } from './_bar.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
@@ -180,16 +181,17 @@ async function checks(overrides, shots) {
       const { ctx, page, errors, s, up } = await open();
       if (!up) fails.push('CW-1 the shell did not mount');
       else {
-        const launchers = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch')).map((b) => b.getAttribute('data-hs-open')));
-        if (!launchers.includes('character') || launchers.includes('skills-combat')) fails.push('CW-1 the launcher row is ' + launchers.join(','));
+        /* every window the top bar reaches, its groups' menus too (tests/_bar.mjs) */
+        const launchers = await barWindows(page);
+        if (!launchers.includes('character') || launchers.includes('skills-combat')) fails.push('CW-1 the top bar reaches ' + launchers.join(','));
         if (!(await openWin(page, 'c', 'character'))) fails.push('CW-1 the C key did not open the Character window');
         await waitCombat(page);
         const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-tab[data-tab]')).filter((b) => !b.hidden && b.getClientRects().length).map((b) => b.textContent));
         if (tabs.join('|') !== 'Character|Outfit|Titles|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
-        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows at your Level', Absorb: '31% of each blow at your Level', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
-          Regeneration: '+1.9% (Inner Flame)', 'Home and renown': '+2%', Total: '+2%' };
+        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows vs same Level', Absorb: '31% of each blow vs same Level', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
+          Regeneration: 'Inner Flame +1.9%', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
         const level = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-lv').textContent);
@@ -268,7 +270,7 @@ async function checks(overrides, shots) {
           await push(page, s);
           await wait(page, () => document.querySelector('[data-hs-act="of-colors"]').disabled, null, 4000);
           const poor = await colors();
-          if (!poor.off || poor.line !== 'You need 1,150 gp more.' || poor.why !== 'You need 1,150 gp more.' || poor.words !== 'Save colors: 1,550 gp') fails.push('CW-4b with 400 gp Save colors reads ' + JSON.stringify(poor));
+          if (!poor.off || poor.line !== 'Need 1,150 gp more' || poor.why !== 'Need 1,150 gp more' || poor.words !== 'Save colors: 1,550 gp') fails.push('CW-4b with 400 gp Save colors reads ' + JSON.stringify(poor));
           await page.evaluate(() => document.querySelector('[data-hs-act="of-colors"]').click());
           await page.waitForTimeout(300);
           if (s.calls.some((c) => c.name === 'hr_hero_colors_set')) fails.push('CW-4b a press on a 400 gp purse went to the server');
@@ -426,7 +428,7 @@ async function checks(overrides, shots) {
         s.env.state = Object.assign({}, s.env.state, { gold: c.price - 1, gold_v: 5 });
         await push(page, s);
         t = await read();
-        if (!t[claimable].off || !t[claimable].small.endsWith('You need 1 gp more.')) fails.push('CW-9 a short purse reads ' + JSON.stringify(t[claimable]));
+        if (!t[claimable].off || !t[claimable].small.endsWith('Need 1 gp more')) fails.push('CW-9 a short purse reads ' + JSON.stringify(t[claimable]));
         s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 6 });
         await push(page, s);
         s.titleAnswer = () => ({ ok: false, error: 'title_kills', title: claimable, need: c.kills, have: c.kills - 1 });
@@ -515,7 +517,7 @@ async function checks(overrides, shots) {
 const MUTANTS = [
   ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 260px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
-  ['the absorb is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.absorbPct !== null ? c.absorbPct + '% of each blow at your Level' : null", "c && c.absorbPct !== null ? Math.round(c.defence * 1.5) + '% of each blow at your Level' : null"],
+  ['the absorb is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.absorbPct !== null ? c.absorbPct + '% of each blow vs same Level' : null", "c && c.absorbPct !== null ? Math.round(c.defence * 1.5) + '% of each blow vs same Level' : null"],
   ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
   ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(hv.manaMax || 0));"],
   ['a wand reads (staff) again', 'src/data/item-uses.js', "  if (it.type === 'weapon') return WEAPON_WORD[roleWeaponOf(it)] || 'weapon';", "  if (it.type === 'weapon') return ({ magic: 'staff' })[it.weaponType] || WEAPON_WORD[it.weaponType] || 'weapon';"],
@@ -529,7 +531,7 @@ const MUTANTS = [
   ['Unequip wears it again', 'src/shell/windows/character/titles.js', 'wearTitle(ctx.account, cs, r.worn ? null : r.id)', 'wearTitle(ctx.account, cs, r.id)'],
   ['a title stays pressable in flight', 'src/shell/windows/character/titles.js', "prop(b, 'disabled', sc.pending || w.off);", "prop(b, 'disabled', w.off);"],
   ['a short purse can press Claim', 'src/shell/windows/character/titles.js', "off: short > 0 };", "off: false };"],
-  ['a refusal does not name the hero', 'src/shell/windows/character/titles.js', "() => name + ' is yours. Press Equip to show it.', cs);", "() => name + ' is yours. Press Equip to show it.');"],
+  ['a refusal does not name the hero', 'src/shell/windows/character/titles.js', "() => name + ' claimed, press Equip to show it', cs);", "() => name + ' claimed, press Equip to show it');"],
   ['the sheet header drops the title', 'src/shell/windows/character/sheet.js', "(nameOf(cs) || '') + (worn ? ' ' + worn : '')", "(nameOf(cs) || '')"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],
@@ -537,7 +539,7 @@ const MUTANTS = [
   ['Save sends the outfit twice', 'src/shell/windows/character/outfit.js', "runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',", "cs.saveOutfit(d.outfit); runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',"],
   ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', "cls(b, 'is-worn', !!o && o.worn === id);", "cls(b, 'is-worn', id === d.outfit);"],
   ['Save colors stays live on a short purse (CW-4b)', 'src/shell/windows/character/outfit.js', "prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);", "prop(save, 'disabled', sc.pending || !offer || sc.price === null);"],
-  ['a short purse says nothing under Save colors (CW-4b)', 'src/shell/windows/character/outfit.js', "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '');", "text(root.querySelector('.hw-of-why'), '');"],
+  ['a short purse says nothing under Save colors (CW-4b)', 'src/shell/windows/character/outfit.js', "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '');", "text(root.querySelector('.hw-of-why'), '');"],
   ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || (o.worn || null) === d.outfit", "sc.pending || !o || (o.worn || null) === d.outfit"],
   ['a bundle outfit shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit.js', "    && (!OUTFIT_ROWS[id].bundle || (!!o && o.owned.has(id))));", "    && true);"],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],

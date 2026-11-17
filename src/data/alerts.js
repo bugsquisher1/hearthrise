@@ -14,7 +14,8 @@
 //   action   what the button does (src/shell/alerts.js NEXT): 'bag' opens the
 //            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite,
-//            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window
+//            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window, 'training' the Training window,
+//            'addspell' puts the new spells on the bar (src/shell/bar-assign.js addMovesOrOpen)
 //   decline  a second button's words (the invite's Decline), or none
 //   share    a Share button's words: the rare find's card (src/shell/share-card.js)
 //   button   the button's words
@@ -29,8 +30,10 @@ export const ALERT_KINDS = Object.freeze([
   /* Only a hero set to end its hunt on empty can run out (the store pays per use otherwise): show that hunt. */
   Object.freeze({ id: 'low', label: 'Low supplies', glyph: 'uiWarn', action: 'show', button: 'See the hunt', fadeMs: 30000 }),
   Object.freeze({ id: 'ended', label: 'Hunt ended', glyph: 'uiHourglass', action: 'restart', button: 'Start again' }),
+  /* A training session's end (Tyler 2026-11-16: never a hunt's words): its own Start is in the Training window, never the hunt's restart. */
+  Object.freeze({ id: 'trained', label: 'Training ended', glyph: 'uiHourglass', action: 'training', button: 'Open Training' }),
   /* "While you were away" on return (src/shell/away-recap.js, designer 2026-10-22): what the hunt did meanwhile. */
-  Object.freeze({ id: 'away', label: 'While you were away', glyph: 'uiHourglass', action: 'show', button: 'See the hunt' }),
+  Object.freeze({ id: 'away', label: 'While away', glyph: 'uiHourglass', action: 'show', button: 'See the hunt' }),
   /* PARTY_SPEC §1.3: an invite reaches a stranger anywhere in the game, Join / Decline (the server's party_invites). */
   Object.freeze({ id: 'invite', label: 'Party invites', glyph: 'uiPeople', action: 'join', button: 'Join', decline: 'Decline' }),
   /* What another player's move did to this hero (2027-02-18-party-truth.sql party_notices): said no, removed it, closed the party, left. */
@@ -44,6 +47,9 @@ export const ALERT_KINDS = Object.freeze([
   /* A private message or a friend request came in (src/shell/social-watch.js). A request waits for its answer. */
   Object.freeze({ id: 'whisper', label: 'Private messages', glyph: 'uiChat', action: 'chat', button: 'Read it', fadeMs: 30000 }),
   Object.freeze({ id: 'friend', label: 'Friend requests', glyph: 'navProfile', action: 'friends', button: 'Open Friends' }),
+  /* A level-up unlocked a spell for the weapon worn (src/shell/spell-news.js, Tyler 2026-11-16: "just dont overwhelm the screen
+     with it"): Add to bar puts it in the first empty slot, or opens Hunt prep when the bar is full. It fades unanswered. */
+  Object.freeze({ id: 'spell', label: 'New spells', glyph: 'uiSpark', action: 'addspell', button: 'Add to bar', fadeMs: 30000 }),
 ]);
 
 export const ALERT_INDEX = Object.freeze(Object.fromEntries(ALERT_KINDS.map((k) => [k.id, k])));

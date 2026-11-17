@@ -31,22 +31,22 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.133';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.133';
-import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.133';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.133';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.133';
-import { runIntent } from '../intent-words.js?v=0.2.133';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.133';
-import { short, whole } from '../../render/format.js?v=0.2.133';
-import { glyphSvg } from '../launcher.js?v=0.2.133';
-import { markPlayer } from '../context-menu.js?v=0.2.133';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.133';
-import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.133';
-import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.133';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.135';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.135';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.135';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.135';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.135';
+import { runIntent } from '../intent-words.js?v=0.2.135';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.135';
+import { short, whole } from '../../render/format.js?v=0.2.135';
+import { glyphSvg } from '../launcher.js?v=0.2.135';
+import { markPlayer } from '../context-menu.js?v=0.2.135';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.135';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.135';
+import { togetherHtml, patchTogether, togetherAct } from './party-leave.js?v=0.2.135';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -168,12 +168,12 @@ export function liveRoster(cs, r) {
  * Your party tab (src/shell/windows/party-roster.js) both press it. True when `action` was one of the two.
  */
 export function leaveOrDisband(ctx, cs, sc, repaint, action) {
-  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
+  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'Left the party');
   else if (action === 'disband') {
     /* It asks twice, on every screen (panels 2026-11-01: one press, no question, party gone): the first press arms it, and its words say so. */
     if (!sc.disbandArmed) {
       sc.disbandArmed = true;
-      sc.msg = 'Press Sure? to end the party for everyone in it.';
+      sc.msg = 'Press Sure? to disband the party';
       repaint();
       setTimeout(() => { if (sc.disbandArmed) { sc.disbandArmed = false; sc.msg = ''; repaint(); } }, DISBAND_ARMED_MS);
       return true;
@@ -206,7 +206,7 @@ export function renderPartyPanel() {
     '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>' + t('controls.leave_party') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>' + t('controls.disband') + '</button></div>'
-    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>You each pay your own supplies.</p>');
+    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot" hidden>Supplies: each hero pays their own</p>');
 }
 
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {

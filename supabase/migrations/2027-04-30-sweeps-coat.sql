@@ -6,8 +6,8 @@
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on
 -- its passing §9. ON THE EA SECURITY LIST with the Tower (an item turned into a permanent unlock; the item trades).
--- ORDER: after 2027-04-29-tower-weapons-hunt-sessions-catalogue.generated.sql (the Tower's files, whose 2027-04-27-tower-chest.sql rolls
---   the bundle and whose items catalogue holds it), right BEFORE 2027-04-30-sweeps-coat-outfits-catalogue.generated.sql, which writes the
+-- ORDER: after 2027-04-28-tower-section.sql (the Tower's files, whose 2027-04-27-tower-chest.sql rolls the bundle and whose
+--   2027-05-02-tower-items-catalogue holds it; lane/c-tower-all 2026-11-17), right BEFORE 2027-04-30-sweeps-coat-outfits-catalogue.generated.sql, which writes the
 --   coat's hr_outfits row with its bundle and whose §0 refuses until THIS file's hr_outfit_owned reads bundles: in the other order every
 --   hero would own the coat (the old body owns every non-premium row) for as long as the gap lasted.
 -- EDGE: does not move for this file (no engine reads an outfit's ownership). CLIENT: src/session/outfit-intents.js sends the verb.

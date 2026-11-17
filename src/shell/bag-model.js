@@ -23,21 +23,22 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.133';
-import { t } from '../render/player-text.js?v=0.2.133';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.133';
-import { MONSTERS } from '../data/monsters.js?v=0.2.133';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.133';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.133';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.133';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.133';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.133';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.133';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.133';
-import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.133';
-import { recipeInputs } from '../core/artisan.js?v=0.2.133';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.133';
-import { itemName } from './widgets/bits.js?v=0.2.133';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.135';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.135';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.135';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.135';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.135';
+import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.135';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.135';
+import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.135';
+import { recipeInputs } from '../core/artisan.js?v=0.2.135';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
+import { HERO_RESIST_KEYS } from '../data/elements.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -283,23 +284,30 @@ function aboveWorn(id, worn) {
   return expandItemSlot(it.slot).some((s) => { const w = worn && worn[s] ? ITEMS[worn[s]] : null; return !w || (Number.isInteger(w.tier) && it.tier > w.tier); });
 }
 
+/** What Equip upgrades would put on (src/shell/upgrade-plan.js: its picks and every choice's pieces): no bulk sale or selection takes one. Pure. */
+export const upgradeWanted = (up) => new Set([...((up && up.picks) || []).map((p) => p.id), ...((up && up.choices) || []).flatMap((c) => c.ids)]);
+
 /**
- * THE RETURN CHORE (designer 2026-11-03; optimizer panel, its quit moment at hour 11-12: "sell-all, hand-sell 17-20 armor stacks"): what "Sell spare gear" sells, ONE sale
- * with its total shown first. Gear the hero has outgrown, of any weight or weapon family: never what Equip upgrades would put on (`wanted`: its picks and choices), an empty
- * slot's piece, a higher tier than the piece worn in that slot, a Rare (`isRare`, hunt-ground-facts.js isRareOnly: never sold unasked, Tyler 2026-10-14), the start kit, or a stack the player locked
- * or gave a plan to Keep or Deposit. What is worn is not in the bag (the server's inventory). `worn`: equipmentOf. Pure.
+ * GEAR THE HERO HAS OUTGROWN, of any weight or weapon family: never what Equip upgrades would put on (`o.wanted`: upgradeWanted), an empty slot's
+ * piece, a higher tier than the piece worn in that slot, the start kit or what the bench made from it, or a stack the player gave a plan to Keep or
+ * Deposit. `o.isRare` leaves Rares out too (Sell spare gear: never sold unasked, Tyler 2026-10-14); the bag's "Select outgrown" keeps them in, since
+ * the player sees the selection and confirms it (audit F18, 2026-11-15: 41 of 145 outgrown stacks were Rares, a press each). What is worn is not in the
+ * bag (the server's inventory). `worn`: equipmentOf. Ids, in the bag's order. Pure.
  */
-export function spareSale(items, worn, rules, shop, o) {
+export function outgrownIds(items, worn, rules, o) {
   const wanted = (o && o.wanted) || new Set();
   const rare = (o && o.isRare) || (() => false);
   const plans = rules ? rules.loot : {};
-  const ids = (items || []).filter((r) => kindOf(r.id) === 'gear' && !isStartKit(r.id) && !madeFromKit(r.id) && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)
+  return (items || []).filter((r) => kindOf(r.id) === 'gear' && !isStartKit(r.id) && !madeFromKit(r.id) && !wanted.has(r.id) && !rare(r.id) && !aboveWorn(r.id, worn)
     && plans[r.id] !== 'keep' && plans[r.id] !== 'deposit').map((r) => r.id);
-  const plan = sellPlan(items || [], ids, { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
-  if (plan.lines.length <= SELL_LINES_MAX) return plan;
-  const lines = plan.lines.slice(0, SELL_LINES_MAX);
-  const bids = shop.bids;
-  return { ...plan, lines, total: lines.reduce((n, l) => n + bids.get(l.item) * l.qty, 0), capped: true };
+}
+
+/**
+ * THE RETURN CHORE (designer 2026-11-03; optimizer panel, its quit moment at hour 11-12: "sell-all, hand-sell 17-20 armor stacks"): what "Sell spare gear" sells, ONE sale
+ * with its total shown first: the outgrown gear (outgrownIds) with `o.isRare` (hunt-ground-facts.js isRareOnly) left out, and any stack the player locked. Pure.
+ */
+export function spareSale(items, worn, rules, shop, o) {
+  return sellPlan(items || [], outgrownIds(items, worn, rules, o), { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
 }
 
 /**
@@ -324,23 +332,26 @@ export const sellQty = (qty) => Math.min(qty, SELL_LINE_MAX);
  * The sale a bulk action would send: every chosen stack (up to the server's limit a line, SELL_LINE_MAX), minus the
  * locked ones (they are listed in `kept`, never in `lines`). `total` is at the server's
  * bids; a stack with no bid is `unpriced` and is not sold (the confirmation
- * cannot show what the player would get for it). `capped`: a stack held more than one sale takes.
+ * cannot show what the player would get for it). `capped`: a stack held more than one sale takes. ONE SALE CARRIES AT MOST SELL_LINES_MAX
+ * stacks (the engine refuses more, so a bigger plan sent whole sold nothing: audit F18, "Sell all gear" over a 145-stack bag): the first that many
+ * go, `more` counts the priced stacks left for the next press.
  */
 export function sellPlan(items, ids, o) {
   const want = new Set(ids);
   const locked = (o && o.locked) || new Set();
   const bids = (o && o.bids) || new Map();
   const lines = [], kept = [], unpriced = [];
-  let total = 0, capped = false;
+  let total = 0, capped = false, more = 0;
   for (const { id, qty } of items) {
     if (!want.has(id)) continue;
     if (locked.has(id)) { kept.push(id); continue; }
     if (!bids.has(id)) { unpriced.push(id); continue; }
+    if (lines.length >= SELL_LINES_MAX) { more++; continue; }
     lines.push({ item: id, qty: sellQty(qty) });
     total += bids.get(id) * sellQty(qty);
     capped = capped || qty > SELL_LINE_MAX;
   }
-  return { lines, total, kept, unpriced, capped };
+  return { lines, total, kept, unpriced, capped, more };
 }
 
 /** The bag's worth at the server's bids; `unpriced` counts the stacks it has no bid for. */
@@ -363,6 +374,11 @@ const STATS = Object.freeze([
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);
+/* A PIECE'S RESISTANCE (`resistPm`: { ember | frost | poison | physical: permille less taken }; src/core/elements.js heroElementPermille is the
+   engine's read), one line a key in the vocabulary's order: "Fire damage taken −10%", "Physical damage taken −3%". The words are the
+   monster page's own element names (src/data/text/monster.js), so fire is called the same thing on both. */
+const resistValue = (it, k) => (it && it.resistPm && Number.isFinite(it.resistPm[k]) ? it.resistPm[k] : 0);
+const resistLabel = (k) => t('item.resist_taken', { element: t('monster.el_' + k) });
 const pctWords = (v) => (Math.round(v * 1000) / 10) + '%';
 const cutWords = (v) => Math.abs(v) / 10 + '%';
 
@@ -375,6 +391,10 @@ export function statLines(id) {
     if (!v) continue;
     out.push({ key: k, label, value: v, text: kind === 'cut' ? '−' + cutWords(v) : (v > 0 ? '+' : '') + (kind === 'pct' ? pctWords(v) : v) });
   }
+  for (const k of HERO_RESIST_KEYS) {
+    const v = resistValue(it, k);
+    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });
+  }
   return out;
 }
 
@@ -386,6 +406,10 @@ export function compare(id, worn) {
     const d = statValue(a, k) - statValue(b, k);
     if (Math.abs(d) < 1e-9) continue;
     out.push({ label, delta: d, text: kind === 'cut' ? (d > 0 ? '−' : '+') + cutWords(d) : (d > 0 ? '+' : '−') + (kind === 'pct' ? pctWords(Math.abs(d)) : Math.abs(d)) });
+  }
+  for (const k of HERO_RESIST_KEYS) {
+    const d = resistValue(a, k) - resistValue(b, k);
+    if (d) out.push({ label: resistLabel(k), delta: d, text: (d > 0 ? '−' : '+') + cutWords(d) });
   }
   return out;
 }
@@ -426,7 +450,7 @@ const STYLE_NAME = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee he
 export function styleWords(eq, ops) {
   const before = roleOfSet(eq), now = roleOfSet(Object.assign({}, eq, ops));
   if (!now || now === before) return null;
-  return 'You fight as ' + STYLE_NAME[now] + ' now, and your bar has this weapon\'s moves.' + (ops.ammo ? ' ' + itemName(ops.ammo) + ' loaded.' : '');
+  return 'Style: ' + STYLE_NAME[now] + ', bar updated' + (ops.ammo ? '. ' + itemName(ops.ammo) + ' loaded' : '');
 }
 
 /** The role the worn set `gear` plays (the weapon and the shield beside it), or null. */

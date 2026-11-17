@@ -1,21 +1,22 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.133';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.133';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.133';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.133';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.133';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.133';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.133';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.133';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.133';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.133';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.133';
-import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.133';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.133';
-import { foldRows } from './grounds/shape.js?v=0.2.133';
-import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.133';
-import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.133';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.135';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.135';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.135';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.135';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.135';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.135';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.135';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.135';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.135';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.135';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.135';
+import { CALL_ITEMS } from './boss-calls.js?v=0.2.135';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.135';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.135';
+import { foldRows } from './grounds/shape.js?v=0.2.135';
+import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.135';
+import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.135';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -59,6 +60,8 @@ export const ITEMS={
   ...TRAINING_GEAR_ITEM_ROWS,
   /* The Burning Tower's chest (src/data/chests.js, Tyler 2026-11-14): the four keys a landing mints and the Hearth Cinders the chest pays. Bound to the account. New ids only. */
   ...CHEST_ITEM_ROWS,
+  /* The call-only pieces (src/data/boss-calls.js, Tyler 2026-11-14): a called boss's win drops them, nothing else. New ids only. */
+  ...CALL_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool

@@ -9,7 +9,7 @@
 //     max_hours,                                       a session ends `hours` after this many
 //     quotes: [{ skill, level, fee_h, xp_h, hours_to_next }],   the yard's price and pace for each skill at the hero's level
 //     run: { skill, where, since, fee_h, paid } | null,           the session now (a hunt on the `training_yard` ground)
-//     last_stop: { reason, skill, at } | null,
+//     last_stop: { reason, skill, at, session, xp, paid, level, from } | null,   the last ended session and what it came to
 //     dummy: { needs, has_home, owned: [skill], ladder: [gold], next_price, busy },   the account's house dummy
 //     rate: { xp_h, xp_h_item, boost_pm, min_level, level },          THE FIXED RATE (2027-04-23-training-gear.sql, Tyler 2026-11-14)
 //     gear: [{ skill, banked_ms, on, bag: [{ item, hours, bound, qty }], stored: [...] }],   the hero's training items, a skill each
@@ -19,8 +19,22 @@
 // Every envelope replaces it, and nothing here holds a number of its own (CLAUDE.md §6). The one thing drawn between
 // two answers is the running clock: the server's `since` against the server's clock as the session measures it.
 // ════════════════════════════════════════════════════════════════════════
+import { trainingOf as trainingHuntOf } from '../data/training.js?v=0.2.135';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * What a training hunt does, in words: { doing: "Training Melee", at: "at the Training Yard" | "on your dummy at home" }, or null
+ * for any other hunt. One phrase for the hero's tab line (party-sections.js assignmentOf) and the hunt bar (src/shell/training-now.js).
+ */
+export function trainingPhrase(huntId) {
+  const tr = typeof huntId === 'string' ? trainingHuntOf(huntId) : null;
+  if (!tr) return null;
+  const skill = (SKILLS_DEF[tr.skill] && SKILLS_DEF[tr.skill].name) || tr.skill;
+  return { doing: t('training.bar_doing', { skill }), at: t(tr.place === 'house' ? 'training.bar_at_house' : 'training.bar_at_yard') };
+}
 const WORD = /^[a-z0-9_]{1,64}$/;
 const nat = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const word = (v) => (typeof v === 'string' && WORD.test(v) ? v : null);
@@ -68,9 +82,12 @@ function shopOf(s) {
   return Object.freeze({ on: s.on === true, today: nat(s.today) ?? 0, max: nat(s.max) });
 }
 
+/* The last ended session: why, which skill, when, and what it came to (2027-04-23-training-gear.sql: `session` its id, `xp` the
+   skill's XP its tally holds, `paid` its fee rows' gold, `level` / `from` the skill's level now and before that XP; null where unsent). */
 function lastStopOf(l) {
   if (!isObj(l) || !word(l.reason) || !word(l.skill)) return null;
-  return Object.freeze({ reason: l.reason, skill: l.skill, at: at(l.at) });
+  const sid = typeof l.session === 'string' && l.session && l.session.length <= 64 ? l.session : null;
+  return Object.freeze({ reason: l.reason, skill: l.skill, at: at(l.at), session: sid, xp: nat(l.xp), paid: nat(l.paid), level: nat(l.level), from: nat(l.from) });
 }
 
 function dummyOf(d) {

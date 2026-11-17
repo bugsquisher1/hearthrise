@@ -31,6 +31,8 @@ export const RETIRED_SETS = Object.freeze(['hero', 'cellar', 'town', 'home']);
 const CODE_SPRITES = Object.freeze(['loot_bag', 'signpost']);
 
 /** Is this sidecar style 1, with a style-1 source? (`find`: 'set/id' -> that sidecar, for a variety's sources) */
+/* the classes a drawing script may make: nothing in them stands in the world (art-budget.js CLASSES) */
+const DRAWN_CLASSES = Object.freeze(['vfx', 'plume', 'glint', 'ripple', 'turning', 'stir']);
 function isStyle1(sc, scripts = [], find = () => null) {
   if (!sc || sc.style !== 's1') return false;
   if (sc.class === 'terrain' && sc.kind === 'variety') {
@@ -39,10 +41,15 @@ function isStyle1(sc, scripts = [], find = () => null) {
   const pl = sc.pixellab || {};
   const fromLab = !!(pl.object || pl.image || pl.map || pl.tileset || pl.id);
   const fromSim = typeof sc.notes === 'string' && sc.notes.includes('prototypes/hunt-sim-assets');
-  /* A combat effect drawn by rule (`drawn`: a script here that exists, tools/world-art/glance-spark.mjs): hard
-     pixels in palette colours. An effect only: anything that stands in the world comes from the kit. */
-  const fromScript = sc.class === 'vfx' && typeof sc.drawn === 'string' && scripts.includes(sc.drawn);
-  return fromLab || fromSim || fromScript;
+  /* An effect drawn by rule (`drawn`: a script here that exists, tools/world-art/glance-spark.mjs): hard pixels in palette
+     colours. Effects only, and the air and the water are effects too (a plume of smoke, a glint, a ripple: town-life.mjs; a turning piece is a
+     building's own locked pixels moved inside their outline,
+     Art Director 2026-11-16): anything that stands in the world comes from the kit. */
+  const fromScript = DRAWN_CLASSES.includes(sc.class) && typeof sc.drawn === 'string' && scripts.includes(sc.drawn);
+  /* A TWIN of style-1 art drawn by a script here (`of`: set/id, town-life.mjs sway: its locked pixels with the cloth moved) */
+  const fromTwin = typeof sc.of === 'string' && typeof sc.drawn === 'string' && scripts.includes(sc.drawn) && sc.class !== 'terrain'
+    && (() => { const o = find(sc.of); return !!o && !o.of && isStyle1(o, scripts, find); })();
+  return fromLab || fromSim || fromScript || fromTwin;
 }
 
 /**

@@ -24,6 +24,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
+import { pressBar } from './_bar.mjs';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -109,32 +110,32 @@ try {
     && r1 && r1.lines.map((l) => l.place + ' ' + l.name + ' ' + l.value).join() === want.join(), JSON.stringify({ got: r1 && r1.lines, want, xp }));
   const mineLine = r1 && r1.lines.find((l) => l.name === 'Brannoc');
   const theirs = r1 && r1.lines.find((l) => l.name === 'Osric');
-  step('HW-3 the viewer\'s hero is marked "Your hero"; the other is not', mineLine && mineLine.viewed && mineLine.tag === 'Your hero'
+  step('HW-3 the viewer\'s hero is marked "Your hero"; the other is not', mineLine && mineLine.viewed && mineLine.tag === 'You'
     && theirs && !theirs.viewed && theirs.tag === '', JSON.stringify(r1 && r1.lines));
   const myPlace = xp[0].name === 'Brannoc' || xp[0].xp === xp[1].xp ? 1 : 2;
   step('HW-3 the count, the stamp and the standing line', r1 && r1.count === '2 heroes on this board' && /^Updated (just now|\d+ minutes? ago)$/.test(r1.fresh)
-    && (myPlace === 1 ? /^Brannoc (holds|shares) first place\.$/.test(r1.you) : /^Brannoc stands 2nd of 2\.$/.test(r1.you)
-      && /^Osric, the next hero up, is [\d,]+ XP ahead\.$/.test(r1.next)), JSON.stringify(r1));
+    && (myPlace === 1 ? /^Rank: (tied )?1st of 2$/.test(r1.you) : /^Rank: 2nd of 2$/.test(r1.you)
+      && /^Next up: Osric, [\d,]+ XP ahead$/.test(r1.next)), JSON.stringify(r1));
   await a.shot('honor-level-desktop');
   // ── HW-4 ──
   const fishing = await pick(a.page, 'skill:fishing');
   const r2 = await readRoll(a.page);
   step('HW-4 an empty board says so and tells the viewer how to get on', fishing && r2.lines.length === 0
-    && r2.empty === 'No hero has trained Fishing yet. The first to do it takes first place.'
-    && r2.you === 'Brannoc is not on this board yet. Train Fishing to earn a place: fish at a fishing spot.', JSON.stringify(r2));
+    && r2.empty === 'No Fishing entries yet'
+    && r2.you === 'Not ranked yet. Train Fishing to earn a place: fish at a fishing spot.', JSON.stringify(r2));
   await a.shot('honor-fishing-empty');
   const total = await pick(a.page, 'total_level');
   const r3 = await readRoll(a.page);
   step('HW-4 Total level lists both heroes', total && r3.lines.length === 2 && r3.lines.every((l) => /^Total level \d+$/.test(l.value)), JSON.stringify(r3));
   // ── HW-5 ──
   await b.page.keyboard.press('Escape');
-  const launch = await b.page.$('[data-hs-open="honor"]');
-  if (launch) await launch.click(); else await b.page.keyboard.press('z');
+  /* a phone opens it from the bar: the Social group's sheet, then its line (tests/_bar.mjs) */
+  await pressBar(b.page, 'honor', { tap: true }).catch(() => null);
   const phone = await waitRoll(b.page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length === 2);
   await b.page.waitForTimeout(600);   // the 120 ms slide-in ends and the World makes room for the sheet
   const r4 = await readRoll(b.page);
   const osric = r4 && r4.lines.find((l) => l.name === 'Osric');
-  step('HW-5 the phone (922x423) reads the same roll in a sheet, its own hero marked', phone && osric && osric.viewed && osric.tag === 'Your hero'
+  step('HW-5 the phone (922x423) reads the same roll in a sheet, its own hero marked', phone && osric && osric.viewed && osric.tag === 'You'
     && r4.width <= 400 && r4.right <= r4.vw && r4.bottom <= r4.vh, JSON.stringify(r4));
   await b.shot('honor-level-phone');
   // ── HW-6 ──

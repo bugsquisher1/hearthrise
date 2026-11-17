@@ -14,19 +14,19 @@
 // scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
 // the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.133';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.133';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.133';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.133';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.133';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.133';
-import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.133';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { gold } from '../../../render/format.js?v=0.2.133';
-import { glyphSvg } from '../../launcher.js?v=0.2.133';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.133';
-import { t } from '../../../render/player-text.js?v=0.2.133';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.135';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.135';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.135';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.135';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.135';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.135';
+import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.135';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { gold } from '../../../render/format.js?v=0.2.135';
+import { glyphSvg } from '../../launcher.js?v=0.2.135';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));
@@ -48,7 +48,7 @@ export function outfitHtml(g) {
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
     + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Show only owned</label></div>'
-    + '<p class="hs-note hw-of-looks">Looks only. How you fight comes from the weapon you hold.</p>'
+    + '<p class="hs-note hw-of-looks">Cosmetic only</p>'
     + '<ul class="hw-of-grid"></ul><p class="hh-empty hw-of-none">No outfit matches.</p></div>'
     + '</section>';
 }
@@ -80,8 +80,7 @@ export function showsWords(row, hiddenChange) {
   if (!row) return '';
   if (!row.regions.length) return row.plain;
   const parts = row.regions.map((g) => row.parts[g]).join(', ');
-  return 'On this outfit your colors change: ' + parts + '. The rest stays as drawn.'
-    + (hiddenChange ? ' This save only changes colors this outfit doesn\'t show. They show on your other outfits.' : '');
+  return 'Dyeable here: ' + parts + (hiddenChange ? '. Some changes show only on other outfits' : '');
 }
 
 /* Has the draft moved a region this outfit's art doesn't show, and no region it does? */
@@ -114,7 +113,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const d = draftOf(cs, sc);
   const row = OUTFIT_ROWS[d.outfit];
   const owned = !!o && o.owned.has(d.outfit);
-  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ' (Premium' + (o && !owned ? ', not owned)' : ')') : o && !owned ? ' (not owned)' : ''));
+  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ', Premium' : '') + (o && !owned ? ', not owned' : ''));
   const shown = colorsShown(cs, d);
   const changedColors = !!d.colors && !!o && dyeKeyOf(d.colors) !== dyeKeyOf(o.base);
   /* The picker: this outfit's parts, by their names, once the masks are here. The druid's row says why it has none. */
@@ -167,8 +166,8 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const purse = goldOf(cs);
   const short = offer && sc.price !== null && Number.isSafeInteger(purse) && purse < sc.price ? sc.price - purse : 0;
   prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);
-  attr(save, 'data-off-why', short ? 'You need ' + gold(short) + ' more.' : null);
-  text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '');
+  attr(save, 'data-off-why', short ? 'Need ' + gold(short) + ' more' : null);
+  text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '');
   cls(root.querySelector('.hw-of-undo'), 'is-on', changedColors);
   prop(root.querySelector('.hw-of-undo'), 'disabled', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
@@ -211,7 +210,7 @@ export function actOutfit(ctx, sc, action, ev, el, repaint) {
     const price = sc.price;
     /* every answer re-reads the price: a Level may have moved it, and a refusal may be the reason */
     runIntent(sc, repaint, () => saveHeroColors(ctx.account, cs, d.colors, price).then((r) => { sc.price = null; sc.priceAskedAt = 0; return r; }), 'Saving…',
-      () => { sc.draft = { outfit: d.outfit, colors: null }; return 'Saved. Everyone sees your new colors.'; }, cs);
+      () => { sc.draft = { outfit: d.outfit, colors: null }; return 'Saved'; }, cs);
     return true;
   }
   return false;

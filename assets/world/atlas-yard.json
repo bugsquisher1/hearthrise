@@ -1010,6 +1010,33 @@
         }
       }
     },
+    "ty_bench_pair": {
+      "class": "bench",
+      "layer": "prop",
+      "frame": [46,17],
+      "anchor": [23,16],
+      "footprint": [2,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 17,
+      "contact": [2,42],
+      "shadow": {
+        "kind": "ellipse",
+        "w": 51,
+        "h": 18,
+        "dx": 2,
+        "dy": 2
+      },
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[165,219]]
+          }
+        }
+      }
+    },
     "ty_butt_small": {
       "class": "fixture",
       "layer": "prop",

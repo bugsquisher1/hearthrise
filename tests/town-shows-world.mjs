@@ -21,6 +21,7 @@
 import { mkdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
+import { pressBar, groupOf } from './_bar.mjs';
 import { answered } from './_press.mjs';
 
 const args = process.argv.slice(2);
@@ -52,8 +53,8 @@ try {
   await p.reload();
 
   // ── SW-1 ──
-  await page.waitForSelector('[data-hs-open="havora"]', { timeout: 30000 });
-  await page.click('[data-hs-open="havora"]');
+  await page.waitForSelector('.hs-launchers [data-hs-group="' + groupOf('havora') + '"]', { timeout: 30000 });
+  await pressBar(page, 'havora');
   const quoted = await waitText('[data-hs-win="havora"] [data-hs-act="powder"]', /Throw Cinnabar: 2,000 gp/);
   step('SW-1 the Havora icon opens the window on the server\'s quote', quoted, await textOf('[data-hs-win="havora"]'));
   await page.waitForTimeout(500);   // the window's own fade
@@ -80,8 +81,8 @@ try {
   await page.click('[data-hs-win="havora"] [data-hs-act="powder"]');
   await waitText('[data-hs-win="havora"] .hh-intent-msg', /Paid 4,000 gp/);
   await p.reload();
-  await page.waitForSelector('[data-hs-open="havora"]', { timeout: 30000 });
-  await page.click('[data-hs-open="havora"]');
+  await page.waitForSelector('.hs-launchers [data-hs-group="' + groupOf('havora') + '"]', { timeout: 30000 });
+  await pressBar(page, 'havora');
   const remembered = await waitText('[data-hs-win="havora"] [data-hs-act="powder"]', /Throw Borax: 6,000 gp/);
   step('SW-3 after a reload it opens on the color thrown last, at the next price', remembered, await textOf('[data-hs-win="havora"] [data-hs-act="powder"]'));
 
@@ -89,7 +90,7 @@ try {
   await sql("insert into public.player_ledger (user_id, slot, kind, intent, gold, meta) values ($1, 0, 'shop', 'town_show:borax:6000', -6000, '{\"probe\":true}'::jsonb)", [uid]);
   const purse6 = await purse();
   await page.click('[data-hs-win="havora"] [data-hs-act="powder"]');
-  const moved = await waitText('[data-hs-win="havora"] .hh-intent-msg', /The price moved to 8,000 gp\. You weren't charged\. Press again to pay it\./);
+  const moved = await waitText('[data-hs-win="havora"] .hh-intent-msg', /Price changed to 8,000 gp, not charged\. Press again to pay\./);
   step('SW-6 a stale price says so and charges nothing', moved && (await purse()) === purse6, JSON.stringify({ msg: await textOf('[data-hs-win="havora"] .hh-intent-msg'), purse: await purse(), was: purse6 }));
   const reread = await waitText('[data-hs-win="havora"] [data-hs-act="powder"]', /Throw Borax: 8,000 gp/);
   step('SW-6 the window shows the new price', reread, await textOf('[data-hs-win="havora"] [data-hs-act="powder"]'));
@@ -138,7 +139,7 @@ try {
 
   // ── SW-7 ──
   await sql('select public.hr_leaderboard_refresh(true)');
-  await page.click('[data-hs-open="honor"]');
+  await pressBar(page, 'honor');
   await page.waitForSelector('[data-hs-win="honor"] select[data-hs-act="board"]', { timeout: 15000 });
   await page.selectOption('[data-hs-win="honor"] select[data-hs-act="board"]', 'gold_given');
   const onBoard = await waitText('[data-hs-win="honor"] .hr-roll', /Marlow/);

@@ -278,3 +278,40 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 - **Security (EA list):** a RANKED surface. Other heroes' names, best floors and the DAY reached reach a hero who climbs near them; no account id or slot leaves (tests/tower-board.mjs TB-WALLS, the file's §6 (c)). Rival names are hr_character_name WITHOUT a per-read hr_name_blocked (1.4 ms a name on PGlite, four a settle, every hero): a name the grown blocklist catches leaves this board by its hr_lb_hidden 'name' row. Your call whether that holds for EA.
 - **Systems engineer:** `field` is { rank | over, above, below } (over = 1000: "#1,000+"); `last.board` { rank | over, passed, name } is the end card's Rank (+N) / Passed, drawn on a record climb only. The handoff's `tower` arm of leaderboard_ranked was not used: a 5-minute matview says the rank from BEFORE the climb on its end card and has no "reached first" order (the file's header says why).
 - **Designer / next lane:** no top-N list is served yet (the window has no place for it). A Leaderboards board over hr_mode_board (an hr_leaderboard arm, behind the switch) is the natural follow-up; the catacomb descent gets its own board by feeding its mode's rows from its own progress table.
+
+## 2026-11-16 · art-director (lane/a-visual-audit) → systems-engineer, game designer · what the display-scale pass left open
+- **Outfit canvases stretch at 125 %** (systems-engineer, client): `src/render/outfit-sprite.js` drawOutfit sizes the bitmap in CSS px, so the hero-create preview (192 px, x3) is 3.75 device px an art px at 125 %, and the Character portrait and outfit list the same. Do what `drawCreature` now does: k = floor(scale x DPR) device px an art px, the canvas shown at exactly bitmap/DPR (AW-25 holds the creature case); its owner test needs the same scaled case.
+- **The town Inventory covers half the action bar at 1280x720** (150 % on a 1080p panel): slots 6-10, 16-20 and Setup lie under the window. AW-95 keeps windows off the bar in a hunt only. Designer: is the town bar meant to stay reachable with a window open?
+- **Modal windows centre with translate(-50%, -50%)** (shell.css `.hs-win.is-modal`), which can land a modal on half a device px at 125 %; not measured here.
+
+## 2026-11-16 · art-director (lane/a-havora-art) → asset director (a PixelLab lane) · what Havora still needs as NEW pixels
+Done from existing pixels (0 gens): the ring, kerbs, setts apron, edge variants, frayed cobble edges, the three bridges, one
+woodpile / well / bench family. These need generations (style 1, palette hr-world-56-v2, native import), in priority order:
+1. (Withdrawn: the cobble edges are now seams.mjs scatter tiles, havora-seams.mjs; a Tileset Pro set only if Tyler still calls
+   the lane edges straight once he sees them.)
+2. A fuel basket (wicker, kindling and split logs) for the Hearth's fuel corners: common `basket` holds apples.
+3. The lamppost redrawn in the Hall's stone and iron (style audit #4); the square's three were removed, the street ones stay.
+4. A town grass base tile with more blade contrast (style audit: the floor with least grain); the variety only tints patches.
+
+## 2026-11-16 · art-director (lane/a-ground-seams) → the Havora lane (lane/a-havora-art), Coordinator · the transition tool
+- **Havora lane:** `tools/world-art/seams.mjs` is on origin/lane/a-ground-seams (8dd68d3b8, joint rule 9a4faebf9). For a town wang
+  pair: `node tools/world-art/seams.mjs tiles --lower L.png --upper U.png --style ragged|stagger|scatter|kerb|bank [--unit-lower]
+  [--unit-upper] [--variants 4] [--seed N] --out sheet.png` writes 16 keys x N variants (+ sheet.json rects). Every variant keeps the
+  key's own outer ring (the selftest proves it), so list all of a key's rects in the pair's sidecar and compose.js's cellHash picks one.
+  For a painted patch (Hearth Square): `reseam(img, { rows, mats, pairs, keep })`, called the way `barrow-grounds.mjs seam()` calls it.
+  Styles: kerb where stone meets stone, scatter for stone on a soft floor (stones whole, loose ones fading), ragged for grass/earth,
+  bank for water (`mats.W.own` keeps water off walked tiles: world-assets [wet]). No PixelLab pixels, the palette stays closed.
+  Round 3 added: `own: 'SVGM'` (water kept off only those cells: it may lap into a reed bed), and on ragged pairs `outline: 1|2` +
+  `skirt: 'M'` (a raised mass keeps a dark rim and an earth foot, as the tileset's bank face had). seam-grounds.mjs: `grid` (a brief's
+  PAINT rows) and `over` (materials whose painted edge is kept, the canopy's crowns and soil line laid back over redrawn cells).
+  Round 4: style `canopy` (`mats.T.canopy` { spacing, jitter }; pair `soil: 'M'` or a shadow) for any thicket or hedge edge, and
+  `mats.ch.lift`. Coordinator: new atlas set `muster-floor` (atlas-sets.js), and the Meadowbrook/Mosslight grounds moved into their
+  existing -floor sets; tests/world-assets.mjs REQUIRED_TERRAIN follows them.
+- **Coordinator:** a painted ground with every border redrawn packs more unique cells. The Slake's set hit 4096 wide, so its ground
+  moved to `slake-floor` (its varieties already lived there). Expect the same for any whole ground reseamed later.
+## 2026-11-16 · art-director (lane/a-living-town) → lane/a-havora-art, asset director · smoke rides the sprites
+- **lane/a-havora-art:** each lit chimney's smoke is a point in its SPRITE'S OWN PIXELS (`EMITTERS`, src/data/world/ambient-life.js), so moving a home on the map moves its smoke with it; redrawing a home, the tavern, the mill, the smithy, the store or the Great Hearth moves its chimney, so update its point (the mouth's middle, two rows into the stack). tests/town-life.mjs TL-SMOKE goes red when a point leaves the art. Water you add to the town gets glints by itself (`life: ['water']`); anything you place over open water keeps them off its box.
+- **asset director (next lane, if Tyler takes it):** townsfolk walk cycles and the animals' idles are the ranked next step (lane report); nothing is asked of you yet.
+## 2026-11-16 · art-director (lane/a-living-town, round 2) → asset director, lane/a-havora-art
+- **asset director:** townsfolk wear the Quarry Brute in townsfolk dyes (the one walk-clip body that reads as a worker). Distinct bodies are the next gain: a market woman, a sweeper with a broom, a crier with a hand bell, a child; 64 px character frame, 8 facings, idle 4 + walk 6 (the outfit standard), no weapon. `src/data/world/town/folk.js` takes any body with idle and walk clips; nothing else changes.
+- **lane/a-havora-art:** (1) the mill's waterwheel turns but stands on dry dirt a tile west of the race: move the race under it or the mill onto the bank; (2) P02's hens and goat are cut from a still twin of `havora_home_p02` (`tools/world-art/town-life.mjs` reads the built atlas): redrawing P02 makes `town-life.mjs --check` stale, so rerun it and its seeds; (3) the washing line in P01 is painted into the lot, so it cannot sway without a twin of the whole lot.

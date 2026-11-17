@@ -1378,6 +1378,11 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
               /* A TRAINING WINDOW'S ITEM TIME (src/core/hunt/training.js trainingTick): the ms it played at the item's rate, the
                  claim hr_training_window re-proves against the hero's bank and spends (2027-04-23-training-gear.sql). */
               ...(hs.tally.boostMs > 0 ? { boost_ms: hs.tally.boostMs } : {}),
+              /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js; hunt-rewards.js payPrize): this hero's roll for today was made in this
+                 window, piece or no piece. Said only then, beside the boss's kill in `km`: hr_hunt_apply_member stamps the day on it
+                 (2027-04-25-boss-daily.sql hr_boss_prize_take) and lets the piece through only on that stamp. A database before that
+                 file never hears it: this engine rolls only on that file's `prize_left`. */
+              ...(hs.prizeRolled === true ? { prize: true } : {}),
               from: new Date(winFrom).toISOString(),
               to: new Date(settledTo).toISOString() },
     },

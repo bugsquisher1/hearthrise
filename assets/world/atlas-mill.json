@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-mill.png",
   "size": [1024,648],
-  "pixels": "61f3d9cffe6876e8d616e6a818e9fda841d2f53df93e9159c0b6a786e3b3314b",
+  "pixels": "981933e3e1046def93e06b02c30152e6724794c4acf0058c0580646d7c37b1e9",
   "sprites": {
     "banner": {
       "class": "hanging",

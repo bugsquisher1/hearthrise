@@ -29,7 +29,9 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2027-03-22-live-events-catalogue.generated.sql';
+/* THE WORDS AS LABELS (lane/a-text-short, 2026-11-16, Tyler's labels ruling): 2027-03-22-live-events-catalogue is APPLIED history; the events'
+   announcement words moved, so the whole catalogue goes again in ONE forward file (set/v0.2.135). No date, kind, size or schedule moves. */
+export const OUT_NAME = '2027-05-01-v0135-live-events-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const DIALS = Object.freeze({ xpPm: 'grounds', feePm: 'calls' });

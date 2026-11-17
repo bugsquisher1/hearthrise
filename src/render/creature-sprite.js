@@ -19,9 +19,9 @@
 // 7 only south, 1 the four sides), so a line of them is one consistent pose. Units in the
 // World turn as they move; that is the World renderer's, not this.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.133';
-import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.133';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.133';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.135';
+import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.135';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.135';
 
 /** The direction a creature's portrait faces: front, toward the player. */
 export const PORTRAIT_DIR = 's';
@@ -98,11 +98,17 @@ export function drawCreature(canvas, art, id, o) {
   if (!box) return false;
   const scale = Math.max(1, Math.floor(opt.scale || 1));
   const w = box[2] - box[0] + 1, h = box[3] - box[1] + 1;
-  canvas.width = w * scale;
-  canvas.height = h * scale;
+  /* WHOLE DEVICE PX on a scaled screen (Tyler 2026-11-16, 125 % and 150 %; src/render/device-px.js): the bitmap is k device px an
+     art px, the most no bigger than `scale` CSS px, and is shown at exactly its own size, so the browser never stretches it 2.5x. */
+  const view = canvas.ownerDocument && canvas.ownerDocument.defaultView;
+  const dpr = view && view.devicePixelRatio > 0 ? view.devicePixelRatio : 1;
+  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));
+  canvas.width = w * k;
+  canvas.height = h * k;
+  if (canvas.style) { canvas.style.width = (w * k) / dpr + 'px'; canvas.style.height = (h * k) / dpr + 'px'; }
   const g = canvas.getContext('2d');
   g.imageSmoothingEnabled = false;
   g.clearRect(0, 0, canvas.width, canvas.height);
-  g.drawImage(hit.image, sx + box[0], sy + box[1], w, h, 0, 0, w * scale, h * scale);
+  g.drawImage(hit.image, sx + box[0], sy + box[1], w, h, 0, 0, w * k, h * k);
   return true;
 }

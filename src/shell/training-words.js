@@ -1,20 +1,20 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/training-words.js — COMBAT TRAINING IN PLAIN WORDS, WITH THE SERVER'S OWN NUMBERS.
+// src/shell/training-words.js — COMBAT TRAINING'S LABELS, WITH THE SERVER'S OWN NUMBERS.
 //
-// PURE. Every sentence is a row of src/data/text/training.js; this fills it from the `training` section
+// PURE. Every line is a row of src/data/text/training.js; this fills it from the `training` section
 // (src/session/training-sections.js) or a refusal's figures (src/session/training-intents.js). A refusal with no
 // number reads from src/data/refusal-words.js; src/shell/intent-words.js refusalText asks here first.
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.133';
-import { whole } from '../render/format.js?v=0.2.133';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.133';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { whole } from '../render/format.js?v=0.2.135';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
+import { TRAINING_RULES } from '../data/training.js?v=0.2.135';
 
 const MINUTE = 60000;
 const num = (v) => Number.isSafeInteger(v);
 
 /** A skill's player name ("Defense"); an id the catalogue doesn't know reads as itself. */
 export const skillWord = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || String(id);
-const nameWord = (name) => (typeof name === 'string' && name ? name : t('training.your_hero'));
 
 /** "3 hours 20 minutes", "1 hour", "45 minutes", "less than a minute": a span, to the minute (rounded down). */
 export function timeWords(ms) {
@@ -25,26 +25,25 @@ export function timeWords(ms) {
   return h && r ? t('training.time_both', { hours, minutes }) : hours || minutes;
 }
 
-/** Why the last session ended, or '' when there is none. */
-export function endedWords(last, name) {
+/** Why the last session ended, as a label ("Training ended (out of gold)"), or '' when there is none. Never a hunt's words: any other
+    end (a quiet stretch, the server's stop) reads "Training ended". */
+export function endedWords(last) {
   if (!last) return '';
-  const o = { name: nameWord(name), skill: skillWord(last.skill) };
-  if (last.reason === 'gold_out') return t('training.ended_gold_out', o);
-  if (last.reason === 'hours') return t('training.ended_hours', o);
-  if (last.reason === 'left') return t('training.ended_left', o);
-  return t('training.ended_other', o);
+  if (last.reason === 'gold_out') return t('training.ended_gold_out');
+  if (last.reason === 'hours') return t('training.ended_hours', { hours: TRAINING_RULES.maxHours });
+  if (last.reason === 'left') return t('training.ended_left');
+  return t('training.ended_other');
 }
 
-/** A training refusal that carries the server's numbers, in a sentence, or null (the shared table then says it). */
-export function trainingRefusal(r, name) {
+/** A training refusal that carries the server's numbers, as a label, or null (the shared table then says it). */
+export function trainingRefusal(r) {
   if (r && (r.verb === 'training_gear_buy' || r.verb === 'training_gear_open' || r.verb === 'training_gear_switch')) return gearRefusal(r);
   if (!r || (r.verb !== 'training_start' && r.verb !== 'house_dummy')) return null;
-  const who = nameWord(name);
   if (r.error === 'insufficient_gold' && num(r.fee) && num(r.purse)) return t('training.short_gold', { fee: whole(r.fee), purse: whole(r.purse) });
   if (r.error === 'insufficient_gold' && num(r.price) && num(r.purse)) return t('training.dummy_short', { price: whole(r.price), purse: whole(r.purse) });
   if (r.error === 'dummy_busy' && r.busy) return t('training.dummy_busy', { who: r.busy });
-  if (r.error === 'hunt_open') return t('training.hunting', { name: who });
-  if (r.error === 'in_party') return t('training.in_party', { name: who });
+  if (r.error === 'hunt_open') return t('training.hunting');
+  if (r.error === 'in_party') return t('training.in_party');
   if (r.error === 'dummy_max') return t('training.dummy_all');
   return null;
 }
@@ -53,7 +52,7 @@ export function trainingRefusal(r, name) {
 function gearRefusal(r) {
   if (r.error === 'insufficient_gold' && num(r.price) && num(r.purse)) return t('training.gear_short', { price: whole(r.price), purse: whole(r.purse) });
   if (r.error === 'buy_limit' && num(r.max)) return t('training.gear_limit', { max: r.max });
-  if (r.error === 'still_open') return t('training.gear_still_open', { item: t('training.gear_head') });
+  if (r.error === 'still_open') return t('training.gear_still_open');
   if (r.error === 'none_held') return t('training.gear_none_held');
   if (r.error === 'feature_off' || r.error === 'not_for_sale') return t('training.gear_closed');
   return null;

@@ -137,8 +137,8 @@
 -- EDGE: does not move (the mint is a database trigger; the chest is a town verb). The XP share that moved with this lane is
 --   folded into 2027-04-24-tower-climb-session-modes-catalogue.generated.sql (src/data/session-modes.js), whose engine deploy follows it.
 -- CLIENT: none (the window lane wires both verbs and projects hr_chest_section; the words are src/data/text/tower.js and refusal-words.js).
--- ORDER: after 2027-04-24-tower-climb-hunts-catalogue.generated.sql: 2027-04-27-tower-chest-items-catalogue.generated.sql, then
---   2027-04-27-tower-chest-bench-inputs.generated.sql, then 2027-04-27-tower-chest-catalogue.generated.sql, then
+-- ORDER: after 2027-05-02-tower-hunts-catalogue.generated.sql (the Tower's keys and Cinders came with 2027-05-02-tower-items-catalogue,
+--   the Tower's first file, lane/c-tower-all 2026-11-17), then 2027-04-27-tower-chest-bench-inputs.generated.sql, then 2027-04-27-tower-chest-catalogue.generated.sql, then
 --   2027-04-28-key-ring-gold-ladders.generated.sql (the Key Ring's offer and unlock row: §9 owns a ring), then THIS file.
 -- REVERSIBLE: drop the mint trigger on tower_runs first (no key is minted after it), then the two verbs and their baseline rows, the eight
 --   helpers, the two tables. Keys and Cinders already in bags stay as items (bound, no value: they move nothing); the wipe empties them.

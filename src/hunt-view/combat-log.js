@@ -12,15 +12,15 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.133';
-import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.133';
-import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js?v=0.2.133';
-import { MONSTERS, monsterRangeOf } from '../data/monsters.js?v=0.2.133';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.133';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.133';
-import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.133';
-import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.133';
-import { t } from '../render/player-text.js?v=0.2.133';
+import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.135';
+import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.135';
+import { BOSS_HALL_WORDS, roomOfHunt, namedWaveOf } from '../data/boss-halls.js?v=0.2.135';
+import { MONSTERS, monsterRangeOf } from '../data/monsters.js?v=0.2.135';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.135';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.135';
+import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.135';
+import { tallyOf, tallyLine } from '../session/tally-sections.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
 
 const LOGS = new WeakMap();
 
@@ -107,7 +107,7 @@ export function lineOf(ev, n) {
     case 'spell': return line('status', t(ev.shape === 'group' ? 'log.spell_group' : 'log.spell', { who: a, spell: abilityName(ev.spell) }));
     case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');
     case 'status_off': return line('status', b + (ev.status === 'bleed' ? ' stops bleeding.' : ' is free of ' + ev.status + '.'));
-    case 'death': return line('death', (n.isHero(ev.u) ? a : 'Your hero') + ' was killed by ' + monsterName(ev.monster) + '.');
+    case 'death': return line('death', (n.isHero(ev.u) ? a : 'Hero') + ' was killed by ' + monsterName(ev.monster) + '.');
     case 'rare_drop': return line('loot', (Number.isInteger(ev.u) ? 'Rare drop for ' + a + ': ' : 'Rare drop: ') + itemName(ev.item) + '!');
     case 'rare_roll': {
       /* the party's rare roll (party-split.js rareRoll): every eligible hero's roll, a tie's re-roll, the winner */
@@ -149,7 +149,7 @@ export function logFor(cs) {
       const now = tally.held.filter((x) => x.done).map((x) => [x.task + '@' + x.doneAt, x]);
       const h = huntOf(cs);
       const me = h && Number.isInteger(h.hero.unit) ? [h.hero.unit] : [];
-      if (done) for (const [k, x] of now) if (!done.has(k)) push({ key: 'tally:' + k, type: 'tally', units: me, text: 'Task done: ' + tallyLine(x) + '. Tamsin pays when you are back in town.' });
+      if (done) for (const [k, x] of now) if (!done.has(k)) push({ key: 'tally:' + k, type: 'tally', units: me, text: 'Task done: ' + tallyLine(x) + '. Collect from Tamsin in town' });
       done = new Set([...(done || []), ...now.map(([k]) => k)]);
     });
   }

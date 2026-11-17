@@ -34,6 +34,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { groupOf } from './_bar.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -139,17 +140,22 @@ async function checks(overrides, shots) {
       const drawn = await wait(page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length >= 4);
       const r = await readRoll(page);
       if (!drawn || !r) fails.push('HP-1 Z did not open Leaderboards with the server\'s rows');
-      /* Tyler 2026-11-01: "Just leaderboards is fine": the window's title and its icon's name. */
-      const named = await page.evaluate(() => [document.querySelector('[data-hs-win="honor"] .hs-win-title').textContent, document.querySelector('.hs-launch[data-hs-open="honor"]').getAttribute('aria-label')]);
-      if (named[0] !== 'Leaderboards' || named[1] !== 'Leaderboards (Z)') fails.push('HP-1 the window is named ' + JSON.stringify(named));
+      /* Tyler 2026-11-01: "Just leaderboards is fine": the window's title, and its line's name and key in the bar's Social menu (tests/_bar.mjs). */
+      const title = await page.evaluate(() => document.querySelector('[data-hs-win="honor"] .hs-win-title').textContent);
+      await page.click('.hs-launchers [data-hs-group="' + groupOf('honor') + '"]', { timeout: 2500 }).catch(() => null);
+      const line = await page.evaluate(() => { const b = document.querySelector('.hs-launch-menu [data-hs-open="honor"]');
+        return b ? [b.querySelector('.hs-launch-label').textContent, (b.querySelector('.hs-launch-key') || {}).textContent] : null; });
+      if (await page.$('.hs-launch-menu')) await page.keyboard.press('Escape');   // Esc over the menu shuts it alone (tests/top-bar.mjs TB-4)
+      const named = [title].concat(line || []);
+      if (named.join('|') !== 'Leaderboards|Leaderboards|Z') fails.push('HP-1 the window and its line are named ' + JSON.stringify(named));
       else {
         const got = r.lines.map((l) => [l.place, l.name, l.value, l.xp].join(' ')).join(' | ');
         const want = '1st Wennet Level 12 90,210 XP | 2nd Osric Level 9 40,000 XP | 2nd Maela Level 9 40,000 XP | 4th Tyler Level 6 9,001 XP';
         if (got !== want) fails.push('HP-1/HP-6 the roll reads "' + got + '", the server said "' + want + '"');
         const tags = r.lines.map((l) => l.name + ':' + (l.tag || '-') + (l.viewed ? '*' : '')).join(' ');
-        if (tags !== 'Wennet:Also yours Osric:- Maela:- Tyler:Your hero*') fails.push('HP-1 the marks read ' + tags);
+        if (tags !== 'Wennet:Same account Osric:- Maela:- Tyler:You*') fails.push('HP-1 the marks read ' + tags);
         if (r.title !== 'Level' || r.count !== '4 heroes on this board' || r.fresh !== 'Updated 3 minutes ago') fails.push('HP-1 the heading reads ' + JSON.stringify([r.title, r.count, r.fresh]));
-        if (r.you !== 'Tyler stands 4th of 4.' || r.next !== 'Maela, the next hero up, is 30,999 XP ahead.') fails.push('HP-1 the standing reads ' + JSON.stringify([r.you, r.next]));
+        if (r.you !== 'Rank: 4th of 4' || r.next !== 'Next up: Maela, 30,999 XP ahead') fails.push('HP-1 the standing reads ' + JSON.stringify([r.you, r.next]));
         if (r.near.length) fails.push('HP-1 a hero on the top list is drawn twice (the rows around it)');
       }
       if (shots) await page.screenshot({ path: join(shots, 'honor-desktop.png') });
@@ -160,24 +166,24 @@ async function checks(overrides, shots) {
       if (!(await pick(page, 'total_level'))) fails.push('HP-3 Total level never drew');
       const t = await readRoll(page);
       if (t.lines.length !== 25 || t.lines.some((l) => l.viewed)) fails.push('HP-3 the top 25 is ' + t.lines.length + ' rows (viewed marked: ' + t.lines.some((l) => l.viewed) + ')');
-      if (t.you !== 'Tyler stands 27th of 40.' || t.next !== 'Corwin, the next hero up, is 4 levels ahead.') fails.push('HP-3 off the top the standing reads ' + JSON.stringify([t.you, t.next]));
+      if (t.you !== 'Rank: 27th of 40' || t.next !== 'Next up: Corwin, 4 levels ahead') fails.push('HP-3 off the top the standing reads ' + JSON.stringify([t.you, t.next]));
       if (t.near.map((l) => l.place + ' ' + l.name + (l.viewed ? '*' : '')).join(', ') !== '26th Corwin, 27th Tyler*, 28th Dunstan') fails.push('HP-3 the rows around the hero read ' + JSON.stringify(t.near));
       if (t.fresh !== 'Updated just now') fails.push('HP-3 the stamp reads ' + t.fresh);
       const n0 = reads(s).length;
       if (!(await pick(page, 'skill:fishing'))) fails.push('HP-4 Fishing never drew');
       const f = await readRoll(page);
       if (reads(s).length !== n0 + 1 || reads(s).at(-1).body.p_board !== 'skill:fishing') fails.push('HP-4 picking Fishing sent ' + (reads(s).length - n0) + ' reads');
-      if (f.lines.length || f.empty !== 'No hero has trained Fishing yet. The first to do it takes first place.'
-        || f.you !== 'Tyler is not on this board yet. Train Fishing to earn a place: fish at a fishing spot.') fails.push('HP-4 the empty board reads ' + JSON.stringify(f));
+      if (f.lines.length || f.empty !== 'No Fishing entries yet'
+        || f.you !== 'Not ranked yet. Train Fishing to earn a place: fish at a fishing spot.') fails.push('HP-4 the empty board reads ' + JSON.stringify(f));
       await page.waitForTimeout(1200);
       if (reads(s).length !== n0 + 1) fails.push('HP-2 the window kept asking while open (' + (reads(s).length - n0) + ' reads in 1.2 s)');
       /* GOLD GIVEN: gold words, an account's row whichever hero is viewed, and the words say account */
       if (!(await pick(page, 'gold_given'))) fails.push('HP-GOLD Gold Given never drew');
       const g = await readRoll(page);
-      if (g.lines.map((l) => l.place + ' ' + l.name + ' ' + l.value + ' ' + l.tag + (l.viewed ? '*' : '')).join(', ') !== '1st Osric 12,000 gp , 2nd Wennet 9,000 gp Your account*') fails.push('HP-GOLD the roll reads ' + JSON.stringify(g.lines));
+      if (g.lines.map((l) => l.place + ' ' + l.name + ' ' + l.value + ' ' + l.tag + (l.viewed ? '*' : '')).join(', ') !== '1st Osric 12,000 gp , 2nd Wennet 9,000 gp You*') fails.push('HP-GOLD the roll reads ' + JSON.stringify(g.lines));
       if (g.count !== '2 accounts on this board') fails.push('HP-GOLD the count reads ' + g.count);
-      if (g.you !== 'Your account, led by Wennet, stands 2nd of 2.' || g.next !== 'Osric\'s account, the next one up, is 3,000 gp ahead.') fails.push('HP-GOLD the standing reads ' + JSON.stringify([g.you, g.next]));
-      if (await page.evaluate(() => document.querySelector('[data-hs-win="honor"] .hr-you h3').textContent) !== 'Your account') fails.push('HP-GOLD the section is not named for the account');
+      if (g.you !== 'Rank: 2nd of 2, led by Wennet' || g.next !== 'Next up: Osric\'s account, 3,000 gp ahead') fails.push('HP-GOLD the standing reads ' + JSON.stringify([g.you, g.next]));
+      if (await page.evaluate(() => document.querySelector('[data-hs-win="honor"] .hr-you h3').textContent) !== 'Account standing') fails.push('HP-GOLD the section is not named for the account');
       if (errors.length) fails.push('HP-1 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }

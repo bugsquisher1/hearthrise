@@ -11,18 +11,18 @@
 // it runs. States (data-state on .rp): edit → sending → sent | failed.
 // Built once; patched in place (the button follows the text and the state).
 // ════════════════════════════════════════════════════════════════════════
-import { reportBody, worldSnapshot } from '../report-model.js?v=0.2.133';
-import { startDiagnostics } from '../../net/diagnostics.js?v=0.2.133';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.133';
+import { reportBody, worldSnapshot } from '../report-model.js?v=0.2.135';
+import { startDiagnostics } from '../../net/diagnostics.js?v=0.2.135';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.135';
 
 /* What the player reads after the bridge answers, by its status (or the link's). */
 const SAID = Object.freeze({
-  sent: 'Sent. Thank you, the team reads every report.',
-  rate_limited: 'You have sent several reports in a short time. Try again in {m}.',
-  unauthenticated: 'Your sign-in has ended. Reload the page, sign in and send it again.',
-  payload_too_large: 'That was too big to send. Untick the picture and try again.',
-  bad_request: 'That report could not be read. Write a line about the problem and try again.',
-  other: 'It did not send. Check your connection and try again. Your text is still here.',
+  sent: 'Report sent, thanks',
+  rate_limited: 'Too many reports, try again in {m}',
+  unauthenticated: 'Session expired, reload and sign in',
+  payload_too_large: 'Too large, untick the picture',
+  bad_request: 'Report unreadable, add a line and retry',
+  other: 'Send failed, text kept, try again',
 });
 const SENT = new Set(['accepted', 'stored', 'duplicate']);
 
@@ -45,11 +45,11 @@ const newKey = () => {
 /** The skeleton (built once). */
 export function renderReport() {
   return '<div class="rp" data-state="edit">'
-    + '<p class="hs-note">Tell us what went wrong. Say what you did, what you expected and what happened instead.</p>'
+    + '<p class="hs-note">Include: steps, expected result, actual result</p>'
     + '<textarea class="rp-text" data-hs-act="type" rows="6" maxlength="4000" aria-label="What went wrong"'
     + ' placeholder="I clicked Leave hunt and the screen froze for a few seconds..."></textarea>'
     + '<label class="rp-shot"><input type="checkbox" class="rp-shot-on" checked> Include a picture of the game view</label>'
-    + '<p class="hs-note rp-what">Your game version, this character, its hunt, recent errors and your screen size are sent with it.</p>'
+    + '<p class="hs-note rp-what">Sent with it: version, character, hunt, errors, screen size</p>'
     + '<div class="rp-foot"><button type="button" class="hw-primary is-on" data-hs-act="send">Send report</button>'
     + '<p class="rp-said" role="status" aria-live="polite"></p></div></div>';
 }

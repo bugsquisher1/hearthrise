@@ -16,8 +16,10 @@
 //     interval i is K(i) - K(i - 1) units of the carry (progression.js XP_FRAC_SCALE), K(i) = floor(i x rate x interval x SCALE /
 //     hour), so any run of intervals pays the floor of its exact sum and a whole hour pays exactly the rate, however the windows
 //     were cut (TICK-1). No XP perk, buff or pace dial reaches it (member.js addFixedXp).
-//   NO SUPPLY (combat-sim.js, abilities.js payBasic -> trainingFree): the hero's bar is shut (only its plain basic swings, for
-//     free: no mana, no ammo, no rune, no food), and its stop rules don't apply; the yard is no hunt.
+//   NO SUPPLY (combat-sim.js, damage.js pickShot -> trainingBasic): the hero's bar is shut (only its plain basic swings, for free:
+//     no mana, no ammo, no rune, no food; a bow with nothing loaded shoots all the same), and its stop rules don't apply; the yard
+//     is no hunt.
+//   NO NO-FIGHT END (combat-sim.js): the pay is the time whatever the blows, so the hunt's ten quiet minutes never end a session.
 //   NO STAMINA (combat-sim.js): a training session spends none and proposes none; the pool rests while the hero trains
 //     (the server's hr_stamina_of). And THE HOUR'S EDGE (trainingStopMs, the edge settle): a settle of a yard session that
 //     still has hours to buy stops at the first instant of its next unpaid hour, so the server charges that hour (or ends
@@ -26,9 +28,9 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { TRAINING_RULES, TRAINING_GEAR } from '../../data/training.js?v=0.2.133';
-import { XP_FRAC_SCALE } from '../progression.js?v=0.2.133';
-import { DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.133';
+import { TRAINING_RULES, TRAINING_GEAR } from '../../data/training.js?v=0.2.135';
+import { XP_FRAC_SCALE } from '../progression.js?v=0.2.135';
+import { DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.135';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 
@@ -38,11 +40,18 @@ export function trainOf(ground) {
   return t && typeof t.skill === 'string' && typeof t.place === 'string' ? t : null;
 }
 
-/** The yard swings for free (abilities.js payBasic): true on a training ground, where no swing spends mana, ammo or a rune. */
-export const trainingFree = (ground) => trainOf(ground) !== null;
-
 /** The bar a training hero fights with (combat-sim.js): its plain basic alone. No spell, no rune, no food, no drink. */
 export const TRAINING_SLOTS = Object.freeze([DEFAULT_ATTACK_ROW]);
+
+/**
+ * THE YARD'S BASIC, ITS ONE DOOR FOR SUPPLY (damage.js pickShot, the loaded row): on a training ground the plain basic swings at
+ * `t` for free, priced at nothing (no ammo, no mana, so payBasic is never asked), whatever the hero carries: a bow with no arrows
+ * loaded or none left shoots the dummy too (Tyler 2026-11-16: it never landed a blow and the session ended `no_fight` after ten
+ * minutes). Null on a hunting ground, where the shot is the bar's.
+ */
+export function trainingBasic(ground, t) {
+  return trainOf(ground) ? { ammo: null, price: undefined, size: 1, aim: t } : null;
+}
 
 /** A DUMMY'S BLOW AT A HERO (damage.js hurt): `dmg` as it would land, capped so the hero stays at or over the floor. Any other blow: `dmg`. */
 export function dummyBlow(dealerRow, target, dmg) {

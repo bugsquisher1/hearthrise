@@ -2,15 +2,15 @@
   "id": "woodpile",
   "class": "fixture",
   "style": "s1",
-  "material": "wood",
+  "material": "native",
   "source": "woodpile.png",
   "frame": [
-    38,
-    23
+    40,
+    33
   ],
   "anchor_px": [
-    19,
-    22
+    20,
+    32
   ],
   "footprint": [
     1,
@@ -27,9 +27,9 @@
     }
   ],
   "pixellab": {
-    "tool": "create_image_pro_flash",
-    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
-    "cell": 2
+    "tool": "create_object_pro_flash",
+    "object": "80ea6463"
   },
-  "notes": "Cell 2 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "THE ONE WOODPILE (lane/a-havora-art 2026-11-16; style audit #1, Tyler on the Hearth: \"Somethings just dont match.. like these stacks of logs\"): the drawing of hold/kh_woodpile (PixelLab object 80ea6463, rough bark, dark gaps, cut ends lit from the upper left), copied here so the town, the Meadowbrook, the Glade and Wickstead stack one woodpile; the old cell-2 prop (round log ends on a ruler grid, lit from the lower right) is retired. Lifted one value step (lift 1) so its bark sits with the Great Hearth's ochre logs.",
+  "lift": 1
 }

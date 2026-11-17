@@ -9,7 +9,7 @@
 --   best" (removed whole: no week, no weekly landings table).
 --   HIDDEN: the switch `burning_tower` is seeded OFF; while it is off for an account its one door refuses (feature_off) and nothing else
 --   opens a climb (hr_hunt_admit: tower_only, ahead of the ordinary gate; until this file the Tower has no hr_hunts row, so that gate
---   refused it, and its row lands only after this file: 2027-04-24-tower-climb-hunts-catalogue.generated.sql, which checks the door first).
+--   refused it, and its row lands only after this file: 2027-05-02-tower-hunts-catalogue.generated.sql, which checks the door first).
 --
 -- ── WHY ────────────────────────────────────────────────────────────────────
 -- A climb is a hunt session on the Tower's ground in the `tower` mode (a death costs nothing, no coin, no drops, no Bestiary, 200 permille
@@ -32,10 +32,10 @@
 --   a replay answers once and opens once (the key read again under the door's lock: a press that waited on another of the same key answers
 --   its receipt); tower_runs gets one row a seat (party = the seats that entered).
 --   ok: { ok, version, session_id (the caller's), session, landing, floor, checkpoints, party (the party's view, in a party) }.
--- hr_hunt_instance_read RESTATED WHOLE (the 2027-04-23-session-modes.sql image, §0 pins it): the instance carries `tower_floor` (hr_tower_floor_of:
+-- hr_hunt_instance_read RESTATED WHOLE (the v0.2.135 image: 2027-04-25-boss-daily.sql's splice, §0 pins it): the instance carries `tower_floor` (hr_tower_floor_of:
 --   the open runs' highest floor cleared + 1, or the run's start; null on every other ground). hr-accrue reads it there and nowhere else
 --   (hunt-settle.js; none on the Tower's ground: `tower_pending`, the deploy-gap rule, nothing proposed, refused or counted).
--- hr_hunt_apply_member RESTATED WHOLE (the 2027-04-23-session-modes.sql image, §0 pins it). TOWER-CLIMB marks five changes:
+-- hr_hunt_apply_member RESTATED WHOLE (the v0.2.135 image: 2027-04-24-boss-call-series.sql's splice over boss-daily and bench-resume, §0 pins it). TOWER-CLIMB marks five changes:
 --   (1) `tower` is stripped from the session half's input (it is this member's own claim);
 --   (2) MODE_PAYS, for EVERY mode: a window that pays what its mode does not (coin; items or a Hearthfind; a Bestiary or task count: the journal's
 --       `km`, an `ev:` progress op) is refused whole before hr_apply writes a thing (hr_mode_pays). The full `hunt` mode pays everything: no-op;
@@ -47,9 +47,9 @@
 --   (5) hr_tower_write, on a climb only, after every bound held: each floor a room of the run's kills, but the first (tower_floor_forged), then
 --       the run's top floor, floors and kills (the chest's key mint reads its rise: 2027-04-27-tower-chest.sql) and the hero's best floor and
 --       landing (raise-only: the record the checkpoints and the boards read).
--- hr_hunt_settle_session SPLICED ONCE (2027-04-22-faction-standing.sql's image, §0 pins it; a second apply finds the arm): `floor_time` is proven
+-- hr_hunt_settle_session SPLICED ONCE (the v0.2.135 image, 2027-04-24-boss-call-series.sql's, §0 pins it; a second apply finds the arm): `floor_time` is proven
 --   as "a climb, at least one floor's time into it" (the room's instant is the engine's world): like `rule` and `boss_time`, it can only stop
---   value. Its hr_hunt_end_reasons row and the end_reason CHECK came with 2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql.
+--   value. Its hr_hunt_end_reasons row and the end_reason CHECK came with 2027-05-02-tower-hunt-sessions-catalogue.generated.sql.
 -- hr_hunt_admit RESTATED WHOLE (production's image, §0 pins it): the Tower's ground has one door, hr_tower_start (`hr.tower` names it for its
 --   own transaction); every other way in answers `tower_only`. No Level gate.
 -- tower_progress (user_id, slot) NEW: best_floor, best_landing (raise-only), best_at. tower_runs (session_id) NEW: one row a climb (instance,
@@ -102,12 +102,14 @@
 --   older engine never sees a climb (no client can open one while the switch is off), and a newer engine on an older database finds no
 --   `tower_floor` and waits (tower_pending).
 -- CLIENT: none (the window lane wires hr_tower_start and reads the climb; the live view's ctx.towerFloor is hunt_live.instance.tower_floor).
--- ORDER: after 2027-04-23-session-modes.sql: 2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql, then
---   2027-04-24-tower-climb-session-modes-catalogue.generated.sql, then 2027-04-24-tower-climb-catalogue.generated.sql, then THIS file, then
---   2027-04-24-tower-climb-hunts-catalogue.generated.sql (the Tower's hr_hunts row, once its one door stands).
+-- ORDER (lane/c-tower-all, 2026-11-17: the Tower applies after the whole v0.2.135 set): 2027-05-02-tower-items-catalogue.generated.sql,
+--   2027-05-02-tower-hunt-sessions-catalogue.generated.sql, 2027-04-24-tower-climb-session-modes-catalogue.generated.sql,
+--   2027-04-24-tower-climb-catalogue.generated.sql, then THIS file, then 2027-05-02-tower-hunts-catalogue.generated.sql (the Tower's
+--   hr_hunts row, once its one door stands). REBASED 2026-11-17 on the v0.2.135 images (bench-resume, boss-daily, boss-call-series):
+--   the TOWER-CLIMB lines are the same; every other line is the image §0 pins.
 -- REVERSIBLE: delete the Tower's hr_hunts row FIRST (2027-04-16-combat-training-hunts-catalogue's rows again), so no restated admit opens an
---   ordinary door to it; re-apply the §0 images of hr_hunt_apply_member and hr_hunt_instance_read (2027-04-23-session-modes.sql), hr_hunt_admit (production's)
---   and hr_hunt_settle_session (2027-04-22-faction-standing.sql); drop the trigger, the seven helpers, hr_tower_start and its baseline row, the
+--   ordinary door to it; re-apply the §0 images of hr_hunt_apply_member (2027-04-24-boss-call-series.sql) and hr_hunt_instance_read
+--   (2027-04-25-boss-daily.sql), hr_hunt_admit (production's) and hr_hunt_settle_session (2027-04-24-boss-call-series.sql); drop the trigger, the seven helpers, hr_tower_start and its baseline row, the
 --   two tables and the switch row. No value moved to undo (the Tower pays only XP, which a climb's own ledger rows name).
 -- IDEMPOTENT: a second apply finds the tables, restates every body byte-identical, finds the settle arm, re-creates the trigger, keeps the switch
 --   as the Coordinator left it (on conflict do nothing), and §10 rolls back its probes.
@@ -115,7 +117,7 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
--- Each restated body is exactly the image this file was written against (the replayed chain's, as of 2027-04-23-session-modes.sql), or this
+-- Each restated body is exactly the image this file was written against (the replayed chain's, as of the v0.2.135 set: 2027-05-01-v0135-live-events-catalogue.generated.sql), or this
 -- file's own (a second apply): md5 of pg_get_functiondef with every run of whitespace one space.
 do $mig$
 declare v_r record; v_md5 text;
@@ -125,7 +127,7 @@ begin
     raise exception 'PRECONDITION: apply 2027-04-24-tower-climb-catalogue.generated.sql first (hr_tower_rules, hr_tower_floors)'; end if;
   if not exists (select 1 from public.hr_hunt_grounds g join public.hr_tower_rules r on r.hunt_id = g.hunt_id)
      or not exists (select 1 from public.hr_hunt_end_reasons where reason = 'floor_time') then
-    raise exception 'PRECONDITION: apply 2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql first (the Tower''s ground, floor_time)'; end if;
+    raise exception 'PRECONDITION: apply 2027-05-02-tower-hunt-sessions-catalogue.generated.sql first (the Tower''s ground, floor_time)'; end if;
   if not exists (select 1 from public.hr_ground_session_modes g join public.hr_tower_rules r on r.hunt_id = g.hunt_id
                    join public.hr_session_modes m on m.mode_id = g.mode_id
                   where m.death_loss_pm = 0 and not m.blessings and not m.coin and not m.drops and not m.bestiary) then
@@ -139,8 +141,8 @@ begin
      or to_regprocedure('public.hr_hunt_party_of(uuid,integer)') is null then
     raise exception 'PRECONDITION: a helper this file calls is missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'add877806bb908e8e79416f2baafe912', '95bd76730b5c924746f7ed00a0178005'),
-    ('public.hr_hunt_instance_read(uuid,integer)', '158da9ba7d6a68295ba69ef346d77e27', '7e38eb39860d5f8f3db0d70842d320d0'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '54e0f8b2bc1fb22ba8432c8aaf55f01e', 'bd93399758d4c0de8cbfc9a5e6d03550'),
+    ('public.hr_hunt_instance_read(uuid,integer)', '57256e05303f02ffff4227bbeab17556', '89a296f58c1a4b28a6b54e0842634c38'),
     ('public.hr_hunt_admit(uuid,integer,text)', 'a35133547b1022f0eb1811728268f6e2', '9677c2ee50d8891e6787447f480eab32')) t(fn, pre, post) loop
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -149,9 +151,9 @@ begin
   end loop;
   -- The settle session takes ONE splice: before it, faction-standing's image; after it, that image with the arm (§7 checks the arm).
   v_md5 := md5(regexp_replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), '[[:space:]]+', ' ', 'g'));
-  if v_md5 is distinct from '959b4a30a0617ae08033a632bdd5c6b7'
+  if v_md5 is distinct from 'edf41c81bcc1ecb443ce92e61209b160'
      and strpos(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), 'TOWER-CLIMB (2027-04-24') = 0 then
-    raise exception 'PIN: hr_hunt_settle_session is neither 2027-04-22-faction-standing.sql''s image (959b4a30) nor carries this file''s arm: md5 %', v_md5; end if;
+    raise exception 'PIN: hr_hunt_settle_session is neither 2027-04-24-boss-call-series.sql''s image (edf41c81) nor carries this file''s arm: md5 %', v_md5; end if;
 end $mig$;
 
 -- ── §1 THE CLIMB'S TABLES (no client write: no policy but the owner's read, no grant but select) ─────────
@@ -487,7 +489,7 @@ begin
   return null;
 end $function$;
 
--- ── §5 THE ENGINE'S READ (hr_hunt_instance_read, RESTATED: the 2027-04-23-session-modes.sql image plus the instance's `tower_floor`) ─
+-- ── §5 THE ENGINE'S READ (hr_hunt_instance_read, RESTATED: the v0.2.135 image (2027-04-25-boss-daily.sql) plus the instance's `tower_floor`) ─
 CREATE OR REPLACE FUNCTION public.hr_hunt_instance_read(p_user uuid, p_slot integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -558,6 +560,11 @@ begin
                  -- LIVE-EVENTS (2027-03-22-live-events.sql): the member's own Level XP windows from the instance's clock to an hour past now
                  -- (hr_live_xp_windows: its switches, its ground, summed and capped); [] when none, so the engine sets no hook.
                  'live_xp', public.hr_live_xp_windows(h.user_id, v_i.hunt_id, v_i.settled_to, now() + interval '1 hour'),
+                 -- BOSS-DAILY (2027-04-25-boss-daily.sql): in a keyed hall, whether this hero's daily prize is still to take today
+                 -- (hr_boss_prize_left: no player_boss_loot_day row of today's); null on every other hunt. The engine rolls only on true.
+                 'prize_left', public.hr_boss_prize_left(h.user_id, h.slot, v_i.hunt_id),
+                 -- ...and whether that roll is this hero's FIRST on the boss, ever (hr_boss_prize_first): the engine makes it a sure one.
+                 'prize_first', public.hr_boss_prize_first(h.user_id, h.slot, v_i.hunt_id),
                  'state', public.hr_hunt_member_state(h.user_id, h.slot))
                  order by h.user_id, h.slot)
                from public.hunt_sessions h cross join lateral (select public.hr_hunt_member_read(h) as r0) m0
@@ -571,7 +578,7 @@ begin
     'now_ms', floor(extract(epoch from now()) * 1000)::bigint);
 end $function$;
 
--- ── §6 THE SETTLE (hr_hunt_apply_member, RESTATED: the 2027-04-23-session-modes.sql image with the five TOWER-CLIMB changes) ─
+-- ── §6 THE SETTLE (hr_hunt_apply_member, RESTATED: the v0.2.135 image (2027-04-24-boss-call-series.sql) with the five TOWER-CLIMB changes) ─
 CREATE OR REPLACE FUNCTION public.hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -608,8 +615,9 @@ declare
   v_unit_id int;
   v_bless jsonb;  -- the blessing hook's answer (hr_blessing_take, 2026-10-25-blessings.sql)
   v_loot  jsonb;  -- the loot filter's answer (hr_hunt_loot_rules, 2026-10-25-bag-rules.sql)
-  v_end text; v_lk text; v_li text; v_home timestamptz; v_ok boolean;
+  -- BENCH-RESUME (2027-04-24-bench-resume.sql): step (7)'s five locals went with it to hr_hunt_resume.
   v_train boolean;  -- TRAINING (2027-04-16-combat-training.sql): this session trains on a training ground (hr_training_grounds)
+  v_call  boolean;  -- CALL-SERIES (2027-04-24-boss-call-series.sql): this session fights in a called room (hr_boss_calls)
   v_mode  public.hr_session_modes%rowtype;  -- SESSION-MODES (2027-04-23-session-modes.sql): the instance's mode, frozen at its start
   v_tw    jsonb;  -- TOWER-CLIMB (2027-04-24-tower-climb.sql): this window's climb (hr_tower_check), or null off the Tower
 begin
@@ -662,8 +670,14 @@ begin
   -- TRAINING (2027-04-16-combat-training.sql): a training session spends no stamina and proposes none (a JSON null, src/core/combat-sim.js);
   -- the pool is never written here, so it rests while the hero trains (hr_stamina_of from its last stamp).
   v_train := exists (select 1 from public.hr_training_grounds t where t.hunt_id = v_s.hunt_id);
+  -- CALL-SERIES (2027-04-24-boss-call-series.sql): a called room's TIME spends no stamina (each fight is charged as it starts: hr_boss_call,
+  -- hr_boss_call_step), so its window's pool is the server's alone: whatever the engine proposes (null; a number from an engine that
+  -- predates this file) is ignored. Unlike training the pool does NOT rest in the room: it is stamped unchanged below.
+  v_call := exists (select 1 from public.hr_boss_calls c where c.hunt_id = v_s.hunt_id);
   if v_train then
     if v_stam is null or jsonb_typeof(v_stam) <> 'null' then perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'training')); end if;
+  elsif v_call then
+    if v_stam is not null and jsonb_typeof(v_stam) not in ('null', 'number') then perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'call')); end if;
   elsif v_stam is null or jsonb_typeof(v_stam) <> 'number' or (v_stam #>> '{}') !~ '^[0-9]{1,12}$' then
     perform public.hr_reject('bad_stamina'); end if;
   -- The cap over the window: premium_until only ever rises, so it is the
@@ -730,6 +744,14 @@ begin
   -- TRAINING (2027-04-16-combat-training.sql): A TRAINING WINDOW PAYS ITS SKILL AND NOTHING ELSE, refused whole before hr_apply writes a thing
   -- (hr_training_window: an allowlist, the trained skill's key only, no Level XP, no coin, no item, no kill, no death, a time bound).
   if v_train then perform public.hr_training_window(p_user, p_slot, v_s.hunt_id, v_s.settled_to, v_to, p_delta); end if;
+
+  -- BOSS-DAILY (2027-04-25-boss-daily.sql): A KEYED HALL'S BOSS PAYS HIS DROPS ONCE A DAY PER HERO. The window's claim (its journal's
+  -- `prize`, said only when the engine made this hero's roll) stamps today's row or finds it taken (hr_boss_prize_take): a prize row passes
+  -- only on a fresh stamp, one piece at most, beside the boss's journalled kill; otherwise it is taken off the delta here, before hr_apply
+  -- writes a thing. Any other hunt costs this one comparison (a hall's room is its ground's id and _hall) and one key test of its journal.
+  if right(v_s.hunt_id, 5) = '_hall' or coalesce(p_delta #> '{journal,meta}', '{}'::jsonb) ? 'prize' then
+    p_delta := public.hr_boss_prize_take(p_user, p_slot, p_session, p_intent, v_s.hunt_id, p_delta);
+  end if;
 
   -- (3) THE VALUE HALF: hr_apply, every row it writes stamped with the session.
   perform set_config('hr.hunt_session', p_session::text, true);
@@ -803,7 +825,9 @@ begin
        > v_kills * v_vb_xp * v_vb_h * public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) / 1000.0 then
     perform public.hr_reject('value_over', jsonb_build_object('what', 'level_xp', 'level_xp', p_delta->'level_xp', 'kills', v_kills,
       'max', v_kills * v_vb_xp * v_vb_h)); end if;
-  if jsonb_typeof(p_delta->'items') = 'object' then
+  -- CALL-SERIES: a called room journals no kill, so its items are held by its own bound instead (hr_boss_call_pays above: only the window
+  -- his kill fell in, only his table, at most its count), never by kills x the ground's spawns.
+  if jsonb_typeof(p_delta->'items') = 'object' and not v_call then
     select e.key into v_vb_item from jsonb_each(p_delta->'items') e
      where jsonb_typeof(e.value) = 'number' and (e.value #>> '{}')::numeric > 0
        and (e.value #>> '{}')::numeric > v_kills * coalesce((
@@ -838,7 +862,11 @@ begin
   if v_tick is null or v_tick <= 0 or v_paid <> v_nsw * v_tick then
     perform public.hr_reject('bad_clock', jsonb_build_object('paid_ms', v_paid, 'swings', v_nsw, 'interval_ms', v_tick)); end if;
   -- TRAINING (2027-04-16-combat-training.sql): a training window drains nothing and stamps nothing (the clock above is still re-proved).
-  if not v_train then
+  -- CALL-SERIES: a called room's window drains nothing and RESTS nothing: the pool as it stood at the window's start, stamped at its end.
+  if v_call then
+    v_e := v_s0;
+    update public.player_state set stamina_ms = v_e, stamina_at = v_to where user_id = p_user and slot = p_slot;
+  elsif not v_train then
     if v_e <> greatest(0, v_s0 - v_paid) then
       perform public.hr_reject('bad_stamina', jsonb_build_object('why', 'bound', 'from_ms', v_s0, 'ms', v_e, 'paid_ms', v_paid)); end if;
     if v_s0 <= 0 and v_nsw > 0 then perform public.hr_reject('end_missing', jsonb_build_object('reason', 'stamina')); end if;
@@ -959,6 +987,9 @@ begin
   -- trainingStopMs): paid from the account purse out of what this window's own store bill and the hero's floor leave, or the session ends gold_out
   -- right there (hr_training_hour). Its end, if any, rides the answer, so the resume below and the edge read it as any end.
   if v_train then v_h := public.hr_training_hour(p_user, p_slot, p_session, v_to, v_cost, v_floor, v_h); end if;
+  -- CALL-SERIES (2027-04-24-boss-call-series.sql): THE ROOM'S WIN AND ITS NEXT FIGHT (hr_boss_call_step): the win is proved from this window's
+  -- own kill and counted; a held end is charged its next fight or closed, as the room's plan says. Its end, if any, rides the answer.
+  if v_call then v_h := public.hr_boss_call_step(p_user, p_slot, p_session, p_delta, v_h); end if;
   -- LIVE-EVENTS: THE EVENT'S PART of this window's Level XP, apart on the tally (a best leaves it out). Never more than the window's Level XP,
   --   nor more than the account's own dial could add to it (a floor a kill, so the window's kills on top), and none with no event live.
   if p_hunt ? 'xp_event' then
@@ -1041,37 +1072,9 @@ begin
     v_fi := v_fi + 1;
   end loop;
 
-  -- (7) AN AUTOMATIC END RESUMES WHAT THE CHARACTER WAS DOING (after the walk home).
-  v_end := v_h->>'ended';
-  if v_end is not null and coalesce((select r.resumes from public.hr_hunt_end_reasons r where r.reason = v_end), false) then
-    select ps.last_activity_kind, ps.last_activity_id into v_lk, v_li from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot;
-    select h.ended_at + make_interval(secs => coalesce((select t.travel_s from public.hr_hunt_travel t where t.hunt_id = h.hunt_id), 0))
-      into v_home from public.hunt_sessions h where h.id = p_session;
-    v_ok := v_lk is not null and v_home is not null
-      and exists (select 1 from public.hr_activities a where a.kind = v_lk and a.activity_id = v_li)
-      and not exists (select 1 from public.hr_activities a
-                       where a.kind = v_lk and a.activity_id = v_li and a.req_skill is not null and a.req_lv is not null
-                         and coalesce((select public.hr_skill_level(a.req_skill, sk.xp) from public.player_skills sk
-                                        where sk.user_id = p_user and sk.slot = p_slot and sk.skill_id = a.req_skill), 1) < a.req_lv)
-      -- TUTORIAL-FACTS (2027-01-20-tutorial-facts.sql): a bench resumes only with the inputs for one action; else idle.
-      and public.hr_resume_has_inputs(p_user, p_slot, v_lk, v_li);
-    if v_ok then
-      update public.player_state
-         set active_kind = v_lk, active_id = v_li, active_since = v_home, accrued_to = v_home,
-             fight = '{}'::jsonb, version = version + 1, updated_at = now()
-       where user_id = p_user and slot = p_slot;
-      insert into public.hr_return_anchor (user_id, slot, real_return_at, updated_at)
-        values (p_user, p_slot, v_home, now())
-        on conflict (user_id, slot) do update
-          set real_return_at = greatest(public.hr_return_anchor.real_return_at, excluded.real_return_at), updated_at = now();
-    end if;
-    insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id)
-      values (p_user, p_slot, 'hunt', 'resume',
-              jsonb_build_object('reason', v_end, 'resumed', v_ok, 'kind', v_lk, 'id', v_li, 'at', v_home), p_session);
-    update public.hunt_session_events e
-       set data = e.data || jsonb_build_object('resume', case when v_ok then jsonb_build_object('kind', v_lk, 'id', v_li, 'at', v_home) else null end)
-     where e.session_id = p_session and e.id > v_ev0 and e.type = 'ended';
-  end if;
+  -- (7) AN AUTOMATIC END RESUMES WHAT THE CHARACTER WAS DOING (after the walk home), by the job's kind.
+  --     BENCH-RESUME (2027-04-24-bench-resume.sql): the step is hr_hunt_resume, whole, so a new kind of job never restates this body.
+  perform public.hr_hunt_resume(p_user, p_slot, p_session, v_h->>'ended', v_ev0);
   -- THE ANALYZER TALLY (display) and THE HERO'S UNIT (null once it has left).
   -- LIVE-EVENTS: the tally's one update also keeps the event's part (bounded above), analyzer or not.
   -- MEMBER-WRITE-ONCE: the store bill (v_cost > 0) rides this one write; each column keeps its own condition.

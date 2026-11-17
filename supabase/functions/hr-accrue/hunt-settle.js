@@ -682,6 +682,12 @@ async function memberInput(exec, m, inst) {
     /* A LIVE EVENT (2027-03-22-live-events.sql hr_live_xp_windows, through hr_hunt_instance_read `live_xp`): this member's own Level XP
        windows [[fromMs, toMs, pm], ...] over the span, already switched per account, summed and capped by the server; none, null. */
     liveXp: Array.isArray(m.live_xp) && m.live_xp.length ? m.live_xp : null,
+    /* A KEYED HALL'S DAILY PRIZE (2027-04-25-boss-daily.sql hr_boss_prize_left, through hr_hunt_instance_read `prize_left`): true when the
+       server's own day table holds no row of this hero's for today on the hall's boss. A read without it (an older server, any other
+       ground) is no roll: the engine never rolls a prize the database has not said is there to take. */
+    prizeLeft: m.prize_left === true,
+    /* ...and whether that roll is this hero's first on the boss, ever (hr_boss_prize_first, `prize_first`): the engine makes it a sure one */
+    prizeFirst: m.prize_first === true,
   };
 }
 

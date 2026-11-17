@@ -43,11 +43,19 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-02-08 is APPLIED history. The called rooms (Call out, lane/c-boss-call) join hr_hunts in 2027-03-12, with no spawn row: hunts.js CALLED_HUNTS. */
 /* 2027-03-12 is the file before this one. THE TRAINING GROUNDS (lane/c-combat-training, Tyler 2026-11-08; src/data/training.js) join hr_hunts in this
    forward file, with no spawn row (their one door is hr_training_start, like a called room's): hunts.js TRAINING_HUNTS. */
+/* 2027-04-16-combat-training is APPLIED history. THE FIVE MARCH PACKS FOLDED IN (lane/d-supply-prices, 2026-11-16): the income dial moves the open packs' own
+   server rows (their kill bounds and drops' bids, restated by the whole hunt-sessions file), and tools/pack's GP-3 holds an applied pack file to what ship renders
+   today unless every whole file carries the pack. This forward file is the same rows as 2027-04-16 with the five 2027-04-22 packs' hr_hunts rows folded in:
+   no row moves. */
 /* 2027-04-16 is the file before this one. THE BURNING TOWER (lane/c-tower-climb, Tyler 2026-11-14; src/data/tower.js) joins hr_hunts in this forward
    file, with no spawn row (its one door is hr_tower_start, its rooms the engine's: src/core/hunt/tower.js): hunts.js TOWER_HUNTS. It applies AFTER
    2027-04-24-tower-climb.sql, whose hr_hunt_admit sends the Tower to its one door before the ordinary gate reads hr_hunts, and its self-check
    refuses to land before that door stands: a Tower in hr_hunts with no door would be one the ordinary hr_hunt_enter opens. */
-export const OUT_NAME = '2027-04-24-tower-climb-hunts-catalogue.generated.sql';
+/* THE BURNING TOWER ON THE v0.2.135 SET (lane/c-tower-all, backend-architect, 2026-11-17; the Coordinator: one generator, ONE forward file regenerated on
+   the assembled branch): 2027-04-27-march-folded-hunts-catalogue is the file before this one and this one carries it whole, the March packs folded in. It
+   collapses 2027-04-24-tower-climb-hunts-catalogue (STAGED, never applied, now deleted): the Tower's one hr_hunts row joins here, and the file still
+   refuses to land before 2027-04-24-tower-climb.sql's hr_hunt_admit sends the Tower to its one door. ORDER: right after 2027-04-24-tower-climb.sql. */
+export const OUT_NAME = '2027-05-02-tower-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

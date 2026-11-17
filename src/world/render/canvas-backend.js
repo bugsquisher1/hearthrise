@@ -16,13 +16,13 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.133';
-import { composeFrame } from '../core/compose.js?v=0.2.133';
-import { layPlates } from '../core/plates.js?v=0.2.133';
-import { castBox } from '../core/shadows.js?v=0.2.133';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.133';
-import { createFrameSig } from './frame-sig.js?v=0.2.133';
-import { paintStub } from '../stub-atlas.js?v=0.2.133';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.135';
+import { composeFrame } from '../core/compose.js?v=0.2.135';
+import { layPlates } from '../core/plates.js?v=0.2.135';
+import { castBox } from '../core/shadows.js?v=0.2.135';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.135';
+import { createFrameSig } from './frame-sig.js?v=0.2.135';
+import { paintStub } from '../stub-atlas.js?v=0.2.135';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
@@ -81,11 +81,12 @@ export function createCanvasBackend(o) {
     zs = (z * T) / 32;
     /* THE BITMAP IS THE BOX IT IS SHOWN IN, device px for device px, so no browser resample ever touches the art: the canvas's
        own box (the stage's border is outside it; a bitmap 2 px over was squeezed back nearest-neighbour, dropping whole columns
-       and rows), from its edges, as the browser snaps them (a 1 px border is 0.8 CSS px at DPR 1.25). Its size never moves the stage. */
+       and rows), from its edges, as the browser snaps them (a 1 px border is 0.8 CSS px at DPR 1.25). Its size never moves the stage.
+       MEASURED here, GIVEN to the bitmap only by a frame that paints (draw): a canvas given a new size is cleared, and this one is
+       opaque, so a resize met while a frame is held (ready, missing) showed BLACK until the hold ended (report #81). */
     const r = canvas.getBoundingClientRect();
     W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));
     H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));
-    sizeTo(canvas, W, H);
     dirty = false;
   }
 
@@ -536,6 +537,7 @@ export function createCanvasBackend(o) {
     }
     kept.painted++;
     paintedAt = t0;
+    sizeTo(canvas, W, H);   // the size measure() read, cleared here and painted whole below (W and H are in the frame's signature)
     sizeTo(comp.c, view.w, view.h);
     const g = comp.g;
     g.imageSmoothingEnabled = false;
@@ -653,7 +655,7 @@ export function createCanvasBackend(o) {
       const named = plateHits.filter((q) => cx >= q.l && cx <= q.r && cy >= q.t && cy <= q.b).reverse()
         .map((q) => ({ id: q.id, tx: null, ty: null, ref: q.ref }));
       const hits = named.concat(roofed ? [] : last.sprites.filter(under).reverse().concat(last.decals.filter(under).reverse())
-        .filter((d) => d.kind !== 'wall' && d.kind !== 'stub' && d.kind !== 'door')
+        .filter((d) => d.kind !== 'wall' && d.kind !== 'stub' && d.kind !== 'door' && d.kind !== 'life')
         .map((d) => ({ id: d.id, tx: d.tx, ty: d.ty, ref: d.ref })));
       return { tile: [Math.floor(X / T), Math.floor(Y / T)], hits };
     },

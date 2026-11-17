@@ -4,6 +4,17 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-15 · game-designer (lane/d-mage-110) · the balance-sim graded every staged ground without Krell's hall drops
+- `tools/balance-sim/gear.mjs` reachWith built a staged ground's reach from `OPEN_GROUNDS` plus the ground and left out `OPEN_HALL_GROUNDS`, which `reachableSources`' own default carries. At Carter's Rest a Level 110 hammer wore the Ember Warhammer and Ember plate and a bow the Runewood Bow, while the Mage kept its Duskwood wand. Fixed on lane/d-mage-110. Every Morrow and Pauper Vaults grade before it read Melee and the bow a weapon tier short (Carter's Rest hammer 0.97 of the contract where it is 1.09).
+- The Mage's high-Level lead was cloth's `magicStrB` (0.4 of plate's defence a slot), not spawn density: the board's "2026-11-15 The Mage at 110 and up".
+
+## 2026-11-15 · game-designer (lane/d-catacombs) · past Dawnsteel the one formula gets harder with every Level
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 design, every post-Morrow ground · Dawnsteel (tier 7, worn from 88) is the last armor, but the stat formula keeps aiming a ground's monsters at a same-Level hero. On one tree (the Morrow's three packs open, quick grade) Carter's Rest at 110 reads a lone tank's Normal low 73% and a four's Deadly 2 deaths; the Pauper Vaults at 165 read 59% and 38. Spells are 6% of what lands. | src/data/balance-sheet.js STAT_FORMULA, the unique pieces (the Morrow's section 9), every ground past 128 | Tyler's call, on the board's "2026-11-15 The Pauper Vaults" section 8: the uniques carry the armor curve, or the formula reads the gear a hero can have at that Level. Not papered over with a named exception |
+| 2 | P2 economy, printed only · A lone melee at 165 eats about 300-350 Salted Lobster an hour (216 HP each against a 2,291 HP tank) and nets -33k to -34k; a bow +14k, a Mage +44k. The store's food stops at Level-50 sizes | src/data/supply-basics.js heal rows | NO PROFIT MOLDS: brought to Tyler as a case-by-case look, not tuned |
+
 ## 2026-11-14 · art-director (lane/b-map-audit) · a unit's feet land on its tile's SOUTH pixel row, so a bridge drawn on the tile rows misses them
 
 | # | Found | Affected | Action |
@@ -3970,7 +3981,50 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   bodies lifted (build.mjs `lift`/`shade`), every March monster now 3.06:1 or more on all four facings; world-assets [ring] holds it.
   Left: lifted earth-ramp bodies (Barrow Knight, Captain Hask) read as one warm brown with less dark weight than their drawings; a
   palette-born regen with a real lit rim would keep Hask's menace (gens, asset-director's call).
+
+## 2026-11-16 · qa-engineer (lane/a-text-short) · what re-pinning the short text pass turned up
+- P3, FIXED here: label lines (no period) glued into prose. Away card "The hunt has ended. Died Then Wrenna waited..." and "...train at the Yard Stamina now" (src/shell/away-recap.js now ends each label with a period); farm "Room for 2 plots 1 extra plot, gone..." (farm.js joins with " · "); Tempering way "...1 Bone Chips Bone Chips drop from..." (temper-pane.js puts a period after the smith's label). Class: any shell code that joins t() labels with ' ' into a sentence; not swept beyond these three.
+- P3, game-designer: facts the label sweep (base 5c64124de) dropped that a test used to prove: "waited in town" no longer gives the yard fee and purse (away.done_gold); the yard note lost "(can't pay: waits in town)"; already_in_party lost "Leave it in the Party window"; the stamina end lost "refills hour for hour"; wrong-weapon and no-weapon slots both read "Requires Shield". Pins now follow the source; rule whether any should come back.
+- P2, qa-engineer (open): phone-touch PH-6 CONTROL red at all 8 viewports: the longest real coach card is now 199 characters (base sweep 81afe2cf6/8dd0afffa made What next one label per goal and cut the deed line's material list), under the 300 the phone scroll proof needs. Needs a new long-card fixture (more goals in longCoach: tally, plant, saving, temper), not a lower bar.
+- P1 class, FIXED here: training-window TR-2 put `since` exactly 65 min back, so a server clock a few ms behind floored to "1 hour 4 minutes" (red once in 3 runs). Now 65.5 min.
+- 2026-11-16 update, PH-6 (P2, art-director + qa-engineer): the long-goal fixture now passes the 300-char control (deed at the server's 60-char cap, a party ground's how-to, the plant line), but the scroll proof still cannot bite: What next shows ONE goal in .hs-coach-text and the rest under More (.hs-coach-also, 96 px cap on phones, no gold tip), and no single label overflows a phone's text box. The coach-text scroll CSS and its PH-6/PH-27 mutants now guard a path no real card reaches; rule whether PH-6 should prove the More list instead.
 - 2026-11-16 (art-director, lane/a-ground-variety) WANG TRANSITIONS STILL REPEAT. Floor interiors now vary (terrain kind `variety`,
   world-core family V), but every wang pair still has ONE tile per transition key, so the town shows a regular pebble row along every
   grass/dirt edge and the water is one tile. The same edge-preserving shift (tools/world-art/variety.mjs) could vary a transition's
   own-material half; or a PixelLab Tileset Pro set with variant fills. Owner: art-director (pipeline) / asset-director (gens). P3.
+- 2026-11-16 (art-director, lane/a-havora-art) the note above is DONE for the town: the town's grass/earth, grass/water and two cobble pairs are
+  rebuilt by tools/world-art/havora-seams.mjs on lane/a-ground-seams's seams.mjs (ragged, bank, scatter; 4 variants a key)
+  and grass|dirt and cobble|dirt|grass edges are also drawn ragged at cell scale
+  (src/world/core/ground-rough.js, blend.rough; the walk mask is untouched; world-core family E). STILL OPEN: (1) Havora's river
+  dead-ends into the P10 home lot (rows 62-71 are earth under the lot) and reappears south of it: a plan fix (move the lot or
+  route the river), game-designer / Coordinator; (2) the square's six benches sit in a 2x3 grid because their seats are
+  server-held stands (2027-01-28 town-stands catalogue): arranging them round the ring is a lane C change; (3) the mountain
+  rock meets the dirt on a straight run (rock is solid: a walk-mask edit near the quarry stands, not done here).
+- 2026-11-16 (art-director, lane/a-ground-seams) GROUND SEAM AUDIT, every hunting ground rendered (art/review/ground-seams/before).
+  Fixed: Krell's Hold (kerb, scatter, rock outcrop), the Slake (shores). Open, ranked by what a player sees: (1) Wickstead: the
+  footbridge is a flat painted strip on a ruler-straight brook; the Burned House and the tilled plot are bare rectangles. (2) Meadowbrook:
+  the log raft (72 px of logs) sits a row below the trail and short of the west bank of a 160 px brook. (3) Mosslight: the river is one
+  straight band with a hairline bank. (4) Pyre Field: cinder pits and charred blocks are hard squares on the ash. (5) Sewer: the sewage
+  channel's L has no kerb. (6) Warrens: the chasm is a hard rectangle. (7) Muster: the barrow mounds step on the grid. (8) Hask's Ford:
+  the ford's water edges are straight. Mill Cellar: nothing. 1-3 are PixelLab view_map grounds with no paint grid: they need a grid
+  classified from their pixels and the pre-seam paint kept in art/world-src. No new PixelLab pixels needed so far. Owner: art-director.
+  UPDATE same day: shipped Wickstead (wk_footbridge), Meadowbrook (mb_log_bridge_long), Mosslight, Pyre Field, Sewer (kerb),
+  Warrens (all on lane/a-ground-seams, 0 gens). OPEN: Hask's Ford and Muster Barrows. Their pixel-read grids misclassify the
+  3-step-shaded bank cells (thicket squares over the ford: reverted). The paint grids their sidecars name
+  (art/briefs/hasks-ford-grid-2026-10-28.txt, muster-barrows-grid-2026-10-29.txt) are NOT in the tree: they exist only in WIP
+  commit a9277639e (b-muster-barrows-art). Next: restore those two files, feed them to seam-grounds as `grid`, render and read.
+  UPDATE round 3: SHIPPED Hask's Ford and the Muster Barrows from the restored briefs (`grid`), 0 gens. All eight are now done; what
+  is left, ranked: (1) EVERY ground's alder/thicket edge is still the painted one and steps on the grid (both March grounds, Wickstead,
+  Meadowbrook, Mosslight): a ragged cut through the canopy loses the crowns and the soil line that tell the wall from the grass at
+  night (rendered, rejected), so the next step is a `canopy` style that lays whole crowns along a wandering line. (2) Mosslight /
+  Meadowbrook / Wickstead lost a little canopy overhang where a grass cell touching both water and thicket was redrawn (the crowns
+  end on the cell line there): rerun them with `over: 'T'` (seam-grounds.mjs), render, read. (3) The Muster's barrow turf and its
+  mud track render the same dark brown at shade 3, so a mound reads as track (pre-existing; the turf needs its own value). Owner:
+  art-director (1, 2), asset-director/art-director (3). P3 each.
+  UPDATE round 4 (Coordinator's gate before new players): all three CLOSED. (1) seams.mjs style `canopy`: the thicket wall on all
+  five thicket grounds is laid in whole crowns on a jittered hex lattice along a wavy line, outlined, lit up-left, with a soil line
+  (March) or a cast shadow (meadow); read at night on the March grounds. (2) closed by (1): the overhang is drawn, not restored.
+  (3) the Muster's barrow turf is lifted two ramp steps (`lift`). Side effects to know: the whole-ground reseams overflow their sets,
+  so the Meadowbrook, Mosslight and Muster grounds now live in forest-floor, glade-floor and a new muster-floor (one ATLAS_SETS row);
+  the world-assets [wet] selftest had pointed at tiles the round-2 banks had moved (red since round 2), re-pinned; the Sewer's
+  crossing is a kerbed walkway since round 2 (no water under the grate). Still painted: the meadow grounds' dirt paths (G/D steps).

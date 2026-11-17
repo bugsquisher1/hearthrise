@@ -56,12 +56,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.133';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.133';
-import { isElement } from './elements.js?v=0.2.133';
-import { ITEMS } from './items.js?v=0.2.133';
-import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.133';
-import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.133';
+import { SUPPLIES } from './supplies.js?v=0.2.135';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.135';
+import { isElement } from './elements.js?v=0.2.135';
+import { ITEMS } from './items.js?v=0.2.135';
+import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.135';
+import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.135';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;
@@ -131,12 +131,17 @@ export const ABILITIES = Object.freeze([
     versions: [[10, 1000], [12, 1740], [14, 2520], [17, 3310], [21, 4100]], lvPm: LV_PM }),
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', dmg: [7, 13] }),
-  /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): a sword ALONE's
-     area, every monster beside the hero, each for 60% of the hero's own largest blow (hitPm), so it grows with the weapon. Worse
-     than Power Strike on one or two, better from three: a new slot starts "when it would hit at least 3". The tank gets nothing
-     new (its job is holding). PROVISIONAL: played once (lane/b-area-data, Wickstead, a lone sword at 18 in a full box: 336 casts
-     an hour, its largest damage line; none in the ground's own pull of two), never balanced. */
-  ab({ id: 'turning_cut', n: 'Turning Cut', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10, target: 'ring', maxHits: 8, hitPm: 600,
+  /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): every melee
+     weapon WITHOUT a shield (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on": a sword alone, two
+     axes, a club or hammer, bare hands), every monster beside the hero, each for 60% of the hero's own largest blow (hitPm), so it
+     grows with the weapon. Worse than Power Strike on one or two, better from three: a new slot starts "when it would hit at
+     least 3". The tank gets nothing new (its job is holding). MEASURED (lane/d-turning-cut-melee, the balance sim on the real
+     engine, default bars, 2 seeds): Normal moves at most +1.4% Level XP an hour (its pulls rarely put 3 beside a hero); a mixed
+     four 0 to +5%, a tank + hammer + axes + healer four up to +9% on Dangerous and Deadly; ALONE on Dangerous, where it fires most, the
+     sword gains +31% to +62%, a hammer +18% to +33%, axes +16% to +34% (they had Cleave already). One share for every weapon:
+     after it a lone hammer stands +23% over a lone wand at the Glade (24, iron), +5-7% at Hask's Ford and the Slake, -3% at
+     the Pyre Field and -15% at Krell's Hold, so no weapon leads everywhere; the numbers are on the board's 2026-11-16 section. */
+  ab({ id: 'turning_cut', n: 'Turning Cut', disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10, target: 'ring', maxHits: 8, hitPm: 600,
     trigger: [{ metric: 'enemies_in_aoe', op: 'gte', value: 3 }] }),
   /* dual axes — Melee DPS (bleed); the club shares the sweep, never the bleed */
   ab({ id: 'cleave', n: 'Cleave', disciplines: ['dual_axe', 'club'], lane: 'offense', cdMs: 6000, mana: 8, target: 'cleave', dmg: [6, 11], maxHits: 3 }),

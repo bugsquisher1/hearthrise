@@ -21,8 +21,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { DISCIPLINES } from './abilities.js?v=0.2.133';
-import { isShield } from './shields.js?v=0.2.133';
+import { DISCIPLINES } from './abilities.js?v=0.2.135';
+import { isShield } from './shields.js?v=0.2.135';
 
 /* role id → row.
    melee     true = attacks only from an adjacent tile, and only standing on it (RO-19)
@@ -204,7 +204,7 @@ export function validate() {
     if (!Number.isInteger(r.speed) || r.speed <= 0) out.push(id + ': speed must be a positive integer');
     if (!Number.isInteger(r.peel) || r.peel < 0 || r.peel > 1000) out.push(id + ': peel is permille 0..1000');
     if (r.basic !== undefined && !(r.basic && Number.isInteger(r.basic.mana) && r.basic.mana > 0 && Number.isInteger(r.basic.magicXpMult)
-      && r.basic.magicXpMult >= 0 && !r.melee)) out.push(id + ': a basic costs whole mana > 0 at a whole magicXpMult >= 0, and only a ranged role casts one');
+      && r.basic.magicXpMult >= 0 && !r.melee)) out.push(id + ': basic needs whole mana > 0, magicXpMult >= 0, ranged role only');
   }
   for (const [w, row] of Object.entries(ROLE_KEYS)) {
     if (!/^[a-z_]{1,32}$/.test(w)) out.push('role key ' + w + ': bad id');
@@ -218,15 +218,15 @@ export function validate() {
     if (tanks !== Object.values(SHIELD_ARM).includes(w)) out.push('weapon ' + w + (tanks ? ' plays the tank without a shield' : ' is a shield arm that plays no tank'));
   }
   for (const [w, to] of Object.entries(SHIELD_ARM)) if (!ROLE_KEYS[w] || !ROLE_KEYS[to]) out.push('shield arm ' + w + ' -> ' + to + ' names an unknown key');
-  if (!ROLE_KEYS.neutral) out.push('ROLE_KEYS has no neutral row (an unarmed hero)');
+  if (!ROLE_KEYS.neutral) out.push('ROLE_KEYS has no neutral row for an unarmed hero');
   for (const r of Object.keys(SHOT_SKILL)) if (!HUNT_ROLES[r] || HUNT_ROLES[r].melee) out.push('SHOT_SKILL ' + r + ': not a ranged role');
   if (!Number.isInteger(CHALLENGE.radius) || CHALLENGE.radius < 1) out.push('CHALLENGE.radius must be a positive integer');
   if (!Number.isInteger(CHALLENGE.holdMs) || CHALLENGE.holdMs <= 0 || CHALLENGE.holdMs % 100 !== 0) out.push('CHALLENGE.holdMs must be a whole number of 100 ms sub-steps');
   if (!Number.isInteger(CHALLENGE.holderMinHpPm) || CHALLENGE.holderMinHpPm < 0 || CHALLENGE.holderMinHpPm > 1000) out.push('CHALLENGE.holderMinHpPm is permille 0..1000');
   for (const [k, v] of Object.entries(AI_REPATH_MS)) if (!Number.isInteger(v) || v <= 0 || v % 100 !== 0) out.push('AI_REPATH_MS.' + k + ' must be a whole number of sub-steps');
   if (!Number.isInteger(SURROUND.repathMs) || SURROUND.repathMs % 100 !== 0) out.push('SURROUND.repathMs must be a whole number of sub-steps');
-  if (!Number.isInteger(OPEN_GROUND.steps) || OPEN_GROUND.steps < 0 || OPEN_GROUND.steps > 4) out.push('OPEN_GROUND.steps must be a whole number of moves 0..4 (a small step, never a walk across the room)');
-  if (!Number.isInteger(OPEN_GROUND.wayRound) || OPEN_GROUND.wayRound < 2 || OPEN_GROUND.wayRound > 8) out.push('OPEN_GROUND.wayRound must be a whole number of tiles 2..8 (the box and its ring, at least)');
+  if (!Number.isInteger(OPEN_GROUND.steps) || OPEN_GROUND.steps < 0 || OPEN_GROUND.steps > 4) out.push('OPEN_GROUND.steps must be whole moves 0..4, a small step');
+  if (!Number.isInteger(OPEN_GROUND.wayRound) || OPEN_GROUND.wayRound < 2 || OPEN_GROUND.wayRound > 8) out.push('OPEN_GROUND.wayRound must be whole tiles 2..8, box and ring at least');
   if (!(SPOT.hysteresis >= 0)) out.push('SPOT.hysteresis must be >= 0');
   return out;
 }

@@ -21,14 +21,14 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.133';
-import { whole, gold } from '../../../render/format.js?v=0.2.133';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.133';
-import { stateOf } from './state.js?v=0.2.133';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.133';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.133';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.133';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.133';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.135';
+import { whole, gold } from '../../../render/format.js?v=0.2.135';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.135';
+import { stateOf } from './state.js?v=0.2.135';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.135';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.135';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.135';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.135';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -46,7 +46,7 @@ export function renderInventory(ctx) {
 
 /** What a bag at or past its spaces means (midgame panel 2026-11-01: "114 of 100 spaces" with no word): the server's rule, 2027-02-11-hunt-loot-past-bag-cap.sql. Pure. */
 export function overBagWords(used, cap) {
-  return used >= cap ? 'Your bag is full. Hunts still pick up loot, but town work that makes a new item stops, and new items won\'t come out of Storage. Sell some, or put some away.' : '';
+  return used >= cap ? 'Bag full: sell or deposit to make room' : '';
 }
 
 /* The foot: the bag's spaces against the server's stack cap (hidden when the server sends none), and the gold. */
@@ -63,7 +63,7 @@ function patchFoot(root, st) {
     box.querySelector('.hw-capbar').setAttribute('aria-valuenow', String(used));
     text(root.querySelector('.hw-over'), overBagWords(used, cap));
   } else text(root.querySelector('.hw-over'), '');
-  text(root.querySelector('.hw-gold'), st.gold === null ? '' : 'Your gold ' + gold(st.gold));   // the ACCOUNT's purse, every hero's
+  text(root.querySelector('.hw-gold'), st.gold === null ? '' : 'Gold: ' + gold(st.gold));   // the ACCOUNT's purse, every hero's
   prop(root.querySelector('[data-hs-act="advanced"]'), 'checked', st.prefs.advanced);
 }
 

@@ -125,11 +125,33 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    APPLIED history. Sixteen new hr_items rows: a Training Sword, Bow, Wand and Shield in 12 and 24 hours, each the Arms Master's tradable
    row (book value its price / 100) and the Crowns store's bound copy (`_bound`, tradeable false, value 0: every trade surface refuses it),
    in ONE forward file, the same full delete+insert replace. No other row moves. */
+/* THE TRAINING ITEMS' SIZES (lane/c-training-gear-arm, the Coordinator 2026-11-16: the 12 h and 24 h items read alike in the bag, Storage
+   and the market): 2027-04-23-training-gear-items-catalogue is APPLIED history. hr_items.name of the sixteen training rows takes its size,
+   "Training Sword (12 h)" (src/data/training.js trainingGearName), in ONE forward file, the same full delete+insert replace, ids, values
+   and tradeability unchanged. The emitted self-check pins every landed name to the source by digest. */
+/* BOSS CALL DROPS (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: a called boss's win drops his table plus one call-only piece):
+   2027-04-23-training-gear-items-catalogue is the file before this one and this one carries it whole; the two call-only pieces (hr_items, hr_item_slots: the Kingstooth, a weapon, and the
+   Cauldron Lid, a shield; src/data/boss-calls.js CALL_ITEMS) land in ONE forward file, the same full delete+insert replace. No hero holds one until
+   lane C's call-drops migration lets a felled window carry them. */
+/* ...AND KRELL'S HOLD AS RE-SHIPPED (lane/c-krell-uniques: 2027-04-25-pack-krells_hold-2, Krell's two unique pieces). The applied training-gear whole files fold the
+   pack as its first file shipped it; the re-ship applies BEFORE this file (tests/schema-apply-order.json), so this file folds it as re-shipped
+   (tools/pack/whole.mjs). The 2027-04-26-krell-reship pair lane/d-audit-f22 staged for that alone was collapsed into this one when the lanes met
+   (one generator vouches for one file). */
+/* ONE FORWARD FILE FOR v0.2.135 (set/v0.2.135, 2026-11-17; the Coordinator 2026-11-16: regenerate ONCE on the assembled set and drop the per-lane
+   files): the three notes above met on one set, so 2027-04-30-training-gear-names-items-catalogue and 2027-04-23-boss-call-drops-items-catalogue
+   (both STAGED, never applied) are collapsed into this one file, which carries the training names, the two call-only pieces and Krell's re-shipped
+   pack. ORDER: after 2027-04-25-pack-krells_hold-2.generated.sql; before the v0.2.135 hunt-sessions file and 2027-04-30-training-gear-arm.sql. */
 /* THE BURNING TOWER'S CHEST (lane/c-tower-chest, Tyler 2026-11-14; src/data/chests.js): 2027-04-23-training-gear-items-catalogue is the file
    before this one (STAGED with lane/c-training-gear) and this one carries it. Five new hr_items rows, the four Tower keys and the Tower Cinders
    (bound, value 0: every trade surface refuses them), and the Cinders' Inner Flame rung (hr_activities artisan:fuel_tower_cinders, src/data/
    hearth.js HEARTH_FUELS), in ONE forward file, the same full delete+insert replace. No other row moves. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-27-tower-chest-items-catalogue.generated.sql');
+/* THE BURNING TOWER'S CHEST ON THE v0.2.135 SET (lane/c-tower-all, backend-architect, 2026-11-17; the Coordinator: one generator, ONE forward file regenerated
+   on the assembled branch): 2027-05-01-v0135-items-catalogue is the file before this one and this one carries it whole. It collapses
+   2027-04-27-tower-chest-items-catalogue (STAGED, never applied, now deleted): the four Tower keys and the Tower Cinders (bound, value 0), the
+   Cinders' Inner Flame rung (hr_activities artisan:fuel_tower_cinders), the Hearth Chest's 28 weapons and the Key Warden's bundle
+   (sweeps_coat_bundle, tradeable, book value 20,000). ORDER: the FIRST Tower file, after every v0.2.135 file; before the Tower's hunt-sessions
+   file (its weapons and the bundle's bid read these rows). */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-02-tower-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

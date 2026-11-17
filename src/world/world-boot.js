@@ -19,50 +19,53 @@
 // (opts.emit); no tap sends an intent (steer-local.js). WASD / arrows walk 8 ways unless a
 // text field has focus. opts.town (src/session/town-presence.js) gives the walkers and is the
 // one record of where this body stands in town (placeOn: a switch is not a move).
-// A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
+// A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt; a training session's says
+// where the hero trains and opens the Training window (idle-banner.js).
 // THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
 // THE GREAT HEARTH (hearth-burn.js): a town frame's fuel throws, flame colour and "+N Inner Flame", from server answers.
 // THE ART BY SCENE (atlas.js, scene-sets.js): every manifest on the first open, but a sheet only when a
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.133';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.133';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.133';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.133';
-import { MONSTERS } from '../data/monsters.js?v=0.2.133';
-import { compileMap } from './core/map-compile.js?v=0.2.133';
-import { createBook } from './core/book.js?v=0.2.133';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.133';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.133';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.133';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.133';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.133';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.133';
-import { createViewSheets } from './view-sheets.js?v=0.2.133';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.133';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.133';
-import { huntOfMap } from './hunt-maps.js?v=0.2.133';
-import { createHuntScene } from './hunt-scene.js?v=0.2.133';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.133';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.133';
-import { createWalkScene } from './walk-scene.js?v=0.2.133';
-import { createTownZoom } from './town-zoom.js?v=0.2.133';
-import { createIdleMotion } from './idle-motion.js?v=0.2.133';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.133';
-import { runAction } from './steer-local.js?v=0.2.133';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.133';
-import { heroDyeOf } from './hero-dye.js?v=0.2.133';
-import { monsterPourOf } from './monster-pour.js?v=0.2.133';
-import { towerOf } from '../session/tower-sections.js?v=0.2.133';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.133';
-import { homeOf } from '../session/home-sections.js?v=0.2.133';
-import { skillsOf } from '../session/item-sections.js?v=0.2.133';
-import { createHearthView } from './hearth-burn.js?v=0.2.133';
-import { townWorksSwap } from './town-works.js?v=0.2.133';
-import { farmCropProps } from './town-farm.js?v=0.2.133';
-import { farmFieldOf } from '../session/farm-sections.js?v=0.2.133';
-import { createTownShows } from './town-shows.js?v=0.2.133';
+import { BUILD } from '../build-info.js?v=0.2.135';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.135';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.135';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { compileMap } from './core/map-compile.js?v=0.2.135';
+import { createBook } from './core/book.js?v=0.2.135';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.135';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.135';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.135';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.135';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.135';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.135';
+import { createViewSheets } from './view-sheets.js?v=0.2.135';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.135';
+import { folkExtras } from './town-folk.js?v=0.2.135';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.135';
+import { huntOfMap } from './hunt-maps.js?v=0.2.135';
+import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.135';
+import { createHuntScene } from './hunt-scene.js?v=0.2.135';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.135';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.135';
+import { createWalkScene } from './walk-scene.js?v=0.2.135';
+import { createTownZoom } from './town-zoom.js?v=0.2.135';
+import { createIdleMotion } from './idle-motion.js?v=0.2.135';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.135';
+import { runAction } from './steer-local.js?v=0.2.135';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.135';
+import { heroDyeOf } from './hero-dye.js?v=0.2.135';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.135';
+import { homeOf } from '../session/home-sections.js?v=0.2.135';
+import { skillsOf } from '../session/item-sections.js?v=0.2.135';
+import { createHearthView } from './hearth-burn.js?v=0.2.135';
+import { townWorksSwap } from './town-works.js?v=0.2.135';
+import { farmCropProps } from './town-farm.js?v=0.2.135';
+import { farmFieldOf } from '../session/farm-sections.js?v=0.2.135';
+import { createTownShows } from './town-shows.js?v=0.2.135';
+import { monsterPourOf } from './monster-pour.js?v=0.2.135';
+import { towerOf } from '../session/tower-sections.js?v=0.2.135';
 /* the town's ambient rows left out while the Tower is hidden */
 const HIDE_CHEST = Object.freeze({ hearth_chest: true });
 
@@ -89,29 +92,10 @@ function bareSnapshot(G) {
     heroMaxHp: n(G.playerMaxHp), kills: n(G.combatKillsThisFoe), tickMs: 0, down: null };
 }
 
-/** The hunt the World can show today — the first hunt map's — named from the data. */
-const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));
 const standKeyOf = (town) => {
   const me = town && typeof town.me === 'function' ? town.me() : null;
   return me ? me.station + ':' + me.stand + ':' + me.since : null;
 };
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
-
-/**
- * A FIGHT THE WORLD HAS NO MAP FOR (Ridge Camp, say): the town or home stays on screen as the viewer picked, and one
- * slim line over it names where the hero really is and offers the hunt that IS in the World. Null when the scene speaks
- * for itself. Its button only names that hunt's entrance (the pane opens Hunts on it).
- * @param {object} G  read only
- * @param {{kind: string}} sc  the scene showing
- * @param {(id: string) => string} monsterName
- */
-function unmappedBanner(G, sc, monsterName) {
-  if (!G.activeMonster || sc.kind === 'hunt' || !OPEN_HUNT) return null;
-  const hunt = G._huntId && HUNT_INDEX[G._huntId];
-  const where = hunt ? hunt.name : 'Your fight with the ' + monsterName(G.activeMonster);
-  return '<p class="world-idle-line"><b>' + esc(where) + '</b> isn’t in the World yet. The ' + esc(OPEN_HUNT.name) + ' is.</p>'
-    + '<button type="button" class="world-idle-go" data-world-go="hunt">' + esc('Hunt in the ' + OPEN_HUNT.name) + '</button>';
-}
 
 /** The account's `home` section (session/home-sections.js), re-parsed only when an envelope replaces it. */
 function createHomeReader(character) {
@@ -320,7 +304,8 @@ export async function bootWorld(panel, opts) {
       if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
       walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character), heroDye: () => heroDye(character) },
-        sandboxExtras(map, mapSprites)));
+        /* the townsfolk at their work (town-folk.js, display only), then the sandbox's signs */
+        folkExtras(map, mapSprites), sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     /* THE SERVER MOVED ITS STAND (an activity, a hunt's end, a counter): it walks there, display only (town-stands) */
@@ -537,7 +522,9 @@ export async function bootWorld(panel, opts) {
     }
   }
   function onGo(e) {
-    if (e.target && e.target.closest && e.target.closest('[data-world-go]') && OPEN_HUNT) emit('entrance', { hunt: OPEN_HUNT.id });
+    const go = e.target && e.target.closest ? e.target.closest('[data-world-go]') : null;
+    if (go && go.getAttribute('data-world-go') === 'training') emit('keeper', { window: 'training' });
+    else if (go && OPEN_HUNT) emit('entrance', { hunt: OPEN_HUNT.id });
   }
   function onChoice(e) {
     const b = e.target && e.target.closest && e.target.closest('[data-world-choice]');
@@ -581,7 +568,14 @@ export async function bootWorld(panel, opts) {
      * from the next frame on, so a window never covers the hero: drawn now only
      * when the loop is not running (sync's rule; the shell hands a new pane its inset at once).
      */
-    setInset(o) { if (gone) return; backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
+    setInset(o) {
+      if (gone) return;
+      backend.setInset(o);
+      /* the World's one line stands above the HUD along the foot (the action bar), never under it (idle-banner.js bannerFoot) */
+      const foot = bannerFoot(o) + 'px';
+      if (idle.style.bottom !== foot) idle.style.bottom = foot;
+      if (panel.classList.contains('active') && !(running && live())) step(0);
+    },
     destroy() {
       gone = true;
       if (tokenWatch) tokenWatch.disconnect();

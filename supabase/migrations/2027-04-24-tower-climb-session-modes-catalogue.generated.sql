@@ -5,7 +5,7 @@
 -- STATUS: STAGED, NOT APPLIED (lane/c-tower-climb, backend-architect, 2026-11-15; the Tower's XP 375 from lane/c-tower-chest and every
 --   mode's checkpoint_every from lane/c-tower-checkpoints, 2026-11-16, folded in; phase 1 was 2027-04-23-session-modes-catalogue). The
 --   Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). ORDER: after
---   2027-04-24-tower-climb-hunt-sessions-catalogue.generated.sql (the Tower's ground must be served), before 2027-04-24-tower-climb.sql
+--   2027-05-02-tower-hunt-sessions-catalogue.generated.sql (the Tower's ground must be served), before 2027-04-24-tower-climb.sql
 --   (its start reads checkpoint_every, its settle xp_pm) and BEFORE the hr-accrue deploy that pays the new share: an engine paying more
 --   than xp_pm is refused value_over, one paying less is merely less. No function body.
 -- A row moves no value. hr_session_modes is upserted (an instance's frozen mode points at it: a mode in use refuses to go);

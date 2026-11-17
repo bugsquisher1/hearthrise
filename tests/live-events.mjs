@@ -8,7 +8,7 @@
 //   node tests/live-events.mjs            the guard
 //   node tests/live-events.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: supabase/migrations/2027-03-22-live-events.sql
+// mutant-anchors: supabase/migrations/2027-03-22-live-events.sql supabase/migrations/2027-04-24-boss-call-series.sql
 //
 // ARMS (no database)
 //   LE-PMAT    pmAt: a window holds [from, to): its start in, its end out; a malformed window is no window; no hook when nobody has one
@@ -26,9 +26,11 @@
 //   LE-BOUND   the commit re-proves the claim: the Level XP bound grows by the account's own dial and nothing else (kills x the
 //              ground's best kill x headroom x 1.25 lands, one more is refused; the same without the event is refused); an event
 //              part with no event live, or more than the dial could add, is refused (bad_xp_event)
-//   LE-FEE     OPEN HALLS: the quote is 0 for the account the switch holds while the window holds now; a free call seats the party,
-//              moves no gold, journals its row (fee_pm 0, the event) and counts toward the day's three; the same 0 with the switch
-//              off is a stale price (quote_changed) that moves nothing
+//   LE-FEE     OPEN HALLS WAIVES GOLD ONLY (2027-04-24-boss-call-series.sql: a series of fights, each costing stamina and a fee): the
+//              quote is 0 gold for the account the switch holds while the window holds now; its call seats the party, moves none of
+//              ITS gold, journals its row (fee_pm 0, the event) and still spends a fight's stamina; a member whose account the switch
+//              does not hold pays its own full fee (the dial is each account's own); the same 0 with the switch off is a stale price
+//              (quote_changed) that moves nothing
 //   LE-SECTION the envelope's `live_events` lists what is on or starts within 7 days for this account's switches; a stranger's is null
 //   LE-ANNOUNCE one System line a window edge, once, its words filled in UTC; a testers' event says nothing to everyone
 //
@@ -270,13 +272,15 @@ const DB_ARMS = {
     await db.query('select public.hr_party_open($1::uuid, 0)', [a]);
     const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [a]);
     await db.query('select public.hr_party_seat_into($1::uuid, $2::uuid, 0)', [pid, b]);
-    const fee = Number(await one(db, `select fee::text from public.hr_boss_calls where call_id = 'rat_king'`));
+    const fee = Number(await one(db, `select fight_fee::text from public.hr_boss_calls where call_id = 'rat_king'`));
+    const stam = Number(await one(db, `select fight_stamina_ms::text from public.hr_boss_calls where call_id = 'rat_king'`));
+    const pool0 = Number(await one(db, 'select public.hr_stamina_of($1::uuid, 0, now())::text', [a]));
     await event(db, 'zz_le_halls', 'open_halls', 0, ['world'], (await nowMs(db)) - 60 * MIN, 12);
     const quote = () => one(db, `select public.hr_boss_call_quote($1::uuid, 0, 'rat_king')`, [a]);
     const call = async (price) => {
       await db.query('delete from public.hr_rate_counters where user_id = $1', [a]);
       await asUser(db, a);
-      const r = await one(db, `select public.hr_boss_call(0, 'rat_king', $1, $2::uuid)`, [price, key()]);
+      const r = await one(db, `select public.hr_boss_call(0, 'rat_king', 2, $1, $2::uuid)`, [price, key()]);
       await asUser(db, '');
       return r;
     };
@@ -293,10 +297,16 @@ const DB_ARMS = {
     v = await call(0);
     const led = await rows();
     if (!v || v.ok !== true || await purse() !== 100000 || await seated() !== 2) bad.push('on: the free call answered ' + JSON.stringify(v).slice(0, 200) + ', the purse ' + await purse());
-    if (led.length !== 1 || led[0].intent !== 'boss_call:rat_king:0' || Number(led[0].gold || 0) !== 0 || led[0].meta.fee_pm !== 0 || led[0].meta.event !== 'zz_le_halls')
+    if (led.length !== 1 || led[0].intent !== 'boss_call:rat_king:2:0' || Number(led[0].gold || 0) !== 0 || led[0].meta.fee_pm !== 0 || led[0].meta.event !== 'zz_le_halls')
       bad.push('on: the free call journalled ' + JSON.stringify(led));
-    v = await quote();
-    if (v.used !== 1 || v.left !== Number(v.per_day) - 1) bad.push('on: the free call does not count toward the day: ' + JSON.stringify(v));
+    /* IT WAIVES GOLD ONLY: the fight's stamina is spent all the same */
+    const pool1 = Number(await one(db, 'select stamina_ms::text from public.player_state where user_id = $1 and slot = 0', [a]));
+    if (pool1 > pool0 - stam + 5000 || pool1 < pool0 - stam) bad.push('on: a fight with no fee left the pool at ' + pool1 + ' of ' + pool0 + ', want one fight (' + stam + ') off');
+    /* THE DIAL IS EACH ACCOUNT'S OWN: the member's account is not in the switch, so its first fight costs the row's fee; the leader's series keeps 0 */
+    const bGold = Number(await one(db, 'select public.hr_purse_of($1::uuid)::text', [b]));
+    if (bGold !== 100000 - fee) bad.push('on: the member outside the switch paid ' + (100000 - bGold) + ', want its own fee ' + fee);
+    const fees = await q(db, 'select user_id, call_fee::text as f from public.hunt_sessions where instance_id = $1 and ended_at is null order by seat', [pid]);
+    if (fees.length !== 2 || Number(fees.find((x) => x.user_id === a).f) !== 0 || Number(fees.find((x) => x.user_id === b).f) !== fee) bad.push('on: the series keeps the fees ' + JSON.stringify(fees));
     v = await call(-1);
     if (!v || v.error !== 'bad_quote') bad.push('a price under 0 answered ' + JSON.stringify(v));
     return bad;
@@ -365,7 +375,8 @@ async function runArms(db, M, only) {
 /* DB mutants: one anchored edit of a live body (every occurrence), the arm that must go red. Engine mutants: one anchored edit of a temp copy. */
 const SIG = { apply: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', windows: 'public.hr_live_xp_windows(uuid,text,timestamp with time zone,timestamp with time zone)',
   fee: 'public.hr_live_fee_of(uuid,text,timestamp with time zone)', quote: 'public.hr_boss_call_quote(uuid,integer,text)', view: 'public.hr_live_events_view(uuid,integer)',
-  announce: 'public.hr_live_events_announce(timestamp with time zone)', best: 'public.hr_hunt_best_fold(uuid)', read: 'public.hr_hunt_instance_read(uuid,integer)' };
+  announce: 'public.hr_live_events_announce(timestamp with time zone)', best: 'public.hr_hunt_best_fold(uuid)', read: 'public.hr_hunt_instance_read(uuid,integer)',
+  verb: 'public.hr_boss_call(integer,text,integer,bigint,uuid)' };
 const DB_MUTANTS = [
   { arm: 'LE-BOUND', name: 'the Level XP bound ignores the dial (an honest event window refused)', fn: SIG.apply,
     find: ' * public.hr_live_xp_max_pm(p_user, v_s.hunt_id, v_s.settled_to, v_to) / 1000.0 then', replace: ' then' },
@@ -381,9 +392,10 @@ const DB_MUTANTS = [
   { arm: 'LE-SWITCH', name: 'the XP windows never ask the switch', fn: SIG.windows, find: 'public.hr_feature_on(t.switch_id, p_user)', replace: 'true' },
   { arm: 'LE-PARTY', name: 'the XP windows are the first member\'s for every member', fn: SIG.read,
     find: 'public.hr_live_xp_windows(h.user_id,', replace: 'public.hr_live_xp_windows((select h2.user_id from public.hunt_sessions h2 where h2.instance_id = v_i.id order by h2.entered_at, h2.user_id limit 1),' },
-  { arm: 'LE-FEE', name: 'the quote ignores the fee dial', fn: SIG.quote, find: "v_price := (r.fee::bigint * (v_fee->>'pm')::int + 999) / 1000;", replace: 'v_price := r.fee::bigint;' },
+  { arm: 'LE-FEE', name: 'the quote ignores the fee dial', fn: SIG.quote, find: "v_price := (r.fight_fee::bigint * (v_fee->>'pm')::int + 999) / 1000;", replace: 'v_price := r.fight_fee::bigint;' },
   { arm: 'LE-FEE', name: 'the fee dial never asks the switch', fn: SIG.fee, find: 'and public.hr_feature_on(t.switch_id, p_user)', replace: '' },
-  { arm: 'LE-FEE', name: 'a free call is not counted toward the day', fn: SIG.quote, find: "and l.intent like 'boss\\_call:%'", replace: "and l.intent like 'boss\\_call:%' and coalesce(l.gold, 0) <> 0" },
+  { arm: 'LE-FEE', name: 'a waived fee waives the stamina too', fn: SIG.verb, find: 'set stamina_ms = v_stam - v_c.fight_stamina_ms, stamina_at = v_m.hunt_from,', replace: 'set stamina_ms = v_stam - (case when v_fee = 0 then 0 else v_c.fight_stamina_ms end), stamina_at = v_m.hunt_from,' },
+  { arm: 'LE-FEE', name: 'a member rides the leader\'s dial', fn: SIG.verb, find: "v_pm := (public.hr_live_fee_of(v_m.user_id, v_c.call_id, now())->>'pm')::int;", replace: "v_pm := (public.hr_live_fee_of(v_uid, v_c.call_id, now())->>'pm')::int;" },
   { arm: 'LE-SECTION', name: 'the section lists every event, switch or not', fn: SIG.view, find: '           where public.hr_feature_on(t.switch_id, p_user)) x;', replace: '           ) x;' },
   { arm: 'LE-ANNOUNCE', name: 'a testers\' event is announced to everyone', fn: SIG.announce, find: "and f.scope = 'everyone');", replace: "and f.scope <> 'off');" },
   { arm: 'LE-ANNOUNCE', name: 'an edge is announced at every run', fn: SIG.announce, find: 'continue when v_ins = 0 or not v_on;', replace: 'continue when not v_on;' },

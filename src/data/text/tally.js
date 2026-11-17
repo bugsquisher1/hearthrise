@@ -9,7 +9,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const TALLY_TEXT = Object.freeze({
-  /* HER LINE, one per state. {task} is "25 Giant Rats" or "The Rat King, 5 times"; {ground} the hunt's name. */
+  /* HER LINE, one per state (@sentence: Tamsin talking, and NPC talk is lore). {task} is "25 Giant Rats" or "The Rat King, 5 times"; {ground} the hunt's name. */
   say_first: 'I kept the mill\'s rats down myself for thirty years. Then they got a king, so now I pay people to do it. Take one off my board.',
   say_none: 'Board\'s full of work. Take one and go hunt, and I\'ll pay you when you\'re back.',
   say_taken: '{task} in {ground}. Every kill counts, even while you\'re away, so off you go.',
@@ -25,55 +25,55 @@ export const TALLY_TEXT = Object.freeze({
   count_3: 'three',
 
   /* The day's count beside her name, from the server's cap fields. {left} is "6 h" or "20 m". */
-  day_paid: 'Paid today {paid} of {perDay}',
+  day_paid: 'Paid today: {paid} of {perDay}',
   day_resets: 'resets in {left}',
 
   /* Section heads. */
-  head_mine: 'Your tallies',
+  head_mine: 'Tallies',
   head_mine_count: '{held} of {max}',
   head_board: 'Her board',
 
   /* A held task's entry: what she pays for it (her board's own line), and a done one's next step. */
-  get: 'You\'ll get {gold} and {pick}.',
-  once: 'When two tasks show the same piece, you get it once. Whichever she pays you for first comes with it, and the other moves on to her next piece.',
-  done_hunting: 'Done. I\'ll pay you when you\'re back in town.',
-  done_town: 'Done. I\'ll pay you now.',
-  done_tomorrow: 'Done. I\'ll pay you for this one tomorrow.',
-  done_bag: 'Done. Make room in your bag and I\'ll pay you.',
-  counting_here: 'Counting here in {ground}.',
+  get: 'Reward: {gold} and {pick}',
+  once: 'Shared piece: paid once, on the first task done',
+  done_hunting: 'Done, collect in town',
+  done_town: 'Done, collecting now',
+  done_tomorrow: 'Done, collect tomorrow',
+  done_bag: 'Done, bag full',
+  counting_here: 'Counting in {ground}',
   not_here: 'Not here',
-  keep_on: 'You get this task again as soon as she pays for it.',
-  keep_off: 'Once she pays for it, it won\'t come back by itself.',
-  given_up: 'You gave up the {label}. Its count is gone.',
-  taken: 'Taken. {counts}',
-  taken_weight: 'Taken. {counts} She\'ll pay you in {weight} armor.',
+  keep_on: 'Repeats as soon as she pays',
+  keep_off: 'Does not repeat after she pays',
+  given_up: 'Abandoned {label}, count lost',
+  taken: 'Taken: {counts}',
+  taken_weight: 'Taken: {counts}, paid in {weight} armor',
 
   /* Her board: the rows she still has for you, and the one line that says why every Take is off. */
   board_loading: 'Loading her board…',
-  board_hunting: 'You can take more when you\'re back in town.',
-  board_full: 'You have {n} of mine already. Finish one or give one up.',
+  board_hunting: 'Take more in town',
+  board_full: 'Max tasks: {n}. Finish or abandon one',
   board_level: 'Level {level}',
   board_level_party: 'Level {level}, party',
   board_party: 'Best with a party',
-  take_held_why: 'You already have this task.',
-  no_weight: 'Pick the armor weight she pays you in first. You can change it later.',
+  take_held_why: 'Task already held',
+  no_weight: 'Pick an armor weight first',
 
   /* Her pick, folded to one line at the foot; Change opens the picker (Take, Abandon, Keep and Close are the glossary's, src/data/text/controls.js). */
-  pick_label: 'The armor weight she pays you in',
-  order_label: 'The order she fills your slots in',
-  pick_line: 'She pays you in {weight} armor, {first} first, then {second} and {third}.',
+  pick_label: 'Reward armor weight',
+  order_label: 'Reward slot order',
+  pick_line: 'Paid in {weight} armor: {first}, then {second} and {third}',
   pick_none: 'No armor weight picked yet.',
   /* Before the server answers her first-visit ask (tally.js suggestedWeight): the weight that suits and why, said once. {role} is "a shield tank". */
-  suggest_worn: 'She\'ll pay you in {weight} armor, since that\'s what you wear most.',
-  suggest_role: 'She\'ll pay you in {weight} armor, since you\'re {role}.',
+  suggest_worn: 'Suggested: {weight}, worn most',
+  suggest_role: 'Suggested: {weight}, for {role}',
   change: 'Change',
   weight_heavy: 'Heavy',
   weight_medium: 'Medium',
   weight_light: 'Light',
-  weight_set: 'She\'ll pay you in {weight} armor from now on.',
-  order_how: 'She fills your slots in this order. Tap one to have it first.',
-  slot_first_why: 'This one already comes first.',
-  rule_worn: 'She skips a slot you already wear at that tier or better. Once she\'s out of pieces for a ground, she pays in materials.',
+  weight_set: 'Now paid in {weight} armor',
+  order_how: 'Tap a slot to move it first',
+  slot_first_why: 'Already first',
+  rule_worn: 'Skips slots worn at that tier or better, then pays materials',
   slot_helmet: 'Head',
   slot_body: 'Body',
   slot_pants: 'Legs',
@@ -82,8 +82,8 @@ export const TALLY_TEXT = Object.freeze({
   slot_belt: 'Waist',
 
   /* While an ask is out, and what she says when it lands. */
-  checking: 'Tamsin checks your tasks…',
-  paid_for: { one: 'Tamsin paid you for {count} task.', other: 'Tamsin paid you for {count} tasks.' },
+  checking: 'Checking tasks…',
+  paid_for: { one: 'Tamsin paid for {count} task', other: 'Tamsin paid for {count} tasks' },
   taking: 'Taking it…',
   giving_up: 'Giving it up…',
   saving: 'Saving…',

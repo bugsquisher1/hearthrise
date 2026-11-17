@@ -90,17 +90,15 @@ const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-gr
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
 /* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
 const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
-const { BOSS_CALLS } = await import(pathToFileURL(join(ROOT, 'src/data/boss-calls.js')).href);
-/* the boss as a sentence opens on him: a called boss's words ("The Rat King"), else his own name ("Captain Hask", never "The Captain Hask") */
-const bossWords = (id) => (Object.values(BOSS_CALLS).find((c) => c.of === id) || { Boss: MONSTERS[id].name }).Boss;
+/* the note is a label, its size a digit (Tyler 2026-11-14: "Recommended: 4+ players" ... "Perfect") */
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   const p = g.pockets.find((q) => q.forParty);
   const boss = p && p.spawns.map((x) => x.monster).find((m) => MONSTERS[m] && MONSTERS[m].boss);
-  return [g.hunt, p && boss ? bossWords(boss) + ' is built for a group of ' + ['', 'one', 'two', 'three', 'four'][p.forParty] + ' or more. Alone, you still fight him, and he can kill you.' : ''];
+  return [g.hunt, p && boss ? 'Recommended: ' + p.forParty + '+ players' : ''];
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
-/* lane/d-march-text: the Barrows' note read "The Captain Hask is built for a group of four or more." A named man takes no "The". */
-if (!/^Captain Hask is built for a group of four or more\./.test(PARTY_NOTES.muster_barrows || '')) throw new Error('party-ui: UI-5 the Barrows\' note reads ' + JSON.stringify(PARTY_NOTES.muster_barrows));
+/* Tyler 2026-11-14 rejected "Captain Hask is built for a group of four or more. Alone, you still fight him, and he can kill you." for this exact label. */
+if (PARTY_NOTES.muster_barrows !== 'Recommended: 4+ players') throw new Error('party-ui: UI-5 the Barrows\' note reads ' + JSON.stringify(PARTY_NOTES.muster_barrows));
 const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
   'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_list', 'hr_hunt_party_warn'];
 
@@ -162,7 +160,7 @@ function account(M, srv) {
 /* (a seat's weapon is the server's ROLE KEY: a sword and a shield is 'shield', Tyler 2026-10-23) */
 const ANDY_SEATS = [[0, 1, 'Eddie', 39, 'shield', 616, 'tank'], [1, 7, 'Hank', 27, 'hammer', 420, 'melee_dps'],
   [2, 13, 'Apollo', 28, 'wand', 390, 'mage'], [3, 20, 'Fremulon', 38, 'shield', 604, 'tank']];
-const TURNS_NOTE = 'Your tanks take turns holding the pack, one lap each. The other tank pulls monsters off the rest of the party.';
+const TURNS_NOTE = 'Tanks take turns, one lap each';
 /** The party section the server projects (hunting or in town; `self` the viewer's seat, `hold` the hold seat, `frem` Fremulon's max HP). */
 function andyParty(o) {
   const { hunting = false, self = 0, hold = null, frem = 604 } = o || {};
@@ -217,7 +215,7 @@ async function pureRules(M, base) {
       [{ active_kind: 'gather', active_id: 'copper_rock' }, 'mining the '], [{ active_kind: 'training', active_id: 'dummy' }, 'training'],
       [{ active_kind: 'artisan', active_id: 'no_such_recipe' }, 'at a workbench']]) {
       const line = M.BURY.buryLine(at(st));
-      if (!/or stop it here\.$/.test(line) || !line.includes(want)) return 'the Stop line for ' + JSON.stringify(st) + ' reads ' + JSON.stringify(line);
+      if (!line || !/^[A-Z]/.test(line) || !line.toLowerCase().includes(want.toLowerCase())) return 'the Stop line for ' + JSON.stringify(st) + ' reads ' + JSON.stringify(line);
       const doing = M.PS.assignmentOf(at(st)).text;
       if (!doing.startsWith('In town, ' + want)) return 'Characters reads ' + JSON.stringify(doing) + ' for ' + JSON.stringify(st);
     }
@@ -255,7 +253,7 @@ async function pureRules(M, base) {
     if (centre2.list().length) return 'the on-screen hero’s death also raised a side line: ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
     acc2.viewed = 1;   // another hero on screen
     await cs2.load(); await cs2.load();
-    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/died in .* and returned to town/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
+    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/^Tyler died in The Sewer$/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
     srv.env[0].hunt.ended = false;
     srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: null, ended_at: null, phase: 'hunting' });
     M.AL.setAlertShown(cs2, 'rare', false);
@@ -604,7 +602,7 @@ async function pureRules(M, base) {
     if (none !== true) return none;
     andySeed(M, engine, { runs: 0, frem: 500 });
     return want(panelShown(M, dom, ctx), 'Eddie:Holds every lap|Hank:|Apollo:|Fremulon:Too weak to hold', 'Eddie',
-      'Your strongest tank holds the pack every lap. A tank with under 90% of its max health never holds.', 'the next hunt, a weak second tank');
+      'Strongest tank holds every lap, under 90% max health skipped', 'the next hunt, a weak second tank');
   });
 
   /* PR-6 WHO HOLDS THE PACK, THE LEADER'S CHOICE (Tyler 2026-10-22): with two or more tanks the LEADER sees
@@ -651,7 +649,7 @@ async function pureRules(M, base) {
     if (sent.length !== 1 || Object.keys(sent[0][1]).sort().join() !== 'p_idem,p_seat,p_slot' || sent[0][1].p_seat !== 0 || sent[0][1].p_slot !== 0) return '"One tank holds" sent ' + JSON.stringify(sent);
     if (!srv.calls.some((c) => c[0] === 'hr_load')) return 'the answer was not re-read';
     v = panelShown(M, dom, ctx);
-    const EDDIE = 'Eddie holds the pack every lap. Fremulon takes over if Eddie leaves. Only Eddie trains Defense from holding.';
+    const EDDIE = 'Eddie holds every lap, Fremulon takes over if Eddie leaves';
     if (btn('hold-one').getAttribute('aria-pressed') !== 'true' || tanksShown() !== 'Eddie*,Fremulon' || v.note !== EDDIE) return 'after the answer the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
     /* a reload: a new session over the same server shows the pick still set */
     const acc2 = account(M, srv);
@@ -665,7 +663,7 @@ async function pureRules(M, base) {
     srv.reply = { ok: false, error: 'not_a_tank' };
     await press('hold-seat', fremulon());
     v = panelShown(M, dom, ctx);
-    if (dom.el.querySelector('.hp-msg').textContent !== 'Only a hero with a sword and shield can hold the pack.') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
+    if (dom.el.querySelector('.hp-msg').textContent !== 'Requires a sword and shield') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
     if (srv.calls.some((c) => c[0] === 'hr_load') || tanksShown() !== 'Eddie*,Fremulon') return 'a refusal changed the switch: ' + tanksShown();
     srv.calls.length = 0;
     srv.reply = { ok: true };
@@ -673,7 +671,7 @@ async function pureRules(M, base) {
     const third = srv.calls.filter((c) => c[0] === 'hr_party_hold_set');
     if (third.length !== 1 || third[0][1].p_seat !== 3) return 'a press on Fremulon sent ' + JSON.stringify(third);
     v = panelShown(M, dom, ctx);
-    if (tanksShown() !== 'Eddie,Fremulon*' || v.note !== 'Fremulon holds the pack every lap. Eddie takes over if Fremulon leaves. Only Fremulon trains Defense from holding.') return 'after Fremulon the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
+    if (tanksShown() !== 'Eddie,Fremulon*' || v.note !== 'Fremulon holds every lap, Eddie takes over if Fremulon leaves') return 'after Fremulon the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
     srv.calls.length = 0;
     await press('hold-seat', fremulon());
     await press('hold-one');
@@ -710,7 +708,7 @@ async function pureRules(M, base) {
     const cs = { read: (k) => (k === 'party' ? section : undefined), live: engine };
     const dom = fakeDom();
     const ctx = { character: cs, account: null, doc: dom.doc, glyphs: {} };
-    const FREM = 'Fremulon holds the pack every lap. Eddie takes over if Fremulon leaves. Only Fremulon trains Defense from holding.';
+    const FREM = 'Fremulon holds every lap, Eddie takes over if Fremulon leaves';
     const want = (v, rows, holding, note, warn, what) => (v.rows === rows && v.holding === holding && v.note === note && v.warn === warn) || what + ' reads ' + JSON.stringify(v);
     andySeed(M, engine, { runs: 0, hold: 20, holdNext: 20 });
     const held = want(panelShown(M, dom, ctx), 'Eddie:Guards the party|Hank:|Apollo:|Fremulon:Holds every lap', 'Fremulon', FREM, '', 'the pick in force');
@@ -797,7 +795,7 @@ async function pureRules(M, base) {
     srv.calls.length = 0;
     srv.reply = { ok: false, error: 'rate_limited' };
     await change(true);
-    if (dom.el.querySelector('.hp-msg').textContent !== 'Too many changes at once. Try again in a moment.') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
+    if (dom.el.querySelector('.hp-msg').textContent !== 'Too many changes, try again') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
     v = boxesOf(dom, ctx);
     if (srv.calls.some((c) => c[0] === 'hr_load') || v !== 'Eddie:off|Hank:-|Apollo:-|Fremulon:-') return 'a refusal changed the box: ' + v;
     srv.reply = { ok: true };
@@ -855,9 +853,9 @@ async function pureRules(M, base) {
      Normal for every group (Tyler 2026-11-11) a one-class party loses a lot there, so its line says how to get more (lane/d-party-xp-cells). */
   await t('PR-CLASS', async () => {
     const L = M.PRO.classXpLine;
-    const head = (k) => 'Your party has ' + k + ' of 4 classes. ';
-    const more = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% more Level XP than hunting alone in ' + place + '.';
-    const less = (k, vs, place) => head(k) + 'Each of you gets about ' + vs + '% less Level XP than hunting alone in ' + place + '. Mix Melee, Ranger, Mage and Healer to get more.';
+    const head = (k) => 'Classes: ' + k + ' of 4. ';
+    const more = (k, vs, place) => head(k) + 'Level XP each: about +' + vs + '% vs solo in ' + place;
+    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + '. Mix Melee, Ranger, Mage and Healer for more';
     for (const [roles, hunt, want] of [
       [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
@@ -879,7 +877,7 @@ async function pureRules(M, base) {
       [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
       [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 50, 'Wickstead')],
       /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): the Pyre Field's mixed pair reads -5 */
-      [['tank', 'ranger'], 'pyre_field', head(2) + 'Each of you gets about 5% less Level XP than hunting alone in The Pyre Field.'],
+      [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about -5% vs solo in The Pyre Field'],
       [['tank', 'melee_dps'], 'pyre_field', less(1, 35, 'The Pyre Field')],
     ]) {
       if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
@@ -888,9 +886,9 @@ async function pureRules(M, base) {
     for (const [g, row] of Object.entries(M.PCX.PARTY_VS_ALONE)) for (const [n, cells] of Object.entries(row)) cells.forEach((vs, i) => {
       /* the row's one-class cell is read by one class of two roles: a four of one role may read its own line (pinned above) */
       const roles = Array.from({ length: Number(n) }, (_, s) => (i === 0 && s % 2 ? 'melee_dps' : all[Math.min(s, i)]));
-      const pay = vs > 0 ? 'about ' + vs + '% more Level XP than hunting alone in ' : vs < 0 ? 'about ' + -vs + '% less Level XP than hunting alone in ' : 'about the same Level XP as hunting alone in ';
+      const pay = vs > 0 ? 'about +' + vs + '% vs solo in ' : vs < 0 ? 'about -' + -vs + '% vs solo in ' : 'about the same as solo in ';
       const hunt = Object.values(HUNT_GROUNDS).find((x) => x.id === g).hunt;
-      if (!L(roles, hunt).includes((i + 1) + ' of 4 classes. Each of you gets ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
+      if (!L(roles, hunt).includes((i + 1) + ' of 4. Level XP each: ' + pay)) throw new Error(g + ' ' + roles + ' reads ' + L(roles, hunt) + ', the cell is ' + vs);
     });
     /* On the tab: shown before a hunt starts, gone once anyone hunts, none alone. */
     const seat = (s, weapon, hunting) => ({ seat: s, unit: null, name: 'H' + s, level: 6, weapon, hunting: hunting === true, hp: 100, hp_max: 100 });
@@ -903,7 +901,7 @@ async function pureRules(M, base) {
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
-    return (fresh && /2 of 4 classes\. Each of you gets about (\d+% (more|less)|the same) Level XP /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
+    return (fresh && /Classes: 2 of 4\. Level XP each: about ([+-]\d+% vs solo|the same as solo) /.test(fresh)) || 'a party with no ground yet reads ' + JSON.stringify(fresh);
   });
 
   /* PR-TRUTH (blind panel 2026-11-01): what the server knows, said. A swapped weapon changes the role, the class line and the panel; a friend's
@@ -914,8 +912,8 @@ async function pureRules(M, base) {
       members: [{ seat: 0, name: 'Bramwell', level: 6, weapon: w1, hunting: false }, { seat: 1, name: 'Wrenna', level: 6, weapon: w2, hunting: false }] });
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
-    if (before[0] !== 'tank,tank' || !/has 1 of 4 classes/.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/has 2 of 4 classes\. Each of you gets about 45% more Level XP than hunting alone in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
+    if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4\./.test(before[2])) return 'two shields read ' + JSON.stringify(before);
+    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/Classes: 2 of 4\. Level XP each: about \+45% vs solo in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
@@ -926,7 +924,7 @@ async function pureRules(M, base) {
     if (M.SM.endedSessionOf({ read: (k) => (k === 'hunt' ? { session_id: 's', ended: true, session: { id: 's', end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', ended_at: '2026-10-17T12:30:00Z' } } : null) }).why !== 'stamina') return 'the ended session drops end_by_why';
     /* (3) THE NOTICES: every kind's words; then one line, once, on the server's id. One notice in the centre at a time, since the mutant
        "an alert fires on every read" recurses through setResidue, and two lines rotating in `seen` never settle: it would hang, not go red. */
-    for (const [kind, who, want] of [['declined', 'Wrenna', 'Wrenna said no to your party invite.'], ['removed', 'Bramwell', 'Bramwell removed Tyler from the party.'],
+    for (const [kind, who, want] of [['declined', 'Wrenna', 'Wrenna declined the party invite'], ['removed', 'Bramwell', 'Bramwell removed Tyler from the party.'],
       ['disbanded', 'Bramwell', 'Bramwell closed the party.'], ['left', 'Solace', 'Solace left the party.'], ['dropped', 'Solace', 'Solace was away too long and lost their party seat.'], ['no_such_kind', 'X', '']]) {
       const got = M.PW.noticeWords({ kind, who }, { name: 'Tyler' });
       if (got !== want) return kind + ' reads ' + JSON.stringify(got);
@@ -943,7 +941,7 @@ async function pureRules(M, base) {
     const cs = (await acc.open(0)).session;
     const lines = () => centre.list().filter((a) => a.kind === 'party' || a.kind === 'partywarn');
     const warnLine = lines().find((a) => a.kind === 'partywarn');
-    if (!warnLine || !/^Bramwell wants to take the party to Mosslight Glade, above Tyler’s level\. It will hit hard/.test(warnLine.text)) return 'the ground warning reads ' + JSON.stringify(warnLine);
+    if (!warnLine || !/^Bramwell picked Mosslight Glade, high death risk for Tyler$/.test(warnLine.text)) return 'the ground warning reads ' + JSON.stringify(warnLine);
     if (lines().length !== 1) return 'an unknown kind raised a line: ' + JSON.stringify(lines().map((a) => a.text));
     await cs.load();
     if (lines().length !== 1) return 'a re-read repeated a notice: ' + lines().length;
@@ -960,7 +958,7 @@ async function pureRules(M, base) {
     srv.env[0].party.leave_together = true;
     await cs.load();
     const stam = centre.list().find((a) => a.id === 'lowstam:' + srv.env[0].hunt.session_id + ':' + hunting.seat);
-    if (!stam || stam.text !== hunting.name + ' has 14 min of stamina left. Their hunt ends then, and Tyler comes home too.') return 'the low-stamina line reads ' + JSON.stringify(centre.list().map((a) => a.text));
+    if (!stam || stam.text !== hunting.name + ': 14 min of stamina left, then Tyler comes home too') return 'the low-stamina line reads ' + JSON.stringify(centre.list().map((a) => a.text));
     if (M.PP.stateWords({ staminaLowMs: 13.5 * 60000 }) !== 'Stamina 14 min') return 'the panel reads ' + M.PP.stateWords({ staminaLowMs: 13.5 * 60000 });
     if (M.PP.rosterOf(cs).members.find((m) => m.seat === hunting.seat).staminaLowMs !== 13.5 * 60000) return 'the roster drops the low stamina';
     srv.env[0].hunt.ended = true;
@@ -969,8 +967,8 @@ async function pureRules(M, base) {
     if (centre.list().some((a) => a.id === stam.id)) return 'the low-stamina line outlived its hunt';
     /* (5) WORDS A DEAD END CANNOT HIDE IN. */
     if (M.FR.answerWords({ done: 'Invite sent to Mira.' }, '') !== 'Invite sent to Mira.') return 'a friends-row invite that worked reads ' + JSON.stringify(M.FR.answerWords({ done: 'Invite sent to Mira.' }, ''));
-    if (!/Leave it, and once you are back in town you can invite/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
-    if (!/Press Leave party in the Party window/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
+    if (!/Leave your hunt to invite/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
+    if (M.IW.refusalText({ error: 'already_in_party' }) !== 'Already in a party · Leave in the Party window') return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
     return true;
   });
 
@@ -1002,22 +1000,22 @@ async function pureRules(M, base) {
     if (!v) return 'HARNESS: the fixture is not a hunting party of two';
     const name = friend(v.e).name;
     let lines = v.centre.list().filter((a) => /^lowstam:/.test(a.id));
-    if (lines.length !== 1 || lines[0].text !== name + ' has 1 min of stamina left. Their hunt ends then, and Tyler comes home too.') return 'the Start\'s read raised ' + words(lines);
+    if (lines.length !== 1 || lines[0].text !== name + ': 1 min of stamina left, then Tyler comes home too') return 'the Start\'s read raised ' + words(lines);
     lines = await says(v, null);
     if (lines.length) return '[F7] the server stopped saying it and the line stood: ' + words(lines);
     if (M.PP.rosterOf(v.cs).members.find((m) => m.seat === friend(v.e).seat).staminaLowMs !== null) return '[F7] the party panel still shows a low stamina the server no longer says';
     /* (2) SAID AGAIN IS NEWS AGAIN, and the number is each read's: 13.5 min, then 4.2 min, one line re-worded. */
     lines = await says(v, 13.5 * 60000);
-    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 14 min of stamina left.')) return 'the server said it again (13.5 min) and the lines read ' + words(lines);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ': 14 min of stamina left')) return 'the server said it again (13.5 min) and the lines read ' + words(lines);
     const key = lines[0].key;
     lines = await says(v, 4.2 * 60000);
-    if (lines.length !== 1 || lines[0].key !== key || !lines[0].text.startsWith(name + ' has 5 min of stamina left.')) return 'the server said 4.2 min and the lines read ' + words(lines);
+    if (lines.length !== 1 || lines[0].key !== key || !lines[0].text.startsWith(name + ': 5 min of stamina left')) return 'the server said 4.2 min and the lines read ' + words(lines);
     /* (3) DISMISSED STAYS GONE while the server keeps saying it; a refill and a second low spell is a new warning. */
     v.centre.dismiss(key);
     if ((await says(v, 3.9 * 60000)).length) return 'a dismissed warning came back while the server still said it';
     if ((await says(v, null)).length) return 'a refill raised a line';
     lines = await says(v, 9 * 60000);
-    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 9 min of stamina left.')) return 'low again after a refill, the lines read ' + words(lines);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ': 9 min of stamina left')) return 'low again after a refill, the lines read ' + words(lines);
     /* (4) AN EVENT IS NOT A LIVE LINE: "ran out: slot 2 takes over" happened, and no later read takes it back. */
     v.centre.say(v.cs, { id: 'out:' + v.e.hunt.session_id + ':k1', kind: 'low', session: v.e.hunt.session_id, text: 'Tyler’s Cooked Shrimp ran out.' });
     await v.cs.load();
@@ -1056,7 +1054,7 @@ async function pureRules(M, base) {
     const back = await open((e) => { friend(e).stamina_low_ms = null; }, clone(p1.srv.residue));
     if (!back || back.centre.list().some((a) => /^lowstam:/.test(a.id))) return 'on return a warning stood that the server does not say';
     lines = await says(back, 8 * 60000);
-    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 8 min of stamina left.')) return 'back from a closed browser, a friend who refilled and ran low again raised ' + words(lines);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ': 8 min of stamina left')) return 'back from a closed browser, a friend who refilled and ran low again raised ' + words(lines);
     if ((await says(back, null)).length) return 'on the return path the line outlived the server\'s word';
     return true;
   });
@@ -1105,7 +1103,7 @@ async function pureRules(M, base) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 function scripted() {
-  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300, startReplies: [], t0: Date.now() };
+  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300, startReplies: [], inviteReplies: [], t0: Date.now() };
   s.next = (slot) => Object.assign(clone(s.env[slot]), { version: ++s.version, client_state: clone(s.residue[slot] || {}) });
   return s;
 }
@@ -1125,7 +1123,8 @@ async function stub(page, s) {
       seats: [{ seat: 0, weapon: 'shield', name: 'Oren' }, { seat: 1, weapon: 'club', name: 'Pell' }] }] });
     if (PARTY_RPCS.includes(name)) {
       await new Promise((ok) => setTimeout(ok, s.delayMs));
-      return json(name === 'hr_hunt_party_start' && s.startReplies.length ? s.startReplies.shift() : { ok: true });
+      return json(name === 'hr_hunt_party_start' && s.startReplies.length ? s.startReplies.shift()
+        : name === 'hr_hunt_party_invite' && s.inviteReplies.length ? s.inviteReplies.shift() : { ok: true });
     }
     return json({ ok: true });
   });
@@ -1354,7 +1353,7 @@ async function pageRules(overrides, shots) {
         const w1 = sent(s, 'hr_hunt_party_warn').slice(warned0);
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
-        if (!/^Mira \(Level 3\) is under this ground’s Level \d+\..*They have been told\./.test(warnSaid[0]) || !/^Mira \(Level 3\) is under/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        if (!/^Under Level \d+ \(death risk\): Mira, Level 3\. Party warned\. Press Enter anyway to go$/.test(warnSaid[0]) || !/^Under Level \d+ \(death risk\): Mira, Level 3$/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
         /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
         const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
         s.env[0].party.members.push(late);
@@ -1406,7 +1405,15 @@ async function pageRules(overrides, shots) {
         await page.click(P + '.hw-tab[data-tab="find"]');
         const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name'), how = document.querySelector(q + '.hw-invite-how'), sw = document.querySelector(q + '.hw-list-party');
           return { box: !!box && box.getClientRects().length > 0, how: how ? how.textContent : '', sw: !!sw && sw.getClientRects().length > 0 }; }, P);
-        if (!way.box || !/Invite to party\.$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        if (!way.box || !/Invite to party$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        /* UI-18 (audit 2026-11-15 F16): Druid, in no party, invites Tyler by name while Tyler leads one. The server's already_in_party is
+           TYLER's (hr_party_seat_own), so the line names him as the roster spells him; it read "You are already in a party" to a hero in none. */
+        s.inviteReplies.push({ ok: false, error: 'already_in_party' });
+        await page.fill(P + '.hw-invite-in', 'tyler');
+        await page.click(P + '[data-hs-act="invite-name"]');
+        await wait(page, (q) => /in a party/.test((document.querySelector(q + '.hh-intent-msg') || {}).textContent || ''), P, 3000);
+        const said = await page.evaluate((q) => (document.querySelector(q + '.hh-intent-msg') || {}).textContent || '', P);
+        if (said !== 'Already in a party: Tyler (switch to them, press Leave party)') fails.push('UI-18 [' + tag + '] an invite refused already_in_party reads ' + JSON.stringify(said));
         await page.click(P + '.hw-tab[data-tab="invites"]');
         await shot('party-invites');
         const acc1 = sent(s, 'hr_hunt_party_accept').length;
@@ -1459,7 +1466,7 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
-          if (v.classLine !== 'Your party has 2 of 4 classes. Each of you gets about 40% more Level XP than hunting alone in The Sewer.') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          if (v.classLine !== 'Classes: 2 of 4. Level XP each: about +40% vs solo in The Sewer') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');
@@ -1501,8 +1508,8 @@ const PURE_MUTANTS = [
   ['a rare whose owner is unproven alerts this hero (the ended party hunt, March 2026-11-14)', 'src/shell/alerts.js', 'if (me === null || !Number.isInteger(ev.u) || ev.u !== me) return null;', 'if (!h || (me !== null && Number.isInteger(ev.u) && ev.u !== me)) return null;'],
   ["the ended hunt forgets the hero's unit (its own rare raises nothing)", 'src/shell/alerts.js', 'return known && known.session === h.sessionId && Number.isInteger(known.unit) ? known.unit : null;', 'return null;'],
   ['the run-out event raises nothing', 'src/shell/alerts.js', 'const c = rareOf(cs, ev, heroUnit.get(cs.slot)) || runOutOf(cs, ev);', 'const c = rareOf(cs, ev, heroUnit.get(cs.slot));'],
-  ['an alert fires on every read', 'src/shell/alerts.js', '    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;\n', ''],
-  ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });\n", ''],
+  ['an alert fires on every read', 'src/shell/alerts.js', '    if (wasSeen(cs, c.id)) return false;\n', ''],
+  ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(ids).slice(-ALERTS_SEEN_MAX) });\n", ''],
   ['a switched-off kind still alerts', 'src/shell/alerts.js', '    if (!alertShown(cs, c.kind)) return false;\n', ''],
   ['the rare alert has no Share', 'src/data/alerts.js', ", button: 'Open your inventory', share: 'Share' })", ", button: 'Open your inventory' })"],
   ['the rare alert forgets where it was found', 'src/shell/alerts.js', 'place: huntName(h.huntId),', 'place: null,'],
@@ -1516,7 +1523,7 @@ const PURE_MUTANTS = [
   ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, pick),", "role: pick || roleForWeapon(w, null),"],
   ['a training pointer runs with no Stop line', 'src/session/party-sections.js', "gather: 'gathering', artisan: 'at a workbench', training: 'training' });", "gather: 'gathering', artisan: 'at a workbench' });"],
   ['a resumed gather is not named', 'src/session/party-sections.js', "  ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),\n", ''],
-  ['the Stop line ignores a town pointer that is not a bury', 'src/shell/windows/inventory/bury.js', "  return words ? [{ key: 'lead', text: 'Your hero is ' + words", "  return words && false ? [{ key: 'lead', text: 'Your hero is ' + words"],
+  ['the Stop line ignores a town pointer that is not a bury', 'src/shell/windows/inventory/bury.js', "  return words ? [{ key: 'lead', text: words.charAt(0)", "  return words && false ? [{ key: 'lead', text: words.charAt(0)"],
   ['a party start re-reads nobody', 'src/session/party-intents.js', "    await Promise.all(Array.from(new Set(reread)).filter((o) => o && o.status !== 'closed').map((o) => o.load()));\n", ''],
   ['the start does not settle a gathering own character first', 'src/session/party-intents.js', '  for (const o of peers) await settleTownActivity(o);\n', ''],
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
@@ -1537,9 +1544,9 @@ const PURE_MUTANTS = [
   ['the hold switch stays on while in flight', 'src/shell/widgets/party-hold.js', '  const off = !v.isLeader || pending;', '  const off = !v.isLeader;'],
   ['a press on what the server holds is sent again', 'src/shell/widgets/party-hold.js',
     "  if ((action === 'hold-one' && v.one) || seat === now || (seat !== null && !Number.isInteger(seat))) return true;\n", "  if (seat !== null && !Number.isInteger(seat)) return true;\n"],
-  ['the pick note never names who takes over', 'src/shell/widgets/party-hold.js', "(others.length === 1 ? others[0] + ' takes over' : 'Your other tanks take turns')", "'Another tank takes over'"],
+  ['the pick note never names who takes over', 'src/shell/widgets/party-hold.js', "(others.length === 1 ? others[0] + ' takes over if ' + name + ' leaves' : 'the others take turns if ' + name + ' leaves')", "'another tank takes over'"],
   ['a hold press re-reads nobody', 'src/session/party-intents.js', "{ p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), peers)", "{ p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), [])"],
-  ['not_a_tank has no words of its own', 'src/data/refusal-words.js', "  not_a_tank: 'Only a hero with a sword and shield can hold the pack.',\n", ''],
+  ['not_a_tank has no words of its own', 'src/data/refusal-words.js', "  not_a_tank: 'Requires a sword and shield',\n", ''],
   ['the switch goes with the hunt', 'src/shell/widgets/party-hold.js', '  const show = r.inParty && tanks.length > 1;', '  const show = r.inParty && tanks.length > 1 && r.anyHunting;'],
   ['a guarding tank reads as too weak (Tyler 2026-10-22)', 'src/hunt-view/live-engine.js', ": picked ? 'guard' : 'weak');", ": 'weak');"],
   ['a pick made mid-lap reads as in force', 'src/hunt-view/live-engine.js', '{ runs: runs + lap, hold: world.holdNext }', '{ runs: runs + lap }'],
@@ -1570,7 +1577,7 @@ const PURE_MUTANTS = [
   ['a line about something that happened is judged as a live one (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:low|lowstam|out):/;'],
   ['only a friend\'s stamina is live: a supply line stands when the store pays (AL-LIVE)', 'src/shell/alerts.js', 'const LIVE = /^(?:low|lowstam):/;', 'const LIVE = /^(?:lowstam):/;'],
   ['a live line goes with its hunt\'s end (AL-LIVE)', 'src/shell/alerts.js', "const unsaid = (id) => !!open && LIVE.test(id) && id.split(':')[1] === open && !said.has(id);", 'const unsaid = (id) => LIVE.test(id) && !said.has(id);'],
-  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'You are on a hunt of your own. Leave it, and once you are back in town you can invite.' }),", ''],
+  ['a solo invite on a hunt reads as a bare refusal (PR-TRUTH)', 'src/data/refusal-words.js', "party_invite: Object.freeze({ hunt_open: 'Leave your hunt to invite' }),", ''],
   ['a hero sent home by a leave raises a plain end line', 'src/shell/alerts.js', "  else if (h.ended && h.endReason === 'party_member_left') out.push(", '  else if (false) out.push('],
   ['the summary says the hunt ended (no member, no hero)', 'src/hunt-view/summary-model.js', "  if (typeof by === 'string' && by && (reason === 'party_member_left'", "  if (false && (reason === 'party_member_left'"],
   ['the summary forgets who sent the hero home', 'src/hunt-view/summary-model.js', "    by: typeof s.end_by === 'string' && s.end_by.trim() ? s.end_by.trim().slice(0, 40) : null,", '    by: null,'],
@@ -1578,6 +1585,7 @@ const PURE_MUTANTS = [
 ];
 const PAGE_MUTANTS = [
   ['the finder tab has no way to invite (UI-17)', 'src/shell/windows/party.js', "cls(root.querySelector('.hw-invite-name'), 'is-on', true);", "cls(root.querySelector('.hw-invite-name'), 'is-on', tab !== 'find');"],
+  ['an invitee already partied reads as the inviter (UI-18, audit F16)', 'src/shell/windows/party.js', "verb: 'party_invite', invitee: own || name }", "verb: 'party_invite' }"],
   ['the finder tab never says how to invite (UI-17)', 'src/shell/windows/party.js', "text(root.querySelector('.hw-invite-how'), tab === 'find' ?", "text(root.querySelector('.hw-invite-how'), tab === 'nowhere' ?"],
   ['a hero with no party reads that its party is private (UI-17)', 'src/styles/windows.css', '.hw-list-party[hidden], .hw-invite-how:empty { display: none; }', '.hw-invite-how:empty { display: none; }'],
   ['the leader\'s Start walks a seat under the floor in with no word (UI-TRUTH)', 'src/shell/windows/hunts.js', 'if (low.under.length && sc.warned !== warnKey(hunt, low.under)) {', 'if (false) {'],

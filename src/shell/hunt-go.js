@@ -23,24 +23,24 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.133';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.133';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.133';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.133';
-import { ITEMS } from '../data/items.js?v=0.2.133';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.133';
-import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.133';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.133';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.133';
-import { ABILITIES } from '../data/abilities.js?v=0.2.133';
-import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.133';
-import { itemName, runeWords } from './widgets/bits.js?v=0.2.133';
-import { ownCount } from './rune-supply.js?v=0.2.133';
-import { shortOf } from './item-lore.js?v=0.2.133';
-import { whole, gold } from '../render/format.js?v=0.2.133';
-import { t } from '../render/player-text.js?v=0.2.133';
-import { BAG_GUIDE_BY_HUNT } from '../data/supplies.js?v=0.2.133';
-import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.133';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.135';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.135';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.135';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.135';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.135';
+import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.135';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.135';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.135';
+import { ABILITIES } from '../data/abilities.js?v=0.2.135';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.135';
+import { itemName, runeWords } from './widgets/bits.js?v=0.2.135';
+import { ownCount } from './rune-supply.js?v=0.2.135';
+import { shortOf } from './item-lore.js?v=0.2.135';
+import { whole, gold } from '../render/format.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { BAG_GUIDE_BY_HUNT } from '../data/supplies.js?v=0.2.135';
+import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.135';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -115,8 +115,7 @@ function slotSupply(sl, s, carried) {
    without them is a fair choice, HP and mana come back between fights (designer 2026-10-29, Tyler's "0 food" report); food
    the bag carries but the bar does not name is said with the fix. A rune spell that cannot fire only loses that spell, and
    says which. Empty ammo leaves a hero that shoots unable to attack (shotLine's short line). */
-const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten, so HP comes back only between fights',
-  drink: 'Nothing will be drunk, so mana comes back only between fights' });
+const BARE_WORDS = Object.freeze({ food: 'prep.go_bare_food', drink: 'prep.go_bare_drink' });
 /* The kinds an empty slot of which stops nothing: food and drink (a heads-up line). */
 const HEADS_UP_KINDS = Object.freeze(new Set(['food', 'drink']));
 
@@ -128,30 +127,29 @@ function spareWords(kind, rows, named) {
     const c = CONSUMABLES[r.id];
     if (c && c.kind === kind && c.source !== 'store' && !named.has(r.id) && r.qty > 0 && (!best || r.qty > best.qty)) best = r;
   }
-  return best ? 'You carry ' + whole(best.qty) + ' ' + itemName(best.id) + '. Put it on the bar to ' + (kind === 'food' ? 'eat' : 'drink') + ' it' : '';
+  return best ? 'Carried: ' + whole(best.qty) + ' ' + itemName(best.id) + ', put it on the bar' : '';
 }
 
 function bareWords(kind, parts, carried) {
-  if (kind !== 'rune') return spareWords(kind, carried, new Set(parts.map((p) => (p.own ? p.own.id : null)))) || BARE_WORDS[kind];
+  if (kind !== 'rune') return spareWords(kind, carried, new Set(parts.map((p) => (p.own ? p.own.id : null)))) || t(BARE_WORDS[kind]);
   const spells = Array.from(new Set(parts.map((p) => p.spell).filter(Boolean)));
-  if (!spells.length) return 'Nothing to cast';
+  if (!spells.length) return t('prep.go_no_cast');
   /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a slot the player set to Carried runes only, with none left
      (no default bar: rule-subjects.js); this line says the fix before the hunt */
   const fixes = Array.from(new Map(parts.filter((p) => p.spell && p.fix).map((p) => [p.fix.name, p.fix])).values());
-  return spells.join(' and ') + ' will not fire' + (fixes.length ? '. To cast ' + (spells.length > 1 ? 'them' : 'it') + ', press ' + (spells.length > 1 ? 'each' : 'its')
-    + ' slot and pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp a cast)').join(' or ') + ' under "When your runes run out"' : '');
+  return spells.join(' and ') + ' will not fire' + (fixes.length ? ', pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp)').join(' or ') + ' on the slot' : '');
 }
 
 /* Every item the bar's slots name. */
 const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));
 
-/* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
+/* One part of a supply line: "20 Cooked Shrimp", "no Cooked Shrimp left", "Salted Shrimp (14 gp)", a rune's "(14 gp a cast)". */
 function partWords(p) {
   const name = p.own ? p.own.name || itemName(p.own.id) : '';
   /* a rune a new hero never had is not "left": "no Fire runes of yours". With the store behind it the empty stock says
      nothing ("no Fire runes of yours, then Plain Fire Rune..." read like a robot, first-hour play 2026-10-31). */
-  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' of yours' : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' of yours' : ' left')) : null;
-  const store = p.store ? p.store.name + ' from the store, ' + p.store.price + ' gp ' + p.store.each : null;
+  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' carried' : ' left')) : null;
+  const store = p.store ? p.store.name + ' (' + whole(p.store.price) + ' gp' + (p.store.each === 'each' ? '' : ' ' + p.store.each) + ')' : null;
   return [own, store].filter(Boolean).join(', then ');
 }
 
@@ -169,7 +167,7 @@ function liveRunes(live) {
     else spends.push({ price: p.store.price, names: [p.store.name] });
   }
   const andWords = (n) => (n.length < 2 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]);
-  return spends.map((x) => x.words || andWords(x.names) + ' from the store, ' + x.price + ' gp a cast').join('. ');
+  return spends.map((x) => x.words || andWords(x.names) + ' (' + x.price + ' gp a cast)').join('. ');
 }
 
 /* THE RUNES LINE: what casts (liveRunes), then the spells that will not fire and their fix. Nothing usable keeps the listed stocks (bareWords). */
@@ -226,21 +224,21 @@ function shotLine(s, cs, carried) {
   const worn = (equipmentOf(cs) || {}).ammo || null;
   const skills = skillsOf(cs);
   const plan = shotPlan(s, worn, carried, skills);
-  const waiting = plan.locked.map((l) => ' ' + itemName(l.id) + ' wait on your bar. ' + l.text + '.').join('');
+  const waiting = plan.locked.map((l) => ', ' + itemName(l.id) + ': ' + l.text).join('');
   const dry = !!worn && shootsItem(s.role, ITEMS[worn]) && !((carried.find((r) => r.id === worn) || {}).qty > 0) ? 'no ' + itemName(worn) + ' left' : null;
   if (!plan.own.length && !plan.store.length) {
     const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && !shortOf(r.id, skills, null));
-    return { id: 'ammo', text: 'Ammo: ' + (dry || 'nothing loaded') + ', so your weapon can\'t shoot and your hero won\'t attack. '
-      + (spare ? 'Open your bag, press ' + itemName(spare.id) + ', then Put on the bar.' : 'Press an empty slot on your bar, then Ammo, and pick a shot from the store.') + waiting, short: true, pays: false };
+    return { id: 'ammo', text: 'Ammo: ' + (dry || 'none loaded') + ' (no attacks)'
+      + (spare ? '. Bag → ' + itemName(spare.id) + ' → Put on the bar' : '. Empty slot → Ammo → pick a store shot') + waiting, short: true, pays: false };
   }
   const parts = (dry ? [dry] : [])
-    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id) + ' of yours') + (o.id === worn ? (o.free ? ' loaded' : ', loaded') : '')))
-    .concat(plan.store.map((st) => st.name + ' from the store, ' + st.price + ' gp each'));
+    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id)) + (o.id === worn ? ' (loaded)' : '')))
+    .concat(plan.store.map((st) => st.name + ' (' + whole(st.price) + ' gp)'));
   const idle = plan.own.length && !plan.own[0].free ? []
     : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));
   const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);
-  return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + '.' + (plan.own.some((o) => o.free) ? ' They never run out.' : '')
-    + (spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '') + waiting, short: false, pays: plan.store.length > 0 };
+  return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + (plan.own.some((o) => o.free) ? ', never runs out' : '')
+    + (spare ? ', ' + whole(spare.qty) + ' ' + itemName(spare.id) + ' not on the bar' : '') + waiting, short: false, pays: plan.store.length > 0 };
 }
 
 /** The hunt screen's warning: a hero hunting with a weapon that can shoot nothing won't attack at all (the panel 2026-11-01
@@ -257,7 +255,7 @@ function tallyElsewhere(cs, hunt) {
   const tally = tallyOf(cs);
   const open = tally && hunt ? tally.held.filter((h) => !h.done) : [];
   if (!open.length || open.some((h) => h.hunt === hunt)) return null;
-  return { id: 'tally', text: 'Tamsin\'s tasks: nothing here counts toward them. ' + open.map((h) => countsWords(h.task, huntName(h.hunt))).join(' '), short: false };
+  return { id: 'tally', text: t('prep.go_no_tamsin', { counts: open.map((h) => countsWords(h.task, huntName(h.hunt))).join(', ') }), short: false };
 }
 
 /**
@@ -295,9 +293,9 @@ export function supplyWords(s, cs, carried) {
   /* A kind the bar has no slot for at all, with a stack waiting. */
   for (const kind of HEADS_UP_KINDS) {
     const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
-    if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. ' + spare, short: false });
+    if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no bar slot. ' + spare, short: false });
   }
-  if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
+  if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: t('prep.go_no_food_drink'), short: false });
   return { lines: out, paysStore };
 }
 
@@ -312,10 +310,10 @@ export function beforeLines(cs, o) {
   if (!s) return null;
   const out = [];
   let paysStore = false;
-  if (o && o.other) out.push({ id: 'other', text: 'Supplies: as ' + o.other + '’s own bar sets them. It shows here once that setup is on.', short: false });
+  if (o && o.other) out.push({ id: 'other', text: t('prep.go_other_setup', { setup: o.other }), short: false });
   else {
     const worn = equipmentOf(cs);
-    if (worn && !worn.weapon) out.push({ id: 'weapon', text: 'Weapon: none on, so your hero fights bare-handed. Put one on from your bag.', short: true });
+    if (worn && !worn.weapon) out.push({ id: 'weapon', text: t('prep.go_no_weapon'), short: true });
     const said = supplyWords(s, cs, carriedOf(cs) || []);
     out.push(...said.lines);
     paysStore = said.paysStore;
@@ -325,17 +323,16 @@ export function beforeLines(cs, o) {
   const tally = tallyElsewhere(cs, o && o.hunt);
   if (tally) out.push(tally);
   const st = staminaOf(cs);
-  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'No stamina left. Rest in town before you go.', short: true });
+  if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: t('prep.go_no_stamina'), short: true });
   else if (st) {
     const m = Math.floor(st.msLeft / 60000);
     const left = (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min';
-    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? 'Stamina: ' + left + ' left, then the hunt ends.'
-      : 'Stamina: ' + left + '. Your hero hunts that long, even with the game closed, then comes home.', short: false });
+    out.push({ id: 'stamina', text: st.msLeft < STAMINA_SAY_MS ? t('prep.go_stamina_low', { left }) : t('prep.go_stamina', { left }), short: false });
   }
   const gp = goldOf(cs);
   if (paysStore && gp !== null) {
-    out.push(gp > 0 ? { id: 'gold', text: 'Gold: ' + gold(gp) + ' pays the store as you use it.', short: false }
-      : { id: 'gold', text: 'No gold for the store, so the hunt ends when your own supplies run out.', short: true });
+    out.push(gp > 0 ? { id: 'gold', text: t('prep.go_gold', { gold: gold(gp) }), short: false }
+      : { id: 'gold', text: t('prep.go_no_gold'), short: true });
   }
   const bless = blessingWords(blessingsOf(cs));
   if (bless) out.push({ id: 'blessings', text: bless, short: false });
@@ -385,5 +382,31 @@ function blessingWords(b) {
 /** "Bring your heroes": this account's other open characters in no party, [{ slot, name }]. */
 export function freeHeroes(cs, all) {
   return (all || []).filter((o) => o && o !== cs && o.status !== 'closed' && Number.isInteger(o.slot) && !partyMembershipOf(o))
-    .map((o) => ({ slot: o.slot, name: nameOf(o) || 'Character ' + (o.slot + 1) }));
+    .map((o) => ({ slot: o.slot, name: heroNameOf(o) }));
+}
+/* A hero's name as the strip shows it, or its slot's when the server has not said one. */
+const heroNameOf = (o) => nameOf(o) || 'Character ' + (o.slot + 1);
+
+/**
+ * Why "Bring your heroes" may be empty while heroes play: this account's other open characters seated in a party `cs` is not in,
+ * one entry a party, [{ names, leader }] (leader: the server's name for that party's leader, or null). [] when none. A hero in
+ * `cs`'s own party is with it already, so not here. Pure (audit 2026-11-15 F23: "Play one from Characters" to a player whose three
+ * other heroes were all playing, in Corwen's party).
+ */
+export function partiedHeroes(cs, all) {
+  const mine = (partyMembershipOf(cs) || {}).id || null;
+  const by = new Map();
+  for (const o of all || []) {
+    if (!o || o === cs || o.status === 'closed' || !Number.isInteger(o.slot)) continue;
+    const p = partyMembershipOf(o);
+    if (!p || p.id === mine) continue;
+    if (!by.has(p.id)) by.set(p.id, { names: [], leader: p.leaderName || null });
+    by.get(p.id).names.push(heroNameOf(o));
+  }
+  return [...by.values()];
+}
+
+/** How many of this account's other characters are open beside `cs` (any party or none). Pure. */
+export function openOthers(cs, all) {
+  return (all || []).filter((o) => o && o !== cs && o.status !== 'closed' && Number.isInteger(o.slot)).length;
 }

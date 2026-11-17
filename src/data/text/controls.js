@@ -30,6 +30,7 @@
 //   Lock / Unlock        the bag menu
 //   Select / Deselect    the bag menu (was Select / Unselect)
 //   Sort / Filter        bag, Storage, Market, crafting; Chat's Combat tab (was Filter lines)
+//   Basic setup          Hunt prep: the weapon type's basic bar (a feature's name, 2026-11-16)
 //   Search               Party finder; the bag, Storage and Market search fields
 //   Clear                the bag's selection
 //   Play / Show / Rename / Sign out   All characters and the character strip
@@ -76,6 +77,8 @@ export const CONTROLS_TEXT = Object.freeze({
   select: 'Select',
   deselect: 'Deselect',
   sort: 'Sort',
+  /* Hunt prep: fill the bar with the weapon type's basic setup (src/data/basic-setups.js, Tyler 2026-11-16). A feature's name. */
+  basic_setup: 'Basic setup',
   filter: 'Filter',
   filter_off: 'Filter ({count} off)',
   search: 'Search',

@@ -196,20 +196,20 @@ function grade(o) {
   ok(o.at3.rows === '0:' + o.newMade[0]?.name + ',1:' + o.newMade[1]?.name + ',2:' + o.newMade[2]?.name,
     `FS-3: at three heroes the roster lists ${o.at3.rows}`);
   ok(js(o.at3.offer) === '{"slotId":3,"cost":75000,"max":4}', `FS-3: at three heroes the offer is ${js(o.at3.offer)}`);
-  ok(o.at3.html.includes('A fourth hero slot costs 75,000 gold. An account holds up to 4 heroes.')
+  ok(o.at3.html.includes('Fourth hero slot: 75,000 gold (max 4 heroes)')
      && o.at3.html.includes('Buy a hero slot for 75,000 gold') && !/\b5 heroes|fifth/.test(o.at3.html),
     `FS-3: at three heroes the offer reads ${js(o.at3.html)}`);
-  ok(o.at3.line === 'You own 3 hero slots. Up to 4 heroes can play at once, and more slots cost gold.',
+  ok(o.at3.line === 'Hero slots: 3 (up to 4 play at once). More cost gold',
     `FS-3: at three heroes the line over the roster reads ${js(o.at3.line)}`);
-  ok(o.at4.rows.split(',').length === 4 && o.at4.offer === null && o.at4.html === '' && o.at4.line === 'Up to 4 can play at once.',
-    `FS-3: at four heroes the screen reads ${js(o.at4)} (expected four rows, no offer, "Up to 4 can play at once.")`);
+  ok(o.at4.rows.split(',').length === 4 && o.at4.offer === null && o.at4.html === '' && o.at4.line === 'Heroes at once: up to 4',
+    `FS-3: at four heroes the screen reads ${js(o.at4)} (expected four rows, no offer, "Heroes at once: up to 4")`);
 
   ok(js(o.oldAfter) === js(o.oldBefore) && o.oldAfter.length === 5, `FS-4: the old account's heroes moved: ${js(o.oldBefore)} -> ${js(o.oldAfter)}`);
   ok(o.oldLoad4?.ok === true && o.oldLoad4?.name === o.oldMade[4]?.name && o.oldLoad4?.account?.hero_slot_offer === null
      && o.oldLoad4?.account?.hero_slots_max === 4,
     `FS-4: the old slot-4 hero loads as ${js({ ok: o.oldLoad4?.ok, name: o.oldLoad4?.name, error: o.oldLoad4?.error, account: o.oldLoad4?.account })}`);
   ok(o.oldScreen.rows.split(',').length === 5 && o.oldScreen.rows.startsWith('0:') && o.oldScreen.rows.includes('4:' + o.oldMade[4]?.name)
-     && o.oldScreen.offer === null && o.oldScreen.html === '' && o.oldScreen.line === 'Up to 4 can play at once.',
+     && o.oldScreen.offer === null && o.oldScreen.html === '' && o.oldScreen.line === 'Heroes at once: up to 4',
     `FS-4: the old account's screen reads ${js(o.oldScreen)} (expected its five heroes listed, no offer)`);
   ok(o.oldBuy4?.error === 'slot_cap', `FS-4: the old account buying slot 4 answered ${js(o.oldBuy4)}`);
 }

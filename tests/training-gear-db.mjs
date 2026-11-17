@@ -8,9 +8,11 @@
 //   node tests/training-gear-db.mjs            the guard
 //   node tests/training-gear-db.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: supabase/migrations/2027-04-23-training-gear.sql
+// mutant-anchors: supabase/migrations/2027-04-23-training-gear.sql, supabase/migrations/2027-04-30-training-gear-arm.sql
 //
-//   TG-VERB    the switch off refuses the three verbs; on: a forged price is quote_changed and charges nothing, a bound row is not for
+//   TG-ARM     the chain leaves the switch on for everyone (2027-04-30-training-gear-arm.sql); over a switch put back off, the file turns it
+//              on and moves no other switch row; a second apply moves nothing, the schema included
+//   TG-VERB    the switch off (turned off here: the chain ends with it on) refuses the three verbs; on: a forged price is quote_changed and charges nothing, a bound row is not for
 //              sale, the buy charges the catalogue's price once on its key and lands one sealed item in the bag, the account's day stops
 //              at buy_per_day, the open banks its hours once on its key and a second is still_open, Storage opens when the bag holds none,
 //              none held is none_held; a hero under Level 10 can't start training and pays nothing
@@ -58,6 +60,11 @@ const flip = (db, uid, skill, on, key) => as(db, uid, 'select public.hr_training
 const start = (db, uid, price, key, skill = 'melee', where = 'yard') => as(db, uid, 'select public.hr_training_start(0, $1, $2, $3, $4::uuid)', [skill, where, price, key || idem()]);
 const feeOf = async (db, uid, skill = 'melee') => Number(await one(db, `select public.hr_training_fee(public.hr_skill_level($2, coalesce((select xp from public.player_skills where user_id = $1 and slot = 0 and skill_id = $2), 0)))`, [uid, skill]));
 const switchOn = (db) => db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'training_gear'");
+/* The chain ends with the switch ON (2027-04-30-training-gear-arm.sql): TG-VERB turns it off itself to judge the closed door. */
+const switchOff = (db) => db.query("update public.hr_feature_switches set scope = 'off', accounts = '{}' where switch_id = 'training_gear'");
+const ARM_FILE = '2027-04-30-training-gear-arm.sql';
+/* --mutate's file mutants edit the arm file's text as TG-ARM applies it (null: the file as it is). */
+let armEdit = null;
 
 async function hero(db, M, uid, o = {}) {
   await db.query('begin');
@@ -79,6 +86,7 @@ async function verbArm(bootFn) {
   const { db, M } = await bootFn();
   const [a, b] = UIDS;
   await hero(db, M, a);
+  await switchOff(db);
   let v = await buy(db, a, 'training_sword_12h', 250000);
   if (v.error !== 'feature_off') bad.push('TG-VERB the buy with the switch off answered ' + JSON.stringify(v));
   v = await open(db, a, 'training_sword_12h');
@@ -203,6 +211,13 @@ async function doorArm(bootFn, door, withItem) {
   } else if (g || autos.length) bad.push(`${tag} a hero with no item banked ${JSON.stringify(g)} or opened ${autos.length}`);
   const st = (await q(db, 'select stamina_ms, stamina_at from public.player_state where user_id = $1 and slot = 0', [uid]))[0];
   if (Number(st.stamina_ms) !== 0 || new Date(st.stamina_at).getTime() !== A - HOUR) bad.push(`${tag} the stamina row was written: ${JSON.stringify(st)}`);
+  /* THE LAST STOP (lane/a-training-words: the end card's figures, hr_training_section): once the session ends, the section names it and
+     says what it came to, the XP its tally holds, the fee its rows took, the skill's level before and after */
+  await db.query(`update public.hunt_sessions set ended_at = ${ts(A + 4 * 60000)}, end_reason = 'left' where id = $1`, [sid]);
+  const stop = ((await one(db, 'select public.hr_state_of($1::uuid, 0)', [uid])) || {}).training?.last_stop;
+  if (!stop || stop.session !== sid || stop.reason !== 'left' || stop.xp !== want || stop.paid !== fee || !(stop.level >= stop.from && stop.from >= 1)) {
+    bad.push(`${tag} the last stop reads ${JSON.stringify(stop)} (want session ${sid}, xp ${want}, paid ${fee})`);
+  }
   return { bad, end: { xp: xp1 - xp0, books: g, autos: autos.length } };
 }
 
@@ -295,6 +310,32 @@ async function againArm(bootFn) {
   return bad;
 }
 
+/* ── THE ARM (2027-04-30-training-gear-arm.sql) ───────────────────────────────
+   The chain as of the arm file leaves training_gear on for everyone. Then, on that database: the switch put back off and ANOTHER switch
+   moved (factions to testers), the file applied: training_gear is on for a stranger, the other row is exactly as it was (scope and
+   updated_at); applied again: nothing moves, the schema included (a byte-identical second apply). */
+async function armedArm(bootFn) {
+  const bad = [];
+  const { db } = await bootFn({ upTo: ARM_FILE });
+  const stranger = '00000000-0000-4000-8000-00007a1e9e99';
+  const rows = () => q(db, 'select switch_id, scope, accounts::text as accounts, note, updated_at::text as at from public.hr_feature_switches order by switch_id');
+  const on = async () => (await one(db, "select public.hr_feature_on('training_gear', $1::uuid)", [stranger])) === true;
+  const sw0 = (await rows()).find((r) => r.switch_id === 'training_gear');
+  if (!sw0 || sw0.scope !== 'everyone' || sw0.accounts !== '{}' || !await on()) bad.push('TG-ARM the chain leaves training_gear at ' + JSON.stringify(sw0));
+  await switchOff(db);
+  await db.query("update public.hr_feature_switches set scope = 'testers', updated_at = '2026-01-01T00:00:00Z' where switch_id = 'factions'");
+  const other = JSON.stringify((await rows()).filter((r) => r.switch_id !== 'training_gear'));
+  const text = readFileSync(join(H.ROOT, 'supabase/migrations', ARM_FILE), 'utf8');
+  const sql = armEdit ? armEdit(text) : text;
+  try { await db.exec(sql); } catch (e) { bad.push('TG-ARM the file refused: ' + String(e.message).split('\n')[0].slice(0, 200)); return bad; }
+  if (!await on()) bad.push('TG-ARM applied over an off switch, training_gear is still off for a stranger');
+  if (JSON.stringify((await rows()).filter((r) => r.switch_id !== 'training_gear')) !== other) bad.push('TG-ARM the file moved another switch row');
+  const before = JSON.stringify({ inv: await inventory(db), rows: await rows() });
+  try { await db.exec(sql); } catch (e) { bad.push('TG-ARM a second apply refused: ' + String(e.message).split('\n')[0].slice(0, 200)); return bad; }
+  if (JSON.stringify({ inv: await inventory(db), rows: await rows() }) !== before) bad.push('TG-ARM a second apply moved something');
+  return bad;
+}
+
 /* The boot an arm gets: the first call boots, every later call answers the same database; a scoped boot (upTo) is always its own. */
 function once(f) {
   let p = null;
@@ -310,6 +351,7 @@ const both = async (b, withItem) => {
 };
 const ARMS = {
   again: (b) => againArm(b),
+  armed: (b) => armedArm(b),
   verb: (b) => verbArm(b),
   doors: (b) => both(b, true),
   plain: (b) => both(b, false),
@@ -335,6 +377,12 @@ const MUTANTS = [
   { name: 'a second item opens over hours still banked', fn: FN.open, find: '  if v_bank > 0 then', repl: '  if false then', arm: 'verb', want: /TG-VERB/ },
   { name: 'an open takes nothing', fn: FN.take, find: "  if p_from = 'bag' then", repl: "  if false then", arm: 'verb', want: /TG-VERB/ },
   { name: 'a hero under Level 10 trains', fn: FN.quote, find: "v_why := case when v_level < v_r.min_level then 'low_level'", repl: "v_why := case when false then 'low_level'", arm: 'verb', want: /TG-VERB/ },
+  /* the arm file's text (2027-04-30-training-gear-arm.sql), edited as TG-ARM applies it */
+  { name: 'the arm re-stamps an armed row on every apply', file: ARM_FILE, find: "\n   where switch_id = 'training_gear' and (scope <> 'everyone' or cardinality(accounts) <> 0);",
+    repl: "\n   where switch_id = 'training_gear';", arm: 'armed', want: /TG-ARM a second apply moved/ },
+  { name: 'the arm flips every switch', file: ARM_FILE, find: "\n   where switch_id = 'training_gear' and (scope <> 'everyone' or cardinality(accounts) <> 0);",
+    repl: "\n   where switch_id = 'training_gear' or switch_id = 'factions';", arm: 'armed', want: /TG-ARM the file refused: .*another switch row moved/ },
+  { name: 'the arm never flips', file: ARM_FILE, find: "set scope = 'everyone', accounts = '{}', updated_at = now()", repl: "set updated_at = now()", arm: 'armed', want: /TG-ARM/ },
 ];
 
 async function main() {
@@ -348,6 +396,17 @@ async function main() {
     const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
     const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
     for (const m of list) {
+      if (m.file) {
+        const text = readFileSync(join(H.ROOT, 'supabase/migrations', m.file), 'utf8').replace(/\r/g, '');
+        if (!text.includes(m.find)) throw new Error('HARNESS: ' + m.file + ' has no ' + JSON.stringify(m.find.slice(0, 70)));
+        armEdit = (s) => s.replace(/\r/g, '').replace(m.find, () => m.repl);
+        let got = [];
+        try { got = await ARMS[m.arm](once((o) => boot(o))); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; } finally { armEdit = null; }
+        const hit = got.some((p) => m.want.test(p));
+        if (!hit) escaped++;
+        console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + String(got[0] || 'every check held').slice(0, 150));
+        continue;
+      }
       const planted = async (o) => {
         const b = await boot(o);
         const def = (await one(b.db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).replace(/\r/g, '');

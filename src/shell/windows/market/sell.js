@@ -3,9 +3,8 @@
 //
 // The list is the viewed hero's bag or the account's Storage, each stack with the shop's bid
 // and the market's lowest beside it. The sheet beside it shows the fee and the cut before the
-// press: "Listing fee: 8 gold now (kept if it doesn't sell). The Weighhouse keeps 4% of each sale:
-// you get 691 for all 3 (230 each if they sell one at a time). Listed for 7 days; anything unsold
-// comes back to your storage."
+// press, one label a line: "Listing fee: 8 gold, kept if unsold / Cut: 4% per sale / Net: 691 for all 3,
+// 230 each if sold singly / Listed: 7 days, unsold back to storage".
 //
 // THE PRICE CHIPS (Security market review change 5, threat model #10): a one-press chip only
 // from what no other account can steer: Suggested (the catalogue's value) and Your last price.
@@ -13,22 +12,22 @@
 // as numbers with their sales count, and the player types the price, until the server's read
 // carries the sample rules. A listing's price then only ever comes from this player's eyes.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { whole } from '../../../render/format.js?v=0.2.133';
-import { ITEMS } from '../../../data/items.js?v=0.2.133';
-import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.133';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.133';
-import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.133';
-import { refusalText } from '../../intent-words.js?v=0.2.133';
-import { marketList } from '../../../session/market-intents.js?v=0.2.133';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.133';
-import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.133';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.133';
-import { notListableWords, keptWords } from '../../market-words.js?v=0.2.133';
-import { toolLossWords } from '../../town-work.js?v=0.2.133';
-import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.133';
-import { t } from '../../../render/player-text.js?v=0.2.133';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { whole } from '../../../render/format.js?v=0.2.135';
+import { ITEMS } from '../../../data/items.js?v=0.2.135';
+import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.135';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.135';
+import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.135';
+import { refusalText } from '../../intent-words.js?v=0.2.135';
+import { marketList } from '../../../session/market-intents.js?v=0.2.135';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.135';
+import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.135';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.135';
+import { notListableWords, keptWords } from '../../market-words.js?v=0.2.135';
+import { toolLossWords } from '../../town-work.js?v=0.2.135';
+import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
 
 /** The Sell pane's skeleton. */
 export function sellHtml() {
@@ -81,9 +80,9 @@ function lastAsk(sc, id) {
    the same lot sold singly (the panel 2026-11-01: "you get 33 each" on 10 pelts that paid 336). */
 function payWords(rules, qty, ask) {
   const each = netEachOf(rules, ask);
-  if (qty === 1) return 'you get ' + whole(each) + '.';
+  if (qty === 1) return 'Net: ' + whole(each);
   const lot = netLotOf(rules, qty, ask);
-  return 'you get ' + whole(lot) + ' for all ' + whole(qty) + (lot === each * qty ? '.' : ' (' + whole(each) + ' each if they sell one at a time).');
+  return 'Net: ' + whole(lot) + ' for all ' + whole(qty) + (lot === each * qty ? '' : ', ' + whole(each) + ' each if sold singly');
 }
 
 const whole0 = (raw) => { const n = Math.floor(Number(raw)); return Number.isSafeInteger(n) && n > 0 ? n : 0; };
@@ -92,7 +91,7 @@ const whole0 = (raw) => { const n = Math.floor(Number(raw)); return Number.isSaf
 function setupNaming(cs, id) {
   const presets = presetsOf(cs) || [];
   const hit = presets.find((p) => p && p.gear && Object.values(p.gear).includes(id));
-  return hit ? (nameOf(cs) || 'Your hero') + '\'s setup ' + hit.name + ' wears this. List it anyway?' : '';
+  return hit ? 'In ' + (nameOf(cs) || 'Hero') + '\'s setup: ' + hit.name + '. List anyway?' : '';
 }
 
 function patchSheet(pane, v, have, source) {
@@ -109,7 +108,7 @@ function patchSheet(pane, v, have, source) {
   const ico = sheet.querySelector('.hw-mk-ico');
   if (ico.getAttribute('data-item') !== id) { attr(ico, 'data-item', id); ico.innerHTML = itemIconHtml(ctx.glyphs, id); }
   text(sheet.querySelector('.hw-mk-name'), itemName(id));
-  text(sheet.querySelector('.hw-mk-kind'), whole(have.qty) + (source === 'storage' ? ' in your storage' : ' in ' + (nameOf(cs) || 'your hero') + '\'s bag'));
+  text(sheet.querySelector('.hw-mk-kind'), whole(have.qty) + (source === 'storage' ? ' in storage' : ' in ' + (nameOf(cs) || 'hero') + '\'s bag'));
   const s = sc.known.get(id) || null;
   const shop = shopOf(cs);
   const bid = shop && shop.bids.has(id) ? shop.bids.get(id) : null;
@@ -137,27 +136,27 @@ function patchSheet(pane, v, have, source) {
   text(sugB, sug === null ? 'Suggested' : 'Suggested ' + whole(sug));
   prop(sugB, 'disabled', v.off || !!g || sug === null);
   const lastB = sheet.querySelector('[data-chip="last"]');
-  text(lastB, mine === null ? '' : 'Your last price ' + whole(mine));
+  text(lastB, mine === null ? '' : 'Last price ' + whole(mine));
   prop(lastB, 'hidden', mine === null);
   prop(lastB, 'disabled', v.off || !!g);
   const qty = g ? g.qty : whole0(f.qty), ask = g ? g.ask : whole0(f.ask);
   const rules = sc.rules;
   const locked = (bagRulesOf(cs) || { locked: new Set() }).locked.has(id);
   const why = s && !s.listable ? notListableWords(s.why)
-    : locked ? 'This is locked. Unlock it in your bag to list it.'
-    : !qty ? 'Say how many.' : qty > have.qty ? 'You only have ' + whole(have.qty) + '.'
-    : !ask ? 'Set a price.'
-    : s && s.floor !== null && ask < s.floor ? 'The shop pays ' + whole(s.floor) + ' for one, and nothing lists below that.' + (rules ? ' To get that much after the Weighhouse\'s cut, ask ' + whole(evenAskOf(rules, s.floor)) + ' or more.' : ' Ask more, or sell it at the shop.')
-    : s && s.ceiling !== null && ask > s.ceiling ? 'That\'s more than this can be listed for. The most is ' + whole(s.ceiling) + ' each.'
+    : locked ? 'Item locked'
+    : !qty ? 'Set a quantity' : qty > have.qty ? 'Max: ' + whole(have.qty)
+    : !ask ? 'Set a price'
+    : s && s.floor !== null && ask < s.floor ? 'Minimum price: ' + whole(s.floor) + ' each' + (rules ? '. Ask ' + whole(evenAskOf(rules, s.floor)) + '+ to match the shop' : '')
+    : s && s.ceiling !== null && ask > s.ceiling ? 'Maximum price: ' + whole(s.ceiling) + ' each'
     : '';
   const purse = goldOf(cs);
   const fee = rules && qty && ask ? feeOf(rules, qty, ask) : null;
-  const shortFee = fee !== null && purse !== null && purse < fee ? 'The listing fee is ' + goldWords(fee) + '.' : '';
+  const shortFee = fee !== null && purse !== null && purse < fee ? 'Listing fee: ' + goldWords(fee) : '';
   text(foot.querySelector('.hw-mk-terms'), rules && fee !== null && !why
-    ? 'Listing fee: ' + goldWords(fee) + ' now (kept if it doesn\'t sell). The Weighhouse keeps ' + (rules.cutBp / 100) + '% of each sale: ' + payWords(rules, qty, ask) + ' Listed for ' + Math.round(rules.ttlH / 24) + ' days, and anything unsold comes back to your storage.'
+    ? 'Listing fee: ' + goldWords(fee) + ', kept if unsold\nCut: ' + (rules.cutBp / 100) + '% per sale\n' + payWords(rules, qty, ask) + '\nListed: ' + Math.round(rules.ttlH / 24) + ' days, unsold back to storage'
     : '');
   /* A sale that pays less than the shop would is the seller's call, and the sheet says so (a 1-gold ask nets 0 after the cut). */
-  const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'At this price the shop pays you more than a sale would. Ask ' + whole(evenAskOf(rules, bid)) + ' or more to match it.' : '';
+  const under = rules && ask && bid !== null && netEachOf(rules, ask) < bid ? 'Below shop price, ask ' + whole(evenAskOf(rules, bid)) + '+ to match' : '';
   /* Listing a tool from the bag slows its skill as storing it does. */
   const slower = source === 'bag' && qty ? toolLossWords(cs, id, qty) : '';
   text(foot.querySelector('.hw-mk-warn'), [under, setupNaming(cs, id), slower].filter(Boolean).join(' '));
@@ -199,7 +198,7 @@ export function patchSell(v) {
       text(li.querySelector('small'), sellRowWords(sc.known.get(r.id) || null, shop && shop.bids.has(r.id) ? shop.bids.get(r.id) : null, r.qty));
     },
   });
-  text(pane.querySelector('.hw-mk-kept'), !shown.length && !kept.length ? (source === 'storage' ? 'Your storage is empty.' : 'This bag is empty. Loot from a hunt lands here.')
+  text(pane.querySelector('.hw-mk-kept'), !shown.length && !kept.length ? (source === 'storage' ? 'Storage empty' : 'Bag empty')
     : keptWords(kept.map((r) => ({ name: itemName(r.id), why: (sc.known.get(r.id) || {}).why }))));
   cls(pane, 'is-paged', sc.paged && !!f.pick);
   cls(pane, 'is-bare', !shown.length);
@@ -220,11 +219,11 @@ async function runList(o) {
   try { r = await marketList(ctx.account, cs, { source: g.source, item: g.item, qty: g.qty, askEach: g.ask, key: g.key }); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
   const said = r.ok ? '' : refusalText(r, cs);
-  if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. Press again. It won\'t list twice.'; repaint(); return; }
+  if (answerLost(r)) { sc.msg = 'No answer, safe to press again'; repaint(); return; }
   dropGesture(sc);
   if (r.ok) {
-    const fee = r.receipt && Number.isSafeInteger(r.receipt.fee) ? ' The fee was ' + goldWords(r.receipt.fee) + '.' : '';
-    sc.msg = 'Listed ' + whole(g.qty) + ' ' + itemName(g.item) + ' for ' + whole(g.ask) + ' each.' + fee;
+    const fee = r.receipt && Number.isSafeInteger(r.receipt.fee) ? '. Fee: ' + goldWords(r.receipt.fee) : '';
+    sc.msg = 'Listed ' + whole(g.qty) + ' ' + itemName(g.item) + ' for ' + whole(g.ask) + ' each' + fee;
     f.pick = null; f.qty = ''; f.ask = ''; f.filled = null;
     sc.paged = false;
   } else sc.msg = said;

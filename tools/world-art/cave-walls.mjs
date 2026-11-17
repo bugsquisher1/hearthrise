@@ -208,14 +208,20 @@ export function caveWalls(img, o) {
     } else if (d < tex.lip.height) rgb = px(tex.lip, x, d);                          /* floor above: the lip */
     put(p, rgb || px(tex.top, x, y));
   }
-  /* the floor round the walls: the old tileset rims that stood on it go, but what `keep` names (a chasm) stays */
+  /* the floor: the old tileset rims that stood on it go, and so does the old rock where the rows have opened since the paint (a
+     cell with no `keep` px in it or round it is laid with the floor fill whole); by what `keep` names (a chasm) only the px
+     within `clean` of a wall are */
+  const keepIn = (cx, cy) => { for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) if (keep(cx * T + i, cy * T + j)) return true; return false; };
   for (let cy = 0; cy < H / T; cy++) for (let cx = 0; cx < W / T; cx++) {
     if (isWall(cx, cy)) continue;
-    let by = false;
-    for (let dy = -1; dy <= 1 && !by; dy++) for (let dx = -1; dx <= 1; dx++) { const X = cx + dx, Y = cy + dy; if (X >= 0 && Y >= 0 && X < W / T && Y < H / T && isWall(X, Y)) { by = true; break; } }
-    if (!by) continue;
-    let kept = false;
-    for (let j = 0; j < T && !kept; j++) for (let i = 0; i < T; i++) if (keep(cx * T + i, cy * T + j)) { kept = true; break; }
+    let by = false, near = false;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const X = cx + dx, Y = cy + dy;
+      if (X < 0 || Y < 0 || X >= W / T || Y >= H / T) continue;
+      if (isWall(X, Y)) by = true; else if ((dx || dy) && keepIn(X, Y)) near = true;
+    }
+    const kept = keepIn(cx, cy);
+    if (!by && (kept || near)) continue;
     for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
       const x = cx * T + i, y = cy * T + j;
       if (kept) {

@@ -232,13 +232,13 @@ function fordStones() {
     let foot = 0, n = 0;
     for (let y = h - 1 - FOOT.rise - 3; y <= h - 1 - 3; y++) for (let x = 16 - FOOT.half; x <= 16 + FOOT.half; x++) { n++; if (out.data[(y * w + x) * 4 + 3] >= 128) foot++; }
     if (foot * 2 < n) throw new Error(id + ': its step covers ' + foot + ' of the foot\'s ' + n + ' px');
-    const dir = join(ROOT, ART_DIR, 'stead');
+    const dir = join(ROOT, ART_DIR, 'forest');
     writeFileSync(join(dir, id + '.png'), encodePNG(out));
     const sc = Object.assign({}, sc0, { id, source: id + '.png', pixellab: Object.assign({}, sc0.pixellab, { derived: 'mb_stepping_stones, 0 gens' }),
       notes: 'mb_stepping_stones\' own three stones laid again (' + laid.map((s) => s.k).join(', ') + ', the ' + main + ' one the step), a ford stone of Wickstead\'s laid by hand, by tools/world-art/seam-grounds.mjs; pixels unscaled, never turned or flipped, nothing drawn.' });
     writeFileSync(join(dir, id + '.json'), JSON.stringify(sc, null, 2) + '\n');
   });
-  console.log('  ✓ stead/' + FORD_STONES[0] + '..' + FORD_STONES.length + ' (the ford\'s stones, each its own laying)');
+  console.log('  ✓ forest/' + FORD_STONES[0] + '..' + FORD_STONES.length + ' (the ford\'s stones, each its own laying)');
 }
 
 /** { 'x,y': ch } for every cell of a w x h block: a `cells` override for a block the pixel read gets wrong */
@@ -322,7 +322,7 @@ export const GROUNDS = Object.freeze({
   sewer_ground: { set: 'sewer', map: 'millrace_sewer', seed: 53, solid: { '#': 'X', '~': 'W' }, samples: { F: [4, 2] }, keep: 'X',
     mats: { W: { z: 0, own: true }, F: { z: 1 } }, pairs: [{ a: 'W', b: 'F', style: 'kerb', course: 'F' }] },
   /* the chasm was a hard rectangle cut into the cave floor; it is held to its own cells (it blocks a step) */
-  warrens_ground: { set: 'warren', map: 'coppercap_warrens', seed: 61, solid: { '#': 'X' }, samples: { E: [9, 0], C: [52, 21] }, keep: 'X',
+  warrens_ground: { set: 'warren', map: 'coppercap_warrens', seed: 61, solid: { '#': 'X' }, samples: { E: [9, 0], C: [52, 21] }, only: { C: '~=' }, keep: 'X',
     /* the Drop was a box of one tile with a half-tile plank ladder over it: its rim wanders (smooth, wilder), its far wall shows
        under its north lip and it sinks into the dark (pit), and the boards are as wide as the corridor's trail (widePlanks) */
     mats: { C: { z: 0, own: true, pit: { face: 'E', rows: 10 } }, E: { z: 1 } }, smooth: true, before: widePlanks,

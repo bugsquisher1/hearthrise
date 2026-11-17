@@ -9638,5 +9638,5 @@
       ]
     ]
   },
-  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map d7bff9e2 (Coppercap Warrens, style 1) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/warrens_ground.png): 13021 px of 1 borders redrawn from the fills' own pixels (ragged); the walls drawn again from the map rows (tools/world-art/cave-walls.mjs, lane/a-cave-walls): 332858 px, none on a walked cell."
+  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map d7bff9e2 (Coppercap Warrens, style 1) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/warrens_ground.png): 13108 px of 1 borders redrawn from the fills' own pixels (ragged); the walls drawn again from the map rows (tools/world-art/cave-walls.mjs, lane/a-cave-walls): 408636 px, none on a walked cell."
 }

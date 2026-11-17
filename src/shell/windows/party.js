@@ -49,7 +49,7 @@ export function renderParty() {
 
 /** One invite in words: "Mira invites you" / "to hunt Millrace Sewer" (or no ground yet). */
 function inviteWords(i) {
-  return { who: i.from + ': party invite', where: i.hunt ? 'Last hunt: ' + huntName(i.hunt) : '' };
+  return { who: 'Party invite from ' + i.from, where: i.hunt ? 'Last hunt: ' + huntName(i.hunt) : '' };
 }
 
 function patchInvites(root, ctx, sc, inv) {
@@ -68,7 +68,7 @@ function patchInvites(root, ctx, sc, inv) {
   const none = root.querySelector('.hw-invites-none');
   cls(none, 'is-on', !inv.length);
   text(none, partyMembershipOf(ctx.character) ? 'No invites'
-    : 'No invites. ' + (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' → Invite to party');
+    : 'No invites. ' + (ctx.isPhone && ctx.isPhone() ? 'Hold a player’s name' : 'Right-click a player') + ' and choose Invite to party.');
 }
 
 renderParty.patch = function patchParty(body, ctx) {
@@ -120,7 +120,7 @@ renderParty.act = function actParty(ctx, body, action, ev, el) {
   if (action === 'accept' || action === 'decline') {
     const yes = action === 'accept';
     runIntent(sc, repaint, () => cs.answerInvite(el.getAttribute('data-invite'), yes).then((r) => (r.ok ? r : { ...r, verb: 'party_join' })), yes ? 'Joining…' : 'Declining…',
-      () => (yes ? 'Joined the party' : 'Invite declined'));
+      () => (yes ? 'You joined the party.' : 'Invite declined.'));
     return true;
   }
   return actRoster(ctx, action, repaint, sc) || actFinder(ctx, body, action, el, repaint);

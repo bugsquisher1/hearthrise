@@ -29,7 +29,7 @@ const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: fa
 /** What a friend is doing, in words. Pure. */
 export function doingWords(f) {
   const where = f.doing && f.doing.kind === 'hunting' ? 'hunting in ' + huntName(f.doing.hunt) : f.doing ? 'in town' : '';
-  return (f.online ? 'Online' : 'Offline') + (where ? ', ' + where : '');
+  return (f.online ? 'Online' : 'Offline') + (where ? ' (' + where + ')' : '');
 }
 
 export function renderFriends() {

@@ -158,11 +158,11 @@ export function actFinder(ctx, body, action, el, repaint) {
   if (action === 'list-party') {
     const on = !listedOf(cs);
     runIntent(sc, repaint, () => listParty(ctx.account, cs, on), on ? 'Listing the party…' : 'Hiding the party…',
-      () => (on ? 'Listed in the finder' : 'Private again'));
+      () => (on ? 'Your party is listed in the finder.' : 'Your party is private again.'));
     return true;
   }
   if (action === 'join') {
-    runIntent(sc, repaint, () => cs.joinParty(el.getAttribute('data-party')), 'Joining…', () => { sc.found = null; return 'Joined the party'; });
+    runIntent(sc, repaint, () => cs.joinParty(el.getAttribute('data-party')), 'Joining…', () => { sc.found = null; return 'You joined the party.'; });
     return true;
   }
   return false;

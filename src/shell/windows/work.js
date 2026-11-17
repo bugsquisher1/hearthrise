@@ -38,7 +38,7 @@ import { runIntent } from '../intent-words.js?v=0.2.134';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.134';
 import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, BENCH_MAX, clampCount, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.134';
 import { patchParts, placesParts } from '../goto.js?v=0.2.134';
-import { saleWords } from '../item-lore.js?v=0.2.134';
+import { saleWords, sentenceList } from '../item-lore.js?v=0.2.134';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.134';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.134';
 import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.134';
@@ -99,8 +99,8 @@ function oddsWords(cs, w) {
   const o = rollOddsOf(cs, w.row);
   if (!o) return '';
   const perks = o.perks.length > 1 ? o.perks.slice(0, -1).join(', ') + ' or ' + o.perks[o.perks.length - 1] : o.perks.join('');
-  return 'Odds at Crafting ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
-    : 'Hallmarked ' + o.hallmarked + ', otherwise Fine') + '. Perks: ' + perks + '. No bench fee on a roll.';
+  return 'Odds at Crafting ' + o.level + ': ' + (o.plain ? o.fine + ' Fine and ' + o.hallmarked + ' Hallmarked. The rest come out plain.'
+    : o.hallmarked + ' Hallmarked. The rest come out Fine.') + ' Possible perks: ' + perks + '. No bench fee on these.';
 }
 
 function rowHtml(g, w) {
@@ -124,7 +124,8 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const gather = w.kind === 'gather';
   /* Who won't buy it is said before it is made (panel 2026-11-01: 12,000 runes, no buyer, no word). */
   const sale = !gather && out ? saleWords(out) : '';
-  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ', about ' + whole(perHourOf(w, actionMs(cs, w))) + ' an hour, ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
+  text(li.querySelector('.hw-work-what'), gather ? sentenceList(['About ' + whole(perHourOf(w, actionMs(cs, w))) + ' ' + itemName(out) + ' an hour', each])
+    : sentenceList([recipeWords(w), sale]));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
   /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the
@@ -143,13 +144,13 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const makes = (pick === 'all' ? 'Makes up to ' + whole(runs * yieldOf(w))
     : 'Makes ' + whole(Math.min(pick, runs) * yieldOf(w)) + ' of up to ' + whole(runs * yieldOf(w)));
   const have = gather ? gatherBagWords(cs, w, running)
-    : makes + ', ' + each + (burn ? ', burns up to ' + burn + '%' : '');
+    : sentenceList([makes, each, burn ? 'Up to ' + burn + '% burn' : '']);
   /* Running: the server's count left on this run ("3 left"), or nothing when it runs until the bag is out. */
   const left = running && !gather ? leftOf(cs) : null;
   /* Short of an input: where to get it, each place a link to its window (src/shell/goto.js) */
   const short = why ? shortInputLine(cs, w, hunting) : null;
   patchParts(li.querySelector('.hw-work-why'), short ? [short.head].concat(short.places.length ? [' '] : [], placesParts(short.places))
-    : [why || (running ? 'Working on it now' + (left !== null ? ', ' + whole(left) + ' left' : '') + '. ' : '') + have]);
+    : [why || (running ? 'Working on it now' + (left !== null ? ' (' + whole(left) + ' left)' : '') + '. ' : '') + have]);
   /* "X": a typed count shows on its button; the field is open only on the row that asked for it. */
   const custom = typeof pick === 'number' && !BENCH_COUNTS.includes(pick);
   const xb = li.querySelector('.hw-work-xb');
@@ -232,7 +233,7 @@ renderWork.patch = function patchWork(body, ctx) {
     const guide = SKILL_GUIDE[skill];
     const how = SKILLS_DEF[skill].cat === 'gather'
       ? 'Runs offline until stopped or a hunt starts'
-      : 'Uses materials from bag' + (drawsOnStorage(cs) ? ' and Storage' : '') + ' until they run out';
+      : 'Uses materials from your bag' + (drawsOnStorage(cs) ? ' and storage' : '') + ' until they run out';
     text(view.querySelector('.hw-work-use'), [guide ? guide.use : '', how, feeHeadWords(cs, skill)].filter(Boolean).join('\n'));
     const tool = view.querySelector('.hw-work-tool'), toolSaid = toolLine(cs, skill);
     text(tool, toolSaid);

@@ -111,7 +111,7 @@ export function renderConfigureAction(ctx) {
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
     + '</div></div></div>'
     + '<p class="hh-intent-msg ca-msg" role="status" aria-live="polite"></p>'
-    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Fires automatically, set when below</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
+    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Fires on its own. Set when below.</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
     + '</div></div>';
 }
 

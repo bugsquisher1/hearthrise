@@ -49,7 +49,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
 const againOffWords = (cur) => {
   const room = roomOfHunt(cur.hunt);
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
-  return callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.';
+  return callOfHunt(cur.hunt) ? 'He only comes when called. Call him from the ground\'s page.' : 'This hunt didn\'t save its settings.';
 };
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */
@@ -209,7 +209,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     if (trainAgain) prop(go, 'disabled', sc.pending);
     attr(go, 'title', trainAgain ? t('training.card_again_title') : huntOpen ? 'A hunt is already running' : !again ? againOffWords(cur) : route.why || 'Same ground, bar and limits');
     /* Hunt again off says why on the line under it, not only in a title (say-why). */
-    againWhy = trainAgain ? '' : huntOpen ? 'Hunt again off: a hunt is already running' : !again ? 'Hunt again off: ' + againOffWords(cur) : route.why ? 'Hunt again off: ' + route.why : '';
+    againWhy = trainAgain ? '' : huntOpen ? 'You can\'t hunt again while a hunt is running.' : !again ? 'Can\'t hunt again. ' + againOffWords(cur) : route.why ? 'Can\'t hunt again. ' + route.why : '';
     const card = huntOpen ? null : nextStepOf(ctx);
     const next = root.querySelector('[data-hs-act="coach-next"]');
     prop(next, 'hidden', !card);
@@ -337,9 +337,9 @@ function leadAgain(ctx, cs, sc, repaint, hunt) {
   const warned = hunt + ':' + low.under.map((s) => s.seat).join();
   if (low.under.length && sc.warned !== warned) {
     runIntent(sc, repaint, () => warnPartyGround(ctx.account, cs, hunt), 'Telling the party…',
-      () => underWords(row, low.under) + ', party warned', cs).then(() => { sc.warned = warned; repaint(); });
+      () => underWords(row, low.under).replace(/\.$/, '') + '. The party has been warned.', cs).then(() => { sc.warned = warned; repaint(); });
     return;
   }
   sc.warned = null;
-  runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…', () => 'Party heading to ' + huntName(hunt), cs);
+  runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…', () => 'The party is heading to ' + huntName(hunt) + '.', cs);
 }

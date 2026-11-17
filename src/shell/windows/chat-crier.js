@@ -84,7 +84,7 @@ async function press(ctx, body, words, viaDraft) {
   const r = await social.chat.cry(words, links, s.quote.price);
   s.pending = false;
   s.stale = true;
-  if (r.ok) s.msg = 'Paid ' + gold(r.price) + '. ' + (Number.isInteger(r.n) && Number.isInteger(r.perDay) ? whole(r.n) + ' of ' + whole(r.perDay) + ' today.' : '');
+  if (r.ok) s.msg = 'Paid ' + gold(r.price) + '. ' + (Number.isInteger(r.n) && Number.isInteger(r.perDay) ? 'That\'s ' + whole(r.n) + ' of ' + whole(r.perDay) + ' today.' : '');
   else s.msg = refusalText(r, ctx.character);
   ctx.refresh('chat');
 }

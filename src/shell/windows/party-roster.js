@@ -45,10 +45,10 @@ function seatHtml(glyphs) {
     + '<span class="hw-seat-state"></span></li>';
 }
 
-/** One seat's second line: "Lv 12 · Melee (shield)" (no weapon worn: "No weapon"). */
+/** One seat's second line: "Level 12, Melee (shield)" (no weapon worn: "No weapon"). */
 function seatFacts(m) {
   const role = m.role && HUNT_ROLES[m.role] ? HUNT_ROLES[m.role].label : 'No weapon';
-  return (m.level === null ? '' : 'Lv ' + m.level + ', ') + role;
+  return (m.level === null ? '' : 'Level ' + m.level + ', ') + role;
 }
 
 /** Where a seat is, in words: away (its seat kept), hunting, or in town. */
@@ -59,8 +59,8 @@ function seatWhere(m) {
 /** What the party does next, from the server's party (the leader picks the ground; a member waits). */
 function nextStep(p, r) {
   if (r.anyHunting) return p.hunt ? 'The party is hunting in ' + huntName(p.hunt) + '.' : 'The party is hunting.';
-  if (r.isLeader) return r.members.length > 1 ? 'Leader: pick a hunt, then Enter with party'
-    : 'Party of one: invite a player or pick a hunt';
+  if (r.isLeader) return r.members.length > 1 ? 'You\'re the leader. Pick a hunt, then press Enter with party.'
+    : 'It\'s just you so far. Invite a player or pick a hunt.';
   const lead = r.members.find((m) => m.seat === r.leaderSeat);
   return 'Waiting for ' + (lead ? lead.name : 'the leader') + ' to pick a hunt.';
 }

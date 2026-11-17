@@ -14,7 +14,7 @@
 const row = (glyph, use, where) => Object.freeze({ glyph, use, where });
 
 export const SKILL_GUIDE = Object.freeze({
-  melee: row('uiSword', 'Melee blows land more often and hit harder', 'Deal damage with a sword, axes or a club.'),
+  melee: row('uiSword', 'Melee blows land more often and hit harder', 'Deal damage with a sword, axe or hammer.'),
   ranged: row('uiBow', 'Shots land more often and hit harder', 'Deal damage with a bow or crossbow.'),
   magic: row('uiStaff', 'Spells land more often and hit harder', 'Spend mana on spells.'),
   defense: row('uiShield', 'Monsters hit less often', 'Take blows in armor, a shield block counts double'),

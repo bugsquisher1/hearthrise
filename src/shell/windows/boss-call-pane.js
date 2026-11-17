@@ -42,7 +42,7 @@ export function callHtml() {
   return '<section class="hw-hd-call" aria-label="Call out" hidden><h4 class="hw-hd-h">Call out</h4>'
     + '<p class="hw-call-line"></p>'
     + '<button type="button" class="hh-tool hw-call-press" data-hs-act="call-warn"></button>'
-    + '<div class="hw-confirm hw-call-warn" role="group" aria-label="Are you sure?"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-call-note-alone" hidden></p><p class="hw-confirm-note hw-call-note-a"></p><p class="hw-confirm-note hw-call-note-b"></p>'
+    + '<div class="hw-confirm hw-call-warn" role="group" aria-label="Confirm"><p class="hw-confirm-q"></p><p class="hw-confirm-note hw-call-note-alone" hidden></p><p class="hw-confirm-note hw-call-note-a"></p><p class="hw-confirm-note hw-call-note-b"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary is-on" data-hs-act="call-go"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="call-no"></button></div></div></section>';
 }

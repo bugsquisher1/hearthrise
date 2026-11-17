@@ -57,7 +57,7 @@ const WORDS = Object.freeze({
     return 'Storage full for unsold items, build ' + (d && d.next ? 'the ' + d.next.name : 'another chest');
   },
   too_many_listings: (f) => 'Max listings: ' + whole(f.limit),
-  list_daily_cap: (f) => 'Daily limit: ' + whole(f.limit) + ' listings. Resets at ' + resetWords(),
+  list_daily_cap: (f) => 'Daily limit: ' + whole(f.limit) + ' listings, resets at ' + resetWords(),
   insufficient_gold: (f, cs, r) => (r.verb === 'market_list' ? 'Listing fee: ' + whole(f.need) + ' gold'
     : 'Need ' + whole(f.need) + ' gold, have ' + whole(f.have)),
   not_enough: (f) => (f.available === undefined ? 'There aren\'t that many left at that price.'

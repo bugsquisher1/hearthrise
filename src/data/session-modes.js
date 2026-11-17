@@ -58,14 +58,14 @@ export function validateSessionModes(modes, def) {
     if (!permille(m.xpPm)) out.push(key + ': xpPm is not a whole permille 0..1000');
     for (const f of FLAGS) if (typeof m[f] !== 'boolean') out.push(key + ': ' + f + ' is not true or false');
     /* THE ANTI-FARM RULE: a death that costs less than a hunt's pays nothing a hunt pays. */
-    if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(key + ': a mode whose death costs less than a hunt\'s pays coin, drops or Bestiary');
+    if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(key + ': a cheaper death pays coin, drops or Bestiary');
     /* A Blessing is never spent on a death that costs nothing. */
     if (m.deathLossPm === 0 && m.blessings) out.push(key + ': a death that costs nothing uses up the Blessings');
   }
   const d = modes[def];
   if (!d) out.push('the default mode ' + def + ' is no row');
   else if (!(d.deathLossPm === 1000 && d.blessings && d.xpPm === 1000 && d.coin && d.drops && d.bestiary && d.stamina)) {
-    out.push('the default mode ' + def + ' is not a full hunt. Every ground that names no mode would pay or cost less than a hunt');
+    out.push('the default mode ' + def + ' is not a full hunt');
   }
   return out;
 }

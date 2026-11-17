@@ -106,10 +106,10 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const ran = gained > 0 ? Math.ceil(gained / yieldOf(w)) * actionMs(cs, w) : 0;
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
   const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') : ' It stopped' + when + whyStopped(cs, w) + '.';
-  const name = nameOf(cs) || 'Your hero';
+  const name = nameOf(cs) || 'Hero';
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     action: made ? 'bag' : 'show', button: made ? 'Open your inventory' : 'See your hero',
-    text: 'While you were away (' + awayWords(now - was.at) + '), ' + name + ' ' + didWords(w) + ': ' + parts.join(', ') + '.' + tail,
+    text: 'Away ' + awayWords(now - was.at) + ': ' + name + ' ' + didWords(w) + ', ' + parts.join(', ') + '.' + tail,
   };
 }

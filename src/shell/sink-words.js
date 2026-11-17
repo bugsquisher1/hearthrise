@@ -19,27 +19,27 @@ export function sinkRefusal(r, heroName) {
   if (!r || typeof r.verb !== 'string') return null;
   if (r.verb === 'town_powder' || r.verb === 'town_round') {
     /* LABELS, like the table's own rows (Tyler 2026-11-14): "Daily limit: 5 powders per account" */
-    if (r.error === 'show_limit' && num(r.perDay)) return 'Daily limit: ' + r.perDay + ' ' + SHOW_NOUN[r.verb] + ' per account. Resets at midnight UTC.';
+    if (r.error === 'show_limit' && num(r.perDay)) return 'Daily limit: ' + r.perDay + ' ' + SHOW_NOUN[r.verb] + ' per account, resets at midnight UTC';
     if (r.error === 'show_busy' && r.verb === 'town_powder' && num(r.bookedS)) {
       const n = Math.max(1, Math.ceil(r.bookedS / 60));
       return 'Hearth powders booked for ' + n + ' min, not charged';
     }
-    if (r.error === 'show_busy' && r.verb === 'town_round' && num(r.waitS)) return 'Round in progress, not charged. Try again in ' + Math.max(1, r.waitS) + ' s.';
+    if (r.error === 'show_busy' && r.verb === 'town_round' && num(r.waitS)) return 'Round in progress, retry in ' + Math.max(1, r.waitS) + ' s, not charged';
   }
   if (r.verb === 'crier') {
     if (r.error === 'crier_level' && num(r.need) && num(r.level)) return 'Requires Level ' + r.need + ' (' + (heroName || 'this hero') + ': Level ' + r.level + ')';
     if (r.error === 'crier_long' && num(r.n)) return 'Max ' + (num(r.max) ? r.max : 120) + ' letters (yours: ' + r.n + ')';
-    if (r.error === 'crier_limit' && num(r.perDay)) return 'Daily limit: ' + r.perDay + ' Crier lines per account. Resets at midnight UTC.';
-    if (r.error === 'crier_busy' && num(r.waitS)) return 'Crier busy, not charged. Try again in ' + Math.max(1, r.waitS) + ' s.';
+    if (r.error === 'crier_limit' && num(r.perDay)) return 'Daily limit: ' + r.perDay + ' Crier lines per account, resets at midnight UTC';
+    if (r.error === 'crier_busy' && num(r.waitS)) return 'Crier busy, retry in ' + Math.max(1, r.waitS) + ' s, not charged';
   }
   if (r.verb === 'town_works') {
     const name = (TOWN_WORKS[r.project] && TOWN_WORKS[r.project].name) || 'The Works';
-    if (r.error === 'works_limit' && num(r.perDay)) return 'Daily limit: ' + whole(r.perDay) + ' gp given per account. Resets at midnight UTC.';
+    if (r.error === 'works_limit' && num(r.perDay)) return 'Daily limit: ' + whole(r.perDay) + ' gp given per account, resets at midnight UTC';
     if (r.error === 'works_over' && num(r.left)) return 'Max today: ' + whole(r.left) + ' gp more';
     if (r.error === 'works_short' && num(r.left)) return name + ' needs only ' + whole(r.left) + ' gp more';
     if (r.error === 'works_small' && num(r.min)) return 'Minimum gift: ' + whole(r.min) + ' gp';
-    if (r.error === 'works_done') return name + ' is finished (nothing else being built)';
+    if (r.error === 'works_done') return name + ' finished, nothing else to build';
   }
-  if (r.error === 'quote_changed' && num(r.price)) return 'Price changed to ' + whole(r.price) + ' gp, not charged. Press again to pay.';
+  if (r.error === 'quote_changed' && num(r.price)) return 'Price now ' + whole(r.price) + ' gp, not charged';
   return null;
 }

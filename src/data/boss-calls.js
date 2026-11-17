@@ -50,7 +50,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   warnTitle: 'Call out {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14: "Recommended: 4+ players", "do it like that for everything outside of actual lore"); the note keeps line breaks. */
   warn: Object.freeze([
-    'Hits harder than on the ground\n50% HP: adds attack your non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
+    'Hits harder than on the ground\n50% HP: adds attack non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
     'Cost: {fee} gp, win or lose\nNo XP, coin or drops\nTime limit: {minutes} min',
   ]),
   /* A boss whose adds shield him (monsters.js phases.guardPm): the warning's {guard}, empty for one whose adds don't. */
@@ -64,29 +64,30 @@ export const BOSS_CALL_WORDS = Object.freeze({
   cancel: 'Not yet',
   /* The status line while the call is out, and once he answers (alone: no party walks in with you). */
   calling: 'Calling {boss} out…',
-  answered: Object.freeze({ party: '{Boss} answers, party on the way', alone: '{Boss} answers, on your way' }),
+  answered: Object.freeze({ party: '{Boss} answers, party on the way', alone: '{Boss} answers, heading in' }),
   left: Object.freeze({ one: 'Calls left today: 1', other: 'Calls left today: {n}', none: 'Calls left today: 0' }),
   hunting: 'Not while hunting',
   noQuote: 'Checking…',
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
   bar: Object.freeze({ adds: 'Adds incoming', guarded: 'Shielded by adds', enrage: 'Enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */
-  log: Object.freeze({ adds: 'calls his adds (they attack non-tanks)', guarded: 'calls his adds (they attack non-tanks and shield him)', enrage: 'is enraged (hits harder)' }),
+  log: Object.freeze({ adds: 'calls his adds to attack non-tanks', guarded: 'calls his adds to shield him and attack non-tanks', enrage: 'is enraged and hits harder' }),
   shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
-  /* THE LOSING LINE (src/hunt-view/boss-loss.js): where it was lost, what this hero's bar did there, what answers it. {pct} his HP at the end; {times} the server's count. */
+  /* THE LOSING LINE (src/hunt-view/boss-loss.js): three labels, one a line: where it was lost, what this hero's bar did there, what answers it.
+     {pct} his HP at the end; {n} the server's count. */
   loss: Object.freeze({
     fell: Object.freeze({ first: 'Lost before his adds, boss at {pct}%', adds: 'Lost during his adds, boss at {pct}%', enrage: 'Lost after his enrage, boss at {pct}%' }),
     time: Object.freeze({ first: 'Time up before his adds, boss at {pct}%', adds: 'Time up during his adds, boss at {pct}%', enrage: 'Time up after his enrage, boss at {pct}%' }),
-    fact: Object.freeze({ challenge: 'your Challenge fired {times}', heals: 'your heals fired {times}', area: 'your area slots fired {times}', ate: 'you ate {times}' }),
-    /* What answers each part of the fight, short. */
+    fact: Object.freeze({ challenge: 'Challenge casts: {n}', heals: 'Heals cast: {n}', area: 'Area slot casts: {n}', ate: 'Food eaten: {n}' }),
+    /* What answers each part of the fight, as a tip. */
     answer: Object.freeze({
-      first: 'Bring a healer, eat earlier or upgrade your gear.',
-      adds: 'Adds attack non-tanks. An area slot (Cleave, Fireball) or Target on Lowest HP clears them.',
+      first: 'Tip: Bring a healer, eat earlier or upgrade gear',
+      adds: 'Tip: Cleave, Fireball or Target on Lowest HP clears adds',
       /* The add wave of a boss whose adds shield him (isGuarded): the one answer the table says decides it (warnGuard above, re-measured 2026-11-14). */
-      guarded: 'His adds shield him. Kill them first and keep your healer on whoever they attack.',
-      enrage: 'Under 25% HP he hits far harder. Eat earlier and set your healer to heal sooner.',
+      guarded: 'Tip: Kill his adds first, heal whoever they attack',
+      enrage: 'Tip: Eat earlier and heal sooner below 25% HP',
       /* The enrage of a boss whose adds shield him (isGuarded): what he hits harder is the tank. */
-      enrageGuarded: 'Under 25% HP he hits far harder, mostly your tank. Better tank armor, eating earlier and faster heals help.',
+      enrageGuarded: 'Tip: Better tank armor, earlier food, faster heals',
     }),
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). Each says it charged nothing. */
@@ -96,7 +97,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
     quote_changed: 'Price changed, not charged',
     call_unknown: 'Call not available, not charged',
     insufficient_gold: 'Not enough gold, not charged',
-    not_ready: 'Party not ready (see Party window), not charged',
+    not_ready: 'Party not ready, not charged',
     party_hunting: 'Party still hunting, not charged',
   }),
 });

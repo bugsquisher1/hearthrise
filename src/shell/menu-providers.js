@@ -90,7 +90,7 @@ function partyEntries(ctx, cs) {
       run: async (t) => {
         if (mine(t)) {
           const r = await inviteOwn(account, cs, t.slot);
-          return r.ok ? { done: t.name + ' joined your party.' } : { say: refusalText(r) };
+          return r.ok ? { done: t.name + ' joined the party' } : { say: refusalText(r) };
         }
         const r = t.id && UUID.test(t.id) ? await invitePlayer(account, cs, t.id, Number.isInteger(t.slot) ? t.slot : null) : await cs.inviteByName(t.name);
         return r.ok ? { done: 'Invite sent to ' + t.name + '.' } : { say: refusalText({ ...r, verb: 'party_invite' }) };

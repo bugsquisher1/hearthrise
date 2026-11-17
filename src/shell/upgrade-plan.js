@@ -278,6 +278,6 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   if (more > 0) named.push(more + (more === 1 ? ' more piece' : ' more pieces'));
   const left = plan.choices.map((c) => (EQUIP_SLOT_META[c.slot] || {}).label || c.slot);
   const ends = plan.picks.reduce((n, p) => n + num(p.ends), 0);
-  return 'Wear ' + listWords(named) + '.' + (ends > EPS ? ' Your full set\'s +' + (Math.round(ends * 1000) / 10) + '% critical chance ends.' : '')
+  return 'Wear ' + listWords(named) + '.' + (ends > EPS ? ' Set bonus lost: +' + (Math.round(ends * 1000) / 10) + '% critical chance' : '')
     + (left.length ? ' ' + listWords(left) + ': two pieces trade off, so pick on the doll.' : '');
 }

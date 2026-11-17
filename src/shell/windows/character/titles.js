@@ -19,7 +19,7 @@ import { t } from '../../../render/player-text.js?v=0.2.134';
 /** The Titles tab's skeleton. */
 export function titlesHtml() {
   return '<section class="hw-cs-titles">'
-    + '<p class="hs-note">A title stands beside this hero\'s name in town and in chat. Each hero earns its own, the kills first and then the gold.</p>'
+    + '<p class="hs-note">Shown beside the name in town and chat</p><p class="hs-note">Unlocked by kills, then gold</p>'
     + '<ul class="hw-ledger hw-titles"></ul><p class="hh-empty hw-titles-none"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></section>';
 }
@@ -36,11 +36,11 @@ const lineOf = (r) => {
 /* What the row says under its name, and what its button says (null: nothing to press). */
 function rowWords(r, purse) {
   const { label } = lineOf(r);
-  if (r.held) return { small: r.worn ? 'You wear this one.' : 'Yours to wear.', press: r.worn ? t('controls.unequip') : t('controls.equip'), off: false };
+  if (r.held) return { small: r.worn ? 'Equipped' : 'Owned', press: r.worn ? t('controls.unequip') : t('controls.equip'), off: false };
   const count = label + ': ' + whole(r.have) + ' of ' + whole(r.kills);
   if (r.have < r.kills) return { small: count, press: null, off: true };
   const short = purse !== null && purse < r.price ? r.price - purse : 0;
-  return { small: count + (short ? '. You need ' + gold(short) + ' more.' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
+  return { small: count + (short ? '. Need ' + gold(short) + ' more' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
 }
 
 /** Patch the Titles tab. */
@@ -80,10 +80,10 @@ export function actTitles(ctx, sc, action, ev, el, repaint) {
   if (!r || sc.pending) return true;
   const { name } = lineOf(r);
   if (r.held) {
-    runIntent(sc, repaint, () => wearTitle(ctx.account, cs, r.worn ? null : r.id), r.worn ? 'Taking it off…' : 'Putting it on…',
-      () => (r.worn ? name + ' is off.' : 'You wear ' + name + ' now.'), cs);
+    runIntent(sc, repaint, () => wearTitle(ctx.account, cs, r.worn ? null : r.id), r.worn ? 'Unequipping…' : 'Equipping…',
+      () => (r.worn ? name + ' unequipped' : name + ' equipped'), cs);
   } else {
-    runIntent(sc, repaint, () => buyTitle(ctx.account, cs, r.id, r.price), 'Claiming…', () => name + ' is yours. Press Equip to show it.', cs);
+    runIntent(sc, repaint, () => buyTitle(ctx.account, cs, r.id, r.price), 'Claiming…', () => name + ' claimed, press Equip to show it', cs);
   }
   return true;
 }

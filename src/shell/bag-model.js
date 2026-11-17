@@ -433,7 +433,7 @@ const STYLE_NAME = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee he
 export function styleWords(eq, ops) {
   const before = roleOfSet(eq), now = roleOfSet(Object.assign({}, eq, ops));
   if (!now || now === before) return null;
-  return 'You fight as ' + STYLE_NAME[now] + ' now, and your bar has this weapon\'s moves.' + (ops.ammo ? ' ' + itemName(ops.ammo) + ' loaded.' : '');
+  return 'Style: ' + STYLE_NAME[now] + ', bar updated' + (ops.ammo ? '. ' + itemName(ops.ammo) + ' loaded' : '');
 }
 
 /** The role the worn set `gear` plays (the weapon and the shield beside it), or null. */

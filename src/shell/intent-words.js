@@ -120,7 +120,7 @@ export function refusalText(r, cs) {
   }
   /* A hero's colors past the row's cap (hr_hero_colors_set sends the number). */
   if (r && r.error === 'colors_limit' && r.figures && Number.isInteger(r.figures.per_day)) {
-    return 'Daily limit: ' + r.figures.per_day + ' color changes. Resets at midnight UTC';
+    return 'Daily limit: ' + r.figures.per_day + ' color changes, resets at midnight UTC';
   }
   /* A title short of its kills (hr_title_buy counts them): "Wolfer takes 5,000 wolves. Marlow has 3,214. Gold can't skip kills." */
   const title = r && typeof r.title === 'string' && own(TITLES, r.title) ? TITLES[r.title] : null;
@@ -133,7 +133,7 @@ export function refusalText(r, cs) {
     return 'A Hallmark takes Crafting ' + r.figures.need + '. ' + ((cs && nameOf(cs)) || 'This hero') + ' has ' + r.figures.have + '.';
   }
   if (r && r.error === 'hallmark_limit' && r.figures && Number.isInteger(r.figures.limit)) {
-    return 'Daily limit: ' + r.figures.limit + ' Hallmarks. Resets at midnight UTC';
+    return 'Daily limit: ' + r.figures.limit + ' Hallmarks, resets at midnight UTC';
   }
   /* A town action above the server's skill level: town-work.js names the skill, both levels and the action. */
   if (r && r.error === 'level_too_low' && r.skill && Number.isInteger(r.skill.need)) return skillShortWords(r.skill.id, r.skill.need, r.skill.have, r.skill.doing);

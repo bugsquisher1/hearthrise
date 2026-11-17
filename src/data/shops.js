@@ -520,7 +520,7 @@ export const SHOP_TABLES = [
     "origin": "src/data/supply-basics.js",
     "anchor": "export const SUPPLY_SHOP_OFFERS",
     "spends_at": "hr-accrue shop_buy (the tools and the outfitter's gear; Tyler 2026-10-20: the Shop sells no supplies)",
-    "note": "hand-authored rows (lane S2, the outfitter, designer 2026-10-22). The server's hr_shop_supply_offers is generated from them. Food, drink and ammo are SUPPLY_PRICE_LIST, never offers",
+    "note": "hand-authored rows that generate hr_shop_supply_offers, never food, drink or ammo",
     "count": SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).length
   }
 ];
@@ -533,7 +533,7 @@ export const SHOP_TABLES = [
 export const DERIVED_PRICES = [
   {
     "id": "bank.gold",
-    "name": "Bank space (gold rung)",
+    "name": "Bank space, gold rung",
     "where": "src/legacy.js bankGoldCost() → buyBankSpaceGold()",
     "currency": "gold",
     "formula": "round(BANK_SPACE.gold.base * BANK_SPACE.gold.growth ^ G.bank.goldBuys)",

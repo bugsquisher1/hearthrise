@@ -20,7 +20,7 @@ const PENDING = new WeakSet();   // the hosts with an Unblock in flight
 
 export function blocksHtml() {
   return '<h3 class="hs-sub">' + esc(ROW.label) + '</h3><p class="hs-note">' + esc(ROW.help) + '</p>'
-    + '<ul class="hs-blocks"></ul><p class="hh-empty hs-blocks-none">You have not blocked anyone.</p>';
+    + '<ul class="hs-blocks"></ul><p class="hh-empty hs-blocks-none">No blocked players</p>';
 }
 
 export function patchBlocks(body, ctx) {
@@ -32,7 +32,7 @@ export function patchBlocks(body, ctx) {
     patch: (el, p) => { text(el.querySelector('b'), p.name); prop(el.querySelector('button'), 'disabled', PENDING.has(body)); },
   });
   cls(body.querySelector('.hs-blocks-none'), 'is-on', !list.length);
-  text(body.querySelector('.hs-blocks-none'), social ? 'You have not blocked anyone.' : 'Blocks are not connected.');
+  text(body.querySelector('.hs-blocks-none'), social ? 'No blocked players' : 'Blocks unavailable');
 }
 
 /** Unblock the pressed row's player: ONE hr_block_set. Answers the store's { ok } | { ok: false, error } for the host's line. */

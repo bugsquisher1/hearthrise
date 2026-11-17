@@ -27,13 +27,13 @@ export function mountSocialWatch(account, alerts) {
     for (const c of social.whispers.conversations()) {
       const last = c.unread > 0 ? social.whispers.lines(c.tab).at(-1) : null;
       if (last && !up.some((a) => a.kind === 'whisper' && a.peer === c.id)) {
-        alerts.say(cs, { id: 'whisper:' + c.id + ':' + last.id, kind: 'whisper', session: null, peer: c.id, tab: c.tab, transient: true, text: c.name + ' sent you a private message.' });
+        alerts.say(cs, { id: 'whisper:' + c.id + ':' + last.id, kind: 'whisper', session: null, peer: c.id, tab: c.tab, transient: true, text: 'Whisper from ' + c.name });
       }
     }
     for (const p of social.friends.incoming()) {
       if (told.has(p.id)) continue;
       told.add(p.id);
-      alerts.say(cs, { id: 'friend:' + p.id, kind: 'friend', session: null, text: p.name + ' wants to be your friend.' });
+      alerts.say(cs, { id: 'friend:' + p.id, kind: 'friend', session: null, text: p.name + ' sent a friend request' });
     }
   }
 

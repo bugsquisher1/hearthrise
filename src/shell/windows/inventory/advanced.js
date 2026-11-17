@@ -55,7 +55,7 @@ function roleWords(cs, eq) {
   }
   const w = eq.weapon ? itemName(eq.weapon) : null;
   if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ', from the ' + w : '');
-  return w ? 'Role: the server has not named a role for your ' + w + ' yet' : 'No weapon worn: wear one to take a hunt role';
+  return w ? 'Role: none yet for the ' + w : 'Role: none, no weapon';
 }
 
 function buffWords(b) {

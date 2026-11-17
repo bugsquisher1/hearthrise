@@ -78,8 +78,8 @@ const eqOf = (cs) => (cs && typeof cs.read === 'function' && cs.read('equipment'
 /* SKILLS FROM STORAGE (Tyler 2026-10-25): what a bench's inputs are counted against, the bag plus the account's
    Storage where the server says so (item-sections.js heldOf). The bag alone (invOf) stays the tools and the room. */
 const supplyOf = (cs) => heldOf(cs);
-/* Where the inputs are, in words: "in your bag" until the server says Storage counts too. */
-const fromWords = (cs) => (drawsOnStorage(cs) ? 'in your bag or Storage' : 'in your bag');
+/* Where the inputs are, in words: "in bag" until the server says Storage counts too. */
+const fromWords = (cs) => (drawsOnStorage(cs) ? 'in bag or Storage' : 'in bag');
 
 /** A work row: { kind, id, skill, row } for a gathering node or a bench recipe id, or null. */
 export function workRow(kind, id) {
@@ -223,8 +223,8 @@ function inputShortOf(cs, w) {
   }
   return inHand ? { inHand } : null;
 }
-/* "No Silk Thread in your bag or Storage." / "Needs 4 Silk Thread (you have 1)." */
-const shortWords = (cs, s) => (s.have ? 'Needs ' + whole(s.need) + ' ' + itemName(s.id) + ' (you have ' + whole(s.have) + ').' : 'No ' + itemName(s.id) + ' ' + fromWords(cs) + '.');
+/* "No Silk Thread in bag or Storage." / "Needs 4 Silk Thread, have 1." */
+const shortWords = (cs, s) => (s.have ? 'Needs ' + whole(s.need) + ' ' + itemName(s.id) + ', have ' + whole(s.have) + '.' : 'No ' + itemName(s.id) + ' ' + fromWords(cs) + '.');
 
 /**
  * workBlock's line when its reason is an input the hero is short of, piece by piece so each place it names can be a link
@@ -238,13 +238,13 @@ export function shortInputLine(cs, w, huntRunning) {
 }
 
 /* A full bag, said once for a bench and a gathering row alike. */
-const roomWords = (id) => 'Your bag is full. Make room for ' + itemName(id) + ' first.';
+const roomWords = (id) => 'Bag full, no room for ' + itemName(id);
 
 /** Why this row cannot start now (plain words), or '' when it can. Every number is the server's. */
 export function workBlock(cs, w, huntRunning) {
   if (huntRunning) return 'Not while a hunt is running.';
   const lv = levelFor(cs, w.skill);
-  if (lv === null) return 'Reading your ' + skillWord(w.skill) + ' level…';
+  if (lv === null) return 'Loading ' + skillWord(w.skill) + ' level…';
   if (lv < (w.row.req || 1)) return skillShortWords(w.skill, w.row.req, lv, doWords(w));
   if (w.kind === 'artisan') {
     if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
@@ -252,7 +252,7 @@ export function workBlock(cs, w, huntRunning) {
        not in the bag, and the bench spends the bag's: said last, so nobody takes a weapon off for a job the rest of the row can't do yet. */
     const short = inputShortOf(cs, w);
     if (short && short.id) { const where = whereToGet(short.id); return shortWords(cs, short) + (where ? ' ' + where + '.' : ''); }
-    if (short) return 'You\'re wearing your ' + itemName(short.inHand) + '. Take it off first.';
+    if (short) return 'Equipped: ' + itemName(short.inHand) + '. Unequip it first.';
     /* The bag's room (the engine's own test, artisan-sim.js bagFullFor, on the server's bag and stack cap): the
        product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
     const full = bagFullFor({ inventory: invOf(cs) }, w.row, w.skill, { bagCap: bagCapOf(cs), burns: false });
@@ -281,13 +281,13 @@ export function toolLine(cs, skill) {
   const row = TOOLS.filter((id) => ITEMS[id].toolSkill === skill && whereToGet(id));
   const inBag = pick(skill, invOf(cs));
   const stored = pick(skill, Object.fromEntries((bankOf(cs) || []).map((r) => [r.id, r.qty])));
-  const better = stored && (!inBag || (stored.toolTier || 0) > (inBag.toolTier || 0)) ? itemName(stored.id) + ' is in Storage, so it doesn\'t count. Take it out to go faster.' : '';
-  if (inBag) return ['Your ' + itemName(inBag.id) + ' is in your bag: ' + toolEffect(inBag.id) + '. The times below count it.', better ? 'Your ' + better : ''].filter(Boolean).join(' ');
-  if (better) return 'Your ' + better;
+  const better = stored && (!inBag || (stored.toolTier || 0) > (inBag.toolTier || 0)) ? itemName(stored.id) + ' in Storage, not counted' : '';
+  if (inBag) return ['Tool: ' + itemName(inBag.id), toolEffect(inBag.id), better].filter(Boolean).join('\n');
+  if (better) return better;
   if (!row.length) return '';
   const first = row.slice().sort((a, b) => (ITEMS[a].toolTier || 0) - (ITEMS[b].toolTier || 0))[0];
   const sold = ((shopOf(cs) || {}).offers || []).some((o) => o.item === first);
-  return 'No tool in your bag. ' + itemName(first) + ' ' + (sold ? 'from the Shop' : '(' + whereToGet(first) + ')') + ': ' + toolEffect(first) + ' while it\'s in your bag.';
+  return 'Tool: none\n' + itemName(first) + ': ' + (sold ? 'Shop' : whereToGet(first)) + '\n' + toolEffect(first);
 }
 
 /**
@@ -303,7 +303,7 @@ export function toolLossWords(cs, id, qty) {
   const left = (inv[id] || 0) - qty;
   if (left > 0) return '';
   const after = pick(it.toolSkill, Object.assign({}, inv, { [id]: 0 }));
-  return skillWord(it.toolSkill) + ' is slower without it. A tool only counts in your bag' + (after ? ', so your ' + itemName(after.id) + ' takes over.' : '.');
+  return skillWord(it.toolSkill) + ' slower without it' + (after ? ', ' + itemName(after.id) + ' takes over' : '');
 }
 
 /* ── The one run per character: the armed stop and the numbers it started from (display only). ── */
@@ -317,13 +317,13 @@ function xpOf(cs, skill) { const sk = skillsOf(cs); return sk && sk[skill] ? sk[
 const skillRefusal = (cs, w) => (r) => (r && !r.ok && r.error === 'activity_locked'
   ? Object.assign({}, r, { error: 'level_too_low', skill: { id: w.skill, need: w.row.req || 1, have: levelFor(cs, w.skill), doing: doWords(w) } }) : r);
 
-/** "You stopped chopping the Normal Tree." when pressing `w` replaces another town job the server says is running, else ''. One job at a time, and the
+/** "Stopped chopping the Normal Tree" when pressing `w` replaces another town job the server says is running, else ''. One job at a time, and the
     press that ends one says so (newcomer panel 2026-11-01: a craft ended the woodcutting in silence). Read before the press lands. */
 export function jobReplacedWords(cs, w) {
   const now = workOf(cs), st = stateOf(cs);
   if (!now || now.id === w.id || !townWorkRunning(st, typeof cs.read === 'function' ? cs.read('hunt') : null)) return '';
   const what = townActivityWords(st);
-  return what ? 'You stopped ' + what + '.' : '';
+  return what ? 'Stopped ' + what : '';
 }
 
 /**
@@ -450,11 +450,11 @@ export function tickOf(cs) {
   return tick;
 }
 
-/** A gathering row's "N in your bag", as the line above it and the bag window show it: the server's count, plus what the
+/** A gathering row's "N in bag", as the line above it and the bag window show it: the server's count, plus what the
     ticker is sure of on the node running (blind playtest 2026-10-31: "2 caught so far · 0 in your bag"). Nothing spends it. */
 export function gatherBagWords(cs, w, running) {
   const out = productOf(w);
-  return whole(shownQty(running ? tickOf(cs) : null, out, invOf(cs)[out] || 0).qty) + ' in your bag';
+  return whole(shownQty(running ? tickOf(cs) : null, out, invOf(cs)[out] || 0).qty) + ' in bag';
 }
 
 /**
@@ -481,7 +481,7 @@ export function runParts(cs, w) {
     if (burnt > 0) parts.push({ key: 'burnt', text: whole(burnt) + ' burnt' });
   } else if (out && w.kind === 'gather') {
     const s = shownQty(tick, out, bag[out] || 0);
-    parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: s.ahead !== 0 });
+    parts.push({ key: 'bag', text: whole(s.qty) + ' in bag', ahead: s.ahead !== 0 });
   }
   /* A dish that may burn: the actions done, not yet cooked or burnt (the payout says which). */
   if (tick && tick.unsure > 0) parts.push({ key: 'fire', text: whole(tick.unsure) + (w.row.roll ? ' more at the bench, grade still to come' : ' more on the fire'), ahead: true });
@@ -503,6 +503,6 @@ export function nowParts(cs) {
   if (!w) return [];
   const words = workWords(w);
   const how = runParts(cs, w);
-  const tail = w.kind === 'gather' ? 'It keeps going while you are away. A hunt stops it.' : 'It stops when they run out.';
+  const tail = w.kind === 'gather' ? 'Runs offline until a hunt starts' : 'Stops when materials run out';
   return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);
 }

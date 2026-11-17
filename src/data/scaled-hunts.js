@@ -34,7 +34,8 @@ import { HUNT_INDEX } from './hunts.js?v=0.2.134';
    A row here never makes a ground scalable: the ground data does. */
 export const SCALE_EXCEPTIONS = Object.freeze({
   meadowbrook_thicket: Object.freeze({ danger: 0.5,
-    why: 'its wolves run down a lone archer. At full danger a lone bow at the leader\'s Level died once and dipped under 25% HP 12 times in 4 h (0 and 2 at half)' }),
+    /* At full danger a lone bow at the leader's Level died once and dipped under 25% HP 12 times in 4 h (0 and 2 at half). */
+    why: 'its wolves run down a lone archer' }),
 });
 
 /**

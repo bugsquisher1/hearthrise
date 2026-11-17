@@ -25,8 +25,8 @@ import { cardFacts, shareCard } from '../share-card.js?v=0.2.134';
 const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
 const SHARE_WORDS = Object.freeze({
-  copied: 'Card copied. Paste it anywhere.', shared: 'Card shared.', saved: 'Card saved to your downloads.',
-  cancelled: '', card_failed: 'The card could not be made.',
+  copied: 'Card copied', shared: 'Card shared', saved: 'Card saved to downloads',
+  cancelled: '', card_failed: 'Card failed',
 });
 
 /** The skeleton (built once). */

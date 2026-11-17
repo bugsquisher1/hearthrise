@@ -140,8 +140,8 @@ export function awayRecapOf(cs) {
   if (Number.isSafeInteger(was.gold) && gold !== null && gold > was.gold) parts.push(signed(gold - was.gold, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
-  const name = nameOf(cs) || 'Your hero';
-  const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + huntName(h.huntId);
+  const name = nameOf(cs) || 'Hero';
+  const head = 'Away ' + awayWords(gone) + ': ' + name + ' hunted ' + huntName(h.huntId);
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
@@ -154,7 +154,7 @@ export function awayRecapOf(cs) {
 
 /* What the hunt is doing now, from the envelope: the stamina left, or how long ago it ended and the stamina rested since. */
 function nowWords(cs, h, now) {
-  const name = nameOf(cs) || 'Your hero';
+  const name = nameOf(cs) || 'Hero';
   const where = huntName(h.huntId);
   const st = staminaOf(cs);
   const stamina = st && st.msLeft > 0 ? awayWords(st.msLeft) : null;

@@ -37,7 +37,7 @@ function menuEl(doc) {
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
-    const items = Array.from(el.querySelectorAll('button:not([disabled])'));
+    const items = Array.from(el.querySelectorAll('button')).filter((b) => !b.disabled);
     const i = items.indexOf(doc.activeElement);
     const next = items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
     if (next) next.focus();
@@ -66,7 +66,7 @@ export function openFloatMenu(doc, html, at, owner) {
   el.style.left = Math.round(Math.max(4, Math.min(view.innerWidth - w - 4, at.x))) + 'px';
   el.style.top = Math.round(Math.max(4, Math.min(view.innerHeight - h - 4, at.y))) + 'px';
   const field = el.querySelector('input');
-  const first = field || el.querySelector('button:not([disabled])');
+  const first = field || Array.from(el.querySelectorAll('button')).find((b) => !b.disabled);
   if (first) first.focus({ preventScroll: true });
   if (field && field.select) field.select();
   clearInterval(WATCH);

@@ -293,7 +293,7 @@ export function supplyWords(s, cs, carried) {
   /* A kind the bar has no slot for at all, with a stack waiting. */
   for (const kind of HEADS_UP_KINDS) {
     const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
-    if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. ' + spare, short: false });
+    if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no bar slot. ' + spare, short: false });
   }
   if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: t('prep.go_no_food_drink'), short: false });
   return { lines: out, paysStore };

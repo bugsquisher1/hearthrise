@@ -17,7 +17,7 @@ const HEALS = Object.values(ABILITIES).filter((r) => !!r.heal).map((r) => r.id);
 const AREAS = Object.values(ABILITIES).filter((r) => r.target === 'area' || r.target === 'cleave').map((r) => r.id);
 
 const sum = (fired, ids) => ids.reduce((n, id) => n + (Number.isInteger(fired[id]) ? fired[id] : 0), 0);
-const times = (n) => (n === 1 ? '1 time' : n + ' times');
+const count = (line, n) => line.replace('{n}', String(n));
 
 /* Which line of his he stood past when it ended. */
 export function phaseAt(monster, bossPm) {
@@ -31,10 +31,10 @@ export function phaseAt(monster, bossPm) {
 function factFor(phase, role, fired, guarded) {
   const W = BOSS_CALL_WORDS.loss.fact;
   /* a boss whose adds shield him asks the tank about Challenge in every part of the fight (the wrong press there), once it fired */
-  if (role === 'tank' && (phase === 'adds' || (guarded && sum(fired, ['challenge']) > 0))) return W.challenge.replace('{times}', times(sum(fired, ['challenge'])));
-  if (role === 'healer') return W.heals.replace('{times}', times(sum(fired, HEALS)));
-  if (phase === 'adds') return W.area.replace('{times}', times(sum(fired, AREAS)));
-  return W.ate.replace('{times}', times(sum(fired, ['eat'])));
+  if (role === 'tank' && (phase === 'adds' || (guarded && sum(fired, ['challenge']) > 0))) return count(W.challenge, sum(fired, ['challenge']));
+  if (role === 'healer') return count(W.heals, sum(fired, HEALS));
+  if (phase === 'adds') return count(W.area, sum(fired, AREAS));
+  return count(W.ate, sum(fired, ['eat']));
 }
 
 /**
@@ -53,7 +53,6 @@ export function lossLine(o) {
   /* A boss whose adds shield him has his own answer to the wave (the designer's line) and to his enrage. */
   const guarded = isGuarded(MONSTERS[call.monster]);
   const answer = guarded && phase === 'adds' ? W.answer.guarded : guarded && phase === 'enrage' ? W.answer.enrageGuarded : W.answer[phase];
-  /* two sentences, never a colon join (copy 11-06): the facts start lower-case in the table */
-  const fact = factFor(phase, o.role, fired, guarded);
-  return lead + '. ' + fact.charAt(0).toUpperCase() + fact.slice(1) + '. ' + answer;
+  /* three labels, one a line (the label form, Tyler 2026-11-14): the summary keeps the breaks (.hsum-loss pre-line) */
+  return lead + '\n' + factFor(phase, o.role, fired, guarded) + '\n' + answer;
 }

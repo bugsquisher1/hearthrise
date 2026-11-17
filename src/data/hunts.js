@@ -201,8 +201,8 @@ export const OPEN_HALL_HUNTS = Object.freeze(HALL_HUNTS.filter((h) => h.staged !
    not in HUNTS, so no picker, advice line, tally task or spawn table reads them; HUNT_INDEX names them for the top bar and the end card. `train` says
    what the hunt trains; the ground (hunt-grounds.js TRAINING_GROUNDS) carries the same. The band is every Level, from 1 (a dummy keeps pace with its hero). */
 const TRAINING_WORDS = Object.freeze({
-  yard: Object.freeze({ name: 'Training Yard', theme: (s) => 'Train your ' + s + ' on a dummy in the town yard. The yard charges for each hour at its start.' }),
-  house: Object.freeze({ name: 'House Dummy', theme: (s) => 'Train your ' + s + ' on your own dummy at home. It costs nothing to use.' }),
+  yard: Object.freeze({ name: 'Training Yard', theme: (s) => 'Train ' + s + ' on a yard dummy, paid by the hour' }),
+  house: Object.freeze({ name: 'House Dummy', theme: (s) => 'Train ' + s + ' on the house dummy for free' }),
 });
 export const TRAINING_HUNTS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap((place) => TRAINING_SKILLS.map((skill) => Object.freeze({
   id: trainingHuntId(place, skill), region: 'greenhaven', name: TRAINING_WORDS[place].name, theme: TRAINING_WORDS[place].theme(SKILLS_DEF[skill].name),

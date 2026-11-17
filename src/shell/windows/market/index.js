@@ -28,7 +28,7 @@ import { t } from '../../../render/player-text.js?v=0.2.134';
 export function renderMarket(ctx) {
   if (ctx && ctx.character) marketScratch(ctx.character).fresh = true;
   return '<div class="hw-mk">'
-    + '<p class="hw-mk-greet"><span>Aldous Pell, weighmaster: I hold what you list and pay you the moment it sells.</span><b class="hw-gold hw-mk-purse"></b></p>'
+    + '<p class="hw-mk-greet"><span>Aldous Pell, weighmaster</span><b class="hw-gold hw-mk-purse"></b></p>'
     + '<div class="hw-tabs" role="tablist">' + MARKET_TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('')
     + '<button type="button" class="hh-tool hw-mk-refresh" data-hs-act="refresh">' + t('controls.refresh') + '</button></div>'
     + '<p class="hs-note hw-mk-state" role="status"></p>'

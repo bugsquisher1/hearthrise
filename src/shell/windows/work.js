@@ -99,7 +99,7 @@ function oddsWords(cs, w) {
   const o = rollOddsOf(cs, w.row);
   if (!o) return '';
   const perks = o.perks.length > 1 ? o.perks.slice(0, -1).join(', ') + ' or ' + o.perks[o.perks.length - 1] : o.perks.join('');
-  return 'At your Crafting ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
+  return 'Odds at Crafting ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
     : 'Hallmarked ' + o.hallmarked + ', otherwise Fine') + '. Perks: ' + perks + '. No bench fee on a roll.';
 }
 
@@ -231,9 +231,9 @@ renderWork.patch = function patchWork(body, ctx) {
     if (bar) patchSkillProgress(head, bar, aheadXp(tickOf(cs), skill));
     const guide = SKILL_GUIDE[skill];
     const how = SKILLS_DEF[skill].cat === 'gather'
-      ? 'Pick what to gather. Your hero keeps at it while you are away, until you stop it or start a hunt.'
-      : 'Pick what to make. It uses the materials in your bag' + (drawsOnStorage(cs) ? ', then your Storage,' : '') + ' and stops when they run out.';
-    text(view.querySelector('.hw-work-use'), (guide ? guide.use + ' ' : '') + how + (feeHeadWords(cs, skill) ? ' ' + feeHeadWords(cs, skill) : ''));
+      ? 'Runs offline until stopped or a hunt starts'
+      : 'Uses materials from bag' + (drawsOnStorage(cs) ? ' and Storage' : '') + ' until they run out';
+    text(view.querySelector('.hw-work-use'), [guide ? guide.use : '', how, feeHeadWords(cs, skill)].filter(Boolean).join('\n'));
     const tool = view.querySelector('.hw-work-tool'), toolSaid = toolLine(cs, skill);
     text(tool, toolSaid);
     prop(tool, 'hidden', !toolSaid);

@@ -839,6 +839,9 @@ body[data-theme="hearthlight"] {
   --world-ground-planks-b:    #4f3623;
   --world-ground-water-a:     #2b4a6a;
   --world-ground-water-b:     #284666;
+  /* a bridge's deck over the river: drawn as the water under it (BLEND alias), so its tone is the water's */
+  --world-ground-deck-a:      var(--world-ground-water-a);
+  --world-ground-deck-b:      var(--world-ground-water-b);
   --world-ground-cliff-a:     #3a3a3e;
   --world-ground-cliff-b:     #36363a;
   --world-ground-palisade-a:  #3d2a1d;

@@ -47,11 +47,11 @@ export const SCENERY = Object.freeze([
   ['mill', 89, 28], ['hatch', 88, 34], ['barrels', 86, 30], ['flour_sack', 87, 30], ['water_trough', 86, 33], ['hay_bale', 87, 33],
   ['floor_grate', 46, 67],
   /* HAVORA'S LOTS (art/world/havora, lane/b-havora-art-2): the gatehouse (every overground hunt leaves from its yard),
-     the tavern on P07 over its cook yard, the bridge over the river (walked on: its cells stay planks) */
-  ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge', 88, 48],
+     the tavern on P07 over its cook yard, the great bridge cut to its river (havora_bridge_span, tools/world-art/bridge-span.mjs: its deck cells are 'B' deck, walked on and drawn as the river under it) */
+  ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge_span', 87, 48],
   /* lane/b-havora-polish: the gate road's bridge over the mill race (the road east to the bank no longer runs into the water)
-     and the south road's bridge to the hunter's yard (its deck spans the river's bend below P10) */
-  ['havora_bridge', 89, 15], ['havora_bridge', 86, 72],
+     and the south road's bridge to the hunter's yard; lane/a-havora-art: both the span too, the river straight under each */
+  ['havora_bridge_span', 92, 15], ['havora_bridge_span', 89, 72],
   ['havora_guild_hall', 114, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
   /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
   ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
@@ -137,7 +137,7 @@ export const BLEND = Object.freeze({
     'havora_earth_setts', 'havora_water_setts', 'havora_setts_planks',
     /* the Training Yard's raked sand ring on the town dirt (art/world/yard) */
     'havora_earth_sand']),
-  alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
+  alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass', deck: 'water' }),
   /* lane/a-havora-art (Tyler 2026-11-16, "the ground transitions look like shit"): the grass and the dirt meet on a ragged
      edge, not the blueprint's ruled one (src/world/core/ground-rough.js: drawn only, the walk mask is the plan's); each
      straight run of the edge tiles also draws one of four variants (tools/world-art/edge-variety.mjs) */

@@ -818,15 +818,17 @@ async function check(M) {
     const again = M.compose.groundTiles(compiled('town_common'), M.bookm.createBook(M.manifests), tables, T).tiles;
     ok('V6', again.length === townTiles.length && again.every((t, i) => rectKey(t) === rectKey(townTiles[i]) && t.x === townTiles[i].x && t.y === townTiles[i].y), 'the town\'s ground differs between two loads');
   });
-  /* R  A NATURAL EDGE DRAWN RAGGED (src/world/core/ground-rough.js; Tyler 2026-11-16: "the ground transitions look like shit").
-     On a planted ground (a wide grass field, a two-wide road, a wide yard, a pond): the rule redraws only cells on a grass|earth
-     edge, as the other material; never narrows the two-wide road; never touches a cell beside a third material; leaves no
-     pinhole; is the same on every call and does nothing without a rule; and the town keeps its rule. */
-  fam('R', () => {
+  /* E  A NATURAL EDGE DRAWN RAGGED (src/world/core/ground-rough.js; Tyler 2026-11-16: "the ground transitions look like shit").
+     On a planted ground (a grass field cut by a two-wide road, a wide yard with one stray grass cell, a row of ponds along the
+     yard's edge, a meadow): the rule redraws only cells on a grass|earth edge, as the other material; never narrows the
+     two-wide road; never touches a cell beside a third material (the ponds); leaves no pinhole (the stray cell); is the same on
+     every call and does nothing without a rule; and the town keeps its rule. */
+  fam('E', () => {
     const rowsP = ['............==............', '............==............', '............==............', '............==............',
-      '......~~....==............', '......~~....==............', '............==............', '............==............',
-      '==========================', '==========================', '==========================', '==========================',
-      '==========================', '==========================', '..........................', '..........................'];
+      '............==............', '............==............', '............==............', '............==............',
+      '==========================', '==========================', '=====.====================', '==========================',
+      '==========================', '=~=~=~=~=~=~=~=~=~=~=~=~==', '..........................', '..........................',
+      '..........................', '..........................', '..........................'];
     const Wp = rowsP[0].length, Hp = rowsP.length, idOf = new Map([['grass', 0], ['earth', 1], ['water', 2]]);
     const code = { '.': 0, '=': 1, '~': 2 };
     const mat = Int16Array.from(rowsP.join('').split('').map((c) => code[c]));
@@ -845,14 +847,14 @@ async function check(M) {
       }
       if (b !== 2 && n4.every(([dx, dy]) => { const m = at(out, x + dx, y + dy); return m >= 0 && m !== b && m !== 2; })) pinholes++;
     }
-    ok('R1', changed > 4 && offEdge === 0, 'the rough rule must redraw some edge cells and only cells on a grass|earth edge (' + changed + ' changed, ' + offEdge + ' off an edge)');
-    ok('R2', narrowed === 0, 'the rough rule narrowed a two-wide road (' + narrowed + ' of its cells drawn as grass)');
-    ok('R3', nearThird === 0, 'the rough rule redrew a cell beside a third material (the pond): ' + nearThird);
-    ok('R4', pinholes === 0, 'the rough rule left ' + pinholes + ' pinhole cells (a lone square in the other material)');
+    ok('E1', changed > 4 && offEdge === 0, 'the rough rule must redraw some edge cells and only cells on a grass|earth edge (' + changed + ' changed, ' + offEdge + ' off an edge)');
+    ok('E2', narrowed === 0, 'the rough rule narrowed a two-wide road (' + narrowed + ' of its cells drawn as grass)');
+    ok('E3', nearThird === 0, 'the rough rule redrew a cell beside a third material (the pond): ' + nearThird);
+    ok('E4', pinholes === 0, 'the rough rule left ' + pinholes + ' pinhole cells (a lone square in the other material)');
     const again = M.rough.roughEdges(mat, Wp, Hp, idOf, rule);
-    ok('R5', again.every((v, i) => v === out[i]) && M.rough.roughEdges(mat, Wp, Hp, idOf, null).every((v, i) => v === mat[i]), 'the rough rule is not the same on every call, or draws without a rule');
+    ok('E5', again.every((v, i) => v === out[i]) && M.rough.roughEdges(mat, Wp, Hp, idOf, null).every((v, i) => v === mat[i]), 'the rough rule is not the same on every call, or draws without a rule');
     const town = compiled('town_common');
-    ok('R6', !!(town.blend && town.blend.rough), 'the town\'s blend lost its rough rule (its edges are ruled straight again)');
+    ok('E6', !!(town.blend && town.blend.rough), 'the town\'s blend lost its rough rule (its edges are ruled straight again)');
   });
   return fails;
 }
@@ -932,12 +934,12 @@ const MUTANTS = [
   ['V3', 'a painted ground repeated tile drawn as painted', 'src/world/core/compose.js', [['const k = vkind ? vkind[y * map.w + x] : -1;', 'const k = -1;']]],
   ['V4', 'a variety laid over another floor (its edges seam)', 'assets/world/atlas-common.json', [['"key": "0000"', '"key": "1111"']]],
   ['V5', 'details laid side by side', 'src/world/core/ground-variety.js', [['if (rolls(x, y, seed) && !rolls(x - 1, y, seed) && !rolls(x, y - 1, seed))', 'if (rolls(x, y, seed))']]],
-  ['R1', 'the rough rule redraws nothing', 'src/world/core/ground-rough.js', [['if (a === lo ? n > spill : n < bite) out[y * W + x] = b;', 'void n;']]],
-  ['R2', 'the rough rule narrows a two-wide road', 'src/world/core/ground-rough.js', [['for (let k = 1; k < deep; k++)', 'for (let k = 1; k < 1; k++)']]],
-  ['R3', 'the rough rule redraws beside a third material', 'src/world/core/ground-rough.js', [['if (m !== lo && m !== up) { ok = false; break; }', 'void m;']]],
-  ['R4', 'the rough rule leaves pinholes', 'src/world/core/ground-rough.js', [['if (DIRS.every(([dx, dy]) => was(x + dx, y + dy) === b)) out[y * W + x] = b;', 'void b;']]],
-  ['R5', 'the rough rule rolls a new edge every call', 'src/world/core/ground-rough.js', [['const n = edgeNoise(x, y, scale, seed);', 'const n = Math.random();']]],
-  ['R6', 'the town\'s blend drops its rough rule', 'src/world/core/map-compile.js', [['row.blend.rough ? { rough: row.blend.rough } : {}', '{}']]],
+  ['E1', 'the rough rule redraws nothing', 'src/world/core/ground-rough.js', [['if (a === lo ? n > spill : n < bite) out[y * W + x] = b;', 'void n;']]],
+  ['E2', 'the rough rule narrows a two-wide road', 'src/world/core/ground-rough.js', [['for (let k = 1; k < deep; k++)', 'for (let k = 1; k < 1; k++)']]],
+  ['E3', 'the rough rule redraws beside a third material', 'src/world/core/ground-rough.js', [['if (m !== lo && m !== up) { ok = false; break; }', 'void m;']]],
+  ['E4', 'the rough rule leaves pinholes', 'src/world/core/ground-rough.js', [['if (DIRS.every(([dx, dy]) => was(x + dx, y + dy) === b)) out[y * W + x] = b;', 'void b;']]],
+  ['E5', 'the rough rule rolls a new edge every call', 'src/world/core/ground-rough.js', [['const n = edgeNoise(x, y, scale, seed);', 'const n = Math.random();']]],
+  ['E6', 'the town\'s blend drops its rough rule', 'src/world/core/map-compile.js', [['row.blend.rough ? { rough: row.blend.rough } : {}', '{}']]],
   ['V6', 'a pick that changes every load', 'src/world/core/ground-variety.js', [['export function vhash(x, y, seed) {\n', 'export function vhash(x, y, seed) {\n  if (y > 40) return (Math.random() * 4294967296) >>> 0;\n']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G5', 'a keyed hall left off its map (Krell\'s Hall showed the town)', 'src/data/grounds/krells_hold/map.js', [["hunts: Object.freeze(['krells_hold', 'krells_hold_hall'])", "hunts: Object.freeze(['krells_hold'])"]]],

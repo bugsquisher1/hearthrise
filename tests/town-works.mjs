@@ -142,7 +142,7 @@ export const MUTANTS = {
   compose_ignores_swap: { arm: 'TW-MAP', why: 'the stage\'s art is never drawn',
     js: ['src/world/core/compose.js', [["place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });", 'place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });']]] },
   lot_is_an_effect: { arm: 'TW-MAP', why: 'the lot draws over everyone, as the fire does',
-    js: ['src/data/world/town/sites.js', [["export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 })]);", "export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }), Object.freeze({ id: 'havora_weighhouse_staked', x: 98, y: 60, lift: 0 })]);"]]] },
+    js: ['src/data/world/town/sites.js', [["export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }),", "export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }), Object.freeze({ id: 'havora_weighhouse_staked', x: 98, y: 60, lift: 0 }),"]]] },
   /* THE TAPS */
   plaque_is_a_prop: { arm: 'TW-TAP', why: 'a tap on the plaque opens nothing', js: ['src/data/world/sink-taps.js', [["  havora_weighhouse_plaque: works,\n", '']]] },
   finished_is_a_prop: { arm: 'TW-TAP', why: 'the finished Weighhouse is no door to the Market', js: ['src/data/world/sink-taps.js', [["  havora_weighhouse_finished: Object.freeze({ open: 'window', window: 'market' }),\n", '']]] },
@@ -759,7 +759,8 @@ const ARMS = {
     for (const n of edge) if (/town-works|works\.js|town-intents|sink-taps/.test(n)) out.push(n + ' is in the edge bundle');
     /* ONLY THE WORKS' OWN CLIENT MODULES READ IT: no price, gate or number a player can act on */
     /* (src/app/game-modules.js is the generated list of every module's path, tests/module-preload.mjs --write: it names the file, it reads nothing) */
-    const CLIENT_READERS = new Set(['src/app/game-modules.js', 'src/world/town-works.js', 'src/world/world-boot.js', 'src/session/town-presence.js', 'src/session/town-intents.js', 'src/shell/sink-words.js', 'src/shell/windows/havora/works.js', 'src/shell/windows/havora/index.js', 'src/data/town-works.js', 'src/data/world/sink-taps.js', 'src/data/honor-roll.js', 'src/data/refusal-words.js', 'src/data/world/town/sites.js']);
+    // The Market window reads the Weighhouse's Works only to show the building closed or open (a gate the Works itself raises, like sites.js); it reads no price, XP or drop (v0.2.135, Coordinator).
+    const CLIENT_READERS = new Set(['src/app/game-modules.js', 'src/world/town-works.js', 'src/world/world-boot.js', 'src/session/town-presence.js', 'src/session/town-intents.js', 'src/shell/sink-words.js', 'src/shell/windows/havora/works.js', 'src/shell/windows/havora/index.js', 'src/shell/windows/market/index.js', 'src/shell/windows/market/state.js', 'src/data/town-works.js', 'src/data/world/sink-taps.js', 'src/data/honor-roll.js', 'src/data/refusal-words.js', 'src/data/world/town/sites.js']);
     const client = X.clientFiles.concat(mutant && mutant.plant === 'clientFile' ? [['src/shell/windows/shop.js', 'const discount = town.extras();']] : []);
     for (const [rel, text] of client) if (/\.extras\(\)|data\/town-works\.js|readWorks|hr_town_works/.test(text) && !CLIENT_READERS.has(rel)) out.push(rel + ' reads the Works');
     if (client.length < 50) out.push('the scan of the client read ' + client.length + ' files');

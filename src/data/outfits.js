@@ -45,8 +45,8 @@ export const OUTFIT_ROWS = Object.freeze({
   brute: row('Quarry Brute', true, { head: 'Cap', body: 'Shirt' }),
   witch: row('Hedge Witch', true, { head: 'Hat', body: 'Robe', feet: 'Trim' }),
   dawnward: row('Dawnward', true, { body: 'Cape' }),
-  /* the board's regions were cap, coat, trousers and boots: the long coat hides the knee leathers, so its mask keys no legs */
-  sweeps_coat: row('Sweep’s Coat', false, { head: 'Cap', body: 'Coat', feet: 'Boots' }, null, 'sweeps_coat_bundle'),
+  /* round 6 (Tyler's hooded keeper): the hood and its cape, the robe, the apron with the boots; the key, the singed edges and the rope stay as drawn, so no legs */
+  sweeps_coat: row('Sweep’s Coat', false, { head: 'Hood', body: 'Robe', feet: 'Apron and boots' }, null, 'sweeps_coat_bundle'),
 });
 
 /* A region's name in the creation step. */

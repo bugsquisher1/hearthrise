@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-heroes.png",
   "size": [2048,1756],
-  "pixels": "376718ee4349bd45e764d42157131ba758de461b0d61877974fb69a33ca1e97e",
+  "pixels": "9c02e145ced5332f6d9e7459ba5bc801454b73baf8f17c9093a6fcf53efd6ae6",
   "sprites": {
     "outfit_berserker": {
       "class": "character",
@@ -423,10 +423,10 @@
       "overhang": [0,0,0,0],
       "hover": 0,
       "height": 39,
-      "contact": [25,39],
+      "contact": [24,39],
       "shadow": {
         "kind": "ellipse",
-        "w": 20,
+        "w": 19,
         "h": 7,
         "dx": 2,
         "dy": 2

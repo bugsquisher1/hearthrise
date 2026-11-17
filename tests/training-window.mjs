@@ -68,7 +68,8 @@ async function stub(page, s) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(envOf(s));
     if (name === 'hr_training_start') {
-      s.training = SECTION({ run: { skill: body.p_skill, where: body.p_where, since: iso(Date.now() - 65 * 60000), fee_h: body.p_fee_seen, paid: body.p_fee_seen * 2 } });
+      /* 65.5 min, off the minute's edge: at exactly 65 a server clock a few ms behind this one floored to "1 hour 4 minutes" (TR-2 flake, 2026-11-16) */
+      s.training = SECTION({ run: { skill: body.p_skill, where: body.p_where, since: iso(Date.now() - 65 * 60000 - 30000), fee_h: body.p_fee_seen, paid: body.p_fee_seen * 2 } });
       return json({ ok: true });
     }
     if (name === 'hr_hunt_leave') { s.training = SECTION({ last_stop: { reason: 'left', skill: 'melee', at: iso(Date.now()) } }); return json({ ok: true, pending: false }); }

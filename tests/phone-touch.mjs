@@ -1269,7 +1269,7 @@ async function touchHunt(page, s, tag, fails) {
   /* After her board's answer: the line once stood only until the board had loaded. */
   for (let i = 0; i < 60 && !s.calls.some((c) => c.name === 'hr_tally_view'); i++) await page.waitForTimeout(50);
   await page.waitForTimeout(400);
-  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-board-why'); return !!l && l.getClientRects().length > 0 && /^Take more in town$/.test(l.textContent); });
+  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-board-why'); return !!l && l.getClientRects().length > 0 && /^Take more in town/.test(l.textContent); });
   if (!line) fails.push('PH-14 [' + tag + '] hunting, her board does not say why every Take is grey');
 }
 

@@ -19,7 +19,7 @@
 import { EMITTERS, SURFACES } from '../../data/world/ambient-life.js?v=0.2.133';
 
 /** An integer hash of three numbers (the same on every client). */
-export function lifeHash(a, b, c) {
+function lifeHash(a, b, c) {
   let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 1440662683);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return (h ^ (h >>> 16)) >>> 0;
@@ -78,9 +78,11 @@ export function lifeOf(row, objects, ground, sprites, w, h, T) {
 }
 
 /* WHERE A LOOP SITS IN THE FRAME, by its art's layer: water light on the ground among the standing things but under all of
-   them (its row far below any contact row; nothing stands on open water, so nothing it could cover is ever near it), smoke
-   in the air over the roofs (the raised layer; both are drawn before the light, so the day and the vignette fall on them as
-   on the world), sparks with the effects after the light (fire is its own light, as the Hearth's fire is). */
+   them (its row far below any contact row; nothing stands on open water, so nothing it could cover is ever near it); smoke
+   and sparks in the air, last of the raised layer, over every roof and stack. Both are drawn before the light, so the day
+   and the vignette fall on them as on the world, and both are named for the first view only where it SEES them (an effect
+   is named wherever compose drew it, the overscan included: sparks there held a phone's first town view for their sheet,
+   tests/client-boot.mjs B-21). */
 const GROUND_ROW = -(1 << 22), AIR_ROW = 1 << 22;
 /* the life of a map, banded by row so a frame reads only the bands its view crosses (a town has hundreds of glints) */
 const BAND = 256;
@@ -101,8 +103,8 @@ function bands(life, book) {
 }
 
 /**
- * The life in view this frame, as draw-list entries: `ground` (to the standing list), `air` (to the raised list), `glow`
- * (to the effects). Each loop turns on its clip's fps from its own `phase`.
+ * The life in view this frame, as draw-list entries: `ground` (to the standing list), `air` (to the raised list). Each loop
+ * turns on its clip's fps from its own `phase`.
  * @param {{life?: object[]}} map  compiled map
  * @param {object} book  the atlas book
  * @param {number} t  ms (the state's clock)
@@ -110,8 +112,8 @@ function bands(life, book) {
  * @param {number} T
  */
 export function lifeDraws(map, book, t, view, T) {
-  const ground = [], air = [], glow = [];
-  if (!map.life || !map.life.length) return { ground, air, glow };
+  const ground = [], air = [];
+  if (!map.life || !map.life.length) return { ground, air };
   const b = bands(map.life, book);
   for (let k = Math.floor((view.oy - b.pad - 2 * T) / BAND); k <= Math.floor((view.oy + view.h + b.pad + 2 * T) / BAND); k++) {
     for (const a of b.by.get(k) || []) {
@@ -119,17 +121,16 @@ export function lifeDraws(map, book, t, view, T) {
       const clip = s.anims && s.anims.idle;
       if (!clip || !clip.fps || !s.frame) continue;
       const x = a.px - s.anchor[0], y = a.py - s.anchor[1];
-      /* what is drawn with the standing and the raised is kept as compose.js keeps them (two tiles round the view, its `near`);
-         an effect off the view is no change at all. Every loop turns on the one beat, so one just off the view adds no paint. */
-      const m = s.layer === 'decal' || s.layer === 'air' ? 2 * T : 0;
+      /* kept as compose.js keeps the standing and the raised (two tiles round the view, its `near`): every loop turns on
+         the one beat, so one just off the view adds no paint */
+      const m = 2 * T;
       if (!(x < view.ox + view.w + m && y < view.oy + view.h + m && x + s.frame[0] > view.ox - m && y + s.frame[1] > view.oy - m)) continue;
       const n = book.frames(a.id, 'idle', 's');
       const f = book.frame(a.id, 'idle', 's', (Math.floor((Math.max(0, t) * clip.fps) / 1000) + a.phase) % n);
       const d = { id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x, y, alpha: 1, kind: 'life', cls: s.class, tx: Math.floor(a.px / T), ty: Math.floor(a.py / T), ref: null };
       if (s.layer === 'decal') ground.push(Object.assign(d, { row: GROUND_ROW + a.py }));
-      else if (s.layer === 'air') air.push(Object.assign(d, { row: AIR_ROW + a.py }));
-      else glow.push({ id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x, y, cx: a.px, cy: a.py, ax: f.ax, ay: f.ay, blend: s.blend === 'add' ? 'add' : 'over', angle: 0 });
+      else air.push(Object.assign(d, { row: AIR_ROW + a.py }));
     }
   }
-  return { ground, air, glow };
+  return { ground, air };
 }

@@ -3415,7 +3415,8 @@ glints only where a cell and its 8 neighbours are water, never under a placed bo
 through an ordered dither in the puff's own coordinates. Lessons: (1) the World repaints the whole frame when anything turns, so
 every ambient clip runs on the Hearth fire's 8 fps beat (LIFE_BEAT_FPS): loops that turn together are one paint (5 -> 12 paints/s,
 the rate the Hearth already cost); (2) a water decal defeats the kept ground layer (+2-3 ms a paint): glints go first in the
-standing list instead (nothing stands on open water), smoke last in the raised list, both before the light so the vignette falls
-on them; only sparks (fire) go after it; (3) one sphere per puff with a hard diagonal split reads as a stack of rocks, a union
+standing list instead (nothing stands on open water), smoke and sparks last in the raised list, before the light so the
+vignette falls on them. Sparks as EFFECTS held a phone's first town view shut (client-boot B-21): an effect is named for the
+first view wherever compose drew it, the overscan included; the raised list is named only where the view sees it. (3) one sphere per puff with a hard diagonal split reads as a stack of rocks, a union
 rim-lit as one silhouette reads flat: per-lobe sphere shading is the one that reads as smoke; (4) sparse 1-row glints vanish in
 the tile's own wave marks: they need the bone peak and 2 rows. Open: a flowing water surface, townsfolk, animals, lamps, cloth.

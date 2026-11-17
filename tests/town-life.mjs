@@ -17,7 +17,8 @@
 //   TL-BEAT   every clip it names is in the townlife atlas with an idle loop whose rate divides LIFE_BEAT_FPS, the Hearth fire's
 //             own (frames that turn together are one paint: tests/perf-budget.mjs town paints)
 //   TL-DRAW   a frame of the town draws them where they belong: the water light first among the standing (under every unit),
-//             smoke last among the raised (over the roofs, under the light), sparks with the effects; nothing off the view;
+//             smoke and sparks last among the raised (over the roofs, under the light), never with the effects (an effect is
+//             named for a phone's first view even off screen: client-boot B-21); nothing past compose's margin;
 //             each loop advances one frame per beat from its own phase, so the chimneys never puff in step
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
@@ -132,9 +133,9 @@ export function problems(env) {
   for (const [name, [hx, hy]] of Object.entries(VIEWS)) {
     const view = { ox: (hx + 0.5) * T - 480, oy: (hy + 0.5) * T - 270, w: 960, h: 540 };
     const list = env.composeFrame(town, book, { t: t0, hero: { x: hx, y: hy } }, view, tables, T);
-    /* kept as compose.js keeps the standing and the raised: two tiles round the view; an effect only in it */
-    const inView = town.life.filter((a) => { const s = book.sprite(a.id); const m = s.class === 'vfx' ? 0 : 2 * T; const x = a.px - s.anchor[0], y = a.py - s.anchor[1]; return x < view.ox + view.w + m && y < view.oy + view.h + m && x + s.frame[0] > view.ox - m && y + s.frame[1] > view.oy - m; });
-    const drawn = [...list.sprites, ...list.raised].filter((d) => d.kind === 'life').length + list.fx.filter((e) => ids.has(e.id)).length;
+    /* kept as compose.js keeps the standing and the raised: two tiles round the view */
+    const inView = town.life.filter((a) => { const s = book.sprite(a.id); const m = 2 * T; const x = a.px - s.anchor[0], y = a.py - s.anchor[1]; return x < view.ox + view.w + m && y < view.oy + view.h + m && x + s.frame[0] > view.ox - m && y + s.frame[1] > view.oy - m; });
+    const drawn = [...list.sprites, ...list.raised].filter((d) => d.kind === 'life').length;
     if (drawn !== inView.length) bad('TL-DRAW', name + ': ' + drawn + ' life loops drawn, ' + inView.length + ' in view');
     const firstOther = list.sprites.findIndex((d) => d.kind !== 'life');
     const lastGlint = list.sprites.map((d) => d.kind === 'life').lastIndexOf(true);
@@ -143,9 +144,10 @@ export function problems(env) {
     const lastRoof = list.raised.map((d) => d.kind !== 'life').lastIndexOf(true);
     const firstSmoke = list.raised.findIndex((d) => d.kind === 'life');
     if (firstSmoke >= 0 && firstSmoke < lastRoof) bad('TL-DRAW', name + ': smoke drawn under a roof or a rock top');
-    if (list.raised.some((d) => d.kind === 'life' && book.sprite(d.id).class !== 'plume')) bad('TL-DRAW', name + ': something other than smoke drawn in the air');
-    if (list.fx.some((e) => /smoke|water_/.test(e.id))) bad('TL-DRAW', name + ': smoke or water light drawn after the light (it would ignore the day and the vignette)');
-    if (name === 'hearth' && !list.fx.some((e) => e.id === 'hearth_embers')) bad('TL-DRAW', 'hearth: the sparks are not drawn with the effects');
+    if (list.raised.some((d) => d.kind === 'life' && /^water_/.test(d.id))) bad('TL-DRAW', name + ': water light drawn in the air');
+    /* an effect is named for the first view wherever compose drew it, the overscan included (tests/client-boot.mjs B-21): life never is one */
+    if (list.fx.some((e) => ids.has(e.id))) bad('TL-DRAW', name + ': life drawn with the effects (after the light, and holding a first view for its sheet off screen)');
+    if (name === 'hearth' && !list.raised.some((d) => d.id === 'hearth_embers')) bad('TL-DRAW', 'hearth: the sparks are not drawn in the air');
   }
   /* one frame per beat from its own phase */
   const view = { ox: 0, oy: 0, w: town.w * T, h: town.h * T };

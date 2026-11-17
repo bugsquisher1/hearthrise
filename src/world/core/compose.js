@@ -12,8 +12,7 @@
 //            the map's objects, the state's props (a home's furniture) and units
 //   raised   what sits at wall height: rock tops, capstones, roofs, chimneys
 //   lights   the map's light kind plus point lights
-//   fx       effects after the light: the map's ambient loops, its sparks, the state's fx
-//   (THE MAP'S LIFE, core/ambient.js lifeDraws: water light first among the standing, smoke last among the raised)
+//   (THE MAP'S LIFE, core/ambient.js lifeDraws: water light first among the standing, smoke and sparks last among the raised)
 //   plates   screen-resolution text anchors (names), bubbles (the crier's
 //            line over its speaker) and the walk mark (where a tap sent you)
 //
@@ -409,7 +408,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   const near = (x, y, w, h) => x < view.ox + view.w + 2 * T && y < view.oy + view.h + 2 * T && x + w > view.ox - 2 * T && y + h > view.oy - 2 * T;
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
-  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke over the roofs, sparks with the effects */
+  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs */
   const life = lifeDraws(map, book, state.t || 0, view, T);
   for (const d of life.ground) { d.seq = seq++; stand.push(d); }
   for (const d of life.air) { d.seq = seq++; raised.push(d); }
@@ -607,7 +606,6 @@ export function composeFrame(map, book, state, view, tables, T) {
     effects.push({ id: e.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
       blend: s.blend === 'add' ? 'add' : 'over', angle: Number.isFinite(e.angle) ? e.angle : 0, alpha });
   }
-  for (const e of life.glow) effects.push(e);
   const roofs = map.buildings.map((b) => ({ id: b.id, alpha: state.roofAlpha && b.id in state.roofAlpha ? state.roofAlpha[b.id] : (b.id === heroId ? 0 : 1) }));
   return { heroBuilding: heroId, decals, shadows, sprites: ySort(stand), raised: ySort(raised), roofs, lights: { kind: map.light, vignette: map.outdoor, points },
     plates, bars, floats, target, bubbles, mark, badges, fx: effects, marks: markShapes(state.marks, T) };

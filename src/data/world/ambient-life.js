@@ -44,7 +44,8 @@ export const EMITTERS = Object.freeze({
   havora_tavern: Object.freeze([chimney(301, 3)]),
   havora_fisher_guild: Object.freeze([chimney(309, 3)]),
   havora_harbor_office: Object.freeze([chimney(321, 55)]),
-  mill: Object.freeze([chimney(111, 34)]),
+  /* the mill's smoke, and its waterwheel turning: the wheel's paddle face, mill px 139-151 x 76-117 (the rim and its spoke slot stay) */
+  mill: Object.freeze([chimney(111, 34), Object.freeze({ clip: 'mill_wheel', at: Object.freeze([139, 76]) })]),
   smithy: Object.freeze([chimney(136, 32)]),
   square_general_store: Object.freeze([chimney(301, 21)]),
 });

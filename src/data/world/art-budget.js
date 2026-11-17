@@ -128,6 +128,9 @@ export const CLASSES = Object.freeze({
   glint: row({ body: [1, 12], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal', blank: true }),
   // ...and the water's ripples: one or two cells square of wave marks laid on the water in step (its anchor the corner), under everything standing.
   ripple: row({ anchor: [0, 0], body: [8, 64], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'decal' }),
+  // A moving piece of a building, laid over it at its own pixels and drawn in the air after it (the mill's waterwheel turning): its
+  // anchor the piece's corner, its frames the building's own pixels moved inside the piece's outline (town-life.mjs wheel).
+  turning: row({ anchor: [0, 0], body: [16, 72], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'air' }),
 });
 
 // Terrain is T×T, fully opaque. kind 'wang16': corner tiles keyed NW NE SW SE,

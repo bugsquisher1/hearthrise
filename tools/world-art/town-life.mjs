@@ -193,6 +193,33 @@ function flow(o) {
   return frames;
 }
 
+/**
+ * WHEEL: the mill's own waterwheel, read from the BUILT atlas (its palette-locked pixels, so the overlay is the art exactly).
+ * Inside the wheel's fixed outline, the paddle face's colours slide down a row a frame over a whole number of paddle periods,
+ * so the paddles go round and nothing outside the outline is drawn (the mill under it shows nothing new). A pixel whose source
+ * row is outside the outline takes the nearest opaque colour of that row. --check regenerates from the atlas: a redrawn mill
+ * makes this stale.
+ *   of  the sprite (in atlas-common); box  [x, y, w, h] in its pixels, h a whole number of periods; period  rows a paddle repeats
+ */
+function wheel(o) {
+  const atlas = decodePNG(readFileSync(join(ROOT, 'assets', 'world', 'atlas-common.png')));
+  const man = JSON.parse(readFileSync(join(ROOT, 'assets', 'world', 'atlas-common.json'), 'utf8'));
+  const [sx, sy] = man.sprites[o.of].anims.idle.dirs.s[0];
+  const at = (x, y) => { const i = ((sy + y) * atlas.width + sx + x) * 4; return atlas.data[i + 3] >= 128 ? '#' + [0, 1, 2].map((k) => atlas.data[i + k].toString(16).padStart(2, '0')).join('') : null; };
+  const [bx, by, w, h] = o.box;
+  const frames = [];
+  for (let f = 0; f < o.period; f++) {
+    frames.push(Array.from({ length: h }, (_, y) => Array.from({ length: w }, (_, x) => {
+      if (!at(bx + x, by + y)) return null;
+      const r = by + ((((y - f) % h) + h) % h);
+      if (at(bx + x, r)) return at(bx + x, r);
+      for (let d = 1; d < w; d++) { const c = at(bx + x - d, r) || at(bx + x + d, r); if (c) return c; }
+      return at(bx + x, by + y);
+    })));
+  }
+  return frames;
+}
+
 const FLOW = () => flow({ size: 32, marks: 7, len: [2, 5], seed: 0xf10a });
 
 /* THE CLIPS: frame size, anchor (the point the map places: a chimney's mouth, the fire's mouth, a wave's centre), class and
@@ -204,10 +231,11 @@ export const CLIPS = Object.freeze({
   water_glint_a: { cls: 'glint', fps: LIFE_BEAT_FPS / 2, draw: () => GLINTS.water_glint_a },
   water_glint_b: { cls: 'glint', fps: LIFE_BEAT_FPS / 2, draw: () => GLINTS.water_glint_b },
   water_flow: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW() },
+  mill_wheel: { cls: 'turning', fps: LIFE_BEAT_FPS, draw: () => wheel({ of: 'mill', box: [139, 76, 13, 42], period: 14 }) },
   /* the same ripples two cells square (the open sea in a quarter of the draws): the T tile's pattern four times over */
   water_flow_2: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW().map((px) => [...px, ...px].map((line) => [...line, ...line])) },
 });
-const ANCHORS = Object.freeze({ chimney_smoke: [10, 44], hearth_smoke: [18, 90], hearth_embers: [20, 36], water_glint_a: [5, 2], water_glint_b: [6, 1], water_flow: [0, 0], water_flow_2: [0, 0] });
+const ANCHORS = Object.freeze({ chimney_smoke: [10, 44], hearth_smoke: [18, 90], hearth_embers: [20, 36], water_glint_a: [5, 2], water_glint_b: [6, 1], water_flow: [0, 0], water_flow_2: [0, 0], mill_wheel: [0, 0] });
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 
@@ -218,7 +246,7 @@ export function sheetOf(frames) {
   frames.forEach((px, f) => px.forEach((line, y) => line.forEach((k, x) => {
     if (!k) return;
     const i = (y * img.width + f * w + x) * 4;
-    const [r, g, b] = rgb(INK[k]);
+    const [r, g, b] = rgb(INK[k] || k);
     img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
   })));
   return img;

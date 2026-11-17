@@ -25,6 +25,7 @@
 //             whole loop each changes only on FOLK_TICK_HZ and stands on whole art px (a walker costs that many paints a
 //             second, never the frame rate), reaches every stop, walks at most 40% of its loop (work in bursts, not pacing),
 //             carries no name plate and is never a player; only a map with townsfolk gets them
+//   TL-TURN   a turning piece (the mill's waterwheel) is its building's own pixels: frame 0 is the art, every frame its outline
 //   TL-GLANCE a keeper standing at her work (Tamsin at her board, the smith) looks about: every face her idle clip has, turning
 //             on the beat, and the frame drawn is the face of the moment
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -191,7 +192,8 @@ export function problems(env) {
   const at = (t) => env.lifeDraws(town, book, t, view, T);
   const a = at(t0), b = at(t0 + 1000 / LIFE_BEAT_FPS);
   const key = (d) => d.sx + ',' + d.sy;
-  const smokeA = a.air.map(key), smokeB = b.air.map(key);
+  const chimneys = (l) => l.air.filter((d) => d.id === 'chimney_smoke').map(key);
+  const smokeA = chimneys(a), smokeB = chimneys(b);
   if (!smokeA.length) bad('TL-DRAW', 'no smoke drawn over the whole town');
   if (smokeA.some((k, i) => k === smokeB[i])) bad('TL-DRAW', 'a chimney\'s smoke did not turn in one beat');
   if (new Set(smokeA).size < Math.min(4, smokeA.length)) bad('TL-DRAW', 'the chimneys puff in step (' + new Set(smokeA).size + ' different frames across ' + smokeA.length + ')');
@@ -243,6 +245,31 @@ export function problems(env) {
   if (!env.folkExtras(town, book.sprites).units) bad('TL-FOLK', 'the walk scene of the town gets no townsfolk');
   const cellar = compile(WORLD_MAPS.find((m) => m.id === 'mill_cellar'));
   if (env.folkExtras(cellar, book.sprites).units) bad('TL-FOLK', 'a map with no townsfolk gets them');
+
+  /* TL-TURN: a turning piece is its building's own pixels: frame 0 is the art exactly, every frame keeps the art's outline, and it turns */
+  for (const [host, list] of Object.entries(env.emitters)) for (const e of list) {
+    const s = book.sprite(e.clip);
+    if (s.class !== 'turning') continue;
+    const hf = book.frame(host, Object.keys(book.sprite(host).anims)[0], 's', 0), himg = sheet(hf.set);
+    const hp = (x, y) => { const i = ((hf.sy + y) * himg.width + hf.sx + x) * 4; return himg.data[i + 3] >= 128 ? himg.data[i] + ',' + himg.data[i + 1] + ',' + himg.data[i + 2] : null; };
+    const n = book.frames(e.clip, 'idle', 's');
+    const keys = new Set();
+    for (let i = 0; i < n; i++) {
+      const f = book.frame(e.clip, 'idle', 's', i), img = sheet(f.set);
+      let outline = 0, art = 0, key = '';
+      for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) {
+        const k = ((f.sy + y) * img.width + f.sx + x) * 4, mine = img.data[k + 3] >= 128 ? img.data[k] + ',' + img.data[k + 1] + ',' + img.data[k + 2] : null;
+        const theirs = hp(e.at[0] + x, e.at[1] + y);
+        if (!!mine !== !!theirs) outline++;
+        if (i === 0 && mine !== theirs) art++;
+        key += mine || '.';
+      }
+      keys.add(key);
+      if (outline) bad('TL-TURN', e.clip + ' frame ' + i + ' leaves its ' + host + ' outline at ' + outline + ' px');
+      if (art) bad('TL-TURN', e.clip + ' frame 0 is not the ' + host + ' art at its point (' + art + ' px differ)');
+    }
+    if (keys.size < 2) bad('TL-TURN', e.clip + ' never turns');
+  }
 
   /* TL-GLANCE */
   const beat = 1000 / LIFE_BEAT_FPS;
@@ -341,6 +368,9 @@ function selftest() {
     'a townsperson never leaves its first stop': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u, i) => Object.assign({}, u, { x: a[2][i].route[0][0], y: a[2][i].route[0][1] })) }); } },
     'the cellar gets townsfolk': { folkExtras: () => ({ units: () => [] }) },
     'the town gets none': { folkExtras: () => ({}) },
+    /* TL-TURN */
+    'the wheel drawn from other pixels': { manifests: sprites('townlife', (s) => Object.assign(s, { mill_wheel: Object.assign({}, s.mill_wheel, { anims: { idle: Object.assign({}, s.mill_wheel.anims.idle, { dirs: s.water_flow.anims.idle.dirs }) } }) })) },
+    'the wheel laid a pixel off': { emitters: Object.assign({}, EMITTERS, { mill: EMITTERS.mill.map((e) => (e.clip === 'mill_wheel' ? { clip: e.clip, at: [e.at[0] + 1, e.at[1]] } : e)) }) },
     /* TL-GLANCE */
     'Tamsin stares south': { glanceOf: () => 's' },
     'Tamsin turns off the beat': { glanceOf: (id, x, y, t) => glanceOf(id, x, y, t + 37) },

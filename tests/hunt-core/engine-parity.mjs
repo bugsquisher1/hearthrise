@@ -62,9 +62,10 @@ const SEED = '-4611686018427387904';
    2026-11-16, "just balance the hunting grounds xp vs having a unique formula everywhere"); a party's XP moves its Levels, and the Levels their rolls.
    The peer keys on hunt_check (hunt-settle.js huntPeerKeys, member.js frozenKey) move no pin.
    RE-PINNED 2026-11-17 (lane/d-flat-party-xp merged with set/v0.2.135 at 0d2552906), THE TABLE ONLY: the set's own pins (lane/c-tower-all re-pinned the set's
-   output: the income dial's coin and Turning Cut's sewer-2 kills 114 -> 121) hold but warrens-4, whose world moves at settle 1 (kills 209 as pinned). Cause,
-   proved on an archive of this tree with the set's src/data/party-class-xp.js and src/core/hunt/xp-share.js laid back: the world holds. The one party table
-   pays the Warrens' four 1800 where its own row paid less, and a party's XP moves its Levels, and the Levels their rolls. The baseline is --write here. */
+   output: the income dial's coin and Turning Cut's sewer-2 kills 114 -> 121) move for the three parties from settle 1 (warrens-4 209, glade-4 515, sewer-2
+   121 kills as pinned); the lone kiting ranger holds. Cause, proved on an archive of this tree with the set's src/data/party-class-xp.js and
+   src/core/hunt/xp-share.js laid back: all four set pins hold (exit 0). The one party table pays each party another cell than its ground's row did, and a
+   party's XP moves its Levels, and the Levels their rolls. The baseline is --write here. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

@@ -208,7 +208,8 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/tower-chest.js': [
     { cond: '!!block', words: "text(pane.querySelector('.tc-off-why'), k ? block : '')", where: 'Use: the line above it says why (out on a hunt, no key, its weapons not built, the key family\'s week of chests used); with no key held the press is hidden and the pane says how to earn one' },
-    { cond: '!!block || all < 2', words: "t('tower.week_opened'", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Chests opened: N / 6" line says; hidden with fewer than two keys held' },
+    { cond: '!!block || all < 2', words: "t('tower.opens_left')", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Opens left 1 / 6" line says; hidden with fewer than two keys held' },
+    { cond: 'pending || !held', words: "t('tower.count', { count: whole(k.heldAll) })", where: 'A key slot (direction A): off for a key not held, which its own count says on it ("x0"), dimmed' },
   ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },

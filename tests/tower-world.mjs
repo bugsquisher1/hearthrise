@@ -35,6 +35,14 @@ const step = (name, ok, got) => {
   if (!ok) fails.push(name);
 };
 const until = (page, fn, arg, ms = 30000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+/* A climb's end card as text (in the page): its label rows, its keys, and how tall the run is drawn up the stack. */
+const climbCard = () => {
+  const c = document.querySelector('.hsum-climb:not([hidden])');
+  if (!c) return '';
+  const run = c.querySelector('.tt-run');
+  return Array.from(c.querySelectorAll('.te-rows .tt-row')).map((r) => r.children[0].textContent + ': ' + r.children[1].textContent)
+    .concat(Array.from(c.querySelectorAll('.te-key .tt-next-name')).map((k) => k.textContent), [run && !run.hidden ? 'run: ' + parseFloat(run.style.height) : 'no run']).join('\n');
+};
 
 let world;
 try { world = await openWorld({ tickMs: false }); } catch (e) { console.error('tower-world: the world would not open: ' + e.message); process.exit(2); }
@@ -122,20 +130,21 @@ try {
     await p.page.click('[data-hs-act="leave"]');
     await world.skip(1);
   }
-  const card = await until(p.page, () => /Floors cleared/.test(document.querySelector('.hsum-reason')?.textContent || ''), null, 60000);
-  const reason = await p.page.evaluate(() => document.querySelector('.hsum-reason')?.textContent || '');
-  step('TOW-3 the end card says the floors and the key, never "died"', card && /Floors cleared: 1 to \d+/.test(reason) && /Bronze Key/.test(reason) && !/died/i.test(reason)
-    && !(await p.page.$('[data-hs-win="death"]')), reason);
+  const card = await until(p.page, () => /Floors cleared/.test(document.querySelector('.hsum-climb:not([hidden]) .te-rows')?.textContent || ''), null, 60000);
+  const reason = await p.page.evaluate(climbCard);
+  step('TOW-3 the end card draws the run and says the floors and the key, never "died"', card && /Floors cleared: 1 to \d+/.test(reason) && /Bronze Key x1/.test(reason) && /run: \d+/.test(reason)
+    && !/died/i.test(reason) && !(await p.page.$('[data-hs-win="death"]')), reason);
   await p.shot('tower-end-card-1440x900');
 
   // ── TOW-4 the chest ──
   await closeWins();
   await openTower('chest');
-  const chest = await p.page.evaluate(() => ({ have: document.querySelector('[data-hs-win="tower"] .tc-have')?.textContent, chance: document.querySelector('[data-hs-win="tower"] .tc-chance')?.textContent,
+  const chest = await p.page.evaluate(() => ({ have: document.querySelector('[data-hs-win="tower"] .tc-pick[data-key="bronze"] .tc-pick-n')?.textContent,
+    chance: 'Chance: ' + document.querySelector('[data-hs-win="tower"] .tc-chance-v')?.textContent,
     use: document.querySelector('[data-hs-win="tower"] .tc-use')?.disabled }));
   const sec = (await sql('select public.hr_tower_section($1, 0)->\'chest\'->\'keys\'->0 as k', [uid]))[0].k;
   const want = 'Chance: ' + Number((sec.chance_ppm / 10000).toPrecision(2)) + '%';
-  step('TOW-4 the chest shows the minted key and the server\'s chance', chest.have === 'Bronze Key: 1' && chest.chance === want && chest.use === false, JSON.stringify({ chest, want }));
+  step('TOW-4 the chest shows the minted key and the server\'s chance', chest.have === 'x1' && chest.chance === want && chest.use === false, JSON.stringify({ chest, want }));
   await p.shot('tower-chest-1440x900');
   const cinders0 = await sql(`select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and item_id = 'tower_cinders'`, [uid]);
   await p.page.click('[data-hs-win="tower"] .tc-use');
@@ -173,15 +182,16 @@ try {
   if (await p.page.$('[data-app="play"][data-slot="0"]')) await p.page.click('[data-app="play"][data-slot="0"]');
   await p.page.waitForSelector('.hs-launchers');
   await p.page.waitForTimeout(1500);
-  const back = await p.page.evaluate(() => ({ reason: document.querySelector('.hsum-reason')?.textContent || '', death: !!document.querySelector('[data-hs-win="death"]') }));
+  const back = await p.page.evaluate(() => ({ reason: (document.querySelector('.hsum-climb:not([hidden]) .te-rows') ? Array.from(document.querySelectorAll('.hsum-climb .te-rows .tt-row')).map((r) => r.children[0].textContent + ': ' + r.children[1].textContent).join('
+') : ''), death: !!document.querySelector('[data-hs-win="death"]') }));
   const wantTop = r2.top_floor;
   step('TOW-5 back on the page: the card reads the server\'s run, no death popup', !back.death && (back.reason === '' || (new RegExp('Floors cleared: 11 to ' + wantTop).test(back.reason) && !/died/i.test(back.reason))),
     JSON.stringify({ back, r2 }));
   await closeWins();
   await openTower('climb');
-  const best2 = await p.page.evaluate(() => document.querySelector('[data-hs-win="tower"] .tt-best')?.textContent);
+  const best2 = await p.page.evaluate(() => document.querySelector('[data-hs-win="tower"] .tt-big')?.textContent);
   const bestRow = (await sql('select best_floor from public.tower_progress where user_id = $1', [uid]))[0];
-  step('TOW-5 the window\'s best is the server\'s', best2 === 'Best Floor: ' + bestRow.best_floor, JSON.stringify({ best2, bestRow }));
+  step('TOW-5 the window\'s best is the server\'s', best2 === String(bestRow.best_floor), JSON.stringify({ best2, bestRow }));
   await p.page.setViewportSize({ width: 922, height: 423 });
   await p.page.waitForTimeout(800);
   await p.shot('tower-climb-922x423');

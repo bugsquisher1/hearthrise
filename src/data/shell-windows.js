@@ -81,7 +81,7 @@ export const SHELL_WINDOWS = Object.freeze([
      Chest, one window. Shown only while the server sends the `tower` section (the burning_tower switch); the Great Hearth's tap opens it
      (src/data/world/stations.js), and so does the Havora window's Hearth tab; while it is hidden the Hearth opens the bag, as before. */
   Object.freeze({ id: 'tower', label: 'The Burning Tower', key: null, noShortcut: true, launcher: false, phoneIcon: false, section: 'tower', orElse: 'inventory',
-    glyph: 'uiFlame', width: 460, object: 'ledger' }),
+    glyph: 'uiFlame', width: 660, object: 'ledger' }),
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
      Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', glyph: 'navBounty', width: 460, object: 'ledger' }),

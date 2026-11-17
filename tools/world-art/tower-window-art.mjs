@@ -11,7 +11,10 @@
 //   assets/ui/tower/landings.png   A LANDING every 10th floor: an iron band across the stack with its key's lock plate in the key's metal
 //                                  (tower-art.mjs METALS), one row a key in src/data/chests.js CHEST_KEYS order, then a plain band (the
 //                                  tower's foot, floor 1, and any key row with no metal): LANDING_W x LANDING_H each
+//   assets/ui/tower/chimney-narrow.png, landings-narrow.png   the same for the phone's sheet: the stack's middle courses (COURSE_NARROW)
+//                                  and bands LANDING_W_NARROW wide
 //   assets/ui/tower/ticks.png      a floor's tick right of the stack: lit (gold, cleared) and dark, TICK_W x TICK_H each
+//   assets/ui/tower/embers.png     an opening left this week: a live ember and a spent one (the Chest tab's Opens left), EMBER x EMBER each
 //   assets/ui/tower/heads.png      a hero's head for the tower's markers: the idle south frame's head of each outfit (atlas-heroes),
 //                                  HEAD_W x HEAD_H each, in src/data/hunt-outfits.js OUTFITS order
 //   assets/ui/tower/firebox.png    THE CHEST TAB's scene: the Great Hearth's firebox, the paving in front and the alcoves (FIREBOX)
@@ -48,20 +51,20 @@ function fill(img, x, y, w, h, hex) {
   }
 }
 
-const { COURSE, LANDING_W, LANDING_H, TICK_W, TICK_H, HEAD_W, HEAD_H, FIREBOX, FIRE_AT, CHEST_AT, REVEAL_AT } = TOWER_ART;
+const { COURSE, COURSE_NARROW, LANDING_W, LANDING_W_NARROW, LANDING_H, TICK_W, TICK_H, EMBER, HEAD_W, HEAD_H, FIREBOX, FIRE_AT, CHEST_AT, REVEAL_AT } = TOWER_ART;
 
 /** One course of the chimney's stack, cut from the Great Hearth (its straight top: the same stones the town shows). */
-export const drawChimney = () => crop(read(HEARTH), COURSE.x, COURSE.y, COURSE.w, COURSE.h);
+export const drawChimney = (c = COURSE) => crop(read(HEARTH), c.x, c.y, c.w, c.h);
 
 /* A landing's band and plate, LANDING_W x LANDING_H, the band's rows 1..6 (dark edge, lit top, two mid, a shade, dark edge), the plate a
    7 x 9 lock in the key's metal (light top and left, dark right and foot, a keyhole), or no plate for the foot. */
-function landing(img, top, metal) {
-  fill(img, 0, top + 1, LANDING_W, 6, C.K);
-  fill(img, 1, top + 2, LANDING_W - 2, 1, C.i3);
-  fill(img, 1, top + 3, LANDING_W - 2, 2, C.i2);
-  fill(img, 1, top + 5, LANDING_W - 2, 1, C.i1);
+function landing(img, top, metal, W) {
+  fill(img, 0, top + 1, W, 6, C.K);
+  fill(img, 1, top + 2, W - 2, 1, C.i3);
+  fill(img, 1, top + 3, W - 2, 2, C.i2);
+  fill(img, 1, top + 5, W - 2, 1, C.i1);
   if (!metal) return;
-  const [dk, mid, lt] = metal, px = Math.floor(LANDING_W / 2) - 3;
+  const [dk, mid, lt] = metal, px = Math.floor(W / 2) - 3;
   fill(img, px, top, 7, 9, C.K);
   fill(img, px + 1, top + 1, 5, 7, mid);
   fill(img, px + 1, top + 1, 4, 1, lt);
@@ -71,10 +74,10 @@ function landing(img, top, metal) {
   fill(img, px + 3, top + 3, 1, 3, C.K);
 }
 /** Every landing: one row a key (CHEST_KEYS order), then the plain band. */
-export function drawLandings() {
+export function drawLandings(W = LANDING_W) {
   const rows = CHEST_KEYS.map((k) => METALS[k.id]).concat([null]);
-  const img = createImage(LANDING_W, LANDING_H * rows.length);
-  rows.forEach((m, i) => landing(img, i * LANDING_H, m));
+  const img = createImage(W, LANDING_H * rows.length);
+  rows.forEach((m, i) => landing(img, i * LANDING_H, m, W));
   return img;
 }
 
@@ -82,6 +85,17 @@ export function drawLandings() {
 export function drawTicks() {
   const img = createImage(TICK_W * 2, TICK_H);
   [C.gold, C.dark].forEach((c, i) => { fill(img, i * TICK_W, 0, TICK_W, TICK_H, C.K); fill(img, i * TICK_W + 1, 1, TICK_W - 2, TICK_H - 2, c); });
+  return img;
+}
+
+/* An ember, 8 x 8: rings of value from its rim to its heart; live on the fire ramp, spent on the ash. */
+const EMBER_ROWS = Object.freeze(['..0000..', '.011110.', '01122110', '01233210', '01233210', '01122110', '.011110.', '..0000..']);
+/** The two embers: live (shadow, blood, torch, torch light) and spent (shadow, shadow, stone, stone). */
+export function drawEmbers() {
+  const img = createImage(EMBER * 2, EMBER);
+  [[C.K, R('blood', 0), R('torch', 0), R('torch', 1)], [C.K, R('shadow', 2), R('stone', 0), R('stone', 1)]].forEach((ramp, i) => {
+    EMBER_ROWS.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') fill(img, i * EMBER + x, y, 1, 1, ramp[+ch]); }));
+  });
   return img;
 }
 
@@ -108,7 +122,10 @@ export function drawAll() {
   const out = new Map();
   out.set('assets/ui/tower/chimney.png', encodePNG(drawChimney()));
   out.set('assets/ui/tower/landings.png', encodePNG(drawLandings()));
+  out.set('assets/ui/tower/chimney-narrow.png', encodePNG(drawChimney(COURSE_NARROW)));
+  out.set('assets/ui/tower/landings-narrow.png', encodePNG(drawLandings(LANDING_W_NARROW)));
   out.set('assets/ui/tower/ticks.png', encodePNG(drawTicks()));
+  out.set('assets/ui/tower/embers.png', encodePNG(drawEmbers()));
   out.set('assets/ui/tower/heads.png', encodePNG(drawHeads()));
   out.set('assets/ui/tower/firebox.png', encodePNG(drawFirebox()));
   out.set('assets/ui/tower/fire.png', encodePNG(read('art/world/common/hearth_fire.png')));

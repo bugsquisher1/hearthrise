@@ -6,7 +6,7 @@
 //   node tests/tower-window.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/tower-window.mjs --shots <dir>   also write the desktop (1440x900) and phone (922x423) screenshots
 //
-// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-chest.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js
+// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs); the hero is tests/fixtures/alpha-envelope.json
 // ("Tyler", slot 0), with a `tower` section in the shape of 2027-04-28-tower-section.sql hr_tower_section (its `chest`: 2027-04-27-
@@ -14,26 +14,33 @@
 // tests/envelope-contract.mjs; the whole loop on the real engine is tests/tower-world.mjs.
 //   TW-1  SWITCH OFF: no `tower` section, so the Havora window's Hearth tab has no Tower door, no Tower window opens, the Hearth's tap row
 //         falls back to the bag (shell-windows.js orElse), and no Tower verb is ever sent
-//   TW-2  THE CLIMB: what the Tower is as label rows (the mode's own pay: kill XP, loot, death, stamina; the key drop), the Start Floor picker as ONE control (a select) whose
-//         options are only the checkpoints the server lists, each said as the floor the climb starts on (the highest, the hero's best,
-//         picked; Tyler 2026-11-16 CHECKPOINTS, and no "week starts under your best" words anywhere), the limits; Enter sends ONE
-//         hr_tower_start naming only the slot, the picked checkpoint (p_landing) and a key
+//   TW-2  THE CLIMB (direction A "The Chimney", Tyler 2026-11-16): the tower drawn, a landing every 10th floor in its key's metal (the
+//         server's key row), the dark above the best and only there, gold ticks to the next landing, you at your best and your party's
+//         seats at theirs (the section's party), no rank and no rival with no field (a rank and rivals when it sends one); the column
+//         as label rows (Best Floor, Next Key = the server's key for the next landing, Kill XP, Death penalty, Uses, Time limit). A start
+//         is picked by tapping a landing or in the Start Floor select, one pick, only the checkpoints the server lists (each said as the
+//         floor the climb starts on; the highest picked; a landing over the record is no press); Enter sends ONE hr_tower_start naming
+//         only the slot, the picked checkpoint (p_landing) and a key
 //   TW-3  FORGED AND STALE: a checkpoint list that isn't the server's shape draws no pick and Enter stays off; a checkpoint picked then
 //         dropped by the next envelope is never sent (the press takes the server's list again); a hunt running holds Enter off with why; a
 //         party seat that does not lead holds it off (the leader's press starts every seat); a bad_landing refusal says so and re-reads
-//   TW-4  THE CHEST: the key held, where it is, its chance, the warmth, the saved stokes and their Cinders, "Chance" = the server's
-//         chance_ppm; a stoke press saves the default (ONE hr_chest_stoke_default); Use sends ONE hr_chest_open with p_stokes null (the saved
-//         default, never a number of the page's); Use all the server's own count; the answer's weapon drawn; Use off while out hunting, for a
-//         key whose weapons aren't built; a key held on the Key Ring counts where it is
+//   TW-4  THE CHEST: the firebox with THE CHEST ON THE LEDGE BESIDE THE FIRE, never over it (Tyler 2026-11-16 on mock A); a slot a key
+//         row in its metal with the count held and its weapon chance (one not held is no press); the saved stokes as presses with their
+//         Cinders, "Chance" = the server's chance_ppm; a stoke press saves the default (ONE hr_chest_stoke_default); Use sends ONE
+//         hr_chest_open with p_stokes null (the saved default, never a number of the page's); Use all the server's own count; the answer's
+//         reveal plays WHERE THE CHEST SITS and its weapon is drawn in the loot; Use off while out hunting, for a key whose weapons aren't
+//         built; a key held on the Key Ring counts where it is
 //   TW-8  LABELS, NOT SENTENCES (Tyler 2026-11-14 widened; 2026-11-16 "weird AI text"): every visible line of the Climb and Chest tabs and
 //         the climb's end card is a label (no line ends in a period, none says "you"); a chest press that finds no weapon shows the loot
 //         list only ("Hearth Cinders x50"), never "No weapon"
-//   TW-7  KEY FAMILIES (Tyler 2026-11-16): "Opened this week: N / 6", "Keys held: N / 30" and the week's reset are the server's family row and
+//   TW-7  KEY FAMILIES (Tyler 2026-11-16): "Opens left" (an ember a chest left), "Keys held: N / 30" and the week's reset are the server's family row and
 //         week_ends (hr_chest_section); the week's cap holds Use off and clamps Use all; a family's cap is its own (a full catacomb week never
 //         holds a Tower key), named by the server; with no family row the pane draws no cap line and gates nothing on it
-//   TW-5  THE PHONE (922x423): the Tower window is a sheet inside the screen, nothing overflows sideways, no text under 12 px, Enter reachable
-//   TW-6  A CLIMB RUNNING: the hunt bar says the floor (a landing says Keeper); a climb's end card says spat out with the floors and the key,
-//         never "died", Hunt again is off, and the death popup never opens for the Tower; its "What happened" (and Just now) says a fall in
+//   TW-5  THE PHONE (922x423): the Tower window is a sheet inside the screen, the tower and its column side by side, nothing overflows
+//         sideways, no text under 12 px, the chest still beside the fire in the phone's view of the scene, Enter and Use reachable
+//   TW-6  A CLIMB RUNNING: the hunt bar says the floor (a landing says Keeper); a climb's end card draws the run on the tower (start to
+//         top) and says spat out with the floors and the key as label rows, New Best +N only when the server's best_before says the climb
+//         set the record, never "died"; Open chest and Climb again open the Tower's tabs, Hunt again is off, and the death popup never opens for the Tower; its "What happened" (and Just now) says a fall in
 //         the Tower's own words ("was spat out", "The last blow") while a hunt's still says "died"
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -61,8 +68,9 @@ function section(o = {}) {
     hunt: 'the_burning_tower',
     rules: { room_size: 5, landing_every: 10, floor_limit_ms: 180000, landing_limit_ms: 600000, floor_top: 300 },
     pays: { xp_pm: 375, coin: false, drops: false, bestiary: false, death_loss_pm: 0, blessings: false, stamina: true },
-    best_floor: 27, record: 27, checkpoints: o.checkpoints || [0, 10, 20],
-    run: o.run || null, last: o.last || null,
+    best_floor: o.best ?? 27, record: o.best ?? 27, checkpoints: o.checkpoints || [0, 10, 20],
+    run: o.run || null, last: o.last || null, party: o.party || [],
+    ...(o.field ? { field: o.field } : {}),
     chest: { on: true, dry: o.dry ?? 5, opens: 12, per_call: 20, own_pm: 500, own_family: 'bow', warmth_pm: o.warmth ?? 1200,
       week_ends: new Date(Date.now() + 3 * DAY).toISOString(), cinders: { bag: 300, storage: 100, ring: 0 },
       ...(o.families === null ? {} : { families: o.families || [fam('tower', o.opened ?? 2)] }),
@@ -130,12 +138,25 @@ const climbView = (page) => page.evaluate(() => {
   const w = document.querySelector('[data-hs-win="tower"]');
   if (!w) return null;
   const go = w.querySelector('.tt-go');
-  return { sum: Array.from(w.querySelectorAll('.tt-sum li')).filter((l) => !l.hidden).map((l) => l.textContent),
-    xp: w.querySelector('.tt-xp').textContent, starts: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.value + (o.selected ? '*' : '')),
-    pickers: w.querySelectorAll('[data-pane="climb"] select, [data-pane="climb"] [role="radiogroup"]').length, optionText: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.textContent),
-    note: w.querySelector('.tt-start-note') ? w.querySelector('.tt-start-note').textContent : null, pane: w.querySelector('[data-pane="climb"]').textContent,
-    best: w.querySelector('.tt-best').textContent,
-    limits: w.querySelector('.tt-limits').textContent, startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent,
+  const px = (el) => parseFloat(el.style.top);
+  const stage = w.querySelector('.tt-climb-stage');
+  /* the tower drawn: each landing's floor, its art row, its dark step; each label's words, tag, press; each marker; the dark bands */
+  const lands = Array.from(stage.querySelectorAll('.tt-land')).map((l) => ({ floor: +l.getAttribute('data-key'), row: +l.style.getPropertyValue('--tr-row'), dark: l.getAttribute('data-dark') }));
+  const labels = Array.from(stage.querySelectorAll('.tt-lbl')).map((b) => ({ floor: +b.getAttribute('data-landing'), y: px(b),
+    words: Array.from(b.querySelector('.tt-l1').children).map((c) => c.textContent).filter(Boolean).join(' '), tag: b.querySelector('.tt-tag').hidden ? '' : b.querySelector('.tt-tag').textContent,
+    press: b.tagName === 'BUTTON' && !b.disabled }));
+  const marks = Array.from(stage.querySelectorAll('.tt-mk')).map((m) => m.getAttribute('data-who') + ':' + m.querySelector('b').textContent + ':' + m.querySelector('.tt-mk-who span').textContent);
+  const darks = Array.from(stage.querySelectorAll('.tt-dark')).map((d) => ({ step: d.getAttribute('data-dark'), top: px(d), bottom: px(d) + parseFloat(d.style.height) }));
+  const ticks = Array.from(stage.querySelectorAll('.tt-tick')).map((k) => (k.classList.contains('is-lit') ? 'lit' : 'dark'));
+  const rows = Array.from(w.querySelectorAll('.tt-rules-box .tt-row')).filter((r) => !r.hidden).map((r) => r.querySelector('.tt-k').textContent + ': ' + r.querySelector('.tt-v').textContent);
+  const next = w.querySelector('.tt-next');
+  return { rows, starts: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.value + (o.selected ? '*' : '')),
+    optionText: Array.from(w.querySelectorAll('.tt-start-pick option')).map((o) => o.textContent), pane: w.querySelector('[data-pane="climb"]').textContent,
+    best: w.querySelector('.tt-big').textContent, rank: w.querySelector('.tt-rank').hidden ? null : w.querySelector('.tt-rank').textContent,
+    next: next.hidden ? null : next.querySelector('.tt-next-name').textContent + ' | ' + next.querySelector('.tt-next-floor').textContent + ' | ' + next.querySelector('.tt-key-ico').getAttribute('src'),
+    pips: Array.from(w.querySelectorAll('.tt-pip')).map((p) => (p.classList.contains('is-on') ? 1 : 0)).join(''),
+    lands, labels, marks, darks, ticks,
+    startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent,
     msg: w.querySelector('.hh-intent-msg').textContent };
 });
 /* Every visible line of a pane (a leaf element with its own text): the label rule reads them all. */
@@ -150,11 +171,22 @@ const chestView = (page) => page.evaluate(() => {
   const w = document.querySelector('[data-hs-win="tower"] [data-pane="chest"]');
   const tx = (q) => (w.querySelector(q) ? w.querySelector(q).textContent : null);
   const st = (q) => { const b = w.querySelector(q); return !b || b.hidden ? 'none' : b.disabled ? 'off' : 'on'; };
-  return { cinders: tx('.tc-cinders'), picks: Array.from(w.querySelectorAll('.tc-pick')).map((b) => b.textContent), have: tx('.tc-have'), where: tx('.tc-where'),
-    base: tx('.tc-base'), warm: tx('.tc-warm'), stokes: Array.from(w.querySelectorAll('.tt-foot .tc-stoke-pick option')).map((o) => o.textContent + (o.selected ? '*' : '')),
-    stokeHeads: Array.from(w.querySelectorAll('h3, h4')).filter((h) => h.getClientRects().length && /Stokes/.test(h.textContent)).length,
-    chance: tx('.tc-chance'),
-    resets: tx('.tc-resets'), fams: Array.from(w.querySelectorAll('.tc-fam')).map((d) => Array.from(d.querySelectorAll('h4, p')).filter((e) => !e.hidden && e.textContent).map((e) => e.textContent).join(' | ')), own: tx('.tc-own'), inside: tx('.tc-inside'), result: tx('.tt-result'),
+  const box = (q) => { const e = w.querySelector(q); if (!e || !e.getClientRects().length) return null; const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; };
+  /* the words of an element's own parts, one space between (a label and its value are two elements) */
+  const words = (e) => Array.from(e.children).map((c) => c.textContent.trim()).filter(Boolean).join(' ');
+  /* a slot a key row: its metal's word, the count held, the weapon chance, pressable, picked */
+  const picks = Array.from(w.querySelectorAll('.tc-pick')).map((b) => b.querySelector('.tc-pick-name').textContent + ' ' + b.querySelector('.tc-pick-n').textContent
+    + ' ' + b.querySelector('.tc-pick-pct').textContent + (b.disabled ? ' off' : '') + (b.getAttribute('aria-checked') === 'true' ? '*' : ''));
+  const embers = (e) => Array.from(e.querySelectorAll('.tc-ember')).map((x) => (x.classList.contains('is-lit') ? 1 : 0)).join('');
+  return { cinders: words(w.querySelector('.tc-cinders')), picks, icons: Array.from(w.querySelectorAll('.tc-pick-ico')).map((i) => i.getAttribute('src').split('/').pop()),
+    tip: (w.querySelector('.tc-pick[aria-checked="true"]') || {}).title || '', warm: tx('.tc-warm .tt-v'),
+    stokes: Array.from(w.querySelectorAll('.tc-stoke')).map((b) => words(b) + (b.getAttribute('aria-checked') === 'true' ? '*' : '')),
+    stokeHead: tx('.tc-stoke-box .tt-hd'), chance: 'Chance: ' + tx('.tc-chance-v'),
+    resets: tx('.tc-resets'), fams: Array.from(w.querySelectorAll('.tc-fam')).map((d) => [d.querySelector('.tc-fam-name')].concat(Array.from(d.querySelectorAll('.tc-fam-week, .tc-fam-held')))
+      .filter((e) => !e.hidden && e.textContent).map((e) => (e.tagName === 'H4' ? e.textContent : words(e)) + (e.querySelector('.tc-embers') ? ' [' + embers(e) + ']' : '')).join(' | ')),
+    result: w.querySelector('.tt-result').hidden ? null : Array.from(w.querySelectorAll('.tt-result .tc-used:not([hidden]), .tt-result .tc-loot-item')).map((e) => (e.tagName === 'P' ? e.textContent : words(e.querySelector('span')))).join(' | '),
+    keysShown: !!w.querySelector('.tc-keys').getClientRects().length, hand: w.querySelector('.tc-hand').getClientRects().length ? tx('.tc-hand') : null,
+    scene: { chest: box('.tc-chest'), fire: box('.tc-fire'), reveal: box('.tc-reveal'), frame: box('.tc-scene') },
     use: st('.tc-use'), all: st('.tc-use-all'), why: tx('.tc-off-why') };
 });
 
@@ -197,22 +229,40 @@ async function checks(overrides, shots) {
       s.answer = (name) => (name === 'hr_tower_start' ? { ok: true, session_id: SID, landing: 10, floor: 11, checkpoints: [0, 10, 20] } : { ok: true });
       if (!(await openTower(page))) fails.push('TW-2 the Havora door opened no Tower window');
       else {
-        const v = await climbView(page);
-        /* no weekly EARN cap is said (Tyler 2026-11-16: the cap is chests opened per key family, the Chest tab's line) */
-        /* only what a player acts on (the Coordinator's read of Tyler, 2026-11-16: no rows that restate the design) */
-        if (!v || v.sum.join(' | ') !== 'Kill XP: 37.5% | Gold and loot: none | Death penalty: none | Uses: stamina and supplies | Key drop: every 10th floor'
-          || /Floors: one room|Party: solo|Keys open/.test(v.pane))
-          fails.push('TW-2 the summary rows read ' + JSON.stringify(v && v.sum));
-        if (!v || v.xp !== 'Kill XP: 37.5%') fails.push('TW-2 the XP line reads ' + JSON.stringify(v && v.xp));
-        if (!v || v.starts.join() !== '0,10,20*' || v.pickers !== 1 || v.optionText.join() !== 'Floor 1,Floor 11,Floor 21') fails.push('TW-2 the Start Floor picker reads ' + JSON.stringify(v && [v.starts, v.pickers, v.optionText]));
-        if (!v || v.note !== null || /Checkpoints|under your best|cleared this week|60 floors/i.test(v.pane))
-          fails.push('TW-2 the start words read ' + JSON.stringify(v && v.note));
-        if (!v || v.best !== 'Best Floor: 27' || v.limits !== 'Time limit: 3 min per floor, 10 min per landing' || /this week|Keys to claim|Next landing/.test(v.pane)) fails.push('TW-2 the week reads ' + JSON.stringify(v));
+        let v = await climbView(page);
+        /* the column: only what a player acts on, label and value (the mode's own pay, the rules), Best Floor, Next Key (the server's key
+           row for the next landing) and a tick a floor toward it; no rank with no field */
+        if (!v || v.rows.join(' | ') !== 'Kill XP: 37.5% | Death penalty: None | Uses: Stamina, supplies | Time limit: 3 min per floor'
+          || /Floors: one room|Party: solo|Keys open|this week|60 floors|under your best/i.test(v.pane))
+          fails.push('TW-2 the column rows read ' + JSON.stringify(v && v.rows));
+        if (!v || v.best !== '27' || v.rank !== null || v.next !== 'Bronze Key | Floor 30 | assets/icons-bundle/pixel/items/tower_key_bronze.png' || v.pips !== '1111111000')
+          fails.push('TW-2 Best Floor / Next Key read ' + JSON.stringify(v && [v.best, v.rank, v.next, v.pips]));
+        if (!v || v.starts.join() !== '0,10,20*' || v.optionText.join() !== 'Floor 1,Floor 11,Floor 21') fails.push('TW-2 the Start Floor select reads ' + JSON.stringify(v && [v.starts, v.optionText]));
         if (!v || v.go !== 'on' || v.why || v.startOn !== 'Floor 21') fails.push('TW-2 Enter in town with a listed floor is ' + JSON.stringify(v && [v.go, v.why, v.startOn]));
+        /* THE TOWER: a landing every 10th floor to a little past the best, each in its key's metal (Bronze from 10, Silver from 40, the
+           foot plain), the dark over every landing above the best and none at or under it, the first band ending at the best's floor */
+        const land = (f) => v.lands.find((l) => l.floor === f) || {};
+        const lbl = (f) => v.labels.find((l) => l.floor === f) || {};
+        if (!v || v.lands.map((l) => l.floor).join() !== '0,10,20,30,40,50,60' || land(0).row !== 4 || land(10).row !== 0 || land(30).row !== 0 || land(40).row !== 1)
+          fails.push('TW-2 the landings read ' + JSON.stringify(v && v.lands));
+        if (!v || v.lands.some((l) => (l.floor <= 27) === !!l.dark)) fails.push('TW-2 the dark is not exactly the floors over the best: ' + JSON.stringify(v && v.lands));
+        if (!v || !v.darks.length || v.darks.find((d) => d.step === '1').bottom !== lbl(20).y - 7 * 8) fails.push('TW-2 the dark starts off the best: ' + JSON.stringify(v && [v.darks, lbl(20)]));
+        if (!v || v.ticks.join() !== 'lit,lit,lit,lit,lit,lit,lit,dark,dark') fails.push('TW-2 the ticks to the next key read ' + JSON.stringify(v && v.ticks));
+        /* each landing's words: its floor and metal, the picked start's tag, the next key's; only the server's checkpoints are presses */
+        if (!v || lbl(10).words !== '10 Bronze' || lbl(40).words !== '40 Silver' || lbl(0).words !== '1' || lbl(20).tag !== 'Start 21' || lbl(30).tag !== 'Next key'
+          || v.labels.filter((l) => l.press).map((l) => l.floor).sort((a, b) => a - b).join() !== '0,10,20')
+          fails.push('TW-2 the landing words and presses read ' + JSON.stringify(v && v.labels));
+        if (!v || v.marks.join() !== 'you:Tyler:27') fails.push('TW-2 the heroes on the tower read ' + JSON.stringify(v && v.marks));
         const bad = notLabels(await paneLines(page, 'climb'));
         if (bad.length) fails.push('TW-8 the Climb tab says sentences: ' + JSON.stringify(bad));
         if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-climb-desktop-1440x900.png') }); }
-        await page.selectOption('[data-hs-win="tower"] .tt-start-pick', '10');
+        /* a start picked by tapping its landing: the select shows it, its tag moves; a landing over the record forged into a press picks nothing */
+        await page.click('[data-hs-win="tower"] [data-hs-act="floor-pick"][data-landing="10"]');
+        await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-start-pick')?.value === '10');
+        await page.evaluate(() => { const b = document.querySelector('[data-hs-win="tower"] .tt-lbl[data-landing="30"]'); b.setAttribute('data-hs-act', 'floor-pick'); b.click(); });
+        await page.waitForTimeout(200);
+        v = await climbView(page);
+        if (!v || v.startOn !== 'Floor 11' || lbl(10).tag !== 'Start 11' || lbl(20).tag !== '') fails.push('TW-2 a landing tapped picks ' + JSON.stringify(v && [v.startOn, lbl(10), lbl(20)]));
         await page.click('[data-hs-win="tower"] .tt-go');
         await wait(page, () => /^Climb started: /.test(document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || ''));
         const sent = verbs(s);
@@ -222,6 +272,15 @@ async function checks(overrides, shots) {
         const story = await page.evaluate(() => { const st = document.querySelector('[data-hs-win="tower"] .tt-story'); return !st.hidden && st.querySelectorAll('p').length; });
         if (story !== 5) fails.push('TW-2 the Story link shows ' + story + ' paragraphs');
       }
+      /* YOUR PARTY on the tower at the server's bests; the field (rank, rivals) only when the server sends one */
+      s.tower = section({ party: [{ seat: 1, name: 'Mira', floor: 21, outfit: 'ranger' }] });
+      await replay(page); await openTower(page);
+      let v = await climbView(page);
+      if (!v || v.marks.join() !== 'you:Tyler:27,party:Mira:21' || v.rank !== null) fails.push('TW-2 a party with no field reads ' + JSON.stringify(v && [v.marks, v.rank]));
+      s.tower = section({ party: [{ seat: 1, name: 'Mira', floor: 21, outfit: 'ranger' }], field: { rank: 14, above: [{ name: 'Bram', floor: 63, outfit: 'berserker' }], below: [{ name: 'Ode', floor: 25 }] } });
+      await replay(page); await openTower(page);
+      v = await climbView(page);
+      if (!v || v.marks.join() !== 'rival:Bram:63,you:Tyler:27,rival:Ode:25,party:Mira:21' || !/#14$/.test(v.rank || '')) fails.push('TW-2 the field reads ' + JSON.stringify(v && [v.marks, v.rank]));
       if (errors.length) fails.push('TW-2 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -286,18 +345,21 @@ async function checks(overrides, shots) {
       };
       await openTower(page, 'chest');
       let c = await chestView(page);
-      if (c.cinders !== 'Hearth Cinders: 400' || c.picks.join() !== 'Bronze Key 3' || c.have !== 'Bronze Key: 3' || c.where !== 'Bag: 2, Storage: 1')
-        fails.push('TW-4 the key reads ' + JSON.stringify(c));
-      if (c.base !== 'Weapon chance: 16%' || c.warm !== 'Hearth\'s Warmth: x1.2'
-        || c.stokes.join() !== 'None,Once: 150 Cinders*,Twice: 350 Cinders,3 times: 600 Cinders' || c.stokeHeads !== 0
-        || c.chance !== 'Chance: 33%')
-        fails.push('TW-4 the odds read ' + JSON.stringify(c));
-      if (c.own !== 'Equipped type (Bow): 50%' || c.inside !== 'Contents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20')
-        fails.push('TW-4 the inside reads ' + JSON.stringify([c.own, c.inside]));
+      /* THE SCENE: the chest on the ledge BESIDE the fire, never over it (Tyler 2026-11-16), both inside the scene */
+      const sc0 = c.scene;
+      if (!sc0.chest || !sc0.fire || sc0.chest.r > sc0.fire.l || sc0.chest.l < sc0.frame.l || sc0.fire.r > sc0.frame.r || sc0.chest.b > sc0.frame.b)
+        fails.push('TW-4 the chest is not on the ledge beside the fire: ' + JSON.stringify(sc0));
+      /* a slot a key row the server lists, in its metal: held count and weapon chance; one not held is no press; the picked the one Use opens */
+      if (c.picks.join() !== 'Bronze x3 16%*,Silver x0 8% off' || c.icons.join() !== 'tower_key_bronze.png,tower_key_silver.png' || c.cinders !== 'Hearth Cinders 400')
+        fails.push('TW-4 the keys read ' + JSON.stringify([c.picks, c.icons, c.cinders]));
+      if (c.warm !== 'x1.2' || c.stokes.join() !== 'None,x1 150*,x2 350,x3 600' || c.stokeHead !== 'Stoke' || c.chance !== 'Chance: 33%')
+        fails.push('TW-4 the odds read ' + JSON.stringify([c.warm, c.stokes, c.stokeHead, c.chance]));
+      if (c.tip !== 'Equipped type (Bow): 50%\nContents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20\nWeapon bonus: +1 combat skill')
+        fails.push('TW-4 the key\'s inside reads ' + JSON.stringify(c.tip));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-4 Use/Use all with keys in town read ' + JSON.stringify([c.use, c.all]));
       if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-chest-desktop-1440x900.png') }); }
-      await page.selectOption('[data-hs-win="tower"] .tc-stoke-pick', '2');
-      const saved = await wait(page, () => /^Chance: 48%$/.test(document.querySelector('[data-hs-win="tower"] .tc-chance')?.textContent || ''));
+      await page.click('[data-hs-win="tower"] .tc-stoke[data-n="2"]');
+      const saved = await wait(page, () => document.querySelector('[data-hs-win="tower"] .tc-chance-v')?.textContent === '48%');
       let sent = verbs(s);
       if (sent.length !== 1 || sent[0].name !== 'hr_chest_stoke_default' || Object.keys(sent[0].body).sort().join() !== 'p_idem,p_key,p_slot,p_stokes' || sent[0].body.p_stokes !== 2)
         fails.push('TW-4 a stoke press sent ' + JSON.stringify(sent));
@@ -307,15 +369,20 @@ async function checks(overrides, shots) {
       sent = verbs(s).slice(1);
       if (sent.length !== 1 || sent[0].name !== 'hr_chest_open' || Object.keys(sent[0].body).sort().join() !== 'p_chest,p_count,p_idem,p_key,p_slot,p_stokes'
         || sent[0].body.p_stokes !== null || sent[0].body.p_count !== 1 || sent[0].body.p_key !== 'bronze' || sent[0].body.p_chest !== 'great_hearth') fails.push('TW-4 Use sent ' + JSON.stringify(sent));
-      if (!drawn) fails.push('TW-4 the answer reads ' + JSON.stringify((await chestView(page)).result));
-      /* THE REVEAL: the opened key's own strip, the weapon the server named rising in its column; a repaint never replays it */
+      c = await chestView(page);
+      if (!drawn || c.result !== 'Palisade Sword Sword +1 | Hearth Cinders x50 | Tempering Salts x15 | Cooked Shrimp x20' || c.keysShown || c.hand !== 'Bronze Key x3')
+        fails.push('TW-4 the answer reads ' + JSON.stringify([c.result, c.keysShown, c.hand]));
+      /* THE REVEAL, WHERE THE CHEST SITS: the opened key's own strip, its box over the shut chest's place (2 CSS px an art px), the weapon the
+         server named rising in its column; a repaint never replays it */
       const reveal = () => page.evaluate(() => {
-        const r = document.querySelector('[data-hs-win="tower"] .tt-result .tc-reveal');
+        const r = document.querySelector('[data-hs-win="tower"] .tc-scene .tc-reveal');
         const chest = r && r.querySelector('.tc-reveal-chest');
         return r ? { key: r.getAttribute('data-key'), weapon: r.classList.contains('has-weapon'), item: r.querySelector('.tc-reveal-item')?.getAttribute('src') || null,
           art: chest ? getComputedStyle(chest).backgroundImage : null, el: (window.__tcReveal = window.__tcReveal || r) === r } : null;
       });
       const rv = await reveal();
+      const at = c.scene;
+      if (!at.reveal || at.reveal.l + 16 !== sc0.chest.l || at.reveal.b - 2 !== sc0.chest.b) fails.push('TW-4 the reveal does not play where the chest sits: ' + JSON.stringify([at.reveal, sc0.chest]));
       if (shots) { await page.waitForTimeout(1600); await page.screenshot({ path: join(shots, 'tower-chest-reveal-1440x900.png') }); }
       for (const tab of ['climb', 'chest']) { await page.click('[data-hs-win="tower"] .hw-tab[data-tab="' + tab + '"]'); await page.waitForTimeout(150); }
       const rv2 = await reveal();
@@ -327,15 +394,19 @@ async function checks(overrides, shots) {
       if (sent.length !== 1 || sent[0].body.p_count !== 3 || sent[0].body.p_stokes !== null) fails.push('TW-4 Use all sent ' + JSON.stringify(sent));
       /* three keys, no weapon: the loot list only (TW-8), never "No weapon" */
       await wait(page, () => /Keys used: 3/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''));
-      const loot = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-result > *')).map((e) => e.textContent).filter(Boolean));   /* the reveal is art, no words */
-      if (loot.join(' | ') !== 'Loot | Keys used: 3 | Hearth Cinders x150 | Tempering Salts x45 | Cooked Shrimp x60') fails.push('TW-8 a press with no weapon reads ' + JSON.stringify(loot));
+      c = await chestView(page);
+      if (c.result !== 'Keys used: 3 | Hearth Cinders x150 | Tempering Salts x45 | Cooked Shrimp x60') fails.push('TW-8 a press with no weapon reads ' + JSON.stringify(c.result));
       const badChest = notLabels(await paneLines(page, 'chest'));
       if (badChest.length) fails.push('TW-8 the Chest tab says sentences: ' + JSON.stringify(badChest));
-      /* a key on the Key Ring counts where it is (lane/c-key-ring): the bag, Storage and the ring each said */
+      /* Keys: back to the slots and the stokes, the answer gone */
+      await page.click('[data-hs-win="tower"] .tc-keys-back');
+      c = await chestView(page);
+      if (c.result !== null || !c.keysShown || c.scene.reveal) fails.push('TW-4 Keys after an answer reads ' + JSON.stringify([c.result, c.keysShown, c.scene.reveal]));
+      /* a key on the Key Ring counts where it is (lane/c-key-ring) */
       s.tower = section({ held: { bronze: { bag: 1, storage: 0, ring: 2 } } });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
-      if (c.picks.join() !== 'Bronze Key 3' || c.where !== 'Bag: 1, Key Ring: 2' || c.use !== 'on') fails.push('TW-4 a key on the ring reads ' + JSON.stringify([c.picks, c.where, c.use]));
+      if (c.picks[0] !== 'Bronze x3 16%*' || c.use !== 'on') fails.push('TW-4 a key on the ring reads ' + JSON.stringify([c.picks, c.use]));
       /* off: a key not built, out hunting */
       for (const [o, env, want] of [[{ notReady: true }, null, /^Not available yet$/], [{}, 'hunt', /^Not available while hunting$/]]) {
         s.tower = section(Object.assign({ held: { bronze: { bag: 2, storage: 1, ring: 0 } } }, o));
@@ -357,19 +428,19 @@ async function checks(overrides, shots) {
       s.answer = (name, body) => (name === 'hr_chest_open' ? { ok: true, count: body.p_count, opens: [], haul: {}, cinders_spent: 0 } : { ok: true });
       await openTower(page, 'chest');
       let c = await chestView(page);
-      /* one family: its two lines, no family name (the window's only family) */
-      if (c.fams.join(' || ') !== 'Opened this week: 2 / 6 | Keys held: 3 / 30' || !/^Week resets: /.test(c.resets || '')) fails.push('TW-7 the Tower family reads ' + JSON.stringify([c.fams, c.resets]));
+      /* one family: an ember a chest left this week, the count, keys held; no family name (the window's only family) */
+      if (c.fams.join(' || ') !== 'Opens left 4 / 6 [111100] | Keys held 3 / 30' || !/^Week resets: /.test(c.resets || '')) fails.push('TW-7 the Tower family reads ' + JSON.stringify([c.fams, c.resets]));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-7 Use/Use all with 4 chests left read ' + JSON.stringify([c.use, c.all]));
       /* one chest left of the week: Use on, Use all off (it would open past the server's week) */
       s.tower = section({ held: { bronze: { bag: 2, storage: 1, ring: 0 } }, opened: 5 });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
-      if (c.use !== 'on' || c.all !== 'off') fails.push('TW-7 with one chest left of the week Use/Use all read ' + JSON.stringify([c.use, c.all, c.fams]));
+      if (c.use !== 'on' || c.all !== 'off' || c.fams[0] !== 'Opens left 1 / 6 [100000] | Keys held 3 / 30') fails.push('TW-7 with one chest left of the week Use/Use all read ' + JSON.stringify([c.use, c.all, c.fams]));
       /* the week used: Use off, why said, and an off press sends nothing */
       s.tower = section({ held: { bronze: { bag: 2, storage: 1, ring: 0 } }, opened: 6 });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
-      if (c.use !== 'off' || c.why !== 'Weekly limit reached (6)' || c.fams[0] !== 'Opened this week: 6 / 6 | Keys held: 3 / 30') fails.push('TW-7 at the week\'s cap reads ' + JSON.stringify([c.use, c.why, c.fams]));
+      if (c.use !== 'off' || c.why !== 'Weekly limit reached (6)' || c.fams[0] !== 'Opens left 0 / 6 [000000] | Keys held 3 / 30') fails.push('TW-7 at the week\'s cap reads ' + JSON.stringify([c.use, c.why, c.fams]));
       const n = verbs(s).length;
       await page.click('[data-hs-win="tower"] .tc-use', { force: true }).catch(() => {});
       await page.waitForTimeout(250);
@@ -378,7 +449,7 @@ async function checks(overrides, shots) {
       s.tower = section({ held: { bronze: { bag: 2, storage: 1, ring: 0 } }, families: [fam('catacomb', 6, 12), fam('tower', 1)] });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
-      if (c.fams.join(' || ') !== 'Catacomb Keys | Opened this week: 6 / 6 | Keys held: 12 / 30 || Tower Keys | Opened this week: 1 / 6 | Keys held: 3 / 30')
+      if (c.fams.join(' || ') !== 'Catacomb Keys | Opens left 0 / 6 [000000] | Keys held 12 / 30 || Tower Keys | Opens left 5 / 6 [111110] | Keys held 3 / 30')
         fails.push('TW-7 two families read ' + JSON.stringify(c.fams));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-7 a full catacomb week holds the Tower key: ' + JSON.stringify([c.use, c.all, c.why]));
       /* no family row from the server (the chest lane's projection not landed): no cap line, nothing gated on a guessed 6 */
@@ -395,14 +466,21 @@ async function checks(overrides, shots) {
         const w = document.querySelector('[data-hs-win="tower"]');
         if (!w) return null;
         const body = w.querySelector('[data-hs-body]') || w;
-        let small = null;
+        let small = null, out = null;
         for (const e of w.querySelectorAll('*')) {
+          const r = e.getBoundingClientRect();
+          /* nothing drawn past the sheet's right edge or its tower's (a landing's words clipped on the phone) */
+          const st = e.closest('.tt-stage');
+          if (e.getClientRects().length && r.width && !e.closest('.tc-scene-art') && (r.right > innerWidth + 0.5 || (st && st !== e && r.right > st.getBoundingClientRect().right + 0.5)))
+            out = out || { cls: String(e.className), text: e.textContent.trim().slice(0, 20), right: Math.round(r.right) };
           if (!e.childNodes.length || ![...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim())) continue;
           const fs = parseFloat(getComputedStyle(e).fontSize);
           if (e.getClientRects().length && fs < 12 && (!small || fs < small.fs)) small = { fs, text: e.textContent.trim().slice(0, 30) };
         }
         const r = w.getBoundingClientRect();
-        return { left: Math.round(r.left), right: Math.round(r.right), over: body.scrollWidth - body.clientWidth, small, vw: innerWidth };
+        const stage = w.querySelector('.tt-climb-stage');
+        return { left: Math.round(r.left), right: Math.round(r.right), over: body.scrollWidth - body.clientWidth, small, out, vw: innerWidth,
+          stage: stage && stage.getClientRects().length ? Math.round(stage.getBoundingClientRect().width) : null };
       });
       if (!(await openTower(page))) fails.push('TW-5 the phone opened no Tower window');
       else {
@@ -411,8 +489,13 @@ async function checks(overrides, shots) {
           await page.click('[data-hs-win="tower"] .hw-tab[data-tab="' + tab + '"]');
           await page.waitForTimeout(300);
           const m = await measure();
-          if (!m || m.left < 0 || m.right > m.vw || m.over > 1) fails.push('TW-5 the phone ' + tab + ' tab is ' + JSON.stringify(m));
+          if (!m || m.left < 0 || m.right > m.vw || m.over > 1 || m.out) fails.push('TW-5 the phone ' + tab + ' tab is ' + JSON.stringify(m));
           if (m && m.small) fails.push('TW-5 text under 12 px on the phone ' + tab + ' tab: ' + JSON.stringify(m.small));
+          if (tab === 'climb' && (!m || !(m.stage >= 240))) fails.push('TW-5 the phone draws no tower beside its column: ' + JSON.stringify(m && m.stage));
+          if (tab === 'chest') {
+            const sc = (await chestView(page)).scene;
+            if (!sc.chest || !sc.fire || sc.chest.r > sc.fire.l || sc.chest.l < sc.frame.l || sc.fire.r > sc.frame.r) fails.push('TW-5 the phone\'s scene loses the chest or the fire: ' + JSON.stringify(sc));
+          }
           const b = page.locator('[data-hs-win="tower"] ' + (tab === 'climb' ? '.tt-go' : '.tc-use'));
           await b.scrollIntoViewIfNeeded().catch(() => {});
           const box = await b.boundingBox();
@@ -429,24 +512,53 @@ async function checks(overrides, shots) {
         tower: section({ run: { session: SID, start: 21, top: 29, floors: 9, floor: 30 } }) });
       const bar = await wait(page, () => document.querySelector('.ht-tower:not([hidden]) .ht-floor')?.textContent === 'Floor 30, Keeper');
       if (!bar) fails.push('TW-6 the hunt bar on a landing reads ' + JSON.stringify(await page.evaluate(() => { const e = document.querySelector('.ht-tower'); return e && [e.hidden, e.textContent]; })));
-      /* the climb ends: the Hearth spat the hero out on 30 with a Bronze Key from 20 */
+      /* the climb ends: the Hearth spat the hero out on 33, past the old best (27), with a Bronze Key from landing 30 */
       const ended = Object.assign(clone(hunt), { ended: true, session_id: SID, session: Object.assign({}, hunt.session || {}, { end_reason: 'died', ended_at: new Date().toISOString() }) });
       s.env = Object.assign(clone(BASE_ENV), { hunt: ended, death_log: [{ id: 1, at: new Date().toISOString(), hunt: 'the_burning_tower', session: SID, monster: 'rat', xp: 0, xp_lost: 0, saved: 0 }] });
-      s.tower = section({ last: { session: SID, start: 21, top: 29, floors: 9, end_reason: 'died', ended_at: new Date().toISOString(), keys: [{ landing: 20, key: 'bronze' }], withheld: 1 } });
+      const last = (bestBefore) => ({ session: SID, start: 21, top: 32, floors: 12, end_reason: 'died', ended_at: new Date().toISOString(), keys: [{ landing: 30, key: 'bronze' }], withheld: 1, best_before: bestBefore });
+      s.tower = section({ best: 32, checkpoints: [0, 10, 20, 30], last: last(27) });
       await replay(page);
       await page.keyboard.press('l');
-      const card = await wait(page, () => /^Spat out/.test(document.querySelector('.hsum-reason')?.textContent || ''), null, 8000);
-      const got = await page.evaluate(() => ({ reason: document.querySelector('.hsum-reason')?.textContent || '', again: (() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'); return !b ? null : b.hidden ? 'hidden' : b.disabled ? 'off' : 'on'; })(),
-        tower: (() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower"]'); return b && !b.hidden ? b.textContent : null; })(),
-        death: !!document.querySelector('[data-hs-win="death"]') }));
-      if (!card || !got.reason.startsWith('Spat out: floor 30\nXP lost: none\nFloors cleared: 21 to 29\nKeys: Bronze Key\nKey limit reached: 1 not dropped') || /died|\byou\b/i.test(got.reason))
-        fails.push('TW-6 the end card reads ' + JSON.stringify(got.reason));
-      if (got.again !== 'hidden' || got.tower !== 'Open chest') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
-      if (got.death) fails.push('TW-6 the death popup opened for the Tower');
-      if (got.tower) {
-        await page.evaluate(() => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower"]').click());
-        if (!(await wait(page, () => document.querySelector('[data-hs-win="tower"] [data-pane="chest"].is-on')))) fails.push('TW-6 Open chest opened no Chest tab');
+      const cardOf = () => page.evaluate(() => {
+        const w = document.querySelector('[data-hs-win="hunt-summary"]'), c = w && w.querySelector('.hsum-climb');
+        if (!c || c.hidden) return null;
+        const st = c.querySelector('.te-stage'), run = st.querySelector('.tt-run');
+        const press = (a) => { const b = w.querySelector('[data-hs-act="' + a + '"]'); return !b ? null : b.hidden ? 'hidden' : (b.disabled ? 'off' : 'on') + (b.classList.contains('is-primary') ? '*' : '') + ':' + b.textContent; };
+        return { rows: Array.from(c.querySelectorAll('.te-rows .tt-row')).map((r) => r.querySelector('.tt-k').textContent + ': ' + r.querySelector('.tt-v').textContent),
+          keys: Array.from(c.querySelectorAll('.te-key')).map((k) => k.querySelector('.tt-next-name').textContent + ' | ' + k.querySelector('.tt-next-floor').textContent),
+          labels: Array.from(st.querySelectorAll('.tt-lbl')).map((l) => (Array.from(l.querySelector('.tt-l1').children).map((c) => c.textContent).filter(Boolean).join(' ') + ' ' + (l.querySelector('.tt-tag').hidden ? '' : l.querySelector('.tt-tag').textContent)).trim()),
+          marks: Array.from(st.querySelectorAll('.tt-mk')).map((m) => m.getAttribute('data-who') + ':' + m.querySelector('.tt-mk-who span').textContent),
+          run: run.hidden ? null : Math.round(parseFloat(run.style.height)), text: c.textContent, reason: w.querySelector('.hsum-reason').hidden ? '' : w.querySelector('.hsum-reason').textContent,
+          again: press('again'), tower: press('tower'), climb: press('tower-climb'), death: !!document.querySelector('[data-hs-win="death"]') };
+      });
+      const card = await wait(page, () => !!document.querySelector('[data-hs-win="hunt-summary"] .hsum-climb:not([hidden]) .te-rows .tt-row'), null, 8000);
+      let got = await cardOf();
+      /* the run drawn: 21 to 32 up the stack (12 floors at 8 CSS px), the hero at the top, New Best over the old best, the key's landing */
+      if (!card || !got || got.rows.join(' | ') !== 'Best Floor: 32 (+5) | Floors cleared: 21 to 32 | Spat out: Floor 33 | XP lost: None | Key limit reached: 1 not dropped'
+        || /died|\byou\b/i.test(got.text + got.reason)) fails.push('TW-6 the end card reads ' + JSON.stringify(got));
+      if (!got || got.keys.join() !== 'Bronze Key x1 | Floor 30' || got.run !== 12 * 8 || got.marks.join() !== 'you:32'
+        || got.labels.join(' | ') !== 'New Best | 30 Bronze | 27 Old best | 21 Start') fails.push('TW-6 the run on the tower reads ' + JSON.stringify(got && [got.keys, got.run, got.marks, got.labels]));
+      if (!got || got.again !== 'hidden' || got.tower !== 'on:Open chest' || got.climb !== 'on:Climb again') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
+      if (got && got.death) fails.push('TW-6 the death popup opened for the Tower');
+      if (shots) { await page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] .hs-win-body'); if (b) b.scrollTop = 0; }); await page.screenshot({ path: join(shots, 'tower-end-card-desktop-1440x900.png') }); }
+      /* a climb that set no record (the server's best_before null): no New Best, no old best; with no key, Climb again is the press */
+      s.tower = section({ best: 40, checkpoints: [0, 10, 20, 30, 40], last: Object.assign(last(null), { keys: [], withheld: 0 }) });
+      await replay(page);
+      await page.keyboard.press('l');
+      await wait(page, () => !!document.querySelector('[data-hs-win="hunt-summary"] .hsum-climb:not([hidden]) .te-rows .tt-row'), null, 8000);
+      got = await cardOf();
+      if (!got || got.rows.join(' | ') !== 'Floors cleared: 21 to 32 | Spat out: Floor 33 | XP lost: None' || got.labels.join(' | ') !== '21 Start'
+        || got.tower !== 'hidden' || got.climb !== 'on:Climb again') fails.push('TW-6 a climb that set no record reads ' + JSON.stringify(got));
+      if (got && got.climb) {
+        await page.evaluate(() => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower-climb"]').click());
+        if (!(await wait(page, () => document.querySelector('[data-hs-win="tower"] [data-pane="climb"].is-on')))) fails.push('TW-6 Climb again opened no Climb tab');
       }
+      s.tower = section({ best: 32, checkpoints: [0, 10, 20, 30], last: last(27) });
+      await replay(page);
+      await page.keyboard.press('l');
+      await wait(page, () => !!document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower"]:not([hidden])'), null, 8000);
+      await page.evaluate(() => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="tower"]').click());
+      if (!(await wait(page, () => document.querySelector('[data-hs-win="tower"] [data-pane="chest"].is-on')))) fails.push('TW-6 Open chest opened no Chest tab');
       /* "What happened": the page's own recorder words a fall in the Tower its own way, and a hunt's as ever (death-explain.js) */
       const falls = await page.evaluate(async () => {
         const src = Array.from(document.querySelectorAll('script[type="module"]')).map((e) => e.src).find((u) => u.includes('?v=')) || '';
@@ -459,7 +571,6 @@ async function checks(overrides, shots) {
       }).catch((e) => ({ error: String(e && e.message || e) }));
       if (!/^Ashby was spat out: 1 Gray Wolf hit \(42\)/.test(falls.tower || '') || /died|killing/i.test(falls.tower || '') || !/^Ashby died: /.test(falls.hunt || ''))
         fails.push('TW-6 a fall in What happened reads ' + JSON.stringify(falls));
-      if (shots) await page.screenshot({ path: join(shots, 'tower-end-card-desktop-1440x900.png') });
       if (errors.length) fails.push('TW-6 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -476,6 +587,11 @@ async function checks(overrides, shots) {
   if (fams([fam('tower', 2), fam('tower', 0)]).map((x) => x.openedWeek).join() !== '2') fails.push('TW-7 the parser keeps a repeated family');
   const half = fams([{ family: 'tower', opened: 2, max: 6, held: 3 }])[0];
   if (!half || half.held !== null || half.maxHeld !== null) fails.push('TW-7 the parser draws keys held with no limit from the server: ' + JSON.stringify(half));
+  /* the drawn climb's rows: a seat or rival with no name or floor is dropped; a field with no rank is no field; best_before kept as sent */
+  const p = read(section({ party: [{ seat: 1, name: 'Mira', floor: 21 }, { seat: 2, floor: 9 }, { seat: 3, name: 'X', floor: -1 }], field: { above: [{ name: 'Bram', floor: 63 }] } }));
+  if (p.party.map((x) => x.name + x.floor).join() !== 'Mira21' || p.field !== null) fails.push('TW-2 the parser keeps a hero or a field the server did not state: ' + JSON.stringify([p.party, p.field]));
+  const lb = (bb) => read(section({ last: { session: SID, start: 21, top: 32, floors: 12, keys: [], best_before: bb } })).last.bestBefore;
+  if (lb(27) !== 27 || lb(null) !== null || lb('27') !== null) fails.push('TW-6 the parser reads best_before as ' + JSON.stringify([lb(27), lb(null), lb('27')]));
   return fails;
 }
 
@@ -489,7 +605,7 @@ const MUTANTS = [
   ['Enter is on while hunting', 'src/shell/windows/tower.js', "  if (h && !h.ended) return t(h.huntId === tw.hunt ? 'tower.off_climbing' : 'tower.off_hunting');", '  if (false) return \'\';'],
   ['a refusal is not re-read', 'src/session/tower-intents.js', "const RE_READS = Object.freeze(['bad_landing', ", "const RE_READS = Object.freeze(['nope', "],
   ['Use sends a stoke count of its own', 'src/session/tower-intents.js', 'p_count: count, p_stokes: null, p_idem: newIdem()', 'p_count: count, p_stokes: 1, p_idem: newIdem()'],
-  ['the chance is the page\'s own', 'src/shell/windows/tower-chest.js', "t('tower.chance', { pct: ppmWords(k.chancePpm) })", "t('tower.chance', { pct: ppmWords(k.basePm * 1000) })"],
+  ['the chance is the page\'s own', 'src/shell/windows/tower-chest.js', "k.chancePpm !== null ? ppmWords(k.chancePpm) : ''", "k.chancePpm !== null ? ppmWords(k.basePm * 1000) : ''"],
   ['Use is on while hunting', 'src/shell/windows/tower-chest.js', "  if (h && !h.ended) return t('tower.off_hunting');", '  if (false) return \'\';'],
   ['a key with no weapons opens', 'src/shell/windows/tower-chest.js', "  if (!k.ready) return t('tower.not_ready');", '  if (false) return \'\';'],
   ['Use all ignores the family\'s week', 'src/shell/windows/tower-chest.js', '  if (f) n = Math.min(n, f.maxWeek - f.openedWeek);', '  if (false) n = 0;'],
@@ -500,6 +616,21 @@ const MUTANTS = [
   ['a Tower fall says died', 'src/hunt-view/summary-recorder.js', "  return hunt === TOWER_RULES.hunt ? { fell: (name) => t('tower.fell', { name }), blow: t('tower.fell_blow') } : undefined;", '  return undefined;'],
   ['the reveal is not the opened key\'s', 'src/shell/windows/tower-chest.js', "if (r.ok) sc.result = Object.assign({}, r, { key: k.key });", "if (r.ok) sc.result = Object.assign({}, r, { key: 'gold' });"],
   ['a repaint replays the reveal', 'src/shell/windows/tower-chest.js', '  if (SHOWN.get(host) === r) return;\n', '\n'],
+  /* direction A (Tyler 2026-11-16): the tower drawn, the chest beside the fire, the reveal at the chest, the end card's run */
+  ['a landing over the record is a press', 'src/shell/tower-stage.js', '  const press = (l) => pressable && !!l.pickable;', '  const press = (l) => pressable;'],
+  ['a tapped landing the server did not list is picked', 'src/shell/windows/tower.js', '  if (!Number.isSafeInteger(l) || !tw.checkpoints.includes(l)) return false;', '  if (!Number.isSafeInteger(l)) return false;'],
+  ['the dark starts under the best', 'src/shell/tower-stage.js', '  let from = best;', '  let from = best - 2;'],
+  ['a landing at or under the best is drawn dark', 'src/shell/tower-stage.js', '(above <= 0 ? 0 : DARK.find', '(above < -5 ? 0 : DARK.find'],
+  ['a landing wears the wrong key\'s metal', 'src/shell/tower-stage.js', 'row: L === 0 ? PLAIN : landingRow(keyForLanding(tw, L))', 'row: L === 0 ? PLAIN : landingRow(keyForLanding(tw, L + 10))'],
+  ['the next key is the page\'s guess', 'src/shell/windows/tower.js', '  const k = next <= tw.rules.floorTop ? keyForLanding(tw, next) : null;', '  const k = next <= tw.rules.floorTop ? keyForLanding(tw, next + every) : null;'],
+  ['the party is not on the tower', 'src/shell/windows/tower.js', '  const seats = tw.party.map(', '  const seats = [].map('],
+  ['a rank is said with no field', 'src/shell/windows/tower.js', "  prop(rank, 'hidden', !tw.field);", "  prop(rank, 'hidden', false);"],
+  ['the chest sits over the fire', 'src/shell/windows/tower-chest.js', '`--tr-cx:${px(C.x)}`', '`--tr-cx:${px(F.x)}`'],
+  ['the reveal plays away from the chest', 'src/shell/windows/tower-chest.js', '`--tr-rx:${px(R.x)}`', '`--tr-rx:${px(R.x + 40)}`'],
+  ['a stoke press sends the page\'s count', 'src/shell/windows/tower-chest.js', "    const n = Number(el.getAttribute('data-n'));", '    const n = 3;'],
+  ['New Best is said for a climb that set no record', 'src/shell/tower-words.js', '  const newBest = !!run && run.top !== null && run.bestBefore !== null && run.top > run.bestBefore;', '  const newBest = !!run && run.top !== null;'],
+  ['the end card draws no run', 'src/shell/tower-end-card.js', ' run: [r.start, top], lo:', ' run: null, lo:'],
+  ['Open chest shows for a climb with no key', 'src/shell/windows/hunt-summary.js', "    prop(toTower, 'hidden', !climb || !tw || !climb.keys.length);", "    prop(toTower, 'hidden', !climb || !tw);"],
   ['the bar never says Keeper', 'src/shell/widgets/tower-bar.js', "t(c.keeper ? 'tower.bar_keeper' : 'tower.bar_floor', { floor: c.floor })", "t('tower.bar_floor', { floor: c.floor })"],
 ];
 

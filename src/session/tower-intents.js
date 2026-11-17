@@ -40,10 +40,11 @@ function refused(ans, verb) {
     have: nat(b.have), need: nat(b.need), stacks: nat(b.stacks), cap: nat(b.cap), seats: Array.isArray(b.seats) ? b.seats : null };
 }
 
-/* The open's answer, read field by field: one row a key (its stokes, the chance it rolled at, the weapon or none), the haul. */
+/* The open's answer, read field by field: one row a key (its stokes, the chance it rolled at, the weapon or none and its family), the haul. */
 function openedOf(b) {
   const opens = (Array.isArray(b.opens) ? b.opens : []).slice(0, 64).filter(isObj).map((o) => Object.freeze({
-    stokes: nat(o.stokes) ?? 0, chancePpm: nat(o.chance_ppm), weapon: typeof o.weapon === 'string' && WORD.test(o.weapon) ? o.weapon : null }));
+    stokes: nat(o.stokes) ?? 0, chancePpm: nat(o.chance_ppm), weapon: typeof o.weapon === 'string' && WORD.test(o.weapon) ? o.weapon : null,
+    family: typeof o.family === 'string' && WORD.test(o.family) ? o.family : null }));
   const haul = {};
   if (isObj(b.haul)) for (const [id, q] of Object.entries(b.haul)) if (WORD.test(id) && Number.isSafeInteger(q) && q > 0) haul[id] = q;
   return { opens: Object.freeze(opens), haul: Object.freeze(haul), cindersSpent: nat(b.cinders_spent) ?? 0 };

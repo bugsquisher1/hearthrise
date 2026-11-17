@@ -42,7 +42,8 @@ import { t } from '../../render/player-text.js?v=0.2.133';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
 import { towerOf } from '../../session/tower-sections.js?v=0.2.133';
 import { TOWER_RULES } from '../../data/tower.js?v=0.2.133';
-import { climbEndLines } from '../tower-words.js?v=0.2.133';
+import { climbEnd } from '../tower-words.js?v=0.2.133';
+import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.133';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
@@ -85,6 +86,7 @@ export function renderHuntSummary() {
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
     + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-loss" hidden></p>'
+    + climbCardHtml()
     /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps right under the reason, each one press with its count and
        value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. Above the numbers, so the
        first step's press is in view as the window opens (under them it sat behind the sticky foot at 1440x900). */
@@ -99,7 +101,8 @@ export function renderHuntSummary() {
        the first card); the gold press is the first open Back in town step, else "Hunt again" */
     + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="tower" hidden></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="tower" hidden>' + esc(t('tower.end_open')) + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="tower-climb" hidden>' + esc(t('tower.climb_again')) + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
@@ -159,17 +162,18 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     /* the newest hunt, none open: what the hero did after it, from the server's pointer (../after-hunt.js) */
     const after = cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '';
-    /* A CLIMB (the Burning Tower) says it in the Tower's words: spat out, the floors, the keys (../tower-words.js climbEndLines) */
-    const climb = climbEndLines(towerOf(cs), cur, TOWER_RULES.hunt);
-    const why = climb && climb.lines[0] ? climb.lines[0] : reasonWords(cur, nameOf(cs), st ? st.msLeft : null);
-    /* a climb's card is one label a row (the Tower's words are labels, Tyler 2026-11-14); every other card one line of words */
-    const sep = climb ? '\n' : ' ';
-    text(root.querySelector('.hsum-reason'), [why].concat(climb ? climb.lines.slice(1).filter(Boolean) : []).join(sep) + (after ? sep + after : ''));
-    cls(root.querySelector('.hsum-reason'), 'is-rows', !!climb);
-    const toTower = root.querySelector('[data-hs-act="tower"]');
-    prop(toTower, 'hidden', !climb || !towerOf(cs));
-    text(toTower, climb && climb.keys ? t('tower.end_open') : t('tower.havora_open'));
-    prop(toTower, 'disabled', sc.pending);
+    /* A CLIMB (the Burning Tower) is drawn on the tower with its label rows and keys (../tower-end-card.js, ../tower-words.js climbEnd):
+       spat out, never died; the reason line keeps only what the hero did after */
+    const tw = towerOf(cs);
+    const climb = climbEnd(tw, cur, TOWER_RULES.hunt);
+    const why = climb ? '' : reasonWords(cur, nameOf(cs), st ? st.msLeft : null);
+    text(root.querySelector('.hsum-reason'), [why, after].filter(Boolean).join(' '));
+    prop(root.querySelector('.hsum-reason'), 'hidden', !!climb && !after);
+    patchClimbCard(root.querySelector('.hsum-climb'), cs, tw, climb);
+    /* its presses: Open chest when it earned keys, Climb again (the Tower window's own door) */
+    const toTower = root.querySelector('[data-hs-act="tower"]'), toClimb = root.querySelector('[data-hs-act="tower-climb"]');
+    prop(toTower, 'hidden', !climb || !tw || !climb.keys.length);
+    prop(toClimb, 'hidden', !climb || !tw);
     /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
@@ -207,7 +211,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     /* A CLIMB'S CARD: its next move is the Tower window (the chest when it gave keys), so that is the card's press; no Hunt again */
     if (climb) {
       prop(go, 'hidden', true);
-      cls(toTower, 'is-primary', town.primary === 'again');
+      cls(toTower, 'is-primary', town.primary === 'again' && climb.keys.length > 0);
+      cls(toClimb, 'is-primary', town.primary === 'again' && !climb.keys.length);
       againWhy = '';
     } else prop(go, 'hidden', false);
     for (const b of root.querySelectorAll('.hsum-actions button:not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
@@ -307,12 +312,11 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
     return true;
   }
   if (action === 'bag') { ctx.show('inventory'); return true; }
-  /* a climb's card: the Tower window, on the Chest when the climb gave keys */
-  if (action === 'tower') {
+  /* a climb's card: the Tower window, on the Chest (Open chest) or the Climb (Climb again) */
+  if (action === 'tower' || action === 'tower-climb') {
     const list = sanitizeSummaries(summariesOf(cs));
     const cur = list.find((s) => s.id === sc.pick) || list[0];
-    const climb = towerOf(cs) ? climbEndLines(towerOf(cs), cur, TOWER_RULES.hunt) : null;
-    if (climb) ctx.wm.openTab('tower', climb.keys ? 'chest' : 'climb');
+    if (towerOf(cs) && climbEnd(towerOf(cs), cur, TOWER_RULES.hunt)) ctx.wm.openTab('tower', action === 'tower' ? 'chest' : 'climb');
     return true;
   }
   if (action === 'expand') { ctx.show('storage'); return true; }

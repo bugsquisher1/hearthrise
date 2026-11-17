@@ -1219,10 +1219,14 @@ jobs:
 
       # THE BURNING TOWER ON SCREEN (lane/b-tower-window, Tyler 2026-11-14): hidden with the `burning_tower` switch off; the server's
       # start floors the only picks and one Enter one floor; forged and stale floors never sent; the chest's odds the server's and Use
-      # sends the saved stokes (never a number); off with why; a sheet on the phone; the climb's bar and end card. --mutate plants twelve.
+      # sends the saved stokes (never a number); off with why; a sheet on the phone; the climb's bar and end card. Direction A "The
+      # Chimney" (2026-11-16): the tower drawn from the server's floors (landings in their keys' metal, the dark above the best, you and
+      # your party on it), a landing tapped picks only a listed start, the chest beside the fire and the reveal where it sits, the end
+      # card's run. The window's art: tools/world-art/tower-window-art.mjs (--check: fresh, placed where the town map puts chest and fire).
       - name: Tower window (play.html)
         if: ${{ !cancelled() }}
         run: |
+          node tools/world-art/tower-window-art.mjs --check
           node tests/tower-window.mjs
           node tools/mutant-gate.mjs node tests/tower-window.mjs --mutate
 

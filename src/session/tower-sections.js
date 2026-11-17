@@ -8,7 +8,9 @@
 //     pays { xp_pm, coin, drops, bestiary, death_loss_pm, blessings, stamina },
 //     best_floor, record, checkpoints [landing],
 //     run { session, start, top, floors, floor } | null,
-//     last { session, start, top, floors, end_reason, ended_at, keys [{ landing, key }], withheld } | null,
+//     last { session, start, top, floors, end_reason, ended_at, keys [{ landing, key }], withheld, best_before } | null,
+//     party [{ seat, name, floor, outfit }],
+//     field { rank, above [{ name, floor, outfit }], below [...] } | absent,
 //     chest { on, dry, opens, per_call, own_pm, own_family, warmth_pm, week_ends, cinders { bag, storage, ring },
 //             families [{ family, name, max, held_max, opened, held }],
 //             keys [{ key, family, item, name, from, held { bag, storage, ring }, base_pm, chance_ppm, stokes_default, stokes [{ n, pm, cost }],
@@ -21,6 +23,10 @@
 // week per hero per family (`max`), not keys earned, and a family's held keys stop dropping at `held_max`. Each family row is the server's
 // whole week: the window never guesses a 6 or a 30, and with no row it draws no cap line and gates nothing on one. Keys count where they
 // are held: the bag, the account's Storage and the hero's Key Ring (lane/c-key-ring).
+// THE CLIMB DRAWN (direction A, Tyler 2026-11-16): `party` is every OTHER seat of the hero's party with its best floor (the Climb tab's
+// party markers); `last.best_before` the hero's best before that climb, or null when it set no record (the end card's "New Best +N").
+// `field` (the hero's rank and the heroes just above and below) is a Tower board's, which the server does not send yet: absent, the
+// window draws no rank and no rivals, never a guess.
 // Every envelope replaces it, and nothing here holds a number of its own (CLAUDE.md §6). A row that is not the server's shape is
 // dropped, never mended: the window shows less, never something the server did not say. A number the server did not send is null.
 // ════════════════════════════════════════════════════════════════════════
@@ -72,7 +78,20 @@ function runOf(r) {
 function lastOf(r) {
   if (!isObj(r) || !sid(r.session) || pos(r.start) === null) return null;
   return Object.freeze({ session: sid(r.session), start: r.start, top: pos(r.top), floors: nat(r.floors) ?? 0,
-    endReason: word(r.end_reason), endedAt: at(r.ended_at), keys: landingKeys(r.keys), withheld: nat(r.withheld) ?? 0 });
+    endReason: word(r.end_reason), endedAt: at(r.ended_at), keys: landingKeys(r.keys), withheld: nat(r.withheld) ?? 0,
+    bestBefore: nat(r.best_before) });
+}
+
+/* A hero drawn on the tower: a name, a best floor, an outfit (null: its role's). A row without a name or a floor is not the server's. */
+function heroOf(h) {
+  if (!isObj(h) || !name(h.name) || nat(h.floor) === null) return null;
+  return Object.freeze({ name: name(h.name), floor: h.floor, outfit: word(h.outfit), seat: nat(h.seat) });
+}
+const heroes = (v, max) => Object.freeze((Array.isArray(v) ? v : []).slice(0, max).map(heroOf).filter(Boolean));
+/* The field (a Tower board's: the hero's rank and the heroes just above and below), or null while the server sends none. */
+function fieldOf(f) {
+  if (!isObj(f) || pos(f.rank) === null) return null;
+  return Object.freeze({ rank: f.rank, above: heroes(f.above, 3), below: heroes(f.below, 3) });
 }
 
 /* Where a hero holds an item: its bag, the account's Storage, its Key Ring (hr_chest_held). All three, or not the server's shape. */
@@ -141,6 +160,7 @@ export function towerOf(cs) {
     /* the landings a climb may start after (0: floor 1), the server's whole list or none */
     checkpoints: rising(s.checkpoints) || Object.freeze([]),
     run: runOf(s.run), last: lastOf(s.last), chest: chestOf(s.chest),
+    party: heroes(s.party, 7), field: fieldOf(s.field),
   });
 }
 

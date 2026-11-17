@@ -12,11 +12,15 @@ export const SCALE = 2;
 export const TOWER_ART = Object.freeze({
   /* the chimney's straight stack in great_hearth.png: one course, repeated up the tower */
   COURSE: Object.freeze({ x: 151, y: 18, w: 45, h: 18 }),
+  /* the phone's narrower stack: the same courses' middle 30 px, so the tower and its words fit a sheet */
+  COURSE_NARROW: Object.freeze({ x: 158, y: 18, w: 30, h: 18 }),
   /* a landing's band reaches 3 px past the stack each side; its plate stands 1 row over the band */
-  LANDING_W: 51, LANDING_H: 9,
+  LANDING_W: 51, LANDING_W_NARROW: 36, LANDING_H: 9,
   /* the floors: art px a floor up the stack, and the plain band's row in landings.png (after the CHEST_KEYS rows) */
   PPF: 4,
   TICK_W: 4, TICK_H: 3,
+  /* an opening left this week (the Chest tab's Opens left): an ember EMBER x EMBER */
+  EMBER: 8,
   /* a hero's head: HEAD_W x HEAD_H from HEAD_TOP down the 64 x 64 idle south frame, centred */
   HEAD_W: 22, HEAD_H: 20, HEAD_TOP: 21,
   /* THE CHEST TAB: the firebox's crop of great_hearth.png, and what sits in it (crop px) */

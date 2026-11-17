@@ -1000,11 +1000,9 @@
 .hv-works-plaque { margin: 4px 0 0; padding: 0; list-style: none; }
 .hv-works-plaque .hr-line { min-height: 32px; grid-template-columns: 32px minmax(0, 1fr) auto; }
 .hv-works-plaque .is-mine .hr-name b { color: var(--gold-2); }
-.hr-pick, .tt-start-row { display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; font-family: var(--f-label); font-weight: 700;
+.hr-pick { display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; font-family: var(--f-label); font-weight: 700;
   font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hr-pick .hh-select { flex: 1; min-width: 0; }
-.tt-start-row { margin: 6px 2px 2px; }
-.tt-start-row .hh-select { flex: 0 1 auto; min-width: 140px; min-height: 36px; font-size: var(--t-small); }
 .hr-head { display: flex; align-items: center; gap: 10px; margin: 0 2px 6px; }
 .hr-glyph { display: grid; place-items: center; width: 32px; height: 32px; flex: none; color: var(--gold-2); }
 .hr-glyph .hs-glyph { width: 32px; height: 32px; fill: currentColor; }
@@ -1250,66 +1248,7 @@
   .tw-skills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ── THE BURNING TOWER (src/shell/windows/tower.js, tower-chest.js): two tabs and a Story link on the steel line; the six plain lines as a
-   short ledger, the start floors and the stokes as sunk steel picks (the picked one outlined in gold, as the yard's skills), the key's odds as
-   ledger lines with the chance in gold, and one gold press stuck to the foot. No card around anything. ── */
-.tt-tower [hidden] { display: none; }
-.tt-top { display: flex; align-items: flex-end; column-gap: 8px; margin-bottom: 8px; border-bottom: 2px solid var(--steel-sep); }
-.tt-top .hw-tabs { flex: 1 1 auto; margin-bottom: -2px; border-bottom: 0; }
-.tt-story-link { min-height: 32px; margin-bottom: 4px; padding: 0 10px; }
-.tt-story { margin: 0 0 10px; padding: 8px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
-.tt-story p { margin: 0 0 6px; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
-.tt-now { margin: 0 0 6px; font-weight: 700; color: var(--gold-2); }
-.tt-sum { list-style: none; margin: 0 0 6px; padding: 0; }
-.tt-sum li { margin: 0; padding: 4px 2px; border-top: 1px solid var(--line-soft); font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
-.tt-sum li:first-child { border-top: 0; }
-.tt-tower .hs-sub { margin-top: 10px; }
-.tt-line { margin: 0 0 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
-.tt-line:empty, .tt-tower .hs-note:empty { display: none; }
-.tc-keys { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
-.tc-pick { min-height: 36px; min-width: 48px; padding: 0 10px; border: 1px solid var(--steel-sep); background: var(--bg-0); color: var(--ink);
-  font-family: var(--f-label); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; cursor: pointer; }
-.tc-pick:hover:not(:disabled) { color: var(--gold-2); }
-.tc-pick[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; color: var(--gold-2); }
-.tc-pick:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-.tc-pick:disabled { opacity: .5; cursor: default; }
-.tc-key { margin: 4px 0 8px; }
-.tc-loot-head, .tc-fam-name { margin: 8px 2px 4px; font-size: var(--t-small); font-weight: 700; color: var(--ink-2); }
-.tc-chance { margin: 6px 2px 4px; font-weight: 700; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
-.tc-chance:empty { display: none; }
-.tt-result { margin: 0 0 8px; padding: 6px 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
-.tt-found { margin: 0 0 2px; font-weight: 700; color: var(--gold-2); }
-/* THE REVEAL (tower-chest.js revealHtml; the strips are tools/world-art/tower-art.mjs): 48 x 64 art px frames at x2, stepped, never
-   smoothed (the chest stands at the frame's foot, its open lid and the column above it). The key's lock catches the light, the lid lifts on
-   its fire, embers climb (8 frames); a weapon's column rises (4) and its icon climbs out of the chest's mouth in whole art pixels.
-   Reduced motion shows the last frame of each, still. */
-.tc-reveal { position: relative; width: 96px; height: 128px; margin: 0 auto 4px; }
-.tc-reveal-chest, .tc-reveal-col { position: absolute; inset: 0; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; }
-.tc-reveal-chest { background-size: 768px 128px; animation: tc-open 800ms steps(7, jump-none) forwards; }
-.tc-reveal-col { background-size: 384px 128px; opacity: 0; animation: tc-col 300ms steps(3, jump-none) 800ms forwards; }
-.tc-reveal-item { position: absolute; left: 14px; top: 68px; width: 64px; height: 64px; image-rendering: pixelated; opacity: 0;
-  animation: tc-rise 400ms steps(8, jump-none) 900ms forwards; }
-@keyframes tc-open { from { background-position: 0 0; } to { background-position: -672px 0; } }
-@keyframes tc-col { from { opacity: 1; background-position: 0 0; } to { opacity: 1; background-position: -288px 0; } }
-@keyframes tc-rise { from { opacity: 1; transform: translateY(0); } to { opacity: 1; transform: translateY(-64px); } }
-.tc-reveal[data-key="bronze"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-bronze.png'); }
-.tc-reveal[data-key="silver"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-silver.png'); }
-.tc-reveal[data-key="gold"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-gold.png'); }
-.tc-reveal[data-key="platinum"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-platinum.png'); }
-.tc-reveal[data-key="bronze"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-bronze.png'); }
-.tc-reveal[data-key="silver"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-silver.png'); }
-.tc-reveal[data-key="gold"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-gold.png'); }
-.tc-reveal[data-key="platinum"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-platinum.png'); }
-@media (prefers-reduced-motion: reduce) {
-  .tc-reveal-chest, .tc-reveal-col, .tc-reveal-item { animation: none; }
-  .tc-reveal-chest { background-position: -672px 0; }
-  .tc-reveal-col { opacity: 1; background-position: -288px 0; }
-  .tc-reveal-item { opacity: 1; transform: translateY(-64px); }
-}
-.tt-foot { position: sticky; bottom: -12px; margin-bottom: -12px; padding: 4px 0 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
-.tt-foot .hw-why { margin: 4px 2px 0; }
-.tt-go, .tc-use { display: block; width: 100%; min-height: 40px; margin: 6px 0; }
-.tc-use-all { display: block; width: 100%; min-height: 36px; margin: 0 0 4px; }
+/* THE BURNING TOWER window itself is src/styles/tower.css; the hunt bar's floor and the Havora door stay here, with their surfaces. */
 .ht-tower { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: lining-nums tabular-nums; }
 .ht-tower .ht-floor { color: var(--gold-2); }
 .ht-tower.is-keeper .ht-floor { color: var(--gold); }
@@ -1317,7 +1256,3 @@
 .hv-tower { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 2px 0; font-size: var(--t-small); color: var(--ink); }
 .hv-tower[hidden] { display: none; }
 .hv-tower .hh-tool { min-height: 32px; padding: 0 10px; }
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  /* a phone sheet is 423 px tall: the foot scrolls with the pane, or the presses would hide the odds they act on */
-  .tt-foot { position: static; margin-bottom: 0; padding-bottom: 4px; }
-}

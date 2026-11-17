@@ -28,9 +28,6 @@ export const familyWord = (id) => (hasText('tower.family_' + id) ? t('tower.fami
     none, so a family the server adds (the catacombs') draws its row with no words added here. */
 export const keyFamilyWord = (f) => t('tower.key_family', { name: (f && (f.name || String(f.family || '').replace(/_/g, ' '))) || '' });
 
-/** How many stokes, as a button says it ("None", "Once", "Twice", "3 times"). */
-export const stokeLabel = (n) => (n === 0 ? t('tower.stoke_none') : n === 1 ? t('tower.stoke_1') : n === 2 ? t('tower.stoke_2') : t('tower.stoke_n', { count: n }));
-
 /** A multiplier in permille as a player reads it: 1700 -> "1.7", 2500 -> "2.5", 3000 -> "3". */
 export const timesWords = (pm) => (num(pm) ? String(Math.round(pm / 100) / 10) : '');
 
@@ -40,32 +37,40 @@ export function lootList(items) {
 }
 
 /**
- * THE END CARD OF A CLIMB, one label a row, or null for a card that is no climb. `tw` is the `tower` section (its `last` run is the
- * newest climb that ended, the server's floors and keys); `card` the summary (summary-model.js: id, hunt, reason). A climb never says
- * "died": "Spat out" (the board's §1 "In the game's words"). The run's numbers only when the section's last run IS this card's session;
- * an older card says the bare label.
+ * THE END CARD OF A CLIMB as label rows, or null for a card that is no climb. `tw` is the `tower` section (its `last` run is the
+ * newest climb that ended, the server's floors, keys and the best before it); `card` the summary (summary-model.js: id, hunt, reason).
+ * A climb never says "died": "Spat out" (the board's §1 "In the game's words"). The run's numbers only when the section's last run IS
+ * this card's session; an older card says the bare labels.
+ *   rows   [{ id, k, v, gold }]  New Best (+N) when the climb set the record (best_before), Floors cleared, Spat out / Ended, XP lost, and
+ *                               the keys the held limit kept back
+ *   keys   [{ key, item, name, count, landing }]  every landing the run cleared mints its key, one entry a kind (the highest landing's)
+ *   run    { start, top, best, before } | null   the climb drawn on the tower; `before` the old best when it set a new one
  */
-export function climbEndLines(tw, card, towerHunt) {
+export function climbEnd(tw, card, towerHunt) {
   if (!card || card.hunt !== towerHunt) return null;
   const run = tw && tw.last && tw.last.session === String(card.id).toLowerCase() ? tw.last : null;
-  const lines = [];
+  const rows = [];
+  const newBest = !!run && run.top !== null && run.bestBefore !== null && run.top > run.bestBefore;
+  if (newBest) rows.push({ id: 'best', k: t('tower.best_head'), v: t('tower.end_best', { floor: whole(run.top), plus: whole(run.top - run.bestBefore) }), gold: true });
+  if (run) rows.push({ id: 'cleared', k: t('tower.end_cleared'), v: run.top !== null ? t('tower.end_climbed', { from: run.start, to: run.top }) : t('tower.none') });
   /* the floor it ended on: the one after the last it cleared, or the one it started on */
   const on = run ? (run.top !== null ? run.top + 1 : run.start) : null;
-  if (card.reason === 'died') lines.push(on !== null ? t('tower.end_spat', { floor: on }) : t('tower.end_spat_plain'));
-  else if (card.reason === 'floor_time') lines.push(t('tower.end_time'));
-  else lines.push(null);
+  if (card.reason === 'died') rows.push({ id: 'out', k: t('tower.end_spat'), v: on !== null ? t('tower.start_floor', { floor: on }) : '' });
+  else if (card.reason === 'floor_time') rows.push({ id: 'out', k: t('tower.end_ended'), v: t('tower.end_time') });
   /* the mode's own death loss, the server's: none in the Tower */
-  if (card.reason === 'died' && tw && tw.pays && tw.pays.deathLossPm === 0) lines.push(t('tower.end_xp'));
-  if (run) lines.push(run.top !== null ? t('tower.end_climbed', { from: run.start, to: run.top }) : t('tower.end_no_floor'));
-  /* every landing a run clears mints its key (no weekly earn cap, Tyler 2026-11-16): one entry a kind, "Bronze Key x2" */
-  const named = run ? run.keys.map((k) => keyName(tw, k.key)).filter(Boolean) : [];
-  const kinds = [...new Set(named)].map((n) => { const c = named.filter((x) => x === n).length; return c > 1 ? t('tower.end_key_count', { key: n, count: c }) : n; });
-  if (named.length) lines.push(t('tower.end_keys', { list: kinds.join(', ') }));
+  if (card.reason === 'died' && tw && tw.pays && tw.pays.deathLossPm === 0) rows.push({ id: 'xp', k: t('tower.end_xp'), v: t('tower.none') });
   /* the keys the family's held limit kept back (the mint's tower_key_withheld rows): the card says why they did not drop */
-  if (run && run.withheld > 0) lines.push(t('tower.end_withheld', { count: run.withheld }));
-  return { lines, keys: named.length };
+  if (run && run.withheld > 0) rows.push({ id: 'withheld', k: t('tower.end_withheld'), v: t('tower.end_not_dropped', { count: run.withheld }) });
+  /* every landing a run clears mints its key (no weekly earn cap, Tyler 2026-11-16): one entry a kind */
+  const keys = [];
+  for (const m of run ? run.keys : []) {
+    const k = tw.chest ? tw.chest.keys.find((x) => x.key === m.key) : null;
+    if (!k) continue;
+    const had = keys.find((x) => x.key === k.key);
+    if (had) { had.count++; had.landing = Math.max(had.landing, m.landing); } else keys.push({ key: k.key, item: k.item, name: k.name || itemName(k.item), count: 1, landing: m.landing });
+  }
+  return { rows, keys, run: run ? { start: run.start, top: run.top, best: newBest, before: newBest ? run.bestBefore : null } : null };
 }
-const keyName = (tw, id) => { const k = tw && tw.chest ? tw.chest.keys.find((x) => x.key === id) : null; return k ? k.name || itemName(k.item) : null; };
 
 /**
  * A Tower refusal that carries the server's numbers or needs the Tower's own words, as a label, or null (the shared table says it).

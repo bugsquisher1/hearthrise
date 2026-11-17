@@ -233,7 +233,7 @@ export default definePack({
        loses most when it is taken away (Krell's row). */
     storeFloor: 'salted_lobster',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
-      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank and a healer'] },
+      bars: ['Everyone eats below 75% HP', 'The healer casts Circle of Renewal when 2 heroes drop below 80%', 'The healer casts Greater Mend below 85%', 'The party brings a tank and a healer'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
       /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals

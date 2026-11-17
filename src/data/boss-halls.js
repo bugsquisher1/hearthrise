@@ -106,14 +106,14 @@ export const BOSS_HALL_WORDS = Object.freeze({
   /* WHAT WINS (lane/d-march-balance, the v0.2.132 re-play: 0 of 6 on the bars a party is handed). A hall that names a store food (`storeFloor`)
      says it, and its bar line (`words.bars`, label style), under the key line; {food} the store food. `foodShort` is red: this hero's bar buys
      weaker food (src/shell/hunt-go.js storeFoodUnder). */
-  food: 'Requires {food} or better on every hero\'s bar',
+  food: 'Every hero needs {food} or better on their bar.',
   foodShort: 'Your bar has {have}. Change that slot to {food}.',
   /* ...for another hero of this account in the party (boss-hall-pane.js foodShortWords) */
   foodShortPeer: '{name}\'s bar has {have}. Change that slot to {food}.',
   /* a hero whose name the envelope has not sent yet */
   someHero: 'A hero',
   /* the lead-in to the hall's tips (its `words.bars`, label lines, each one change from the bar a party is handed) */
-  tips: 'How to beat him',
+  tips: 'Groups that beat him do this:',
   /* the tips list's name for a screen reader */
   tipsLabel: 'How to beat him',
   /* the boss row's phases.hasten: the spell that speeds up under his enrage line */

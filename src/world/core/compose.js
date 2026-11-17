@@ -41,6 +41,7 @@ import { vertexGrid, tileKey } from './wang.js?v=0.2.133';
 import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.133';
 import { markShapes } from './mark-shapes.js?v=0.2.133';
 import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.133';
+import { roughEdges } from './ground-rough.js?v=0.2.133';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -109,14 +110,16 @@ function* blendSteps(map, book, T, inPatch, out) {
   /* a material's VARIETY (a variety of one of these pairs' own interior tiles): its all-one-material dual tiles draw a variant */
   const VAR = known.map((m) => pairs.map((id) => varietiesOf(book, id).find((v) => v.t.lower === m && v.t.upper === m)).find(Boolean) || null);
   /* each cell's material once (alias applied, -1 under a patch or with no pair), then four reads per dual tile */
-  const W = map.w, Hm = map.h, mat = new Int16Array(W * Hm);
+  const W = map.w, Hm = map.h, authored = new Int16Array(W * Hm);
   for (let cy = 0; cy < Hm; cy++) {
     for (let cx = 0; cx < W; cx++) {
-      if (inPatch(cx, cy)) { mat[cy * W + cx] = -1; continue; }
+      if (inPatch(cx, cy)) { authored[cy * W + cx] = -1; continue; }
       const m = map.ground[cy * W + cx], a = alias[m] || m, i = idOf.get(a);
-      mat[cy * W + cx] = i === undefined ? -1 : i;
+      authored[cy * W + cx] = i === undefined ? -1 : i;
     }
   }
+  /* a natural edge drawn ragged (ground-rough.js): the materials as DRAWN; the map's ground and its walk mask are untouched */
+  const mat = map.blend.rough ? roughEdges(authored, W, Hm, idOf, map.blend.rough) : authored;
   const matOf = (x, y) => mat[Math.min(Hm - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
   /* a cell is a dual-tile corner: it is OPEN for its variety when the cells round it (3 x 3, inside the map) are all its material */
   const same = (cx, cy) => {

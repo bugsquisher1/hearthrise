@@ -86,7 +86,7 @@ export const SCENERY = Object.freeze([
      a basket, sacks and a trough among the farm plots */
   ['water_trough', 62, 37], ['bellows', 64, 37], ['water_trough', 67, 38], ['bellows', 69, 38], ['water_trough', 60, 42], ['bellows', 62, 42],
   ['water_trough', 65, 43], ['bellows', 67, 43], ['weapon_rack', 65, 37], ['crates', 70, 38], ['sack_pile', 59, 43], ['barrels', 64, 42],
-  ['barrels', 72, 32], ['flour_sack', 74, 34], ['bucket', 66, 33],
+  ['barrels', 72, 32], ['flour_sack', 72, 33], ['bucket', 66, 33],
   ['hay_bale', 70, 67], ['armour_stand', 59, 66], ['barrels', 77, 69],
   /* THE TRAINING YARD (art lane 2026-11-09, the art director's yard kit): the eight dummies stand where the stations put them (stations.js,
      three fighters to each) on a ring of raked sand (ground.js). A MELEE ROW along the north edge (banners, the sword rack with the arms
@@ -138,6 +138,10 @@ export const BLEND = Object.freeze({
     /* the Training Yard's raked sand ring on the town dirt (art/world/yard) */
     'havora_earth_sand']),
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass' }),
+  /* lane/a-havora-art (Tyler 2026-11-16, "the ground transitions look like shit"): the grass and the dirt meet on a ragged
+     edge, not the blueprint's ruled one (src/world/core/ground-rough.js: drawn only, the walk mask is the plan's); each
+     straight run of the edge tiles also draws one of four variants (tools/world-art/edge-variety.mjs) */
+  rough: Object.freeze({ seed: 23, pairs: Object.freeze([Object.freeze(['grass', 'earth'])]), spill: 0.62, bite: 0.38, scale: 2.6, deep: 4 }),
 });
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,

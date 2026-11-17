@@ -493,7 +493,7 @@ async function pure() {
   if (ops(bow) !== '{"gloves":"leather_gloves"}') fails.push('AW-21 a bow hero would put on ' + ops(bow) + ' (the heavy belt costs Ranged accuracy)');
   /* Two copper rings fill both ring slots; the one-line preview names the change. */
   const rings = plan({ weapon: 'bronze_sword' }, [['copper_ring', 2]]);
-  if (ops(rings) !== '{"ring1":"copper_ring","ring2":"copper_ring"}' || upgradeWords(rings) !== 'Wear Copper Ring ×2 (+1 Melee accuracy each).') fails.push('AW-21 two rings: ' + ops(rings) + ' / ' + upgradeWords(rings));
+  if (ops(rings) !== '{"ring1":"copper_ring","ring2":"copper_ring"}' || upgradeWords(rings) !== 'Upgrade: Copper Ring ×2 +1 Melee accuracy each') fails.push('AW-21 two rings: ' + ops(rings) + ' / ' + upgradeWords(rings));
   /* A worn piece is never traded away: the plate Bronze Belt (more Defense) never replaces a worn Leather Belt (its critical chance). */
   const worn = plan({ weapon: 'bronze_sword', belt: 'leather_belt' }, [['bronze_belt']]);
   if ('belt' in worn.ops) fails.push('AW-21 Equip upgrades traded away a worn belt: ' + ops(worn));
@@ -1655,12 +1655,12 @@ async function planRules(base) {
     const hands = plan({ weapon: 'bronze_sword' }, [['practice_shield'], ['ironbound_shield']], { melee: { level: 99 }, defense: { level: 99 } }, 30);
     if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would put a shield on: ' + ops2(hands));
     const tank = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['iron_sword', 8]], lv1, 15);
-    if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Wear Iron Sword (+3 Melee accuracy).') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
+    if (ops2(tank) !== '{"weapon":"iron_sword"}' || UP.upgradeWords(tank) !== 'Upgrade: Iron Sword +3 Melee accuracy') fails.push('AW-21 a sword-and-shield hero with Iron Swords at Level 15 reads ' + ops2(tank) + ' / ' + UP.upgradeWords(tank));
     if (Object.keys(plan({ weapon: 'practice_sword' }, [['iron_sword']], lv1, 14).ops).length) fails.push('AW-21 an Iron Sword goes on under its Level');
     /* A BANE IS A PLUS (designer re-read 2026-11-11: Level 16 in the Practice Sword with 6 Bramble Blades in the bag): the blade goes on and its preview names the bane, the
        engine's clamped number; a worn bane is never traded away for plain numbers, and the tooltip says what the bane is. */
     const bane = plan({ weapon: 'practice_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
-    if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Wear Bramble Blade (+2 Melee accuracy, +2 Melee damage, +40% damage to Plant monsters).') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
+    if (ops2(bane) !== '{"weapon":"bramble_blade"}' || UP.upgradeWords(bane, 2, 3) !== 'Upgrade: Bramble Blade +2 Melee accuracy, +2 Melee damage, +40% damage to Plant monsters') fails.push('AW-21 a sword hero with Bramble Blades at Level 16 reads ' + ops2(bane) + ' / ' + UP.upgradeWords(bane, 2, 3));
     if ('weapon' in plan({ weapon: 'bramble_blade' }, [['iron_sword']], lv1, 16).ops) fails.push('AW-21 Equip upgrades traded a worn bane away for plain numbers');
     /* A WORN BANE AGAINST A PLAIN STRONGER BLADE IS SAID, NEVER SWAPPED (designer small call 2, 2026-11-11): the slot is a choice and the line says the trade in the
        engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
@@ -1695,11 +1695,11 @@ async function planRules(base) {
     const follow = rings('banded_signet_keen', 'banded_signet', ['banded_signet_follow']);
     /* the ring's name says its perk, so the line names the piece only; a perk a name does not say is said in a few words */
     const unsaid = { picks: follow.picks.map((p) => ({ ...p, id: 'banded_signet' })), choices: [] };
-    if (ops2(follow) !== '{"ring2":"banded_signet_follow"}' || UP.upgradeWords(follow) !== 'Wear Banded Signet (Follow-through).' || UP.upgradeWords(unsaid) !== 'Wear Banded Signet (adds Follow-through).')
+    if (ops2(follow) !== '{"ring2":"banded_signet_follow"}' || UP.upgradeWords(follow) !== 'Upgrade: Banded Signet (Follow-through)' || UP.upgradeWords(unsaid) !== 'Upgrade: Banded Signet adds Follow-through')
       fails.push('AW-21 a Follow-through ring in the bag beside a worn Keen ring reads ' + ops2(follow) + ' / ' + UP.upgradeWords(follow) + ' / ' + UP.upgradeWords(unsaid));
-    /* a perked ring that also adds a number keeps ONE bracket (voice lane 2026-11-09: "(Follow-through) (+1 Melee accuracy)" read wrong) */
+    /* a perked ring that also adds a number: the number follows the name, never a second bracket (voice lane 2026-11-09: "(Follow-through) (+1 Melee accuracy)" read wrong) */
     const both = { picks: follow.picks.map((p) => ({ ...p, gains: [{ label: 'Melee accuracy', text: '+1 Melee accuracy' }, ...p.gains] })), choices: [] };
-    if (UP.upgradeWords(both) !== 'Wear Banded Signet (Follow-through, +1 Melee accuracy).') fails.push('AW-21 a perked ring that adds a number reads ' + UP.upgradeWords(both));
+    if (UP.upgradeWords(both) !== 'Upgrade: Banded Signet (Follow-through) +1 Melee accuracy') fails.push('AW-21 a perked ring that adds a number reads ' + UP.upgradeWords(both));
     if (Object.keys(rings('banded_signet_follow', 'banded_signet', ['banded_signet_follow']).ops).length) fails.push('AW-21 a second Follow-through ring goes on, though a perk plays once');
     if (Object.keys(rings('banded_signet_follow', 'banded_signet_keen', ['banded_signet_surge']).ops).length) fails.push('AW-21 a Surge ring silently takes a Keen ring\'s place');
     const pick = rings('banded_signet_follow', 'banded_signet', ['banded_signet_keen', 'banded_signet_surge']);
@@ -3845,7 +3845,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
         /* Every step below presses or reads this line: when it is already wrong the catch is made, so stop here rather than click a line a mutant
            reshaped (nightly run 42678595702: a 6 s click timeout on a loaded runner read as HARNESS, not the catch it was). */
-        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel|Mithril/.test(pre.q)) { fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre)); break aw21; }
+        if (!pre.on || pre.off || !/^Upgrade: Iron Helm \+\d+ Defense/.test(pre.q) || /Steel|Mithril/.test(pre.q)) { fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre)); break aw21; }
         /* A REQUIREMENT THE SERVER'S NUMBERS SAY IS UNMET (Tyler 2026-10-24, "Gear swapping isn't working": Fingerguns
            was offered Equip on a helm he could not wear, and the refusal said nothing on screen; gear is worn by Level
            since): the picked line's Equip is off and says why, and a press sends nothing. */
@@ -3897,7 +3897,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('.hw-shop [data-hs-act="buy"][data-offer="supply.leather_gloves"]');
         await wait(page, () => document.querySelector('.hw-shop .hw-upgrade.is-on'), null, 3000);
         const shopLine = await page.evaluate(() => document.querySelector('.hw-shop .hw-upgrade-q').textContent);
-        if (!/^Wear Copper Ring \(/.test(shopLine)) fails.push('AW-21 after a gear purchase the Shop offers ' + JSON.stringify(shopLine));
+        if (!/^Upgrade: Copper Ring \+/.test(shopLine)) fails.push('AW-21 after a gear purchase the Shop offers ' + JSON.stringify(shopLine));
         if (shots) await shot(page, 'alpha-1440x900-shop-upgrades');
       } else fails.push('AW-21 the town character did not mount');
       if (errors.filter((e) => !/status of 409/.test(e)).length) fails.push('AW-21 console errors: ' + errors.slice(0, 3).join(' | '));

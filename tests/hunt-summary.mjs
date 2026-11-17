@@ -398,7 +398,7 @@ async function runTests(M) {
     eq(sell.lines, [{ item: 'rat_tail', qty: 31 }, { item: 'slime_gel', qty: 12 }], 'the sale names the plan\'s Sell stacks whole, and nothing else');
     eq(sell.words, 'Marked Sell: Rat Tail and Slime Gel', 'the sale says whose rule it is');
     eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
-    eq(r.steps[0].words, 'Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense).', 'Equip says what goes on');
+    eq(r.steps[0].words, 'Upgrade: Leather Gloves +1 Melee accuracy and Bronze Belt +2 Defense', 'Equip says what goes on');
     eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
     eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt, frees 1 bag space', 'Deposit says what it frees');
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */

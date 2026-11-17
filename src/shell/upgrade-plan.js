@@ -246,7 +246,7 @@ export function upgradePlan(o) {
 
 const listWords = (parts, last = ' and ') => (parts.length < 2 ? parts.join('') : parts.slice(0, -1).join(', ') + last + parts[parts.length - 1]);
 
-/** The preview: "Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)." naming at most `names` pieces
+/** The preview: "Upgrade: Leather Gloves +1 Melee accuracy and Bronze Belt +2 Defense" naming at most `names` pieces
     with `gains` gains each (the button's title passes more). A slot left for the player says so after it. With
     nothing to put on but a tie standing, the line says why the button is off and which pieces trade off (playtest
     2026-10-29 #11: it said nothing). '' when there is neither. */
@@ -267,12 +267,10 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   const groups = Array.from(byId.values());
   /* a perk the piece's own name already says ("Banded Signet (Follow-through)") is not said twice; the tooltip holds its sentence */
   const said = (p) => p.gains.filter((g) => !(g.perk && itemName(p.id).includes(g.label))).slice(0, gains);
-  /* a name that ends in its own bracket takes the gains inside it: "Banded Signet (Follow-through, +1 Melee accuracy)", never two brackets in a row */
+  /* the gains follow the name as labels, never a bracket: "Banded Signet (Follow-through) +1 Melee accuracy" (the bracket is the catalogue's name) */
   const named = groups.slice(0, names).map(({ p, n }) => {
-    const name = itemName(p.id), many = n > 1 ? ' ×' + n : '', own = /^(.*) \((.*)\)$/.exec(name);
-    if (!said(p).length) return name + many;
-    const words = said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '');
-    return (own ? own[1] + ' (' + own[2] + ')' : name) + many + ' ' + words;
+    const name = itemName(p.id) + (n > 1 ? ' ×' + n : '');
+    return said(p).length ? name + ' ' + said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '') : name;
   });
   const more = groups.length - named.length;
   if (more > 0) named.push(more + (more === 1 ? ' more piece' : ' more pieces'));

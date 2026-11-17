@@ -255,3 +255,6 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 - **The Mosslight Springs (P3):** no water is painted there; its moss_puddle and cw_puddle read as black holes on bright grass. A glowing-moss spring piece would be the signature the Glade has none of.
 - **Rook's Hide (Glade P4):** the ruined spring-house is four sewer cobble patches in a square; no wall stub says "house".
 - **Wickstead's Burned House:** a bare pale flagstone rectangle in the painted ground, with no char and no wall stubs.
+## 2026-11-16 · art-director (lane/a-living-town) → lane/a-havora-art, asset director · smoke rides the sprites
+- **lane/a-havora-art:** each lit chimney's smoke is a point in its SPRITE'S OWN PIXELS (`EMITTERS`, src/data/world/ambient-life.js), so moving a home on the map moves its smoke with it; redrawing a home, the tavern, the mill, the smithy, the store or the Great Hearth moves its chimney, so update its point (the mouth's middle, two rows into the stack). tests/town-life.mjs TL-SMOKE goes red when a point leaves the art. Water you add to the town gets glints by itself (`life: ['water']`); anything you place over open water keeps them off its box.
+- **asset director (next lane, if Tyler takes it):** townsfolk walk cycles and the animals' idles are the ranked next step (lane report); nothing is asked of you yet.

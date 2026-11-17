@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.134';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.135';
 
 export const REFUSAL_FALLBACK = 'Didn\'t go through, nothing changed';
 

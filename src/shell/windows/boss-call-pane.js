@@ -15,15 +15,15 @@
 // no-gold labels, with the event's line before them (live-events-view.js callEventWords). It waives gold only: stamina stays.
 // The event coming on or going off on the server's clock reads the quote again (feeKey).
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.134';
-import { itemName } from '../widgets/bits.js?v=0.2.134';
-import { whole } from '../../render/format.js?v=0.2.134';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.134';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.134';
-import { callOut } from '../../session/boss-intents.js?v=0.2.134';
-import { readCall } from '../../session/boss-quote.js?v=0.2.134';
-import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.134';
-import { partyNote } from '../hunt-list.js?v=0.2.134';
+import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.135';
+import { itemName } from '../widgets/bits.js?v=0.2.135';
+import { whole } from '../../render/format.js?v=0.2.135';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.135';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.135';
+import { callOut } from '../../session/boss-intents.js?v=0.2.135';
+import { readCall } from '../../session/boss-quote.js?v=0.2.135';
+import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.135';
+import { partyNote } from '../hunt-list.js?v=0.2.135';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false, fights: 1 }; SCRATCH.set(cs, s); } return s; };

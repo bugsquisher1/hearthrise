@@ -9,23 +9,23 @@
 // says whose key an open would take and whether this hero, and how many of its party, can still take today's prize. The press comes on for
 // a leader whose party holds a key in another seat, and one label line says the loot. A server that has not said shows neither.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.134';
-import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.134';
-import { isGuarded } from '../../data/boss-calls.js?v=0.2.134';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.134';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.134';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.134';
-import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.134';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.134';
-import { settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.134';
-import { hallStateOf } from '../../session/boss-quote.js?v=0.2.134';
-import { hoursWords } from '../../render/format.js?v=0.2.134';
-import { storeFoodUnder } from '../hunt-go.js?v=0.2.134';
-import { storeName } from '../bar-draft.js?v=0.2.134';
-import { openHall } from '../../session/boss-intents.js?v=0.2.134';
-import { itemName } from '../widgets/bits.js?v=0.2.134';
-import { prizeSlices } from '../../core/drops.js?v=0.2.134';
-import { partyNote } from '../hunt-list.js?v=0.2.134';
+import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.135';
+import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.135';
+import { isGuarded } from '../../data/boss-calls.js?v=0.2.135';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.135';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.135';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.135';
+import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.135';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.135';
+import { settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { hallStateOf } from '../../session/boss-quote.js?v=0.2.135';
+import { hoursWords } from '../../render/format.js?v=0.2.135';
+import { storeFoodUnder } from '../hunt-go.js?v=0.2.135';
+import { storeName } from '../bar-draft.js?v=0.2.135';
+import { openHall } from '../../session/boss-intents.js?v=0.2.135';
+import { itemName } from '../widgets/bits.js?v=0.2.135';
+import { prizeSlices } from '../../core/drops.js?v=0.2.135';
+import { partyNote } from '../hunt-list.js?v=0.2.135';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { hall: null, warned: false }; SCRATCH.set(cs, s); } return s; };

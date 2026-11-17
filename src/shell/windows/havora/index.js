@@ -10,15 +10,15 @@
 // Every control is off while an intent is in flight. Nothing here ever computes a price (CLAUDE.md §1, §6). A price the purse can't pay is off before the press and the
 // line under it says by how much: the purse is the envelope's, the price the server's read, and the server still judges (v0.2.97 gate, the Works tab's same class).
 // ════════════════════════════════════════════════════════════════════════
-import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.134';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.134';
-import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.134';
-import { ITEMS } from '../../../data/items.js?v=0.2.134';
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.134';
-import { whole, gold } from '../../../render/format.js?v=0.2.134';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.134';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.134';
-import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.134';
+import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.135';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.135';
+import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.135';
+import { ITEMS } from '../../../data/items.js?v=0.2.135';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.135';
+import { whole, gold } from '../../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.135';
+import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.135';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;

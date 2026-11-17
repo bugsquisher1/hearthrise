@@ -6,26 +6,26 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.134';
-import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.134';
-import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.134';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.134';
-import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.134';
-import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.134';
-import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.134';
-import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.134';
-import { TIPS } from '../data/tips.js?v=0.2.134';
-import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.134';
-import { t } from '../render/player-text.js?v=0.2.134';
-import { keepLastWords } from '../render/format.js?v=0.2.134';
-import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.134';
-import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.134';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.134';
-import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.134';
-import { draftOf, serverBar } from './bar-draft.js?v=0.2.134';
-import { trackOnce } from '../net/observability.js?v=0.2.134';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.134';
-import { barPlan, menuOpenOf, actMenu } from './launcher-menu.js?v=0.2.134';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.135';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.135';
+import { HUNT_TUTORIAL, AUTO_KINDS, coachIcon, coachWindow } from '../data/hunt-tutorial.js?v=0.2.135';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.135';
+import { bagOf, rulesOf, shopOf, equipmentOf, nameOf } from '../session/item-sections.js?v=0.2.135';
+import { gmOf, levelOf } from '../session/character-sections.js?v=0.2.135';
+import { huntOf, serverNowOf } from '../session/hunt-sections.js?v=0.2.135';
+import { COACH_READ_MAX, COACH_HID_MAX } from '../session/residue.js?v=0.2.135';
+import { TIPS } from '../data/tips.js?v=0.2.135';
+import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { keepLastWords } from '../render/format.js?v=0.2.135';
+import { lootSale, upgradeNeeds } from './bag-model.js?v=0.2.135';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.135';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.135';
+import { revealInWindow, glyphSvg } from './widgets/bits.js?v=0.2.135';
+import { draftOf, serverBar } from './bar-draft.js?v=0.2.135';
+import { trackOnce } from '../net/observability.js?v=0.2.135';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.135';
+import { barPlan, menuOpenOf, actMenu } from './launcher-menu.js?v=0.2.135';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {

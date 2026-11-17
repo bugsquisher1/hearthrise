@@ -5,6 +5,26 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.135 — 2026-11-17 (Boss Calls and Training Gear)
+
+**Training gear.** The Arms Master now sells training gear. Each item says how long it lasts, like Training Sword (12 h), and Buy asks before it spends your gold. Open one in Training for 200% skill XP while you train.
+
+**Call out a series.** When you call out the Rat King or Chief Coppercap you now pick how many fights in a row. Each fight costs stamina and a small fee. A win can drop his loot and a piece only a called fight drops. The page shows what a win can drop and warns you before a fight you are likely to lose. Open Halls now waives the gold only. Stamina is still spent.
+
+**Krell's Hall.** Any hero in the party can bring the Hall Key. Lord Krell's loot is once a day per hero, and your first win always drops a piece. The hall page shows his whole loot table and your odds.
+
+**Income and runes.** From the Mosslight Glade on, monsters drop less gold and their loot sells for less. Carved runes now cost 28 gp and Graven runes 44 gp.
+
+**Setups and spells.** Every weapon has a basic setup ready to load. When a new Level unlocks a spell, a prompt lets you add it to your bar in one press.
+
+**Top bar and Chronicle.** The top bar groups the windows into short menus. The Wiki has a new Chronicle with your hero's story so far.
+
+**Havora.** A new Hearth plaza, cleaner ground edges, bridges that fit their rivers, chimney smoke, flowing water and townsfolk at work. Every hunting ground got softer, more natural edges, and floors no longer show a repeating tile.
+
+**Sharper art.** Pixel art stays crisp at 125% and 150% Windows scaling.
+
+**Fixes.** Training no longer stops after 10 minutes. Feeding the Hearth now sends your hero back to its job. Turning Cut now works with any melee weapon when you're not using a shield: two axes, a club or hammer, or bare hands. If you set up your own bar, add it from Spells. Inviting a hero who is already in a party now names them. More game text is now short labels.
+
 ## v0.2.134 — 2026-11-16 (When the Hunt Ends)
 
 **When the hunt ends.** On a hunt's page you can now pick what your hero does after the hunt. It can go back to its job, wait in town or train a skill at the yard. Yard time is charged when the training starts. Crafting jobs now pick up again after a hunt too, for what they still had left to make when you set off. If you leave a hunt yourself, your hero waits in town.

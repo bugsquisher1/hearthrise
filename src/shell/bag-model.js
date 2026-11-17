@@ -23,22 +23,22 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.134';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.134';
-import { MONSTERS } from '../data/monsters.js?v=0.2.134';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.134';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.134';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.134';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.134';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.134';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.134';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.134';
-import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.134';
-import { recipeInputs } from '../core/artisan.js?v=0.2.134';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.134';
-import { itemName } from './widgets/bits.js?v=0.2.134';
-import { HERO_RESIST_KEYS } from '../data/elements.js?v=0.2.134';
-import { t } from '../render/player-text.js?v=0.2.134';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.135';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.135';
+import { NAMED_FUELS } from '../data/hearth.js?v=0.2.135';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.135';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.135';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.135';
+import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.135';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.135';
+import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.135';
+import { recipeInputs } from '../core/artisan.js?v=0.2.135';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
+import { HERO_RESIST_KEYS } from '../data/elements.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([

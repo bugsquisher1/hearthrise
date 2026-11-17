@@ -21,20 +21,20 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.134';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.134';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.134';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.134';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.134';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.134';
-import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.134';
-import { gotoAttr, patchParts } from '../goto.js?v=0.2.134';
-import { factsTarget } from './monster.js?v=0.2.134';
-import { t } from '../../render/player-text.js?v=0.2.134';
-import { groundLines } from '../live-events-view.js?v=0.2.134';
-import { afterHtml } from './hunt-after-pane.js?v=0.2.134';
-import { scaleHtml } from './scale-pane.js?v=0.2.134';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.135';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.135';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.135';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.135';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.135';
+import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.135';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.135';
+import { factsTarget } from './monster.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
+import { groundLines } from '../live-events-view.js?v=0.2.135';
+import { afterHtml } from './hunt-after-pane.js?v=0.2.135';
+import { scaleHtml } from './scale-pane.js?v=0.2.135';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */

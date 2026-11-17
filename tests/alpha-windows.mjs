@@ -2651,7 +2651,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         release();
         await wait(page, () => document.querySelector('[data-hs-win="inventory"] .hw-find-from').textContent === 'All your characters');
         v = await seen();
-        if (JSON.stringify(v.rows) !== JSON.stringify(['In storage (all your characters), ×4', 'Druid, in the bag, ×2'])) fails.push('AW-75 the server\'s answer reads ' + JSON.stringify(v));
+        if (JSON.stringify(v.rows) !== JSON.stringify(['In storage, shared, ×4', 'Druid, in the bag, ×2'])) fails.push('AW-75 the server\'s answer reads ' + JSON.stringify(v));
         s.findRefuse = 'search_down';
         await page.fill('[data-hs-win="inventory"] .hw-q', 'tail');
         await page.waitForTimeout(700);

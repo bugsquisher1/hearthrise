@@ -90,11 +90,11 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
 
   /* W5 the refusal table */
   const say = (error, figures, verb = 'market_list') => T.refusalText({ ok: false, error, verb, figures });
-  ok('W5', /The shop pays 142 for one, and nothing lists below that/.test(say('price_below_shop', { floor: 142 })), 'floor: ' + say('price_below_shop', { floor: 142 }));
+  ok('W5', /^Below the shop price: 142 each$/.test(say('price_below_shop', { floor: 142 })), 'floor: ' + say('price_below_shop', { floor: 142 }));
   ok('W5', /The most is 28,500 each/.test(say('price_above_cap', { ceiling: 28500 })), 'ceiling: ' + say('price_above_cap', { ceiling: 28500 }));
   ok('W5', /You have 50 listings up/.test(say('too_many_listings', { limit: 50 })), 'listings cap');
   ok('W5', /The listing fee is 8 gold/.test(say('insufficient_gold', { need: 8, have: 2 })), 'a list short of its fee');
-  ok('W5', /You need 1,560 gold\. You have 1,200/.test(say('insufficient_gold', { need: 1560, have: 1200 }, 'market_buy')), 'a buy short of gold');
+  ok('W5', /Need 1,560 gold, have 1,200/.test(say('insufficient_gold', { need: 1560, have: 1200 }, 'market_buy')), 'a buy short of gold');
   ok('W5', /Only 2 are left at that price/.test(say('not_enough', { available: 2 }, 'market_buy')), 'not enough left');
   ok('W5', say('market_locked', { min_level: 10, min_skill_level: 30 }) === 'The Weighhouse trades with heroes of Level 10, or with a bench skill at 30.', 'the rule says both numbers: ' + say('market_locked', { min_level: 10, min_skill_level: 30 }));
   const lockedAnswer = F.refusalOf({ body: { ok: false, verb: 'market_buy', error: 'market_locked', min_level: 7, min_skill_level: 25 } });
@@ -140,10 +140,10 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
   ok('W7', n.rows.length === 3 && n.newest === T0 + 4 * 60000, 'only sold and returned, newer than the last told: ' + n.rows.length);
   ok('W7', M.noticesSince(hist, T0 + 4 * 60000).rows.length === 0, 'nothing is told twice');
   const away = M.noticeLines(n.rows, true);
-  ok('W7', /^While you were away the Weighhouse sold 2 lots for 39 gold\. You received 36 gold\.$/.test(away[0].text), 'the away line says what the seller received: ' + away[0].text);
-  ok('W7', /2 Coal didn't sell and are back in your storage\./.test(away[1].text), 'the return: ' + away[1].text);
+  ok('W7', /^While away, the Weighhouse sold 2 lots for 39 gold\. Received: 36 gold$/.test(away[0].text), 'the away line says what the seller received: ' + away[0].text);
+  ok('W7', /^2 Coal unsold, back in storage$/.test(away[1].text), 'the return: ' + away[1].text);
   const one = M.noticeLines(n.rows.filter((x) => x.qty === 2 && x.what === 'sold'), false);
-  ok('W7', /^The Weighhouse sold 2 Coal for 26 gold\. You received 24 gold\.$/.test(one[0].text), 'one sale online: ' + one[0].text);
+  ok('W7', /^The Weighhouse sold 2 Coal for 26 gold\. Received: 24 gold$/.test(one[0].text), 'one sale online: ' + one[0].text);
 
   /* W8 the sample, and no one-press chip from market history */
   const s = M.priceSample({ at: T0, history: [{ day: '2026-10-30', trades: 2 }, { day: '2026-10-01', trades: 9 }] });

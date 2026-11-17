@@ -187,8 +187,8 @@ async function checks(overrides, shots) {
         if (tabs.join('|') !== 'Character|Outfit|Titles|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
-        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows at your Level', Absorb: '31% of each blow at your Level', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
-          Regeneration: '+1.9% (Inner Flame)', 'Home and renown': '+2%', Total: '+2%' };
+        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armor', 'Critical chance': '4.5%', Defense: '23', Dodge: '12.5% of blows vs same Level', Absorb: '31% of each blow vs same Level', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
+          Regeneration: 'Inner Flame +1.9%', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
         const level = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-lv').textContent);
@@ -256,7 +256,7 @@ async function checks(overrides, shots) {
           await push(page, s);
           await wait(page, () => document.querySelector('[data-hs-act="of-colors"]').disabled, null, 4000);
           const poor = await colors();
-          if (!poor.off || poor.line !== 'You need 1,150 gp more.' || poor.why !== 'You need 1,150 gp more.' || poor.words !== 'Save colors: 1,550 gp') fails.push('CW-4b with 400 gp Save colors reads ' + JSON.stringify(poor));
+          if (!poor.off || poor.line !== 'Need 1,150 gp more' || poor.why !== 'Need 1,150 gp more' || poor.words !== 'Save colors: 1,550 gp') fails.push('CW-4b with 400 gp Save colors reads ' + JSON.stringify(poor));
           await page.evaluate(() => document.querySelector('[data-hs-act="of-colors"]').click());
           await page.waitForTimeout(300);
           if (s.calls.some((c) => c.name === 'hr_hero_colors_set')) fails.push('CW-4b a press on a 400 gp purse went to the server');
@@ -414,7 +414,7 @@ async function checks(overrides, shots) {
         s.env.state = Object.assign({}, s.env.state, { gold: c.price - 1, gold_v: 5 });
         await push(page, s);
         t = await read();
-        if (!t[claimable].off || !t[claimable].small.endsWith('You need 1 gp more.')) fails.push('CW-9 a short purse reads ' + JSON.stringify(t[claimable]));
+        if (!t[claimable].off || !t[claimable].small.endsWith('Need 1 gp more')) fails.push('CW-9 a short purse reads ' + JSON.stringify(t[claimable]));
         s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 6 });
         await push(page, s);
         s.titleAnswer = () => ({ ok: false, error: 'title_kills', title: claimable, need: c.kills, have: c.kills - 1 });

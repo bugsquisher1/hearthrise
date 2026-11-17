@@ -91,7 +91,7 @@ export const MUTANTS = {
   no_baseline: { arm: 'HC-GRANT', why: 'the verb is not on the client baseline', ddl: "delete from public.hr_client_rpc_baseline where proname = 'hr_hero_colors_set'" },
   repin_lost: { arm: 'HC-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [FILE, /('public\.hr_outfit_set\(integer,text,jsonb,uuid\)', '3b261fe4efc49f28df681742affc584f', ')[0-9a-f]{32}'/, '$100000000000000000000000000000000\''] },
   words_same_lost: { arm: 'HC-CLIENT', why: 'colors_same has no words', js: ['src/data/refusal-words.js', [["  colors_same: 'Those are already this hero\\'s colors. Nothing was charged.',\n", '']]] },
-  words_limit_hardcoded: { arm: 'HC-CLIENT', why: 'the limit\'s words ignore the server\'s number', js: ['src/shell/intent-words.js', [["return 'A hero can change colors ' + r.figures.per_day + ' times a day. More after midnight UTC.';", "return 'A hero can change colors 10 times a day. More after midnight UTC.';"]]] },
+  words_limit_hardcoded: { arm: 'HC-CLIENT', why: 'the limit\'s words ignore the server\'s number', js: ['src/shell/intent-words.js', [["return 'Daily limit: ' + r.figures.per_day + ' color changes, resets at midnight UTC';", "return 'Daily limit: 10 color changes, resets at midnight UTC';"]]] },
   figures_dropped: { arm: 'HC-CLIENT', why: 'the session drops the limit\'s number', js: ['src/session/refusal.js', [["'slots', 'price', 'per_day']", "'slots', 'price']"]]] },
   press_own_price: { arm: 'HC-CLIENT', why: 'the press sends a price of its own', js: ['src/session/hero-color-intents.js', [['p_colors, p_price: price,', 'p_colors, p_price: 1,']]] },
   press_sends_color: { arm: 'HC-CLIENT', why: 'the press sends a color value', js: ['src/session/hero-color-intents.js', [['const p_colors = { head: colors.head, body: colors.body, legs: colors.legs, feet: colors.feet };', "const p_colors = { head: '#ff00ff', body: colors.body, legs: colors.legs, feet: colors.feet };"]]] },
@@ -100,7 +100,7 @@ export const MUTANTS = {
   price_in_section: { arm: 'HC-SETTLE', why: 'the envelope prices a save on every settle', db: [VIEW, "'owned', to_jsonb(v_owned)", "'owned', to_jsonb(v_owned), 'colors_price', public.hr_hero_colors_price(p_user, p_slot)"] },
   read_open_to_anon: { arm: 'HC-GRANT', why: 'anon can read a hero\'s price', ddl: `grant execute on function ${READ} to anon` },
   key_half_set: { arm: 'HC-CLIENT', why: 'half a set of colors becomes a look', js: ['src/data/outfits.js', [['if (!Number.isInteger(v) || v < 0 || v >= DYE_COUNT) return null;', 'if (!Number.isInteger(v)) return head + \'.0.0.0\';']]] },
-  knight_says_nothing: { arm: 'HC-CLIENT', why: 'the try-on doesn\'t say which parts change', js: ['src/shell/windows/character/outfit.js', [["return 'On this outfit your colors change: ' + parts + '. The rest stays as drawn.'", "return 'Pick your colors.'"]]] },
+  knight_says_nothing: { arm: 'HC-CLIENT', why: 'the try-on doesn\'t say which parts change', js: ['src/shell/windows/character/outfit.js', [["return 'Dyeable here: ' + parts + (hiddenChange", "return 'Pick colors' + (hiddenChange"]]] },
   druid_silent: { arm: 'HC-CLIENT', why: 'the druid\'s picker does nothing and says nothing', js: ['src/shell/windows/character/outfit.js', [['if (!row.regions.length) return row.plain;', "if (!row.regions.length) return '';"]]] },
   no_cap_in_cache: { arm: 'HC-DYE', why: 'the sheets grow past the cap', js: ['src/world/hero-dye.js', [['if (looks.size < cap) return true;', 'return true;']]] },
   evicts_on_screen: { arm: 'HC-DYE', why: 'a look on screen is evicted for a new one, and re-baked forever', js: ['src/world/hero-dye.js', [['const gone = oldest || (own ? forced : null);', 'const gone = oldest || forced;']]] },
@@ -526,8 +526,8 @@ const ARMS = {
     /* THE WORDS, the design's, with the server's number */
     const said = (body) => X.IW.refusalText(X.REF.refusalOf({ ok: true, body: Object.assign({ ok: false }, body) }));
     if (said({ error: 'colors_same' }) !== 'Those are already this hero\'s colors. Nothing was charged.') out.push('colors_same says ' + said({ error: 'colors_same' }));
-    if (said({ error: 'colors_limit', per_day: R.perDay }) !== `A hero can change colors ${R.perDay} times a day. More after midnight UTC.`) out.push('colors_limit says ' + said({ error: 'colors_limit', per_day: R.perDay }));
-    if (said({ error: 'colors_limit', per_day: 3 }) !== 'A hero can change colors 3 times a day. More after midnight UTC.') out.push('a moved row still says ' + said({ error: 'colors_limit', per_day: 3 }));
+    if (said({ error: 'colors_limit', per_day: R.perDay }) !== `Daily limit: ${R.perDay} color changes, resets at midnight UTC`) out.push('colors_limit says ' + said({ error: 'colors_limit', per_day: R.perDay }));
+    if (said({ error: 'colors_limit', per_day: 3 }) !== 'Daily limit: 3 color changes, resets at midnight UTC') out.push('a moved row still says ' + said({ error: 'colors_limit', per_day: 3 }));
     if (!X.IW.refusalWords('colors_limit') || X.IW.refusalWords('colors_limit') === X.RW.REFUSAL_FALLBACK) out.push('colors_limit has no plain line');
     /* THE TRY-ON TELLS THE TRUTH: every part by its name; the druid says why it has none, and that the colors stay */
     const knight = X.OW.showsWords(X.OF.OUTFIT_ROWS.knight, false);

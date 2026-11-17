@@ -275,7 +275,7 @@
   },
   "pixellab": {
     "tool": "cut",
-    "id": "53d53262-74ed-4f7d-a8d0-61000b251901,91df925a-d1cb-4bcf-b440-d39cbb9b0e9e,4589f28b-7358-49ee-90f8-0501f0ca0683,a0bacd7b-86d1-471b-9d18-b9aa917ce93c",
+    "id": "53d53262-74ed-4f7d-a8d0-61000b251901,91df925a-d1cb-4bcf-b440-d39cbb9b0e9e,4589f28b-7358-49ee-90f8-0501f0ca0683,6c5f1090-69c7-4038-99b7-97275609804b",
     "sources": [
       {
         "ref": "common/havora_grass_earth",
@@ -284,10 +284,17 @@
         "id": "53d53262-74ed-4f7d-a8d0-61000b251901,91df925a-d1cb-4bcf-b440-d39cbb9b0e9e,4589f28b-7358-49ee-90f8-0501f0ca0683"
       },
       {
-        "ref": "havora-floor/havora_gravel_rock",
-        "key": "0000",
+        "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+        "at": [
+          0,
+          192
+        ],
         "tool": "create_topdown_tileset",
-        "id": "a0bacd7b-86d1-471b-9d18-b9aa917ce93c"
+        "id": "6c5f1090-69c7-4038-99b7-97275609804b",
+        "over": {
+          "sheet": "art/world-src/gen-2026-11-17/02-havora-quarry/r2-65e9d685/65e9d685-sheet.png",
+          "id": "65e9d685-2f7f-48ad-a936-f176cb6560fb"
+        }
       }
     ],
     "cost": 0
@@ -300,8 +307,34 @@
         "key": "1111"
       },
       "upper": {
-        "ref": "havora-floor/havora_gravel_rock",
-        "key": "0000"
+        "tones": {
+          "#8a867d": "#6a6865",
+          "#6a6865": "#4f4e52",
+          "#4f4e52": "#3a3a3e",
+          "#3a3a3e": "#2f2723"
+        },
+        "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+        "at": [
+          0,
+          192
+        ],
+        "over": {
+          "sheet": "art/world-src/gen-2026-11-17/02-havora-quarry/r2-65e9d685/65e9d685-sheet.png",
+          "at": [
+            0,
+            96
+          ],
+          "skip": [
+            "#6a6865"
+          ],
+          "tones": {
+            "#4f4e52": "#3a3a3e",
+            "#3a3a3e": "#231d1f",
+            "#aaa49a": "#8a867d",
+            "#8a6440": "#6e4c30",
+            "#c49a5c": "#8a6440"
+          }
+        }
       }
     },
     "style": "ragged",

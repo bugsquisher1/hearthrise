@@ -1,0 +1,11 @@
+{
+  "brief": "Havora's quarry floor (town/ground.js ',', the havora_gravel_rock and havora_earth_gravel pairs) read on live as a flat, featureless blue-grey with even dots (the old pair's iron-ramp gravel). Wanted: the granite family one step darker and worn, gravel and chips, a few scattered stones, same palette, no blue cast (Coordinator, Tyler on live 2026-11-17).",
+  "lane": "lane/a-havora-quarry 2026-11-17",
+  "call": "create_topdown_tileset mode pro, 32 px, high top-down, transition 0, palette = hr-world-56-v2 stone, shadow and earth ramps, max_colors 9; no chained base",
+  "rolls": {
+    "r1-2fcf44db": { "words": "worn quarry floor of crushed dark grey granite, angular chips and grit", "verdict": "REFUSED: came back pale (stone4) and flat, the dots evenly spread: the look being replaced" },
+    "r2-65e9d685": { "words": "quarry ground of granite grit and stone chips, slightly darker than the granite rock, calm texture", "verdict": "KEPT FOR ITS CHIPS ONLY: its body is one flat grey, but its grit and pebbles (every pixel that is not #6a6865) are laid over the mountain's own granite (r5-6c5f1090 one value step down), each a step down and its orange to an earth brown", "fill": [0, 96] }
+  },
+  "gens": "2 pro rolls x 15 = 30 subscription generations (credits $0.00)",
+  "wiring": "tools/world-art/havora-seams.mjs QUARRY: the floor of havora_gravel_rock (lowerFill) and the upper of havora_earth_gravel; art/world/havora-floor/havora_gravel_variety.json shifts its grain and lays chips and pebbles. Cart ruts were tried as a decal drawn by rule and dropped: a world decal must be PixelLab art (style1.mjs isStyle1)."
+}

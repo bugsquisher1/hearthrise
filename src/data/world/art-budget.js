@@ -126,6 +126,8 @@ export const CLASSES = Object.freeze({
   plume: row({ body: [24, 96], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'air', blank: true }),
   // ...and daylight caught on a wave: a few pixels lying flat on the water, under everything standing; between flashes blank.
   glint: row({ body: [1, 12], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal', blank: true }),
+  // ...and the water's ripples: one or two cells square of wave marks laid on the water in step (its anchor the corner), under everything standing.
+  ripple: row({ anchor: [0, 0], body: [8, 64], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'decal' }),
 });
 
 // Terrain is T×T, fully opaque. kind 'wang16': corner tiles keyed NW NE SW SE,

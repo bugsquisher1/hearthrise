@@ -92,7 +92,9 @@ export function problems(env) {
   for (const id of ['hearth_smoke', 'hearth_embers']) if (!loops.some((a) => a.id === id)) bad('TL-SMOKE', 'the Great Hearth gives off no ' + id);
 
   /* TL-WATER */
-  const glints = town.life.filter((a) => /^water_/.test(a.id));
+  const glints = town.life.filter((a) => /^water_glint/.test(a.id));
+  const flowIds = new Set(env.surfaces.water.flows.map(([id]) => id));
+  const flows = town.life.filter((a) => flowIds.has(a.id));
   const water = (x, y) => x >= 0 && y >= 0 && x < town.w && y < town.h && town.ground[y * town.w + x] === 'water';
   const covered = new Uint8Array(town.w * town.h);
   for (const o of town.objects) {
@@ -119,6 +121,30 @@ export function problems(env) {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (cells.has((x + dx) + ',' + (y + dy))) bad('TL-WATER', 'two glints touch at ' + x + ',' + y);
     cells.add(x + ',' + y);
   }
+  /* the ripples: one on every open cell not under anything placed, all in step, at the cell's corner */
+  let openUncovered = 0;
+  for (let y = 0; y < town.h; y++) for (let x = 0; x < town.w; x++) {
+    let ok = !covered[y * town.w + x];
+    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) ok = water(x + dx, y + dy);
+    if (ok) openUncovered++;
+  }
+  const rippled = new Map();
+  for (const a of flows) {
+    const n = book.sprite(a.id).frame[0] / T, x0 = a.px / T, y0 = a.py / T;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) rippled.set((x0 + i) + ',' + (y0 + j), (rippled.get((x0 + i) + ',' + (y0 + j)) || 0) + 1);
+  }
+  let off = 0, twice = 0;
+  for (const [k, c] of rippled) {
+    const [x, y] = k.split(',').map(Number);
+    if (c > 1) twice++;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || covered[y * town.w + x] || ![-1, 0, 1].every((dy) => [-1, 0, 1].every((dx) => water(x + dx, y + dy)))) off++;
+  }
+  if (off) bad('TL-WATER', off + ' ripple cell(s) off open water (a bank, a quay, under something placed)');
+  if (twice) bad('TL-WATER', twice + ' cell(s) rippled twice');
+  if (rippled.size !== openUncovered) bad('TL-WATER', rippled.size + ' rippled cells for ' + openUncovered + ' open water cells');
+  /* the draws: the open sea takes the big tile */
+  if (flows.length > openUncovered / 2) bad('TL-WATER', flows.length + ' ripple tiles for ' + openUncovered + ' cells: the open water is drawn a cell at a time');
+  if (flows.some((a) => a.phase !== flows[0].phase)) bad('TL-WATER', 'the ripples are not in step (the surface would tear at cell edges)');
   const share = open ? glints.length / open : 0;
   if (!(share >= 0.08 && share <= 0.22)) bad('TL-WATER', 'glints on ' + (share * 100).toFixed(1) + '% of the open water (want 8-22%: sparse reads as dead, dense as noise)');
   if (JSON.stringify(compile(env.town).life) !== JSON.stringify(town.life)) bad('TL-WATER', 'the same row laid different life twice');
@@ -256,7 +282,7 @@ function selftest() {
   const base = real();
   const sprites = (set, edit) => Object.assign({}, MANIFESTS, { [set]: Object.assign({}, MANIFESTS[set], { sprites: edit(Object.assign({}, MANIFESTS[set].sprites)) }) });
   const withLife = (fn) => (row, objects, ground, sp, w, h, T) => fn(lifeOf(row, objects, ground, sp, w, h, T), { row, objects, ground, w, h, T });
-  const firstGlint = (l) => l.find((a) => /^water_/.test(a.id));
+  const firstGlint = (l) => l.find((a) => /^water_glint/.test(a.id));
   /* a copy of the town's townsfolk with person i edited; a stand tile of a station */
   const folkWith = (i, edit) => ({ [TOWN.id]: FOLK[TOWN.id].map((r, j) => (j === i ? Object.assign({}, r, edit(r)) : r)) });
   const stand = (id) => { const st = STATIONS.find((x) => x.id === id || x.kind === id); return [st.stands[0][0], st.stands[0][1], 9000, 's']; };
@@ -278,7 +304,7 @@ function selftest() {
       return l;
     }) },
     'the water glitters on every other cell': { lifeOf: withLife((l, m) => {
-      const out = l.filter((x) => !/^water_/.test(x.id)), taken = new Set();
+      const out = l.filter((x) => !/^water_glint/.test(x.id)), taken = new Set();
       const open = (x, y) => m.ground[y * m.w + x] === 'water';
       for (let y = 1; y < m.h - 1; y++) for (let x = 1; x < m.w - 1; x++) {
         let ok = true;
@@ -287,9 +313,13 @@ function selftest() {
       }
       return out;
     }) },
-    'the water barely glints': { lifeOf: withLife((l) => l.filter((a, i) => !/^water_/.test(a.id) || i % 3 === 0)) },
+    'the ripples miss a cell': { lifeOf: withLife((l) => { const i = l.findIndex((a) => /^water_flow/.test(a.id)); return i < 0 ? l : l.filter((_, j) => j !== i); }) },
+    'a ripple on the bank': { lifeOf: withLife((l, m) => { const f = l.find((a) => /^water_flow/.test(a.id)); return !f ? l : l.concat(Object.assign({}, f, { px: f.px, py: f.py - 64 * m.T })); }) },
+    'the open sea drawn a cell at a time': { lifeOf: withLife((l, m) => l.flatMap((a) => (a.id !== 'water_flow_2' ? [a] : [[0, 0], [1, 0], [0, 1], [1, 1]].map(([i, j]) => Object.assign({}, a, { id: 'water_flow', px: a.px + i * m.T, py: a.py + j * m.T }))))) },
+    'the ripples out of step': { lifeOf: withLife((l) => l.map((a, i) => (/^water_flow/.test(a.id) && i % 7 === 0 ? Object.assign({}, a, { phase: 3 }) : a))) },
+    'the water barely glints': { lifeOf: withLife((l) => l.filter((a, i) => !/^water_glint/.test(a.id) || i % 3 === 0)) },
     'a ground that never asked gets glints': { lifeOf: (row, ...rest) => lifeOf(Object.assign({}, row, { life: ['water'] }), ...rest) },
-    'the glints differ between two compiles': { lifeOf: (() => { let n = 0; return withLife((l) => (++n % 2 ? l : l.map((a) => (/^water_/.test(a.id) ? Object.assign({}, a, { phase: a.phase + 1 }) : a)))); })() },
+    'the glints differ between two compiles': { lifeOf: (() => { let n = 0; return withLife((l) => (++n % 2 ? l : l.map((a) => (/^water_glint/.test(a.id) ? Object.assign({}, a, { phase: a.phase + 1 }) : a)))); })() },
     'the smoke turns off the beat': { manifests: sprites('townlife', (s) => Object.assign(s, { chimney_smoke: Object.assign({}, s.chimney_smoke, { anims: { idle: Object.assign({}, s.chimney_smoke.anims.idle, { fps: 6 }) } }) })) },
     'a clip missing from the atlas': { manifests: sprites('townlife', (s) => { delete s.water_glint_b; return s; }) },
     'the Hearth fire moves off the beat': { manifests: sprites('common', (s) => Object.assign(s, { hearth_fire: Object.assign({}, s.hearth_fire, { anims: { idle: Object.assign({}, s.hearth_fire.anims.idle, { fps: 10 }) } }) })) },

@@ -7,7 +7,8 @@
 //   EMITTERS  a placed sprite's own points (src/data/world/ambient-life.js): a chimney's mouth in the
 //             sprite's pixels, placed by the rule compose.js places the sprite by, so a home's smoke rises
 //             from its chimney wherever it stands
-//   SURFACES  a material that catches the light, on a map whose row names it (`life: ['water']`): a glint on
+//   SURFACES  a material that moves and catches the light, on a map whose row names it (`life: ['water']`): ripples on
+//             every open cell of it, in step (the surface slides as one sheet), and a glint on
 //             about one cell in `every`, by a seeded hash, only where the cell and its eight neighbours are
 //             that material (never on a bank's blend), never under anything placed over it (a bridge's
 //             deck), never two touching, at a jittered pixel inside its cell
@@ -61,12 +62,26 @@ export function lifeOf(row, objects, ground, sprites, w, h, T) {
     const sf = SURFACES[name];
     const taken = new Uint8Array(w * h);
     const open = (x, y) => x >= 0 && y >= 0 && x < w && y < h && ground[y * w + x] === name;
+    /* a cell of open water: it and its eight neighbours that material, nothing placed over it */
+    const inner = (x, y) => !covered[y * w + x] && [-1, 0, 1].every((dy) => [-1, 0, 1].every((dx) => open(x + dx, y + dy)));
+    const rippled = new Uint8Array(w * h);
+    const blockOpen = (x, y, k) => { for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) if (rippled[(y + j) * w + x + i] || !inner(x + i, y + j)) return false; return true; };
     for (let y = 1; y < h - 1; y++) {
       for (let x = 1; x < w - 1; x++) {
         const r = lifeHash(x, y, sf.seed);
-        if (r % sf.every !== 0 || covered[y * w + x]) continue;
+        if (covered[y * w + x]) continue;
+        let inner = true;
+        for (let dy = -1; dy <= 1 && inner; dy++) for (let dx = -1; dx <= 1 && inner; dx++) inner = open(x + dx, y + dy);
+        if (!inner) continue;
+        /* the ripples: every open cell once, all in step (phase 0), so the surface slides as one sheet; a block of open cells
+           takes the biggest tile that fits (the open sea in a quarter of the draws) */
+        if (sf.flows && !rippled[y * w + x]) {
+          const [id, n] = sf.flows.find(([, k]) => blockOpen(x, y, k)) || [];
+          if (id) { for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) rippled[(y + j) * w + x + i] = 1; out.push({ id, px: x * T, py: y * T, phase: 0 }); }
+        }
+        if (r % sf.every !== 0) continue;
         let ok = true;
-        for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) ok = open(x + dx, y + dy) && !taken[(y + dy) * w + x + dx];
+        for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) ok = !taken[(y + dy) * w + x + dx];
         if (!ok) continue;
         taken[y * w + x] = 1;
         const q = lifeHash(y, x, sf.seed);

@@ -15,8 +15,9 @@
 //                  A cold chimney (a storehouse, the bank, a ruin) simply has no row.
 //   GLANCES        a standing keeper's look about: sprite id -> { faces (cardinals its idle clip has), holdMs (a whole
 //                  number of beats, so a turn is a frame the beat already paints) }; each placed one starts at its own face
-//   SURFACES       material -> the light it catches: `clips` (one picked per glint), about one open cell in
-//                  `every`, `seed` the hash's. A map opts in by naming the material in its row's `life`.
+//   SURFACES       material -> how it moves and the light it catches: `flows` ([id, cells square], biggest first: ripples laid
+//                  on every open cell in step, so the surface slides east on the town's one breeze, as the smoke leans), `clips` (one picked per glint),
+//                  about one open cell in `every`, `seed` the hash's. A map opts in by naming the material in its row's `life`.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -55,5 +56,5 @@ export const GLANCES = Object.freeze({
 });
 
 export const SURFACES = Object.freeze({
-  water: Object.freeze({ clips: Object.freeze(['water_glint_a', 'water_glint_b']), every: 2, seed: 0x61f7 }),
+  water: Object.freeze({ flows: Object.freeze([Object.freeze(['water_flow_2', 2]), Object.freeze(['water_flow', 1])]), clips: Object.freeze(['water_glint_a', 'water_glint_b']), every: 2, seed: 0x61f7 }),
 });

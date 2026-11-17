@@ -170,6 +170,31 @@ const GLINTS = Object.freeze({
   ].map(rows),
 });
 
+/**
+ * FLOW: the water's ripples on the one breeze. A T x T tile of light wave marks (nothing else: the water's own tile shows
+ * between them) laid on every open water cell in step, so the marks slide east as one sheet, a pixel a frame, wrapping at the
+ * tile's edge so neighbouring cells meet with no seam; each mark swells and thins on its own phase as it goes.
+ *   marks  how many; len  their length range; rows  the rows they keep clear of each other
+ */
+function flow(o) {
+  const rnd = rng(o.seed);
+  const marks = [];
+  for (let i = 0; i < o.marks; i++) marks.push({ x: Math.floor(rnd() * o.size), y: Math.floor((i + rnd() * 0.6) * (o.size / o.marks)), len: o.len[0] + Math.floor(rnd() * (o.len[1] - o.len[0] + 1)), ph: rnd() });
+  const frames = [];
+  for (let f = 0; f < o.size; f++) {
+    const px = blank(o.size, o.size);
+    for (const m of marks) {
+      const swell = Math.sin(2 * Math.PI * (f / o.size + m.ph));
+      const len = Math.max(1, m.len + Math.round(swell * 1.5));
+      for (let k = 0; k < len; k++) px[m.y][(m.x + f + k) % o.size] = swell > 0.6 && k === Math.floor(len / 2) ? 'b' : 'a';
+    }
+    frames.push(px);
+  }
+  return frames;
+}
+
+const FLOW = () => flow({ size: 32, marks: 7, len: [2, 5], seed: 0xf10a });
+
 /* THE CLIPS: frame size, anchor (the point the map places: a chimney's mouth, the fire's mouth, a wave's centre), class and
    rate. A smoke frame's anchor sits left of centre: the breeze carries the column east. */
 export const CLIPS = Object.freeze({
@@ -178,8 +203,11 @@ export const CLIPS = Object.freeze({
   hearth_embers: { cls: 'vfx', fps: LIFE_BEAT_FPS, draw: () => embers({ w: 40, h: 40, ax: 20, ay: 36, n: 16, count: 7, lifeMin: 5, lifeMax: 8, spread: 22, climb: 3.4, seed: 0xe3be5 }) },
   water_glint_a: { cls: 'glint', fps: LIFE_BEAT_FPS / 2, draw: () => GLINTS.water_glint_a },
   water_glint_b: { cls: 'glint', fps: LIFE_BEAT_FPS / 2, draw: () => GLINTS.water_glint_b },
+  water_flow: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW() },
+  /* the same ripples two cells square (the open sea in a quarter of the draws): the T tile's pattern four times over */
+  water_flow_2: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW().map((px) => [...px, ...px].map((line) => [...line, ...line])) },
 });
-const ANCHORS = Object.freeze({ chimney_smoke: [10, 44], hearth_smoke: [18, 90], hearth_embers: [20, 36], water_glint_a: [5, 2], water_glint_b: [6, 1] });
+const ANCHORS = Object.freeze({ chimney_smoke: [10, 44], hearth_smoke: [18, 90], hearth_embers: [20, 36], water_glint_a: [5, 2], water_glint_b: [6, 1], water_flow: [0, 0], water_flow_2: [0, 0] });
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 

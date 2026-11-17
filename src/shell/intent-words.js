@@ -92,8 +92,8 @@ export function refusalText(r, cs) {
   /* What gold buys in town: the designer's sentences around the server's own numbers (sink-words.js). */
   const sink = sinkRefusal(r, cs ? nameOf(cs) : null);
   if (sink) return sink;
-  /* Combat training: the server's fee, price and the dummy's hero in its sentences (training-words.js). */
-  const training = trainingRefusal(r, cs ? nameOf(cs) : null);
+  /* Combat training: the server's fee, price and the dummy's hero in its labels (training-words.js). */
+  const training = trainingRefusal(r);
   if (training) return training;
   /* The factions: the server's standing, swap time and cooldown in their sentences (faction-words.js). */
   const faction = factionRefusal(r, cs);

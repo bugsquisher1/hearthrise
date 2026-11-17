@@ -48,7 +48,7 @@ export function unmappedBanner(G, sc, monsterName) {
   if (!G.activeMonster || sc.kind === 'hunt' || !OPEN_HUNT) return null;
   const train = G._huntId ? trainingOf(G._huntId) : null;
   if (train) {
-    const o = { name: G.playerName || t('training.your_hero'), skill: (SKILLS_DEF[train.skill] && SKILLS_DEF[train.skill].name) || train.skill };
+    const o = { skill: (SKILLS_DEF[train.skill] && SKILLS_DEF[train.skill].name) || train.skill };
     /* `world-idle-said`: the hunt bar says it too ("Training Melee", src/shell/widgets/hunt-topbar.js), so a phone shows the button alone
        (world.css), clear of the hero and of the coach card under the bar. */
     return '<p class="world-idle-line world-idle-said">' + esc(t(train.place === 'house' ? 'training.world_line_house' : 'training.world_line', o)) + '</p>'

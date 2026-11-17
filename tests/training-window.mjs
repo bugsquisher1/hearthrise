@@ -23,6 +23,10 @@
 //         Buy sends ONE hr_training_gear_buy naming the slot, the item, the price SEEN and a key; the switch ONE
 //         hr_training_gear_switch; Open's refusal (hours still left) reads in words; under Level 10, Start is off with the Level; the
 //         items closed, no press shows and the note says so
+//   TR-7  LABELS (Tyler 2026-11-14; lane/c-training-gear-arm before the items opened): the quote, the run, the stop and the item box
+//         show no line that says "you" or ends in a period; the refusals read as labels with the server's numbers (TR-0)
+//   TR-8  BUY ASKS FIRST: one click on Buy sends nothing and shows "Training Sword (12 h): 250,000 gold"; Cancel sends nothing; Buy in
+//         the confirm sends the one hr_training_gear_buy at the price shown
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -131,6 +135,11 @@ async function checks() {
     }
     return wait(page, () => !!document.querySelector('[data-hs-win="training"] .tw-train'), null, 4000);
   };
+  /* TR-7 LABELS, NOT SENTENCES (Tyler 2026-11-14): every line the window shows outside an item's flavour reads as the genre's label, so
+     none says "you" and none ends in a period. */
+  const sentences = (page) => page.evaluate(() => ((document.querySelector('[data-hs-win="training"]') || {}).innerText || '')
+    .split('\n').map((l) => l.trim()).filter((l) => /\byou(r)?\b/i.test(l) || /\.$/.test(l)));
+  const labelsOnly = async (page, when) => { const bad = await sentences(page); if (bad.length) fails.push('TR-7 ' + when + ': ' + JSON.stringify(bad)); };
   const offWhy = (page) => page.evaluate(() => { const b = document.querySelector('[data-hs-act="train-start"]'); return { off: !!b && b.disabled, why: (document.querySelector('[data-hs-win="training"] .tw-off-why') || {}).textContent || '' }; });
 
   try {
@@ -138,9 +147,12 @@ async function checks() {
     {
       const { trainingRefusal } = await import('../src/shell/training-words.js');
       const want = [
-        [{ verb: 'training_start', error: 'insufficient_gold', fee: 272, purse: 100 }, /^First hour: 272 gold\. Gold: 100$/],
+        [{ verb: 'training_start', error: 'insufficient_gold', fee: 272, purse: 100 }, /^Not enough gold \(need 272, have 100\)$/],
         [{ verb: 'house_dummy', error: 'insufficient_gold', price: 250000, purse: 5200 }, /^Next unlock: 250,000 gold\. Gold: 5,200$/],
-        [{ verb: 'training_start', error: 'hunt_open' }, /is hunting\. Training is in town only/],
+        [{ verb: 'training_start', error: 'hunt_open' }, /^Not available while hunting$/],
+        [{ verb: 'training_gear_buy', error: 'insufficient_gold', price: 250000, purse: 1200 }, /^Not enough gold \(need 250,000, have 1,200\)$/],
+        [{ verb: 'training_gear_buy', error: 'buy_limit', max: 10 }, /^Daily limit reached \(10\/10\)$/],
+        [{ verb: 'training_gear_open', error: 'still_open' }, /^Training item already active$/],
         [{ verb: 'house_dummy', error: 'dummy_max' }, /Every skill is unlocked/],
       ];
       for (const [r, re] of want) { const w = trainingRefusal(r, 'Tyler'); if (!re.test(w || '')) fails.push('TR-0 ' + r.error + ' reads ' + JSON.stringify(w)); }
@@ -159,7 +171,8 @@ async function checks() {
       if (!await openTraining(page)) fails.push('TR-2 the icon did not open the Training window');
       else {
         const fee = await q(page, '.tw-fee'), xp = await q(page, '.tw-xp'), lvl = await q(page, '.tw-to-level');
-        if (fee !== '272 gold an hour') fails.push('TR-2 the fee is not the server\'s quote: ' + JSON.stringify(fee));
+        if (fee !== '272 gold/h') fails.push('TR-2 the fee is not the server\'s quote: ' + JSON.stringify(fee));
+        await labelsOnly(page, 'the quote');
         if (!/8,100 Melee XP/.test(xp || '')) fails.push('TR-2 the XP an hour is not the server\'s: ' + JSON.stringify(xp));
         if (!/5 hours to Melee 21/.test(lvl || '')) fails.push('TR-2 the hours to the next level are not the server\'s: ' + JSON.stringify(lvl));
         await page.click('[data-hs-act="train-start"]');
@@ -172,24 +185,26 @@ async function checks() {
           if (starts[0].body.p_skill !== 'melee' || starts[0].body.p_where !== 'yard' || starts[0].body.p_fee_seen !== 272) fails.push('TR-2 the start body: ' + JSON.stringify(starts[0].body));
         }
         const now = await q(page, '.tw-now'), clock = await q(page, '.tw-run-clock'), paid = await q(page, '.tw-run-paid');
-        if (!/training Melee/.test(now || '')) fails.push('TR-2 the run does not show: ' + JSON.stringify(now));
+        if (now !== 'Training Melee') fails.push('TR-2 the run does not show: ' + JSON.stringify(now));
         if (!/1 hour 5 minutes/.test(clock || '')) fails.push('TR-2 the clock is not the server\'s since: ' + JSON.stringify(clock));
         if (!/544 gold/.test(paid || '')) fails.push('TR-2 the paid line is not the server\'s: ' + JSON.stringify(paid));
+        await labelsOnly(page, 'the run');
         if (SHOTS) await page.screenshot({ path: join(SHOTS, 'training-desktop-run.png') });
         await page.click('[data-hs-act="train-stop"]');
         await wait(page, () => { const r = document.querySelector('[data-hs-win="training"] .tw-ended'); return !!r && !r.hidden; }, null, 4000);
         if (!s.calls.some((c) => c.name === 'hr_hunt_leave')) fails.push('TR-2 Stop did not send the hunt\'s Leave');
-        if (!/^Stopped /.test(await q(page, '.tw-ended') || '')) fails.push('TR-2 the window does not say why it ended');
+        if (await q(page, '.tw-ended') !== 'Melee training stopped') fails.push('TR-2 the window does not say why it ended');
+        await labelsOnly(page, 'after Stop');
       }
       if (errors.length) fails.push('TR-2 console: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
     }
     /* TR-3 */
     for (const [label, o, want, pick] of [
-      ['hunting', { hunt: clone(BASE_ENV.hunt) }, /is hunting\. Training is in town only/, null],
-      ['party', { party: clone(BASE_ENV.party) || { leader: 0, self: 0, members: [{ slot: 0, name: 'Tyler' }, { slot: 1, name: 'Mira' }] } }, /in a party/, null],
-      ['short', { gold: 100 }, /^First hour: 272 gold\. Gold: 100$/, null],
-      ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /Dummy in use by Mira/, 'defense'],
+      ['hunting', { hunt: clone(BASE_ENV.hunt) }, /^Not available while hunting$/, null],
+      ['party', { party: clone(BASE_ENV.party) || { leader: 0, self: 0, members: [{ slot: 0, name: 'Tyler' }, { slot: 1, name: 'Mira' }] } }, /^Not available in a party$/, null],
+      ['short', { gold: 100 }, /^Not enough gold \(need 272, have 100\)$/, null],
+      ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /^Dummy in use by Mira$/, 'defense'],
     ]) {
       const s = world(o);
       const { ctx, page } = await open(s);
@@ -240,12 +255,31 @@ async function checks() {
         const rowsOf = (sel) => page.evaluate((x) => [...document.querySelectorAll('[data-hs-win="training"] ' + x + ' .tw-gear-row')]
           .map((r) => r.querySelector('.tw-gear-name').textContent + ' | ' + r.querySelector('.tw-gear-fig').textContent), sel);
         const held = await rowsOf('.tw-gear-held'), shop = await rowsOf('.tw-gear-shop');
-        if (held.join() !== 'Training Sword, 12 h, bound | 1 in bag') fails.push('TR-6 the sealed ones held: ' + JSON.stringify(held));
-        if (shop.join() !== 'Training Sword, 12 h | 250,000 gold,Training Sword, 24 h | 450,000 gold') fails.push('TR-6 the Arms Master\'s rows: ' + JSON.stringify(shop));
+        if (held.join() !== 'Training Sword (12 h), bound | 1 in bag') fails.push('TR-6 the sealed ones held: ' + JSON.stringify(held));
+        if (shop.join() !== 'Training Sword (12 h) | 250,000 gold,Training Sword (24 h) | 450,000 gold') fails.push('TR-6 the Arms Master\'s rows: ' + JSON.stringify(shop));
         if (SHOTS) { await page.locator('[data-hs-win="training"] .tw-gear').scrollIntoViewIfNeeded(); await page.screenshot({ path: join(SHOTS, 'training-desktop-items.png') }); }
-        await page.click('[data-hs-win="training"] .tw-gear-shop .tw-gear-row:first-child [data-hs-act="gear-buy"]');
-        await wait(page, () => /0 of 10|1 of 10/.test((document.querySelector('[data-hs-win="training"] .tw-gear-note') || {}).textContent || '')
-          && /1 of 10/.test(document.querySelector('[data-hs-win="training"] .tw-gear-note').textContent), null, 4000);
+        /* TR-8 BUY ASKS FIRST (the House dummy's pattern; the Coordinator 2026-11-16: 250,000 gold went on one click): Buy alone sends
+           nothing and shows the item, its size and the server's price; Cancel sends nothing; Buy in the confirm sends the one purchase */
+        const buyPress = '[data-hs-win="training"] .tw-gear-shop .tw-gear-row:first-child [data-hs-act="gear-buy"]';
+        const confirmOf = () => page.evaluate(() => { const c = document.querySelector('[data-hs-win="training"] .tw-gear-confirm');
+          return { shown: !!c && !c.hidden, q: (c && c.querySelector('.tw-gear-confirm-q') || {}).textContent || '' }; });
+        await page.click(buyPress);
+        await page.waitForTimeout(300);
+        let cf = await confirmOf();
+        if (s.calls.some((c) => c.name === 'hr_training_gear_buy')) fails.push('TR-8 one click on Buy bought');
+        if (!cf.shown || cf.q !== 'Training Sword (12 h): 250,000 gold') fails.push('TR-8 Buy did not ask first: ' + JSON.stringify(cf));
+        await labelsOnly(page, 'the confirm');
+        if (cf.shown) {   /* a Buy that bought at once has no confirm to press: its red is above, the rest still runs */
+          await page.click('[data-hs-win="training"] [data-hs-act="gear-no"]');
+          await page.waitForTimeout(300);
+          cf = await confirmOf();
+          if (cf.shown || s.calls.some((c) => c.name === 'hr_training_gear_buy')) fails.push('TR-8 Cancel left the confirm or bought: ' + JSON.stringify(cf));
+          await page.click(buyPress);
+          await wait(page, () => { const c = document.querySelector('[data-hs-win="training"] .tw-gear-confirm'); return !!c && !c.hidden; }, null, 3000);
+          if (SHOTS) await page.screenshot({ path: join(SHOTS, 'training-desktop-confirm.png') });
+          await page.click('[data-hs-win="training"] [data-hs-act="gear-yes"]');
+        }
+        await wait(page, () => ((document.querySelector('[data-hs-win="training"] .tw-gear-day') || {}).textContent || '') === 'Daily limit: 1/10', null, 4000);
         const buys = s.calls.filter((c) => c.name === 'hr_training_gear_buy');
         if (buys.length !== 1) fails.push('TR-6 hr_training_gear_buy sent ' + buys.length + ' times');
         else {
@@ -257,21 +291,22 @@ async function checks() {
         const flips = s.calls.filter((c) => c.name === 'hr_training_gear_switch');
         if (flips.length !== 1 || flips[0].body.p_skill !== 'melee' || flips[0].body.p_on !== false) fails.push('TR-6 the switch: ' + JSON.stringify(flips.map((c) => c.body)));
         await page.click('[data-hs-win="training"] .tw-gear-held [data-hs-act="gear-open"]');
-        await wait(page, () => /still has hours left/.test((document.querySelector('[data-hs-win="training"] .hh-intent-msg') || {}).textContent || ''), null, 4000);
+        await wait(page, () => /already active/.test((document.querySelector('[data-hs-win="training"] .hh-intent-msg') || {}).textContent || ''), null, 4000);
         const said = await q(page, '.hh-intent-msg');
-        if (!/still has hours left/.test(said || '') || s.calls.filter((c) => c.name === 'hr_training_gear_open').length !== 1) fails.push('TR-6 Open\'s refusal reads ' + JSON.stringify(said));
+        if (said !== 'Training item already active' || s.calls.filter((c) => c.name === 'hr_training_gear_open').length !== 1) fails.push('TR-6 Open\'s refusal reads ' + JSON.stringify(said));
+        await labelsOnly(page, 'the items, after a buy, a switch and a refused open');
       }
       if (errors.length) fails.push('TR-6 console: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
       for (const [label, sec, check] of [
         ['under Level 10', SECTION(GEAR({ rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 5 } })), async (page) => {
           const r = await offWhy(page);
-          return r.off && /^Requires Level 10\. Level now: 5$/.test(r.why) ? null : 'Start ' + (r.off ? 'off' : 'ON') + ' with ' + JSON.stringify(r.why);
+          return r.off && r.why === 'Requires Level 10' ? null : 'Start ' + (r.off ? 'off' : 'ON') + ' with ' + JSON.stringify(r.why);
         }],
         ['closed', SECTION(GEAR({ shop: { on: false, today: 0, max: 10 } })), async (page) => {
           const r = await page.evaluate(() => ({ presses: document.querySelectorAll('[data-hs-win="training"] .tw-gear-press').length,
             note: (document.querySelector('[data-hs-win="training"] .tw-gear-note') || {}).textContent || '' }));
-          return r.presses === 0 && /not for sale yet/.test(r.note) ? null : JSON.stringify(r);
+          return r.presses === 0 && r.note === 'Not for sale yet' ? null : JSON.stringify(r);
         }],
       ]) {
         const s2 = world({ training: sec });

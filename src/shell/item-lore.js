@@ -43,7 +43,7 @@ import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.134';
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 /* A rarity's word (item.rarity_<rarity>, else Common) and a type's (item.type_<type>, else `or`); own-property reads only. */
 const rarityWord = (r) => (typeof r === 'string' && hasText('item.rarity_' + r) ? t('item.rarity_' + r) : t('item.rarity_common'));
-const TYPES = new Set(['weapon', 'armor', 'jewelry', 'tool', 'trophy']);
+const TYPES = new Set(['weapon', 'armor', 'jewelry', 'tool', 'trophy', 'training']);
 const typeWord = (type, or) => (TYPES.has(type) ? t('item.type_' + type) : t(or));
 
 let INDEX = null;
@@ -260,6 +260,8 @@ export function usesOf(id) {
   const tool = toolWords(id);
   if (tool) out.push(tool);
   if (it.seed) out.push(t('item.plant_it'));
+  /* A training item (src/data/training.js): opened in the Training window into the hero's hours for its skill, never "sell it" */
+  if (it.type === 'training' && it.training) out.push(t('item.train_open', { hours: it.training.hours, skill: skillName(it.training.skill) }));
   if (houseSpends(id)) out.push(t('item.house_asks'));
   if (temperSpends(id)) out.push(t('item.temper_asks'));
   /* The last word only where it is true: the shop bids on what has a book value (catalogue.js vendorPriceOf). */

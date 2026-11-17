@@ -21,6 +21,7 @@ export const ITEM_TEXT = Object.freeze({
   type_jewelry: 'Jewelry',
   type_tool: 'Tool',
   type_trophy: 'Trophy',
+  type_training: 'Training item',
   type_gear: 'Gear',
   type_item: 'Item',
   tier: 'Tier {tier}',
@@ -66,6 +67,7 @@ export const ITEM_TEXT = Object.freeze({
   burn_flame_level: 'Great Hearth: {skill} XP burst, fire {flame} for Havora (requires {skill} {level})',
   cook_it: 'Cook it into food (requires {skill} {level})',
   plant_it: 'Plant it on the Farm',
+  train_open: 'Open in Training: {hours} h of 200% {skill} XP',
   house_asks: 'Used to build the House',
   temper_asks: 'Used to temper gear',
   /* The bag's picked line: what spends it and where to get more, each a link to its window (src/shell/goto.js). */

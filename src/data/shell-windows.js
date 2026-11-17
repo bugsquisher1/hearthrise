@@ -35,6 +35,8 @@
 //   beside   [ids]: windows that dock side by side past the dock's 60% (the bag and the window a bag task needs:
 //            Storage, the Shop, Character), so at 1440 neither closes the other
 //   over     true: wider than the dock (Hunts, Hunt prep), it lies over the docked windows and closes none
+//   rise     true: in town it rises over the bottom bar whenever its content needs more than the dock leaves, at any
+//            screen height (window-fit.js; any other window rises only on a short World, window-manager.js DOCK_ROOM_PX)
 //   pageOf   [ids]: opened by a press inside one of these windows, it opens as a PAGE of it with Back, never a
 //            second window on top (Monster facts in Hunts, Configure action in Hunt prep)
 //
@@ -101,8 +103,11 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'tower', label: 'Burning Tower', title: 'The Burning Tower', key: null, noShortcut: true, group: 'town', section: 'tower', orElse: 'inventory',
     glyph: 'uiFlame', width: 660, object: 'ledger' }),
   /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. No icon of its
-     own since the bar's groups (2026-11-16): the bar's setup press opens it, so does Change setups under a ground's Go as, and P. */
-  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', launcher: false, glyph: 'uiCheck', width: 1040, object: 'plain', over: true, help: 'windows.help_prep' }),
+     own since the bar's groups (2026-11-16): the door beside the bar's setup name opens it (action-bar.js, drawn from this row: the
+     glyph, the name, the key), so does Hunt prep under a ground's Go as, and P. Its glyph is a written plan (Tyler 2026-11-17: the
+     tick it had read as a confirm, and nobody found Hunt prep behind it). It rises over the bar in town when it needs the room (Coordinator
+     review 2026-11-17: at 1518x845 the dock left it 526 px and its bar's slots 11-20 ran under Close and Save; the bar it edits is this). */
+  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', launcher: false, glyph: 'uiQuests', width: 1040, object: 'plain', over: true, rise: true, help: 'windows.help_prep' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */
   Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', group: 'social', glyph: 'uiBanner', width: 440, object: 'plain' }),

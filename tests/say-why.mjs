@@ -301,6 +301,7 @@ export const REASONS = Object.freeze({
     { cond: 'off || !d || d.distance === null', words: "t('prep.reading_setup')", where: 'distance: the same, and at the ends of HERO_DISTANCE' },
     { cond: 'off || !d || d.goldFloor === null', words: "t('prep.reading_setup')", where: 'the gold to keep: the same' },
     { cond: 'off || !sc.draft', words: "t('prep.reading_setup')", where: 'Sort and Clear: off until the copy is read' },
+    { cond: 'off || bp.off', words: "t('prep.basic_none')", where: 'Basic setup: its own words say the weapon type is unknown; with no copy yet the read line says the setup is being read (and data-off-why on a press)' },
     { cond: 'off || !sc.draft || sc.stale', words: "t('prep.changed')", where: 'Save: the state line says the setup changed on the bar, load it again' },
     { cond: 'off || !sc.draft || sc.stale || hunting', words: "t('prep.changed')", where: 'Save and use: the same, and the town-only note while hunting (setups.js)' },
   ],

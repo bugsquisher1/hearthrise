@@ -7,7 +7,8 @@
 //   1. HEIGHT. A window is as tall as its content, up to the World less its margins, never taller. A docked window
 //      ends above the bottom bar (hud.js dockCap, so a window that grows never moves the bar) only while that leaves
 //      it DOCK_ROOM_PX or more; on a shorter World a window whose content needs more rises over the bar, which stays
-//      where it is, under it (window-manager.js overBar). A floating window is held wholly inside the World.
+//      where it is, under it (window-manager.js overBar). A row with `rise` (Hunt prep: its own bar sits at its foot) rises
+//      whenever its content needs more, at any height. A floating window is held wholly inside the World.
 //   2. A STICKY FOOT TAKES ITS OWN ROOM. A foot that sticks to a scroll region's bottom (Enter, Save, Send) is measured
 //      out of that region's visible height, so the row it would lie on counts as cut.
 //   3. A WHOLE ROW AT THE FOOT. As it opens (never once the player has scrolled or pressed in it) a scroll region shows no row cut through: it ends on the top of the row its
@@ -55,11 +56,12 @@ export function fitDocked(layer, bars, gap, hunt = null) {
     else if (w.style.top) w.style.top = '';
     const cap = bars.length ? dockCap({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }, bars, gap) : null;
     let over = false;
-    if (cap !== null && !hunt && overBar(cap, Infinity)) {
+    const rise = w.classList.contains('is-rise');
+    if (cap !== null && !hunt && overBar(cap, Infinity, rise)) {
       /* what it needs: its height with no cap and no trims (the frame's own CSS still holds it inside the World) */
       clearTrims(w);
       if (w.style.maxHeight) w.style.maxHeight = '';
-      over = overBar(cap, w.offsetHeight);
+      over = overBar(cap, w.offsetHeight, rise);
     }
     const v = cap === null || over ? '' : cap + 'px';
     if (w.style.maxHeight !== v) w.style.maxHeight = v;

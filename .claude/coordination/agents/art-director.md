@@ -3624,3 +3624,33 @@ Round 2 (the Coordinator's review): the square's six identical benches in two ev
 bale, a bench and a stool at uneven gaps (mask 73d6bf6b -> 1adfc0d6). Lesson: the bench STANDS are generated into server migrations
 (2027-01-28-town-stands.sql and the town-stations.generated files), so a seat row moves its props, never its stands; a stand south of an
 empty cell just stands.
+
+## 2026-11-17 lane/fix137-prep-and-bag (Tyler on live v0.2.135: "how do i access the hunt prep" · "why am i scrolling to see my belt/ammo slots?" · "i thought we were adding some defaults to this page?")
+Three findability/fit fixes, today's look kept. (1) The bar's Hunt prep door was a gold tick ("Saved setups: switch or save"): it is now
+drawn from the hunt-prep window row (shell-windows.js: glyph uiQuests, a parchment; label; key P, which already existed), named
+"Hunt prep (P)", with the icon row's own name chip on hover (shell.css .hs-launch chip shared as .hs-keytip, raised above the bar
+in hunt.css). The Hunts page's "Change setups" reads "Hunt prep" from the same row. (2) The Inventory's doll sat in the bag's scroll
+region, so the dock cap (1518x845 town: 492 px, above the bar and over the 480 rise threshold) trimmed it to four rows; in a hunt at
+1280x720 it showed two. Now the doll column runs from the toolbar to the window's foot beside a side column (bag scroll, armor line,
+a two-line foot, tools); the side scrolls on its own when short; doll.js fitDoll steps the wells down (52 -> 36) only when the column
+cannot hold them (1366x768 hunt: 46; 1280x720 hunt: 36). Phone sheet: the doll stands beside the toolbar (grid on .hw-inv, the
+wrappers display: contents, the bag row 1fr). Also fixed: "Sort Typ" (the search never gave way; min-width 0). (3) Basic setup
+moved from a flat word beside Sort to a framed two-line press under Use equipped in the setups column ("Basic setup / Sword and
+shield", the server's discipline in words, bare hands said so); on an empty bar it is the window's gold plate.
+Lessons: (1) a window "as tall as its content up to the dock cap" plus rule 3's whole-row trim HIDES the last row of anything in a
+scroll region: a part that must never scroll must not live in one; (2) the dock cap's 480 px rise threshold makes a 1518x845 screen
+give a docked window LESS room than 1280x720 (which rises): test the in-between laptop sizes, not just the extremes; (3) a fit that
+measures layout must not run inside a ResizeObserver it can resize (the shell observes the same frame: loop error); defer to the next
+frame and guard on a geometry signature so a still window writes nothing; (4) `--hw-well` is already the shared well SHADOW token:
+check the name before inventing a custom property; (5) moving a press into a head row grew Hunt prep by 18 px and window-fit then
+hid the bar's second row entirely; put a new press where the column has spare height (the setups column), not in the dense one.
+Trade-off flagged: with a coach card up in a hunt at 1366x768 the bag now keeps two whole rows (AW-62 was three, beside a doll cut
+after its second row). Pre-existing, filed in DISCOVERIES: Hunt prep's bar row 11-20 runs under its footer at 1518x845.
+Round 2 (Coordinator review): that clip, fixed here. Hunt prep's rows ended 1 px INTO the foot's 2 px rule, and window-fit counts a
+row hidden by 4 px or less as whole, so nothing trimmed it; the dock gave it 526 px because 526 >= the 480 rise threshold. In-window
+shaving (gaps, an inline Fights as head, wider notes) bought 20-40 px but one wrapped weapon line or the test font's wider notes gave
+it back, so the row got `rise: true` (shell-windows.js -> frame class is-rise -> window-fit overBar(cap, need, rise)): in town it
+rises over the bar whenever it needs the room, the way 1280 and 1366 already did. Lessons: (6) measure "whole" against what is DRAWN
+(the foot's box-shadow rule), not the box: a 1 px overlap reads cut to the eye and passes a box test; (7) a fixture can hide a
+clip the live hero shows (different fonts, weapon, setups): make the measuring rule strict enough that today's layout is red there
+too; (8) shell.js sits at the module-size cap: carry a row flag as a frame class, not a new line.

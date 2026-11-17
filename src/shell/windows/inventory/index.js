@@ -11,21 +11,25 @@
 //   elsewhere.js  under the grid while searching: where else the item is
 //   advanced.js   the Advanced view (effects, the worn set, imbuements)
 //   actions.js    every gesture: one intent each, controls off until it answers
-// Laid out as   [ toolbar                       ]
-//               [ doll ][ grid                   ]
-//               [ armor worn: heavy · medium · light ]
-//               [ capacity · Advanced view · gold ]
-//               [ slot line / picked line / tools ]
-//               [ advanced section (when on)     ]
+// Laid out as   [ toolbar                                  ]
+//               [ doll ][ grid (its own scroll)              ]
+//               [      ][ armor worn: heavy · medium · light ]
+//               [      ][ capacity · Advanced view · gold    ]
+//               [      ][ slot line / picked line / tools    ]
+//               [      ][ advanced section (when on)         ]
+// THE DOLL NEVER SCROLLS (Tyler 2026-11-17: "why am i scrolling to see my belt/ammo slots?"): its column runs
+// beside everything under the toolbar, only the bag's grid scrolls, and its wells fit the room (doll.js fitDoll).
+// On a phone's sheet the doll stands beside the toolbar and the sheet scrolls as one (windows.css).
 // Built once per opening; every envelope and display tick patches it in place
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
 import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.136';
+import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.136';
 import { whole, gold } from '../../../render/format.js?v=0.2.136';
 import { closeFloatMenu } from '../float-menu.js?v=0.2.136';
 import { stateOf } from './state.js?v=0.2.136';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights } from './doll.js?v=0.2.136';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll } from './doll.js?v=0.2.136';
 import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.136';
 import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.136';
 import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.136';
@@ -36,12 +40,13 @@ export function renderInventory(ctx) {
   if (ctx.character) commitSeen(ctx.character);
   return '<div class="hw-inv" tabindex="0" data-hs-act="inv" aria-label="Inventory">'
     + toolbarHtml(g)
-    + '<div class="hw-inv-scroll"><div class="hw-inv-cols">' + dollHtml(g) + '<div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
-    + weightsHtml() + '</div>'
+    + '<div class="hw-inv-cols">' + dollHtml(g)
+    + '<div class="hw-inv-side"><div class="hw-inv-scroll"><div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
+    + weightsHtml()
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
     + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
     + '<b class="hw-gold"></b></div><p class="hw-why hw-over"></p>'
-    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div>';
+    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div></div></div>';
 }
 
 /** What a bag at or past its spaces means (midgame panel 2026-11-01: "114 of 100 spaces" with no word): the server's rule, 2027-02-11-hunt-loot-past-bag-cap.sql. Pure. */
@@ -69,18 +74,44 @@ function patchFoot(root, st) {
 
 /* THE PRESS IN HAND STANDS CLEAR OF THE ANSWER LINE (newcomer panel 2026-11-03, 1366x768: "Fuel all 23" half under "Put on 1 piece.", Stop wholly under
    "Fueling…"). The column scrolls and the line stands over its foot (windows.css), so when the stack, the job or the line changes the column brings the
-   press up from under it, once: the player's own scrolling is never fought. Where the column does not scroll (the phone's sheet) the body has its own rule. */
+   press up from under it, once: the player's own scrolling is never fought. The column is the one beside the doll where it scrolls (a short window),
+   else the whole; where neither does (the phone's sheet) the body has its own rule. */
 function keepPickClear(root, st) {
   const line = root.querySelector('.hh-intent-msg');
   const shown = root.querySelector('.hw-burying.is-on') || root.querySelector('.hw-pick.is-on ~ .hw-pick-why:not(:empty)') || root.querySelector('.hw-pick.is-on');
   const sig = (shown ? shown.className : '') + '|' + st.sc.cursor + '|' + line.textContent;
   if (st.sc.clearSig === sig) return;
   st.sc.clearSig = sig;
-  if (!shown || root.scrollHeight <= root.clientHeight) return;
-  const box = root.getBoundingClientRect();
+  const col = [root.querySelector('.hw-inv-side'), root].find((e) => e && e.clientHeight && e.scrollHeight > e.clientHeight);
+  if (!shown || !col) return;
+  const box = col.getBoundingClientRect();
   const floor = line.textContent ? Math.min(box.bottom, line.getBoundingClientRect().top) : box.bottom;
   const over = shown.getBoundingClientRect().bottom - floor;
-  if (over > 0) root.scrollTop += over + 4;
+  if (over > 0) col.scrollTop += over + 4;
+}
+
+/* The doll's wells fit its column on each patch, and at once when the window's box, its columns' box or the World changes (the cap the
+   shell puts on a docked window lands after the first patch; a coach card squeezes a capped window's columns, not its frame): one frame
+   later, so the shell's own observer of the frame is never re-run. */
+const WATCHED = new WeakSet();
+function fitNow(root) {
+  const view = root.ownerDocument.defaultView;
+  if (!view) return;
+  const fit = () => fitDoll(root, view.matchMedia(MOBILE_QUERY).matches);
+  fit();
+  const frame = root.closest('.hs-win');
+  if (WATCHED.has(root) || !frame || !view.ResizeObserver) return;
+  WATCHED.add(root);
+  let queued = false;
+  const ro = new view.ResizeObserver(() => {
+    if (queued) return;
+    queued = true;
+    view.requestAnimationFrame(() => { queued = false; if (root.isConnected) fit(); else ro.disconnect(); });
+  });
+  ro.observe(frame);
+  if (frame.parentElement) ro.observe(frame.parentElement);
+  const cols = root.querySelector('.hw-inv-cols');
+  if (cols) ro.observe(cols);
 }
 
 renderInventory.patch = function patchInventory(body, ctx) {
@@ -96,6 +127,7 @@ renderInventory.patch = function patchInventory(body, ctx) {
   patchTools(root, st, ctx);
   patchAdvanced(root, st, ctx);
   cls(root, 'is-pending', st.sc.pending);
+  fitNow(root);
   keepPickClear(root, st);
   if (!st.sc.menu) closeFloatMenu(ctx.doc, st.sc.menuOwner || null);   // its own menu only: a world or chat menu stays open
 };

@@ -139,7 +139,7 @@ export function mountShell(root, o) {
   /* ── Windows, reconciled by id ── */
   function frame(row) {
     const el = doc.createElement('section');
-    el.className = 'hs-win is-' + row.object;
+    el.className = 'hs-win is-' + row.object + (row.rise ? ' is-rise' : '');   // is-rise: over the bar in town when it needs the room (window-fit.js)
     el.setAttribute('data-hs-win', row.id);
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', row.label);

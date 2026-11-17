@@ -37,6 +37,9 @@ import { t } from '../../render/player-text.js?v=0.2.136';
 import { groundLines } from '../live-events-view.js?v=0.2.136';
 import { afterHtml } from './hunt-after-pane.js?v=0.2.136';
 import { scaleHtml } from './scale-pane.js?v=0.2.136';
+import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.136';
+
+const PREP_LABEL = SHELL_WINDOWS.find((w) => w.id === 'hunt-prep').label;
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -77,8 +80,9 @@ const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) 
 export function goHtml() {
   return '<h4 class="hw-hd-h">' + t('hunts.head_go_as') + '</h4><div class="hw-go-list" role="radiogroup" aria-label="' + t('hunts.head_go_as') + '"></div>'
     + '<p class="hw-go-note"></p>'
-    /* Hunt prep is a step of going hunting: its setups are what Go as lists (renderHunts.act opens it; Back comes here) */
-    + '<button type="button" class="hh-tool hw-go-prep" data-hs-act="go-prep">' + t('hunts.go_prep') + '</button>'
+    /* Hunt prep is a step of going hunting: its setups are what Go as lists (renderHunts.act opens it; Back comes here). Its door
+       says the window's own name (Tyler 2026-11-17: the bar's door and this one are both Hunt prep) */
+    + '<button type="button" class="hh-tool hw-go-prep" data-hs-act="go-prep">' + esc(PREP_LABEL) + '</button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
     + afterHtml()
     + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'

@@ -86,6 +86,18 @@ export const PREP_TEXT = Object.freeze({
   cleared: 'Cleared (weapon moves kept)',
   /* a label, not a sentence (Tyler 2026-11-14: everything outside lore is a genre-standard label) */
   basic_loaded: 'Basic setup: unsaved',
+  /* THE BASIC SETUP PRESS names what it loads under its name: the weapon type the server says the setup fights as (its ability
+     discipline, src/data/basic-setups.js), bare hands on the club's list (builder.js basicPress). Tyler 2026-11-17: he did not find it. */
+  basic_for: 'Basic setup: {weapon}',
+  basic_weapon_shield: 'Sword and shield',
+  basic_weapon_sword: 'Sword',
+  basic_weapon_dual_axe: 'Axes',
+  basic_weapon_club: 'Club or hammer',
+  basic_weapon_bare: 'Bare hands',
+  basic_weapon_ranged: 'Bow or crossbow',
+  basic_weapon_destruction: 'Wand',
+  basic_weapon_restoration: 'Staff',
+  basic_none: 'Weapon type unknown',
 
   /* THE FOOTER. */
   save_and_use: 'Save and use',

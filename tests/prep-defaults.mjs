@@ -26,6 +26,9 @@
 //         as it was; the line goes once the server's bar holds it; a full bar sends nothing and opens Hunt prep
 //   PD-6  NO REPEAT: a reload (a new page over the same residue) raises nothing for the move it showed, nor does the
 //         level dropping and coming back; a line that stood for several moves keeps each one seen
+//   PD-7  THE PRESS IS FOUND (Tyler 2026-11-17): it names the weapon type it loads under its name, from the server's discipline, for
+//         every one (bare hands on the club's list say Bare hands); before the read it is the feature's name and off; with no
+//         weapon type it says so and is off; it leads (the window's gold press) only while the copy's bar is empty
 // Exit: 0 green · 1 a rule red · 2 harness error.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
@@ -162,6 +165,26 @@ export async function rules(base) {
     return JSON.stringify(sc2.draft.slots) === before && !sc2.basic ? true : 'with no weapon type the press made ' + ids(sc2.draft.slots);
   });
 
+  /* PD-7 THE PRESS IS FOUND (Tyler 2026-11-17: "i thought we were adding some defaults to this page?"; it was a small word beside Sort) */
+  await t('PD-7', () => {
+    const WORDS = { shield: 'Sword and shield', sword: 'Sword', dual_axe: 'Axes', club: 'Club or hammer', ranged: 'Bow or crossbow', destruction: 'Wand', restoration: 'Staff' };
+    const filled = { slots: [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }].concat(Array(19).fill(null)) };
+    const empty = { slots: Array(20).fill(null) };
+    for (const d of DISCIPLINE_IDS) {
+      const p = B.basicPress({ discipline: d }, filled, { weapon: 'practice_sword' });
+      if (p.weapon !== WORDS[d] || p.words !== 'Basic setup: ' + WORDS[d] || p.off || p.lead) return d + ' on a filled bar reads ' + JSON.stringify(p) + ', want ' + WORDS[d] + ' ("Basic setup: ' + WORDS[d] + '"), on, not leading';
+      const e = B.basicPress({ discipline: d }, empty, { weapon: 'practice_sword' });
+      if (!e.lead || e.off) return d + ' on an empty bar is not the next step: ' + JSON.stringify(e);
+    }
+    const bare = B.basicPress({ discipline: 'club' }, filled, {});
+    if (bare.weapon !== 'Bare hands' || bare.words !== 'Basic setup: Bare hands') return 'bare hands read ' + JSON.stringify(bare);
+    const reading = B.basicPress(null, null, {});
+    if (reading.weapon !== '' || reading.words !== 'Basic setup' || !reading.off || reading.lead) return 'before the setup is read: ' + JSON.stringify(reading);
+    const unknown = B.basicPress({ discipline: null }, empty, {});
+    if (unknown.weapon !== 'Weapon type unknown' || unknown.words !== 'Basic setup: Weapon type unknown' || !unknown.off || unknown.lead) return 'with no weapon type from the server: ' + JSON.stringify(unknown);
+    return true;
+  });
+
   const spellLines = (centre) => centre.list().filter((a) => a.kind === 'spell');
   await t('PD-4', () => {
     const h = hero();
@@ -259,6 +282,9 @@ const MUTANTS = [
   M('the Healer gets Mend too', 'src/data/basic-setups.js', "  restoration: setup('healer', null),", "  restoration: setup('healer', 'mend'),"),
   M('a weapon type has no row', 'src/data/basic-setups.js', "  club: setup('melee_dps', 'mend'),\n", ''),
   M('the press leaves the bar', 'src/shell/windows/hunt-prep/builder.js', '  sc.draft.slots = bar;\n', ''),
+  M('the press names no weapon type', 'src/shell/windows/hunt-prep/builder.js', ": t('prep.basic_weapon_' + (d === 'club' && !(gear && gear.weapon) ? 'bare' : d));", ": '';"),
+  M('an empty bar does not lead to the press', 'src/shell/windows/hunt-prep/builder.js', 'lead: known && empty, off: !draft || !known };', 'lead: false, off: !draft || !known };'),
+  M('bare hands read as a club', 'src/shell/windows/hunt-prep/builder.js', "(d === 'club' && !(gear && gear.weapon) ? 'bare' : d)", '(d)'),
   M('a load prompts for what the hero had', 'src/shell/spell-news.js', '      if (!was) { base.set(cs.slot, now); return null; }', "      if (!was) { base.set(cs.slot, Object.fromEntries(Object.keys(now).map((k) => [k, { level: 1 }]))); return null; }"),
   M('the prompt ignores the weapon worn', 'src/shell/spell-news.js', '    if (!r.unlock || r.active === false || !(r.universal || r.disciplines.includes(d))) return false;', '    if (!r.unlock || r.active === false) return false;'),
   M('a move already on the bar is announced', 'src/shell/spell-news.js', '.filter((id) => !held.has(id) && !seen(spellNewsId(id)));', '.filter((id) => !seen(spellNewsId(id)));'),

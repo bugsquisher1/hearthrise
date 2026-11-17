@@ -1769,8 +1769,11 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       if (m.up) { await mouseWordsAndTargets(m.page, tag, fails); await done(m, tag); } else fails.push('PH-24 [' + tag + '] the town did not mount');
       const sn = await open({ width: 922, height: 423 }, ALPHA, (env) => { townOnly(env); twoHeroes(env); });
       if (sn.up) { await menuSending(sn, '922x423', fails); await sn.ctx.close(); } else fails.push('PH-24 the town did not mount');
+      /* A Storage that holds something (thirty stacks): with ONE stack the plain order left Expand 1 px inside the fold once the help lines
+         became labels (v0.2.134), and the planted "Expand below the fold" escaped. The rule is about a Storage a player has filled. */
+      const held = Object.fromEntries(MATERIALS.map((id) => [id, 3]));
       const bx = await open({ width: 922, height: 423 }, ALPHA, (env) => { townOnly(env); env.bag_expand = { cap: 100, rung: 0, max: 30, next: { offer: 'bank.0', gold: 3000, adds: 20 } };
-        env.account = Object.assign({}, env.account, { bank: { coal: 3 }, depot: { used: 1, cap: 100, next: { name: 'Millrace Crate', stacks: 20 } } }); env.bank = { coal: 3 }; env.depot = env.account.depot; });
+        env.account = Object.assign({}, env.account, { bank: held, depot: { used: MATERIALS.length, cap: 100, next: { name: 'Millrace Crate', stacks: 20 } } }); env.bank = held; env.depot = env.account.depot; });
       if (bx.up) { await bagReach(bx.page, '922x423', fails); await shot(bx.page, 'storage-expand-922x423'); await done(bx, '922x423'); } else fails.push('PH-24 the town did not mount');
     }
     if (run('door')) { // PH-17

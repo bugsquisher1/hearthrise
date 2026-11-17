@@ -1879,7 +1879,10 @@ function selftest() {
     'a session longer than an hours limit': () => ({ training: { ...S_TRAINING, rules: { ...S_TRAINING.rules, maxHours: 25 } } }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */
-  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens } });
+  /* ...beside the grounds the called rooms and every OPEN keyed hall name (a hall's key drops on its own open ground: hallRows refuses one
+     with none, so a hall opened by a pack must not turn this control red, as Krell's did in v0.2.134). */
+  const hallKeyGrounds = Object.fromEntries(Object.values(OPEN_GROUNDS).filter((g) => Object.values(OPEN_BOSS_HALLS).some((h) => h.id === g.hunt)).map((g) => [g.id, g]));
+  catalogueRows({ grounds: { ...fixtureGround, millrace_sewer: OPEN_GROUNDS.millrace_sewer, coppercap_warrens: OPEN_GROUNDS.coppercap_warrens, ...hallKeyGrounds } });
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {
     let threw = false;

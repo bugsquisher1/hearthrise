@@ -16,6 +16,16 @@ export const HUNTS_TEXT = Object.freeze({
   casts: '{name} casts {spells}.',
   /* A hall built for a group: a warning, never a gate (Tyler 2026-11-08). {n} is the pocket's forParty, a digit (Tyler 2026-11-14). */
   party_size: 'Recommended: {n}+ players',
+  /* "Bring your heroes" empty because this account's other heroes sit in a party this one is not in (audit 2026-11-15 F23):
+     who, whose party, and the way out. {names} is a list ("Corwen, Ilsa and Maren"); {count} how many it names. Labels (Tyler 2026-11-14). */
+  party_others_in: {
+    one: 'In {leader}\'s party: {names} (switch to them, press Leave party)',
+    other: 'In {leader}\'s party: {names} (switch to each, press Leave party)',
+  },
+  party_others_in_a: {
+    one: 'In another party: {names} (switch to them, press Leave party)',
+    other: 'In another party: {names} (switch to each, press Leave party)',
+  },
 
   /* How crowded a ground is. {size} is a count or pack_range. */
   pack_range: '{min} to {max}',

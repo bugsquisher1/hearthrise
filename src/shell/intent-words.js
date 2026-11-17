@@ -107,6 +107,8 @@ export function refusalText(r, cs) {
   /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */
   if (r && r.error === 'bad_name' && (r.reason === 'reserved' || r.reason === 'blocked')) return refusalWords('bad_name_rule');
   if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting, invite after the hunt';
+  /* An invite's `already_in_party` is the invitee's (the inviter's own party never refuses an invite): name who. */
+  if (r && r.error === 'already_in_party' && r.verb === 'party_invite' && typeof r.invitee === 'string' && r.invitee) return t('party.invitee_partied', { name: r.invitee });
   /* A named fuel above the hero's Inner Flame (hr_hearth_burn sends both levels): "Den Knot needs Inner Flame 3. You have 1." */
   if (r && r.error === 'flame_too_low' && Number.isInteger(r.need)) {
     return (r.item && own(ITEMS, r.item) ? ITEMS[r.item].n : 'That fuel') + ': requires Inner Flame ' + r.need + (Number.isInteger(r.have) ? ', now ' + r.have : '');

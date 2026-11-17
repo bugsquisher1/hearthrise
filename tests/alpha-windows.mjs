@@ -2990,8 +2990,18 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const party = { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }], self_seat: 0, leader_seat: 0 };
           const hero = (slot, n, p) => ({ slot, status: 'ready', read: (k) => (k === 'name' ? n : k === 'party' && p ? party : null) });
           const me = hero(0, 'Tyler');
-          return { fresh: m.beforeLines({ read: (k) => sec[k] }).map((l) => l.text).join(' | '), free: m.freeHeroes(me, [me, hero(1, 'Mira', true), hero(2, 'Brannoc')]).map((h) => h.name).join() };
+          /* AW-28b (audit 2026-11-15 F23): Bryn's Sewer page while Corwen, Ilsa and Maren play in Corwen's party read "Play one from Characters".
+             Nobody to bring says who is in whose party and the way out; the leader, whose heroes are all with him, is told nothing. */
+          const d = await import('/src/shell/windows/hunt-detail.js?v=0.1.0');
+          const pty = { id: '0a47c0de-0000-4000-a000-00000000f023', members: [{ seat: 0, name: 'Corwen' }, { seat: 1, name: 'Ilsa' }, { seat: 2, name: 'Maren' }], leader_seat: 0 };
+          const seated = (s, n) => ({ slot: s, status: 'ready', read: (k) => (k === 'name' ? n : k === 'party' ? { ...pty, self_seat: s } : null) });
+          const four = [seated(0, 'Corwen'), seated(1, 'Ilsa'), seated(2, 'Maren'), hero(3, 'Bryn')];
+          const noneOf = (cs) => d.bringNone({ bring: m.freeHeroes(cs, four), away: m.partiedHeroes(cs, four), others: m.openOthers(cs, four) });
+          return { fresh: m.beforeLines({ read: (k) => sec[k] }).map((l) => l.text).join(' | '), free: m.freeHeroes(me, [me, hero(1, 'Mira', true), hero(2, 'Brannoc')]).map((h) => h.name).join(),
+            none: [noneOf(four[3]), noneOf(four[0])] };
         }, FIXTURE.hunt_settings.store);
+        if (own.none[0] !== "In Corwen's party: Corwen, Ilsa and Maren (switch to each, press Leave party)" || own.none[1] !== '')
+          fails.push("AW-28b nobody to bring, all in Corwen's party, reads " + JSON.stringify(own.none));
         if (own.fresh !== 'Food: 20 Cooked Shrimp, then Salted Shrimp (14 gp) | Drink: Thin Turnip Juice (10 gp) | Gold: 500 gp')
           fails.push('AW-27 a fresh hero\'s Before you go reads ' + JSON.stringify(own.fresh));
         if (own.free !== 'Brannoc') fails.push('AW-28 Bring your heroes offers ' + JSON.stringify(own.free));
@@ -4707,7 +4717,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
-  ['AW-25 a creature card\'s dot can end its line', 'src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
+  ['AW-28b nobody to bring tells heroes already playing to play one (audit F23)', 'src/shell/windows/hunt-detail.js', '  if (away.length) {\n', '  if (false) {\n'],
+  ['AW-25 a creature card\'s dot can end its line','src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
   ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],
   ['AW-25 a list line\'s band and its fit run together in text', 'src/shell/windows/hunts.js', "prop(band.previousElementSibling, 'hidden', !fit || !fit.words);", "prop(band.previousElementSibling, 'hidden', true);"],
   ['AW-25 a list line\'s tag and best run together in text', 'src/shell/windows/hunts.js', "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);", "prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', true);"],

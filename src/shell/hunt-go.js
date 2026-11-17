@@ -382,5 +382,31 @@ function blessingWords(b) {
 /** "Bring your heroes": this account's other open characters in no party, [{ slot, name }]. */
 export function freeHeroes(cs, all) {
   return (all || []).filter((o) => o && o !== cs && o.status !== 'closed' && Number.isInteger(o.slot) && !partyMembershipOf(o))
-    .map((o) => ({ slot: o.slot, name: nameOf(o) || 'Character ' + (o.slot + 1) }));
+    .map((o) => ({ slot: o.slot, name: heroNameOf(o) }));
+}
+/* A hero's name as the strip shows it, or its slot's when the server has not said one. */
+const heroNameOf = (o) => nameOf(o) || 'Character ' + (o.slot + 1);
+
+/**
+ * Why "Bring your heroes" may be empty while heroes play: this account's other open characters seated in a party `cs` is not in,
+ * one entry a party, [{ names, leader }] (leader: the server's name for that party's leader, or null). [] when none. A hero in
+ * `cs`'s own party is with it already, so not here. Pure (audit 2026-11-15 F23: "Play one from Characters" to a player whose three
+ * other heroes were all playing, in Corwen's party).
+ */
+export function partiedHeroes(cs, all) {
+  const mine = (partyMembershipOf(cs) || {}).id || null;
+  const by = new Map();
+  for (const o of all || []) {
+    if (!o || o === cs || o.status === 'closed' || !Number.isInteger(o.slot)) continue;
+    const p = partyMembershipOf(o);
+    if (!p || p.id === mine) continue;
+    if (!by.has(p.id)) by.set(p.id, { names: [], leader: p.leaderName || null });
+    by.get(p.id).names.push(heroNameOf(o));
+  }
+  return [...by.values()];
+}
+
+/** How many of this account's other characters are open beside `cs` (any party or none). Pure. */
+export function openOthers(cs, all) {
+  return (all || []).filter((o) => o && o !== cs && o.status !== 'closed' && Number.isInteger(o.slot)).length;
 }

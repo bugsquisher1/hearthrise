@@ -772,6 +772,17 @@ label.st-line { cursor: pointer; }
   .hb-chase { grid-area: chase; }
   .hb-dist { grid-area: dist; gap: 2px; margin-left: 0; }
   .hb-plaque .hh-tool, .hb-plaque .hh-seg { min-height: 36px; }
+  /* BESIDE A TOWN SHEET THE BAR IS ITS TWENTY SLOTS, WHOLE (audit 2026-11-15 F27: a town sheet is full height, so the bar ran under
+     it and slots 9, 10, 19 and 20 could not be seen or pressed at 922x423, four columns of ten at 667x375, with the bag's "Put on
+     the bar" open beside them). The band ends short of the sheet (its own min(400px, 48vw), then 40 px: the World's 9 px edge twice, the dock's 12 px
+     gap), and the shell stands it clear (hud.js clearOfEdges: a centred widget takes the left that clears the dock once one
+     exists). Its hub and fight panel wait for the sheet to close: neither changes in town, and with them ten columns never fit.
+     Where ten still do not (667 px), the slots page as they always have (.hb-page). In a hunt the sheet ends above the bar instead (shell.js capDock). */
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }
+  /* The widget's own floor (320 px, written inline from its HUD row by shell.js) is 3 px wider than the room a 667 px screen
+     leaves beside the sheet, and the band would stay under it: beside a sheet the band's width above is the floor. */
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0 !important; }
   .hb-stance .hh-seg { flex: 1 0 auto; padding: 0 clamp(2px, calc((100vw - 667px) / 30), 6px); }
   .hb-dist .hb-label { letter-spacing: 0; }
   .hb-dist .hh-step .hh-seg { min-width: 30px; }

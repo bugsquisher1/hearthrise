@@ -10,7 +10,7 @@
 //
 // mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js
 // mutant-writes-tree: no — page mutants are served overrides
-// mutant-rule-functions: bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor rules
+// mutant-rule-functions: bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor barBesideSheet rules
 // mutant-runner-functions: main
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -105,6 +105,9 @@
 //   PH-32 A KEYED HALL'S DOOR (922x423; the Krell hall check 2026-11-14: its red food line under the fold, Open Krell's Hall half under
 //         Enter): with the hall's head at the top of a ground's page, its red food line and its press are whole inside the page, clear of
 //         Enter's foot and pressable; at the page's end the press is still clear of the foot
+//   PH-33 THE BAR BESIDE A TOWN SHEET (667x375, 844x390, 922x423; audit 2026-11-15 F27: slots 9, 10, 19 and 20 lay under the bag's sheet,
+//         and where the slots page, the page press with them): with the bag open in town the bar ends left of the sheet, every slot on
+//         screen takes a press, and the rest come round with the page press; closed, the bar is whole again with its hub
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -880,6 +883,30 @@ async function groundPage(page, tag, fails, floor) {
   await page.click('[data-hs-win="hunts"] .hs-win-head .hs-back', { timeout: 2500 }).catch(() => null);
   await page.waitForTimeout(200);
   if (!(await page.evaluate(() => !!window.__r('.hw-hunt-list')))) fails.push('PH-25 [' + tag + '] the way back did not bring the list');
+}
+/* ── PH-33 ── THE BAR BESIDE A TOWN SHEET: no slot under the sheet, every slot in reach. */
+async function barBesideSheet(page, tag, fails) {
+  await page.click('.hs-launch[data-hs-open="inventory"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="inventory"] .hs-win-body'), null, 4000))) { fails.push('PH-33 [' + tag + '] CONTROL: the bag did not open'); return; }
+  await page.waitForTimeout(700);
+  const read = () => page.evaluate(() => { const sheet = window.__r('[data-hs-win="inventory"]'), bar = window.__r('.hb-bar'), grid = window.__r('.hb-grid'), press = document.querySelector('.hb-page');
+    const slots = Array.from(document.querySelectorAll('.hb-slot')), shown = slots.filter((e) => { const r = window.__r(e); return r.left >= grid.left - 0.5 && r.right <= grid.right + 0.5; });
+    return { sheet: sheet.left, bar: bar.right, n: slots.length, shown: shown.map((e) => Number(e.getAttribute('data-slot'))), dead: shown.filter((e) => !window.__hits(e)).length,
+      cut: grid.right < window.__r(slots[slots.length - 1]).right - 0.5 || grid.left > window.__r(slots[0]).left + 0.5, press: !!press && press.getClientRects().length > 0 && window.__hits(press) }; });
+  const a = await read();
+  if (a.n !== 20) { fails.push('PH-33 [' + tag + '] CONTROL: the bar has ' + a.n + ' slots'); return; }
+  if (a.bar > a.sheet + 0.5) fails.push('PH-33 [' + tag + '] the bar runs ' + Math.round(a.bar - a.sheet) + ' px under the bag sheet');
+  if (a.dead) fails.push('PH-33 [' + tag + '] ' + a.dead + ' of the slots on screen beside the sheet take no press');
+  const seen = new Set(a.shown);
+  if (a.cut) {
+    if (!a.press) fails.push('PH-33 [' + tag + '] slots are cut beside the sheet and the page press is not in reach');
+    else { await page.click('.hb-page', { timeout: 2500 }).catch(() => null); await page.waitForTimeout(300); const b = await read(); for (const i of b.shown) seen.add(i);
+      if (b.dead || b.bar > b.sheet + 0.5) fails.push('PH-33 [' + tag + '] after the page press ' + b.dead + ' slots on screen take no press'); }
+  }
+  if (seen.size !== 20) fails.push('PH-33 [' + tag + '] beside the sheet only ' + seen.size + ' of 20 slots can be reached');
+  await page.click('[data-hs-win="inventory"] .hs-close', { timeout: 2500 }).catch(() => null);
+  const whole = await wait(page, () => !document.querySelector('[data-hs-win="inventory"]') && document.querySelector('.hb-hub').getClientRects().length > 0 && document.querySelector('.hb-plaque').getClientRects().length > 0, null, 4000);
+  if (!whole) fails.push('PH-33 [' + tag + '] with the sheet closed the hub and fight panel did not come back');
 }
 /* ── PH-32 ── A KEYED HALL'S DOOR ON A PHONE. The data opens no hall yet (every hall's pack is staged), so the page is served a
    boss-halls.js whose hallFromGround hands every ground Krell's hall (open() o.route); the hero holds its key and eats Salted Shrimp. */
@@ -1711,6 +1738,11 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         for (const sl of env.hunt_settings.slots) if (sl && sl.action && sl.action.id === 'wheat_bread') sl.action.id = 'salted_shrimp'; }, { route });
       if (o.up) { await hallDoor(o.page, tag, fails); await shot(o.page, 'hall-door-' + tag); await done(o, tag); } else fails.push('PH-32 [' + tag + '] the town did not mount');
     }
+    for (const vp of run('barsheet') ? PHONES : []) { // PH-33
+      const tag = tagOf(vp);
+      const o = await open(vp, ALPHA, (env) => { env.hunt = null; env.state = Object.assign({}, env.state, { active_kind: null, active_id: null }); });
+      if (o.up) { await barBesideSheet(o.page, tag, fails); await shot(o.page, 'bar-beside-sheet-' + tag); await done(o, tag); } else fails.push('PH-33 [' + tag + '] the town did not mount');
+    }
     if (run('ground')) {
       const tag = tagOf(SMALLEST);
       const o = await open(SMALLEST, HUNT);
@@ -1849,7 +1881,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'], 'PH-11': ['strip'], 'PH-12': ['strip'], 'PH-13': ['slots'], 'PH-14': ['meaning'], 'PH-15': ['stack'], 'PH-16': ['waits'], 'PH-17': ['door'], 'PH-18': ['coachsheet'], 'PH-19': ['apart'], 'PH-20': ['partyacts'], 'PH-21': ['tapped'], 'PH-22': ['doors'], 'PH-23': ['market'], 'PH-24': ['partyphone'], 'PH-25': ['ground'], 'PH-26': ['details'], 'PH-27': ['cards', 'coach'], 'PH-28': ['doors'], 'PH-29': ['partyfold'], 'PH-30': ['bar'], 'PH-31': ['doors'], 'PH-32': ['hall'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'], 'PH-11': ['strip'], 'PH-12': ['strip'], 'PH-13': ['slots'], 'PH-14': ['meaning'], 'PH-15': ['stack'], 'PH-16': ['waits'], 'PH-17': ['door'], 'PH-18': ['coachsheet'], 'PH-19': ['apart'], 'PH-20': ['partyacts'], 'PH-21': ['tapped'], 'PH-22': ['doors'], 'PH-23': ['market'], 'PH-24': ['partyphone'], 'PH-25': ['ground'], 'PH-26': ['details'], 'PH-27': ['cards', 'coach'], 'PH-28': ['doors'], 'PH-29': ['partyfold'], 'PH-30': ['bar'], 'PH-31': ['doors'], 'PH-32': ['hall'], 'PH-33': ['barsheet'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -2001,6 +2033,9 @@ const MUTANTS = [
   ['PH-32 the hall\'s door stands under what wins, a screen below its head', 'src/shell/windows/boss-hall-pane.js', '\'<p class="hw-call-line"></p><p class="hw-before-line is-short hw-hall-food" hidden></p>\'', '\'<p class="hw-call-line"></p><p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips"></ul><p class="hw-before-line is-short hw-hall-food" hidden></p>\''],
   ['PH-31 the form\'s words stay after Create account', 'src/styles/app.css', '.auth-card.is-sent .auth-lead { display: none; }\n', ''],
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
+  ['PH-33 the bar keeps its full width beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }\n', ''],
+  ['PH-33 the hub and the fight panel stay beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }\n', ''],
+  ['PH-33 the widget keeps its 320 px floor beside a sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0 !important; }\n', ''],
 ];
 
 async function main() {

@@ -26,6 +26,8 @@
 //             second, never the frame rate), reaches every stop, walks at most 40% of its loop (work in bursts, not pacing),
 //             carries no name plate and is never a player; only a map with townsfolk gets them
 //   TL-TURN   a turning piece (the mill's waterwheel) is its building's own pixels: frame 0 is the art, every frame its outline
+//   TL-SWAY   a banner or an awning is drawn as its twin: the same class, frame, anchor and footprint, frame 0 its art exactly,
+//             no pixel more than 2 px from where the art had it, on the half beat, each placed one from its own frame
 //   TL-GLANCE a keeper standing at her work (Tamsin at her board, the smith) looks about: every face her idle clip has, turning
 //             on the beat, and the frame drawn is the face of the moment
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -37,11 +39,11 @@ import { decodePNG } from '../tools/world-art/png.mjs';
 import { createBook } from '../src/world/core/book.js';
 import { compileMap } from '../src/world/core/map-compile.js';
 import { composeFrame } from '../src/world/core/compose.js';
-import { lifeOf, lifeDraws, glanceOf } from '../src/world/core/ambient.js';
+import { lifeOf, lifeDraws, glanceOf, swayOf } from '../src/world/core/ambient.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../src/data/world/terrain.js';
 import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
-import { EMITTERS, SURFACES, LIFE_BEAT_FPS, GLANCES } from '../src/data/world/ambient-life.js';
+import { EMITTERS, SURFACES, LIFE_BEAT_FPS, GLANCES, SWAYS } from '../src/data/world/ambient-life.js';
 import { FOLK, FOLK_TICK_HZ } from '../src/data/world/town/folk.js';
 import { createTownFolk, folkExtras } from '../src/world/town-folk.js';
 import { STATIONS } from '../src/data/world/stations.js';
@@ -271,6 +273,47 @@ export function problems(env) {
     if (keys.size < 2) bad('TL-TURN', e.clip + ' never turns');
   }
 
+  /* TL-SWAY */
+  const px = (id, i) => { const f = book.frame(id, Object.keys(book.sprite(id).anims)[0], 's', i), img = sheet(f.set);
+    return (x, y) => { const k = ((f.sy + y) * img.width + f.sx + x) * 4; return img.data[k + 3] >= 128 ? img.data[k] + ',' + img.data[k + 1] + ',' + img.data[k + 2] : null; }; };
+  for (const [orig, twin] of Object.entries(env.sways)) {
+    const a = book.sprite(orig), b = book.sprite(twin);
+    if (!book.has(twin)) { bad('TL-SWAY', twin + ' is not in the atlas'); continue; }
+    if (a.class !== b.class || String(a.frame) !== String(b.frame) || String(a.anchor) !== String(b.anchor) || String(a.footprint) !== String(b.footprint)) bad('TL-SWAY', twin + ' is not drawn like ' + orig + ' (class, frame, anchor or footprint)');
+    const fps = b.anims && b.anims.idle && b.anims.idle.fps;
+    if (!fps || LIFE_BEAT_FPS % fps !== 0) bad('TL-SWAY', twin + ' turns off the beat (' + fps + ' fps)');
+    const art = px(orig, 0), n = book.frames(twin, 'idle', 's');
+    const keys = new Set();
+    for (let i = 0; i < n; i++) {
+      const fr = px(twin, i);
+      let diff = 0, far = 0, key = '';
+      for (let y = 0; y < a.frame[1]; y++) for (let x = 0; x < a.frame[0]; x++) {
+        const c = fr(x, y);
+        key += c || '.';
+        if (c !== art(x, y)) diff++;
+        if (c && ![-2, -1, 0, 1, 2].some((dy) => [-2, -1, 0, 1, 2].some((dx) => art(x + dx, y + dy) === c))) far++;
+      }
+      keys.add(key);
+      if (i === 0 && diff) bad('TL-SWAY', twin + ' frame 0 is not the art of ' + orig + ' (' + diff + ' px)');
+      if (far) bad('TL-SWAY', twin + ' frame ' + i + ' has ' + far + ' px the art has nowhere near');
+    }
+    if (keys.size < 2) bad('TL-SWAY', twin + ' never moves');
+    const placed = town.objects.filter((o) => o.id === orig);
+    if (!placed.length) bad('TL-SWAY', orig + ' is not placed in the town');
+    const starts = new Set(placed.map((o) => (env.swayOf(book, o.id, o.x, o.y, t0) || {}).i));
+    if (placed.length > 2 && starts.size < 2) bad('TL-SWAY', 'every ' + orig + ' sways in step');
+    for (const o of placed.slice(0, 1)) {
+      const view = { ox: o.x * T - 200, oy: o.y * T - 200, w: 400, h: 400 };
+      const d = env.composeFrame(town, book, { t: t0 }, view, tables, T).sprites.find((x) => x.tx === o.x && x.ty === o.y && (x.id === twin || x.id === orig));
+      const want = env.swayOf(book, o.id, o.x, o.y, t0);
+      if (!d || d.id !== twin) bad('TL-SWAY', orig + ' at ' + o.x + ',' + o.y + ' is drawn still');
+      else if (want) { const f = book.frame(twin, 'idle', 's', want.i); if (f.sx !== d.sx || f.sy !== d.sy) bad('TL-SWAY', orig + ' drawn at another frame than its sway'); }
+      const still = env.composeFrame(town, book, { t: t0, stillIdle: true }, view, tables, T).sprites.find((x) => x.tx === o.x && x.ty === o.y && x.id === twin);
+      const f0 = book.frame(twin, 'idle', 's', 0);
+      if (still && (still.sx !== f0.sx || still.sy !== f0.sy)) bad('TL-SWAY', orig + ' sways with the Idle animations switch off');
+    }
+  }
+
   /* TL-GLANCE */
   const beat = 1000 / LIFE_BEAT_FPS;
   for (const [id, g] of Object.entries(GLANCES)) {
@@ -301,7 +344,7 @@ export function problems(env) {
   return out;
 }
 
-const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras, glanceOf });
+const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras, glanceOf, swayOf, sways: SWAYS });
 
 function selftest() {
   const ok = problems(real());
@@ -368,6 +411,11 @@ function selftest() {
     'a townsperson never leaves its first stop': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u, i) => Object.assign({}, u, { x: a[2][i].route[0][0], y: a[2][i].route[0][1] })) }); } },
     'the cellar gets townsfolk': { folkExtras: () => ({ units: () => [] }) },
     'the town gets none': { folkExtras: () => ({}) },
+    /* TL-SWAY */
+    'the stalls sway in step': { swayOf: (book, id, x, y, t) => { const r = swayOf(book, id, x, y, t); return r && Object.assign({}, r, { i: 0 }); } },
+    'a banner swayed by its own art (never moves)': { sways: Object.assign({}, SWAYS, { ty_banner: 'ty_banner' }) },
+    'an awning twin of another sprite': { sways: Object.assign({}, SWAYS, { square_market_stall: 'ty_banner_sway' }) },
+    'a twin missing from the atlas': { manifests: sprites('townlife', (s) => { delete s.ty_banner_sway; return s; }) },
     /* TL-TURN */
     'the wheel drawn from other pixels': { manifests: sprites('townlife', (s) => Object.assign(s, { mill_wheel: Object.assign({}, s.mill_wheel, { anims: { idle: Object.assign({}, s.mill_wheel.anims.idle, { dirs: s.water_flow.anims.idle.dirs }) } }) })) },
     'the wheel laid a pixel off': { emitters: Object.assign({}, EMITTERS, { mill: EMITTERS.mill.map((e) => (e.clip === 'mill_wheel' ? { clip: e.clip, at: [e.at[0] + 1, e.at[1]] } : e)) }) },

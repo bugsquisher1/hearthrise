@@ -575,6 +575,10 @@ function selftest(atlases) {
   s1('an effect naming a drawing script that is not in the tree', 's1-source', planted({ class: 'vfx', drawn: 'tools/world-art/no-such-script.mjs' }));
   s1('a world sprite claiming a drawing script', 's1-source', planted({ class: 'barrel', drawn: 'tools/world-art/glance-spark.mjs' }));
   s1('a building claiming the town-life script', 's1-source', planted({ class: 'lot', drawn: 'tools/world-art/town-life.mjs' }));
+  s1('a twin of art no set carries', 's1-source', planted({ class: 'fixture', drawn: 'tools/world-art/town-life.mjs', of: 'nokit/no_such_sprite' }));
+  { const inp = style1Input(); oldSidecar(inp); const set = inp.atlasSets.find((x) => (inp.sidecars[x] || []).some((sc) => sc.id === 'barrel_old'));
+    inp.sidecars[set] = inp.sidecars[set].concat([{ id: 'twin_old', class: 'barrel', style: 's1', drawn: 'tools/world-art/town-life.mjs', of: set + '/barrel_old', source: 'twin_old.png' }]);
+    s1('a twin of pre-style-1 art', 's1-source', inp); }
   /* a floor variety is style 1 only through what it varies and lays: an old floor, or a decal no set carries, is not */
   { const inp = style1Input(); inp.sidecars.oldkit = [{ id: 'old_floor', class: 'terrain', kind: 'fill', material: 'terrain', source: 'old_floor.png' }];
     const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].concat([{ id: 'planted_variety', class: 'terrain', kind: 'variety', style: 's1', of: 'oldkit/old_floor' }]);

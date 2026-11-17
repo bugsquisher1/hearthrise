@@ -220,6 +220,44 @@ function wheel(o) {
   return frames;
 }
 
+/**
+ * SWAY: a whole sprite's locked pixels (its built atlas) with its cloth moving on the breeze: a TWIN of the sprite, the same frame,
+ * anchor and footprint, drawn in its place (src/data/world/ambient-life.js SWAYS, compose.js). Frame 0 is the art exactly.
+ *   axis 'x'  rows top..bottom lean east and back, the bottom most (a banner on its pole): dx = round(amp * sin * (y - top) / span)
+ *   axis 'y'  cols left..right of rows top..bottom lift in bumps along the hem, in and out (an awning's valance)
+ *   still    [[x0, y0, x1, y1]] pixels that never move and are never covered (the pole behind a banner's tails)
+ */
+function sway(o) {
+  const atlas = decodePNG(readFileSync(join(ROOT, 'assets', 'world', 'atlas-' + o.set + '.png')));
+  const man = JSON.parse(readFileSync(join(ROOT, 'assets', 'world', 'atlas-' + o.set + '.json'), 'utf8'));
+  const sp = man.sprites[o.of];
+  const [sx, sy] = Object.values(sp.anims)[0].dirs.s[0];
+  const [W, H] = sp.frame;
+  const at = (x, y) => { const i = ((sy + y) * atlas.width + sx + x) * 4; return atlas.data[i + 3] >= 128 ? '#' + [0, 1, 2].map((k) => atlas.data[i + k].toString(16).padStart(2, '0')).join('') : null; };
+  const still = (x, y) => (o.still || []).some(([x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1);
+  const moves = (x, y) => y >= o.rows[0] && y <= o.rows[1] && x >= (o.cols ? o.cols[0] : 0) && x <= (o.cols ? o.cols[1] : W - 1) && !still(x, y);
+  const frames = [];
+  for (let f = 0; f < o.n; f++) {
+    const px = Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => (moves(x, y) ? null : at(x, y))));
+    for (let y = o.rows[0]; y <= o.rows[1]; y++) for (let x = 0; x < W; x++) {
+      if (!moves(x, y) || !at(x, y)) continue;
+      const k = (y - o.rows[0]) / Math.max(1, o.rows[1] - o.rows[0]);
+      const dx = o.axis === 'x' ? Math.round(o.amp * Math.sin((2 * Math.PI * f) / o.n) * k) : 0;
+      const dy = o.axis === 'y' ? Math.round(o.amp * Math.sin((2 * Math.PI * f) / o.n) * Math.cos(x / o.wave) * k) : 0;
+      const tx = x + dx, ty = y - Math.abs(dy);
+      if (tx < 0 || ty < 0 || tx >= W || ty >= H || (still(tx, ty) && at(tx, ty))) continue;
+      px[ty][tx] = at(x, y);
+    }
+    frames.push(px);
+  }
+  return frames;
+}
+/* a twin's sidecar fields: the original's class, anchor and footprint (the swap draws it in the original's place) */
+const TWINS = Object.freeze({
+  ty_banner_sway: { set: 'yard', of: 'ty_banner', axis: 'x', rows: [11, 46], amp: 1.6, n: 8, still: [[10, 42, 16, 58]] },
+  square_market_stall_sway: { set: 'common', of: 'square_market_stall', axis: 'y', rows: [21, 26], cols: [9, 52], amp: 1.4, wave: 5, n: 8 },
+});
+
 const FLOW = () => flow({ size: 32, marks: 7, len: [2, 5], seed: 0xf10a });
 
 /* THE CLIPS: frame size, anchor (the point the map places: a chimney's mouth, the fire's mouth, a wave's centre), class and
@@ -231,6 +269,8 @@ export const CLIPS = Object.freeze({
   water_glint_a: { cls: 'glint', fps: LIFE_BEAT_FPS / 2, draw: () => GLINTS.water_glint_a },
   water_glint_b: { cls: 'glint', fps: LIFE_BEAT_FPS / 2, draw: () => GLINTS.water_glint_b },
   water_flow: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW() },
+  ty_banner_sway: { cls: 'fixture', fps: LIFE_BEAT_FPS / 2, twin: TWINS.ty_banner_sway, draw: () => sway(TWINS.ty_banner_sway) },
+  square_market_stall_sway: { cls: 'stall', fps: LIFE_BEAT_FPS / 2, twin: TWINS.square_market_stall_sway, draw: () => sway(TWINS.square_market_stall_sway) },
   mill_wheel: { cls: 'turning', fps: LIFE_BEAT_FPS, draw: () => wheel({ of: 'mill', box: [139, 76, 13, 42], period: 14 }) },
   /* the same ripples two cells square (the open sea in a quarter of the draws): the T tile's pattern four times over */
   water_flow_2: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW().map((px) => [...px, ...px].map((line) => [...line, ...line])) },
@@ -254,6 +294,13 @@ export function sheetOf(frames) {
 
 function sidecarOf(id, frames) {
   const c = CLIPS[id];
+  if (c.twin) {
+    const src = JSON.parse(readFileSync(join(ROOT, 'art', 'world', c.twin.set, c.twin.of + '.json'), 'utf8'));
+    return { id, class: src.class, style: 's1', drawn: 'tools/world-art/town-life.mjs', of: c.twin.set + '/' + c.twin.of, material: 'native', source: id + '.png',
+      frame: [frames[0][0].length, frames[0].length], anchor_px: src.anchor_px, footprint: src.footprint,
+      anims: [{ name: 'idle', fps: c.fps, loop: true, dirs: { s: frames.length } }],
+      notes: 'A twin of ' + c.twin.of + ' with its cloth on the breeze: its locked pixels, moved by tools/world-art/town-life.mjs. Drawn in its place by compose.js (ambient-life.js SWAYS).' };
+  }
   return { id, class: c.cls, style: 's1', drawn: 'tools/world-art/town-life.mjs', material: 'native', source: id + '.png',
     frame: [frames[0][0].length, frames[0].length], anchor_px: ANCHORS[id], footprint: [1, 1],
     anims: [{ name: 'idle', fps: c.fps, loop: true, dirs: { s: frames.length } }],

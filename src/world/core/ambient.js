@@ -17,7 +17,7 @@
 // one paint. The art's layer picks where it is drawn (lifeDraws).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { EMITTERS, SURFACES, GLANCES, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.133';
+import { EMITTERS, SURFACES, GLANCES, SWAYS, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.133';
 
 /** An integer hash of three numbers (the same on every client). */
 function lifeHash(a, b, c) {
@@ -161,4 +161,18 @@ export function glanceOf(id, x, y, t) {
   const beat = 1000 / LIFE_BEAT_FPS;
   const start = (lifeHash(x, y, 7) % 64) * beat;
   return g.faces[Math.floor((Math.max(0, t) + start) / g.holdMs) % g.faces.length];
+}
+
+/**
+ * The twin a placed sprite is drawn as while its cloth moves (SWAYS), and the frame it shows at time t from its own place in the loop;
+ * null for anyone else, or when the atlas lacks the twin (the original is drawn, never a stub).
+ * @param {object} book @param {string} id @param {number} x @param {number} y @param {number} t ms
+ * @returns {{id: string, i: number}|null}
+ */
+export function swayOf(book, id, x, y, t) {
+  const twin = SWAYS[id];
+  if (!twin || !book.has(twin)) return null;
+  const clip = book.sprite(twin).anims.idle;
+  const n = book.frames(twin, 'idle', 's');
+  return { id: twin, i: (Math.floor((Math.max(0, t) * clip.fps) / 1000) + (lifeHash(x, y, 11) % n)) % n };
 }

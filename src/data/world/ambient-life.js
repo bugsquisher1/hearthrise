@@ -13,6 +13,8 @@
 //                  frame), so a home's smoke rises from its chimney wherever and on whatever map it stands.
 //                  A chimney's point is its mouth's middle, two rows into the stack (the first puff covers the cap).
 //                  A cold chimney (a storehouse, the bank, a ruin) simply has no row.
+//   SWAYS          sprite id -> its twin with the cloth on the breeze (banners, awnings), drawn in its place on the half beat;
+//                  each placed one starts at its own frame
 //   GLANCES        a standing keeper's look about: sprite id -> { faces (cardinals its idle clip has), holdMs (a whole
 //                  number of beats, so a turn is a frame the beat already paints) }; each placed one starts at its own face
 //   SURFACES       material -> how it moves and the light it catches: `flows` ([id, cells square], biggest first: ripples laid
@@ -55,6 +57,9 @@ export const GLANCES = Object.freeze({
   npc_crier: Object.freeze({ faces: Object.freeze(['s', 'w', 's', 'e', 'w']), holdMs: 3500 }),
   npc_smith: Object.freeze({ faces: Object.freeze(['s', 'n', 's', 'w']), holdMs: 4500 }),
 });
+
+/* cloth on the breeze: a placed sprite drawn as its TWIN (the same frame, anchor and footprint, its cloth moving: town-life.mjs sway) */
+export const SWAYS = Object.freeze({ ty_banner: 'ty_banner_sway', square_market_stall: 'square_market_stall_sway' });
 
 export const SURFACES = Object.freeze({
   water: Object.freeze({ flows: Object.freeze([Object.freeze(['water_flow_2', 2]), Object.freeze(['water_flow', 1])]), clips: Object.freeze(['water_glint_a', 'water_glint_b']), every: 2, seed: 0x61f7 }),

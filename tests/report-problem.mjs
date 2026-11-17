@@ -88,7 +88,7 @@ async function phoneChecks(browser, port, fails) {
   if (!(await wait(pg, (w) => document.querySelector(w + ' .rp-text'), WIN))) { fails.push('RP-6 Settings, Help did not open the report sheet'); await ctx.close(); return; }
   await pg.fill(WIN + ' .rp-text', 'A second report.');
   await pg.click(WIN + ' [data-hs-act="send"]');
-  if (!(await wait(pg, (w) => /Try again in/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-6 the phone sheet shows no refusal line');
+  if (!(await wait(pg, (w) => /try again in/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-6 the phone sheet shows no refusal line');
   else {
     /* Where the line is, against the sheet body's visible box and the screen. */
     const place = () => pg.evaluate((w) => {
@@ -131,7 +131,7 @@ async function checks(overrides) {
     await pg.fill(WIN + ' .rp-text', 'Leaving the hunt froze the screen\nIt came back after a few seconds.');
     if (!(await wait(pg, (w) => !document.querySelector(w + ' [data-hs-act="send"]').disabled, WIN))) fails.push('RP-1 Send stays off with text in the box');
     await pg.click(WIN + ' [data-hs-act="send"]');
-    if (!(await wait(pg, (w) => /^Sent\./.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-3 the bridge said yes and the window does not say Sent: "' + await pg.evaluate((w) => document.querySelector(w + ' .rp-said').textContent, WIN) + '"');
+    if (!(await wait(pg, (w) => /^Report sent/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-3 the bridge said yes and the window does not say Sent: "' + await pg.evaluate((w) => document.querySelector(w + ' .rp-said').textContent, WIN) + '"');
     if (sent.length !== 1) fails.push('RP-2 ' + sent.length + ' report(s) reached the bridge, want 1');
     else {
       const { auth, body: b } = sent[0];
@@ -156,7 +156,7 @@ async function checks(overrides) {
     io.answer = LIMITED;
     await pg.fill(WIN + ' .rp-text', 'A second report');
     await pg.click(WIN + ' [data-hs-act="send"]');
-    if (!(await wait(pg, (w) => /Try again in 5 minutes/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-3 the rate limit shows: "' + await pg.evaluate((w) => document.querySelector(w + ' .rp-said').textContent, WIN) + '"');
+    if (!(await wait(pg, (w) => /try again in 5 minutes/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-3 the rate limit shows: "' + await pg.evaluate((w) => document.querySelector(w + ' .rp-said').textContent, WIN) + '"');
     if (await pg.evaluate((w) => document.querySelector(w + ' .rp-text').value, WIN) !== 'A second report') fails.push('RP-3 a refused report lost its text');
 
     // RP-4: Settings > Help

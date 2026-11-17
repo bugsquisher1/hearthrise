@@ -25,7 +25,7 @@ export const DEATH_TEXT = Object.freeze({
   blessing_used: { one: 'Blessing used up', other: '{count} Blessings used up' },
   /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords): advice, kept as short sentences. A boss room (a call
      or a hall) is one pull, so it never says to pull less. */
-  why_in_range: 'Better armor, eating sooner or a smaller pull would help.',
+  why_in_range: 'Tip: better armor, eat sooner, or a smaller pull',
   why_in_room: 'Tip: better armor, eat sooner, or bring a healer',
   /* ...for a party that had a Healer (death-popup.js hasHealer): never suggest what it already has */
   why_in_room_healed: 'Tip: better armor, better food, or heal sooner',

@@ -163,7 +163,7 @@ async function checks(overrides) {
     /* Labels (lane/d-labels-sweep, Tyler 2026-11-14 "Those are much better"): the food floor, then the "What wins" label over the tips. */
     if (pn.shrimp.bars !== 'Requires Salted Lobster or better on every bar What wins'
       || pn.shrimp.tips !== 'Healer: Greater Mend under 85%|Everyone: Eat under 75%' || pn.shrimp.food !== 'Bar food: Salted Shrimp. Change that slot to Salted Lobster.') fails.push('BH-1 the hall\'s food and bar lines read ' + JSON.stringify(pn.shrimp));
-    if (pn.peer.food !== 'Mender\'s bar buys Salted Shrimp. Change that slot to Salted Lobster.') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
+    if (pn.peer.food !== 'Mender\'s food: Salted Shrimp. Change that slot to Salted Lobster.') fails.push('BH-1 a party hero\'s weak food reads ' + JSON.stringify(pn.peer));
     if (pn.lobster.food !== null || !pn.plainBars) fails.push('BH-1 the food line shows on Salted Lobster, or a hall with no advice shows a bar line: ' + JSON.stringify([pn.lobster, pn.plainBars]));
     for (const [k, x] of Object.entries(pn)) if (/[{}]/.test(Object.values(x).join(' '))) fails.push('BH-1 ' + k + ' left a slot unfilled: ' + JSON.stringify(x));
     /* BH-2 */

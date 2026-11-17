@@ -250,8 +250,8 @@ async function checks(overrides) {
       if (/Challenge/.test(l.enrageTank || '')) fails.push('BW-6 the King, whose rats shield nothing, is asked about Challenge in his enrage: ' + JSON.stringify(l.enrageTank));
       if (/shield/.test(l.addsMage || '')) fails.push('BW-6 the King, whose rats shield nothing, reads ' + JSON.stringify(l.addsMage));
       want('BW-6', 'first', /^Lost before his adds, boss at 80%\nFood eaten: 1\n/);
-      want('BW-6', 'time', /^Time up after his enrage, boss at 23%\. /);
-      want('BW-6', 'floor', /at 1%\./);
+      want('BW-6', 'time', /^Time up after his enrage, boss at 23%\n/);
+      want('BW-6', 'floor', /at 1%\n/);
       for (const n of ['won', 'left', 'normal', 'none']) if (l[n] !== null) fails.push('BW-6 ' + n + ' has a line: ' + l[n]);
       if (!r.ended || r.ended.boss_pm !== 230) fails.push('BW-6 the ended session lost the record: ' + JSON.stringify(r.ended));
       if (!/^Lost after his enrage, boss at 23%\nFood eaten: 6/.test(r.loss || '')) fails.push('BW-6 the summary reads ' + JSON.stringify(r.loss));

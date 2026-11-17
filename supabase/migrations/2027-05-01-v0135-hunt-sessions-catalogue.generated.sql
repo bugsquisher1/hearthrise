@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: ecb241c3324d1b246fb27c0734a574660cd924a51fbad25de37aa691f0135683
+--   digest: e17f40b694f70ab71f27b4dc5aa6f5bdb78215793af759db907a6c3b3a3d84f8
 --   82 supplies, 165 hunts (named + training), 47 limits, 16 end reasons,
---   598 vendor values, 49 store supplies paid per use, 5 target modes,
+--   602 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 22 hunt grounds
 --
 -- NEW IN THIS FILE: THE INCOME DIAL (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): a ground's dial (balance-sheet.js
@@ -19,6 +19,25 @@
 -- Graven 44 (lane/d-andy-march-feedback, Tyler-approved). No other row, no shape. The bounds only fall: the hr-accrue carrying the same src/data
 -- deploys at once after this file (until it lands an old engine's coin can pass the lower bound, so a hunt on a dialed ground is refused
 -- kills_over and the next tick retries it; nothing is lost). ORDER: after everything applied with v0.2.134.
+--
+-- NEW IN THIS FILE: TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (lane/d-turning-cut-melee, designer 2026-11-16; Tyler, from Andy: "Give it to
+-- all melee that doesn't have a shield on"): hr_hunt_abilities' turning_cut row lists club, dual_axe and sword (was sword alone), so
+-- hr_hunt_settings_view puts it on a club's, two axes' or bare hands' unedited bar (hr_hunt_role_rules' melee_dps set already names it last) and
+-- reads it usable there, as the engine casts it. The tank's shield never gets it. No other row, no shape, no bound. ORDER: after everything applied
+-- with v0.2.134; the hr-accrue carrying the same src/data/abilities.js deploys right after it (until then the engine drops the slot a club's bar
+-- shows, and before the file the view strikes the slot the new engine casts: both close once the two land).
+--
+-- NEW IN THIS FILE (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: "it should definitely have a chance for an item drop otherwise there is no
+-- point"): the two called bosses' hr_hunt_kill_bounds rows carry drops (rat_king_called: the Rat King's table and the Kingstooth; chief_coppercap_called:
+-- Chief Coppercap's table and the Cauldron Lid), still gold 0 and xp 0, and hr_hunt_kill_bounds_xp_max_check lets a called row carry drops, never XP or
+-- coin. hr_hunt_vendor_value gains the two pieces, hr_hunt_weapons the Kingstooth (76 -> 77), hr_hunt_shields the Cauldron Lid (6 -> 7).
+-- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-05-01-v0135-items-catalogue.generated.sql (the self-check wants
+-- both pieces in hr_items); then 2027-04-24-boss-call-series.sql (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
+-- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
+-- fee, no daily cap): hr_boss_calls carries one fight's price and the slider's top (fight_fee, fight_stamina_ms, max_fights) and loses the one-fight verb's
+-- fee and per_day. 2027-04-24-boss-call-series.sql restates every reader of those columns and applies RIGHT AFTER this file; between the two the old quote
+-- names a column that is gone, so Call out answers an error and charges nothing. hr_boss_calls also carries its drops column (audit F24): what a win can drop, his table
+-- with each row's odds in parts per million, for the ground's page (hr_boss_call_quote hands it over; the settle's bound stays hr_hunt_kill_bounds).
 --
 -- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (APPLIED with v0.2.134; lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
 -- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
@@ -447,24 +466,33 @@ alter table public.hr_hunt_weapon_roles add constraint hr_hunt_weapon_roles_with
 create table if not exists public.hr_hunt_shields (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$')
 );
--- CALL OUT, THE MONEY LINE AS A CHECK: a normal monster's XP bound stays at least 1 (a 0 refuses every kill of it), and a called row's whole bound is nothing. The id tells them apart (calledRows holds id and flag equal).
+-- CALL OUT, THE MONEY LINE AS A CHECK: a normal monster's XP bound stays at least 1 (a 0 refuses every kill of it), and a called row pays no XP or coin (a called boss's drops are his win's, Tyler 2026-11-14). The id tells them apart (calledRows holds id and flag equal).
 alter table public.hr_hunt_kill_bounds drop constraint if exists hr_hunt_kill_bounds_xp_max_check;
 alter table public.hr_hunt_kill_bounds add constraint hr_hunt_kill_bounds_xp_max_check
-  check ((monster_id !~ '_called$' and xp_max >= 1) or (monster_id ~ '_called$' and xp_max = 0 and gold_max = 0 and drops = '{}'::jsonb));
+  check ((monster_id !~ '_called$' and xp_max >= 1) or (monster_id ~ '_called$' and xp_max = 0 and gold_max = 0));
 -- CALL OUT (boss-calls.js): which rooms, what fee. Read by hr_hunt_admit, hr_boss_call and the settle's proof of the room's ends.
 create table if not exists public.hr_boss_calls (
   call_id    text   primary key check (call_id ~ '^[a-z0-9_]{1,64}$'),
   hunt_id    text   not null unique check (hunt_id ~ '^[a-z0-9_]{1,57}_called$'),
   from_hunt  text   not null check (from_hunt ~ '^[a-z0-9_]{1,64}$'),
   monster_id text   not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
-  fee        bigint not null check (fee between 1 and 1000000000),
-  per_day    int    not null check (per_day between 1 and 100),
-  limit_ms   int    not null check (limit_ms between 60000 and 3600000)
+  limit_ms   int    not null check (limit_ms between 60000 and 3600000),
+  fight_fee  bigint not null,
+  fight_stamina_ms int not null,
+  max_fights int    not null,
+  drops      jsonb  not null,
+  boss_level int    not null
 );
 -- A HERO ALONE MAY CALL (2027-04-05-call-out-alone.sql restates the quote that read it first): no party size.
 alter table public.hr_boss_calls drop column if exists party_min;
+-- THE SERIES (Tyler 2026-11-14: a slider of fights, each costing stamina and a small fee; no daily cap): one fight's price and the slider's top.
+-- The one-fight verb's fee and daily cap go. 2027-04-24-boss-call-series.sql restates every reader of them and applies RIGHT AFTER this file.
+alter table public.hr_boss_calls add column if not exists fight_fee bigint, add column if not exists fight_stamina_ms int, add column if not exists max_fights int;
+-- WHAT A WIN CAN DROP, for the page (audit F24): his table in its order, [{ item, ppm (odds in parts per million), band }], from monsters.js.
+alter table public.hr_boss_calls add column if not exists drops jsonb, add column if not exists boss_level int;
+alter table public.hr_boss_calls drop column if exists fee, drop column if exists per_day;
 comment on table public.hr_boss_calls is
-  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms and their fees (Call out, lane/c-boss-call). Names no player; character wipe c_no_player.';
+  'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
 -- COMBAT TRAINING (training.js): the rules, one row, each training ground's place, skill and fee, and the training items. Read by hr_training_start,
 -- the settle's hourly charge (hr_training_hour), its window check and the items' spend (hr_training_window), the items' verbs and the section
 -- (2027-04-16-combat-training.sql, 2027-04-23-training-gear.sql).
@@ -720,7 +748,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('chained_demon', 254, 962, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
   ('charred_pikeman', 41, 910, '{"bones":1,"bone_chips":1,"pike_ferrule":1,"rune_boots":1,"wyvernhide_boots":1,"sorcerer_boots":1,"rune_sword":1}'::jsonb),
   ('chief_coppercap', 257, 8247, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1}'::jsonb),
-  ('chief_coppercap_called', 0, 0, '{}'::jsonb),
+  ('chief_coppercap_called', 0, 0, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"coppercaps_tallow":1,"steel_platebody":1,"boarhide_body":1,"scholar_body":1,"war_crown":1,"willow_wand":1,"willow_spellbook":1,"willow_staff":1,"verdigris_cake":1,"coppercaps_cauldron":1,"cauldron_lid":1}'::jsonb),
   ('cistern_spider', 53, 509, '{"silk_thread":1,"dry_husk":1,"cistern_venom_gland":1,"longbow":1,"oak_crossbow":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
   ('color_sergeant', 69, 1673, '{"big_bones":1,"grave_dust":1,"color_cord":1,"mithril_platebody":1,"snakeskin_body":1,"warlock_body":1,"maple_staff":1,"maple_wand":1,"maple_spellbook":1}'::jsonb),
@@ -791,7 +819,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('lesser_demon', 140, 565, '{"demon_shard":1,"rune_frag":1,"hell_ember":1}'::jsonb),
   ('lich', 500, 1325, '{"lich_soul":1,"ancient_rune":1,"vamp_dust":1,"hollow_sigil":1,"soul_recipe":1,"runewood_codex":1}'::jsonb),
   ('locust_swarm', 13, 65, '{"wheat":1,"silk_thread":1,"venom_sac":1,"studded_belt":1}'::jsonb),
-  ('lord_krell', 527, 48720, '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1}'::jsonb),
+  ('lord_krell', 527, 48720, '{"dawn_sword":1,"dawn_warhammer":1,"duskwood_bow":1,"duskwood_staff":1,"duskwood_wand":1,"duskwood_codex":1,"dawn_hatchets":1,"duskwood_crossbow":1,"dawn_platebody":1,"dawnhide_body":1,"duskweave_body":1,"dawn_helm":1,"dawnhide_helmet":1,"duskweave_helmet":1,"krells_tollgate":1,"banded_legguards":1}'::jsonb),
   ('lurcher', 40, 1039, '{"bones":1,"razor_claw":1,"kennel_tag":1,"rune_helm":1,"wyvernhide_helmet":1,"sorcerer_helmet":1,"rune_gauntlets":1,"wyvernhide_gloves":1,"sorcerer_gloves":1}'::jsonb),
   ('lynx', 44, 191, '{"wolf_pelt":1,"razor_claw":1,"raw_wolf_meat":1,"bones":1,"boarhide_gloves":1}'::jsonb),
   ('magma_elemental', 242, 919, '{"hell_ember":1,"emberstone_ore":1,"coal":1,"ember_bar":1}'::jsonb),
@@ -816,7 +844,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('pyre_wraith', 55, 1267, '{"grave_dust":1,"wraith_veil":1,"shroud_pin":1,"yew_staff":1,"yew_wand":1,"yew_spellbook":1}'::jsonb),
   ('rat', 1, 24, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1,"giant_rat_hide":1}'::jsonb),
   ('rat_king', 269, 2817, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1}'::jsonb),
-  ('rat_king_called', 0, 0, '{}'::jsonb),
+  ('rat_king_called', 0, 0, '{"rat_tail":1,"bones":1,"knotted_tails":1,"crown_shard":1,"kingsgrate":1,"rat_kings_knot":1,"rat_kings_crown":1,"kingstooth":1}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 226, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
   ('rook_poacher', 36, 549, '{"raw_wolf_meat":1,"bones":1,"rooks_moss_charm":1,"rooks_whistle":1,"steel_helm":1,"boarhide_helmet":1,"scholar_helmet":1}'::jsonb),
@@ -888,7 +916,7 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
   ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 9),
   ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 5),
   ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 16),
-  ('turning_cut', array['sword']::text[], 'offense', 8000, 8, null, 0, true, 3),
+  ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 3),
   ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 19);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
@@ -1070,6 +1098,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('iron_hatchets', 'axe'),
   ('iron_sword', 'sword'),
   ('iron_warhammer', 'hammer'),
+  ('kingstooth', 'sword'),
   ('klappas_club', 'hammer'),
   ('lazlos_maul', 'hammer'),
   ('longbow', 'ranged'),
@@ -1135,9 +1164,11 @@ insert into public.hr_hunt_weapon_roles (weapon_type, roles, discipline, with_sh
 delete from public.hr_hunt_shields;
 insert into public.hr_hunt_shields (item_id) values
   ('bronze_rimmed_shield'),
+  ('cauldron_lid'),
   ('coppercap_shield'),
   ('ironbound_shield'),
   ('kingsgrate'),
+  ('krells_tollgate'),
   ('practice_shield'),
   ('steelgrate');
 delete from public.hr_hunt_roles;
@@ -1439,6 +1470,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('archmage_pants', 210),
   ('ashcrown_greatsword', 20000),
   ('baked_potato', 150),
+  ('banded_legguards', 387),
   ('banded_signet', 130),
   ('banded_signet_follow', 130),
   ('banded_signet_keen', 130),
@@ -1496,6 +1528,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('carved_poison_rune', 6),
   ('carved_rupture_rune', 6),
   ('carved_water_rune', 6),
+  ('cauldron_lid', 168),
   ('chief_blade', 450),
   ('chitin_belt', 63),
   ('chitin_body', 236),
@@ -1701,9 +1734,11 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('kennel_tag', 19),
   ('keystone', 600),
   ('kingsgrate', 150),
+  ('kingstooth', 300),
   ('klappas_club', 50),
   ('knotted_tails', 10),
   ('kobold_scale', 5),
+  ('krells_tollgate', 211),
   ('lamp_jelly', 1),
   ('lazlos_maul', 123),
   ('leather_belt', 17),
@@ -2007,9 +2042,15 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('yew_staff', 103),
   ('yew_wand', 93);
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, fee, per_day, limit_ms) values
-  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 30000, 3, 600000),
-  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 10000, 3, 600000);
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level) values
+  ('chief_coppercap', 'coppercap_warrens_called', 'coppercap_warrens', 'chief_coppercap_called', 600000, 100, 150000, 100, '[{"item":"big_bones","ppm":1000000,"band":"common"},{"item":"gold_ore","ppm":500000,"band":"common"},{"item":"goblin_totem","ppm":300000,"band":"common"},{"item":"coppercaps_tallow","ppm":150000,"band":"uncommon"},{"item":"steel_platebody","ppm":44000,"band":"scarce"},{"item":"boarhide_body","ppm":44000,"band":"scarce"},{"item":"scholar_body","ppm":44000,"band":"scarce"},{"item":"war_crown","ppm":14100,"band":"rare"},{"item":"willow_wand","ppm":11000,"band":"rare"},{"item":"willow_spellbook","ppm":11000,"band":"rare"},{"item":"willow_staff","ppm":11000,"band":"rare"},{"item":"verdigris_cake","ppm":11000,"band":"rare"},{"item":"coppercaps_cauldron","ppm":1400,"band":"trophy"},{"item":"cauldron_lid","ppm":8000,"band":"rare"}]'::jsonb, 52),
+  ('rat_king', 'millrace_sewer_called', 'millrace_sewer', 'rat_king_called', 600000, 50, 120000, 100, '[{"item":"rat_tail","ppm":1000000,"band":"common"},{"item":"bones","ppm":1000000,"band":"common"},{"item":"knotted_tails","ppm":150000,"band":"uncommon"},{"item":"crown_shard","ppm":14000,"band":"rare"},{"item":"kingsgrate","ppm":16000,"band":"rare"},{"item":"rat_kings_knot","ppm":14000,"band":"rare"},{"item":"rat_kings_crown","ppm":1410,"band":"trophy"},{"item":"kingstooth","ppm":10000,"band":"rare"}]'::jsonb, 25);
+alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,
+  alter column boss_level set not null;
+alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
+alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
+  check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
+         and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id, xp_per_hour, min_level, boost_pm, buy_per_day) values
@@ -2055,7 +2096,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 165
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 16
-     or (select count(*) from public.hr_hunt_vendor_value) <> 598
+     or (select count(*) from public.hr_hunt_vendor_value) <> 602
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -2072,10 +2113,10 @@ begin
      or (select count(*) from public.hr_hunt_roster) <> 55
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 76
+     or (select count(*) from public.hr_hunt_weapons) <> 77
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 0
-     or (select count(*) from public.hr_hunt_shields) <> 6
+     or (select count(*) from public.hr_hunt_shields) <> 8
      or (select count(*) from public.hr_boss_calls) <> 2
      or (select count(*) from public.hr_training_rules) <> 1
      or (select count(*) from public.hr_training_grounds) <> 8
@@ -2128,21 +2169,29 @@ begin
     ('hoarfrost', 'offense', array['destruction']::text[], 'chalked_ice_rune', 0),
     ('raking_shot', 'offense', array['ranged']::text[], null::text, 2),
     ('spring_tide', 'heal', array['restoration']::text[], 'chalked_water_rune', 0),
-    ('turning_cut', 'offense', array['sword']::text[], null::text, 0)
+    ('turning_cut', 'offense', array['club', 'dual_axe', 'sword']::text[], null::text, 0)
   ) want (ability_id, lane, disciplines, rune, ammo)
    where not exists (select 1 from public.hr_hunt_abilities a where a.ability_id = want.ability_id and a.active and a.lane = want.lane
                        and a.disciplines = want.disciplines and a.rune is not distinct from want.rune and a.ammo = want.ammo)
    order by 1 limit 1;
   if v_t is not null then raise exception 'the area ability % is not in hr_hunt_abilities as the data names it', v_t; end if;
-  -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay nothing, its rows reach no roster and no other ground, and it has its travel and its ground.
+  -- CALL OUT, THE MONEY LINE: every called room stands only on rows that pay no XP or coin, only its boss drops (his win's, Tyler 2026-11-14), its rows reach
+  -- no roster and no other ground, and it has its travel and its ground.
   if exists (select 1 from public.hr_boss_calls c
               where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = c.hunt_id)
                  or not exists (select 1 from public.hr_hunt_travel t where t.hunt_id = c.hunt_id and not t.training)
                  or exists (select 1 from public.hr_hunt_ground_spawns s join public.hr_hunt_kill_bounds b on b.monster_id = s.monster_id
-                             where s.hunt_id = c.hunt_id and (b.gold_max <> 0 or b.xp_max <> 0 or b.drops <> '{}'::jsonb))
+                             where s.hunt_id = c.hunt_id and (b.gold_max <> 0 or b.xp_max <> 0 or (b.drops <> '{}'::jsonb and s.monster_id <> c.monster_id)))
                  or exists (select 1 from public.hr_hunt_roster o where o.monster_id = c.monster_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.monster_id and s.hunt_id <> c.hunt_id)) then
     raise exception 'a called room pays, or its row reaches a normal hunt'; end if;
+  -- WHAT THE PAGE SAYS A WIN CAN DROP IS WHAT THE SETTLE LETS IT DROP: each call's listed ids are exactly its kill bound's, each with whole odds.
+  if exists (select 1 from public.hr_boss_calls c join public.hr_hunt_kill_bounds b on b.monster_id = c.monster_id
+              where (select coalesce(jsonb_agg(d.value->>'item' order by d.value->>'item'), '[]'::jsonb) from jsonb_array_elements(c.drops) d)
+                    is distinct from (select coalesce(jsonb_agg(k order by k), '[]'::jsonb) from jsonb_object_keys(b.drops) k)
+                 or exists (select 1 from jsonb_array_elements(c.drops) d
+                             where jsonb_typeof(d.value->'ppm') is distinct from 'number' or (d.value->>'ppm') !~ '^[0-9]{1,7}$' or (d.value->>'ppm')::int not between 1 and 1000000)) then
+    raise exception 'a call lists a drop its kill bound does not hold, or odds that are not whole parts per million'; end if;
   -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
   -- pays no coin and no drop; no other ground fields it and no roster names it.
   if exists (select 1 from public.hr_training_grounds t
@@ -2250,6 +2299,20 @@ begin
     ('coppercap_warrens', 'willow_spellbook', 1),
     ('coppercap_warrens', 'willow_staff', 1),
     ('coppercap_warrens', 'willow_wand', 1),
+    ('coppercap_warrens_called', 'big_bones', 1),
+    ('coppercap_warrens_called', 'boarhide_body', 1),
+    ('coppercap_warrens_called', 'cauldron_lid', 1),
+    ('coppercap_warrens_called', 'coppercaps_cauldron', 1),
+    ('coppercap_warrens_called', 'coppercaps_tallow', 1),
+    ('coppercap_warrens_called', 'goblin_totem', 1),
+    ('coppercap_warrens_called', 'gold_ore', 1),
+    ('coppercap_warrens_called', 'scholar_body', 1),
+    ('coppercap_warrens_called', 'steel_platebody', 1),
+    ('coppercap_warrens_called', 'verdigris_cake', 1),
+    ('coppercap_warrens_called', 'war_crown', 1),
+    ('coppercap_warrens_called', 'willow_spellbook', 1),
+    ('coppercap_warrens_called', 'willow_staff', 1),
+    ('coppercap_warrens_called', 'willow_wand', 1),
     ('hasks_ford', 'big_bones', 1),
     ('hasks_ford', 'bone_chips', 1),
     ('hasks_ford', 'bones', 1),
@@ -2313,6 +2376,7 @@ begin
     ('krells_hold', 'runewood_staff', 1),
     ('krells_hold', 'runewood_wand', 1),
     ('krells_hold', 'wheat', 1),
+    ('krells_hold_hall', 'banded_legguards', 1),
     ('krells_hold_hall', 'dawn_hatchets', 1),
     ('krells_hold_hall', 'dawn_helm', 1),
     ('krells_hold_hall', 'dawn_platebody', 1),
@@ -2327,6 +2391,7 @@ begin
     ('krells_hold_hall', 'duskwood_crossbow', 1),
     ('krells_hold_hall', 'duskwood_staff', 1),
     ('krells_hold_hall', 'duskwood_wand', 1),
+    ('krells_hold_hall', 'krells_tollgate', 1),
     ('meadowbrook_thicket', 'adept_helmet', 1),
     ('meadowbrook_thicket', 'alpha_fang', 1),
     ('meadowbrook_thicket', 'apprentice_body', 1),
@@ -2407,6 +2472,14 @@ begin
     ('millrace_sewer', 'studded_boots', 1),
     ('millrace_sewer', 'studded_helmet', 1),
     ('millrace_sewer', 'sump_membrane', 1),
+    ('millrace_sewer_called', 'bones', 1),
+    ('millrace_sewer_called', 'crown_shard', 1),
+    ('millrace_sewer_called', 'kingsgrate', 1),
+    ('millrace_sewer_called', 'kingstooth', 1),
+    ('millrace_sewer_called', 'knotted_tails', 1),
+    ('millrace_sewer_called', 'rat_kings_crown', 1),
+    ('millrace_sewer_called', 'rat_kings_knot', 1),
+    ('millrace_sewer_called', 'rat_tail', 1),
     ('mosslight_glade', 'adept_body', 1),
     ('mosslight_glade', 'adept_boots', 1),
     ('mosslight_glade', 'adept_helmet', 1),
@@ -2655,6 +2728,7 @@ begin
     ('willow_spellbook'),
     ('willow_staff'),
     ('willow_wand'),
+    ('cauldron_lid'),
     ('bone_chips'),
     ('ford_weed'),
     ('grave_dust'),
@@ -2712,6 +2786,7 @@ begin
     ('runewood_staff'),
     ('runewood_wand'),
     ('wheat'),
+    ('banded_legguards'),
     ('dawn_hatchets'),
     ('dawn_helm'),
     ('dawn_platebody'),
@@ -2726,6 +2801,7 @@ begin
     ('duskwood_crossbow'),
     ('duskwood_staff'),
     ('duskwood_wand'),
+    ('krells_tollgate'),
     ('adept_helmet'),
     ('alpha_fang'),
     ('apprentice_body'),
@@ -2785,6 +2861,7 @@ begin
     ('rat_kings_knot'),
     ('studded_boots'),
     ('sump_membrane'),
+    ('kingstooth'),
     ('adept_body'),
     ('adept_pants'),
     ('bear_claw'),

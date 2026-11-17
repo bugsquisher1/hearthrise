@@ -7,8 +7,8 @@
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on
 -- its passing §6. MONEY SURFACE (a gold sink, a stamina sink and a drop source): ON THE EA SECURITY LIST (§3.7).
--- ORDER: LAST of three. 2027-04-23-boss-call-drops-items-catalogue.generated.sql (the two call-only pieces), then
---   2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql (the called bosses' kill bounds carry their tables; hr_boss_calls gains
+-- ORDER: LAST of three. 2027-05-01-v0135-items-catalogue.generated.sql (the two call-only pieces), then
+--   2027-05-01-v0135-hunt-sessions-catalogue.generated.sql (the called bosses' kill bounds carry their tables; hr_boss_calls gains
 --   fight_fee, fight_stamina_ms, max_fights and loses fee and per_day), then THIS FILE, at once: between the catalogue and this file the old
 --   quote names a column that is gone, so Call out answers an error and charges nothing. §0 refuses without both catalogues.
 --   EDGE: the hr-accrue carrying src/data/boss-calls.js `dropsLive: true` and src/core/combat-sim.js (a called room proposes no stamina)
@@ -111,12 +111,12 @@ begin
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_boss_calls' and column_name = 'fight_stamina_ms')
      or (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'hr_boss_calls' and column_name in ('drops', 'boss_level')) <> 2
      or exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_boss_calls' and column_name in ('fee', 'per_day')) then
-    raise exception 'PRECONDITION: apply 2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql first (hr_boss_calls: fight_fee, fight_stamina_ms, max_fights, drops, boss_level)'; end if;
+    raise exception 'PRECONDITION: apply 2027-05-01-v0135-hunt-sessions-catalogue.generated.sql first (hr_boss_calls: fight_fee, fight_stamina_ms, max_fights, drops, boss_level)'; end if;
   if exists (select 1 from public.hr_boss_calls c
               where not exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = c.monster_id and b.drops <> '{}'::jsonb)
                  or exists (select 1 from public.hr_hunt_kill_bounds b, jsonb_object_keys(b.drops) k
                              where b.monster_id = c.monster_id and not exists (select 1 from public.hr_items i where i.item_id = k))) then
-    raise exception 'PRECONDITION: apply both 2027-04-23-boss-call-drops catalogues first (a called boss''s kill bound carries his table, every id in hr_items)'; end if;
+    raise exception 'PRECONDITION: apply both 2027-05-01-v0135 catalogues first (a called boss''s kill bound carries his table, every id in hr_items)'; end if;
   if to_regprocedure('public.hr_hunt_enter_for(uuid,integer,text,jsonb,integer,integer)') is null or to_regprocedure('public.hr_live_fee_of(uuid,text,timestamp with time zone)') is null
      or to_regprocedure('public.hr_purse_move(uuid,bigint,bigint)') is null or to_regprocedure('public.hr_purse_of(uuid)') is null
      or to_regprocedure('public.hr_stamina_of(uuid,integer,timestamp with time zone)') is null or to_regprocedure('public.hr_hunt_supply_of(uuid,integer,integer)') is null

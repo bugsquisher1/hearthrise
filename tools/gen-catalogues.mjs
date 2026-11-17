@@ -137,7 +137,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    pack as its first file shipped it; the re-ship applies BEFORE this file (tests/schema-apply-order.json), so this file folds it as re-shipped
    (tools/pack/whole.mjs). The 2027-04-26-krell-reship pair lane/d-audit-f22 staged for that alone was collapsed into this one when the lanes met
    (one generator vouches for one file). */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-30-training-gear-names-items-catalogue.generated.sql');
+/* ONE FORWARD FILE FOR v0.2.135 (set/v0.2.135, 2026-11-17; the Coordinator 2026-11-16: regenerate ONCE on the assembled set and drop the per-lane
+   files): the three notes above met on one set, so 2027-04-30-training-gear-names-items-catalogue and 2027-04-23-boss-call-drops-items-catalogue
+   (both STAGED, never applied) are collapsed into this one file, which carries the training names, the two call-only pieces and Krell's re-shipped
+   pack. ORDER: after 2027-04-25-pack-krells_hold-2.generated.sql; before the v0.2.135 hunt-sessions file and 2027-04-30-training-gear-arm.sql. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-01-v0135-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

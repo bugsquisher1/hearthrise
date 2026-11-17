@@ -893,7 +893,7 @@ ARMS.again = async (boot) => {
   return againOn(db, ['2027-03-12-boss-call-hunts-catalogue.generated.sql', '2027-03-12-boss-call-hunt-sessions-catalogue.generated.sql', '2027-03-12-boss-call-titles-catalogue.generated.sql', '2027-03-12-boss-call.sql']);
 };
 /* ...and the series' three files, on the chain as of ITS last file. */
-const SERIES_FILES = ['2027-04-23-boss-call-drops-items-catalogue.generated.sql', '2027-04-23-boss-call-drops-hunt-sessions-catalogue.generated.sql', '2027-04-24-boss-call-series.sql'];
+const SERIES_FILES = ['2027-05-01-v0135-items-catalogue.generated.sql', '2027-05-01-v0135-hunt-sessions-catalogue.generated.sql', '2027-04-24-boss-call-series.sql'];
 /* OLDER files that restate a spliced body whole. Applied over the series each would erase that body's CALL-SERIES splices; its own pin must refuse,
    moving nothing: faction-standing's settle (five splices) and training-gear's member read (one; the series' anchor sits on its image). */
 const OLDER_WHOLE = Object.freeze([

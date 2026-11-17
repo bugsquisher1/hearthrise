@@ -306,7 +306,12 @@ export const WORLD_FIELDS_READ = Object.freeze({
    pack as its first file shipped it; the re-ship applies BEFORE this file (tests/schema-apply-order.json), so this file folds it as re-shipped
    (tools/pack/whole.mjs). The 2027-04-26-krell-reship pair lane/d-audit-f22 staged for that alone was collapsed into this one when the lanes met
    (one generator vouches for one file). */
-export const OUT_NAME = '2027-04-27-income-dial-hunt-sessions-catalogue.generated.sql';
+/* ONE FORWARD FILE FOR v0.2.135 (set/v0.2.135, 2026-11-17; the Coordinator 2026-11-16: regenerate ONCE on the assembled set and drop the per-lane
+   files): the income dial, Turning Cut and the boss call drops and series met on one set, so 2027-04-27-income-dial-, 2027-04-28-turning-cut- and
+   2027-04-23-boss-call-drops-hunt-sessions-catalogue (all STAGED, never applied) are collapsed into this one file. ORDER: after the v0.2.135 items
+   file (the call pieces in hr_items) and 2027-04-25-pack-krells_hold-2; RIGHT BEFORE 2027-04-24-boss-call-series.sql; the hr-accrue carrying the same
+   src/data deploys right after the series file. */
+export const OUT_NAME = '2027-05-01-v0135-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1059,7 +1064,7 @@ export function render(src) {
 -- point"): the two called bosses' hr_hunt_kill_bounds rows carry drops (rat_king_called: the Rat King's table and the Kingstooth; chief_coppercap_called:
 -- Chief Coppercap's table and the Cauldron Lid), still gold 0 and xp 0, and hr_hunt_kill_bounds_xp_max_check lets a called row carry drops, never XP or
 -- coin. hr_hunt_vendor_value gains the two pieces, hr_hunt_weapons the Kingstooth (76 -> 77), hr_hunt_shields the Cauldron Lid (6 -> 7).
--- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-04-23-boss-call-drops-items-catalogue.generated.sql (the self-check wants
+-- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-05-01-v0135-items-catalogue.generated.sql (the self-check wants
 -- both pieces in hr_items); then 2027-04-24-boss-call-series.sql (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
 -- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
 -- fee, no daily cap): hr_boss_calls carries one fight's price and the slider's top (fight_fee, fight_stamina_ms, max_fights) and loses the one-fight verb's

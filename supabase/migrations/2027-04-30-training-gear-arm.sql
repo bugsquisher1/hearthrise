@@ -7,7 +7,7 @@
 -- its passing §2. MONEY SURFACE OPENED (a gold sink and a skill-XP rate become reachable): ON THE EA SECURITY LIST with its parent,
 -- 2027-04-23-training-gear.sql, whose contract, concurrency and exploit notes are unchanged by this file.
 -- ORDER: after 2027-04-23-training-gear.sql (which seeds the row off, `on conflict do nothing`, so its re-apply never reverts this flip),
---   and RIGHT AFTER 2027-04-30-training-gear-names-items-catalogue.generated.sql (each item's name carries its size before anyone can buy one).
+--   and RIGHT AFTER 2027-05-01-v0135-items-catalogue.generated.sql (each item's name carries its size before anyone can buy one).
 -- EDGE: none (the engine reads train_boost_ms from hr_hunt_member_read, which already asks the switch). CLIENT: none (the Training window
 --   already reads the `training` section's shop.on and offers; the `features` section lists the switch from the next envelope).
 --

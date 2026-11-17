@@ -220,7 +220,9 @@ export function mountShell(root, o) {
       el.style.setProperty('--hs-op', String(L.opacity));
       /* A folded widget is its title's width, or its empty box would still take presses and the camera's room
          (and at 1024 px a folded analyzer as wide as the open one stepped under the hunt bar, into the fight). */
-      el.style.minWidth = L.folded ? '' : row.min[0] + 'px';
+      /* The floor is a property the stylesheet reads (shell.css .hs-widget), never an inline min-width: a rule that must lift it (hunt.css, beside a
+         town sheet on a phone) then wins by specificity, with no !important. */
+      el.style.setProperty('--hs-min-w', L.folded ? '' : row.min[0] + 'px');
       /* On a phone the floor yields to the room the panel has above the action bar (hud-room.js: under the hunt bar over the town,
          667x375 leaves 110 px), or the floor pushed it below the bar, off the screen. */
       const floor = row.min[1] + 'px';

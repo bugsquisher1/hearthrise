@@ -129,6 +129,7 @@ const ALPHA = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelop
 HUNT.hunt_server_now_ms += (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href)).SESSION_CONFIG.huntPlaybackDelayMs;
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+const { CROPS } = await import(pathToFileURL(join(ROOT, 'src/data/gathering.js')).href);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
 const { HUNT_TUTORIAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href);
 /* A long bag (the playtest's hero carried 42 stacks): thirty more stacks of plain materials. */
@@ -465,7 +466,10 @@ function longCoach(env) {
   env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100, gold: 5000 });
   env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
   env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 900, level: 5 } };
-  env.farm_land = { cap: 2, plot_level: 1, plots: [] };
+  /* THE LONGEST FIRST LINE A HERO CAN READ (every coach line is a short label since 2026-11-16, so only a list runs long): the account's
+     field with one plot of every crop ready, a Keep's ten plots. The harvest goes before the deed (hunt-tutorial.js nextGoal), so the card's
+     words are the whole list and the phone's cap has something to scroll. */
+  env.farm_land = { cap: 10, plot_level: 1, plots: Object.keys(CROPS).map((crop, i) => ({ i, crop, ready: true, ready_in_s: 0, waterable: false, regrows_left: 0, by: 0, by_name: 'Basil' })) };
   /* walked: the Warrens (no step up ahead of the deed), Hask's Ford and the Slake, so the next ground is the Muster Barrows, a party's, and the line says how to make one */
   env.hunt_bests = { min_ms: 600000, grounds: Object.fromEntries(['coppercap_warrens', 'hasks_ford', 'the_slake'].map((g) => [g, { solo: { xp_h: 90000, balance_h: 100 }, party: null }])) };
   const materials = ['crow_quill', 'glowing_copper_fleck', 'mosslight_tendril', 'coppercaps_tallow', 'dented_copper_pot', 'skulkers_shiv', 'goblin_totem', 'foremans_lash', 'snare_wire', 'raw_bear_meat', 'raw_wolf_meat', 'magic_essence', 'cooked_shrimp', 'silk_thread', 'lamp_jelly', 'bone_chips'];
@@ -484,6 +488,7 @@ const coachState = (page) => page.evaluate((src) => (0, eval)(src), COACH);
 async function coachFits(page, tag, fails, phone) {
   const c = await coachState(page);
   if (!c) { fails.push('PH-6 [' + tag + '] CONTROL: no open coach card'); return; }
+  if (process.env.PH6_DEBUG) console.log('DBG', tag, JSON.stringify({ id: c.id, chars: c.chars, maxH: c.maxH, text: c.text, end: c.end, lines: c.lines, card: c.card, words: await page.evaluate(() => { const p = document.querySelector('.hs-widget .hs-pointer:not(.is-min)'); return p && p.querySelector('.hs-coach-text') && p.querySelector('.hs-coach-text').textContent; }) }));
   if (c.chars < 300) { fails.push('PH-6 [' + tag + '] CONTROL: the coach (' + c.id + ') says only ' + c.chars + ' characters, so it proves nothing'); return; }
   if (!phone) {
     /* THE DESKTOP'S HUNT CARD STANDS IN THE LEFT COLUMN (hud-room.js dockCoach; audit 2026-11-15 F1: under the hunt bar it lay on the hero): whole where the column has the room,
@@ -2033,7 +2038,7 @@ const MUTANTS = [
   ['PH-28 nothing says the column runs on', 'src/app/hero-create.js', '    if (more.hidden !== hide) more.hidden = hide;\n', ''],
   ['PH-29 a hero alone keeps the panel open', 'src/data/hud-widgets.js', "phone: Object.freeze({ dx: 4, dy: 4, folded: 'alone' }),", 'phone: Object.freeze({ dx: 4, dy: 4 }),'],
   ['PH-29 a party\'s panel folds as well', 'src/shell/shell-hud.js', 'alone: () => heroIsAlone(opts.character),', 'alone: () => true,'],
-  ['PH-29 a folded panel keeps its empty box', 'src/shell/shell.js', "el.style.minWidth = L.folded ? '' : row.min[0] + 'px';", "el.style.minWidth = row.min[0] + 'px';"],
+  ['PH-29 a folded panel keeps its empty box', 'src/shell/shell.js', "el.style.setProperty('--hs-min-w', L.folded ? '' : row.min[0] + 'px');", "el.style.setProperty('--hs-min-w', row.min[0] + 'px');"],
   ['PH-29 a wide desktop folds a lone hero\'s panel', 'src/data/hud-widgets.js', "folded: 'narrow-alone',", "folded: 'alone',"],
   ['PH-30 More slots stays 24 px', 'src/styles/hunt.css', 'align-self: center; width: 36px; height: 74px;', 'align-self: center; width: 24px; height: 74px;'],
   ['PH-30 the setup\'s name stays a line of text', 'src/styles/hunt.css', '  .hb-set .hs-name { width: 100%; height: 100%; }\n', ''],
@@ -2044,7 +2049,7 @@ const MUTANTS = [
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
   ['PH-33 the bar keeps its full width beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }\n', ''],
   ['PH-33 the hub and the fight panel stay beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }\n', ''],
-  ['PH-33 the widget keeps its 320 px floor beside a sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0 !important; }\n', ''],
+  ['PH-33 the widget keeps its 320 px floor beside a sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0; }\n', ''],
 ];
 
 async function main() {

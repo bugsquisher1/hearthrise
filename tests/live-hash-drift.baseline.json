@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-17",
- "replay_ms": 2140,
+ "replay_ms": 54704,
  "counts": {
-  "tracked_names": 945,
-  "entries": 796
+  "tracked_names": 947,
+  "entries": 799
  },
  "functions": [
   {
@@ -7013,7 +7013,8 @@
    ],
    "touched_by": [
     "2026-10-25-hunt-presets.sql",
-    "2027-02-11-settle-plan-cache-2.generated.sql"
+    "2027-02-11-settle-plan-cache-2.generated.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "5f1efad0498b7c6f4e743bd0e126c278",
@@ -7861,10 +7862,12 @@
    "sig": "hr_hunt_gap_ms(p_s hunt_sessions)",
    "name": "hr_hunt_gap_ms",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-10-21-hunt-sessions.sql"
+    "2026-10-21-hunt-sessions.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "5f7b5a1f9c8788bbd778a082f2076f43",
@@ -7902,6 +7905,29 @@
    "replay": {
     "md5": "514f2948e44ef4e15597de57104df9eb",
     "norm_len": 1140,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_gear_set(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_gear_set",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-04-setup-swap-mid-hunt.sql"
+   ],
+   "live": {
+    "md5": "33670bfc0cc2cc1bef629cc0296dfbb8",
+    "norm_len": 545,
+    "measured": "2026-11-17",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "33670bfc0cc2cc1bef629cc0296dfbb8",
+    "norm_len": 545,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8136,7 +8162,8 @@
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
-    "2027-04-19-key-under-lock.sql"
+    "2027-04-19-key-under-lock.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "33398d6b4133468d0ab820bef1a2fb03",
@@ -8191,7 +8218,8 @@
     "2026-10-27-core-bodies.sql",
     "2026-11-07-store-by-slot.sql",
     "2027-04-23-training-gear.sql",
-    "2027-04-24-boss-call-series.sql"
+    "2027-04-24-boss-call-series.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "b0ba8bdbbc7d0e4aa1c6b0dc81993ea8",
@@ -8808,22 +8836,24 @@
    "sig": "hr_hunt_preset_apply(p_slot integer, p_preset integer, p_idem uuid)",
    "name": "hr_hunt_preset_apply",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-25-hunt-presets.sql",
-    "2026-12-05-hunt-setup-per-ground.sql"
+    "2026-12-05-hunt-setup-per-ground.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
-    "md5": "028cad7e2a6809e84c2e4e23254b5040",
-    "norm_len": 6312,
+    "md5": "36e763fef9934b42e516d2d7f21f5dbc",
+    "norm_len": 9263,
     "measured": "2026-11-17",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "028cad7e2a6809e84c2e4e23254b5040",
-    "norm_len": 6312,
+    "md5": "36e763fef9934b42e516d2d7f21f5dbc",
+    "norm_len": 9263,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8854,10 +8884,12 @@
    "sig": "hr_hunt_preset_project(p_user uuid, p_slot integer, p_preset integer)",
    "name": "hr_hunt_preset_project",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-04-13-hunt-preset-read.sql"
+    "2027-04-13-hunt-preset-read.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "735f8b7240dfa2146213902ce520fb0f",
@@ -8946,21 +8978,24 @@
    "sig": "hr_hunt_presets_view(p_user uuid, p_slot integer)",
    "name": "hr_hunt_presets_view",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-25-hunt-presets.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
+    "2027-02-10-settle-plan-cache.generated.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
-    "md5": "3559cd09f0d4b233ab4d7d833a3d7dcf",
-    "norm_len": 781,
+    "md5": "56b8e82f83eb61aeb1654488a7fa308b",
+    "norm_len": 1294,
     "measured": "2026-11-17",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3559cd09f0d4b233ab4d7d833a3d7dcf",
-    "norm_len": 781,
+    "md5": "56b8e82f83eb61aeb1654488a7fa308b",
+    "norm_len": 1294,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9845,7 +9880,8 @@
     "2027-03-12-boss-call.sql",
     "2027-03-16-ended-hunt-tier.sql",
     "2027-03-22-live-events.sql",
-    "2027-04-24-boss-call-series.sql"
+    "2027-04-24-boss-call-series.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "4ce1bb904a56ab72d91d330a52fbdab0",
@@ -9871,7 +9907,8 @@
    "touched_by": [
     "2026-10-23-hunt-party.sql",
     "2027-01-13-spell-roles.sql",
-    "2027-02-10-settle-plan-cache.generated.sql"
+    "2027-02-10-settle-plan-cache.generated.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "626621266eb37e1d1f7b6b5886488ac3",
@@ -9944,7 +9981,8 @@
    ],
    "touched_by": [
     "2026-09-03-intent-mismatch-class.sql",
-    "2027-04-19-key-under-lock.sql"
+    "2027-04-19-key-under-lock.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "97f6c74e00fa9e8419b9c6437efc0685",
@@ -11935,7 +11973,8 @@
     "2026-09-12-hr-rejections-journal.sql",
     "2026-09-14-rejection-field-detail.sql",
     "2026-09-28-settle-before-mutate.sql",
-    "2027-04-19-key-under-lock.sql"
+    "2027-04-19-key-under-lock.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "807506a8f149cc089f0716a30d80034a",
@@ -14164,7 +14203,8 @@
     "2026-10-18-discord-gift.sql",
     "2026-10-21-closed-mode.sql",
     "2026-10-21-hunt-sessions.sql",
-    "2026-10-25-character-sheet.sql"
+    "2026-10-25-character-sheet.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
     "md5": "31cd06d2c20809faf8e503e402db8ea1",
@@ -14508,23 +14548,71 @@
    "agree": true
   },
   {
-   "sig": "hr_setup_gear_follow()",
-   "name": "hr_setup_gear_follow",
+   "sig": "hr_setup_fights_as(p_user uuid, p_slot integer, p_gear jsonb)",
+   "name": "hr_setup_fights_as",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-12-05-hunt-setup-per-ground.sql"
+    "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
-    "md5": "83b7c1303884e0ec789f92b995c1f91c",
-    "norm_len": 809,
+    "md5": "3bcd113b6c78659d0e3766f23d346329",
+    "norm_len": 1417,
     "measured": "2026-11-17",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "83b7c1303884e0ec789f92b995c1f91c",
-    "norm_len": 809,
+    "md5": "3bcd113b6c78659d0e3766f23d346329",
+    "norm_len": 1417,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_setup_gear_follow()",
+   "name": "hr_setup_gear_follow",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2026-12-05-hunt-setup-per-ground.sql",
+    "2027-05-04-setup-swap-mid-hunt.sql"
+   ],
+   "live": {
+    "md5": "707c91275bda32a6b69320ba20019083",
+    "norm_len": 1045,
+    "measured": "2026-11-17",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "707c91275bda32a6b69320ba20019083",
+    "norm_len": 1045,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_setup_gear_owner()",
+   "name": "hr_setup_gear_owner",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-04-setup-swap-mid-hunt.sql"
+   ],
+   "live": {
+    "md5": "28f7ec068101e654ed4565e637fe1b52",
+    "norm_len": 973,
+    "measured": "2026-11-17",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "28f7ec068101e654ed4565e637fe1b52",
+    "norm_len": 973,
     "source": "computed-from-replay"
    },
    "agree": true

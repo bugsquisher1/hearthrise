@@ -251,11 +251,8 @@ export default definePack({
      at the table's dials, where the sheet asks 1.25 of whoever holds it: its kills are held by its damage, and these party-built
      bodies already carry 2.5 times a solo ground's HP. A kill never pays more than +25% for a tier (Tyler 11-05, hunt-tiers rows),
      so the answer is the HP, not the pay. */
-  /* THE DEADLY HP IS THE TABLE'S (lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground): on 1000 Andy's four (axe, bow, wand, a
-     Healer 5 under) read 2.61x the pace contract at the floor and 2.57x at the middle (party-tier-xp, 2 seeds x 0.5 h), past Tyler's 2.5x; a four kills
-     here far faster than its heroes alone, so the longer fight is the dial. Dangerous's pull is the table's 8 now too. */
-  tierOverride: { dials: { dangerous: { hpPm: 1000 } },
-    why: 'Dangerous adds no HP here: with the 10% more the table adds, a pair holding it at the floor earned too little over Normal for its risk' },
+  /* THE HARDER TIERS ARE THE TABLE'S (lane/d-flat-party-xp, 2026-11-17): its own Dangerous HP of 1000 made Dangerous pay a party and a hero alone as much as
+     Deadly an hour (0.97-1.02, party-tier-xp) for less risk. On the table's 1100 and 1150 Deadly pays the more. */
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours
@@ -266,7 +263,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.80-0.86, threes 0.73-0.81, fours 0.65-0.77), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.02-1.06, threes 1.01-1.08, the four 1.07); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-25, 30], 3: [-25, 30, 35], 4: [-30, 20, 35, 40] },
+  partyVsAlone: { 2: [-30, 25], 3: [-25, 25, 35], 4: [-30, 20, 25, 30] },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's

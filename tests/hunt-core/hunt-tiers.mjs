@@ -246,11 +246,11 @@ const cases = {
 
 const D = 'src/data/hunt-tiers.js';
 const SH = 'src/data/balance-sheet.js';
-const SHEET_DEADLY = 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1300, xpPm: 1250 }),';
+const SHEET_DEADLY = 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),';
 const THICKET_DIALS = "dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1000, xpPm: 1050 }), deadly: Object.freeze({ hpPm: 1000, xpPm: 1080 }) }),";
 const PC = 'src/core/hunt/pull-cycle.js';
 const mutants = [
-  { name: 'the sheet and the catalogue part: Deadly has more HP in the data only', case: 'catalogue', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('hpPm: 1300', 'hpPm: 1350')]] },
+  { name: 'the sheet and the catalogue part: Deadly has more HP in the data only', case: 'catalogue', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('hpPm: 1150', 'hpPm: 1200')]] },
   { name: 'a ground\'s row typed in hunt-tiers.js, not the sheet\'s', case: 'rows', edits: [[D, 'dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };', "dmgPm: g === 'mosslight_glade' ? 1600 : r.dmgPm, hpPm: r.hpPm, xpPm: r.xpPm };"]] },
   { name: 'the Glade loses its full box', case: 'rows', edits: [[SH, SHEET_DEADLY, SHEET_DEADLY.replace('pull: 8,', 'pull: 6,')]] },
   { name: 'the Cellar offers a harder tier', case: 'rows', edits: [[SH, 'mill_cellar: Object.freeze({ normalOnly: true,', 'mill_cellar: Object.freeze({ normalOnly: false,']] },

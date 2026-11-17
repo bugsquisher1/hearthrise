@@ -65,7 +65,10 @@ const SEED = '-4611686018427387904';
    output: the income dial's coin and Turning Cut's sewer-2 kills 114 -> 121) move for the three parties from settle 1 (warrens-4 209, glade-4 515, sewer-2
    121 kills as pinned); the lone kiting ranger holds. Cause, proved on an archive of this tree with the set's src/data/party-class-xp.js and
    src/core/hunt/xp-share.js laid back: all four set pins hold (exit 0). The one party table pays each party another cell than its ground's row did, and a
-   party's XP moves its Levels, and the Levels their rolls. The baseline is --write here. */
+   party's XP moves its Levels, and the Levels their rolls. The baseline is --write here.
+   RE-PINNED 2026-11-17 (the same lane's tier fix), THE TABLE ONLY: the four cells 1765 / 1800 -> 1670 / 1700 (so Deadly can pay more an hour than Dangerous
+   under Tyler's ~2.5x) move warrens-4 and glade-4 from settle 1, kills as pinned; sewer-2 (two classes) and the lone ranger hold. Proof: the set's
+   src/data/party-class-xp.js laid back into an archive of this tree, every pin holds (exit 0). The tier rows move no pin (no scenario plays a tier). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

@@ -77,9 +77,9 @@ export default Object.freeze({
        the trail (its contact row is the logs' foot, so it lies over the walked row's feet; lane/a-ground-seams 2026-11-16: two
        short rafts a row below the trail touched neither bank), and the ford stones, one on every open tile of the brook */
     { id: 'mb_log_bridge_long', x: 30, y: 5 },
-    { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 31 }, { id: 'mb_stepping_stones', x: 31, y: 31 }, { id: 'mb_stepping_stones', x: 29, y: 32 },
-    { id: 'mb_stepping_stones', x: 30, y: 32 }, { id: 'mb_stepping_stones', x: 31, y: 32 }, { id: 'mb_stepping_stones', x: 29, y: 33 }, { id: 'mb_stepping_stones', x: 30, y: 33 },
-    { id: 'mb_stepping_stones', x: 31, y: 33 },
+    { id: 'mb_stepping_stones_1', x: 29, y: 31 }, { id: 'mb_stepping_stones_2', x: 30, y: 31 }, { id: 'mb_stepping_stones_3', x: 31, y: 31 }, { id: 'mb_stepping_stones_4', x: 29, y: 32 },
+    { id: 'mb_stepping_stones_5', x: 30, y: 32 }, { id: 'mb_stepping_stones_6', x: 31, y: 32 }, { id: 'mb_stepping_stones_2', x: 29, y: 33 }, { id: 'mb_stepping_stones_3', x: 30, y: 33 },
+    { id: 'mb_stepping_stones_1', x: 31, y: 33 },
     /* reeds on the brook banks */
     { id: 'mb_reeds', x: 28, y: 3 }, { id: 'mb_reeds', x: 32, y: 7 }, { id: 'mb_reeds', x: 28, y: 30 }, { id: 'mb_reeds', x: 32, y: 30 },
     { id: 'mb_reeds', x: 28, y: 34 }, { id: 'mb_reeds', x: 32, y: 34 }, { id: 'mb_reeds', x: 32, y: 3 }, { id: 'mb_reeds', x: 28, y: 7 },

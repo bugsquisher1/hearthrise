@@ -9638,5 +9638,5 @@
       ]
     ]
   },
-  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map 91df925a (Meadowbrook Thicket, style 1) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/meadowbrook_ground.png): 160648 px of 5 borders redrawn from the fills' own pixels (bank, canopy)."
+  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map 91df925a (Meadowbrook Thicket, style 1) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/meadowbrook_ground.png): 271206 px of 6 borders redrawn from the fills' own pixels (bank, canopy, trail)."
 }

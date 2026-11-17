@@ -53,11 +53,11 @@ export const SCENERY = Object.freeze([
   ['havora_gatehouse', 75, 5], ['havora_tavern', 62, 20], ['havora_bridge_span', 87, 48],
   /* lane/b-havora-polish: the gate road's bridge over the mill race (the road east to the bank no longer runs into the water)
      and the south road's bridge to the hunter's yard; lane/a-havora-art: both the span too, the river straight under each */
-  ['havora_bridge_span', 92, 15], ['havora_bridge_span', 89, 72],
+  ['havora_bridge_span', 92, 15], ['havora_bridge_span', 87, 72],
   ['havora_guild_hall', 114, 72], ['havora_sewer_works', 44, 56], ['havora_fisher_guild', 66, 78], ['havora_harbor_office', 98, 76],
   /* the homes: the crooked shacks NW (P01-P06), the town lots (P09-P10), the mountain (P11) and the waterfront estates (P13-P15) */
   ['havora_home_p01', 16, 14], ['havora_home_p02', 30, 16], ['havora_home_p03', 46, 14], ['havora_home_p04', 20, 36],
-  ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 54], ['havora_home_p10', 88, 62],
+  ['havora_home_p05', 36, 38], ['havora_home_p06', 48, 66], ['havora_home_p09', 68, 54], ['havora_home_p10', 94, 62],
   ['havora_home_p11', 132, 20], ['havora_home_p12', 132, 46], ['havora_home_p13', 120, 74], ['havora_home_p14', 142, 66], ['havora_home_p15', 138, 80],
   /* the mine's mouth in the mountain, a fishing pier off the shore */
   ['mine_mouth', 138, 34], ['fishing_pier', 60, 94],
@@ -138,15 +138,22 @@ export const BLEND = Object.freeze({
     /* lane/a-havora-dock round 2: the harbour's setts quay against the earth, the water and the piers */
     'havora_earth_setts', 'havora_water_setts', 'havora_setts_planks',
     /* the Training Yard's raked sand ring on the town dirt (art/world/yard) */
-    'havora_earth_sand']),
+    'havora_earth_sand',
+    /* lane/a-havora-seams-2: the shore's beach between the meadow, the dirt and the sea (havora-floor, tools/world-art/havora-seams.mjs) */
+    'havora_grass_beach', 'havora_earth_beach', 'havora_beach_water',
+    /* the mountain's upper tier over its rock */
+    'havora_rock_peak']),
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass', deck: 'water' }),
   /* lane/a-havora-art (Tyler 2026-11-16, "the ground transitions look like shit"): the grass and the dirt meet on a ragged
      edge, not the blueprint's ruled one (src/world/core/ground-rough.js: drawn only, the walk mask is the plan's); each
      edge tile is one of four drawn by tools/world-art/havora-seams.mjs (seams.mjs: ragged grass and dirt, a bank on the river,
      the square's setts scattered whole into the dirt and grass) */
   rough: Object.freeze({ seed: 23, pairs: Object.freeze([Object.freeze(['grass', 'earth']),
-    /* the cobble lanes fray too, more sparingly: a lane was laid to a line, its edge only lost a sett here and there */
-    Object.freeze(['earth', 'flagstone', 0.64, 0.36]), Object.freeze(['grass', 'flagstone', 0.64, 0.36])]), spill: 0.62, bite: 0.38, scale: 2.6, deep: 4 }),
+    /* the square's setts fray into the dirt and the grass (lane/a-havora-seams-2: its band ended on one ruled line round the square):
+       a band two cells wide, so its own side need run only one cell behind (deep 2) */
+    Object.freeze(['earth', 'flagstone', 0.56, 0.42, 2]), Object.freeze(['grass', 'flagstone', 0.56, 0.42, 2]),
+    /* the beach wanders into the meadow and the dirt as the dirt does (lane/a-havora-seams-2) */
+    Object.freeze(['grass', 'beach']), Object.freeze(['earth', 'beach'])]), spill: 0.62, bite: 0.38, scale: 2.6, deep: 4 }),
 });
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,

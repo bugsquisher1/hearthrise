@@ -9638,5 +9638,5 @@
       ]
     ]
   },
-  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map 4589f28b (the Meadowbrook's Greenhaven tileset family, painted from the mosslight_glade rows: thicket, meadow grass, a dirt trail along the route, the brook with grassy banks) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/mosslight_ground.png): 153931 px of 5 borders redrawn from the fills' own pixels (bank, canopy)."
+  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map 4589f28b (the Meadowbrook's Greenhaven tileset family, painted from the mosslight_glade rows: thicket, meadow grass, a dirt trail along the route, the brook with grassy banks) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/mosslight_ground.png): 285822 px of 6 borders redrawn from the fills' own pixels (bank, canopy, trail)."
 }

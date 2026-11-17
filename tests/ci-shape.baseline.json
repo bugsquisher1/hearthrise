@@ -612,6 +612,7 @@
     "node tools/mutant-gate.mjs node tests/world-assets.mjs --selftest": "client-guards-2",
     "node tests/world-assets.mjs": "client-guards-2",
     "node tools/mutant-gate.mjs node tools/world-art/seams.mjs --selftest": "client-guards-2",
+    "node tools/mutant-gate.mjs node tools/world-art/cave-walls.mjs --selftest": "client-guards-2",
     "node tools/world-art/import-clips.mjs --check": "client-guards-2",
     "node tools/mutant-gate.mjs node tests/outfit-masks.mjs --selftest": "client-guards-2",
     "node tests/outfit-masks.mjs": "client-guards-2",

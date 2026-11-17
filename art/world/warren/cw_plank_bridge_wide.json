@@ -1,0 +1,36 @@
+{
+  "id": "cw_plank_bridge_wide",
+  "class": "span",
+  "style": "s1",
+  "material": "wood",
+  "source": "cw_plank_bridge_wide.png",
+  "frame": [
+    60,
+    96
+  ],
+  "anchor_px": [
+    29,
+    95
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "c84e6ae2-d7d5-4dd4-b1e9-c5e4d2de0cd7",
+    "name": "S1 cw_plank_bridge",
+    "derived": "cw_plank_bridge, 0 gens"
+  },
+  "notes": "cw_plank_bridge's posts and rails, its plank columns laid twice more between them (19-24, then 26-21), a 22 px deck as wide as the trail it carries, by tools/world-art/seam-grounds.mjs; pixels unscaled, nothing drawn."
+}

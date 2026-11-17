@@ -6,11 +6,11 @@
   "source": "havora_palisade_v0.png",
   "frame": [
     64,
-    32
+    128
   ],
   "anchor_px": [
     32,
-    31
+    127
   ],
   "footprint": [
     2,
@@ -37,5 +37,5 @@
     "cost": 10,
     "style": "havora/havora_home_p01"
   },
-  "notes": "Slice 0 of 4 of a seamless 128 px loop cut from the 256 px north-south strip (rows 3-130, where it meets itself best; lane/b-havora-polish 2026-10-26): a run lays slice (rows from its north end mod 4), so no seam shows however long (town/palisade.js)."
+  "notes": "Slice 0 of a seamless 128 px loop of a north-south palisade run: the front-view strip's own stakes (havora_palisade_h0..h7) stood one behind the other, three to a row, feet 11 px apart, so the run reads in the same perspective as the east-west runs (tools/world-art/palisade-art.mjs, no generation; town/palisade.js)."
 }

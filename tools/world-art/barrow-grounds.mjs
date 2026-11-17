@@ -24,7 +24,8 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit, crop } from './png.mjs';
 import { ROOT, ART_DIR } from './build.mjs';
 import { lock } from './lock.mjs';
-import { stepPatches, bakeDecals, noise as wearNoise } from './ground-finish.mjs';
+import { stepPatches, bakeDecals, noise as wearNoise, hash2 } from './ground-finish.mjs';
+import { RAMPS } from './palette.mjs';
 import { reseam } from './seams.mjs';
 import { wangTiles } from './tileset.mjs';
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
@@ -91,6 +92,7 @@ export function groundParts(run) {
       '--legend', `S=${sr.lower.slice(0, 8)},W=${rm.lower.slice(0, 8)},R=${sr.upper.slice(0, 8)}`, '--same', `${rm.upper}=${sr.lower}`, '--material', 'native']);
     seam('slake-floor', 'the_slake_ground', slakeGrid(SLAKE_MAP.rows), SLAKE_SEAMS);
     finish('slake-floor', 'the_slake_ground', slakeGrid(SLAKE_MAP.rows), SLAKE_FINISH);
+    ripplesTwin();
   };
 
   /* ── THE PYRE FIELD ── */
@@ -120,6 +122,7 @@ export function groundParts(run) {
       pixellab: { tool: 'create_image_pro + inpaint_image + animate_image', image: '648b1161-0859-4ba5-9dac-994523b2dae9', embers: 'c24b8e34-ae90-418d-b9cf-f475400ea73a', lay: lay.loop },
       notes: 'The Great Pyre (brief 13 Q7 / b9, t1-inpainted-one-bed.png): the kept pyre with its ember loop, the cut frames ' + lay.loop.join(' ') + ' laid back at their crop (48,60), by tools/world-art/barrow-grounds.mjs; pixels unscaled, snapped to the palette by the lock\'s own metric.' });
     for (const [id, cls] of PYRE_PROPS) prop('pyre', id, cls, `${G14}/24-pyre-props/${id}.png`, '9efc5d93');
+    burntAsh();
   };
 
   /* ── KRELL'S HOLD ── */
@@ -161,6 +164,7 @@ export function groundParts(run) {
     prop('hold', 'kh_gatehouse', 'gate', wideGate(rd(`${H}/gatehouse/kh_gatehouse-586d798e.png`)), '586d798e');
     for (const [id, cls, sheet] of HOLD_PROPS) prop('hold', id, cls, `${G14}/30-hold-props/props/${id}.png`, sheet);
     hungBanner();
+    oneWoodpile();
   };
   return parts;
 }
@@ -209,7 +213,9 @@ const HOLD_SEAMS = Object.freeze({
   },
   pairs: [
     { a: '.', b: 'f', style: 'kerb' }, { a: '=', b: 'f', style: 'kerb', course: 'f' },
-    { a: 'f', b: 's', style: 'stagger', jitter: 6 },
+    /* the court's flagstone meets the Crypt's setts in its doorway: a kerb course, a built threshold (stagger stepped the setts' square
+       grid against the slabs as a staircase; lane/a-late-grounds-seams) */
+    { a: 'f', b: 's', style: 'kerb', course: 'f' },
     /* the worn patches are one to three cells: a calm warp keeps each a broken blob, the default sweep drew it as a splash */
     { a: 'f', b: 'g', style: 'scatter', jitter: 8, loose: 0.35, sweep: 3, warp: 5, scale: 22 },
     { a: '.', b: 'g', style: 'scatter', jitter: 2, loose: 0.4, holes: 0.06, fade: 10, sweep: 3, warp: 4, scale: 20, mid: 1.5 },
@@ -220,10 +226,17 @@ const HOLD_SEAMS = Object.freeze({
 });
 /* The Slake: the channels were rounded boxes and the reed beds staircases. The water now has a shore (a wet band in the silt, a lit
    lip), drawn back inside its own cells and never onto the walked silt (own, bias: [wet]); the reeds' edge wanders. */
+/* lane/a-late-grounds-seams (the v0.2.135 seams audit row 11): the channels still read as rectangles. The water may only draw back
+   inside its own cells, its edge sat 5 px in with 15 px of wander, and the share it wandered on saturated half a cell in: so the
+   edge stopped on the cell line wherever the wander pushed outward, and could never draw back far enough to bend a side. Now the
+   share is blurred over a cell (`soft`), the edge sits about half a cell in and wanders as much either way, so a side bays in and out
+   by up to a cell of mud, the corners round off, and the silt it leaves has a wet rim (7 px a step darker, the first 3 two). The
+   reed beds' edge takes shorter, deeper bays, so a small bed is a clump and not a box. */
 const SLAKE_SEAMS = Object.freeze({
   seed: 23,
   mats: { W: { z: 0, own: true }, S: { z: 1 }, R: { z: 2 } },
-  pairs: [{ a: 'W', b: 'S', style: 'bank', bias: { S: 0.3 }, sweep: 7, warp: 5 }, { a: 'S', b: 'R', style: 'ragged' }],
+  pairs: [{ a: 'W', b: 'S', style: 'bank', bias: { S: 0.5 }, soft: 1, sweep: 11, reach: 140, warp: 6, scale: 30, mid: 2.5, wet: 7, wetDeep: 3 },
+    { a: 'S', b: 'R', style: 'ragged', sweep: 4, warp: 10, scale: 16, mid: 3 }],
 });
 /* The Pyre Field: the cinder pits and the charred timber were hard squares on the ash, the scorch marks rounded boxes. The pits
    and the timber are held to their own cells (they block a step); the ash and the scorched earth run into them and each other. */
@@ -231,7 +244,9 @@ const PYRE_SEAMS = Object.freeze({
   seed: 37,
   mats: { A: { z: 1 }, S: { z: 2 }, C: { z: 0, own: true }, W: { z: 0, own: true }, G: { z: 1 } },
   pairs: [
-    { a: 'A', b: 'S', style: 'ragged' }, { a: 'A', b: 'C', style: 'ragged', bias: { A: 0.3 }, sweep: 4, warp: 5 },
+    /* the coal beds and pits are held to their cells: on a share blurred over 0.6 of a cell their edge sits about 12 px in and wanders
+       about as far, so it never runs along the cell line (at 5 px in with 11 of wander it did, and a pit was a box; lane/a-late-grounds-seams) */
+    { a: 'A', b: 'S', style: 'ragged' }, { a: 'A', b: 'C', style: 'ragged', bias: { A: 0.5 }, soft: 0.6, sweep: 3, warp: 6, scale: 22, mid: 2 },
     { a: 'A', b: 'W', style: 'ragged', bias: { A: 0.3 }, sweep: 6, warp: 5 }, { a: 'G', b: 'W', style: 'ragged', bias: { G: 0.3 } },
     /* the burnt grass and the March's grass at the map's rim keep the tileset's own border: the rim has too little grass for a fill */
   ],
@@ -283,6 +298,80 @@ function hungBanner() {
     notes: 'Krell\'s red hung on a wall face: rows ' + y0 + '-' + (y1 - 1) + ' of kh_banner_stand (its crossbar and cloth) by tools/world-art/barrow-grounds.mjs hungBanner; pixels unscaled, nothing drawn.' };
   writeFileSync(join(dir, 'kh_banner_hung.json'), JSON.stringify(sc, null, 2) + '\n');
   console.log('  ✓ hold/kh_banner_hung (hanging, ' + src.width + 'x' + fh + ')');
+}
+
+/* ── THE ONE WOODPILE (common/woodpile; lane/a-late-grounds-seams 2026-11-17, the seams audit row 20; Tyler on the Hearth: "Somethings
+   just dont match.. like these stacks of logs") ──
+   lane/a-havora-art made the town, the Meadowbrook, the Glade and Wickstead stack this drawing (kh_woodpile, PixelLab 80ea6463) and lifted
+   it a step. Beside the trees, the rocks and the Stokers' log stack it still read as a pale orange pile with no line: its rim is the
+   shadow ramp's browns (#231d1f, #2f2723) where every world sprite has the world's line. Here it is derived from kh_woodpile's own
+   pixels, 0 gens: the body's rim takes the line (#0b0a0c), the dark between the logs one shadow step deeper, the chips at its foot
+   keep their own colours (a black chip reads as a hole), and no lift, so the bark sits at the value the log stack's does. */
+const LINE = '#0b0a0c', CHIP = 60;
+function oneWoodpile() {
+  const src = rd(`${ART_DIR}/hold/kh_woodpile.png`), w = src.width, h = src.height;
+  const op = (x, y) => on(src, x, y);
+  const comp = new Int32Array(w * h).fill(-1), size = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!op(x, y) || comp[y * w + x] >= 0) continue;
+    const st = [x, y]; comp[y * w + x] = size.length; let n = 0;
+    while (st.length) {
+      const b = st.pop(), a = st.pop(); n++;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = a + dx, Y = b + dy; if (op(X, Y) && comp[Y * w + X] < 0) { comp[Y * w + X] = size.length; st.push(X, Y); } }
+    }
+    size.push(n);
+  }
+  const rgbOf = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const out = createImage(w, h); out.data.set(src.data);
+  let lined = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!op(x, y) || size[comp[y * w + x]] <= CHIP) continue;
+    const i = (y * w + x) * 4, hex = '#' + [0, 1, 2].map((k) => src.data[i + k].toString(16).padStart(2, '0')).join('');
+    const rim = !(op(x - 1, y) && op(x + 1, y) && op(x, y - 1) && op(x, y + 1));
+    if (rim) { out.data.set(rgbOf(LINE), i); lined++; } else if (hex === RAMPS.shadow[2]) out.data.set(rgbOf(RAMPS.shadow[1]), i);
+  }
+  const dir = join(ROOT, ART_DIR, 'common');
+  writeFileSync(join(dir, 'woodpile.png'), encodePNG(out));
+  const jp = join(dir, 'woodpile.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
+  delete sc.lift;
+  sc.notes = 'THE ONE WOODPILE: the town, the Meadowbrook, the Glade and Wickstead stack one woodpile, the drawing of hold/kh_woodpile (PixelLab object 80ea6463, rough bark, dark gaps, cut ends lit from the upper left; lane/a-havora-art 2026-11-16 retired the old cell-2 prop). '
+    + 'Derived by tools/world-art/barrow-grounds.mjs oneWoodpile (lane/a-late-grounds-seams 2026-11-17, 0 gens): ' + lined + ' rim px take the world\'s line, the dark between the logs one shadow step deeper, the chips at its foot kept, no lift, so it stands beside the trees and the Stokers\' log stack (pyre/ma_log_stack) as one of them.';
+  writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ common/woodpile: kh_woodpile with its rim lined (' + lined + ' px)');
+}
+
+/* ── THE PYRE FIELD'S TREES (lane/a-late-grounds-seams, the seams audit row 21): "ash trees the fire took" stood full and green in the
+   burnt field. ma_burnt_ash is the Westwood ash's own drawing (common/westwood_ash, PixelLab 7900b47f), its crown charred by its
+   sidecar's restyle (the leaf and moss greens onto the stone and earth ramps' dark end, its bark a step down): the same tree, the same
+   2x2 footprint and class, so the field's blocked cells do not move. 0 gens. */
+const BURNT_CROWN = Object.freeze({ '#6b7a38': '#4f4e52', '#4a5a2a': '#3a3a3e', '#2c4a2c': '#3d2a1d', '#1f3322': '#2a1c14', '#16241a': '#2a1c14', '#3d2a1d': '#2a1c14', '#4f4e52': '#3a3a3e' });
+function burntAsh() {
+  const from = join(ROOT, ART_DIR, 'common'), dir = join(ROOT, ART_DIR, 'pyre');
+  const base = JSON.parse(readFileSync(join(from, 'westwood_ash.json'), 'utf8'));
+  writeFileSync(join(dir, 'ma_burnt_ash.png'), readFileSync(join(from, base.source)));
+  const sc = Object.assign({}, base, { id: 'ma_burnt_ash', source: 'ma_burnt_ash.png', restyle: { map: BURNT_CROWN },
+    pixellab: { tool: 'derived (0 gens)', from: 'westwood_ash', object: base.pixellab && base.pixellab.object },
+    notes: 'An ash tree the fire took (the Pyre Field): common/westwood_ash\'s drawing copied by tools/world-art/barrow-grounds.mjs burntAsh, its crown charred by the restyle (greens onto the stone and earth ramps\' dark end, the bark a step down). Same frame, anchor and footprint as the Westwood ash. 0 gens.' });
+  writeFileSync(join(dir, 'ma_burnt_ash.json'), JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ pyre/ma_burnt_ash (tree, westwood_ash charred)');
+}
+
+/* ── THE SLAKE'S RIPPLES, TWICE (lane/a-late-grounds-seams, the seams audit row 24): one swirl of silt stood thirty-one times on the
+   flat. mr_silt_ripples_b is its own pixels mirrored left to right, toned by the same restyle (its sidecar copies the original's), and
+   the map lays the two in turn, so no two neighbours are the same mark. 0 gens. */
+function ripplesTwin() {
+  const dir = join(ROOT, ART_DIR, 'slake'), base = JSON.parse(readFileSync(join(dir, 'mr_silt_ripples.json'), 'utf8'));
+  const src = decodePNG(readFileSync(join(dir, base.source))), out = createImage(src.width, src.height);
+  for (let y = 0; y < src.height; y++) for (let x = 0; x < src.width; x++) {
+    const s = (y * src.width + x) * 4;
+    out.data.set(src.data.subarray(s, s + 4), (y * src.width + src.width - 1 - x) * 4);
+  }
+  writeFileSync(join(dir, 'mr_silt_ripples_b.png'), encodePNG(out));
+  const sc = Object.assign({}, base, { id: 'mr_silt_ripples_b', source: 'mr_silt_ripples_b.png', anchor_px: [src.width - 1 - base.anchor_px[0], base.anchor_px[1]],
+    pixellab: Object.assign({}, base.pixellab, { tool: 'derived (0 gens)', from: 'mr_silt_ripples' }),
+    notes: 'mr_silt_ripples mirrored left to right by tools/world-art/barrow-grounds.mjs ripplesTwin, its restyle the original\'s: the Slake lays the two in turn. 0 gens.' });
+  writeFileSync(join(dir, 'mr_silt_ripples_b.json'), JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ slake/mr_silt_ripples_b (decal, mr_silt_ripples mirrored)');
 }
 
 /* raw name -> the kit's name (mr_: the March's river pieces), class */
@@ -342,15 +431,44 @@ function slakeGrid(rows) {
   return rows.map((row, y) => [...row].map((ch, x) => (ch === '~' ? 'W' : ch === '#' && !wet(x, y) ? 'R' : 'S')).join(''));
 }
 
+/* ── THE FIELD'S OWN OBSTACLES (lane/a-late-grounds-seams, 2026-11-17; the v0.2.135 seams audit, row 10) ──
+   The two pyre rows and the loose blocks of '#' inside the field were painted as the charred timber of the rim: flat plank strips
+   and plank squares lying on the ash, which read as a boardwalk a hero could cross, with the burnt pyres standing on the boards.
+   Now a block of '#' that is not the rim (the two-deep rows, and every '#' patch the rim's flood never reaches) is a BED OF COALS,
+   the cinder pits' own fill (coalBed lifts it from a flat black hole to coal), with the burnt pyres heaped along it (pyreRows). A
+   bed cell that touches the rim stays ash, since the kit has no cinder/charred pair: the heaps cover the join. Paint only: every
+   cell blocks or opens a step as its row says. */
+export function pyreObstacles(rows) {
+  const h = rows.length, w = rows[0].length;
+  const wall = (x, y) => x < 0 || y < 0 || x >= w || y >= h || rows[y][x] === '#';
+  const deep = (x, y) => wall(x, y) && ((!wall(x, y - 1) && wall(x, y + 1) && !wall(x, y + 2)) || (!wall(x, y + 1) && wall(x, y - 1) && !wall(x, y - 2)));
+  /* the rim: '#' reached from the map's edge through '#' that is not a two-deep row */
+  const rim = new Uint8Array(w * h), stack = [];
+  for (let x = 0; x < w; x++) stack.push(x, 0, x, h - 1);
+  for (let y = 0; y < h; y++) stack.push(0, y, w - 1, y);
+  while (stack.length) {
+    const y = stack.pop(), x = stack.pop();
+    if (x < 0 || y < 0 || x >= w || y >= h || rim[y * w + x] || rows[y][x] !== '#' || deep(x, y)) continue;
+    rim[y * w + x] = 1;
+    stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+  }
+  const bed = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (rows[y][x] === '#' && !rim[y * w + x]) bed[y * w + x] = 1;
+  const touchesRim = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < w && Y < h && rim[Y * w + X]) return true; } return false; };
+  return { w, h, rim, bed, isBed: (x, y) => x >= 0 && y >= 0 && x < w && y < h && bed[y * w + x] === 1, joins: (x, y) => touchesRim(x, y) };
+}
+
 /** The Pyre Field's paint rows from its map rows (the header's rule). */
 function pyreGrid(rows) {
   const h = rows.length, w = rows[0].length;
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? '#' : rows[y][x]);
   const near = (x, y, r, test) => { for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (test(at(x + dx, y + dy))) return true; return false; };
+  const ob = pyreObstacles(rows);
   const base = rows.map((row, y) => [...row].map((ch, x) => {
     if (ch === 'o') return 'C';
     if (ch === ':') return near(x, y, 1, (c) => c === '#' || c === 'o') ? 'A' : 'S';
     if (ch !== '#') return 'A';
+    if (ob.isBed(x, y)) return ob.joins(x, y) ? 'A' : 'C';
     if (near(x, y, 2, (c) => c !== '#')) return 'W';
     return near(x, y, 4, (c) => c !== '#') ? 'G' : 'M';
   }));
@@ -367,35 +485,93 @@ function pyreGrid(rows) {
   return base.map((r, y) => r.map((c, x) => (scar[y][x] && !lone(x, y) ? 'S' : c)).join(''));
 }
 
-/* ── the Pyre Field's two pyre rows: burnt-out pyres and log stacks laid on the charred timber ──
-   The rows block a step (thicket), and nothing may be PLACED on a blocked cell (map-compile.js L-SPACE), so what stands on them is
-   in the paint, as a painted ground's walls are: brief 24's kept pieces, one every four cells of each two-deep run, in turn. */
+/* ── THE COAL BED (lane/a-late-grounds-seams): the cinder fill came back 72% #0b0a0c, so a pit or a bed of it read as a hole cut
+   through the map. Every shadow-ramp pixel of a cinder cell is set again by a lump field (value noise at a coal's size): a lump's
+   body one or two steps up the shadow ramp, its upper-left edge a step lighter (the light's side), the crevices between lumps
+   black, and a few crevices still red (the cloth and blood ramps' dark ends, PALETTE_RGB.coal's own). The fill's own warm specks
+   stay. No colour leaves the palette. ── */
+const COAL = Object.freeze({ scale: 7, seed: 61, ember: 0.07 });
+function coalBed(img, rows) {
+  const [K0, K1, K2, K3] = RAMPS.shadow, EMBER = [RAMPS.cloth[0], RAMPS.cloth[1], RAMPS.blood[0]];
+  const SHADOW = new Set(RAMPS.shadow.map((c) => c.toLowerCase()));
+  const hexAt = (x, y) => { const p = (y * img.width + x) * 4; return '#' + [0, 1, 2].map((k) => img.data[p + k].toString(16).padStart(2, '0')).join(''); };
+  const set = (x, y, h) => img.data.set([1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)), (y * img.width + x) * 4);
+  const v = (x, y) => wearNoise(x, y, COAL.scale, COAL.seed);
+  let n = 0;
+  for (let y = 1; y < img.height - 1; y++) for (let x = 1; x < img.width - 1; x++) {
+    const ch = rows[Math.floor(y / T)] && rows[Math.floor(y / T)][Math.floor(x / T)];
+    if (ch !== 'C' || !SHADOW.has(hexAt(x, y))) continue;
+    const a = v(x, y), lit = a - v(x + 1, y + 1) > 0.035;
+    let c = a > 0.6 ? K3 : a > 0.5 ? K2 : a > 0.38 ? K1 : K0;
+    if (lit && c !== K0) c = c === K1 ? K2 : K3;
+    if (c === K0 && hash2(x, y, COAL.seed) < COAL.ember) c = EMBER[Math.floor(hash2(x, y, COAL.seed + 1) * EMBER.length)];
+    set(x, y, c);
+    n++;
+  }
+  return n;
+}
+
+/* ── the Pyre Field's obstacles: burnt-out pyres, log stacks and stakes heaped along every coal bed ──
+   The beds block a step (thicket), and nothing may be PLACED on a blocked cell (map-compile.js L-SPACE), so what stands on them is
+   in the paint, as a painted ground's walls are: brief 24's kept pieces. They were one every four cells of a two-deep row, on the
+   planks; now each row of a bed is heaped along its length, the lower row laid after the upper, so a bed reads as one heap of what
+   the pyres left. NOT A ROW OF STAMPS (lane/a-late-grounds-seams, round 2: an even step and a fixed cycle read as a dead-straight
+   repeat): each row draws its own pieces by weight (the scattered and small pyres most, a whole pyre, a stake and the log stack
+   seldom, and the log stack never twice within four), each overlaps the last by a share of its own width, sits a few px up or
+   down the bed, and now and then the heap breaks for a stretch of bare coal, which still blocks a step. */
+const HEAP = Object.freeze({ seed: 67, overlap: [0.45, 0.9], drop: 9, bare: 0.1, bareW: [22, 44] });
+const HEAP_PIECES = Object.freeze([['pf_burnt_pyre_scatter', 0.3], ['pf_burnt_pyre_small', 0.26], ['pf_burnt_pyre', 0.16], ['ma_charred_stake', 0.14], ['ma_log_stack', 0.1]]);
+function heapPick(h, last, sinceStack, stackAbove) {
+  let r = h * HEAP_PIECES.reduce((s, [, w]) => s + w, 0), id = HEAP_PIECES[0][0];
+  for (const [k, w] of HEAP_PIECES) { if (r < w) { id = k; break; } r -= w; }
+  if (id === last || (id === 'ma_log_stack' && (sinceStack < 4 || stackAbove))) id = id === 'pf_burnt_pyre_scatter' ? 'pf_burnt_pyre_small' : 'pf_burnt_pyre_scatter';
+  return id;
+}
 function pyreRows() {
   const file = join(ROOT, ART_DIR, 'pyre', 'pyre_field_ground.png');
   const img = decodePNG(readFileSync(file));
-  const rows = PYRE_MAP.rows, w = rows[0].length;
+  const rows = PYRE_MAP.rows, h = rows.length, w = rows[0].length;
+  const ob = pyreObstacles(rows);
+  const coal = coalBed(img, pyreGrid(rows));
   const P = `${G14}/24-pyre-props`;
-  const pieces = ['pf_burnt_pyre', 'ma_log_stack', 'pf_burnt_pyre_small', 'pf_burnt_pyre', 'pf_burnt_pyre_scatter', 'ma_charred_stake'].map((id) => rd(`${P}/${id}.png`));
-  let n = 0;
-  for (let y = 0; y + 1 < rows.length; y++) {
-    /* a pyre row: two rows deep, open field above and below it somewhere along the run */
-    let x = 3;
-    while (x < w - 3) {
-      const deep = (c) => rows[y][c] === '#' && rows[y + 1][c] === '#' && rows[y - 1] && rows[y - 1][c] !== '#' && rows[y + 2] && rows[y + 2][c] !== '#';
-      if (!deep(x)) { x++; continue; }
-      let e = x; while (e + 1 < w - 3 && deep(e + 1)) e++;
-      for (let c = x + 1; c + 1 <= e; c += 4) {
-        const p = pieces[n++ % pieces.length];
-        blit(img, p, 0, 0, p.width, p.height, c * T + T - (p.width >> 1), (y + 2) * T - 8 - p.height, true);
+  const art = Object.fromEntries(HEAP_PIECES.map(([id]) => [id, rd(`${P}/${id}.png`)]));
+  let n = 0, bare = 0, last = null, sinceStack = 9;
+  const stacks = [];   /* [x, row] of every log stack laid: never one straight below another */
+  for (let y = 0; y < h; y++) {
+    let x = 0;
+    while (x < w) {
+      if (!ob.isBed(x, y)) { x++; continue; }
+      let e = x; while (e + 1 < w && ob.isBed(e + 1, y)) e++;
+      /* a bed three or more deep is heaped along its top and bottom rows only (a heap on every row stood up as a stack) */
+      if (ob.isBed(x, y - 1) && ob.isBed(x, y + 1)) { x = e + 1; continue; }
+      /* the run's pixels, a few px in from each end; each row starts at its own offset */
+      const x1 = (e + 1) * T - 4;
+      let px = x * T - 4 + Math.floor(hash2(x, y, HEAP.seed) * 14), k = 0;
+      while (px < x1 - 10 || k === 0) {
+        const hh = (s) => hash2(px, y, HEAP.seed + s);
+        /* a stretch of bare coal, never at a run's ends, never twice running */
+        /* where a bay leaves the bed one row deep, the heap closes up and never breaks, so the thin stretch still reads as a barrier */
+        const cx = Math.max(x, Math.min(e, Math.floor((px + 16) / T))), thin = !ob.isBed(cx, y - 1) && !ob.isBed(cx, y + 1);
+        if (!thin && k > 0 && px < x1 - 50 && last !== 'bare' && hh(1) < HEAP.bare) {
+          px += HEAP.bareW[0] + Math.floor(hh(2) * (HEAP.bareW[1] - HEAP.bareW[0])); last = 'bare'; bare++; k++; continue;
+        }
+        const id = heapPick(hh(3), last, sinceStack, stacks.some(([sx, sy]) => sy === y - 1 && Math.abs(sx - px) < 64)), p = art[id];
+        if (id === 'ma_log_stack') stacks.push([px, y]);
+        sinceStack = id === 'ma_log_stack' ? 0 : sinceStack + 1;
+        const foot = (y + 1) * T - 1 - Math.floor(hh(4) * HEAP.drop);
+        blit(img, p, 0, 0, p.width, p.height, Math.min(px, x1 - p.width), foot - p.height, true);
+        px += Math.max(12, Math.round(p.width * (thin ? 0.35 + hh(5) * 0.2 : HEAP.overlap[0] + hh(5) * (HEAP.overlap[1] - HEAP.overlap[0]))));
+        last = id; n++; k++;
       }
       x = e + 1;
     }
   }
   writeFileSync(file, encodePNG(img));
   const jp = file.replace(/\.png$/, '.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
-  sc.notes += ' The two pyre rows carry ' + n + ' burnt-out pyres, log stacks and stakes (brief 24\'s kept pieces) laid on the charred timber by tools/world-art/barrow-grounds.mjs: the rows block a step, so their pieces are in the paint.';
+  sc.notes += ' Obstacles (lane/a-late-grounds-seams): the pyre rows and the loose blocks are beds of coal (' + coal + ' cinder px set by a lump field, a few crevices red), heaped with '
+    + n + ' burnt-out pyres, log stacks and stakes (brief 24\'s kept pieces, drawn by weight, overlapped and dropped by a hash) and ' + bare + ' stretches of bare coal by tools/world-art/barrow-grounds.mjs: the beds block a step, so their pieces are in the paint.';
   writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
-  console.log('  ✓ pyre/pyre_field_ground: ' + n + ' pieces laid on the pyre rows');
+  console.log('  ✓ pyre/pyre_field_ground: ' + coal + ' coal px, ' + n + ' pieces and ' + bare + ' bare stretches on the beds');
 }
 
 /* ── THE HILL: the castle's rock split into its walls and the hillside it stands on (lane/b-hold-art) ──
@@ -406,7 +582,9 @@ function pyreRows() {
    cells. Every other '#' cell is the HILL: grass, with gray rock breaking through where a smooth noise (a 3-cell lattice)
    runs high, more of it at the foot of the walls, never beside the road or the gravel (the kit has no rock/earth or
    rock/gravel pair). The hill blocks a step as the rock always did: only its paint changed. */
-const CASTLE_FLOORS = '.fs=';
+/* the east yard's gravel is a castle floor too (lane/a-late-grounds-seams): it lay open to the hill's grass on two sides, so the rock
+   beside it read as more open grass a hero could walk on. Now that rock is the yard's curtain wall, as round every other court. */
+const CASTLE_FLOORS = '.fsg=';
 const GATE_TOWERS = Object.freeze([[27, 38], [27, 39], [31, 38], [31, 39]]);
 export function holdCastle(rows) {
   const h = rows.length, w = rows[0].length;
@@ -456,7 +634,11 @@ function holdGrid(rows) {
    mass or the same patch), so no vertex meets a pair the kit cannot draw. Paint only: the map rows say what blocks a step. */
 const HOLD_PATCHES = Object.freeze([
   /* [floor, patch material, noise cut, seed] */
-  ['.', 'g', 0.68, 52], ['f', 'g', 0.78, 53], ['s', 'f', 0.68, 54],
+  /* only the cobble breaks up: its stones are small, so the scatter seam lays a patch's edge stone by stone. The flagstone's slabs
+     and the setts' square grid can only end on their own joints, so a gravel patch in the flagstone or a flagstone patch in the
+     setts came out as tile-square L shapes and staircases (lane/a-late-grounds-seams): those floors' wear is their tone patches
+     (hold_flag_variety) and the decals. */
+  ['.', 'g', 0.68, 52],
 ]);
 function holdPatches(base) {
   const h = base.length, w = base[0].length;

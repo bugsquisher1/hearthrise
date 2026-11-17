@@ -20,8 +20,10 @@
 // another grid than the base one is skipped (its own lane checks it). Pure: takes the decoded atlases, reads no file.
 
 const FOOTHOLD_CLASSES = Object.freeze(['span', 'bridge']);
-const FOOTHOLD_IDS = Object.freeze(['mb_stepping_stones']);
-const FOOT = Object.freeze({ half: 6, rise: 6 });   // 13 px wide, 7 px tall, ending on the tile's south row
+/* the meadow stones, and their six layings a tile apiece (tools/world-art/seam-grounds.mjs FORD_STONES, Wickstead's ford) */
+export const FOOTHOLD_IDS = Object.freeze(['mb_stepping_stones', 'mb_stepping_stones_1', 'mb_stepping_stones_2', 'mb_stepping_stones_3', 'mb_stepping_stones_4',
+  'mb_stepping_stones_5', 'mb_stepping_stones_6']);
+export const FOOT = Object.freeze({ half: 6, rise: 6 });   // 13 px wide, 7 px tall, ending on the tile's south row
 const WET_SHARE = 0.5;
 const WATER_ODDS = 20;
 

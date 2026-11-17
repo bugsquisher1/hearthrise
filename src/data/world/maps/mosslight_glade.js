@@ -77,10 +77,10 @@ export default Object.freeze({
     { id: 'oak', x: 4, y: 10 },
     /* the crossings: the goblins' sluice boards (the one 1-tile choke: two spans meeting on one pair of posts, bank to bank;
        one 75 px deck left the hero wading its south row, Tyler 2026-11-14) and the ford stones, one on every open tile of the brook */
-    { id: 'cw_plank_bridge', x: 44, y: 21 }, { id: 'cw_plank_bridge', x: 44, y: 23 },
-    { id: 'mb_stepping_stones', x: 8, y: 20 }, { id: 'mb_stepping_stones', x: 9, y: 20 }, { id: 'mb_stepping_stones', x: 10, y: 20 }, { id: 'mb_stepping_stones', x: 8, y: 21 },
-    { id: 'mb_stepping_stones', x: 9, y: 21 }, { id: 'mb_stepping_stones', x: 10, y: 21 }, { id: 'mb_stepping_stones', x: 8, y: 22 }, { id: 'mb_stepping_stones', x: 9, y: 22 },
-    { id: 'mb_stepping_stones', x: 10, y: 22 }, { id: 'mb_reeds', x: 43, y: 19 }, { id: 'mb_reeds', x: 45, y: 23 },
+    { id: 'cw_plank_bridge_wide', x: 44, y: 21 }, { id: 'cw_plank_bridge_wide', x: 44, y: 23 },
+    { id: 'mb_stepping_stones_1', x: 8, y: 20 }, { id: 'mb_stepping_stones_2', x: 9, y: 20 }, { id: 'mb_stepping_stones_3', x: 10, y: 20 }, { id: 'mb_stepping_stones_4', x: 8, y: 21 },
+    { id: 'mb_stepping_stones_5', x: 9, y: 21 }, { id: 'mb_stepping_stones_6', x: 10, y: 21 }, { id: 'mb_stepping_stones_2', x: 8, y: 22 }, { id: 'mb_stepping_stones_3', x: 9, y: 22 },
+    { id: 'mb_stepping_stones_1', x: 10, y: 22 }, { id: 'mb_reeds', x: 43, y: 19 }, { id: 'mb_reeds', x: 45, y: 23 },
     { id: 'mb_reeds', x: 7, y: 19 }, { id: 'mb_reeds', x: 11, y: 23 }, { id: 'mb_reeds', x: 30, y: 23 }, { id: 'mb_reeds', x: 55, y: 19 },
     /* P0 the Crow Field: what the poachers leave when they skin a wolf */
     { id: 'bone_pile', x: 9, y: 28 }, { id: 'bone_pile', x: 17, y: 33 }, { id: 'skull', x: 12, y: 35 }, { id: 'mb_leaf_litter', x: 18, y: 27 },

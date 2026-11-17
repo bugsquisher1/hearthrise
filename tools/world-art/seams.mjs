@@ -16,16 +16,35 @@
 //   kerb     stagger, plus a course of dressed kerb stones (the stone's own pixels, the top lit one ramp step, a dark joint at
 //            every stone) laid along the border; for paving that is meant to end on a built edge
 //   bank     ragged, the ground's rim darkened where it is wet and the water's lip lit one step; for water and its bank
+//   rise     ragged, the upper material a RAISED mass seen from the south (lane/a-havora-seams-2: Havora's mountain read as flat
+//            paving): where the floor lies below it the mass shows a FACE (`face` px of its own grain stepped down two, darker
+//            cracks down it, its foot three) under a lit lip; its other edges are outlined, lit up-left and shaded down-right; the
+//            floor at its foot takes a cast shadow (`drop` px below the face, half that east of a side). With `faceTex` (an image of
+//            a drawn cliff face, lane/a-havora-rock) the face is that face's rows, cut from the top where the room is short, and
+//            with `side` its sides show that many px of the same wall, the west side lit. For rock over grass or dirt
 //   canopy   a thicket's edge laid in whole crowns: a jittered hex lattice of round crowns (`mats.C.canopy` { spacing, jitter }),
 //            each laid or not by the warped share at its centre, so the wall's edge is a row of crowns along a wavy line, never a
 //            crown cut in half. The union is outlined in the thicket's darkest colour, its outer px lit up-left and shaded
 //            down-right, and the floor at its foot gets a soil line (`soil: 'M'`, that floor's grain lit a step, its outer px two)
-//            or a cast shadow; what the crowns leave of a thicket cell far from the floor stays as painted
+//            or a cast shadow; what the crowns leave of a thicket cell far from the floor stays as painted. `canopy.depth` draws
+//            every crown of the mass, not only the edge's (lit, shaded, clustered, a hollow here and there); `canopy.clearFeet`
+//            lays no crown over a walked foot (o.dry); a pair's `swing` lets the edge's line rise and fall over `swingScale` px
+//   trail    a worn path a cell or two wide (`o.trails`): drawn along a line through its cells' centres, never on the cells, so
+//            its sides wander and a diagonal run of cells (a staircase of squares on the tileset) is one rounded line
+//            (trailLine); laid only over its host floor (grass), a pixel of shadow under the grass edge on its up-left side
 // Every style lays its UPPER material (the higher `z`) over the lower one, so a stone sits on the earth, never under it.
+// `o.smooth` blends the cells with a cubic B-spline (4 x 4 cells) instead of the bilinear four: a one-cell jog in a bank or a
+// wall is a bend two cells long, never a 45-degree step one cell long. `own: 'walk', banks: 'G'` lets water into its `banks` floor
+// but never onto a walked foot: never inside `o.dry(x, y)` (the box rule [wet] reads), its bank floor gaining `o.dryness(x, y)`
+// round every foot (so the bank swells round a foot in a curve, never a box), and never into any other floor (the thicket).
+// After the borders: `mats.ch.pit` gives a chasm its far wall and its depth, `mats.ch.relief` presses another fill's pebbles into a
+// floor the palette lock flattened.
 //
 //   reseam(img, o)              a PAINTED ground redrawn along its borders, in place of the tileset's straight ones.
 //        o { rows (one string per cell row), mats { ch: { z, unit, mortar } }, pairs [{ a, b, style, warp, scale, loose, holes,
-//            fade }], keep (chars never touched: a wall mass), seed, T = 32 }. Only cells within one cell of a listed pair change.
+//            fade }], keep (chars never touched: a wall mass), seed, T = 32, smooth, open, dry, dryness, trails { ch: { host,
+//            crossing(x, y), variants, half, swell, blockGrow, blockWarp, sigma } }, redraw (a Set of 'x,y' cells to redraw whole) }.
+//            Only cells within one cell of a listed pair, a trail or `redraw` change.
 //   transitionTiles(lower, upper, o)   a WANG-16 pair (the dual grid compose.js draws), `variants` tiles per key, every one built
 //        from the two 32x32 fill tiles. A variant's outer ring is the key's own (the warp is pinned to 0 at the tile's edge), so
 //        any variant sits beside any other: list them all under the key and compose.js's cell hash picks one per cell.
@@ -40,6 +59,7 @@ import { decodePNG, encodePNG, createImage } from './png.mjs';
 import { RAMPS } from './palette.mjs';
 import { hash2, noise } from './ground-finish.mjs';
 import { WANG_KEYS } from '../../src/data/world/art-budget.js';
+import { vhash } from '../../src/world/core/ground-variety.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const LIN = Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
@@ -56,8 +76,10 @@ function stepRgb(r, g, b, k) {
   return rgbOf(at.ramp[Math.max(0, Math.min(at.ramp.length - 1, at.k + k))]);
 }
 
-export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank', 'canopy']);
-const DEFAULTS = Object.freeze({ sweep: 9, reach: 96, warp: 6, scale: 26, mid: 2.5, fine: 0.8, loose: 0.55, holes: 0.3, fade: 14, fadeIn: 10, kerb: 5, lift: 1, wet: 3 });
+export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank', 'canopy', 'trail', 'rise']);
+/* how far a pixel looks for a rise's border: past the tallest face a pair may ask for (a faceTex face of up to 15 px) */
+const RISE_REACH = 16;
+const DEFAULTS = Object.freeze({ sweep: 9, reach: 96, warp: 6, scale: 26, mid: 2.5, fine: 0.8, loose: 0.55, holes: 0.3, fade: 14, fadeIn: 10, kerb: 5, lift: 1, wet: 3, face: 6, drop: 3 });
 
 /* noise in [-1, 1] (ground-finish's three rotated octaves, stretched: it sits round 0.5 with a narrow spread) */
 /* the pixels a joint looks to for a laid stone it outlines */
@@ -186,6 +208,9 @@ function engine(o) {
   const { T, cellAt, mats, tiles, pairOf, warpEnv } = o;
   const seed = o.seed || 1, phase = o.phase || 0;
   const z = (m) => (mats[m] && mats[m].z) || 0;
+  /* water held off the walked feet (`own: 'walk'`): its bank floors gain `o.dryness` round every foot, in its pairs only */
+  const walkHeld = (m) => !!(mats[m] && mats[m].own === 'walk');
+  const dryFloors = new Set(Object.values(mats).filter((m) => m.own === 'walk').flatMap((m) => [...(m.banks || '')]));
   const unit = (m) => !!(mats[m] && mats[m].stones);
   const wrap = (v) => ((((v - phase) % T) + T) % T);
   const fillAt = (m, x, y) => { const d = tiles[m].data, p = (wrap(y) * T + wrap(x)) * 4; return [d[p], d[p + 1], d[p + 2]]; };
@@ -198,10 +223,25 @@ function engine(o) {
     const lum = (h) => { const c = rgbOf(h); return lumAt([c[0], c[1], c[2]], 0); };
     tone[m] = { body: rgbOf([...n.entries()].sort((a, b) => b[1] - a[1])[0][0]), joint: rgbOf(common.sort((a, b) => lum(a) - lum(b))[0]) };
   }
-  /* the share of material m in the bilinear blend of the four cell centres round (px, py): 0.5 on the cell edge between two */
+  /* the share of material m in the bilinear blend of the four cell centres round (px, py): 0.5 on the cell edge between two;
+     smooth: the cubic B-spline over the 4 x 4 centres round it (a straight edge stays on the cell line, a jog bends over two cells) */
+  const bspline = (t) => { t = Math.abs(t); return t < 1 ? (4 - 6 * t * t + 3 * t * t * t) / 6 : t < 2 ? (2 - t) ** 3 / 6 : 0; };
   function share(m, px, py, S) {
     const fx = px / T - 0.5, fy = py / T - 0.5, i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j;
     let wm = 0, wt = 0;
+    if (o.smooth) {
+      for (let cj = j - 1; cj <= j + 2; cj++) {
+        const wy = bspline(fy - cj);
+        for (let ci = i - 1; ci <= i + 2; ci++) {
+          const c = cellAt(ci, cj);
+          if (!S.includes(c)) continue;
+          const w = wy * bspline(fx - ci);
+          wt += w;
+          if (c === m) wm += w;
+        }
+      }
+      return wt > 0 ? wm / wt : 0;
+    }
     for (const [ci, cj, w] of [[i, j, (1 - u) * (1 - v)], [i + 1, j, u * (1 - v)], [i, j + 1, (1 - u) * v], [i + 1, j + 1, u * v]]) {
       const c = cellAt(ci, cj);
       if (!S.includes(c)) continue;
@@ -209,6 +249,16 @@ function engine(o) {
       if (c === m) wm += w;
     }
     return wt > 0 ? wm / wt : 0;
+  }
+  /* a pair's `soft` (cells): the share blurred over a 3 x 3 of samples soft cells apart, so a border can wander up to a cell
+     either way before the share saturates (a channel held to its own cells drew back at most half a cell, and its side stayed a
+     ruler line; lane/a-late-grounds-seams). Without `soft` the share is the bilinear one. */
+  function shareOf(m, px, py, S, soft) {
+    if (!soft) return share(m, px, py, S);
+    const k = soft * T / 2;
+    let sum = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) sum += share(m, px + dx * k, py + dy * k, S);
+    return sum / 9;
   }
   /* the material that wins at (x, y), warped by the pair's noise; margin = its lead in px (how deep inside its own side) */
   function winAt(x, y, S, p, fine) {
@@ -222,12 +272,16 @@ function engine(o) {
     /* a material held to its own cells (`own`: water beside open floor) may draw back inside them, never spread out of them, so a
        tile a hero stands on is never painted under water (tests/world-assets.mjs [wet]); `own` as a string names only the cells it
        never spreads into (the open ones: water may still lap into a reed bed) */
-    const home = cellAt(Math.floor(x / T), Math.floor(y / T));
+    const hx = Math.floor(x / T), hy = Math.floor(y / T), home = cellAt(hx, hy);
+    const walked = () => (o.dry ? o.dry(x, y) : !!(o.open && o.open(Math.max(0, Math.min(o.W - 1, hx)), Math.max(0, Math.min(o.H - 1, hy)))));
     let best = null, bv = -1, second = -1;
     for (const m of S) {
       const own = mats[m] && mats[m].own;
-      if (own && m !== home && (own === true || own.includes(home))) continue;
-      const v = share(m, wx, wy, S) + (p.bias && p.bias[m] || 0);
+      if (own && m !== home && (own === true || (own === 'walk' ? !(mats[m].banks || '').includes(home) || walked() : own.includes(home)))) continue;
+      /* `swing`: material a's claim rises and falls along the border over `swingScale` px (a canopy's bays and bulges), a bay
+         three times as deep as a bulge is proud */
+      const sw = p.swing && m === p.a ? p.swing * Math.max(-1, Math.min(1 / 3, sn(x, y, p.swingScale || 90, seed + 97))) : 0;
+      const v = shareOf(m, wx, wy, S, p.soft) + (p.bias && p.bias[m] || 0) + sw + (o.dryness && dryFloors.has(m) && (walkHeld(p.a) || walkHeld(p.b)) ? o.dryness(x, y) : 0);
       if (v > bv || (v === bv && z(m) > z(best))) { second = bv; bv = v; best = m; } else if (v > second) second = v;
     }
     return { m: best, margin: (bv - Math.max(0, second)) * T / 2 };
@@ -314,6 +368,8 @@ function engine(o) {
       const other = S.slice(1).sort((a, b) => share(b, gx, gy, S) - share(a, gx, gy, S))[0];
       laid = winAt(gx, gy, S, pairOf(C, other), false).m === C;
     }
+    /* `clearFeet`: a crown is never laid over a walked foot (o.dry): the thicket's edge may wander, never over where a hero stands */
+    if (laid && lattice.clearFeet && o.dry) for (let dy = -r; dy <= r && laid; dy += 2) for (let dx = -r; dx <= r; dx += 2) if (dx * dx + dy * dy <= r * r && o.dry(Math.round(gx + dx), Math.round(gy + dy))) { laid = false; break; }
     const k = { gx, gy, r, laid };
     crownMemo.set(key, k);
     return k;
@@ -369,10 +425,161 @@ function engine(o) {
     pick = pick || order[order.length - 1];
     return { m: pick, c: fillAt(pick, x, y) };
   }
-  return { draw, share, canopy: C };
+  /** The front crown over (x, y) (the laid crown covering it whose centre lies furthest south: it stands in front of the ones
+      behind it), less the crowns `hollow(i, j)` leaves out; null where no crown covers it (a hollow in the canopy). */
+  function frontCrown(x, y, hollow) {
+    const s = lattice.spacing, rh = s * Math.sqrt(3) / 2, px = x + 0.5, py = y + 0.5, j0 = Math.floor(py / rh);
+    let best = null;
+    for (let j = j0 - 2; j <= j0 + 2; j++) {
+      const i0 = Math.floor((px - (j & 1 ? s / 2 : 0)) / s);
+      for (let i = i0 - 2; i <= i0 + 2; i++) {
+        const k = crown(i, j);
+        if (!k.laid || (hollow && hollow(i, j))) continue;
+        const d = Math.hypot(px - k.gx, py - k.gy);
+        if (d <= k.r && (!best || k.gy > best.k.gy)) best = { k, d, i, j };
+      }
+    }
+    return best;
+  }
+  return { draw, share, canopy: C, fillAt, frontCrown };
 }
 
 const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { sweep: 0, warp: 0, mid: 0, fine: 0 } : {}, p);
+
+/* ── A TRAIL'S LINE ──
+   A tileset path is a row of cells: one cell wide, its sides are ruler lines and a diagonal is a staircase of squares. The
+   trail is drawn along a line through its cells' centres instead: two trail cells side by side are joined, two that touch only
+   at a corner are joined diagonally (unless a trail cell beside both already joins them), each run between two forks or ends
+   is smoothed along its length (a gaussian of `sigma` px of arc, narrowed toward a fork or an end so they stay put: a staircase
+   of cells is one diagonal, a corner a bend), and a 2 x 2 block of trail cells is filled whole (a ford, a yard). A trail that
+   ends at a crossing (`crossing(x, y)`: a bridge's planks, a ford) runs on in a straight line over it to the trail beyond, the
+   open cells between included, so it meets the bridge's end and the water's edge. Returns dist(x, y): px from (x, y) to the
+   line, and `nodes`. */
+export function trailLine(isTrail, W, H, T, o = {}) {
+  const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+  const trail = (x, y) => inside(x, y) && isTrail(x, y);
+  const four = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const links = new Set();
+  if (o.crossing) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!trail(x, y)) continue;
+    const from = four.filter(([dx, dy]) => trail(x + dx, y + dy));
+    if (from.length !== 1) continue;
+    /* an end: straight on, away from the cell it came from, over open or crossing cells to a trail cell past a crossing */
+    const [dx, dy] = [-from[0][0], -from[0][1]], walked = [];
+    let crossed = false;
+    for (let k = 1, X = x + dx, Y = y + dy; k <= (o.reachCells || 8) && inside(X, Y); k++, X += dx, Y += dy) {
+      if (trail(X, Y)) { if (crossed) for (const w of walked) links.add(w); break; }
+      if (o.crossing(X, Y)) crossed = true;
+      else if (!(o.open && o.open(X, Y))) break;
+      walked.push(X + ',' + Y);
+    }
+  }
+  const node = (x, y) => inside(x, y) && (isTrail(x, y) || links.has(x + ',' + y));
+  const nodes = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (node(x, y)) nodes.push([x, y]);
+  const nb = (x, y) => {
+    const out = [];
+    for (const [dx, dy] of four) if (node(x + dx, y + dy)) out.push([x + dx, y + dy]);
+    for (const [dx, dy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) if (node(x + dx, y + dy) && !node(x + dx, y) && !node(x, y + dy)) out.push([x + dx, y + dy]);
+    return out;
+  };
+  const deg = new Map(nodes.map(([x, y]) => [x + ',' + y, nb(x, y).length]));
+  const c = (x, y) => [x * T + T / 2, y * T + T / 2];
+  /* the runs: walk from every fork or end along cells of two neighbours; what is left are loops */
+  const done = new Set(), runs = [];
+  const ek = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+  const walk = (x0, y0, x1, y1) => {
+    const run = [[x0, y0], [x1, y1]];
+    done.add(ek(x0 + ',' + y0, x1 + ',' + y1));
+    let [px, py, x, y] = [x0, y0, x1, y1];
+    while (deg.get(x + ',' + y) === 2) {
+      const next = nb(x, y).find(([nx, ny]) => !(nx === px && ny === py));
+      if (!next || done.has(ek(x + ',' + y, next[0] + ',' + next[1]))) break;
+      done.add(ek(x + ',' + y, next[0] + ',' + next[1]));
+      run.push(next);
+      [px, py, x, y] = [x, y, next[0], next[1]];
+    }
+    return run;
+  };
+  for (const [x, y] of nodes) if (deg.get(x + ',' + y) !== 2) for (const [nx, ny] of nb(x, y)) if (!done.has(ek(x + ',' + y, nx + ',' + ny))) runs.push({ pts: walk(x, y, nx, ny), loop: false });
+  for (const [x, y] of nodes) for (const [nx, ny] of nb(x, y)) {
+    if (done.has(ek(x + ',' + y, nx + ',' + ny))) continue;
+    const pts = walk(x, y, nx, ny);
+    if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
+    runs.push({ pts, loop: true });
+  }
+  /* the run resampled every `step` px of arc, then each point the gaussian mean of its neighbours along the arc (a loop wraps;
+     an open run's sigma shrinks to a third of the arc to its nearer end, so a fork or an end holds still) */
+  const sigma = o.sigma ?? 44, step = 4, segs = [];
+  for (const r of runs) {
+    const cs = r.pts.map(([x, y]) => c(x, y));
+    if (r.loop) cs.push(cs[0]);
+    const p = [];
+    for (let i = 0; i < cs.length - 1; i++) {
+      const [ax, ay] = cs[i], [bx, by] = cs[i + 1], n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / step));
+      for (let k = 0; k < n; k++) p.push([ax + (bx - ax) * k / n, ay + (by - ay) * k / n]);
+    }
+    if (!r.loop) p.push(cs[cs.length - 1]);
+    const n = p.length, q = [];
+    for (let i = 0; i < n; i++) {
+      const s = r.loop ? sigma : Math.min(sigma, Math.min(i, n - 1 - i) * step / 3);
+      if (s < 1) { q.push(p[i]); continue; }
+      const w = Math.ceil(2.5 * s / step);
+      let sx = 0, sy = 0, sw = 0;
+      for (let k = -w; k <= w; k++) {
+        const j = r.loop ? ((i + k) % n + n) % n : i + k;
+        if (j < 0 || j >= n) continue;
+        const g = Math.exp(-((k * step) ** 2) / (2 * s * s));
+        sx += p[j][0] * g; sy += p[j][1] * g; sw += g;
+      }
+      q.push([sx / sw, sy / sw]);
+    }
+    for (let i = 0; i < q.length - (r.loop ? 0 : 1); i++) segs.push([q[i], q[(i + 1) % q.length]]);
+  }
+  /* a lone trail cell is a point; a 2 x 2 block of them is a square between their centres */
+  for (const [x, y] of nodes) if (!deg.get(x + ',' + y)) segs.push([c(x, y), c(x, y)]);
+  const squares = [];
+  for (const [x, y] of nodes) if (trail(x, y) && trail(x + 1, y) && trail(x, y + 1) && trail(x + 1, y + 1)) squares.push([x * T + T / 2, y * T + T / 2, x * T + T * 1.5, y * T + T * 1.5]);
+  /* every segment and square filed under the cells within `reach` px of it */
+  const reach = o.reach || T * 1.5, grow = o.blockGrow || 0, bucket = new Map();
+  const file = (item, x0, y0, x1, y1) => {
+    for (let cy = Math.floor((Math.min(y0, y1) - reach) / T); cy <= Math.floor((Math.max(y0, y1) + reach) / T); cy++)
+      for (let cx = Math.floor((Math.min(x0, x1) - reach) / T); cx <= Math.floor((Math.max(x0, x1) + reach) / T); cx++) {
+        const k = cx + ',' + cy;
+        if (!bucket.has(k)) bucket.set(k, []);
+        bucket.get(k).push(item);
+      }
+  };
+  for (const s of segs) file({ s }, s[0][0], s[0][1], s[1][0], s[1][1]);
+  for (const q of squares) file({ q }, q[0], q[1], q[2], q[3]);
+  /* the distance to the line (`blocks` false) or to the filled blocks less their growth (`blocks` true) */
+  function dist(x, y, blocks = null) {
+    const list = bucket.get(Math.floor(x / T) + ',' + Math.floor(y / T));
+    if (!list) return Infinity;
+    let best = Infinity;
+    for (const it of list) {
+      if (!!it.q !== !!blocks && blocks !== null) continue;
+      if (it.q) { const [x0, y0, x1, y1] = it.q; best = Math.min(best, Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(y0 - y, 0, y - y1)) - grow); continue; }
+      const [[ax, ay], [bx, by]] = it.s, vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+      const t = l2 ? Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / l2)) : 0;
+      best = Math.min(best, Math.hypot(x - ax - t * vx, y - ay - t * vy));
+    }
+    return best;
+  }
+  return { dist, nodes, segs: segs.length, squares: squares.length };
+}
+
+/** Whether (x, y) is on the trail: its distance to the line, at a point warped by the pair's noise, under a half width that
+    wanders along it. t { line, half, swell, sweep, reach, warp, scale, mid, fine }. */
+function onTrail(t, x, y, seed) {
+  const ox = t.sweep * sn(x, y, t.reach, seed + 7) + t.warp * sn(x, y, t.scale, seed) + t.mid * sn(x, y, 10, seed + 5) + t.fine * sn(x, y, 4, seed + 3);
+  const oy = t.sweep * sn(x, y, t.reach, seed + 8) + t.warp * sn(x, y, t.scale, seed + 1) + t.mid * sn(x, y, 10, seed + 6) + t.fine * sn(x, y, 4, seed + 4);
+  const half = t.half + t.swell * sn(x, y, 48, seed + 19);
+  if (!t.blockWarp) return t.line.dist(x + 0.5 + ox, y + 0.5 + oy) < half;
+  /* a block (a ford) wanders more than the line: its sides are a cell or more long */
+  const bx = x + 0.5 + ox + t.blockWarp * sn(x, y, 34, seed + 31), by = y + 0.5 + oy + t.blockWarp * sn(x, y, 34, seed + 37);
+  return t.line.dist(x + 0.5 + ox, y + 0.5 + oy, false) < half || t.line.dist(bx, by, true) < half;
+}
 
 /**
  * A painted ground's borders redrawn. Returns { img (a new image), changed (px) }.
@@ -380,8 +587,9 @@ const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { s
  *   o.mats   { ch: { z: layer (upper over lower), unit: true for a stone floor (laid stone by stone), mortar: the joints' share,
  *            own: true (never drawn outside its own cells) or the cell characters it is never drawn into, lift: n steps up its
  *            ramps for every px of it, canopy: { spacing, jitter } for the thicket the canopy style lays in crowns } }
- *   o.pairs  [{ a, b, style, warp, scale, fine, jitter, loose, holes, fade, fadeIn, bias, course, kerb, lift }]: the borders to
- *            redraw (others stay as painted). Every pair of materials that touch should be listed, or its border is left as painted
+ *   o.pairs  [{ a, b, style, warp, scale, fine, jitter, loose, holes, fade, fadeIn, bias, course, kerb, lift, soft, wet, wetDeep }]:
+ *            the borders to redraw (others stay as painted). soft: the share blurred over n cells (a wider wander); wet / wetDeep: a
+ *            bank's rim, px of its ground one / two steps darker. Every pair of materials that touch should be listed, or its border is left as painted
  *            beside a redrawn one.
  *   o.keep   characters never touched and never drawn into (a wall mass the importer lays over the paint)
  */
@@ -389,7 +597,10 @@ export function reseam(img, o) {
   const T = o.T || 32, rows = o.rows, W = rows[0].length, H = rows.length;
   if (img.width !== W * T || img.height !== H * T) throw new Error(`seams: the ground is ${img.width}x${img.height}, the grid ${W}x${H} cells of ${T}`);
   const keep = o.keep || '';
-  const cellAt = (x, y) => rows[Math.max(0, Math.min(H - 1, y))][Math.max(0, Math.min(W - 1, x))];
+  /* a trail's cells are its host floor's to every border (the trail is laid over that floor along its own line, after) */
+  const trails = Object.entries(o.trails || {});
+  const grid = trails.length ? rows.map((r) => [...r].map((ch) => (o.trails[ch] ? o.trails[ch].host : ch)).join('')) : rows;
+  const cellAt = (x, y) => grid[Math.max(0, Math.min(H - 1, y))][Math.max(0, Math.min(W - 1, x))];
   const pairs = (o.pairs || []).map((p) => { if (!STYLES.includes(p.style)) throw new Error(`seams: unknown style '${p.style}' (${STYLES.join(', ')})`); return pairDefaults(p); });
   const pairOf = (a, b) => pairs.find((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a)) || pairDefaults({ style: 'ragged' });
   const listed = (a, b) => pairs.some((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a));
@@ -402,24 +613,42 @@ export function reseam(img, o) {
     if (m.unit) { const st = stonesOf(tiles[ch], m); if (st.ok) m.stones = st; }
     mats[ch] = m;
   }
-  const eng = engine({ T, cellAt, mats, tiles, pairOf, seed: o.seed || 1 });
+  const seed = o.seed || 1;
+  const eng = engine({ T, cellAt, mats, tiles, pairOf, seed, smooth: !!o.smooth, open: o.open, dry: o.dry, dryness: o.dryness, W, H });
+  /* each trail's line, and the cells it may reach: its own cells and links, and the cells round them (the old path's rims too) */
+  const lines = trails.map(([ch, t]) => {
+    if (!tiles[ch]) throw new Error(`seams: the trail '${ch}' needs its pair with '${t.host}' listed (style trail) and a fill`);
+    const line = trailLine((x, y) => rows[y][x] === ch, W, H, T, { crossing: t.crossing, open: o.open, sigma: t.sigma, blockGrow: t.blockGrow });
+    const near = new Set();
+    for (const [x, y] of line.nodes) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) near.add((x + dx) + ',' + (y + dy));
+    const over = t.over || t.host;
+    return { ch, near, over, t: Object.assign({ half: 15, swell: 3, sweep: 3, reach: 96, warp: 3, scale: 26, mid: 1.5, fine: 0.7 }, t, { line }) };
+  });
   const out = createImage(img.width, img.height);
   out.data.set(img.data);
   const lab = new Uint8Array(img.width * img.height);   /* 1 where this pass drew, for the rims */
   const matOf = new Array(img.width * img.height);
   let changed = 0;
   for (let cy = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++) {
-    const c = rows[cy][cx];
+    const c = grid[cy][cx];
     if (keep.includes(c) || !used.has(c)) continue;
     const S = [c];
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       const q = cellAt(cx + dx, cy + dy);
       if (!keep.includes(q) && !S.includes(q) && listed(c, q)) S.push(q);
     }
-    if (S.length < 2) continue;
+    const by = lines.filter((l) => l.near.has(cx + ',' + cy));
+    if (S.length < 2 && !by.length && !(o.redraw && o.redraw.has(cx + ',' + cy))) continue;
     for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
       const x = cx * T + i, y = cy * T + j;
-      const r = eng.draw(x, y, S);
+      /* a cell with no border of its own beside a trail: its own floor's fill, the old path's paint gone */
+      let r = S.length < 2 ? { m: c, c: eng.fillAt(c, x, y) } : eng.draw(x, y, S);
+      for (const l of by) {
+        if (!(r ? l.over.includes(r.m) : l.over.includes(c)) || !onTrail(l.t, x, y, seed + 71)) continue;
+        const v = l.t.variants, tile = v ? v[vhash(Math.floor(x / T), Math.floor(y / T), seed + 97) % v.length] : tiles[l.ch];
+        const p = ((y % T) * T + (x % T)) * 4;
+        r = { m: l.ch, c: [tile.data[p], tile.data[p + 1], tile.data[p + 2]] };
+      }
       if (!r) continue;
       const d = (y * img.width + x) * 4;
       out.data[d] = r.c[0]; out.data[d + 1] = r.c[1]; out.data[d + 2] = r.c[2]; out.data[d + 3] = 255;
@@ -449,7 +678,33 @@ export function reseam(img, o) {
     const dark = [...n].filter(([, c]) => c >= T * T * 0.03).map(([k]) => rgbOf(k)).sort((a, b) => lumAt(a, 0) - lumAt(b, 0))[0];
     canopy = { C: eng.canopy, dark };
   }
-  rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt, canopy);
+  rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt, canopy, Math.max(3, ...pairs.filter((p) => p.style === 'bank').map((p) => p.wet)));
+  /* a canopy in depth (`mats.ch.canopy.depth`: a thicket painted as one leaf tile, a flat green slab inside its crowned edge).
+     Every px of it, painted or drawn, 3+ px in from its edge (the rims there stay), is laid in the crown in front of it from the
+     same lattice the edge's crowns stand on: the fill's own grain, the crown's up-left lit a step and its down-right a step down, its
+     top rim (where it stands over the crown behind) the outline colour, its cluster (a value noise over about four crowns) a step
+     sunlit or a step shaded; one crown in `hollows` left out, so a dark hollow opens between its neighbours */
+  if (eng.canopy && mats[eng.canopy].canopy && mats[eng.canopy].canopy.depth) {
+    const C = eng.canopy, dp = mats[C].canopy.depth, w = img.width, h = img.height;
+    const isC = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; isC[i] = (lab[i] ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]) === C ? 1 : 0; }
+    const hollow = (i, j) => hash2(i, j, seed + 83) < (dp.hollows || 0.06);
+    const f = tiles[C].data, dark = canopy.dark;
+    for (let y = 3; y < h - 3; y++) for (let x = 3; x < w - 3; x++) {
+      const i = y * w + x;
+      if (!isC[i]) continue;
+      let edge = false;
+      for (let dy = -3; dy <= 3 && !edge; dy++) for (let dx = -3; dx <= 3; dx++) if (!isC[i + dy * w + dx]) { edge = true; break; }
+      if (edge) continue;
+      const fc = eng.frontCrown(x, y, hollow), p = ((y % T) * T + (x % T)) * 4;
+      if (!fc) { out.data.set(stepRgb(f[p], f[p + 1], f[p + 2], -2), i * 4); continue; }
+      const { k, d } = fc, ox = x + 0.5 - k.gx, oy = y + 0.5 - k.gy;
+      if (d > k.r - 1.5 && oy < -k.r * 0.2) { out.data.set(dark, i * 4); continue; }
+      const l = (-ox - oy) / (k.r * Math.SQRT2), cl = sn(k.gx, k.gy, 64, seed + 89);
+      const step = (l > 0.3 ? 1 : l < -0.4 ? -1 : 0) + (cl > 0.35 ? 1 : cl < -0.35 ? -1 : 0);
+      out.data.set(stepRgb(f[p], f[p + 1], f[p + 2], step), i * 4);
+    }
+  }
   /* a floor lifted whole (`mats.ch.lift`: steps up its ramps), drawn or kept: a mound that must not read as the track beside it */
   const lifts = Object.entries(o.mats || {}).filter(([, v]) => v.lift);
   if (lifts.length) for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
@@ -458,11 +713,68 @@ export function reseam(img, o) {
     const c = stepRgb(out.data[i * 4], out.data[i * 4 + 1], out.data[i * 4 + 2], l[1].lift);
     out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2];
   }
-  return { img: out, changed };
+  /* a pit (`mats.ch.pit` { face, rows }: a chasm painted as one dark tile, a box of the same motif every 32 px) is given depth:
+     under its far (north) lip the rock face the viewer looks at, `rows` px of the face floor's own grain stepping down its ramps as
+     it falls; the floor's lip above it a step lit; its near (south) lip a 2 px black under-cut; and the pit's own fill sinking a
+     step every 6 px from its edge, so its motif fades into the dark instead of tiling a box */
+  for (const [P, v] of Object.entries(o.mats || {})) {
+    if (!v.pit || !tiles[P] || !tiles[v.pit.face]) continue;
+    const w = img.width, h = img.height, F = v.pit.face, fr = v.pit.rows || 10;
+    const isP = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; isP[i] = (lab[i] ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]) === P ? 1 : 0; }
+    /* the 3-4 chamfer distance (in thirds of a px) from each pit px to the nearest px that is not pit */
+    const D = new Float32Array(w * h).fill(1e9);
+    for (let i = 0; i < w * h; i++) if (!isP[i]) D[i] = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; if (!D[i]) continue; if (x) D[i] = Math.min(D[i], D[i - 1] + 3); if (y) { D[i] = Math.min(D[i], D[i - w] + 3); if (x) D[i] = Math.min(D[i], D[i - w - 1] + 4); if (x < w - 1) D[i] = Math.min(D[i], D[i - w + 1] + 4); } }
+    for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) { const i = y * w + x; if (!D[i]) continue; if (x < w - 1) D[i] = Math.min(D[i], D[i + 1] + 3); if (y < h - 1) { D[i] = Math.min(D[i], D[i + w] + 3); if (x < w - 1) D[i] = Math.min(D[i], D[i + w + 1] + 4); if (x) D[i] = Math.min(D[i], D[i + w - 1] + 4); } }
+    const put = (i, c) => { out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2]; };
+    const at = (i) => [out.data[i * 4], out.data[i * 4 + 1], out.data[i * 4 + 2]];
+    const lit = [];
+    for (let y = 1; y < h - 2; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!isP[i]) continue;
+      let up = 0;
+      while (up <= fr && y - up - 1 >= 0 && isP[i - (up + 1) * w]) up++;
+      if (up < fr && y - up - 1 >= 0) {
+        /* the far wall's face, its top px row the lip's own (lit), darkening as it falls */
+        const fx = ((x % T) + T) % T, fy = ((y % T) + T) % T, f = tiles[F].data, p = (fy * T + fx) * 4;
+        /* its cracks: a column in four a step darker down the face, one rock ledge across it */
+        const crack = hash2(Math.floor(x / 2), 0, seed + 61) < 0.25 && up > 1 ? 1 : 0, ledge = up === (fr >> 1) && hash2(Math.floor(x / 5), 1, seed + 67) < 0.6 ? 1 : 0;
+        put(i, stepRgb(f[p], f[p + 1], f[p + 2], -1 - Math.floor((up * 3) / fr) - crack - ledge));
+        if (!up) lit.push(i - w);
+        continue;
+      }
+      /* the near lip: the floor below overhangs the dark */
+      if (!isP[i + w] || !isP[i + 2 * w]) { put(i, stepRgb(...at(i), -6)); continue; }
+      put(i, stepRgb(...at(i), -Math.min(3, Math.floor(Math.max(0, D[i] / 3 - 3) / 6))));
+    }
+    for (const i of lit) put(i, stepRgb(...at(i), 1));
+  }
+  /* a gravel in relief (`mats.ch.relief` { from, steps }: a gravel the palette lock flattened to one grey, 75% of it a single
+     colour). The pebbles of floor `from` (a fill whose stones survived the lock: the shallows' grey pebbles on mud) are pressed into
+     every px of this floor, painted or drawn, by the fills' shared phase: where `from` is lighter than its body `steps` steps up,
+     where it is darker a step down, so the bar reads as packed pebbles in its own grey */
+  for (const [R, v] of Object.entries(o.mats || {})) {
+    const src = v.relief && tiles[v.relief.from || R];
+    if (!src || !tiles[R]) continue;
+    const n = new Map();
+    for (let q = 0; q < T * T; q++) { const k = hexOf(src.data[q * 4], src.data[q * 4 + 1], src.data[q * 4 + 2]); n.set(k, (n.get(k) || 0) + 1); }
+    const body = lumAt(rgbOf([...n].sort((p, q) => q[1] - p[1])[0][0]), 0), k = v.relief.steps || 1;
+    const lift = Array.from({ length: T * T }, (_, q) => { const d = lumAt(src.data, q * 4) - body; return d > 0.006 ? k : d < -0.006 ? -1 : 0; });
+    for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+      const i = y * img.width + x, l = lift[(y % T) * T + (x % T)];
+      if (!l || (lab[i] ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]) !== R) continue;
+      const c = stepRgb(out.data[i * 4], out.data[i * 4 + 1], out.data[i * 4 + 2], l);
+      out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2];
+    }
+  }
+  /* each px's material after the pass (drawn, or its cell's): a driver's checks read it */
+  const matAt = (x, y) => { const i = y * img.width + x; return lab[i] && matOf[i] !== null ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]; };
+  return { img: out, changed, matAt };
 }
 
 /* ── the rims a style adds on the pixels it drew: the bank's wet ground and lit water lip; the soft edge's shadow ── */
-function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy) {
+function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy, wetReach = 3) {
   const z = (m) => (mats[m] && mats[m].z) || 0;
   const step = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -489,18 +801,87 @@ function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy) {
         }
       }
     }
-    /* the bank: ground within `wet` px of the water (a ragged band: the wet line is no ruler either) is a step down */
-    let wetBy = null;
-    for (let r = 1; r <= 3 && !wetBy; r++) for (let dy = -r; dy <= r && !wetBy; dy++) for (let dx = -r; dx <= r; dx++) {
+    /* a rise: the raised mass's face where the floor lies below it (cracks down it, its foot darkest) under a lit lip; its other
+       edges outlined, lit up-left, shaded down-right; on the floor, the mass's shadow below its face and east of its sides */
+    const riseAt = (X, Y) => { if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) return null; const n = matOf[Y * w + X]; return n !== null && n !== m && pairOf(m, n).style === 'rise' ? n : null; };
+    let rise = null;
+    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) { const n = riseAt(x + dx, y + dy); if (n !== null) { rise = pairOf(m, n); break; } }
+    /* (the reach covers the tallest face a pair asks for: a face of 7 px or less never looks past 8, as before) */
+    if (!rise) for (let r = 1; r <= RISE_REACH && !rise; r++) for (const [dx, dy] of [[0, r], [0, -r], [r, 0], [-r, 0]]) { const n = riseAt(x + dx, y + dy); if (n !== null) { rise = pairOf(m, n); break; } }
+    if (rise) {
+      const F = rise.face, upper = (n) => n !== null && z(n) > z(m), lower = (n) => n !== null && z(n) < z(m);
+      let below = 0;
+      for (let r = 1; r <= F + 1; r++) { const Y = y + r; if (Y >= h || !lab[Y * w + x]) break; const n = matOf[Y * w + x]; if (n === m) continue; if (lower(riseAt(x, Y))) below = r; break; }
+      /* a FACE TEXTURE (`faceTex`, lane/a-havora-rock: Havora's mountain read as paving with a thin dark rim): the face is the rows of a
+         drawn cliff face, its top row at the face's top, one column of it a pixel along. A face taller than the room above its foot
+         is cut from the top (it starts two px below the tile's edge, so its lit lip is never lost); a drawn pixel the texture leaves
+         empty (its foot's ragged edge) takes the plain face step */
+      if (below && rise.faceTex) {
+        const tex = rise.faceTex, foot = y + below, fe = Math.min(F, foot - 2);
+        if (below === fe + 1) { step.push([i, 1]); continue; }
+        if (below <= fe) {
+          const tp = ((F - below) * tex.width + (x % tex.width)) * 4;
+          if (tex.data[tp + 3] >= 128) { out.data[i * 4] = tex.data[tp]; out.data[i * 4 + 1] = tex.data[tp + 1]; out.data[i * 4 + 2] = tex.data[tp + 2]; continue; }
+          step.push([i, below === 1 ? -3 : -2]);
+          continue;
+        }
+        below = 0;
+      }
+      if (below) {
+        const crack = below > 1 && below < F && hash2(x, Math.floor((y + below) / 3), 61) < 0.2;
+        step.push([i, below === F + 1 ? 1 : below === 1 || crack ? -3 : -2]);
+        continue;
+      }
+      /* with a face texture, a side of the mass (the floor beside it, east or west) shows a narrow strip of the same drawn wall, seen at
+         a slant: `side` px of the face's rows, the side toward the light (west) a step lit */
+      if (rise.faceTex && rise.side) {
+        const tex = rise.faceTex;
+        let d = 0, west = false;
+        for (let r = 1; r <= rise.side && !d; r++) { if (lower(riseAt(x + r, y))) d = r; else if (lower(riseAt(x - r, y))) { d = r; west = true; } }
+        if (d) {
+          const tp = (((y % tex.height) + tex.height) % tex.height * tex.width + ((west ? d - 1 : tex.width - d) % tex.width)) * 4;
+          out.data[i * 4] = tex.data[tp]; out.data[i * 4 + 1] = tex.data[tp + 1]; out.data[i * 4 + 2] = tex.data[tp + 2];
+          if (west) step.push([i, 1]);
+          continue;
+        }
+      }
+      if (lower(riseAt(x + 1, y)) || lower(riseAt(x - 1, y)) || lower(riseAt(x, y - 1))) { step.push([i, -2]); continue; }
+      if (lower(riseAt(x - 2, y)) || lower(riseAt(x, y - 2))) { step.push([i, 1]); continue; }
+      if (lower(riseAt(x + 2, y))) { step.push([i, -1]); continue; }
+      let shade = false;
+      for (let r = 1; r <= rise.drop && !shade; r++) if (upper(riseAt(x, y - r))) shade = true;
+      for (let r = 1; r <= Math.ceil(rise.drop / 2) && !shade; r++) if (upper(riseAt(x - r, y))) shade = true;
+      if (shade) { step.push([i, -1]); continue; }
+    }
+    /* a beach (`shore`, a bank pair, lane/a-havora-seams-2): the sand within `wet` px of the sea is wet (a step down, a ragged band),
+       and the sea's first two px against it are surf (two steps up, one) */
+    let surf = 0, wetSand = false;
+    for (let r = 1; r <= 3 && !surf && !wetSand; r++) for (let dy = -r; dy <= r && !surf && !wetSand; dy++) for (let dx = -r; dx <= r; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
       const X = x + dx, Y = y + dy;
       if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) continue;
       const n = matOf[Y * w + X];
       if (n === m || n === null) continue;
       const p = pairOf(m, n);
-      if (p.style === 'bank' && z(n) < z(m) && r <= p.wet - (hash2(x, y, 41) < 0.35 ? 1 : 0)) { wetBy = n; break; }
+      if (p.style !== 'bank' || !p.shore) continue;
+      if (z(m) > z(n) && r <= 2) { surf = r; break; }
+      if (z(m) < z(n) && r <= p.wet - (hash2(x, y, 43) < 0.35 ? 1 : 0)) { wetSand = true; break; }
     }
-    if (wetBy) { step.push([i, -1]); continue; }
+    if (surf) { step.push([i, surf === 1 || hash2(x, y, 47) < 0.45 ? 2 : 1]); continue; }
+    if (wetSand) { step.push([i, -1]); continue; }
+    /* the bank: ground within `wet` px of the water (a ragged band: the wet line is no ruler either) is a step down, and within
+       `wetDeep` px of it two (the mud the water last left; lane/a-late-grounds-seams, the Slake's channels had no rim to read) */
+    let wetBy = null, wetR = 0;
+    for (let r = 1; r <= wetReach && !wetBy; r++) for (let dy = -r; dy <= r && !wetBy; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const X = x + dx, Y = y + dy;
+      if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) continue;
+      const n = matOf[Y * w + X];
+      if (n === m || n === null) continue;
+      const p = pairOf(m, n);
+      if (p.style === 'bank' && z(n) < z(m) && r <= p.wet - (hash2(x, y, 41) < 0.35 ? 1 : 0)) { wetBy = n; wetR = r <= (p.wetDeep || 0) - (hash2(x, y, 43) < 0.35 ? 1 : 0) ? -2 : -1; break; }
+    }
+    if (wetBy) { step.push([i, wetR]); continue; }
     /* a raised floor (a barrow bank): its own last `outline` px darkened (two steps at the very edge, one inside), and the lower floor
        within `skirt` px of it laid with the skirt material's fill (the bare earth round its foot), its first px a step down */
     let edge = 0, skirt = 0, by = null;
@@ -528,7 +909,7 @@ function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy) {
       if (p.style === 'bank') {
         /* the lower material is the water: its first pixel under the bank's lit side is a lit lip */
         if (z(m) < z(n) && dx <= 0 && dy <= 0) step.push([i, 1]);
-      } else if (p.style === 'ragged' && z(n) > z(m) && (dx < 0 || dy < 0)) {
+      } else if ((p.style === 'ragged' || p.style === 'trail') && z(n) > z(m) && (dx < 0 || dy < 0)) {
         /* a soft upper floor (grass over earth) casts a pixel of shadow down-right onto the lower */
         step.push([i, -1]);
       }
@@ -561,9 +942,12 @@ export function transitionTiles(lower, upper, o = {}) {
     const cellAt = (x, y) => bits[Math.max(0, Math.min(1, y)) * 2 + Math.max(0, Math.min(1, x))];
     for (let v = 0; v < variants; v++) {
       /* pinned: no warp within M px of the tile's edge (so the ring is variant 0's), full warp from 2M in */
+      /* `arch` (a bank or a rise that must wander, lane/a-havora-seams-2): the warp eases in from 2 px off the edge to the tile's
+         middle, so the border bows between the pinned crossings instead of kinking in a 12 px window */
       const env = (x, y) => {
         if (v === 0) return 0;
         const d = Math.min(x - half, y - half, half + T - 1 - x, half + T - 1 - y);
+        if (o.arch) return d <= 2 ? 0 : Math.sin(Math.min(1, (d - 2) / (half - 3)) * Math.PI / 2);
         return Math.max(0, Math.min(1, (d - M) / M));
       };
       const eng = engine({ T, cellAt, mats, tiles, pairOf: () => p, seed: (o.seed || 7) * 131 + v * 17, warpEnv: env, phase: half, pinned: true });
@@ -572,7 +956,7 @@ export function transitionTiles(lower, upper, o = {}) {
       for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
         const x = half + i, y = half + j;
         /* within the pinned ring a stone floor is drawn pixel by pixel, so a stone cut by the edge is cut the same in every variant */
-        const ring = Math.min(i, j, T - 1 - i, T - 1 - j) < M;
+        const ring = Math.min(i, j, T - 1 - i, T - 1 - j) < (o.arch ? 3 : M);
         const r = (ring || v === 0 ? flat : eng).draw(x, y, ['L', 'U']);
         const d = (j * T + i) * 4;
         img.data[d] = r.c[0]; img.data[d + 1] = r.c[1]; img.data[d + 2] = r.c[2]; img.data[d + 3] = 255;
@@ -737,6 +1121,43 @@ function selftest() {
     if (n < 120) crumbs++;
   }
   ok(crumbs === 0 && notches >= 3, 'canopy: laid in whole crowns: no crumb apart (' + crumbs + '), ' + notches + ' notches between crowns down a 104 px edge');
+  /* the canopy in depth (lane/a-ground-paths: "flat green slabs"): a deep mass is no longer one leaf tile, and lit and shaded; with
+     clearFeet no crown stands on a walked foot (here every grass cell is walked, its foot the [wet] box) */
+  const dr = ['TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg'];
+  const footOf = (x, y) => { const cx = Math.floor(x / T), cy = Math.floor(y / T); return cx >= 6 && cx < 10 && cy >= 0 && cy < 6 && Math.abs(x - cx * T - 16) <= 6 && y >= cy * T + 25; };
+  const dO = { rows: dr, mats: { g: { z: 1 }, T: { z: 2, canopy: { spacing: 24, jitter: 4, clearFeet: true, depth: { hollows: 0.06 } } } }, fills: { T: leaf, g: flat(GR) }, seed: 6, dry: footOf,
+    pairs: [{ a: 'T', b: 'g', style: 'canopy', sweep: 18, reach: 160, swing: 0.2, bias: { T: 0.4 } }] };
+  const dd = reseam(paint(dr, { T: leaf, g: flat(GR) }), dO);
+  const cellKey = (im, cx, cy) => { let k = ''; for (let y = cy * T; y < cy * T + T; y++) for (let x = cx * T; x < cx * T + T; x++) k += colourAt(im, x, y); return k; };
+  const deepCells = new Set([[1, 1], [2, 2], [3, 3], [1, 4], [2, 1], [3, 2]].map(([cx, cy]) => cellKey(dd.img, cx, cy)));
+  let lit = 0, shaded = 0, onFeet = 0;
+  for (let y = T; y < 5 * T; y++) for (let x = T; x < 4 * T; x++) { const c = RAMP_AT.get(colourAt(dd.img, x, y)), b = RAMP_AT.get(LEAF[(x * 7 + y * 3) % 11 < 1 ? 3 : (x + 2 * y) % 3].toLowerCase()); if (c && b && c.ramp === b.ramp) { if (c.k > b.k) lit++; if (c.k < b.k) shaded++; } }
+  for (let y = 0; y < 6 * T; y++) for (let x = 6 * T; x < 10 * T; x++) if (footOf(x, y) && dd.matAt(x, y) === 'T') onFeet++;
+  ok(deepCells.size === 6 && lit > 200 && shaded > 200, 'canopy depth: six deep cells, six different tiles (' + deepCells.size + '), ' + lit + ' px lit and ' + shaded + ' px shaded off the leaf tile');
+  ok(onFeet === 0, 'canopy clearFeet: no crown on a walked foot (' + onFeet + ' px)');
+  /* the trail (lane/a-ground-paths, Tyler: "ruler-straight cut lines" and "tile staircases on diagonals"): a one-cell path that
+     runs straight, then down a diagonal staircase of cells, then straight again, painted the tileset's way (whole dirt cells) */
+  const TG = flat(RAMPS.leaf[3]), TD = flat(RAMPS.earth[3]), dirtHex = RAMPS.earth[3].toLowerCase();
+  const tr = ['gggggggggggggg', 'DDDDDggggggggg', 'gggggDgggggggg', 'ggggggDggggggg', 'gggggggDgggggg', 'ggggggggDggggg', 'gggggggggDDDDD', 'gggggggggggggg'];
+  const to = { rows: tr, mats: { D: { z: 1 }, g: { z: 2 } }, fills: { D: TD, g: TG }, seed: 12, pairs: [{ a: 'D', b: 'g', style: 'trail' }], trails: { D: { host: 'g' } } };
+  const ta = reseam(paint(tr, { D: TD, g: TG }), to).img, tb = reseam(paint(tr, { D: TD, g: TG }), to).img;
+  ok(Buffer.compare(Buffer.from(ta.data), Buffer.from(tb.data)) === 0, 'trail: deterministic');
+  const isDirt = (x, y) => { const c = colourAt(ta, x, y); return c === dirtHex || RAMP_AT.get(c)?.ramp === RAMPS.earth; };
+  /* along the staircase, the trail's middle row by row: a staircase of cells jumps a cell every cell, a drawn line moves a px or two */
+  let jump = 0, prev = null, gaps = 0;
+  /* rows 3-4: the staircase's two middle cells, clear of the straight runs' reach */
+  for (let y = 3 * T; y < 5 * T; y++) {
+    let sx = 0, n = 0;
+    for (let x = 3 * T; x < 11 * T; x++) if (isDirt(x, y)) { sx += x; n++; }
+    if (!n) { gaps++; continue; }
+    if (prev !== null) jump = Math.max(jump, Math.abs(sx / n - prev));
+    prev = sx / n;
+  }
+  ok(gaps === 0 && jump <= 4, 'trail: the diagonal is one line, no staircase (its middle moves at most ' + jump.toFixed(1) + ' px a row, ' + gaps + ' rows with no trail)');
+  /* along the straight run, its top edge row by column: never one ruler line */
+  let first = null, same = 0;
+  for (let x = 4; x < 3 * T; x++) { let y = T - 8; while (y < 3 * T && !isDirt(x, y)) y++; if (first === null) first = y; if (y === first) same++; }
+  ok(same / (3 * T - 4) < 0.5, 'trail: its straight edge wanders (' + Math.round((100 * same) / (3 * T - 4)) + '% of columns on one row)');
   console.log(bad ? `✗ seams selftest: ${bad} failed` : '✓ seams selftest');
   return bad ? 1 : 0;
 }

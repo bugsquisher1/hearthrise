@@ -1,17 +1,20 @@
 {
-  "id": "meadowbrook_grass_variety",
+  "id": "wickstead_meadow_variety",
   "class": "terrain",
   "kind": "variety",
   "style": "s1",
-  "of": "forest-floor/meadowbrook_ground",
+  "of": "stead-floor/wickstead_ground",
   "at": [
-    0,
-    0
+    5,
+    3
   ],
   "lower": "painted",
   "upper": "painted",
-  "seed": 16,
+  "seed": 15,
   "tone": "soft",
   "notes": "One floor tile made into 96 (tools/world-art/variety.mjs), picked per cell by src/world/core/ground-variety.js: the floor no longer shows its 32 px repeat (Tyler 2026-11-16).",
-  "shift": true
+  "shift": true,
+  "detail": [
+    "common/square_decal_tuft_b"
+  ]
 }

@@ -3535,3 +3535,67 @@ reaches stays painted, or a crown gap opens onto a neighbour the pair never name
 whole-ground reseams overflow 2048: move the ground to its -floor set (one ATLAS_SETS row) and its varieties' `of` with it, and scan
 every set for varieties; (5) a pixel read marks a dark tilled plot as thicket (it got crowned): override with `cells` and keep it;
 (6) run world-assets --selftest after any reseam: moved banks silently stale its [wet] plants.
+## 2026-11-17 lane/a-ground-paths (Tyler's gate before new players: no ruler cuts between ground types, no tile staircases on diagonals)
+Fixed through tools/world-art/seams.mjs + seam-grounds.mjs (0 gens): meadow trails drawn along their line (trailLine), the brooks
+bent with a B-spline share, Mosslight's river given bends in its own blocked rows, the Glade and Warrens boards widened from their
+own planks (cw_plank_bridge_wide), Wickstead's slab scattered into the grass, Hask's shallows tapered and its bars given pebbles, the
+Drop given a far wall and depth. Not done: the Warrens' cut-corner cave walls (their faces are painted per cell; an organic wall
+needs a face-aware wall renderer). Lessons: (1) a one-cell path drawn on cells keeps its staircase whatever the noise: draw it on
+its centre line (8-connected, a diagonal join only where no side cell joins), smoothed by a gaussian over arc length; Chaikin is too
+local for a two-row Z-step. (2) bilinear share makes a one-cell jog a 45-degree step one cell long; a cubic B-spline over 4x4 cells
+bends it over two and keeps a 3-wide channel's edges. (3) `own: true` clips water on the cell line wherever a smoothed bank crosses
+it: hold water off the walked FOOT only (crossings.mjs FOOT), give the bank floor a smooth dryness round each foot (a hard clip alone
+cuts the foot's box into the water) and keep water out of every floor but its banks (else it fills thicket gaps). (4) the palette
+lock flattened Hask's gravel to 75% one grey; an emboss on that noise reads as rain hatching; press a sibling fill's pebbles in.
+(5) the three meadow grounds share one dirt tile pixel for pixel; only Wickstead's ford holds a clean cell of it. (6) map objects
+ride the edge bundle (src/core/hunt-ground.js vendors world/maps): an object id edit moves the payload hash. (7) the shared in-app
+browser pane is not a lane's: headless region-kit shots (extra=SET&from=DIR renders the base atlases for true befores).
+Round 2 (same lane, the Coordinator's calls): Wickstead's ford is the brook with twelve stones (the other meadow fords' way); the
+meadow canopy in depth (seams.mjs canopy.depth: every crown of the edge's lattice drawn, lit, clustered, hollows) at 24 px crowns,
+its edge on a long swing, no crown on a walked foot (clearFeet); the thicket varieties (`*_grass_variety`, at the canopy's 0,0) went
+with the flat tile they varied; Wickstead's ground moved to stead-floor (every canopy cell is now a tile of its own: stead hit 2032
+of 2048). Lessons: (1) measure the walk cue, not the look: seam-grounds prints walked feet under crowns and blocked thicket cells
+mostly open; a meander that opens bays doubled the second, a lower grass bias traded it for crowns on feet, keeping crowns off feet
+outright let the bias drop to the cell line (Meadowbrook 24/43 -> 0/42, the Glade 18/37 -> 0/35); (2) a swing three times as deep as
+it is proud reads as bays, not blobs; past about 0.2 of share the bays open thicket a hero cannot walk; (3) a guard case that never
+reaches its condition (no crown near a foot) is no guard: push the fixture until the mutant goes red.
+## 2026-11-17 lane/a-cave-walls (Tyler's gate before new players: every seam and terrain edge right, no right-angle staircases)
+Task 1: tools/world-art/cave-walls.mjs (its own --selftest, registered in smoke.yml beside the seams proof) draws the Coppercap
+Warrens' walls again from the map rows, called from seam-grounds `walls` (WARRENS_WALLS names the paint strips it reads). Found on
+the render, not in the brief: the tileset painted every south face a ROW TOO HIGH (floor painted on the blocked row under it: the
+torches hung on floor, the pillars' last row looked walkable); the faces now stand in the wall row over the floor and every torch
+hangs on one. The Drop's two end lips (chasm on the rows) were painted floor a cell and a half wide: the chasm runs wall to wall.
+Task 2: Wickstead's twelve ford stones are six layings of mb_stepping_stones' own three stones (seam-grounds FORD_STONES, stead set),
+no two neighbours alike. Lessons: (1) "only cut into wall cells" + "no staircase" means every turn is carved INTO the wall: an
+outer corner by an arc tangent to the bay on both sides, an inner corner by a fillet whose middle stops just short of the corner
+(r = (bay - 0.75) / (1 - 1/sqrt2)), and an alcove (a deeper bay) round each inner corner; a B-spline share bulges OUT at an inner
+corner, and clipping it at the cell line gives back the right angle. (2) A 3/4 face is the foot's vertical extrusion: the bottom
+faceH px of each column's run of rock, the strip's top three rows kept and one strata period (7 rows) cut so 30 px fit the row.
+(3) A wall top's rim is chosen by the direction to the nearest px that is not top: floor or face to the side gives the side band
+(so it runs up beside a face's end: the inner-corner crease and the cut outer corner come free), floor above the lip, a face below
+nothing. (4) An `own: true` material clips on its cell line wherever the warp pushes it out: count the clipped columns and pick
+the seed (the Drop: 47 -> 0 at seed 61, bias 0.45). (5) Never flip or turn a lit sprite for variety (light is upper left): re-lay
+its parts. (6) lane/a-ground-paths left tests/hunt-core/forest-cave.mjs anchored on cw_plank_bridge (mutant-anchors red): re-anchored.
+Round 2 (the Coordinator: "the rooms still read as boxes"): the Warrens' ROWS reshaped (src/data/world/maps/coppercap_warrens.js,
+mask hash re-pinned, engine-parity warrens-4 re-pinned with its proof): the old outline moved by smooth noise, every straight run over
+4 stepped, held to the pack tiles, pulls, nodes, props, torch faces, path, the walk between pockets and forest-cave's one-choke rule.
+The fords of the Thicket and the Glade now lay the six stones too; the stones live in the forest set (every meadow ground loads it).
+Lessons: (7) on a cell map, a 1-cell bay or bulge renders as a crenellation; the one-choke rule (every open tile in an open 3x3) already
+forbids 1-2 wide bays, so break a run with a STEP (the run's head or tail moved a cell) and ban teeth (rock a cell proud with floor on
+three sides) and fins (rock a cell thin): steps render as slopes. (8) protect the walk between pockets as a 3x3 of the old ground round
+every step, or a noise edit closes a 3-wide corridor and the whole east goes unreached. (9) a spawn row may sit in rock (the called
+adds at 4,26 and 4,36): the engine stands it on the nearest free tile (pull-cycle.js freeNear), so hold only rows on ground.
+## 2026-11-17 lane/a-havora-seams-2 (Tyler's gate: every seam right, the Hearth plaza perfect; audit rows 1-3, 13-16, 23, 25)
+seams.mjs `rise` (a raised mass: a face of its own grain stepped down where the floor lies below, a lit lip, outline, cast shadow),
+`arch` (the warp eases from 2 px off the tile edge to its middle, so a border bows between the pinned crossings) and bank `shore`
+(wet sand, surf); havora-seams.mjs derives pairs from kept pairs' fills (beach = the town dirt one step paler; the mountain's upper
+tier `peak` = its rock with the joints lifted), new set havora-floor. The paint grid carries the cell-scale shape (ground.js
+repainted by a one-off script: the river 112-117 through P10's old lot to the sea with 1-3 cell grass verges, a beach, the mountain
+edge roughed and tiered, the square's setts run 0-3 cells past its paving). hearth-plaza: the flags at 1 px joints and edges.
+palisade-art.mjs: north-south runs are the strip's own front-view stakes stood one behind the other; a corner ends the east-west run
+on its post over the band's middle. Lessons: (1) a wang variant is pinned at the tile edge, so per-tile warp only scallops a long
+ruled border: the meander must live in the paint grid (or ground-rough, open pairs only); (2) a cell step in a solid border reads as
+a square jog however the tile is drawn: spread steps over rows and vary verge width; (3) L-REACH and L-SPACE bite any edit beside a
+lot footprint (a bay north of a lot is unreachable, rock under its footprint is solid): flood-check every edit; (4) a lighter upper
+tier read as brighter paving: lift only its joints so the high rock reads weathered; (5) a new material in terrain.js moves the edge
+payload (hunt-ground imports MATERIALS): report the hash.

@@ -1,0 +1,433 @@
+{
+  "id": "havora_earth_rock",
+  "class": "terrain",
+  "kind": "wang16",
+  "style": "s1",
+  "material": "native",
+  "source": "havora_earth_rock.png",
+  "lower": "earth",
+  "upper": "cliff",
+  "tiles": {
+    "1000": [
+      [
+        8,
+        0
+      ],
+      [
+        8,
+        1
+      ],
+      [
+        8,
+        2
+      ],
+      [
+        8,
+        3
+      ]
+    ],
+    "1001": [
+      [
+        9,
+        0
+      ],
+      [
+        9,
+        1
+      ],
+      [
+        9,
+        2
+      ],
+      [
+        9,
+        3
+      ]
+    ],
+    "1010": [
+      [
+        10,
+        0
+      ],
+      [
+        10,
+        1
+      ],
+      [
+        10,
+        2
+      ],
+      [
+        10,
+        3
+      ]
+    ],
+    "1011": [
+      [
+        11,
+        0
+      ],
+      [
+        11,
+        1
+      ],
+      [
+        11,
+        2
+      ],
+      [
+        11,
+        3
+      ]
+    ],
+    "1100": [
+      [
+        12,
+        0
+      ],
+      [
+        12,
+        1
+      ],
+      [
+        12,
+        2
+      ],
+      [
+        12,
+        3
+      ]
+    ],
+    "1101": [
+      [
+        13,
+        0
+      ],
+      [
+        13,
+        1
+      ],
+      [
+        13,
+        2
+      ],
+      [
+        13,
+        3
+      ]
+    ],
+    "1110": [
+      [
+        14,
+        0
+      ],
+      [
+        14,
+        1
+      ],
+      [
+        14,
+        2
+      ],
+      [
+        14,
+        3
+      ]
+    ],
+    "1111": [
+      [
+        15,
+        0
+      ]
+    ],
+    "0000": [
+      [
+        0,
+        0
+      ]
+    ],
+    "0001": [
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ]
+    ],
+    "0010": [
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "0011": [
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        3,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    "0100": [
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        4,
+        2
+      ],
+      [
+        4,
+        3
+      ]
+    ],
+    "0101": [
+      [
+        5,
+        0
+      ],
+      [
+        5,
+        1
+      ],
+      [
+        5,
+        2
+      ],
+      [
+        5,
+        3
+      ]
+    ],
+    "0110": [
+      [
+        6,
+        0
+      ],
+      [
+        6,
+        1
+      ],
+      [
+        6,
+        2
+      ],
+      [
+        6,
+        3
+      ]
+    ],
+    "0111": [
+      [
+        7,
+        0
+      ],
+      [
+        7,
+        1
+      ],
+      [
+        7,
+        2
+      ],
+      [
+        7,
+        3
+      ]
+    ]
+  },
+  "pixellab": {
+    "tool": "create_topdown_tileset",
+    "id": "401b5264-7916-4d75-9cde-dec9529b62c9",
+    "base_tile_ids": {
+      "lower": "97e71544-5fcf-4e48-94b7-c809721a12be",
+      "upper": "8427b46d-0ba9-447c-bb4b-78ab1196a113"
+    },
+    "params": {
+      "mode": "pro",
+      "tile_size": 32,
+      "view": "high top-down",
+      "transition_size": 0
+    },
+    "rock": {
+      "tool": "create_topdown_tileset",
+      "id": "6c5f1090-69c7-4038-99b7-97275609804b",
+      "upper": "1024560d-ecae-42a3-905f-7776b5d71c3e",
+      "params": {
+        "mode": "pro",
+        "tile_size": 32,
+        "view": "high top-down",
+        "transition_size": 0.5,
+        "max_colors": 10,
+        "detail": "low detail",
+        "palette": "hr-world-56-v2 stone, shadow, moss, earth ramps"
+      },
+      "cost": 15
+    }
+  },
+  "notes": "Havora's mountain at the quarry roads: dirt (97e71544) to the same grey rock (8427b46d, chained). Pro Wang tileset, 32 px.",
+  "edges": {
+    "tool": "tools/world-art/havora-seams.mjs (tools/world-art/seams.mjs transitionTiles)",
+    "base": "art/world-src/havora-edges/havora_earth_rock.png",
+    "style": "rise",
+    "variants": 4,
+    "seed": 43,
+    "baseTiles": {
+      "1000": [
+        [
+          1,
+          1
+        ]
+      ],
+      "1001": [
+        [
+          2,
+          3
+        ]
+      ],
+      "1010": [
+        [
+          1,
+          0
+        ]
+      ],
+      "1011": [
+        [
+          0,
+          2
+        ]
+      ],
+      "1100": [
+        [
+          3,
+          0
+        ]
+      ],
+      "1101": [
+        [
+          0,
+          0
+        ]
+      ],
+      "1110": [
+        [
+          1,
+          3
+        ]
+      ],
+      "1111": [
+        [
+          0,
+          3
+        ]
+      ],
+      "0100": [
+        [
+          2,
+          0
+        ]
+      ],
+      "0110": [
+        [
+          0,
+          1
+        ]
+      ],
+      "0000": [
+        [
+          2,
+          1
+        ]
+      ],
+      "0001": [
+        [
+          3,
+          1
+        ]
+      ],
+      "0011": [
+        [
+          1,
+          2
+        ]
+      ],
+      "0010": [
+        [
+          2,
+          2
+        ]
+      ],
+      "0101": [
+        [
+          3,
+          2
+        ]
+      ],
+      "0111": [
+        [
+          3,
+          3
+        ]
+      ]
+    },
+    "sweep": 10,
+    "warp": 10,
+    "arch": true,
+    "face": 14,
+    "drop": 3,
+    "side": 4,
+    "upperFill": {
+      "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+      "at": [
+        0,
+        192
+      ]
+    },
+    "faceTex": {
+      "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+      "rect": [
+        96,
+        19,
+        32,
+        14
+      ]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "havora_peak_variety",
+  "class": "terrain",
+  "kind": "variety",
+  "style": "s1",
+  "of": "havora-floor/havora_rock_peak",
+  "key": "1111",
+  "lower": "peak",
+  "upper": "peak",
+  "seed": 5,
+  "tone": "damp",
+  "spots": "both",
+  "detail": [
+    "mill/pebbles",
+    "common/square_decal_tuft_a",
+    "common/square_decal_tuft_b"
+  ],
+  "notes": "The mountain's upper tier made into 96 (tools/world-art/variety.mjs), picked per cell by src/world/core/ground-variety.js: damp and dry patches, the crag's own grain shifted inside the tile (lane/a-havora-rock: the craggy rock is a noise-like floor, so its lumps no longer stand on a 32 px grid), loose pebbles and grass tufts in the cracks (lane/a-havora-seams-2, lane/a-havora-rock).",
+  "shift": true
+}

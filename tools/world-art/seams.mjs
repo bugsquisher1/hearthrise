@@ -16,6 +16,12 @@
 //   kerb     stagger, plus a course of dressed kerb stones (the stone's own pixels, the top lit one ramp step, a dark joint at
 //            every stone) laid along the border; for paving that is meant to end on a built edge
 //   bank     ragged, the ground's rim darkened where it is wet and the water's lip lit one step; for water and its bank
+//   rise     ragged, the upper material a RAISED mass seen from the south (lane/a-havora-seams-2: Havora's mountain read as flat
+//            paving): where the floor lies below it the mass shows a FACE (`face` px of its own grain stepped down two, darker
+//            cracks down it, its foot three) under a lit lip; its other edges are outlined, lit up-left and shaded down-right; the
+//            floor at its foot takes a cast shadow (`drop` px below the face, half that east of a side). With `faceTex` (an image of
+//            a drawn cliff face, lane/a-havora-rock) the face is that face's rows, cut from the top where the room is short, and
+//            with `side` its sides show that many px of the same wall, the west side lit. For rock over grass or dirt
 //   canopy   a thicket's edge laid in whole crowns: a jittered hex lattice of round crowns (`mats.C.canopy` { spacing, jitter }),
 //            each laid or not by the warped share at its centre, so the wall's edge is a row of crowns along a wavy line, never a
 //            crown cut in half. The union is outlined in the thicket's darkest colour, its outer px lit up-left and shaded
@@ -70,8 +76,10 @@ function stepRgb(r, g, b, k) {
   return rgbOf(at.ramp[Math.max(0, Math.min(at.ramp.length - 1, at.k + k))]);
 }
 
-export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank', 'canopy', 'trail']);
-const DEFAULTS = Object.freeze({ sweep: 9, reach: 96, warp: 6, scale: 26, mid: 2.5, fine: 0.8, loose: 0.55, holes: 0.3, fade: 14, fadeIn: 10, kerb: 5, lift: 1, wet: 3 });
+export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank', 'canopy', 'trail', 'rise']);
+/* how far a pixel looks for a rise's border: past the tallest face a pair may ask for (a faceTex face of up to 15 px) */
+const RISE_REACH = 16;
+const DEFAULTS = Object.freeze({ sweep: 9, reach: 96, warp: 6, scale: 26, mid: 2.5, fine: 0.8, loose: 0.55, holes: 0.3, fade: 14, fadeIn: 10, kerb: 5, lift: 1, wet: 3, face: 6, drop: 3 });
 
 /* noise in [-1, 1] (ground-finish's three rotated octaves, stretched: it sits round 0.5 with a narrow spread) */
 /* the pixels a joint looks to for a laid stone it outlines */
@@ -793,6 +801,74 @@ function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy, wetReach = 3
         }
       }
     }
+    /* a rise: the raised mass's face where the floor lies below it (cracks down it, its foot darkest) under a lit lip; its other
+       edges outlined, lit up-left, shaded down-right; on the floor, the mass's shadow below its face and east of its sides */
+    const riseAt = (X, Y) => { if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) return null; const n = matOf[Y * w + X]; return n !== null && n !== m && pairOf(m, n).style === 'rise' ? n : null; };
+    let rise = null;
+    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) { const n = riseAt(x + dx, y + dy); if (n !== null) { rise = pairOf(m, n); break; } }
+    /* (the reach covers the tallest face a pair asks for: a face of 7 px or less never looks past 8, as before) */
+    if (!rise) for (let r = 1; r <= RISE_REACH && !rise; r++) for (const [dx, dy] of [[0, r], [0, -r], [r, 0], [-r, 0]]) { const n = riseAt(x + dx, y + dy); if (n !== null) { rise = pairOf(m, n); break; } }
+    if (rise) {
+      const F = rise.face, upper = (n) => n !== null && z(n) > z(m), lower = (n) => n !== null && z(n) < z(m);
+      let below = 0;
+      for (let r = 1; r <= F + 1; r++) { const Y = y + r; if (Y >= h || !lab[Y * w + x]) break; const n = matOf[Y * w + x]; if (n === m) continue; if (lower(riseAt(x, Y))) below = r; break; }
+      /* a FACE TEXTURE (`faceTex`, lane/a-havora-rock: Havora's mountain read as paving with a thin dark rim): the face is the rows of a
+         drawn cliff face, its top row at the face's top, one column of it a pixel along. A face taller than the room above its foot
+         is cut from the top (it starts two px below the tile's edge, so its lit lip is never lost); a drawn pixel the texture leaves
+         empty (its foot's ragged edge) takes the plain face step */
+      if (below && rise.faceTex) {
+        const tex = rise.faceTex, foot = y + below, fe = Math.min(F, foot - 2);
+        if (below === fe + 1) { step.push([i, 1]); continue; }
+        if (below <= fe) {
+          const tp = ((F - below) * tex.width + (x % tex.width)) * 4;
+          if (tex.data[tp + 3] >= 128) { out.data[i * 4] = tex.data[tp]; out.data[i * 4 + 1] = tex.data[tp + 1]; out.data[i * 4 + 2] = tex.data[tp + 2]; continue; }
+          step.push([i, below === 1 ? -3 : -2]);
+          continue;
+        }
+        below = 0;
+      }
+      if (below) {
+        const crack = below > 1 && below < F && hash2(x, Math.floor((y + below) / 3), 61) < 0.2;
+        step.push([i, below === F + 1 ? 1 : below === 1 || crack ? -3 : -2]);
+        continue;
+      }
+      /* with a face texture, a side of the mass (the floor beside it, east or west) shows a narrow strip of the same drawn wall, seen at
+         a slant: `side` px of the face's rows, the side toward the light (west) a step lit */
+      if (rise.faceTex && rise.side) {
+        const tex = rise.faceTex;
+        let d = 0, west = false;
+        for (let r = 1; r <= rise.side && !d; r++) { if (lower(riseAt(x + r, y))) d = r; else if (lower(riseAt(x - r, y))) { d = r; west = true; } }
+        if (d) {
+          const tp = (((y % tex.height) + tex.height) % tex.height * tex.width + ((west ? d - 1 : tex.width - d) % tex.width)) * 4;
+          out.data[i * 4] = tex.data[tp]; out.data[i * 4 + 1] = tex.data[tp + 1]; out.data[i * 4 + 2] = tex.data[tp + 2];
+          if (west) step.push([i, 1]);
+          continue;
+        }
+      }
+      if (lower(riseAt(x + 1, y)) || lower(riseAt(x - 1, y)) || lower(riseAt(x, y - 1))) { step.push([i, -2]); continue; }
+      if (lower(riseAt(x - 2, y)) || lower(riseAt(x, y - 2))) { step.push([i, 1]); continue; }
+      if (lower(riseAt(x + 2, y))) { step.push([i, -1]); continue; }
+      let shade = false;
+      for (let r = 1; r <= rise.drop && !shade; r++) if (upper(riseAt(x, y - r))) shade = true;
+      for (let r = 1; r <= Math.ceil(rise.drop / 2) && !shade; r++) if (upper(riseAt(x - r, y))) shade = true;
+      if (shade) { step.push([i, -1]); continue; }
+    }
+    /* a beach (`shore`, a bank pair, lane/a-havora-seams-2): the sand within `wet` px of the sea is wet (a step down, a ragged band),
+       and the sea's first two px against it are surf (two steps up, one) */
+    let surf = 0, wetSand = false;
+    for (let r = 1; r <= 3 && !surf && !wetSand; r++) for (let dy = -r; dy <= r && !surf && !wetSand; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const X = x + dx, Y = y + dy;
+      if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) continue;
+      const n = matOf[Y * w + X];
+      if (n === m || n === null) continue;
+      const p = pairOf(m, n);
+      if (p.style !== 'bank' || !p.shore) continue;
+      if (z(m) > z(n) && r <= 2) { surf = r; break; }
+      if (z(m) < z(n) && r <= p.wet - (hash2(x, y, 43) < 0.35 ? 1 : 0)) { wetSand = true; break; }
+    }
+    if (surf) { step.push([i, surf === 1 || hash2(x, y, 47) < 0.45 ? 2 : 1]); continue; }
+    if (wetSand) { step.push([i, -1]); continue; }
     /* the bank: ground within `wet` px of the water (a ragged band: the wet line is no ruler either) is a step down, and within
        `wetDeep` px of it two (the mud the water last left; lane/a-late-grounds-seams, the Slake's channels had no rim to read) */
     let wetBy = null, wetR = 0;
@@ -866,9 +942,12 @@ export function transitionTiles(lower, upper, o = {}) {
     const cellAt = (x, y) => bits[Math.max(0, Math.min(1, y)) * 2 + Math.max(0, Math.min(1, x))];
     for (let v = 0; v < variants; v++) {
       /* pinned: no warp within M px of the tile's edge (so the ring is variant 0's), full warp from 2M in */
+      /* `arch` (a bank or a rise that must wander, lane/a-havora-seams-2): the warp eases in from 2 px off the edge to the tile's
+         middle, so the border bows between the pinned crossings instead of kinking in a 12 px window */
       const env = (x, y) => {
         if (v === 0) return 0;
         const d = Math.min(x - half, y - half, half + T - 1 - x, half + T - 1 - y);
+        if (o.arch) return d <= 2 ? 0 : Math.sin(Math.min(1, (d - 2) / (half - 3)) * Math.PI / 2);
         return Math.max(0, Math.min(1, (d - M) / M));
       };
       const eng = engine({ T, cellAt, mats, tiles, pairOf: () => p, seed: (o.seed || 7) * 131 + v * 17, warpEnv: env, phase: half, pinned: true });
@@ -877,7 +956,7 @@ export function transitionTiles(lower, upper, o = {}) {
       for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
         const x = half + i, y = half + j;
         /* within the pinned ring a stone floor is drawn pixel by pixel, so a stone cut by the edge is cut the same in every variant */
-        const ring = Math.min(i, j, T - 1 - i, T - 1 - j) < M;
+        const ring = Math.min(i, j, T - 1 - i, T - 1 - j) < (o.arch ? 3 : M);
         const r = (ring || v === 0 ? flat : eng).draw(x, y, ['L', 'U']);
         const d = (j * T + i) * 4;
         img.data[d] = r.c[0]; img.data[d + 1] = r.c[1]; img.data[d + 2] = r.c[2]; img.data[d + 3] = 255;

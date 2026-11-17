@@ -41,6 +41,8 @@ export const MATERIALS = Object.freeze({
      material's placeholder tone (--world-ground-<id>-a/-b, src/world/core/compose.js). */
   water: Object.freeze({ solid: true, flat: true }),
   cliff: Object.freeze({ solid: true, flat: true }),
+  /* the mountain's upper tier (lane/a-havora-seams-2): rock risen over the rock on a second face, so the massif climbs */
+  peak: Object.freeze({ solid: true, flat: true }),
   /* the palisade's cells are walled by its style-1 sprites (town/palisade.js), which block every one of them: the
      ground itself is open, drawn as grass under the logs (BLEND alias, town/sites.js) */
   palisade: Object.freeze({ solid: false }),
@@ -53,6 +55,9 @@ export const MATERIALS = Object.freeze({
   setts: Object.freeze({ solid: false }),
   /* the Training Yard's raked sand (art lane 2026-11-09, havora_earth_sand): walked on, a ring of it under the dummies */
   sand: Object.freeze({ solid: false }),
+  /* the shore's beach (lane/a-havora-seams-2: the sea met the grass on one ruled line): walked on, the fishers' stand on it; drawn by
+     its own pairs with the grass, the dirt and the sea (havora_grass_beach, havora_earth_beach, havora_beach_water) */
+  beach: Object.freeze({ solid: false }),
   /* water under something that stands over it (lane/a-havora-art 2026-11-16): a bridge's deck (walked on), the mill's wheel
      bay (under the mill's footprint, which a building may not stand on if solid). Open ground DRAWN as the water (BLEND alias
      deck: 'water'), so the river runs on under the bridge sprite and no plank strip shows below its rail */

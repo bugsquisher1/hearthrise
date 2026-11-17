@@ -3559,3 +3559,17 @@ mostly open; a meander that opens bays doubled the second, a lower grass bias tr
 outright let the bias drop to the cell line (Meadowbrook 24/43 -> 0/42, the Glade 18/37 -> 0/35); (2) a swing three times as deep as
 it is proud reads as bays, not blobs; past about 0.2 of share the bays open thicket a hero cannot walk; (3) a guard case that never
 reaches its condition (no crown near a foot) is no guard: push the fixture until the mutant goes red.
+## 2026-11-17 lane/a-havora-seams-2 (Tyler's gate: every seam right, the Hearth plaza perfect; audit rows 1-3, 13-16, 23, 25)
+seams.mjs `rise` (a raised mass: a face of its own grain stepped down where the floor lies below, a lit lip, outline, cast shadow),
+`arch` (the warp eases from 2 px off the tile edge to its middle, so a border bows between the pinned crossings) and bank `shore`
+(wet sand, surf); havora-seams.mjs derives pairs from kept pairs' fills (beach = the town dirt one step paler; the mountain's upper
+tier `peak` = its rock with the joints lifted), new set havora-floor. The paint grid carries the cell-scale shape (ground.js
+repainted by a one-off script: the river 112-117 through P10's old lot to the sea with 1-3 cell grass verges, a beach, the mountain
+edge roughed and tiered, the square's setts run 0-3 cells past its paving). hearth-plaza: the flags at 1 px joints and edges.
+palisade-art.mjs: north-south runs are the strip's own front-view stakes stood one behind the other; a corner ends the east-west run
+on its post over the band's middle. Lessons: (1) a wang variant is pinned at the tile edge, so per-tile warp only scallops a long
+ruled border: the meander must live in the paint grid (or ground-rough, open pairs only); (2) a cell step in a solid border reads as
+a square jog however the tile is drawn: spread steps over rows and vary verge width; (3) L-REACH and L-SPACE bite any edit beside a
+lot footprint (a bay north of a lot is unreachable, rock under its footprint is solid): flood-check every edit; (4) a lighter upper
+tier read as brighter paving: lift only its joints so the high rock reads weathered; (5) a new material in terrain.js moves the edge
+payload (hunt-ground imports MATERIALS): report the hash.

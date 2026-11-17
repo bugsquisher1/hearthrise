@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-havora.png",
   "size": [2048,1988],
-  "pixels": "8e23e25e0efa1d809120625556bd4d977e9b523e1df8e2ff53bb1bfb15a4822e",
+  "pixels": "58ad583ed1553e6aeb3f54b320afe330cbe4d36fbc6bd38a47860106abe6a142",
   "sprites": {
     "havora_bollard": {
       "class": "bulky",

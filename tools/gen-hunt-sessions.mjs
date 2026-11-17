@@ -289,7 +289,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
    hr_training_gear (each item's skill, hours, whether it is the bound Crowns copy, and its gold price); hr_hunt_vendor_value gains the eight gold rows'
    bids (1% of the price). Read by 2027-04-23-training-gear.sql, which applies right after this file. No ground, spawn, kill bound, limit, end reason or
    world shape moves. */
-export const OUT_NAME = '2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql';
+/* TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (lane/d-turning-cut-melee, designer 2026-11-16; Tyler, from Andy: "Give it to all melee that doesn't
+   have a shield on"): 2027-04-23-training-gear is APPLIED history (v0.2.134) and this file carries it whole. hr_hunt_abilities' turning_cut row lists
+   club, dual_axe and sword (was sword), so the bar view projects it on a club's or two axes' unedited bar and reads it usable there. No other row moves. */
+export const OUT_NAME = '2027-04-28-turning-cut-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -979,7 +982,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
+-- NEW IN THIS FILE: TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (lane/d-turning-cut-melee, designer 2026-11-16; Tyler, from Andy: "Give it to
+-- all melee that doesn't have a shield on"): hr_hunt_abilities' turning_cut row lists club, dual_axe and sword (was sword alone), so
+-- hr_hunt_settings_view puts it on a club's, two axes' or bare hands' unedited bar (hr_hunt_role_rules' melee_dps set already names it last) and
+-- reads it usable there, as the engine casts it. The tank's shield never gets it. No other row, no shape, no bound. ORDER: after everything applied
+-- with v0.2.134; the hr-accrue carrying the same src/data/abilities.js deploys right after it (until then the engine drops the slot a club's bar
+-- shows, and before the file the view strikes the slot the new engine casts: both close once the two land).
+--
+-- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (APPLIED with v0.2.134; lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
 -- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):
 -- hr_training_rules gains xp_per_hour (${r.training.rules.xpPerHour}, the fixed rate), min_level (${r.training.rules.minLevel}, the Level a hero trains from),
 -- boost_pm (${r.training.rules.boostPm}, an item's rate) and buy_per_day (${r.training.rules.buyPerDay}, the Arms Master's clamp an account a UTC day);

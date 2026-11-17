@@ -88,6 +88,10 @@ export const BAR_TEXT = Object.freeze({
   cooldown: '{secs} s cooldown',
   requires_any: 'Works with any weapon.',
   requires: 'Works with {weapons}.',
+  /* {weapons} for a move every melee weapon holds (Power Strike), and one every melee weapon but the tank's holds (Turning Cut,
+     Tyler 2026-11-16: "all melee that doesn't have a shield on") */
+  weapons_melee: 'Melee weapon',
+  weapons_melee_no_shield: 'Melee weapon (no shield)',
 
   /* Food, drink and ammo. */
   spread: 'Half lands at once, the rest over {secs} s.',

@@ -131,6 +131,12 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     feature_off: 'Training items aren\'t open yet.',
     bad_skill: 'You can train Melee, Ranged, Magic or Defense.',
   }),
+  /* An outfit's bundle (2027-04-30-sweeps-coat.sql hr_outfit_bundle_use): labels, as the Tower's are. */
+  outfit_bundle_use: Object.freeze({
+    already_owned: 'Outfit already owned',
+    none_held: 'Not in bag or Storage',
+    bad_item: 'Not an outfit',
+  }),
   house_dummy: Object.freeze({
     quote_changed: 'The price changed. Look at the new price and press Unlock again.',
     no_home: 'You need the Hearthside Homestead before you can put a dummy in.',

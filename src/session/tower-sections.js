@@ -14,7 +14,7 @@
 //     chest { on, dry, opens, per_call, own_pm, own_family, warmth_pm, week_ends, cinders { bag, storage, ring },
 //             families [{ family, name, max, held_max, opened, held }],
 //             keys [{ key, family, item, name, from, held { bag, storage, ring }, base_pm, chance_ppm, stokes_default, stokes [{ n, pm, cost }],
-//                     inside { item: qty }, ready, skill_plus }] } }
+//                     inside { item: qty }, ready, skill_plus, outfits [{ outfit, item, pm }] }] } }
 //
 // CHECKPOINTS (Tyler 2026-11-16, lane/c-tower-checkpoints; replaces the week that started 60 floors under your best): a climb starts after
 // any landing up to the RECORD (the hero's best floor; in a party, its lowest seat's), the best by default. `checkpoints` is the server's
@@ -124,12 +124,17 @@ function keyOf(k) {
   const inside = {};
   if (isObj(k.inside)) for (const [id, q] of Object.entries(k.inside)) if (word(id) && pos(q) !== null) inside[id] = q;
   const def = nat(k.stokes_default);
+  /* the super-rare outfits this key can find and their chance (permille), the server's rows (2027-04-27-tower-chest.sql hr_chest_outfits) */
+  const outfits = (Array.isArray(k.outfits) ? k.outfits : []).slice(0, 16)
+    .filter((o) => isObj(o) && word(o.outfit) && word(o.item) && pos(o.pm) !== null && o.pm <= 1000)
+    .map((o) => Object.freeze({ outfit: o.outfit, item: o.item, pm: o.pm }));
   return Object.freeze({
     key: k.key, item: k.item, name: name(k.name), from: k.from, family: word(k.family), held, heldAll: heldSum(held),
     basePm: nat(k.base_pm), chancePpm: Number.isSafeInteger(k.chance_ppm) && k.chance_ppm >= 0 && k.chance_ppm <= 1000000 ? k.chance_ppm : null,
     /* the saved default must be a stoke count the server lists (or none) */
     stokesDefault: def === 0 || stokes.some((s) => s.n === def) ? def : null,
     stokes: Object.freeze(stokes), inside: Object.freeze(inside), ready: k.ready === true, skillPlus: pos(k.skill_plus),
+    outfits: Object.freeze(outfits),
   });
 }
 

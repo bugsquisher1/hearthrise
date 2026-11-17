@@ -37,7 +37,7 @@ export const PREP_TEXT = Object.freeze({
   fights_weapon_shield: 'Weapon: {weapon} and {shield}',
   fights_none: 'Weapon: none (bare hands)',
   fights_tank: 'Requires a sword and a shield',
-  fights_melee_dps: 'Requires a sword, two axes or a club (no shield)',
+  fights_melee_dps: 'Requires a sword, hatchets, a hammer or a club (no shield)',
   fights_ranger: 'Requires a bow or a crossbow',
   fights_mage: 'Requires a wand',
   fights_healer: 'Requires a staff',

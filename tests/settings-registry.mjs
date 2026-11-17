@@ -28,7 +28,7 @@ async function check(base) {
   must(D.SETTINGS.length > 0 && D.SETTINGS.every((r) => r.category && r.help && r.label), 'every row needs a category, a label and a help line');
   /* Search finds a row by its help text (not its label). */
   const probe = D.SETTINGS.find((r) => r.id === 'panel.analyzer');
-  must(probe && M.search(D.SETTINGS, 'while you are in a hunt').some((r) => r.id === probe.id) && !M.search(D.SETTINGS, 'zzqx').length, 'search must find a row by its help text and nothing for nonsense');
+  must(probe && !/panel/i.test(probe.label) && M.search(D.SETTINGS, 'panel in hunts').some((r) => r.id === probe.id) && !M.search(D.SETTINGS, 'zzqx').length, 'search must find a row by its help text and nothing for nonsense');
   /* A display row persists: written to residue, read back, and the field is allowlisted. */
   const rec = { residue: {} };
   const character = {
@@ -175,7 +175,7 @@ async function check(base) {
   must(notes.length >= 5 && notes.every((r) => M.visible(ctx, r)), 'help notes: Help must explain the game in read-only notes, got ' + notes.length);
   must(M.search(D.SETTINGS, 'close the game').some((r) => r.category === 'help' && r.type === 'note'), 'help notes: no note says the hero keeps hunting when you close the game');
   must(M.search(D.SETTINGS, 'weapon').some((r) => r.category === 'help' && r.type === 'note' && /no class/i.test(r.help)), 'help notes: no note says the weapon, not a class, sets how you fight');
-  must(M.search(D.SETTINGS, 'four heroes').some((r) => r.category === 'help' && r.type === 'note'), 'help notes: no note says several heroes can play at once');
+  must(M.search(D.SETTINGS, 'heroes play at once').some((r) => r.category === 'help' && r.type === 'note'), 'help notes: no note says several heroes can play at once');
   return errs;
 }
 

@@ -47,6 +47,8 @@ export const FOLK_BODIES = Object.freeze([
     ramps: 'stone,shadow,bone,iron,moss,earth,skin,steel,mithril' },
   { id: 'folk_carter', object: '3c206e45-f25c-4574-a005-093921ad4dc7', name: 'S1 carter',
     ramps: 'shadow,bronze,gold,earth,torch,skin,bone,stone,leaf', walkMirror: { 'north-east': 'north-west' } },
+  { id: 'folk_sweeper', object: 'baef9591-1921-41a4-a097-9613dd632a32', name: 'S1 sweeper',
+    ramps: 'shadow,earth,skin,stone,iron,bronze' },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));

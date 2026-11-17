@@ -52,4 +52,14 @@ export const CATACOMB_CLIPS = Object.freeze([
     ...swing(of('vault_leech', 'attack', ['s', 'e', 'w', 'se', 'sw', 'ne', 'nw']), of('vault_leech', 'attack3', ['n'])),
     ...fall(of('vault_leech', 'death2', ['s', 'e', 'n', 'se', 'ne', 'nw']), { w: { mirror: 'e' }, sw: { mirror: 'se' } }),
     ...flinch(of('vault_leech', 'hit', ['s', 'e', 'n', 'w', 'se', 'sw', 'nw'], FLINCH)) } },
+  /* the Bone Wall: the two-arm slam in six facings; S twice threw a white puff (frames 2-3), so it plays 1, 4 and back, the slam on
+     frame 4; N is the one-arm club (attack2). It falls into a heap of skulls and lime in S E W SW, SE is SW flipped (a stuck-on skull
+     face stood up in the plain one), NE NW come down from behind under the slab (death2). No N fall held in three rolls (a blue
+     mist, legs splayed, standing), so N plays the NE heap, as Lord Krell's N plays his NE (barrow-clips.mjs). Flinch: N is left to
+     the engine (white strike lines), NE and SW swing out and home (specks and an arc on frames 3-4). */
+  { set: 'vaultdead', id: 'bone_wall', clips: {
+    ...swing(of('bone_wall', 'attack', ['s'], [1, 1, 4, 4, 5, 6]), of('bone_wall', 'attack', ['e', 'w', 'se', 'sw', 'ne', 'nw']), of('bone_wall', 'attack2', ['n'])),
+    ...fall(of('bone_wall', 'death', ['s', 'e', 'w', 'sw']), { se: { mirror: 'sw' } }, of('bone_wall', 'death2', ['ne', 'nw']),
+      { n: { dir: `${G16}/bone_wall/death2/${NAME.ne}`, lay: SWING } }),
+    ...flinch(of('bone_wall', 'hit', ['s', 'e', 'w', 'se', 'nw'], FLINCH), of('bone_wall', 'hit', ['ne', 'sw'], [0, 1, 2, 1, 0])) } },
 ]);

@@ -90,6 +90,9 @@ export const GROUNDS = Object.freeze({
   meadowbrook_ground: { set: 'forest', map: 'meadowbrook_thicket', seed: 43, solid: { '#': 'T' },
     samples: Object.assign(meadow([0, 0], [6, 2], [16, 5]), { W: [30, 2] }), mats: MEADOW_MATS, pairs: BANKS(2),
     before: () => raft({ set: 'forest', id: 'mb_log_bridge_long', cells: 3, footprint: [1, 1], what: 'The Meadowbrook footbridge' }) },
+  /* the river was one straight band edged by a hairline the length of the map */
+  mosslight_ground: { set: 'glade', map: 'mosslight_glade', seed: 47, solid: { '#': 'T' },
+    samples: Object.assign(meadow([0, 0], [23, 2], [36, 6]), { W: [30, 21] }), mats: MEADOW_MATS, pairs: BANKS(2) },
 });
 
 function run(id) {

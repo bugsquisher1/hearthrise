@@ -64,7 +64,6 @@ export const WEAR = Object.freeze([
   ['leaves_b', 27, 30],
   ['tuft_b', 38, 30],
   ['tuft_a', 51, 30],
-  ['leaves_a', 92, 30],
   ['tuft_a', 116, 30],
   ['tuft_b', 119, 30],
   ['tuft_b', 16, 31],

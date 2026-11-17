@@ -53,7 +53,8 @@ export const MATERIALS = Object.freeze({
   setts: Object.freeze({ solid: false }),
   /* the Training Yard's raked sand (art lane 2026-11-09, havora_earth_sand): walked on, a ring of it under the dummies */
   sand: Object.freeze({ solid: false }),
-  /* a bridge's deck over a river (lane/a-havora-art 2026-11-16): walked on, and DRAWN as the water under it (BLEND alias
+  /* water under something that stands over it (lane/a-havora-art 2026-11-16): a bridge's deck (walked on), the mill's wheel
+     bay (under the mill's footprint, which a building may not stand on if solid). Open ground DRAWN as the water (BLEND alias
      deck: 'water'), so the river runs on under the bridge sprite and no plank strip shows below its rail */
   deck: Object.freeze({ solid: false }),
 });

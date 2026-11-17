@@ -72,5 +72,5 @@ export default Object.freeze({
   /* the lint's reach origin: the gatehouse's first stand (a hero back from a hunt arrives on one of the
      gatehouse's stands, the one the SERVER holds for it: 2027-01-28-town-stands.sql) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: 'd1b64276',
+  maskHash: '6d242a22',
 });

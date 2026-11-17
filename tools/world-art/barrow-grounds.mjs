@@ -206,10 +206,11 @@ const HOLD_SEAMS = Object.freeze({
   pairs: [
     { a: '.', b: 'f', style: 'kerb' }, { a: '=', b: 'f', style: 'kerb', course: 'f' },
     { a: 'f', b: 's', style: 'stagger', jitter: 6 },
-    { a: 'f', b: 'g', style: 'scatter', jitter: 8, loose: 0.35 },
-    { a: '.', b: 'g', style: 'scatter', jitter: 3, loose: 0.5, holes: 0.1, fade: 12 },
-    { a: '.', b: ':', style: 'scatter', jitter: 3, holes: 0.1 },
-    { a: 'h', b: 'k', style: 'scatter', jitter: 8, holes: 0.12 },
+    /* the worn patches are one to three cells: a calm warp keeps each a broken blob, the default sweep drew it as a splash */
+    { a: 'f', b: 'g', style: 'scatter', jitter: 8, loose: 0.35, sweep: 3, warp: 5, scale: 22 },
+    { a: '.', b: 'g', style: 'scatter', jitter: 2, loose: 0.4, holes: 0.06, fade: 10, sweep: 3, warp: 4, scale: 20, mid: 1.5 },
+    { a: '.', b: ':', style: 'scatter', jitter: 2, holes: 0.06, sweep: 3, warp: 4 },
+    { a: 'h', b: 'k', style: 'scatter', jitter: 5, holes: 0, loose: 0.3, fade: 10, sweep: 4, warp: 4, scale: 24, bias: { k: 0.08 } },
     { a: 'g', b: 'h', style: 'ragged' }, { a: ':', b: 'h', style: 'ragged' },
   ],
 });

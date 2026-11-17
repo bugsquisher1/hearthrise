@@ -53,6 +53,8 @@ export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'ba
 const DEFAULTS = Object.freeze({ sweep: 9, reach: 96, warp: 6, scale: 26, mid: 2.5, fine: 0.8, loose: 0.55, holes: 0.3, fade: 14, fadeIn: 10, kerb: 5, lift: 1, wet: 3 });
 
 /* noise in [-1, 1] (ground-finish's three rotated octaves, stretched: it sits round 0.5 with a narrow spread) */
+/* the pixels a joint looks to for a laid stone it outlines */
+const JOINT_REACH = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]);
 const sn = (x, y, s, seed) => Math.max(-1, Math.min(1, (noise(x, y, s, seed) - 0.5) * 3.2));
 
 /* ── the fill tile of a material: the most common 32x32 of its deep cells (all eight neighbours the same material) ── */
@@ -131,7 +133,25 @@ export function stonesOf(tile, o = {}) {
     if (k < 0 || area[k] < minArea || big) continue;
     sid[i] = k; dx[i] = ux[i] - cx[k]; dy[i] = uy[i] - cy[k];
   }
-  return { sid, dx, dy, count: cx.length, cut, ok: !big };
+  /* every joint pixel belongs to its NEAREST stone (a breadth-first fill over the joints, on the torus): a wide joint between two
+     laid stones is drawn, and the outline a laid stone takes is its own half of each joint */
+  const nsid = new Int32Array(N).fill(-1), ndx = new Float32Array(N), ndy = new Float32Array(N);
+  let front = [];
+  for (let i = 0; i < N; i++) if (sid[i] >= 0) { nsid[i] = sid[i]; ndx[i] = dx[i]; ndy[i] = dy[i]; front.push(i); }
+  while (front.length) {
+    const next = [];
+    for (const p of front) {
+      const px = p % T, py = Math.floor(p / T);
+      for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const i = (((py + oy) % T + T) % T) * T + (((px + ox) % T + T) % T);
+        if (nsid[i] >= 0) continue;
+        nsid[i] = nsid[p]; ndx[i] = ndx[p] + ox; ndy[i] = ndy[p] + oy;
+        next.push(i);
+      }
+    }
+    front = next;
+  }
+  return { sid, dx, dy, nsid, ndx, ndy, count: cx.length, cut, ok: !big };
 }
 
 /* ── the engine: one pixel of a border, given the cells round it ──
@@ -185,6 +205,11 @@ function engine(o) {
       if (v > bv || (v === bv && z(m) > z(best))) { second = bv; bv = v; best = m; } else if (v > second) second = v;
     }
     return { m: best, margin: (bv - Math.max(0, second)) * T / 2 };
+  }
+  /* the stone a joint pixel at (x, y) belongs to (its nearest), its centre in the plane */
+  function jointOf(m, x, y) {
+    const st = mats[m].stones, i = wrap(y) * T + wrap(x);
+    return st.nsid[i] < 0 ? null : { gx: x - st.ndx[i], gy: y - st.ndy[i], k: st.nsid[i] };
   }
   /* a unit material's stone at (x, y): the stone's centre in the plane, or null on the mortar */
   function stoneAt(m, x, y) {
@@ -259,9 +284,11 @@ function engine(o) {
       if (unit(m) && (p.style === 'stagger' || p.style === 'scatter')) {
         const s = stoneAt(m, x, y);
         if (s) { if (claimed(m, s, S, p)) { pick = m; break; } continue; }
-        /* a joint is the stone's outline: drawn when a stone beside it is laid */
-        let edge = false;
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const n = stoneAt(m, x + dx, y + dy); if (n && claimed(m, n, S, p)) { edge = true; break; } }
+        /* a joint is drawn with the stone it belongs to (its nearest: a wide joint between two laid stones never shows the floor
+           beneath), and as the outline of any laid stone it touches */
+        const j = jointOf(m, x, y);
+        let edge = !!(j && claimed(m, j, S, p));
+        for (const [dx, dy] of JOINT_REACH) { if (edge) break; const n = stoneAt(m, x + dx, y + dy); if (n && claimed(m, n, S, p)) edge = true; }
         if (edge) { pick = m; break; }
         continue;
       }

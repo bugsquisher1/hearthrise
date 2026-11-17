@@ -29,8 +29,8 @@ export const HUD_TEXT = Object.freeze({
   /* the socket's tooltip: {where} is where_hunt or where_bag */
   where_hunt: 'hunt bag',
   where_bag: 'bag',
-  food_title: 'Food in {where}: {n}, most {item}',
-  food_store_title: 'No food in {where}, bar buys {item} at {price} each',
+  food_title: 'Food in {where}: {n} (mostly {item})',
+  food_store_title: 'No food in {where}. Bar buys {item} ({price} each)',
   food_none_title: 'No food in {where}, no store food on the bar',
 
   /* THE STAMINA REFILL (the "+" after the timer, and the Shop's Services tab asks the same). {hours} "4 h", {price} "1,600 gp". */
@@ -41,7 +41,7 @@ export const HUD_TEXT = Object.freeze({
   stam_premium: 'Premium: +{hours} h stamina cap',
   stam_unpriced: 'No refill price yet',
   stam_quote: 'One refill: +{hours} for {price}',
-  stam_day: 'Bought today: {n} of {max}, each costs more',
+  stam_day: 'Bought today: {n} of {max}. Each refill costs more',
   stam_go: 'Buy',
   stam_go_for: 'Buy for {price}',
   stam_go_plus: 'Buy +{hours} for {price}',
@@ -50,7 +50,7 @@ export const HUD_TEXT = Object.freeze({
 
   /* THE TALLY WIDGET. {board} where her board stands; {ground} a hunt's name. */
   tally_aria: 'Tallies',
-  tally_open: 'Open the Tally, drag to move',
+  tally_open: 'Open the Tally (drag to move)',
   tally: 'Tally',
   tally_none: 'Kill tasks: Tamsin\'s board, {board}',
   tally_done_row: 'done',

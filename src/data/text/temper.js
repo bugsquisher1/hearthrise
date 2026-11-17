@@ -11,7 +11,7 @@
 export const TEMPER_TEXT = Object.freeze({
   /* How the smith makes an input, and that every hero reads it from Storage. */
   way_smith: '{name}: Smithing {req}, made from {inputs}, shared in Storage',
-  way_smith_short: '{name}: requires Smithing {req}, now {level}, made from {inputs}',
+  way_smith_short: '{name}: requires Smithing {req} (now {level}), made from {inputs}',
   /* Where an input of those only a hunt gets drops: {where} names the creatures and the ground, or the pull that brings them. */
   drop_from: '{stack} drop from {where}.',
   drop_pulled: '{where}, and it drops {stack}.',

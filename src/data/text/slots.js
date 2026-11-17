@@ -9,16 +9,16 @@
 
 export const SLOTS_TEXT = Object.freeze({
   /* The line over the roster when more slots can be bought. {count} the slots owned, {most} how many heroes can play at once. */
-  more_cost_gold: { one: 'Hero slots: {count}, up to {most} play at once, more cost gold', other: 'Hero slots: {count}, up to {most} play at once, more cost gold' },
+  more_cost_gold: { one: 'Hero slots: {count} (up to {most} play at once). More cost gold', other: 'Hero slots: {count} (up to {most} play at once). More cost gold' },
   /* The line over the roster with a slot left to fill, or nothing for sale (labels, Tyler 2026-11-14). */
   play_one: 'Heroes at once: 1',
   play_up_to: 'Heroes at once: up to {most}',
-  play_owned: { one: 'Hero slots: {count}, up to {most} play at once', other: 'Hero slots: {count}, up to {most} play at once' },
+  play_owned: { one: 'Hero slots: {count} (up to {most} play at once)', other: 'Hero slots: {count} (up to {most} play at once)' },
   /* The offer block under the roster: the server's quote. {nth} is "Second", {cost} and {gold} whole numbers. */
   offer_nth: '{nth} hero slot: {cost} gold',
-  offer_nth_max: '{nth} hero slot: {cost} gold, max {max} heroes',
+  offer_nth_max: '{nth} hero slot: {cost} gold (max {max} heroes)',
   offer_any: 'Another hero slot: {cost} gold',
-  offer_any_max: 'Another hero slot: {cost} gold, max {max} heroes',
+  offer_any_max: 'Another hero slot: {cost} gold (max {max} heroes)',
   purse: 'Gold: {gold}',
   short: 'Need {gold} more gold',
   buying: 'Buying…',

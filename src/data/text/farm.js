@@ -13,7 +13,7 @@ export const FARM_TEXT = Object.freeze({
   refused_empty_plot: 'That plot is empty now.',
   refused_plot_occupied: 'Something is already growing there.',
   refused_plot_cap: 'No room for another plot',
-  refused_insufficient_seed: 'No seed, the Shop sells them',
+  refused_insufficient_seed: 'No seeds (sold at the Shop)',
   refused_level_too_low: 'Farming level too low',
   refused_plot_tier_locked: 'Requires a higher plot tier',
   refused_still_watered: 'Still watered',
@@ -22,7 +22,7 @@ export const FARM_TEXT = Object.freeze({
   refused_day_budget: 'Daily farming limit reached',
   refused_farm_level_too_low: 'Farming level too low for the next tier',
   refused_cannot_afford: 'Not enough gold for that.',
-  refused_stale_level: 'Plots changed, check the price and try again',
+  refused_stale_level: 'Plots changed. Check the price and try again',
   refused_max_plot_level: 'Plots at top tier',
   refused_no_seed_for_sale: 'The Shop does not sell that seed.',
 
@@ -34,7 +34,7 @@ export const FARM_TEXT = Object.freeze({
   tier_head: 'Plot tier',
   purse: 'Gold: {gold}',
   land_room: { one: 'Room for {count} plot', other: 'Room for {count} plots' },
-  land_extra: { one: '{count} extra plot goes once harvested.', other: '{count} extra plots go once harvested.' },
+  land_extra: { one: '{count} extra plot, gone once harvested', other: '{count} extra plots, gone once harvested' },
 
   /* One plot. */
   plot_aria_ready: '{crop}, ready',
@@ -52,8 +52,8 @@ export const FARM_TEXT = Object.freeze({
   note_last_harvest: 'Last harvest: the plant withers after it',
   note_regrows_n: { one: 'Grows back {count} more time after this harvest', other: 'Grows back {count} more times after this harvest' },
   harvest: 'Harvest',
-  harvest_regrows: 'Harvest, grows back',
-  harvest_regrows_n: { one: 'Harvest, grows back {count} more time', other: 'Harvest, grows back {count} more times' },
+  harvest_regrows: 'Harvest (grows back)',
+  harvest_regrows_n: { one: 'Harvest (grows back {count} more time)', other: 'Harvest (grows back {count} more times)' },
   harvest_replant: 'Harvest and replant',
   harvest_clear: 'Harvest and clear',
   harvest_only: 'Harvest only',
@@ -74,13 +74,13 @@ export const FARM_TEXT = Object.freeze({
   seeds_in_bag: { one: '{held} seed in bag', other: '{held} seeds in bag' },
   seeds_in_bag_storage: { one: '{held} seed in bag and Storage', other: '{held} seeds in bag and Storage' },
   sow_all: 'Plant {n} empty plots',
-  no_seed_to_plant: 'No seed, buy one in the Shop',
+  no_seed_to_plant: 'No seeds (sold at the Shop)',
 
   /* The plot tier. */
   tier_grows: 'Tier {tier} grows {crops}.',
-  tier_next: 'Tier {tier} adds {crops}: {price}, at Farming {level}.',
+  tier_next: 'Tier {tier} adds {crops}. {price} · Requires Farming {level}',
   tier_top: 'Plots at top tier',
-  tier_crop_needs: '{crop}, Farming {level}',
+  tier_crop_needs: '{crop} (Farming {level})',
   improve: 'Improve the soil for {price}',
   improve_top: 'Top tier',
 

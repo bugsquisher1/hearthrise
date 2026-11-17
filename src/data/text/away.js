@@ -13,7 +13,7 @@ export const AWAY_TEXT = Object.freeze({
   /* {name} when the server has not sent the hero's name yet. */
   your_hero: 'Hero',
   /* Out of stamina (after-hunt.js NEXT.stamina): what uses none while it comes back. {level} the yard's first Level (src/data/training.js). */
-  next_stamina: 'Refill stamina: work a bench or train at the Yard',
+  next_stamina: 'While stamina refills: work a bench or train at the Yard',
   /* A training session that reached its longest run (after-hunt.js TRAIN_NEXT). */
   next_train_again: 'Start training again to keep going',
   /* {doing} is the server's job in words ("mining the Copper Rock", party-sections.js townActivityWords). */
@@ -26,7 +26,7 @@ export const AWAY_TEXT = Object.freeze({
   next_food: 'Pack more food for a longer hunt.',
   next_ammo: 'Pack more ammo for a longer hunt.',
   next_runes: 'Pack more runes for a longer hunt.',
-  next_gold: 'Lower the gold reserve or pack own supplies',
+  next_gold: 'Lower the gold reserve or pack your own supplies',
   /* gold_out with food or drink in the bag that no slot of the bar uses (after-hunt.js spareSupplyOf): {item} its name. */
   next_bar: 'Tip: put {item} on the bar',
 
@@ -40,7 +40,7 @@ export const AWAY_TEXT = Object.freeze({
   note_job: 'Works until stopped',
   /* {n} what the bench still had to make, the server's count. */
   note_job_left: 'Makes the last {n}',
-  note_no_job: 'Waits in town, no job to go back to',
+  note_no_job: 'Waits in town (no job to resume)',
   /* {fee} the yard's fee for an hour at this hero's skill, {hours} its longest stay; both the server's. */
   train_cost: '{fee} gold/h, up to {hours} h',
   train_level: 'Yard from Level {level}',
@@ -59,8 +59,8 @@ export const AWAY_TEXT = Object.freeze({
   done_pending: '{name} is on the way to the yard to train {skill}.',
   done_started: 'Then {name} went to the yard to train {skill}.',
   done_chose_wait: 'Then {name} waited in town',
-  done_gold: '{name} waited in town, not enough gold for {skill}',
-  done_level: '{name} waited in town, the yard requires Level {level}',
-  done_party: '{name} waited in town, training is solo',
+  done_gold: '{name} waited in town: not enough gold to train {skill}',
+  done_level: '{name} waited in town: the yard requires Level {level}',
+  done_party: '{name} waited in town: training is solo',
   done_no_train: '{name} couldn\'t train {skill} and waited in town',
 });

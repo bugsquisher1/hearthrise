@@ -48,9 +48,9 @@ export const ITEM_TEXT = Object.freeze({
 
   /* A tool, and who won't buy it. */
   tool_effect: '{skill} {speed} faster, {xp} more XP, {extra} extra yield',
-  tool_words: '{effect} from the bag, not Storage, best one only',
+  tool_words: '{effect}. Works from the bag only, best tool counts',
   own_use: 'Own use only, can\'t be sold',
-  kit_unlisted: 'Shop buys it, not on the Weighhouse',
+  kit_unlisted: 'Sells to the Shop only, not at the Weighhouse',
   qty_item: '{qty} {item}',
   sells_rares: 'This sells rare finds: {items}.',
   kit_once: 'Nothing sells the {kit} that makes another {item}.',
@@ -61,13 +61,13 @@ export const ITEM_TEXT = Object.freeze({
   eat_heals: 'Eat to heal {heals} health',
   drink_restores: 'Drink to restore {mana} mana',
   burn_trains: 'Burn it in the Great Hearth to train {skill}',
-  burn_trains_level: 'Burn it in the Great Hearth to train {skill}, {skill} {level}',
+  burn_trains_level: 'Burn it in the Great Hearth to train {skill} (requires {skill} {level})',
   burn_flame: 'Great Hearth: {skill} XP burst, fire {flame} for Havora',
-  burn_flame_level: 'Great Hearth: {skill} XP burst, fire {flame} for Havora, {skill} {level}',
-  cook_it: 'Cook it into food, {skill} {level}',
+  burn_flame_level: 'Great Hearth: {skill} XP burst, fire {flame} for Havora (requires {skill} {level})',
+  cook_it: 'Cook it into food (requires {skill} {level})',
   plant_it: 'Plant it on the Farm',
-  house_asks: 'The House asks for it',
-  temper_asks: 'The smith takes it to temper gear',
+  house_asks: 'Used to build the House',
+  temper_asks: 'Used to temper gear',
   /* The bag's picked line: what spends it and where to get more, each a link to its window (src/shell/goto.js). */
   way_used_in: 'Used in {place}',
   place_house: 'the House',
@@ -81,7 +81,7 @@ export const ITEM_TEXT = Object.freeze({
 
   /* A requirement, against the server's number. */
   need_level: 'Needs Level {level}',
-  locked_unlock_first: '{item} is locked, unlock it first',
+  locked_unlock_first: '{item} is locked. Unlock it first',
   need_level_have: 'Needs Level {level}, now {have}',
   need_skill: 'Needs {skill} {level}',
   need_skill_have: 'Needs {skill} {level}, now {have}',

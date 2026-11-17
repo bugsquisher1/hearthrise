@@ -18,8 +18,8 @@ export const COACH_TEXT = Object.freeze({
   no_tips: 'Don\'t show tips',
   /* Tamsin's rats, the first ten minutes (designer 2026-11-10) */
   tamsins_rats_title: 'Tamsin\'s rats',
-  tamsins_rats: 'Take the {label} on Tamsin\'s tally',
-  tamsins_rats_in: 'Press Take on the {label}',
+  tamsins_rats: 'Open Tamsin\'s tally → Take {label}',
+  tamsins_rats_in: 'Press Take on {label}',
   rats_count_title: 'Tamsin\'s count',
   rats_count: 'Kill {count} {label} to finish Tamsin\'s task',
   tamsin_owes_title: 'Rats done',
@@ -27,12 +27,12 @@ export const COACH_TEXT = Object.freeze({
   back_down_title: 'Back for Level {level}',
   back_down: 'Hunts → {ground} → Enter',
   back_down_in: 'Press the {ground}, then Enter',
-  keep_hunting: 'Close the game, your hero keeps hunting to Level {level}',
+  keep_hunting: 'Safe to close the game: your hero keeps hunting to Level {level}',
   brook: 'Hunt here to Level {level} for {next}',
   /* Tamsin's wolves */
-  tamsins_task: 'Open Tamsin\'s tally and take the {count} {label}',
-  tamsins_task_in: 'Pick {weight} armor, then Take the {label}',
-  tamsins_task_in_any: 'Pick an armor weight, then Take the {label}',
+  tamsins_task: 'Open Tamsin\'s tally → Take {count} {label}',
+  tamsins_task_in: 'Pick {weight} armor, then Take {label}',
+  tamsins_task_in_any: 'Pick an armor weight, then Take {label}',
   tamsin_pays: 'Kill {count} {label}, then collect {gold} gp from Tamsin',
   /* the cards a builder states from the facts (hunt-tutorial.js SAY) */
   styles: 'Equip another weapon in town to switch style',

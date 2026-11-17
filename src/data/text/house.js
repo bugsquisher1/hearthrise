@@ -26,7 +26,7 @@ export const HOUSE_TEXT = Object.freeze({
   held_bag: '{count} in bag',
   held_storage: '{count} in Storage',
   held_both: '{bag} in bag + {storage} in Storage',
-  cost_gold_short: '{price}, have {purse}',
+  cost_gold_short: '{price} (have {purse})',
   cost_item: '{item} {qty}',
   cost_item_held: '{item} {qty} ({held})',
 

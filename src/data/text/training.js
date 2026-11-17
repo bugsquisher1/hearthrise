@@ -9,7 +9,7 @@
 
 export const TRAINING_TEXT = Object.freeze({
   /* What the yard is, said once at the top. */
-  lead: 'Any skill, same rate, paid hourly, no stamina',
+  lead: 'Trains any skill at the same rate. Hourly fee, no stamina used',
   your_hero: 'Hero',
   purse: 'Gold: {gold}',
 
@@ -42,15 +42,15 @@ export const TRAINING_TEXT = Object.freeze({
   run_paid: 'Paid so far: {gold} gold',
 
   /* Why the last run ended (the section's last_stop.reason). */
-  ended_gold_out: '{name} stopped training {skill}, out of gold',
-  ended_hours: '{name} finished {skill} training, session max reached',
+  ended_gold_out: '{name} stopped training {skill}: out of gold',
+  ended_hours: '{name} finished training {skill} (session max reached)',
   ended_left: 'Stopped {name}\'s {skill} training',
   ended_other: '{name} stopped training {skill}.',
 
   /* Why Start is off, said before the press; the same words answer the server's refusal. */
   closed: 'The training yard is closed right now.',
-  hunting: '{name} is hunting, training is in town',
-  in_party: '{name} is in a party, training is solo',
+  hunting: '{name} is hunting. Training is in town only',
+  in_party: '{name} is in a party. Training is solo only',
   short_gold: 'First hour: {fee} gold. Gold: {purse}',
   low_level: 'Requires Level {need}. Level now: {level}',
   dummy_busy: 'Dummy in use by {who}',

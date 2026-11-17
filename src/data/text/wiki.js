@@ -27,7 +27,7 @@ export const WIKI_TEXT = Object.freeze({
   level_feeds: 'Each Level: more health, harder hunting grounds',
 
   /* A ground's page. */
-  band: 'Level {lo} to {hi}',
+  band: 'Levels {lo}–{hi}',
   monsters: 'Monsters',
   monster_line: 'Level {level}',
   monster_boss: 'Level {level} boss',
@@ -66,5 +66,5 @@ export const WIKI_TEXT = Object.freeze({
   death_name: 'The cost of a death',
   death_words: 'Death: −{share}% total Level XP, −{share}% combat skill progress\nNever below Level 1\nBlessings: {cuts}',
   death_cut: '{pct}% with {count} held',
-  death_example: 'Hero with {xp} Level XP loses {result} XP, {blessed} with one Blessing',
+  death_example: 'Hero with {xp} Level XP loses {result} XP ({blessed} with one Blessing)',
 });

@@ -37,7 +37,7 @@ export const PREP_TEXT = Object.freeze({
   fights_weapon_shield: 'Weapon: {weapon} and {shield}',
   fights_none: 'Weapon: none',
   fights_tank: 'Requires a sword and a shield',
-  fights_melee_dps: 'Requires a sword, two axes or a club, no shield',
+  fights_melee_dps: 'Requires a sword, hatchets, a hammer or a club (no shield)',
   fights_ranger: 'Requires a bow or a crossbow',
   fights_mage: 'Requires a wand',
   fights_healer: 'Requires a staff',
@@ -65,13 +65,13 @@ export const PREP_TEXT = Object.freeze({
   /* THE ACTION BAR GRID. */
   bar: 'Action bar',
   bar_count: '{n} of {max} slots',
-  bar_hint: 'Drag to move or swap, + to fill, slot 1 fires first',
+  bar_hint: 'Drag to move or swap. + to fill. Slot 1 fires first',
   slot_empty: 'Slot {n}: empty',
   slot_filled: 'Slot {n}: {name}.',
   slot_off: 'Off',
   slot_always: 'Fires when ready',
   sorted: 'Sorted: moves, food and drink, then ammo',
-  cleared: 'Cleared, weapon moves only',
+  cleared: 'Cleared (weapon moves kept)',
 
   /* THE FOOTER. */
   save_and_use: 'Save and use',
@@ -98,7 +98,7 @@ export const PREP_TEXT = Object.freeze({
 
   /* BEFORE YOU GO, STORE FOOD TOO WEAK FOR THE GROUND (src/shell/hunt-go.js weakFoodLine): {food} the bar's best store food, {want} the
      store food this ground's bag guide names. */
-  food_weak: '{food} heals too little here, pick {want}',
+  food_weak: '{food} heals too little here. Pick {want}',
 
   /* CARRY IN, while this hero hunts (src/shell/carry-in.js). */
   carry_head: 'Carry into this hunt',
@@ -110,8 +110,8 @@ export const PREP_TEXT = Object.freeze({
   /* BEFORE YOU GO, THE BLESSINGS (src/shell/hunt-go.js blessingWords). Every number is the server's Blessings section:
      {on} held of {of}, {pct} the cut they give now, {price} the next one's price, {level} the Level they stop being free at.
      `_free` while the next one costs nothing, `_cost` once it has a price, the bare row if the server hasn't said which. */
-  blessings_none: 'Blessings: none, buy in the Shop',
-  blessings_none_cost: 'Blessings: none, first one {price} in the Shop',
+  blessings_none: 'Blessings: none (Shop → Services)',
+  blessings_none_cost: 'Blessings: none (first: {price}, Shop → Services)',
   blessings_some: 'Blessings: {on} of {of}, -{pct}% death XP loss',
   blessings_some_cost: 'Blessings: {on} of {of}, -{pct}% death XP loss, next {price}',
   blessings_all: 'Blessings: {of} of {of}, -{pct}% death XP loss',
@@ -128,7 +128,7 @@ export const PREP_TEXT = Object.freeze({
   go_stamina_low: 'Stamina: {left} left',
   go_stamina: 'Stamina: {left}',
   go_gold: 'Gold: {gold}',
-  go_no_gold: 'Gold: none, hunt ends when supplies run out',
+  go_no_gold: 'Gold: none (hunt ends when supplies run out)',
   /* EVERY HERO'S CHECKLIST (src/shell/readiness.js). {n} the slot, 1 first. */
   ready_character: 'Character {n}',
   ready_loading: 'Loading this character…',

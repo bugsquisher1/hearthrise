@@ -15,7 +15,7 @@ export const SHOP_TEXT = Object.freeze({
   /* The Sell tab's one bulk sale: the Junk only, never a Material (Tyler 2026-11-08). */
   sell_junk: 'Sell all junk',
   sell_junk_for: 'Sell all junk for {total}',
-  junk_keeps_it: 'Sell all junk keeps it',
+  junk_keeps_it: 'Kept by Sell all junk',
   /* The Equip upgrades line (src/shell/upgrade-plan.js upgradeWords), in the Shop and the bag, when every slot it could fill is a tie. An armor weight
      picked at Tamsin's settles a tie between weights, so only that tie says so (a Keen ring against a Surge ring is not one). */
   /* A perk a piece adds that its name does not say (a jewelry row's name says its own). */

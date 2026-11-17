@@ -26,33 +26,33 @@ export const HUNTS_TEXT = Object.freeze({
   tier_choice: '{tier}: {head}.',
 
   /* The band, and a ground above the hero. */
-  band: 'Level {lo} to {hi}',
-  band_you: 'Level {lo} to {hi}, now {level}',
+  band: 'Levels {lo}–{hi}',
+  band_you: 'Levels {lo}–{hi} (you: {level})',
   /* Three lines (Tyler 2026-11-14): "{n} Levels under" / "Higher risk, better loot" / "Death: −6% Level XP" */
   above_level: 'Higher risk, better loot',
   far_above_level: 'Much higher risk, better loot',
   range_under: { one: '{count} Level under', other: '{count} Levels under' },
   range_die: 'Death: −{loss}% Level XP',
   /* the same, with Blessings on: the share a death would really take, the server's held cut (hr_blessing_view permille) */
-  range_die_blessed: 'Death: −{loss}% Level XP, Blessings on',
+  range_die_blessed: 'Death: −{loss}% Level XP (with Blessings)',
   /* The away card: the hunt's best find, gear or a Rare (src/shell/away-recap.js). */
   away_best: 'Best find: {item}',
   seat_level: '{name}, Level {level}',
-  seats_under: { one: 'Under Level {level}, death risk: {who}', other: 'Under Level {level}, death risk: {who}' },
-  share_you: 'Level XP share: {pct}%, far under Level {top}',
-  share_seat: '{name}\'s Level XP share: {pct}%, far under Level {top}',
+  seats_under: { one: 'Under Level {level} (death risk): {who}', other: 'Under Level {level} (death risk): {who}' },
+  share_you: 'Level XP share: {pct}% (far under Level {top})',
+  share_seat: '{name}\'s Level XP share: {pct}% (far under Level {top})',
 
   /* The advice: the ground at the Level and why, then the easier pick on its own line. */
   level_one: 'Level {level}',
-  levels_range: 'Levels {lo} to {hi}',
+  levels_range: 'Levels {lo}–{hi}',
   no_ground: 'No good hunt for {levels} yet',
-  nearest_below: 'Nearest below: {ground}, Level {lo} to {hi}',
+  nearest_below: 'Nearest below: {ground} (Levels {lo}–{hi})',
   /* A ground whose band holds the Level but is built tough (Tyler 2026-11-11: "no good hunt" over a row reading "In your range" was a lie). */
   right_but_tough: '{ground}: right for {levels}, tough monsters',
   right_easier: '{ground}: right for {levels}',
   /* the same, when the server's best alone there lost gold (hunt_bests balanceH < 0) */
-  right_but_lost: '{ground}: right for {levels}, lost {gold}/h alone',
-  easier: 'Easier: {easier}, Level {lo} to {hi}',
+  right_but_lost: '{ground}: right for {levels}, but lost {gold}/h solo',
+  easier: 'Easier: {easier} (Levels {lo}–{hi})',
   tag_right_party: 'Recommended for the party',
   tag_right_level: 'Recommended',
   tag_next_step: 'Next step up',
@@ -61,9 +61,9 @@ export const HUNTS_TEXT = Object.freeze({
   best_rate: '{xp} Level XP/h, balance {gold}/h',
   best_alone: 'Best alone: {rate}',
   best_party: 'Best in a party: {rate}',
-  best_none: 'No best yet, hunt {min}+ min',
+  best_none: 'No record yet (hunt {min}+ min)',
   best_line: 'Best {xp} Level XP/h',
-  best_line_none: 'No best yet',
+  best_line_none: 'No record yet',
 
   /* Where the hero stands, and who may come. */
   fit_above: 'Above level',
@@ -88,10 +88,10 @@ export const HUNTS_TEXT = Object.freeze({
   head_party: 'With a party',
   rares_per: 'chance per kill of its creature',
   per_kill_alone: 'chance per kill, hunting alone',
-  per_kill_party: 'chance per kill, party of {n}, one hero gets each drop',
-  level_band: 'Level {lo}–{hi}',
+  per_kill_party: 'chance per kill in a party of {n} (one hero gets each drop)',
+  level_band: 'Levels {lo}–{hi}',
   /* the lead line over the list */
-  lead_hunting: 'Hunting in {ground}, leave to go elsewhere',
+  lead_hunting: 'Hunting in {ground}. Leave to switch hunts',
   lead_follower: 'Party leader picks the hunt',
   lead_party: 'Pick a hunt, then Enter with party',
   /* @sentence: the first line a new player reads in the window; it teaches the loop */
@@ -110,12 +110,12 @@ export const HUNTS_TEXT = Object.freeze({
   go_puts_on: 'Enter equips {setup} first',
   tier_set_by: 'Set by {leader}: {tier}',
   tier_leader_picks: 'Tier: set by the party leader',
-  tier_kept_party: 'Tier: for the whole party, kept for this ground',
+  tier_kept_party: 'Tier applies to the whole party, saved for this ground',
   tier_kept: 'Kept for this ground',
   bringing: 'Bringing {name}…',
   joined: '{name} joined the party',
   telling: 'Telling the party…',
-  party_warned: 'Party warned, press Enter anyway to go',
+  party_warned: 'Party warned. Press Enter anyway to go',
   enter_anyway_hint: 'Press Enter anyway to go',
   gathering: 'Gathering the party for {ground}…',
   party_on_way: 'Party heading to {ground}',

@@ -25,7 +25,7 @@ export const TALLY_TEXT = Object.freeze({
   count_3: 'three',
 
   /* The day's count beside her name, from the server's cap fields. {left} is "6 h" or "20 m". */
-  day_paid: 'Paid today {paid} of {perDay}',
+  day_paid: 'Paid today: {paid} of {perDay}',
   day_resets: 'resets in {left}',
 
   /* Section heads. */
@@ -43,7 +43,7 @@ export const TALLY_TEXT = Object.freeze({
   counting_here: 'Counting in {ground}',
   not_here: 'Not here',
   keep_on: 'Repeats as soon as she pays',
-  keep_off: 'Once she pays for it, it won\'t come back by itself.',
+  keep_off: 'Does not repeat after she pays',
   given_up: 'Abandoned {label}, count lost',
   taken: 'Taken: {counts}',
   taken_weight: 'Taken: {counts}, paid in {weight} armor',
@@ -59,8 +59,8 @@ export const TALLY_TEXT = Object.freeze({
   no_weight: 'Pick an armor weight first',
 
   /* Her pick, folded to one line at the foot; Change opens the picker (Take, Abandon, Keep and Close are the glossary's, src/data/text/controls.js). */
-  pick_label: 'Armor weight paid in',
-  order_label: 'Slot order she fills',
+  pick_label: 'Reward armor weight',
+  order_label: 'Reward slot order',
   pick_line: 'Paid in {weight} armor: {first}, then {second} and {third}',
   pick_none: 'No armor weight picked yet.',
   /* Before the server answers her first-visit ask (tally.js suggestedWeight): the weight that suits and why, said once. {role} is "a shield tank". */
@@ -72,7 +72,7 @@ export const TALLY_TEXT = Object.freeze({
   weight_light: 'Light',
   weight_set: 'Now paid in {weight} armor',
   order_how: 'Tap a slot to move it first',
-  slot_first_why: 'This one already comes first.',
+  slot_first_why: 'Already first',
   rule_worn: 'Skips slots worn at that tier or better, then pays materials',
   slot_helmet: 'Head',
   slot_body: 'Body',

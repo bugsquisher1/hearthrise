@@ -247,7 +247,8 @@ function harvestLine(r) {
   const rep = b.replant || null;
   /* Whole sentences, one after another. */
   const s = [t('farm.harvested', { qty: whole(b.qty), item: itemName(b.produce), xp: whole(b.xp) })];
-  if (b.extra) return s.concat(t('farm.harvested_extra_gone')).join(' ');
+  const said = (parts) => parts.map((x) => String(x).replace(/\.$/, '')).join('. ');
+  if (b.extra) return said(s.concat(t('farm.harvested_extra_gone')));
   if (b.withered) s.push(t('farm.harvested_withered'));
   else if (b.regrew) s.push(!Number.isInteger(b.regrows_left) ? t('farm.harvested_regrows')
     : b.regrows_left > 0 ? t('farm.harvested_regrows_n', { count: b.regrows_left }) : t('farm.harvested_regrows_last'));
@@ -256,7 +257,7 @@ function harvestLine(r) {
     s.push(rep.ok ? (rep.bought ? t('farm.replanted_bought', { price: gold(rep.bought) }) : t('farm.replanted'))
       : rep.error === 'cannot_afford' ? t('farm.not_replanted_price', { price: gold(rep.price) }) : t('farm.not_replanted', { why: farmWords(rep) }));
   }
-  return s.join(' ');
+  return said(s);
 }
 
 function run(sc, repaint, send, busy, done) {

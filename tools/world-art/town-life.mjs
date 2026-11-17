@@ -217,8 +217,9 @@ function main() {
       let have = null;
       try { have = pixelHash(decodePNG(readFileSync(join(out, id + '.png')))); } catch { /* absent */ }
       let side = null;
-      try { side = readFileSync(join(out, id + '.json'), 'utf8'); } catch { /* absent */ }
-      if (have !== pixelHash(img) || side !== JSON.stringify(sidecarOf(id, frames), null, 2) + '\n') { console.error('stale: ' + id); stale++; }
+      /* the sidecar by value (a checkout may turn its line ends) */
+      try { side = JSON.stringify(JSON.parse(readFileSync(join(out, id + '.json'), 'utf8'))); } catch { /* absent */ }
+      if (have !== pixelHash(img) || side !== JSON.stringify(sidecarOf(id, frames))) { console.error('stale: ' + id); stale++; }
       continue;
     }
     writeFileSync(join(out, id + '.png'), encodePNG(img));

@@ -3599,3 +3599,28 @@ a square jog however the tile is drawn: spread steps over rows and vary verge wi
 lot footprint (a bay north of a lot is unreachable, rock under its footprint is solid): flood-check every edit; (4) a lighter upper
 tier read as brighter paving: lift only its joints so the high rock reads weathered; (5) a new material in terrain.js moves the edge
 payload (hunt-ground imports MATERIALS): report the hash.
+## 2026-11-17 lane/fix137-hearth-chest-art (Tyler on live Havora: "the chest doesn't feel like it fits here"; "symmetry is kind of weird")
+0 PixelLab gens: the pixellab MCP server is connected but offers this agent no tools (get_balance, pixelart_workbench refused), and the
+HTTP route with ~/.pixellab-token was refused by the harness, so nothing was generated. The chest's body is the 2026-11-16 generation
+untouched; only the tool's own lock layer changed. Read from the scene (town harness on the real renderer, x2): the plates were the
+window's bright METALS (cream, ice blue, yellow, teal) on a 3x3 plate, the chest stood on the west kindling in front of a wood bay, and as
+an ambient EFFECT it had no shadow at all (the floor's mask lies under every sprite, so under the ledge it stands on). Fix:
+tower-art.mjs LOCKS (bronze, iron, bronze-to-gold, warm stone: [dark, body, lit corner, glint]) and a glint passing over them two frames
+apart from the fire's side (glintsAt), the firelight on the iron facing the fire (FIRE_SIDE read from sites.js AMBIENT); the chest
+seated against the pier right of the firebox (ambient rows gained a whole-px `dx`, L-WHOLE holds it to half a tile); compose.js gives an
+ambient whose sprite has a manifest ellipse a `shade` drawn just under it in the effects layer (one rule, one alpha); the Tower window's
+CHEST_AT / REVEAL_AT / PHONE_VIEW follow, and tower-window-art's placement check now derives the seat from the town rows (chestFoot).
+Symmetry: the Hearth's flanks were mirror pairs (woodpile, split log, bucket, chips): the east became the charcoal sacks, the chopping
+block and its chips; four identical stalls in an even column became three at uneven gaps and a trader's stock; the gate and harbour
+yards' twin crates and barrels became other props. Braziers kept as the one architectural pair. Mask hash 9465b065 -> 73d6bf6b; the
+town rows ride the edge bundle, so the payload hash moved (an edge deploy). Hearth read (numbers, scratch script over the atlases):
+same palette ramps, outline (#0b0a0c on ~90% of edge px), saturation and perspective as the halls; OFF on texture (31% of pixels
+differ from 3+ of 4 neighbours vs the gatehouse's 17%, the store's 15%), value (mean L .336 vs .22-.27) and a mirrored elevation.
+Lessons: (1) an ambient row draws as an effect, after the light and with no shadow: anything that is an object, not a light, needs the
+shade; (2) a test that pins "left of the fire" pins a side, not the rule: assert "beside, never over" (tower-window besideFire);
+(3) to kill a stamped look, scan the placed rows (same sprite within 2 tiles, an evenly spaced run of 3+, mirror pairs) before eyeballing;
+(4) a solid prop moved anywhere in town moves the walk mask's hash AND the edge payload (maps/index.js is vendored by hunt-ground.js).
+Round 2 (the Coordinator's review): the square's six identical benches in two even rows became two benches and a flower barrel, a hay
+bale, a bench and a stool at uneven gaps (mask 73d6bf6b -> 1adfc0d6). Lesson: the bench STANDS are generated into server migrations
+(2027-01-28-town-stands.sql and the town-stations.generated files), so a seat row moves its props, never its stands; a stand south of an
+empty cell just stands.

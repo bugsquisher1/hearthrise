@@ -52,7 +52,7 @@ export default Object.freeze({
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
   /* daylight on the river, the mill race and the harbour (src/world/core/ambient.js); the chimneys smoke wherever the homes stand */
   life: Object.freeze(['water']),
-  ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, tile(a.x, a.y))))),
+  ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, a.dx ? { dx: a.dx } : {}, tile(a.x, a.y))))),
   faces: Object.freeze([]),
   objects: Object.freeze([
     ...SCENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),
@@ -76,6 +76,12 @@ export default Object.freeze({
      deep where it ran on whole-tile rulers, and its two tiers into terraces; no stand, door, exit, way (plan.js WAYS) or placed thing moved, every open
      cell still reached; 46 rock cells opened, 55 open cells taken by rock)
      c9842f06 -> 9465b065: three rock cells under the mine road opened into the dirt (lane/a-havora-quarry: the road met the rock on a straight
-     cut below the mine yard); no way, stand or placed thing moved */
-  maskHash: '9465b065',
+     cut below the mine yard); no way, stand or placed thing moved
+     9465b065 -> 73d6bf6b: the Hearth's fuel corners and the market's stalls no longer mirror or repeat (lane/fix137-hearth-chest-art, Tyler
+     2026-11-17: "symmetry is kind of weird"): the east woodpile and fire bucket became the chopping block and the charcoal sacks, the east
+     split log went, the fourth stall became a trader's stock; the gate and harbour yards' twin crates and barrels became other props in place.
+     No way, stand or door moved; every open cell still reached
+     73d6bf6b -> 1adfc0d6: the square's six identical benches became two benches and a flower barrel, a hay bale, a bench and a stool at
+     uneven gaps over the same bench stands (three cells opened); no way, stand or door moved */
+  maskHash: '1adfc0d6',
 });

@@ -177,6 +177,10 @@ const paneLines = (page, pane) => page.evaluate((p) => {
     .map((e) => e.textContent.trim());
 }, pane);
 const notLabels = (lines) => (lines || []).filter((l) => /\.$/.test(l) || /\byour?\b/i.test(l) || /\. [A-Z]/.test(l));
+/* THE CHEST BESIDE THE FIRE, never over it, on whichever side the town map seats it (lane/fix137-hearth-chest-art moved it right of the
+   firebox, where the town's chest stands), and both inside the scene's frame */
+const besideFire = (sc) => !!sc.chest && !!sc.fire && !!sc.frame && (sc.chest.r <= sc.fire.l || sc.chest.l >= sc.fire.r)
+  && [sc.chest, sc.fire].every((b) => b.l >= sc.frame.l && b.r <= sc.frame.r) && sc.chest.b <= sc.frame.b;
 const chestView = (page) => page.evaluate(() => {
   const w = document.querySelector('[data-hs-win="tower"] [data-pane="chest"]');
   const tx = (q) => (w.querySelector(q) ? w.querySelector(q).textContent : null);
@@ -408,8 +412,7 @@ async function checks(overrides, shots, { arm = null } = {}) {
       let c = await chestView(page);
       /* THE SCENE: the chest on the ledge BESIDE the fire, never over it (Tyler 2026-11-16), both inside the scene */
       const sc0 = c.scene;
-      if (!sc0.chest || !sc0.fire || sc0.chest.r > sc0.fire.l || sc0.chest.l < sc0.frame.l || sc0.fire.r > sc0.frame.r || sc0.chest.b > sc0.frame.b)
-        fails.push('TW-4 the chest is not on the ledge beside the fire: ' + JSON.stringify(sc0));
+      if (!besideFire(sc0)) fails.push('TW-4 the chest is not on the ledge beside the fire: ' + JSON.stringify(sc0));
       /* a slot a key row the server lists, in its metal: held count and weapon chance; one not held is no press; the picked the one Use opens */
       if (c.picks.join() !== 'Bronze x3 Weapon chance: 16%*,Silver x0 Weapon chance: 8% off' || c.icons.join() !== 'tower_key_bronze.png,tower_key_silver.png' || c.cinders !== 'Hearth Cinders 400')
         fails.push('TW-4 the keys read ' + JSON.stringify([c.picks, c.icons, c.cinders]));
@@ -566,7 +569,7 @@ async function checks(overrides, shots, { arm = null } = {}) {
           if (tab === 'climb' && (!m || !(m.stage >= 240))) fails.push('TW-5 the phone draws no tower beside its column: ' + JSON.stringify(m && m.stage));
           if (tab === 'chest') {
             const sc = (await chestView(page)).scene;
-            if (!sc.chest || !sc.fire || sc.chest.r > sc.fire.l || sc.chest.l < sc.frame.l || sc.fire.r > sc.frame.r) fails.push('TW-5 the phone\'s scene loses the chest or the fire: ' + JSON.stringify(sc));
+            if (!besideFire(sc)) fails.push('TW-5 the phone\'s scene loses the chest or the fire: ' + JSON.stringify(sc));
           }
           const b = page.locator('[data-hs-win="tower"] ' + (tab === 'climb' ? '.tt-go' : '.tc-use'));
           await b.scrollIntoViewIfNeeded().catch(() => {});
@@ -801,6 +804,7 @@ const MUTANTS = [
   ['TW-2 a rank is said with no field', 'src/shell/windows/tower.js', "  prop(rank, 'hidden', !tw.field);", "  prop(rank, 'hidden', false);"],
   ['TW-4 the chest sits over the fire', 'src/shell/windows/tower-chest.js', '`--tr-cx:${px(C.x)}`', '`--tr-cx:${px(F.x)}`'],
   ['TW-4 the reveal plays away from the chest', 'src/shell/windows/tower-chest.js', '`--tr-rx:${px(R.x)}`', '`--tr-rx:${px(R.x + 40)}`'],
+  ['TW-5 the phone\'s view left on the west ledge, the chest cut off', 'src/shell/windows/tower-chest.js', '`--tr-pvx:${px(P.x)}`', '`--tr-pvx:${px(P.x - 100)}`'],
   ['TW-4 a stoke press sends the page\'s count', 'src/shell/windows/tower-chest.js', "    const n = Number(el.getAttribute('data-n'));", '    const n = 3;'],
   ['TW-6 New Best is said for a climb that set no record', 'src/shell/tower-words.js', '  const newBest = !!run && run.top !== null && run.bestBefore !== null && run.top > run.bestBefore;', '  const newBest = !!run && run.top !== null;'],
   ['TW-6 the end card draws no run', 'src/shell/tower-end-card.js', ' run: [r.start, top], lo:', ' run: null, lo:'],

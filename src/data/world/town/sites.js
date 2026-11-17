@@ -35,13 +35,24 @@ export const SCENERY = Object.freeze([
      no street lamp, ink-blot soot or stray puddle on the square: the Hearth is its light and its soot is in the paving */
   ['great_hearth', 112, 45],
   ['square_general_store', 106, 30], ['square_depot', 118, 30], ['square_bank', 113, 16], ['square_barracks', 108, 66],
-  ['square_market_stall', 129, 44], ['square_market_stall', 129, 48], ['square_market_stall', 129, 52], ['square_market_stall', 129, 56],
+  /* the market's stalls down the square's east edge: three, not four in a ruled column (lane/fix137-hearth-chest-art, Tyler 2026-11-17:
+     "symmetry is kind of weird sometimes"), at uneven gaps, a trader's stock (crates, a sack, barrels) where the fourth stood */
+  ['square_market_stall', 129, 44], ['square_market_stall', 129, 49], ['square_market_stall', 129, 56],
+  ['crates', 130, 52], ['sack_tall', 131, 52], ['barrels', 130, 53],
   ['hearth_brazier', 111, 54], ['hearth_brazier', 124, 54],
-  /* the fuel corners either side of the Hearth (step 2b): the woodpile, a split log waiting to be thrown, the fire bucket, bark chips where the fuel is thrown */
-  ['fuel_log', 111, 48], ['bucket', 111, 49], ['fuel_log', 123, 48], ['bucket', 123, 49], ['square_decal_chips_b', 114, 51],
-  ['ty_bench_pair', 123, 55], ['ty_bench_pair', 125, 55], ['ty_bench_pair', 127, 55],
-  ['ty_bench_pair', 123, 58], ['ty_bench_pair', 125, 58], ['ty_bench_pair', 127, 58],
-  ['square_decal_chips_a', 120, 51], ['square_decal_moss_a', 131, 59],
+  /* the fuel corners either side of the Hearth, never one side's mirror (lane/fix137-hearth-chest-art, Tyler 2026-11-17: "the buckets and
+     logs are exactly the same on each side"): WEST the long log stack (the station's), a split log waiting to be thrown and the fire bucket;
+     EAST the charcoal sacks against the Hearth's end, the chopping block with its axe (the station's) and the bark chips it threw; the
+     west's chips where the logs are carried to the fire */
+  ['fuel_log', 111, 48], ['bucket', 111, 49],
+  ['sack_pile', 123, 45], ['square_decal_chips_b', 113, 51],
+  /* the square's seats over the bench stands (stations.js square_benches, x123-128 on y56 and y59: the stands are the server's, so the
+     seats move, never the stands): not two rows of three identical benches (lane/fix137-hearth-chest-art, the Coordinator's review), but a
+     sitting corner at uneven gaps: two benches and a flower barrel on the back row, a hay bale, a bench and a stool on the front, the two
+     rows' benches off each other's columns */
+  ['ty_bench_pair', 123, 55], ['barrel_planter', 125, 55], ['ty_bench_pair', 127, 55],
+  ['hay_bale', 123, 58], ['ty_bench_pair', 124, 58], ['table', 127, 58],
+  ['square_decal_chips_a', 123, 48], ['square_decal_moss_a', 131, 59],
   ['square_decal_leaves_a', 110, 58], ['square_decal_tuft_a', 103, 59],
   ['lamppost', 101, 47],
   /* the smithy and the mill (whole sprites) and their yards */
@@ -72,7 +83,7 @@ export const SCENERY = Object.freeze([
   ['crates', 133, 82], ['barrels', 133, 83], ['sack_stack', 138, 74], ['cart_wheel', 139, 74], ['barrels', 157, 79], ['crates', 157, 74],
   ['lamppost', 139, 79],
   /* THE HARBOUR SQUARE in front of P13 (lane/a-havora-dock round 3): two fish stalls, a cargo stack by the lane, lamps */
-  ['square_market_stall', 123, 84], ['square_market_stall', 127, 85], ['crates', 134, 82], ['sack_stack', 132, 82], ['sack_pile', 134, 84], ['barrels', 131, 84], ['lamppost', 122, 82], ['lamppost', 130, 82], ['lamppost', 135, 86], ['havora_nets', 125, 82],
+  ['square_market_stall', 123, 84], ['square_market_stall', 127, 85], ['cabbage_crate', 134, 82], ['sack_stack', 132, 82], ['sack_pile', 134, 84], ['barrel_stack', 131, 84], ['lamppost', 122, 82], ['lamppost', 130, 82], ['lamppost', 135, 86], ['havora_nets', 125, 82],
   /* THE HARBOUR (lane/a-havora-dock round 2): bollards along the quay wall and at the pier heads, nets, rope, the yard's
      capstan and hand crane */
   ['havora_bollard', 112, 89], ['havora_bollard', 118, 89], ['havora_bollard', 122, 89], ['havora_bollard', 131, 89], ['havora_bollard', 136, 89], ['havora_bollard', 140, 89],
@@ -111,7 +122,7 @@ export const SCENERY = Object.freeze([
      flanking the gate, a carter's corner of crates, sacks and a spare wheel against the tavern wall, the trough and
      hay for the horses and a well by the mill race, and a signpost on the road south toward Hearth Square */
   ['lamppost', 79, 15], ['lamppost', 88, 15],
-  ['crates', 74, 15], ['crates', 75, 15], ['barrels', 74, 16], ['sack_stack', 75, 16], ['cart_wheel', 76, 15],
+  ['crates', 74, 15], ['apple_crate', 75, 15], ['barrels', 74, 16], ['sack_stack', 75, 16], ['cart_wheel', 76, 15],
   ['water_trough', 90, 21], ['hay_bale', 89, 21], ['well', 91, 22],
   ['lamppost', 79, 23], ['signpost', 86, 27], ['crates', 90, 26],
 ].map((r) => Object.freeze(r)));
@@ -160,8 +171,10 @@ export const BLEND = Object.freeze({
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,
    tile (117, 48) lifted 86 art px (the hearth frame's px (176, 262), sidecar art/world/common/hearth_fire.json);
-   and THE HEARTH CHEST on the ledge (the Burning Tower's one chest, Tyler 2026-11-14; tools/world-art/tower-art.mjs): on the paving in
-   front of the right log alcove, left of the fire, its foot at the hearth frame's px (80, 305): tile (114, 48) lifted 43 art px. The town
-   draws it only while the server sends the Tower's section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere. */
+   and THE HEARTH CHEST on the ledge (the Burning Tower's one chest, Tyler 2026-11-14; tools/world-art/tower-art.mjs). lane/fix137-hearth-chest-art
+   (Tyler 2026-11-17, "the chest doesn't feel like it fits here"): it stood on the kindling in front of the west wood bays; it now stands
+   against the stone pier right of the firebox, in the corner the firebox's step makes with it, where the fire lights it: its foot at the
+   hearth frame's px (230, 311), tile (119, 48) lifted 37 art px and 10 left. The town draws it only while the server sends the Tower's
+   section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere. */
 export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }),
-  Object.freeze({ id: 'hearth_chest', x: 114, y: 48, lift: 43 })]);
+  Object.freeze({ id: 'hearth_chest', x: 119, y: 48, lift: 37, dx: -10 })]);

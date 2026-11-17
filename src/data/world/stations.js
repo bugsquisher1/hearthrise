@@ -68,7 +68,8 @@ const win = (window) => Object.freeze({ open: 'window', window });
 const skill = (id) => Object.freeze({ open: 'skill', skill: id });
 
 /* THE GREAT HEARTH (footprint 11 x 4 at x112-122 y45-48, town/sites.js) and its 24 fuel stands */
-const HEARTH_PROPS = [['woodpile', 111, 46], ['woodpile', 123, 46]];
+/* the Hearth's fuel: the long log stack west, the chopping block east where it is split (never a mirror pair: town/sites.js) */
+const HEARTH_PROPS = [['woodpile', 111, 46], ['chopping_block', 123, 47]];
 /* THE SMITHY YARD, a working yard against the smithy (lane/b-havora-polish 2026-10-26, Tyler: "very grid like", then
    "tighter and more natural"): four forge hearths, each a tight unit with its two anvils either side of the smith's
    place in front of the fire, its quench trough and its bellows (town/sites.js), two units up by the cook yard and two

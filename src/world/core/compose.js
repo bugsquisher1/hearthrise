@@ -574,7 +574,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     floats.push({ text: f.text, kind: f.kind, big: !!f.big, x: (f.x + 0.5) * T + (f.dx || 0), y: f.y * T - 6 * k + (f.dy || 0) - 14 * k * age, alpha: age < 0.66 ? 1 : (1 - age) / 0.34 });
   }
   /* AMBIENT LOOPS (map-compile.js `ambient`: the Great Hearth's fire): a looping effect the MAP places, on the
-     state's clock, its anchor `lift` art px above the tile's foot row; drawn with the effects, after the light.
+     state's clock, its anchor `lift` art px above the tile's foot row and `dx` across; drawn with the effects, after the light.
      `state.ambientSwap` draws another clip in its place ({ hearth_fire: 'hearth_fire_honey' }: a named fuel's colour,
      src/world/hearth-burn.js), at the same anchor. */
   for (const a of map.ambient || []) {
@@ -587,12 +587,16 @@ export function composeFrame(map, book, state, view, tables, T) {
     const n = book.frames(id, name, 's');
     const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
     const f = book.frame(id, name, 's', i);
-    const px = Math.round((a.x + 0.5) * T), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
+    const px = Math.round((a.x + 0.5) * T + (a.dx || 0)), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
     /* a loop off the view is no change at all (the World paints only what changes): the view itself, no margin, as an effect casts nothing */
     const lx = px - f.ax, ly = py - f.ay;
     if (!(lx < view.ox + view.w && ly < view.oy + view.h && lx + f.w > view.ox && ly + f.h > view.oy)) continue;
-    effects.push({ id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
-      blend: s.blend === 'add' ? 'add' : 'over', angle: 0 });
+    const e = { id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
+      blend: s.blend === 'add' ? 'add' : 'over', angle: 0 };
+    /* AN OBJECT STANDING ON ART (the Hearth Chest on the Hearth's ledge, lane/fix137-hearth-chest-art): its manifest ellipse at its foot,
+       drawn just under it here (the floor's shadow mask lies under every sprite, so under the ledge it stands on); one rule, one alpha */
+    if (e.blend === 'over' && s.shadow && s.shadow.kind === 'ellipse') e.shade = ellipseShadow(s.shadow, px, py);
+    effects.push(e);
   }
   /* EFFECTS ({ id, x, y in tiles, age ms, lift, on, angle? }): a vfx clip centred at its anchor
      `lift` x the art height of sprite `on` (a flier's hover added) above the tile's foot row;

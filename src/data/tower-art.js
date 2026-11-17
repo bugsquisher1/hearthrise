@@ -27,10 +27,11 @@ export const TOWER_ART = Object.freeze({
   FIREBOX: Object.freeze({ x: 20, y: 223, w: 306, h: 96 }),
   /* the hearth's fire loop at the hearth frame's px (146, 238) (great_hearth.json notes), 8 frames at 8 fps */
   FIRE_AT: Object.freeze({ x: 126, y: 15, w: 61, h: 49, frames: 8, fps: 8 }),
-  /* the chest ON THE LEDGE beside the fire (Tyler 2026-11-16), its foot where the town map puts it (the hearth frame's px (80, 305)) */
-  CHEST_AT: Object.freeze({ x: 45, y: 54, w: 31, h: 29, frames: 8, fps: 8 }),
+  /* the chest ON THE LEDGE beside the fire (Tyler 2026-11-16), its foot where the town map puts it (the hearth frame's px (230, 311): against
+     the pier right of the firebox, lane/fix137-hearth-chest-art) */
+  CHEST_AT: Object.freeze({ x: 195, y: 60, w: 31, h: 29, frames: 8, fps: 8 }),
   /* the opening and the weapon's column (48 x 64 frames, tower-art.mjs FW x FH) lay the open box over the shut chest */
-  REVEAL_AT: Object.freeze({ x: 37, y: 20, w: 48, h: 64 }),
-  /* the phone's view of the scene: the ledge, the chest and the fire, nothing cut through */
-  PHONE_VIEW: Object.freeze({ x: 30, y: 16, w: 196, h: 80 }),
+  REVEAL_AT: Object.freeze({ x: 187, y: 26, w: 48, h: 64 }),
+  /* the phone's view of the scene: the fire, the chest and the ledge, nothing cut through */
+  PHONE_VIEW: Object.freeze({ x: 100, y: 16, w: 196, h: 80 }),
 });

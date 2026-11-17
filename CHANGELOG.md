@@ -15,7 +15,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Selling old gear.** The bag has a new Select outgrown button. It picks every piece of gear below the tier you wear, Rares included, so you can sell it all at once. A very big sale no longer fails. It sells 64 stacks a press and tells you how many are left.
 
-**Fixes.** The Party window shows each member's real stamina.
+**Fixes.** The Party window shows each member's real stamina. The world no longer goes black after a resize or when a piece of town art loads slowly.
 
 ## v0.2.133 — 2026-11-16 (Party XP fix)
 

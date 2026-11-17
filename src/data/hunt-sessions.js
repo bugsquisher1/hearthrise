@@ -227,10 +227,10 @@ export const END_CARD_COPY = Object.freeze({
   title: 'Hunt over',
   again: 'Hunt again',
   details: 'Details',
-  againShort: 'Not enough {item}: {have}/{need}',
+  againShort: 'Not enough {item} (you have {have} of {need})',
   /* The death cost this much XP in all (DEATH_XP_LOSS), summed by the
      renderer from the `death` event's server-stated `xp_lost`. */
-  xpLost: Object.freeze({ one: 'Death cost: 1 XP', other: 'Death cost: {n} XP' }),
+  xpLost: Object.freeze({ one: 'Dying cost you 1 XP.', other: 'Dying cost you {n} XP.' }),
   /* After an automatic end the character walks home and picks up what it was
      doing; `{activity}` is the server's own name for it ("fishing at Shrimp
      Spot"), drawn from the `ended` event's `resume`. */
@@ -241,42 +241,42 @@ export const END_REASON_COPY = Object.freeze({
   /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
   died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
   /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
-  boss_felled: Object.freeze({ one: '{name} beat him in {ground}. New title: Character → Titles' }),
-  boss_time: Object.freeze({ one: 'Time up before the boss went down' }),
+  boss_felled: Object.freeze({ one: '{name} beat him in {ground} and earned a title. Find it under Titles in the Character window.' }),
+  boss_time: Object.freeze({ one: 'Time ran out before he went down. {name} came home from {ground}.' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
   party_member_died: Object.freeze({ one: '{member} died, so {name} came home too.' }),
   party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
-  heals_out: Object.freeze({ one: 'Out of healing food' }),
-  ammo_out: Object.freeze({ one: 'Out of {item}' }),
-  runes_out: Object.freeze({ one: 'Out of runes' }),
-  gold_out: Object.freeze({ one: 'Out of gold for supplies' }),
-  rule: Object.freeze({ one: 'Stop rule met' }),
-  stamina: Object.freeze({ one: 'Out of stamina' }),
-  hours: Object.freeze({ one: 'Time limit reached: 1 h', other: 'Time limit reached: {n} h' }),
-  left: Object.freeze({ one: 'Left the hunt' }),
-  changed: Object.freeze({ one: 'Moved on to {hunt}' }),
-  no_fight: Object.freeze({ one: `No hits: ${NO_FIGHT_END_MIN} min. Check weapon, ammo and action bar` }),
-  server: Object.freeze({ one: 'Ended by the server, rewards kept' }),
+  heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
+  ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
+  runes_out: Object.freeze({ one: 'You ran out of runes, so you headed home.' }),
+  gold_out: Object.freeze({ one: 'You ran out of gold for supplies, so you headed home.' }),
+  rule: Object.freeze({ one: 'One of your stop rules kicked in, so you headed home.' }),
+  stamina: Object.freeze({ one: 'You ran out of stamina, so you headed home. It refills while you\'re not hunting.' }),
+  hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
+  left: Object.freeze({ one: 'You left the hunt and headed home.' }),
+  changed: Object.freeze({ one: 'You moved on to {hunt}.' }),
+  no_fight: Object.freeze({ one: `You went ${NO_FIGHT_END_MIN} minutes without landing a hit, so you headed home. Check your weapon, ammo and action bar.` }),
+  server: Object.freeze({ one: 'The server ended the hunt. You keep everything you earned up to then.' }),
 });
 
 /* The "since you last looked" strip and the timeline. The time of each line
    is drawn by the renderer from the event's server timestamp. */
 export const TIMELINE_COPY = Object.freeze({
-  heading: 'Since last visit',
-  empty: 'Nothing new',
+  heading: 'While you were away',
+  empty: 'Nothing new while you were away.',
   /* Shown under a `death` line whose server-stated `xp_lost` is above 0. */
   xpLost: Object.freeze({ one: 'Lost 1 XP.', other: 'Lost {n} XP.' }),
 });
 
 export const EVENT_COPY = Object.freeze({
-  entered: Object.freeze({ one: 'Set out for {hunt}.' }),
+  entered: Object.freeze({ one: 'Headed out to {hunt}.' }),
   level_up: Object.freeze({ one: 'Reached {skill} level {level}.' }),
   rare_drop: Object.freeze({ one: 'Rare drop: {item}.' }),
   death: Object.freeze({ one: 'Killed by {monster}.' }),
   slot_dry: Object.freeze({ one: 'Ran out of {item}.' }),
-  stamina_low: Object.freeze({ one: 'Stamina is low, with about 1 minute left.', other: 'Stamina is low, with about {n} minutes left.' }),
+  stamina_low: Object.freeze({ one: 'Stamina is low (about 1 minute left).', other: 'Stamina is low (about {n} minutes left).' }),
   /* Sell-to-cover: loot sold to the vendor so the shop could be paid. */
-  cover: Object.freeze({ one: 'Sold 1 item to keep the shop paid.', other: 'Sold {n} items to keep the shop paid.' }),
+  cover: Object.freeze({ one: 'Sold 1 item to pay for supplies.', other: 'Sold {n} items to pay for supplies.' }),
   ended: Object.freeze({ one: 'Hunt over: {reason}' }),
 });

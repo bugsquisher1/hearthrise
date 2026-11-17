@@ -9,26 +9,26 @@
 
 export const MONSTER_TEXT = Object.freeze({
   /* A page with nothing picked. */
-  none: 'Pick a creature on a hunt\'s page to read about it.',
+  none: 'Pick a monster on a hunt\'s page to read about it.',
   open_hunts: 'Open Hunts',
 
-  /* Under the name. */
-  kind: '{family}, Level {level}',
-  kind_boss: '{family} boss, Level {level}',
+  /* Under the name: "Level 2 Vermin", "Level 30 Undead boss". */
+  kind: 'Level {level} {family}',
+  kind_boss: 'Level {level} {family} boss',
 
-  /* Where it lives. */
-  h_homes: 'Where it lives',
-  home: 'Level {lo} to {hi}, {how}',
+  /* Where it lives: "Levels 1–8 (common)". */
+  h_homes: 'Found in',
+  home: 'Levels {lo}–{hi} ({how})',
   how_common: 'common',
   how_uncommon: 'uncommon',
   how_rare: 'rare',
   how_boss: 'boss',
-  how_pull: 'only a harder hunt summons it',
+  how_pull: 'harder tiers only',
 
   /* In a fight. Each stat is the game's own label and its value, nothing more (Tyler 2026-11-11: "it should just say Max Hit";
      the labels are the approved wiki mock's). Tier names the tier the numbers are for. A line that explains how the game works
      instead of stating a fact about this monster is cut (Tyler 2026-11-11, on "shared by the heroes who were there"). */
-  h_fight: 'In a fight',
+  h_fight: 'Combat',
   tier: 'Tier',
   hp: 'Health',
   max_hit: 'Max Hit',
@@ -36,12 +36,12 @@ export const MONSTER_TEXT = Object.freeze({
   swing_value: '{secs} s',
   deals: 'Damage Type',
   weak: 'Weak to',
-  weak_sword: 'Swords: +{pct}% damage, +{acc}% accuracy',
-  weak_hammer: 'Hammers: +{pct}% damage, +{acc}% accuracy',
-  weak_ranged: 'Bows and crossbows: +{pct}% damage, +{acc}% accuracy',
-  weak_magic: 'Magic: +{pct}% damage, +{acc}% accuracy',
+  weak_sword: 'Swords. They deal {pct}% more damage and hit {acc}% more often.',
+  weak_hammer: 'Hammers. They deal {pct}% more damage and hit {acc}% more often.',
+  weak_ranged: 'Bows and crossbows. They deal {pct}% more damage and hit {acc}% more often.',
+  weak_magic: 'Magic. It deals {pct}% more damage and hits {acc}% more often.',
   takes: 'Elements',
-  takes_all: 'Full damage from every element',
+  takes_all: 'Takes full damage from every element',
   el_less: '{pct}% less from {element}',
   el_more: '{pct}% more from {element}',
   el_ember: 'Fire',
@@ -51,23 +51,23 @@ export const MONSTER_TEXT = Object.freeze({
   /* What each harder tier does to it, on the ground its page was opened from (Tyler 2026-11-11: "cant this just say 'difficulty
      increases by x% on dangerous/deadly'"). The numbers are that ground's own dials (hunt-tiers.js GROUND_TIERS), the ones the
      engine fights with: {hp} is the Health dial in percent more, {hits} is hits_pct or, from twice as hard up, hits_times. */
-  tier_both: 'On {tier} it has {hp}% more Health and hits {hits}.',
-  tier_hits: 'On {tier} it hits {hits}.',
-  tier_hp: 'On {tier} it has {hp}% more Health.',
+  tier_both: 'On {tier}, it has {hp}% more health and hits {hits}.',
+  tier_hits: 'On {tier}, it hits {hits}.',
+  tier_hp: 'On {tier}, it has {hp}% more health.',
   hits_pct: '{pct}% harder',
   hits_times: '{times} times as hard',
 
   /* A kill. */
-  h_kill: 'What a kill gives',
+  h_kill: 'Rewards',
   xp: 'Level XP',
   gold: 'Gold',
-  gold_value: '{lo} to {hi} gp',
+  gold_value: '{lo}–{hi} gp',
   gold_one: '{lo} gp',
 
   /* Its drops. */
   h_drops: 'Drops',
   per_kill: 'Chance per kill',
-  no_drops: 'It drops nothing.',
+  no_drops: 'No drops',
   band_common: 'Common',
   band_uncommon: 'Uncommon',
   band_scarce: 'Scarce',

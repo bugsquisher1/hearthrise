@@ -30,6 +30,7 @@
 import { BUILD } from '../build-info.js?v=0.2.134';
 import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.134';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.134';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
 import { MONSTERS } from '../data/monsters.js?v=0.2.134';
 import { compileMap } from './core/map-compile.js?v=0.2.134';
 import { createBook } from './core/book.js?v=0.2.134';
@@ -41,6 +42,7 @@ import { sceneSetsSliced } from './scene-sets.js?v=0.2.134';
 import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.134';
 import { createViewSheets } from './view-sheets.js?v=0.2.134';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.134';
+import { folkExtras } from './town-folk.js?v=0.2.134';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.134';
 import { huntOfMap } from './hunt-maps.js?v=0.2.134';
 import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.134';
@@ -291,7 +293,8 @@ export async function bootWorld(panel, opts) {
       if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
       walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character), heroDye: () => heroDye(character) },
-        sandboxExtras(map, mapSprites)));
+        /* the townsfolk at their work (town-folk.js, display only), then the sandbox's signs */
+        folkExtras(map, mapSprites), sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     /* THE SERVER MOVED ITS STAND (an activity, a hunt's end, a counter): it walks there, display only (town-stands) */

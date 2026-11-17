@@ -3425,3 +3425,65 @@ is the median colour changes almost nothing (earth, ash): use damp or an explici
 dark floor read as litter: details only where they belong (town grass/dirt, wickstead); (3) moss on the sewer cobble is the
 lattice: a map of the moss to its mortar breaks it without cutting a stone. Open: wang TRANSITION tiles are still one variant
 (a regular pebble row along every town grass edge), water is not varied, the cottage ground (49 repeats) was left.
+
+## 2026-11-16 lane/a-havora-art step 2 (Tyler: "the hearth area to be perfect"; the Hearth's log stacks "dont match")
+The ring was one grey with the square and the square one grey with the town's cobble. tools/world-art/hearth-plaza.mjs re-lays
+the ring from the painted paving's own pixels (base kept at art/world-src/havora-hearth/): slabs found as connected non-mortar
+runs, each BUFF (a step lighter) or RUST (own value, shade to the Hearth's browns) by a seeded hash (75% buff), the Hearth's rust
+flecks, warm joints, the outer course a dark border, a grained soot gradient at the step, a polished walk. Written on the palette,
+so the sidecar is material native and the rest of the square is the old atlas pixel for pixel (--check).
+Props: common/woodpile IS kh_woodpile's drawing now (lift 1 to sit with the Hearth's ochre logs; class stays fixture, a content
+rule pins it), ty_bench_pair (the yard bench on a 2x1 footprint) for all six square benches, hearth_brazier (kh_brazier copied
+into common + a LIGHTS row) framing the ring. 0 gens: the PixelLab tools were not exposed to this agent.
+Lessons: (1) the square's checkered stands make a SYMMETRIC prop pair on one row impossible inside the checker (x and 235-x have
+opposite parity): only (111,54)/(124,54) works; (2) a stand directly north of a 39 px prop is hidden (ST-1); (3) a first soot
+pass as thresholded noise blobs read as camouflage and a wear band as a stripe: grained probability gradients read as soot.
+
+## 2026-11-16 lane/a-havora-art steps 2b, 3, 4 (Tyler: "a little better, not the bar"; transitions; the bridge; stone seams)
+Step 2b: the disc and first course are the Hearth's own stone, the buff courses worn smooth (highlight only on a slab's upper-left
+edge, shade only lower-right: the per-pixel speckle was the "sand"), a slim dark kerb at the rim, and the square's edge band is
+the LANE's setts sampled on the lane's own grid (the blend draws dual tiles half a tile off the cells: u = (x + 16) mod 32), so a
+lane runs into the square with no seam and a 4 px kerb parts setts from flags. Transitions: ground-rough.js draws open|open edges
+ragged at cell scale (never walls/water, so the look never lies about walking); the edge tiles themselves are seams.mjs's
+(havora-seams.mjs; my own warp and loose-sett tools were retired for the ground-seams lane's tool). Bridges:
+havora_bridge cut by two whole bays at a post's left edge (bridge-span.mjs) + a `deck` material aliased to water, so the river
+shows under the rail and no planks pair strip appears. Lessons: (1) STATIONS stands are MAP coords already (I added WEST once
+and the check was wrong; the town-stations test caught nothing because nothing was wrong, but verify coords before trusting a
+script); (2) a selftest family id must be new (my R1-R6 collided with the roofs' R ids: two mutants "not caught"); (3) joint
+segmentation of setts fails where shading crosses the joint row: take stone patches by colour, not by connected blocks.
+## 2026-11-16 lane/a-ground-seams (Tyler: "hard straight tile-boundary cuts where two floors meet", pre-invite gate; SAMPLE)
+Cause: a wang pair draws its border on the cell grid with one profile per key, so a long border is a ruler line and a diagonal a
+staircase; where the Hold's kit had a pair it was still a straight rim (the gravel patches read as dug pits). Tool:
+tools/world-art/seams.mjs. reseam() redraws a painted ground's borders from the two fills' own pixels: a domain-warped share field
+(bilinear on cell centres, four octaves: sweep 9/96, warp 6/26, mid 2.5/10, fine 0.8/4), stones segmented from each fill tile on
+the torus (mortar = darkest share), laid WHOLE by their centre's winner, every joint pixel owned by its nearest stone; styles kerb
+(a dressed course from the stone's own grain, lifted a step, lit up-left, joints every 7-13 px), scatter (loose stones fading out,
+a few missing), bank (wet band, lit lip, `own` holds water to its cells), ragged. transitionTiles() makes wang-16 variants whose
+outer ring is the key's own. Wired into barrow-grounds.mjs between paint and wear (HOLD_SEAMS, SLAKE_SEAMS); re-import is
+byte-identical. Lessons: (1) Otsu cuts a shaded cobble in half (lit half = stone): use the darkest share, ties included; (2) a
+default sweep on a one-cell patch draws a splash, so small patches take a calm warp; (3) water that wanders onto an open tile's
+foot is a [wet] red: hold it to its own cells; (4) every border cell becomes unique, so a full reseam can overflow a set (the
+Slake's ground moved to slake-floor); (5) a kerb round a 1-2 cell relaid patch is fussy: stagger there, kerb at doorways.
+## 2026-11-16 lane/a-living-town (Tyler: "it doesn't feel 'alive' what so ever"; motion and life, the layout is lane/a-havora-art's)
+Watched (local-world + a harness on the real renderer at six spots): the water is a frozen 32 px tile, all 17 lit chimneys and the
+Great Hearth's flue are cold, lamps, awnings, banners, washing and nets are stills, the goat and chickens are props, the four NPCs
+breathe but never move, the square's benches and stalls are empty. Sample: map.life (src/world/core/ambient.js) laid from sprite
+EMITTERS (a chimney's point in the sprite's own pixels, so smoke follows a home wherever it stands) and opted-in SURFACES (water:
+glints only where a cell and its 8 neighbours are water, never under a placed box, never touching). Art by rule
+(tools/world-art/town-life.mjs, 0 gens): cauliflower puffs, each lobe sphere-lit from the upper left in bone/steel, thinning
+through an ordered dither in the puff's own coordinates. Lessons: (1) the World repaints the whole frame when anything turns, so
+every ambient clip runs on the Hearth fire's 8 fps beat (LIFE_BEAT_FPS): loops that turn together are one paint (5 -> 12 paints/s,
+the rate the Hearth already cost); (2) a water decal defeats the kept ground layer (+2-3 ms a paint): glints go first in the
+standing list instead (nothing stands on open water), smoke and sparks last in the raised list, before the light so the
+vignette falls on them. Sparks as EFFECTS held a phone's first town view shut (client-boot B-21): an effect is named for the
+first view wherever compose drew it, the overscan included; the raised list is named only where the view sees it. (3) one sphere per puff with a hard diagonal split reads as a stack of rocks, a union
+rim-lit as one silhouette reads flat: per-lobe sphere shading is the one that reads as smoke; (4) sparse 1-row glints vanish in
+the tile's own wave marks: they need the bone peak and 2 rows. Open: a flowing water surface, townsfolk, animals, lamps, cloth.
+Round 2 (same lane): townsfolk (src/world/town-folk.js: a loop of stops, a pure function of the clock, every change on a
+16 Hz tick so a walker costs 16 paints/s, never the frame rate; no plate, never ref.player), Tamsin and the smith glance on the
+beat, the water flows (ripples on every open cell in step, a two-cell tile on the open sea for a quarter of the draws: W6 caught
+495 draws a frame), the mill wheel turns, banners and awnings sway, P02's hens and goat stir. Lessons: (1) the only body with
+a walk clip that reads as a townsperson is the Quarry Brute: real townsfolk (a woman, a sweeper with a broom, a crier with a
+bell) need new bodies; (2) moving kit art cannot be an overlay when its outline changes (the static copy shows through): draw a
+TWIN in its place (sway) or cut the piece from a still twin and lay it over (stir); frame 0 is the art, held by the guard; (3) a
+piece read from the BUILT atlas makes --check go stale when the kit is rebuilt, which is the point.

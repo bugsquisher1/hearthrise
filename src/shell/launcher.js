@@ -414,7 +414,7 @@ function launcherRows(ctx) {
 }
 
 /* The group a window's icon lives in, or null (its icon stands in the row): the ring's way reaches a grouped window through it. */
-const groupOfWindow = (id) => { const r = SHELL_WINDOWS.find((w) => w.id === id); return r && r.group ? r.group : null; };
+const groupOfWindow = (id) => { const r = SHELL_WINDOWS.find((w) => w.id === id); return r && 'group' in r && r.group ? r.group : null; };
 
 const iconHtml = (ctx, r, on, ringed) => {
   const key = keyLabel(r.key);

@@ -650,7 +650,7 @@ export function createCanvasBackend(o) {
       const named = plateHits.filter((q) => cx >= q.l && cx <= q.r && cy >= q.t && cy <= q.b).reverse()
         .map((q) => ({ id: q.id, tx: null, ty: null, ref: q.ref }));
       const hits = named.concat(roofed ? [] : last.sprites.filter(under).reverse().concat(last.decals.filter(under).reverse())
-        .filter((d) => d.kind !== 'wall' && d.kind !== 'stub' && d.kind !== 'door')
+        .filter((d) => d.kind !== 'wall' && d.kind !== 'stub' && d.kind !== 'door' && d.kind !== 'life')
         .map((d) => ({ id: d.id, tx: d.tx, ty: d.ty, ref: d.ref })));
       return { tile: [Math.floor(X / T), Math.floor(Y / T)], hits };
     },

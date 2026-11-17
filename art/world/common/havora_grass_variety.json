@@ -8,7 +8,10 @@
   "lower": "grass",
   "upper": "grass",
   "seed": 1,
-  "tone": "soft",
+  "tone": {
+    "#4a5a2a": "#3d6234",
+    "#6b7a38": "#557a3e"
+  },
   "shift": true,
   "detail": [
     "common/square_decal_tuft_b",

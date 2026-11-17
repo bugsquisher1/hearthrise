@@ -46,10 +46,12 @@ export default Object.freeze({
   outdoor: true,
   light: 'day',
   ground: null,
-  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel', ';': 'setts', 'S': 'sand' }),
+  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel', ';': 'setts', 'S': 'sand', 'B': 'deck' }),
   rows: GROUND_ROWS,
   blend: BLEND,
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
+  /* daylight on the river, the mill race and the harbour (src/world/core/ambient.js); the chimneys smoke wherever the homes stand */
+  life: Object.freeze(['water']),
   ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, tile(a.x, a.y))))),
   faces: Object.freeze([]),
   objects: Object.freeze([
@@ -70,5 +72,5 @@ export default Object.freeze({
   /* the lint's reach origin: the gatehouse's first stand (a hero back from a hunt arrives on one of the
      gatehouse's stands, the one the SERVER holds for it: 2027-01-28-town-stands.sql) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: '21bd4f38',
+  maskHash: '6d242a22',
 });

@@ -68,7 +68,7 @@ const atlasImage = (set) => { if (!SHEETS.has(set)) SHEETS.set(set, decodePNG(re
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -76,13 +76,13 @@ async function load(base) {
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
-    'src/world/core/plates.js', 'src/world/idle-banner.js', 'src/world/view-sheets.js', 'src/render/images.js', 'src/world/core/ground-variety.js',
+    'src/world/core/plates.js', 'src/world/idle-banner.js', 'src/world/view-sheets.js', 'src/render/images.js', 'src/world/core/ground-variety.js', 'src/world/core/ground-rough.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -911,6 +911,44 @@ async function check(M) {
     const again = M.compose.groundTiles(compiled('town_common'), M.bookm.createBook(M.manifests), tables, T).tiles;
     ok('V6', again.length === townTiles.length && again.every((t, i) => rectKey(t) === rectKey(townTiles[i]) && t.x === townTiles[i].x && t.y === townTiles[i].y), 'the town\'s ground differs between two loads');
   });
+  /* E  A NATURAL EDGE DRAWN RAGGED (src/world/core/ground-rough.js; Tyler 2026-11-16: "the ground transitions look like shit").
+     On a planted ground (a grass field cut by a two-wide road, a wide yard with one stray grass cell, a row of ponds along the
+     yard's edge, a meadow): the rule redraws only cells on a grass|earth edge, as the other material; never narrows the
+     two-wide road; never touches a cell beside a third material (the ponds); leaves no pinhole (the stray cell); is the same on
+     every call and does nothing without a rule; and the town keeps its rule. */
+  fam('E', () => {
+    const rowsP = ['............==............', '............==............', '............==............', '............==............',
+      '............==............', '............==............', '............==............', '............==............',
+      '==========================', '==========================', '=====.====================', '==========================',
+      '==========================', '=~=~=~=~=~=~=~=~=~=~=~=~==', '..........................', '..........................',
+      '..........................', '..........................', '..........................'];
+    const Wp = rowsP[0].length, Hp = rowsP.length, idOf = new Map([['grass', 0], ['earth', 1], ['water', 2]]);
+    const code = { '.': 0, '=': 1, '~': 2 };
+    const mat = Int16Array.from(rowsP.join('').split('').map((c) => code[c]));
+    const rule = { seed: 23, pairs: [['grass', 'earth']], spill: 0.5, bite: 0.5, scale: 2.6, deep: 4 };
+    const out = M.rough.roughEdges(mat, Wp, Hp, idOf, rule);
+    const at = (a, x, y) => (x < 0 || y < 0 || x >= Wp || y >= Hp ? -1 : a[y * Wp + x]);
+    const n4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    let changed = 0, offEdge = 0, narrowed = 0, nearThird = 0, pinholes = 0;
+    for (let y = 0; y < Hp; y++) for (let x = 0; x < Wp; x++) {
+      const a = at(mat, x, y), b = at(out, x, y);
+      if (a !== b) {
+        changed++;
+        if (!n4.some(([dx, dy]) => at(mat, x + dx, y + dy) === b) || a === 2) offEdge++;
+        if (y < 8 && (x === 12 || x === 13)) narrowed++;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (at(mat, x + dx, y + dy) === 2) nearThird++;
+      }
+      if (b !== 2 && n4.every(([dx, dy]) => { const m = at(out, x + dx, y + dy); return m >= 0 && m !== b && m !== 2; })) pinholes++;
+    }
+    ok('E1', changed > 4 && offEdge === 0, 'the rough rule must redraw some edge cells and only cells on a grass|earth edge (' + changed + ' changed, ' + offEdge + ' off an edge)');
+    ok('E2', narrowed === 0, 'the rough rule narrowed a two-wide road (' + narrowed + ' of its cells drawn as grass)');
+    ok('E3', nearThird === 0, 'the rough rule redrew a cell beside a third material (the pond): ' + nearThird);
+    ok('E4', pinholes === 0, 'the rough rule left ' + pinholes + ' pinhole cells (a lone square in the other material)');
+    const again = M.rough.roughEdges(mat, Wp, Hp, idOf, rule);
+    ok('E5', again.every((v, i) => v === out[i]) && M.rough.roughEdges(mat, Wp, Hp, idOf, null).every((v, i) => v === mat[i]), 'the rough rule is not the same on every call, or draws without a rule');
+    const town = compiled('town_common');
+    ok('E6', !!(town.blend && town.blend.rough), 'the town\'s blend lost its rough rule (its edges are ruled straight again)');
+  });
   return fails;
 }
 
@@ -998,6 +1036,12 @@ const MUTANTS = [
   ['V3', 'a painted ground repeated tile drawn as painted', 'src/world/core/compose.js', [['const k = vkind ? vkind[y * map.w + x] : -1;', 'const k = -1;']]],
   ['V4', 'a variety laid over another floor (its edges seam)', 'assets/world/atlas-common.json', [['"key": "0000"', '"key": "1111"']]],
   ['V5', 'details laid side by side', 'src/world/core/ground-variety.js', [['if (rolls(x, y, seed) && !rolls(x - 1, y, seed) && !rolls(x, y - 1, seed))', 'if (rolls(x, y, seed))']]],
+  ['E1', 'the rough rule redraws nothing', 'src/world/core/ground-rough.js', [['if (a === lo ? n > pSpill : n < pBite) out[y * W + x] = b;', 'void n;']]],
+  ['E2', 'the rough rule narrows a two-wide road', 'src/world/core/ground-rough.js', [['for (let k = 1; k < deep; k++)', 'for (let k = 1; k < 1; k++)']]],
+  ['E3', 'the rough rule redraws beside a third material', 'src/world/core/ground-rough.js', [['if (m !== lo && m !== up) { ok = false; break; }', 'void m;']]],
+  ['E4', 'the rough rule leaves pinholes', 'src/world/core/ground-rough.js', [['if (DIRS.every(([dx, dy]) => was(x + dx, y + dy) === b)) out[y * W + x] = b;', 'void b;']]],
+  ['E5', 'the rough rule rolls a new edge every call', 'src/world/core/ground-rough.js', [['const n = edgeNoise(x, y, scale, seed);', 'const n = Math.random();']]],
+  ['E6', 'the town\'s blend drops its rough rule', 'src/world/core/map-compile.js', [['row.blend.rough ? { rough: row.blend.rough } : {}', '{}']]],
   ['V6', 'a pick that changes every load', 'src/world/core/ground-variety.js', [['export function vhash(x, y, seed) {\n', 'export function vhash(x, y, seed) {\n  if (y > 40) return (Math.random() * 4294967296) >>> 0;\n']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G5', 'a keyed hall left off its map (Krell\'s Hall showed the town)', 'src/data/grounds/krells_hold/map.js', [["hunts: Object.freeze(['krells_hold', 'krells_hold_hall'])", "hunts: Object.freeze(['krells_hold'])"]]],
@@ -1057,5 +1101,5 @@ else if (argv.includes('--hashes')) {
     console.error('world-core: ' + fails.length + ' failure(s)');
     process.exit(1);
   }
-  console.log('world-core: green — y-sort, roofs, shadows, camera, floor variety, map lint (' + M.maps.WORLD_MAPS.length + ' maps over ' + Object.keys(M.manifests).length + ' atlases), path, Wang, routing, stubs, layer order, art by scene');
+  console.log('world-core: green — y-sort, roofs, shadows, camera, floor variety, ragged edges, map lint (' + M.maps.WORLD_MAPS.length + ' maps over ' + Object.keys(M.manifests).length + ' atlases), path, Wang, routing, stubs, layer order, art by scene');
 }

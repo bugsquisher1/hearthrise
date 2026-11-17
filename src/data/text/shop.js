@@ -9,13 +9,13 @@
 
 export const SHOP_TEXT = Object.freeze({
   /* What a seed still needs before it can be planted: the hero's Farming and the account's plot tier, from the server. */
-  seed_needs_farming: 'Needs Farming {level} to plant',
-  seed_needs_tier: 'Needs plot tier {tier} to plant',
-  seed_needs_both: 'Needs Farming {level} and plot tier {tier} to plant',
+  seed_needs_farming: 'Requires Farming {level}',
+  seed_needs_tier: 'Requires a tier {tier} plot',
+  seed_needs_both: 'Requires Farming {level} and a tier {tier} plot',
   /* The Sell tab's one bulk sale: the Junk only, never a Material (Tyler 2026-11-08). */
   sell_junk: 'Sell all junk',
   sell_junk_for: 'Sell all junk for {total}',
-  junk_keeps_it: 'Sell all junk keeps it',
+  junk_keeps_it: 'Not sold by Sell all junk',
   /* The Equip upgrades line (src/shell/upgrade-plan.js upgradeWords), in the Shop and the bag, when every slot it could fill is a tie. An armor weight
      picked at Tamsin's settles a tie between weights, so only that tie says so (a Keen ring against a Surge ring is not one). */
   /* A perk a piece adds that its name does not say (a jewelry row's name says its own). */
@@ -23,17 +23,17 @@ export const SHOP_TEXT = Object.freeze({
   upgrade_tie: 'No clear upgrade: {ties}',
   upgrade_tie_weights: 'No clear upgrade: {ties}',
   /* One tie's words when a plain stronger weapon in the bag would lose the worn one's bane (designer 2026-11-11): `more` is item.bane_more's line, the tooltip's. */
-  upgrade_tie_bane: '{plain} hits harder, {bane} does {more}',
+  upgrade_tie_bane: '{plain} hits harder, but {bane} does {more}',
   /* Why Dispatch loot is off in town (src/shell/loot-dispatch.js dispatchBlock): no plan yet, or a plan with nothing left in the bag to move. */
   dispatch_none_set: 'No loot plans set',
   dispatch_all_moved: 'Nothing left to move',
   /* Blessings in the Services tab (src/shell/windows/services.js): all of them in one press, one server purchase each. */
   bless_all: 'Bless all',
   bless_all_busy: 'Blessing…',
-  bless_all_done: 'All {of} Blessings on',
+  bless_all_done: 'All {of} Blessings active',
   /* Why Bless all is off, said under it. */
-  bless_all_on: 'All Blessings on',
+  bless_all_on: 'All Blessings active',
   bless_all_short: 'Not enough gold for the next Blessing',
-  junk_keeps: { one: 'Keeps {count} Material stack ({worth}), sell it by hand.',
-    other: 'Keeps {count} Material stacks ({worth}), sell them by hand.' },
+  junk_keeps: { one: 'Skips your {count} Material stack ({worth}). Sell it by hand.',
+    other: 'Skips your {count} Material stacks ({worth}). Sell them by hand.' },
 });

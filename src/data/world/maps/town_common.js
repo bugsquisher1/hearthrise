@@ -50,6 +50,8 @@ export default Object.freeze({
   rows: GROUND_ROWS,
   blend: BLEND,
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
+  /* daylight on the river, the mill race and the harbour (src/world/core/ambient.js); the chimneys smoke wherever the homes stand */
+  life: Object.freeze(['water']),
   ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, tile(a.x, a.y))))),
   faces: Object.freeze([]),
   objects: Object.freeze([

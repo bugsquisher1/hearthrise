@@ -12,6 +12,7 @@
 //            the map's objects, the state's props (a home's furniture) and units
 //   raised   what sits at wall height: rock tops, capstones, roofs, chimneys
 //   lights   the map's light kind plus point lights
+//   (THE MAP'S LIFE, core/ambient.js lifeDraws: water light first among the standing, smoke and sparks last among the raised)
 //   plates   screen-resolution text anchors (names), bubbles (the crier's
 //            line over its speaker) and the walk mark (where a tap sent you)
 //
@@ -42,6 +43,7 @@ import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.133';
 import { markShapes } from './mark-shapes.js?v=0.2.133';
 import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.133';
 import { roughEdges } from './ground-rough.js?v=0.2.133';
+import { lifeDraws, glanceOf, swayOf } from './ambient.js?v=0.2.133';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -409,6 +411,10 @@ export function composeFrame(map, book, state, view, tables, T) {
   const near = (x, y, w, h) => x < view.ox + view.w + 2 * T && y < view.oy + view.h + 2 * T && x + w > view.ox - 2 * T && y + h > view.oy - 2 * T;
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
+  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs */
+  const life = lifeDraws(map, book, state.t || 0, view, T);
+  for (const d of life.ground) { d.seq = seq++; stand.push(d); }
+  for (const d of life.air) { d.seq = seq++; raised.push(d); }
 
   /** @param {string} id @param {number} tx @param {number} ty
       @param {{anim?: string, dir?: string, i?: number, kind?: string, alpha?: number, ref?: any, bias?: number, raised?: boolean, shadow?: boolean,
@@ -493,8 +499,14 @@ export function composeFrame(map, book, state, view, tables, T) {
        The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
     const swap = state.objectSwap && state.objectSwap[o.id];
     /* townsfolk breathe and fires flicker through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
-    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
-    else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    /* ...and a keeper looks about her (core/ambient.js glanceOf: Tamsin to her board and back, the smith to his forge) */
+    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: glanceOf(o.id, o.x, o.y, state.t || 0), i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
+    else {
+      /* ...and cloth moves on the breeze: a banner or an awning drawn as its twin (core/ambient.js swayOf), an idle the switch holds */
+      const sway = !swap && swayOf(book, o.id, o.x, o.y, state.t || 0);
+      if (sway) place(sway.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: sway.i });
+      else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    }
   }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));

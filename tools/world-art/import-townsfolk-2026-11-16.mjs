@@ -36,6 +36,8 @@ function run(tool, argv) {
 export const FOLK_BODIES = Object.freeze([
   { id: 'folk_market_woman', object: '3300bc6b-aa94-41c2-829f-4cdc42db331e', name: 'S1 market woman',
     ramps: 'shadow,earth,bone,skin,bronze,blood,cloth,leaf,gold' },
+  { id: 'folk_water_carrier', object: '8a434966-705f-44f5-bd8e-ca9bc2d68e44', name: 'S1 water carrier',
+    ramps: 'shadow,stone,earth,bronze,skin,steel,mithril,frost,water' },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));

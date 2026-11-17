@@ -17,7 +17,7 @@ export const BAR_TEXT = Object.freeze({
   effects_door: 'Effects',
   effects_door_label: 'Effect settings (how strong spells, hits and danger marks look)',
   /* The First target (src/shell/widgets/first-target.js; the Krell's Hold design's piece 4): the monster a hero goes for first on
-     one ground, remembered per ground, so the line under it names the ground. Labels, not sentences (Tyler 2026-11-14). */
+     one ground, remembered per ground, so the line under it names the ground. */
   first_target: 'First target',
   first_target_none: 'None',
   first_target_on: 'First target on {ground}',

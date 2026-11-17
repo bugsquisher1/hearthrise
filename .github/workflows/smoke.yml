@@ -246,9 +246,13 @@ jobs:
   # 5.0 + client boot 17.2 = 22.8 min green; a slower runner hit the old 30 on main's v0.2.80 run (41327721118, cancelled).
   # x2 = 46, 50 for the apt stall's room.
   # RE-MEASURED 2026-11-03, run 41688819367 (cancelled at 50, no red): setup 7 (apt stall) + node suite 9 + client boot --mutate about 48 (61 mutants; B-19's reload mutants cost 25 of it) = about 64 when the harness moved. 80: only a diff that touches client-boot pays this.
+  # 2026-11-17 (lane/fix136-boot-shards): client boot --mutate (98 mutants) took 62 min on run 44144849725 and was still
+  # catching when run 44172169809 cancelled this job at 80, so its mutants moved to in-page-41..43 (--shard=K/3, see
+  # there). Here: setup 0.8 + node suite 10.0 + _chrome and client boot plain 2.0 = 12.8 min (run 44172169809); x2 = 26,
+  # 30 for the apt stall.
   in-page:
     runs-on: ubuntu-latest
-    timeout-minutes: 80
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -275,15 +279,14 @@ jobs:
       # supabase-js and the two REST paths stubbed: sign-in, the characters
       # screen, the World pane + shell for a character, a second character
       # beside it, sign-out clearing every session copy, the reset link and the
-      # closed-game notice; plus the static notice page at /. --mutate plants
-      # six defects (one: the hunt panels never mount) and requires each to go red.
+      # closed-game notice; plus the static notice page at /. Its --mutate
+      # (98 planted defects) runs in in-page-41..43, a third each.
       - name: Client boot (play.html, index.html)
         if: ${{ !cancelled() }}
         run: |
           node tests/_chrome.mjs
           node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest
           node tests/client-boot.mjs
-          node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -1588,6 +1591,113 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-40
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-41..43 ── CLIENT BOOT --mutate, A THIRD EACH, SPLIT OUT OF in-page 2026-11-17 (lane/fix136-boot-shards).
+  # release/v0.2.136 (run 44172169809) cancelled in-page at its 80 with client boot --mutate still catching (96 of 98
+  # caught, none escaped, 64.2 min of mutants after a 2.2 min clean control); run 44144849725 took 60.2 + 2.0. --shard=K/3
+  # is every third mutant from the Kth (round robin; the B-19 reload mutants, ~1.5 min each, fall in all three). Per
+  # shard on 44172169809's times: 22.1 / 21.2 / 20.9 min of mutants + the clean control 2.2 (it runs in every shard) +
+  # setup 0.9 = 25.2 at most; x2 = 51.
+  in-page-41:
+    runs-on: ubuntu-latest
+    timeout-minutes: 51
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      - name: Client boot --mutate, shard 1 of 3
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate --shard=1/3
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-41
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-42 ── client boot --mutate, shard 2 of 3 (see in-page-41): 21.2 + 2.2 + 0.9 = 24.3; x2 = 49, 51 like its siblings.
+  in-page-42:
+    runs-on: ubuntu-latest
+    timeout-minutes: 51
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      - name: Client boot --mutate, shard 2 of 3
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate --shard=2/3
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-42
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-43 ── client boot --mutate, shard 3 of 3 (see in-page-41): 20.9 + 2.2 + 0.9 = 24.0; x2 = 48, 51 like its siblings.
+  in-page-43:
+    runs-on: ubuntu-latest
+    timeout-minutes: 51
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      - name: Client boot --mutate, shard 3 of 3
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate --shard=3/3
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-43
           path: |
             tests/**/*.png
             tests/**/*.log

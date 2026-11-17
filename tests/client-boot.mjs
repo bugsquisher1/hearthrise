@@ -4,6 +4,7 @@
 //
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
+//     [--shard=K/N]  every Nth mutant from the Kth (smoke.yml's in-page-41..43); [--only <fragment>]  the mutants whose name holds it
 //
 // mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/render/canvas-backend.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
 //
@@ -1507,6 +1508,16 @@ const MUTANTS = [
   ['the reader\'s words are under 12 px (B-20)', 'src/styles/app.css', 'padding: 4px 6px 4px 0; font-size: var(--t-small);', 'padding: 4px 6px 4px 0; font-size: 11px;'],
 ];
 
+/* --shard=K/N (smoke.yml, 2026-11-17: 98 mutants took 60-65 min of in-page's 80, and run 44172169809 was cancelled in them): every Nth
+   of the chosen mutants from the Kth, as tests/utc-midnight-replay.mjs does. The clean control runs in every shard that holds a mutant, so
+   each shard's reds mean what the whole run's do. A malformed shard is the harness's fault: exit 2 before any page boots. */
+const SHARD = (() => {
+  const a = process.argv.find((x) => x.startsWith('--shard'));
+  const m = a && /^--shard=(\d+)\/(\d+)$/.exec(a);
+  if (a && (!m || +m[1] < 1 || +m[1] > +m[2])) { console.error('  HARNESS: bad ' + a + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(2); }
+  return m ? { k: +m[1], n: +m[2] } : null;
+})();
+
 async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
@@ -1517,12 +1528,15 @@ async function main() {
   /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
   const MINE = scopedMutants('tests/client-boot.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
+  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
+  const picked = MINE.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
+  const chosen = SHARD ? picked.filter((_, i) => i % SHARD.n === SHARD.k - 1) : picked;
+  if (SHARD) console.log('  shard ' + SHARD.k + '/' + SHARD.n + ': ' + chosen.length + ' of ' + picked.length + ' mutants');
+  if (!chosen.length) { console.log('client-boot --mutate: no mutant chosen' + (SHARD ? ' in this shard' : '')); process.exit(0); }
   let bad = 0;
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
-  const onlyAt = process.argv.indexOf('--only');   // a name fragment: prove just those mutants (a local re-check)
-  const chosen = MINE.filter((m) => onlyAt < 0 || m[0].includes(process.argv[onlyAt + 1]));
   for (const [name, file, from, to] of chosen) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];

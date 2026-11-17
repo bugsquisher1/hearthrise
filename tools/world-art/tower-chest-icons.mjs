@@ -63,9 +63,18 @@ export function finish(img) {
   return out;
 }
 
+/** THE ONE FREE EDIT BY ID, after the finish: the Old Ash Rake's head came back in the darkest iron, stone and shadow steps and sank into
+    the bag's dark slot, so those colours (only its head carries them) are lifted two steps onto the iron ramp: a value lift up a ramp,
+    never a hue jump (docs/ART_DIRECTION.md §4). */
+export const LIFT = Object.freeze({
+  old_ash_rake: Object.freeze({ '#231d1f': '#4a4d54', '#2f2723': '#4a4d54', '#2c2e33': '#4a4d54', '#3a3a3e': '#6e727a', '#4f4e52': '#969aa1' }),
+});
+
 /** A pick's file, finished; throws when the result is off the palette or not binary alpha. */
 function pickOf(id) {
   const img = finish(decodePNG(readFileSync(join(PICKS, id + '.png'))));
+  const lift = LIFT[id] ? new Map(Object.entries(LIFT[id]).map(([a, b]) => [rgb(a).join(), rgb(b)])) : null;
+  if (lift) for (let i = 0; i < img.data.length; i += 4) { const to = img.data[i + 3] && lift.get([img.data[i], img.data[i + 1], img.data[i + 2]].join()); if (to) img.data.set(to, i); }
   for (let i = 0; i < img.data.length; i += 4) {
     const a = img.data[i + 3];
     if (a && a !== 255) throw new Error(id + ': partial alpha');

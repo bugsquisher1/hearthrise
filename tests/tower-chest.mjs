@@ -45,7 +45,7 @@
 //               0.4 / 0.5% on the server's rows, the bundle a tradeable item of book value; the server's outfit roll over 20,000 keys at
 //               each key's chance, on its own stream (even odds with the weapon's roll meet a quarter of the time); a near miss finds
 //               nothing; a seeded open finds the coat through the verb (its bundle in the bag, the row's outfit and roll, ONE System line
-//               naming the key number; a replay none; a quiet hero none); the bag's worst case counts the bundle before any roll; the
+//               naming the key's metal; a replay none; a quiet hero none); the bag's worst case counts the bundle before any roll; the
 //               bundle used (2027-04-30-sweeps-coat.sql hr_outfit_bundle_use): one taken, owned, worn, a reload says so, journalled once,
 //               a replay moves nothing, a second bundle on an owned coat is kept (already_owned); a hero with none can't own, wear or use it
 //
@@ -835,7 +835,7 @@ async function outfitArm(db, M) {
   if (!hitOpen || hitOpen.outfit !== coat.outfit || hitOpen.bundle !== coat.item || r.hit.haul[coat.item] !== 1 || r.bag !== 1) bad.push(`TCH-OUTFIT key ${r.n}, rolled to find the coat, answered ${JSON.stringify(r.hit).slice(0, 240)} (bag ${r.bag})`);
   if (!r.again || JSON.stringify(r.again.opens) !== JSON.stringify(r.hit.opens) || r.bag !== 1) bad.push('TCH-OUTFIT a replayed press answered ' + JSON.stringify(r.again).slice(0, 160));
   if (r.row.length !== 1 || Number(r.row[0].n) !== r.n || r.row[0].outfit !== coat.outfit || !(r.row[0].outfit_roll < coat.pm.silver * 1000)) bad.push('TCH-OUTFIT the find\'s chest_opens row reads ' + JSON.stringify(r.row));
-  const said = 'found [[item:' + coat.item + ']] in the Hearth Chest on key ' + r.n.toLocaleString('en-US') + '.';
+  const said = 'found the [[item:' + coat.item + ']] in the Hearth Chest (' + M.CH.CHEST_KEYS.find((k) => k.id === 'silver').name + ')';
   if (r.lines.length !== 1 || r.lines[0].body !== said) bad.push(`TCH-OUTFIT the call-out reads ${JSON.stringify(r.lines)}, want one line ${JSON.stringify(said)}`);
   if (!r.quiet || r.quiet.ok !== true || r.quiet.opens[0].outfit !== coat.outfit || r.linesQuiet.length !== 1) bad.push('TCH-OUTFIT a quiet hero\'s find was called out, or not found: ' + JSON.stringify(r.linesQuiet));
   if (!r.full || r.full.error !== 'bag_full' || !r.fits || r.fits.ok !== true) bad.push(`TCH-OUTFIT the bag's worst case misses the bundle: ${JSON.stringify(r.full).slice(0, 120)} / with one held ${JSON.stringify(r.fits).slice(0, 120)}`);

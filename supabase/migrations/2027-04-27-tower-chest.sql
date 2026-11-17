@@ -59,8 +59,8 @@
 --   Platinum 5 permille). A hit pays the outfit's BUNDLE item (tradeable, book value: the board's "it trades, until someone wears it") into
 --   the haul, is recorded on the key's chest_opens row (outfit, outfit_roll) and answered in opens[] { outfit, bundle }; the bag's worst
 --   case counts a bundle stack the bag lacks. THE CALL-OUT: once the press has applied, each find posts one System line (chat_messages,
---   channel system, from the finder: hr_chat_name_authority stamps the hero's name) "found [[item:<bundle>]] in the Hearth Chest on key
---   <n>." unless the hero is quiet (player_state.presence_quiet), outside the rare-drop daily cap (hr_world_notices counts the
+--   channel system, from the finder: hr_chat_name_authority stamps the hero's name) "found the [[item:<bundle>]] in the Hearth Chest (<the key's
+--   name>)" unless the hero is quiet (player_state.presence_quiet), outside the rare-drop daily cap (hr_world_notices counts the
 --   settle's rare_drop events only). The line is in the press's transaction: a refused press posts nothing. Using the bundle is
 --   2027-04-30-sweeps-coat.sql's hr_outfit_bundle_use.
 -- hr_chest_stoke_default(p_slot int, p_key text, p_stokes int, p_idem uuid) -> jsonb   CLIENT VERB. The hero's default stoke count for one
@@ -757,7 +757,7 @@ begin
       for v_find in select value from jsonb_array_elements(v_finds) loop
         insert into public.chat_messages (id, channel, from_id, from_name, from_slot, body)
           values (gen_random_uuid(), 'system', v_uid, 'Adventurer', p_slot,
-                  'found [[item:' || (v_find->>'bundle') || ']] in the Hearth Chest on key ' || to_char((v_find->>'n')::bigint, 'FM999,999,999,999') || '.');
+                  'found the [[item:' || (v_find->>'bundle') || ']] in the Hearth Chest (' || v_k.name || ')');
       end loop;
     end if;
     v_out := jsonb_build_object('ok', true, 'version', v_a->'version', 'chest', p_chest, 'key', v_k.key_id, 'count', p_count, 'opens', v_opens,
@@ -1117,7 +1117,7 @@ begin
       raise exception 'tower-chest §9(c): the default stoke answered %', v; end if;
     -- (e) THE SUPER-RARE OUTFIT (lane/c-sweeps-coat-drop): the hero's next key set to the first index past 100,000 whose outfit roll finds
     --     the Bronze Key's first outfit (the week lifted for the probe): one key pays its bundle into the bag, records the outfit and its roll
-    --     on the key's row, and posts ONE System line from the hero naming the key number; the next find, the hero quiet, posts none
+    --     on the key's row, and posts ONE System line from the hero naming the key's metal; the next find, the hero quiet, posts none
     select o.outfit_id, o.item_id, o.pm into v_fam from public.hr_chest_outfits o where o.key_id = 'bronze' order by o.outfit_id collate "C" limit 1;
     if v_fam.item_id is null then raise exception 'tower-chest §9(e) CANNOT RUN: the Bronze Key finds no outfit'; end if;
     update public.hr_chest_key_families set opens_per_week = 1000, held_max = 1000 where key_family = 'tower';
@@ -1133,7 +1133,7 @@ begin
        or (select count(*) from public.chest_opens where user_id = v_u and slot = 0 and n = v_hit and outfit = v_fam.outfit_id
              and outfit_roll < v_fam.pm * 1000) <> 1
        or (select count(*) from public.chat_messages where from_id = v_u and from_slot = 0 and channel = 'system'
-             and body = 'found [[item:' || v_fam.item_id || ']] in the Hearth Chest on key ' || to_char(v_hit, 'FM999,999,999,999') || '.') <> 1
+             and body = 'found the [[item:' || v_fam.item_id || ']] in the Hearth Chest (' || (select k2.name from public.hr_chest_keys k2 where k2.key_id = 'bronze') || ')') <> 1
        or (select count(*) from public.chat_messages where from_id = v_u and channel = 'system') <> v_lines + 1 then
       raise exception 'tower-chest §9(e): key % answered % (the bundle, the row or the one call-out is off)', v_hit, v; end if;
     update public.player_state set presence_quiet = true where user_id = v_u and slot = 0;

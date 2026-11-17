@@ -177,7 +177,7 @@ async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
   /* W13 (audit 2026-11-15 F19): the Market read "isn't trading right now" (an outage) while Havora > Works said the Weighhouse was going up. Trading off with
      the Works' own read unfinished: one story, the server's numbers, where to give. Finished, unread or another project: the plain closed line. */
   const built = { project: 'weighhouse', total: 125000, goal: 1000000, finished: false };
-  const closedLine = "The Weighhouse isn't trading right now. Your listings are safe, and you can still take them back.";
+  const closedLine = 'Weighhouse closed, listings safe';
   ok('W13', W.blockWords({ closed: true, works: built }) === "The Weighhouse being built: 125,000 of 1,000,000 gp (give in Havora > Works). Your listings are safe (you can take them back)",
     'trading off while the Works builds it reads ' + JSON.stringify(W.blockWords({ closed: true, works: built })));
   ok('W13', W.blockWords({ closed: true, works: { ...built, finished: true } }) === closedLine && W.blockWords({ closed: true, works: null }) === closedLine

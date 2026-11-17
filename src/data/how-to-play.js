@@ -33,7 +33,7 @@ const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role,
 
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
    START_EQUIPMENT); a player can make more heroes and play several at once (1 slot to start, Tyler 2026-11-09; up to 4 at once). */
-export const HOW_YOU_FIGHT_LEAD = 'No classes: the weapon sets the style, switch any time in town';
+export const HOW_YOU_FIGHT_LEAD = 'No classes, nothing to pick. Every weapon below is yours, the one in hand sets the style. Switch any time in town';
 /* The lead's last sentence: not about fighting, so a phone's short card leaves it to the Help page (app.css). */
 export const HOW_YOU_FIGHT_SLOTS = 'Hero slots: 1, buy 3 more, all 4 play at once';
 

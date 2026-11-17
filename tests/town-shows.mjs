@@ -852,7 +852,7 @@ const ARMS = {
       [{ error: 'show_limit', verb: 'town_round', perDay: 4 }, 'Daily limit: 4 rounds per account, resets at midnight UTC'],
       [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Round in progress, not charged, retry in 20 s'],
       [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'Price now 4,000 gp, not charged'],
-      [{ error: 'not_a_show', verb: 'town_powder' }, 'Havora doesn\'t sell that.'],
+      [{ error: 'not_a_show', verb: 'town_powder' }, 'Havora doesn\'t sell that'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(JSON.stringify(r) + ' reads: ' + R(r));
     return out;

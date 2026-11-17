@@ -12,4 +12,7 @@ export const WORK_TEXT = Object.freeze({
   sort_can: 'Can make',
   sort_level: 'Level',
   sort_name: 'Name',
+  /* The bag's line for a counted bench run (src/shell/town-work.js runParts byRun): what the run has to go, never the stock behind it
+     ("Fueling the Great Hearth with Bones: 1 to go" for one Bone fed, live v0.2.135 read "2,529 Bones left"). */
+  run_to_go: '{n} to go',
 });

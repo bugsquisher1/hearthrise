@@ -54,7 +54,7 @@ import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2
 import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.136';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.136';
 import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.136';
-import { itemName } from './widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.136';
 import { noShotWords } from './hunt-go.js?v=0.2.136';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.136';
 import { deathSeen } from './death-popup.js?v=0.2.136';
@@ -159,7 +159,7 @@ function candidatesOf(cs, viewed) {
   /* Tamsin's payments (the server's claims of the last day, `tally.recent`): one line each, ever. */
   for (const p of (tallyOf(cs) || { recent: [] }).recent) {
     out.push({ id: 'tally:' + p.claim, kind: 'tally', session: null, item: p.item,
-      text: 'Tamsin paid ' + who(cs) + ' ' + gold(p.gold) + ' and ' + pickWords(p, itemName) + ' for ' + tallyLabel(p.task) + '.' });
+      text: 'Tamsin paid ' + who(cs) + ' ' + gold(p.gold) + ' and ' + pickWords(p, itemNameFor) + ' for ' + tallyLabel(p.task) + '.' });
   }
   const h = huntOf(cs);
   if (!h) return out;

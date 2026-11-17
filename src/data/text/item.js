@@ -92,4 +92,31 @@ export const ITEM_TEXT = Object.freeze({
   need_level_have: 'Needs Level {level}, now {have}',
   need_skill: 'Needs {skill} {level}',
   need_skill_have: 'Needs {skill} {level}, now {have}',
+
+  /* ONE of an item named in the plural, for a count beside it (src/shell/widgets/bits.js itemNameFor): "1 Bone", never
+     "1 Bones" (live v0.2.135). One row per countable stack whose name is plural. A pair (Iron Boots) and a mass (Tempering
+     Salts, Coal Tongs) keep their name, so they have none. tests/alpha-windows.mjs TK-8b asks every other plural stack for its row. */
+  one_bones: 'Bone',
+  one_big_bones: 'Big Bone',
+  one_dragon_bones: 'Dragon Bone',
+  one_bone_chips: 'Bone Chip',
+  one_tower_cinders: 'Hearth Cinder',
+  one_knotted_tails: 'Knotted Tail',
+  one_bronze_arrows: 'Bronze Arrow',
+  one_barbed_arrows: 'Barbed Arrow',
+  one_iron_arrows: 'Iron Arrow',
+  one_steel_arrows: 'Steel Arrow',
+  one_mithril_arrows: 'Mithril Arrow',
+  one_rune_arrows: 'Rune Arrow',
+  one_emberhead_arrows: 'Emberhead Arrow',
+  one_dawnpoint_arrows: 'Dawnpoint Arrow',
+  one_iron_bolts: 'Iron Bolt',
+  one_plain_iron_arrows: 'Plain Iron Arrow',
+  one_plain_barbed_arrows: 'Plain Barbed Arrow',
+  one_plain_steel_arrows: 'Plain Steel Arrow',
+  one_plain_mithril_arrows: 'Plain Mithril Arrow',
+  one_plain_rune_arrows: 'Plain Rune Arrow',
+  one_plain_emberhead_arrows: 'Plain Emberhead Arrow',
+  one_plain_dawnpoint_arrows: 'Plain Dawnpoint Arrow',
+  one_plain_iron_bolts: 'Plain Iron Bolt',
 });

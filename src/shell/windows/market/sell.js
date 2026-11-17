@@ -17,7 +17,7 @@ import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.136';
 import { whole } from '../../../render/format.js?v=0.2.136';
 import { ITEMS } from '../../../data/items.js?v=0.2.136';
 import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.136';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.136';
+import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.136';
 import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.136';
 import { refusalText } from '../../intent-words.js?v=0.2.136';
 import { marketList } from '../../../session/market-intents.js?v=0.2.136';
@@ -223,7 +223,7 @@ async function runList(o) {
   dropGesture(sc);
   if (r.ok) {
     const fee = r.receipt && Number.isSafeInteger(r.receipt.fee) ? '. Fee: ' + goldWords(r.receipt.fee) : '';
-    sc.msg = 'Listed ' + whole(g.qty) + ' ' + itemName(g.item) + ' for ' + whole(g.ask) + ' each' + fee;
+    sc.msg = 'Listed ' + whole(g.qty) + ' ' + itemNameFor(g.item, g.qty) + ' for ' + whole(g.ask) + ' each' + fee;
     f.pick = null; f.qty = ''; f.ask = ''; f.filled = null;
     sc.paged = false;
   } else sc.msg = said;

@@ -18,7 +18,7 @@
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.136';
 import { recipeInputs } from '../core/artisan.js?v=0.2.136';
 import { whole } from '../render/format.js?v=0.2.136';
-import { itemName } from './widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.136';
 import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.136';
 import { serverNowOf } from '../session/hunt-sections.js?v=0.2.136';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.136';
@@ -95,7 +95,7 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const parts = [];
   const made = productOf(w);
   const gained = made && Number.isSafeInteger(was.n) ? qtyOf(cs, made) - was.n : 0;
-  if (gained > 0) parts.push('+' + whole(gained) + ' ' + itemName(made));
+  if (gained > 0) parts.push('+' + whole(gained) + ' ' + itemNameFor(made, gained));
   const sk = (skillsOf(cs) || {})[w.skill];
   const skill = (SKILLS_DEF[w.skill] && SKILLS_DEF[w.skill].name) || w.skill;
   const xp = sk && Number.isSafeInteger(was.sx) ? sk.xp - was.sx : 0;

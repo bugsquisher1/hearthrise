@@ -34,7 +34,7 @@ import { ammoPerShot } from '../core/ammo.js?v=0.2.136';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.136';
 import { ABILITIES } from '../data/abilities.js?v=0.2.136';
 import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.136';
-import { itemName, runeWords } from './widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor, runeWords } from './widgets/bits.js?v=0.2.136';
 import { ownCount } from './rune-supply.js?v=0.2.136';
 import { shortOf } from './item-lore.js?v=0.2.136';
 import { whole, gold } from '../render/format.js?v=0.2.136';
@@ -128,7 +128,7 @@ function spareWords(kind, rows, named) {
     const c = CONSUMABLES[r.id];
     if (c && c.kind === kind && c.source !== 'store' && !named.has(r.id) && r.qty > 0 && (!best || r.qty > best.qty)) best = r;
   }
-  return best ? 'Carried: ' + whole(best.qty) + ' ' + itemName(best.id) + ', put it on the bar' : '';
+  return best ? 'Carried: ' + whole(best.qty) + ' ' + itemNameFor(best.id, best.qty) + ', put it on the bar' : '';
 }
 
 function bareWords(kind, parts, carried) {
@@ -233,13 +233,13 @@ function shotLine(s, cs, carried) {
       + (spare ? '. Bag → ' + itemName(spare.id) + ' → Put on the bar' : '. Empty slot → Ammo → pick a store shot') + waiting, short: true, pays: false };
   }
   const parts = (dry ? [dry] : [])
-    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id)) + (o.id === worn ? ' (loaded)' : '')))
+    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemNameFor(o.id, o.n)) + (o.id === worn ? ' (loaded)' : '')))
     .concat(plan.store.map((st) => st.name + ' (' + whole(st.price) + ' gp)'));
   const idle = plan.own.length && !plan.own[0].free ? []
     : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));
   const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);
   return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + (plan.own.some((o) => o.free) ? ', never runs out' : '')
-    + (spare ? ', ' + whole(spare.qty) + ' ' + itemName(spare.id) + ' not on the bar' : '') + waiting, short: false, pays: plan.store.length > 0 };
+    + (spare ? ', ' + whole(spare.qty) + ' ' + itemNameFor(spare.id, spare.qty) + ' not on the bar' : '') + waiting, short: false, pays: plan.store.length > 0 };
 }
 
 /** The hunt screen's warning: a hero hunting with a weapon that can shoot nothing won't attack at all (the panel 2026-11-01

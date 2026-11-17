@@ -27,7 +27,7 @@ import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-role
 import { ITEMS } from '../data/items.js?v=0.2.136';
 import { isRune } from '../data/supplies.js?v=0.2.136';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.136';
-import { itemName, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.136';
 import { ownCount } from './rune-supply.js?v=0.2.136';
 import { shortOf } from './item-lore.js?v=0.2.136';
 import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.136';
@@ -352,7 +352,7 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
   /* "N Cooked Shrimp wait in your backpack. Press this slot to carry them in." for what the bag holds, or null. */
   const waiting = (n) => (n > 0 ? t('bar.waiting', { count: n, n: whole(n) }) : null);
   /* The same, naming the item ("3 Cooked Shrimp wait in your backpack…"). */
-  const waitingItem = (n, id) => (n > 0 ? t('bar.waiting_item', { count: n, n: whole(n), item: itemName(id) }) : null);
+  const waitingItem = (n, id) => (n > 0 ? t('bar.waiting_item', { count: n, n: whole(n), item: itemNameFor(id, n) }) : null);
   const inPack = (id) => ((pack || []).find((r) => r.id === id) || {}).have || 0;
   const SERVER = { code: 'server', text: t('bar.server_refused'), glyph: 'uiLock', strike: true };
   if (a.type === 'ability') {

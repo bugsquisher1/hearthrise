@@ -33,7 +33,7 @@ import { huntOf } from '../../session/hunt-sections.js?v=0.2.136';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.136';
 import { whole } from '../../render/format.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js?v=0.2.136';
 import { runIntent } from '../intent-words.js?v=0.2.136';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.136';
 import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, BENCH_MAX, clampCount, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.136';
@@ -84,9 +84,9 @@ const secs = (ms) => (Math.round(ms / 100) / 10) + ' s';
 /* A bench recipe's own name, for the line about its last run. */
 const recipeNameOf = (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'That job'; };
 
-/* "2 Copper Ore → Bronze Bar", "6 Rune Blank → 45 Earth Rune", "Bones" (a rite). */
+/* "2 Copper Ore → Bronze Bar", "6 Rune Blank → 45 Earth Rune", "1 Bone" (a rite). */
 function recipeWords(w) {
-  const ins = Object.entries(recipeInputs(w.row)).map(([id, n]) => whole(n) + ' ' + itemName(id)).join(' + ');
+  const ins = Object.entries(recipeInputs(w.row)).map(([id, n]) => whole(n) + ' ' + itemNameFor(id, n)).join(' + ');
   const out = productOf(w);
   const n = yieldOf(w);
   /* A ROLLED job (src/data/jewelry.js) names the grades it can make; its odds line says how likely each is. */

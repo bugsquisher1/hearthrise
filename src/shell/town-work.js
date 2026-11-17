@@ -46,7 +46,8 @@ import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/arti
 import { recipeInputs } from '../core/artisan.js?v=0.2.136';
 import { pacedXp } from '../core/pacing.js?v=0.2.136';
 import { whole } from '../render/format.js?v=0.2.136';
-import { itemName } from './widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.136';
+import { t } from '../render/player-text.js?v=0.2.136';
 import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.136';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.136';
 import { townActivityWords } from '../session/party-sections.js?v=0.2.136';
@@ -126,9 +127,9 @@ export const BENCH_COUNTS = Object.freeze([1, 5, 'all']);
 export const BENCH_MAX = 100000;
 /** A typed count clamped to 1..BENCH_MAX, or null when nothing number-like was typed. */
 export function clampCount(raw) {
-  const t = String(raw == null ? '' : raw).trim();
-  const n = Math.floor(Number(t));
-  if (!t || !Number.isFinite(n)) return null;
+  const typed = String(raw == null ? '' : raw).trim();
+  const n = Math.floor(Number(typed));
+  if (!typed || !Number.isFinite(n)) return null;
   return Math.min(BENCH_MAX, Math.max(1, n));
 }
 
@@ -224,7 +225,7 @@ function inputShortOf(cs, w) {
   return inHand ? { inHand } : null;
 }
 /* "No Silk Thread in bag or Storage." / "Needs 4 Silk Thread, have 1." */
-const shortWords = (cs, s) => (s.have ? 'Needs ' + whole(s.need) + ' ' + itemName(s.id) + ', have ' + whole(s.have) + '.' : 'No ' + itemName(s.id) + ' ' + fromWords(cs) + '.');
+const shortWords = (cs, s) => (s.have ? 'Needs ' + whole(s.need) + ' ' + itemNameFor(s.id, s.need) + ', have ' + whole(s.have) + '.' : 'No ' + itemName(s.id) + ' ' + fromWords(cs) + '.');
 
 /**
  * workBlock's line when its reason is an input the hero is short of, piece by piece so each place it names can be a link
@@ -379,7 +380,7 @@ export function rolledWords(outs, bag) {
     const n = (bag[id] || 0) - was;
     if (n <= 0) continue;
     const it = JEWELRY_ITEMS[id];
-    if (!it) { plain.push(whole(n) + ' ' + itemName(id)); continue; }
+    if (!it) { plain.push(whole(n) + ' ' + itemNameFor(id, n)); continue; }
     const label = Object.keys(it.jewelPerks).map((p) => (JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p)).join(' and ');
     grade[it.jewelGrade].set(label, (grade[it.jewelGrade].get(label) || 0) + n);
   }
@@ -398,7 +399,7 @@ function doneWords(cs, from, xpBefore, sinceMs) {
   const parts = [];
   const made = from.out && !from.outs ? (bag[from.out] || 0) - from.made : 0;
   const burnt = from.out ? (bag[BURNT] || 0) - from.burnt : 0;
-  if (made > 0) parts.push(whole(made) + ' ' + itemName(from.out));
+  if (made > 0) parts.push(whole(made) + ' ' + itemNameFor(from.out, made));
   if (from.outs) parts.push(...rolledWords(from.outs, bag));
   if (burnt > 0) parts.push(whole(burnt) + ' burnt');
   if (xp !== null && x0 !== null && xp > x0) parts.push('+' + whole(xp - x0) + ' ' + skillWord(from.skill) + ' XP');
@@ -466,11 +467,13 @@ export function gatherBagWords(cs, w, running) {
 
 /**
  * How far the run has got, as the line's parts [{ key, text, ahead }]: "12 cooked so far", "2 burnt", "2 more on
- * the fire", "30 Raw Shrimp left". Each number is the SERVER's bag plus the ticker's certain part (`ahead`: it
+ * the fire", "30 Raw Shrimp left" ("1 to go", byRun below). Each number is the SERVER's bag plus the ticker's certain part (`ahead`: it
  * includes some). "So far" counts from the envelope the start answered with (this tab only); after a reload a node
- * says what the bag holds and a bench what is left. Every envelope replaces it; nothing spends it.
+ * says what the bag holds and a bench what is left. Every envelope replaces it; nothing spends it. `byRun`: a COUNTED run (the
+ * server's bench_run.left) says what the run has to go, not the stock behind it: the bag's line, where nothing else says the
+ * run's count (the Work window's row does: "Working on it now, 37 left").
  */
-export function runParts(cs, w) {
+export function runParts(cs, w, byRun) {
   if (!w) return [];
   const bag = invOf(cs);
   const tick = tickOf(cs);
@@ -498,7 +501,12 @@ export function runParts(cs, w) {
       /* What is left to spend: the bag plus the Storage the bench draws on, less the ticker's certain spend of both. */
       const d = aheadQty(tick, first) + aheadStored(tick, first);
       const left = Math.max(0, (supplyOf(cs)[first] || 0) + d);
-      parts.push({ key: 'left', text: whole(left) + ' ' + itemName(first) + ' left', ahead: d !== 0 });
+      /* "Fuel the hearth" is a run of ONE: its line says what the run has to go, never the stock (live v0.2.135: one Bone fed
+         read "2,529 Bones left"): the server's count less the ticker's certain actions. */
+      const run = byRun ? leftOf(cs) : null;
+      const need = Math.max(1, recipeInputs(w.row)[first] || 1);
+      if (run !== null) parts.push({ key: 'left', text: t('work.run_to_go', { n: whole(Math.max(0, Math.min(run - Math.round(-d / need), Math.floor(left / need)))) }), ahead: d !== 0 });
+      else parts.push({ key: 'left', text: whole(left) + ' ' + itemNameFor(first, left) + ' left', ahead: d !== 0 });
     }
   }
   return parts;

@@ -43,7 +43,7 @@ import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/f
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.136';
 import { whole, gold } from '../../render/format.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.136';
+import { itemIconHtml, itemName, itemNameFor } from '../widgets/bits.js?v=0.2.136';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.136';
 import { t, hasText } from '../../render/player-text.js?v=0.2.136';
 import { patchParts, targetOf } from '../goto.js?v=0.2.136';
@@ -246,7 +246,7 @@ function harvestLine(r) {
   const b = r.body || {};
   const rep = b.replant || null;
   /* Whole sentences, one after another. */
-  const s = [t('farm.harvested', { qty: whole(b.qty), item: itemName(b.produce), xp: whole(b.xp) })];
+  const s = [t('farm.harvested', { qty: whole(b.qty), item: itemNameFor(b.produce, b.qty), xp: whole(b.xp) })];
   const said = (parts) => parts.map((x) => String(x).replace(/\.$/, '')).join('. ');
   if (b.extra) return said(s.concat(t('farm.harvested_extra_gone')));
   if (b.withered) s.push(t('farm.harvested_withered'));

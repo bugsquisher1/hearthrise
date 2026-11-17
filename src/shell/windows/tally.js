@@ -33,7 +33,7 @@ import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/p
 import { whole, gold, sepHtml, SEP_PART } from '../../render/format.js?v=0.2.136';
 import { t } from '../../render/player-text.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js?v=0.2.136';
 import { headPathFor } from '../../data/monster-art.js?v=0.2.136';
 import { targetOf, patchParts } from '../goto.js?v=0.2.136';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.136';
@@ -59,7 +59,7 @@ const labelOf = (task) => { const row = tallyTask(task); return row ? row.label.
 /* "120 Giant Rats"; one named creature reads "The Rat King, 5 times". */
 const titleOf = (task, n) => { const row = tallyTask(task); return row && /^the /.test(row.label) ? labelOf(task) + ', ' + whole(n) + ' times' : whole(n) + ' ' + labelOf(task); };
 /* Her pay for a task, named: "a Bronze Platebody", "4 Slime Gel"; the piece alone for a board row's name line. */
-const pieceName = (pick) => (pick.kind === 'piece' ? itemName(pick.item) : pickWords(pick, itemName));
+const pieceName = (pick) => (pick.kind === 'piece' ? itemName(pick.item) : pickWords(pick, itemNameFor));
 const groundLink = (hunt) => ({ words: huntName(hunt), target: targetOf({ kind: 'hunt', hunt }) });
 
 /** The pieces more than one task on her board offers (she gives a piece once, so the first paid gets it and the other
@@ -118,7 +118,7 @@ export function keeperSay(tally, hunting, justPaid, firstMeet) {
   if (open) return t('tally.say_taken', { task: titleOf(open.task, open.target), ground: huntName(open.hunt) });
   /* nothing held: a pay she just made invites the next take (played 11-12: once a task is taken, that task speaks) */
   const paid = tally.recent[0];
-  if (justPaid && paid) return t('tally.say_paid', { gold: whole(paid.gold), pick: pickWords(paid, itemName) });
+  if (justPaid && paid) return t('tally.say_paid', { gold: whole(paid.gold), pick: pickWords(paid, itemNameFor) });
   if (capped) return t('tally.say_capped_none', { n: countWord(tally.perDay) });
   return t((firstMeet ?? !tally.weight) && !tally.recent.length ? 'tally.say_first' : 'tally.say_none');
 }
@@ -174,7 +174,7 @@ function patchFace(li, monster, st) {
 }
 
 /* What she pays for a task, from her answer's row ('' until it comes). */
-const getWords = (offer) => (offer ? t('tally.get', { gold: gold(offer.gold), pick: offer.pick ? pickWords(offer.pick, itemName) : '' }) : '');
+const getWords = (offer) => (offer ? t('tally.get', { gold: gold(offer.gold), pick: offer.pick ? pickWords(offer.pick, itemNameFor) : '' }) : '');
 
 function patchEntry(li, h, st) {
   const tally = st.tally;

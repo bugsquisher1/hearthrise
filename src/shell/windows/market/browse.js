@@ -16,7 +16,7 @@ import { rows, text, cls, attr, prop, style, element } from '../../../render/pai
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.136';
 import { whole } from '../../../render/format.js?v=0.2.136';
 import { glyphSvg } from '../../launcher.js?v=0.2.136';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.136';
+import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.136';
 import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.136';
 import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.136';
 import { BAG_CATS } from '../../bag-model.js?v=0.2.136';
@@ -339,7 +339,7 @@ export async function cancelListing(o, listing) {
   if (answerLost(r)) { sc.msg = 'No answer, safe to press Cancel again'; repaint(); return; }
   sc.cancels.delete(listing);
   const c = r.ok && r.receipt ? r.receipt : null;
-  sc.msg = !r.ok ? refusalText(r, cs) : c && c.item_id ? 'Canceled, ' + whole(c.qty) + ' ' + itemName(c.item_id) + ' back in storage' : 'Canceled, back in storage';
+  sc.msg = !r.ok ? refusalText(r, cs) : c && c.item_id ? 'Canceled, ' + whole(c.qty) + ' ' + itemNameFor(c.item_id, c.qty) + ' back in storage' : 'Canceled, back in storage';
   repaint();
   await rereadAll(ctx, cs, sc);
 }

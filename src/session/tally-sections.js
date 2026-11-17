@@ -84,13 +84,13 @@ export function countsWords(task, where) {
   return row ? row.label + ' in ' + where : where;
 }
 
-/** Her pick in words: "an Apprentice Hat", "Iron Boots", "4 Slime Gel" (`nameOf` names an item id). A name already in the
-    plural takes no article (the panel 2026-11-01: "an Iron Boots"). */
+/** Her pick in words: "an Apprentice Hat", "Iron Boots", "4 Slime Gel", "1 Bone" (`nameOf(id, n)`: an item's name beside a
+    count of n, bits.js itemNameFor). A name already in the plural takes no article (the panel 2026-11-01: "an Iron Boots"). */
 export function pickWords(pick, nameOf) {
   if (!pick || !pick.item) return '';
   const n = nameOf(pick.item);
   if (pick.kind === 'piece' || pick.pick === 'piece') return /s$/i.test(n) ? n : (/^[aeiou]/i.test(n) ? 'an ' : 'a ') + n;
-  return pick.qty + ' ' + n;
+  return pick.qty + ' ' + nameOf(pick.item, pick.qty);
 }
 
 /**

@@ -30,7 +30,7 @@ import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gather
 import { SHOP_OFFERS } from '../data/shops.js?v=0.2.136';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.136';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.136';
-import { itemName } from './widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.136';
 import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends, isSuperRare } from './bag-model.js?v=0.2.136';
 import { FLAMES } from '../data/hearth.js?v=0.2.136';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.136';
@@ -217,7 +217,7 @@ export function baneWords(id) {
 
 /** A sale's rare finds by name, for its confirmation ("Sell 7 stacks?" hid 3 Alpha Fang worth 1,350 of 2,054 gp, newcomer panel 2026-11-01), or ''. `lines`: { item, qty }. */
 export function rareSaleWords(lines) {
-  const rare = (lines || []).filter((l) => isRareItem(l.item) || isSuperRare(l.item)).map((l) => t('item.qty_item', { qty: whole(l.qty), item: itemName(l.item) }));
+  const rare = (lines || []).filter((l) => isRareItem(l.item) || isSuperRare(l.item)).map((l) => t('item.qty_item', { qty: whole(l.qty), item: itemNameFor(l.item, l.qty) }));
   const once = (lines || []).filter((l) => madeFromKit(l.item)).map((l) => t('item.kit_once', { kit: itemName(madeFromKit(l.item)), item: itemName(l.item) }));
   return [rare.length ? t('item.sells_rares', { items: listWords(rare) }) : '', ...once].filter(Boolean).join(' ');
 }

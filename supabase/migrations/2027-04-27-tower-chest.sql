@@ -922,7 +922,7 @@ declare
   v_u      constant uuid := '000000c0-0000-4000-a000-0000c4e57001';
   k        constant text := '000000c0-0000-4000-b000-c4e5';
   v        jsonb; v2 jsonb; v_sig text; v_role text; t text; v_sid uuid; v_sid2 uuid; v_sid3 uuid; v_fam record; v_w text;
-  v_stacks bigint; v_keys bigint; v_sid4 uuid; v_hit bigint; v_lines bigint;
+  v_stacks bigint; v_keys bigint; v_sid4 uuid; v_hit bigint; v_lines bigint; v_had bigint; v_said bigint; v_body text;
   v_weapons constant bigint := (select count(*) from public.hr_chest_weapons);
 begin
   -- (a) PRIVILEGES AND SHAPE: every helper the owner's alone; the verbs the signed-in client's alone and on the baseline; the tables
@@ -1132,15 +1132,19 @@ begin
     loop v_hit := v_hit + 1; exit when public.hr_chest_outfit_roll(v_u, 0, v_hit) < v_fam.pm * 1000 or v_hit > 400000; end loop;
     update public.chest_luck set opens = v_hit - 1 where user_id = v_u and slot = 0;
     v_lines := (select count(*) from public.chat_messages where from_id = v_u and channel = 'system');
+    -- judged by what the find ADDS: (c)'s two keys roll this same 0.2% outfit on the database's own secret, so about 1 replay in 250
+    -- one of them has already found a bundle and been called out (lane/fix135-chest-midnight; tests/tower-chest.mjs TCH-SELFCHECK)
+    v_body := 'found the [[item:' || v_fam.item_id || ']] in the Hearth Chest (' || (select k2.name from public.hr_chest_keys k2 where k2.key_id = 'bronze') || ')';
+    v_had := coalesce((select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_fam.item_id), 0);
+    v_said := (select count(*) from public.chat_messages where from_id = v_u and from_slot = 0 and channel = 'system' and body = v_body);
     delete from public.hr_rate_counters where user_id = v_u;
     v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '00000011')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or v #>> '{opens,0,outfit}' is distinct from v_fam.outfit_id or v #>> '{opens,0,bundle}' is distinct from v_fam.item_id
        or (v->'haul'->>v_fam.item_id)::int is distinct from 1
-       or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_fam.item_id) is distinct from 1
+       or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_fam.item_id) is distinct from v_had + 1
        or (select count(*) from public.chest_opens where user_id = v_u and slot = 0 and n = v_hit and outfit = v_fam.outfit_id
              and outfit_roll < v_fam.pm * 1000) <> 1
-       or (select count(*) from public.chat_messages where from_id = v_u and from_slot = 0 and channel = 'system'
-             and body = 'found the [[item:' || v_fam.item_id || ']] in the Hearth Chest (' || (select k2.name from public.hr_chest_keys k2 where k2.key_id = 'bronze') || ')') <> 1
+       or (select count(*) from public.chat_messages where from_id = v_u and from_slot = 0 and channel = 'system' and body = v_body) <> v_said + 1
        or (select count(*) from public.chat_messages where from_id = v_u and channel = 'system') <> v_lines + 1 then
       raise exception 'tower-chest §9(e): key % answered % (the bundle, the row or the one call-out is off)', v_hit, v; end if;
     update public.player_state set presence_quiet = true where user_id = v_u and slot = 0;
@@ -1149,7 +1153,7 @@ begin
     delete from public.hr_rate_counters where user_id = v_u;
     v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '00000012')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or v #>> '{opens,0,outfit}' is distinct from v_fam.outfit_id
-       or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_fam.item_id) is distinct from 2
+       or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_fam.item_id) is distinct from v_had + 2
        or (select count(*) from public.chat_messages where from_id = v_u and channel = 'system') <> v_lines + 1 then
       raise exception 'tower-chest §9(e): a quiet hero''s find answered % (or was called out)', v; end if;
     raise exception 'tower-chest §9: ok' using errcode = 'P0001';

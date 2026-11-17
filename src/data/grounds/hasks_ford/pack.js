@@ -161,10 +161,6 @@ export default definePack({
      own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
   xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  /* DEADLY'S HP HERE IS 1400 (lane/d-flat-party-xp on set v0.2.135, 2026-11-17; the table's is 1300). With Turning Cut on every melee weapon without a
-     shield (Tyler 2026-11-16) Andy's four (axe, bow, wand, a Healer 5 under) read 2.44x the pace contract at the floor (tools/balance-sim/party-tier-xp.mjs,
-     4 seeds x 0.5 h), against Tyler's ~2.5x cap with no room for the guard's dice. A longer fight is the dial that leaves Dangerous where it stands. */
-  tierOverride: { dials: { deadly: { hpPm: 1400 } }, why: 'Deadly monsters here have 40% more health instead of 30%. Groups of four were killing them too fast for the XP they give' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
     fordsunk: 'heavy',         // the tank: slow (2400), thick

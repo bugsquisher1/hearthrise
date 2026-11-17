@@ -400,14 +400,14 @@ export const TIER_DIALS = Object.freeze({
      its heroes alone on the Glade and Hask's Ford, on 7 0.93-0.94, on 8 1.04-1.06 (party-tier-xp), where Tyler 2026-11-16 asks every Dangerous party to
      stand at or over them. A bigger pull is where a party's hands count; the two harder tiers now differ by their blows, their HP and their pay, as the
      Muster's always did. */
-  dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
+  dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),
   /* Deadly's HP 1300 (was 1100; lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground, Tyler's "just balance the hunting grounds
      xp vs having a unique formula everywhere"): on the full box a mixed four at a ground's floor kills far faster than its heroes alone, and on
      1100 Andy's four (axe, bow, wand, a Healer 5 under) read 2.40-2.61x the pace contract on the Glade and Hask's Ford where a four on Dangerous
      needs the same table to stand over its heroes alone. 1300 (a pile that stays on you longer: more food, more risk) took the Glade's floor
      four to 2.20x and Hask's to 2.19x at the same table (party-tier-xp, 2 seeds x 0.5 h). A Deadly kill still pays the most XP; an HP point
      of it pays a little less than Dangerous's (0.96 against 1.09): the tier's price is the longer fight. */
-  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1300, xpPm: 1250 }),
+  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),
 });
 /** The party sizes a tier row answers for (the server's catalogue reads its pull by size, 1..4). */
 export const TIER_SIZES = 4;
@@ -421,7 +421,7 @@ const BASE_TIER_OVERRIDES = Object.freeze({
   /* Its Deadly's HP is 1450, not the table's 1300 (lane/d-flat-party-xp on set v0.2.135, 2026-11-17): with Turning Cut on every melee weapon without a
      shield (Tyler 2026-11-16) Andy's four read 2.60x the pace contract at the floor (party-tier-xp, 2 seeds x 0.5 h), past Tyler's ~2.5x. On 1450 it reads
      2.38 (4 seeds) and a hero alone on Deadly still out-levels Normal at the floor (1.60 against 1.47 of the contract) and the middle (1.18 against 0.97). */
-  mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ deadly: Object.freeze({ hpPm: 1450 }) }), why: 'Dangerous brings 6 here, two under Deadly: on a bigger pull a hero alone at the floor reaches the Brook Bear too seldom. Deadly monsters here have 45% more health instead of 30%. Groups of four were killing them too fast for the XP they give' }),
+  mosslight_glade: Object.freeze({ dangerous: 6, why: 'Dangerous brings 6 here, two under Deadly: on a bigger pull a hero alone at the floor reaches the Brook Bear too seldom. Deadly monsters here have 45% more health instead of 30%. Groups of four were killing them too fast for the XP they give' }),
   mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
   /* The Thicket sits just under Wickstead: its Normal at Wickstead's floor (8) pays 6-12% under Wickstead's, so the table's x1.2 and x1.25 a kill on its
      harder tiers beat Wickstead's Normal for every way to fight (tests/hunt-core/hunt-tiers.mjs ladder; lane/b-ground-formula-2: a lone tank 25.8k against

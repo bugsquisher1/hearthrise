@@ -530,11 +530,14 @@ async function check(M) {
       'a chunk baked in slices paints different calls from one baked in one go');
     ok('W5', calls > list.length && worst <= (8 + list.length) * 16, 'the chunks were baked in ' + calls + ' call(s), up to ' + worst + ' paint calls in one: a bake is one long task');
     /* the canvas: a new map's first view is baked by ready(), a slice a frame, never inside the frame that draws it */
-    const win = { innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1, performance: { now: () => clock++ }, addEventListener() {}, removeEventListener() {},
+    let onResize = null;
+    const win = { innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1, performance: { now: () => clock++ }, addEventListener(type, fn) { if (type === 'resize') onResize = fn; }, removeEventListener() {},
       setTimeout: (fn) => q.push(fn), clearTimeout() {}, requestIdleCallback: (fn) => q.push(fn), cancelIdleCallback() {} };
     const paneFrom = canvases.length;
     const cb = M.canvasM.createCanvasBackend({ win, doc, book, images, tables, css: tone });
+    const shownAt = canvases.length;
     cb.mount({ appendChild() {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 1440, height: 900 }) });
+    const shown = canvases[shownAt];   // the canvas on screen (mount's first canvas)
     const m3 = fresh();
     cb.setMap(m3);
     const at = row.start || [Math.floor(m3.w / 2), Math.floor(m3.h / 2)];
@@ -546,6 +549,20 @@ async function check(M) {
     cb.sync(state);
     ok('W5', held >= 2 && baked > 0 && chunkCount() === baked,
       'a new map\'s first frame must wait for its view\'s ground (held ' + held + ' frame(s), ' + (chunkCount() - baked) + ' chunk(s) baked inside the frame)');
+    /* W5 (report #81, 2560x1271: "Black screened ... I zoomed in/out and screen came back"): a HELD frame keeps the last frame on
+       screen. The stage resized (a window resize, the ResizeObserver) while a frame is held (a new zoom's ground baking, a sheet on its
+       way) must not resize the shown canvas: a canvas given a new size is cleared, and this one is opaque, so it went BLACK with nothing
+       drawn on it for as long as the hold lasted. Its bitmap takes the new size in the frame that paints it. */
+    const firstSize = shown.width + 'x' + shown.height;
+    shown.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1440, height: 800 });
+    if (onResize) onResize();
+    cb.setZoom(1);   // the viewer's zoom out: a wider view whose ground is baked first, the last frame held meanwhile
+    let resizedHeld = 0, blanked = 0;
+    while (!cb.ready(state) && resizedHeld < 10000) { resizedHeld++; if (shown.width + 'x' + shown.height !== firstSize) blanked++; }
+    cb.sync(state);
+    ok('W5', typeof onResize === 'function' && resizedHeld >= 1 && blanked === 0 && firstSize === '1440x900' && shown.width === 1440 && shown.height === 800,
+      'a resize met while a frame is held must keep the last frame (' + blanked + ' of ' + resizedHeld + ' held frame(s) resized, so cleared, the shown canvas from '
+      + firstSize + '; after the paint ' + shown.width + 'x' + shown.height + ', want 1440x800)');
     /* W5: a pane let go gives every canvas back at once (left to the collector they came due as a 166-318 ms pause in a later frame, perf-budget long frames) */
     cb.destroy();
     const kept = canvases.slice(paneFrom).filter((c) => c.width || c.height);
@@ -786,6 +803,8 @@ const MUTANTS = [
   ['W5', 'a pane let go leaves its canvases to the collector', 'src/world/render/canvas-backend.js', [['if (c) { c.width = 0; c.height = 0; }', 'if (c) { }']]],
   ['W5', 'a chunk let go keeps its pixels', 'src/world/render/ground-chunks.js', [['  function release(c) { c.width = 0; c.height = 0; }', '  function release(c) { }']]],
   ['W5', 'a new map drawn before its view\'s ground is baked', 'src/world/render/canvas-backend.js', [['      if ((!hold && !ground.stale()) || !map || !canvas) return true;', '      return true;']]],
+  ['W5', 'a held frame resizes (so blanks) the shown canvas again (report #81)', 'src/world/render/canvas-backend.js', [['    dirty = false;\n  }\n', '    sizeTo(canvas, W, H);\n    dirty = false;\n  }\n']]],
+  ['W5', 'a painted frame never gives the shown canvas its new size', 'src/world/render/canvas-backend.js', [['    sizeTo(canvas, W, H);   // the size measure() read', '    // the size measure() read']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;', 'if (c.some((m) => m < 0)) continue;']]],
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],

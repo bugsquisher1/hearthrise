@@ -231,7 +231,7 @@ renderFarm.patch = function patchFarm(body, ctx) {
   /* The land's plots, then any EXTRA plot past them (the server's `extra`), in index order. */
   const extras = Array.from(land.plots.keys()).filter((i) => i >= land.cap).sort((a, b) => a - b);
   text(root.querySelector('.hw-farm-land'), t('farm.land_room', { count: land.cap })
-    + (extras.length ? ' ' + t('farm.land_extra', { count: extras.length }) : ''));
+    + (extras.length ? ' · ' + t('farm.land_extra', { count: extras.length }) : ''));
   const ids = Array.from({ length: land.cap }, (_, i) => i).concat(extras);
   rows(root.querySelector('.hw-field'), ids, { key: String, build: (i) => element(ctx.doc, plotHtml(i)), patch: (li, i) => patchPlot(li, i, st, now) });
   patchSow(root, st, ctx);

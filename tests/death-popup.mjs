@@ -122,7 +122,7 @@ async function pure(base) {
   if (words(BARE).level !== '') fail(fails, 'DP-0b an older row (no Level pair) names a Level: ' + JSON.stringify(words(BARE).level));
   if (words(took).saved !== '3 Blessings saved 300 Level XP, used up') fail(fails, 'DP-0b three Blessings read ' + JSON.stringify(words(took).saved));
   if (words(Object.assign({}, took, { saved: {} })).saved !== '3 Blessings used up') fail(fails, 'DP-0b three Blessings that kept nothing read ' + JSON.stringify(words(Object.assign({}, took, { saved: {} })).saved));
-  if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessings: Shop → Services') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
+  if (words(Object.assign({}, ROW, { saved: null })).saved !== 'No Blessings. Shop → Services') fail(fails, 'DP-0b no Blessing reads ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).saved));
   const tookCs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [took] : k === 'state' ? { level_xp: charXpForLevel(2) } : k === 'level' ? levelBlock(charXpForLevel(2)) : k === 'hunt' ? { session_id: SESSION, hunt_id: ROW.hunt, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
   const tookWhy = deathWords(tookCs, { session: SESSION, row: deathLogOf(tookCs)[0] }).why;
   if (tookWhy !== WHY_IN_RANGE) fail(fails, 'DP-0b a hero who died in range and lost Levels is told it stood under the ground: ' + JSON.stringify(tookWhy));

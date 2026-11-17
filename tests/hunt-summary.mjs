@@ -141,9 +141,9 @@ async function runTests(M) {
     eq(Object.keys(MD.END_WORDS), [...END_ORDER], 'END_WORDS covers END_ORDER, in order');
     for (const r of END_ORDER) ok(/^[A-Z][^]*\S$/.test(MD.endWords(r)) && MD.endWords(r) !== 'Hunt ended', r + ' has its own words (a label, Tyler 2026-11-14)');
     ok(MD.endWords('nonsense') === 'Hunt ended', 'an unknown reason still reads');
-    /* out of stamina: why, how it comes back, and what the hero has now (panel 2026-11-01: "Your stamina ran out." and nothing else) */
+    /* out of stamina: why, and what the hero has now (the short text pass 2026-11-16 cut "refills hour for hour") (panel 2026-11-01: "Your stamina ran out." and nothing else) */
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + '. Stamina now: 5 h 46 min', 'the stamina end says what is rested');
-    ok(/refills hour for hour/.test(MD.END_WORDS.stamina), 'the stamina end says how it comes back');
+    eq(MD.END_WORDS.stamina, 'Out of stamina', 'the stamina end says why');
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', null), MD.END_WORDS.stamina, 'an older hunt, or a server that has not said: no number');
     eq(MD.reasonWords({ reason: 'left' }, 'Pip', 3600000), MD.END_WORDS.left, 'another end says nothing of stamina');
   });
@@ -213,7 +213,7 @@ async function runTests(M) {
     eq(MD.againWithBag(MD.huntAgainOf(s), []).bag, [], 'an empty bag goes on store supplies, as Enter does');
   });
 
-  await t('S6 a forfeited hunt says why in plain words, never "by the server"', () => {
+  await t('S6 a forfeited hunt says why in plain words, and that its last minutes did not count', () => {
     /* The server's session as hr_hunt_view projects it after hr_hunt_forfeit (2026-11-17-hunt-density-home.sql). */
     const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
     const sess = (over) => Object.assign({ id: 'sess-f', hunt: 'mill_cellar', preset: 0, entered_at: '2026-10-18T10:00:00Z',
@@ -221,11 +221,11 @@ async function runTests(M) {
     const card = (session) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [])])[0];
     const f = card(sess());
     eq([f.reason, f.forfeit], ['server', true], 'the stored card keeps the forfeit');
-    eq(MD.endWords(f.reason, f.forfeit), 'Stopped: last minutes not accepted, nothing from them counted', 'the forfeit sentence');
+    eq(MD.endWords(f.reason, f.forfeit), 'Stopped by the server. The last minutes did not count', 'the forfeit sentence');
     const plain = card(sess({ forfeit: false }));
     eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
     const left = card(sess({ end_reason: 'left' }));
-    ok(/^Left: .*nothing from them counted$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
+    ok(/^Left the hunt\. .*did not count$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
   });
@@ -263,7 +263,7 @@ async function runTests(M) {
     eq([MD.withTrainingStop(early, { ...stop, session: 'sess-other' }), MD.withTrainingStop(c, stop)], [null, null], 'another session\'s stop, or a card already full: nothing');
     /* why it ended: the Training window's words, never a hunt's */
     eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'Stopped Wren\'s Defense training', 'stopped');
-    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Wren finished Defense training. That was the longest one session can run.', 'the 12-hour end');
+    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Wren finished training Defense (session max reached)', 'the 12-hour end');
     eq(MD.endWords('hours', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.hours, 'a hunt keeps its own words');
     eq(card(sess({ hunt: 'wickstead' }), stop).train, null, 'a hunt is no training card');
   });
@@ -398,12 +398,12 @@ async function runTests(M) {
     eq(sell.lines, [{ item: 'rat_tail', qty: 31 }, { item: 'slime_gel', qty: 12 }], 'the sale names the plan\'s Sell stacks whole, and nothing else');
     eq(sell.words, 'Marked Sell: Rat Tail and Slime Gel', 'the sale says whose rule it is');
     eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
-    eq(r.steps[0].words, 'Upgrade: Leather Gloves +1 Melee accuracy and Bronze Belt +2 Defense', 'Equip says what goes on');
+    eq(r.steps[0].words, 'Upgrade: Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)', 'Equip says what goes on');
     eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
     eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt, frees 1 bag space', 'Deposit says what it frees');
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
     eq(steps({ rules: { locked: new Set(['sticky_core', 'wolf_pelt']), loot: rules.loot } }).steps.map((s) => s.id), ['equip', 'sell', 'bless'], 'a locked Deposit stack is not a step');
-    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30, less death loss'], 'Bless names the tiers not on');
+    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30'], 'Bless names the tiers not on');
     /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
     const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
     const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });
@@ -412,7 +412,7 @@ async function runTests(M) {
     /* Bless only while the purse covers the next tier (the server prices each); a purse not read reads as enough */
     const dear = { tiers: [{ tier: 1, price: 500, held: true }, { tier: 2, price: 900, held: false }, { tier: 3, price: 1400, held: false }], freeUntil: null };
     eq(steps({ blessings: dear, purse: 100 }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'short of the next Blessing, no Bless step');
-    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Costs 2,300 gp, less death loss', 'the purse covers the next');
+    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Cost: 2,300 gp', 'the purse covers the next');
     eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
     /* nothing to do at all: no steps, Hunt again is the press */
     const none = steps({ plan: { ops: {}, picks: [], choices: [] }, rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });

@@ -186,7 +186,7 @@ async function checks(overrides) {
         if (!(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-seeds li[data-crop="carrot"] button').disabled))) fails.push('FW-2 carrot can be planted at Farming 1');
         /* the tier line agrees with the picker (playtest 2026-10-29 #12): the soil needs Farming 5, the carrot itself 10 */
         const tier = await txt(page, W + '.hw-tier');
-        if (!/Tier 2 adds Carrot, Farming 10[^:]*: .*, at Farming 5\./.test(tier || '')) fails.push('FW-2 the tier line reads ' + JSON.stringify(tier) + ' beside "Needs Farming 10"');
+        if (!/^Tier 1 grows Turnip\. Tier 2 adds Carrot \(Farming 10\)[^.]*\. .+ · Requires Farming 5$/.test(tier || '')) fails.push('FW-2 the tier line reads ' + JSON.stringify(tier) + ' beside "Needs Farming 10"');
         /* the tier is priced in gold only: the Farmer's Deed left the catalogue with its sources (2026-10-23) and its server
            payment with lane/c-dead-plot-deed (2026-11-07), so the line never offers one */
         if (/Deed/.test(tier || '')) fails.push('FW-2 the tier line offers a Farmer\'s Deed, which no player can get: ' + JSON.stringify(tier));
@@ -235,7 +235,7 @@ async function checks(overrides) {
         if (by0 !== 'Planted by Bren') fails.push('FW-7 plot 0 says ' + JSON.stringify(by0) + ', want "Planted by Bren"');
         const by3 = await txt(page, W + '.hw-plot[data-plot="3"] .hw-plot-by');
         if (!/^Planted by Alda\. Extra plot: gone once harvested$/.test(by3 || '') || !(await page.evaluate(() => document.querySelector('[data-hs-win="farm"] .hw-plot[data-plot="3"]').classList.contains('is-extra')))) fails.push('FW-7 the extra plot says ' + JSON.stringify(by3));
-        if (!/1 extra plot goes once harvested\./.test((await txt(page, W + '.hw-farm-land')) || '')) fails.push('FW-7 the land line reads ' + JSON.stringify(await txt(page, W + '.hw-farm-land')));
+        if (!/^Room for 2 plots · 1 extra plot, gone once harvested$/.test((await txt(page, W + '.hw-farm-land')) || '')) fails.push('FW-7 the land line reads ' + JSON.stringify(await txt(page, W + '.hw-farm-land')));
         const lone = await txt(page, W + '.hw-plot[data-plot="3"] .hw-harvest');
         if (lone !== 'Harvest') fails.push('FW-7 the extra plot\'s one button reads ' + JSON.stringify(lone) + ', want "Harvest" (it never replants)');
         await press(page, W + '.hw-plot[data-plot="3"] .hw-harvest', 'FW-7');
@@ -257,7 +257,7 @@ async function checks(overrides) {
         if (by0 !== 'Planted by Alda. Grows back 4 more times after this harvest') fails.push('FW-8 the growing tomato says ' + JSON.stringify(by0));
         const labels = (i) => page.evaluate((n) => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot[data-plot="' + n + '"] button.hh-tool')].map((b) => [b.getAttribute('data-hs-act'), b.textContent]), i);
         const l1 = await labels(1);
-        if (JSON.stringify(l1) !== JSON.stringify([['leave', 'Harvest, grows back 3 more times'], ['clear', 'Harvest and clear']])) fails.push('FW-8 the ready tomato\'s buttons read ' + JSON.stringify(l1));
+        if (JSON.stringify(l1) !== JSON.stringify([['leave', 'Harvest (grows back 3 more times)'], ['clear', 'Harvest and clear']])) fails.push('FW-8 the ready tomato\'s buttons read ' + JSON.stringify(l1));
         const l2 = await labels(2);
         const by2 = await txt(page, W + '.hw-plot[data-plot="2"] .hw-plot-by');
         if (JSON.stringify(l2) !== JSON.stringify([['harvest', 'Harvest and replant'], ['leave', 'Harvest and clear']]) || !/Last harvest: the plant withers after it$/.test(by2 || '')) fails.push('FW-8 the last-harvest tomato reads ' + JSON.stringify([l2, by2]));

@@ -62,7 +62,9 @@ function wayParts(rows) {
     ...n.smith.from.map((f) => ({ words: dropWords(f), target: targetOf(dropPlaceOf(f.id)) })),
     { words: saleWords(n.id) ? '' : t('temper.way_weighhouse'), target: targetOf({ kind: 'market' }) }].filter((p) => p.words));
   }
-  return [...said.values()].flat().flatMap((p, i) => (i ? [' ', p] : [p]));
+  /* the smith's line is a label with no period: a sentence after it starts after one */
+  const parts = [...said.values()].flat();
+  return parts.flatMap((p, i) => (i ? [/[.!?]$/.test(parts[i - 1].words) ? ' ' : '. ', p] : [p]));
 }
 
 /** The section's skeleton, inside the Services tab. */

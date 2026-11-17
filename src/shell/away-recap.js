@@ -152,6 +152,9 @@ export function awayRecapOf(cs) {
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
+/* The end reasons and next-thing lines are labels with no period (src/data/text/summary.js, away.js); in this card's prose each one ends a sentence. */
+const dot = (s) => (s && !/[.!?…]$/.test(s) ? s + '.' : s);
+
 /* What the hunt is doing now, from the envelope: the stamina left, or how long ago it ended and the stamina rested since. */
 function nowWords(cs, h, now) {
   const name = nameOf(cs) || 'Hero';
@@ -166,11 +169,11 @@ function nowWords(cs, h, now) {
   const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
   /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
   const said = (h.ended ? afterDoneWords(cs, h.sessionId, name) : '') || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '');
-  const then = said ? ' ' + said : '';
+  const then = said ? ' ' + dot(said) : '';
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
-    ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
-      .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
+    ? ' The hunt has ended' + ago + '. ' + dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
+      .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt'))
       + then + (stamina ? ' Stamina now: ' + stamina + '.' : '')
     : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';
 }

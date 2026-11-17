@@ -989,11 +989,11 @@ async function runTests(mods) {
   }, o);
   const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
   /* out of stamina, the next line names what uses none (R3n) */
-  const STAMINA_NEXT = 'Refill stamina: work a bench or train at the Yard';
+  const STAMINA_NEXT = 'While stamina refills: work a bench or train at the Yard';
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
     ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
-      + STAMINA_NEXT + ' Stamina now: 5 h 46 min.')
+      + STAMINA_NEXT + '. Stamina now: 5 h 46 min.')
       && !/ ago\./.test(night.text), 'the second night: ' + JSON.stringify(night && night.text));
     /* the line follows the record while the card is up: the wait grows, and it is the server's clock that says so */
     ok(AR.awayLineNow(wrenna(NOW + 10 * MIN, idleSince(END + 8000)), night).includes('waited in town for 5 h 56 min'), 'the wait is the record\'s now');
@@ -1003,12 +1003,12 @@ async function runTests(mods) {
       'a resumed job: ' + JSON.stringify(went && went.text));
     /* one next thing per end reason, by the rules (hunt-sessions.js RESUME_AFTER_END) */
     const nextOf = (reason) => (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
-    ok(nextOf('hours').includes('Set a longer hunt, up to your stamina.'), 'a set limit: ' + nextOf('hours'));
+    ok(nextOf('hours').includes('Set a longer hunt, up to the stamina left'), 'a set limit: ' + nextOf('hours'));
     ok(nextOf('heals_out').includes('Pack more food for a longer hunt.'), 'out of food: ' + nextOf('heals_out'));
     ok(nextOf('ammo_out').includes('Pack more ammo for a longer hunt'), 'out of ammo: ' + nextOf('ammo_out'));
     ok(nextOf('runes_out').includes('Pack more runes for a longer hunt'), 'out of runes: ' + nextOf('runes_out'));
-    ok(nextOf('gold_out').includes('Lower your gold reserve, carry more gold, or pack your own supplies'), 'out of gold: ' + nextOf('gold_out'));
-    ok(nextOf('died').includes('Start mining, chopping or fishing before a hunt'), 'a death resumes a job too: ' + nextOf('died'));
+    ok(nextOf('gold_out').includes('Lower the gold reserve or pack your own supplies'), 'out of gold: ' + nextOf('gold_out'));
+    ok(nextOf('died').includes('Start a gathering job before a hunt'), 'a death resumes a job too: ' + nextOf('died'));
     /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
     ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
     ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
@@ -1030,7 +1030,7 @@ async function runTests(mods) {
   t('R3n out of stamina, the next line names the yard and a bench as well as gathering', () => {
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1'), STAMINA_NEXT, 'the stamina end');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'died'), 's-1'),
-      'Start mining, chopping or fishing before a hunt to resume it after.', 'a death keeps the gathering line');
+      'Start a gathering job before a hunt to resume it after', 'a death keeps the gathering line');
   });
   /* R3t (walk row 7): a 12-hour yard session ended "Set a longer hunt next time, up to the stamina you have." Training uses no stamina
      and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
@@ -1039,7 +1039,7 @@ async function runTests(mods) {
     eq(yard('hours'), 'Start training again to keep going', 'the 12-hour cap');
     eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
     eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job is still said');
-    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt, up to your stamina.', 'a hunt\'s own limit keeps its line');
+    eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt, up to the stamina left', 'a hunt\'s own limit keeps its line');
   });
   /* R3e (Barrow March play-through 2026-11-14): each card's next line fits its end. A boss room is one fight: the Krell win card
      said "Start mining, chopping or fishing before you hunt". A purse run dry with food in the bag the bar never named said
@@ -1051,8 +1051,8 @@ async function runTests(mods) {
     const bar = { preset: 1, supply_source: 'mine', on_empty: 'switch', slots: [{ action: { type: 'consume', id: 'wheat_bread' } }] };
     const goldOut = (inventory) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'gold_out', { settings: bar, inventory }), 's-1');
     eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Tip: put Cooked Trout on the bar', 'food in the bag, off the bar (the label, lane/d-labels-sweep)');
-    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'only what the bar names: the old line');
-    eq(goldOut({}), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'nothing in the bag: the old line');
+    eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Lower the gold reserve or pack your own supplies', 'only what the bar names: the old line');
+    eq(goldOut({}), 'Lower the gold reserve or pack your own supplies', 'nothing in the bag: the old line');
     const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'gold_out', { settings: bar, inventory: { cooked_trout: 12 } })) || {}).text || '';
     ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Tip: put Cooked Trout on the bar'), 'the away card says it too: ' + away);
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
@@ -1075,13 +1075,13 @@ async function runTests(mods) {
     eq(b.note, 'Makes the last 7', 'a bench\'s count');
     /* no job to go back to: the job is not offered, and the default reads as what will happen */
     const c = HA.afterChoices(hero({ choice: 'job', skill: null, job: null }));
-    ok(!c.options.some((o) => o.value === 'job') && c.picked === 'wait' && /no job to go back to/.test(c.note), 'no job: ' + JSON.stringify(c));
+    ok(!c.options.some((o) => o.value === 'job') && c.picked === 'wait' && /no job to resume/.test(c.note), 'no job: ' + JSON.stringify(c));
     /* training: the yard's fee and its longest stay, the server's; under its Level, why the hero would wait */
     const d = HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: ROCK }));
     eq(d.picked, 'train:melee', 'a training choice is picked with its skill');
-    eq(d.note, '122 gold/h, up to 12 h (can\'t pay: waits in town)', 'the yard\'s cost');
+    eq(d.note, '122 gold/h, up to 12 h', 'the yard\'s cost');
     eq(HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: null }, { ...TR, rate: { ...TR.rate, level: 5 } })).note,
-      'Yard from Level 10 (waits in town until then)', 'under the yard\'s Level');
+      'Yard from Level 10', 'under the yard\'s Level');
     /* a server that sends no training offers none; one that sends no section draws no control */
     ok(!HA.afterChoices(hero({ choice: 'wait', skill: null, job: null }, null)).options.some((o) => o.value.startsWith('train')), 'no training section: no training choice');
     eq(HA.afterChoices(hero(undefined)), null, 'no section: no control');
@@ -1090,24 +1090,24 @@ async function runTests(mods) {
       '[{"choice":"train","skill":"melee"},{"choice":"wait","skill":null},null,null,null]', 'afterPick');
     /* the running hunt's own plan */
     const run = (choice, skill, job) => HA.thenWords(hero({ choice: 'wait', skill: null, job, now: { session: 's-9', choice, skill } }));
-    eq(run('job', null, ROCK), 'After this hunt your hero goes back to mining the Copper Rock.', 'then: the job');
-    ok(/\(7 left\)$/.test(run('job', null, { kind: 'artisan', id: 'cook_shrimp', left: 7 })), 'then: a bench and its count');
-    eq(run('job', null, null), 'After this hunt your hero waits in town.', 'then: no job is waiting');
-    eq(run('train', 'melee', ROCK), 'After this hunt your hero trains Melee at the yard.', 'then: the yard');
+    eq(run('job', null, ROCK), 'After this hunt: back to mining the Copper Rock', 'then: the job');
+    ok(/, 7 left$/.test(run('job', null, { kind: 'artisan', id: 'cook_shrimp', left: 7 })), 'then: a bench and its count');
+    eq(run('job', null, null), 'After this hunt: wait in town', 'then: no job is waiting');
+    eq(run('train', 'melee', ROCK), 'After this hunt: train Melee at the yard', 'then: the yard');
     eq(HA.thenWords(hero({ choice: 'job', skill: null, job: ROCK })), '', 'no hunt running: no plan line');
     /* a training session names itself, never a hunt (lane/a-training-leftovers: the yard's analyzer read "After this hunt ..."); a hunt keeps its word */
     const on = (huntId) => HA.thenWords({ read: (k) => ({ hunt_after: { choice: 'wait', skill: null, job: null, now: { session: 's-9', choice: 'wait', skill: null } },
       training: TR, hunt: { session_id: 's-9', hunt_id: huntId } })[k] });
     eq([on('training_yard_melee'), on('training_house_defense'), on('mill_cellar')],
-      ['After this training session your hero waits in town.', 'After this training session your hero waits in town.', 'After this hunt your hero waits in town.'], 'then: the session\'s own word');
+      ['After this training session: wait in town', 'After this training session: wait in town', 'After this hunt: wait in town'], 'then: the session\'s own word');
     /* what came of the ended hunt's choice */
     const came = (done, id = 's-1') => HA.afterDoneWords(hero({ choice: 'job', skill: null, job: null, last: { session: 's-1', choice: 'train', skill: 'melee', done } }), id, 'Wrenna');
     eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Then Wrenna went to the yard to train Melee.', 'started');
     eq(came({ state: 'pending', skill: 'melee', place: 'yard' }), 'Wrenna is on the way to the yard to train Melee.', 'pending');
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: 30 }),
-      'Wrenna waited in town (Melee costs 122 gold/h, you had 30)', 'too little gold says the fee and the purse');
-    eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'The yard takes heroes from Level 10, so Wrenna waited in town.', 'under the Level');
-    eq(came({ state: 'waited', why: 'chose_wait' }), 'Then Wrenna waited in town, as you asked.', 'chose to wait');
+      'Wrenna waited in town: not enough gold to train Melee', 'too little gold says why');
+    eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'Wrenna waited in town: the yard requires Level 10', 'under the Level');
+    eq(came({ state: 'waited', why: 'chose_wait' }), 'Then Wrenna waited in town', 'chose to wait');
     eq(came({ state: 'resumed', kind: 'gather', id: 'copper_rock' }), '', 'back on the job: the pointer\'s own line says it');
     eq(came({ state: 'started', skill: 'melee' }, 's-0'), '', 'another hunt\'s summary says nothing of this one');
   });

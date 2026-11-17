@@ -152,7 +152,7 @@ async function checks(overrides) {
           fails.push('SV-3 the tiers read ' + JSON.stringify(rows));
         }
         const note = await txt(page, '.hw-bless-note');
-        if (!/free below Level 30/.test(note || '') || !/used up on death/.test(note || '')) fails.push('SV-3 the note reads ' + JSON.stringify(note));
+        if (note !== 'Each Blessing: −32% death XP loss. Used up on death. Free until Level 30') fails.push('SV-3 the note reads ' + JSON.stringify(note));
         await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless"][data-tier="2"]', 'SV-3');
         await wait(page, () => !document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services.is-pending'), null, 4000);
         const bl = sent(s, 'hr_blessing_buy');
@@ -213,7 +213,7 @@ async function checks(overrides) {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
         if (!/Tempering Salts: 4\/20, 1 in Storage/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
         const way = await txt(page, '.hw-temper-way');
-        if (!/Tempering Salts: requires Smithing 15, now \d+, made from 1 Iron Bar and 1 Bone Chips/.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
+        if (!/Tempering Salts: requires Smithing 15 \(now \d+\), made from 1 Iron Bar and 1 Bone Chips\. Bone Chips drop from /.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
       }
       await ctx.close();
     }
@@ -244,7 +244,7 @@ async function checks(overrides) {
         const seen = await page.waitForFunction(() => { const m = document.querySelector('.hw-temper-msg'); const b = document.querySelector('.hw-temper [data-track="blows"]'); return m && /Not enough/.test(m.textContent) ? b.textContent : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
         const said = !!seen;
         if (!said || !/Not enough Tempering Salts: 3 in bag, 1 in Storage, need 20/.test(await txt(page, '.hw-temper-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-temper-msg')));
-        if (!/You hold 8 \(5 in Storage\)\./.test(seen || '')) fails.push('SV-8 a refused sale did not re-read the server: the row still reads ' + JSON.stringify(seen));
+        if (!/Tempering Salts: 8\/20, 5 in Storage/.test(seen || '')) fails.push('SV-8 a refused sale did not re-read the server: the row still reads ' + JSON.stringify(seen));
       }
       await ctx.close();
     }
@@ -332,7 +332,7 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-5 the Services tab did not open without the sections');
       else {
         if (!(await off(page, '[data-hs-act="stam-ask"]'))) fails.push('SV-5 Buy stamina is on with no quote');
-        if (!/not priced/.test(await txt(page, '.hw-stam-quote') || '')) fails.push('SV-5 the stamina line does not say it is unpriced');
+        if ((await txt(page, '.hw-stam-quote')) !== 'No refill price yet') fails.push('SV-5 the stamina line does not say it is unpriced');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li').length) !== 0) fails.push('SV-5 blessing rows were invented');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-temper li').length) !== 0) fails.push('SV-5 Tempering rows were invented');
       }

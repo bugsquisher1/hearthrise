@@ -333,7 +333,7 @@ async function checks(overrides, shots) {
           read: document.querySelector('[data-hs-win="tally"] .ht-day').innerText, where: document.querySelector('[data-hs-win="tally"] .ht-row[data-task="glade_poachers"] .ht-row-name small')?.innerText,
           who: document.querySelector('[data-hs-win="tally"] .ht-who').textContent, mine: document.querySelector('[data-hs-win="tally"] .ht-mine-head small').textContent, voice: document.querySelector('[data-hs-win="tally"] .ht-voice').textContent }));
         const sp = (s) => String(s).replace(/\u00a0/g, ' ');
-        if (head.who !== 'Tamsin Reeve' || head.day !== 'Paid today 1 of 3' || head.reset !== 'resets in 6 h' || sp(head.read) !== 'Paid today 1 of 3 · resets in 6 h' || sp(head.where) !== 'Mosslight Glade · Level 16' || head.mine !== '2 of 3') fails.push('TW-1 her line\'s head reads ' + JSON.stringify(head));
+        if (head.who !== 'Tamsin Reeve' || head.day !== 'Paid today: 1 of 3' || head.reset !== 'resets in 6 h' || sp(head.read) !== 'Paid today: 1 of 3 · resets in 6 h' || sp(head.where) !== 'Mosslight Glade · Level 16' || head.mine !== '2 of 3') fails.push('TW-1 her line\'s head reads ' + JSON.stringify(head));
         /* TW-18 NO LINE ENDS ON A DOT (the v0.2.130 gate: "Meadowbrook Thicket ·" / "Level 5"): her window as drawn and squeezed to a phone's 300 px */
         for (const px of [0, 300]) {
           const dangling = await page.evaluate(DANGLING_DOTS, { root: '[data-hs-win="tally"]', px });
@@ -768,7 +768,7 @@ async function checks(overrides, shots) {
         ['none', clone(TOWN), { held: [], paid_today: 0, recent: [{ claim: 'c8', at: '2025-10-16T11:40:00.000Z', task: 'cellar_giant_rats', gold: 100, item: 'slime_gel', qty: 4, pick: 'material' }] }, boardHeld(),
           (st) => st.voice === 'Board\'s full of work. Take one and go hunt, and I\'ll pay you when you\'re back.' && st.rows === 4],
         ['capped', clone(TOWN), { held: [held(50, 50, 'wickstead_turncoats', 'wickstead', 'turncoat', true), wolves(140)], paid_today: 3 }, boardHeld('wickstead_turncoats', 'thicket_gray_wolves'),
-          (st) => st.voice === 'That\'s three today, and three\'s all I pay for. Bring the Turncoats back tomorrow.' && st.day === 'Paid today 3 of 3' && st.full && st.first.done
+          (st) => st.voice === 'That\'s three today, and three\'s all I pay for. Bring the Turncoats back tomorrow.' && st.day === 'Paid today: 3 of 3' && st.full && st.first.done
             && st.first.get === 'Done, collect tomorrow Reward: 780 gp and an Adept Hat' && st.first.cut === 10],
       ];
       for (const [name, env, tally, board, want] of cases) {

@@ -139,7 +139,7 @@ async function checks() {
       const want = [
         [{ verb: 'training_start', error: 'insufficient_gold', fee: 272, purse: 100 }, /^First hour: 272 gold\. Gold: 100$/],
         [{ verb: 'house_dummy', error: 'insufficient_gold', price: 250000, purse: 5200 }, /^Next unlock: 250,000 gold\. Gold: 5,200$/],
-        [{ verb: 'training_start', error: 'hunt_open' }, /is hunting, training is in town/],
+        [{ verb: 'training_start', error: 'hunt_open' }, /is hunting\. Training is in town only/],
         [{ verb: 'house_dummy', error: 'dummy_max' }, /Every skill is unlocked/],
       ];
       for (const [r, re] of want) { const w = trainingRefusal(r, 'Tyler'); if (!re.test(w || '')) fails.push('TR-0 ' + r.error + ' reads ' + JSON.stringify(w)); }
@@ -185,7 +185,7 @@ async function checks() {
     }
     /* TR-3 */
     for (const [label, o, want, pick] of [
-      ['hunting', { hunt: clone(BASE_ENV.hunt) }, /is hunting, training is in town/, null],
+      ['hunting', { hunt: clone(BASE_ENV.hunt) }, /is hunting\. Training is in town only/, null],
       ['party', { party: clone(BASE_ENV.party) || { leader: 0, self: 0, members: [{ slot: 0, name: 'Tyler' }, { slot: 1, name: 'Mira' }] } }, /in a party/, null],
       ['short', { gold: 100 }, /^First hour: 272 gold\. Gold: 100$/, null],
       ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /Dummy in use by Mira/, 'defense'],

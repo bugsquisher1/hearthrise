@@ -26,8 +26,8 @@
 //                   bounds are generated to it (hr_tower_floors), so it is the one place "the floors never end" meets a table
 //   fit             the stat formula's fit for every Tower room (balance-sheet.js STAT_FORMULA.fit): one difficulty for one hero or four
 //
-// TOWER_PARTY_XP: a kill's Level XP, in permille, shared by the heroes alive at it (xp-share.js, through party-class-xp.js
-//   partyClassXp): a hero alone takes the plain kill (no +15%: the solo boost keeps hunting alone up with a party, and in the Tower the
+// TOWER_PARTY_XP: a kill's Level XP, in permille, shared by the heroes alive at it (xp-share.js reads it itself; the one hunting table,
+//   party-class-xp.js, never names the Tower): a hero alone takes the plain kill (no +15%: the solo boost keeps hunting alone up with a party, and in the Tower the
 //   party's edge is the floors it reaches), a four 1300 between them (the board's §7 fit). Pairs and threes are the designer's to
 //   measure ("Pairs and threes get their rows when the room is built"): until then they sit on the straight line between, ASSUMED.
 //

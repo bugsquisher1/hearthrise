@@ -85,6 +85,10 @@
 //         starts again from the server's world, which holds the cast: live-engine.js openCasts), and its tab comes back mid-windup
 //         after a pause (the catch-up skips the cast's start: forward's `spells`). Once the live view runs, every frame inside one of
 //         the server's windups [spell, spell_end) marks the hero and no frame outside every windup marks it.
+//   LV-37 A PEER THAT FIGHTS OTHERWISE NOW, VIEWED (lane/d-flat-party-xp, tests/hunt-live.mjs LV-PULL): the browser never holds a
+//         peer's XP, so a Level or skill it gains is one the prediction cannot foresee. A commit naming a peer key the prediction does
+//         not run (hunt_check.peers, member.js frozenKey) asks for a start point though its world agrees; that start point restarts the
+//         prediction; the commits after it match, and a commit with nothing moved asks for nothing.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -1634,6 +1638,48 @@ async function nodeRules(M) {
       kinds.forEach((k, i) => tables.forEach((t, j) => { const [had, v] = keep[i][j]; if (had) t[k].spells = v; else delete t[k].spells; }));
     }
   }
+  { // LV-37 A PEER THAT FIGHTS OTHERWISE NOW, VIEWED (tests/hunt-live.mjs LV-PULL, lane/d-flat-party-xp: a peer's Melee level gained near
+    // 600 s, then a swing it hit on the server missed in the browser 150 s on). The browser never holds a peer's XP, so it cannot foresee
+    // its Level or skill. A commit names every member's frozen-row key (hunt-settle.js huntPeerKeys): one the prediction does not run asks
+    // at once for a start point (live-link.js) though the world agrees, and that start point restarts it (live-engine.js sameSetup over
+    // member.js frozenKey). The commits after it match, and a commit with nothing moved asks for nothing.
+    const { LiveLink } = await import(pathToFileURL(join(M.base, 'src/session/live-link.js')).href + V);
+    const T0 = LIVE_H.T0;
+    const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
+    const srv = LIVE_H.server(LM, mis);
+    let clock = T0;
+    const tl = M.TL.createTimeline({ delayMs: M.CFG.SESSION_CONFIG.liveDelayMs });
+    const link = new LiveLink({ timeline: tl, now: () => clock, emit: () => {} });
+    link.from({ hunt_live: srv.live('a'), hunt_server_now_ms: T0 });
+    const frames = (to) => { for (; clock <= to; clock += 16) link.advance(clock); };
+    const commit = (n, edit) => {
+      const at = T0 + n * 16000;
+      frames(at);
+      const c = srv.commit(at);
+      link.from({ hunt_check: edit ? edit(c.check) : c.check, hunt_server_now_ms: at });
+      return c;
+    };
+    commit(1); commit(2);
+    const quiet = { want: link.want, stats: Object.assign({}, link.stats) };
+    /* a commit naming another key for b (the server's b fights otherwise from its window's start): its world still agrees */
+    commit(3, (hc) => Object.assign({}, hc, { peers: Object.assign({}, hc.peers, { 'b:0': 'feedface' }) }));
+    const asked = { want: link.want, stats: Object.assign({}, link.stats) };
+    /* the start point that answers it: the server's b with one more Melee level (its row as the next settle reads it) */
+    const melee = LM.XP.levelsOf(mis[1].skills).melee;
+    mis[1].skills = Object.assign({}, mis[1].skills, { melee: LM.XP.skillXpForLevel('melee', melee + 1) });
+    link.from({ hunt_live: srv.live('a'), hunt_server_now_ms: clock });
+    const restarted = { want: link.want, stats: Object.assign({}, link.stats) };
+    for (let n = 4; n <= 9; n++) commit(n);
+    const after = link.stats;
+    console.log(`  LV-37 a peer's Melee ${melee} -> ${melee + 1}: quiet commits asked ${quiet.want}; the moved key asked ${asked.want} (refreshes ${asked.stats.refreshes}, verdict match ${asked.stats.match - quiet.stats.match}); the start point restarted ${restarted.stats.reseeds - asked.stats.reseeds}; after it ${after.match - restarted.stats.match} matched, ${after.diverged - restarted.stats.diverged} diverged, asked ${link.want}`);
+    ok('LV-37', !quiet.want && quiet.stats.refreshes === 0 && quiet.stats.match === 2, `CONTROL: commits with nothing moved asked ${quiet.want} (refreshes ${quiet.stats.refreshes}, match ${quiet.stats.match} of 2)`);
+    ok('LV-37', asked.want && asked.stats.refreshes === 1 && asked.stats.match === 3 && asked.stats.diverged === 0,
+      `a commit naming a peer key the prediction does not run asked ${asked.want} (refreshes ${asked.stats.refreshes}; its world matched ${asked.stats.match - quiet.stats.match} of 1)`);
+    ok('LV-37', restarted.stats.reseeds === asked.stats.reseeds + 1 && !restarted.want,
+      `the start point carrying the peer's new row restarted the prediction ${restarted.stats.reseeds - asked.stats.reseeds} time(s) (want 1: its world agrees, its numbers do not)`);
+    ok('LV-37', after.match - restarted.stats.match === 6 && after.diverged === restarted.stats.diverged && after.refreshes === 1 && !link.want,
+      `after the restart ${after.match - restarted.stats.match} of 6 commits matched, ${after.diverged - restarted.stats.diverged} diverged, ${after.refreshes - 1} more refresh(es), asked ${link.want}`);
+  }
   return fails;
 }
 
@@ -1828,6 +1874,12 @@ const MUTANTS = [
   ['a restart drops the spells it skipped (LV-36)', 'src/session/live-link.js', '    if (res.spells && res.spells.length) this._tl.ingest({ events: res.spells }, client);\n', '', /^LV-36/],
   ["a catch-up forgets its start world's casts (LV-36)", 'src/hunt-view/live-engine.js', '    const open = new Map(castsOf(st.world, st.next).map((ev) => [ev.u, ev]));', '    const open = new Map();', /^LV-36/],
   ['a catch-up keeps no cast it skipped the start of (LV-36)', 'src/hunt-view/live-engine.js', "          if (ev.type === 'spell') open.set(ev.u, ev);\n", '', /^LV-36: tab back/],
+  ['a commit naming a moved peer key asks for nothing (LV-37)', 'src/session/live-link.js',
+    '      else if (this.engine.peersStale(body.hunt_check)) { this.stats.refreshes++; this.want = true; }', '      else if (false) { this.stats.refreshes++; this.want = true; }', /^LV-37: a commit naming/],
+  ["the browser never judges a commit's peer keys (LV-37)", 'src/hunt-view/live-engine.js',
+    'if (Object.hasOwn(st.peers, k) && st.peers[k] !== v) return true;', 'if (false) return true;', /^LV-37: a commit naming/],
+  ['a start point keys a peer by its setup alone (LV-37)', 'src/hunt-view/live-engine.js',
+    '(m.frozen ? frozenKey(m.frozen) : m.hero) ?? null', '(m.frozen ? m.frozen.hero : m.hero) ?? null', /^LV-37: the start point carrying/],
 ];
 
 async function mutate() {

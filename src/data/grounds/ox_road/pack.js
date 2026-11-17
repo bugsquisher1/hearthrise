@@ -141,10 +141,14 @@ export default definePack({
      Hold's proportions. */
   xpFit: { k: 0.91, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  partyClassXp: { 2: [990, 1610], 3: [1150, 1705, 1820], 4: [1150, 2210, 2445, 2455] },
+  /* (Its own party cells are retired: one party table for every ground, Tyler 2026-11-16, src/data/party-class-xp.js.) */
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-30, 10], 3: [-35, -5, 0], 4: [-45, 5, 15, 15] },
+  partyVsAlone: { 2: [-35, 0], 3: [-45, -10, -5], 4: [-55, -25, -15, -15] },
+  /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, Carter's Rest's reason). On the table's eight a Melee and bow pair at
+     the floor earned 0.60 of the same heroes alone on Deadly; on six every Dangerous and Deadly mix stands at or over them (1.23-1.64; party-tier-xp,
+     2 seeds x 0.5 h), Andy's four 1.79x the pace contract. A pair with no Healer still dies often on Deadly here: the price of the tier. */
+  tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. On eight, a pair with no Healer kept dying' },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19318 },
   map,
 });

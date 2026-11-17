@@ -38,15 +38,23 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* 2027-03-23-one-difficulty is APPLIED history. THE FIVE MARCH PACKS FOLDED IN (lane/d-supply-prices, 2026-11-16): see tools/gen-hunts.mjs, the same reason. The same
-   rows as 2027-03-23 with the five 2027-04-22 packs' hr_ground_tiers rows folded in: no row moves. */
-export const OUT_NAME = '2027-04-27-march-folded-ground-tiers.generated.sql';
+/* 2027-03-23-one-difficulty is APPLIED history; 2027-04-27-march-folded-ground-tiers (lane/d-supply-prices, set v0.2.135: the same rows with the five
+   APPLIED March packs' rows folded in) is the file before this one, never edited in place. THE ONE PARTY TABLE (lane/d-flat-party-xp) moves rows. */
+export const OUT_NAME = '2027-05-02-flat-party-xp-ground-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
-const FILE_NOTE = `-- THIS FILE (lane/d-supply-prices, designer 2026-11-16): 2027-03-23-one-difficulty.generated.sql (APPLIED) with the five March packs' tier rows
--- folded in, the rows each 2027-04-22-pack-*.generated.sql wrote. NO ROW MOVES: the income dial moved the open packs' own rows in the hunt-sessions
--- catalogue, and tools/pack/whole.mjs counts a pack as carried only when every whole file folds it (tests/ground-pack.mjs GP-3).
--- ORDER: any time after the five 2027-04-22-pack-*.generated.sql (APPLIED). Idempotent: the rows are rewritten whole, so a second apply is
--- byte-identical. No begin/commit (CLAUDE.md §2). No edge waits on it. REVERSIBLE: nothing to undo (the same rows).`;
+const FILE_NOTE = `-- THIS FILE (lane/d-flat-party-xp, Tyler 2026-11-16: "just balance the hunting grounds xp vs having a unique formula everywhere"):
+-- the party's Level XP bonus is ONE table for every ground (src/data/party-class-xp.js, engine data, no table here), and the grounds
+-- carry the rest. Over 2027-04-27-march-folded-ground-tiers.generated.sql (the same rows with the five March packs folded in): Dangerous
+-- brings Deadly's pull on the table, 8 (was 5): the Warrens and Hask's Ford {8,8,8,8} (were {5,5,5,5}), the Slake too (its own 6
+-- retired), the Glade 6 (was 5; on 8 a hero alone at its floor met the Brook Bear too seldom), Krell's Hold 6 like its Deadly (was 5),
+-- the Muster as before. Deadly's monsters have 1300 permille HP on the table (was 1100): every ground on the table's Deadly moves its
+-- hp_pm, the Muster's too (it kept 1000; its Dangerous still does), and the Glade's is 1450 and Hask's Ford's 1400 (with Turning Cut on every
+-- melee weapon without a shield a party of four cut through them past ~2.5x the pace). The first grounds (the Thicket, Wickstead, the Sewer)
+-- bring no more monsters, as before. Damage and XP as they stand.
+-- ORDER: after 2027-04-27-march-folded-ground-tiers.generated.sql, the 2027-05-01-v0135 catalogues and the Tower's files (set v0.2.135). Idempotent: the rows
+-- are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
+-- src/data/balance-sheet.js, src/data/party-class-xp.js and the packs follows AT ONCE (a hunt already running keeps the pull it froze).
+-- REVERSIBLE: re-apply 2027-04-27-march-folded-ground-tiers.generated.sql, with the engine from before this lane.`;
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];

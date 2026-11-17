@@ -125,10 +125,15 @@ export default definePack({
      tank and Healer 0.79 / 0.74, so the four 1000 x 1.20 / 0.523 = 2295, the pair 1000 x 1.10 / 0.764 = 1440, the cells between at the Hold's proportions. */
   xpFit: { k: 0.96, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  partyClassXp: { 2: [990, 1440], 3: [1150, 1595, 1705], 4: [1150, 2065, 2285, 2295] },
+  /* (Its own party cells are retired: one party table for every ground, Tyler 2026-11-16, src/data/party-class-xp.js.) */
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-30, 0], 3: [-35, -10, 0], 4: [-45, 0, 10, 15] },
+  partyVsAlone: { 2: [-35, 0], 3: [-45, -10, -5], 4: [-55, -30, -20, -20] },
+  /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, the Hold's and the Roost's row). Its own party cells went with the one
+     table (Tyler 2026-11-16), and on the table's eight a Melee and bow pair at the floor died 58 times an hour on Deadly and earned 0.92 of the same
+     heroes alone. On six every Dangerous and Deadly mix stands at or over its heroes alone (1.13-1.50; party-tier-xp, 2 seeds x 0.5 h) and Andy's four
+     reads 1.92x the pace contract at the floor. */
+  tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. On eight, a pair with no Healer kept dying' },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 22472 },
   map,
 });

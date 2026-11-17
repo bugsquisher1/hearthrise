@@ -856,28 +856,31 @@ async function pureRules(M, base) {
     const head = (k) => 'Classes: ' + k + ' of 4. ';
     const more = (k, vs, place) => head(k) + 'Level XP each: about +' + vs + '% vs solo in ' + place;
     const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + '. Mix Melee, Ranger, Mage and Healer for more';
+    const full = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place;
     for (const [roles, hunt, want] of [
-      [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
+      /* the one table (Tyler 2026-11-16): a mixed pair on the first grounds earns under its heroes alone, and the number stands (no label hides it) */
+      [['tank', 'ranger'], 'meadowbrook_thicket', full(2, 10, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 30, 'Meadowbrook Thicket')],
-      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 15, 'The Sewer')],
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 40, 'Meadowbrook Thicket')],
+      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 30, 'The Sewer')],
       [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 25, 'Coppercap Warrens')],
-      [['tank', 'ranger'], 'millrace_sewer', more(2, 40, 'The Sewer')],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 45, 'The Sewer')],
+      [['tank', 'ranger'], 'millrace_sewer', more(2, 10, 'The Sewer')],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 15, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', more(2, 45, 'Wickstead')],
-      [[null, 'tank'], 'wickstead', less(1, 35, 'Wickstead')],
+      [[null, 'ranger'], 'wickstead', full(2, 10, 'Wickstead')],
+      [[null, 'tank'], 'wickstead', less(1, 45, 'Wickstead')],
       /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6). */
-      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
-      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
-      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
-      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
-      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
+      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', less(1, 70, 'Meadowbrook Thicket')],
+      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
+      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', less(1, 70, 'Meadowbrook Thicket')],
+      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
+      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
-      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 55, 'Meadowbrook Thicket')],
-      [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 50, 'Wickstead')],
-      /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): the Pyre Field's mixed pair reads -5 */
-      [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about -5% vs solo in The Pyre Field'],
+      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
+      [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 65, 'Wickstead')],
+      /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): Hask's Ford's mixed pair reads -5; the Pyre Field's reads even */
+      [['tank', 'ranger'], 'hasks_ford', full(2, 5, 'Hask\'s Ford')],
+      [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about the same as solo in The Pyre Field'],
       [['tank', 'melee_dps'], 'pyre_field', less(1, 35, 'The Pyre Field')],
     ]) {
       if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
@@ -897,7 +900,7 @@ async function pureRules(M, base) {
       return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    if (shown !== more(2, 20, 'Mill Cellar')) return 'in town the tab reads ' + JSON.stringify(shown);
+    if (shown !== full(2, 30, 'Mill Cellar')) return 'in town the tab reads ' + JSON.stringify(shown);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     const fresh = tab([seat(0, 'shield'), seat(1, 'wand')], null);
@@ -913,7 +916,7 @@ async function pureRules(M, base) {
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
     if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4\./.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/Classes: 2 of 4\. Level XP each: about \+45% vs solo in Meadowbrook Thicket/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
+    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/Classes: 2 of 4\. Level XP each: about -10% vs solo in Meadowbrook Thicket$/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
@@ -1466,7 +1469,7 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
-          if (v.classLine !== 'Classes: 2 of 4. Level XP each: about +40% vs solo in The Sewer') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          if (v.classLine !== 'Classes: 2 of 4. Level XP each: about +10% vs solo in The Sewer') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');

@@ -76,7 +76,7 @@ const CLASS_WORDS = CLASS_NAMES.slice(0, -1).join(', ') + ' and ' + CLASS_NAMES[
 export function classXpLine(roles, hunt) {
   const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt);
   const seats = roles.map((r) => r || roleForWeapon('neutral'));
-  const { classes } = partyClassXp(ground ? ground.id : null, seats);
+  const { classes } = partyClassXp(seats);
   /* The measured answer against hunting alone (designer 2026-11-02), never the table's factor on a share: see PARTY_VS_ALONE. */
   /* Tyler's voice (2026-11-09): a sentence each, no colon joins. Since one pack on Normal for every group (Tyler 2026-11-11) a one-class party loses a lot
      there, so its line says how to fix it (lane/d-party-xp-cells). */

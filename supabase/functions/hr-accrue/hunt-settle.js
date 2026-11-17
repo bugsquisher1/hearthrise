@@ -61,7 +61,7 @@ import { wornRoleKey } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
 import { huntPlayOf } from '../../../src/core/combat-sim.js';
 import { COMBAT_BALANCE } from '../../../src/core/combat.js';
-import { memberSide, frozenOf } from '../../../src/core/member.js';
+import { memberSide, frozenOf, frozenKey } from '../../../src/core/member.js';
 import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/world-state.js';
 import { seederFor } from './hunt-seed.js';
 import { trainingStopMs } from '../../../src/core/hunt/training.js';
@@ -119,8 +119,9 @@ export function liveSeeds(inst, from) {
   for (let i = 0; i < LIVE_SEEDS; i++) list.push(seed('s', from + i));
   return { domain: 's', from, list };
 }
-export function huntLive(inst, members, user, slot) {
-  const from = Math.max(0, Math.floor(Number(inst.world_swing) || 0));
+/* WHAT A START POINT READ NOW FREEZES of `inst`: its world (null when the next settle restarts it), its scale and the frozen row
+   of any member (member.js frozenOf) at the instance's next boundary. ONE home for huntLive's peers and huntPeerKeys. */
+function frozenAt(inst) {
   /* A SCALED HUNT (scalePlanOf): the Level the next settle plays, and a world it restarts is no start point (the browser starts fresh, as the server will). */
   const play = inst.play || { level: null, restart: false };
   const world = typeof inst.world === 'string' && !play.restart ? inst.world : null;
@@ -129,6 +130,14 @@ export function huntLive(inst, members, user, slot) {
   const tower = towerOf((huntGroundOf(String(inst.hunt)) || {}).ground) && Number.isInteger(inst.tower_floor) ? inst.tower_floor : null;
   /* a peer's frozen rolls against the rows the instance plays (null: member.js reads the catalogue, as before) */
   const rows = tower !== null ? towerMonsters(tower) : where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
+  const atMs = Number(inst.next_swing_at_ms);
+  /* the kinds, read once and only for a frozen row (a lone viewer's start point parses no world for them) */
+  let kinds = null;
+  return { play, world, tower, row: (m) => frozenOf(memberSide(m, { items: ITEMS }), kinds || (kinds = kindsOf(inst, world, tower)), atMs, rows) };
+}
+export function huntLive(inst, members, user, slot) {
+  const from = Math.max(0, Math.floor(Number(inst.world_swing) || 0));
+  const { play, world, tower, row } = frozenAt(inst);
   return {
     v: 1,
     instance: { id: String(inst.id), hunt: String(inst.hunt), world, world_hash: worldHash(world),
@@ -143,14 +152,31 @@ export function huntLive(inst, members, user, slot) {
       /* THE VIEWER'S OWN member: its full engine input. EVERY OTHER member: only its frozen numbers
          (src/core/member.js frozenOf; Tyler 2026-10-20: no skills, gear, perks, premium or bestiary). */
       if (!self) {
-        return { key: m.key, seat: m.seat, unitId: m.unitId, self: false,
-          frozen: frozenOf(memberSide(m, { items: ITEMS }), kindsOf(inst, world, tower), Number(inst.next_swing_at_ms), rows) };
+        return { key: m.key, seat: m.seat, unitId: m.unitId, self: false, frozen: row(m) };
       }
       return { key: m.key, seat: m.seat, unitId: m.unitId, self, huntSession: m.huntSession,
         skills: m.skills, levelXp: m.levelXp, xpFrac: m.xpFrac, hp: m.hp, gold: m.gold,
         equipment: m.equipment, buffs: m.buffs, perks: m.perks, hero: m.hero };
     }),
   };
+}
+
+/* THE PEERS' KEYS (hunt_check.peers): every member's frozenKey of the row a start point read at `inst`'s next boundary freezes
+   (frozenAt, huntLive's own), by member key. The browser never holds a peer's XP, so a peer's Level or skill gained mid-window is
+   one it cannot foresee (LV-PULL: Eddie's Melee 42 at 600 s, then a miss in the browser where the server hit, 150 s on). A commit
+   names the keys at its window's start; a prediction running another row restarts (live-engine.js peersStale). Read BEFORE the
+   window runs: exactly the start point that instant hands out, never the engine's copy of a member after it ran. */
+export function huntPeerKeys(inst, members) {
+  const { row } = frozenAt(inst);
+  return Object.fromEntries(members.map((m) => [String(m.key), frozenKey(row(m))]));
+}
+
+/** THE RECONCILE KEY of a commit (hunt_check): the world it stored (its swing and hash), its clock, the next combat seeds from that
+    world and, when given, the peers' keys at the window's start (huntPeerKeys). */
+export function huntCheckOf(inst, out, peers) {
+  return { world_swing: out.worldSwingTo, settled_to_ms: out.settledTo, world_hash: worldHash(out.world),
+    /* the next combat seeds from the stored world: a matching prediction runs on with them */
+    seeds: liveSeeds(inst, out.worldSwingTo), ...(peers ? { peers } : {}) };
 }
 
 /* The monster kinds a peer's rolls are frozen against: every kind the ground's pockets field (on the Tower, the room of the floor
@@ -403,6 +429,8 @@ async function settleOnce(o, mode, budget) {
   if (plan.answer) return plan.answer;
   const { user, slot } = o;
   const { envOf, fromMs } = plan;
+  /* the peers' keys at this window's start, before the engine runs (huntPeerKeys): only an answer that judges a prediction carries them */
+  const peers = o.live === true ? huntPeerKeys(plan.inst, plan.members) : null;
   let toMs = plan.toMs;
   let degraded = 0;
   /* The refusal a degrade step answers to: the one it would have escaped, were the budget not spent. */
@@ -469,9 +497,7 @@ async function settleOnce(o, mode, budget) {
           session: own.session || null, instance: res.instance || null,
           ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs, p.out.units) : {}),
           /* THE RECONCILE KEY of the world this commit stored: the live view compares its own. */
-          ...(o.live === true ? { hunt_check: { world_swing: p.out.worldSwingTo, settled_to_ms: p.out.settledTo, world_hash: worldHash(p.out.world),
-            /* the next combat seeds from the stored world: a matching prediction runs on with them */
-            seeds: liveSeeds(plan.inst, p.out.worldSwingTo) } } : {}),
+          ...(o.live === true ? { hunt_check: huntCheckOf(plan.inst, p.out, peers) } : {}),
           ...(degraded ? { degraded } : {}) },
       };
     }

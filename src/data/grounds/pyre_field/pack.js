@@ -221,36 +221,6 @@ export default definePack({
      tiers bring the same number and Deadly is the harder blow, the thicker body and the bigger XP. On six a four with a Healer earns
      1.28 of its Normal XP on Deadly (the sheet asks 1.25) and 1.23 on Dangerous (1.10). */
   tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. With five, a pair a couple of Levels too low still made money on Dangerous. With eight, a group of four with no Healer kept dying on Deadly' },
-  /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes, each class paying more). The four-xp
-     ruling (10-25) reads a four a head against the median lone way, 1.15-1.25 at the floor, middle and top. As opened, full grade, on
-     Normal's pull of four: the four with a Healer reads 1.41, 1.36, 1.32 against the four with no Healer (three classes) 1.34, 1.31, 1.26
-     at cells 1640 and 1635. Both fall about 7% from the floor to the top and the Healer's four stands about 4% over the other, a 12%
-     spread the ruling's 8.7% can't hold with one pair of cells, and the four-class cell must pay more than the three-class one. At 1472
-     and 1473 the six read 1.27, 1.23, 1.18 and 1.21, 1.18, 1.13: two rows OPEN, each about 1.5% out (the lane's report, CONFLICTS.md).
-     Measured and rejected: Normal's pull of six for a four fits the four-xp band (1.15-1.25) but brings a four the same six on Deadly, so
-     Deadly earns it 1.16 of Normal where the sheet asks 1.25 (1.20 on a pull of five); a 45 s respawn moved the solos as much as the
-     fours. Trios and pairs are on the table's pull of three: a tank, Healer and bow trio reads 1.10-1.17, a trio with no tank
-     1.27-1.34 (trio-xp is advisory, 1.10-1.20), the pairs 1.06-1.14. The one-class cells hold every one-class party under its heroes
-     alone (tests/party-class-xp-line.mjs, bar 1.00): at 1150 four bows at 8 each read 1.000 of the same bows alone at their better
-     pull, so the one-class four is 1120. */
-  /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11; lane/d-packs-retune, 2026-11-12; the Ford's note says the method). The party pull of
-     [0, 3, 3, 4] is gone, so a party walks the room as built (two a pocket) and splits each kill: at the cells above the four of four classes read
-     0.71 / 0.64 of the median lone way at the floor and middle (quick grade) and the tank and Healer pair 0.79 / 0.74. The four's 1473 x 1.20 / 0.675
-     = 2620 (the three-class four 2615: the two read within 2% of each other on this ground), the two-class four 2340, the pair 1170 x 1.10 / 0.765 =
-     1685, the threes x1.6 (2150, 2320). One-class cells stay (1120 and 1150 hold every one-class party under solo, party-class-xp-line). A four
-     falls about 10% from the floor to the middle here (a 20-Level band): the full grade says whether one cell can hold the floor, middle and top.
-     THE FULL GRADE'S READ (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h): the median of eight lone ways sits under the quick grade's four, so the contract
-     read lower and every mixed cell higher than the quick grade said. At 2620 the four with a Healer read 1.43 / 1.32 / 1.26 at the floor, middle and top and the four with no Healer 1.39 / 1.30 /
-     1.24 at 2615: a four FALLS 13.5% FROM THE FLOOR TO THE TOP of this 20-Level band, and the band is 8.7% wide, so no one cell holds all three
-     Levels. Centred on the middle: the four 2380 (about 1.30 / 1.20 / 1.145) over 2375, the pair 1465 (about 1.04-1.13), the threes 1830 and 1695
-     (about 1.06-1.26). The floor row reads over and the top row a hair under: Tyler's call (the board, 2026-11-12 Packs re-tuned). */
-  /* TIER-5 AND -6 HATCHETS AND CROSSBOW (lane/d-barrow-data, 2026-11-13): the axes and crossbow ways alone now wear those rungs, so the median
-     lone way rose: on the full grade the fours read 1.11 (no Healer) and 1.13 at the middle and the tank and Healer pair 0.99 at the top. Each
-     cell scaled to its target: the fours 2375 x 1.18 / 1.11 = 2525 and 2380 x 1.18 / 1.13 = 2485, the pair 1465 x 1.04 / 0.99 = 1540. */
-  /* THE THREE OF THREE CLASSES (lane/d-open-march-balance, 2026-11-15): on the full grade as the March opened a tank, Healer and bow at the band's
-     top (90) levelled 0.9996 of the median hero alone there (476k against 476k a head), a seat that would do better alone, and under the pair of
-     two classes (517k). 1830 x 1.06 = 1940: about 1.06 of alone at the top, 1.12 at the middle and 1.18 at the floor (the trio's 1.10-1.20). */
-  partyClassXp: { 2: [990, 1540], 3: [1150, 1695, 1940], 4: [1120, 2130, 2525, 2530] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.84-0.90, threes 0.83-0.94, fours 0.79-0.91 at 1150, times 1120/1150). Two of two is the
@@ -259,7 +229,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.60-0.72, threes 0.48-0.70, fours 0.36-0.57), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.92-1.05, threes 0.91-1.00, the four 1.02: a Mage or a Healer alone earns the most here, so a mix reads near even against its own heroes while it reads 1.20 against the median lone way, the band the grader binds); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, -5], 3: [-40, -10, -5], 4: [-50, -10, 0, 0] },
+  partyVsAlone: { 2: [-35, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -15] },
   /* THE PACK'S TEST FACTS (re-pinned 2026-11-10 for one difficulty). dropRef: a lone tank at the floor in its full own-tier set
      (tests/hunt-core/drop-tables.mjs, the harness's tier-5 kit). valueToday is COMPUTED, the 11-09 method: the hour's expected coin
      (10,090 g) and commons (3,930; re-pinned 2026-11-13 with the commons reverted) plus the gear-faucet's half of the coin (5,045). The

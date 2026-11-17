@@ -158,16 +158,21 @@ export default definePack({
      the pair 1000 x 1.10 / 0.645 = 1705 and a first four of 2555. At 2555 the four read 1.31 / 1.26 of the median lone way (the sheet's four-xp asks
      1.15-1.25), so the four is 2555 x 0.935 = 2390 (1.22 / 1.18), the cells between at Carter's Rest's proportions. The median lone way read
      0.945 / 0.93 of the contract (the Mage 1.46, as on Carter's Rest), inside the sheet's 0.90-1.10, so no XP fit. */
-  partyClassXp: { 2: [990, 1705], 3: [1150, 1890, 2020], 4: [1150, 2150, 2380, 2390] },
+  /* (Its own party cells are retired: one party table for every ground, Tyler 2026-11-16, src/data/party-class-xp.js.) */
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed on this ground alone, 3 seeds, the floor, the room as built, 2026-11-15), Carter's Rest's
      way: one class is the mean of its five one-class parties (0.69 / 0.63 / 0.52), two of two the mean of three duos (1.16), three of three of two
      trios (1.10), four of four the one played (1.08), the cells between the size's mix times the cell ratio. Whole fives. Every same-class party is
      under solo (worst 0.75, two bows). */
-  partyVsAlone: { 2: [-30, 15], 3: [-35, 5, 10], 4: [-50, -5, 5, 10] },
+  partyVsAlone: { 2: [-30, 5], 3: [-45, -10, -5], 4: [-55, -25, -15, -15] },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value
      pin is that pair's floor hour, 17,655 g a head (coin 15,642, commons 2,013, no gear), measured 2026-11-15. */
+  /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, Carter's Rest's reason). Its own pair cell (1705) went with the one
+     table, and on the table's eight a Melee and bow pair earned 0.42 of the same heroes alone on Dangerous and 0.28 on Deadly, a tank and Healer 0.91
+     on Deadly. On six every Dangerous and Deadly mix stands at or over its heroes alone (1.14-1.89; party-tier-xp, 2 seeds x 0.5 h), Andy's four 1.58x
+     the pace contract. Every pair still dies often on Deadly here: the price of the tier. */
+  tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. On eight, a pair kept dying' },
   checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655 },
   map,
 });

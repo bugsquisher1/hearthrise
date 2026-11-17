@@ -35,7 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.135';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.135';
+import { memberSide, frozenSide, frozenKey } from '../core/member.js?v=0.2.135';
 import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.135';
 import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.135';
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.135';
@@ -64,10 +64,13 @@ const isInt = (v) => Number.isSafeInteger(v);
 const predicted = (ev) => !SERVER_ONLY_EVENTS.includes(ev.type);
 const encodeWorld = (w) => JSON.stringify(encodeWorldRow(w));
 /* WHAT EACH HERO FIGHTS WITH: every member's `hero` (heroSetup: target, stance, chase, distance, the bar,
-   density, thresholds), the viewer's own or a peer's frozen one, by member key. The server reads it afresh
-   at every settle, so a start point naming another one is a setup changed mid-hunt (r10). */
-const setupOf = (live) => JSON.stringify(live.members.map((m) => [String(m.key), (m.frozen ? m.frozen.hero : m.hero) ?? null])
+   density, thresholds) by member key, the viewer's own, and a peer's as the key of its whole frozen row (member.js
+   frozenKey: its `hero` and the numbers it fights with). The server reads them afresh at every settle, so a start
+   point naming another one is a setup changed mid-hunt (r10), or a peer that gained a Level or a skill (LV-PULL). */
+const setupOf = (live) => JSON.stringify(live.members.map((m) => [String(m.key), (m.frozen ? frozenKey(m.frozen) : m.hero) ?? null])
   .sort((a, b) => (a[0] < b[0] ? -1 : 1)).concat([['scale', scaleOf(live)]]));
+/* Each peer's frozenKey by member key: what a commit's hunt_check.peers is judged against (peersStale). */
+const peerKeysOf = (live) => Object.fromEntries(live.members.filter((m) => m.frozen).map((m) => [String(m.key), frozenKey(m.frozen)]));
 /* THE SERVER'S SCALE OF THE HUNT (hunt-settle.js huntLive `scale`, src/data/scaled-hunts.js): { level } or null. The engine plays the same rows
    from it (combat-sim.js huntPlayOf), so the prediction is the server's; a start point naming another one is a setup changed mid-hunt. */
 const scaleOf = (live) => (live.instance && live.instance.scale && Number.isInteger(live.instance.scale.level) ? { level: live.instance.scale.level } : null);
@@ -231,7 +234,7 @@ export function createLiveEngine(o) {
       seeds: { from: Number(live.seeds.from), list: live.seeds.list.slice() },
       hashes: new Map(), texts: new Map(), starved: false, drawn: new Map(),
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
-      setup: setupOf(live), scale: scaleOf(live),
+      setup: setupOf(live), scale: scaleOf(live), peers: peerKeysOf(live),
       /** @type {((hero: { id: number }, atMs: number) => number) | null} the per-hero Level XP hook (src/core/live-events.js), null when no window */
       xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,
     };
@@ -499,6 +502,17 @@ export function createLiveEngine(o) {
         st.starved = false;
       }
       return v;
+    },
+    /**
+     * Does a commit name a peer that fights otherwise than the frozen row this prediction runs (hunt_check.peers, member.js
+     * frozenKey: a Level or skill it gained, a buff run out, a setup changed)? The world may still agree, but the prediction
+     * runs on stale numbers from here: the caller asks for a start point, which restarts it (sameSetup). False with no
+     * prediction or no keys (an older edge); a key only the commit names (a member who joined) is the world hash's to judge.
+     */
+    peersStale(hc) {
+      if (!st || !hc || !hc.peers || typeof hc.peers !== 'object') return false;
+      for (const [k, v] of Object.entries(hc.peers)) if (Object.hasOwn(st.peers, k) && st.peers[k] !== v) return true;
+      return false;
     },
     /**
      * Replace the prediction with a server start point and fast-forward it to `serverNowMs` + `aheadMs`

@@ -204,27 +204,14 @@ export default definePack({
      about 3% over. The full grade's median lone way at 98 read 1.04 of the contract, so about 1.07, inside 0.90-1.10. */
   xpFit: { k: 0.98, why: 'Monsters here give a little less XP than the base formula, so a hero in the middle of the range levels at the usual speed' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
-  /* PARTY LEVEL XP (party-class-xp.js's row shape; lane/d-packs-retune, 2026-11-12). With no row a party paid the even share, and on one pack for every
-     group (Tyler 2026-11-11) a four of four classes read 0.43 / 0.40 of the median lone way at the floor and middle (quick grade), a tank and Healer
-     pair 0.67 / 0.66. The Ford's method: the four's 1000 x 1.20 / 0.415 = 2890 (the three-class four 2880, the two-class 2600), the pair 1000 x 1.10
-     / 0.665 = 1655, the threes between (2300, 2150). One-class cells are the Slake's (990, 1150): party-class-xp-line holds them under solo.
-     THE FULL GRADE'S READ (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h): the median of eight lone ways sits under the quick grade's four, so the contract
-     read lower and every mixed cell higher than the quick grade said. At 2890 the four with a Healer read 1.36 / 1.27 / 1.21 at the floor, middle and top (85, 98, 110) and the four with no Healer
-     1.34 / 1.26 / 1.19, the pairs 1.15-1.23 at 1655, the threes 1.22-1.40 at 2300. A four falls 11% from the floor to the top of this 25-Level
-     band, wider than the 8.7% band: centred on the middle, the four 2730 (about 1.285 / 1.20 / 1.145) over 2720, the pair 1540 (about 1.07-1.15),
-     the threes 2025 and 1895 (about 1.07-1.23). The floor row reads over and the top a hair under, the Pyre Field's shape: Tyler's call. */
-  /* THE FOUR AT THE MIDDLE (lane/d-open-march-balance, 2026-11-15): the full grade as the March opened read the four of four classes 1.25 at the
-     floor, 1.13 at the middle (98) and 1.15 at floor+10, under the 1.15-1.25 line where it binds (on a 25-Level band the floor is a report line,
-     grade-sheet.mjs). 2730 x 1.19 / 1.133 = 2870: about 1.19 at the middle, 1.21 at 95 and 1.31 at the floor (reported). */
-  partyClassXp: { 2: [990, 1540], 3: [1150, 1895, 2025], 4: [1150, 2455, 2720, 2870] },
   /* DEADLY BRINGS SIX, not the table's eight (the Pyre Field's row; lane/d-packs-retune, 2026-11-12): on eight a four with no Healer died 82 times in
      16 hero-hours at the floor and the four with a Healer 10 (full grade, 2 seeds x 2 h), where the sheet allows 9. Six is the least Deadly may bring
      (never under Dangerous, tests/hunt-core/hunt-tiers.mjs rows). Measured on the re-grade below. */
-  tierOverride: { deadly: 6, why: 'on the full box a group of four with no Healer died 82 times in 16 hours at the floor, and a group with one 10, where the rule allows 9. On six they hold it' },
+  tierOverride: { dangerous: 6, deadly: 6, why: 'on the full box a group of four with no Healer died 82 times in 16 hours at the floor, and a group with one 10, where the rule allows 9. On six they hold it, and Dangerous brings the same six (it never brings more than Deadly)' },
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, 0], 3: [-40, -5, 0], 4: [-55, -10, 0, 0] },
+  partyVsAlone: { 2: [-35, 0], 3: [-45, -10, -5], 4: [-60, -30, -25, -25] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778, deadlyFourNeeds: 'healer' }, // designer Q4 2026-11-12: Deadly keeps six, bring a Healer
   /* KRELL'S HALL: one room, one fight, opened with a Hall Key (the design's section 3). Shaped to the KEYED HALL contract of engine piece 5
      (lane/b-barrow-boss-room: src/data/boss-halls.js, src/core/hunt/boss-room.js roomOf, tools/gen-hunt-sessions.mjs hallRows; CONFLICTS

@@ -55,7 +55,17 @@ const SEED = '-4611686018427387904';
    a row the field Chief shared with the called one; the called Chief now casts his own slag_rain_called and the field row is 400 again. Opening the March moves no pin.
    RE-PINNED 2026-11-15 (lane/d-mage-110), DATA ONLY: warrens-4 (kills 231 -> 209) and glade-4 (536 -> 515) moved. Cause: src/data/gear-tiers.js cloth's
    magicStrB 0.4 of the plate twin's defence -> 1 plus a tenth of it (the Adept set 15 -> 9, the Scholar set 27 -> 14), so each four's Mage and Healer hit softer; and the Chief's
-   Cauldron .00122 -> .0014 (src/data/monsters.js). Proof: this file and the current src/core over the old two rows hold every pin (exit 0). */
+   Cauldron .00122 -> .0014 (src/data/monsters.js). Proof: this file and the current src/core over the old two rows hold every pin (exit 0).
+   RE-PINNED 2026-11-16 (lane/d-flat-party-xp), A PARTY XP CHANGE MEANT TO MOVE THEM: the three parties moved (warrens-4 first, its world at settle 8, kills 231
+   as pinned; glade-4 and sewer-2 behind it), the lone kiting ranger held. Cause, proved by laying origin/main's src/data/party-class-xp.js and
+   src/core/hunt/xp-share.js back alone into an archive of the lane (all four pins hold, exit 0): ONE party table by size for every ground and tier (Tyler
+   2026-11-16, "just balance the hunting grounds xp vs having a unique formula everywhere"); a party's XP moves its Levels, and the Levels their rolls.
+   The peer keys on hunt_check (hunt-settle.js huntPeerKeys, member.js frozenKey) move no pin.
+   RE-PINNED 2026-11-17 (lane/d-flat-party-xp merged with set/v0.2.135 at 0d2552906), THE TABLE ONLY: the set's own pins (lane/c-tower-all re-pinned the set's
+   output: the income dial's coin and Turning Cut's sewer-2 kills 114 -> 121) move for the three parties from settle 1 (warrens-4 209, glade-4 515, sewer-2
+   121 kills as pinned); the lone kiting ranger holds. Cause, proved on an archive of this tree with the set's src/data/party-class-xp.js and
+   src/core/hunt/xp-share.js laid back: all four set pins hold (exit 0). The one party table pays each party another cell than its ground's row did, and a
+   party's XP moves its Levels, and the Levels their rolls. The baseline is --write here. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

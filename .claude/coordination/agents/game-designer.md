@@ -936,6 +936,17 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
 
+
+## 2026-11-16 lane/d-flat-party-xp (ONE party table for every ground; Tyler: "just balance the hunting grounds xp vs having a unique formula everywhere")
+- A party's cell moves no blow, so a measured mix's "vs its heroes alone" divided by its cell (rho) is the ground's own party throughput. Read rho per ground x tier before picking a table: on 2026-11-16 a four's rho ran 0.35 (Thicket, Wickstead) to 0.83 (the Muster's Deadly), and that spread, not the cells, is what a flat table has to live with.
+- The two bars bind at different corners of a ground: "a mix at or over its heroes alone" binds at Dangerous and the band middle (smaller pull, stronger heroes alone), the 2.5x cap at Deadly and the floor (the contract is lowest there and the full box pays a party most). Per ground, max Deadly-floor xC over min Dangerous rho must sit under the cap with room, or no table fits it.
+- Deadly HP is the clean dial for the floor heat: on the full box a four is kill-bound like the heroes alone, so +18% HP took Andy's four from 2.46x to 2.20x at the Glade's floor and left Dangerous untouched. Deadly XP can't do it (it must stay over Dangerous's and at most 1250).
+- On the first grounds a four is WALK-bound (revisit ~60 s, kill time 0.1 s): a faster respawn bought it nothing (respawn 30 s: 0.37 -> 0.39), and bigger pulls feed lone area heroes as much as the four there. Measure a party's revisit time against respawnMs before reaching for density.
+- A pool cache is keyed by cell id only: a config change under the same cache silently reuses old cells. New config, new cache name, always.
+- Python's text-mode write on Windows turns LF into CRLF: write with newline='' (or bytes), then `git ls-files --eol` before committing.
+- A bigger Dangerous pull can starve a lone hero of a fill-row monster: on the Glade at 8 a lone tank at the floor never met the Brook Bear in an hour, at 7 the Keep's pelts took 2.7 h. Run drop-tables big-pull on any tier pull change, and pick the largest pull that still feeds the pelt (6 here: 1.63 h, a four 1.04 of alone).
+- "Make it a solo ground" can be the wrong fix for a party number: Tyler 11-16 wants every hunt the same for everyone, the solo boost the only difference. A number that can't move without breaking the ladder STANDS and is printed by its guard, never hidden by a tag.
+- A String.replace replacement and shell heredocs both eat an apostrophe escape. Player names with apostrophes (Hask's Ford) in a test pin go in through the Edit tool, then `node --check` before a long run.
 ## 2026-11-16 lane/d-tower-weapons (the 28 tower weapons, +skill on worn gear)
 - A +skill is worth whole max-hit steps (0.35 a level), so +1 to +4 reads flat at some Levels and jumps at others. Prove the rule as an identity (tower weapon at skill S == twin at S+N, every foe), and read the XP effect in bands on six seeds.
 - +4 at Levels 45-90 is 0.4-4.3% Level XP an hour, casters least. A design line that says "+4 is about a tier" was read at one Level on one ground: measure the claim where the item is worn before repeating it.
@@ -976,3 +987,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - At a boss the lever that moved was food, not the hints: eat at 85% or Greater Mend at 90% left the weak trios at 58-70%; Salted Swordfish took every third to 90-100% (the tank dies under his enrage on Lobster). A pair fails on the clock, so food doesn't help it, only Levels do.
 - Test advice by reading the words the player reads (a small label grammar, an unreadable line is red) and playing them; then the card and the measurement can't drift apart.
 - Backticks inside `node -e "..."` ran the guard twice by command substitution. Use a script file for any text with backticks.
+
+## 2026-11-17 lane/d-flat-party-xp re-landed on set/v0.2.135
+- A re-land is a re-measure: a combat change merged beside a party table (Turning Cut for every shieldless melee) moved Andy's four +10-18% on the Deadly floor. Run the tier tool on every ground, staged ones too, before re-pinning anything.
+- Retiring per-ground cells retires them on STAGED packs too; their guard rows were fitted to those cells. The flat-table fix for a staged pack is its own pull (the Morrow packs 6/6), never a cell.
+- A tier HP dial slows a hero alone more than a four (the Glade +12% HP: lone -16%, four -8.5%), so it is the cap's dial, but it also widens the gap between the two harder tiers. Equal pulls plus more HP make Deadly the worse pick; the pull is what must differ.
+- Prove a pin's cause on an archive of the SET first: the set was already red on engine-parity (the income dial's coin, then Turning Cut's kills), and only what was left over belonged to this lane.
+- Apostrophes in pins (Hask's Ford) through Python or sed break the file again: Edit tool, then `node --check`.

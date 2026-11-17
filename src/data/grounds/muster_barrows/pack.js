@@ -246,36 +246,16 @@ export default definePack({
      harder tiers differ by their blows and their pay, not their pull. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet
      also asks that pair to die, and it never did in the hour, on a pull of 5, 7 or 8 (its tank's typical low 44%). The next step up
      in the monsters' own blows is Deadly's, where it died 8 times. The pair pays in gold here, not in deaths.
+     (Since 2026-11-16 the table's Dangerous is 8 everywhere, so the pull is no longer this ground's own; and Deadly's HP is the table's, below.)
      THE HARDER TIERS ADD NO HP HERE (the table adds 10%). A tank and Healer pair holding Deadly at the floor earned 1.17 of its Normal
      at the table's dials, where the sheet asks 1.25 of whoever holds it: its kills are held by its damage, and these party-built
      bodies already carry 2.5 times a solo ground's HP. A kill never pays more than +25% for a tier (Tyler 11-05, hunt-tiers rows),
      so the answer is the HP, not the pay. */
-  tierOverride: { dangerous: 8, dials: { dangerous: { hpPm: 1000 }, deadly: { hpPm: 1000 } },
-    why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous, so it brings the full box. With the 10% more HP the table adds, a pair holding Deadly at the floor earned 17% over its Normal, under the 25% a tier owes whoever holds it, so the harder tiers add no HP here' },
-  /* PARTY LEVEL XP (party-class-xp.js's row shape: a share of the kill by how many classes stand, not a difficulty row). With no row a
-     party pays the even share of a whole kill, and on the quick grade a tank and Healer pair read 0.78-0.81 of the median lone way and
-     the four-class four 0.85-0.86, where 10-25 asks a pair 1.05-1.15 and a four 1.15-1.25. The mixed cells are those readings scaled
-     (a cell is a straight factor on the share): at 1360 the pair read 1.01-1.05 and at 1400 the four 1.11-1.13, so 1440 and 1485. The
-     three's cells are set between them. The one-class cells are the Warrens' and hold here (the line below).
-     THE FULL GRADE'S SECOND FOUR (2026-11-10, 2 seeds x 2 h a cell): a tank, a hammer, a bow and a mage is THREE classes (Melee twice),
-     and at 1440 it read 1.15 / 1.13 / 1.13 of the median lone way at the floor, middle and top (1.10 at the middle without Hask's
-     lines), where 10-25 asks 1.15-1.25; the four-class four read 1.22 / 1.21 / 1.19. So 1510 and 1520 (more classes still pay more). */
-  /* ONE PACK ON NORMAL (Tyler 2026-11-11; lane/d-packs-retune, 2026-11-12): this ground never carried a party pull, so the cells barely move. Under
-     solo +15% the four of four classes read 1.18 / 1.17 of the median lone way at the floor and middle (quick grade, the tier-4 gear on the ladder)
-     and the tank and Healer pair 1.10 / 1.14: the four's cells go 1510 / 1520 -> 1540 / 1550 (about 1.20), the pair stays.
-     THE FULL GRADE'S READ (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h): the median of eight lone ways sits under the quick grade's four, so the contract
-     read lower and every mixed cell higher than the quick grade said. At 1550 the four with a Healer read 1.31 / 1.39 / 1.34 at the floor, middle and top, the four with no Healer (three classes) 1.22 /
-     1.28 / 1.24 at 1540, the pairs 1.19-1.35 at 1440, the threes 1.15-1.49 at 1470. Each cell scaled to its target: the four 1385 (about 1.17 / 1.24
-     / 1.20) over the three-class four at 1380, the pair 1220 (about 1.01-1.14), the threes 1280 and 1255 (about 1.00-1.30). THE TWO FOURS ARE 8%
-     APART at the same cell (the Healer keeps the tank up through the Knights), and the band is 8.7% wide, so the well-built four sits in it and
-     the four with no Healer reads about 1.09 / 1.15 / 1.11, under at the floor and top. The sheet names a well-built four (10-25 §5). */
-  /* TIER-5 HATCHETS AND CROSSBOW (lane/d-barrow-data, 2026-11-13): the axes and crossbow ways alone now wear a tier-5 rung, so the median lone
-     way rose and the three-class four (tank, hammer, bow, mage) read 1.13 at the middle on the full grade. 1400 x 1.17 / 1.13 = 1450. */
-  /* CLOTH'S SMALLER DAMAGE (lane/d-mage-110, 2026-11-15, the board's "The Mage at 110 and up"): this is the March's damage-bound party ground,
-     so its fours lost the most when a Mage's and a Healer's cloth stopped carrying their blow. The four of four classes read 1.07 / 1.05 / 1.00
-     of the median lone way at 55 / 65 / 75 (it was 1.19 / 1.19 / 1.14), and at 55 it levelled slower than on the Slake (tests/hunt-core/
-     forest-cave.mjs harder-pays-more). The three-class four (tank, hammer, bow, mage) read 0.99 at 75 (1.05). Cells x1.12 and x1.06. */
-  partyClassXp: { 2: [990, 1460], 3: [990, 1255, 1500], 4: [970, 1185, 1535, 1630] },
+  /* THE DEADLY HP IS THE TABLE'S (lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground): on 1000 Andy's four (axe, bow, wand, a
+     Healer 5 under) read 2.61x the pace contract at the floor and 2.57x at the middle (party-tier-xp, 2 seeds x 0.5 h), past Tyler's 2.5x; a four kills
+     here far faster than its heroes alone, so the longer fight is the dial. Dangerous's pull is the table's 8 now too. */
+  tierOverride: { dials: { dangerous: { hpPm: 1000 } },
+    why: 'Dangerous adds no HP here: with the 10% more the table adds, a pair holding it at the floor earned too little over Normal for its risk' },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours
@@ -286,10 +266,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.80-0.86, threes 0.73-0.81, fours 0.65-0.77), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.02-1.06, threes 1.01-1.08, the four 1.07); the cells between are the size's mix times the cell ratio. Whole fives. */
-  /* RE-MEASURED 2026-11-15 (lane/d-mage-110, the same tool and method, after cloth's smaller Magic damage and the four's cells above): a Healer and a Mage
-     alone now earn less, so every mixed party reads more against them. One class: pairs 0.77-0.86 (0.83), threes 0.75-0.83 (0.78), fours 0.67-0.76
-     (0.73); two of two 1.21-1.27 (1.24), three of three 1.20 and 1.22, the four 1.25. */
-  partyVsAlone: { 2: [-15, 25], 3: [-20, 0, 20], 4: [-25, -10, 20, 25] },
+  partyVsAlone: { 2: [-25, 30], 3: [-25, 30, 35], 4: [-30, 20, 35, 40] },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's

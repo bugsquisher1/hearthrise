@@ -414,6 +414,21 @@ export function sharePurses(sides) {
 export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session', 'lv', 'shots']);
 export const FROZEN_SESSION_KEYS = Object.freeze(['huntFromMs', 'nextSwingAtMs', 'swingIndex', 'bag', 'basics', 'shop',
   'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs', 'kicked']);
+/* A frozen row's state AT its boundary (its HP, its bag and clocks): the engine carries these on by itself from there. */
+const FROZEN_STATE_KEYS = Object.freeze(['hp', 'session']);
+
+/** THE KEY OF A FROZEN ROW: FNV-1a 32 over every FROZEN_KEYS field but the boundary's state, in FROZEN_KEYS order. Two rows
+    with one key fight the same. A peer's key moves when the server's hero fights otherwise from then on (a skill or Level
+    gained, a buff run out, a setup changed), which the browser cannot foresee: it never holds a peer's XP (Tyler 2026-10-20).
+    Each commit names every member's key at its window's start (hunt-settle.js huntPeerKeys, hunt_check.peers) and a
+    prediction running another restarts from a start point (live-engine.js peersStale, live-link.js). Null for no row. */
+export function frozenKey(f) {
+  if (!f || typeof f !== 'object') return null;
+  const text = JSON.stringify(FROZEN_KEYS.filter((k) => !FROZEN_STATE_KEYS.includes(k)).map((k) => f[k] ?? null));
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+}
 const finiteOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 /* The store's share of a shot's bonus, permille (damage.js BASIC_SHOT_PM: a store shot is its partner's basic version). */
 const STORE_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);

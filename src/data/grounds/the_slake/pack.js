@@ -166,7 +166,6 @@ export default definePack({
      What six costs a lone hero at the floor: 24 deaths in 16 hours where five gave 1, for the same XP. A four holds it with no
      death at 465k XP a head. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet also asks that pair to die. It never
      did. Every solo ground fails that row today. */
-  tierOverride: { dangerous: 6, why: 'on the table pull of 5 a Melee and Healer pair two to five Levels under the floor still made gold on Dangerous. On 6 they lose it' },
   /* THE BARGEMAN'S SPELL (the area spells board's seed row, lane/b-pack-fields): river water over the whole group, frost. One of
      the Slake's own rows, folded into MONSTER_SPELLS (monster-spells.js); the Corded Frost Lining is its answer. */
   spells: {
@@ -192,23 +191,6 @@ export default definePack({
     mudlark_hook: 'A Mudlark used this iron hook to rob the dead in the river. The copper turned the point green',
     color_cord: 'The cord a Color Sergeant used to tie Hask\'s flag to its pole',
   },
-  /* PARTY LEVEL XP (party-class-xp.js's row shape: heroes alive -> permille at 1, 2, ... classes): better only with different
-     classes (Tyler 10-31), and since one difficulty the mixed cells are the lever (Tyler 11-08, "Same monsters, re-tune"). Measured
-     as opened with every cell at 1000 (the full grid in 1 h cells, 2 seeds): against the median lone way a mixed four read
-     0.74-0.81, a three 0.70-0.83 and a pair 0.84-0.89. At these cells a four reads 1.16 to 1.24 at the floor, the middle and the top
-     (the ruling's 1.15-1.25) and a pair 1.07-1.13. A fourth class pays a little more than three (tests/hunt-core/xp-share.mjs
-     party-class-every-cell). The one-class cells hold every one-class party under its heroes alone: the best reads 0.93
-     (tests/party-class-xp-line.mjs, four bows). */
-  /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11; lane/d-packs-retune, 2026-11-12; the Ford's note says the method). At the cells above a
-     four of four classes read 0.65-0.67 of the median lone way (quick grade, floor and middle) and a tank and Healer pair 0.78-0.79. The four's
-     1570 x 1.20 / 0.66 = 2860 (the three-class four 0.98 of it, the two-class 0.90), the pair 1270 x 1.10 / 0.785 = 1780, the threes between
-     (x1.6). One-class cells stay: 990 and 1150 already hold every one-class party under solo (party-class-xp-line).
-     THE FULL GRADE'S READ (8 lone ways, 6 seeds x 4 h; parties 2 x 2 h; the Ford's armor on the ladder): at 2720 the four of four classes read
-     1.19 / 1.15 / 1.11 at the floor, middle and top, the four of three 1.17 / 1.13 / 1.10 at 2700, the pairs 1.01-1.07 at 1645 and the threes
-     1.02-1.17 at 2090. A four falls 7% from the floor to the top here (a 15-Level band), so its cell only fits the 8.7% band centred: the four 2845
-     (reads about 1.245 / 1.20 / 1.16) over the three-class four at 2835 (about 1.23 / 1.19 / 1.155), the pair 1740 (about 1.07-1.13), the threes
-     2200 and 2040 (about 1.07-1.23; a three with no tank earns most). */
-  partyClassXp: { 2: [990, 1740], 3: [1150, 2040, 2200], 4: [1150, 2560, 2835, 2845] },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives.
      Measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10). One class is the
      mean of its five one-class parties (pairs 0.83-0.89, threes 0.81-0.92, fours 0.81-0.93). Two of two is the mean of three mixes
@@ -217,7 +199,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.68, threes 0.46-0.64, fours 0.18-0.51), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.06-1.15, threes 1.00-1.09, the four 1.09); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, 10], 3: [-45, -5, 5], 4: [-60, 0, 10, 10] },
+  partyVsAlone: { 2: [-35, -5], 3: [-50, -20, -15], 4: [-65, -35, -25, -25] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Warrens' tier-3 store food, the cheapest heal an HP (Salted Lobster, 0.83 g
      an HP. The tier-4 Swordfish is 1.50). The melee line holds about three hours of a lone tank's bill at the floor (6.3k g an
      hour, drop-tables). */

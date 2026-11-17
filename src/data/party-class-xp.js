@@ -10,23 +10,18 @@
 // whole kill for any party size, a hero hunting alone earns SOLO_XP_PM, and the mixed cells
 // carry what a party needs to out-earn a typical hero alone (balance-sheet.js party).
 //
-// Designer's rule (10-31, table 11-01; set when a party drew its own bigger Normal pull, hunt-grounds.js partyPull, which Tyler retired 2026-11-11:
-// on Normal every group meets the room as built, and these cells await the designer's re-measure, lane/c-brook-bear's table):
+// THE RULE (designer 10-31; ONE TABLE since Tyler 2026-11-16, "just balance the hunting grounds xp vs having a unique
+// formula everywhere", lane/d-flat-party-xp):
 //   - LEVEL XP only (src/core/hunt/xp-share.js): no gold or loot effect, skill XP untouched.
 //   - FOUR CLASSES: Melee (a shield or not), Ranger, Mage, Healer.
 //   - Read from the LIVING heroes at EACH kill, never latched: a death or a leave
 //     changes the next kill. A hero alone earns SOLO_XP_PM, on every ground.
-//   - One row per ground. The cell is the factor applied on top of the even share.
+//   - ONE TABLE for every ground and every tier (PARTY_CLASS_XP): the cell is the factor on
+//     the even share by how many heroes are alive and how many classes they hold. No ground
+//     carries a row of its own (src/data/grounds/shape.js refuses one in a pack); what a party
+//     earns on a ground is that ground's own pull, density and monster rows (balance-sheet.js).
 //
-// A ROW: { heroes alive: [permille at 1 class, at 2 classes, ...] }, as many cells as
-// that many heroes can hold classes. The numbers are the designer's to retune, here.
-//
-// A GROUND WITH NO ROW PAYS A PARTY 1000 (the even share): no bonus and no cut until the designer
-// writes its row. It fails safe for pay, and the standing guard plays every ground
-// (tests/party-class-xp-line.mjs), so a new ground where a same-class party beats solo
-// turns that guard red until its row is written.
-//
-// A PARTY LARGER THAN A ROW'S LARGEST SIZE reads that largest size (the party cap is
+// A PARTY LARGER THAN THE TABLE'S LARGEST SIZE reads that largest size (the party cap is
 // a config value), so a same-class cut can never lapse by adding a hero.
 //
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
@@ -35,7 +30,6 @@
 import { HUNT_ROLES } from './hunt-roles.js?v=0.2.135';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.135';
 import { foldRows } from './grounds/shape.js?v=0.2.135';
-import { TOWER_RULES, TOWER_PARTY_XP } from './tower.js?v=0.2.135';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -45,8 +39,6 @@ export const PARTY_CLASSES = Object.freeze({
   mage: Object.freeze({ label: 'Mage', roles: Object.freeze(['mage']) }),
   healer: Object.freeze({ label: 'Healer', roles: Object.freeze(['healer']) }),
 });
-
-const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 
 /* A HERO HUNTING ALONE (Tyler 2026-11-08: "a solo person gets a small exp boost BUT the difficulty should be unchanged. Either they are
    strong enough to do the harder content or they aren't"). Alone, a hero takes the whole pull with nobody to hold it or heal it, on the
@@ -60,73 +52,26 @@ const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obje
    with it, x1150/1050 to the nearest 5, and was re-measured: every party-vs-alone reading Tyler ruled on 2026-11-11 holds. */
 export const SOLO_XP_PM = 1150;
 
-/* THE OVER-FITTED GROUNDS' BIG-PULL CELLS (Tyler 2026-11-16, option 1: "fix the four over-fitted grounds' party cells"; lane/a-party-xp-tier).
-   The mixed cells below were fitted on Normal, and on a tier that brings a bigger pull a mixed three or four kills that pull far faster than a hero
-   alone does: a mixed four on Deadly read 3.7-4.5x the pace contract a head on the Glade, Hask's Ford, the Slake and Krell's Hold, and 2.9x on the
-   Pyre Field (tools/balance-sim/party-tier-xp.mjs, the floor and middle, 2 seeds x 0.5 h; Andy's live party about 5x). One cell a ground can't fix it:
-   the Dangerous four already reads only 1.6-1.7x its heroes alone, so the Deadly cut would carry it under solo. So each over-fitted ground's MIXED cells
-   (two classes and up) of a three and a four take a permille ON THE TIER, read at each kill from the hunt's tier (xp-share.js): a Deadly mixed four
-   lands at most about 2.45x the contract (andy's hammer + bow + mage + a Healer five under, and tank + Healer + bow + mage, floor and middle), every
-   Dangerous and Deadly mix stays over the same heroes alone (the tank four at least 1.05x), and a Dangerous four earns about 0.90-0.97x a Deadly one
-   (at least 1.10x its Normal: on the Glade, whose Normal four reads 1.98x at the floor, that floor sets it). Normal, pairs,
-   one-class cells and every other ground are untouched (Normal isn't meant for parties, Tyler 2026-11-16, so no bar asks it to, and none is cut).
-   The cost, on the Glade alone: its Deadly four reads under 1.25x its Normal four at the floor (balance-sheet.js tiers.deadly, a grader line).
-   Ground → tier → { party size: permille on that size's mixed cells }. A tier or size not named pays the cell as written. */
-const PARTY_TIER_PM = Object.freeze({
-  mosslight_glade: Object.freeze({ dangerous: Object.freeze({ 3: 890, 4: 670 }), deadly: Object.freeze({ 3: 780, 4: 545 }) }),
-  hasks_ford: Object.freeze({ dangerous: Object.freeze({ 3: 900, 4: 675 }), deadly: Object.freeze({ 3: 805, 4: 555 }) }),
-  the_slake: Object.freeze({ dangerous: Object.freeze({ 3: 945, 4: 705 }), deadly: Object.freeze({ 3: 895, 4: 630 }) }),
-  krells_hold: Object.freeze({ dangerous: Object.freeze({ 4: 640 }), deadly: Object.freeze({ 4: 670 }) }),
-  pyre_field: Object.freeze({ dangerous: Object.freeze({ 4: 790 }), deadly: Object.freeze({ 4: 855 }) }),
-});
-export { PARTY_TIER_PM };
-
-/* ground id → its row (designer's final table, 2026-11-01). SAME MONSTERS, RE-TUNED (Tyler 2026-11-08; lane/b-one-difficulty): a monster has its row's HP
-   and pays its whole kill for one hero or four, so a party of n shares a whole kill n ways where it used to share a pack scaled to its size. The mixed
-   cells are the lever for 10-25 §5 as the sheet reads it (balance-sheet.js party: a head against the median lone way at the same Level, the solo
-   boost included): each was set from a lean grid on the real settle (1 seed x 2 h a cell, the floor, Normal; the 8 lone ways' median beside a
-   tank + healer pair, a tank + healer + bow three and a tank + healer + bow + mage four) so the weakest head reads a pair 1.08-1.11, a three
-   1.13-1.17 and a four 1.17-1.24 of a typical hero alone. A party's XP cell moves no blow, so a cell scales its reading straight (but for the
-   floor on a small kill's share: re-measure, never scale, on the first grounds).
-   ONE CLASS LOSES A LITTLE, NOT HALF (the lane's fifth commit; Tyler 2026-11-02 "same-weapon friends lose about 6-15%", under 10-31 "a same-class
-   party never out-earns solo"): at the old one-class cells a party of one class shared a whole kill and earned 25-55% under the same heroes
-   alone. Each one-class cell is now the most that keeps every one-class party of that size under solo with a margin on both of
-   tests/party-class-xp-line.mjs's arms (measured: the best way at most 0.94 of alone at the default pull and 0.96 at 8 each, the mean 10-25% under). It sits above the even
-   share: since one pack for every group the even share is no longer the solo line, so the measured guard holds 10-31, not this table. */
-/* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11: "if they want bigger pulls they need to up the difficulty"; lane/d-party-xp-cells). With no
-   party pull a mixed four on the four solo grounds read 0.60-0.79 of the median hero alone (grade quick, Normal, floor and middle), so the MIXED cells
-   (two classes and up) are re-fitted to 10-25 §5 on the real settle, the measure the grader binds (four 1.15-1.25, a pair about 1.10, a three about
-   1.15, against the median lone way in the same kit): the Cellar four 1.19-1.20, the Thicket 1.20-1.23, Wickstead 1.19-1.24, the Glade 1.17-1.23,
-   the Warrens 1.20; the Sewer can't hold both its Levels with one cell (1.26 at 8, 1.14 at 17), so it sits between. ONE-CLASS cells are NOT raised:
-   a one-class party at the big-pull tiers (8 each) already reads 0.81-0.96 of its members alone at their better pull, so a raise would carry it over
-   solo there (10-31). On Normal one class now loses 25-60%, said plainly in the Party window. The two can't both hold with one cell a ground: a cell
-   keyed by tier is a Systems change, on the board (2026-11-11 Party XP cells). */
-const BASE_CLASS_XP = Object.freeze({
-  /* NO SEAT SLIDES UNDER TODAY ON THE FORMULA'S ROWS (lane/b-party-xp, 2026-11-07; tools/balance-sim/grade-compare.mjs, the release gate). The formula left lone heroes
-     where they were and took 8-10% off a tank + healer pair: its tank against the median hero alone read 1.02 -> 0.93 on the Cellar and 0.95 -> 0.87 at the Sewer floor,
-     and a three of tank, healer and bow 1.03 -> 0.99 on Wickstead. A ground's XP dial moves alone and party alike, so the cell is the lever: the Cellar's two-class pair
-     1070 -> 1210 (its tank 1.04-1.05, its hammer and bow 1.12, today 1.11), the Sewer's 1000 -> 1100 (its tank 0.96 at the floor and 1.09-1.12 above it, today 0.95-1.07),
-     Wickstead's three-class three 1220 -> 1270 (1.03-1.09, today 1.03-1.07). Measured on the real settle, full grade, Normal (tools/balance-sim/grade.mjs). */
-  mill_cellar: row([1255, 2540], [1445, 3300, 3475], [1955, 4375, 4445, 4890]),
-  /* A one-weapon four pays the even share: Tyler 11-02 (same-weapon friends lose about 6-15%) beats 10-31 (one class never beats solo) where they conflict (CLAUDE.md §0; Coordinator 2026-11-04). The share floors per
-     kill, so the cell moves in steps: 995 left shields at -17 to -19%, 1000 lands them at -12 to -15%, and a four of wands 4-5% over solo, the accepted cost and party-class-xp-line's one named exception. A pull of 7: mixed coin 1.04-1.05, over solo.
-     RE-MEASURED ON THE FORMULA'S ROWS (lane/b-ground-formula-2, 1 h x 2 seeds at 10): the four row moved a head about 10% toward the party (a mix +33% against
-     the window's 20%, wands +15%, shields -8%), so the row is scaled: 940 lands wands about +4% and shields about -17% (920 read +2% and -19%), the mix +20% (10-25 §5: 15-25%).
-     party-class-xp-line on the same rows: the Thicket's mage duo read 1.05 and trio 1.09 (cells 930, 880), the Cellar's healer trio 1.007 (990), the Warrens'
-     four of staves at 8 each 1.014 (960). */
-  meadowbrook_thicket: row([1145, 2375], [1110, 2750, 3055], [1305, 3510, 3675, 3760]),
-  wickstead: row([1070, 2420], [1315, 2750, 3010], [1460, 3835, 3965, 4070]),
-  /* the four's mixed cells +1.5% (designer 2026-11-12): with the Brook Bear a heavy (balance-sheet.js roster) the Glade's four read 1.144 at its middle (24) against
-     the 1.15-1.25 band, 1.221 at the floor; 2730 / 2940 / 3000 land the middle about 1.16 and the floor about 1.24. One-class cell unchanged. */
-  mosslight_glade: row([1085, 2035], [1290, 2190, 2360], [1270, 2730, 2940, 3000]),
-  millrace_sewer: row([1110, 1820], [1265, 1980, 2070], [1260, 1940, 2025, 2170]),
-  /* One class under the even share (Tyler 2026-10-31, "only better if there are different classes"; lane/c-caster-party-line). With Green Sickness on the Healer's default bar a pair at 8 each read 1.033 against
-     one alone and a four 1.005: the debuff stays up far longer in a one-class party, as Greater Mend's load splits (a head's casts an hour, alone 84 and 256, in a pair 144 and 168). Mana gates can't hold it (at 95% the
-     pair reads 0.987 and the four still 1.009, and each gate rerolls the first grounds' net chain); the cell can, and it moves no gold, no mixed party and no other ground. */
-  coppercap_warrens: row([1085, 1500], [1085, 1535, 1630], [1060, 1490, 1705, 1770]), // mixed fours +9% (three classes) and +5% (four): area moves on the default bars (lane/a-area-moves-bar, 2026-11-13)
-});
-/* A ground pack's own row, when its same-class party would beat solo (src/data/grounds/<id>/pack.js `partyClassXp`: { 2, 3, 4 }). */
-export const PARTY_CLASS_XP = Object.freeze(foldRows('party class row', BASE_CLASS_XP, GROUND_PACKS, (p) => (p.partyClassXp ? { [p.id]: row(p.partyClassXp[2], p.partyClassXp[3], p.partyClassXp[4]) } : {})));
+/* ONE TABLE FOR EVERY GROUND AND EVERY TIER (Tyler 2026-11-16: "just balance the hunting grounds xp vs having a unique formula everywhere. that is
+   the better route."; lane/d-flat-party-xp). It replaces the per-ground rows (2026-11-01 to 2026-11-13, one row a ground, fitted on Normal) and the
+   flat cut PARTY_XP_PM tried the same day: a party's bonus reads its SIZE and how many CLASSES it holds, never the ground or the tier, so the wiki can
+   print it as one table. What a party earns on a ground against its heroes alone is the ground's own business: its pull, density and monster rows
+   (balance-sheet.js, the pack's tierOverride), re-fitted with this table so that, measured on the real settle (tools/balance-sim/party-tier-xp.mjs,
+   tests/party-class-xp-line.mjs's harder-tier arm):
+     - on Dangerous and Deadly every mixed party earns at least what the same heroes earn alone (Tyler 2026-11-16, "every Dangerous/Deadly party mix
+       stays >= the same heroes alone"), and a mixed four on Deadly at most about 2.5x the pace contract (Tyler 2026-11-16, "~2-2.5x");
+     - Normal is not tuned for parties (Tyler 2026-11-16: "its not restricted, but it's not necessarily meant for them"), so a mix there may earn
+       under its heroes alone, and the Party window says so;
+     - one class never out-earns its heroes alone (Tyler 2026-10-31), so the one-class column is the smallest any ground's row held (the Barrow
+       Muster's, where a party kills fastest against a hero alone), and every ground's one-class party earns no more than it did.
+   A CELL is permille on the even share (xp-share.js: a kill's Level XP over the living heroes, times the cell). The mixed cells are the median
+   Dangerous/Deadly fit of the 2026-11-16 measurement (party-tier-xp, 1,364 cells): a four of four classes needs about 1750 to stand over its heroes
+   alone where a pull of five meets it, and no more than that, or the full box's Deadly four passes 2.5x the contract. The cells between are the old
+   rows' median shape (a four of three classes 0.98 of four, of two 0.88; a three of two classes 0.93 of three). */
+const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
+/* THE ONE-CLASS PAIR 950 (was 990; on set v0.2.135, 2026-11-17): with Turning Cut on every melee weapon without a shield (Tyler 2026-11-16) a shield and
+   hatchets pair on the Pauper Vaults at 8 each read 1.03 of its heroes alone at 990 (tests/party-class-xp-line.mjs, 3 seeds), over the 10-31 line. */
+export const PARTY_CLASS_XP = row([950, 1500], [990, 1600, 1700], [970, 1580, 1765, 1800]);
 
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
@@ -141,15 +86,17 @@ export const PARTY_CLASS_XP = Object.freeze(foldRows('party class row', BASE_CLA
    more than against a typical hero alone (the cells above). first-week-bands vs-alone: the Thicket's mix at 10 reads +35.5%, the Glade's at 24 +23.1%.
    THE ONE-CLASS ANSWERS (the lane's fifth commit) are re-measured the same way at the raised one-class cells, never scaled (a small kill's share floors).
    RE-READ 2026-11-11 UNDER SOLO +15% (lane/d-solo-fifteen; party-class-xp-line --table --mixed, the floor, 3 seeds): every cell lands on its number or one 5-step
-   from it (the Cellar's four 28, the Glade's four 34, the Warrens' three 29, Wickstead's three 43), so the lines stand. */
+   from it (the Cellar's four 28, the Glade's four 34, the Warrens' three 29, Wickstead's three 43), so the lines stand.
+   RE-WRITTEN 2026-11-17 ON THE ONE TABLE AND SET v0.2.135 (cloth's smaller damage, Turning Cut on every melee weapon without a shield, the one-class pair 950;
+   tests/party-class-xp-line.mjs --mixed --write, 3 seeds, the floor): every ground's line here and in its pack is that run's. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: said([-40, 20], [-55, 10, 20], [-60, 15, 15, 25]),
-  meadowbrook_thicket: said([-30, 45], [-50, 35, 50], [-55, 35, 40, 45]),
-  wickstead: said([-35, 45], [-40, 30, 40], [-50, 35, 40, 45]),
-  mosslight_glade: said([-25, 30], [-30, 20, 30], [-45, 15, 25, 30]),
-  millrace_sewer: said([-15, 40], [-15, 40, 50], [-25, 30, 35, 45]),
-  coppercap_warrens: said([-15, 25], [-20, 20, 25], [-30, 10, 15, 25]),
+  mill_cellar: said([-55, -30], [-70, -45, -45], [-80, -60, -55, -55]),
+  meadowbrook_thicket: said([-40, -10], [-55, -25, -20], [-65, -40, -30, -30]),
+  wickstead: said([-45, -10], [-55, -25, -20], [-65, -45, -35, -35]),
+  mosslight_glade: said([-35, 0], [-45, -10, -5], [-55, -25, -15, -15]),
+  millrace_sewer: said([-30, 10], [-35, 10, 15], [-45, 0, 10, 15]),
+  coppercap_warrens: said([-25, 20], [-25, 20, 25], [-30, 15, 30, 30]),
 });
 /* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));
@@ -158,42 +105,37 @@ export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE
    alone. Whole percent to the nearest 5, against the same heroes alone (1 h x 2 seeds, Levels 5 and 10: shields -12, -15; hammers -11, -9; bows -9, -8; staffs -12, -11; wands +4, +5). first-week-bands vs-alone plays it.
    Since the solo boost (2026-11-08) each is its number over 1.05: shields -20, the rest -15, and wands no longer over a hero alone (0).
    RE-MEASURED 2026-11-08, same monsters re-tuned (the vs-alone cell itself: Level 10, 1 h x 2 seeds): shields -38.7, axes -42.0, bows -36.5, wands -28.6, staves -32.2.
-   At the one-class cell 1190 (the lane's fifth commit): shields -22.9, axes -27.1, bows -20.1, wands -10.1, staves -14.7. */
+   At the one-class cell 1190 (the lane's fifth commit): shields -22.9, axes -27.1, bows -20.1, wands -10.1, staves -14.7.
+   RE-MEASURED 2026-11-16 on the one table (one-class four 970; lane/d-flat-party-xp, tests/party-class-xp-line.mjs --table --mixed, the floor): shields -60.7,
+   axes -70.5, bows -67.0, wands -69.3, staves -62.8. */
 const ONE_ROLE_VS_ALONE = Object.freeze({
-  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -50, melee_dps: -60, ranger: -55, mage: -60, healer: -50 }) }),
+  meadowbrook_thicket: Object.freeze({ 4: Object.freeze({ tank: -60, melee_dps: -70, ranger: -65, mage: -70, healer: -65 }) }),
 });
 
 const CLASS_OF_ROLE = Object.freeze(Object.fromEntries(Object.entries(PARTY_CLASSES).flatMap(([c, r]) => r.roles.map((x) => [x, c]))));
 
 /**
- * THE ONE READER. `roles`: the hunt role of each hero counted (the living ones, in the engine); `groundId`: the
- * ground (its `id`, HUNT_GROUNDS). Answers { permille, classes: [class ids held, in PARTY_CLASSES order] }.
- * A role with no class counts as a hero and no class (at least one class is always read). `tierId`: the hunt's tier
- * (hunt-tiers.js TIER_IDS; absent = Normal): a mixed cell takes its ground's PARTY_TIER_PM on it.
+ * THE ONE READER. `roles`: the hunt role of each hero counted (the living ones, in the engine). Answers { permille, classes: [class ids held,
+ * in PARTY_CLASSES order] }. A role with no class counts as a hero and no class (at least one class is always read). The ground and the tier
+ * never read (one table, Tyler 2026-11-16).
  */
-export function partyClassXp(groundId, roles, tierId = 'normal') {
+export function partyClassXp(roles) {
   const held = new Set();
   for (const r of roles) if (Object.hasOwn(CLASS_OF_ROLE, r)) held.add(CLASS_OF_ROLE[r]);
   const classes = Object.keys(PARTY_CLASSES).filter((c) => held.has(c));
   const n = roles.length;
-  /* THE BURNING TOWER (src/data/tower.js TOWER_PARTY_XP; the board's §7): one flat row whatever the classes, a hero alone the plain kill (no solo
-     boost: in the Tower the party's edge is the floors it reaches). */
-  if (groundId === TOWER_RULES.hunt) return { permille: TOWER_PARTY_XP[Math.min(Math.max(n, 1), 4)], classes };
   if (n === 1) return { permille: SOLO_XP_PM, classes };
-  if (n < 2 || !Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1000, classes };
-  const tab = PARTY_CLASS_XP[groundId];
-  const sizes = Object.keys(tab).map(Number);
-  const size = Math.min(n, Math.max(...sizes));
-  const cells = tab[size];
+  if (n < 2) return { permille: 1000, classes };
+  const sizes = Object.keys(PARTY_CLASS_XP).map(Number);
+  const cells = PARTY_CLASS_XP[Math.min(n, Math.max(...sizes))];
   const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
-  const onTier = classes.length > 1 && Object.hasOwn(PARTY_TIER_PM, groundId) && Object.hasOwn(PARTY_TIER_PM[groundId], tierId) ? PARTY_TIER_PM[groundId][tierId][size] : undefined;
-  return { permille: onTier === undefined ? cell : Math.round((cell * onTier) / 1000), classes };
+  return { permille: cell, classes };
 }
 
 /** The measured percent (PARTY_VS_ALONE) for these living roles on this ground; null with no row or under two heroes. */
 export function partyVsAlone(groundId, roles) {
   if (roles.length < 2 || !Object.hasOwn(PARTY_VS_ALONE, groundId)) return null;
-  const { classes } = partyClassXp(groundId, roles);
+  const { classes } = partyClassXp(roles);
   const tab = PARTY_VS_ALONE[groundId];
   const n = Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)));
   const oneRole = Object.hasOwn(ONE_ROLE_VS_ALONE, groundId) ? ONE_ROLE_VS_ALONE[groundId][n] : null;
@@ -215,30 +157,20 @@ export function validate(grounds) {
     if (!HUNT_ROLES[role]) out.push(g + ' ' + n + ': ONE_ROLE_VS_ALONE names no role ' + role);
     if (!Number.isInteger(v) || v % 5 !== 0) out.push(g + ' ' + n + ' ' + role + ': ONE_ROLE_VS_ALONE needs whole fives');
   }
-  /* a tier's cut names a ground with a row, a tier, a party size the row has, and cuts (1-1000: never a raise over the fitted cell) */
-  for (const [g, tiers] of Object.entries(PARTY_TIER_PM)) {
-    if (!Object.hasOwn(PARTY_CLASS_XP, g)) out.push(g + ': PARTY_TIER_PM names a ground with no party row');
-    for (const [t, bySize] of Object.entries(tiers)) {
-      if (!['normal', 'dangerous', 'deadly'].includes(t)) out.push(g + ': PARTY_TIER_PM names no tier ' + t);
-      for (const [n, pm] of Object.entries(bySize)) {
-        if (!Object.hasOwn(PARTY_CLASS_XP[g] || {}, n)) out.push(g + ' ' + t + ': PARTY_TIER_PM names no party size ' + n);
-        if (!Number.isInteger(pm) || pm < 1 || pm > 1000) out.push(g + ' ' + t + ' ' + n + ': PARTY_TIER_PM ' + pm + ' is not a cut (1-1000)');
-      }
-    }
+  /* ONE TABLE (Tyler 2026-11-16): a size's cells, one per class it can hold, whole permille; more classes always pay more (Tyler 10-31). One class is
+     held under solo by the measured guard (tests/party-class-xp-line.mjs), not here. */
+  if (Object.keys(PARTY_CLASS_XP).join() !== '2,3,4') out.push('the table names sizes ' + Object.keys(PARTY_CLASS_XP) + ', not 2, 3 and 4');
+  for (const n of [2, 3, 4]) {
+    const cells = PARTY_CLASS_XP[n];
+    if (!Array.isArray(cells) || cells.length !== Math.min(n, classCount)) { out.push(n + ' heroes needs ' + Math.min(n, classCount) + ' cells'); continue; }
+    if (cells.some((v) => !Number.isInteger(v) || v <= 0)) out.push(n + ' heroes: cells are whole permille > 0');
+    for (let i = 1; i < cells.length; i++) if (cells[i] <= cells[i - 1]) out.push(n + ' heroes: another class pays no more');
   }
-  for (const [g, tab] of Object.entries(PARTY_CLASS_XP)) {
-    if (grounds && !grounds.includes(g)) out.push(g + ': names no ground');
-    for (const n of [2, 3, 4]) {
-      const cells = tab[n];
-      if (!Array.isArray(cells) || cells.length !== Math.min(n, classCount)) { out.push(g + ': ' + n + ' heroes needs ' + Math.min(n, classCount) + ' cells'); continue; }
-      if (cells.some((v) => !Number.isInteger(v) || v <= 0)) out.push(g + ': ' + n + ' heroes: cells are whole permille > 0');
-      /* More classes always pay more (Tyler 10-31). One class is held under solo by the measured guard (tests/party-class-xp-line.mjs, bar 1.00), not
-         by the even share here: since one pack for every group (2026-11-08) a one-class party at the even share earned 45-78% of a hero alone. */
-      for (let i = 1; i < cells.length; i++) if (cells[i] <= cells[i - 1]) out.push(g + ': ' + n + ' heroes: another class pays no more');
-    }
-    const words = PARTY_VS_ALONE[g];
-    if (!words) out.push(g + ': the Party window has no measured line for this ground');
-    else for (const n of [2, 3, 4]) if (!Array.isArray(words[n]) || words[n].length !== Math.min(n, classCount) || words[n].some((v) => !Number.isInteger(v) || v % 5 !== 0)) out.push(g + ': ' + n + ' heroes: PARTY_VS_ALONE needs whole fives, one per class count');
+  /* the Party window's measured line, one per ground: a ground a row may name, whole fives, one per class count */
+  for (const [g, words] of Object.entries(PARTY_VS_ALONE)) {
+    if (grounds && !grounds.includes(g)) out.push(g + ': the Party window\'s line names no ground');
+    for (const n of [2, 3, 4]) if (!Array.isArray(words[n]) || words[n].length !== Math.min(n, classCount) || words[n].some((v) => !Number.isInteger(v) || v % 5 !== 0)) out.push(g + ': ' + n + ' heroes: PARTY_VS_ALONE needs whole fives, one per class count');
   }
+  if (grounds) for (const g of grounds) if (!Object.hasOwn(PARTY_VS_ALONE, g)) out.push(g + ': the Party window has no measured line for this ground');
   return out;
 }

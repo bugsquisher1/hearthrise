@@ -54,7 +54,7 @@ export function combatHtml() {
     + '<details class="hc-more"><summary class="hh-tool">' + t('controls.filter') + '</summary><span class="hc-types" role="group" aria-label="Line types">'
     + LOG_TYPES.map((lt) => '<label class="hc-type"><input type="checkbox" data-hs-act="type" data-type="' + esc(lt.id) + '" checked> ' + esc(lt.label) + '</label>').join('')
     + '</span></details></div>'
-    + '<ol class="hc-log is-combat" aria-live="off"></ol><p class="hh-empty hc-none is-combat">No combat yet</p>';
+    + '<ol class="hc-log is-combat" aria-live="off"></ol><p class="hh-empty hc-none is-combat">No combat yet. Lines show up here as your hunt plays.</p>';
 }
 
 /** Patch the Combat pane inside `pane`. */

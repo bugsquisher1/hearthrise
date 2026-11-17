@@ -216,7 +216,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const cl = root.querySelector('.ca-carry');
   prop(cl, 'hidden', !carry);
   if (carry) {
-    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in backpack, ' + whole(carry.inHunt) + ' in this hunt' + (carry.wait ? '. ' + carry.wait : ''));
+    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in your backpack and ' + whole(carry.inHunt) + ' in this hunt.' + (carry.wait ? ' ' + carry.wait : ''));
     const b = cl.querySelector('[data-x="carry"]');
     text(b, carryWords(carry));
     attr(b, 'data-item', carry.id);

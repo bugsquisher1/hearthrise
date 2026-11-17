@@ -101,7 +101,7 @@
 //         set_activity { kind:'artisan', id:'cook_wolf_meat' }; the Cooking line reads the
 //         server's pointer; Stop says what the server made and burnt; the tooltip says it
 //         cooks; Sell all junk keeps it; a level under the recipe's says so in words
-//   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (the weapon only within its family and grip, never the off-hand or ammo; never the weapon's style
+//   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (the weapon only within its family and grip, a worn off-hand only for one of its kind, never an empty off-hand or ammo; a bane weighs only where it wins; never the weapon's style
 //         or a piece above the hero's skill), its slots and stacks marked until the answer, a
 //         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees;
 //         the screen never offers what the server refuses (Tyler 2026-10-24): an unmet requirement
@@ -1386,6 +1386,33 @@ async function planRules(base) {
   const fedReads = [fedAt('muster_barrows', 'salted_shrimp'), fedAt('muster_barrows', 'salted_trout'), fedAt('muster_barrows', 'salted_lobster'), fedAt('the_slake', 'salted_shrimp'), fedAt('millrace_sewer', 'salted_shrimp')];
   if (!fedReads[0].includes(weakLine) || !/^!Salted Trout heals too little/m.test(fedReads[1].split(' | ').find((x) => /heals too little/.test(x)) || '')
     || fedReads.slice(2).some((x) => /heals too little/.test(x))) fails.push('AW-27 store food too weak for the ground reads ' + JSON.stringify(fedReads));
+  /* ...AT THE HERO'S LEVEL, WITH ITS NUMBERS, ON THE SLOT TOO, AND THE GROUND SAYS IT EXPECTS A HEALER (lane/d-audit-balance-2, the playthrough
+     audit's F14: in range on Normal a hero died in 8 minutes and nothing said the food was too weak). The floor is the one measured for the
+     Level (Salted Lobster to 64, Salted Trout from 65); the server's HP is in the sentence; the bar's store food slot says it while the
+     hero hunts there and never to a party with a Healer; the Barrows' page asks melee and ranged heroes under 65 for a Healer. */
+  {
+    const { weakFoodWords } = await imp('src/shell/hunt-go.js');
+    const { slotWhy } = await imp('src/shell/slot-waits.js');
+    const { healerNote } = await imp('src/shell/hunt-list.js');
+    const bar = (id) => ({ slots: [slot('consume', id, null)] });
+    const prep = [weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 56, 850), weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 64, 990),
+      weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'the_slake', 50, 819)];
+    if (prep[0] !== 'Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
+      || prep[1] !== 'Salted Trout heals 120 of 990 HP. Pick Salted Lobster' || prep[2] !== '' || prep[3] !== 'Salted Shrimp heals 72 of 1,011 HP. Pick Salted Trout' || prep[4] !== '')
+      fails.push('AW-27 the weak store food at the hero\'s Level reads ' + JSON.stringify(prep));
+    const facts = (o) => Object.assign({ set: bar('salted_shrimp'), bag: [], hero: { mana: 0 }, worn: null, skills: {}, pack: null, party: 1, alone: true, holding: false, test: null,
+      ground: 'muster_barrows', level: 56, hpMax: 850, healed: false }, o);
+    const on = (id, o) => slotWhy(slot('consume', id, null), facts(o));
+    const why = [on('salted_shrimp'), on('salted_lobster'), on('salted_shrimp', { healed: true }), on('salted_shrimp', { ground: 'the_slake' }), on('salted_shrimp', { ground: null }), on('cooked_shrimp')];
+    if (!why[0] || why[0].code !== 'food_weak' || why[0].strike !== false || why[0].text !== 'Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
+      || why.slice(1).some((x) => x && x.code === 'food_weak')) fails.push('AW-27 the bar\'s weak food slot reads ' + JSON.stringify(why));
+    const notes = [healerNote('muster_barrows', 56, 'melee', false), healerNote('muster_barrows', 56, 'ranged', false), healerNote('muster_barrows', 56, 'magic', false),
+      healerNote('muster_barrows', 56, 'melee', true), healerNote('muster_barrows', 65, 'melee', false), healerNote('the_slake', 50, 'melee', false)];
+    if (notes[0] !== 'Recommended: Healer (Barrow Knight hits too hard for food)' || notes[1] !== notes[0]
+      || notes.slice(2).some(Boolean)) fails.push('AW-27 the ground that expects a healer reads ' + JSON.stringify(notes));
+    /* no text anywhere tells a player to turn Challenge on or off (Tyler 2026-11-14) */
+    if (/challenge/i.test(prep.concat(notes, [why[0] && why[0].text]).join(' '))) fails.push('AW-27 a food or healer line names Challenge');
+  }
   /* A rune spell with none of its ticked runes and no store behind it (its slot set to "Leave the hunt": a slot that says nothing
      buys from the shop, Tyler 2026-11-08) loses that spell only (named, not a stop); no food is said. */
   const leaving = (id) => ({ action: { type: 'ability', id, onEmpty: 'leave' }, conditions: [], join: 'and', usable: true, count: 0 });
@@ -1683,6 +1710,25 @@ async function planRules(base) {
     if (ops2(kept) !== '{}' || JSON.stringify(kept.choices) !== '[{"slot":"weapon","ids":["iron_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]'
       || UP.upgradeWords(kept) !== 'No clear upgrade: Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters')
       fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
+    /* A BANE IS A REASON ONLY WHERE IT WINS (audit 2026-11-15 F15: Equip upgrades pressed from Level 15 to 55 kept the Bramble Blade over 40 Mithril Swords, "each piece is
+       better at something", and the hero died twice at the Barrows, where nothing is a plant). The trade above stands because a plant lives on a ground of the hero's Level
+       (Level 16: the Glade's Walking Vine, where the bane lands more a blow); with no plant on any ground of the Level, the bigger numbers go on. */
+    /* skills as the server sends them, each with its xp (item-sections.js skillsOf): the engine's blow reads the xp */
+    const XPC = await imp('src/core/xp.js');
+    const sk = (melee) => ({ defense: { level: 50, xp: XPC.skillXpForLevel('defense', 50) }, melee: { level: melee, xp: XPC.skillXpForLevel('melee', melee) }, ranged: { level: 1, xp: 0 }, magic: { level: 1, xp: 0 } });
+    const seasoned = sk(50);
+    const past = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 3], ['mithril_sword', 40]], seasoned, 55);
+    if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Upgrade: Mithril Sword (+12 Melee accuracy)')
+      fails.push('AW-21 a Level 55 hero in a Bramble Blade with Mithril Swords in the bag reads ' + ops2(past) + ' / ' + JSON.stringify(past.choices) + ' / ' + UP.upgradeWords(past));
+    const vines = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 2]], sk(30), 30);
+    if (ops2(vines) !== '{}' || JSON.stringify(vines.choices) !== '[{"slot":"weapon","ids":["steel_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]')
+      fails.push('AW-21 a real trade stopped asking: Level 30 (the Glade, Walking Vines) in a Bramble Blade with Steel Swords reads ' + ops2(vines) + ' / ' + JSON.stringify(vines.choices));
+    /* A WORN OFF-HAND TAKES A BETTER ONE OF ITS KIND (audit 2026-11-15 F8: a Level 31 tank still held the Practice Shield): a shield for a shield, a spellbook for a
+       spellbook; never a piece into an empty off-hand (above), never a shield for a spellbook, and a shield that costs accuracy for its guard is the player's pick. */
+    const guard = plan({ weapon: 'steel_sword', shield: 'practice_shield' }, [['bronze_rimmed_shield'], ['practice_spellbook']], lv1, 31);
+    if (ops2(guard) !== '{"shield":"bronze_rimmed_shield"}' || UP.upgradeWords(guard) !== 'Upgrade: Bronze-Rimmed Shield (+1 Defense)') fails.push('AW-21 a tank in the Practice Shield with a Bronze-Rimmed Shield in the bag reads ' + ops2(guard) + ' / ' + UP.upgradeWords(guard));
+    if (ops2(plan({ weapon: 'practice_wand', shield: 'practice_spellbook' }, [['bronze_rimmed_shield'], ['ironbound_shield']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would trade a spellbook for a shield');
+    if (ops2(plan({ weapon: 'steel_sword', shield: 'ironbound_shield' }, [['kingsgrate']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would put on a shield that costs accuracy');
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
     if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
@@ -1743,6 +1789,33 @@ async function planRules(base) {
     if (ops2(pick) !== '{}' || JSON.stringify(pick.choices) !== '[{"slot":"ring2","ids":["banded_signet_keen","banded_signet_surge"]}]'
       || UP.upgradeWords(pick) !== 'No clear upgrade: Ring 2: Banded Signet (Keen) or Banded Signet (Surge)')
       fails.push('AW-21 Keen and Surge rings over a plain one read ' + ops2(pick) + ' / ' + JSON.stringify(pick.choices) + ' / ' + UP.upgradeWords(pick));
+    /* A RESISTANCE COUNTS ONLY WHERE IT PLAYS, THE SAME LEVEL-BAND WAY AS A BANE (lane/a-next-steps; lane/c-krell-uniques gives gear `resistPm`: Krell's Tollgate fire, the
+       Banded Legguards physical). Level 17 hunts Wickstead, where the Turncoat's Smoke Pot is fire; Level 20 has no fire on any ground. The rows are made here for the
+       test (Bronze Platelegs with a resistance) and put back after. */
+    /* the build's ?v= instance of the catalogue, the one upgrade-plan.js reads */
+    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const threats = (lv) => Array.from(UP.threatsAt(lv)).sort().join();
+    if (threats(17) !== 'ember,physical,poison' || threats(20) !== 'physical,poison') fails.push('AW-21 the damage in range reads ' + threats(17) + ' at 17 and ' + threats(20) + ' at 20');
+    IT.aw21_fire_legs = { ...IT.bronze_platelegs, n: 'Fireproof Legs', resistPm: { ember: 100 } };
+    try {
+      const legs = (worn, bag, level) => plan({ weapon: 'practice_sword', pants: worn }, [[bag]], lv1, level);
+      const gain = legs('bronze_platelegs', 'aw21_fire_legs', 17);
+      if (ops2(gain) !== '{"pants":"aw21_fire_legs"}' || UP.upgradeWords(gain) !== 'Upgrade: Fireproof Legs (-10% Fire damage taken)') fails.push('AW-21 fire resistance where fire is dealt reads ' + ops2(gain) + ' / ' + UP.upgradeWords(gain));
+      if (Object.keys(legs('bronze_platelegs', 'aw21_fire_legs', 20).ops).length) fails.push('AW-21 fire resistance counts with no fire in range');
+      const keep = legs('aw21_fire_legs', 'iron_platelegs', 17);
+      if (ops2(keep) !== '{}' || JSON.stringify(keep.choices) !== '[{"slot":"pants","ids":["iron_platelegs"],"keeps":"aw21_fire_legs","lost":[{"resist":"ember","pct":10}],"gain":"+4 Defense"}]'
+        || UP.upgradeWords(keep) !== 'No clear upgrade: Iron Platelegs adds +4 Defense, Fireproof Legs cuts fire damage by 10%')
+        fails.push('AW-21 a worn fire resistance against bigger plain numbers where fire is dealt reads ' + ops2(keep) + ' / ' + JSON.stringify(keep.choices) + ' / ' + UP.upgradeWords(keep));
+      const gone = legs('aw21_fire_legs', 'iron_platelegs', 20);
+      if (ops2(gone) !== '{"pants":"iron_platelegs"}' || gone.choices.length) fails.push('AW-21 a fire resistance with no fire in range holds the bigger numbers off: ' + ops2(gone) + ' / ' + JSON.stringify(gone.choices));
+      /* PHYSICAL, once lane/c-krell-uniques' `physical` key is in the engine's profile (elements.js HERO_RESIST_KEYS): every monster swings, so it counts wherever a ground is in range */
+      const EL = await imp('src/data/elements.js');
+      if (Array.isArray(EL.HERO_RESIST_KEYS) && EL.HERO_RESIST_KEYS.includes('physical')) {
+        IT.aw21_guard_legs = { ...IT.bronze_platelegs, n: 'Banded Test Legs', resistPm: { physical: 30 } };
+        if (ops2(legs('bronze_platelegs', 'aw21_guard_legs', 20)) !== '{"pants":"aw21_guard_legs"}') fails.push('AW-21 physical resistance does not count, though every monster swings');
+        if (ops2(legs('aw21_guard_legs', 'iron_platelegs', 20)) !== '{}') fails.push('AW-21 a worn physical resistance is traded away for plain numbers');
+      }
+    } finally { delete IT.aw21_fire_legs; delete IT.aw21_guard_legs; }
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight known: the
@@ -2438,6 +2511,88 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (shots) await shot(phone.page, 'alpha-922x423-back-in-town');
       }
       await phone.ctx.close();
+    }
+
+    { // AW-98 THE NEXT BUY (lane/a-next-steps; audit 2026-11-15 F12/F20: gold piled up and Back in town said nothing once the bag was sorted)
+      /* The AW-78 hero with its loot sold and nothing to deposit or bless, the Shop offering a Bronze Belt for an empty belt slot: the card names that ONE buy,
+         last, its press a Show that is never gold, and the Show opens the Shop's Buy tab. On a phone the row stays inside the sheet. */
+      const sorted = (e) => {
+        e.state = Object.assign({}, e.state, { level_xp: LEVEL_5_XP });
+        e.skills = Object.assign({}, e.skills, { farming: { xp: 28, level: 1, frac: 0 } });
+        for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow', 'rat_tail', 'slime_gel', 'bronze_belt', 'leather_belt']) delete e.inventory[id];
+        e.hunt_settings = Object.assign({}, e.hunt_settings, { slots: [], bar: [] });
+        e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'gear.bronze_belt', item: 'bronze_belt', kind: 'gear', price: 110 }]) });
+      };
+      for (const [vp, tag] of [[{ width: 1440, height: 900 }, '1440x900'], [{ width: 922, height: 423 }, '922x423']]) {
+        const { ctx, page, s, errors, up } = await open({ viewport: vp, mutateEnv: sorted, residue: { coach: { read: ['bar_intro'] } } });
+        if (!up) { fails.push('AW-98 the page did not mount at ' + tag); await ctx.close(); continue; }
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await page.waitForTimeout(300);
+        const row = await page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const li = w.querySelector('.hsum-step[data-step="buy"]');
+          const b = li && li.querySelector('button');
+          const body = w.querySelector('[data-hs-body]').getBoundingClientRect(), r = li ? li.getBoundingClientRect() : null;
+          return { steps: Array.from(w.querySelectorAll('.hsum-step')).map((x) => x.getAttribute('data-step')), title: li ? li.querySelector('b').textContent : null,
+            words: li ? li.querySelector('small').textContent : null, verb: b ? b.textContent : null, gold: b ? b.classList.contains('is-primary') : null,
+            go: b ? b.getAttribute('data-hs-goto') : null, inside: !!r && r.left >= body.left - 1 && r.right <= body.right + 1 };
+        });
+        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Next buy: Bronze Belt (110 gp)' || row.words !== '+2 Defense, +8 health, empty belt slot'
+          || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|bronze_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
+        if (shots) await shot(page, 'alpha-' + tag + '-back-in-town-buy');
+        if (tag === '1440x900') {
+          await page.click('[data-hs-win="hunt-summary"] .hsum-step[data-step="buy"] button');
+          await wait(page, () => !!document.querySelector('[data-hs-win="shop"] [data-hs-built]'), null, 3000);
+          await page.waitForTimeout(200);
+          const shop = await page.evaluate(() => { const tb = document.querySelector('[data-hs-win="shop"] .hw-tab[aria-selected="true"]'); return tb ? tb.getAttribute('data-tab') : null; });
+          if (shop !== 'buy') fails.push('AW-98 Show opened ' + JSON.stringify(shop) + ', want the Shop on its Buy tab');
+          if (shots) await shot(page, 'alpha-1440x900-back-in-town-buy-shop');
+        }
+        if (errors.length) fails.push('AW-98 console errors at ' + tag + ': ' + errors.join(' | ').slice(0, 300));
+        await ctx.close();
+      }
+    }
+
+    { // AW-99 THE FIRST DANGEROUS RUN (lane/a-next-steps; board 2026-11-15 F5): a Level 8 hero home in a helmet and a body piece, every other card read, meets the one
+      /* offer on the real page; in Hunts its ring stands on the Thicket's line, then on that page's Dangerous press. */
+      const TUT = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href)).HUNT_TUTORIAL;
+      const L8 = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(8);
+      const dressed = (e) => {
+        e.state = Object.assign({}, e.state, { level_xp: L8, active_kind: 'idle', active_id: null });
+        e.equipment = Object.assign({}, e.equipment, { helmet: 'bronze_helm', body: 'bronze_platebody' });
+        e.hunt = Object.assign({}, e.hunt, { hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: 'left', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        e.hunt_tier = { picks: {}, playing: null };
+        /* one hero on the account: a second past the first hour would already know (the card is `knowledge`, and the stub answers every slot with this hero) */
+        e.hero_slots = [0];
+      };
+      const { ctx, page, errors, up } = await open({ mutateEnv: dressed, residue: { coach: { read: TUT.map((r) => r.id).filter((id) => id !== 'first_dangerous') } } });
+      if (!up) fails.push('AW-99 the page did not mount');
+      else {
+        for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
+        await page.waitForTimeout(300);
+        const card = await page.evaluate(() => { const p = document.querySelector('.hs-pointer[data-tutorial]'); return p ? { id: p.getAttribute('data-tutorial'), text: (p.querySelector('.hs-coach-text') || {}).textContent || null } : null; });
+        if (!card || card.id !== 'first_dangerous' || card.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter') fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
+        if (shots) await shot(page, 'alpha-1440x900-first-dangerous');
+        if (!(await openWin(page, 'h', 'hunts'))) fails.push('AW-99 Hunts did not open');
+        else {
+          await page.waitForTimeout(300);
+          const ringed = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] [data-coach-ring]'))
+            .map((e) => (e.getAttribute('data-hunt') || '') + ':' + (e.getAttribute('data-tier') || '')));
+          const onLine = await ringed();
+          if (JSON.stringify(onLine) !== '["meadowbrook_thicket:"]') fails.push('AW-99 in Hunts the ring stands on ' + JSON.stringify(onLine) + ', want the Thicket\'s line');
+          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-hunts');
+          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]');
+          await page.waitForTimeout(400);
+          const onTier = await ringed();
+          if (JSON.stringify(onTier) !== '["meadowbrook_thicket:dangerous"]') fails.push('AW-99 on the Thicket\'s page the ring stands on ' + JSON.stringify(onTier) + ', want its Dangerous press');
+          if (shots) await shot(page, 'alpha-1440x900-first-dangerous-tier');
+        }
+        if (errors.length) fails.push('AW-99 console errors: ' + errors.join(' | ').slice(0, 300));
+      }
+      await ctx.close();
     }
 
     { // AW-5 AW-6 the locked stack and the confirmation
@@ -4943,15 +5098,21 @@ const MUTANTS = [
   ['plans: AW-21 a hall boss\'s piece comes from nowhere a player can reach', 'src/shell/hunt-ground-facts.js', "    if (boss && ((MONSTERS[boss] || {}).drops || []).some((d) => d && d.id === item)) standing.push({ g, names: [MONSTERS[boss].name] });\n", ''],
   ['plans: AW-21 a hall piece\'s link opens a hunt page that does not exist', 'src/shell/hunt-ground-facts.js', "  return standing.length ? { kind: 'hunt', hunt: pageOf(standing[0].g) }", "  return standing.length ? { kind: 'hunt', hunt: standing[0].g.hunt }"],
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
-  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (banes) for (const c of MONSTER_CLASSES) { if (a.banes[c] < b.banes[c] - EPS) return false; if (a.banes[c] > b.banes[c] + EPS) more = true; }\n', ''],
-  ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
+  ['plans: AW-21 a worn bane is traded for plain numbers', 'src/shell/upgrade-plan.js', '  if (traits) for (const c of MONSTER_CLASSES) { const side = baneSide(a, b, c); if (side < 0) return false; if (side > 0) more = true; }\n', ''],
+  ['plans: AW-21 a resistance is no number (lane/a-next-steps)', 'src/shell/upgrade-plan.js', '  if (traits) for (const k of resistsIn(a, b)) { if (resistOf(a, k) < resistOf(b, k)) return false; if (resistOf(a, k) > resistOf(b, k)) more = true; }\n', ''],
+  ['plans: AW-21 a resistance counts with nothing in range dealing it', 'src/shell/upgrade-plan.js', '(k in a.resist || k in b.resist) && a.threats.has(k)', '(k in a.resist || k in b.resist)'],
+  ['plans: AW-21 a worn resistance is lost in silence', 'src/shell/upgrade-plan.js', "const lost = [...(slot === 'weapon' ? banesLost(now, after) : []), ...resistsLost(now, after)];", "const lost = slot === 'weapon' ? banesLost(now, after) : [];"],
+  ['plans: AW-21 a spell\'s element is no threat', 'src/shell/upgrade-plan.js', 'if (r && !mends(r)) out.add(r.element || PHYSICAL);', 'if (r && !mends(r)) out.add(PHYSICAL);'],
+  ['plans: AW-21 a bane is a reason with no such monster in range (F15)', 'src/shell/upgrade-plan.js', 'OPEN_HUNTS.filter((h) => Array.isArray(h.band) && !(level < h.band[0] || level > h.band[1]))', 'OPEN_HUNTS.filter((h) => Array.isArray(h.band))'],
+  ['plans: AW-21 a worn off-hand stays for a better one of its kind (F8)', 'src/shell/upgrade-plan.js', '    for (const slot of UPGRADE_SLOTS.concat(OFFHAND)) {', '    for (const slot of UPGRADE_SLOTS) {'],
+  ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return tradeOf(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} in slot {slot} when both are ready',", "  shared_cooldown: 'Shares a cooldown with {action} in slot {slot}',"],
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],
   ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/shell/upgrade-plan.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? ', pick '", "(fixes.length > 9 ? ', pick '"],
-  ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt);\n    if (weak) out.push(weak);\n', ''],
+  ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);\n    if (weak) out.push(weak);\n', ''],
   ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/hunt-go.js', 'return best && best.amount < want.heals ? best.id : null;', 'return best && best.amount * 2 < want.heals ? best.id : null;'],
   ['plans: AW-27 a club hero is warned about another weapon', 'src/shell/hunt-go.js', 'if (moveOffWeapon(s.discipline, a.id)) return null;', ''],
   ['plans: AW-27 three spells read as a fallback ("then")', 'src/shell/hunt-go.js', "+ ' gp a cast)').join('. ');", "+ ' gp a cast)').join(', then ');"],

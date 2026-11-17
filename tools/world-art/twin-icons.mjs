@@ -39,6 +39,8 @@ const EARTH = ['#2a1c14', '#3d2a1d', '#553a26', '#6e4c30', '#8a6440', '#a88457',
 const BRONZE = ['#4a2e18', '#7a4f26', '#a8743a', '#cfa25c'];
 const IRON = ['#2c2e33', '#4a4d54', '#6e727a', '#969aa1'];
 const STEEL_HI = '#c4ccd2', BONE = '#c9bfa0', BONE_HI = '#e6dcbc', GOLD = '#e8c547', TORCH_HI = '#ffd36a';
+const MITHRIL = ['#2e4a52', '#4f7a80', '#86b4b4', '#c8e6e0'], STEEL = ['#3a4652', '#5c6c7a', '#8a9aa8', '#c4ccd2'];
+const FROST = '#4fa8e8', TORCH = '#f2a03a', SHADOW_HI = '#2f2723', STONE_LO = '#3a3a3e';
 const MOSS = ['#4a5a2a', '#6b7a38'], BLOOD = '#8e1f1f', BLOOD_HI = '#c23a2a', CLOTH = '#3e1216';
 
 const blank = () => Array.from({ length: 32 }, () => Array(32).fill(null));
@@ -276,8 +278,13 @@ function saltCrock(ramp, heapLo, heapHi, fleck) {
 }
 const temperSalts = () => saltCrock([EARTH[1], EARTH[2], EARTH[3], EARTH[4]], BONE, BONE_HI, IRON[1]);
 const fineTemperSalts = () => saltCrock(IRON, BONE_HI, STEEL_HI, IRON[3]);
+/* The March's three (lane/d-audit-balance-2, src/data/temper.js tiers 4 to 6), each crock in its metal: a mithril crock of pale ash, a steel
+   crock whose ash holds frost-blue flecks (the essence), a soot-black crock with the heap still glowing (crushed emberstone, "still warm"). */
+const mithrilTemperSalts = () => saltCrock(MITHRIL, BONE, BONE_HI, MITHRIL[3]);
+const runeTemperSalts = () => saltCrock(STEEL, BONE, BONE_HI, FROST);
+const emberTemperSalts = () => saltCrock([VOID, SOOT, SHADOW_HI, STONE_LO], TORCH, TORCH_HI, BLOOD_HI);
 
-export const DRAW = Object.freeze({ temper_salts: temperSalts, fine_temper_salts: fineTemperSalts, bronze_rimmed_shield: bronzeRimmedShield, kingsgrate, iron_hatchets: ironHatchets, oak_crossbow: oakCrossbow, crown_shard: crownShard });
+export const DRAW = Object.freeze({ temper_salts: temperSalts, fine_temper_salts: fineTemperSalts, mithril_temper_salts: mithrilTemperSalts, rune_temper_salts: runeTemperSalts, ember_temper_salts: emberTemperSalts, bronze_rimmed_shield: bronzeRimmedShield, kingsgrate, iron_hatchets: ironHatchets, oak_crossbow: oakCrossbow, crown_shard: crownShard });
 
 /** A grid (hex or null per pixel) as a binary-alpha 32x32 image. */
 export function toImage(g) {

@@ -180,6 +180,12 @@ export const PENDING_USE = Object.freeze({
   /* The designer's 11-10 Krell's Hold (ruling 6: it trades). Its use is the door of a keyed hall, a new room kind (that design's engine
      piece 5, on the pre-EA Security list); the row leaves the day that verb spends it (the Krell lane's row, carried by lane/d-packs-retune). */
   hall_key:         'Krell\'s Hold piece 5 — the keyed hall spends it on entry (systems-engineer, backend-architect)',
+  /* The old roster's late materials (UNREACHABLE `later`: no source either). Their one use was the House's held top, which the designer
+     re-costed to the Barrow March on 2026-11-15 (lane/d-audit-balance-2, homestead-tiers.js HELD_HOME_OFFERS now empty). Each row leaves
+     when the next region gives it a use, or Tyler cuts it with its `later` row. */
+  keystone:         'the next region (lane/d-next-region, designer): a use, or the cut list with UNREACHABLE later',
+  ancient_rune:     'the next region (lane/d-next-region, designer): a use, or the cut list with UNREACHABLE later',
+  dragon_gem:       'the next region (lane/d-next-region, designer): a use, or the cut list with UNREACHABLE later',
 });
 /* Items with NO source today, each with the ruling and the lane that closes it. SHRINK-ONLY like PENDING_USE: a
    row whose id gained a source or left ITEMS fails; no id may be added without a ruling and an owner. They are the
@@ -617,9 +623,11 @@ function mutate() {
     o.cost = [was[0], { kind: 'item', id: 'troll_hide', amount: 3 }];
     return { restore: () => { o.cost = was; } };
   });
-  run('the Castle comes out of hiding with its dragon scales', 'C12a', () => {
-    HELD_PLANT = HELD_HOME_OFFERS.filter((id) => id !== 'property.castle');
-    return { restore: () => { HELD_PLANT = null; } };
+  /* (lane/d-audit-balance-2: nothing is held since the March re-costed the Castle and the fifth rungs, so the planted rows carry the dead item) */
+  run('the Castle sold again with a dragon scale', 'C12a', () => {
+    const o = offerOf('property.castle'); const was = o.cost;
+    o.cost = [...was, { kind: 'item', id: 'dragon_scale', amount: 4 }];
+    return { restore: () => { o.cost = was; } };
   });
   run('a storage chest asks for a dragon scale', 'C12a', () => {
     CHESTS_PLANT = STORAGE_CHESTS.map((c, i) => (i === 1 ? { ...c, cost: { ...c.cost, dragon_scale: 1 } } : c));
@@ -640,9 +648,9 @@ function mutate() {
     return { restore: () => { o.cost = was; HELD_PLANT = null; } };
   });
   run('a visible rung gated on the held Castle', 'C12c', () => {
-    HELD_PLANT = HELD_HOME_OFFERS.filter((id) => id !== 'room.cellar.5');
-    const o = offerOf('room.cellar.5'); const was = o.cost;
-    o.cost = [was[0], { kind: 'item', id: 'oak_log', amount: 1 }];
+    const o = offerOf('property.castle'); const was = o.cost;
+    o.cost = [...was, { kind: 'item', id: 'dragon_scale', amount: 4 }];
+    HELD_PLANT = [...HELD_HOME_OFFERS, 'property.castle'];
     return { restore: () => { o.cost = was; HELD_PLANT = null; } };
   });
   /* C13 — the item a server function trades in (coverage bot 2026-11-07, the Farmer's Deed). */

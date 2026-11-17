@@ -39,7 +39,8 @@ import { ownCount } from './rune-supply.js?v=0.2.135';
 import { shortOf } from './item-lore.js?v=0.2.135';
 import { whole, gold } from '../render/format.js?v=0.2.135';
 import { t } from '../render/player-text.js?v=0.2.135';
-import { BAG_GUIDE_BY_HUNT } from '../data/supplies.js?v=0.2.135';
+import { storeFloorFor } from '../data/supplies.js?v=0.2.135';
+import { heroVitalsOf } from '../session/character-sections.js?v=0.2.135';
 import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.135';
 
 /* How many of the bar's actions a setup line shows. */
@@ -317,7 +318,8 @@ export function beforeLines(cs, o) {
     const said = supplyWords(s, cs, carriedOf(cs) || []);
     out.push(...said.lines);
     paysStore = said.paysStore;
-    const weak = weakFoodLine(s, o && o.hunt);
+    const v = heroVitalsOf(cs);
+    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);
     if (weak) out.push(weak);
   }
   const tally = tallyElsewhere(cs, o && o.hunt);
@@ -342,15 +344,31 @@ export function beforeLines(cs, o) {
 /* STORE FOOD TOO WEAK FOR THE GROUND (designer 2026-11-14, lane/d-march-balance). The start bar's store slot is Salted Shrimp, and a slot
    names one item until the player changes it (Tyler 2026-10-21), so a hero who never touched it walked into the Muster Barrows on 72 HP
    heals and died 2 of 2 under "Safe at your level". A ground whose blows outrun a weak store food names the weakest one measured safe for
-   a lone hero (its pack's bagGuide.storeFloor, supplies.js BAG_GUIDE_BY_HUNT); a bar whose best store food heals less is told the fix, and
+   a lone hero (its pack's bagGuide.storeFloor, supplies.js storeFloorFor); a bar whose best store food heals less is told the fix, and
    the page drops "Safe at your level" (hunts.js). A ground that names none says nothing: the start bar is measured safe there. A heads-up,
-   never a stop. { id, text, short } or null. */
+   never a stop. { id, text, short } or null.
+   AT THE HERO'S LEVEL, WITH ITS OWN NUMBERS (designer 2026-11-15, lane/d-audit-balance-2, the audit's F14): the floor is the one measured for
+   this Level (the Barrows ask for Salted Lobster to 64 and Salted Trout from 65), and when the server has sent the hero's HP the line says
+   what the food heals of it ("Salted Shrimp heals 72 of your 883 HP"): the two numbers a player needs to see why. The bar's food slot says
+   the same while the hero hunts there (weakFoodWords, slot-waits.js). */
 export const FOOD_WEAK_ID = 'food_weak';
-function weakFoodLine(s, hunt) {
-  const g = hunt && Object.prototype.hasOwnProperty.call(BAG_GUIDE_BY_HUNT, hunt) ? BAG_GUIDE_BY_HUNT[hunt] : null;
-  const best = g && g.storeFloor ? storeFoodUnder(s, g.storeFloor) : null;
-  return best ? { id: FOOD_WEAK_ID, text: t('prep.food_weak', { food: storeName(best), want: storeName(g.storeFloor) }), short: true } : null;
+function weakFoodLine(s, hunt, level, hpMax) {
+  const words = weakFoodWords('prep', s, hunt, level, hpMax);
+  return words ? { id: FOOD_WEAK_ID, text: words, short: true } : null;
 }
+
+/** The weak-store-food sentence for bar `s` on ground `hunt` at `level`, from text table `home` ('prep' the Hunts page, 'bar' the slot), or ''.
+    `only` (a store food id) asks about that one food, a slot's own, instead of the bar's best. */
+export function weakFoodWords(home, s, hunt, level, hpMax, only) {
+  const floor = hunt ? storeFloorFor(hunt, Number.isInteger(level) ? level : null) : null;
+  const best = floor ? (only ? (healsOf(only) < healsOf(floor) ? only : null) : storeFoodUnder(s, floor)) : null;
+  if (!best) return '';
+  const vars = { food: storeName(best), want: storeName(floor), heal: whole(healsOf(best)), hp: hpMax > 0 ? whole(hpMax) : '' };
+  if (home === 'bar') return hpMax > 0 ? t('bar.food_weak_hp', vars) : t('bar.food_weak', vars);
+  return hpMax > 0 ? t('prep.food_weak_hp', vars) : t('prep.food_weak', vars);
+}
+/* What one store food heals (supply-basics.js), 0 for anything else. */
+const healsOf = (id) => { const b = BASIC_SUPPLIES.find((x) => x.id === id); return b && b.kind === 'heal' ? b.heals : 0; };
 
 /** The store food bar `s` (settingsOf) buys at best, when it heals less than store row `floorId`; else null (no store food, or enough).
     A keyed hall's door reads it too (boss-hall-pane.js, `storeFloor`). Display only. */

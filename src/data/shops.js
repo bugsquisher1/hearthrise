@@ -153,10 +153,17 @@ export const SHOP_OFFERS = [
     grant: [{ kind: "item", id: "stone_maul", amount: 1 }],
     repeatable: true,
   },
+  /* THE HOUSE'S TOP, OUT OF HIDING (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F12 and F20). Held since 2026-10-31 for
+     dragon scales and keystones nothing drops, so the House stopped at the Keep and a Level-80 account had millions and nowhere to put them.
+     Now the Castle and the eight fifth rungs ask for Barrow March drops (Krell's gate chains, rake tines, priests' cords, Hask's coins, seals,
+     nails, shroud pins, Ford Weed, Grave Dust) and top crafts (Emberforged Bars, Runewood and Duskwood Planks, Cooked Shark). Gold: Castle
+     2,500,000, rooms 600,000 to 900,000, 8,450,000 in all, once an account. MEASURED (`audit-table.mjs gold --to 90`): a hero banks 1.10M from
+     Level 45 to 60, 1.77M to 75, 1.89M to 90, and Tempering 4 to 6 asks 2.23M of it, so the House is the account's chase of months. A fifth
+     rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power. */
   {
     id: "property.castle", table: "property",
     name: "Hearthrise Castle",
-    cost: [{ kind: "currency", id: "gold", amount: 150000 }, { kind: "item", id: "dragon_scale", amount: 4 }, { kind: "item", id: "keystone", amount: 6 }, { kind: "item", id: "mithril_bar", amount: 40 }, { kind: "item", id: "rune_bar", amount: 8 }, { kind: "item", id: "yew_plank", amount: 70 }],
+    cost: [{ kind: "currency", id: "gold", amount: 2500000 }, { kind: "item", id: "ember_bar", amount: 20 }, { kind: "item", id: "gatekeepers_chain", amount: 10 }, { kind: "item", id: "iron_fitting", amount: 30 }, { kind: "item", id: "runewood_plank", amount: 60 }, { kind: "item", id: "timber_beam", amount: 30 }],
     grant: [{ kind: "unlock", id: "property:castle", amount: 5 }],
   },
   {
@@ -210,7 +217,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.cellar.5", table: "room",
     name: "Cellar — The Deep Cellar",
-    cost: [{ kind: "currency", id: "gold", amount: 320000 }, { kind: "item", id: "duskwood_plank", amount: 20 }, { kind: "item", id: "keystone", amount: 2 }, { kind: "item", id: "moonbloom_elixir", amount: 4 }],
+    cost: [{ kind: "currency", id: "gold", amount: 700000 }, { kind: "item", id: "barrow_nail", amount: 20 }, { kind: "item", id: "moonbloom_elixir", amount: 4 }, { kind: "item", id: "runewood_plank", amount: 30 }],
     grant: [{ kind: "unlock", id: "room:cellar", amount: 5 }],
   },
   {
@@ -240,7 +247,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.forge.5", table: "room",
     name: "Forge — The Deep Forge",
-    cost: [{ kind: "currency", id: "gold", amount: 480000 }, { kind: "item", id: "dragon_scale", amount: 6 }, { kind: "item", id: "keystone", amount: 2 }, { kind: "item", id: "mithril_bar", amount: 20 }],
+    cost: [{ kind: "currency", id: "gold", amount: 900000 }, { kind: "item", id: "ember_bar", amount: 30 }, { kind: "item", id: "iron_fitting", amount: 40 }, { kind: "item", id: "rake_tine", amount: 20 }],
     grant: [{ kind: "unlock", id: "room:forge", amount: 5 }],
   },
   {
@@ -270,7 +277,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.garden.5", table: "room",
     name: "Garden — The Orchard",
-    cost: [{ kind: "currency", id: "gold", amount: 300000 }, { kind: "item", id: "duskwood_plank", amount: 40 }, { kind: "item", id: "keystone", amount: 2 }, { kind: "item", id: "moonbloom", amount: 12 }],
+    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "ford_weed", amount: 30 }, { kind: "item", id: "moonbloom", amount: 12 }, { kind: "item", id: "runewood_plank", amount: 40 }],
     grant: [{ kind: "unlock", id: "room:garden", amount: 5 }],
   },
   {
@@ -300,7 +307,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.kitchen.5", table: "room",
     name: "Kitchen — The Great Hearth",
-    cost: [{ kind: "currency", id: "gold", amount: 400000 }, { kind: "item", id: "dragon_scale", amount: 8 }, { kind: "item", id: "duskwood_plank", amount: 30 }, { kind: "item", id: "keystone", amount: 2 }],
+    cost: [{ kind: "currency", id: "gold", amount: 800000 }, { kind: "item", id: "cooked_shark", amount: 100 }, { kind: "item", id: "ember_bar", amount: 8 }, { kind: "item", id: "runewood_plank", amount: 40 }],
     grant: [{ kind: "unlock", id: "room:kitchen", amount: 5 }],
   },
   {
@@ -330,7 +337,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.library.5", table: "room",
     name: "Library — The Great Library",
-    cost: [{ kind: "currency", id: "gold", amount: 450000 }, { kind: "item", id: "ancient_rune", amount: 12 }, { kind: "item", id: "duskwood_plank", amount: 30 }, { kind: "item", id: "keystone", amount: 2 }],
+    cost: [{ kind: "currency", id: "gold", amount: 850000 }, { kind: "item", id: "magic_essence", amount: 60 }, { kind: "item", id: "priests_cord", amount: 20 }, { kind: "item", id: "runewood_plank", amount: 40 }],
     grant: [{ kind: "unlock", id: "room:library", amount: 5 }],
   },
   {
@@ -360,7 +367,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.shrine.5", table: "room",
     name: "Shrine — The Ossuary",
-    cost: [{ kind: "currency", id: "gold", amount: 270000 }, { kind: "item", id: "dragon_bones", amount: 30 }, { kind: "item", id: "keystone", amount: 2 }, { kind: "item", id: "war_crown", amount: 4 }],
+    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "big_bones", amount: 100 }, { kind: "item", id: "grave_dust", amount: 100 }, { kind: "item", id: "shroud_pin", amount: 20 }],
     grant: [{ kind: "unlock", id: "room:shrine", amount: 5 }],
   },
   {
@@ -390,7 +397,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.trophy.5", table: "room",
     name: "Trophy Room — The Long Gallery",
-    cost: [{ kind: "currency", id: "gold", amount: 290000 }, { kind: "item", id: "dragon_gem", amount: 1 }, { kind: "item", id: "dragon_scale", amount: 6 }, { kind: "item", id: "keystone", amount: 2 }],
+    cost: [{ kind: "currency", id: "gold", amount: 600000 }, { kind: "item", id: "hasks_coin", amount: 5 }, { kind: "item", id: "runewood_plank", amount: 30 }, { kind: "item", id: "war_crown", amount: 1 }, { kind: "item", id: "warrant_seal", amount: 10 }],
     grant: [{ kind: "unlock", id: "room:trophy", amount: 5 }],
   },
   {
@@ -420,7 +427,7 @@ export const SHOP_OFFERS = [
   {
     id: "room.workshop.5", table: "room",
     name: "Workshop — The Master's Shop",
-    cost: [{ kind: "currency", id: "gold", amount: 480000 }, { kind: "item", id: "duskwood_plank", amount: 25 }, { kind: "item", id: "keystone", amount: 2 }, { kind: "item", id: "rune_bar", amount: 6 }],
+    cost: [{ kind: "currency", id: "gold", amount: 900000 }, { kind: "item", id: "duskwood_plank", amount: 25 }, { kind: "item", id: "rune_bar", amount: 6 }, { kind: "item", id: "timber_beam", amount: 30 }],
     grant: [{ kind: "unlock", id: "room:workshop", amount: 5 }],
   },
   {

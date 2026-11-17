@@ -305,6 +305,16 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // SV-7: gear ABOVE the server's ladders says which Levels the smith has rungs for (the playthrough audit's F17: "can't be tempered yet" at
+      // Level 55 in Mithril, no reason). The Levels are the server's ladders here (tiers 2 and 3: worn from 15 to 30), never this build's table.
+      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), { equipment: { weapon: 'mithril_sword', body: 'mithril_platebody' }, temper: clone(TEMPER.temper) }));
+      if (!opened) fails.push('SV-7 the Services tab did not open on Mithril');
+      else {
+        const b = await txt(page, '.hw-temper [data-track="blows"]');
+        if (!/Not temperable yet, rungs only for Level 15 to 30 gear/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
+      }
+      await ctx.close();
+    }
     { // SV-5
       /* SV-11 BLESS ALL (designer re-read 2026-11-11: three presses to bless again): ONE press buys every missing tier in order, each at the price
          the envelope the last purchase brought back quotes, and the button goes once nothing is missing */

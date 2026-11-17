@@ -29,7 +29,10 @@
 //              cannot dispatch
 //   LD-KIT     a start-kit item MAY be planned Deposit in storage (Coordinator 2026-10-25:
 //              Storage takes it anyway): Dispatch stores the whole stack, no gold moves
-//   LD-IDEM    a second apply of the file is byte-identical (bodies, schema, baseline rows)
+//   LD-COPY    one hero takes another's plan (2027-04-24-loot-plan-copy.sql, audit 2026-11-15 F11): a copy lands (the source's plans, the
+//              destination's own plan back to keep, its lock kept) and answers the destination's section; a source slot that holds only
+//              ANOTHER account's hero is refused no_source and writes nothing; the same key again answers the same and writes nothing
+//   LD-IDEM    a second apply of the file, and of 2027-04-24-loot-plan-copy.sql, is byte-identical (bodies, schema, baseline rows)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -40,6 +43,7 @@ import { goldOf } from './_gold.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const FILE = '2027-01-23-loot-dispatch.sql';
+const COPY_FILE = '2027-04-24-loot-plan-copy.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
 const idem = () => crypto.randomUUID();
 
@@ -254,12 +258,65 @@ const ARMS = {
     return p;
   },
 
+  'LD-COPY': async (db, ctx) => {
+    const { H } = ctx;
+    const p = [];
+    const [me, other] = [H.UIDS[1], H.UIDS[2] || '000000c0-0000-4000-a000-00000c0b1e02'];
+    for (const u of [me, other]) {
+      await db.query('insert into auth.users (id) values ($1) on conflict (id) do nothing', [u]);
+      await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'loot-dispatch') on conflict (user_id) do nothing", [u]);
+    }
+    const items = (await db.query('select item_id from public.hr_items order by item_id limit 3')).rows.map((r) => r.item_id);
+    const [dep, ign, own] = items;
+    const fresh = () => db.query('delete from public.hr_rate_counters');
+    const plan = async (u, slot) => (await H.one(db, "select coalesce(jsonb_object_agg(item_id, loot_rule), '{}') from public.player_item_rules where user_id = $1 and slot = $2 and loot_rule <> 'keep'", [u, slot])) || {};
+    /* slot 1 owned as a purchase owns it (hr_buy_hero_slot's flag row, hr_hero_slots_of clause 2; it needs the slot-0 hero); the arm rolls back */
+    const ownSlot1 = (u) => db.query("insert into public.player_progress (user_id, slot, kind, key, value, period_key, state, updated_at) values ($1, 0, 'flag', 'character_slot:1', 1, '', null, now()) on conflict do nothing", [u]);
+    const copy = (u, slot, from, key) => asAuth(db, u, 'select public.hr_loot_plan_copy($1, $2, $3::uuid)', [slot, from, key]);
+    /* the other account: heroes in slots 0 and 1, a plan on slot 1; the caller: slot 0 only */
+    await asAuth(db, other, 'select public.hr_create_character(0)');
+    await ownSlot1(other);
+    await asAuth(db, other, 'select public.hr_create_character(1)');
+    await asAuth(db, other, "select public.hr_loot_rule_set(1, $1, 'deposit', $2::uuid)", [dep, idem()]);
+    await asAuth(db, me, 'select public.hr_create_character(0)');
+    await ownSlot1(me);
+    await fresh();
+    const foreign = await copy(me, 0, 1, idem());
+    if (!foreign || foreign.error !== 'no_source') p.push('a source slot holding only another account\'s hero answered ' + JSON.stringify(foreign));
+    if (Object.keys(await plan(me, 0)).length) p.push('the refused copy wrote the other account\'s plan onto the caller: ' + JSON.stringify(await plan(me, 0)));
+    /* a copy lands */
+    const made = await asAuth(db, me, 'select public.hr_create_character(1)');
+    if (!made || made.ok !== true) return p.concat('CONTROL: the caller\'s second hero was refused: ' + JSON.stringify(made));
+    await fresh();
+    await asAuth(db, me, "select public.hr_loot_rule_set(0, $1, 'deposit', $2::uuid)", [dep, idem()]);
+    await asAuth(db, me, "select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [ign, idem()]);
+    await asAuth(db, me, "select public.hr_loot_rule_set(1, $1, 'deposit', $2::uuid)", [own, idem()]);
+    await asAuth(db, me, 'select public.hr_item_lock(1, $1, true, $2::uuid)', [own, idem()]).catch(() => null);
+    await fresh();
+    const key = idem();
+    const landed = await copy(me, 1, 0, key);
+    const want = JSON.stringify({ [dep]: 'deposit', [ign]: 'ignore' });
+    const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
+    if (!landed || landed.ok !== true || landed.changed !== 3 || landed.from !== 0) p.push('the copy answered ' + JSON.stringify(landed));
+    if (sorted(await plan(me, 1)) !== sorted(JSON.parse(want))) p.push('after the copy the destination plans ' + sorted(await plan(me, 1)) + ', want ' + want);
+    if (landed && landed.bag_rules && sorted(landed.bag_rules.loot) !== sorted(JSON.parse(want))) p.push('the answer\'s section reads ' + JSON.stringify(landed.bag_rules.loot));
+    if (sorted(await plan(other, 1)) !== sorted({ [dep]: 'deposit' })) p.push('the other account\'s plan moved: ' + sorted(await plan(other, 1)));
+    /* the same key again, the source moved since: the same answer, nothing written */
+    await asAuth(db, me, "select public.hr_loot_rule_set(0, $1, 'ignore', $2::uuid)", [own, idem()]);
+    await fresh();
+    const again = await copy(me, 1, 0, key);
+    if (JSON.stringify(again) !== JSON.stringify(landed)) p.push('the same key answered anew: ' + JSON.stringify(again));
+    if (sorted(await plan(me, 1)) !== sorted(JSON.parse(want))) p.push('the same key wrote again: ' + sorted(await plan(me, 1)));
+    return p;
+  },
+
   'LD-IDEM': async (db) => {
     const bodies = async () => JSON.stringify((await db.query(`select p.oid::regprocedure::text as f, md5(p.prosrc) as h, coalesce(p.proacl::text, '') as acl
       from pg_proc p where p.pronamespace = 'public'::regnamespace order by 1`)).rows);
     const rows = async () => JSON.stringify((await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows);
     const before = JSON.stringify([await inventory(db), await bodies(), await rows()]);
-    try { await db.exec(readFileSync(MIG, 'utf8').replace(/\r\n/g, '\n')); }
+    /* this file and 2027-04-24-loot-plan-copy.sql (F11), each applied again: nothing moves (each one's self-check runs again and rolls back) */
+    try { for (const m of [MIG, join(ROOT, 'supabase', 'migrations', '2027-04-24-loot-plan-copy.sql')]) await db.exec(readFileSync(m, 'utf8').replace(/\r\n/g, '\n')); }
     catch (e) { return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
     const after = JSON.stringify([await inventory(db), await bodies(), await rows()]);
     return before === after ? [] : ['a second apply moved the schema, a body or a baseline row'];
@@ -268,6 +325,14 @@ const ARMS = {
 
 /* Each mutant, planted in this file's body (the chain's last author of each), its self-check turned off. */
 const MUTANTS = [
+  /* F11 (2027-04-24-loot-plan-copy.sql): `file` names the body's author */
+  { arm: 'LD-COPY', file: COPY_FILE, why: 'the source is read across accounts',
+    pairs: [['  if not exists (select 1 from public.player_state where user_id = v_uid and slot = p_from) then', '  if not exists (select 1 from public.player_state where slot = p_from) then'],
+      ["             where r.user_id = v_uid and r.slot = p_from and r.loot_rule <> 'keep') s", "             where r.slot = p_from and r.loot_rule <> 'keep' and r.user_id = (select ps.user_id from public.player_state ps where ps.slot = p_from order by ps.user_id = v_uid desc limit 1)) s"]] },
+  { arm: 'LD-COPY', file: COPY_FILE, why: 'a decided key copies again',
+    find: '  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n  if not public.hr_rpc_gate', repl: '  if not public.hr_rpc_gate' },
+  { arm: 'LD-COPY', file: COPY_FILE, why: 'the copy writes nothing',
+    find: '    perform public.hr_item_rule_put(v_uid, p_slot, v_row.item_id, v_row.locked, v_row.want, v_row.restock);\n', repl: '' },
   { arm: 'LD-FULL', why: 'a deposit ignores the Storage room',
     find: '      if not public.hr_storage_room_fits(v_uid, v_row.item_id) then', repl: '      if false and not public.hr_storage_room_fits(v_uid, v_row.item_id) then' },
   { arm: 'LD-PLAY', why: 'the sale pays twice the catalogue bid',
@@ -289,10 +354,10 @@ const MUTANTS = [
     find: "    when p_plan = 'sell' and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)", repl: "    when p_plan in ('sell', 'deposit') and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)" },
 ];
 
-function selfCheckOff() {
-  const src = readFileSync(MIG, 'utf8').replace(/\r\n/g, '\n');
+function selfCheckOff(file = FILE) {
+  const src = readFileSync(join(ROOT, 'supabase', 'migrations', file), 'utf8').replace(/\r\n/g, '\n');
   const m = src.match(/\n(-- (?:── )?§\d+ SELF-CHECK[^\n]*(?:\n--[^\n]*)*)\n(do \$(\w*)\$)/);
-  if (!m) throw new Error('no self-check heading in ' + FILE);
+  if (!m) throw new Error('no self-check heading in ' + file);
   return [m[1] + '\n' + m[2], m[1] + '\ncreate or replace function pg_temp.ld_selfcheck_off() returns void language plpgsql as $' + m[3] + '$'];
 }
 
@@ -327,7 +392,7 @@ async function main() {
   let missed = 0;
   for (const mu of MUTANTS) {
     let db;
-    try { ({ db } = await bootReplay({ patches: new Map([[FILE, [selfCheckOff(), ...(mu.pairs || [[mu.find, mu.repl]])]]]),
+    try { ({ db } = await bootReplay({ patches: new Map([[mu.file || FILE, [selfCheckOff(mu.file), ...(mu.pairs || [[mu.find, mu.repl]])]]]),
       /* The arms play a real hunt on today's engine: a chain cut here holds an older world shape (2027-02-11-no-fight's
          catalogue moved it), so every settle answers world_shape_pending and the hunt picks up nothing. */
       fullChain: 'the arms play a hunt on the engine of today, which needs the catalogue and world shape of the files after this one' })); }

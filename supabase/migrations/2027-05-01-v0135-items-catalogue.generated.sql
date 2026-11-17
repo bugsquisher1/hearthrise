@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: fb50f20a521f61a6755e5e6635a730603731875d6929370b474e8cabd36592ff
---   rows: 635 items (14 untradeable) ·
---         351 item-slot pairs · 14 equip slots ·
---         13 skills · 9 crops · 379 activities ·
+--   catalogue digest: 4a76d3b01fab5cf34589f3c2de8c2809607f5402cc01bc36d54d3cf90b3936e3
+--   rows: 641 items (14 untradeable) ·
+--         354 item-slot pairs · 14 equip slots ·
+--         13 skills · 9 crops · 386 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -416,6 +416,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ember_platelegs','Emberforged Platelegs',true,'armor',28600,'level',75,null,false,'heavy',false),
   ('ember_sword','Emberforged Sword',true,'weapon',13000,'level',75,null,false,null,false),
   ('ember_tart','Ember Tart',true,null,1300,null,null,360,false,null,false),
+  ('ember_temper_salts','Ember Tempering Salts',true,null,235,null,null,null,false,null,false),
+  ('ember_tower_shield','Emberforged Tower Shield',true,'offhand',9750,'level',75,null,false,null,false),
   ('ember_warhammer','Emberforged Warhammer',true,'weapon',14300,'level',75,null,false,null,true),
   ('emberfang_blade','Emberfang',true,'weapon',14400,'level',72,null,false,null,false),
   ('emberfruit','Emberfruit',true,null,480,null,null,192,true,null,false),
@@ -540,6 +542,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('mithril_bar','Mithril Bar',true,null,250,null,null,null,false,null,false),
   ('mithril_belt','Mithril Belt',true,'armor',1200,'level',45,null,false,'heavy',false),
   ('mithril_boots','Mithril Boots',true,'armor',1200,'level',45,null,false,'heavy',false),
+  ('mithril_faced_shield','Mithril-Faced Shield',true,'offhand',1100,'level',45,null,false,null,false),
   ('mithril_gauntlets','Mithril Gauntlets',true,'armor',1050,'level',45,null,false,'heavy',false),
   ('mithril_hatchets','Mithril Hatchets',true,'weapon',1500,'level',45,null,false,null,true),
   ('mithril_helm','Mithril Helm',true,'armor',1800,'level',45,null,false,'heavy',false),
@@ -548,6 +551,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('mithril_platebody','Mithril Platebody',true,'armor',4500,'level',45,null,false,'heavy',false),
   ('mithril_platelegs','Mithril Platelegs',true,'armor',3300,'level',45,null,false,'heavy',false),
   ('mithril_sword','Mithril Sword',true,'weapon',1500,'level',45,null,false,null,false),
+  ('mithril_temper_salts','Mithril Tempering Salts',true,null,130,null,null,null,false,null,false),
   ('mithril_warhammer','Mithril Warhammer',true,'weapon',1650,'level',45,null,false,null,true),
   ('mithril_whetstone','Mithril Whetstone',true,'ammo',12,'melee',60,null,false,null,false),
   ('moonbloom','Moonbloom',true,null,850,null,null,240,true,null,false),
@@ -636,8 +640,10 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_platebody','Rune Platebody',true,'armor',13500,'level',60,null,false,'heavy',false),
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'level',60,null,false,'heavy',false),
   ('rune_sword','Rune Sword',true,'weapon',5000,'level',60,null,false,null,false),
+  ('rune_temper_salts','Rune Tempering Salts',true,null,180,null,null,null,false,null,false),
   ('rune_warhammer','Rune Warhammer',true,'weapon',4950,'level',60,null,false,null,true),
   ('rune_whetstone','Rune Whetstone',true,'ammo',20,'melee',75,null,false,null,false),
+  ('runebound_shield','Runebound Shield',true,'offhand',3750,'level',60,null,false,null,false),
   ('runewood_bow','Runewood Bow',true,'weapon',13650,'level',75,null,false,null,true),
   ('runewood_codex','Runewood Codex',true,'offhand',10400,'level',75,null,false,null,false),
   ('runewood_crossbow','Runewood Crossbow',true,'weapon',13000,'level',75,null,false,null,false),
@@ -974,6 +980,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('ember_platebody','body'),
   ('ember_platelegs','pants'),
   ('ember_sword','weapon'),
+  ('ember_tower_shield','shield'),
   ('ember_warhammer','weapon'),
   ('emberfang_blade','weapon'),
   ('emberhead_arrows','ammo'),
@@ -1036,6 +1043,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('mithril_arrows','ammo'),
   ('mithril_belt','belt'),
   ('mithril_boots','boots'),
+  ('mithril_faced_shield','shield'),
   ('mithril_gauntlets','gloves'),
   ('mithril_hatchets','weapon'),
   ('mithril_helm','helmet'),
@@ -1081,6 +1089,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('rune_sword','weapon'),
   ('rune_warhammer','weapon'),
   ('rune_whetstone','ammo'),
+  ('runebound_shield','shield'),
   ('runewood_bow','weapon'),
   ('runewood_codex','shield'),
   ('runewood_crossbow','weapon'),
@@ -1325,6 +1334,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','forge_iron_warhammer','smithing',15,null,false,null),
   ('artisan','forge_ironbound_shield','smithing',15,null,false,null),
   ('artisan','forge_mithril_axe','smithing',58,null,false,null),
+  ('artisan','forge_mithril_faced_shield','smithing',45,null,false,null),
   ('artisan','forge_mithril_hatchets','smithing',45,null,false,null),
   ('artisan','forge_mithril_pickaxe','smithing',58,null,false,null),
   ('artisan','forge_rune_axe','smithing',78,null,false,null),
@@ -1354,8 +1364,14 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','grind_mithril_whetstone','smithing',50,null,false,null),
   ('artisan','grind_rune_whetstone','smithing',65,null,false,null),
   ('artisan','grind_steel_whetstone','smithing',35,null,false,null),
+  ('artisan','mix_ember_temper_salts','smithing',75,null,false,null),
   ('artisan','mix_fine_temper_salts','smithing',30,null,false,null),
+  ('artisan','mix_mithril_temper_salts','smithing',45,null,false,null),
+  ('artisan','mix_rune_temper_salts','smithing',60,null,false,null),
   ('artisan','mix_temper_salts','smithing',15,null,false,null),
+  ('artisan','pack_ember_temper_salts','crafting',75,null,false,null),
+  ('artisan','pack_mithril_temper_salts','crafting',45,null,false,null),
+  ('artisan','pack_rune_temper_salts','crafting',60,null,false,null),
   ('artisan','press_carrot_juice','cooking',12,null,false,null),
   ('artisan','press_tomato_juice','cooking',30,null,false,null),
   ('artisan','press_turnip_juice','cooking',1,null,false,null),
@@ -2160,7 +2176,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'fb50f20a521f61a6755e5e6635a730603731875d6929370b474e8cabd36592ff', now())
+  values (true, '4a76d3b01fab5cf34589f3c2de8c2809607f5402cc01bc36d54d3cf90b3936e3', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2188,11 +2204,11 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 635 then raise exception 'hr_items has % rows, generator emitted 635', v_n; end if;
+  if v_n <> 641 then raise exception 'hr_items has % rows, generator emitted 641', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '223b5fae77827235096cd47bf52fff4d' then
-    raise exception 'hr_items names differ from src/data (expected digest 223b5fae77827235096cd47bf52fff4d)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'bb5cb990d25dffccc008cb1dbad23f75' then
+    raise exception 'hr_items names differ from src/data (expected digest bb5cb990d25dffccc008cb1dbad23f75)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2206,7 +2222,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 14', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 379 then raise exception 'hr_activities has % rows, expected 379', v_n; end if;
+  if v_n <> 386 then raise exception 'hr_activities has % rows, expected 386', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -2278,8 +2294,8 @@ begin
      and not exists (select 1 from public.hr_item_slots s where s.item_id = i.item_id and s.equip_slot <> 'ammo');
   if v_bad > 0 then raise exception '% non-equipment row(s) name the hero''s Level (a supply keeps its skill)', v_bad; end if;
   select count(*) into v_n from public.hr_items where req_skill = 'level';
-  if v_n <> 291 then
-    raise exception 'hr_items holds % Level-gated rows, the generator emitted 291', v_n;
+  if v_n <> 294 then
+    raise exception 'hr_items holds % Level-gated rows, the generator emitted 294', v_n;
   end if;
 
   -- No client write policy may exist on a catalogue table.
@@ -2392,7 +2408,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest fb50f20a521f61a6755e5e6635a730603731875d6929370b474e8cabd36592ff',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 4a76d3b01fab5cf34589f3c2de8c2809607f5402cc01bc36d54d3cf90b3936e3',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

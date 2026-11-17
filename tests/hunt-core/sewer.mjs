@@ -15,6 +15,8 @@
 //   tutorial-town-chain    sell or keep, Blessings (the server's numbers), Tamsin's weight per role, paid, setups
 //   tutorial-reactive      ate, drank, a beating, more heroes, hunt together, upgrades, storage, stamina, a death,
 //                          paid Blessings, juice, a house, own runes: each on its own fact and worded from it
+//   first-dangerous-run    ONE card offers the first Dangerous run at Level 8 to a hero in armor on head and body (server facts), names a ground
+//                          of its range with the tier, rings its Dangerous press, and never comes back once read or taken
 //   tutorial-second-hero   a second hero skips the knowledge cards and keeps the ones that set its own state
 //   tutorial-no-wall       no Got it recorder or shell facts: never a wall; no card names an empty slot
 //   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
@@ -301,7 +303,7 @@ function walkChain(M, T, extra) {
     tamsins_task: () => set({ tally: tallyFact([[WOLVES, 0]], [RATS]) }),
     /* in the Thicket the hero eats, and "Eat on time" comes (the two read-on-sight cards it meets on the way are read) */
     into_the_thicket: () => set({ huntId: 'meadowbrook_thicket', visited: new Set([...f.visited, 'meadowbrook_thicket']), sellable: null,
-      supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], read: f.read instanceof Set ? new Set([...f.read, 'first_eat', 'fight_settings']) : f.read }),
+      supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], read: f.read instanceof Set ? new Set([...f.read, 'first_eat', 'fight_settings']) : f.read }),
     help_page: () => read('help_page'),
     tamsin_pays: () => { L(7); set({ huntId: null, endReason: 'left', tally: tallyFact([], [RATS, WOLVES]), sellable: 0 }); },
     save_setup: () => set({ presets: 1 }),
@@ -506,8 +508,14 @@ const cases = {
     }
     /* the food sums wait until the hero has eaten; then they ask, and Got it moves on */
     if (seen.includes('food_when')) return 'Eat on time came before the hero ate';
-    const fed = (more) => fresh(floor - 1, { read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro']), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], ...(more || {}) });
-    if (id(fed()) !== 'food_when') return 'a hero who has eaten three times is on ' + id(fed());
+    const fed = (more) => fresh(floor - 1, { read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro']), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], ...(more || {}) });
+    if (id(fed()) !== 'food_when') return 'a hero who has eaten six times is on ' + id(fed());
+    /* THE FOOD LESSON WAITS FOR A HERO SPENDING FOOD (the playthrough audit 2026-11-15, F5): three meals is not six, and the audit's own hunt,
+       8 meals in 2 hours of the Thicket (4 an hour, in armor on Normal), is not twelve an hour; six in ten minutes is */
+    const meals = (n, ms) => fed({ supplies: [{ item: 'cooked_shrimp', source: 'own', count: n }], huntMs: ms });
+    if (id(meals(3, 0)) === 'food_when') return 'Eat on time came after three meals';
+    if (id(meals(8, 2 * 3600000)) === 'food_when') return 'Eat on time came at 8 meals in 2 hours (4 an hour): the audit\'s hero, who is not spending food';
+    if (id(meals(6, 10 * 60000)) !== 'food_when') return 'a hero eating 6 times in 10 minutes is on ' + id(meals(6, 10 * 60000)) + ', not Eat on time';
     if (id(fed({ read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro', 'food_when']) })) === 'food_when') return 'Got it does not pass Eat on time';
     /* the first card on a new hero is Tamsin's rats, then the Cellar: the style waits until home from that first hunt
        (designer 2026-11-12, first-30 play: before any hunt it sent the hero into the bag, not to the Cellar) */
@@ -779,7 +787,7 @@ const cases = {
         if (!noStore || noStore.id === 'spell_runes') return set + ': with no store rune to name, the rune card is ' + (noStore ? 'still up' : 'up with no words (the coach goes blank)');
       } else if (card && card.id === 'spell_runes') return set + ': no spell is struck, yet the rune card is up';
       /* Saved with the store's rune on that slot: the server now says it can fire */
-      const fixed = { ...read, slots: T.slots.map((s) => ({ ...s, usable: true })), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }],
+      const fixed = { ...read, slots: T.slots.map((s) => ({ ...s, usable: true })), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }],
         read: new Set([...(read.read || []), 'first_eat', 'fight_settings']) };
       const eat = say(fixed);
       const food = T.slots.findIndex((s) => s.type === 'consume' && s.id === 'cooked_shrimp');
@@ -790,8 +798,15 @@ const cases = {
       /* where it says to stop: Configure action's 5% steps down from 60 until nothing is wasted, never under 50% */
       let stop = 60;
       while (stop - 5 >= 50 && M.tut.wasteAt(heal, stop, fixed.hpMax) > 0) stop -= 5;
-      const eatWant = lost > 0 ? 'Press slot ' + (food + 1) + ' and set it to ' + stop + '% HP' : 'Press slot ' + (food + 1) + ' and set its HP with − or +';
+      /* ONE VISIT SETS BOTH (the playthrough audit 2026-11-15, F4): the card that lowers the own food names the store food slot and the same line,
+         so its advice does not make the "Own food first" card; a bar with no store food above the new line is told nothing more */
+      const storeSlot = T.slots.findIndex((x) => x.type === 'consume' && x.id === 'salted_shrimp');
+      const bothSlots = stop < 60 && storeSlot >= 0;
+      const eatWant = bothSlots ? 'Press slot ' + (food + 1) + ' and slot ' + (storeSlot + 1) + ', set both to ' + stop + '% HP'
+        : lost > 0 ? 'Press slot ' + (food + 1) + ' and set it to ' + stop + '% HP' : 'Press slot ' + (food + 1) + ' and set its HP with − or +';
       if (!eat || eat.id !== 'food_when' || eat.barSlot !== food || eat.text !== eatWant || (lost > 0 && eat.goal !== stop)) return set + ': the eat card reads ' + JSON.stringify(eat && [eat.text, eat.goal]) + ', wanted ' + JSON.stringify(eatWant);
+      const noStore = say({ ...fixed, slots: fixed.slots.filter((x) => x.id !== 'salted_shrimp') });
+      if (noStore && noStore.id === 'food_when' && noStore.text.includes('set both')) return set + ': with no store food on the bar the eat card still names one: ' + noStore.text;
       /* REGRESSION ("Tell your hero when" never showed, PRIORITY_BOARD 2026-10-25 #2): any Save restates the whole bar, so the
          kit's own 60% food slot comes back STORED; that is not the player choosing when to eat. */
       const kitStored = { ...fixed, stored: T.slots.map((s) => ({ type: s.type, id: s.id, conditions: s.conditions })) };
@@ -843,7 +858,7 @@ const cases = {
     if (cardOn(env([]), { read: [] }) !== 'bar_intro') return 'through the envelope with a recorder the bar card is not up: ' + cardOn(env([]), { read: [] });
     if (cardOn(env([]), { read: ['bar_intro'] }) !== 'spell_runes') return 'through the envelope, read, the rune card is not up';
     const kitWire = T.slots.map((s) => ({ action: { type: s.type, id: s.id }, conditions: s.conditions, join: 'and' }));
-    const fedEnv = { ...env(kitWire, true), hunt_analyzer: { hero: { supplies: { own: { cooked_shrimp: 3 } } } } };
+    const fedEnv = { ...env(kitWire, true), hunt_analyzer: { hero: { supplies: { own: { cooked_shrimp: 6 } } } } };
     const fedRead = { read: ['bar_intro', 'first_eat', 'fight_settings'] };
     if (cardOn(fedEnv, fedRead) !== 'food_when') return 'through the envelope, the kit bar restated by a Save finishes "Eat on time": ' + cardOn(fedEnv, fedRead);
     return null;
@@ -893,7 +908,7 @@ const cases = {
           return set + ': slot ' + (i + 1) + ' (' + K.slots[i].id + ') is struck and the card is ' + JSON.stringify(card && { id: card.id, barSlot: card.barSlot, text: card.text });
         f = { ...f, slots: f.slots.map((s, k) => (k === i ? { ...s, usable: true, store: st.id } : s)) };
       }
-      f = { ...f, supplies: [{ item: 'cooked_shrimp', source: 'own', count: 3 }], read: new Set([...f.read, 'first_eat', 'fight_settings']) };
+      f = { ...f, supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], read: new Set([...f.read, 'first_eat', 'fight_settings']) };
       const next = M.tut.currentCard(f);
       if ((next && next.id) !== 'food_when') return set + ': with every struck slot fixed the chain goes on at ' + (next && next.id) + ', not food_when';
       seen.push(set + ' ' + row);
@@ -966,6 +981,16 @@ const cases = {
     if ((M.tut.currentCard({ ...held, huntId: 'mosslight_glade' }) || {}).id === 'tamsin_pays') return 'hunting the Glade, the coach still says to hunt the Thicket';
     /* back below it (the Cellar), the card waits too: it is about the Thicket, never shown while hunting elsewhere */
     if ((M.tut.currentCard({ ...held, huntId: 'mill_cellar' }) || {}).id === 'tamsin_pays') return 'hunting the Cellar, the coach still says to hunt the Thicket';
+    /* THE COUNT IS THE SERVER'S (audit 2026-11-15 F3: "Hunt the Thicket until your 200 Gray Wolves are down" beside a tally reading 200/200): her row done, the card says what is left (her gold), in the hunt and in town */
+    const WOLVES = 'thicket_gray_wolves', RATS = 'cellar_giant_rats';
+    const down = { ...held, tally: tallyFact([[WOLVES, 200, true]], [RATS]) };
+    for (const [where, facts, next] of [['in the Thicket', { ...down, huntId: 'meadowbrook_thicket' }, 'Leave the hunt and collect 480 gp from Tamsin'], ['in town', { ...down, huntId: null }, "Open Tamsin's tally → collect 480 gp"]]) {
+      /* in the Thicket it is the card up; in town another card may lead, so her card's words are read from its own row */
+      const step = facts.huntId ? M.tut.currentCard(facts) : M.tut.HUNT_TUTORIAL.find((s) => s.id === 'tamsin_pays'), c = step && Object.assign({ id: step.id }, M.tut.cardFor(step, facts));
+      if (!c || c.id !== 'tamsin_pays' || c.text !== next) return 'her wolves counted, ' + where + ' the paid card reads ' + JSON.stringify(c && { id: c.id, text: c.text });
+    }
+    const left = { ...held, huntId: 'meadowbrook_thicket', tally: tallyFact([[WOLVES, 12]], [RATS]) };
+    if (!/^Kill 200 Gray Wolves, then collect 480 gp/.test((M.tut.currentCard(left) && M.tut.cardFor(M.tut.currentCard(left), left).text) || '')) return 'CONTROL: with wolves left the paid card does not say to hunt on';
     /* Cash in tells the truth: loot is in the bag as it drops (the old card said it goes there when you leave) */
     const cash = said('leave_cellar');
     if (!cash || cash.text !== 'Leave the hunt to go back to town') return 'the Cash in card reads ' + JSON.stringify(cash && cash.text);
@@ -1238,6 +1263,57 @@ const cases = {
   /* "Plant your land" asks for EACH empty plot (playtest 2026-10-29 #12: one plot finished it, a plant pays Farming XP):
      it stays up while an open plot is bare and a seed is held; a full field, no seed, or a harvest's XP finishes it. The
      facts' `empty` is the server's field: open plots (under the cap, not an extra) holding no crop. */
+  /* THE FIRST DANGEROUS RUN (lane/a-next-steps; board "2026-11-15 The audit's balance findings" F5: food has no stakes on Normal from Level 1 to 15, and
+     Dangerous from Level 5 costs real food and gives more XP): ONE card at Level 8, to a hero the server shows in armor on head and body, naming a ground of
+     its range that has the tier (the last one it hunted first), ringing that ground's Dangerous press; never again once read or taken, and "How hard can you
+     hunt?" is not said after it. Every fact through the real envelope (equipment, hunt_tier, the hunt's ended tier). */
+  'first-dangerous-run': async (M) => {
+    const T = tutKit(M, 'tank');
+    const chainDone = walkChain(M, T).pop().facts;
+    const say = (f) => { const c = M.tut.currentCard(f); return c ? M.tut.cardFor(c, f) : null; };
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const tsb = await imp('src/session/tutorial-sections.js');
+    const L = await imp('src/shell/launcher.js');
+    const DRESSED = { weapon: 'practice_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody' };
+    /* the facts the envelope gives (tutorialFactsOf), over a hero who has walked the chain */
+    const envFacts = (o) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(o.lv) }, level: srvLevel(M, M.xp.charXpForLevel(o.lv)), equipment: o.eq,
+      ...(o.tiers === undefined ? {} : { hunt_tier: o.tiers }),
+      ...(o.last ? { hunt: { session_id: 's-1', hunt_id: o.last, ended: true, session: { end_reason: 'stamina', ...(o.lastTier ? { tier: o.lastTier } : {}) }, hero: {}, pose: { units: [] } } } : {}) })[k], slot: 0 });
+    const at = (o, ...read) => { const e = envFacts(o); return { ...chainDone, levelXp: e.levelXp, charLevel: e.charLevel, armourWorn: e.armourWorn, tierTaken: e.tierTaken, lastHunt: e.lastHunt,
+      huntId: null, visited: new Set([...(chainDone.visited || []), ...(o.last ? [o.last] : [])]), read: new Set([...chainDone.read, 'weighhouse', 'roll_of_honor', ...read]) }; };
+    const id = (o, ...read) => (say(at(o, ...read)) || {}).id;
+    const base = { lv: 8, eq: DRESSED, tiers: { picks: {}, playing: null } };
+    const offer = say(at(base));
+    if (!offer || offer.id !== 'first_dangerous' || offer.title !== 'Try Dangerous' || !offer.gotIt
+      || offer.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter'
+      || offer.textIn !== 'Press Meadowbrook Thicket, then Dangerous, then Enter' || M.tut.coachIcon(offer, () => false) !== 'hunts')
+      return 'at Level 8 in helm and body the offer reads ' + JSON.stringify(offer && { id: offer.id, title: offer.title, text: offer.text, textIn: offer.textIn });
+    /* the ring: the named ground's Dangerous press, unpressed, then its Enter */
+    const ring = L.ringPlan(offer, { open: (w) => w === 'hunts' });
+    if (!ring[0] || !ring[0].includes('[data-tier="dangerous"][data-hunt="meadowbrook_thicket"][aria-pressed="false"]') || !ring[1].includes('.hw-hunt-enter[data-hunt="meadowbrook_thicket"]')) return 'the offer rings ' + JSON.stringify(ring);
+    /* the ground it last hunted, when it has the tier and the Level is in its band */
+    if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('→ Wickstead →')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
+    if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
+    /* not before its Level, not without armor on head and body, not unknown */
+    if (id({ ...base, lv: 7 }) === 'first_dangerous') return 'the offer came at Level 7';
+    if (id({ ...base, eq: { weapon: 'practice_sword', shield: 'practice_shield' } }) === 'first_dangerous') return 'the offer came to a hero in the practice kit (22 deaths in 2 h on the board)';
+    if (id({ ...base, eq: { ...DRESSED, body: undefined } }) === 'first_dangerous') return 'the offer came with no armor on the body';
+    if (id({ ...base, tiers: undefined }) === 'first_dangerous') return 'the offer came with no hunt_tier section (the picker shows no tier)';
+    /* never again: read, a pick on any ground, the running hunt's, the last hunt's */
+    if (id(base, 'first_dangerous') === 'first_dangerous') return 'Got it does not pass the offer';
+    if (id({ ...base, tiers: { picks: { wickstead: 'dangerous' }, playing: null } }) === 'first_dangerous') return 'a Dangerous pick on another ground does not pass the offer';
+    if (id({ ...base, tiers: { picks: {}, playing: 'deadly' } }) === 'first_dangerous') return 'a Deadly hunt running does not pass the offer';
+    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'dangerous' }) === 'first_dangerous') return 'a last hunt on Dangerous does not pass the offer';
+    if (id({ ...base, last: 'meadowbrook_thicket', lastTier: 'normal' }) !== 'first_dangerous') return 'a last hunt on Normal passes the offer';
+    /* "How hard can you hunt?" is not said after it */
+    if (id({ ...base, lv: 10 }, 'first_dangerous') === 'pull_goal') return 'How hard can you hunt? came after the offer was read';
+    if (id({ ...base, lv: 10, tiers: { picks: { meadowbrook_thicket: 'dangerous' }, playing: null } }) === 'pull_goal') return 'How hard can you hunt? came to a hero who took Dangerous';
+    if (id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } }) !== 'pull_goal') return 'a hero never offered the run lost How hard can you hunt?: ' + id({ ...base, lv: 10, eq: { weapon: 'practice_sword' } });
+    /* the Hunts window records a harder pick as the offer's read (so Normal again never brings it back) */
+    const hw = readFileSync(join(M.root, 'src/shell/windows/hunts.js'), 'utf8');
+    if (!hw.includes('if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });')) return 'the Hunts window no longer records a harder pick as the offer read';
+    return null;
+  },
   'tutorial-plant-every-plot': async (M) => {
     const T = tutKit(M, 'tank');
     const at = (land, more) => M.tut.currentCard(tutAt(M, T, 2, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']),
@@ -1362,7 +1438,7 @@ const cases = {
       hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     for (const [skill, word] of [['melee', 'Melee'], ['defense', 'Defense']]) {
       const said = withTrain(skill);
-      if (!said.includes('Train ' + word + ' to 21: about 2 hours') || /Shop → Buy gloves/.test(said)) return 'a ' + word + ' training session: the what-next line does not name the trained skill: ' + said;
+      if (!said.includes('Next: ' + word + ' 21 in about 2 hours') || /Shop → Buy gloves/.test(said)) return 'a ' + word + ' training session: the what-next line does not name the trained skill: ' + said;
     }
     /* THE LAND IS THE ACCOUNT'S (2026-12-14-shared-farm). v0.2.35 gate: Fingerguns, 0 Farming XP, was told "Nothing
        grows on your farm yet" over 5 READY turnips the other heroes planted. The line reads the server's `farm_land`
@@ -1547,7 +1623,7 @@ const cases = {
     t += 600000;
     const food = (pct) => ({ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: pct }], join: 'and' });
     env.hunt_settings = { preset: 1, slots: [food(60)], bar: [] };
-    env.hunt_analyzer = { hero: { supplies: { own: { cooked_shrimp: 3 } } } };
+    env.hunt_analyzer = { hero: { supplies: { own: { cooked_shrimp: 6 } } } };
     if (shown() !== 'food_when') return 'with the kit\'s food slot on the bar the coach shows ' + shown();
     env.hunt_settings = { preset: 1, slots: [food(50)], bar: [food(50)] };
     if (shown() !== 'earn_the_thicket') return 'a saved bar is held over: ' + shown();
@@ -1851,6 +1927,20 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'the first Dangerous run is offered to a hero in the practice kit', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }, { kind: 'danger_kit' }] }),", "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }] }),"]] },
+  { name: 'a last hunt on Dangerous does not count as taken', case: 'first-dangerous-run',
+    edits: [['src/session/tutorial-sections.js', '|| hard(tiers.playing) || hard(h && h.tier);', '|| hard(tiers.playing);']] },
+  { name: 'the first Dangerous run comes back after it is taken', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', orGotIt({ kind: 'tier_taken' }), {", "'hunt_picker', orGotIt(READ), {"]] },
+  { name: 'How hard can you hunt? is said again after the offer', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'any', of: [READ, { kind: 'card_read', card: FIRST_DANGEROUS }, { kind: 'tier_taken' }] }", 'READ']] },
+  { name: 'the offer rings no Dangerous press', case: 'first-dangerous-run',
+    edits: [['src/shell/launcher.js', "const tier = g.tier ? [inWin(", "const tier = false ? [inWin("]] },
+  { name: 'the offer names the lowest ground, not the one just hunted', case: 'first-dangerous-run',
+    edits: [['src/data/hunt-tutorial.js', 'return fits.find((g) => g.hunt === f.lastHunt) || ', 'return ']] },
+  { name: 'the Hunts window forgets the offer was taken', case: 'first-dangerous-run',
+    edits: [['src/shell/windows/hunts.js', '    if (r.ok && d.tier !== DEFAULT_TIER) markCoachRead(cs, { id: FIRST_DANGEROUS });\n', '']] },
   { name: 'her Cellar task is 120 rats again (27 minutes of a ground the game sends a hero out of at 16)', case: 'tamsin-first',
     edits: [['src/data/tally-tasks.js', "label: 'Giant Rats', count: 25, gold: 25,", "label: 'Giant Rats', count: 120, gold: 100,"]] },
   { name: 'her rats are asked of a hero who has already hunted', case: 'tamsin-first',
@@ -1955,6 +2045,12 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "{ gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },", "{ gotIt: true, when: [IN_TOWN], ring: { skill: 'cooking', work: 'cook_shrimp' },"]] },
   { name: 'Decide once asks for every stack again', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "inWindow: 'Press This hunt, then set one item to Sell'", "inWindow: 'Press This hunt, then set each item to Sell'"]] },
+  { name: 'Eat on time lowers the own food and leaves the store food eating first', case: 'tutorial-bar-chain',
+    edits: [['src/data/hunt-tutorial.js', "    if (j >= 0) return { text: t('coach.food_when_both',", "    if (false) return { text: t('coach.food_when_both',"]] },
+  { name: 'Eat on time is back after three meals', case: 'first-hour-never-walls',
+    edits: [['src/data/hunt-tutorial.js', 'const FOOD_LESSON_EATS = 6;', 'const FOOD_LESSON_EATS = 3;']] },
+  { name: 'Eat on time reads a count again, not a rate (8 meals in 2 h)', case: 'first-hour-never-walls',
+    edits: [['src/data/hunt-tutorial.js', 'const FOOD_LESSON_PER_HOUR = 12;', 'const FOOD_LESSON_PER_HOUR = 0;']] },
   { name: 'a beating is a count again, not a rate (35 meals in 8.5 h)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'sum(r) >= p.n && sum(r) * 3600000 >= p.perHour * (f.huntMs || 0)', 'sum(r) >= p.n']] },
   { name: 'the "just now" cards speak over a return', case: 'tutorial-reactive',

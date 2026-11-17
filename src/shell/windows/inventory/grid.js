@@ -40,6 +40,7 @@ import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.135';
 import { whyLine } from '../../widgets/why-line.js?v=0.2.135';
 import { t } from '../../../render/player-text.js?v=0.2.135';
 import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.135';
+import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.135';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -84,7 +85,7 @@ export function toolsHtml(g) {
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="select-outgrown"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
-    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
+    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>' + planCopyHtml()   /* the sale's confirm follows; plan-copy.js keeps its own class names */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
@@ -199,6 +200,7 @@ export function patchTools(root, st, ctx) {
   attr(db, 'title', dWhy || 'Deposits every stack planned "Deposit" and sells every stack planned "Sell"');
   prop(db, 'disabled', sc.pending || !!dWhy);
   whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);
+  patchPlanCopy(root, st, ctx, onBag);
   const cb = tools.querySelector('[data-hs-act="sell-cat"]');
   const catLabel = (BAG_CATS.find(([id]) => id === prefs.cat) || [])[1] || '';
   cls(cb, 'is-on', prefs.cat !== 'all');

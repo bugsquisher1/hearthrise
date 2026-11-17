@@ -13,6 +13,20 @@ export const BAG_TEXT = Object.freeze({
   stat_ranged_plus: 'Ranged skill',
   stat_magic_plus: 'Magic skill',
   stat_defense_plus: 'Defense skill',
+  /* COPY LOOT PLAN FROM <HERO> (audit 2026-11-15 F11; src/shell/windows/inventory/plan-copy.js, 2027-04-24-loot-plan-copy.sql): one press per
+     other hero of the account, a confirm that says what the copy does, then the server's plan on screen. */
+  plan_copy_from: 'Copy loot plan from {hero}',
+  plan_copy_hero: 'Hero {slot}',
+  plan_copy_this: 'This hero',
+  plan_copy_confirm_label: 'Confirm copying the loot plan',
+  plan_copy_q: 'Copy {from}\'s loot plan to {to}: {count} items',
+  plan_copy_q_one: 'Copy {from}\'s loot plan to {to}: 1 item',
+  plan_copy_q_unread: 'Copy {from}\'s loot plan to {to}',
+  plan_copy_note: 'Items {from} keeps: reset to Keep (locks unchanged)',
+  plan_copy_yes: 'Copy',
+  plan_copy_busy: 'Copying…',
+  plan_copy_done: 'Loot plan copied from {from}',
+  plan_copy_skipped: '{count} skipped (not usable by this hero)',
   /* The selection line over the bulk tools: how many stacks, and what the shop would pay for them (the server's bids). */
   selected: '{count} selected',
   selected_worth: '{count} selected, worth {worth}',

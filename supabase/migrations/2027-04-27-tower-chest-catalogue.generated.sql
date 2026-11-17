@@ -101,9 +101,9 @@ insert into public.hr_chest_key_families (key_family, name, opens_per_week, held
   ('tower', 'Tower', 6, 30);
 insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty) values
   ('bronze', 'tower', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 'temper_salts', 15, 'cooked_shrimp', 20),
-  ('silver', 'tower', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 'fine_temper_salts', 25, 'cooked_lobster', 15),
-  ('gold', 'tower', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 'fine_temper_salts', 30, 'cooked_lobster', 20),
-  ('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 'fine_temper_salts', 40, 'cooked_lobster', 25);
+  ('silver', 'tower', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 'mithril_temper_salts', 25, 'cooked_lobster', 15),
+  ('gold', 'tower', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 'ember_temper_salts', 30, 'cooked_lobster', 20),
+  ('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 'ember_temper_salts', 40, 'cooked_lobster', 25);
 delete from public.hr_chest_stokes;
 insert into public.hr_chest_stokes (stokes, pm, keys) values
   (1, 1700, 3),
@@ -273,7 +273,7 @@ declare t text; v_role text; v_sum text;
 begin
   select string_agg(concat_ws(':', key_id, key_family, item_id, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty), '|' order by key_id collate "C")
     into v_sum from public.hr_chest_keys;
-  if v_sum is distinct from 'bronze:tower:tower_key_bronze:10:160:2:1:50:temper_salts:15:cooked_shrimp:20|gold:tower:tower_key_gold:70:45:6:3:300:fine_temper_salts:30:cooked_lobster:20|platinum:tower:tower_key_platinum:100:20:7:4:600:fine_temper_salts:40:cooked_lobster:25|silver:tower:tower_key_silver:40:80:4:2:150:fine_temper_salts:25:cooked_lobster:15' then raise exception 'chest-catalogue §4: hr_chest_keys is not src/data/chests.js: %', v_sum; end if;
+  if v_sum is distinct from 'bronze:tower:tower_key_bronze:10:160:2:1:50:temper_salts:15:cooked_shrimp:20|gold:tower:tower_key_gold:70:45:6:3:300:ember_temper_salts:30:cooked_lobster:20|platinum:tower:tower_key_platinum:100:20:7:4:600:ember_temper_salts:40:cooked_lobster:25|silver:tower:tower_key_silver:40:80:4:2:150:mithril_temper_salts:25:cooked_lobster:15' then raise exception 'chest-catalogue §4: hr_chest_keys is not src/data/chests.js: %', v_sum; end if;
   select string_agg(concat_ws(':', key_family, opens_per_week, held_max), '|' order by key_family collate "C") into v_sum from public.hr_chest_key_families;
   if v_sum is distinct from 'tower:6:30' then raise exception 'chest-catalogue §4: hr_chest_key_families is not src/data/chests.js: %', v_sum; end if;
   if exists (select 1 from public.hr_chest_keys k where not exists (select 1 from public.hr_chest_key_families f where f.key_family = k.key_family))

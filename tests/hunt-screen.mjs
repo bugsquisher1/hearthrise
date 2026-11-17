@@ -984,8 +984,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!live) fails.push('HS-10 a running hunt shows no Leave hunt');
         const liveName = await page.evaluate(() => document.querySelector('.ht-bar .ht-ground').textContent);
         if (/Last hunt/.test(liveName)) fails.push('HS-10 a running hunt is named as the last one: ' + JSON.stringify(liveName));
-        /* HS-10b (visual gate v0.2.23 P1): the tutorial card of a hunting hero hangs UNDER the top bar and never
-           covers it (Leave hunt is what the Cash in card points at); with a window open there is no card at all. */
+        /* HS-10b (visual gate v0.2.23 P1): the tutorial card of a hunting hero stands clear of the top bar (on the desktop in the
+           left column since audit 2026-11-15 F1, hud-room.js dockCoach) and never covers it (Leave hunt is what the Cash in card points at); with a window open there is no card at all. */
         s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
         await pushEnvelope(page, s);
         const withWin = await page.evaluate(() => document.querySelectorAll('.hs-pointer').length);
@@ -2137,7 +2137,9 @@ const MUTANTS = [
   ['Hunt details leaves a folded analyzer folded (HS-28)', 'src/shell/widgets/hunt-topbar.js', "    if (hud.layoutOf('analyzer').folded) hud.setFolded('analyzer', false);\n", ''],
   ['the hunt bar never slides clear of the edge panels', 'src/shell/shell.js', "        e.style.left = at.left + 'px';\n", ''],
   ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', "const html = leaving && !over ? '' : pointerFor(ctx, !over);", "const html = '';"],
-  ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }', '.hs-widget > .hs-pointer { left: 0; top: 0; width: min(260px, 100%); }'],
+  /* re-aimed 2026-11-15 (lane/a-audit-ui-1, audit F1): the desktop card is placed by the dock rule now, which overrides the old
+     `.hs-widget > .hs-pointer` line, so a top planted there no longer reached the card; the dock's place lost, the card stands at the hunt bar's own corner, over it */
+  ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget.is-hunt-topbar.is-coach-docked > .hs-pointer { left: var(--coach-x); top: var(--coach-y); }', '.hs-widget.is-hunt-topbar.is-coach-docked > .hs-pointer { left: 0; top: 0; }'],
   ['an ended hunt still offers Leave hunt','src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
   ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const cd = over ? null : ctx.character.leaveCountdown();", "  const cd = null;"],
   ['the leave countdown reads the device clock', 'src/session/character-session.js', "leaveCountdown(at, this.serverNow(),", "leaveCountdown(at, Date.now(),"],

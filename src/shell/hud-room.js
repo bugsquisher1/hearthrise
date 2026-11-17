@@ -11,6 +11,12 @@
 //   the alerts and the players-online line draw over every window (.hs-screen), so THEY move: right past the panels and
 //     windows in their row, and when none clears they wait hidden, as a widget does under the dock (the strip's badge
 //     still counts them). An alert never takes a press from Chat or the party.
+// NOTHING DOCKS WHERE THE HERO STANDS (audit 2026-11-15 F1, F13). The camera frames the hero in the middle of the World the docked panels
+// leave (shell.js insetNow), so a card hung under the centred hunt bar lay on the hero, and an alert slid past the Party panel landed there:
+//   the hunt's coach card stands in the LEFT COLUMN under the top-left panels (dockCoach), a column the camera already frames beside; with
+//     no room there it keeps only its title under the hunt bar, and an alert that needs the column's room folds it to its title the same way;
+//   an alert takes a place clear of the hero's spot whenever one clears, and is never hidden for it; where none clears (a laptop with Chat
+//     open), the camera frames the World beside the alert, as it does beside a panel (shell.js insetNow).
 // DOM reads and style writes only. Each writes only what changed, and reads no height of its own to set its room,
 // so the size change a write causes settles in the next pass (shell.js's observer).
 // ════════════════════════════════════════════════════════════════════════
@@ -25,6 +31,11 @@ const BOTTOM_BAR = 'bc';
 const HUNT_BAR = 'hunt-topbar';
 /* On a phone the analyzer ends this far over the action bar (hunt.css's phone cap, 100vh - 219px under a 103 px hunt bar foot) */
 const PHONE_BAR_GAP = 2;
+/* The least room the hunt's coach card docks into (its title, three lines and its foot), and the card's width (shell.css .hs-pointer). */
+const COACH_MIN_ROOM = 120;
+const COACH_WIDE = 260;
+/* The hero's spot around the point the camera frames: the sprite with its name plate and bars (docs/ART_DIRECTION.md §4: about 40 art px, drawn at up to x3). */
+const HERO_HALF_W = 48, HERO_UP = 80, HERO_DOWN = 44;
 
 /**
  * @param {object} o
@@ -34,8 +45,9 @@ const PHONE_BAR_GAP = 2;
  * @param {HTMLElement} o.layer         the windows
  * @param {() => boolean} o.isPhone
  * @param {number} o.gap
+ * @param {() => ({x: number, y: number}|null)} [o.heroAt]  where the camera frames the hero, in page px; null with no hunt on screen
  */
-export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap }) {
+export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, heroAt }) {
   const relTo = (box) => { const b = box.getBoundingClientRect(); return (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; }; };
   const worldEls = () => Array.from(worldHud.querySelectorAll('[data-hs-widget]'));
   const idOf = (e) => e.getAttribute('data-hs-widget');
@@ -121,6 +133,51 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
     return panels.concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)'))).map(rel);
   }
 
+  /* THE HUNT'S COACH CARD, DOCKED (see the header). --coach-x / --coach-y: the card's place from its host's corner (it is drawn inside the hunt
+     bar's widget, hunt-topbar.js); --coach-h its room down to the bar. Reads no height of the card. */
+  const coachHost = () => worldHud.querySelector('[data-hs-widget="hunt-topbar"]');
+  function dockCoach() {
+    const host = coachHost();
+    if (!host) return;
+    const card = host.querySelector(':scope > .hs-pointer');
+    let at = null, tight = false;
+    if (card && !isPhone() && host.offsetWidth) {
+      const rel = relTo(worldHud), hb = rel(host);
+      const inCol = (e) => !hud.isMoved(idOf(e)) && hud.layoutOf(idOf(e)).anchor === 'tl';
+      const shown = worldEls().filter((e) => e !== host && e.offsetWidth && !isBar(e) && !e.classList.contains('is-under-dock'));
+      const col = shown.filter(inCol).map(rel);
+      const left = col.length ? Math.min(...col.map((q) => q.left)) : gap;
+      const top = col.length ? Math.max(...col.map((q) => q.top + q.height)) + gap : hb.top;
+      const bars = barsAtHome().filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left);
+      /* whatever else stands in the column is the card's floor: a window (Chat opens there), a panel the player moved there, the players-online line. The card never lies on or behind one. */
+      const online = screenHud.querySelector('[data-hs-widget="online"]:not(.is-under-dock)');
+      const wins = shown.filter((e) => !inCol(e)).concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)')), online && online.offsetWidth ? [online] : []).map(rel)
+        .filter((q) => q.left < left + COACH_WIDE && q.left + q.width > left && q.top + q.height > top);
+      const floor = Math.min(bars.length ? Math.min(...bars.map((q) => q.top)) : worldHud.clientHeight, ...wins.map((q) => q.top)) - gap;
+      if (floor - top >= COACH_MIN_ROOM) at = { x: Math.round(left - hb.left), y: Math.round(top - hb.top), h: Math.floor(floor - top) };
+      else tight = true;
+    }
+    const was = [host.style.getPropertyValue('--coach-x'), host.style.getPropertyValue('--coach-y'), host.style.getPropertyValue('--coach-h')].join();
+    if (!at) { if (was !== ',,') for (const k of ['--coach-x', '--coach-y', '--coach-h']) host.style.removeProperty(k); }
+    else if (was !== [at.x + 'px', at.y + 'px', at.h + 'px'].join()) { host.style.setProperty('--coach-x', at.x + 'px'); host.style.setProperty('--coach-y', at.y + 'px'); host.style.setProperty('--coach-h', at.h + 'px'); }
+    host.classList.toggle('is-coach-docked', !!at);
+    host.classList.toggle('is-coach-tight', tight);
+  }
+
+  /* An alert in the docked card's column needs the room the card stands in: the card folds to its title while the alert is up (what happened
+     to the hero outranks a tip) and opens again when it goes. Judged after dockCoach in the same pass, which left the card open to be measured. */
+  function coachYields(alerts) {
+    const host = coachHost();
+    const card = host && host.classList.contains('is-coach-docked') ? host.querySelector(':scope > .hs-pointer:not(.is-min)') : null;
+    if (!card) return;
+    const list = alerts && alerts.querySelector('.hw-alerts:not(.is-empty) .hw-alert-list');
+    if (!list) return;
+    const a = alerts.getBoundingClientRect(), c = card.getBoundingClientRect();
+    const bars = worldEls().filter(isBar).map((e) => e.getBoundingClientRect().top);
+    const room = (bars.length ? Math.min(...bars) : worldHud.getBoundingClientRect().bottom) - gap - (c.top + card.offsetHeight + gap);
+    host.classList.toggle('is-coach-tight', a.left < c.right && a.left + ALERT_WIDE > c.left && room < Math.max(ALERTS_MIN_ROOM, list.scrollHeight));
+  }
+
   /* The band the alerts may stand in: under the hunt bar and its coach card, above the action bar. */
   function alertBand() {
     const rel = relTo(screenHud), hudBox = rel(worldHud);
@@ -139,6 +196,11 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
     const rel = relTo(screenHud), width = screenHud.clientWidth;
     const way = inTheWay();
     const shown = alerts && !alerts.querySelector('.hw-alerts.is-empty');
+    if (alerts) coachYields(alerts);
+    /* The hero's spot is in the way too, for as long as a place clears it: an alert is never hidden for the hero. */
+    const at = typeof heroAt === 'function' ? heroAt() : null;
+    const sb = screenHud.getBoundingClientRect();
+    const hero = at ? { left: at.x - sb.left - HERO_HALF_W, top: at.y - sb.top - HERO_UP, width: 2 * HERO_HALF_W, height: HERO_UP + HERO_DOWN } : null;
     if (alerts) {
       const { floor, ceil } = alertBand();
       setRoom(alerts, shown ? Math.floor(floor - ceil) : null);
@@ -146,9 +208,13 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
         const q = rel(alerts);
         const top = Math.round(Math.max(ceil, Math.min(q.top, floor - q.height)));
         /* Its own width first; between a Party panel, Chat and the analyzer at a laptop's width, the narrow card still fits. */
-        let left = slideClear(Object.assign(q, { top, width: ALERT_WIDE }), way, width, gap);
-        const narrow = left === null;
-        if (narrow) left = slideClear(Object.assign(q, { width: ALERT_NARROW }), way, width, gap);
+        let left = null, narrow = false;
+        for (const obst of hero ? [way.concat(hero), way] : [way]) {
+          left = slideClear(Object.assign(q, { top, width: ALERT_WIDE }), obst, width, gap);
+          narrow = left === null;
+          if (narrow) left = slideClear(Object.assign(q, { width: ALERT_NARROW }), obst, width, gap);
+          if (left !== null) break;
+        }
         const w = narrow && left !== null ? ALERT_NARROW + 'px' : '';
         if (alerts.style.getPropertyValue('--hs-alert-w') !== w) { if (w) alerts.style.setProperty('--hs-alert-w', w); else alerts.style.removeProperty('--hs-alert-w'); }
         alerts.classList.toggle('is-under-dock', left === null);
@@ -163,5 +229,5 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap })
     }
   }
 
-  return { roomForStack, liftMoved, clearPlates };
+  return { roomForStack, liftMoved, clearPlates, dockCoach };
 }

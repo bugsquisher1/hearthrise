@@ -42,6 +42,9 @@ export const TALLY_TEXT = Object.freeze({
   done_bag: 'Done, bag full',
   counting_here: 'Counting in {ground}',
   not_here: 'Not here',
+  /* the box on a held task (audit 2026-11-15 F6: it read "Keep" beside Abandon, and nothing said keep what): its label, and its hover */
+  keep: 'Repeat',
+  keep_why: 'Ticked: repeats once she pays',
   keep_on: 'Repeats as soon as she pays',
   keep_off: 'Does not repeat after she pays',
   given_up: 'Abandoned {label}, count lost',

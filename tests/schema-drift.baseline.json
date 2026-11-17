@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-17",
- "digest": "eb09e99324feb82c9949be1fb8965b8d5214ff2f58be72367c17f7296f6095ed",
+ "digest": "f6885e38c2afc4baf72968cb6e36f22bdfc7ea2a9d82d127c7bc91d59b7dab1f",
  "counts": {
   "relations": 313,
-  "functions": 795,
+  "functions": 796,
   "policies": 126,
   "indexes": 444,
   "triggers": 110,
@@ -800,6 +800,7 @@
    "hr_login_claim_verify(p_uid uuid, p_slot integer, p_period text, p_delta jsonb)",
    "hr_login_view(p_user uuid, p_slot integer)",
    "hr_loot_dispatch(p_slot integer, p_idem uuid)",
+   "hr_loot_plan_copy(p_slot integer, p_from integer, p_idem uuid)",
    "hr_loot_plan_refusal(p_item text, p_plan text)",
    "hr_loot_rule_set(p_slot integer, p_item text, p_rule text, p_idem uuid)",
    "hr_mark_seen(p_slot integer, p_session uuid, p_event_id bigint)",

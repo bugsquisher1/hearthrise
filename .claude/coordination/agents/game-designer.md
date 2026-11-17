@@ -941,6 +941,21 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - +4 at Levels 45-90 is 0.4-4.3% Level XP an hour, casters least. A design line that says "+4 is about a tier" was read at one Level on one ground: measure the claim where the item is worn before repeating it.
 - A staged migration's own probe can depend on a catalogue being EMPTY (the chest's §9 "no weapon is built"). When data fills a table, grep the staged files' probes for that assumption first.
 - Name a batch with the lore's own split (each lock a part of town history) and cap a pattern (at most four "X's Weapon" a key). The audit still found two place words repeated in seven lines.
+## 2026-11-15 lane/d-audit-balance-1 (the playthrough audit's F2, F5, F8, F12)
+- "Nothing to spend gold on" is usually a reading finding. Sum the one-time sinks from the data rows before proposing one (3.9M open before Level 50 against 1.57M earned); then look for where the ladder that scales with Level stops (Tempering had no rows for the tiers the March wears).
+- A lesson card gated on a count fires on any long hunt. Gate it on a rate measured on the settle, with the line between the heroes it should miss (0 to 6.5 meals an hour) and the ones it is for (20 and up).
+- A card whose advice creates the next card's trigger is one card. Check each lesson's fix against the next lesson's `when`.
+- A new shield is a world move: hr_hunt_shields (gen-hunt-sessions) decides what the server treats as a shield, and tests/ground-pack.mjs reds on it as "not additive". Items + recipes + hunt-sessions + every pack whose drops changed all regenerate together.
+- The sim's tank picks the best reachable shield by itself (gear.mjs), so new shields re-dress every March measurement. Hold the old piece with `gear: { also: { shield } }` for the before row, and re-run the boss table from a scratch `git worktree` of the commit before.
+- This shell's heredocs eat one backslash level even when quoted: a script that writes `\'` must be made with the Write tool, or use sed with `.` for the quote.
+- `cd X && (A) & (B)` backgrounds the cd with A: B runs in the session's folder. Run two background jobs as two commands.
+## 2026-11-15 lane/d-audit-balance-2 (the playthrough audit's F14, F17/F20, F28 and Crafting)
+- A food warning is only true where it was measured: 400 store-food cells found one ground (the Barrows) where a store food kills in range. A line on every card would have been false on nine.
+- A "next tier wins" check must be read where the next tier is worn. At the Pyre Field a plate hero in Emberforged already sits at the armor cap, so a maxed ladder there out-guards bare Dawnsteel by 1.2%; at the Hold, where Dawnsteel is worn, it wins by 3.3%.
+- A per-hero cap on a shared purse is the same gift pressed four times. Ask what a cap limits (who finishes a one-time project, how fast) before raising it as a sink: the Works' capacity is its goal, not its cap.
+- Un-holding rows leaves their unreachable items with no use (C2). Check what else a held row was the only use of before re-costing it.
+- Two recipes for one output is the cheapest real decision a bench can get: same xp and time, different skills and stock, a little more book on the new route so neither is free money.
+- A paused lane's measurements live in its scratchpad (career-tank.txt): re-derive the board's numbers from them before re-running a 590-hour career.
 ## 2026-11-15 lane/d-coherence-133 (coherence pass: v0.2.133 + the day's lanes, CLAUDE.md §3.5)
 - `cell.mjs` takes `skillsBySeat: [{ melee, ranged, magic, defense }]` and `options: { tier }`, so a +skill or "trains every spare hour" question is one scratch script and a few seconds a cell. Use the career's skill at a Level (the training lane's table: 22 at Level 10, 37 at 25), never skill = Level, or a training gain reads 2 to 3 times too big.
 - "+Magic does nothing" at the Hold is the Mage being spawn-bound (lowest typical HP 98.8%, 1.47x a hammer), not a flat formula (`abilities.js` lvPm is +2% of base a level). Before calling a stat worthless, check whether the hero measured is already capped by monster supply.

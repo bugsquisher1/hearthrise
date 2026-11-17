@@ -42,7 +42,7 @@ export const AWAY_TEXT = Object.freeze({
   note_job_left: 'Makes the last {n}',
   note_no_job: 'Waits in town (no job to resume)',
   /* {fee} the yard's fee for an hour at this hero's skill, {hours} its longest stay; both the server's. */
-  train_cost: '{fee} gold/h, up to {hours} h',
+  train_cost: '{fee} gold/h, up to {hours} h · Can\'t pay: waits in town',
   train_level: 'Yard from Level {level}',
   train_party: 'Training is solo',
   after_hunting: 'Change this after the hunt',
@@ -59,7 +59,8 @@ export const AWAY_TEXT = Object.freeze({
   done_pending: '{name} is on the way to the yard to train {skill}.',
   done_started: 'Then {name} went to the yard to train {skill}.',
   done_chose_wait: 'Then {name} waited in town',
-  done_gold: '{name} waited in town: not enough gold to train {skill}',
+  done_gold: '{name} waited in town · Yard: {fee} gp/h',
+  done_gold_purse: '{name} waited in town · Yard: {fee} gp/h · Gold: {purse}',
   done_level: '{name} waited in town: the yard requires Level {level}',
   done_party: '{name} waited in town: training is solo',
   done_no_train: '{name} couldn\'t train {skill} and waited in town',

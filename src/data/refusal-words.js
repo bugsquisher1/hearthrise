@@ -396,7 +396,7 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_weapon: 'Unknown weapon',
   no_character: 'Pick a character first',
   /* The party. */
-  already_in_party: 'Already in a party',
+  already_in_party: 'Already in a party · Leave in the Party window',
   party_full: 'Party full',
   no_party: 'Party gone',
   not_leader: 'Party leader only',

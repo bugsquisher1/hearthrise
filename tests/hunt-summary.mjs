@@ -141,9 +141,9 @@ async function runTests(M) {
     eq(Object.keys(MD.END_WORDS), [...END_ORDER], 'END_WORDS covers END_ORDER, in order');
     for (const r of END_ORDER) ok(/^[A-Z][^]*\S$/.test(MD.endWords(r)) && MD.endWords(r) !== 'Hunt ended', r + ' has its own words (a label, Tyler 2026-11-14)');
     ok(MD.endWords('nonsense') === 'Hunt ended', 'an unknown reason still reads');
-    /* out of stamina: why, and what the hero has now (the short text pass 2026-11-16 cut "refills hour for hour") (panel 2026-11-01: "Your stamina ran out." and nothing else) */
+    /* out of stamina: why, how it comes back, and what the hero has now (panel 2026-11-01: "Your stamina ran out." and nothing else) */
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + '. Stamina now: 5 h 46 min', 'the stamina end says what is rested');
-    eq(MD.END_WORDS.stamina, 'Out of stamina', 'the stamina end says why');
+    eq(MD.END_WORDS.stamina, 'Out of stamina · Stamina refills 1 h per hour', 'the stamina end says why and how it comes back');
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', null), MD.END_WORDS.stamina, 'an older hunt, or a server that has not said: no number');
     eq(MD.reasonWords({ reason: 'left' }, 'Pip', 3600000), MD.END_WORDS.left, 'another end says nothing of stamina');
   });

@@ -1079,7 +1079,7 @@ async function runTests(mods) {
     /* training: the yard's fee and its longest stay, the server's; under its Level, why the hero would wait */
     const d = HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: ROCK }));
     eq(d.picked, 'train:melee', 'a training choice is picked with its skill');
-    eq(d.note, '122 gold/h, up to 12 h', 'the yard\'s cost');
+    eq(d.note, '122 gold/h, up to 12 h · Can\'t pay: waits in town', 'the yard\'s cost, and what a short purse does');
     eq(HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: null }, { ...TR, rate: { ...TR.rate, level: 5 } })).note,
       'Yard from Level 10', 'under the yard\'s Level');
     /* a server that sends no training offers none; one that sends no section draws no control */
@@ -1105,7 +1105,8 @@ async function runTests(mods) {
     eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Then Wrenna went to the yard to train Melee.', 'started');
     eq(came({ state: 'pending', skill: 'melee', place: 'yard' }), 'Wrenna is on the way to the yard to train Melee.', 'pending');
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: 30 }),
-      'Wrenna waited in town: not enough gold to train Melee', 'too little gold says why');
+      'Wrenna waited in town · Yard: 122 gp/h · Gold: 30', 'too little gold says the fee and the purse');
+    eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: null }), 'Wrenna waited in town · Yard: 122 gp/h', 'a purse the server did not send is not said');
     eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'Wrenna waited in town: the yard requires Level 10', 'under the Level');
     eq(came({ state: 'waited', why: 'chose_wait' }), 'Then Wrenna waited in town', 'chose to wait');
     eq(came({ state: 'resumed', kind: 'gather', id: 'copper_rock' }), '', 'back on the job: the pointer\'s own line says it');

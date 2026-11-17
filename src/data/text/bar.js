@@ -32,7 +32,7 @@ export const BAR_TEXT = Object.freeze({
   shot_rune: 'Rune, never fires',
   shot_nobody: 'No weapon shoots this, never fires',
   shot_wrong_weapon: 'Requires a {weapons}',
-  shot_no_weapon: 'Requires a {weapons}',
+  shot_no_weapon: 'No weapon equipped',
   cast_wrong_weapon: 'Requires a {weapons}',
 
   /* What a spell does to whom (by the catalogue's target). */
@@ -147,8 +147,8 @@ export const BAR_TEXT = Object.freeze({
   waiting_item: { one: '{n} {item} in backpack, press to carry it in', other: '{n} {item} in backpack, press to carry them in' },
   unknown_ability: 'This ability isn’t in the game.',
   inactive: 'Not in the game yet: {ability} waits on its rune.',
-  no_weapon_any: 'Requires a weapon',
-  no_weapon: 'Requires {weapons}',
+  no_weapon_any: 'No weapon equipped',
+  no_weapon: 'No weapon equipped',
   weapon_cant_use: 'Requires {weapons}',
   rune_needs_a: 'No {rune}: pick the store rune',
   rune_needs_an: 'No {rune}: pick the store rune',

@@ -968,7 +968,7 @@ async function pureRules(M, base) {
     /* (5) WORDS A DEAD END CANNOT HIDE IN. */
     if (M.FR.answerWords({ done: 'Invite sent to Mira.' }, '') !== 'Invite sent to Mira.') return 'a friends-row invite that worked reads ' + JSON.stringify(M.FR.answerWords({ done: 'Invite sent to Mira.' }, ''));
     if (!/Leave your hunt to invite/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
-    if (!/^Already in a party$/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
+    if (M.IW.refusalText({ error: 'already_in_party' }) !== 'Already in a party · Leave in the Party window') return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
     return true;
   });
 

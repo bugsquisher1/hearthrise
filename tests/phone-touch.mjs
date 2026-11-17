@@ -453,15 +453,18 @@ async function bagByTouch(page, tag, fails) {
 }
 
 /* ── PH-6 ── A high Level's "What next" (the Coordinator's 10-24 gate: a Level 29 mage at 844x390, the card ran down
-   over HP / XP / MP). What next is one goal now, so what stands long is a deed that names its materials: every kind a step can name (the section's own cap, 16), a Level 29 mage who has walked the
-   grounds above her, with nothing ahead of it on the line. */
+   over HP / XP / MP). Since the label sweep (2026-11-16) every goal is one short label and the deed line no longer names its materials, so the long
+   card is a hero with many goals: first the deed, its name the server's longest (home-sections.js takes 60), then under More the next gear, the next
+   ground (a party's, with how to make one), an empty field (the plant line) and the next spell. A Level 29 mage who has walked the grounds above her. */
 function longCoach(env) {
   env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100, gold: 5000 });
   env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
   env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 900, level: 5 } };
-  env.hunt_bests = { min_ms: 600000, grounds: { coppercap_warrens: { solo: { xp_h: 90000, balance_h: 100 }, party: null } } };
+  env.farm_land = { cap: 2, plot_level: 1, plots: [] };
+  /* walked: the Warrens (no step up ahead of the deed), Hask's Ford and the Slake, so the next ground is the Muster Barrows, a party's, and the line says how to make one */
+  env.hunt_bests = { min_ms: 600000, grounds: Object.fromEntries(['coppercap_warrens', 'hasks_ford', 'the_slake'].map((g) => [g, { solo: { xp_h: 90000, balance_h: 100 }, party: null }])) };
   const materials = ['crow_quill', 'glowing_copper_fleck', 'mosslight_tendril', 'coppercaps_tallow', 'dented_copper_pot', 'skulkers_shiv', 'goblin_totem', 'foremans_lash', 'snare_wire', 'raw_bear_meat', 'raw_wolf_meat', 'magic_essence', 'cooked_shrimp', 'silk_thread', 'lamp_jelly', 'bone_chips'];
-  env.home = { tier: 1, rooms: [], tiers: [{ offer: 'home.stonecross', name: 'Stonecross Manor', tier: 2, need: 1, owned: false, gold: 1, items: Object.fromEntries(materials.map((id) => [id, 1500])) }] };
+  env.home = { tier: 1, rooms: [], tiers: [{ offer: 'home.stonecross', name: 'Stonecross Manor with its Walled Garden and Old Cider House', tier: 2, need: 1, owned: false, gold: 1, items: Object.fromEntries(materials.map((id) => [id, 1500])) }] };
   /* the reactive cards a Level 29 hero has long since read (residue coach.read), and no better gear in its bag, so
      the coach is the long "What next" line, not "Your hero just ate" or "Wear what you found" */
   env.client_state = Object.assign({}, env.client_state, { coach: { read: ['first_eat', 'first_drink', 'fight_settings', 'storage', 'stamina_low'] } });

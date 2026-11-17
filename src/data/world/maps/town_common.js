@@ -72,5 +72,8 @@ export default Object.freeze({
   /* the lint's reach origin: the gatehouse's first stand (a hero back from a hunt arrives on one of the
      gatehouse's stands, the one the SERVER holds for it: 2027-01-28-town-stands.sql) */
   start: first(ACTIVITY_STATIONS.arrival),
-  maskHash: '29d47245',
+  /* 29d47245 -> c9842f06: the mountain's edge redrawn in town/ground.js (lane/a-havora-rock 2026-11-17: bays and spurs of rock a cell or two
+     deep where it ran on whole-tile rulers, and its two tiers into terraces; no stand, door, exit, way (plan.js WAYS) or placed thing moved, every open
+     cell still reached; 46 rock cells opened, 55 open cells taken by rock) */
+  maskHash: 'c9842f06',
 });

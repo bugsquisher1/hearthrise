@@ -275,19 +275,25 @@
   },
   "pixellab": {
     "tool": "cut",
-    "id": "caacdbce-1b55-4dad-a9b5-b76b3c872395",
+    "id": "6c5f1090-69c7-4038-99b7-97275609804b",
     "sources": [
       {
-        "ref": "havora-floor/havora_grass_rock",
-        "key": "1111",
+        "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+        "at": [
+          0,
+          192
+        ],
         "tool": "create_topdown_tileset",
-        "id": "caacdbce-1b55-4dad-a9b5-b76b3c872395"
+        "id": "6c5f1090-69c7-4038-99b7-97275609804b"
       },
       {
-        "ref": "havora-floor/havora_grass_rock",
-        "key": "1111",
+        "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+        "at": [
+          0,
+          192
+        ],
         "tool": "create_topdown_tileset",
-        "id": "caacdbce-1b55-4dad-a9b5-b76b3c872395"
+        "id": "6c5f1090-69c7-4038-99b7-97275609804b"
       }
     ],
     "cost": 0
@@ -296,16 +302,22 @@
     "tool": "tools/world-art/havora-seams.mjs (tools/world-art/seams.mjs transitionTiles)",
     "fills": {
       "lower": {
-        "ref": "havora-floor/havora_grass_rock",
-        "key": "1111"
+        "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+        "at": [
+          0,
+          192
+        ]
       },
       "upper": {
         "tones": {
-          "#3a3a3e": "#4f4e52",
-          "#4f4e52": "#6a6865"
+          "#4f4e52": "#6a6865",
+          "#6a6865": "#8a867d"
         },
-        "ref": "havora-floor/havora_grass_rock",
-        "key": "1111"
+        "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+        "at": [
+          0,
+          192
+        ]
       }
     },
     "style": "rise",

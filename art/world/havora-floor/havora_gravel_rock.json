@@ -285,6 +285,21 @@
       "tile_size": 32,
       "view": "high top-down",
       "transition_size": 0.25
+    },
+    "rock": {
+      "tool": "create_topdown_tileset",
+      "id": "6c5f1090-69c7-4038-99b7-97275609804b",
+      "upper": "1024560d-ecae-42a3-905f-7776b5d71c3e",
+      "params": {
+        "mode": "pro",
+        "tile_size": 32,
+        "view": "high top-down",
+        "transition_size": 0.5,
+        "max_colors": 10,
+        "detail": "low detail",
+        "palette": "hr-world-56-v2 stone, shadow, moss, earth ramps"
+      },
+      "cost": 15
     }
   },
   "notes": "The quarry floor (packed gravel) against the mountain rock, a low broken rock face between with ore veins (lane/b-havora-polish 2026-10-26): chained from the rock base tile of havora_earth_rock so the cliff tops match.",
@@ -395,7 +410,24 @@
     "sweep": 10,
     "warp": 10,
     "arch": true,
-    "face": 6,
-    "drop": 3
+    "face": 14,
+    "drop": 3,
+    "side": 4,
+    "upperFill": {
+      "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+      "at": [
+        0,
+        192
+      ]
+    },
+    "faceTex": {
+      "sheet": "art/world-src/gen-2026-11-17/01-havora-rock/r5-6c5f1090/6c5f1090-sheet.png",
+      "rect": [
+        96,
+        19,
+        32,
+        14
+      ]
+    }
   }
 }

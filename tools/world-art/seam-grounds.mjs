@@ -155,27 +155,37 @@ function raft({ set, id, cells, footprint, what }) {
   console.log('  ✓ ' + set + '/' + id + ' (bridge, ' + out.width + 'x' + h + ', ' + reps + ' log lengths)');
 }
 
+/** { 'x,y': ch } for every cell of a w x h block: a `cells` override for a block the pixel read gets wrong */
+const rect = (x0, y0, w, h, ch) => Object.fromEntries(Array.from({ length: w * h }, (_, i) => [(x0 + (i % w)) + ',' + (y0 + Math.floor(i / w)), ch]));
 /* grass, thicket, path: the meadow family's three open floors (their varieties' cells) */
 const meadow = (g, m, p) => ({ T: g, G: m, D: p });
+/* the meadow grounds' banks, and their thicket wall in crowns over the water (leaning out over it), the grass and the path; no
+   soil line: the meadow canopy's painted edge had none, its crowns cast a shadow instead */
 const BANKS = (wet) => [
   { a: 'W', b: 'G', style: 'bank', bias: { G: 0.3 }, sweep: 7, warp: 5, wet },
-  { a: 'W', b: 'T', style: 'bank', bias: { T: 0.3 }, sweep: 7, warp: 5, wet: 1 },
   { a: 'W', b: 'D', style: 'bank', bias: { D: 0.3 }, sweep: 5, warp: 4, wet },
+  WALL('W', { bias: { T: 0.3 } }), WALL('G', { bias: { G: 0.25 } }), WALL('D', { bias: { D: 0.25 } }),
 ];
-const MEADOW_MATS = { W: { z: 0, own: true }, D: { z: 1 }, G: { z: 2 }, T: { z: 3 } };
 /* the warp's noise spreads about 0.4 of its reach, so a border meant to wander a few px either way takes about twice the defaults'
    octaves: WILD for a soft border with bays (a bank, a mound: an earthwork stays round), TRACK for a two-cell track whose two edges
    must not pinch it */
 const WILD = Object.freeze({ style: 'ragged', sweep: 9, warp: 8, mid: 4 });
 const TRACK = Object.freeze({ style: 'ragged', sweep: 6, warp: 6, mid: 3 });
+/* the alder/thicket wall: whole crowns along a wavy line (seams.mjs canopy), off the walked cells' feet, a soil line where it stands
+   on earth or grass */
+const CROWNS = Object.freeze({ spacing: 18, jitter: 3 });
+const WALL = (floor, o = {}) => Object.assign({ a: 'T', b: floor, style: 'canopy', sweep: 9, warp: 8 }, o);
+const MEADOW_MATS = { W: { z: 0, own: true }, D: { z: 1 }, G: { z: 2 }, T: { z: 3, canopy: CROWNS } };
 export const GROUNDS = Object.freeze({
   /* the brook ran dead straight down its banks and the footbridge was planks painted flat on the water */
   wickstead_ground: { set: 'stead', map: 'wickstead', seed: 41, solid: { '~': 'W', '=': 'W', '#': 'T' }, samples: meadow([0, 0], [5, 3], [15, 8]),
     repaint: { '=': 'W' }, mats: MEADOW_MATS, pairs: BANKS(2),
+    /* the tilled plot (x50-55 y23-24) is dark enough to read as thicket: it is its own floor, never touched (it would be crowned) */
+    cells: rect(50, 23, 6, 2, 'P'), keep: 'P',
     before: () => raft({ set: 'stead', id: 'wk_footbridge', cells: 4, footprint: [2, 1], what: 'The Wickstead footbridge' }) },
   /* the brook's banks stepped down the grid, and its two rafts (144 px of logs on 96 px of water) sat a row below the
      trail. Its brook cells carry their own grassy banks, so the water is read from the pixels as the floors are */
-  meadowbrook_ground: { set: 'forest', map: 'meadowbrook_thicket', seed: 43, solid: { '#': 'T' },
+  meadowbrook_ground: { set: 'forest-floor', map: 'meadowbrook_thicket', seed: 43, solid: { '#': 'T' },
     samples: Object.assign(meadow([0, 0], [6, 2], [16, 5]), { W: [30, 2] }), mats: MEADOW_MATS, pairs: BANKS(2),
     before: () => raft({ set: 'forest', id: 'mb_log_bridge_long', cells: 3, footprint: [1, 1], what: 'The Meadowbrook footbridge' }) },
   /* the sewage channel's L was cut straight into the cobble with no edge: a built channel ends on a kerb course */
@@ -185,15 +195,15 @@ export const GROUNDS = Object.freeze({
   warrens_ground: { set: 'warren', map: 'coppercap_warrens', seed: 59, solid: { '#': 'X' }, samples: { E: [9, 0], C: [52, 21] }, keep: 'X',
     mats: { C: { z: 0, own: true }, E: { z: 1 } }, pairs: [{ a: 'C', b: 'E', style: 'ragged', bias: { E: 0.3 }, sweep: 5, warp: 5 }] },
   /* the river was one straight band edged by a hairline the length of the map */
-  mosslight_ground: { set: 'glade', map: 'mosslight_glade', seed: 47, solid: { '#': 'T' },
+  mosslight_ground: { set: 'glade-floor', map: 'mosslight_glade', seed: 47, solid: { '#': 'T' },
     samples: Object.assign(meadow([0, 0], [23, 2], [36, 6]), { W: [30, 21] }), mats: MEADOW_MATS, pairs: BANKS(2) },
   /* the river's banks were sawteeth on the grid, the ford a rectangle of shallows cut straight into its landings and banks, the
      mud track and the barrow banks stepped down the cells. The alder canopy keeps its painted edge (`over`): its crowns and dark rim are
      what tells a player the wall from the grass at night, and a crown cut by the noise loses both */
-  hasks_ford_ground: { set: 'ford', map: 'hasks_ford', seed: 61, grid: 'art/briefs/hasks-ford-grid-2026-10-28.txt', over: 'T',
+  hasks_ford_ground: { set: 'ford', map: 'hasks_ford', seed: 61, grid: 'art/briefs/hasks-ford-grid-2026-10-28.txt',
     samples: { G: [46, 4], M: [29, 15] },
     /* the river never reaches a walked cell (the ford's shallows and bars, grass, the track); it may lap into the reed beds */
-    mats: { W: { z: 0, own: 'SVGM' }, S: { z: 1 }, V: { z: 2 }, M: { z: 3 }, G: { z: 4 }, R: { z: 5 }, B: { z: 6 } },
+    mats: { W: { z: 0, own: 'SVGM' }, S: { z: 1 }, V: { z: 2 }, M: { z: 3 }, G: { z: 4 }, R: { z: 5 }, B: { z: 6 }, T: { z: 7, canopy: CROWNS } },
     pairs: [
       { a: 'W', b: 'R', style: 'bank', bias: { R: 0.2 }, sweep: 9, warp: 7, mid: 4, wet: 2 },
       { a: 'W', b: 'S', style: 'bank', bias: { S: 0.5 }, sweep: 10, warp: 8, mid: 4, wet: 2 },
@@ -205,16 +215,19 @@ export const GROUNDS = Object.freeze({
       { a: 'M', b: 'B', ...TRACK, outline: 2 },
       { a: 'G', b: 'R', ...WILD },
       { a: 'G', b: 'B', ...WILD, outline: 2, skirt: 'M' },
+      WALL('G', { bias: { G: 0.25 }, soil: 'M' }), WALL('R'), WALL('B'),
     ] },
-  /* the barrow mounds were blocks stepped on the grid, the mud track's edges hexagon steps. The reed beds keep their painted
-     scallops and earth rim (`over`): a cut through the reeds read as a box */
-  muster_barrows_ground: { set: 'muster', map: 'muster_barrows', seed: 67, grid: 'art/briefs/muster-barrows-grid-2026-10-29.txt', over: 'TR',
+  /* the barrow mounds were blocks stepped on the grid, the mud track's edges hexagon steps, and at shade 3 the turf was the track's
+     own dark brown: the turf is lifted a step (`lift`). The reed beds keep their painted scallops and earth rim (`over`): a cut
+     through the reeds read as a box */
+  muster_barrows_ground: { set: 'muster-floor', map: 'muster_barrows', seed: 67, grid: 'art/briefs/muster-barrows-grid-2026-10-29.txt', over: 'R',
     samples: { G: [39, 4], M: [16, 9] },
-    mats: { M: { z: 0 }, G: { z: 1 }, R: { z: 2 }, B: { z: 3 } },
+    mats: { M: { z: 0 }, G: { z: 1 }, R: { z: 2 }, B: { z: 3, lift: 2 }, T: { z: 4, canopy: CROWNS } },
     pairs: [
       { a: 'M', b: 'G', ...TRACK },
       { a: 'M', b: 'B', ...TRACK, outline: 2 },
       { a: 'G', b: 'B', ...WILD, outline: 2, skirt: 'M' },
+      WALL('G', { bias: { G: 0.25 }, soil: 'M' }), WALL('B'),
     ] },
 });
 
@@ -256,8 +269,10 @@ function run(id) {
 /* every floor variety of this ground keys its variants on its `at` cell's tile (compose.js): a redrawn `at` cell would be a tile of
    its own, and the floor would lose its variety everywhere else. Names a plain cell of the same tile to move it to. */
 function varietiesKept(set, id, before, after) {
-  for (const f of readdirSync(join(ROOT, ART_DIR, set)).filter((f) => f.endsWith('.json'))) {
-    const v = JSON.parse(readFileSync(join(ROOT, ART_DIR, set, f), 'utf8'));
+  /* a variety may live in a companion set (forest-floor holds the Meadowbrook's): every set is read */
+  const sidecars = readdirSync(join(ROOT, ART_DIR)).flatMap((d) => { try { return readdirSync(join(ROOT, ART_DIR, d)).filter((f) => f.endsWith('.json')).map((f) => join(ROOT, ART_DIR, d, f)); } catch { return []; } });
+  for (const file of sidecars) {
+    const v = JSON.parse(readFileSync(file, 'utf8'));
     if (v.kind !== 'variety' || v.of !== set + '/' + id || !v.at) continue;
     const cell = (im, x, y) => Buffer.from(crop(im, x * T, y * T, T, T).data);
     const base = cell(before, v.at[0], v.at[1]);

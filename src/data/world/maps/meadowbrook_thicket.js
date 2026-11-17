@@ -8,7 +8,7 @@
 // ('~') blocks a step but not a shot; its grassy banks are part of it (no tileset joins water to
 // thicket, so the bank stays). The thicket ('#') blocks both and counts as trees (L-TREES).
 //
-// ART (style 1): the ground is PixelLab map 91df925a (`meadowbrook_ground`, art/world/forest),
+// ART (style 1): the ground is PixelLab map 91df925a (`meadowbrook_ground`, art/world/forest-floor),
 // painted from these rows with a dirt trail along the route. Trees and props stand on whole tiles;
 // the gather nodes are the trees hunt-grounds.js `gather` lists, on the same tiles.
 //

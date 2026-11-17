@@ -3,7 +3,7 @@
   "class": "terrain",
   "kind": "variety",
   "style": "s1",
-  "of": "forest/meadowbrook_ground",
+  "of": "forest-floor/meadowbrook_ground",
   "at": [
     6,
     2

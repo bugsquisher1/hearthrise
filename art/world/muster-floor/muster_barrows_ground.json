@@ -9622,5 +9622,5 @@
     "tileset": "2b6efce3-c8b5-42cb-8db7-6c907d17c8af,7739cc60-4ffa-463d-8460-22171ae47a78,77869a44-e3d1-4c98-80de-4c2b3beea86f,7ec1b34b-cb91-46ab-be85-4691a0cf4b01,9a817bf5-7444-4a77-8f3b-b0b61eed4258,a16e2cb5-5f05-4dbb-b230-5cae403ca499,d2acf6a0-7c4a-49ff-af74-48981e769ebf",
     "grid": "art/briefs/muster-barrows-grid-2026-10-29.txt"
   },
-  "notes": "Painted from art/briefs/muster-barrows-grid-2026-10-29.txt with the tiles of 7 PixelLab pro tilesets on the dual grid by tools/world-art/port-pixellab.mjs paint; pixels unscaled. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/muster_barrows_ground.png): 88337 px of 3 borders redrawn from the fills' own pixels (ragged) on the paint grid art/briefs/muster-barrows-grid-2026-10-29.txt, the T and R edges kept as painted (10229 px laid back)."
+  "notes": "Painted from art/briefs/muster-barrows-grid-2026-10-29.txt with the tiles of 7 PixelLab pro tilesets on the dual grid by tools/world-art/port-pixellab.mjs paint; pixels unscaled. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/muster_barrows_ground.png): 264704 px of 5 borders redrawn from the fills' own pixels (ragged, canopy) on the paint grid art/briefs/muster-barrows-grid-2026-10-29.txt, the R edges kept as painted (124 px laid back)."
 }

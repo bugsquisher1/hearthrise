@@ -3420,3 +3420,11 @@ vignette falls on them. Sparks as EFFECTS held a phone's first town view shut (c
 first view wherever compose drew it, the overscan included; the raised list is named only where the view sees it. (3) one sphere per puff with a hard diagonal split reads as a stack of rocks, a union
 rim-lit as one silhouette reads flat: per-lobe sphere shading is the one that reads as smoke; (4) sparse 1-row glints vanish in
 the tile's own wave marks: they need the bone peak and 2 rows. Open: a flowing water surface, townsfolk, animals, lamps, cloth.
+Round 2 (same lane): townsfolk (src/world/town-folk.js: a loop of stops, a pure function of the clock, every change on a
+16 Hz tick so a walker costs 16 paints/s, never the frame rate; no plate, never ref.player), Tamsin and the smith glance on the
+beat, the water flows (ripples on every open cell in step, a two-cell tile on the open sea for a quarter of the draws: W6 caught
+495 draws a frame), the mill wheel turns, banners and awnings sway, P02's hens and goat stir. Lessons: (1) the only body with
+a walk clip that reads as a townsperson is the Quarry Brute: real townsfolk (a woman, a sweeper with a broom, a crier with a
+bell) need new bodies; (2) moving kit art cannot be an overlay when its outline changes (the static copy shows through): draw a
+TWIN in its place (sway) or cut the piece from a still twin and lay it over (stir); frame 0 is the art, held by the guard; (3) a
+piece read from the BUILT atlas makes --check go stale when the kit is rebuilt, which is the point.

@@ -87,7 +87,7 @@ export const TOWER_TEXT = Object.freeze({
   inside: 'Contents: {list}',
   skill_plus: 'Weapon bonus: +{plus} combat skill',
   plus: '+{plus}',
-  /* THE SUPER-RARE OUTFIT (the Sweep's Coat, 2027-04-27-tower-chest.sql hr_chest_outfits): its chance on the key's tip, its label in the loot */
+  /* THE SUPER-RARE OUTFIT (the Key Warden, 2027-04-27-tower-chest.sql hr_chest_outfits): its chance on the key's tip, its label in the loot */
   outfit_chance: '{name}: {pct}',
   super_rare: 'Super Rare',
   not_ready: 'Not available yet',

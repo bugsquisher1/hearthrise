@@ -442,7 +442,7 @@ const ARMS = {
     const bundleOn = new Map(rowsOf.map((r) => [r.outfit_id, r.bundle]));
     const { OUTFIT_ROWS, BASE_REGIONS, MASK_COLOURS } = X.OF;
     for (const [id, r] of Object.entries(OUTFIT_ROWS)) {
-      /* a bundle outfit (the Sweep's Coat) is owned only through its bundle (2027-04-30-sweeps-coat.sql): its row carries it, and a hero
+      /* a bundle outfit (the Key Warden) is owned only through its bundle (2027-04-30-sweeps-coat.sql): its row carries it, and a hero
          that never used one does not own it */
       if ((bundleOn.get(id) || null) !== (r.bundle || null)) out.push(`${id}: the server's bundle ${bundleOn.get(id)}, the data's ${r.bundle}`);
       if (r.bundle && (await one(db, 'select $1 = any (public.hr_outfit_owned($2::uuid, 0))', [id, '00000000-0000-4000-8000-00000000c0a7']))) {

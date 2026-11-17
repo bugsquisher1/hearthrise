@@ -1,7 +1,7 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 2027-04-30-sweeps-coat.sql — A BUNDLE OUTFIT IS OWNED ONLY BY THE HERO WHO USED ITS BUNDLE: THE SWEEP'S COAT, THE HEARTH CHEST'S
+-- 2027-04-30-sweeps-coat.sql — A BUNDLE OUTFIT IS OWNED ONLY BY THE HERO WHO USED ITS BUNDLE: THE KEY WARDEN, THE HEARTH CHEST'S
 --   SUPER-RARE (lane/c-sweeps-coat-drop, backend-architect, 2026-11-16; Tyler 2026-11-14: "a super rare outfit that can drop from any chest
---   would be cool too", the designer's Sweep's Coat, the board's "2026-11-14 The Burning Tower" §5 and §10 hr_chest_outfits row:
+--   would be cool too", the designer's Sweep's Coat, named Key Warden by Tyler 2026-11-16 (ids kept), the board's "2026-11-14 The Burning Tower" §5 and §10 hr_chest_outfits row:
 --   "It trades, until someone wears it ... Use it and that hero owns the outfit for good (the server's hr_outfit_owned)").
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on

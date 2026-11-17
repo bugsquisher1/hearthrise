@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/inventory/outfit-bundle.js — USING AN OUTFIT'S BUNDLE FROM THE BAG (the Sweep's Coat, the Hearth Chest's super-rare:
+// src/shell/windows/inventory/outfit-bundle.js — USING AN OUTFIT'S BUNDLE FROM THE BAG (the Key Warden, the Hearth Chest's super-rare:
 // src/data/chests.js CHEST_OUTFITS; the server half is supabase/migrations/2027-04-30-sweeps-coat.sql hr_outfit_bundle_use).
 //
 // A bundle's primary press and its menu's "Use" are ONE intent (src/session/outfit-intents.js useOutfitBundle). Off, with why, only for

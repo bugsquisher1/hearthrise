@@ -367,7 +367,7 @@ export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row la
    every item icon; tests/pixel-icons.mjs requires the file for each and does not call it an orphan. Delete an id here the day its
    row ships (the row carries it). The tier 7 dawnhide and duskweave sets' rows landed with the rename (gear-tiers.js).
    The Pyre Field's other four (pike_ferrule, rake_tine, warrant_seal, kennel_tag) are art/world-src/gen-2026-11-14/31-pyre-icons, copied as is.
-   The Sweep's Coat's bundle (art/world-src/gen-2026-11-16/04-sweeps-coat icon 02c7d52a) left this list with its row (src/data/chests.js
+   The Key Warden's bundle (art/world-src/gen-2026-11-16/04-sweeps-coat icon 02c7d52a) left this list with its row (src/data/chests.js
    CHEST_OUTFITS, lane/c-sweeps-coat-drop). */
 export const ITEM_ART_AHEAD = Object.freeze([
   'hall_key', 'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token', 'shroud_pin',

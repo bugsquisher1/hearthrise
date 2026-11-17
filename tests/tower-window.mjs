@@ -78,7 +78,7 @@ function section(o = {}) {
         held: held[key] || { bag: 0, storage: 0, ring: 0 }, base_pm: pm, chance_ppm: key === 'bronze' ? (o.chance ?? 326400) : 96000, stokes_default: key === 'bronze' ? (o.stokes ?? 1) : 0,
         stokes: [{ n: 1, pm: 1700, cost: 3 * cin }, { n: 2, pm: 2500, cost: 7 * cin }, { n: 3, pm: 3300, cost: 12 * cin }],
         inside: { tower_cinders: cin, [salts]: sq, [food]: fq }, ready: o.notReady ? false : true,
-        /* the super-rare outfit on every key (2027-04-27-tower-chest.sql hr_chest_outfits): the Sweep's Coat, 0.2% Bronze, 0.3% Silver */
+        /* the super-rare outfit on every key (2027-04-27-tower-chest.sql hr_chest_outfits): the Key Warden, 0.2% Bronze, 0.3% Silver */
         outfits: [{ outfit: 'sweeps_coat', item: 'sweeps_coat_bundle', pm: key === 'bronze' ? 2 : 3 }] })) },
   };
 }
@@ -356,7 +356,7 @@ async function checks(overrides, shots) {
         fails.push('TW-4 the keys read ' + JSON.stringify([c.picks, c.icons, c.cinders]));
       if (c.warm !== 'x1.2' || c.stokes.join() !== 'None,x1 150*,x2 350,x3 600' || c.stokeHead !== 'Stoke' || c.chance !== 'Chance: 33%')
         fails.push('TW-4 the odds read ' + JSON.stringify([c.warm, c.stokes, c.stokeHead, c.chance]));
-      if (c.tip !== 'Equipped type (Bow): 50%\nContents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20\nWeapon bonus: +1 combat skill\nSweep\'s Coat: 0.2%')
+      if (c.tip !== 'Equipped type (Bow): 50%\nContents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20\nWeapon bonus: +1 combat skill\nKey Warden: 0.2%')
         fails.push('TW-4 the key\'s inside reads ' + JSON.stringify(c.tip));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-4 Use/Use all with keys in town read ' + JSON.stringify([c.use, c.all]));
       if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-chest-desktop-1440x900.png') }); }
@@ -398,16 +398,16 @@ async function checks(overrides, shots) {
       await wait(page, () => /Keys used: 3/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''));
       c = await chestView(page);
       if (c.result !== 'Keys used: 3 | Hearth Cinders x150 | Tempering Salts x45 | Cooked Shrimp x60') fails.push('TW-8 a press with no weapon reads ' + JSON.stringify(c.result));
-      /* TW-4c THE SUPER-RARE (the Sweep's Coat, lane/c-sweeps-coat-drop): a key that finds the coat leads the loot with it, labelled Super
+      /* TW-4c THE SUPER-RARE (the Key Warden, lane/c-sweeps-coat-drop): a key that finds the coat leads the loot with it, labelled Super
          Rare, and the reveal raises its bundle (has-outfit), all from the server's answer (opens[].outfit, its bundle in the haul) */
       await page.click('[data-hs-win="tower"] .tc-keys-back');
       s.answer = (name, body) => (name === 'hr_chest_open' ? { ok: true, count: 1, opens: [{ n: 17, stokes: 1, chance_ppm: 326400, weapon: null, outfit: 'sweeps_coat', bundle: 'sweeps_coat_bundle' }],
         haul: { sweeps_coat_bundle: 1, tower_cinders: 50, temper_salts: 15, cooked_shrimp: 20 }, cinders_spent: 150 } : { ok: true });
       await page.click('[data-hs-win="tower"] .tc-use');
-      const coat = await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-result .tt-found')?.textContent === 'Sweep\'s Coat');
+      const coat = await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-result .tt-found')?.textContent === 'Key Warden');
       c = await chestView(page);
       const rvCoat = await page.evaluate(() => { const r = document.querySelector('[data-hs-win="tower"] .tc-scene .tc-reveal'); return r ? { outfit: r.classList.contains('has-outfit'), item: r.querySelector('.tc-reveal-item')?.getAttribute('src') || null } : null; });
-      if (!coat || c.result !== 'Sweep\'s Coat Super Rare | Hearth Cinders x50 | Tempering Salts x15 | Cooked Shrimp x20'
+      if (!coat || c.result !== 'Key Warden Super Rare | Hearth Cinders x50 | Tempering Salts x15 | Cooked Shrimp x20'
         || !rvCoat || !rvCoat.outfit || rvCoat.item !== 'assets/icons-bundle/pixel/items/sweeps_coat_bundle.png') fails.push('TW-4c a key that finds the coat reads ' + JSON.stringify([c.result, rvCoat]));
       const badChest = notLabels(await paneLines(page, 'chest'));
       if (badChest.length) fails.push('TW-8 the Chest tab says sentences: ' + JSON.stringify(badChest));
@@ -610,7 +610,7 @@ async function checks(overrides, shots) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
-  /* TW-4c, the Sweep's Coat (lane/c-sweeps-coat-drop) */
+  /* TW-4c, the Key Warden (lane/c-sweeps-coat-drop) */
   ['a super-rare find is drawn as plain loot', 'src/shell/windows/tower-chest.js', '  const finds = r.opens.filter((o) => o.bundle);', '  const finds = [];'],
   ['the reveal ignores the outfit', 'src/shell/windows/tower-chest.js', '  const bundle = r.opens.map((o) => o.bundle).find(Boolean) || null;', '  const bundle = null;'],
   ['the open\'s answer drops the outfit', 'src/session/tower-intents.js', '    outfit: id(o.outfit), bundle: id(o.outfit) ? id(o.bundle) : null }));', '    outfit: null, bundle: null }));'],

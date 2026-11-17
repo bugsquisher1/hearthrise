@@ -134,7 +134,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
       patch: (b, i) => { style(b, 'background-color', 'var(--dye-' + i + ')'); attr(b, 'aria-pressed', String(!!shown && shown[sc.region] === i)); },
     });
   }
-  /* The grid: search and the owned filter; premium and not-owned marked. A bundle outfit (the Sweep's Coat) shows only once the server
+  /* The grid: search and the owned filter; premium and not-owned marked. A bundle outfit (the Key Warden) shows only once the server
      says this hero owns it: it is a find, never a shop window, and until its server half lands no hero owns it. */
   const q = sc.query.trim().toLowerCase();
   const ids = OUTFIT_IDS.filter((id) => (!q || OUTFIT_ROWS[id].label.toLowerCase().includes(q)) && (!sc.ownedOnly || (o && o.owned.has(id)))

@@ -26,7 +26,7 @@
 //   CW-4  OUTFIT SAVE IS ONE INTENT: trying on an owned outfit and pressing Save
 //         sends exactly ONE hr_outfit_set naming it, the worn mark stays on the
 //         server's outfit until the re-read; a premium outfit not owned can be
-//         tried on and never saved; CW-4c a bundle outfit (the Sweep's Coat) has no
+//         tried on and never saved; CW-4c a bundle outfit (the Key Warden) has no
 //         card until the server's owned list names it
 //   CW-5  THE DEATH LOG is the server's rows: who killed the hero, where, the XP
 //   CW-7  the sheet lays out from the window's own width: every vital row whole, none over the identity
@@ -233,14 +233,14 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(150);
         const witch = await page.evaluate(() => ({ off: document.querySelector('[data-hs-act="of-save"]').disabled, name: document.querySelector('.hw-of-name').textContent }));
         if (!witch.off || !/Premium, not owned/.test(witch.name)) fails.push('CW-4 a premium outfit not owned can be saved, or is not marked: ' + JSON.stringify(witch));
-        /* CW-4c A BUNDLE OUTFIT IS A FIND (src/data/outfits.js `bundle`, the Sweep's Coat): no card while the server's owned list lacks it,
+        /* CW-4c A BUNDLE OUTFIT IS A FIND (src/data/outfits.js `bundle`, the Key Warden): no card while the server's owned list lacks it,
            its card once the server says the hero owns it. */
         const coatCard = () => page.evaluate(() => !!document.querySelector('[data-hs-act="of-pick"][data-outfit="sweeps_coat"]'));
-        if (await coatCard()) fails.push('CW-4c the Sweep\'s Coat shows in the grid of a hero who does not own it');
+        if (await coatCard()) fails.push('CW-4c the Key Warden shows in the grid of a hero who does not own it');
         const ownedWas = s.env.outfit;
         s.env.outfit = Object.assign({}, ownedWas, { owned: ownedWas.owned.concat(['sweeps_coat']) });
         await push(page, s);
-        if (!(await wait(page, () => !!document.querySelector('[data-hs-act="of-pick"][data-outfit="sweeps_coat"]'), null, 4000))) fails.push('CW-4c the Sweep\'s Coat is missing from the grid of a hero the server says owns it');
+        if (!(await wait(page, () => !!document.querySelector('[data-hs-act="of-pick"][data-outfit="sweeps_coat"]'), null, 4000))) fails.push('CW-4c the Key Warden is missing from the grid of a hero the server says owns it');
         s.env.outfit = ownedWas;
         await push(page, s);
         await wait(page, () => !document.querySelector('[data-hs-act="of-pick"][data-outfit="sweeps_coat"]'), null, 4000);

@@ -16,7 +16,7 @@
 //   parts     what each of those regions IS on this outfit: the word the picker shows,
 //             so the free try-on says exactly what a paid save changes here.
 //   plain     an outfit with no regions says why (the druid: the mask lane held it).
-//   bundle    the bag item whose use makes the outfit the hero's own (the Sweep's Coat, the Hearth Chest's super-rare: the Burning
+//   bundle    the bag item whose use makes the outfit the hero's own (the Key Warden, the Hearth Chest's super-rare: the Burning
 //             Tower board §5; src/data/chests.js CHEST_OUTFITS rolls it). Owned only through it, never by premium or by everyone:
 //             hr_outfits carries the bundle (tools/gen-outfits.mjs), hr_outfit_owned owns such a row only for a hero with its
 //             player_cosmetics 'outfit' row, written once by hr_outfit_bundle_use (2027-04-30-sweeps-coat.sql), and the Character
@@ -46,7 +46,7 @@ export const OUTFIT_ROWS = Object.freeze({
   witch: row('Hedge Witch', true, { head: 'Hat', body: 'Robe', feet: 'Trim' }),
   dawnward: row('Dawnward', true, { body: 'Cape' }),
   /* round 6 (Tyler's hooded keeper): the hood and its cape, the robe, the apron with the boots; the key, the singed edges and the rope stay as drawn, so no legs */
-  sweeps_coat: row('Sweep’s Coat', false, { head: 'Hood', body: 'Robe', feet: 'Apron and boots' }, null, 'sweeps_coat_bundle'),
+  sweeps_coat: row('Key Warden', false, { head: 'Hood', body: 'Robe', feet: 'Apron and boots' }, null, 'sweeps_coat_bundle'),
 });
 
 /* A region's name in the creation step. */

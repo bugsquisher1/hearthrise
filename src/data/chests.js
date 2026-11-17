@@ -107,7 +107,7 @@ export const CHEST_LUCK = Object.freeze({
   perCall: 20,
 });
 
-/* THE SUPER-RARE OUTFITS (the board's §5 "The super-rare outfit: the Sweep's Coat", Tyler 2026-11-14: "a super rare outfit that can drop
+/* THE SUPER-RARE OUTFITS (the board's §5 super-rare outfit, named Key Warden by Tyler 2026-11-16; Tyler 2026-11-14: "a super rare outfit that can drop
    from any chest would be cool too"). A row is one outfit a chest can pay:
      outfit  its src/data/outfits.js OUTFIT_ROWS id, whose `bundle` is this row's item (tools/gen-chests.mjs refuses a mismatch)
      item    the bag item it comes out as (the bundle): tradeable until a hero uses it, then that hero owns the outfit for good
@@ -119,7 +119,8 @@ export const CHEST_LUCK = Object.freeze({
    One outfit roll a key, on its own stream beside the weapon's (it never moves a weapon's odds): the rows stack in order, so a key finds
    at most one outfit and each at exactly its chance. Add-ons (the board's Brush at 50, Lantern at 100) wait for the outfit system's add-ons. */
 export const CHEST_OUTFITS = Object.freeze([
-  Object.freeze({ outfit: 'sweeps_coat', item: 'sweeps_coat_bundle', name: 'Sweep\'s Coat', value: 20000,
+  /* Tyler 2026-11-16 named it "Key Warden" (a hooded key-keeper with a gold key); the ids keep the design's first name */
+  Object.freeze({ outfit: 'sweeps_coat', item: 'sweeps_coat_bundle', name: 'Key Warden', value: 20000,
     pm: Object.freeze({ bronze: 2, silver: 3, gold: 4, platinum: 5 }) }),
 ]);
 
@@ -357,5 +358,5 @@ export const CHEST_ITEM_DESC = Object.freeze({
   tower_key_gold: 'A Keeper\'s key from high up the Tower. The chest on the ledge gives a lot for it',
   tower_key_platinum: 'A key from the Tower\'s top landings, still warm. The chest on the ledge gives the most for it',
   [CINDERS]: 'Embers from the Tower\'s own fire. Burn them in the Hearth, or stoke the chest with them for luck',
-  sweeps_coat_bundle: 'The coat the last chimney sweep wore up the flue, still black with soot. Use it and this hero owns the outfit for good',
+  sweeps_coat_bundle: 'Unlocks the Key Warden outfit for this hero',
 });

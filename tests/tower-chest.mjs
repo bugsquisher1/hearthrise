@@ -712,7 +712,7 @@ async function outfitArm(db, M) {
   const bad = [];
   const O = M.CH.CHEST_OUTFITS;
   const coat = O[0];
-  if (!coat || coat.outfit !== 'sweeps_coat' || coat.item !== 'sweeps_coat_bundle') return ['TCH-OUTFIT the data has no Sweep\'s Coat row: ' + JSON.stringify(coat)];
+  if (!coat || coat.outfit !== 'sweeps_coat' || coat.item !== 'sweeps_coat_bundle') return ['TCH-OUTFIT the data has no Key Warden row: ' + JSON.stringify(coat)];
   /* (1) THE DATA: Tyler's super-rare from any chest, the designer's 0.2 / 0.3 / 0.4 / 0.5%; the server's rows are the data's; the bundle
      trades (the board: "it trades, until someone wears it") at its book value */
   if (JSON.stringify(coat.pm) !== JSON.stringify({ bronze: 2, silver: 3, gold: 4, platinum: 5 })) bad.push('TCH-OUTFIT the coat\'s chances read ' + JSON.stringify(coat.pm));
@@ -835,7 +835,7 @@ async function outfitArm(db, M) {
   if (!hitOpen || hitOpen.outfit !== coat.outfit || hitOpen.bundle !== coat.item || r.hit.haul[coat.item] !== 1 || r.bag !== 1) bad.push(`TCH-OUTFIT key ${r.n}, rolled to find the coat, answered ${JSON.stringify(r.hit).slice(0, 240)} (bag ${r.bag})`);
   if (!r.again || JSON.stringify(r.again.opens) !== JSON.stringify(r.hit.opens) || r.bag !== 1) bad.push('TCH-OUTFIT a replayed press answered ' + JSON.stringify(r.again).slice(0, 160));
   if (r.row.length !== 1 || Number(r.row[0].n) !== r.n || r.row[0].outfit !== coat.outfit || !(r.row[0].outfit_roll < coat.pm.silver * 1000)) bad.push('TCH-OUTFIT the find\'s chest_opens row reads ' + JSON.stringify(r.row));
-  const said = 'pulled [[item:' + coat.item + ']] out of the chest on key number ' + r.n.toLocaleString('en-US') + '.';
+  const said = 'found [[item:' + coat.item + ']] in the Hearth Chest on key ' + r.n.toLocaleString('en-US') + '.';
   if (r.lines.length !== 1 || r.lines[0].body !== said) bad.push(`TCH-OUTFIT the call-out reads ${JSON.stringify(r.lines)}, want one line ${JSON.stringify(said)}`);
   if (!r.quiet || r.quiet.ok !== true || r.quiet.opens[0].outfit !== coat.outfit || r.linesQuiet.length !== 1) bad.push('TCH-OUTFIT a quiet hero\'s find was called out, or not found: ' + JSON.stringify(r.linesQuiet));
   if (!r.full || r.full.error !== 'bag_full' || !r.fits || r.fits.ok !== true) bad.push(`TCH-OUTFIT the bag's worst case misses the bundle: ${JSON.stringify(r.full).slice(0, 120)} / with one held ${JSON.stringify(r.fits).slice(0, 120)}`);
@@ -848,7 +848,7 @@ async function outfitArm(db, M) {
   if ((r.other.owned || []).includes(coat.outfit) || !r.other.wear || r.other.wear.error !== 'not_owned' || !r.other.use || r.other.use.error !== 'none_held') bad.push('TCH-OUTFIT a hero with no bundle owns, wears or uses the coat: ' + JSON.stringify(r.other).slice(0, 240));
   if (!r.forged || r.forged.error !== 'bad_item') bad.push('TCH-OUTFIT a use of an item no outfit names answered ' + JSON.stringify(r.forged));
   const cl = r.client;
-  if (cl.before !== '' || !cl.said || cl.said.ok !== true || cl.said.said !== 'Outfit unlocked: Sweep’s Coat' || cl.calls.length !== 1
+  if (cl.before !== '' || !cl.said || cl.said.ok !== true || cl.said.said !== 'Outfit unlocked: Key Warden' || cl.calls.length !== 1
     || cl.calls[0].name !== 'hr_outfit_bundle_use' || cl.calls[0].keys !== 'p_idem,p_item,p_slot' || cl.loads !== 2
     || cl.after !== 'Outfit already owned' || !(cl.owned || []).includes(coat.outfit) || Number(cl.bag) !== 0) {
     bad.push('TCH-OUTFIT the bag\'s Use, client to server, reads ' + JSON.stringify(cl).slice(0, 300));
@@ -920,7 +920,7 @@ const MUTANTS = [
     find: '  if cardinality(v_fams) <> (select count(*) from public.hr_chest_families) then', replace: '  if cardinality(v_fams) = 0 and false then' },
   { name: 'the bag is checked after the roll', arm: 'forged', want: /^TCH-FORGED a full bag/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
     find: '  if v_new > 0 and v_stacks + v_new > v_cap then', replace: '  if false then' },
-  /* TCH-OUTFIT: the Sweep's Coat (lane/c-sweeps-coat-drop) */
+  /* TCH-OUTFIT: the Key Warden (lane/c-sweeps-coat-drop) */
   { name: 'the outfit rides the weapon\'s stream', arm: 'outfit', want: /^TCH-OUTFIT the outfit roll is not its own stream/, fn: 'public.hr_chest_outfit_roll(uuid,integer,bigint)',
     find: "'chest:' || p_n || ':outfit'", replace: "'chest:' || p_n" },
   { name: 'the open finds an outfit at twice its chance', arm: 'outfit', want: /^TCH-OUTFIT a near miss/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
@@ -1001,7 +1001,7 @@ async function main() {
     bad.push(...got);
   }
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? `tower-chest: ${bad.length} FAILED` : 'tower-chest: green (the table, the odds, the mint on both doors with no earn cap, the held limit, the Key Ring, the open, six a family a week, every forged value refused, the Sweep\'s Coat found, used and worn)');
+  console.log(bad.length ? `tower-chest: ${bad.length} FAILED` : 'tower-chest: green (the table, the odds, the mint on both doors with no earn cap, the held limit, the Key Ring, the open, six a family a week, every forged value refused, the Key Warden found, used and worn)');
   process.exit(bad.length ? 1 : 0);
 }
 

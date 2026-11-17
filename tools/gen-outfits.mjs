@@ -48,7 +48,7 @@ export function buildSql(O, dyes, palette) {
   if (problems.length) throw new Error('gen-outfits: src/data/outfits.js is invalid: ' + problems.join('; '));
   const pal = new Set(Object.values(palette.ramps).flat().map((h) => h.toLowerCase()));
   for (const h of dyes) if (!pal.has(h)) throw new Error('gen-outfits: the dye ' + h + ' is not a world palette colour');
-  /* A BUNDLE OUTFIT (src/data/outfits.js `bundle`, the Sweep's Coat) is emitted WITH its bundle: hr_outfit_owned owns it only for a hero
+  /* A BUNDLE OUTFIT (src/data/outfits.js `bundle`, the Key Warden) is emitted WITH its bundle: hr_outfit_owned owns it only for a hero
      that used the bundle (2027-04-30-sweeps-coat.sql), and §0 below refuses this file until that body is the live one. */
   const ids = O.OUTFIT_IDS;
   for (const id of ids) if (!/^[a-z0-9_]{1,32}$/.test(id)) throw new Error('gen-outfits: bad outfit id ' + id);
@@ -64,7 +64,7 @@ export function buildSql(O, dyes, palette) {
 -- The outfit catalogue (hr_outfits) and the dyes (hr_outfit_dyes) the Character
 -- window's outfit save and hr_hero_colors_set are checked against. Cosmetic: nothing here moves value.
 -- THE FORWARD FILE (lane/c-sweeps-coat-drop, 2026-11-16): 2027-03-05-outfits-catalogue.generated.sql is APPLIED history; this carries
--- every row again plus each BUNDLE outfit with its bundle (hr_outfits.bundle: the Sweep's Coat, owned only by a hero that used its
+-- every row again plus each BUNDLE outfit with its bundle (hr_outfits.bundle: the Key Warden, owned only by a hero that used its
 -- bundle). STAGED, NOT APPLIED. ORDER: right after 2027-04-30-sweeps-coat.sql, which adds the column and makes hr_outfit_owned read it;
 -- §0 refuses before it, because under the old body every hero would own a bundle outfit.
 -- Rows are UPSERTED (player_outfits references hr_outfits); a removed row is

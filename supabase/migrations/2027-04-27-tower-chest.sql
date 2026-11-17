@@ -53,14 +53,14 @@
 --   family it could roll, less the key's stack it empties: checked BEFORE any roll, so a refusal never says what a key would have found),
 --   intent_mismatch, and hr_apply's own (which an honest press under these locks never meets; if one does, the whole press rolls back).
 -- THE SUPER-RARE OUTFIT (lane/c-sweeps-coat-drop, backend-architect, 2026-11-16; Tyler 2026-11-14: "a super rare outfit that can drop from
---   any chest", the designer's Sweep's Coat; src/data/chests.js CHEST_OUTFITS, hr_chest_outfits): every key used rolls ONCE more on its own
+--   any chest", the designer's Sweep's Coat, named Key Warden by Tyler 2026-11-16; src/data/chests.js CHEST_OUTFITS, hr_chest_outfits): every key used rolls ONCE more on its own
 --   stream (hr_chest_outfit_roll: hr_seed(hero, 'chest:<n>:outfit'), never the weapon's), and the chest's outfit rows for that key, stacked
 --   in outfit order, each cover pm x 1000 of the million: at most one outfit a key, each at exactly its chance (Bronze 2, Silver 3, Gold 4,
 --   Platinum 5 permille). A hit pays the outfit's BUNDLE item (tradeable, book value: the board's "it trades, until someone wears it") into
 --   the haul, is recorded on the key's chest_opens row (outfit, outfit_roll) and answered in opens[] { outfit, bundle }; the bag's worst
 --   case counts a bundle stack the bag lacks. THE CALL-OUT: once the press has applied, each find posts one System line (chat_messages,
---   channel system, from the finder: hr_chat_name_authority stamps the hero's name) "pulled [[item:<bundle>]] out of the chest on key
---   number <n>." unless the hero is quiet (player_state.presence_quiet), outside the rare-drop daily cap (hr_world_notices counts the
+--   channel system, from the finder: hr_chat_name_authority stamps the hero's name) "found [[item:<bundle>]] in the Hearth Chest on key
+--   <n>." unless the hero is quiet (player_state.presence_quiet), outside the rare-drop daily cap (hr_world_notices counts the
 --   settle's rare_drop events only). The line is in the press's transaction: a refused press posts nothing. Using the bundle is
 --   2027-04-30-sweeps-coat.sql's hr_outfit_bundle_use.
 -- hr_chest_stoke_default(p_slot int, p_key text, p_stokes int, p_idem uuid) -> jsonb   CLIENT VERB. The hero's default stoke count for one
@@ -757,7 +757,7 @@ begin
       for v_find in select value from jsonb_array_elements(v_finds) loop
         insert into public.chat_messages (id, channel, from_id, from_name, from_slot, body)
           values (gen_random_uuid(), 'system', v_uid, 'Adventurer', p_slot,
-                  'pulled [[item:' || (v_find->>'bundle') || ']] out of the chest on key number ' || to_char((v_find->>'n')::bigint, 'FM999,999,999,999') || '.');
+                  'found [[item:' || (v_find->>'bundle') || ']] in the Hearth Chest on key ' || to_char((v_find->>'n')::bigint, 'FM999,999,999,999') || '.');
       end loop;
     end if;
     v_out := jsonb_build_object('ok', true, 'version', v_a->'version', 'chest', p_chest, 'key', v_k.key_id, 'count', p_count, 'opens', v_opens,
@@ -1133,7 +1133,7 @@ begin
        or (select count(*) from public.chest_opens where user_id = v_u and slot = 0 and n = v_hit and outfit = v_fam.outfit_id
              and outfit_roll < v_fam.pm * 1000) <> 1
        or (select count(*) from public.chat_messages where from_id = v_u and from_slot = 0 and channel = 'system'
-             and body = 'pulled [[item:' || v_fam.item_id || ']] out of the chest on key number ' || to_char(v_hit, 'FM999,999,999,999') || '.') <> 1
+             and body = 'found [[item:' || v_fam.item_id || ']] in the Hearth Chest on key ' || to_char(v_hit, 'FM999,999,999,999') || '.') <> 1
        or (select count(*) from public.chat_messages where from_id = v_u and channel = 'system') <> v_lines + 1 then
       raise exception 'tower-chest §9(e): key % answered % (the bundle, the row or the one call-out is off)', v_hit, v; end if;
     update public.player_state set presence_quiet = true where user_id = v_u and slot = 0;

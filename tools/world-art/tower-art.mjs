@@ -10,12 +10,14 @@
 //   OPEN  edit_image_pro_flash of that very chest (6f025e0b, laid on a 40x56 canvas so the lid has room): the lid swung up, a bed of
 //         embers inside. The box below the lid's seam is the shut chest's, pixel for pixel. The edit draws off the palette, so it is
 //         snapped here: the ember bed onto the fire ramp (shadow, cloth, blood, torch), everything else onto the whole palette.
-// This tool cuts both to the shut chest's box, repaints the four lock plates in each key's metal (Bronze, Silver, Gold, Platinum, left to
-// right: the generation drew two of them grey), and lays the frames. Every pixel is a palette entry (art/world/palette.json, read by
+// This tool cuts both to the shut chest's box, lays the four lock plates in each key's soot-dulled metal (LOCKS: Bronze, Silver, Gold,
+// Platinum, left to right; the generation drew two of them grey, and the window's bright METALS read as candy dots on the Hearth,
+// lane/fix137-hearth-chest-art), and lays the frames. Every pixel is a palette entry (art/world/palette.json, read by
 // palette.mjs: no colour is written here as a literal), binary alpha, nothing scaled.
 //
 //   art/world/common/hearth_chest.png             the chest on the Hearth's ledge (src/data/world/town/sites.js AMBIENT): the shut chest,
-//                                                  8 frames of the fire's light on its right-hand iron (FLICKER)
+//                                                  8 frames of the fire's light on its iron facing the fire and a glint passing over
+//                                                  its locks (FLICKER, glintsAt)
 //   assets/ui/tower/chest-open-<key>.png          THE KEY'S OPENING (the Tower window's Chest tab, src/shell/windows/tower-chest.js):
 //                                                  8 frames of FW x FH in a row, shown at x2: the key's own lock catches the light, the
 //                                                  lid cracks on a line of fire, opens, and embers climb out
@@ -34,6 +36,7 @@ import { createImage, encodePNG, decodePNG } from './png.mjs';
 import { snapTo } from './lock.mjs';
 import { PALETTE, RAMPS } from './palette.mjs';
 import { CHEST_KEYS } from '../../src/data/chests.js';
+import { AMBIENT } from '../../src/data/world/town/sites.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -48,13 +51,27 @@ const C = Object.freeze({
   K: R('shadow', 0), k1: R('shadow', 1), k2: R('shadow', 2), k3: R('shadow', 3),
   ember: R('blood', 1), flame: R('torch', 0), hot: R('torch', 1),
 });
-/* EACH KEY'S METAL: its lock plate and its column, dark to light (palette ramps: bronze, steel, bronze-and-gold, mithril) */
+/* EACH KEY'S METAL in the window's light: the reveal's column and the Climb tab's landing plates, dark to light (palette ramps: bronze,
+   steel, bronze-and-gold, mithril) */
 export const METALS = Object.freeze({
   bronze: Object.freeze([R('bronze', 0), R('bronze', 2), R('bronze', 3)]),
   silver: Object.freeze([R('steel', 0), R('steel', 2), R('steel', 3)]),
   gold: Object.freeze([R('bronze', 2), R('gold', 0), R('torch', 1)]),
   platinum: Object.freeze([R('mithril', 1), R('mithril', 2), R('mithril', 3)]),
 });
+/* EACH KEY'S LOCK ON THE CHEST, [dark, body, lit corner, glint] (lane/fix137-hearth-chest-art, Tyler 2026-11-17: the plates in the window's
+   bright metals read as candy dots on the sooty Hearth). Old metal dulled by the fire like the Hearth's own iron: a lock is told by its body's
+   metal and value (bronze brown, silver cool iron, gold tan, platinum pale warm grey), and its shine is one glint pixel, never a coloured plate. */
+export const LOCKS = Object.freeze({
+  bronze: Object.freeze([R('bronze', 0), R('bronze', 1), R('bronze', 2), R('bronze', 3)]),
+  silver: Object.freeze([R('iron', 1), R('iron', 2), R('iron', 3), R('steel', 3)]),
+  gold: Object.freeze([R('bronze', 2), R('bronze', 3), R('gold', 0), R('torch', 1)]),
+  platinum: Object.freeze([R('stone', 2), R('stone', 3), R('stone', 4), R('bone', 1)]),
+});
+/* WHICH SIDE THE FIRE IS ON: the chest's ambient row against the fire's (src/data/world/town/sites.js), so its light falls on the iron that
+   faces the firebox wherever the chest is seated */
+const AT = Object.fromEntries(AMBIENT.map((a) => [a.id, a]));
+export const FIRE_SIDE = AT.hearth_chest && AT.hearth_fire && AT.hearth_chest.x > AT.hearth_fire.x ? 'left' : 'right';
 /* THE EMBER BED: an edit pixel in the open box's mouth that came back warm is poured by its red onto the fire ramp, never onto the planks'
    earth (a nearest-colour snap reads the edit's hottest orange, 225,63,5, as blood red and the bed goes flat). [least red, colour] */
 const FIRE = Object.freeze([[200, R('torch', 0)], [160, R('blood', 1)], [120, R('blood', 0)], [85, R('cloth', 1)], [60, R('cloth', 0)], [0, R('shadow', 1)]]);
@@ -106,27 +123,40 @@ export function openChest() {
   return { w, h: h + OPEN.lid, lid: OPEN.lid, img: all };
 }
 
-/* THE FOUR LOCKS on a chest image whose box's top-left is (left, top): each plate's metal pixels poured onto its key's ramp (light row,
-   mid, mid; the keyhole and the outline stay shadow). `lit`: that key's plate catches the light. */
-function locks(img, left, top, lit) {
+/* THE FOUR LOCKS on a chest image whose box's top-left is (left, top): each 3 x 3 plate laid in its key's LOCKS, lit from the upper left
+   (the lit corner, the body, the shade right and below; the keyhole and the outline stay shadow). `glint`: the keys whose lock catches the
+   fire this frame (its corner the glint, the next pixel lit); `lit`: the key being used in the reveal, its whole plate in the light. */
+const PLATE = Object.freeze(['LBB', 'BkD', 'BDD']);
+const PLATE_GLINT = Object.freeze(['GLB', 'BkD', 'BDD']), PLATE_LIT = Object.freeze(['GLL', 'LkB', 'BBD']);
+function locks(img, left, top, lit, glint = []) {
   CHEST_KEYS.slice(0, PLATES.length).forEach((k, n) => {
-    const m = METALS[k.id], on = lit === k.id;
-    const [x0, x1] = PLATES[n].map((x) => left + x);
-    for (let r = 0; r < 3; r++) for (let x = x0; x <= x1; x++) {
-      const y = top + PLATE_Y + r;
+    const [dark, body, light, shine] = LOCKS[k.id];
+    const plate = lit === k.id ? PLATE_LIT : glint.includes(k.id) ? PLATE_GLINT : PLATE;
+    const x0 = left + PLATES[n][0];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+      const x = x0 + c, y = top + PLATE_Y + r;
       if (!opaque(img, x, y) || RAMPS.shadow.includes(hexAt(img, x, y))) continue;
-      put(img, x, y, on ? (r === 0 ? C.hot : m[2]) : (r === 0 ? m[2] : m[1]));
+      put(img, x, y, { L: light, B: body, D: dark, G: shine }[plate[r][c]]);
     }
   });
 }
 
-/* THE FIRE'S LIGHT ON IT: the Great Hearth's fire burns just right of the chest (its 8-frame loop at 8 fps, hearth_fire), so the chest's
-   right-hand iron takes that light, one value step up its own ramp, over more or fewer of its rows frame by frame. An ambient row loops on
-   the town's clock (tests/world-core.mjs W2), and in town something always moves (ART_DIRECTION §3). */
+/* THE FIRE'S LIGHT ON IT: the Great Hearth's fire burns beside the chest (its 8-frame loop at 8 fps, hearth_fire), so the chest's iron on the
+   fire's side (FIRE_SIDE) takes that light, one value step up its own ramp, over more or fewer of its rows frame by frame, and its locks
+   catch it in turn: the lock nearest the fire leads, each next one two frames behind, a glint where the fire is high (GLINT_AT). An ambient
+   row loops on the town's clock (tests/world-core.mjs W2), and in town something always moves (ART_DIRECTION §3). */
 export const FLICKER = Object.freeze([1, 2, 4, 3, 5, 2, 3, 1]);
+const GLINT_AT = 4, GLINT_LAG = 2;
 const upRamp = (n) => RAMPS[n].slice(0, -1).map((c, i) => [c, RAMPS[n][i + 1]]);
 const STEP_UP = Object.freeze(Object.fromEntries([[R('shadow', 3), R('stone', 0)], ...upRamp('stone'), ...upRamp('iron')]));
 const LIT_COLS = 6;
+
+/** The keys whose lock glints on frame f: the lock nearest the fire first. */
+export function glintsAt(f) {
+  const keys = CHEST_KEYS.slice(0, PLATES.length).map((k) => k.id);
+  const fromFire = FIRE_SIDE === 'right' ? keys.slice().reverse() : keys;
+  return fromFire.filter((id, n) => FLICKER[(f + FLICKER.length - (n * GLINT_LAG) % FLICKER.length) % FLICKER.length] >= GLINT_AT);
+}
 
 /** THE CHEST ON THE LEDGE: the shut chest with its four locks, 8 frames of the fire's light in a row. */
 export function drawChest() {
@@ -135,9 +165,10 @@ export function drawChest() {
   FLICKER.forEach((rows, f) => {
     const one = createImage(b.w, b.h);
     one.data.set(b.img.data);
-    locks(one, 0, 0, null);
-    /* the lit rows: the right-hand iron from the lid's top down `rows` x 3 rows */
-    for (let y = 1; y < Math.min(b.h - 1, 1 + rows * 3); y++) for (let x = b.w - LIT_COLS; x < b.w; x++) {
+    locks(one, 0, 0, null, glintsAt(f));
+    /* the lit rows: the fire side's iron from the lid's top down `rows` x 3 rows */
+    const xs = FIRE_SIDE === 'right' ? b.w - LIT_COLS : 0;
+    for (let y = 1; y < Math.min(b.h - 1, 1 + rows * 3); y++) for (let x = xs; x < xs + LIT_COLS; x++) {
       const up = opaque(one, x, y) && STEP_UP[hexAt(one, x, y)];
       if (up) put(one, x, y, up);
     }

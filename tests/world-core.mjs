@@ -356,6 +356,8 @@ async function check(M) {
       ['a walled-off strip of a walked map', 'L-REACH', 'home_cottage', (r) => { r.objects.push({ id: 'bush', x: 1, y: 11 }); }],
       ['an enterable building with no inside wall kit', 'L-KIT', '_kit_town', (r) => { delete r.buildings[0].closed; }],
       ['a focus off the map', 'L-WHOLE', 'town_common', (r) => { r.focus = [r.rows[0].length + 3, 7]; }],
+      ['an ambient row seated a fraction across', 'L-WHOLE', 'town_common', (r) => { r.ambient[r.ambient.length - 1].dx = 2.5; }],
+      ['an ambient row seated off its tile', 'L-WHOLE', 'town_common', (r) => { r.ambient[r.ambient.length - 1].dx = 17; }],
       ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { const w = r.objects.find((o) => o.id === 'well'); r.stations = Object.assign({}, r.stations, { combat: [w.x, w.y - 1] }); }],
       ['a hunt map drawn in placeholder tones', 'L-KIND', 'mill_cellar', (r) => { r.ground = null; }],
       ['a ground no atlas carries', 'L-KIND', 'town_common', (r) => { r.ground = 'town_ground'; }],
@@ -421,9 +423,17 @@ async function check(M) {
         for (const a of m.ambient) {
           const fx = (t) => (frame(id, { x: a.x, y: a.y + 2 }, { t }).fx || []).find((e) => e.id === a.id);
           const f0 = fx(0), f1 = fx(130);
-          ok('W2', !!f0 && !!f1 && f0.cy === Math.round((a.y + 1) * T - 1 - a.lift) && (f0.sx !== f1.sx || f0.sy !== f1.sy),
-            id + ': the ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' must be drawn, lifted ' + a.lift + ' px, and loop on the clock');
+          ok('W2', !!f0 && !!f1 && f0.cy === Math.round((a.y + 1) * T - 1 - a.lift) && f0.cx === Math.round((a.x + 0.5) * T + (a.dx || 0))
+            && (f0.sx !== f1.sx || f0.sy !== f1.sy),
+            id + ': the ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' must be drawn, lifted ' + a.lift + ' px and ' + (a.dx || 0) + ' across, and loop on the clock');
+          /* an object standing on art (the Hearth Chest on the Hearth's ledge, lane/fix137-hearth-chest-art) keeps its manifest ellipse,
+             at its foot by the one shadow rule (shadows.js), since the floor's mask lies under the art it stands on; a light casts none */
+          const s = book.sprite(a.id), sh = s.blend !== 'add' && s.shadow && s.shadow.kind === 'ellipse' ? s.shadow : null;
+          ok('W2', !f0 || (sh ? !!f0.shade && f0.shade.cx === f0.cx + sh.dx - 2 && f0.shade.cy === f0.cy + sh.dy - 1 && f0.shade.w === sh.w && f0.shade.h === sh.h
+            : !f0.shade), id + ': the ambient ' + a.id + (sh ? ' must stand on its manifest ellipse at its foot' : ' must cast no shadow') + ', got ' + JSON.stringify(f0 && f0.shade));
         }
+        ok('W2', id !== 'town_common' || m.ambient.some((a) => a.dx) && m.ambient.some((a) => book.sprite(a.id).shadow),
+          'the town must keep an ambient row seated across a tile (dx) and one with a shadow (the Hearth Chest), or W2 proves neither');
         const css = M.tokensCss;
         const missing = [...new Set(m.ground)].filter((mat) => !['a', 'b'].every((k) => css.includes('--world-ground-' + mat + '-' + k + ':')));
         ok('W2', !missing.length, id + ': no placeholder tone token (src/styles/tokens.css --world-ground-<material>-a/-b) for ' + missing.join(', '));
@@ -1015,6 +1025,9 @@ const MUTANTS = [
   ['W1', 'a lone tile stops melting', 'src/world/core/wang.js', [['up >= 3 ? 1 : 0', 'up >= 1 ? 1 : 0']]],
   ['W2', 'a patch of painted ground is left as tones', 'src/world/core/compose.js', [['const p = patchAt(x, y), pt', 'const p = null, pt']]],
   ['W2', 'the map\'s ambient loop never plays', 'src/world/core/compose.js', [["const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;", 'const i = 0;']]],
+  ['W2', 'an ambient row\'s whole-px seat across its tile ignored', 'src/world/core/compose.js', [['const px = Math.round((a.x + 0.5) * T + (a.dx || 0)), py', 'const px = Math.round((a.x + 0.5) * T), py']]],
+  ['W2', 'the chest on the ledge stands with no shadow', 'src/world/core/compose.js', [["if (e.blend === 'over' && s.shadow && s.shadow.kind === 'ellipse') e.shade", "if (false) e.shade"]]],
+  ['W2', 'the compiled map drops an ambient row\'s dx', 'src/world/core/map-compile.js', [['lift: a.lift || 0, dx: a.dx || 0 })', 'lift: a.lift || 0 })']]],
   ['W2', 'a ground with no art lays nothing', 'src/world/core/compose.js', [['tones.push({ m: map.ground[y * map.w + x]', 'void ({ m: map.ground[y * map.w + x]']]],
   ['W2', 'the blend drawn on the cell grid, not the dual grid', 'src/world/core/compose.js', [['x: x * T + H, y: y * T + H', 'x: x * T, y: y * T']]],
   ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],

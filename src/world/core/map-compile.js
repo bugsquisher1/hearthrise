@@ -36,8 +36,9 @@
 //             placeholder tone; alias draws one material with another's art (cobble with flagstone);
 //             rough?: { seed, pairs: [[lower, upper]], spill, bite, scale, deep } draws a natural edge ragged
 //             (ground-rough.js: how an edge is drawn, never what is walkable)
-//   ambient   [{ id, x, y, lift }] a looping effect the map places (the Great Hearth's fire), its
-//             anchor `lift` art px above tile (x, y)'s foot row; it blocks nothing
+//   ambient   [{ id, x, y, lift, dx? }] a looping effect the map places (the Great Hearth's fire), its
+//             anchor `lift` art px above tile (x, y)'s foot row and `dx` whole art px across from its middle
+//             (at most half a tile: the tile still names where it stands); it blocks nothing
 //   life      [material] (optional) the surfaces that catch the light here ('water'): the compiled map's `life`
 //             is those glints plus every placed sprite's smoke and sparks (core/ambient.js lifeOf); it blocks nothing
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
@@ -140,7 +141,7 @@ export function compileMap(row, tables) {
     patches: (row.patches || []).map((p) => ({ terrain: p.terrain, rect: rectOf(p.rect) })),
     blend: row.blend ? Object.assign({ pairs: row.blend.pairs.slice(), alias: Object.assign({}, row.blend.alias || {}) },
       row.blend.rough ? { rough: row.blend.rough } : {}) : null,
-    ambient: (row.ambient || []).map((a) => ({ id: a.id, x: a.x, y: a.y, lift: a.lift || 0 })),
+    ambient: (row.ambient || []).map((a) => ({ id: a.id, x: a.x, y: a.y, lift: a.lift || 0, dx: a.dx || 0 })),
     life: lifeOf(row, objects, ground, sprites, w, h, grid.T),
     overlap: bodyOverlap(w, h, objects, buildings, sprites, grid),
   };
@@ -327,7 +328,8 @@ export function lintMap(row, tables) {
     for (const id of row.blend.pairs || []) if (terrains && !(terrains[id] && terrains[id].kind === 'wang16')) bad('L-KIND', 'blend pair "' + id + '" is not a wang16 terrain in any atlas');
   }
   for (const a of row.ambient || []) {
-    if (!sprites[a.id] || !inside(a.x, a.y) || !(a.lift == null || WHOLE(a.lift))) bad('L-WHOLE', 'ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' is not a sprite on a whole tile with a whole-px lift');
+    if (!sprites[a.id] || !inside(a.x, a.y) || !(a.lift == null || WHOLE(a.lift)) || !(a.dx == null || (WHOLE(a.dx) && Math.abs(a.dx) <= gridOf(row.grid).T / 2)))
+      bad('L-WHOLE', 'ambient ' + a.id + ' at ' + a.x + ',' + a.y + ' is not a sprite on a whole tile with a whole-px lift and at most half a tile across');
   }
   const spots = [['start', row.start]].concat((row.spawns || []).map((s) => ['spawn', s]),
     Object.entries(row.stations || {}), (row.exits || []).map((e) => ['exit to ' + e.to, [e.x, e.y]]));

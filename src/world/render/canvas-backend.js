@@ -166,6 +166,15 @@ export function createCanvasBackend(o) {
   function effects(g, list, view) {
     for (const e of list.fx || []) {
       if (!e.set || !images[e.set]) continue;
+      if (e.shade) {
+        /* a placed object standing on art (compose.js ambient `shade`): its ellipse at the floor mask's tone and alpha, just under it */
+        g.globalCompositeOperation = 'source-over';
+        g.globalAlpha = parseFloat(tone('shadow-alpha')) || 0;
+        g.fillStyle = tone('shadow');
+        g.beginPath();
+        g.ellipse(e.shade.cx - view.ox, e.shade.cy - view.oy, e.shade.w / 2, e.shade.h / 2, 0, 0, Math.PI * 2);
+        g.fill();
+      }
       g.globalCompositeOperation = e.blend === 'add' ? 'lighter' : 'source-over';
       g.globalAlpha = e.alpha == null ? 1 : e.alpha;   // its owner's Effects slider (src/hunt-view/fx-prefs.js)
       if (e.angle) {

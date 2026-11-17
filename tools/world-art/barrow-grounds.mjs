@@ -25,6 +25,7 @@ import { decodePNG, encodePNG, createImage, blit, crop } from './png.mjs';
 import { ROOT, ART_DIR } from './build.mjs';
 import { lock } from './lock.mjs';
 import { stepPatches, bakeDecals, noise as wearNoise } from './ground-finish.mjs';
+import { reseam } from './seams.mjs';
 import { wangTiles } from './tileset.mjs';
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
 import PYRE_MAP from '../../src/data/grounds/pyre_field/map.js';
@@ -86,9 +87,10 @@ export function groundParts(run) {
     writeGrid(grid, ['THE SLAKE\'S PAINT GRID (lane/b-hold-art, 2026-11-14), cut from src/data/grounds/the_slake/map.js rows by tools/world-art/barrow-grounds.mjs',
       'slakeGrid: S silt (the bars and the walked crossings), W the deep channels, R reeds and banks. The kit has no reeds/water pair, so a bank',
       'cell that touches water (8 ways) is silt. Painted by port-pixellab.mjs paint from brief 22\'s two pairs; the river pair\'s mud is the silt (--same).'], slakeGrid(SLAKE_MAP.rows));
-    run('port-pixellab.mjs', ['paint', '--set', 'slake', '--id', 'the_slake_ground', '--grid', abs(grid), '--tilesets', dirs.map(abs).join(','), '--use', metas.map((m) => m.id.slice(0, 8)).join(','),
+    run('port-pixellab.mjs', ['paint', '--set', 'slake-floor', '--id', 'the_slake_ground', '--grid', abs(grid), '--tilesets', dirs.map(abs).join(','), '--use', metas.map((m) => m.id.slice(0, 8)).join(','),
       '--legend', `S=${sr.lower.slice(0, 8)},W=${rm.lower.slice(0, 8)},R=${sr.upper.slice(0, 8)}`, '--same', `${rm.upper}=${sr.lower}`, '--material', 'native']);
-    finish('slake', 'the_slake_ground', slakeGrid(SLAKE_MAP.rows), SLAKE_FINISH);
+    seam('slake-floor', 'the_slake_ground', slakeGrid(SLAKE_MAP.rows), SLAKE_SEAMS);
+    finish('slake-floor', 'the_slake_ground', slakeGrid(SLAKE_MAP.rows), SLAKE_FINISH);
   };
 
   /* ── THE PYRE FIELD ── */
@@ -135,6 +137,8 @@ export function groundParts(run) {
       '--legend', `.=${id8(metas[0].base_tile_ids.upper)},:=${id8(metas[0].base_tile_ids.lower)},f=${id8(metas[1].base_tile_ids.upper)},s=${id8(metas[2].base_tile_ids.upper)},==${id8(metas[3].base_tile_ids.upper)},g=${id8(metas[4].base_tile_ids.upper)}`
         + `,h=${id8(metas[6].base_tile_ids.upper)},k=${id8(metas[8].base_tile_ids.upper)}`,
       '--void', '#', '--void-fill', WALL_TOP, '--material', 'native']);
+    /* the borders before the wear, so a decal lies across a redrawn border as it would across any floor */
+    seam('hold', 'krells_hold_ground', holdGrid(HOLD_MAP.rows), HOLD_SEAMS);
     /* the wear goes on before the walls, so a wall face stands over a decal at its foot, never under it */
     /* the hall's back row stays bare: the Hall Fire and its banners stand along it */
     finish('hold', 'krells_hold_ground', holdGrid(HOLD_MAP.rows), HOLD_FINISH, objectCells(HOLD_MAP, [[41, 1, 16, 2]]));
@@ -188,6 +192,45 @@ const HOLD_FINISH = Object.freeze({
     h: ['common/square_decal_tuft_a', 'common/square_decal_tuft_b'],
   },
 });
+/* ── THE SEAMS: every border between two floors redrawn from the two fills' own pixels (tools/world-art/seams.mjs, lane/a-ground-seams) ──
+   The kit's pairs drew each border on the cell grid: the courts' cobble met the Hall's flagstone and the gravel on ruler lines, the
+   gravel patches read as dug pits with a lit rim, the hill's rock sat in rounded boxes on the grass. Now: the Hall's slabs end on a
+   kerb course where they meet the courts; cobble and flagstone break up into the gravel stone by stone, loose stones past the edge;
+   the hill's rock breaks through the grass as whole stones; the verges wander. z: what lies over what. */
+const HOLD_SEAMS = Object.freeze({
+  seed: 29, keep: '#',
+  mats: {
+    '.': { z: 2, unit: true, mortar: 0.48 }, f: { z: 3, unit: true, mortar: 0.1 }, s: { z: 3, unit: true, mortar: 0.2 }, '=': { z: 2 },
+    g: { z: 1 }, ':': { z: 0 }, h: { z: 1 }, k: { z: 3, unit: true, mortar: 0.16 },
+  },
+  pairs: [
+    { a: '.', b: 'f', style: 'kerb' }, { a: '=', b: 'f', style: 'kerb', course: 'f' },
+    { a: 'f', b: 's', style: 'stagger', jitter: 6 },
+    { a: 'f', b: 'g', style: 'scatter', jitter: 8, loose: 0.35 },
+    { a: '.', b: 'g', style: 'scatter', jitter: 3, loose: 0.5, holes: 0.1, fade: 12 },
+    { a: '.', b: ':', style: 'scatter', jitter: 3, holes: 0.1 },
+    { a: 'h', b: 'k', style: 'scatter', jitter: 8, holes: 0.12 },
+    { a: 'g', b: 'h', style: 'ragged' }, { a: ':', b: 'h', style: 'ragged' },
+  ],
+});
+/* The Slake: the channels were rounded boxes and the reed beds staircases. The water now has a shore (a wet band in the silt, a lit
+   lip), drawn back inside its own cells and never onto the walked silt (own, bias: [wet]); the reeds' edge wanders. */
+const SLAKE_SEAMS = Object.freeze({
+  seed: 23,
+  mats: { W: { z: 0, own: true }, S: { z: 1 }, R: { z: 2 } },
+  pairs: [{ a: 'W', b: 'S', style: 'bank', bias: { S: 0.3 }, sweep: 7, warp: 5 }, { a: 'S', b: 'R', style: 'ragged' }],
+});
+function seam(set, id, rows, cfg) {
+  const file = join(ROOT, ART_DIR, set, id + '.png');
+  const r = reseam(decodePNG(readFileSync(file)), Object.assign({ rows }, cfg));
+  writeFileSync(file, encodePNG(r.img));
+  const jp = file.replace(/\.png$/, '.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
+  sc.notes += ' Seams (lane/a-ground-seams, tools/world-art/seams.mjs): ' + r.changed + ' px of ' + cfg.pairs.length + ' borders redrawn from the fills\' own pixels ('
+    + [...new Set(cfg.pairs.map((p) => p.style))].join(', ') + ').';
+  writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ ' + set + '/' + id + ': seams, ' + r.changed + ' px redrawn');
+}
+
 /** Every cell a map object stands on (its anchor tile), and the rectangles [x, y, w, h] given: no decal is baked under them. */
 function objectCells(map, rects = []) {
   const s = new Set(map.objects.map((o) => o.x + ',' + o.y));

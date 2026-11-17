@@ -153,7 +153,9 @@ export const BLEND = Object.freeze({
        a band two cells wide, so its own side need run only one cell behind (deep 2) */
     Object.freeze(['earth', 'flagstone', 0.56, 0.42, 2]), Object.freeze(['grass', 'flagstone', 0.56, 0.42, 2]),
     /* the beach wanders into the meadow and the dirt as the dirt does (lane/a-havora-seams-2) */
-    Object.freeze(['grass', 'beach']), Object.freeze(['earth', 'beach'])]), spill: 0.62, bite: 0.38, scale: 2.6, deep: 4 }),
+    Object.freeze(['grass', 'beach']), Object.freeze(['earth', 'beach']),
+    /* the mine yard's dirt frays into the quarry's gravel (lane/a-havora-quarry: it met it on a straight cut below the mine mouth) */
+    Object.freeze(['earth', 'gravel'])]), spill: 0.62, bite: 0.38, scale: 2.6, deep: 4 }),
 });
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,

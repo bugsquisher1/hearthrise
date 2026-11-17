@@ -1,0 +1,19 @@
+{
+  "id": "havora_gravel_variety",
+  "class": "terrain",
+  "kind": "variety",
+  "style": "s1",
+  "of": "havora-floor/havora_gravel_rock",
+  "key": "0000",
+  "lower": "gravel",
+  "upper": "gravel",
+  "seed": 13,
+  "tone": "soft",
+  "shift": true,
+  "detail": [
+    "common/square_decal_chips_a",
+    "common/square_decal_chips_b",
+    "mill/pebbles"
+  ],
+  "notes": "The quarry floor made into 96 (tools/world-art/variety.mjs), picked per cell by src/world/core/ground-variety.js (lane/a-havora-quarry 2026-11-17): the worn granite grit shifted inside the tile so its chips no longer stand on a 32 px grid, soft damp patches running across tiles, stone chips and pebbles where the carts and picks left them."
+}

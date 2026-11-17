@@ -1,6 +1,6 @@
 // tools/player-read.local.mjs — THE PLAYER-READ GATE: every new or changed line a player will read, in one file a reader
 // judges before a release (Tyler 2026-11-09: "I'm sick of reading shit that sounds like a AI developer or a god damn broken
-// english mess"). copy-lint's PERSON rules catch the shapes a pattern can name; a person catches the rest.
+// english mess"). No pattern judges voice (Tyler 2026-11-16, the copy-lint voice rules dropped): a person reads every line.
 //
 //   node tools/player-read.local.mjs <base-ref>            list every new, changed or cut player line from base-ref to HEAD
 //   node tools/player-read.local.mjs <base-ref> --out F    write the list to F (default: the OS temp dir, path printed)

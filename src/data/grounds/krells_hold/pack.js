@@ -237,10 +237,16 @@ export default definePack({
        a tank, a healer and a third hero won 56 to 99 of 100 at 85 by who the third was (a sword alone 56, a bow 62, a second tank 63): the tank
        dies under his enrage. On Salted Swordfish every third wins 94 to 100% at 85 (88% or better with Challenge off), for about 2x the food
        (15-22k a head a fight, from 8-12k). So the floor is Swordfish. A tank and a healer alone run out of time whatever they eat: in tier 6, 0% at 88, 45% at 100,
-       77% at 104, 92% at 106 (60 tries a row). The first fix's "Level 88" was measured in his own tier 7 (78%), which no first-time pair wears. */
+       77% at 104, 92% at 106 (60 tries a row). The first fix's "Level 88" was measured in his own tier 7 (78%), which no first-time pair wears.
+       ASKS FOR FOUR SINCE CLOTH'S DAMAGE CUT (lane/fix135-krell-advice, 2026-11-17). Cloth's Magic damage went from 0.4 of a piece's plate twin
+       to a tenth plus 1 (gear-tiers.js, lane/d-mage-110), and the healer's staff blow went with it: it had been a third of a three's damage
+       here. Out of time, 40 tries a row at 85: a third tank 0%, a sword alone 0%, axes 22%, a hammer 52% (a bow 88, a crossbow, mage or
+       healer 98-100); two heroes 0% at 106, 110, 115 and 120. A tank, a healer and any two of the eight kinds win 80 to 100% at 85 (the
+       weakest a third tank and a fourth 82%, two hammers 80%), the four his 18,000 HP was fitted on (boss-call-table.mjs: tank, healer,
+       hammer, mage). */
     storeFloor: 'salted_swordfish',
     words: { boss: 'Lord Krell', Boss: 'Lord Krell',
-      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and a third hero', 'Two heroes: Level 106 or higher'] },
+      bars: ['Everyone: Eat under 75%', 'Healer: Circle of Renewal when 2 are under 80%', 'Healer: Greater Mend under 85%', 'Party: a tank, a healer and two more'] },
     hunt: { name: 'Krell\'s Hall', theme: 'Krell sits by the long fire at the back of his hall, holding the list of every soldier his men killed.',
       band: [85, 110], family: 'Human', art: 'lord_krell', travelS: 0, pull: 1, respawnMs: 600000,
       /* THE HALL'S WRITTEN BLOW CAP (designer 2026-11-14, lane/d-hold-pass; tests/hunt-core/hunt-data.mjs blow-share). His Rake the Coals

@@ -21,6 +21,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../tests/_is-main.mjs';
 import { decodePNG, encodePNG, createImage, blit, pixelHash } from './png.mjs';
 import { hash2 } from './ground-finish.mjs';
 
@@ -105,4 +106,4 @@ function main() {
   if (check) console.log(bad ? '✗ edge-variety: RED' : '✓ edge-variety: every pair is a fresh run');
   process.exit(bad ? 1 : 0);
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+if (isMain(import.meta.url)) main();

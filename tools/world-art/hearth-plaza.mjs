@@ -26,6 +26,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../tests/_is-main.mjs';
 import { decodePNG, encodePNG, pixelHash } from './png.mjs';
 import { lock, inPalette } from './lock.mjs';
 import { hash2, noise } from './ground-finish.mjs';
@@ -253,4 +254,4 @@ function main() {
   writeFileSync(join(ROOT, OUT), encodePNG(img));
   console.log('✓ wrote', OUT);
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+if (isMain(import.meta.url)) main();

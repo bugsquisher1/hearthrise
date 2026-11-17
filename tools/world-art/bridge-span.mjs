@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../tests/_is-main.mjs';
 import { decodePNG, encodePNG, createImage, blit, pixelHash } from './png.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -39,4 +40,4 @@ function main() {
   writeFileSync(join(ROOT, OUT), encodePNG(img));
   console.log('✓ wrote', OUT, img.width + 'x' + img.height);
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+if (isMain(import.meta.url)) main();

@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 3052c163cbeb31f63a563091f7e2d6d3824f97e3363d53044750d646e3075b60
+--   catalogue digest: 74ab31275f9ad8738a1d7ddf66e48001f1377b089542a99ab3908d42f697724c
 --   rows: 675 items (19 untradeable) ·
 --         382 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 387 activities ·
@@ -422,7 +422,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ember_platelegs','Emberforged Platelegs',true,'armor',28600,'level',75,null,false,'heavy',false),
   ('ember_sword','Emberforged Sword',true,'weapon',13000,'level',75,null,false,null,false),
   ('ember_tart','Ember Tart',true,null,1300,null,null,360,false,null,false),
-  ('ember_temper_salts','Ember Tempering Salts',true,null,235,null,null,null,false,null,false),
+  ('ember_temper_salts','Ember Tempering Salts',true,null,180,null,null,null,false,null,false),
   ('ember_tower_shield','Emberforged Tower Shield',true,'offhand',9750,'level',75,null,false,null,false),
   ('ember_warhammer','Emberforged Warhammer',true,'weapon',14300,'level',75,null,false,null,true),
   ('emberfang_blade','Emberfang',true,'weapon',14400,'level',72,null,false,null,false),
@@ -567,7 +567,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('mithril_platebody','Mithril Platebody',true,'armor',4500,'level',45,null,false,'heavy',false),
   ('mithril_platelegs','Mithril Platelegs',true,'armor',3300,'level',45,null,false,'heavy',false),
   ('mithril_sword','Mithril Sword',true,'weapon',1500,'level',45,null,false,null,false),
-  ('mithril_temper_salts','Mithril Tempering Salts',true,null,130,null,null,null,false,null,false),
+  ('mithril_temper_salts','Mithril Tempering Salts',true,null,100,null,null,null,false,null,false),
   ('mithril_warhammer','Mithril Warhammer',true,'weapon',1650,'level',45,null,false,null,true),
   ('mithril_whetstone','Mithril Whetstone',true,'ammo',12,'melee',60,null,false,null,false),
   ('moonbloom','Moonbloom',true,null,850,null,null,240,true,null,false),
@@ -663,7 +663,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_platebody','Rune Platebody',true,'armor',13500,'level',60,null,false,'heavy',false),
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'level',60,null,false,'heavy',false),
   ('rune_sword','Rune Sword',true,'weapon',5000,'level',60,null,false,null,false),
-  ('rune_temper_salts','Rune Tempering Salts',true,null,180,null,null,null,false,null,false),
+  ('rune_temper_salts','Rune Tempering Salts',true,null,135,null,null,null,false,null,false),
   ('rune_warhammer','Rune Warhammer',true,'weapon',4950,'level',60,null,false,null,true),
   ('rune_whetstone','Rune Whetstone',true,'ammo',20,'melee',75,null,false,null,false),
   ('runebound_shield','Runebound Shield',true,'offhand',3750,'level',60,null,false,null,false),
@@ -2239,7 +2239,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '3052c163cbeb31f63a563091f7e2d6d3824f97e3363d53044750d646e3075b60', now())
+  values (true, '74ab31275f9ad8738a1d7ddf66e48001f1377b089542a99ab3908d42f697724c', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2471,7 +2471,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 3052c163cbeb31f63a563091f7e2d6d3824f97e3363d53044750d646e3075b60',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 74ab31275f9ad8738a1d7ddf66e48001f1377b089542a99ab3908d42f697724c',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

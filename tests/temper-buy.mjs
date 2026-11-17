@@ -36,6 +36,7 @@ import { pacedActionMs } from '../src/core/pacing.js';
 import { blowsPmOf, armorPmOf } from '../src/core/temper.js';
 import { resolveUnlockOffer } from '../supabase/functions/hr-accrue/unlock-buy.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
+import { newestOwned } from '../tools/lib/generated-target.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -132,7 +133,10 @@ async function play(db) {
   }
 }
 
-async function idem(db) {
+/* TB-IDEM re-applies the chain's own LAST temper catalogue: at the chain end that is gen-temper's newest file (2027-05-01's tiers 4-6 since
+   v0.2.135); re-applying the 02-28 one there is not a second apply but a rollback to tiers 2-3 (its scoped delete drops the later rungs).
+   A mutant replay stops at the 02-28 files (upTo LAST_PATCHED), where CAT is the last writer. */
+async function idem(db, cat = CAT) {
   const q = async (s) => (await db.query(s)).rows;
   const census = async () => JSON.stringify(await q(`select
     (select md5(string_agg(o::text, '|' order by offer_id)) from public.hr_unlock_offers o) a,
@@ -142,7 +146,7 @@ async function idem(db) {
     (select count(*) from public.hr_state_sections) e,
     (select count(*) from public.hr_unlock_offers where source <> 'gen-temper') f`));
   const before = await census();
-  for (const f of [CAT, MIG]) await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8'));
+  for (const f of [cat, MIG]) await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8'));
   ok((await census()) === before, 'TB-IDEM: a second apply moved something: ' + before + ' -> ' + (await census()));
   ok(TEMPER_UNLOCKS.length === Number((await q(`select count(*) n from public.hr_unlocks where namespace = 'temper'`))[0].n), 'TB-IDEM: the ladders do not match the data');
 }
@@ -227,7 +231,7 @@ async function main() {
     forward(resolveUnlockOffer);
     for (const p of materialProblems(SHIPPED)) ok(false, p);
     await play(db);
-    await idem(db);
+    await idem(db, newestOwned(ROOT, 'gen-temper.mjs').file);
     if (fails.length) { for (const f of fails) console.log('FAIL  ' + f); console.log(`temper-buy: ${fails.length} RED`); process.exit(1); }
     console.log('temper-buy: green');
     process.exit(0);

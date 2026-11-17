@@ -1,0 +1,41 @@
+{
+  "lane": "lane/a-catacomb-art (2026-11-17): the 21 item icons tests/pixel-icons.mjs listed missing, PixelLab subscription gens only (credits $0 throughout)",
+  "items": "the imbuement drops of Carter's Rest (pewter_spoon roof_slate stable_bit coal_tongs cellar_tally), the Ox Road (wagon_pin runners_tin ox_shoe drovers_goad waybill), Wyvern Roost (eggshell gizzard_stone tail_spur fire_gland stolen_fleece) and the Unmarked Catacombs (owing_tag leech_jaw lime_mortar carters_hook candle_snuffer, and the Leech's Live Leech): each drawn from its pack's itemText line",
+  "tool": "create_1_direction_object, view top-down, palette hr-world-56-v2 (all 56), 64 candidates a call on a 30 px canvas (10 gens), item_descriptions in slot order",
+  "finish": "tools/world-art/import-drop-icons-2026-11-17.mjs: the 30x30 pick centred on 32x32, the outline closed in #0b0a0c, palette and alpha checked (the Tower icons' finish). picks/<id>.png are the raw candidates as PixelLab returned them",
+  "sample (5 ids, call 98bc0f52, 10 gens; style farmhands_tag coffin_nail lookouts_whistle mudlark_hook cistern_venom_gland urn_shard, cropped 30x30)": {
+    "kept": {
+      "carters_hook": "c07: a rusty iron body hook under a wooden T handle (fill 91%)",
+      "candle_snuffer": "c14: a brass cone on a long thin rod with a thumb ring, on the diagonal (91%)",
+      "owing_tag": "c33: a brown wooden tag on a twine loop, scratched writing (88%)",
+      "ox_shoe": "c40: the two rusty halves of a split ox shoe, worn thin (88%)",
+      "fire_gland": "c52: a lumpy dark red gland, an ember-orange core, a pale cut tube (84%)"
+    },
+    "refused": "hooks: the question-mark hooks (c01, c12 read as a letter), the chained and rope-wrapped ones (clutter at 32 px), the green-glint hook (c08); snuffers: the bell on a hook (c22, a bell, not a snuffer), the candle-and-snuffer pair (c19, two objects), the thin rods (c13, c17: too thin to read); tags: the pale paper luggage tags (c27, c34), the grey metal tag (c29, the Farmhand's Tag's twin); ox shoes: the grey halves that read as brackets ( ) (c43, c49), the plain horseshoes (c44, c47: a horse's, not an ox's), the plate (c45); glands: the heart-shaped sacs with veins (c51, c61), the pouch and potion shapes (c58, c63), the cracked lava ball (c53)",
+    "read": "art/review/catacomb-art/icons-sample/bag-sample-x3.png (gitignored): the five in the real bag (tools/qa/local-world.mjs, a local hero after a Mill Cellar hunt; the pockets cloned from a real one, only the image swapped) beside mudlark_hook and the shelf. One family with the shelf: one outline, light from the upper left, the same density. Weakest: the ox shoe's rusty iron is the darkest of the five on the slot; it reads, kept"
+  },
+  "batch 1 (16 ids, call 7da91943, 10 gens; style farmhands_tag lookouts_whistle cistern_venom_gland urn_shard and the carters_hook and owing_tag picks)": {
+    "kept": {
+      "pewter_spoon": "c02: a dull tarnished pewter spoon on the diagonal (88%)",
+      "roof_slate": "c05: a blue-grey slate with flaky layered edges and a nail hole (88%)",
+      "stable_bit": "c09: a jointed iron snaffle, two rings, scraps of leather strap (88%)",
+      "coal_tongs": "c15: grey iron tongs, a red-hot coal in the jaws (88%)",
+      "cellar_tally": "c18: a brown notched tally stick on a cord (88%)",
+      "wagon_pin": "c23: a grey iron linchpin with a ring head (94%)",
+      "runners_tin": "c26: a round tin with its lid open on a live coal (88%)",
+      "drovers_goad": "c29: a long ash goad, an iron point, a leather wrist loop (91%)",
+      "waybill": "c34: a folded bill of loads tied with string, a red seal (84%)",
+      "eggshell": "c37: a thick cream shell piece, brown speckles, a jagged rim (81%)",
+      "gizzard_stone": "c41: a dark glossy pebble with one bright glint (78%)",
+      "tail_spur": "c44: a curved ivory spur on a scrap of green scaly hide (84%)",
+      "stolen_fleece": "c48: a matted clump of off-white wool with twigs caught in it (88%)",
+      "leech_jaw": "c54: a round leech's mouth, a ring of little teeth (78%)",
+      "lime_mortar": "c57: a chalky white lump of lime with a bone stuck in it (84%)",
+      "live_leech": "c61: an olive-black leech with an ochre side stripe, curled (88%), the Vault Leech's own colours"
+    },
+    "refused": "the black iron tongs (c12-c14: gone on the dark slot), the pale ruler-like tally (c16), the thinner pins (c20, c22) and the flat-headed one that read as a hammer (c21), the shut tins (c24, c25, c27: the coal shows less than in the open one), the flat sealed sheets (c32, c33: a plain letter), the grey and banded balls (c40, c42, c43), the three-jaw leech mouths (c52, c55: read as a shield boss at 32 px) and the pink one (c53), the blocks of lime (c58), the brown and green leeches (c60, c62, c63)",
+    "repetition": "four small iron tools (the spoon, the bit, the tongs, the pin) are four silhouettes: a bowl, two rings, a pair of arms, a ring on a shank; the two bone pieces (spur, eggshell) differ in colour and shape (a horn, a cup); the two leech items are a mouth and a body"
+  },
+  "read": "art/review/catacomb-art/icons-all/bag-read-crop.png and bag-all-x3.png (gitignored): all 21 in the real bag beside mudlark_hook, kennel_tag, farmhands_tag, coffin_nail, cistern_venom_gland, toll_token, grave_dust, iron_fitting and urn_shard",
+  "total": "2 calls, 20 gens by the receipts (subscription; credits $0), 128 candidates, 21 kept, 107 refused"
+}

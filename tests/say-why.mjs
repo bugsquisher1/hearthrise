@@ -70,6 +70,7 @@ const QUIET = Object.freeze({
   settleTownActivity: 'a best-effort collect before a start; the start itself is the intent that answers',
   "edgeIntent('sheet'": 'the Character window asks for its sheet on opening; a read, never a press',
   'r = await marketMine(cs); } catch': 'the sale notices\' background read (market-watch.js); a refusal leaves nothing new to tell, and the next read tries again',
+  'r = await readWorks(ctx.account, cs); } catch': 'the closed Market\'s Works read (market/state.js readBuilding), never a press; a refusal leaves sc.works null and blockWords says the closed line instead',
   'stopWork(cs, send)).then': 'the armed stop (town-work.js) answers through the `send` its start was given: the window\'s runIntent',
 });
 const RESERVED = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return']);

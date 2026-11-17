@@ -98,7 +98,7 @@ export const MUTANTS = {
     js: ['src/world/hearth-burn.js', [['      const chunk = there && me.work && e.active ? chunkOfRecipe(e.active) : null;', '      const chunk = there && e.active ? chunkOfRecipe(e.active) : null;']]] },
   errand_arms_stop: { arm: 'IF-4', why: '"Fuel the hearth" arms the bench\'s Stop, which ends the job the server went back to',
     js: ['src/shell/town-work.js', [["    if (w.kind === 'artisan' && !errand) {", "    if (w.kind === 'artisan') {"]]] },
-  errand_says_stopped: { arm: 'IF-4', why: '"Fuel the hearth" says "You stopped fishing" though the fishing comes back',
+  errand_says_stopped: { arm: 'IF-4', why: '"Fuel the hearth" says it stopped the fishing though the fishing comes back',
     js: ['src/shell/town-work.js', [['  const replaced = errand ? \'\' : jobReplacedWords(cs, w);', '  const replaced = jobReplacedWords(cs, w);']]] },
 };
 
@@ -304,10 +304,13 @@ const ARMS = {
       try { return { words: await TW.startWork(fisher, fuelRow, (fn, busy, done) => done({ ok: true }), null, '', count), n }; }
       finally { globalThis.setTimeout = st; }
     };
+    /* the words a press that replaces the fishing says are the module's own (their text is tests/alpha-windows.mjs AW-62's pin) */
+    const stopped = TW.jobReplacedWords(fisher, fuelRow);
+    if (!stopped) out.push('a Hearth run over the fishing names no job it replaces');
     const one1 = await armed(1);
-    if (/You stopped/.test(one1.words) || one1.n !== 0) out.push('"Fuel the hearth" while fishing says ' + JSON.stringify(one1.words) + ' and arms ' + one1.n + ' Stop(s)');
+    if ((stopped && one1.words.includes(stopped)) || one1.n !== 0) out.push('"Fuel the hearth" while fishing says ' + JSON.stringify(one1.words) + ' and arms ' + one1.n + ' Stop(s)');
     const all = await armed(null);
-    if (!/^You stopped fishing/.test(all.words) || all.n < 1) out.push('"Fuel all" over the fishing says ' + JSON.stringify(all.words) + ' and arms ' + all.n);
+    if (!stopped || !all.words.startsWith(stopped) || all.n < 1) out.push('"Fuel all" over the fishing says ' + JSON.stringify(all.words) + ' and arms ' + all.n);
     const peerAt = { ...at, active: null, me: null, units: [{ x: 115, y: 49, ref: { player: { id: 'p', slot: 1 } } }], walkers: [{ id: 'p', slot: 1, station: 'hearth', work: true }] };
     const peerRun = Array.from({ length: 16 }, (_, i) => view.frame(peerAt, 30000 + i * 100).fx.map((f) => f.id)).flat();
     if (!peerRun.includes('fuel_bone')) out.push('a peer working at the Hearth never throws');

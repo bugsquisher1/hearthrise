@@ -49,6 +49,7 @@ export const PUBLISH = Object.freeze([
   'assets/brand/hearthrise-mark.png',                        // the tab icon
   'assets/brand/og-image.png',                               // the link preview
   'assets/ui/*.png',                                         // the frames and plates the stylesheets draw
+  'assets/ui/tower/*.png',                                   // the Burning Tower window: chimney, firebox, chests (tower.css)
   'assets/world/atlas-*.png', 'assets/world/atlas-*.json',   // the world atlases and their manifests
   'assets/icons-bundle/pixel/items/*.png',                   // one 32 px icon per item row
   'assets/icons-bundle/pixel/abilities/*.png',               // one tile per ability

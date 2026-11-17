@@ -140,7 +140,8 @@
 //         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
 //         region ends at rest on a whole row (no line, slot or creature card cut by its foot or by a sticky Enter/Save foot);
-//         the Hunts page shows its first creature card whole without a scroll (it had 107 px: the window stopped above the bar)
+//         the Hunts page shows its first creature card whole without a scroll (it had 107 px: the window stopped above the bar);
+//         the empty Market at 667x340 too (its invite scrolls in its own box, the press never lost under the window's foot)
 //   AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23; src/shell/town-ticker.js runs the
 //         server's own span loop on the envelope's numbers, display only). Pure rules:
 //         TK-1  one action at a time on the engine's interval: the logs and XP, and the line
@@ -896,6 +897,9 @@ async function selectRules(base) {
 }
 
 /* AW-25 .. AW-28 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
+/* The pure Hunts rules over the src at `base`: how the 'hunts:' mutants are judged (a mutant run skips pure()). */
+const huntsRules = (base) => huntsPure((p) => import(pathToFileURL(join(base, p)).href));
+
 async function huntsPure(imp) {
   const fails = [];
   const { residentsOf, scarceSetOf, raresOf, wornWeightOf, bigPullOf } = await imp('src/shell/hunt-ground-facts.js');
@@ -4723,6 +4727,21 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         }
         await ctx.close();
       }
+      /* THE EMPTY MARKET ON THE SHORTEST PHONE (667x340: a 375-tall phone under its browser bar). Since the short invite (v0.2.135) it fits
+         every screen above, so only a World this short proves the invite scrolls in its own box and its press is never lost under the window's foot. */
+      {
+        const { ctx, page, up } = await open({ viewport: { width: 667, height: 340 }, mutateEnv: lv36 });
+        if (!up) fails.push('AW-93 the 667x340 screen did not mount');
+        else if (!(await openWin(page, 'm', 'market'))) fails.push('AW-93 the M key did not open market at 667x340');
+        else {
+          await page.waitForTimeout(400);
+          if (!(await page.evaluate(() => !!document.querySelector('[data-hs-win="market"] .hw-mk-invite.is-on')))) fails.push('AW-93 CONTROL: the 667x340 Market is not the empty one');
+          const lost = await page.evaluate(CLIPPED, 'market');
+          if (lost.length) fails.push('AW-93 at 667x340 the empty market opens cut off: ' + lost.slice(0, 3).join(' | '));
+          if (shots) await shot(page, 'whole-667x340-market');
+        }
+        await ctx.close();
+      }
     }
 
     { // AW-95 no window lies on the hunt's controls (play gate 2026-11-13: the bag docked at 1280x720 covered Leave hunt and the bar's Setup, Target, stance)
@@ -5216,7 +5235,8 @@ const MUTANTS = [
   ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
   ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);', '  const ok = false;'],
   ['AW-25 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
-  ['AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
+  /* 'hunts:' is judged by the pure Hunts rules (huntsPure) on a planted copy of src: the page runs at a 1x screen, so only the pure 125/150 % arm sees it */
+  ['hunts: AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],
   ['AW-30 the opacity fades the whole window, words and all', 'src/styles/shell.css', '  image-rendering: pixelated; opacity: var(--panel-alpha);\n}', '  image-rendering: pixelated;\n}\n.hs-win { opacity: var(--panel-alpha); }'],
@@ -5308,7 +5328,7 @@ async function main() {
   const shard = (process.argv.find((x) => x.startsWith('--shard=')) || '').slice(8);
   const mine = scopedMutants('tests/alpha-windows.mjs', picked, { companion: Object.fromEntries(Object.entries(COMPANION).map(([k, v]) => [k, [v[0]]])), tag: shard ? ' (shard ' + shard + ')' : '' });
   if (!mine.length) process.exit(0);
-  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:') || n.startsWith('station sort:') || n.startsWith('select:') || n.startsWith('prep builder:'));
+  const pureOnly = mine.every(([n]) => n.startsWith('ticker:') || n.startsWith('hunts:') || n.startsWith('armor words:') || n.startsWith('plans:') || n.startsWith('item truth:') || n.startsWith('station sort:') || n.startsWith('select:') || n.startsWith('prep builder:'));
   const clean = await cleanControl(() => (pureOnly ? pure() : checks(null, null)));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
@@ -5323,7 +5343,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : name.startsWith('select:') ? tickerMutant(over, selectRules) : name.startsWith('prep builder:') ? tickerMutant(over, prepBuilderRules) : checks(over, null, { stopAtFirst: true })));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('hunts:') ? tickerMutant(over, huntsRules) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : name.startsWith('select:') ? tickerMutant(over, selectRules) : name.startsWith('prep builder:') ? tickerMutant(over, prepBuilderRules) : checks(over, null, { stopAtFirst: true })));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

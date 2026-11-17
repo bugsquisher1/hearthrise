@@ -775,7 +775,7 @@ async function pageRules(overrides, shots) {
           };
           return { poor: await one(500, {}), near: await one(900, { left: 800, max_gift: 800 }) };
         });
-        if (gift.poor.read !== 'Give the 500 gp you have' || gift.near.read !== 'Give the 800 gp it still needs') fails.push('CW-HAVORA-GIFT [' + tag + '] CONTROL: the Works read never landed: ' + JSON.stringify(gift));
+        if (gift.poor.read !== 'Give all 500 gp' || gift.near.read !== 'Give the 800 gp it still needs') fails.push('CW-HAVORA-GIFT [' + tag + '] CONTROL: the Works read never landed: ' + JSON.stringify(gift));
         else if (gift.poor.field < 30 || gift.poor.give < 30 || !gift.poor.reads) fails.push('CW-HAVORA-GIFT [' + tag + '] with 500 gp the custom gift does not read above the foot: ' + JSON.stringify(gift.poor));
         if (!gift.near.why || gift.near.field < 30 || gift.near.give < 30 || !gift.near.scrolls) fails.push('CW-HAVORA-GIFT [' + tag + '] with the purse line the custom gift loses its height: ' + JSON.stringify(gift.near));
       }
@@ -787,7 +787,7 @@ async function pageRules(overrides, shots) {
         if (!await wait(page, () => /Cry it: 1,000 gp/.test((document.querySelector('[data-hs-win="chat"] .hc-cry') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] the button does not read the server\'s price');
         await page.fill('.hc-field', 'see www.example.test');
         await page.click('[data-hs-win="chat"] .hc-cry');
-        if (!await wait(page, () => /won't shout web addresses/.test((document.querySelector('[data-hs-win="chat"] .hc-crier-msg') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] a refused line says nothing');
+        if (!await wait(page, () => /No web addresses, not charged/.test((document.querySelector('[data-hs-win="chat"] .hc-crier-msg') || {}).textContent || ''))) fails.push('CW-CRIER [' + tag + '] a refused line says nothing');
         if ((await page.$$('[data-hs-win="chat"] .hc-line.is-crier')).length) fails.push('CW-CRIER [' + tag + '] a refused line was drawn');
         if (!await answered(page, '[data-hs-win="chat"] .hc-cry')) fails.push('CW-CRIER [' + tag + '] the Cry button stayed busy after its refusal');
         await page.fill('.hc-field', 'selling rat tails');

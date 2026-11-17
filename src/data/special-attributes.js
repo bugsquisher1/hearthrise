@@ -74,22 +74,23 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
    ship. `base` is the standard piece whose numbers it copies (null: the ladder has no piece there, the numbers are the
    ladder's next rung). `attr` names the attribute and its key. `source` is where it drops: `how` is the loot band
    (loot-bands.js), or 'daily' for Lord Krell's once-a-day prize roll (`pm` permille a hero). `use` is what
-   catalogue-coherence files it under. `text` is the item card's description. `shipped: true`: the row is a real item, read
-   from here by its home pack. ── */
+   catalogue-coherence files it under. `text` is the item card's description (once shipped, lore only: the card's stat
+   lines say what it does, tests/special-attributes.mjs SA7). `shipped: true`: the row is a real item, read from here by
+   its home pack. ── */
 export const SPECIAL_SAMPLE = Object.freeze({
   krells_tollgate: Object.freeze({
     row: Object.freeze({ n: 'Krell\'s Tollgate', icon: '🛡️', v: 43200, type: 'offhand', slot: 'shield', offhand: 'shield', defB: 15,
       resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
     base: null, attr: Object.freeze(['resist_element', 'ember']),
     source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
-    text: 'You take 10% less fire damage with this on your arm. Krell had his toll house gate cut down into a shield. Every coin that crossed the ford went through it.',
+    text: 'Krell had his toll house gate cut down into a shield. Every coin that crossed the ford went through it.',
   }),
   banded_legguards: Object.freeze({
     row: Object.freeze({ n: 'Banded Legguards', icon: '🛡️', v: 79200, type: 'armor', slot: 'pants', defB: 64, armourClass: 'plate', rangeAtkB: -16, magicAtkB: -32,
       resistPm: Object.freeze({ physical: 30 }), tier: 7, rarity: 'mythic', reqSkill: 'level', reqLv: 88 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_physical', 'physical']),
     source: Object.freeze({ monster: 'lord_krell', ground: 'krells_hold', how: 'daily', pm: 30 }), use: 'worn', shipped: true,
-    text: 'Swings, bites and arrows do 3% less to you. Krell\'s smith made these from the Banded Company\'s armor. He left the bronze bands on so everyone would know whose they were.',
+    text: 'Krell\'s smith made these from the Banded Company\'s armor. He left the bronze bands on so everyone would know whose they were.',
   }),
   mudlarks_mitts: Object.freeze({
     row: Object.freeze({ n: 'Mudlark\'s Mitts', icon: '🎽', v: 735, type: 'armor', slot: 'gloves', defB: 4, armourClass: 'leather', rangeAtkB: 4, critB: 0.016, magicAtkB: -1,

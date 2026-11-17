@@ -17,7 +17,9 @@
 //   SA5  NO TWO THE SAME PIECE: no two rows share a slot, weight and attribute key, and no two share a home monster's ground
 //        unless that monster is a boss.
 //   SA6  A NAME OF ITS OWN: no other item carries the name, and the name and text use none of the banned filler words.
-//   SA7  THE TEXT SAYS WHAT IT DOES FIRST: the first sentence carries the attribute's number.
+//   SA7  THE PLAYER IS TOLD WHAT IT DOES: a hidden row's text says it first, its first sentence carrying the attribute's number. A
+//        SHIPPED row's item card lists the attribute as a stat line (src/shell/bag-model.js statLines), so its text is the item's
+//        lore line by the flavour rules (tests/item-flavour-coverage.mjs FLV-3/FLV-5: 40-132 characters, no number).
 //
 //   node tests/special-attributes.mjs            the guard
 //   node tests/special-attributes.mjs --mutate   each rule driven red by a defect planted on a copy of the data
@@ -33,6 +35,7 @@ import { ITEM_DESC } from '../src/data/item-descriptions.js';
 import { OPEN_GROUNDS, OPEN_HALL_GROUNDS } from '../src/data/hunt-grounds.js';
 import { hallOfHunt } from '../src/data/boss-halls.js';
 import { SPECIAL_ATTRIBUTES, SPECIAL_SAMPLE, SPECIAL_TIERS } from '../src/data/special-attributes.js';
+import { statLines } from '../src/shell/bag-model.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
@@ -49,7 +52,10 @@ function srcFiles(dir, out = []) {
   }
   return out;
 }
-const importers = () => srcFiles(join(ROOT, 'src')).filter((p) => !p.endsWith('special-attributes.js') && /special-attributes\.js/.test(readFileSync(p, 'utf8')));
+/* an import of it, static or dynamic: a comment naming the file or the generated preload list (src/app/game-modules.js, which follows
+   the shipped pack's own import) reads no row */
+const importers = () => srcFiles(join(ROOT, 'src')).filter((p) => !p.endsWith('special-attributes.js')
+  && /(?:\bfrom\s*|\bimport\s*\(\s*)['"][^'"]*special-attributes\.js/.test(readFileSync(p, 'utf8')));
 
 /* the monsters a player can meet today, by ground: an open ground's pockets, and an open hall's room under its ground's id */
 function homes() {
@@ -77,13 +83,16 @@ const slash = (p) => String(p).replace(/\\/g, '/');
 /** Every broken rule, as strings. Empty = sound. `S` is the sample, `A` the catalogue, `open` what `importers()` and `homes()` answer, and
     the items, their text and the monsters as the game holds them (a mutant plants a copy). */
 export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) {
-  open = { importers: importers(), homes: homes(), items: ITEMS, desc: ITEM_DESC, monsters: MONSTERS, ...open };
+  open = { importers: importers(), homes: homes(), items: ITEMS, desc: ITEM_DESC, monsters: MONSTERS, cardKeys: (id) => statLines(id).map((l) => l.key), ...open };
   const out = [];
   const packs = new Set(Object.values(S).filter((s) => s.shipped === true).map((s) => 'src/data/grounds/' + s.source.ground + '/pack.js'));
   for (const p of open.importers) {
     const rel = slash(p).replace(slash(ROOT), '').replace(/^\//, '');
     if (!packs.has(rel)) out.push('SA1 ' + rel + ' imports special-attributes.js: only a shipped row\'s home pack reads it, the rest of the sample is hidden until it is approved');
   }
+  /* the scan is not blind: every shipped row's home pack is found importing it (it reads the row from here) */
+  const found1 = new Set(open.importers.map((p) => slash(p).replace(slash(ROOT), '').replace(/^\//, '')));
+  for (const p of packs) if (!found1.has(p)) out.push('SA1 ' + p + ' is a shipped row\'s home and is not found importing special-attributes.js');
   for (const [id, s] of Object.entries(S)) {
     const it = open.items[id], who = droppers(id, open.monsters);
     if (s.shipped !== true) {
@@ -148,7 +157,11 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
     if (BANNED.test(row.n) || BANNED.test(s.text)) out.push('SA6 ' + id + ': a banned filler word (DESIGN_STANDARDS §2)');
     if (/[;—]/.test(s.text)) out.push('SA6 ' + id + ': no semicolon or em dash in item text');
     /* SA7 */
-    if (!/\d/.test(String(s.text).split('. ')[0])) out.push('SA7 ' + id + ': the first sentence says what the piece does, with its number');
+    if (s.shipped === true) {
+      const f = found.length === 1 ? found[0] : null, key = f && (f.key ? f.field + '.' + f.key : f.field), line = String(s.text).replace(/\.$/, '');
+      if (f && !open.cardKeys(id).includes(key)) out.push('SA7 ' + id + ': the item card lists no ' + key + ' line, so nothing tells the player what the piece does');
+      if (/\d/.test(line) || line.length < 40 || line.length > 132) out.push('SA7 ' + id + ': a shipped piece\'s text is its lore line, 40-132 characters and no number (the card\'s stat lines say what it does)');
+    } else if (!/\d/.test(String(s.text).split('. ')[0])) out.push('SA7 ' + id + ': the first sentence says what the piece does, with its number');
   }
   return out;
 }
@@ -156,6 +169,7 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
 /* ── THE MUTANTS: each plants one defect on a copy and names the rule that must catch it. ── */
 const MUTANTS = [
   ['an importer appears', 'SA1', (S, A, o) => { o.importers = [join(ROOT, 'src/data/items.js')]; }],
+  ['the importer scan goes blind', 'SA1', (S, A, o) => { o.importers = []; }],
   ['a hidden row\'s ground reads the file', 'SA1', (S, A, o) => { o.importers = [join(ROOT, 'src/data/grounds/the_slake/pack.js')]; }],
   ['a hidden row becomes an item', 'SA1', (S, A, o) => { o.items = { ...o.items, mudlarks_mitts: structuredClone(S.mudlarks_mitts.row) }; }],
   ['a hidden row lands on a drop table', 'SA1', (S, A, o) => { o.monsters = { ...o.monsters, mudlark: { ...o.monsters.mudlark, drops: [...o.monsters.mudlark.drops, { id: 'mudlarks_mitts', ch: 0.01, band: 'rare' }] } }; }],
@@ -177,6 +191,8 @@ const MUTANTS = [
   ['a name another item has', 'SA6', (S) => { S.mudlarks_mitts.row.n = 'Snakeskin Bracers'; }],
   ['a banned word', 'SA6', (S) => { S.widows_fang.text = 'It lands a critical hit 6% more often. Forged in the Void.'; }],
   ['text that leads with flavour', 'SA7', (S) => { S.widows_fang.text = 'A thin blade with a spider\'s eye in the hilt. It crits more.'; }],
+  ['a shipped card repeats its number in the lore line', 'SA7', (S) => { S.krells_tollgate.text = 'You take 10% less fire damage. ' + S.krells_tollgate.text; }],
+  ['the card lists no line for the shipped attribute', 'SA7', (S, A, o) => { o.cardKeys = () => ['defB']; }],
 ];
 
 function mutate() {

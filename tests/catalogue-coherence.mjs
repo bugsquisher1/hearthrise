@@ -603,7 +603,8 @@ function mutate() {
     return { restore: () => { ITEMS[id] = was; } };
   });
   const retag = (id, from, to) => ({ ...UNREACHABLE, [from]: UNREACHABLE[from].filter((x) => x !== id), [to]: [...UNREACHABLE[to], id] });
-  run('a dragon material tagged as the staged ground\'s', 'C11c', () => ({ unreachable: retag('dragon_bones', 'later', 'staged') }));
+  /* dragon_bones went to `staged` with the Wyvern Roost pack (lane/d-morrow-grounds), so the planted lie is a dragon material still `later` */
+  run('a dragon material tagged as the staged ground\'s', 'C11c', () => ({ unreachable: retag('dragon_gem', 'later', 'staged') }));
   /* Since the glade opened (v0.2.31) its essence is reachable: filed as a cut, it is a stale row (C11b). */
   run('the open glade\'s essence tagged as a cut', 'C11b', () => ({ unreachable: retag('magic_essence', 'staged', 'cut') }));
   run('the list grows: a new out-of-reach item tagged instead of sourced', 'C11d', () => {

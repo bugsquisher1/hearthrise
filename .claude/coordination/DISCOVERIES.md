@@ -3982,3 +3982,8 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   channel's L has no kerb. (6) Warrens: the chasm is a hard rectangle. (7) Muster: the barrow mounds step on the grid. (8) Hask's Ford:
   the ford's water edges are straight. Mill Cellar: nothing. 1-3 are PixelLab view_map grounds with no paint grid: they need a grid
   classified from their pixels and the pre-seam paint kept in art/world-src. No new PixelLab pixels needed so far. Owner: art-director.
+  UPDATE same day: shipped Wickstead (wk_footbridge), Meadowbrook (mb_log_bridge_long), Mosslight, Pyre Field, Sewer (kerb),
+  Warrens (all on lane/a-ground-seams, 0 gens). OPEN: Hask's Ford and Muster Barrows. Their pixel-read grids misclassify the
+  3-step-shaded bank cells (thicket squares over the ford: reverted). The paint grids their sidecars name
+  (art/briefs/hasks-ford-grid-2026-10-28.txt, muster-barrows-grid-2026-10-29.txt) are NOT in the tree: they exist only in WIP
+  commit a9277639e (b-muster-barrows-art). Next: restore those two files, feed them to seam-grounds as `grid`, render and read.

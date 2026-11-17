@@ -3419,3 +3419,12 @@ byte-identical. Lessons: (1) Otsu cuts a shaded cobble in half (lit half = stone
 default sweep on a one-cell patch draws a splash, so small patches take a calm warp; (3) water that wanders onto an open tile's
 foot is a [wet] red: hold it to its own cells; (4) every border cell becomes unique, so a full reseam can overflow a set (the
 Slake's ground moved to slake-floor); (5) a kerb round a 1-2 cell relaid patch is fussy: stagger there, kerb at doorways.
+Round 2 (same lane): tools/world-art/seam-grounds.mjs reseams the PixelLab view_map grounds from their paint kept in
+art/world-src/seams (locked to the palette first, ground marked native), the grid read back from the pixels (cell mean colour vs
+each floor variety's `at` cell; `only` keeps water off walked fords). Bridges derived from mb_log_bridge's own logs, lengthened
+by its plain middle (wk_footbridge, mb_log_bridge_long: class bridge, the frame the logs' box so they lie over the walked row's
+feet). Lessons: (1) where three materials meet, use the pair nearest the pixel, not the top two by layer (a W/G bank got the
+T/G default and stayed straight); (2) a wear pass keyed by CELL leaves a light square where the seams moved a floor into a
+neighbour's cell: key the patches to every cell the floor can reach; (3) a one-tile path has no deep cell: take fills from the
+variety sample cells, or from four pure corners; (4) brook cells may carry painted grass banks: read water from the pixels;
+(5) a pixel read fails on a shaded paint (the Ford): use the real paint grid, never ship a ground whose render I haven't read.

@@ -25,7 +25,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.134';
 import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.134';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf } from './hunt-sections.js?v=0.2.134';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, groundsSeenOf } from './hunt-sections.js?v=0.2.134';
 import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.134';
 import { farmFieldOf } from './farm-sections.js?v=0.2.134';
 import { homeOf, chestsOf } from './home-sections.js?v=0.2.134';
@@ -124,10 +124,8 @@ export function tutorialFactsOf(cs, sh) {
   const presets = presetsOf(cs);
   const ready = {};
   if (field) for (const p of field.plots.values()) if (p.ready) ready[p.crop] = (ready[p.crop] || 0) + 1;
-  /* Where the server has seen this hero hunt (#58): its latest session, ended too (the hunt section keeps
-     it until the next hunt), and every ground it holds a personal best on. Never "where it is now" alone. */
-  const visited = new Set(Object.keys((bests || {}).grounds || {}));
-  if (h && h.huntId) visited.add(h.huntId);
+  /* Where the server has seen this hero hunt (#58): hunt-sections.js groundsSeenOf, the Chronicle's answer too. */
+  const visited = groundsSeenOf(cs);
   return {
     levelXp: lv.xp, charLevel: lv.level, self: Number.isInteger(cs && cs.slot) ? cs.slot : null, name: nameOf(cs),
     skillLevel: sk ? Math.max(1, ...Object.values(sk).map((r) => r.level)) : 1,

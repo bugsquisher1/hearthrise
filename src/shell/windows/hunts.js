@@ -46,7 +46,7 @@ import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?
 import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.134';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.134';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.134';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.134';
+import { startPartyHunt, settleTownActivity, inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.134';
 import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.134';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.134';
 import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.134';
@@ -59,8 +59,7 @@ import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../da
 import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.134';
 import { nextStepUp } from '../../data/hunt-tutorial.js?v=0.2.134';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.134';
-import { setupsOf, beforeLines, freeHeroes, partiedHeroes, openOthers, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.134';
-import { inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.134';
+import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js?v=0.2.134';
 import { openFinderOn } from './party-finder.js?v=0.2.134';
 import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.134';
 import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.134';
@@ -429,6 +428,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
   if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
+  /* Change setups: Hunt prep, opened from here so its Back comes back to this ground (window-manager.js from) */
+  if (action === 'go-prep') { ctx.wm.open('hunt-prep'); return true; }
   if (action === 'bring') {
     const slot = Number(el.getAttribute('data-slot'));
     const who = freeHeroes(cs, ctx.peers()).find((x) => x.slot === slot);

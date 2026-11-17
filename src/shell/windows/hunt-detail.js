@@ -75,6 +75,8 @@ const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) 
 export function goHtml() {
   return '<h4 class="hw-hd-h">' + t('hunts.head_go_as') + '</h4><div class="hw-go-list" role="radiogroup" aria-label="' + t('hunts.head_go_as') + '"></div>'
     + '<p class="hw-go-note"></p>'
+    /* Hunt prep is a step of going hunting: its setups are what Go as lists (renderHunts.act opens it; Back comes here) */
+    + '<button type="button" class="hh-tool hw-go-prep" data-hs-act="go-prep">' + t('hunts.go_prep') + '</button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
     + afterHtml()
     + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'

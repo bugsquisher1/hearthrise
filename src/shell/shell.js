@@ -41,6 +41,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.134';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.134';
+import { markup } from '../render/paint.js?v=0.2.134';
 import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.134';
 import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.134';
 import { createShellHud, fightOn } from './shell-hud.js?v=0.2.134';
@@ -214,7 +215,7 @@ export function mountShell(root, o) {
         if (render.patch) el.innerHTML = render(ctx);
       }
       if (render.patch) render.patch(el, ctx);
-      else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }
+      else markup(el, render(ctx));
       const L = hud.layoutOf(row.id);
       el.style.setProperty('--hs-op', String(L.opacity));
       /* A folded widget is its title's width, or its empty box would still take presses and the camera's room

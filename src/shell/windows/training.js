@@ -20,7 +20,7 @@
 import { trainingOf, quoteFor, runForMs, gearFor, offersFor } from '../../session/training-sections.js?v=0.2.134';
 import { startTraining, stopTraining, buyGear, openGear, useGear } from '../../session/training-intents.js?v=0.2.134';
 import { itemName } from '../widgets/bits.js?v=0.2.134';
-import { goldOf, skillsOf } from '../../session/item-sections.js?v=0.2.134';
+import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.134';
 import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.134';
 import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.134';
 import { whole } from '../../render/format.js?v=0.2.134';

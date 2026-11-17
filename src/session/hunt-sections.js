@@ -366,6 +366,18 @@ export function huntBestsOf(cs) {
 }
 
 /**
+ * WHERE THE SERVER HAS SEEN THIS HERO HUNT (#58): every ground it holds a personal best on (`hunt_bests`), and its latest session's,
+ * ended too (the `hunt` section keeps it until the next hunt). Never "where it is now" alone. A Set of hunt ids, empty when the
+ * server said nothing. The tutorial's `visited` and the Chronicle's pages read this one answer.
+ */
+export function groundsSeenOf(cs) {
+  const seen = new Set(Object.keys((huntBestsOf(cs) || {}).grounds || {}));
+  const h = huntOf(cs);
+  if (h && h.huntId) seen.add(h.huntId);
+  return seen;
+}
+
+/**
  * A TIER MAP as the server projects it ({ [hunt]: tier id }, no key = Normal), or null when it is not one.
  * This hero's `hunt_tier` picks and the party's `leader_tiers`.
  */

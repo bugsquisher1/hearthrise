@@ -18,7 +18,7 @@
 import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.134';
 import { itemName } from '../widgets/bits.js?v=0.2.134';
 import { whole } from '../../render/format.js?v=0.2.134';
-import { BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.134';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.134';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.134';
 import { callOut } from '../../session/boss-intents.js?v=0.2.134';
 import { readCall } from '../../session/boss-quote.js?v=0.2.134';

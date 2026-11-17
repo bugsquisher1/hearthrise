@@ -11,7 +11,6 @@
 export const HEROES_TEXT = Object.freeze({
   /* The phone's routes. */
   icons_head: 'What the icons open',
-  also_here_aria: 'Also here',
   character_list: 'Character list',
 
   /* A hero's card. */

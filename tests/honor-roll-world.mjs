@@ -24,6 +24,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
+import { pressBar } from './_bar.mjs';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -128,8 +129,8 @@ try {
   step('HW-4 Total level lists both heroes', total && r3.lines.length === 2 && r3.lines.every((l) => /^Total level \d+$/.test(l.value)), JSON.stringify(r3));
   // ── HW-5 ──
   await b.page.keyboard.press('Escape');
-  const launch = await b.page.$('[data-hs-open="honor"]');
-  if (launch) await launch.click(); else await b.page.keyboard.press('z');
+  /* a phone opens it from the bar: the Social group's sheet, then its line (tests/_bar.mjs) */
+  await pressBar(b.page, 'honor', { tap: true }).catch(() => null);
   const phone = await waitRoll(b.page, () => document.querySelectorAll('[data-hs-win="honor"] .hr-roll:not(.hr-near) > .hr-line').length === 2);
   await b.page.waitForTimeout(600);   // the 120 ms slide-in ends and the World makes room for the sheet
   const r4 = await readRoll(b.page);

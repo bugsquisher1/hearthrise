@@ -108,6 +108,7 @@ import { SHEET_HOLD_MS } from '../src/world/view-sheets.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { pressBar } from './_bar.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
 
@@ -771,7 +772,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           }).filter((x) => x.lines > 1));
           if (wrapped.length) fails.push('B-18b a card button wraps at 1280 px: ' + JSON.stringify(wrapped));
         }
-        if (await wait(page, () => document.querySelector('.hs-launchers [data-hs-open="tally"]'), null, 15000)) await page.click('.hs-launchers [data-hs-open="tally"]');
+        if (await wait(page, () => document.querySelector('.hs-launchers .hs-launch'), null, 15000)) await pressBar(page, 'tally').catch((e) => fails.push('B-18 the top bar has no way to her tally: ' + String(e.message).split('\n')[0]));
         else fails.push('B-18 the game screen never showed its launchers');
         if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');
         else {

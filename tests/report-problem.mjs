@@ -28,6 +28,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { pressBar, menuLines, groupOf } from './_bar.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
@@ -70,9 +71,9 @@ async function openGame(browser, port, viewport, io, fails, env = HUNT) {
   await pg.click('.auth-submit');
   if (!(await wait(pg, () => document.querySelector('[data-app="play"][data-slot="0"]')))) { fails.push('RP-1 sign-in did not reach the characters screen'); return null; }
   await pg.click('[data-app="play"][data-slot="0"]');
-  /* The desktop row has its icon; a phone's row holds 15 at a thumb's width, and its way in is Settings, Help (phoneChecks). */
-  if (viewport.width > 1024 && !(await wait(pg, () => document.querySelector('[data-hs-open="report"]')))) { fails.push('RP-1 the launcher row has no Report a problem'); return null; }
-  if (!(await wait(pg, () => document.querySelector('.hs-launchers')))) { fails.push('RP-1 the launcher row did not come up'); return null; }
+  /* The desktop bar's Menu group lists it (tests/_bar.mjs); a phone's way in is Settings, Help too (phoneChecks). */
+  if (!(await wait(pg, () => document.querySelector('.hs-launchers .hs-launch')))) { fails.push('RP-1 the launcher row did not come up'); return null; }
+  if (viewport.width > 1024 && !(await menuLines(pg, groupOf('report'))).includes('report')) { fails.push('RP-1 the top bar does not reach Report a problem'); return null; }
   return { ctx, pg };
 }
 
@@ -82,7 +83,7 @@ async function phoneChecks(browser, port, fails) {
   const g = await openGame(browser, port, { width: 922, height: 423 }, io, fails, TOWN);
   if (!g) return;
   const { ctx, pg } = g;
-  await pg.click('[data-hs-open="settings"]');
+  await pressBar(pg, 'settings');
   await pg.click('[data-hs-win="settings"] .st-tab[data-cat="help"]');
   await pg.click('[data-hs-win="settings"] [data-hs-act="run"][data-sid="help.report"]');
   if (!(await wait(pg, (w) => document.querySelector(w + ' .rp-text'), WIN))) { fails.push('RP-6 Settings, Help did not open the report sheet'); await ctx.close(); return; }
@@ -122,7 +123,7 @@ async function checks(overrides) {
     if (!g) return fails;
     const { ctx, pg } = g;
     // RP-1
-    await pg.click('[data-hs-open="report"]');
+    await pressBar(pg, 'report');
     if (!(await wait(pg, (w) => document.querySelector(w + ' .rp-text'), WIN))) { fails.push('RP-1 the launcher did not open the report window'); return fails; }
     if (!(await pg.evaluate((w) => document.querySelector(w + ' [data-hs-act="send"]').disabled, WIN))) fails.push('RP-1 Send is on with an empty box');
 
@@ -162,7 +163,7 @@ async function checks(overrides) {
     // RP-4: Settings > Help
     await pg.click(WIN + ' [data-hs-close="report"]');
     await wait(pg, (w) => !document.querySelector(w), WIN);
-    await pg.click('[data-hs-open="settings"]');
+    await pressBar(pg, 'settings');
     if (!(await wait(pg, () => document.querySelector('.st-tab[data-cat="help"]:not([hidden])')))) fails.push('RP-4 Settings has no Help');
     else {
       await pg.click('.st-tab[data-cat="help"]');
@@ -188,7 +189,7 @@ const MUTANTS = [
   ['the console errors are not attached', 'src/shell/report-model.js', 'const errors = (o.diag ? o.diag.recent() : [])', 'const errors = ([])'],
   ['a refusal reads as sent', 'src/shell/windows/report.js', 'const sent = r.ok || SENT.has(r.status);', 'const sent = true;'],
   ['Settings has no way in', 'src/data/settings.js', "type: 'action', open: 'report',", "type: 'action', open: 'friends',"],
-  ['the launcher row has no way in', 'src/data/shell-windows.js', "glyph: 'uiWarn', width: 420, object: 'plain' }", "glyph: 'uiWarn', width: 420, object: 'plain', launcher: false }"],
+  ['the top bar has no way in', 'src/data/shell-windows.js', "group: 'menu', glyph: 'uiWarn', width: 420, object: 'plain' }", "glyph: 'uiWarn', width: 420, object: 'plain', launcher: false }"],
   ['the answer line scrolls away on the phone', 'src/styles/windows.css', '.rp-foot { position: sticky; bottom: 0;', '.rp-foot {'],
   ['the phone box keeps its desktop height', 'src/styles/windows.css', '  .rp-text { height: 96px; min-height: 96px; }', ''],
 ];

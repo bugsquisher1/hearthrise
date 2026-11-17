@@ -18,7 +18,7 @@ export const WINDOWS_TEXT = Object.freeze({
   help_hunts: 'Pick a hunt, then press Enter',
   help_inventory: 'Press a stack, then Equip, Use or Sell',
   help_storage: 'Press a stack to move it to the bag or back',
-  help_wiki: 'Search for a skill, a ground or a formula',
+  help_wiki: 'Read your Chronicle, or search a skill, a ground or a formula',
   help_shop: 'Buy tools and gear, sell loot, buy Blessings under Services',
   help_skills: 'Press a skill to gather or make something',
   help_prep: 'Pick a setup and press Use before a hunt',

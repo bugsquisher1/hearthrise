@@ -50,6 +50,7 @@ import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verd
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { barWindows } from './_bar.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
@@ -179,8 +180,9 @@ async function checks(overrides, shots) {
       const { ctx, page, errors, s, up } = await open();
       if (!up) fails.push('CW-1 the shell did not mount');
       else {
-        const launchers = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch')).map((b) => b.getAttribute('data-hs-open')));
-        if (!launchers.includes('character') || launchers.includes('skills-combat')) fails.push('CW-1 the launcher row is ' + launchers.join(','));
+        /* every window the top bar reaches, its groups' menus too (tests/_bar.mjs) */
+        const launchers = await barWindows(page);
+        if (!launchers.includes('character') || launchers.includes('skills-combat')) fails.push('CW-1 the top bar reaches ' + launchers.join(','));
         if (!(await openWin(page, 'c', 'character'))) fails.push('CW-1 the C key did not open the Character window');
         await waitCombat(page);
         const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-tab[data-tab]')).filter((b) => !b.hidden && b.getClientRects().length).map((b) => b.textContent));

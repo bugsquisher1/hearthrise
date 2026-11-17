@@ -19,10 +19,11 @@
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.134';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
 import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.134';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.134';
 import { lossLine, seriesLine } from './boss-loss.js?v=0.2.134';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.134';
 import { callOf } from '../session/hunt-sections.js?v=0.2.134';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.134';
 import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.134';

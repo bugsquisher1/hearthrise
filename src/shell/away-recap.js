@@ -48,6 +48,7 @@ import { levelOf } from '../session/character-sections.js?v=0.2.134';
 import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.134';
 import { nameOf } from '../session/item-sections.js?v=0.2.134';
 import { huntName } from '../session/party-sections.js?v=0.2.134';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
 import { whole } from '../render/format.js?v=0.2.134';
 import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.134';

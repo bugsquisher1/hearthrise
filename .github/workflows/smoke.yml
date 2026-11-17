@@ -596,9 +596,12 @@ jobs:
   # 15 on 2026-11-15, lane a-133-ci-time). MEASURED on nightly 43608955464 (job 132552464018, every mutant run):
   # plain + --mutate 21/21 = 8.7 min (15:59:54 -> 16:08:37), + setup 0.6 = 9.3; x2 = 19, 30 so the apt stall
   # (9.3 + 12.2 = 21.5) keeps 28% slack.
+  # + THE TOP BAR (lane/b-bar-and-chronicle, 2026-11-16). Measured on Tyler's PC only: plain 1.0 min, --mutate
+  # 15/15 (each mutant stops at its first red section) 5.7 min; at CI's ~1.5x that is ~10, so 9.3 + 1.5 + 10 = 20.8,
+  # x2 = 42. The first nightly measures it; re-budget from that run.
   in-page-19:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 42
 
     steps:
       - uses: actions/checkout@v4
@@ -620,6 +623,16 @@ jobs:
         run: |
           node tests/preset-names.mjs
           node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate
+
+      # THE TOP BAR STAYS SHORT (Tyler 2026-11-16: "our top menu bar is starting to get long again"): at most 8 buttons;
+      # every window two presses from the row and one by its key at 1440x900, 922x423 and 667x375; the group menus shut
+      # as menus do and keep the keyboard through an envelope; the coach rings the group, then the line, and the row
+      # carries its own ring; a phone's menu is a sheet; an open menu never covers the coach card's presses. --mutate plants seventeen.
+      - name: Top bar (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/top-bar.mjs
+          node tools/mutant-gate.mjs node tests/top-bar.mjs --mutate
 
       - name: Upload failure artifacts
         if: failure()

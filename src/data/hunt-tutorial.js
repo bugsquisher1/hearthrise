@@ -110,7 +110,8 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   market: anchor('the Weighhouse (src/shell/windows/market), its icon', 'market', true),
   honor: anchor('Leaderboards (src/shell/windows/honor.js), its icon', 'honor', true),
   settings: anchor('Settings (src/shell/windows/settings.js), its icon, then the Help tab', 'settings', true),
-  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New setup', 'hunt-prep', true),
+  /* no icon of its own since the top bar's groups (2026-11-16): its way starts at the bar's setup press, a hook */
+  hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New setup', 'hunt-prep'),
   house: anchor('the House (src/shell/windows/house.js), its icon, then Buy', 'house', true),
   characters: anchor('the character strip\'s Characters button, then Create hero on the characters screen', 'characters'),
   strip: anchor('the character strip (src/app/character-strip.js), another hero\'s tab'),
@@ -417,7 +418,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Hunts → The Sewer → Enter with party',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('save_setup', 'Keep this bar',
-    'Hunt prep → New setup → Save',
+    'Setup check mark on your bar → New setup → Save',
     'hunt_prep', { kind: 'setup_saved' }, { when: [IN_TOWN, { kind: 'bar_saved' }, { kind: 'been', hunt: THICKET }],
       inWindow: 'Press New setup, name it, then Save',
       hooks: ['[data-hs-act="setups"]', '[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]'] }),

@@ -9,11 +9,11 @@
 
 export const WIKI_TEXT = Object.freeze({
   /* The search and the three sections. */
-  search: 'Search the wiki',
+  search: 'Search the book',
   tab_skills: 'Skills',
   tab_grounds: 'Hunting grounds',
   tab_formulas: 'Formulas',
-  none: 'Nothing in the wiki matches "{query}".',
+  none: 'Nothing in the book matches "{query}".',
 
   /* A skill's page. */
   trained_by: 'Trained by',

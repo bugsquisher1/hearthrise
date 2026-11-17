@@ -46,7 +46,7 @@ import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.133';
 import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.133';
 import { HUNT_INDEX } from './hunts.js?v=0.2.133';
 import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.133';
-import { CHEST_KEYS, CINDERS } from './chests.js?v=0.2.133';
+import { CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js?v=0.2.133';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js?v=0.2.133';
@@ -269,6 +269,8 @@ export function reachableSources(opts = {}) {
   put(CINDERS, 'the Hearth Chest');
   /* the tower weapons: a key's weapon roll at the Hearth Chest (2027-04-27-tower-chest.sql hr_chest_open, hr_chest_weapons) */
   for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) put(id, 'the Hearth Chest');
+  /* a super-rare outfit's bundle: a key's outfit roll at the Hearth Chest (hr_chest_open reads hr_chest_outfits) */
+  for (const o of CHEST_OUTFITS) put(o.item, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) put(id, CODED_SOURCES[id].label);
   if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
   for (const t of HEARTHFIND_TABLE) if (t.kind === 'node' || met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
@@ -347,6 +349,8 @@ export function itemSources() {
   push(m, CINDERS, 'the Hearth Chest');
   /* The tower weapons (src/data/tower-weapons.js): a key's weapon roll at the Hearth Chest (hr_chest_open reads hr_chest_weapons). */
   for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) push(m, id, 'the Hearth Chest');
+  /* A super-rare outfit's bundle (src/data/chests.js CHEST_OUTFITS): a key's outfit roll at the Hearth Chest (hr_chest_open). */
+  for (const o of CHEST_OUTFITS) push(m, o.item, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) push(m, id, CODED_SOURCES[id].label);
   return m;
 }
@@ -382,6 +386,8 @@ export function itemUses() {
   /* a Tower key is used at the Hearth Chest (hr_chest_open); the Cinders also stoke it (and burn in the Hearth, a HEARTH_FUELS rung) */
   for (const k of CHEST_KEYS) push(m, k.item, 'used at the Hearth Chest');
   push(m, CINDERS, 'stokes the Hearth Chest');
+  /* an outfit's bundle is used once: its hero owns the outfit for good (hr_outfit_bundle_use, 2027-04-30-sweeps-coat.sql) */
+  for (const o of CHEST_OUTFITS) push(m, o.item, 'used: the hero owns the outfit');
   /* a named fuel is burnt alone in the Great Hearth (src/data/hearth.js; hr_hearth_burn, 2027-01-31-inner-flame.sql) */
   for (const id of Object.keys(NAMED_FUELS)) push(m, id, 'burnt in the Great Hearth (a named fuel)');
   return m;

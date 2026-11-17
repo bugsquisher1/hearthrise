@@ -24,11 +24,13 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
-import { CHESTS, CHEST_KEYS, CHEST_LUCK, CINDERS, KEY_FAMILIES, TOWER_KEY_FAMILY, WEAPON_FAMILY_KEYS, weaponFamilyOf, keySalts, validateChests } from '../src/data/chests.js';
+import { CHESTS, CHEST_KEYS, CHEST_LUCK, CHEST_OUTFITS, CINDERS, KEY_FAMILIES, TOWER_KEY_FAMILY, WEAPON_FAMILY_KEYS, weaponFamilyOf, keySalts, validateChests,
+  validateChestOutfits } from '../src/data/chests.js';
 import { TOWER_WEAPONS } from '../src/data/tower-weapons.js';
 import { WEAPON_FAMILIES } from '../src/data/gear-tiers.js';
 import { TOWER_RULES } from '../src/data/tower.js';
 import { ITEMS } from '../src/data/items.js';
+import { OUTFIT_ROWS } from '../src/data/outfits.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a changed row moves OUT_NAME to a forward file, like every generated catalogue. */
@@ -36,8 +38,18 @@ export const OUT_NAME = '2027-04-27-tower-chest-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. */
-export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = ITEMS, families = WEAPON_FAMILIES, keyFamilies = KEY_FAMILIES, tower = TOWER_WEAPONS } = {}) {
-  const problems = validateChests(keys, luck, TOWER_RULES.landingEvery, undefined, keyFamilies, tower);
+export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = ITEMS, families = WEAPON_FAMILIES, keyFamilies = KEY_FAMILIES, tower = TOWER_WEAPONS,
+  outfits = CHEST_OUTFITS, outfitRows = OUTFIT_ROWS } = {}) {
+  const problems = validateChests(keys, luck, TOWER_RULES.landingEvery, undefined, keyFamilies, tower).concat(validateChestOutfits(outfits, keys));
+  /* a super-rare outfit: an outfit row owned only through THIS bundle (src/data/outfits.js `bundle`), a tradeable item row of book value */
+  for (const o of outfits) {
+    const row = outfitRows[o.outfit];
+    if (!row) problems.push('outfit ' + o.outfit + ': no src/data/outfits.js row');
+    else if (row.bundle !== o.item || row.premium) problems.push('outfit ' + o.outfit + ': its outfits.js row is owned through ' + (row.premium ? 'premium' : row.bundle) + ', not ' + o.item);
+    const it = Object.hasOwn(items, o.item) ? items[o.item] : null;
+    if (!it) problems.push('outfit ' + o.outfit + ': its bundle ' + o.item + ' is no item');
+    else if (it.bop || !(it.v > 0) || it.outfit !== o.outfit) problems.push('outfit ' + o.outfit + ': its bundle ' + o.item + ' is not a tradeable item of book value naming it');
+  }
   const isItem = (id) => Object.hasOwn(items, id);
   if (!isItem(CINDERS)) problems.push('the Cinders (' + CINDERS + ') are no item');
   for (const k of keys) {
@@ -55,7 +67,10 @@ export function catalogueRows({ keys = CHEST_KEYS, luck = CHEST_LUCK, items = IT
   if (problems.length) throw new Error('gen-chests: ' + problems.join('; '));
   const weaponFamilies = Object.keys(items).sort().map((id) => ({ item: id, family: weaponFamilyOf(items[id]) })).filter((r) => r.family);
   const weapons = keys.flatMap((k) => Object.entries(k.weapons || {}).map(([family, item]) => ({ key: k.id, family, item })));
-  return { keys: keys.map((k) => ({ ...k, salts: keySalts(k) })), keyFamilies: Object.values(keyFamilies), luck, weaponFamilies, weapons };
+  /* every key finds every outfit row, at its own chance (the board: "a super rare outfit that can drop from any chest"); like the weapons,
+     the loot is the key's: one chest whose loot depends on the key (Tyler 2026-11-14) */
+  const outfitRolls = outfits.flatMap((o) => keys.map((k) => ({ key: k.id, outfit: o.outfit, item: o.item, pm: o.pm[k.id] })));
+  return { keys: keys.map((k) => ({ ...k, salts: keySalts(k) })), keyFamilies: Object.values(keyFamilies), luck, weaponFamilies, weapons, outfitRolls };
 }
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
@@ -72,6 +87,8 @@ export function build(input) {
   const kfSum = [...r.keyFamilies].sort((a, b) => (a.id < b.id ? -1 : 1)).map((f) => [f.id, f.opensPerWeek, f.heldMax].join(':')).join('|');
   const chestRows = Object.values(CHESTS).map((c) => `  (${lit(c.id)}, ${lit(c.name)})`).join(',\n');
   const sum = [...r.keys].sort((a, b) => (a.id < b.id ? -1 : 1)).map((k) => [k.id, k.family, k.item, k.from, k.weaponPm, k.weaponTier, k.skillPlus, k.cinders, k.salts, k.saltsQty, k.food, k.foodQty].join(':')).join('|');
+  const oRows = r.outfitRolls.map((o) => `  (${lit(o.key)}, ${lit(o.outfit)}, ${lit(o.item)}, ${o.pm})`).join(',\n');
+  const oSum = r.outfitRolls.map((o) => [o.key, o.outfit, o.item, o.pm].join(':')).sort().join('|');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- ${OUT_NAME} — THE HEARTH CHEST: ITS OPEN KEY TABLE, WHAT EACH KEY ALWAYS HOLDS, ITS WEAPON CHANCE, THE HEARTH'S WARMTH AND THE STOKES.
 -- Generated by tools/gen-chests.mjs from src/data/chests.js (the salts each key holds derived from src/data/temper.js TEMPER_MATERIALS; the
@@ -85,9 +102,11 @@ export function build(input) {
 --   in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family weight, the per-call clamp);
 --   hr_chest_families (the ${WEAPON_FAMILY_KEYS.length} weapon families, the "types"); hr_chest_weapons (each key's
 --   weapon a family: ${r.weapons.length} rows; a key short of its ${WEAPON_FAMILY_KEYS.length} is refused chest_not_ready); hr_chest_weapon_families (${r.weaponFamilies.length}
---   weapon items and their family). All rewritten whole: no player row points at any of them (the key and Cinders items are hr_items rows).
+--   weapon items and their family); hr_chest_outfits (${r.outfitRolls.length}: the super-rare outfits, each outfit's bundle item and its chance on every
+--   key in permille, src/data/chests.js CHEST_OUTFITS; lane/c-sweeps-coat-drop, the Sweep's Coat). All rewritten whole: no player row
+--   points at any of them (the key, Cinders and bundle items are hr_items rows).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower.
--- REVERSIBLE: drop the eight tables after 2027-04-27-tower-chest.sql's reversal.
+-- REVERSIBLE: drop the nine tables after 2027-04-27-tower-chest.sql's reversal.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_chests (
   chest_id text primary key check (chest_id ~ '^[a-z0-9_]{1,40}$'),
@@ -142,10 +161,17 @@ create table if not exists public.hr_chest_weapon_families (
   item_id text primary key,
   family  text not null
 );
+create table if not exists public.hr_chest_outfits (
+  key_id    text not null,
+  outfit_id text not null check (outfit_id ~ '^[a-z0-9_]{1,40}$'),
+  item_id   text not null check (item_id ~ '^[a-z0-9_]{1,40}$'),
+  pm        int  not null check (pm between 1 and 1000),
+  primary key (key_id, outfit_id)
+);
 do $$
 declare t text;
 begin
-  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families', 'hr_chest_outfits'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
   end loop;
@@ -154,6 +180,7 @@ comment on table public.hr_chest_key_families is '${OUT_NAME}: the key families 
 comment on table public.hr_chest_keys is '${OUT_NAME}: the Hearth Chest''s open key table (src/data/chests.js CHEST_KEYS): each key in a family (hr_chest_key_families); a Tower landing''s key is the highest Tower row at or under it; what each key always holds; its base weapon chance (permille). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
 comment on table public.hr_chest_luck is '${OUT_NAME}: the Hearth''s warmth (a dry key warms the next by warmth_step_pm of its base, up to warmth_cap_pm), the own-family weight and the per-call clamp (src/data/chests.js CHEST_LUCK). One row.';
 comment on table public.hr_chest_weapons is '${OUT_NAME}: each key''s tower weapon a family (src/data/chests.js weapons). A key without one for every hr_chest_families row is not ready: hr_chest_open refuses it.';
+comment on table public.hr_chest_outfits is '${OUT_NAME}: the super-rare outfits (src/data/chests.js CHEST_OUTFITS): each outfit''s bundle item and its chance on every key, permille. hr_chest_open rolls one outfit a key on its own stream, the rows stacked in outfit order (at most one a key, each at its chance). Read by hr_chest_open and hr_chest_section.';
 
 delete from public.hr_chests;
 insert into public.hr_chests (chest_id, name) values
@@ -179,6 +206,8 @@ ${wRows ? `insert into public.hr_chest_weapons (key_id, family, item_id) values\
 delete from public.hr_chest_weapon_families;
 insert into public.hr_chest_weapon_families (item_id, family) values
 ${wfRows};
+delete from public.hr_chest_outfits;
+${oRows ? `insert into public.hr_chest_outfits (key_id, outfit_id, item_id, pm) values\n${oRows};` : '-- (no key finds an outfit)'}
 
 -- §4 SELF-CHECK: the data's rows (a digest of every key row and every key family), each key in a family and each family with a key, the
 -- Tower's family there, a family's open table rising, every item a row names an hr_items row (the keys and the Cinders bound), every weapon
@@ -218,7 +247,21 @@ begin
     raise exception 'chest-catalogue §4: a key''s weapon is not of its family, or names no key or family'; end if;
   if exists (select 1 from public.hr_chest_weapon_families w where not exists (select 1 from public.hr_chest_families c where c.family = w.family)) then
     raise exception 'chest-catalogue §4: a weapon item reads no family'; end if;
-  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  -- THE SUPER-RARE OUTFITS: the data's rows; every key carries each outfit (no key inherits or misses a chance); a key's outfits never add
+  -- past a sure thing; each bundle a TRADEABLE hr_items row of book value (the board: it trades until someone wears it)
+  select string_agg(concat_ws(':', key_id, outfit_id, item_id, pm), '|' order by concat_ws(':', key_id, outfit_id, item_id, pm) collate "C")
+    into v_sum from public.hr_chest_outfits;
+  if v_sum is distinct from ${oSum ? lit(oSum) : 'null'} then raise exception 'chest-catalogue §4: hr_chest_outfits is not src/data/chests.js: %', v_sum; end if;
+  if exists (select 1 from public.hr_chest_keys k cross join (select distinct outfit_id from public.hr_chest_outfits) o
+              where not exists (select 1 from public.hr_chest_outfits x where x.key_id = k.key_id and x.outfit_id = o.outfit_id))
+     or exists (select 1 from public.hr_chest_outfits x where not exists (select 1 from public.hr_chest_keys k where k.key_id = x.key_id))
+     or exists (select 1 from public.hr_chest_outfits x group by x.key_id having sum(x.pm) > 1000)
+     or exists (select 1 from public.hr_chest_outfits x group by x.item_id having count(distinct x.outfit_id) > 1)
+     or exists (select 1 from public.hr_chest_outfits x group by x.outfit_id having count(distinct x.item_id) > 1) then
+    raise exception 'chest-catalogue §4: an outfit is missing on a key, names no key, adds past a sure thing, or shares a bundle'; end if;
+  if exists (select 1 from public.hr_chest_outfits x where not exists (select 1 from public.hr_items i where i.item_id = x.item_id and i.tradeable and i.value > 0)) then
+    raise exception 'chest-catalogue §4: an outfit''s bundle is no tradeable hr_items row of book value (apply the items catalogue first)'; end if;
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families', 'hr_chest_outfits'] loop
     if exists (select 1 from pg_policies where schemaname = 'public' and tablename = t) then
       raise exception 'chest-catalogue §4: a policy opens % to a client', t; end if;
     foreach v_role in array array['anon', 'authenticated'] loop
@@ -264,6 +307,13 @@ function selftest() {
   bites('a tower weapon of a key no row has', 'is no key', { tower: tw(0, { key: 'diamond' }) });
   bites('two tower weapons with one name', 'another tower weapon is called', { tower: tw(1, { name: T[0].name }) });
   bites('a tower weapon with no line', 'no line', { tower: tw(2, { line: ' ' }) });
+  /* the super-rare outfits (CHEST_OUTFITS): a chance on every key, never past a sure thing, owned through its own bundle, which trades */
+  const O = CHEST_OUTFITS, ow = (row) => [{ ...O[0], ...row }];
+  bites('an outfit with no chance on a key', 'no whole permille 1..1000 for the platinum key', { outfits: ow({ pm: { bronze: 2, silver: 3, gold: 4 } }) });
+  bites('an outfit chance for a key that is no key', 'which is no key', { outfits: ow({ pm: { ...O[0].pm, diamond: 6 } }) });
+  bites('outfits past a sure thing on one key', 'add up past a sure thing', { outfits: [...O, { ...O[0], outfit: 'second_coat', item: 'second_coat_bundle', pm: { ...O[0].pm, bronze: 999 } }] });
+  bites('an outfit whose outfits.js row is owned through another item', 'is owned through', { outfitRows: { ...OUTFIT_ROWS, [O[0].outfit]: { ...OUTFIT_ROWS[O[0].outfit], bundle: 'other_bundle' } } });
+  bites('a bundle that is bound', 'is not a tradeable item of book value', { items: { ...ITEMS, [O[0].item]: { ...ITEMS[O[0].item], bop: true } } });
   /* the rows are the data's: every weapon item and its own family, the salts derived from the tempering table */
   const r = catalogueRows();
   const ok = r.weaponFamilies.length > 50 && r.weaponFamilies.every((w) => weaponFamilyOf(ITEMS[w.item]) === w.family)

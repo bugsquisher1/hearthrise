@@ -17,10 +17,10 @@
 //             so the free try-on says exactly what a paid save changes here.
 //   plain     an outfit with no regions says why (the druid: the mask lane held it).
 //   bundle    the bag item whose use makes the outfit the hero's own (the Sweep's Coat, the Hearth Chest's super-rare: the Burning
-//             Tower board §5). Owned only through it, never by premium or by everyone. Its server half (the chest's outfit roll,
-//             the bundle's use, hr_outfit_owned reading it) is not built: until it is, tools/gen-outfits.mjs leaves a bundle outfit
-//             out of hr_outfits, so the server knows no such outfit and refuses it, and the Character window lists it only
-//             once the server says the hero owns it.
+//             Tower board §5; src/data/chests.js CHEST_OUTFITS rolls it). Owned only through it, never by premium or by everyone:
+//             hr_outfits carries the bundle (tools/gen-outfits.mjs), hr_outfit_owned owns such a row only for a hero with its
+//             player_cosmetics 'outfit' row, written once by hr_outfit_bundle_use (2027-04-30-sweeps-coat.sql), and the Character
+//             window lists it only once the server says the hero owns it.
 // DYES are the colours a region may take: DYE_COUNT tokens --dye-N in
 // src/styles/tokens.css, each a colour of the world palette. A saved colour is an
 // INDEX; the server checks it against hr_outfit_dyes.

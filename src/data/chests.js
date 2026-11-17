@@ -107,6 +107,48 @@ export const CHEST_LUCK = Object.freeze({
   perCall: 20,
 });
 
+/* THE SUPER-RARE OUTFITS (the board's §5 "The super-rare outfit: the Sweep's Coat", Tyler 2026-11-14: "a super rare outfit that can drop
+   from any chest would be cool too"). A row is one outfit a chest can pay:
+     outfit  its src/data/outfits.js OUTFIT_ROWS id, whose `bundle` is this row's item (tools/gen-chests.mjs refuses a mismatch)
+     item    the bag item it comes out as (the bundle): tradeable until a hero uses it, then that hero owns the outfit for good
+             (supabase/migrations/2027-04-30-sweeps-coat.sql hr_outfit_bundle_use, hr_outfit_owned)
+     name    the item's name; value its book value (the shop's bid and the market's ceiling read it: the designer stated none, so 20,000 is
+             the backend's pick, the market's own daily spend cap divided by its 100x ceiling, for the designer to move)
+     pm      its chance on EVERY key row, permille (the board: Bronze 0.2%, Silver 0.3%, Gold 0.4%, Platinum 0.5%). No key row may be missing:
+             a new key states its own chance here, never inherits one
+   One outfit roll a key, on its own stream beside the weapon's (it never moves a weapon's odds): the rows stack in order, so a key finds
+   at most one outfit and each at exactly its chance. Add-ons (the board's Brush at 50, Lantern at 100) wait for the outfit system's add-ons. */
+export const CHEST_OUTFITS = Object.freeze([
+  Object.freeze({ outfit: 'sweeps_coat', item: 'sweeps_coat_bundle', name: 'Sweep\'s Coat', value: 20000,
+    pm: Object.freeze({ bronze: 2, silver: 3, gold: 4, platinum: 5 }) }),
+]);
+
+/** Everything wrong with the outfit rows against the key table, as strings (empty: valid). Pure. */
+export function validateChestOutfits(outfits = CHEST_OUTFITS, keys = CHEST_KEYS) {
+  const out = [];
+  const ID = /^[a-z0-9_]{1,40}$/;
+  const keyIds = keys.map((k) => k.id), taken = new Set(keys.map((k) => k.item).concat([CINDERS], keys.flatMap((k) => Object.values(k.weapons || {}))));
+  const seen = new Set(), items = new Set();
+  const total = Object.fromEntries(keyIds.map((id) => [id, 0]));
+  for (const o of Array.isArray(outfits) ? outfits : []) {
+    const n = (o && o.outfit) || '?';
+    if (!o || !ID.test(String(o.outfit)) || seen.has(o.outfit)) { out.push('outfit ' + n + ': its id is not an id, or a second row has it'); continue; }
+    seen.add(o.outfit);
+    if (!ID.test(String(o.item)) || items.has(o.item) || taken.has(o.item)) out.push('outfit ' + n + ': its item is not an id, or another row (a key, the Cinders, a weapon) names it');
+    items.add(o.item);
+    if (typeof o.name !== 'string' || !o.name.trim()) out.push('outfit ' + n + ': no name');
+    if (!Number.isInteger(o.value) || o.value < 1) out.push('outfit ' + n + ': its book value is not a whole number above 0');
+    const pm = o.pm && typeof o.pm === 'object' ? o.pm : {};
+    for (const id of keyIds) {
+      if (!Number.isInteger(pm[id]) || pm[id] < 1 || pm[id] > 1000) out.push('outfit ' + n + ': no whole permille 1..1000 for the ' + id + ' key');
+      else total[id] += pm[id];
+    }
+    for (const id of Object.keys(pm)) if (!keyIds.includes(id)) out.push('outfit ' + n + ': a chance for ' + id + ', which is no key');
+  }
+  for (const id of keyIds) if (total[id] > 1000) out.push('the outfits of the ' + id + ' key add up past a sure thing');
+  return out;
+}
+
 /* The weapon families a key's weapons come in (gear-tiers.js WEAPON_FAMILIES), in its order: the seven "types". */
 export const WEAPON_FAMILY_KEYS = Object.freeze(WEAPON_FAMILIES.map((f) => f.key));
 
@@ -191,7 +233,8 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
     if (!Number.isInteger(f.heldMax) || f.heldMax < f.opensPerWeek) out.push('family ' + fid + ': heldMax is under a week\'s opens');
     if (!keys.some((k) => k && k.family === fid)) out.push('family ' + fid + ': no key belongs to it');
   }
-  if (!Object.hasOwn(families, TOWER_KEY_FAMILY)) out.push('no ' + TOWER_KEY_FAMILY + ' family for the Tower\'s landings to mint from');
+  /* (worded with no quote after the word that ends an import: tools/pack-edge.mjs reads an export's specifier up to the next quote) */
+  if (!Object.hasOwn(families, TOWER_KEY_FAMILY)) out.push('no ' + TOWER_KEY_FAMILY + ' family, the one every Tower landing mints its key in');
   const prevOf = {};
   const seen = new Set(), items = new Set();
   for (const k of keys) {
@@ -265,7 +308,7 @@ export function chestShipBlockers(keys = CHEST_KEYS) {
     .map((k) => k.name + ': ' + WEAPON_FAMILY_KEYS.filter((f) => !(k.weapons || {})[f]).join(', ') + ' not built');
 }
 
-const PROBLEMS = validateChests();
+const PROBLEMS = validateChests().concat(validateChestOutfits());
 if (PROBLEMS.length) throw new Error('src/data/chests.js does not load: ' + PROBLEMS.join('; '));
 
 /* ── THE ITEMS (src/data/items.js spreads them; tools/gen-catalogues.mjs writes hr_items) ─────────────────────────────────────────────
@@ -276,6 +319,10 @@ export const CHEST_ITEM_ROWS = Object.freeze({
   ...Object.fromEntries(CHEST_KEYS.map((k) => [k.item, Object.freeze({ n: k.name, v: 0, bop: true, type: 'key', tag: 'tower_key',
     towerKey: k.id })])),
   [CINDERS]: Object.freeze({ n: 'Hearth Cinders', v: 0, bop: true, tag: 'fuel' }),
+  /* a super-rare outfit's bundle (CHEST_OUTFITS): tradeable (no `bop`: the board's "it trades, until someone wears it"), kept and never
+     junk (tag cosmetic), its own book value; `outfit` names what using it gives */
+  ...Object.fromEntries(CHEST_OUTFITS.map((o) => [o.item, Object.freeze({ n: o.name, v: o.value, type: 'outfit_bundle', tag: 'cosmetic',
+    rarity: 'legendary', outfit: o.outfit })])),
 });
 
 /* THE COMBAT SKILL A WEAPON'S +SKILL RAISES, by its weaponType (the design's §6: "Sword, Hammer, Hatchets: Melee. Bow, Crossbow: Ranged.
@@ -310,4 +357,5 @@ export const CHEST_ITEM_DESC = Object.freeze({
   tower_key_gold: 'A Keeper\'s key from high up the Tower. The chest on the ledge gives a lot for it',
   tower_key_platinum: 'A key from the Tower\'s top landings, still warm. The chest on the ledge gives the most for it',
   [CINDERS]: 'Embers from the Tower\'s own fire. Burn them in the Hearth, or stoke the chest with them for luck',
+  sweeps_coat_bundle: 'The coat the last chimney sweep wore up the flue, still black with soot. Use it and this hero owns the outfit for good',
 });

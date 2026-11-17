@@ -4,7 +4,7 @@
 --   while fishing, "the hero didn't walk over or throw it like it used to, and stayed at its fishing spot").
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit).
--- Pre-EA: applies on its passing §4. No value, rank or shared surface moves: the one fuel is burnt and paid by the engine's own
+-- Pre-EA: applies on its passing §5. No value, rank or shared surface moves: the one fuel is burnt and paid by the engine's own
 -- bench run, as before (hr_apply, the generated catalogue); this file decides only where the pointer and the body go next.
 -- ON THE EA SECURITY LIST: it writes the activity pointer from a trigger.
 -- EDGE: none (pack-edge --hash unmoved). CLIENT: src/shell/town-work.js (no armed Stop on an errand, no "You stopped" words) and
@@ -44,7 +44,7 @@
 -- hr_town_visit_span(map, station) -> interval  NEW, owner-only, stable. The longest a visit to that station holds on that map:
 --   hr_town_visit_hold of the farthest stand from it.
 -- hr_town_errand()   NEW BEFORE UPDATE OF active_kind, active_id trigger on player_state. It is named to fire AFTER
---   hr_last_activity_note (PostgreSQL fires a table's triggers in name order), so it has the last word on last_activity_*; §4
+--   hr_last_activity_note (PostgreSQL fires a table's triggers in name order), so it has the last word on last_activity_*; §5
 --   asserts the order.
 -- hr_town_note_move()     RESTATED WHOLE (2027-01-28-town-stands.sql's image + the errand's id on the note).
 -- hr_town_moves_settle()  RESTATED WHOLE (2027-03-23-town-visit-hold.sql's image + the errand's visit). Every line of that image is

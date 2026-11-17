@@ -55,9 +55,10 @@ const BORDER = Object.freeze({
   '#aaa49a': '#8a867d', '#8a867d': '#6a6865', '#6a6865': '#4f4e52', '#4f4e52': '#3a3a3e', '#6e727a': '#4f4e52', '#3a3a3e': '#2f2723',
   '#2c2e33': '#231d1f', '#17141a': '#0b0a0c', '#231d1f': '#0b0a0c', '#0b0a0c': '#0b0a0c', '#2f2723': '#0b0a0c',
 });
-/* flecks on a hearthstone slab: the Hearth's rust (a share of its body pixels; a rust slab 1.6 times the share) */
-const FLECK = Object.freeze({ '#c9bfa0': '#a88457', '#aaa49a': '#8a6440', '#8a867d': '#6e4c30' });
-const FLECK_SHARE = 0.06;
+/* flecks on a hearthstone slab: the Hearth's rust (a share of its body pixels; a rust slab 1.6 times the share), each a warm colour
+   at about its stone's own value, so the slab reads warm and never peppered (Coordinator 11-16: the first pass read sandy) */
+const FLECK = Object.freeze({ '#c9bfa0': '#c49a5c', '#aaa49a': '#a88457', '#8a867d': '#8a6440' });
+const FLECK_SHARE = 0.045;
 /* soot (a step down toward the fire's black) and ash (pale grey grains) */
 const SOOT = Object.freeze({ '#c9bfa0': '#8a867d', '#aaa49a': '#6a6865', '#8a867d': '#4f4e52', '#6a6865': '#3a3a3e', '#a88457': '#553a26',
   '#8a6440': '#3d2a1d', '#6e4c30': '#2f2723', '#4f4e52': '#2f2723', '#3a3a3e': '#2f2723' });
@@ -167,8 +168,8 @@ export function hearthPlaza(base) {
     if (fall <= 0) continue;
     const i = y * W + x, p = i * 4, c = hexAt(data, p);
     const k = Math.pow(fall, 1.6) * (0.45 + 0.55 * noise(x, y, 7, 53));
-    if (hash2(x, y, 57) < k * 0.9 && SOOT[c]) put(data, p, SOOT[c]);
-    else if (owner[i] >= 0 && hash2(x, y, 59) < 0.035 * fall) put(data, p, ASH);
+    if (hash2(x, y, 57) < k * 0.75 && SOOT[c]) put(data, p, SOOT[c]);
+    else if (owner[i] >= 0 && hash2(x, y, 59) < 0.02 * fall) put(data, p, ASH);
   }
   return img;
 }

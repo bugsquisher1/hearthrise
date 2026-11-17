@@ -6,7 +6,7 @@
 //   node tests/top-bar.mjs --mutate        every planted defect must turn a named rule RED
 //   node tests/top-bar.mjs --shots <dir>   also write the bar and each group's menu at each size
 //
-// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/shell/widgets/action-bar.js src/shell/shell.js
+// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js
 //
 // Tyler 2026-11-16: "Our top menu bar is starting to get long again, are there some things we can either combine or move to clean
 // it up? It's getting a bit overwhelming." The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8). The windows a player
@@ -23,10 +23,12 @@
 //         prep opens from the bar's setup press and by P; zero console errors
 //   TB-4  THE MENU BEHAVES (1440x900): a press opens it (aria-expanded), a second press shuts it; Esc shuts it and opens nothing;
 //         a press on the World shuts it; a key that opens a window shuts it; a pick of the window already on top shuts it and
-//         leaves that window open; the arrows walk its lines
+//         leaves that window open; the arrows walk its lines; an envelope that changes nothing, and a row redrawn for a reason under
+//         the open menu (its card read), both leave the keyboard on the same line
 //   TB-5  THE COACH'S RING STILL LANDS (1440x900 and 922x423): a new hero's "Tamsin's rats" rings the Town icon, the menu opened
 //         rings Tamsin's line, and her window opened from there carries the card; never two rings at once; the row draws the ring
-//         itself, so with nothing changing no paint rebuilds it (2.5 s watched, the menu shut and open)
+//         itself, so no paint rewrites the markup the row already has (2.5 s round a repeated envelope, the menu shut and open; a card
+//         that moved on may redraw it)
 //   TB-6  A PHONE'S MENU IS A SHEET (922x423 and 667x375): it stands at the right edge under the row, as tall as the screen allows,
 //         every line inside it at a thumb's height, none cut, no text under 12 px; never a bottom bar
 //   TB-7  A MENU NEVER LIES OVER THE COACH'S PRESSES (1440x900 and 922x423; the Coordinator's read 2026-11-16: the Town menu covered
@@ -71,6 +73,8 @@ async function stub(page, s) {
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
+    /* like the real server, a residue put comes back in every later envelope (client_state): a repeated envelope is truly the same */
+    if (name === 'hr_put_client_state') { try { Object.assign(s.residue, JSON.parse(r.request().postData() || '{}').p_patch || {}); } catch { /* not JSON: kept as it was */ } return json({ ok: true }); }
     if (name === 'hr_load' || name === 'hr-accrue') return json(Object.assign(withServerLevel(clone(s.env)), { version: ++s.version, ok: true, client_state: clone(s.residue) }));
     return json({ ok: true });
   });
@@ -185,6 +189,19 @@ async function checks(overrides, shots, firstRed = false) {
         await page.waitForTimeout(400);
         const kept = await page.evaluate(() => { const a = document.activeElement; return a ? a.getAttribute('data-hs-open') : null; });
         if (kept !== at || (await menu()) !== 'town') fails.push('TB-4 an envelope with nothing new took the keyboard from ' + at + ' to ' + kept + ' (menu ' + (await menu()) + ')');
+        /* the row redrawn for a reason under the open menu (the card read on the server's word: a late section does the same) keeps the
+           keyboard on that line too */
+        const card = await page.evaluate(() => { const p = document.querySelector('.hs-launchers .hs-pointer'); document.querySelector('.hs-launchers').__old = true; return p ? p.getAttribute('data-tutorial') : null; });
+        if (!card) fails.push('TB-4 CONTROL: no coach card in the row to move on');
+        else {
+          const coach = Object.assign({}, s.residue.coach || {});
+          s.residue = Object.assign({}, s.residue, { coach: Object.assign(coach, { read: (coach.read || []).concat([card]) }) });
+          await sayAgain(page, s);
+          await page.waitForTimeout(400);
+          const after = await page.evaluate(() => ({ redrawn: !document.querySelector('.hs-launchers').__old, at: document.activeElement ? document.activeElement.getAttribute('data-hs-open') : null }));
+          if (!after.redrawn) fails.push('TB-4 CONTROL: the card ' + card + ' read on the server\'s word did not redraw the row');
+          else if (after.at !== at || (await menu()) !== 'town') fails.push('TB-4 the row redrawn under the open menu took the keyboard from ' + at + ' to ' + after.at + ' (menu ' + (await menu()) + ')');
+        }
         await page.keyboard.press('Enter');
         if (!(await opened(page, second || 'market'))) fails.push('TB-4 Enter on a focused line did not open ' + second);
       }
@@ -203,11 +220,15 @@ async function checks(overrides, shots, firstRed = false) {
          that only the coach set (src/shell/launcher.js ringCoach) make every paint rebuild the row. Watched 2.5 s round an envelope that
          repeats the last one. */
       const rebuilt = () => {
-        const watch = page.evaluate(() => new Promise((ok) => { const box = document.querySelector('.hs-launchers').parentElement; let n = 0, was = box.innerHTML, diff = '';
-          const mo = new MutationObserver((rs) => { const k = rs.filter((r) => r.type === 'childList' && r.target === box).length;
-            if (k && !diff) { const now = box.innerHTML; let i = 0; while (i < was.length && was[i] === now[i]) i++; diff = JSON.stringify([was.slice(Math.max(0, i - 60), i + 60), now.slice(Math.max(0, i - 60), i + 60)]); }
-            n += k; }); mo.observe(box, { childList: true });
-          setTimeout(() => { mo.disconnect(); ok(n ? n + ' (' + diff + ')' : 0); }, 2500); }));
+        /* Only a rebuild that wrote the markup already there counts (the bug class): a card that moved on or a section that landed late
+           changes the row and may redraw it. The coach's ring is set on the live row, so it is left out of the comparison. */
+        const watch = page.evaluate(() => new Promise((ok) => { const box = document.querySelector('.hs-launchers').parentElement;
+          const plain = () => box.innerHTML.replace(/ data-coach-ring=""/g, '');
+          let n = 0, was = plain(), at = '';
+          const mo = new MutationObserver((rs) => { if (!rs.some((r) => r.type === 'childList' && r.target === box)) return;
+            const now = plain(); if (now === was) { n++; if (!at) at = now.slice(0, 120); } was = now; });
+          mo.observe(box, { childList: true });
+          setTimeout(() => { mo.disconnect(); ok(n ? n + ' (' + JSON.stringify(at) + ')' : 0); }, 2500); }));
         return page.waitForTimeout(500).then(() => sayAgain(page, s)).then(() => watch);
       };
       /* A row rebuilt for a reason carries its ring already: the coach (ringCoach) never has to add or move one after it. */
@@ -222,13 +243,13 @@ async function checks(overrides, shots, firstRed = false) {
       const moved0 = await churn(async () => { await page.keyboard.press('h'); await page.waitForTimeout(400); await page.keyboard.press('Escape'); });
       if (moved0) fails.push('TB-5 [' + tag(size) + '] Hunts opened and shut, the row came back and the coach had to ring it: ' + moved0);
       const still0 = await rebuilt();
-      if (still0) fails.push('TB-5 [' + tag(size) + '] with the menu shut a repeated envelope rebuilt the row: ' + still0);
+      if (still0) fails.push('TB-5 [' + tag(size) + '] with the menu shut a repeated envelope rebuilt the row with the markup it already had: ' + still0);
       const moved1 = await churn(() => tryPress(page, '[data-hs-group="' + groupOf('tally') + '"]', size.touch));
       if (moved1) fails.push('TB-5 [' + tag(size) + '] the menu opened and the coach had to move its ring: ' + moved1);
       const r1 = await ringed(page);
       if (r1.join() !== 'tally') fails.push('TB-5 [' + tag(size) + '] with the menu open the ring is on ' + JSON.stringify(r1) + ', want Tamsin\'s line alone');
       const still1 = await rebuilt();
-      if (still1) fails.push('TB-5 [' + tag(size) + '] with the menu open a repeated envelope rebuilt the row: ' + still1);
+      if (still1) fails.push('TB-5 [' + tag(size) + '] with the menu open a repeated envelope rebuilt the row with the markup it already had: ' + still1);
       if (shots) await page.screenshot({ path: join(shots, 'ring-' + tag(size) + '.png') });
       if (!(await tryPress(page, '.hs-launch-menu [data-hs-open="tally"]', size.touch))) fails.push('TB-5 [' + tag(size) + '] the open menu holds no line for her tally');
       else if (!(await opened(page, 'tally'))) fails.push('TB-5 [' + tag(size) + '] Tamsin\'s line did not open her tally');
@@ -371,6 +392,7 @@ const MUTANTS = [
   ['the menu opens past the row\'s record, so the next paint rebuilds it', 'src/shell/launcher-menu.js', '  if (el.isConnected) markup(el, draw(ctx));', '  if (el.isConnected) el.innerHTML = draw(ctx);'],
   ['the coach card stays under the open menu', 'src/styles/shell.css', '.hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer { right: max(calc(100% - 46px), calc(100% - var(--hs-menu-left, 100%) + 8px)); }\n', ''],
   ['the open menu is never measured, so the card cannot dock clear', 'src/shell/launcher-menu.js', '  if (!id) return;\n  dockClear(el);\n', '  if (!id) return;\n'],
+  ['a row redrawn under the open menu drops the keyboard', 'src/render/paint.js', "  if (back && typeof back.focus === 'function') back.focus();\n", ''],
   ['Hunt prep loses the bar\'s setup press', 'src/shell/widgets/action-bar.js', "  if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }", ''],
 ];
 

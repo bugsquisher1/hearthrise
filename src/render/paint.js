@@ -23,7 +23,9 @@
 //   markup(host, html)   a host drawn from one markup string (the icon row): rebuilt only when the
 //                        string differs from the last one written here, never by comparing it with
 //                        host.innerHTML (the browser writes an SVG's <path/> back as <path></path>
-//                        and an &#39; as ', so that test was never equal and every paint rebuilt it)
+//                        and an &#39; as ', so that test was never equal and every paint rebuilt it);
+//                        a host rebuilt while it holds the focus gives it back to the same control
+//                        (its data-hs-open, data-hs-group or data-hs-act)
 //
 // writes() counts every DOM write this module made (tests read it to prove an
 // unchanged repaint writes nothing). PURE apart from the elements it is handed.
@@ -147,10 +149,20 @@ export function markup(host, html) {
   if (!host) return false;
   const s = String(html);
   if (DRAWN.get(host) === s) return false;
+  const doc = host.ownerDocument, had = doc && doc.activeElement && typeof host.contains === 'function' && host.contains(doc.activeElement) ? keyOf(doc.activeElement) : null;
   host.innerHTML = s;
   DRAWN.set(host, s);
   WRITES++;
+  /* a card that moved on, or a section that landed late, redraws the row under a player walking the open menu by keyboard */
+  const back = had && host.querySelector(had);
+  if (back && typeof back.focus === 'function') back.focus();
   return true;
+}
+/* A control's own name in its markup, the same after a rebuild: the window it opens, its group, or its act. */
+const KEY_ATTRS = ['data-hs-open', 'data-hs-group', 'data-hs-act'];
+function keyOf(el) {
+  for (const a of KEY_ATTRS) { const v = el.getAttribute && el.getAttribute(a); if (v) return '[' + a + '="' + v.replace(/["\\]/g, '') + '"]'; }
+  return null;
 }
 
 /** One element from a markup string (a row's skeleton). */

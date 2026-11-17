@@ -112,8 +112,8 @@ const MUTATIONS = {
     file: FN('catalogue.js'),
     why: 'the raw-material discount vanishes, so a maxed gatherer vendors at 5x the intended rate — '
        + 'the exact inflation b226 was written to close',
-    find: '  const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;',
-    repl: '  const bid = v;',
+    find: '  const whole = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;',
+    repl: '  const whole = v;',
   },
   vendor_ignores_gear_rate: {
     file: FN('catalogue.js'),

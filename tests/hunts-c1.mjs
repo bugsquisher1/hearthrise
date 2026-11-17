@@ -208,7 +208,7 @@ if (!MUTATE) {
     const PLANTS = [
       { name: 'hunt row journals no km', arm: 'K1',
         file: 'supabase/functions/hr-accrue/accrual.js',
-        from: '...(summary.kills > 0 ? { km: s.bestiary.counts() } : {}),', to: '' },
+        from: '...(summary.kills > 0 && Object.keys(s.bestiary.counts()).length ? { km: s.bestiary.counts() } : {}),', to: '' },
     ];
     for (const pl of PLANTS) {
       const dir = mkdtempSync(join(tmpdir(), 'hunts-c1-'));

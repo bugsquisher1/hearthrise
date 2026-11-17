@@ -243,7 +243,7 @@ export function playCell(cell, seeds, hooks = {}) {
     return { skills: Object.fromEntries(COMBAT.map((k) => [k, skillXpForLevel(k, sk[k] || 1)])) };
   };
   const H = keys.map((k, i) => heroTotals(k, party[i], levels[i], kits[i]));
-  const P = { kills: 0, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
+  const P = { kills: 0, killsBy: {}, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
   const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
   const totalMs = list.length * cell.hours * 3600000;
   let doneMs = 0;
@@ -319,7 +319,7 @@ export function playCell(cell, seeds, hooks = {}) {
               if (tk) byKey[tk].shieldIn += e.amount || 0;
               break;
             case 'kill':
-              if (!tk) { P.kills++; if (firstHit[e.t] !== undefined) { P.ttk.push(e.atMs - firstHit[e.t]); delete firstHit[e.t]; } }
+              if (!tk) { P.kills++; const kd = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; P.killsBy[kd] = (P.killsBy[kd] || 0) + 1; if (firstHit[e.t] !== undefined) { P.ttk.push(e.atMs - firstHit[e.t]); delete firstHit[e.t]; } }
               break;
             case 'eat': case 'drink':
               if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
@@ -426,7 +426,7 @@ export function mergeTotals(parts) {
     first.seeds.push(...t.seeds);
     const P = first.party, Q = t.party;
     P.kills += Q.kills; P.ttk.push(...Q.ttk); P.hours += Q.hours; P.segments += Q.segments; P.rareRolls += Q.rareRolls; P.pulls += Q.pulls;
-    addInto(P.rareWins, Q.rareWins);
+    addInto(P.rareWins, Q.rareWins); addInto(P.killsBy, Q.killsBy);
     first.heroes.forEach((h, i) => {
       const g = t.heroes[i];
       for (const k of ['hours', 'levelXp', 'coin', 'lootN', 'store', 'deaths', 'xpLostLevel', 'dealt', 'taken', 'healOut', 'shieldIn', 'blowsLanded', 'blowsMissed', 'dodged', 'castGold', 'manaShots', 'close', 'dips']) h[k] += g[k];
@@ -511,6 +511,8 @@ export function summarise(cell, totals) {
   return {
     id: cell.id, cell, ground: cell.ground, hunt: { band: hunt.band || null, groupFit: ground.groupFit || null },
     party: { size: heroes.length, hours: round(P.hours, 2), segments: P.segments, killsPerH: round(P.kills / hours, 0),
+      /* kills an hour by monster (cell.mjs, the same field: tally-tasks.js counts) */
+      killsByPerH: Object.fromEntries(Object.entries(P.killsBy).map(([k, n]) => [k, round(n / hours, 1)])),
       pullsPerH: round(P.pulls / hours, 1), ttkS: { p50: msS(quantile(P.ttk, 0.5)), p90: msS(quantile(P.ttk, 0.9)) },
       rareRolls: P.rareRolls, rareWins: P.rareWins, rareGini: gini(wins),
       levelXpPerHeroPerH: round(heroes.reduce((s, h) => s + (h.levelXpPerH || 0), 0) / heroes.length, 0),

@@ -579,7 +579,7 @@ const MUTANTS = [
   ['the loot plan greys Sell on a starting-kit item with a hover title only', 'src/shell/windows/inventory/actions.js',
     "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\"', why);", "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\" title=\"' + esc(why) + '\"');", true],
   ['a Shop buy short of gold is greyed with no words', 'src/shell/windows/shop.js',
-    "          + (short ? '. You need ' + gold(short) + ' more.' : ''));", "          + '');", true],
+    "          + (short ? ', need ' + gold(short) + ' more' : ''));", "          + '');", true],
   ['a new rule-disabled control with no reason', 'src/shell/windows/services.js',
     "  prop(yes, 'disabled', sc.pending);\n  /* BLESSINGS */", "  prop(yes, 'disabled', sc.pending || purse === 0);\n  /* BLESSINGS */"],
   ['the engine\'s activity_locked on a bench reads as a hunt\'s', 'src/shell/town-work.js',

@@ -188,7 +188,7 @@ const MUTANTS = [
   { test: 'W2', file: MODEL, from: 'return Math.max(rules.feeMin, Math.ceil(qty * ask * rules.feeBp / 10000));', to: 'return Math.floor(qty * ask * rules.feeBp / 10000);', why: 'the sheet shows a smaller fee than the server takes' },
   { test: 'W3', file: MODEL, from: '    left -= take * a.each;\n', to: '', why: 'Most I can afford never spends the purse it counts' },
   { test: 'W4', file: MODEL, from: ' && !ITEMS[id].premium);', to: ');', why: 'the bond is offered in a search' },
-  { test: 'W5', file: WORDS, from: "'The shop pays ' + whole(f.floor)", to: "'The shop pays ' + whole(f.ceiling)", why: 'the refusal names the wrong number' },
+  { test: 'W5', file: WORDS, from: "'Below the shop price: ' + whole(f.floor)", to: "'Below the shop price: ' + whole(f.ceiling)", why: 'the refusal names the wrong number' },
   { test: 'W5', file: REFUSAL, from: 'const v = n(b[k]) !== null ? b[k] : d[k];', to: 'const v = b[k];', why: 'a number one level down never reaches the words' },
   { test: 'W6', file: GESTURE, from: "r.error === 'network' || ", to: '', why: 'a dropped connection reads as a refusal, so the next press is a NEW gesture and buys twice' },
   { test: 'W6', file: CATCH, from: "if (/^market_/.test(String(body.verb))) return server.accrue(body); ", to: '', why: 'the catch-up retry takes a key the window never saw' },

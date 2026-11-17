@@ -48,7 +48,7 @@ export const ITEM_TEXT = Object.freeze({
 
   /* A tool, and who won't buy it. */
   tool_effect: '{skill} {speed} faster, {xp} more XP, {extra} extra yield',
-  tool_words: '{effect} from the bag, best one only',
+  tool_words: '{effect} from the bag, not Storage, best one only',
   own_use: 'Own use only, can\'t be sold',
   kit_unlisted: 'Shop buys it, not on the Weighhouse',
   qty_item: '{qty} {item}',

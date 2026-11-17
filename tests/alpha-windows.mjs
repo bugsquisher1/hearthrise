@@ -437,7 +437,7 @@ async function pure() {
   if (!edgeBody(0, 'vendor_sell_many', { lines: [{ item: 'rat_tail', qty: 3 }] }, 'x')) fails.push('AW-0 edgeBody refused a well-formed sale');
   /* AW-19: a gathering or crafting pointer the server holds gets the Stop line (every kind: party-ui PI-TOWN). */
   const { buryLine } = await imp('src/shell/windows/inventory/bury.js');
-  if (!/stop it here\.$/.test(buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) })))
+  if (buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) }) !== 'Mining the Copper Rock')
     fails.push('AW-19 a gathering pointer gets no Stop line, so it would run unseen');
   if (edgeBody(0, 'set_activity', { activity: { kind: 'combat', id: 'rat' } }, 'x')) fails.push('AW-0 edgeBody let the client declare a fight through set_activity');
   /* BONES FEED THE GREAT HEARTH (ruling 2026-10-14; Brannoc 10-22: the tooltip said "Sell it at the shop" and Sell all
@@ -475,12 +475,12 @@ async function pure() {
   if (lootToSell([{ id: 'raw_wolf_meat', qty: 4 }, { id: 'rat_tail', qty: 1 }]).join() !== 'rat_tail') fails.push('AW-20 Sell all loot would sell the raw meat');
   const meat = usesOf('raw_wolf_meat');
   /* Cook Wolf Meat opens at Cooking 1 (designer 2026-11-11, lane/d-small-calls), so the level refusal is probed on Raw Panther Meat (Cooking 25). */
-  if (!meat.includes('Cook it into food (Cooking 1)')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
+  if (!meat.includes('Cook it into food, Cooking 1')) fails.push('AW-20 the raw meat tooltip reads ' + JSON.stringify(meat));
   const cs = (lv, inv, st) => ({ read: (k) => (k === 'skills' ? { cooking: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? st || { active_kind: 'idle', active_id: null } : null) });
   const wolf = buryRecipeOf('raw_wolf_meat'), panther = buryRecipeOf('raw_panther_meat');
   const words = [buryBlock(cs(1, { raw_panther_meat: 3 }), panther), buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
     buryBlock(cs(5, { raw_wolf_meat: 3 }, { active_kind: 'artisan', active_id: 'cook_shrimp' }), wolf), buryLabel(wolf, 3)];
-  if (words.join('|') !== 'You need Cooking 25 to cook Raw Panther Meat. You have 1.||You need 3 Wheat for one. You have 2.|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
+  if (words.join('|') !== 'Requires Cooking 25, now 1||Need 3 Wheat, have 2|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
   /* AW-21 PURE: "Equip upgrades" by the core's numbers for the CURRENT style (src/shell/upgrade-plan.js). */
   const { upgradePlan, upgradeWords } = await imp('src/shell/upgrade-plan.js');
   const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
@@ -517,13 +517,13 @@ async function pure() {
   const said = [workBlock(wcs(1, { copper_ore: 1 }), bronze, false), workBlock(wcs(1, { copper_ore: 2 }), bronze, true),
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
-  if (said.join('|') !== 'Needs 2 Copper Ore (you have 1). Gathered with Mining.|Not while a hunt is running.|You need Smithing 3 to make Bronze Axe. You have 1.||5|No Copper Ore in your bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
+  if (said.join('|') !== 'Needs 2 Copper Ore, have 1. Gathered with Mining.|Not while a hunt is running.|Requires Smithing 3, now 1||5|No Copper Ore in bag. Gathered with Mining.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
   /* A gathering row on a full bag says so (audit 2026-11-13: the node paid nothing, forever, with no word): the product needs a new
      stack and the server's cap has none. Holding the product, or one free stack, it starts. */
   const gcs = (inv, cap) => ({ read: (k) => (k === 'skills' ? { mining: { xp: 0, level: 1 } } : k === 'inventory' ? inv : k === 'state' ? { bank_cap: cap } : null) });
   const copper = workRow('gather', 'copper_rock');
   const gathered = [workBlock(gcs({ tin_ore: 1 }, 1), copper, false), workBlock(gcs({ copper_ore: 1 }, 1), copper, false), workBlock(gcs({ tin_ore: 1 }, 2), copper, false)];
-  if (gathered.join('|') !== 'Your bag is full. Make room for Copper Ore first.||') fails.push('AW-22 a gathering row on a full bag says ' + JSON.stringify(gathered));
+  if (gathered.join('|') !== 'Bag full, no room for Copper Ore||') fails.push('AW-22 a gathering row on a full bag says ' + JSON.stringify(gathered));
   return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT), await prepBuilderRules(ROOT), await selectRules(ROOT));
 }
 
@@ -730,7 +730,7 @@ async function prepBuilderRules(base) {
     if (ranger !== 'Requires a bow or a crossbow') fails.push('AW-90 the Ranger hint reads ' + JSON.stringify(ranger));
     const worn = B.fightsLine('tank', 'tank', { weapon: 'iron_sword', shield: 'wooden_shield' });
     if (!/Iron Sword/.test(worn) || !/Wooden shield/i.test(worn) || /Wear a/.test(worn)) fails.push('AW-90 the worn role\'s line reads ' + JSON.stringify(worn));
-    if (!/bare hands/.test(B.fightsLine(null, 'melee_dps', {}))) fails.push('AW-90 no weapon does not read as bare hands');
+    if (B.fightsLine(null, 'melee_dps', {}) !== 'Weapon: none') fails.push('AW-90 no weapon does not read as bare hands');
     for (const r of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) if (typeof TEXT.prep['fights_' + r] !== 'string') fails.push('AW-90 no hint row for ' + r);
   }
   // AW-91: Sort and Clear edit the copy and send nothing
@@ -841,7 +841,7 @@ async function selectRules(base) {
   /* the line: the count and the shop's bids; a stack with no bid is said; no shop, the count alone */
   const bids = new Map([['a', 10], ['b', 5]]);
   const line = [S.selectionWords(['a', 'b'], shown, bids), S.selectionWords(['a', 'c'], shown, bids), S.selectionWords(['a'], shown, null)];
-  if (line.join(' | ') !== '2 selected, worth 30 gp | 2 selected, worth 20 gp (1 with no shop price) | 1 selected') fails.push('AW-77 the selection line reads ' + JSON.stringify(line));
+  if (line.join(' | ') !== '2 selected, worth 30 gp | 2 selected, worth 20 gp, 1 unpriced | 1 selected') fails.push('AW-77 the selection line reads ' + JSON.stringify(line));
   if (S.selectionWords([], shown, bids) !== '') fails.push('AW-77 nothing selected still reads ' + JSON.stringify(S.selectionWords([], shown, bids)));
   /* THE KEY IS CONSUMED (visual gate v0.2.123: Ctrl+A also selected the page's text): the window's handler takes Ctrl+A from a pocket
      and from a bulk button, stops the browser's own select-all, and selects every shown stack; the search box keeps its own Ctrl+A */
@@ -918,11 +918,11 @@ async function huntsPure(imp) {
     if (tierWords(glade, 'normal', 1) !== '' || tierChoiceWords(glade, 'normal', 1) !== '') fails.push('AW-25 Normal says more than the ground\'s page: ' + tierWords(glade, 'normal', 1));
     /* THE PLAIN LINE (Tyler 2026-11-08: the old numbers note was 'way too exact'; hunt-tiers.js TIER_LINES): a tier that brings more monsters at once than
        this group's Normal reads its 'more' line, one that brings no more its 'same' line, each with the one death line and never a number. */
-    const W = (t, k) => TV.TIER_LINES[t][k] + ' ' + TV.TIER_DEATH_LINE;
+    const W = (t, k) => TV.TIER_LINES[t][k] + '\n' + TV.TIER_DEATH_LINE;
     if (tierChoiceWords(glade, 'deadly', 1) !== 'Deadly: big groups that hit hard.') fails.push('AW-25 the line beside Enter reads: ' + tierChoiceWords(glade, 'deadly', 1));
     if (tierWords(glade, 'deadly', 1) !== W('deadly', 'more')) fails.push('AW-25 the Deadly note reads: ' + tierWords(glade, 'deadly', 1));
-    if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters at once, and they hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
-    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: the monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
+    if (tierChoiceWords(glade, 'dangerous', 4) !== 'Dangerous: more monsters that hit harder.') fails.push('AW-25 a four on a bigger pull reads: ' + tierChoiceWords(glade, 'dangerous', 4));
+    if (tierChoiceWords(thicketR, 'deadly', 1) !== 'Deadly: monsters hit much harder.' || tierWords(thicketR, 'dangerous', 4) !== W('dangerous', 'same')) fails.push('AW-25 a row with no more monsters reads: ' + tierChoiceWords(thicketR, 'deadly', 1) + ' / ' + tierWords(thicketR, 'dangerous', 4));
     /* a pull no bigger than this group's Normal (the pack as built, 0 for a pair too since Tyler 2026-11-11) is no more monsters */
     TV.GROUND_TIERS.mosslight_glade.dangerous = tierRow('dangerous', [4, 0, 3, 4], 1200, 1000, 1100);
     if (tierWords(glade, 'dangerous', 2) !== W('dangerous', 'same') || tierWords(glade, 'dangerous', 1) !== W('dangerous', 'more')) fails.push('AW-25 the pull read against Normal: ' + tierWords(glade, 'dangerous', 2));
@@ -1027,12 +1027,12 @@ async function huntsPure(imp) {
   /* The list line: the band against the Level in words and a tone; the best, or No best yet. */
   const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
   const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
-  if (fits !== 'in:In your range|above:Above your level|far:Far above your level|below:Below your level|-') fails.push('AW-25 the band words read ' + fits);
+  if (fits !== 'in:In range|above:Above level|far:Far above level|below:Below level|-') fails.push('AW-25 the band words read ' + fits);
   const bests = { minMs: 600000, grounds: { mill_cellar: { solo: { xpH: 7141, balanceH: 1859 }, party: { xpH: 9000, balanceH: 10 } } } };
   const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
   if (lines !== '|Best 9,000 Level XP/h|No best yet') fails.push('AW-25 the list bests read ' + lines);
   const none = bestWords({ minMs: 600000, grounds: {} }, 'mill_cellar');
-  if (none.solo || none.party || none.none !== 'No best yet (hunt 10+ min to set one)') fails.push('AW-25 a ground with no best reads ' + JSON.stringify(none));
+  if (none.solo || none.party || none.none !== 'No best yet, hunt 10+ min') fails.push('AW-25 a ground with no best reads ' + JSON.stringify(none));
   /* A session over plain sections, the way the envelope projects them. */
   const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
   const START = [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)];
@@ -1041,9 +1041,9 @@ async function huntsPure(imp) {
   const say = (cs, o) => beforeLines(cs, o).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
   /* (A fresh hero's starter bar and Bring your heroes are read on the page's own modules, AW-27 / AW-28 in checks.) */
   const bare = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_shrimp', 0)], store: STORE }, state: { gold: 0 }, stamina: { ms: 0, max_ms: 28800000 } }));
-  if (bare !== 'Food: no Cooked Shrimp left. HP returns only between fights | !Stamina: none (rest in town first)') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
+  if (bare !== 'Food: no Cooked Shrimp left. HP returns only between fights | !Stamina: none') fails.push('AW-27 an empty bar and no stamina read ' + JSON.stringify(bare));
   const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
-  if (!/\| Stamina: 30 min left \(then the hunt ends\) \| !Gold: none \(hunt ends when your supplies run out\)$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
+  if (!/\| Stamina: 30 min left \| !Gold: none, hunt ends when supplies run out$/.test(poor)) fails.push('AW-27 low stamina and no gold read ' + JSON.stringify(poor));
   const other = say(sess({}), { other: 'Bow' });
   if (!/^Supplies: set by Bow’s bar/.test(other)) fails.push('AW-27 another setup\'s supplies read ' + JSON.stringify(other));
   /* Go as: the setups the server can put on, plus the one in use (its bar's first four); a set with no setup row is not offered. */
@@ -1127,13 +1127,13 @@ async function itemTruthRules(base) {
     if (kindWords(id) === 'Junk' && /^Used in /.test(said)) fails.push('AW-60 ' + id + ' is headed Junk and reads ' + said);
     if (it.type === 'tool') {
       const pc = Math.round(it.toolSpeed * 100) + '%';
-      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/from your bag/.test(said) || !/not from Storage/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
+      if (/Sell it at the shop/.test(said) || !said.includes(pc + ' faster') || !/from the bag/.test(said) || !/not Storage/.test(said)) fails.push('AW-60 the tool ' + id + ' reads ' + said);
       if (kindWords(id) !== 'Tool') fails.push('AW-60 the tool ' + id + ' is headed ' + kindWords(id));
     }
     /* who buys it: the row's book value is what the server's bid and the market's rule read */
     const sale = saleWords(id);
-    if (!(Number(it.v) > 0) !== /^For your own use/.test(sale) && !it.bop) fails.push('AW-60 ' + id + ' (book ' + it.v + ') says of its buyers: ' + JSON.stringify(sale));
-    if (Number(it.v) > 0 && !it.bop && isStartKit(id) !== /Not on the Weighhouse/.test(sale)) fails.push('AW-60 ' + id + ' (kit ' + isStartKit(id) + ') says of its buyers: ' + JSON.stringify(sale));
+    if (!(Number(it.v) > 0) !== /^Own use only/.test(sale) && !it.bop) fails.push('AW-60 ' + id + ' (book ' + it.v + ') says of its buyers: ' + JSON.stringify(sale));
+    if (Number(it.v) > 0 && !it.bop && isStartKit(id) !== /not on the Weighhouse/.test(sale)) fails.push('AW-60 ' + id + ' (kit ' + isStartKit(id) + ') says of its buyers: ' + JSON.stringify(sale));
   }
   /* Bug 7 and worse: what a hero makes or gathers is a material, whoever else drops it. */
   for (const id of ['copper_ore', 'oak_log', 'iron_bar', 'steel_bar', 'timber_beam', 'iron_fitting', 'gold_bar']) if (kindWords(id) !== 'Material') fails.push('AW-60 ' + id + ' is headed ' + kindWords(id));
@@ -1160,30 +1160,30 @@ async function itemTruthRules(base) {
   /* TOOLS: the row, where it counts, and moving one away. */
   const hero = (inv, bank, offers) => { const e = { inventory: inv, skills, shop: { offers: offers || [], bids: {} }, bank: bank || {} }; return { read: (k) => e[k], account: { read: (k) => e[k] } }; };
   const both = hero({ iron_axe: 1, bronze_axe: 1 });
-  if (!/Iron Axe is in your bag: Woodcutting 10% faster.*The times below count it/.test(toolLine(both, 'woodcutting'))) fails.push('AW-60 the Woodcutting tool line reads ' + toolLine(both, 'woodcutting'));
+  if (!/^Tool: Iron Axe\nWoodcutting 10% faster/.test(toolLine(both, 'woodcutting'))) fails.push('AW-60 the Woodcutting tool line reads ' + toolLine(both, 'woodcutting'));
   if (toolLine(both, 'runecrafting') !== '') fails.push('AW-60 Runecrafting has no tool and says ' + toolLine(both, 'runecrafting'));
   if (toolLine(both, 'fishing') !== '') fails.push('AW-60 no rod has a source yet, and Fishing says ' + toolLine(both, 'fishing'));
-  if (!/^Your Iron Axe is in Storage, so it doesn't count/.test(toolLine(hero({}, { iron_axe: 1 }), 'woodcutting'))) fails.push('AW-60 an axe in Storage reads ' + toolLine(hero({}, { iron_axe: 1 }), 'woodcutting'));
-  if (!/Your Iron Axe is in Storage/.test(toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'))) fails.push('AW-60 a better axe in Storage reads ' + toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'));
+  if (!/^Iron Axe in Storage, not counted$/.test(toolLine(hero({}, { iron_axe: 1 }), 'woodcutting'))) fails.push('AW-60 an axe in Storage reads ' + toolLine(hero({}, { iron_axe: 1 }), 'woodcutting'));
+  if (!/^Tool: Bronze Axe\n[\s\S]*\nIron Axe in Storage, not counted$/.test(toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'))) fails.push('AW-60 a better axe in Storage reads ' + toolLine(hero({ bronze_axe: 1 }, { iron_axe: 1 }), 'woodcutting'));
   const bare = toolLine(hero({}, {}, [{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]), 'woodcutting');
-  if (!/^No tool in your bag\. Bronze Axe from the Shop: Woodcutting 5% faster/.test(bare)) fails.push('AW-60 a hero with no axe reads ' + bare);
-  if (toolLossWords(both, 'iron_axe', 1) !== 'Woodcutting is slower without it. A tool only counts in your bag, so your Bronze Axe takes over.') fails.push('AW-60 storing the best axe says ' + toolLossWords(both, 'iron_axe', 1));
+  if (!/^Tool: none\nBronze Axe: Shop\nWoodcutting 5% faster/.test(bare)) fails.push('AW-60 a hero with no axe reads ' + bare);
+  if (toolLossWords(both, 'iron_axe', 1) !== 'Woodcutting slower without it, Bronze Axe takes over') fails.push('AW-60 storing the best axe says ' + toolLossWords(both, 'iron_axe', 1));
   if (toolLossWords(both, 'bronze_axe', 1) !== '') fails.push('AW-60 storing the axe that was not counting says ' + toolLossWords(both, 'bronze_axe', 1));
   if (toolLossWords(hero({ iron_axe: 2 }), 'iron_axe', 1) !== '') fails.push('AW-60 storing one of two axes says the rate changed');
-  if (toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1) !== 'Woodcutting is slower without it. A tool only counts in your bag.') fails.push('AW-60 storing the only axe says ' + toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1));
+  if (toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1) !== 'Woodcutting slower without it') fails.push('AW-60 storing the only axe says ' + toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1));
   if (toolLossWords(both, 'rat_tail', 1) !== '') fails.push('AW-60 storing a rat tail warns about tools');
   /* A SHORT INPUT SAYS WHERE IT COMES FROM, where the shortage is read. */
   const wc = workRow('artisan', Object.keys(BENCH_INDEX).find((id) => { const i = BENCH_INDEX[id].recipe.inputs || {}; return i.silk_thread && Object.keys(i).length === 1; }));
   const short = workBlock({ read: (k) => (k === 'skills' ? { crafting: { xp: 0, level: 44 } } : k === 'inventory' ? {} : null) }, wc, false);
-  if (!/^No Silk Thread in your bag.*Dropped by .* at Mill Cellar/.test(short)) fails.push('AW-60 a recipe short of Silk Thread reads ' + short);
+  if (!/^No Silk Thread in bag.*Dropped by .* at Mill Cellar/.test(short)) fails.push('AW-60 a recipe short of Silk Thread reads ' + short);
   if (whereToGet('copper_ore') !== 'Gathered with Mining') fails.push('AW-60 a level 1 node\'s source sends a hero to its goblins too: ' + whereToGet('copper_ore'));
   if (whereToGet('normal_plank') !== 'Made with Crafting') fails.push('AW-60 a level 1 recipe\'s source reads ' + whereToGet('normal_plank'));
   if (!/^Made with Crafting \d+$/.test(whereToGet('timber_beam'))) fails.push('AW-60 the Timber Beam\'s source reads ' + whereToGet('timber_beam'));
   if (!/Farming \d+\. Dropped by .* at Mill Cellar/.test(whereToGet('wheat'))) fails.push('AW-60 Wheat\'s source reads ' + whereToGet('wheat'));
   /* THE WEIGHHOUSE SAYS WHY, by the server's reason. */
-  if (!/even if you made yours/.test(notListableWords('start_kit')) || !/for your own use/.test(notListableWords('no_value')) || !/for your own use/.test(notListableWords('no_shop_price'))) fails.push('AW-60 the Weighhouse says ' + notListableWords('start_kit') + ' / ' + notListableWords('no_value'));
+  if (!/starting kit/.test(notListableWords('start_kit')) || !/own use only/.test(notListableWords('no_value')) || !/own use only/.test(notListableWords('no_shop_price'))) fails.push('AW-60 the Weighhouse says ' + notListableWords('start_kit') + ' / ' + notListableWords('no_value'));
   const keptLine = keptWords([{ name: 'Cooked Shrimp', why: 'start_kit' }, { name: 'Chalked Earth Rune', why: 'no_value' }, { name: 'Bronze Arrows', why: 'no_value' }]);
-  if (!/^3 stacks here can't be sold to other players\. Cooked Shrimp: every new hero.*Chalked Earth Rune and Bronze Arrows: the shop doesn't buy them/.test(keptLine)) fails.push('AW-60 the Sell tab says ' + keptLine);
+  if (!/^3 stacks here can't be sold to other players\. Cooked Shrimp: starting kit\. Chalked Earth Rune and Bronze Arrows: not bought by the shop/.test(keptLine)) fails.push('AW-60 the Sell tab says ' + keptLine);
   /* "... has not priced this yet" reads as an unfinished game: nowhere in the client. */
   const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'vendor' ? [] : walk(join(d, e.name))) : e.name.endsWith('.js') ? [join(d, e.name)] : []));
   for (const f of walk(join(base, 'src'))) if (/has not priced this yet/.test(readFileSync(f, 'utf8'))) fails.push('AW-60 ' + f.slice(base.length) + ' still says "has not priced this yet"');
@@ -1194,11 +1194,11 @@ async function itemTruthRules(base) {
   const lines = (cs) => beforeLines(cs).map((l) => l.text).join(' | ');
   const starter = [slot('cooked_shrimp'), slot('salted_shrimp'), slot('thin_turnip_juice')];
   const unused = lines(sess(starter, { turnip_juice: 78, cooked_wolf_meat: 112, cooked_shrimp: 34 }));
-  if (!unused.includes('You carry 78 Turnip Juice. Put it on the bar to drink it') || !unused.includes('You carry 112 Cooked Wolf Meat. Put it on the bar to eat it')) fails.push('AW-60 Before you go, own stock unused: ' + unused);
+  if (!unused.includes('Carried: 78 Turnip Juice, put it on the bar') || !unused.includes('Carried: 112 Cooked Wolf Meat, put it on the bar')) fails.push('AW-60 Before you go, own stock unused: ' + unused);
   const named = lines(sess([slot('cooked_shrimp'), slot('turnip_juice')], { turnip_juice: 78, cooked_shrimp: 34 }));
-  if (/You carry/.test(named) || !named.includes('78 Turnip Juice of yours')) fails.push('AW-60 Before you go, own juice on the bar: ' + named);
+  if (/Carried: /.test(named) || !named.includes('78 Turnip Juice carried')) fails.push('AW-60 Before you go, own juice on the bar: ' + named);
   const noDrink = lines(sess([slot('cooked_shrimp')], { turnip_juice: 78, cooked_shrimp: 34 }));
-  if (!noDrink.includes('Drink: no slot on your bar. You carry 78 Turnip Juice')) fails.push('AW-60 Before you go, no drink slot: ' + noDrink);
+  if (!noDrink.includes('Drink: no bar slot. Carried: 78 Turnip Juice')) fails.push('AW-60 Before you go, no drink slot: ' + noDrink);
   /* Smaller lines of the same report. */
   if (/Next at level 12: Blank Rune/.test(nextUnlock('runecrafting', 11))) fails.push('AW-60 ' + nextUnlock('runecrafting', 11));
   for (const id of ['copper_ore', 'bronze_bar']) if (/\btin\b/.test(ITEM_DESC[id])) fails.push('AW-60 there is no tin: ' + ITEM_DESC[id]);
@@ -1232,7 +1232,7 @@ async function panelLeftovers(base) {
   const party = (isLeader, hunting, hunt) => ({ me: 1, isLeader, hunt, seats: [{ seat: 0, hunting }, { seat: 1, hunting: false }] });
   const how = (p, h) => { const r = againRoute(p, h); return (r.how || 'off') + (r.why ? ':' + r.why : ''); };
   if (how(null, 'mill_cellar') !== 'enter') fails.push('AW-61 a lone hero\'s Hunt again: ' + how(null, 'mill_cellar'));
-  if (how(party(false, false, 'mill_cellar'), 'mill_cellar') !== 'off:Your party leader picks the hunt and starts it.') fails.push('AW-61 a member\'s Hunt again: ' + how(party(false, false, 'mill_cellar'), 'mill_cellar'));
+  if (how(party(false, false, 'mill_cellar'), 'mill_cellar') !== 'off:Party leader picks the hunt') fails.push('AW-61 a member\'s Hunt again: ' + how(party(false, false, 'mill_cellar'), 'mill_cellar'));
   if (how(party(true, false, 'mill_cellar'), 'mill_cellar') !== 'party') fails.push('AW-61 the leader\'s Hunt again: ' + how(party(true, false, 'mill_cellar'), 'mill_cellar'));
   if (how(party(false, true, 'mill_cellar'), 'mill_cellar') !== 'enter') fails.push('AW-61 a member going back in: ' + how(party(false, true, 'mill_cellar'), 'mill_cellar'));
   if (!/^off:Party hunting elsewhere/.test(how(party(true, true, 'wickstead'), 'mill_cellar'))) fails.push('AW-61 Hunt again elsewhere with the party out: ' + how(party(true, true, 'wickstead'), 'mill_cellar'));
@@ -1266,12 +1266,12 @@ async function panelLeftovers(base) {
   said.push({ id: 'l2', body: 'and more' });
   tell();
   const toast = center.list().filter((a) => a.kind === 'whisper');
-  if (toast.length !== 1 || toast[0].text !== 'Wrenna sent you a private message.' || toast[0].tab !== 'w:x' || toast[0].button !== 'Read it') fails.push('AW-61 a private message toasts ' + JSON.stringify(toast));
+  if (toast.length !== 1 || toast[0].text !== 'Whisper from Wrenna' || toast[0].tab !== 'w:x' || toast[0].button !== 'Read it') fails.push('AW-61 a private message toasts ' + JSON.stringify(toast));
   if ((hero.record.residue.alerts || { seen: [] }).seen.some((id) => /^whisper/.test(id))) fails.push('AW-61 a live whisper takes a place in the saved list');
   asks.push({ id: 'y', name: 'Ashgrave', slot: 0 });
   tell(); tell();
   const asked = center.list().filter((a) => a.kind === 'friend');
-  if (asked.length !== 1 || asked[0].text !== 'Ashgrave wants to be your friend.' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
+  if (asked.length !== 1 || asked[0].text !== 'Ashgrave sent a friend request' || !(hero.record.residue.alerts || { seen: [] }).seen.includes('friend:y')) fails.push('AW-61 a friend request toasts ' + JSON.stringify(asked));
   /* ...AND IT GOES ONCE IT IS OVER (party panel 2026-11-03: "Kell wants to be your friend" stood through a whole hunt after Accept, only a reload cleared it). */
   asks.length = 0;
   tell();
@@ -1285,7 +1285,7 @@ async function panelLeftovers(base) {
   if (enterOffWords(null) !== '' || enterOffWords({ isLeader: true }) !== '') fails.push('AW-63 Enter off reads ' + enterOffWords(null));
   if (!/^Party: Mira picks the hunt/.test(enterOffWords({ isLeader: false, leaderName: 'Mira' }))) fails.push('AW-63 a member\'s Enter reads ' + enterOffWords({ isLeader: false, leaderName: 'Mira' }));
   const { overBagWords } = await imp('src/shell/windows/inventory/index.js');
-  if (overBagWords(99, 100) !== '' || !/Hunts still pick up loot/.test(overBagWords(114, 100))) fails.push('AW-63 a bag past its spaces says ' + overBagWords(114, 100));
+  if (overBagWords(99, 100) !== '' || !/^Bag full/.test(overBagWords(114, 100))) fails.push('AW-63 a bag past its spaces says ' + overBagWords(114, 100));
   /* THE NEWCOMER'S PANEL (2026-11-01). */
   const { coachHtml } = await imp('src/shell/launcher.js');
   const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
@@ -1297,9 +1297,9 @@ async function panelLeftovers(base) {
   for (const [w, r, want] of bySuggest) if ((suggestedWeight(w, r) || {}).weight !== want) fails.push('AW-62 a first Take for ' + r + ' in ' + JSON.stringify(w) + ' asks for ' + JSON.stringify(suggestedWeight(w, r)));
   if (suggestedWeight({}, null) !== null) fails.push('AW-62 with nothing said a first Take still guesses ' + JSON.stringify(suggestedWeight({}, null)));
   /* the weight that suits is said once, on her pick line (fresh-account play 11-13: it was said over her board and again under it) */
-  if (suggestedWeight({}, 'tank').words !== 'She\'ll pay you in heavy armor, since you\'re a shield tank.' || suggestedWeight({ boots: 'leather_boots' }, 'tank').words !== 'She\'ll pay you in medium armor, since that\'s what you wear most.'
+  if (suggestedWeight({}, 'tank').words !== 'Suggested: heavy, for a shield tank' || suggestedWeight({ boots: 'leather_boots' }, 'tank').words !== 'Suggested: medium, worn most'
     || takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank')) !== '') fails.push('AW-62 the weight that suits reads ' + JSON.stringify([suggestedWeight({}, 'tank').words, takeWhyOf({ weight: null, held: [], heldMax: 3 }, false, suggestedWeight({}, 'tank'))]));
-  if (!/^Pick the armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^You have three of mine already/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
+  if (!/^Pick an armor weight/.test(takeWhyOf({ weight: null, held: [], heldMax: 3 }, false)) || !/^Max tasks: three/.test(takeWhyOf({ weight: 'heavy', held: [1, 2, 3], heldMax: 3 }, false))
     || takeWhyOf({ weight: 'heavy', held: [], heldMax: 3 }, false) !== '' || takeWhyOf({ weight: null, held: [], heldMax: 3 }, true) !== '') fails.push('AW-62 the line over her board is wrong');
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
   const bones = buryRecipeOf('bones');
@@ -1310,18 +1310,18 @@ async function panelLeftovers(base) {
   const { slotOfferHtml, playLineOf } = await imp('src/app/slot-offer.js');
   const offer = { slotId: 2, cost: 15000, max: 5 }, one = { exists: true, slot: 0, gold: 500, goldV: 1 }, two = { exists: true, slot: 1, gold: 500, goldV: 1 };
   if (slotOfferHtml(offer, [one, { exists: false, slot: 1 }]) !== '' || !/Buy a hero slot/.test(slotOfferHtml(offer, [one, two]))) fails.push('AW-62 the slot offer with a free slot empty');
-  if (/cost gold/.test(playLineOf(4, 4, 2, offer, [one, { exists: false, slot: 1 }])) || !/more cost gold\)$/.test(playLineOf(4, 4, 2, offer, [one, two]))) fails.push('AW-62 the play line with a free slot empty');
+  if (/cost gold/.test(playLineOf(4, 4, 2, offer, [one, { exists: false, slot: 1 }])) || !/, more cost gold$/.test(playLineOf(4, 4, 2, offer, [one, two]))) fails.push('AW-62 the play line with a free slot empty');
   const { jobReplacedWords } = await imp('src/shell/town-work.js');
   const worker = (state, hunt) => ({ read: (k) => (k === 'state' ? state : k === 'hunt' ? hunt : null) });
   const tree = { active_kind: 'gather', active_id: 'normal_tree', active_since: '2026-11-01T00:00:00Z' };
   const wrow = (await imp('src/shell/town-work.js')).workRow;
   const craft = wrow('artisan', Object.keys((await imp('src/shell/town-work.js')).BENCH_INDEX)[0]);
-  if (jobReplacedWords(worker(tree, null), craft) !== 'You stopped chopping the Normal Tree.') fails.push('AW-62 a craft over chopping says ' + JSON.stringify(jobReplacedWords(worker(tree, null), craft)));
+  if (jobReplacedWords(worker(tree, null), craft) !== 'Stopped chopping the Normal Tree') fails.push('AW-62 a craft over chopping says ' + JSON.stringify(jobReplacedWords(worker(tree, null), craft)));
   if (jobReplacedWords(worker(tree, null), wrow('gather', 'normal_tree')) !== '') fails.push('AW-62 pressing the running job says it stopped');
   if (jobReplacedWords(worker({ active_kind: 'idle' }, null), craft) !== '') fails.push('AW-62 an idle hero stopped something');
   const { startWork } = await imp('src/shell/town-work.js');
   const pressed = await startWork(worker(tree, null), craft, (fn, busy, done) => done({ ok: true }), null);
-  if (pressed !== 'You stopped chopping the Normal Tree.') fails.push('AW-62 the press over chopping answers ' + JSON.stringify(pressed));
+  if (pressed !== 'Stopped chopping the Normal Tree') fails.push('AW-62 the press over chopping answers ' + JSON.stringify(pressed));
   return fails;
 }
 
@@ -1345,18 +1345,18 @@ async function planRules(base) {
     const glade = HL.huntRows().find((r) => r.band[0] > 6);
     const die = (pm) => (HL.rangeWords(glade, 1, pm) || '').replace(/^[^]*\n(?=Death)/, '');
     const said = [die(0), die(250), die(750)];
-    if (said.join(' | ') !== 'Death: −6% Level XP | Death: −4.5% Level XP (Blessings on) | Death: −1.5% Level XP (Blessings on)') fails.push('AW-25 the death line with Blessings reads ' + JSON.stringify(said));
+    if (said.join(' | ') !== 'Death: −6% Level XP | Death: −4.5% Level XP, Blessings on | Death: −1.5% Level XP, Blessings on') fails.push('AW-25 the death line with Blessings reads ' + JSON.stringify(said));
   }
   /* A PLAN THAT HAS RUN IS NOT "NOTHING SET" (designer re-read 2026-11-11: "Nothing is set to Deposit or Sell yet." right under "Sold 17 for 5,407 gp."). */
   const { dispatchBlock } = await imp('src/shell/loot-dispatch.js');
   const bagCs = (inventory, loot) => ({ read: (k) => ({ inventory, bag_rules: { locked: [], loot } })[k] });
   const ran = dispatchBlock(bagCs({ bones: 3 }, { rat_tail: 'sell', wolf_pelt: 'deposit' })), none = dispatchBlock(bagCs({ bones: 3 }, {})), ready = dispatchBlock(bagCs({ rat_tail: 3 }, { rat_tail: 'sell' }));
-  if (!/^Nothing left to move/.test(ran) || !/^No loot plan yet/.test(none) || ready !== '') fails.push('AW-32 the Dispatch loot why reads ' + JSON.stringify([ran, none, ready]));
+  if (!/^Nothing left to move/.test(ran) || !/^No loot plans set/.test(none) || ready !== '') fails.push('AW-32 the Dispatch loot why reads ' + JSON.stringify([ran, none, ready]));
   /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
   const wire = (id) => ({ action: { type: 'ability', id }, conditions: [], enabled: true });
   const waits = sharedCooldownOf([wire('power_strike'), wire('flame_strike')], 1);
-  if (waits !== 'Waits for Power Strike (slot 1) when both are ready.') fails.push('AW-27 a spell sharing a cooldown reads ' + JSON.stringify(waits));
+  if (waits !== 'Waits for Power Strike in slot 1 when both are ready') fails.push('AW-27 a spell sharing a cooldown reads ' + JSON.stringify(waits));
   const STORE = FIXTURE.hunt_settings.store;
   const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
   const sess = (o) => { const e = Object.assign({ hunt_settings: { preset: 0, presets: [], slots: [], store: STORE }, state: { gold: 500 }, inventory: {},
@@ -1364,13 +1364,13 @@ async function planRules(base) {
   const say = (cs, o) => beforeLines(cs, o).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
   /* before a hero walks away: how long this stamina lasts, game closed or not (panel 2026-11-01: 5 h 46 idle with no word before leaving) */
   const lasts = say(sess({ stamina: { ms: 3 * 3600000 + 17 * 60000, max_ms: 43200000 } }));
-  if (!lasts.includes('Stamina: 3 h 17 min (hunts that long, even with the game closed)')) fails.push('AW-27 a long stamina reads ' + JSON.stringify(lasts));
+  if (!lasts.includes('Stamina: 3 h 17 min')) fails.push('AW-27 a long stamina reads ' + JSON.stringify(lasts));
   /* STORE FOOD TOO WEAK FOR THE GROUND (lane/d-march-balance: a Level 55 tank on the start bar's Salted Shrimp died 2 of 2 in the Muster
      Barrows under "Safe at your level"): under the store food the ground names as its floor (bagGuide.storeFloor), a red line with the
      fix; Salted Trout (1 death in 12 h there) is under it too; a ground that names no floor (the Slake: Salted Shrimp 0 deaths in 8 h) says nothing */
   const fedAt = (hunt, store) => say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_lobster', 100), slot('consume', store, null)], store: STORE },
     inventory: { cooked_lobster: 100 } }), { hunt });
-  const weakLine = '!Salted Shrimp heals too little here (death risk). Pick Salted Lobster on that slot.';
+  const weakLine = '!Salted Shrimp heals too little here, pick Salted Lobster';
   const fedReads = [fedAt('muster_barrows', 'salted_shrimp'), fedAt('muster_barrows', 'salted_trout'), fedAt('muster_barrows', 'salted_lobster'), fedAt('the_slake', 'salted_shrimp'), fedAt('millrace_sewer', 'salted_shrimp')];
   if (!fedReads[0].includes(weakLine) || !/^!Salted Trout heals too little/m.test(fedReads[1].split(' | ').find((x) => /heals too little/.test(x)) || '')
     || fedReads.slice(2).some((x) => /heals too little/.test(x))) fails.push('AW-27 store food too weak for the ground reads ' + JSON.stringify(fedReads));
@@ -1380,23 +1380,23 @@ async function planRules(base) {
   const spell = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [leaving('flame_strike')], store: STORE } }));
   /* (a rune spell spends any tier of its family, so the line names and counts the family: lane b-spell-content) */
   /* ...and says the fix: a style's default bar meets a new hero here first (designer 2026-10-29, lane/a-starter-bars) */
-  if (spell !== 'Runes: no Fire runes of yours. Flame Strike will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast) under "When your runes run out" | Food and drink: none (HP and mana return only between fights) | Stamina: 8 h 0 min (hunts that long, even with the game closed)') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
+  if (spell !== 'Runes: no Fire runes carried. Flame Strike will not fire, pick Plain Fire Rune (1 gp) on the slot | Food and drink: none | Stamina: 8 h 0 min') fails.push('AW-27 a spell with no rune reads ' + JSON.stringify(spell));
   /* two spells of two families (the Mage's default Frost Lance and Arcane Barrier): both named, each family's store rune */
   const RUNES = STORE.concat([['plain_ice_rune', 'chalked_ice_rune'], ['plain_earth_rune', 'chalked_earth_rune']].map(([id, partner]) => ({ ...STORE.find((r) => r.id === 'plain_fire_rune'), id, partner })));
   const two = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [leaving('frost_lance'), leaving('arcane_barrier')], store: RUNES } }));
-  if (!/^Runes: no Ice runes of yours, no Earth runes of yours\. Frost Lance and Arcane Barrier will not fire\. To cast them, press each slot and pick Plain Ice Rune \(1 gp a cast\) or Plain Earth Rune \(1 gp a cast\) under "When your runes run out"/.test(two))
+  if (!/^Runes: no Ice runes carried, no Earth runes carried\. Frost Lance and Arcane Barrier will not fire, pick Plain Ice Rune \(1 gp\) or Plain Earth Rune \(1 gp\) on the slot/.test(two))
     fails.push('AW-27 two struck spells read ' + JSON.stringify(two));
   /* AW-27 what casts, then what won't (first-hour play 2026-10-31: "no Fire runes of yours, then Plain Fire Rune from the store,
      then no Ice runes of yours, then no Earth runes of yours"); two spells of one family name its store rune once */
   const stored = (id, store) => ({ action: { type: 'ability', id, store }, conditions: [], join: 'and', usable: true, count: 0 });
   const mix = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), leaving('frost_lance')], store: RUNES } }));
-  if (!mix.startsWith('Runes: Plain Fire Rune from the store, 1 gp a cast. Frost Lance will not fire. To cast it, press its slot and pick Plain Ice Rune (1 gp a cast)')) fails.push('AW-27 a live spell beside a struck one reads ' + JSON.stringify(mix));
+  if (!mix.startsWith('Runes: Plain Fire Rune from the store, 1 gp a cast. Frost Lance will not fire, pick Plain Ice Rune (1 gp) on the slot')) fails.push('AW-27 a live spell beside a struck one reads ' + JSON.stringify(mix));
   /* the rune ladder: a named deeper rune is said at its own price; one above the level is no promise: the spell will not fire, and the fix is the family's Plain */
   const SCORED_ROW = { ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 };
   const deep = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_scored_fire_rune')], store: RUNES.concat([SCORED_ROW]) } }));
   if (!deep.startsWith('Runes: Scored Fire Rune from the store, 8 gp a cast |')) fails.push('AW-27 a deeper store rune reads ' + JSON.stringify(deep));
   const short = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [{ ...stored('fireball', 'plain_scored_fire_rune'), usable: false, why: 'store_level' }], store: RUNES.concat([SCORED_ROW]) } }));
-  if (!short.startsWith('Runes: no Fire runes of yours. Fireball will not fire. To cast it, press its slot and pick Plain Fire Rune (1 gp a cast)')) fails.push('AW-27 a store rune above the level reads ' + JSON.stringify(short));
+  if (!short.startsWith('Runes: no Fire runes carried. Fireball will not fire, pick Plain Fire Rune (1 gp) on the slot')) fails.push('AW-27 a store rune above the level reads ' + JSON.stringify(short));
   const WATER = RUNES.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_water_rune', partner: 'chalked_water_rune' }]);
   const same = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
   if (!same.startsWith('Runes: Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells of one family read ' + JSON.stringify(same));
@@ -1404,9 +1404,9 @@ async function planRules(base) {
   const trio = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), stored('frost_lance', 'plain_ice_rune'), stored('arcane_barrier', 'plain_earth_rune')], store: RUNES } }));
   if (!trio.startsWith('Runes: Plain Fire Rune, Plain Ice Rune and Plain Earth Rune from the store, 1 gp a cast |')) fails.push('AW-27 three store spells read ' + JSON.stringify(trio));
   const ownThenTwo = say(sess({ inventory: { chalked_fire_rune: 9 }, hunt_settings: { preset: 0, presets: [], slots: [stored('fireball', 'plain_fire_rune'), stored('frost_lance', 'plain_ice_rune')], store: RUNES } }));
-  if (!ownThenTwo.startsWith('Runes: 9 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast. Plain Ice Rune from the store, 1 gp a cast |')) fails.push('AW-27 own runes beside a store spell read ' + JSON.stringify(ownThenTwo));
+  if (!ownThenTwo.startsWith('Runes: 9 Fire runes carried, then Plain Fire Rune from the store, 1 gp a cast. Plain Ice Rune from the store, 1 gp a cast |')) fails.push('AW-27 own runes beside a store spell read ' + JSON.stringify(ownThenTwo));
   const sameFamilyOwn = say(sess({ inventory: { chalked_water_rune: 9 }, hunt_settings: { preset: 0, presets: [], slots: [stored('greater_mend', 'plain_water_rune'), stored('circle_of_renewal', 'plain_water_rune')], store: WATER } }));
-  if (!sameFamilyOwn.startsWith('Runes: 9 Water runes of yours, then Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells on one family\'s own runes read ' + JSON.stringify(sameFamilyOwn));
+  if (!sameFamilyOwn.startsWith('Runes: 9 Water runes carried, then Plain Water Rune from the store, 1 gp a cast |')) fails.push('AW-27 two spells on one family\'s own runes read ' + JSON.stringify(sameFamilyOwn));
   /* AW-27 A SUMMARY RECORDED THIS MOMENT HAS NOT HAD ITS MOMENT: left at once, the next load opens it (played 2026-11-04: a reload 0.7 s after Play left no summary and no bar) */
   {
     const R = await imp('src/hunt-view/summary-recorder.js');
@@ -1473,10 +1473,10 @@ async function planRules(base) {
   const noneFree = blessed([], 0), oneOn = blessed([1], 450), allOn = blessed([1, 2, 3], 450);
   /* AW-97 while the Blessings are free, Before you go says nothing of them: the summary's Bless step is the one place (first-30 play 2026-11-12) */
   if (/Blessing/.test(noneFree)) fails.push('AW-97 no Blessings, free, still nags before you go: ' + JSON.stringify(noneFree));
-  if (!oneOn.endsWith("Blessings: 1 of 3, -25% death XP loss (next 450 gp in Shop)")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
+  if (!oneOn.endsWith("Blessings: 1 of 3, -25% death XP loss, next 450 gp")) fails.push('AW-27 one Blessing reads ' + JSON.stringify(oneOn));
   if (!allOn.endsWith('Blessings: 3 of 3, -75% death XP loss')) fails.push('AW-27 every Blessing reads ' + JSON.stringify(allOn));
   const nonePaid = blessed([], 450), oneFree = blessed([1], 0);
-  if (!nonePaid.endsWith("Blessings: none (cut death XP loss, first one 450 gp in Shop)")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
+  if (!nonePaid.endsWith("Blessings: none, first one 450 gp in the Shop")) fails.push('AW-27 no Blessings, priced, reads ' + JSON.stringify(nonePaid));
   if (/Blessing/.test(oneFree)) fails.push('AW-97 one Blessing, the rest free, still nags before you go: ' + JSON.stringify(oneFree));
   /* AW-27 A MOVE THE WORN WEAPON CAN'T USE SPENDS NOTHING: a club hero is not warned about Flame Volley's runes (QA 2026-11-04) */
   const clubSay = say(sess({ hunt_settings: { preset: 0, presets: [], discipline: 'club', slots: [slot('ability', 'flame_volley', 0), slot('ability', 'power_strike', 0)], store: RUNES } }));
@@ -1499,18 +1499,18 @@ async function planRules(base) {
   /* AW-27 A BOW WITH NOTHING LOADED WON'T ATTACK, AND THE PAGE SAYS SO BEFORE ENTER (the kit's bow: 0 kills in 7 minutes) */
   const bowSet = (o) => sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [], store: STORE }, inventory: { bronze_arrows: 50 }, ...o });
   const empty = say(bowSet({ equipment: { weapon: 'practice_bow' } }));
-  if (!empty.startsWith("!Ammo: nothing loaded, so your weapon can't shoot and your hero won't attack. Open your bag, press Bronze Arrows, then Put on the bar.")) fails.push('AW-27 a bow with nothing loaded reads ' + JSON.stringify(empty));
+  if (!empty.startsWith("!Ammo: nothing loaded, no attacks, Bag → Bronze Arrows → Put on the bar")) fails.push('AW-27 a bow with nothing loaded reads ' + JSON.stringify(empty));
   const full = say(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'bronze_arrows' } }));
-  if (!full.startsWith('Ammo: Bronze Arrows loaded. They never run out.')) fails.push('AW-27 a bow with the free arrow reads ' + JSON.stringify(full));
+  if (!full.startsWith('Ammo: Bronze Arrows loaded, never runs out')) fails.push('AW-27 a bow with the free arrow reads ' + JSON.stringify(full));
   const paid = say(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'iron_arrows' }, inventory: { iron_arrows: 9 } }));
-  if (!paid.startsWith('Ammo: 9 Iron Arrows of yours, loaded.')) fails.push('AW-27 a bow with a paid arrow reads ' + JSON.stringify(paid));
+  if (!paid.startsWith('Ammo: 9 Iron Arrows carried, loaded')) fails.push('AW-27 a bow with a paid arrow reads ' + JSON.stringify(paid));
   if (/Ammo/.test(say(sess({ hunt_settings: { preset: 0, presets: [], role: 'tank', slots: [], store: STORE } })))) fails.push('AW-27 a sword is told about ammo');
   /* AW-27 WARNED, NEVER BLOCKED, AND THE WORDS AGREE (the panel 2026-11-01): the hunt screen says what prep said of a bow with
      nothing to shoot; no weapon is said at prep; a held task that does not count here is said; the Sewer's words admit the lone hero who
      walks in; "an Iron Boots"; "Bow or Crossbow or Bow or crossbow"; creation and prep agree on the free arrow. */
-  if (!/^nothing loaded, so your weapon can't shoot/.test(noShotWords(bowSet({ equipment: { weapon: 'practice_bow' } })))) fails.push('AW-27 the hunt screen is silent on a bow with nothing to shoot: ' + JSON.stringify(noShotWords(bowSet({ equipment: { weapon: 'practice_bow' } }))));
+  if (!/^nothing loaded, no attacks/.test(noShotWords(bowSet({ equipment: { weapon: 'practice_bow' } })))) fails.push('AW-27 the hunt screen is silent on a bow with nothing to shoot: ' + JSON.stringify(noShotWords(bowSet({ equipment: { weapon: 'practice_bow' } }))));
   if (noShotWords(bowSet({ equipment: { weapon: 'practice_bow', ammo: 'bronze_arrows' } }))) fails.push('AW-27 the hunt screen warns a loaded bow');
-  if (!say(sess({ equipment: {} })).startsWith('!Weapon: none (bare-handed')) fails.push('AW-27 no weapon reads ' + JSON.stringify(say(sess({ equipment: {} }))));
+  if (!say(sess({ equipment: {} })).startsWith('!Weapon: none |')) fails.push('AW-27 no weapon reads ' + JSON.stringify(say(sess({ equipment: {} }))));
   const TASK = { held: [{ place: 1, task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', kills: 0, target: 120, keep: false, done: false }], paid_today: 0, per_day: 3, held_max: 3, order: [], recent: [] };
   if (!/Tamsin tasks count elsewhere: Giant Rats in .+/.test(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' }))) fails.push('AW-27 a held task elsewhere reads ' + JSON.stringify(say(sess({ tally: TASK }), { hunt: 'meadowbrook_thicket' })));
   if (/Tamsin/.test(say(sess({ tally: TASK }), { hunt: 'mill_cellar' }))) fails.push('AW-27 a task that counts here is warned about');
@@ -1532,15 +1532,19 @@ async function planRules(base) {
   }
   const { HOW_YOU_FIGHT } = await imp('src/data/how-to-play.js');
   const shoot = HOW_YOU_FIGHT.find((f) => f.id === 'shoot');
-  if (!shoot || !/Bronze Arrows are free and never run out/.test(JSON.stringify(shoot))) fails.push('AW-27 creation says of the bow ' + JSON.stringify(shoot));
+  if (!shoot || !/Free Bronze Arrows/.test(JSON.stringify(shoot))) fails.push('AW-27 creation says of the bow ' + JSON.stringify(shoot));
   /* AW-27 ONE NAME PER WEAPON (fresh-account play 11-13: the Hero screen said "Two axes or a hammer", the bag tip "Hatchets or a club"): each style
-     names its weapons by the items' own names, and the bag's styles tip says each style the same way. */
+     names its weapons by the items' own names, and the bag's styles tip (the coach's styles card, one line since the label form 2026-11-16)
+     says any style it names the same way: a weapon word of a style in the tip brings the style's whole name. */
   const { ITEMS: KIT } = await imp('src/data/items.js');
-  const stylesTip = (readFileSync(join(ROOT, 'src/data/hunt-tutorial.js'), 'utf8').match(/textIn: '(Sword and shield hold[^']*)'/) || [])[1] || '';
+  const { COACH_TEXT } = await imp('src/data/text/coach.js');
+  const stylesTip = [COACH_TEXT.styles, COACH_TEXT.styles_in].join(' ');
+  if (!stylesTip.trim()) fails.push('AW-27 the bag\'s styles tip is empty');
   for (const f of HOW_YOU_FIGHT) {
     const off = f.weapons.filter((w) => !f.name.toLowerCase().includes(String(KIT[w]?.n || w).split(' ').pop().toLowerCase()));
     if (off.length) fails.push('AW-27 the ' + f.id + ' style "' + f.name + '" does not name ' + off.join(', '));
-    if (!stylesTip.toLowerCase().includes(f.name.toLowerCase())) fails.push('AW-27 the bag\'s styles tip does not say "' + f.name + '": ' + JSON.stringify(stylesTip));
+    const words = f.weapons.map((w) => String(KIT[w]?.n || w).split(' ').pop().toLowerCase());
+    if (words.some((w) => new RegExp('\\b' + w + '\\b', 'i').test(stylesTip)) && !stylesTip.toLowerCase().includes(f.name.toLowerCase())) fails.push('AW-27 the bag\'s styles tip does not say "' + f.name + '": ' + JSON.stringify(stylesTip));
   }
   /* AW-8 / AW-27 AN EMPTY FOOD SLOT IS A HEADS-UP, NOT A BLOCKER (Tyler 10-29: "0 food" in Hunt prep on a hero that
      carries food the bar does not name and is not getting hit). Both surfaces say the empty stock and the bag's spare
@@ -1550,7 +1554,7 @@ async function planRules(base) {
   const fed = noStore([slot('consume', 'cooked_shrimp', 0)], { cooked_trout: 12 });
   const fedR = readinessOf(fed);
   const fedSaid = [readinessLine(fedR), fedR.checks.filter((c) => c.id === 'food').map((c) => (c.ok ? '' : '!') + c.text).join(), say(fed)].join(' || ');
-  if (fedSaid !== 'Brannoc: ready || Food: no Cooked Shrimp left. You carry 12 Cooked Trout. Put it on the bar to eat it || Food: no Cooked Shrimp left. You carry 12 Cooked Trout. Put it on the bar to eat it | Stamina: 8 h 0 min (hunts that long, even with the game closed)')
+  if (fedSaid !== 'Brannoc: ready || Food: no Cooked Shrimp left. Carried: 12 Cooked Trout, put it on the bar || Food: no Cooked Shrimp left. Carried: 12 Cooked Trout, put it on the bar | Stamina: 8 h 0 min')
     fails.push('AW-8 an empty food slot with spare food in the bag reads ' + JSON.stringify(fedSaid));
   const shooter = readinessOf(sess({ hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [{ action: { type: 'attack_with_item', id: 'loaded' }, conditions: [], join: 'and', usable: true }], store: STORE, supplySource: 'own', onEmpty: 'stop' }, inventory: {}, name: 'Brannoc' }));
   if (readinessLine(shooter) !== 'Brannoc: 0 ammo') fails.push('AW-8 a bar that shoots with no ammo reads ' + JSON.stringify(readinessLine(shooter)));
@@ -1577,31 +1581,31 @@ async function planRules(base) {
     { chalked_fire_rune: 7342, cooked_swordfish: 2000 }, { weapon: 'steel_hatchets', ammo: 'steel_whetstone' }];
   const FREMULON = [[shoot('loaded'), shoot('bronze_arrows'), shoot('barbed_arrows'), eat('cooked_swordfish'), eat('thin_carrot_juice')],
     { mithril_arrows: 27300, coarse_whetstone: 26340, bronze_arrows: 2600, cooked_swordfish: 150, cooked_shrimp: 25 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }];
-  const FREMULON_SAYS = 'Ammo: no Steel Arrows left, then Bronze Arrows. They never run out. You carry 27,300 Mithril Arrows: put them on the bar to shoot them.';
+  const FREMULON_SAYS = 'Ammo: no Steel Arrows left, then Bronze Arrows, never runs out, 27,300 Mithril Arrows not on the bar';
   const want64 = [
-    ['Eddie food', 'food', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Food: 2,000 Swordfish Steak of yours, then Salted Swordfish from the store, 432 gp each'],
+    ['Eddie food', 'food', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Food: 2,000 Swordfish Steak carried, then Salted Swordfish from the store, 432 gp each'],
     ['Eddie drink', 'drink', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], 'Drink: Thin Carrot Juice from the store, 18 gp each'],
     ['Eddie ammo', 'ammo', ['Cheeseburger Eddie', 'melee_dps', ...EDDIE], undefined],
     ['Fremulon ammo', 'ammo', ['Fremulon', 'ranger', ...FREMULON], FREMULON_SAYS],
     /* the player's order stands: a store slot ahead of his own is said as what it is, the store first */
-    ['store ahead of own', 'food', ['A', 'melee_dps', [eat('salted_shrimp'), eat('cooked_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each, then 5 Cooked Shrimp of yours'],
+    ['store ahead of own', 'food', ['A', 'melee_dps', [eat('salted_shrimp'), eat('cooked_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each, then 5 Cooked Shrimp carried'],
     /* carried first, the worn ahead of the bar's, the store last, whatever the bar's order */
-    ['the engine\'s order', 'ammo', ['A', 'ranger', [shoot('barbed_arrows')], { barbed_arrows: 5, iron_arrows: 3 }, { weapon: 'willow_longbow', ammo: 'iron_arrows' }], 'Ammo: 3 Iron Arrows of yours, loaded, then 5 Barbed Arrows of yours, then Plain Iron Arrows from the store, 1 gp each.'],
+    ['the engine\'s order', 'ammo', ['A', 'ranger', [shoot('barbed_arrows')], { barbed_arrows: 5, iron_arrows: 3 }, { weapon: 'willow_longbow', ammo: 'iron_arrows' }], 'Ammo: 3 Iron Arrows carried, loaded, then 5 Barbed Arrows carried, then Plain Iron Arrows from the store, 1 gp each'],
     /* a whetstone or a rune is no one's shot, and the free rung ends the line */
-    ['no whetstone in the arrows', 'ammo', ['A', 'ranger', [shoot('loaded')], { coarse_whetstone: 30000, chalked_fire_rune: 40, bronze_arrows: 5 }, { weapon: 'willow_longbow', ammo: 'bronze_arrows' }], 'Ammo: Bronze Arrows loaded. They never run out.'],
+    ['no whetstone in the arrows', 'ammo', ['A', 'ranger', [shoot('loaded')], { coarse_whetstone: 30000, chalked_fire_rune: 40, bronze_arrows: 5 }, { weapon: 'willow_longbow', ammo: 'bronze_arrows' }], 'Ammo: Bronze Arrows loaded, never runs out'],
     /* the worn slot empty, own stock behind: the store is reached only when it is gone, and idle stock is said beside it */
-    ['store with stock idle', 'ammo', ['A', 'ranger', [], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each. You carry 9 Mithril Arrows: put them on the bar to shoot them.'],
+    ['store with stock idle', 'ammo', ['A', 'ranger', [], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each, 9 Mithril Arrows not on the bar'],
     /* a slot switched Off spends nothing */
-    ['an Off slot', 'food', ['A', 'melee_dps', [Object.assign(eat('cooked_shrimp'), { enabled: false }), eat('salted_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each. You carry 5 Cooked Shrimp. Put it on the bar to eat it'],
+    ['an Off slot', 'food', ['A', 'melee_dps', [Object.assign(eat('cooked_shrimp'), { enabled: false }), eat('salted_shrimp')], { cooked_shrimp: 5 }, { weapon: 'steel_hatchets' }], 'Food: Salted Shrimp from the store, 14 gp each. Carried: 5 Cooked Shrimp, put it on the bar'],
   ];
   /* every tier, every line: own stock counted, then its store row at the server's price */
   const KIND_64 = { heal: ['food', 'Food'], mana: ['drink', 'Drink'] };
   for (const b of BASIC_SUPPLIES) {
-    if (KIND_64[b.kind]) want64.push(['tier ' + b.partner, KIND_64[b.kind][0], ['A', 'melee_dps', [eat(b.partner), eat(b.id)], { [b.partner]: 7 }, { weapon: 'steel_hatchets' }], KIND_64[b.kind][1] + ': 7 ' + nameOfItem(b.partner) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp each']);
-    else if (!/_rune$/.test(b.id)) want64.push(['tier ' + b.partner, 'ammo', ['A', 'ranger', [shoot('loaded')], { [b.partner]: 7 }, { weapon: 'willow_longbow', ammo: b.partner }], 'Ammo: 7 ' + nameOfItem(b.partner) + ' of yours, loaded, then ' + b.n + ' from the store, ' + b.price + ' gp each.']);
+    if (KIND_64[b.kind]) want64.push(['tier ' + b.partner, KIND_64[b.kind][0], ['A', 'melee_dps', [eat(b.partner), eat(b.id)], { [b.partner]: 7 }, { weapon: 'steel_hatchets' }], KIND_64[b.kind][1] + ': 7 ' + nameOfItem(b.partner) + ' carried, then ' + b.n + ' from the store, ' + b.price + ' gp each']);
+    else if (!/_rune$/.test(b.id)) want64.push(['tier ' + b.partner, 'ammo', ['A', 'ranger', [shoot('loaded')], { [b.partner]: 7 }, { weapon: 'willow_longbow', ammo: b.partner }], 'Ammo: 7 ' + nameOfItem(b.partner) + ' carried, loaded, then ' + b.n + ' from the store, ' + b.price + ' gp each']);
     else {
       const spell = Object.values(SPELLS).find((a) => a.rune === b.partner);
-      if (spell) want64.push(['tier ' + b.partner, 'rune', ['A', 'mage', [spellStore(spell.id, b.id)], { [b.partner]: 7 }, { weapon: 'practice_staff' }], 'Runes: 7 ' + runeWordsOf(spell.rune, 7) + ' of yours, then ' + b.n + ' from the store, ' + b.price + ' gp a cast']);
+      if (spell) want64.push(['tier ' + b.partner, 'rune', ['A', 'mage', [spellStore(spell.id, b.id)], { [b.partner]: 7 }, { weapon: 'practice_staff' }], 'Runes: 7 ' + runeWordsOf(spell.rune, 7) + ' carried, then ' + b.n + ' from the store, ' + b.price + ' gp a cast']);
     }
   }
   for (const [what, id, args, text] of want64) {
@@ -1615,10 +1619,10 @@ async function planRules(base) {
   const atRanged = (level) => (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: packed, skills: { ranged: { xp: 1, level } } });
   const BOW = { weapon: 'willow_longbow' };
   for (const [what, level, args, text] of [
-    ['a Mithril slot under its Ranged, Bronze behind it', 42, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows. They never run out. Mithril Arrows wait on your bar. Needs Ranged 45 (you have 42).'],
-    ['the same bar at the level', 45, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: 9 Mithril Arrows of yours, then Bronze Arrows. They never run out.'],
-    ['a stack under its Ranged no slot names', 42, [[], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each.'],
-    ['nothing else to shoot', 42, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: nothing loaded, so your weapon can\'t shoot and your hero won\'t attack. Press an empty slot on your bar, then Ammo, and pick a shot from the store. Mithril Arrows wait on your bar. Needs Ranged 45 (you have 42).'],
+    ['a Mithril slot under its Ranged, Bronze behind it', 42, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows, never runs out, Mithril Arrows: Needs Ranged 45, now 42'],
+    ['the same bar at the level', 45, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: 9 Mithril Arrows carried, then Bronze Arrows, never runs out'],
+    ['a stack under its Ranged no slot names', 42, [[], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows from the store, 1 gp each'],
+    ['nothing else to shoot', 42, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: nothing loaded, no attacks, empty slot → Ammo → pick a store shot, Mithril Arrows: Needs Ranged 45, now 42'],
   ]) {
     const cs = atRanged(level)('A', 'ranger', ...args);
     if (beforeOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Before you go reads ' + JSON.stringify(beforeOf(cs, 'ammo')));
@@ -1630,8 +1634,8 @@ async function planRules(base) {
   const loadedSays = (worn, bag) => factsOfSlot({ type: 'attack_with_item', id: 'loaded' }, { store: LIVE, bag, worn, set: { role: 'ranger', supplySource: 'mine', onEmpty: 'switch' } }).cost;
   for (const [worn, bag, text] of [
     ['steel_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Cost: 1 shot of Plain Steel Arrows (1 g)'],
-    ['iron_arrows', [{ id: 'iron_arrows', qty: 9 }], 'Cost: 1 shot of Iron Arrows (you have 9)'],
-    ['bronze_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Cost: 1 shot of Bronze Arrows (they never run out)'],
+    ['iron_arrows', [{ id: 'iron_arrows', qty: 9 }], 'Cost: 1 shot of Iron Arrows, 9 left'],
+    ['bronze_arrows', [{ id: 'bronze_arrows', qty: 2600 }], 'Cost: 1 shot of Bronze Arrows, never runs out'],
   ]) if (loadedSays(worn, bag) !== text) fails.push('AW-64 the loaded slot on ' + worn + ' reads ' + JSON.stringify(loadedSays(worn, bag)));
   }
   /* AW-8 Hunt prep says HOW MUCH stamina, and in town the supply rate is the LAST hunt's (core-loop play 2026-10-30:
@@ -1640,7 +1644,7 @@ async function planRules(base) {
   const prepSaid = (ended) => readinessOf(sess({ hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended }, hunt_analyzer: an,
     stamina: { ms: 27000000, at: '2026-10-22T00:00:00Z', max_ms: 28800000 } })).checks.filter((c) => c.id === 'stamina' || c.id === 'gold-now').map((c) => c.text).join(' | ');
   const prepWant = (which) => 'Stamina: 7 h 30 m left | Gold: 500 gp, about 1 h at 500 gp/h ' + which;
-  for (const [ended, which] of [[true, '(last hunt)'], [false, 'on this hunt']]) {
+  for (const [ended, which] of [[true, 'last hunt'], [false, 'on this hunt']]) {
     if (prepSaid(ended) !== prepWant(which)) fails.push('AW-8 Hunt prep ' + (ended ? 'in town' : 'mid-hunt') + ' reads ' + JSON.stringify(prepSaid(ended)));
   }
   const ops2 = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
@@ -1662,7 +1666,7 @@ async function planRules(base) {
        engine's numbers (Iron Sword +7/+6 over Bramble +6/+5, the bane's clamped +40%); a hand swap to the Iron Sword sticks, since the Bramble does not dominate it. */
     const kept = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['iron_sword', 3]], lv1, 16);
     if (ops2(kept) !== '{}' || JSON.stringify(kept.choices) !== '[{"slot":"weapon","ids":["iron_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]'
-      || UP.upgradeWords(kept) !== 'No clear upgrade. Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters. Pick on the doll.')
+      || UP.upgradeWords(kept) !== 'No clear upgrade: Iron Sword hits harder, Bramble Blade does +40% damage to Plant monsters')
       fails.push('AW-21 a worn Bramble Blade with Iron Swords in the bag reads ' + ops2(kept) + ' / ' + JSON.stringify(kept.choices) + ' / ' + UP.upgradeWords(kept));
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
@@ -1700,7 +1704,7 @@ async function planRules(base) {
     if (Object.keys(rings('banded_signet_follow', 'banded_signet_keen', ['banded_signet_surge']).ops).length) fails.push('AW-21 a Surge ring silently takes a Keen ring\'s place');
     const pick = rings('banded_signet_follow', 'banded_signet', ['banded_signet_keen', 'banded_signet_surge']);
     if (ops2(pick) !== '{}' || JSON.stringify(pick.choices) !== '[{"slot":"ring2","ids":["banded_signet_keen","banded_signet_surge"]}]'
-      || UP.upgradeWords(pick) !== 'No clear upgrade. Ring 2: Banded Signet (Keen) or Banded Signet (Surge). Pick on the doll.')
+      || UP.upgradeWords(pick) !== 'No clear upgrade: Ring 2: Banded Signet (Keen) or Banded Signet (Surge)')
       fails.push('AW-21 Keen and Surge rings over a plain one read ' + ops2(pick) + ' / ' + JSON.stringify(pick.choices) + ' / ' + UP.upgradeWords(pick));
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
@@ -1727,12 +1731,12 @@ async function planRules(base) {
   const bronzeSet = { weapon: 'bronze_sword', helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', boots: 'bronze_boots', belt: 'bronze_belt' };
   const stepOf = (equipment, ids) => UP.upgradePlan({ equipment, bag: ids.map((id) => ({ id, qty: 1 })), skills: lv1, level: 16 });
   const step = stepOf(bronzeSet, ['iron_platebody', 'iron_platelegs', 'iron_helm']);
-  if (ops2(step) !== '{"body":"iron_platebody","helmet":"iron_helm","pants":"iron_platelegs"}' || !UP.upgradeWords(step).endsWith('Your full set\'s +1% critical chance ends.'))
+  if (ops2(step) !== '{"body":"iron_platebody","helmet":"iron_helm","pants":"iron_platelegs"}' || !UP.upgradeWords(step).endsWith('Set bonus lost: +1% critical chance'))
     fails.push('AW-21 a full Bronze set at Level 16 would put on ' + ops2(step) + ': ' + UP.upgradeWords(step));
-  if (/critical chance ends/.test(UP.upgradeWords(stepOf({ weapon: 'bronze_sword', body: 'bronze_platebody' }, ['iron_platebody'])))) fails.push('AW-21 a step that ends no set says it ends one');
+  if (/Set bonus lost/.test(UP.upgradeWords(stepOf({ weapon: 'bronze_sword', body: 'bronze_platebody' }, ['iron_platebody'])))) fails.push('AW-21 a step that ends no set says it ends one');
   /* A tie that stands says why the button is off (playtest 2026-10-29 #11: the line was hidden, nothing said). */
   const tieSaid = UP.upgradeWords(tieOf(null));
-  if (tieSaid !== 'No clear upgrade. Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots. Pick on the doll or at Tamsin\'s.')
+  if (tieSaid !== 'No clear upgrade: Body: Bronze Platebody or Leather Body. Boots: Bronze Boots or Leather Boots')
     fails.push('AW-21 a standing tie reads ' + JSON.stringify(tieSaid));
   /* "Decide once": the shop's section bids only on what the bag holds, so a stack sold since (0 in the bag) is never
      called unsellable (playtest 2026-10-29: the coach rang a Sell its row had switched off). */
@@ -1740,7 +1744,7 @@ async function planRules(base) {
   const noBid = new Map([['bones', 1]]);
   const planSaid = [planBlock('rat_tail', 'sell', noBid, false), planBlock('rat_tail', 'sell', noBid, true), planBlock('rat_tail', 'sell', noBid),
     planBlock('practice_bow', 'sell', noBid, false)].join('|');
-  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|The shop does not buy back your starting kit.') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
+  if (planSaid !== '|The shop does not buy this.|The shop does not buy this.|Shop doesn\'t buy starting kit') fails.push('AW-21 a loot plan off for a stack not held reads ' + JSON.stringify(planSaid));
   /* AW-70 SELL SPARE GEAR (designer 2026-11-03; optimizer panel, its quit moment: "sell-all, hand-sell 17-20 armor stacks" each return). One sale with its total first: what the hero has outgrown,
      of any weight or family; never what Equip upgrades wants, an empty slot's piece, a higher tier than worn, a Rare, the start kit, what the bench made from the kit (nothing sells another), or a stack locked or planned Keep or Deposit. */
   const { spareSale } = await imp('src/shell/bag-model.js');
@@ -1839,16 +1843,16 @@ async function planRules(base) {
     if (!big || big[0].max !== 100000 || big[0].have !== 250000) fails.push('AW-65 a stack past one carry offers ' + JSON.stringify(big));
     const pack = carryRows(hunting(open));
     const food = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, pack);
-    if (!food || !food.strike || food.text !== 'None in this hunt. 40 Cooked Shrimp in your backpack (press this slot to carry them in)') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
+    if (!food || !food.strike || food.text !== 'None in this hunt, 40 Cooked Shrimp in backpack, press to carry them in') fails.push('AW-65 the struck food slot reads ' + JSON.stringify(food));
     const rune = reasonOf(spell, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [], null, null, null, pack);
-    if (!rune || rune.text !== 'No Fire rune in this hunt (one each cast). 14 in your backpack (press this slot to carry them in)') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
+    if (!rune || rune.text !== 'No Fire rune in this hunt, 14 in backpack, press to carry them in') fails.push('AW-65 the struck rune spell reads ' + JSON.stringify(rune));
     /* RUNE-TRUTH (2027-02-21-hunt-carry-in.sql): the server struck a spell whose runes are all above the hero's level: the slot says that, not "the server says". */
     const locked = reasonOf({ ...spell, usable: false, why: 'rune_level' }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'graven_fire_rune', qty: 2 }], null, null, null, null);
     if (!locked || locked.code !== 'rune_level' || !locked.strike || !/^Can't cast Fire runes yet/.test(locked.text)) fails.push('AW-65 a spell whose runes are above the level reads ' + JSON.stringify(locked));
     /* THE RUNE LADDER (2027-03-08-rune-ladder-slots.sql): a store rune above the hero's level says which rune and what it needs, not "the server says". */
     const SCORED = STORE.concat([{ ...STORE.find((r) => r.id === 'plain_fire_rune'), id: 'plain_scored_fire_rune', partner: 'scored_fire_rune', price: 8 }]);
     const over = reasonOf({ ...spell, action: { ...spell.action, store: 'plain_scored_fire_rune' }, usable: false, why: 'store_level' }, { slots: bar, store: SCORED, discipline: 'destruction', supplySource: 'mine', onEmpty: 'switch' }, [], null, null, { magic: { xp: 1, level: 14 } }, null);
-    if (!over || over.code !== 'store_level' || !over.strike || !/^Scored Fire Rune requires Magic 15\. Pick a lower rune/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
+    if (!over || over.code !== 'store_level' || !over.strike || !/^Scored Fire Rune requires Magic 15, pick a lower rune/.test(over.text)) fails.push('AW-65 a store rune above the level reads ' + JSON.stringify(over));
     /* ...and a slot the server calls ready is not struck by the browser, whatever the backpack says (the hunt bag holds its runes). */
     const ready = reasonOf({ ...spell, usable: true }, { slots: bar, store: STORE, discipline: 'destruction', supplySource: 'mine', onEmpty: 'end' }, [{ id: 'chalked_fire_rune', qty: 2 }], null, null, null, []);
     if (ready) fails.push('AW-65 a spell with runes in the hunt bag and none in the backpack reads ' + JSON.stringify(ready));
@@ -1859,15 +1863,15 @@ async function planRules(base) {
       equipment: { weapon: 'willow_longbow' }, inventory: { mithril_arrows: 40 }, hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session: { bag: [] } } });
     const shotSet = { slots: [waitSlot], store: STORE, role: 'ranger', supplySource: 'mine', onEmpty: 'end' };
     const [under] = carryFor(archer(42), waitSlot.action) || [];
-    if (!under || under.id !== 'mithril_arrows' || under.max !== 40 || under.wait !== 'Needs Ranged 45 (you have 42), so it can’t be shot until then.') fails.push('AW-65 a shot waiting for its level offers ' + JSON.stringify(under));
+    if (!under || under.id !== 'mithril_arrows' || under.max !== 40 || under.wait !== 'Needs Ranged 45, now 42, so it can’t be shot until then.') fails.push('AW-65 a shot waiting for its level offers ' + JSON.stringify(under));
     const waits = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 42 } }, carryRows(archer(42)));
-    if (!waits || waits.code !== 'skill' || !waits.strike || waits.text !== 'Needs Ranged 45 (you have 42). This slot waits until then, and your next ammo fires.') fails.push('AW-65 a waiting shot with its stack in the backpack reads ' + JSON.stringify(waits));
+    if (!waits || waits.code !== 'skill' || !waits.strike || waits.text !== 'Needs Ranged 45, now 42, next ammo fires meanwhile') fails.push('AW-65 a waiting shot with its stack in the backpack reads ' + JSON.stringify(waits));
     const [atLevel] = carryFor(archer(45), waitSlot.action) || [];
     if (!atLevel || atLevel.wait !== null) fails.push('AW-65 a shot at its level still says it waits: ' + JSON.stringify(atLevel));
     const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 45 } }, carryRows(archer(45)));
-    if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt. 40 Mithril Arrows in your backpack (press this slot to carry them in)') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
+    if (!woke || woke.code !== 'stock' || woke.text !== 'None in this hunt, 40 Mithril Arrows in backpack, press to carry them in') fails.push('AW-65 at its level the shot in the backpack reads ' + JSON.stringify(woke));
     const none = reasonOf(bar[0], { slots: bar, store: STORE }, [], null, null, null, null);
-    if (!none || none.text !== 'You’re out of Cooked Shrimp. Your next food or drink slot takes over.') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
+    if (!none || none.text !== 'Out of Cooked Shrimp, next food or drink slot takes over') fails.push('AW-65 with nothing in the bag the food slot reads ' + JSON.stringify(none));
   }
   return fails;
 }
@@ -1892,13 +1896,13 @@ async function armourWordRules(base) {
     if (!ok) { fails.push('AW-34 ' + id + ' (' + w + ') tooltip weight line reads ' + JSON.stringify(pw)); break; }
   }
   const wornW = AW.wornWeights({ helmet: 'iron_helm', body: 'bronze_platebody', boots: 'leather_boots', pants: 'apprentice_pants', cape: Object.keys(ITEMS).find((k) => ITEMS[k].slot === 'cape'), weapon: 'iron_sword' });
-  if (wornW.map((x) => x.text).join(' · ') !== '2 heavy (' + pc(VITALS.heavyHpPermille * 2 / ARMOUR_SLOTS.length) + ' max HP) · 1 medium (more blows miss) · 1 light (' + pc(VITALS.lightManaPermille / ARMOUR_SLOTS.length) + ' max mana)')
+  if (wornW.map((x) => x.text).join(' · ') !== '2 heavy, ' + pc(VITALS.heavyHpPermille * 2 / ARMOUR_SLOTS.length) + ' max HP · 1 medium, more blows miss · 1 light, ' + pc(VITALS.lightManaPermille / ARMOUR_SLOTS.length) + ' max mana')
     fails.push('AW-34 the worn-weight line for 2 plate, 1 leather, 1 cloth and a cape reads ' + JSON.stringify(wornW));
   /* Nothing worn: one plain line, never "0 heavy (+0% max HP)" beside a plate sprite (blind playtest 2026-10-31); a weight with no piece says nothing. */
   const wornNone = AW.wornWeights({ weapon: 'iron_sword' }).map((x) => x.text).join('|');
-  if (wornNone !== 'None yet. Your outfit is only a look.||') fails.push('AW-34 the worn-weight line with no armor reads ' + JSON.stringify(wornNone));
+  if (wornNone !== 'None worn||') fails.push('AW-34 the worn-weight line with no armor reads ' + JSON.stringify(wornNone));
   const wornOne = AW.wornWeights({ helmet: 'iron_helm' }).map((x) => x.text).filter(Boolean);
-  if (wornOne.length !== 1 || !/^1 heavy \(/.test(wornOne[0])) fails.push('AW-34 one heavy piece reads ' + JSON.stringify(wornOne));
+  if (wornOne.length !== 1 || !/^1 heavy, \+/.test(wornOne[0])) fails.push('AW-34 one heavy piece reads ' + JSON.stringify(wornOne));
   /* the share the words say is the one the engine adds: vitals.js maxHpFor / maxManaFor at every count (L 100) */
   const { maxHpFor, maxManaFor } = await imp('src/core/vitals.js');
   for (let n = 0; n <= ARMOUR_SLOTS.length; n++) {
@@ -1913,7 +1917,7 @@ async function armourWordRules(base) {
   /* What each weight gives is said beside the picker: her window's line and each button's title, off the same sentences (the card is the way, in three lines). */
   const tallySrc = readFileSync(join(base, 'src/shell/windows/tally.js'), 'utf8');
   if (!tallySrc.includes("WEIGHT_ORDER.map(weightSentence).join(' ')") || !tallySrc.includes('title="\' + esc(weightSentence(w))')) fails.push('AW-34 her window no longer says what each weight gives');
-  if (!/armor weight/.test(tamStep.text || '') || !/armor weight/.test((cardFor(tamStep, { role: 'mage' }) || {}).text || '')) fails.push('AW-34 the tally card no longer asks for a weight');
+  if (!/armor weight/.test((await imp('src/data/text/coach.js')).COACH_TEXT.tamsins_task_in_any || '') || !/ armor, then Take/.test(JSON.stringify(cardFor(tamStep, { role: 'mage' }) || {}))) fails.push('AW-34 the tally card no longer asks for a weight');
   const help = (HELP_NOTES.find((n) => n.id === 'armour') || {}).text || '';
   for (const w of AW.WEIGHT_ORDER) {
     if (!help.includes(AW.weightSentence(w))) fails.push('AW-34 the Help note does not say what ' + w + ' armor gives');
@@ -1962,10 +1966,10 @@ async function tickerRules(base) {
   cs1.clock = T0 + 2 * step + 100;
   const line1 = TW.nowParts(cs1);
   const ahead1 = line1.filter((p) => p.ahead).map((p) => p.text).join('|');
-  if (ahead1 !== '42 in your bag') fails.push('TK-1 the work line marks ' + JSON.stringify(ahead1) + ' as pending, want "42 in your bag"');
+  if (ahead1 !== '42 in bag') fails.push('TK-1 the work line marks ' + JSON.stringify(ahead1) + ' as pending, want "42 in bag"');
   /* The row under the line says the same number; a row that is not running keeps the server's (blind playtest 2026-10-31: "2 caught so far · 0 in your bag"). */
   const rowWords = [TW.gatherBagWords(cs1, TW.workOf(cs1), true), TW.gatherBagWords(cs1, TW.workOf(cs1), false)].join('|');
-  if (rowWords !== '42 in your bag|40 in your bag') fails.push('TK-1 the gathering row reads ' + rowWords + ', want 42 running and 40 stopped');
+  if (rowWords !== '42 in bag|40 in bag') fails.push('TK-1 the gathering row reads ' + rowWords + ', want 42 running and 40 stopped');
 
   /* TK-2: a payout REPLACES: the server's bag and watermark, and the count restarts from them (no double count). */
   pay(cs1, envOf('gather', 'normal_tree', { normal_log: 42 }, { state: { active_kind: 'gather', active_id: 'normal_tree', active_since: iso(T0), accrued_to: iso(T0 + 2 * step) } }));
@@ -2048,7 +2052,7 @@ async function tickerRules(base) {
   csl.clock = T0 + 20 * bstep;
   const bleft = TW.tickOf(csl);
   const bline = TK.lineText(buryParts(csb));
-  if (!b3 || b3.items.bones !== -3 || TK.aheadXp(b3, 'inner_flame') !== 3 * TW.xpEach(bury) || !ball || ball.items.bones !== -8 || !bleft || bleft.items.bones !== -2 || !/^Fueling the Great Hearth with Bones: 0 Bones left\./.test(bline))
+  if (!b3 || b3.items.bones !== -3 || TK.aheadXp(b3, 'inner_flame') !== 3 * TW.xpEach(bury) || !ball || ball.items.bones !== -8 || !bleft || bleft.items.bones !== -2 || !/^Fueling the Great Hearth with Bones: 0 Bones left$/.test(bline))
     fails.push('TK-8 the bench count: ' + JSON.stringify({ b3, all: ball && ball.items, left2: bleft && bleft.items, bline }));
 
   /* TK-9: a dish that can burn is a roll: the inputs and the burn's XP are certain, the dish is not (no stack moves). */
@@ -2231,7 +2235,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const weightsLine = () => page.evaluate(() => { const p = document.querySelector('.hw-weights'); return p && p.classList.contains('is-on') ? Array.from(p.querySelectorAll('span')).map((x) => x.textContent).join(' · ') : null; });
         Object.assign(s.env.equipment, { helmet: 'iron_helm', body: 'bronze_platebody', pants: 'apprentice_pants' });
         await pushEnvelope(page, s);
-        const want = '2 heavy (' + share(VITALS.heavyHpPermille, 2) + ' max HP) · 1 medium (more blows miss) · 1 light (' + share(VITALS.lightManaPermille, 1) + ' max mana)';
+        const want = '2 heavy, ' + share(VITALS.heavyHpPermille, 2) + ' max HP · 1 medium, more blows miss · 1 light, ' + share(VITALS.lightManaPermille, 1) + ' max mana';
         if ((await weightsLine()) !== want) fails.push('AW-34 the worn-weight line reads ' + JSON.stringify(await weightsLine()) + ', want ' + JSON.stringify(want));
         if (shots) await shot(page, 'armour-weight-1440x900-doll');
         await page.hover('.hw-slot[data-slot="helmet"]');
@@ -2254,7 +2258,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForSelector('.hw-slot[data-slot="helmet"]', { timeout: 4000 }).catch(() => fails.push('AW-34 B did not open the bag again'));
         delete s.env.equipment.helmet;
         await pushEnvelope(page, s);
-        if (!String(await weightsLine()).startsWith('1 heavy (' + share(VITALS.heavyHpPermille, 1) + ' max HP)')) fails.push('AW-34 after the server took the helmet off, the line reads ' + JSON.stringify(await weightsLine()));
+        if (!String(await weightsLine()).startsWith('1 heavy, ' + share(VITALS.heavyHpPermille, 1) + ' max HP')) fails.push('AW-34 after the server took the helmet off, the line reads ' + JSON.stringify(await weightsLine()));
         if (shots) { await page.click('.hw-slot[data-slot="weapon"]'); await page.waitForTimeout(200); await shot(page, 'alpha-1440x900-gear-slot'); }
       }
       if (errors.length) fails.push('AW-1 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -2357,7 +2361,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
            the coach's next step is a press, not the gold one, and the card rings the row it is about */
         if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
         if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Marked Sell: Rat Tail and Slime Gel') fails.push('AW-78 the Sell row reads ' + JSON.stringify([before.title, before.words]));
-        if (before.next !== 'Next: Sell what only pays coin') fails.push('AW-78 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
+        if (before.next !== 'Next: Sell junk') fails.push('AW-78 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
         if (JSON.stringify(before.ring) !== '["town:sell"]') fails.push('AW-78 the return card rings ' + JSON.stringify(before.ring) + ', want the summary\'s Sell row');
         if (shots) await shot(page, 'alpha-1440x900-back-in-town');
         /* the press: ONE vendor_sell_many naming the plan's stacks whole; the server's answer (the stacks gone) turns the row to Done, and Hunt again is gold */
@@ -2501,7 +2505,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(150);
         const said = await page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('.hw-shop [data-pane="buy"] .hw-line'))
           .map((l) => [l.getAttribute('data-item'), l.querySelector('small').textContent])));
-        if (!/\. Needs plot tier 2 to plant/.test(said.carrot_seed || '') || /Farming/.test(said.carrot_seed || '')) fails.push('AW-74 the carrot seed on tier 1 land reads ' + JSON.stringify(said.carrot_seed));
+        if (!/, Needs plot tier 2 to plant/.test(said.carrot_seed || '') || /Farming/.test(said.carrot_seed || '')) fails.push('AW-74 the carrot seed on tier 1 land reads ' + JSON.stringify(said.carrot_seed));
         if (!said.turnip_seed || /Needs/.test(said.turnip_seed)) fails.push('AW-74 the turnip seed reads ' + JSON.stringify(said.turnip_seed));
       } else fails.push('AW-74 the Shop did not open');
       await ctx.close();
@@ -2622,7 +2626,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(150);
         const said = await page.evaluate(() => ({ note: document.querySelector('[data-hs-win="inventory"] .hw-loot-note').textContent,
           keeping: /starts keeping/.test(document.querySelector('[data-hs-win="inventory"]').textContent) }));
-        if (lockSaid !== 'Reading your locks…' || said.note !== 'Reading your loot plans…' || said.keeping) fails.push('AW-9 before bag_rules loads the bag says ' + JSON.stringify({ lockSaid, ...said }));
+        if (lockSaid !== 'Loading locks…' || said.note !== 'Loading loot plans…' || said.keeping) fails.push('AW-9 before bag_rules loads the bag says ' + JSON.stringify({ lockSaid, ...said }));
       } else fails.push('AW-9 the screen did not mount');
       await ctx.close();
     }
@@ -2652,7 +2656,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.fill('[data-hs-win="inventory"] .hw-q', 'tail');
         await page.waitForTimeout(700);
         v = await seen();
-        if (v.from !== 'The search did not go through, so nothing is listed. Change the search to try again.' || v.rows.length || v.none) fails.push('AW-75 a refused search reads ' + JSON.stringify(v));
+        if (v.from !== 'Search failed, try again' || v.rows.length || v.none) fails.push('AW-75 a refused search reads ' + JSON.stringify(v));
       } else fails.push('AW-75 the screen did not mount');
       if (release) release();
       await ctx.close();
@@ -2669,7 +2673,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (up) {
           await openWin(page, 'b', 'inventory');
           const st = await page.evaluate(() => ({ off: document.querySelector('[data-hs-act="dispatch"]').disabled, why: document.querySelector('.hw-dispatch-why').textContent }));
-          if (!st.off || !/out hunting/.test(st.why)) fails.push('AW-32 mid-hunt Dispatch loot is not off with its reason: ' + JSON.stringify(st));
+          if (!st.off || !/in town/.test(st.why)) fails.push('AW-32 mid-hunt Dispatch loot is not off with its reason: ' + JSON.stringify(st));
         } else fails.push('AW-32 the screen did not mount (hunting)');
         await ctx.close();
       }
@@ -2722,7 +2726,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await openWin(page, 't', 'storage');
         await page.waitForTimeout(150);
         const sb = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="storage"] [data-hs-act="dispatch"]'); return b ? { off: b.disabled, why: document.querySelector('.hw-store-do .hw-why').textContent, pelt: !!document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="bank"] [data-item="wolf_pelt"]') } : null; });
-        if (!sb || !sb.off || !/^Nothing left to move \(/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
+        if (!sb || !sb.off || !/^Nothing left to move$/.test(sb.why) || !sb.pelt) fails.push('AW-32 Storage after the dispatch reads ' + JSON.stringify(sb));
         if (shots) await shot(page, 'dispatch-1440x900-storage-after');
         if (errors.length) fails.push('AW-32 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('AW-32 the screen did not mount (town)');
@@ -2790,7 +2794,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           fails.push('AW-16 with the Inventory docked the camera shows past the map: map ' + JSON.stringify([tl.x - half, tl.y - half, br.x + half, br.y + half].map(Math.round)) + ' vs canvas ' + JSON.stringify([box.left, box.top, box.right, box.bottom].map(Math.round)));
         /* The capacity bar and the gold under the two columns. */
         const foot = await page.evaluate(() => ({ cap: document.querySelector('.hw-captext').textContent, gold: document.querySelector('.hw-gold').textContent }));
-        if (!/ of 40 spaces$/.test(foot.cap) || foot.gold !== 'Your gold 5,200 gp') fails.push('AW-14 the Inventory foot reads ' + JSON.stringify(foot));
+        if (!/ of 40 spaces$/.test(foot.cap) || foot.gold !== 'Gold: 5,200 gp') fails.push('AW-14 the Inventory foot reads ' + JSON.stringify(foot));
         if (shots) await shot(page, 'alpha-1440x900-inventory-town');
         /* AW-14 going hunting is two presses from town: the mill hatch opens Hunts on the Mill Cellar, Enter goes. */
         await page.keyboard.press('Escape');
@@ -2848,26 +2852,26 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
           li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
-        const want = ['mill_cellar:picked:Level 1–8:in:In your range:Right for your level:No best yet:Players: 1 to 4',
-          'meadowbrook_thicket::Level 5–15:above:Above your level::No best yet:Players: 1 to 4',
-          'millrace_sewer::Level 8–25:above:Above your level::No best yet:Players: 1 to 4',
+        const want = ['mill_cellar:picked:Level 1–8:in:In range:Recommended:No best yet:Players: 1 to 4',
+          'meadowbrook_thicket::Level 5–15:above:Above level::No best yet:Players: 1 to 4',
+          'millrace_sewer::Level 8–25:above:Above level::No best yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
-          'wickstead::Level 8–18:above:Above your level::No best yet:Players: 1 to 4',
-          'mosslight_glade::Level 16–31:far:Far above your level::No best yet:Players: 1 to 4',
-          'coppercap_warrens::Level 32–50:far:Far above your level::No best yet:Players: 1 to 4',
+          'wickstead::Level 8–18:above:Above level::No best yet:Players: 1 to 4',
+          'mosslight_glade::Level 16–31:far:Far above level::No best yet:Players: 1 to 4',
+          'coppercap_warrens::Level 32–50:far:Far above level::No best yet:Players: 1 to 4',
           /* the Barrow March's five grounds (v0.2.132: their packs opened, src/data/grounds status open) */
-          'hasks_ford::Level 45–60:far:Far above your level::No best yet:Players: 1 to 4',
-          'the_slake::Level 50–65:far:Far above your level::No best yet:Players: 1 to 4',
-          'muster_barrows::Level 55–75:far:Far above your level::No best yet:Players: 1 to 4',
-          'pyre_field::Level 70–90:far:Far above your level::No best yet:Players: 1 to 4',
-          'krells_hold::Level 85–110:far:Far above your level::No best yet:Players: 1 to 4'];
+          'hasks_ford::Level 45–60:far:Far above level::No best yet:Players: 1 to 4',
+          'the_slake::Level 50–65:far:Far above level::No best yet:Players: 1 to 4',
+          'muster_barrows::Level 55–75:far:Far above level::No best yet:Players: 1 to 4',
+          'pyre_field::Level 70–90:far:Far above level::No best yet:Players: 1 to 4',
+          'krells_hold::Level 85–110:far:Far above level::No best yet:Players: 1 to 4'];
         if (list.join('|') !== want.join('|')) fails.push('AW-25 the list lines read ' + JSON.stringify(list));
         /* AW-25 A SPACE BETWEEN THE PARTS (lane a-first-board-copy, the class of "Paid today 0 of 3resets"): a reader gets the words apart, the
            eye a dot between them (format.js sepHtml), and the picked ground's page reads its band the same way */
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
           const seen = (n) => (n ? n.innerText.replace(/\u00a0/g, ' ') : null);
           return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band'))]; }, W);
-        if (readLine[0] !== 'Level 1–8 · In your range' || readLine[1] !== 'Right for your level · No best yet' || !/ · In your range$/.test(readLine[2] || ''))
+        if (readLine[0] !== 'Level 1–8 · In range' || readLine[1] !== 'Recommended · No best yet' || !/ · In range$/.test(readLine[2] || ''))
           fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
@@ -2924,7 +2928,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
           || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
-        if (p.bests.join('|') !== 'No best yet (hunt 10+ min to set one)') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
+        if (p.bests.join('|') !== 'No best yet, hunt 10+ min') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 7141, balance_h: 1859 } } } };
@@ -2961,7 +2965,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Flame Strike's slot names its store rune: carried runes first, then the store's a cast, and the gold pays it. */
         const b0 = await before();
         if (await emptyShown()) fails.push('AW-27 the Hunts window draws an empty Before you go row');
-        if (b0 !== 'Runes: 40 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 14 Wheat Bread of yours. You carry 5 Cooked Shrimp. Put it on the bar to eat it | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left (then the hunt ends) | Gold: 5,200 gp (pays the store as you go)')
+        if (b0 !== 'Runes: 40 Fire runes carried, then Plain Fire Rune from the store, 1 gp a cast | Food: 14 Wheat Bread carried. Carried: 5 Cooked Shrimp, put it on the bar | Drink: 6 Goldenroot Tea carried | Stamina: 30 min left | Gold: 5,200 gp')
           fails.push('AW-27 Before you go reads ' + JSON.stringify(b0));
         if (await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-ready, [data-hs-win="hunts"] .hw-checks'))) fails.push('AW-27 the Hunts window still carries the readiness checklist');
         /* The next envelope REPLACES every number (CLAUDE.md §6): fewer runes, less bread, no gold (that line now stops the hunt). */
@@ -2971,7 +2975,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.state = Object.assign({}, s.env.state, { gold: 0 });
         await pushEnvelope(page, s);
         const b1 = await before();
-        if (b1 !== 'Runes: 3 Fire runes of yours, then Plain Fire Rune from the store, 1 gp a cast | Food: 2 Wheat Bread of yours. You carry 5 Cooked Shrimp. Put it on the bar to eat it | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left (then the hunt ends) | !Gold: none (hunt ends when your supplies run out)')
+        if (b1 !== 'Runes: 3 Fire runes carried, then Plain Fire Rune from the store, 1 gp a cast | Food: 2 Wheat Bread carried. Carried: 5 Cooked Shrimp, put it on the bar | Drink: 6 Goldenroot Tea carried | Stamina: 30 min left | !Gold: none, hunt ends when supplies run out')
           fails.push('AW-27 Before you go kept a number the server replaced: ' + JSON.stringify(b1));
         /* The page's own modules (a planted defect in them is what is served): a fresh hero's starter bar (the designer's
            walk-through row 4) and Bring your heroes (this account's other open heroes in no party). */
@@ -2985,7 +2989,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const me = hero(0, 'Tyler');
           return { fresh: m.beforeLines({ read: (k) => sec[k] }).map((l) => l.text).join(' | '), free: m.freeHeroes(me, [me, hero(1, 'Mira', true), hero(2, 'Brannoc')]).map((h) => h.name).join() };
         }, FIXTURE.hunt_settings.store);
-        if (own.fresh !== 'Food: 20 Cooked Shrimp of yours, then Salted Shrimp from the store, 14 gp each | Drink: Thin Turnip Juice from the store, 10 gp each | Gold: 500 gp (pays the store as you go)')
+        if (own.fresh !== 'Food: 20 Cooked Shrimp carried, then Salted Shrimp from the store, 14 gp each | Drink: Thin Turnip Juice from the store, 10 gp each | Gold: 500 gp')
           fails.push('AW-27 a fresh hero\'s Before you go reads ' + JSON.stringify(own.fresh));
         if (own.free !== 'Brannoc') fails.push('AW-28 Bring your heroes offers ' + JSON.stringify(own.free));
         /* AW-35 WHEN THE HUNT ENDS: no section, no control; then the server's section and its training rows arrive. */
@@ -3001,13 +3005,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const offered = await afterOf();
         if (!offered || offered.hidden || offered.off || offered.options.join('|') !== 'Wait in town|Train Melee at the yard|Train Ranged at the yard|Train Magic at the yard|Train Defense at the yard'
-          || offered.value !== 'wait' || !/^Waits in town \(no job to go back to\)\./.test(offered.note)) fails.push('AW-35 When the hunt ends reads ' + JSON.stringify(offered));
+          || offered.value !== 'wait' || !/^Waits in town, no job to go back to$/.test(offered.note)) fails.push('AW-35 When the hunt ends reads ' + JSON.stringify(offered));
         /* the server's choice is the picked one, with what it costs */
         s.env.hunt_after = { choice: 'train', skill: 'melee', grace_s: 60, job: { kind: 'gather', id: 'copper_rock' }, now: null, last: null };
         await pushEnvelope(page, s);
         const picked = await afterOf();
         if (!picked || picked.value !== 'train:melee' || picked.options[0] !== 'Go back to mining the Copper Rock'
-          || picked.note !== '122 gold/h, up to 12 h (can\'t pay: waits in town)') fails.push('AW-35 a hero that picked the yard reads ' + JSON.stringify(picked));
+          || picked.note !== '122 gold/h, up to 12 h') fails.push('AW-35 a hero that picked the yard reads ' + JSON.stringify(picked));
         if (shots) { await page.evaluate((w) => document.querySelector(w + '.hw-after').scrollIntoView({ block: 'center' }), W); await page.waitForTimeout(150); await shot(page, 'alpha-1440x900-hunt-after'); }
         /* a change sends ONE ask: the choice and the skill, nothing else */
         const h0 = sent(s, 'hr_hunt_after_set').length;
@@ -3033,7 +3037,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Another setup: ONE apply, then ONE enter as it, one press; every control off while it is in flight. */
         await page.click(W + '.hw-go[data-preset="1"]');
         const note = await page.evaluate((w) => document.querySelector(w + '.hw-go-note').textContent, W);
-        if (note !== 'Enter equips Bow first (gear and bar)' || !/^Supplies: set by Bow’s bar/.test(await before())) fails.push('AW-26 choosing Bow says ' + JSON.stringify([note, await before()]));
+        if (note !== 'Enter equips Bow first' || !/^Supplies: set by Bow’s bar/.test(await before())) fails.push('AW-26 choosing Bow says ' + JSON.stringify([note, await before()]));
         e0 = enters(); a0 = applies();
         const mark = s.calls.length;
         await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
@@ -3064,7 +3068,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const castNote = await page.evaluate((w) => { const n = document.querySelector(w + '.hw-hd-casts'); return n && !n.hidden ? n.textContent : null; }, W);
         if (castNote !== 'Sewer Kobold casts Muck Fling. Rat King casts Tail Lash and Squeal.') fails.push('AW-25 the Sewer\'s casters note reads ' + JSON.stringify(castNote));
         const pp = await party();
-        if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        if (!pp || pp[0] !== 'Players: 1 to 4' || pp[1] !== 'Find a party' || !/^Play other heroes from Characters to bring them/.test(pp[2])) fails.push('AW-28 the Sewer page\'s party path reads ' + JSON.stringify(pp));
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }
         if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = b.scrollHeight; }, W); await shot(page, 'hunts-1440x900-sewer-foot'); }
         /* Find a party: the Party window, on its finder, on this ground and this hero's weapon: ONE read with p_hunt. */
@@ -3196,7 +3200,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* ...and no hunt bar: with the summary open it would hold only a Summary press for it (first-hour playtest 10-29 #10) */
         if (town.analyzer || town.party || town.bar || town.toast || !town.summary) fails.push('AW-31 back in town the screen holds more than the summary: ' + JSON.stringify(town));
         /* the card's next step is a press on the summary, never its gold one (AW-78): the Back in town Sell step is gold here, Hunt again is not */
-        if (town.next !== 'Next: Sell what only pays coin' || town.againMain !== false) fails.push('AW-31 the summary\'s presses read ' + JSON.stringify(town) + ', want "Next: Sell what only pays coin" shown and Hunt again not gold');
+        if (town.next !== 'Next: Sell junk' || town.againMain !== false) fails.push('AW-31 the summary\'s presses read ' + JSON.stringify(town) + ', want "Next: Sell junk" shown and Hunt again not gold');
         if (shots) await shot(page, 'alpha-1440x900-return-summary');
         /* pressed: the summary goes, the hunt bar leaves with it, and the Shop opens with the card inside it, the Sell tab ringed */
         await page.click('[data-hs-win="hunt-summary"] [data-hs-act="coach-next"]');
@@ -3287,25 +3291,25 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Selling the counting tool warns in the sale's own confirmation. */
         await page.click('[data-hs-win="shop"] .hw-line[data-item="iron_axe"] [data-hs-act="sell"]');
         await page.waitForTimeout(150);
-        if (!/Woodcutting is slower without it/.test(await say('[data-hs-win="shop"] [data-pane="sell"] .hw-confirm-note') || '')) fails.push('AW-60 selling the Iron Axe says ' + await say('[data-hs-win="shop"] [data-pane="sell"] .hw-confirm-note'));
+        if (!/Woodcutting slower without it/.test(await say('[data-hs-win="shop"] [data-pane="sell"] .hw-confirm-note') || '')) fails.push('AW-60 selling the Iron Axe says ' + await say('[data-hs-win="shop"] [data-pane="sell"] .hw-confirm-note'));
         await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
         /* The House: a short material's source sits under its cost. */
         await openWin(page, 'e', 'house');
         const house = await say('[data-hs-win="house"] .hw-deed');
-        if (!/Timber Beam 6 \(none in your bag or Storage\)\s*Made with Crafting \d+\./.test(house || '') || !/Silk Thread 8[^.]*Dropped by .* at Mill Cellar/.test(house || '')) fails.push('AW-60 the House reads ' + house);
+        if (!/Timber Beam 6 \(none in bag or Storage\)\s*Made with Crafting \d+\./.test(house || '') || !/Silk Thread 8[^.]*Dropped by .* at Mill Cellar/.test(house || '')) fails.push('AW-60 the House reads ' + house);
         /* A recipe's short input, the tool line, and a bench row whose output has no buyer. */
         await openWin(page, 'g', 'skills-trade');
         await page.click('[data-hs-win="skills-trade"] [data-skill="crafting"]');
         await page.waitForTimeout(200);
-        if (!/No (Wolf Pelt|Silk Thread) in your bag.*Dropped by /.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Crafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
+        if (!/No (Wolf Pelt|Silk Thread) in bag.*Dropped by /.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Crafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="runecrafting"]');
         await page.waitForTimeout(200);
-        if (!/Chalked Fire Rune\. For your own use\. The shop and the Weighhouse won't take it\./.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Runecrafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
+        if (!/Chalked Fire Rune\. Own use only, can't be sold\./.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Runecrafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="woodcutting"]');
         await page.waitForTimeout(200);
-        if (!/^Your Iron Axe is in your bag: Woodcutting 10% faster/.test(await say('[data-hs-win="skills-trade"] .hw-work-tool') || '')) fails.push('AW-60 the Woodcutting tool line reads ' + await say('[data-hs-win="skills-trade"] .hw-work-tool'));
+        if (!/^Tool: Iron Axe\s+Woodcutting 10% faster/.test(await say('[data-hs-win="skills-trade"] .hw-work-tool') || '')) fails.push('AW-60 the Woodcutting tool line reads ' + await say('[data-hs-win="skills-trade"] .hw-work-tool'));
         /* The ground's page lists its materials, with the engine's chance. */
         await openWin(page, 'h', 'hunts');
         await page.click('.hw-hunt[data-hunt="meadowbrook_thicket"]');
@@ -3315,7 +3319,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await openWin(page, 'b', 'inventory');
         await page.hover('[data-hs-win="inventory"] .hw-pocket[data-item="chalked_fire_rune"]');
         const tip = await wait(page, () => document.querySelector('.hw-tip.is-on'), null, 1500) ? await say('.hw-tip') : '';
-        if (!/For your own use\. The shop and the Weighhouse won't take it/.test(tip) || /priced/.test(tip)) fails.push('AW-60 the rune\'s tooltip reads ' + tip);
+        if (!/Own use only, can't be sold/.test(tip) || /priced/.test(tip)) fails.push('AW-60 the rune\'s tooltip reads ' + tip);
         await page.mouse.move(2, 2);
         /* Storage: the counting axe put away says so, the one that wasn't counting does not. */
         await openWin(page, 't', 'storage');
@@ -3330,7 +3334,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('[data-hs-win="storage"] [data-side="bag"] .hw-pocket[data-item="iron_axe"]');
         await settledAfter(quiet);
         const told = await say(storeMsg);
-        if (/slower/.test(quiet || '') || !/Woodcutting is slower without it/.test(told || '')) fails.push('AW-60 Storage says ' + JSON.stringify([quiet, told]));
+        if (/slower/.test(quiet || '') || !/Woodcutting slower without it/.test(told || '')) fails.push('AW-60 Storage says ' + JSON.stringify([quiet, told]));
       }
       if (errors.length) fails.push('AW-60 console errors: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
@@ -3387,7 +3391,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click(STACK);
           await wait(page, (w) => /full/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 5000);
           const refused = await lineNow(page);
-          if (refused.text !== 'Your storage is full.' || !refused.inView) fails.push('AW-65 a refusal in a scrolled bag: ' + JSON.stringify(refused));
+          if (refused.text !== 'Storage full' || !refused.inView) fails.push('AW-65 a refusal in a scrolled bag: ' + JSON.stringify(refused));
           s.reply = { ok: true };
         }
         if (errors.length) fails.push('AW-65 console errors: ' + errors.slice(0, 2).join(' | '));
@@ -3401,7 +3405,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click(STACK, { button: 'right', force: true });
           await page.waitForTimeout(150);
           const asked = await lineNow(page);
-          if (!/out hunting/i.test(asked.text) || !asked.inView) fails.push('AW-65 a right-click with the hero out hunting does not say why in view: ' + JSON.stringify(asked));
+          if (!/in town/i.test(asked.text) || !asked.inView) fails.push('AW-65 a right-click with the hero out hunting does not say why in view: ' + JSON.stringify(asked));
           /* Home: the line no longer holds. */
           const away = clone(s.env);
           for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
@@ -3418,7 +3422,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click(STACK, { force: true });
           await page.waitForTimeout(150);
           const said = await lineNow(page);
-          if (!/out hunting/i.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
+          if (!/in town/i.test(said.text) || !said.inView) fails.push('AW-65 a press with the hero out hunting does not say why in view: ' + JSON.stringify(said));
           if (sent(s, 'hr_bank_move').length) fails.push('AW-65 a hero out hunting sent a move');
         }
         if (errors.length) fails.push('AW-65 console errors (hunting): ' + errors.slice(0, 2).join(' | '));
@@ -3696,7 +3700,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(800);
           s.reply = { ok: true };
           const said = await msgSeen();
-          if (!said || said.text !== 'You no longer have that many Copper Ore.') fails.push('AW-18b a refused deposit says ' + JSON.stringify(said && said.text));
+          if (!said || said.text !== 'Not enough Copper Ore left') fails.push('AW-18b a refused deposit says ' + JSON.stringify(said && said.text));
           else if (!said.shown) fails.push('AW-18b the refusal of a deposit is out of sight (under the grids, where a full bag scrolls it away)');
           if ((await sc('bag', 'copper_ore')) !== '7') fails.push('AW-18b a refused deposit moved the bag to ' + (await sc('bag', 'copper_ore')));
           await page.click(W18 + '[data-side="bag"] .hw-pocket[data-item="bronze_arrows"]', { modifiers: ['Shift'] });
@@ -3756,7 +3760,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"fuel_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
             fails.push('AW-19 Fuel all sent ' + JSON.stringify(go.map((c) => c.body)));
           const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
-          if (!/^Fueling the Great Hearth with Bones: 8 Bones left\. Your bag and Inner Flame XP update as it goes\./.test(line)) fails.push('AW-19 no Fueling line from the server pointer: ' + JSON.stringify(line));
+          if (!/^Fueling the Great Hearth with Bones: 8 Bones left/.test(line)) fails.push('AW-19 no Fueling line from the server pointer: ' + JSON.stringify(line));
           if ((await count(page, 'bones')) !== '8') fails.push('AW-19 the bag painted the bury before the server paid it: bones x' + (await count(page, 'bones')));
           if (shots) await shot(page, 'alpha-1440x900-burying');
           await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
@@ -3778,7 +3782,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             else await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
             await page.waitForTimeout(300);
             const low = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
-            if (bear === 'Cook all' && (low !== 'You need Cooking 40 to cook Raw Bear Meat. You have 11.' || sent(s, 'hr-accrue', 'set_activity').length !== 2)) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
+            if (bear === 'Cook all' && (low !== 'Requires Cooking 40, now 11' || sent(s, 'hr-accrue', 'set_activity').length !== 2)) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
             /* AW-20 cook all: the raw meat's primary is Cook all; the same ONE set_activity; Stop says what the server made */
             await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_wolf_meat"]');
             const cp = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden && !b.disabled ? b.textContent : null; });
@@ -3789,7 +3793,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
               const go = sent(s, 'hr-accrue', 'set_activity').slice(2);
               if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"cook_wolf_meat"}') fails.push('AW-20 Cook all sent ' + JSON.stringify(go.map((c) => c.body)));
               const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
-              if (!/^Cooking Raw Wolf Meat: 0 cooked so far, 4 Raw Wolf Meat left\. Your bag and Cooking XP update as it goes\./.test(line)) fails.push('AW-20 no Cooking line from the server pointer: ' + JSON.stringify(line));
+              if (!/^Cooking Raw Wolf Meat: 0 cooked so far, 4 Raw Wolf Meat left/.test(line)) fails.push('AW-20 no Cooking line from the server pointer: ' + JSON.stringify(line));
               if ((await count(page, 'raw_wolf_meat')) !== '4') fails.push('AW-20 the bag painted the cook before the server did it: x' + (await count(page, 'raw_wolf_meat')));
               if (shots) await shot(page, 'alpha-1440x900-cooking');
               await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
@@ -3851,7 +3855,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           why: document.querySelector('.hw-inv .hw-pick-why').textContent }));
         await page.keyboard.press('Enter');
         await page.waitForTimeout(300);
-        if (!need.off || need.why !== 'Needs Level 45 (you\'re 30).' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+        if (!need.off || need.why !== 'Needs Level 45, now 30.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
         /* A refusal (the engine's 409): nothing moves, and the words say why ON THE LINE PRESSED, in view (they sat at the
            window's foot, below the fold, so the press looked like nothing). */
         s.refuse = 'requirement_not_met';
@@ -3916,7 +3920,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const mid = await page.evaluate(() => { const q = (x) => document.querySelector('[data-hs-win="inventory"] ' + x);
           return { equip: q('[data-hs-act="primary"]').disabled, why: q('.hw-pick-why').textContent,
             upg: q('[data-hs-act="equip-upgrades"]').disabled, upgWhy: q('.hw-upgrade-why').textContent }; });
-        if (!mid.equip || mid.why !== 'Leave the hunt to change gear.' || !mid.upg || mid.upgWhy !== 'Leave the hunt to put these on.' || sent(s, 'hr-accrue', 'equip').length)
+        if (!mid.equip || mid.why !== 'Leave the hunt to change gear' || !mid.upg || mid.upgWhy !== 'Leave the hunt to put these on.' || sent(s, 'hr-accrue', 'equip').length)
           fails.push('AW-21 mid-hunt the Inventory reads ' + JSON.stringify(mid) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
       } else fails.push('AW-21 the hunting character did not mount');
       if (errors.length) fails.push('AW-21 mid-hunt console errors: ' + errors.slice(0, 3).join(' | '));
@@ -3956,13 +3960,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         let r = await rowsOf();
         const tree = r.find((x) => x.id === 'normal_tree'), oak = r.find((x) => x.id === 'oak_tree');
-        if (!tree || tree.off || tree.btn !== 'Start' || !/^Normal Log, about [\d,]+ an hour, \d+ XP every [\d.]+ s$/.test(tree.what) || tree.why !== '40 in your bag') fails.push('AW-22 Woodcutting offers ' + JSON.stringify(tree));
-        if (!oak || !oak.off || !/^You need Woodcutting 15 to chop the Oak Tree\. You have \d+\.$/.test(oak.why)) fails.push('AW-22 a tree above the server level reads ' + JSON.stringify(oak));
+        if (!tree || tree.off || tree.btn !== 'Start' || !/^Normal Log, about [\d,]+ an hour, \d+ XP every [\d.]+ s$/.test(tree.what) || tree.why !== '40 in bag') fails.push('AW-22 Woodcutting offers ' + JSON.stringify(tree));
+        if (!oak || !oak.off || !/^Requires Woodcutting 15, now \d+$/.test(oak.why)) fails.push('AW-22 a tree above the server level reads ' + JSON.stringify(oak));
         await page.click(W + ' .hw-work-row[data-id="normal_tree"] .hw-work-go');
         await page.waitForTimeout(800);
         let go = sent(s, 'hr-accrue', 'set_activity');
         if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"gather","id":"normal_tree"}') fails.push('AW-22 Start sent ' + JSON.stringify(go.map((c) => c.body)));
-        if (!/^Chopping the Normal Tree: 0 chopped so far\. It keeps going while you are away/.test(await nowText())) fails.push('AW-22 no line from the server pointer: ' + JSON.stringify(await nowText()));
+        if (!/^Chopping the Normal Tree: 0 chopped so far\. Runs offline until a hunt starts/.test(await nowText())) fails.push('AW-22 no line from the server pointer: ' + JSON.stringify(await nowText()));
         r = await rowsOf();
         if ((r.find((x) => x.id === 'normal_tree') || {}).btn !== 'Stop') fails.push('AW-22 the running tree offers no Stop');
         /* AW-22 LIVE (Tyler 2026-10-22, "the bag needs to update in real time"): with the window open the
@@ -3989,14 +3993,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await openWin(page, 'g', 'skills-trade');
           await page.waitForTimeout(300);
           /* After a reload "so far" has no start to count from: the line says what the server's bag holds. */
-          if (!/^Chopping the Normal Tree: \d+ in your bag\./.test(await nowText())) fails.push('AW-22 after a reload the work line reads ' + JSON.stringify(await nowText()));
+          if (!/^Chopping the Normal Tree: \d+ in bag\./.test(await nowText())) fails.push('AW-22 after a reload the work line reads ' + JSON.stringify(await nowText()));
           /* A switch straight from gathering to a bench: ONE intent (the server collects the old one first). */
           await page.click(W + ' .hw-skill[data-skill="smithing"]');
           await page.waitForTimeout(300);
           r = await rowsOf();
           const bar = r.find((x) => x.id === 'smelt_bronze'), axe = r.find((x) => x.id === 'forge_bronze_axe');
           if (!bar || bar.off || !/^Makes up to 5, \d+ XP every [\d.]+ s$/.test(bar.why) || bar.what !== '2 Copper Ore → Bronze Bar') fails.push('AW-22 Smithing offers ' + JSON.stringify(bar));
-          if (!axe || !axe.off || !/^You need Smithing 3 to make Bronze Axe\. You have \d+\.$/.test(axe.why)) fails.push('AW-22 a recipe above the server level reads ' + JSON.stringify(axe));
+          if (!axe || !axe.off || !/^Requires Smithing 3, now \d+$/.test(axe.why)) fails.push('AW-22 a recipe above the server level reads ' + JSON.stringify(axe));
           /* "MAKE N" (lane c-work-fixes): a bar starts on All, a tool on 1; the player picks 5 and Start sends count 5. */
           if (bar && bar.n !== 'All') fails.push('AW-22 a bar row starts on ' + bar.n + ', not All');
           if (axe && axe.n !== '1') fails.push('AW-22 a tool row starts on ' + axe.n + ', not 1');
@@ -4028,7 +4032,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
           if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":37}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
-          if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. It stops when they run out\.$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
+          if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. Stops when materials run out$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
           if (!/^Working on it now, 37 left\. Makes 5 of up to 5, /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
@@ -4047,7 +4051,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.selectOption(W + ' .hw-work-sort select', 'name');
           await page.waitForTimeout(200);
           const byName = await names();
-          if (byName.join() !== aToZ(byCan) || byName.join() === byCan.join() || !(await rowsOf()).some((x) => x.off && /^You need Smithing /.test(x.why))) fails.push('AW-76 Name orders ' + byName.join() + ' (Can make had ' + byCan.join() + ')');
+          if (byName.join() !== aToZ(byCan) || byName.join() === byCan.join() || !(await rowsOf()).some((x) => x.off && /^Requires Smithing /.test(x.why))) fails.push('AW-76 Name orders ' + byName.join() + ' (Can make had ' + byCan.join() + ')');
           for (let i = 0; i < 40 && !sent(s, 'hr_put_client_state').some((c) => c.body.p_patch && c.body.p_patch.stationSort); i++) await page.waitForTimeout(100);
           const puts = sent(s, 'hr_put_client_state').map((c) => c.body.p_patch && c.body.p_patch.stationSort).filter(Boolean);
           if (JSON.stringify(puts) !== '[{"smithing":"name"}]') fails.push('AW-76 the pick was put as ' + JSON.stringify(puts));
@@ -4193,7 +4197,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: fresh });
       if (up) {
         const ptr = await page.evaluate(() => { const p = document.querySelector('.hs-pointer'); return p ? p.textContent : null; });
-        if (!ptr || !/Open Hunts/.test(ptr)) fails.push('AW-17 a fresh character sees no pointer to Hunts: ' + JSON.stringify(ptr));
+        if (!ptr || !/Hunts → Mill Cellar → Enter/.test(ptr)) fails.push('AW-17 a fresh character sees no pointer to Hunts: ' + JSON.stringify(ptr));
         if (shots) await shot(page, 'alpha-922x423-first-minute');
         /* AW-17b THE RING (designer playtest 2026-10-24: on a phone nothing said which of 16 icons is Hunts): the card's
            control wears the gold ring, and the card goes INTO the window it points at: the Hunts icon, then (the phone
@@ -4371,7 +4375,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         else {
           await page.waitForTimeout(300);
           const seen = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); const b = w.querySelector('[data-hs-act="again"]'); return { off: b.disabled, why: w.querySelector('.hh-intent-msg').textContent, reason: w.querySelector('.hsum-reason').textContent }; });
-          if (!seen.off || seen.why !== 'Hunt again is off. Your party leader picks the hunt and starts it.') fails.push('AW-61 a member\'s Hunt again reads ' + JSON.stringify(seen));
+          if (!seen.off || seen.why !== 'Hunt again off: Party leader picks the hunt') fails.push('AW-61 a member\'s Hunt again reads ' + JSON.stringify(seen));
           if (!/Bramwell ran out of stamina, so .* came home too\./.test(seen.reason)) fails.push('AW-61 the member\'s end card reads ' + seen.reason);
           /* the leader's own press is the party's Start, never a lone Enter */
           s.env.party = Object.assign({}, s.env.party, { self_seat: 0, leader_seat: 0 });
@@ -4784,7 +4788,7 @@ const MUTANTS = [
   ['item truth: storing one of two warns', 'src/shell/town-work.js', "  if (left > 0) return '';\n", ''],
   ['item truth: no tool line', 'src/shell/town-work.js', "  const inBag = pick(skill, invOf(cs));\n", "  if (skill) return '';\n  const inBag = pick(skill, invOf(cs));\n"],
   ['item truth: the tool line offers a rod no one can get', 'src/shell/town-work.js', "ITEMS[id].toolSkill === skill && whereToGet(id));", "ITEMS[id].toolSkill === skill);"],
-  ['item truth: an axe in Storage goes unsaid', 'src/shell/town-work.js', "  if (better) return 'Your ' + better;\n", ''],
+  ['item truth: an axe in Storage goes unsaid', 'src/shell/town-work.js', "  if (better) return better;\n", ''],
   ['item truth: a recipe\'s shortage names no source', 'src/shell/town-work.js', "(where ? ' ' + where + '.' : '')", "''"],
   ['item truth: an easy source lists the drop too', 'src/shell/item-lore.js', 'const drop = !easy && r.drops.length ?', 'const drop = r.drops.length ?'],
   ['item truth: a hard source hides the drop', 'src/shell/item-lore.js', 'const drop = !easy && r.drops.length ?', 'const drop = false ?'],
@@ -4797,7 +4801,7 @@ const MUTANTS = [
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
   ['item truth: panel: the play line sells a slot beside an empty one', 'src/app/slot-offer.js', "  if (anEmptySlot(rows)) return t('slots.play_owned'", "  if (false) return t('slots.play_owned'"],
   ['item truth: panel: the press drops the replaced job\'s line', 'src/shell/town-work.js', "return [replaced, words].filter(Boolean).join(' ');", "return words || '';"],
-  ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'You stopped ' + what + '.' : '';", "  return '';"],
+  ['item truth: panel: a replaced job says nothing', 'src/shell/town-work.js', "  return what ? 'Stopped ' + what : '';", "  return '';"],
   ['item truth: panel: pressing the running job says it stopped', 'src/shell/town-work.js', "if (!now || now.id === w.id || !townWorkRunning(", "if (!now || !townWorkRunning("],
   ['AW-62 the Shop\'s confirmation hides the rares', 'src/shell/windows/shop.js', "[p.spare ? '' : rareSaleWords(p.lines), p.kept.length", "[p.kept.length"],
   ['AW-62 the stance words clip', 'src/styles/hunt.css', '.hb-plaque { position: relative; align-self: stretch; width: 232px;', '.hb-plaque { position: relative; align-self: stretch; width: 170px;'],
@@ -4809,7 +4813,7 @@ const MUTANTS = [
   ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
   ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
   ['AW-63 the first press of Enter under the floor walks straight in', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
-  ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Your bag is full.", "  return false ? 'Your bag is full."],
+  ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Bag full", "  return false ? 'Bag full"],
   ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off || choosing);\n", ''],
   ['AW-63 a member has no way out at Enter', 'src/shell/windows/hunts.js', "  prop(det.querySelector('[data-hs-act=\"leave-party\"]'), 'hidden', now || !follower);\n", ''],
   ['AW-65 the answer stays behind a scrolled bag', 'src/styles/windows.css', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '.hs-win .hh-intent-msg:not(:empty, .ca-msg) { padding: 6px 10px; }'],
@@ -4850,7 +4854,7 @@ const MUTANTS = [
   ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],
   ['item truth: Before you go hides the spare juice', 'src/shell/hunt-go.js', "const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';", "const spare = '';"],
   ['item truth: Before you go nags about what is on the bar', 'src/shell/hunt-go.js', "const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));", 'const barNames = () => new Set();'],
-  ['item truth: no drink slot, no word', 'src/shell/hunt-go.js', "if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '", "if (false) out.push({ id: kind, text: KIND_WORDS[kind] + ': no slot on your bar. '"],
+  ['item truth: no drink slot, no word', 'src/shell/hunt-go.js', "if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no bar slot. '", "if (false) out.push({ id: kind, text: KIND_WORDS[kind] + ': no bar slot. '"],
   ['item truth: panel: own stock goes behind the store again', 'src/shell/bar-assign.js', 'const store = named ? -1 : storeSlotFor(wire, id);', 'const store = -1;'],
   ['item truth: panel: own stock keeps its own lower condition', 'src/shell/bar-assign.js', 'conditions: conditions.map((c) => Object.assign({}, c)), join };', 'conditions: startConditions(action), join };'],
   ['item truth: panel: a named slot is overridden', 'src/shell/bar-assign.js', 'const store = named ? -1 : storeSlotFor(wire, id);', 'const store = storeSlotFor(wire, id);'],
@@ -4865,7 +4869,7 @@ const MUTANTS = [
   ['item truth: panel: a live whisper fills the saved list', 'src/shell/alerts.js', 'if (!c.transient) {', 'if (true) {'],
   ['item truth: the rune says Next at level 12: Blank Rune', 'src/data/skill-unlocks.js', 'r.output && r.req <= firstAt(skill, r.output) ? nameOf(r.output) : r.name', 'r.output ? nameOf(r.output) : r.name'],
   ['armor words: her window stops naming the weights', 'src/shell/windows/tally.js', "WEIGHT_ORDER.map(weightSentence).join(' ')", "''"],
-  ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join(' ') + ' Pieces", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join(' ') + ' Pieces"],
+  ['armor words: the Help note forgets medium', 'src/data/how-to-play.js', "    + WEIGHT_ORDER.map(weightSentence).join('\\n') + '\\nWeights", "    + WEIGHT_ORDER.filter((w) => w !== 'medium').map(weightSentence).join('\\n') + '\\nWeights"],
   ['a bag icon draws at 1.5x in its well', 'src/styles/windows.css', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 48px; height: 48px; }'],
   ['the Shop lines go 2x again', 'src/styles/windows.css', '.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }', '.hw-line .hw-ico .hh-icon { width: 64px; height: 64px; }'],
   ['the bag wells stay 36 px on Steam', 'src/styles/windows.css', 'width: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px);', 'width: 36px; height: 36px;'],
@@ -4888,10 +4892,10 @@ const MUTANTS = [
   ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return baneTrade(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
-  ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} (slot {slot}) when both are ready.',", "  shared_cooldown: 'Shares a cooldown with {action} (slot {slot}), which fires first when both are ready.',"],
+  ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} in slot {slot} when both are ready',", "  shared_cooldown: 'Shares a cooldown with {action} in slot {slot}',"],
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],
   ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/shell/upgrade-plan.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
-  ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? '. To cast '", "(fixes.length > 9 ? '. To cast '"],
+  ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? ', pick '", "(fixes.length > 9 ? ', pick '"],
   ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt);\n    if (weak) out.push(weak);\n', ''],
   ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/hunt-go.js', 'return best && best.amount < want.heals ? best.id : null;', 'return best && best.amount * 2 < want.heals ? best.id : null;'],
   ['plans: AW-27 a club hero is warned about another weapon', 'src/shell/hunt-go.js', 'if (moveOffWeapon(s.discipline, a.id)) return null;', ''],
@@ -4919,7 +4923,7 @@ const MUTANTS = [
   ['plans: AW-65 a store rune above the level says only that the server refused', 'src/shell/action-facts.js', "    if (sl.usable === false && sl.why === 'store_level') {", '    if (false) {'],
   ['plans: AW-27 a store rune above the level is promised as what casts', 'src/shell/hunt-go.js', "  const off = sl.why === 'store_off' || sl.why === 'store_level';", "  const off = sl.why === 'store_off';"],
   ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
-  ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ' You carry ' + whole(spare.qty) + ' ' + itemName(spare.id) + ': put them on the bar to shoot them.' : '')", "''"],
+  ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ', ' + whole(spare.qty) + ' ' + itemName(spare.id) + ' not on the bar' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],
   /* the loaded slot's shot is read where its cost line is (cast-facts.js stockOf since v0.2.111; bar-draft storeOf no longer sees `worn`) */
   ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/cast-facts.js', "const id = Object.prototype.hasOwnProperty.call(ATTACK_KINDS, a.id) ? worn : a.id;", "const id = Object.prototype.hasOwnProperty.call(ATTACK_KINDS, a.id) ? 'steel_arrows' : a.id;"],
@@ -4966,7 +4970,7 @@ const MUTANTS = [
   ['the client cannot declare gathering', 'src/session/edge-intents.js', "(v.kind === 'artisan' || v.kind === 'gather')", "v.kind === 'artisan'"],
   ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return skillShortWords(", "  if (false) return skillShortWords("],
   ['the running row offers no Stop', 'src/shell/windows/work.js', "text(b, running ? 'Stop' : 'Start');", "text(b, 'Start');"],
-  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs)), '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.');", '  if (e) return [];'],
+  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs)), '');", '  if (e) return [];'],
   ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);", "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), [], '. ' + tail);"],
   ['a watched bench is never re-read', 'src/shell/shell.js', "(wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);", "false) watchTown(ctx.character);"],
   ['raw food offers no Cook all', 'src/shell/bag-model.js', "      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;", '      continue;'],
@@ -5027,7 +5031,7 @@ const MUTANTS = [
   ['a pending count reads as final', 'src/shell/windows/inventory/pockets.js', "  cls(el, 'is-ahead', !!ahead);\n", ''],
   /* AW-24 the town ticker. `ticker:` mutants are judged by the pure rules on a temp copy of src (tickerMutant). */
   ['ticker: it counts an action before the engine has done it', 'src/shell/town-ticker.js', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs,', 'const ctx = { fromMs: win.fromMs, toMs: win.toMs + stepMs,'],
-  ['ticker: the line does not mark the pending count', 'src/shell/town-work.js', "parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: s.ahead !== 0 });", "parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: false });"],
+  ['ticker: the line does not mark the pending count', 'src/shell/town-work.js', "parts.push({ key: 'bag', text: whole(s.qty) + ' in bag', ahead: s.ahead !== 0 });", "parts.push({ key: 'bag', text: whole(s.qty) + ' in bag', ahead: false });"],
   ['ticker: a payout does not restart the count (the old record is kept)', 'src/shell/town-work.js', '  if (m && m.rec === rec && m.at === at && m.no === no) return m.tick;', '  if (m && m.at === at && m.no === no) return m.tick;'],
   ['ticker: a payout under the prediction never snaps down (merged upward)', 'src/shell/town-ticker.js', '  const d = aheadQty(tick, id);\n  return { qty: Math.max(0, (Number(qty) || 0) + d), ahead: d };',
     '  const d = aheadQty(tick, id);\n  const q = Math.max(HIGH[id] || 0, (Number(qty) || 0) + d);\n  HIGH[id] = q;\n  return { qty: q, ahead: q - (Number(qty) || 0) };'],
@@ -5053,8 +5057,8 @@ const COMPANION = { 'the doll wears the item before the server confirms': ['src/
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
-    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p></section>'`,
-    `    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
+    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing to sell</p></section>'`,
+    `    + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing to sell</p>'
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes" data-coach-hook="sell-confirm"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div></section>'`] };

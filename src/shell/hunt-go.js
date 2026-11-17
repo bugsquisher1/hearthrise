@@ -224,7 +224,7 @@ function shotLine(s, cs, carried) {
   const worn = (equipmentOf(cs) || {}).ammo || null;
   const skills = skillsOf(cs);
   const plan = shotPlan(s, worn, carried, skills);
-  const waiting = plan.locked.map((l) => ', ' + itemName(l.id) + ' waits: ' + l.text).join('');
+  const waiting = plan.locked.map((l) => ', ' + itemName(l.id) + ': ' + l.text).join('');
   const dry = !!worn && shootsItem(s.role, ITEMS[worn]) && !((carried.find((r) => r.id === worn) || {}).qty > 0) ? 'no ' + itemName(worn) + ' left' : null;
   if (!plan.own.length && !plan.store.length) {
     const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && !shortOf(r.id, skills, null));

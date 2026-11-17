@@ -301,7 +301,7 @@ const MUTANTS = [
   { name: 'mana is named ahead of a marked wait', case: 'order',
     edits: [['src/shell/slot-waits.js', '  if (w && !w.rest) return w;\n', '']] },
   { name: 'Configure action says nothing about a lone monster', case: 'configure-note',
-    edits: [['src/shell/slot-waits.js', "    if (need === 2) return 'On a lone monster this slot waits and your hero fights on without it. To use it on one, remove this condition.';\n", '']] },
+    edits: [['src/shell/slot-waits.js', "    if (need === 2) return 'Waits on a lone monster';\n", '']] },
   { name: 'a suggestion names a metric the engine can\'t read', case: 'suggestions-readable',
     edits: [['src/data/abilities.js', "return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];", "return [{ metric: 'enemies_near', op: 'gte', value: ABILITY_RULES.areaMin }];"]] },
   { name: 'a metric has no words', case: 'suggestions-readable',

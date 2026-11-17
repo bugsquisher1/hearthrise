@@ -9,7 +9,7 @@
 
 export const SLOTS_TEXT = Object.freeze({
   /* The line over the roster when more slots can be bought. {count} the slots owned, {most} how many heroes can play at once. */
-  more_cost_gold: { one: 'Hero slots: {count}, up to {most} play at once', other: 'Hero slots: {count}, up to {most} play at once' },
+  more_cost_gold: { one: 'Hero slots: {count}, up to {most} play at once, more cost gold', other: 'Hero slots: {count}, up to {most} play at once, more cost gold' },
   /* The line over the roster with a slot left to fill, or nothing for sale (labels, Tyler 2026-11-14). */
   play_one: 'Heroes at once: 1',
   play_up_to: 'Heroes at once: up to {most}',

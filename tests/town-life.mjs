@@ -1,0 +1,226 @@
+#!/usr/bin/env node
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// tests/town-life.mjs — HAVORA BREATHES: SMOKE FROM ITS CHIMNEYS, SPARKS FROM THE HEARTH, DAYLIGHT ON ITS WATER (display only).
+//   src/data/world/ambient-life.js (what), src/world/core/ambient.js (where and when), compose.js (in which layer),
+//   tools/world-art/town-life.mjs -> assets/world/atlas-townlife (the art). Tyler 2026-11-16: "it doesn't feel 'alive' what so ever."
+//
+//   node tests/town-life.mjs             the guard
+//   node tests/town-life.mjs --selftest  every planted defect must turn its arm red
+//
+// mutant-anchors: none — --selftest plants its own values
+//
+//   TL-SMOKE  every placed sprite with emitters gives exactly its loops, each at the sprite's own placement plus its point, and
+//             that point is on the sprite's art (an opaque pixel at or just under it: a chimney's mouth, not the sky beside it)
+//   TL-WATER  the town's glints lie only where a cell and its eight neighbours are water, never under anything placed, never two
+//             touching, at a density a player reads as light on water (8-22% of the open water's cells); a map that does not
+//             name the surface lays none; the same row lays the same life twice
+//   TL-BEAT   every clip it names is in the townlife atlas with an idle loop whose rate divides LIFE_BEAT_FPS, the Hearth fire's
+//             own (frames that turn together are one paint: tests/perf-budget.mjs town paints)
+//   TL-DRAW   a frame of the town draws them where they belong: the water light first among the standing (under every unit),
+//             smoke last among the raised (over the roofs, under the light), sparks with the effects; nothing off the view;
+//             each loop advances one frame per beat from its own phase, so the chimneys never puff in step
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
+import { decodePNG } from '../tools/world-art/png.mjs';
+import { createBook } from '../src/world/core/book.js';
+import { compileMap } from '../src/world/core/map-compile.js';
+import { composeFrame } from '../src/world/core/compose.js';
+import { lifeOf, lifeDraws } from '../src/world/core/ambient.js';
+import { WORLD_MAPS } from '../src/data/world/maps/index.js';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../src/data/world/terrain.js';
+import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
+import { EMITTERS, SURFACES, LIFE_BEAT_FPS } from '../src/data/world/ambient-life.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const manifest = (set) => JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8'));
+const MANIFESTS = Object.fromEntries(ATLAS_SETS.map((s) => [s, manifest(s)]));
+const sheets = new Map();
+const sheet = (set) => { if (!sheets.has(set)) sheets.set(set, decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.png')))); return sheets.get(set); };
+const TOWN = WORLD_MAPS.find((m) => m.id === 'town_common');
+/* the harbour (open sea, the fishing pier) and Hearth Square's north side (the flue, the fire): two views a player stands in */
+const VIEWS = Object.freeze({ harbour: [149, 86], hearth: [141, 41] });
+/* a 24 x 24 meadow round a 16 x 16 pond, as a map row (map-compile.js ROW SHAPE) */
+const POND = Object.freeze({ id: 'pond', name: 'Pond', kind: 'town', hunts: [], outdoor: true, light: 'day', ground: null, legend: { '.': 'grass', '~': 'water' },
+  rows: Array.from({ length: 24 }, (_, y) => Array.from({ length: 24 }, (_, x) => (x >= 4 && x < 20 && y >= 4 && y < 20 ? '~' : '.')).join('')), objects: [], start: [1, 1] });
+
+/** Every problem the town's life has, from the given implementation and data (a mutant passes its own). */
+export function problems(env) {
+  const out = [];
+  const bad = (arm, msg) => out.push(arm + ' ' + msg);
+  const book = createBook(env.manifests);
+  const tables = { materials: MATERIALS, sprites: book.sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+  const compile = (row) => { const m = compileMap(row, tables); m.life = env.lifeOf(row, m.objects, m.ground, book.sprites, m.w, m.h, m.T); return m; };
+  const town = compile(env.town);
+  const T = town.T;
+
+  /* TL-SMOKE */
+  const loops = town.life.filter((a) => !/^water_/.test(a.id));
+  let want = 0;
+  for (const o of town.objects) {
+    const list = env.emitters[o.id];
+    if (!list) continue;
+    const s = book.sprite(o.id);
+    const bx = o.x * T + Math.floor((o.fw * T) / 2) - s.anchor[0], by = o.y * T + o.fh * T - 1 - s.anchor[1];
+    const f = book.frame(o.id, Object.keys(s.anims)[0], 's', 0);
+    const img = sheet(f.set);
+    const opaque = (x, y) => x >= 0 && y >= 0 && x < f.w && y < f.h && img.data[((f.sy + y) * img.width + f.sx + x) * 4 + 3] >= 128;
+    for (const e of list) {
+      want++;
+      const px = bx + e.at[0], py = by + e.at[1];
+      if (!loops.some((a) => a.id === e.clip && a.px === px && a.py === py)) bad('TL-SMOKE', o.id + ' at ' + o.x + ',' + o.y + ': its ' + e.clip + ' is not at its point (' + px + ',' + py + ')');
+      let on = false;
+      for (let dy = -1; dy <= 4 && !on; dy++) on = opaque(e.at[0], e.at[1] + dy);
+      if (!on) bad('TL-SMOKE', o.id + ': the ' + e.clip + ' point ' + e.at.join(',') + ' is not on the sprite\'s art (no opaque pixel at or under it)');
+    }
+  }
+  if (loops.length !== want) bad('TL-SMOKE', 'the town lays ' + loops.length + ' smoke and spark loops, its placed emitters name ' + want);
+  for (const id of ['hearth_smoke', 'hearth_embers']) if (!loops.some((a) => a.id === id)) bad('TL-SMOKE', 'the Great Hearth gives off no ' + id);
+
+  /* TL-WATER */
+  const glints = town.life.filter((a) => /^water_/.test(a.id));
+  const water = (x, y) => x >= 0 && y >= 0 && x < town.w && y < town.h && town.ground[y * town.w + x] === 'water';
+  const covered = new Uint8Array(town.w * town.h);
+  for (const o of town.objects) {
+    const s = book.sprite(o.id);
+    if (!s.anchor || !s.frame) continue;
+    const bx = o.x * T + Math.floor((o.fw * T) / 2) - s.anchor[0], by = o.y * T + o.fh * T - 1 - s.anchor[1];
+    for (let y = Math.max(0, Math.floor(by / T)); y <= Math.min(town.h - 1, Math.floor((by + s.frame[1] - 1) / T)); y++) {
+      for (let x = Math.max(0, Math.floor(bx / T)); x <= Math.min(town.w - 1, Math.floor((bx + s.frame[0] - 1) / T)); x++) covered[y * town.w + x] = 1;
+    }
+  }
+  let open = 0;
+  for (let y = 0; y < town.h; y++) for (let x = 0; x < town.w; x++) {
+    let ok = true;
+    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) ok = water(x + dx, y + dy);
+    if (ok) open++;
+  }
+  const cells = new Set();
+  for (const g of glints) {
+    const x = Math.floor(g.px / T), y = Math.floor(g.py / T);
+    let ok = true;
+    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) ok = water(x + dx, y + dy);
+    if (!ok) { bad('TL-WATER', 'a glint at cell ' + x + ',' + y + ' is not in open water (a bank, a quay or dry ground beside it)'); continue; }
+    if (covered[y * town.w + x]) bad('TL-WATER', 'a glint at cell ' + x + ',' + y + ' lies under something placed over the water');
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (cells.has((x + dx) + ',' + (y + dy))) bad('TL-WATER', 'two glints touch at ' + x + ',' + y);
+    cells.add(x + ',' + y);
+  }
+  const share = open ? glints.length / open : 0;
+  if (!(share >= 0.08 && share <= 0.22)) bad('TL-WATER', 'glints on ' + (share * 100).toFixed(1) + '% of the open water (want 8-22%: sparse reads as dead, dense as noise)');
+  if (JSON.stringify(compile(env.town).life) !== JSON.stringify(town.life)) bad('TL-WATER', 'the same row laid different life twice');
+  /* no shipped map but the town has 'water' ground (the grounds' brooks and the sewer's sewage are their own), so a pond stands in: lit when it asks, dark when not */
+  const pondLit = compile(Object.assign({}, POND, { life: ['water'] })).life.length, pondDark = compile(POND).life.length;
+  if (!pondLit) bad('TL-WATER', 'a pond that names water lays no glints');
+  if (pondDark) bad('TL-WATER', 'a pond that names no surface lays ' + pondDark + ' glints');
+
+  /* TL-BEAT */
+  const ids = new Set([...Object.values(env.emitters).flatMap((l) => l.map((e) => e.clip)), ...Object.values(env.surfaces).flatMap((s) => s.clips)]);
+  const life = env.manifests.townlife || { sprites: {} };
+  for (const id of ids) {
+    const s = life.sprites[id];
+    const fps = s && s.anims && s.anims.idle && s.anims.idle.fps;
+    if (!s) { bad('TL-BEAT', id + ' is not in the townlife atlas'); continue; }
+    if (!fps || !s.anims.idle.loop || LIFE_BEAT_FPS % fps !== 0) bad('TL-BEAT', id + ' turns at ' + fps + ' fps, off the ' + LIFE_BEAT_FPS + ' fps beat');
+  }
+  const fire = env.manifests.common.sprites.hearth_fire;
+  if (!fire || fire.anims.idle.fps !== LIFE_BEAT_FPS) bad('TL-BEAT', 'the Great Hearth fire is no longer on the beat (' + (fire && fire.anims.idle.fps) + ' fps): LIFE_BEAT_FPS follows it');
+
+  /* TL-DRAW */
+  const t0 = 5_000_000;
+  for (const [name, [hx, hy]] of Object.entries(VIEWS)) {
+    const view = { ox: (hx + 0.5) * T - 480, oy: (hy + 0.5) * T - 270, w: 960, h: 540 };
+    const list = env.composeFrame(town, book, { t: t0, hero: { x: hx, y: hy } }, view, tables, T);
+    /* kept as compose.js keeps the standing and the raised: two tiles round the view; an effect only in it */
+    const inView = town.life.filter((a) => { const s = book.sprite(a.id); const m = s.class === 'vfx' ? 0 : 2 * T; const x = a.px - s.anchor[0], y = a.py - s.anchor[1]; return x < view.ox + view.w + m && y < view.oy + view.h + m && x + s.frame[0] > view.ox - m && y + s.frame[1] > view.oy - m; });
+    const drawn = [...list.sprites, ...list.raised].filter((d) => d.kind === 'life').length + list.fx.filter((e) => ids.has(e.id)).length;
+    if (drawn !== inView.length) bad('TL-DRAW', name + ': ' + drawn + ' life loops drawn, ' + inView.length + ' in view');
+    const firstOther = list.sprites.findIndex((d) => d.kind !== 'life');
+    const lastGlint = list.sprites.map((d) => d.kind === 'life').lastIndexOf(true);
+    if (lastGlint > firstOther && firstOther >= 0) bad('TL-DRAW', name + ': water light drawn over something standing (sprite ' + lastGlint + ' after ' + firstOther + ')');
+    if (list.sprites.some((d) => d.kind === 'life' && !/^water_/.test(d.id))) bad('TL-DRAW', name + ': smoke or sparks drawn among the standing');
+    const lastRoof = list.raised.map((d) => d.kind !== 'life').lastIndexOf(true);
+    const firstSmoke = list.raised.findIndex((d) => d.kind === 'life');
+    if (firstSmoke >= 0 && firstSmoke < lastRoof) bad('TL-DRAW', name + ': smoke drawn under a roof or a rock top');
+    if (list.raised.some((d) => d.kind === 'life' && book.sprite(d.id).class !== 'plume')) bad('TL-DRAW', name + ': something other than smoke drawn in the air');
+    if (list.fx.some((e) => /smoke|water_/.test(e.id))) bad('TL-DRAW', name + ': smoke or water light drawn after the light (it would ignore the day and the vignette)');
+    if (name === 'hearth' && !list.fx.some((e) => e.id === 'hearth_embers')) bad('TL-DRAW', 'hearth: the sparks are not drawn with the effects');
+  }
+  /* one frame per beat from its own phase */
+  const view = { ox: 0, oy: 0, w: town.w * T, h: town.h * T };
+  const at = (t) => env.lifeDraws(town, book, t, view, T);
+  const a = at(t0), b = at(t0 + 1000 / LIFE_BEAT_FPS);
+  const key = (d) => d.sx + ',' + d.sy;
+  const smokeA = a.air.map(key), smokeB = b.air.map(key);
+  if (!smokeA.length) bad('TL-DRAW', 'no smoke drawn over the whole town');
+  if (smokeA.some((k, i) => k === smokeB[i])) bad('TL-DRAW', 'a chimney\'s smoke did not turn in one beat');
+  if (new Set(smokeA).size < Math.min(4, smokeA.length)) bad('TL-DRAW', 'the chimneys puff in step (' + new Set(smokeA).size + ' different frames across ' + smokeA.length + ')');
+  return out;
+}
+
+const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame });
+
+function selftest() {
+  const ok = problems(real());
+  if (ok.length) { console.error('selftest: the clean control is red:\n  ' + ok.join('\n  ')); return 1; }
+  const base = real();
+  const sprites = (set, edit) => Object.assign({}, MANIFESTS, { [set]: Object.assign({}, MANIFESTS[set], { sprites: edit(Object.assign({}, MANIFESTS[set].sprites)) }) });
+  const withLife = (fn) => (row, objects, ground, sp, w, h, T) => fn(lifeOf(row, objects, ground, sp, w, h, T), { row, objects, ground, w, h, T });
+  const firstGlint = (l) => l.find((a) => /^water_/.test(a.id));
+  const mutants = {
+    'a chimney point in the sky beside it': { emitters: Object.assign({}, EMITTERS, { havora_home_p09: [{ clip: 'chimney_smoke', at: [3, 2] }] }) },
+    'the smoke ignores the sprite anchor': { lifeOf: withLife((l) => l.map((a) => (/smoke/.test(a.id) ? Object.assign({}, a, { px: a.px + 16 }) : a))) },
+    'a home loses its smoke': { lifeOf: withLife((l) => { const i = l.findIndex((a) => a.id === 'chimney_smoke'); return l.filter((_, j) => j !== i); }) },
+    'the Hearth gives off no sparks': { emitters: Object.assign({}, EMITTERS, { great_hearth: EMITTERS.great_hearth.filter((e) => e.clip !== 'hearth_embers') }) },
+    'a glint on the bank': { lifeOf: withLife((l, m) => {
+      for (let y = 1; y < m.h - 1; y++) for (let x = 1; x < m.w - 1; x++) if (m.ground[y * m.w + x] === 'water' && m.ground[y * m.w + x + 1] !== 'water') return l.concat({ id: 'water_glint_a', px: x * m.T + 16, py: y * m.T + 16, phase: 0 });
+      return l;
+    }) },
+    'two glints touch': { lifeOf: withLife((l, m) => { const g = firstGlint(l); return !g ? l : l.concat(Object.assign({}, g, { px: g.px + m.T })); }) },
+    'a glint under the fishing pier': { lifeOf: withLife((l, m) => {
+      const b = m.objects.find((o) => o.id === 'fishing_pier');
+      if (!b) return l;
+      const open = (x, y) => [-1, 0, 1].every((dy) => [-1, 0, 1].every((dx) => m.ground[(y + dy) * m.w + x + dx] === 'water'));
+      for (let y = b.y - 4; y < b.y + b.fh; y++) for (let x = b.x - 1; x < b.x + b.fw + 1; x++) if (open(x, y)) return l.concat({ id: 'water_glint_b', px: x * m.T + 16, py: y * m.T + 16, phase: 0 });
+      return l;
+    }) },
+    'the water glitters on every other cell': { lifeOf: withLife((l, m) => {
+      const out = l.filter((x) => !/^water_/.test(x.id)), taken = new Set();
+      const open = (x, y) => m.ground[y * m.w + x] === 'water';
+      for (let y = 1; y < m.h - 1; y++) for (let x = 1; x < m.w - 1; x++) {
+        let ok = true;
+        for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) ok = open(x + dx, y + dy) && !taken.has((x + dx) + ',' + (y + dy));
+        if (ok) { taken.add(x + ',' + y); out.push({ id: 'water_glint_a', px: x * m.T + 16, py: y * m.T + 16, phase: 0 }); }
+      }
+      return out;
+    }) },
+    'the water barely glints': { lifeOf: withLife((l) => l.filter((a, i) => !/^water_/.test(a.id) || i % 3 === 0)) },
+    'a ground that never asked gets glints': { lifeOf: (row, ...rest) => lifeOf(Object.assign({}, row, { life: ['water'] }), ...rest) },
+    'the glints differ between two compiles': { lifeOf: (() => { let n = 0; return withLife((l) => (++n % 2 ? l : l.map((a) => (/^water_/.test(a.id) ? Object.assign({}, a, { phase: a.phase + 1 }) : a)))); })() },
+    'the smoke turns off the beat': { manifests: sprites('townlife', (s) => Object.assign(s, { chimney_smoke: Object.assign({}, s.chimney_smoke, { anims: { idle: Object.assign({}, s.chimney_smoke.anims.idle, { fps: 6 }) } }) })) },
+    'a clip missing from the atlas': { manifests: sprites('townlife', (s) => { delete s.water_glint_b; return s; }) },
+    'the Hearth fire moves off the beat': { manifests: sprites('common', (s) => Object.assign(s, { hearth_fire: Object.assign({}, s.hearth_fire, { anims: { idle: Object.assign({}, s.hearth_fire.anims.idle, { fps: 10 }) } }) })) },
+    'compose drops the water light': { composeFrame: (...a) => { const l = composeFrame(...a); return Object.assign({}, l, { sprites: l.sprites.filter((d) => d.kind !== 'life') }); } },
+    'the water light drawn over the standing': { composeFrame: (...a) => { const l = composeFrame(...a); const g = l.sprites.filter((d) => d.kind === 'life'); return Object.assign({}, l, { sprites: l.sprites.filter((d) => d.kind !== 'life').concat(g) }); } },
+    'smoke drawn among the standing': { composeFrame: (...a) => { const l = composeFrame(...a); const s = l.raised.filter((d) => d.kind === 'life'); return Object.assign({}, l, { raised: l.raised.filter((d) => d.kind !== 'life'), sprites: l.sprites.concat(s) }); } },
+    'smoke drawn after the light': { composeFrame: (...a) => { const l = composeFrame(...a); const s = l.raised.filter((d) => d.kind === 'life'); return Object.assign({}, l, { raised: l.raised.filter((d) => d.kind !== 'life'), fx: l.fx.concat(s) }); } },
+    'every chimney in step': { lifeOf: withLife((l) => l.map((a) => (a.id === 'chimney_smoke' ? Object.assign({}, a, { phase: 0 }) : a))) },
+    'the smoke never turns': { lifeDraws: (map, book, t, ...r) => lifeDraws(map, book, 5_000_000, ...r) },
+  };
+  let missed = 0;
+  for (const [name, m] of Object.entries(mutants)) {
+    const found = problems(Object.assign({}, base, m));
+    if (found.length) console.log('  caught  ' + name + ' [' + found[0].split(' ')[0] + ']'); else { console.error('  MISSED  ' + name); missed++; }
+  }
+  if (missed) { console.error('town-life --selftest: ' + missed + ' planted defect(s) missed'); return 1; }
+  console.log('town-life --selftest: all ' + Object.keys(mutants).length + ' planted defects caught; the clean control is silent');
+  return 0;
+}
+
+if (isMain(import.meta.url)) {
+  if (process.argv.includes('--selftest')) process.exit(selftest());
+  const found = problems(real());
+  if (found.length) { console.error('town-life: RED\n  ' + found.join('\n  ')); process.exit(1); }
+  console.log('town-life: green — every chimney smokes from its mouth, the Hearth smokes and sparks, glints only on open water, every loop on the 8 fps beat and in its layer');
+}

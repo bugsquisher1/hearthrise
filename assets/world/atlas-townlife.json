@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "set": "townlife",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-townlife.png",
+  "size": [512,432],
+  "pixels": "47281da64dbb49db51d2364408385f4fb71cc2571b7ed3266c72b5ebd381e91c",
+  "sprites": {
+    "chimney_smoke": {
+      "class": "plume",
+      "layer": "air",
+      "frame": [34,48],
+      "anchor": [10,44],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 39,
+      "contact": [7,13],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[0,291],[35,291],[280,291],[315,291],[350,291],[385,291],[420,291],[455,291],[0,340],[35,340],[70,291],[105,291],[140,291],[175,291],[210,291],[245,291]]
+          }
+        }
+      }
+    },
+    "hearth_embers": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [40,40],
+      "anchor": [20,36],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 5,
+      "contact": [12,17],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[70,340],[111,340],[398,340],[439,340],[0,389],[41,389],[82,389],[123,389],[164,389],[205,389],[152,340],[193,340],[234,340],[275,340],[316,340],[357,340]]
+          }
+        }
+      }
+    },
+    "hearth_smoke": {
+      "class": "plume",
+      "layer": "air",
+      "frame": [60,96],
+      "anchor": [18,90],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [14,22],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[0,0],[61,0],[244,97],[61,194],[122,194],[183,194],[244,194],[305,194],[366,194],[427,194],[122,0],[183,0],[244,0],[305,0],[366,0],[427,0],[0,97],[61,97],[122,97],[183,97],[305,97],[366,97],[427,97],[0,194]]
+          }
+        }
+      }
+    },
+    "water_glint_a": {
+      "class": "glint",
+      "layer": "decal",
+      "frame": [11,3],
+      "anchor": [5,2],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 1,
+      "contact": [4,5],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 4,
+          "loop": true,
+          "dirs": {
+            "s": [[246,389],[258,389],[270,389],[282,389],[294,389],[306,389],[306,389],[306,389]]
+          }
+        }
+      }
+    },
+    "water_glint_b": {
+      "class": "glint",
+      "layer": "decal",
+      "frame": [13,2],
+      "anchor": [6,1],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 1,
+      "contact": [0,12],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 4,
+          "loop": true,
+          "dirs": {
+            "s": [[318,389],[332,389],[346,389],[360,389],[374,389],[388,389],[402,389],[416,389]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {}
+}

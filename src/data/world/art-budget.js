@@ -120,6 +120,12 @@ export const CLASSES = Object.freeze({
   // a projectile's tip). It never touches the floor and casts no shadow; frames may be
   // blank (an effect fades in and out). `blend` 'add' draws it additively (light), else over.
   vfx: row({ body: [2, 72], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'fx', blank: true }),
+  // AMBIENT LIFE (src/data/world/ambient-life.js, tools/world-art/town-life.mjs): a column of smoke over a chimney or the
+  // Great Hearth's flue, its anchor the mouth it leaves, drawn in the AIR (over the roofs, under the light and the vignette, as
+  // the world is); measured by how tall it climbs.
+  plume: row({ body: [24, 96], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'air', blank: true }),
+  // ...and daylight caught on a wave: a few pixels lying flat on the water, under everything standing; between flashes blank.
+  glint: row({ body: [1, 12], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal', blank: true }),
 });
 
 // Terrain is T×T, fully opaque. kind 'wang16': corner tiles keyed NW NE SW SE,

@@ -1,0 +1,135 @@
+// ════════════════════════════════════════════════════════════════════════
+// src/world/core/ambient.js — A MAP'S LIFE: SMOKE, SPARKS AND DAYLIGHT ON THE WATER (display only).
+//
+// map-compile.js lays it once per map (lifeOf -> map.life) and compose.js draws it every frame
+// (lifeDraws). Nothing here reads a server value, spends, gates or blocks a step; the same map always
+// lays the same life, so every client draws the same town.
+//   EMITTERS  a placed sprite's own points (src/data/world/ambient-life.js): a chimney's mouth in the
+//             sprite's pixels, placed by the rule compose.js places the sprite by, so a home's smoke rises
+//             from its chimney wherever it stands
+//   SURFACES  a material that catches the light, on a map whose row names it (`life: ['water']`): a glint on
+//             about one cell in `every`, by a seeded hash, only where the cell and its eight neighbours are
+//             that material (never on a bank's blend), never under anything placed over it (a bridge's
+//             deck), never two touching, at a jittered pixel inside its cell
+// Each loop starts at its own frame (`phase`, a hash), so the chimneys never puff in step and the water
+// never flashes as one; every clip turns on one beat (LIFE_BEAT_FPS), so a frame where several turn is
+// one paint. The art's layer picks where it is drawn (lifeDraws).
+// PURE: no DOM, no window, no G.
+// ════════════════════════════════════════════════════════════════════════
+import { EMITTERS, SURFACES } from '../../data/world/ambient-life.js?v=0.2.133';
+
+/** An integer hash of three numbers (the same on every client). */
+export function lifeHash(a, b, c) {
+  let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 1440662683);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/** Where a placed object's frame lands, art px (compose.js frameBox's rule for a standing sprite). */
+const frameAt = (o, s, T) => [o.x * T + Math.floor((o.fw * T) / 2) - s.anchor[0], o.y * T + o.fh * T - 1 - s.anchor[1]];
+
+/**
+ * The map's life, laid once.
+ * @param {{life?: string[]}} row  the map row
+ * @param {{id: string, x: number, y: number, fw: number, fh: number}[]} objects  compiled objects
+ * @param {string[]} ground  material id per cell
+ * @param {object} sprites  manifest sprite records by id
+ * @param {number} w @param {number} h @param {number} T
+ * @returns {{id: string, px: number, py: number, phase: number}[]}  px, py: the clip's anchor, art px
+ */
+export function lifeOf(row, objects, ground, sprites, w, h, T) {
+  const out = [];
+  for (const o of objects) {
+    const list = EMITTERS[o.id], s = sprites[o.id];
+    if (!list || !s || !s.anchor) continue;
+    const [bx, by] = frameAt(o, s, T);
+    list.forEach((e, k) => out.push({ id: e.clip, px: bx + e.at[0], py: by + e.at[1], phase: lifeHash(o.x, o.y, k + 1) }));
+  }
+  const names = (row.life || []).filter((n) => SURFACES[n]);
+  if (!names.length) return out;
+  /* the cells something placed is drawn over (a bridge, a pier's piles, a tree's crown) */
+  const covered = new Uint8Array(w * h);
+  for (const o of objects) {
+    const s = sprites[o.id];
+    if (!s || !s.anchor || !s.frame) continue;
+    const [bx, by] = frameAt(o, s, T);
+    for (let y = Math.max(0, Math.floor(by / T)); y <= Math.min(h - 1, Math.floor((by + s.frame[1] - 1) / T)); y++) {
+      for (let x = Math.max(0, Math.floor(bx / T)); x <= Math.min(w - 1, Math.floor((bx + s.frame[0] - 1) / T)); x++) covered[y * w + x] = 1;
+    }
+  }
+  for (const name of names) {
+    const sf = SURFACES[name];
+    const taken = new Uint8Array(w * h);
+    const open = (x, y) => x >= 0 && y >= 0 && x < w && y < h && ground[y * w + x] === name;
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const r = lifeHash(x, y, sf.seed);
+        if (r % sf.every !== 0 || covered[y * w + x]) continue;
+        let ok = true;
+        for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) ok = open(x + dx, y + dy) && !taken[(y + dy) * w + x + dx];
+        if (!ok) continue;
+        taken[y * w + x] = 1;
+        const q = lifeHash(y, x, sf.seed);
+        out.push({ id: sf.clips[q % sf.clips.length], px: x * T + 6 + ((q >>> 8) % (T - 12)), py: y * T + 6 + ((q >>> 16) % (T - 12)), phase: q >>> 24 });
+      }
+    }
+  }
+  return out;
+}
+
+/* WHERE A LOOP SITS IN THE FRAME, by its art's layer: water light on the ground among the standing things but under all of
+   them (its row far below any contact row; nothing stands on open water, so nothing it could cover is ever near it), smoke
+   in the air over the roofs (the raised layer; both are drawn before the light, so the day and the vignette fall on them as
+   on the world), sparks with the effects after the light (fire is its own light, as the Hearth's fire is). */
+const GROUND_ROW = -(1 << 22), AIR_ROW = 1 << 22;
+/* the life of a map, banded by row so a frame reads only the bands its view crosses (a town has hundreds of glints) */
+const BAND = 256;
+const bandsOf = new WeakMap();
+function bands(life, book) {
+  let b = bandsOf.get(life);
+  if (b) return b;
+  b = { by: new Map(), pad: 0 };
+  for (const a of life) {
+    const k = Math.floor(a.py / BAND);
+    if (!b.by.has(k)) b.by.set(k, []);
+    b.by.get(k).push(a);
+    const s = book.sprite(a.id);
+    if (s.frame) b.pad = Math.max(b.pad, s.frame[0], s.frame[1]);
+  }
+  bandsOf.set(life, b);
+  return b;
+}
+
+/**
+ * The life in view this frame, as draw-list entries: `ground` (to the standing list), `air` (to the raised list), `glow`
+ * (to the effects). Each loop turns on its clip's fps from its own `phase`.
+ * @param {{life?: object[]}} map  compiled map
+ * @param {object} book  the atlas book
+ * @param {number} t  ms (the state's clock)
+ * @param {{ox: number, oy: number, w: number, h: number}} view
+ * @param {number} T
+ */
+export function lifeDraws(map, book, t, view, T) {
+  const ground = [], air = [], glow = [];
+  if (!map.life || !map.life.length) return { ground, air, glow };
+  const b = bands(map.life, book);
+  for (let k = Math.floor((view.oy - b.pad - 2 * T) / BAND); k <= Math.floor((view.oy + view.h + b.pad + 2 * T) / BAND); k++) {
+    for (const a of b.by.get(k) || []) {
+      const s = book.sprite(a.id);
+      const clip = s.anims && s.anims.idle;
+      if (!clip || !clip.fps || !s.frame) continue;
+      const x = a.px - s.anchor[0], y = a.py - s.anchor[1];
+      /* what is drawn with the standing and the raised is kept as compose.js keeps them (two tiles round the view, its `near`);
+         an effect off the view is no change at all. Every loop turns on the one beat, so one just off the view adds no paint. */
+      const m = s.layer === 'decal' || s.layer === 'air' ? 2 * T : 0;
+      if (!(x < view.ox + view.w + m && y < view.oy + view.h + m && x + s.frame[0] > view.ox - m && y + s.frame[1] > view.oy - m)) continue;
+      const n = book.frames(a.id, 'idle', 's');
+      const f = book.frame(a.id, 'idle', 's', (Math.floor((Math.max(0, t) * clip.fps) / 1000) + a.phase) % n);
+      const d = { id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x, y, alpha: 1, kind: 'life', cls: s.class, tx: Math.floor(a.px / T), ty: Math.floor(a.py / T), ref: null };
+      if (s.layer === 'decal') ground.push(Object.assign(d, { row: GROUND_ROW + a.py }));
+      else if (s.layer === 'air') air.push(Object.assign(d, { row: AIR_ROW + a.py }));
+      else glow.push({ id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x, y, cx: a.px, cy: a.py, ax: f.ax, ay: f.ay, blend: s.blend === 'add' ? 'add' : 'over', angle: 0 });
+    }
+  }
+  return { ground, air, glow };
+}

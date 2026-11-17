@@ -574,6 +574,7 @@ function selftest(atlases) {
   const planted = (o) => { const inp = style1Input(); const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].concat([Object.assign({ id: 'planted', style: 's1', source: 'planted.png' }, o)]); return inp; };
   s1('an effect naming a drawing script that is not in the tree', 's1-source', planted({ class: 'vfx', drawn: 'tools/world-art/no-such-script.mjs' }));
   s1('a world sprite claiming a drawing script', 's1-source', planted({ class: 'barrel', drawn: 'tools/world-art/glance-spark.mjs' }));
+  s1('a building claiming the town-life script', 's1-source', planted({ class: 'lot', drawn: 'tools/world-art/town-life.mjs' }));
   /* a floor variety is style 1 only through what it varies and lays: an old floor, or a decal no set carries, is not */
   { const inp = style1Input(); inp.sidecars.oldkit = [{ id: 'old_floor', class: 'terrain', kind: 'fill', material: 'terrain', source: 'old_floor.png' }];
     const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].concat([{ id: 'planted_variety', class: 'terrain', kind: 'variety', style: 's1', of: 'oldkit/old_floor' }]);

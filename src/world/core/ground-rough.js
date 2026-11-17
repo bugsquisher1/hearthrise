@@ -8,7 +8,7 @@
 // a cell on that edge is DRAWN as its neighbour's material where smooth value noise says so, in runs of a few cells, the dirt
 // spilling into the grass in one place and the grass creeping onto the dirt in another. The map's own ground (the lint, the
 // walk mask, the stands) never changes: this is how the edge is drawn, not where anything stands.
-//   rough { seed, pairs: [[lower, upper]], spill (0-1: the lower side's cell is drawn as the upper above it),
+//   rough { seed, pairs: [[lower, upper, spill?, bite?]], spill (0-1: the lower side's cell is drawn as the upper above it),
 //           bite (0-1: the upper side's cell is drawn as the lower below it), scale (tiles), deep (cells) }
 // A cell is drawn as its neighbour only when it has a 4-neighbour of that material, all eight neighbours are one of the pair's
 // two materials, and its own side runs on `deep` cells behind it (so a two-wide road is never narrowed, only widened, and a
@@ -40,7 +40,7 @@ export function roughEdges(mat, W, H, idOf, rough) {
   if (!rough || !rough.pairs) return out;
   const { seed = 1, spill = 0.6, bite = 0.4, scale = 2.6, deep = 4 } = rough;
   const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? -1 : mat[y * W + x]);
-  for (const [lowName, upName] of rough.pairs) {
+  for (const [lowName, upName, pSpill = spill, pBite = bite] of rough.pairs) {
     const lo = idOf.get(lowName), up = idOf.get(upName);
     if (lo === undefined || up === undefined) continue;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -61,7 +61,7 @@ export function roughEdges(mat, W, H, idOf, rough) {
       }
       if (!touches || !ok) continue;
       const n = edgeNoise(x, y, scale, seed);
-      if (a === lo ? n > spill : n < bite) out[y * W + x] = b;
+      if (a === lo ? n > pSpill : n < pBite) out[y * W + x] = b;
     }
     /* no pinholes: a cell of the pair left with all four neighbours the other material (a lone square of grass in the road)
        is drawn as its neighbours */

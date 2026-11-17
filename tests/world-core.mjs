@@ -934,7 +934,7 @@ const MUTANTS = [
   ['V3', 'a painted ground repeated tile drawn as painted', 'src/world/core/compose.js', [['const k = vkind ? vkind[y * map.w + x] : -1;', 'const k = -1;']]],
   ['V4', 'a variety laid over another floor (its edges seam)', 'assets/world/atlas-common.json', [['"key": "0000"', '"key": "1111"']]],
   ['V5', 'details laid side by side', 'src/world/core/ground-variety.js', [['if (rolls(x, y, seed) && !rolls(x - 1, y, seed) && !rolls(x, y - 1, seed))', 'if (rolls(x, y, seed))']]],
-  ['E1', 'the rough rule redraws nothing', 'src/world/core/ground-rough.js', [['if (a === lo ? n > spill : n < bite) out[y * W + x] = b;', 'void n;']]],
+  ['E1', 'the rough rule redraws nothing', 'src/world/core/ground-rough.js', [['if (a === lo ? n > pSpill : n < pBite) out[y * W + x] = b;', 'void n;']]],
   ['E2', 'the rough rule narrows a two-wide road', 'src/world/core/ground-rough.js', [['for (let k = 1; k < deep; k++)', 'for (let k = 1; k < 1; k++)']]],
   ['E3', 'the rough rule redraws beside a third material', 'src/world/core/ground-rough.js', [['if (m !== lo && m !== up) { ok = false; break; }', 'void m;']]],
   ['E4', 'the rough rule leaves pinholes', 'src/world/core/ground-rough.js', [['if (DIRS.every(([dx, dy]) => was(x + dx, y + dy) === b)) out[y * W + x] = b;', 'void b;']]],

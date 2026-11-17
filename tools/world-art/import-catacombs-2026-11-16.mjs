@@ -43,6 +43,9 @@ const B = (id) => `${G16}/${id}`;
 export const BODIES = Object.freeze([
   { set: 'vaultdead', id: 'shrouded_pauper', cls: 'character', rot: `${B('shrouded_pauper')}/rotations`, walk: [`${B('shrouded_pauper')}/walk`, 1],
     idle: `${B('shrouded_pauper')}/idle`, ramps: 'shadow,stone,bone,earth,iron,steel,bronze,skin', object: '73682e97-0931-4a4f-b305-8098105d8f30', name: 'UC Shrouded Pauper' },
+  /* the dun habit reads 1.59:1 raw on the stand-in floor; two steps up its ramps, 3.14:1 (the Hold's lift for a dark body) */
+  { set: 'vaultdead', id: 'keeper_dunn', cls: 'character', rot: `${B('keeper_dunn')}/rotations`, walk: [`${B('keeper_dunn')}/walk`, 1],
+    idle: `${B('keeper_dunn')}/idle`, ramps: 'shadow,earth,stone,skin,bone,torch,bronze,iron,gold', lift: 2, object: '6d53dcba-b582-4a30-9911-ac7eff01189f', name: 'UC Keeper Dunn' },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));

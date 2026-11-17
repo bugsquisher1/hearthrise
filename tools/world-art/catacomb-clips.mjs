@@ -28,4 +28,14 @@ export const CATACOMB_CLIPS = Object.freeze([
       of('shrouded_pauper', 'attack3', ['se'], [1, 2, 3, 4, 2, 1])),
     ...fall(of('shrouded_pauper', 'death', ['s', 'n', 'se', 'sw', 'ne']), of('shrouded_pauper', 'death2', ['e', 'w', 'nw'])),
     ...flinch(of('shrouded_pauper', 'hit', ALL8, FLINCH)) } },
+  /* Keeper Dunn: the book blow (attack) S SE SW; seen from the side (attack2) E W; seen from behind (attack3) N NW, and NE's
+     frames 1, 2 and 4 (a white rag shows on 3, 5 and 6). The plain fall in six; NE ends a frame early (a loose flame floats
+     over him on the last), SW is death2 (the plain one kneels). The flinch: S, E, N swing out and home (frames 3-4 turn him
+     into another man), NE is left to the engine's recoil (a white rag at his side). */
+  { set: 'vaultdead', id: 'keeper_dunn', clips: {
+    ...swing(of('keeper_dunn', 'attack', ['s', 'se', 'sw']), of('keeper_dunn', 'attack2', ['e', 'w']), of('keeper_dunn', 'attack3', ['n', 'nw']),
+      of('keeper_dunn', 'attack3', ['ne'], [1, 2, 4, 4, 2, 1])),
+    ...fall(of('keeper_dunn', 'death', ['s', 'e', 'n', 'w', 'se', 'nw']), of('keeper_dunn', 'death', ['ne'], [1, 2, 3, 4, 5, 5]),
+      of('keeper_dunn', 'death2', ['sw'])),
+    ...flinch(of('keeper_dunn', 'hit', ['s', 'e', 'n'], [0, 1, 2, 1, 0]), of('keeper_dunn', 'hit', ['w', 'se', 'sw', 'nw'], FLINCH)) } },
 ]);

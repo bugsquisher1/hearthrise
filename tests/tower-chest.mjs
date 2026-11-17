@@ -48,6 +48,8 @@
 //               naming the key's metal; a replay none; a quiet hero none); the bag's worst case counts the bundle before any roll; the
 //               bundle used (2027-04-30-sweeps-coat.sql hr_outfit_bundle_use): one taken, owned, worn, a reload says so, journalled once,
 //               a replay moves nothing, a second bundle on an owned coat is kept (already_owned); a hero with none can't own, wear or use it
+//   TCH-SELFCHECK the migration's own §9 passes on a pinned prng secret whose first probe key already finds the outfit (it rolls on a
+//               random secret every replay, so it must pass on all of them; lane/fix135-chest-midnight)
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -858,7 +860,27 @@ async function outfitArm(db, M) {
   return bad;
 }
 
-const ARMS = { data: dataArm, odds: oddsArm, mint: mintArm, held: heldArm, ring: ringArm, open: openArm, forged: forgedArm, outfit: outfitArm };
+/* TCH-SELFCHECK (lane/fix135-chest-midnight; GitHub run 44144849725, utc-midnight-replay "+0 s", not a clock bug): the migration's
+   own §9 must pass on EVERY prng secret. §9(c)'s two keys roll the Bronze Key's 0.2% outfit on the database's own random secret, so
+   about 1 replay in 250 one of them finds the bundle before §9(e) plants its find, and §9(e) counted the bag and the named call-out
+   from zero. Pinned: a secret on which the probe hero's FIRST key finds the outfit, then the §9 block as the file ships it. */
+const SELFCHECK_SECRET = '76531864643bf73c780984cd0b445566ef549ffe13e6e6101a248385d59e78b4';
+async function selfcheckArm(db, M) {
+  const src = readFileSync(join(M.root, CHEST_SQL), 'utf8').replace(/\r\n/g, '\n');
+  const at = src.indexOf('-- ── §9 SELF-CHECK');
+  const u = at < 0 ? null : /v_u\s+constant uuid := '([0-9a-f-]{36})'/.exec(src.slice(at));
+  if (!u) return ['TCH-SELFCHECK HARNESS: no §9 block (or its probe hero) in ' + CHEST_SQL];
+  return H.inTx(db, async () => {
+    await db.query(`update public.hr_server_secrets set secret = decode($1, 'hex') where name = 'prng'`, [SELFCHECK_SECRET]);
+    const finds = await one(db, `select public.hr_chest_outfit_roll($1::uuid, 0, 1) < (select min(pm) * 1000 from public.hr_chest_outfits where key_id = 'bronze')`, [u[1]]);
+    if (finds !== true) return ['TCH-SELFCHECK HARNESS: the pinned secret no longer finds the outfit on the probe hero\'s first key'];
+    try { await db.exec(src.slice(at)); } catch (e) { return ['TCH-SELFCHECK §9 refused on a secret whose first key finds the outfit: ' + String(e.message).slice(0, 240)]; }
+    return [];
+  });
+}
+
+const ARMS = { data: dataArm, odds: oddsArm, mint: mintArm, held: heldArm, ring: ringArm, open: openArm, forged: forgedArm, outfit: outfitArm,
+  selfcheck: selfcheckArm };
 const CHEST_SQL = 'supabase/migrations/2027-04-27-tower-chest.sql';
 const MUTANTS = [
   { name: 'the chance ignores the warmth', arm: 'data', want: /^TCH-DATA the server's chance/, fn: 'public.hr_chest_chance_ppm(integer,integer,integer)',
@@ -950,6 +972,11 @@ const MUTANTS = [
     from: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20,", to: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 40," },
   { name: 'the data\'s Tower week moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
     from: "opensPerWeek: 6, heldMax: 30 })", to: "opensPerWeek: 7, heldMax: 30 })" },
+  /* TCH-SELFCHECK: §9(e) counting from zero again (the shape GitHub run 44144849725 caught at random) */
+  { name: '§9(e) counts the bag from zero', arm: 'selfcheck', want: /^TCH-SELFCHECK §9 refused/, file: CHEST_SQL,
+    from: 'and item_id = v_fam.item_id) is distinct from v_had + 1', to: 'and item_id = v_fam.item_id) is distinct from 1' },
+  { name: '§9(e) counts the call-out from zero', arm: 'selfcheck', want: /^TCH-SELFCHECK §9 refused/, file: CHEST_SQL,
+    from: "and body = v_body) <> v_said + 1", to: "and body = v_body) <> 1" },
 ];
 
 async function runArm(db, M, name) {
@@ -976,6 +1003,7 @@ async function main() {
           /* src/shell and src/render: TCH-OUTFIT drives the bag's own outfit-bundle module against the chain */
           for (const d of ['src/core', 'src/data', 'src/session', 'src/shell', 'src/render', join('supabase', 'functions', 'hr-accrue'), 'tests/hunt-core/fixtures']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
           cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
+          cpSync(join(ROOT, CHEST_SQL), join(dir, CHEST_SQL));   /* TCH-SELFCHECK runs the file's own §9 */
           const p = join(dir, m.file);
           let src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
           if (src.split(m.from).length !== 2) { console.error(`HARNESS: ${m.file} has no single ${JSON.stringify(m.from.slice(0, 70))}`); process.exit(2); }
@@ -1006,5 +1034,4 @@ async function main() {
   process.exit(bad.length ? 1 : 0);
 }
 
-void CHEST_SQL;
 if (isMain(import.meta.url)) main().catch((e) => { console.error(e && e.stack ? e.stack : e); process.exit(2); });

@@ -44,17 +44,17 @@ export const OUT_NAME = '2027-05-02-flat-party-xp-ground-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
 const FILE_NOTE = `-- THIS FILE (lane/d-flat-party-xp, Tyler 2026-11-16: "just balance the hunting grounds xp vs having a unique formula everywhere"):
 -- the party's Level XP bonus is ONE table for every ground (src/data/party-class-xp.js, engine data, no table here), and the grounds
--- carry the rest. Over 2027-04-27-march-folded-ground-tiers.generated.sql (the same rows with the five March packs folded in): Dangerous
--- brings Deadly's pull on the table, 8 (was 5): the Warrens and Hask's Ford {8,8,8,8} (were {5,5,5,5}), the Slake too (its own 6
--- retired), the Glade 6 (was 5; on 8 a hero alone at its floor met the Brook Bear too seldom), Krell's Hold 6 like its Deadly (was 5),
--- the Muster as before. Deadly's monsters have 1300 permille HP on the table (was 1100): every ground on the table's Deadly moves its
--- hp_pm, the Muster's too (it kept 1000; its Dangerous still does), and the Glade's is 1450 and Hask's Ford's 1400 (with Turning Cut on every
--- melee weapon without a shield a party of four cut through them past ~2.5x the pace). The first grounds (the Thicket, Wickstead, the Sewer)
--- bring no more monsters, as before. Damage and XP as they stand.
--- ORDER: after 2027-04-27-march-folded-ground-tiers.generated.sql, the 2027-05-01-v0135 catalogues and the Tower's files (set v0.2.135). Idempotent: the rows
--- are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
--- src/data/balance-sheet.js, src/data/party-class-xp.js and the packs follows AT ONCE (a hunt already running keeps the pull it froze).
--- REVERSIBLE: re-apply 2027-04-27-march-folded-ground-tiers.generated.sql, with the engine from before this lane.`;
+-- carry the rest. Over 2027-04-27-march-folded-ground-tiers.generated.sql (the same rows with the five March packs folded in), so that
+-- Deadly pays more an hour than Dangerous for a party and for a hero alone (same coin and drops a kill, more risk): Dangerous pays 1100
+-- permille XP (was 1200) and brings Deadly's pull, 8 (was 5), on the Warrens, Hask's Ford, the Slake and the Muster; Deadly's HP is
+-- 1150 (was 1100). The Glade carries Dangerous 1400 / Deadly 1450 HP (its Dangerous brings 6, for the Brook Bear), the Warrens, Hask's
+-- Ford and the Sewer 1150 / 1250, the Muster the table's (its Dangerous 1000 retired). Krell's Hold brings 6 on both tiers (was 5 on
+-- Dangerous). The first grounds (the Thicket, Wickstead, the Sewer) bring no more monsters, as before. Damage as it stands.
+-- ORDER: after 2027-04-27-march-folded-ground-tiers.generated.sql and the 2027-05-01-v0135 catalogues (set v0.2.135); no other file
+-- writes hr_ground_tiers. Idempotent: the rows are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- The hr-accrue deploy carrying the same src/data/balance-sheet.js, src/data/party-class-xp.js and the packs follows AT ONCE (a hunt
+-- already running keeps the pull it froze). REVERSIBLE: re-apply 2027-04-27-march-folded-ground-tiers.generated.sql, with the engine
+-- from before this lane.`;
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const HARDER = ['dangerous', 'deadly'];
 const FULL_BOX_GROUNDS = ['mosslight_glade', 'coppercap_warrens'];

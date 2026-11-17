@@ -306,8 +306,8 @@ const mutants = [
   { name: 'the level share cuts every seat under the floor: a party that pushes is punished', case: 'risk-ladder',
     edits: [['src/data/hunt-grounds.js', "level >= band[0] || level * 1000 >= top * HUNT_TUNING.partyShareRangePm) return 1000;", "level >= band[0]) return 1000;\n  if (level < band[0]) return 500;"]] },
   /* (re-aimed, lane/d-flat-party-xp: ONE table for every ground, Tyler 2026-11-16, so each slip moves the one row; played on the Thicket) */
-  { name: 'a mixed four is paid x1.29, and the Thicket window still says what x1.00 measured', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([950, 1500], [990, 1600, 1700], [970, 1580, 1765, 1800])', 'row([950, 1500], [990, 1600, 1700], [970, 1580, 1765, 2320])']] },
+  { name: 'a mixed four is paid x1.29 (1700 -> 2190), and the Thicket window still says what x1.00 measured', case: 'vs-alone',
+    edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 2190])']] },
   /* RE-AIMED (lane/c-brook-bear): with the Brook Bear in Vine Hollow as built a Glade kill takes longer, so the rung pays more (the shipped 7/16 +10.2%, was
      +8.5%) and the old 7/12 reads +7.0%, a passing rung. 7/10 reads +3.9% (2 seeds x 1 h at 16), the nearest strength under the bar. */
   { name: 'the Iron Warhammer at 7/10: its upgrade pays under +5%', case: 'weapon-rungs',
@@ -318,7 +318,7 @@ const mutants = [
     edits: [['src/data/gear-tiers.js', 'atk: [4, 9, 14, 19, 25, 33, 42], str: [4, 11, 16, 21, 22, 29, 38],', 'atk: [4, 7, 14, 19, 25, 33, 42], str: [4, 7, 16, 21, 22, 29, 38],']] },
   /* x0.75, not x0.85: at a one-class four's -60 to -70 a x0.85 cell moves the reading about 4.5 points, inside the line's 5 */
   { name: 'a four of one weapon is paid x0.75, and the Thicket window still says what its old cell measured', case: 'vs-alone',
-    edits: [['src/data/party-class-xp.js', 'row([950, 1500], [990, 1600, 1700], [970, 1580, 1765, 1800])', 'row([950, 1500], [990, 1600, 1700], [730, 1580, 1765, 1800])']] },
+    edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [730, 1580, 1670, 1700])']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',

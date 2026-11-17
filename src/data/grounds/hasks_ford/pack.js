@@ -161,6 +161,11 @@ export default definePack({
      own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
   xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
+  /* BOTH HARDER TIERS CARRY MORE HP HERE: Dangerous 1150, Deadly 1250 (the table's 1100 and 1150; lane/d-flat-party-xp, 2026-11-17). With Turning Cut on every
+     melee weapon without a shield, Andy's four read 2.63x the pace contract on Deadly at the floor (party-tier-xp, 2 seeds x 0.5 h). Both tiers move together, so a
+     hero alone still levels faster on Deadly than on Dangerous. */
+  tierOverride: { dials: { dangerous: { hpPm: 1150 }, deadly: { hpPm: 1250 } },
+    why: 'Monsters on both harder tiers have more health here than elsewhere. Groups of four were killing them too fast for the XP they give' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
     fordsunk: 'heavy',         // the tank: slow (2400), thick
@@ -189,7 +194,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.70, threes 0.55-0.65, fours 0.44-0.58), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.06-1.17, threes 1.06-1.14, the four 1.17); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-40, -5], 3: [-50, -20, -15], 4: [-60, -40, -30, -30] },
+  partyVsAlone: { 2: [-40, -5], 3: [-50, -20, -15], 4: [-60, -35, -35, -35] },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Slake's bag. Salted Lobster is the cheapest heal an HP at this Level
      (0.83 g an HP). The melee line holds about three hours of a lone tank's bill at the floor (5.8k g an hour, drop-tables). */
   bagGuide: { tier: 4,

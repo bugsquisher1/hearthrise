@@ -861,11 +861,11 @@ async function pureRules(M, base) {
       /* the one table (Tyler 2026-11-16): a mixed pair on the first grounds earns under its heroes alone, and the number stands (no label hides it) */
       [['tank', 'ranger'], 'meadowbrook_thicket', full(2, 10, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 40, 'Meadowbrook Thicket')],
-      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 30, 'The Sewer')],
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 45, 'Meadowbrook Thicket')],
+      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 35, 'The Sewer')],
       [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 25, 'Coppercap Warrens')],
       [['tank', 'ranger'], 'millrace_sewer', more(2, 10, 'The Sewer')],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 15, 'The Sewer')],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 5, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
       [[null, 'ranger'], 'wickstead', full(2, 10, 'Wickstead')],
       [[null, 'tank'], 'wickstead', less(1, 45, 'Wickstead')],
@@ -881,7 +881,7 @@ async function pureRules(M, base) {
       /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): Hask's Ford's mixed pair reads -5; the Pyre Field's reads even */
       [['tank', 'ranger'], 'hasks_ford', full(2, 5, 'Hask\'s Ford')],
       [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about the same as solo in The Pyre Field'],
-      [['tank', 'melee_dps'], 'pyre_field', less(1, 35, 'The Pyre Field')],
+      [['tank', 'melee_dps'], 'pyre_field', less(1, 40, 'The Pyre Field')],
     ]) {
       if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
     }

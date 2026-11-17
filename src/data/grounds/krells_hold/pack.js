@@ -211,7 +211,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, 0], 3: [-45, -10, -5], 4: [-60, -30, -25, -25] },
+  partyVsAlone: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-60, -30, -30, -25] },
   checks: { dropRef: { roles: ['tank'], full: true }, valueToday: 19778, deadlyFourNeeds: 'healer' }, // designer Q4 2026-11-12: Deadly keeps six, bring a Healer
   /* KRELL'S HALL: one room, one fight, opened with a Hall Key (the design's section 3). Shaped to the KEYED HALL contract of engine piece 5
      (lane/b-barrow-boss-room: src/data/boss-halls.js, src/core/hunt/boss-room.js roomOf, tools/gen-hunt-sessions.mjs hallRows; CONFLICTS

@@ -69,9 +69,13 @@ export const SOLO_XP_PM = 1150;
    alone where a pull of five meets it, and no more than that, or the full box's Deadly four passes 2.5x the contract. The cells between are the old
    rows' median shape (a four of three classes 0.98 of four, of two 0.88; a three of two classes 0.93 of three). */
 const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
-/* THE ONE-CLASS PAIR 950 (was 990; on set v0.2.135, 2026-11-17): with Turning Cut on every melee weapon without a shield (Tyler 2026-11-16) a shield and
-   hatchets pair on the Pauper Vaults at 8 each read 1.03 of its heroes alone at 990 (tests/party-class-xp-line.mjs, 3 seeds), over the 10-31 line. */
-export const PARTY_CLASS_XP = row([950, 1500], [990, 1600, 1700], [970, 1580, 1765, 1800]);
+/* THE ONE-CLASS PAIR 880 (was 990; on set v0.2.135, 2026-11-17): with Turning Cut on every melee weapon without a shield (Tyler 2026-11-16) a shield and
+   hatchets pair on the Pauper Vaults at 8 each read 1.03 of its heroes alone at 990 and 1.05 at 950 (tests/party-class-xp-line.mjs, 3 seeds), over the 10-31
+   line. 880 holds it under with the dice's room. */
+/* THE FOUR OF THREE AND FOUR CLASSES 1670 AND 1700 (were 1765 and 1800; 2026-11-17): Deadly's HP fell to 1150 so that Deadly pays more an hour than Dangerous
+   for a party and for a hero alone (both read 1.03-1.38 of Dangerous after it, party-tier-xp), and a four with Turning Cut then read up to 2.6x the pace
+   contract on Deadly. A cell is the one lever that touches a party and never a hero alone. */
+export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700]);
 
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
@@ -91,12 +95,12 @@ export const PARTY_CLASS_XP = row([950, 1500], [990, 1600, 1700], [970, 1580, 17
    tests/party-class-xp-line.mjs --mixed --write, 3 seeds, the floor): every ground's line here and in its pack is that run's. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: said([-55, -30], [-70, -45, -45], [-80, -60, -55, -55]),
-  meadowbrook_thicket: said([-40, -10], [-55, -25, -20], [-65, -40, -30, -30]),
-  wickstead: said([-45, -10], [-55, -25, -20], [-65, -45, -35, -35]),
-  mosslight_glade: said([-35, 0], [-45, -10, -5], [-55, -25, -15, -15]),
-  millrace_sewer: said([-30, 10], [-35, 10, 15], [-45, 0, 10, 15]),
-  coppercap_warrens: said([-25, 20], [-25, 20, 25], [-30, 15, 30, 30]),
+  mill_cellar: said([-60, -30], [-70, -45, -45], [-80, -60, -60, -60]),
+  meadowbrook_thicket: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]),
+  wickstead: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]),
+  mosslight_glade: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]),
+  millrace_sewer: said([-35, 10], [-35, 10, 15], [-45, 0, 5, 5]),
+  coppercap_warrens: said([-30, 20], [-25, 20, 25], [-30, 15, 20, 25]),
 });
 /* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));

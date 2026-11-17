@@ -138,7 +138,7 @@ export default definePack({
   /* (Its own party cells are retired: one party table for every ground, Tyler 2026-11-16, src/data/party-class-xp.js.) */
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-35, 5], 3: [-45, -5, 0], 4: [-55, -25, -15, -15] },
+  partyVsAlone: { 2: [-40, 5], 3: [-45, -5, 0], 4: [-55, -25, -20, -20] },
   /* DEADLY BRINGS SIX (the Hold's and the Pyre Field's row): on eight a four of four classes died 9 times in 4 hero-hours at the floor (36 in 16,
      where the sheet allows 9). Six is the least Deadly may bring; since the one party table (2026-11-16) Dangerous brings 8 on the table, so it brings six here too. */
   tierOverride: { dangerous: 6, deadly: 6, why: 'on the full box a group of four died 9 times in 4 hours at the floor, where the rule allows about 2. On six they hold it, and Dangerous brings the same six (it never brings more than Deadly)' },

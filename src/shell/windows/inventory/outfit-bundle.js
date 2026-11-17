@@ -25,6 +25,17 @@ export function bundleUseBlock(cs, id) {
   return o && o.owned.has(outfit) ? t('bag.bundle_owned') : '';
 }
 
+/* TWO PRESSES: a bundle is a tradeable item worth a lot and its use can't be undone, so the first press only arms it (the line asks for a
+   second) and a second press on the SAME bundle within ARM_MS uses it. Display state only: the server judges the use. */
+const ARM_MS = 10000;
+/** True when this press is the second on bundle `id` within ARM_MS (the use goes ahead); else arms it and answers false. */
+export function armBundle(sc, id, now = Date.now()) {
+  const a = sc.bundleArm;
+  if (a && a.id === id && now - a.at <= ARM_MS) { sc.bundleArm = null; return true; }
+  sc.bundleArm = { id, at: now };
+  return false;
+}
+
 /** Use one bundle: ONE hr_outfit_bundle_use through the window's `send` (its busy line, then the outfit's name on ok). */
 export function useBundle(account, cs, id, send) {
   const outfit = bundleOutfitOf(id);

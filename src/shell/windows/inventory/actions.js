@@ -57,7 +57,7 @@ import { askElsewhere } from './elsewhere.js?v=0.2.133';
 import { unlockRing } from './key-ring.js?v=0.2.133';
 import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.133';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.133';
-import { bundleOutfitOf, bundleUseBlock, useBundle } from './outfit-bundle.js?v=0.2.133';
+import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.133';
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.133';
 import { wearBlock } from '../../gear-gate.js?v=0.2.133';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.133';
@@ -163,10 +163,12 @@ function doPrimary(st, id, repaint) {
   else askSell(st, [id], t('controls.sell'), repaint);
 }
 
-/* Use ONE outfit bundle (outfit-bundle.js): refused here only for what the server's outfit section already says (owned). */
+/* Use ONE outfit bundle (outfit-bundle.js): refused here only for what the server's outfit section already says (owned); the first
+   press arms it and asks for a second (a tradeable item worth a lot, used for good). */
 function doBundle(st, id, repaint) {
   const why = bundleUseBlock(st.cs, id);
   if (why) { say(st, repaint, why, 'pick:' + id); return; }
+  if (!armBundle(st.sc, id)) { say(st, repaint, t('bag.bundle_confirm'), 'pick:' + id); return; }
   useBundle(st.account, st.cs, id, (fn, busy, done) => send(st, repaint, fn, busy, done, 'pick:' + id));
 }
 

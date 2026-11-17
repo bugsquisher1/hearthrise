@@ -10,7 +10,7 @@
 //   node tests/tower-chest.mjs --arm=odds   one arm
 //   node tests/tower-chest.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
 //
-// mutant-anchors: src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql, supabase/migrations/2027-04-30-sweeps-coat.sql
+// mutant-anchors: src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql, supabase/migrations/2027-04-30-sweeps-coat.sql, src/shell/windows/inventory/outfit-bundle.js
 //
 //   TCH-DATA    the table is Tyler's (16 / 8 / 4.5 / 2%, x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys' Cinders, +4% of base a dry key to 3x at 50);
 //               the design's warmth table read back through src/data/chests.js; the server's chance (hr_chest_chance_ppm) and the data's
@@ -803,6 +803,31 @@ async function outfitArm(db, M) {
     await H.character(db, M, UID2, { level: 12, inv: {}, gold: 0 });
     out.other = { owned: await owned(UID2), wear: await wear(UID2, coat.outfit), use: await use(UID2, coat.item) };
     out.forged = await use(UID, 'tower_cinders');
+    /* (5) THE BAG'S USE, CLIENT TO SERVER: the bag's own module (src/shell/windows/inventory/outfit-bundle.js) on a hero with one bundle sends
+       ONE hr_outfit_bundle_use (the slot, the item, a key: nothing else) through the session's intent, the verb runs on this chain, the
+       re-read envelope says owned, and the bag's Use is then off with why */
+    await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1)', [UID2, coat.item]);
+    const B = await import(pathToFileURL(join(M.root, 'src/shell/windows/inventory/outfit-bundle.js')).href + V);
+    const calls = [];
+    const account = { server: { rpc: async (name, args) => {
+      calls.push({ name, keys: Object.keys(args).sort().join() });
+      await db.query('delete from public.hr_rate_counters where user_id = $1', [UID2]);
+      await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [UID2]);
+      try { return { ok: true, body: await one(db, `select public.${name}($1, $2, $3::uuid)`, [args.p_slot, args.p_item, args.p_idem]) }; }
+      finally { await db.query(`select set_config('request.jwt.claim.sub', '', true)`); }
+    } } };
+    const cs = { slot: 0, status: 'open', env: null, loads: 0, read(k) { return this.env ? this.env[k] : undefined; },
+      async load() { this.loads++; this.env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID2]); } };
+    await cs.load();
+    out.client = { before: B.bundleUseBlock(cs, coat.item) };
+    out.client.said = await B.useBundle(account, cs, coat.item, (fn, busy, done) => fn().then((x) => (x && x.ok ? { ok: true, said: done(x), busy } : x)));
+    Object.assign(out.client, { calls, loads: cs.loads, after: B.bundleUseBlock(cs, coat.item), owned: await owned(UID2), bag: await one(db,
+      'select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)', [UID2, coat.item]) });
+    /* the bag's two presses (a tradeable item used for good): the first arms, a second on the same bundle within 10 s uses it; another
+       bundle or a late press arms again */
+    const sc = {};
+    out.client.arm = [B.armBundle(sc, coat.item, 0), B.armBundle(sc, coat.item, 4000), B.armBundle(sc, coat.item, 5000), B.armBundle(sc, coat.item, 20000),
+      B.armBundle(sc, 'other_bundle', 21000), B.armBundle(sc, coat.item, 22000)];
     return out;
   });
   const hitOpen = r.hit && r.hit.opens && r.hit.opens[0];
@@ -822,6 +847,13 @@ async function outfitArm(db, M) {
   if (r.ledger.length !== 1 || Number(r.ledger[0].qty) !== -1 || r.ledger[0].meta.outfit !== coat.outfit || r.ledger[0].meta.from !== 'bag') bad.push('TCH-OUTFIT the use is not journalled once: ' + JSON.stringify(r.ledger));
   if ((r.other.owned || []).includes(coat.outfit) || !r.other.wear || r.other.wear.error !== 'not_owned' || !r.other.use || r.other.use.error !== 'none_held') bad.push('TCH-OUTFIT a hero with no bundle owns, wears or uses the coat: ' + JSON.stringify(r.other).slice(0, 240));
   if (!r.forged || r.forged.error !== 'bad_item') bad.push('TCH-OUTFIT a use of an item no outfit names answered ' + JSON.stringify(r.forged));
+  const cl = r.client;
+  if (cl.before !== '' || !cl.said || cl.said.ok !== true || cl.said.said !== 'Outfit unlocked: Sweep’s Coat' || cl.calls.length !== 1
+    || cl.calls[0].name !== 'hr_outfit_bundle_use' || cl.calls[0].keys !== 'p_idem,p_item,p_slot' || cl.loads !== 2
+    || cl.after !== 'Outfit already owned' || !(cl.owned || []).includes(coat.outfit) || Number(cl.bag) !== 0) {
+    bad.push('TCH-OUTFIT the bag\'s Use, client to server, reads ' + JSON.stringify(cl).slice(0, 300));
+  }
+  if (JSON.stringify(cl.arm) !== JSON.stringify([false, true, false, false, false, false])) bad.push('TCH-OUTFIT the bag\'s two presses read ' + JSON.stringify(cl.arm));
   return bad;
 }
 
@@ -906,6 +938,10 @@ const MUTANTS = [
   { name: 'the use takes no bundle', arm: 'outfit', want: /^TCH-OUTFIT the use answered/, fn: 'public.hr_outfit_bundle_use(integer,text,uuid)',
     find: '  v_take := public.hr_materials_take(v_uid, p_slot, jsonb_build_object(p_item, 1), true);',
     replace: "  v_take := jsonb_build_object('ok', true, 'from', jsonb_build_object('bag', jsonb_build_object(p_item, 1)));" },
+  { name: 'the bag\'s Use stays on for an owned outfit', arm: 'outfit', want: /^TCH-OUTFIT the bag's Use/, file: 'src/shell/windows/inventory/outfit-bundle.js',
+    from: "  return o && o.owned.has(outfit) ? t('bag.bundle_owned') : '';", to: "  return '';" },
+  { name: 'one press uses a bundle', arm: 'outfit', want: /^TCH-OUTFIT the bag's two presses/, file: 'src/shell/windows/inventory/outfit-bundle.js',
+    from: '  if (a && a.id === id && now - a.at <= ARM_MS) { sc.bundleArm = null; return true; }', to: '  if (true) { sc.bundleArm = null; return true; }' },
   { name: 'the data\'s Silver coat chance moves', arm: 'outfit', want: /^TCH-OUTFIT the coat's chances/, file: 'src/data/chests.js',
     from: 'pm: Object.freeze({ bronze: 2, silver: 3, gold: 4, platinum: 5 })', to: 'pm: Object.freeze({ bronze: 2, silver: 6, gold: 4, platinum: 5 })' },
   { name: 'the data\'s warmth cap moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js', from: '  warmthCapPm: 3000,', to: '  warmthCapPm: 2500,' },
@@ -936,7 +972,8 @@ async function main() {
       } else {
         const dir = mkdtempSync(join(tmpdir(), 'hr-tch-'));
         try {
-          for (const d of ['src/core', 'src/data', 'src/session', join('supabase', 'functions', 'hr-accrue'), 'tests/hunt-core/fixtures']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
+          /* src/shell and src/render: TCH-OUTFIT drives the bag's own outfit-bundle module against the chain */
+          for (const d of ['src/core', 'src/data', 'src/session', 'src/shell', 'src/render', join('supabase', 'functions', 'hr-accrue'), 'tests/hunt-core/fixtures']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
           cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
           const p = join(dir, m.file);
           let src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');

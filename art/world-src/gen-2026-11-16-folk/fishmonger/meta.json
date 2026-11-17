@@ -1,0 +1,7 @@
+{
+  "south": { "tool": "create_object_pro_flash", "object": "e324d2b2-0db9-4592-8f1b-5236131cb2b2", "seed": 52, "size": [52, 52], "view": "high top-down", "palette": "hr-world-56-v2",
+    "style_image": "Tamsin's south still (npc_crier), a 48 px crop", "request": "a stout fishwife fishmonger, a grey-green knotted headscarf, a long dark leather oilskin apron over a moss green dress with rolled sleeves, holding a big silver fish by the tail in one hand, standing upright, full body, game npc sprite" },
+  "walk": { "tool": "animate_object", "mode": "v3", "group": "591c90f4-71dc-4603-8e48-c4ee0054c83a", "frame_count": 8, "keep_first_frame": true,
+    "request": "walking at a calm stroll, both feet lifting in turn, the fish held by the tail at her side the whole time, the same woman the whole time" },
+  "gens": 28
+}

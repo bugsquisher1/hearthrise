@@ -1,0 +1,36 @@
+{
+  "south": {
+    "tool": "create_object_pro_flash",
+    "object": "19a92549-2101-4556-b513-ee3aa2f269e2",
+    "seed": 61,
+    "size": [
+      52,
+      52
+    ],
+    "view": "high top-down",
+    "palette": "hr-world-56-v2",
+    "style_image": "Tamsin's south still (npc_crier), a 48 px crop",
+    "request": "an old hunched street sweeper, a long birch twig broom held in both hands with its bristles on the ground beside him, a patched faded slate grey coat, a brown hood down on his shoulders, white stubble beard, standing, full body, game npc sprite"
+  },
+  "walk": {
+    "tool": "animate_object",
+    "mode": "v3",
+    "group": "1eaa5b56-56c0-4e57-b321-da2bcb7269f2",
+    "frame_count": 8,
+    "keep_first_frame": true,
+    "request": "walking slowly with a slight stoop, both feet lifting in turn, the broom held in both hands the whole time, the same old man the whole time",
+    "groups_by_facing": {
+      "west": "5d47a1ff-9ab9-4df6-aa90-c4e6a35a83a9 (walk-upright)",
+      "south": "f69121dc-4263-4f87-a071-a3afbeb31313 (walk-sameside)",
+      "north": "f69121dc-4263-4f87-a071-a3afbeb31313 (walk-sameside)"
+    },
+    "request_sameside": "walking slowly, both feet lifting in turn, the broom carried in one hand and staying on the same side of his body in every frame, bristles just above the ground, the same old man the whole time"
+  },
+  "gens": 33,
+  "refused": {
+    "south 62": "a mask-like beard, the coat too blue",
+    "walk S N W (first roll)": "the broom swung to the other side or across the body mid-loop, a hand raised to the face",
+    "walk S N (walk-upright)": "the broom still crossed sides",
+    "idle N (first roll)": "the broom turned to dust specks"
+  }
+}

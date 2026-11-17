@@ -1,0 +1,7 @@
+{
+  "south": { "tool": "create_object_pro_flash", "object": "a15d51c4-c8ef-40cf-a992-5af9f72cbfb3", "seed": 15, "size": [56, 56], "view": "high top-down", "palette": "hr-world-56-v2",
+    "style_image": "Tamsin's south still (npc_crier), a 48 px crop", "request": "a tall grown townsman water carrier, a wooden yoke across his shoulders with a wooden bucket of water hanging from each end on ropes, a plain blue-grey wool shirt with rolled sleeves, brown breeches, a grey cloth cap, standing upright, full body, game npc sprite" },
+  "walk": { "tool": "animate_object", "mode": "v3", "group": "d3701c7f-b72a-4cb4-ba2a-10511ab965f0", "frame_count": 8, "keep_first_frame": true,
+    "request": "walking at a steady careful pace, both feet lifting in turn, the yoke across his shoulders and both water buckets swinging slightly on their ropes, the same man the whole time" },
+  "gens": 41
+}

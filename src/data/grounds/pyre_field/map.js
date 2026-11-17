@@ -7,6 +7,10 @@
 // middle strip. Five gaps cross the rows, so the route is a ring round the Great Pyre and shutting any one gap strands nothing
 // (checked: 1,613 open tiles, every one reachable from the road, every pull tile with a full box). The road comes in from the
 // Muster Barrows at the south, x28-31.
+// THE ROWS' EDGE WANDERS (lane/a-late-grounds-seams 2026-11-17): each pyre row was two dead-straight cells deep end to end. Seven
+// bays of 3-4 cells are now cut into one of its two rows (never both, never diagonal to the other row's bay, never at a gap), so the
+// row's edge steps in and out and it still blocks a step everywhere: the five gaps are the only ways across. Every bay cell is inside
+// an open 3x3 and reachable from the road; no pocket's box, spawn or placed thing moved (+23 walked tiles).
 //   '.' ash (earth: a burnt field, not a meadow, so the outdoor tree rule does not ask for trees on it)
 //   ':' scorched earth, walked (earth; the painter lays the ash family's scorched-earth tiles here): the burn lines the Stokers
 //       walked, the gaps in the pyre rows and the ring round the Great Pyre
@@ -48,8 +52,8 @@ export default Object.freeze({
     '###.....................................oo.........oo....###', // 10
     '###.....................................oo...............###',
     '###......................................................###',
-    '######:::::#############::::###################::::::#######', //    the north pyre row
-    '######:::::#############::::###################::::::#######',
+    '######:::::##...########::::##############...##::::::#######', //    the north pyre row
+    '######:::::#############::::###....############::::::#######',
     '###.....................::::::::::::....................####', // 15
     '###.....................:..........:....................####',
     '###...........##........:..........:.......oo...........####',
@@ -62,8 +66,8 @@ export default Object.freeze({
     '###..........................::......##.......oo......oo.###', //    P5 below the Great Pyre
     '###..........................::...............oo......oo.###', // 25
     '####.........................::..........................###',
-    '#####:::::##########::::::########::::######################', //    the south pyre row
-    '#####:::::##########::::::########::::######################',
+    '#####:::::##########::::::##...###::::###########....#######', //    the south pyre row
+    '#####:::::##...#####::::::########::::###...################',
     '####.........................::..........................###',
     '####.........................::..........................###', // 30
     '###..........................::........................#####',
@@ -115,5 +119,6 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 29, y: 39, to: 'town_common' }]),
   start: Object.freeze([29, 38]),
-  maskHash: '0482efed',
+  /* 0482efed -> e9cb2f66: bays cut into the pyre rows (header, lane/a-late-grounds-seams 2026-11-17) */
+  maskHash: 'e9cb2f66',
 });

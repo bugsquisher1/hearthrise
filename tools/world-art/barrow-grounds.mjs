@@ -514,10 +514,19 @@ function coalBed(img, rows) {
 /* ── the Pyre Field's obstacles: burnt-out pyres, log stacks and stakes heaped along every coal bed ──
    The beds block a step (thicket), and nothing may be PLACED on a blocked cell (map-compile.js L-SPACE), so what stands on them is
    in the paint, as a painted ground's walls are: brief 24's kept pieces. They were one every four cells of a two-deep row, on the
-   planks; now each row of a bed is a line of them every HEAP px (jittered), the lower line staggered half a step and laid after
-   the upper, so a bed reads as one heap of what the pyres left, end to end, and a gap in it as the way through. */
-const HEAP = Object.freeze({ step: 34, jitter: 8, seed: 67 });
-const HEAP_PIECES = Object.freeze(['pf_burnt_pyre_scatter', 'pf_burnt_pyre', 'pf_burnt_pyre_small', 'ma_log_stack', 'pf_burnt_pyre_scatter', 'pf_burnt_pyre_small', 'ma_charred_stake', 'pf_burnt_pyre_scatter', 'pf_burnt_pyre_small']);
+   planks; now each row of a bed is heaped along its length, the lower row laid after the upper, so a bed reads as one heap of what
+   the pyres left. NOT A ROW OF STAMPS (lane/a-late-grounds-seams, round 2: an even step and a fixed cycle read as a dead-straight
+   repeat): each row draws its own pieces by weight (the scattered and small pyres most, a whole pyre, a stake and the log stack
+   seldom, and the log stack never twice within four), each overlaps the last by a share of its own width, sits a few px up or
+   down the bed, and now and then the heap breaks for a stretch of bare coal, which still blocks a step. */
+const HEAP = Object.freeze({ seed: 67, overlap: [0.45, 0.9], drop: 9, bare: 0.1, bareW: [22, 44] });
+const HEAP_PIECES = Object.freeze([['pf_burnt_pyre_scatter', 0.3], ['pf_burnt_pyre_small', 0.26], ['pf_burnt_pyre', 0.16], ['ma_charred_stake', 0.14], ['ma_log_stack', 0.1]]);
+function heapPick(h, last, sinceStack, stackAbove) {
+  let r = h * HEAP_PIECES.reduce((s, [, w]) => s + w, 0), id = HEAP_PIECES[0][0];
+  for (const [k, w] of HEAP_PIECES) { if (r < w) { id = k; break; } r -= w; }
+  if (id === last || (id === 'ma_log_stack' && (sinceStack < 4 || stackAbove))) id = id === 'pf_burnt_pyre_scatter' ? 'pf_burnt_pyre_small' : 'pf_burnt_pyre_scatter';
+  return id;
+}
 function pyreRows() {
   const file = join(ROOT, ART_DIR, 'pyre', 'pyre_field_ground.png');
   const img = decodePNG(readFileSync(file));
@@ -525,8 +534,9 @@ function pyreRows() {
   const ob = pyreObstacles(rows);
   const coal = coalBed(img, pyreGrid(rows));
   const P = `${G14}/24-pyre-props`;
-  const art = Object.fromEntries([...new Set(HEAP_PIECES)].map((id) => [id, rd(`${P}/${id}.png`)]));
-  let n = 0, last = null;
+  const art = Object.fromEntries(HEAP_PIECES.map(([id]) => [id, rd(`${P}/${id}.png`)]));
+  let n = 0, bare = 0, last = null, sinceStack = 9;
+  const stacks = [];   /* [x, row] of every log stack laid: never one straight below another */
   for (let y = 0; y < h; y++) {
     let x = 0;
     while (x < w) {
@@ -534,16 +544,24 @@ function pyreRows() {
       let e = x; while (e + 1 < w && ob.isBed(e + 1, y)) e++;
       /* a bed three or more deep is heaped along its top and bottom rows only (a heap on every row stood up as a stack) */
       if (ob.isBed(x, y - 1) && ob.isBed(x, y + 1)) { x = e + 1; continue; }
-      /* the run's pixels, a few px in from each end; the lower row of a two-deep bed is staggered half a step */
-      const x0 = x * T + 6 + (ob.isBed(x, y - 1) ? HEAP.step >> 1 : 0), x1 = (e + 1) * T - 6;
-      for (let px = x0, k = 0; px <= x1 || k === 0; px += HEAP.step, k++) {
-        const cx = Math.min(px, x1) + Math.round((hash2(px, y, HEAP.seed) - 0.5) * HEAP.jitter);
-        let id = HEAP_PIECES[Math.floor(hash2(px, y, HEAP.seed + 1) * HEAP_PIECES.length)];
-        if (id === last) id = HEAP_PIECES[(HEAP_PIECES.indexOf(id) + 1) % HEAP_PIECES.length];
-        last = id;
-        const p = art[id], foot = (y + 1) * T - 3 - Math.floor(hash2(px, y, HEAP.seed + 2) * 4);
-        blit(img, p, 0, 0, p.width, p.height, cx - (p.width >> 1), foot - p.height, true);
-        n++;
+      /* the run's pixels, a few px in from each end; each row starts at its own offset */
+      const x1 = (e + 1) * T - 4;
+      let px = x * T - 4 + Math.floor(hash2(x, y, HEAP.seed) * 14), k = 0;
+      while (px < x1 - 10 || k === 0) {
+        const hh = (s) => hash2(px, y, HEAP.seed + s);
+        /* a stretch of bare coal, never at a run's ends, never twice running */
+        /* where a bay leaves the bed one row deep, the heap closes up and never breaks, so the thin stretch still reads as a barrier */
+        const cx = Math.max(x, Math.min(e, Math.floor((px + 16) / T))), thin = !ob.isBed(cx, y - 1) && !ob.isBed(cx, y + 1);
+        if (!thin && k > 0 && px < x1 - 50 && last !== 'bare' && hh(1) < HEAP.bare) {
+          px += HEAP.bareW[0] + Math.floor(hh(2) * (HEAP.bareW[1] - HEAP.bareW[0])); last = 'bare'; bare++; k++; continue;
+        }
+        const id = heapPick(hh(3), last, sinceStack, stacks.some(([sx, sy]) => sy === y - 1 && Math.abs(sx - px) < 64)), p = art[id];
+        if (id === 'ma_log_stack') stacks.push([px, y]);
+        sinceStack = id === 'ma_log_stack' ? 0 : sinceStack + 1;
+        const foot = (y + 1) * T - 1 - Math.floor(hh(4) * HEAP.drop);
+        blit(img, p, 0, 0, p.width, p.height, Math.min(px, x1 - p.width), foot - p.height, true);
+        px += Math.max(12, Math.round(p.width * (thin ? 0.35 + hh(5) * 0.2 : HEAP.overlap[0] + hh(5) * (HEAP.overlap[1] - HEAP.overlap[0]))));
+        last = id; n++; k++;
       }
       x = e + 1;
     }
@@ -551,9 +569,9 @@ function pyreRows() {
   writeFileSync(file, encodePNG(img));
   const jp = file.replace(/\.png$/, '.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
   sc.notes += ' Obstacles (lane/a-late-grounds-seams): the pyre rows and the loose blocks are beds of coal (' + coal + ' cinder px set by a lump field, a few crevices red), heaped with '
-    + n + ' burnt-out pyres, log stacks and stakes (brief 24\'s kept pieces) by tools/world-art/barrow-grounds.mjs: the beds block a step, so their pieces are in the paint.';
+    + n + ' burnt-out pyres, log stacks and stakes (brief 24\'s kept pieces, drawn by weight, overlapped and dropped by a hash) and ' + bare + ' stretches of bare coal by tools/world-art/barrow-grounds.mjs: the beds block a step, so their pieces are in the paint.';
   writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
-  console.log('  ✓ pyre/pyre_field_ground: ' + coal + ' coal px, ' + n + ' pieces heaped on the beds');
+  console.log('  ✓ pyre/pyre_field_ground: ' + coal + ' coal px, ' + n + ' pieces and ' + bare + ' bare stretches on the beds');
 }
 
 /* ── THE HILL: the castle's rock split into its walls and the hillside it stands on (lane/b-hold-art) ──

@@ -205,7 +205,9 @@ export const HEAD_ART_AHEAD = Object.freeze([
   /* brief 32 (2026-11-14): the Slake's three and the Pyre Field's five */
   'greened_pikeman', 'bargeman', 'color_sergeant', 'charred_pikeman', 'stoker', 'lurcher', 'pyre_wraith', 'provost',
   /* the Muster's own two, re-poured from the Ford's heads (2026-11-15) */
-  'barrow_pikeman', 'cairn_wight']);
+  'barrow_pikeman', 'cairn_wight',
+  /* the Unmarked Catacombs' five (lane/a-catacomb-art 2026-11-16, tools/world-art/import-catacombs-2026-11-16.mjs) */
+  'shrouded_pauper', 'vault_leech', 'bone_wall', 'night_carter', 'keeper_dunn']);
 const HEAD_SET = new Set(HEAD_ART.concat(HEAD_ART_AHEAD));
 /** The head's path for a creature id, or null when the set has none (the caller draws nothing). A creature drawn as another
     (HUNT_ART_ALIAS below: a pack body that wears a kit body, a called boss) wears that one's head too: one face a sprite. */

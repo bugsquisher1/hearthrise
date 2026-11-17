@@ -23,7 +23,8 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { decodePNG, encodePNG } from './png.mjs';
 import { ROOT } from './build.mjs';
-import { inPalette } from './lock.mjs';
+import { inPalette, snapTo } from './lock.mjs';
+import { RAMPS } from './palette.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const G16 = 'art/world-src/gen-2026-11-16/uc-bodies';
@@ -54,6 +55,10 @@ export const BODIES = Object.freeze([
      sides, 1.46:1 raw; lift 2, 3.14:1 (N 4.12:1) */
   { set: 'vaultliving', id: 'vault_leech', cls: 'vermin', rot: `${B('vault_leech')}/rotations`, walk: [`${B('vault_leech')}/walk`, 1],
     idle: `${B('vault_leech')}/idle`, ramps: 'shadow,bronze,stone,earth,iron,bone,steel,skin', lift: 2, object: '4b1488fb-a20d-4cf4-95e0-b223e5344584', name: 'UC Vault Leech' },
+  /* the heavy: a 56 px canvas, 40-42 px tall and 38 wide, so class brute (41-52, a head over the hero, wider than any of them).
+     Bone in grey lime, 2.01-2.16:1 raw; lift 1, 2.98-3.14:1 (two would bleach the bone) */
+  { set: 'vaultdead', id: 'bone_wall', cls: 'brute', rot: `${B('bone_wall')}/rotations`, walk: [`${B('bone_wall')}/walk`, 1],
+    idle: `${B('bone_wall')}/idle`, ramps: 'shadow,stone,bone,earth,iron,bronze,skin,steel', lift: 1, object: '2ef199d0-0607-4d22-b02d-ddce79a130e6', name: 'UC Bone Wall' },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
@@ -74,11 +79,18 @@ function body(b) {
   run('port-pixellab.mjs', ['idle', '--set', b.set, '--id', b.id, '--clip', abs(b.idle)]);
 }
 
-/* ── HEADS (one create_1_direction_object call, 64 candidates at 32 px): the picks, each 32x32 on the palette with binary alpha ── */
-export const HEADS = Object.freeze([]);
+/* ── HEADS (one create_1_direction_object call, 64 candidates at 32 px, ab2dc56b): the picks, each 32x32 on the palette with
+   binary alpha. A head whose candidates came back in another hue than its body is snapped to its body's ramps (0 gens): every
+   leech candidate wore leaf greens the leech has nowhere, and the ossuary's skulls a gold the Bone Wall's bone does not. ── */
+const RAMP_OF = Object.fromEntries(BODIES.map((b) => [b.id, b.ramps]));
+export const HEADS = Object.freeze([
+  { id: 'shrouded_pauper', pick: 'f07' }, { id: 'keeper_dunn', pick: 'f14' }, { id: 'night_carter', pick: 'f25' },
+  { id: 'vault_leech', pick: 'f36', snap: true }, { id: 'bone_wall', pick: 'f59', snap: true },
+]);
 function heads() {
-  for (const id of HEADS) {
-    const img = decodePNG(readFileSync(abs('art/world-src/gen-2026-11-16/uc-heads/picks/' + id + '.png')));
+  for (const { id, snap } of HEADS) {
+    const raw = decodePNG(readFileSync(abs('art/world-src/gen-2026-11-16/uc-heads/picks/' + id + '.png')));
+    const img = snap ? snapTo(raw, RAMP_OF[id].split(',').flatMap((r) => RAMPS[r])) : raw;
     if (img.width !== 32 || img.height !== 32) throw new Error('head ' + id + ' is ' + img.width + 'x' + img.height);
     for (let i = 0; i < img.data.length; i += 4) {
       const a = img.data[i + 3];

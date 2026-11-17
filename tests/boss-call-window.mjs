@@ -133,7 +133,9 @@ async function checks(overrides) {
       const warned = await txt(page, '.hw-call-warn') || '';
       if (!/Ends if anyone dies/.test(warned) || !/Cost: 10,000 gp, win or lose/.test(warned) || !/No XP, coin or drops/.test(warned) || !/50% HP: adds attack your non-tanks/.test(warned) || !/25% HP: hits even harder/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
       /* a party's leader reads no lone line: the room holds the party */
-      if (/You can fight him alone/.test(warned) || await shown(page, '.hw-call-note-alone')) fails.push('BW-2 a party\'s warning reads the lone line: ' + JSON.stringify(warned));
+      /* the lone line's words are BW-1's ("Recommended: 2+ players" since the labels sweep); the old sentence matched nothing, so a party's
+         warning carrying the line escaped (v0.2.134). Its element holds no words at all for a party, shown or not. */
+      if (/Recommended: \d+\+ players/.test(warned) || await txt(page, '.hw-call-note-alone') || await shown(page, '.hw-call-note-alone')) fails.push('BW-2 a party\'s warning reads the lone line: ' + JSON.stringify(warned));
       await press(page, '[data-hs-act="call-no"]', 'BW-2');
       await page.waitForTimeout(150);
       if (await shown(page, '.hw-call-warn')) fails.push('BW-2 Not yet left the warning up');

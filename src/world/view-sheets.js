@@ -6,13 +6,19 @@
 // sheet paints. The others are asked for as it opens, all at once (one at a time cost the last one 1.5 s of round trips on a phone's line and
 // gained the first frame nothing), and a view that reaches one before it lands
 // keeps its last frame until it does: never a stub. A failed sheet counts as arrived and draws stubs, as it always has.
+// A LATE SHEET HOLDS NOTHING FOR LONG (report #81: a town view held on a sheet that never came froze the picture, then a
+// resize blanked it): a sheet asked SHEET_HOLD_MS ago and still on its way no longer holds a frame or the first view. The frame
+// draws with what has arrived (that sheet's sprites as stubs, its ground as void), and the sheet's own load goes on
+// (src/render/images.js tries a stalled one again): when it lands, the frame changes and paints its art.
 // Only the town: a ground's monsters walk in from sheets no view names yet, so a ground still opens whole.
-// Proof: tests/client-boot.mjs B-21; its pixels, tests/perf-budget.mjs PB-VIEW.
+// Proof: tests/client-boot.mjs B-21; its pixels, tests/perf-budget.mjs PB-VIEW; the limit, tests/world-core.mjs W7.
 // ════════════════════════════════════════════════════════════════════════
 import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.134';
 
 /* how long a first view waits for the server to say where its hero stands (a read lost on a bad line) */
 const PLACE_WAIT_MS = 3000;
+/** How long one late sheet may hold the town's frame (or its first view): past it, the frame draws without it. */
+export const SHEET_HOLD_MS = 6000;
 
 /**
  * @param {{win: Window, sheets: {ready: (sets: string[]) => boolean, ensure: (sets: string[]) => Promise<boolean>}, needs: Map<string, string[]>,
@@ -21,9 +27,12 @@ const PLACE_WAIT_MS = 3000;
  */
 export function createViewSheets(o) {
   const { win, sheets, needs, town, missing, wake } = o;
-  const asked = new Set(), behind = new Set();
+  const now = () => win.performance.now();
+  const asked = new Map(), behind = new Set();   // asked: set -> when a frame first asked for it
   let opening = false;
   const opensOnView = (id) => id === SCENE_MAPS.town;
+  /* no wake while open() is at work: it goes on by itself, and a wake starts the frame loop, seconds of frames that cannot show (phone: 0.5 s of main thread) */
+  const wakeUp = () => { if (!opening) wake(); };
 
   function loadBehind(id) {
     if (behind.has(id)) return;
@@ -31,14 +40,20 @@ export function createViewSheets(o) {
     sheets.ensure(needs.get(id));
   }
 
-  /* Does this frame of `id` draw a sheet still on its way? It is asked for at once, and the last frame stays. */
+  /* Does this frame of `id` draw a sheet still on its way, asked for under SHEET_HOLD_MS ago? It is asked for at once, and the
+     last frame stays; at the limit a frame is drawn without it (a pane with no loop running is woken for that frame). */
   function check(id, cast) {
     if (!opensOnView(id) || sheets.ready(needs.get(id))) return false;
     const miss = missing(cast);
-    /* no wake while open() is at work: it goes on by itself, and a wake starts the frame loop, seconds of frames that cannot show (phone: 0.5 s of main thread) */
-    for (const set of miss) if (!asked.has(set)) { asked.add(set); sheets.ensure([set]).then(() => { if (!opening) wake(); }); }
+    const t = now();
+    for (const set of miss) {
+      if (asked.has(set)) continue;
+      asked.set(set, t);
+      sheets.ensure([set]).then(wakeUp);
+      win.setTimeout(wakeUp, SHEET_HOLD_MS);
+    }
     if (!miss.length) loadBehind(id);
-    return miss.length > 0;
+    return miss.some((set) => t - asked.get(set) < SHEET_HOLD_MS);
   }
 
   /**
@@ -58,7 +73,8 @@ export function createViewSheets(o) {
           continue;
         }
         if (!check(now.id, now.cast)) return;
-        await sheets.ensure(missing(now.cast));
+        /* its sheets in, or the hold's limit reached: then the next check lets the first view open without them */
+        await Promise.race([sheets.ensure(missing(now.cast)), new Promise((done) => win.setTimeout(done, SHEET_HOLD_MS))]);
       }
     } finally { opening = false; }
   }

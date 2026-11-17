@@ -18,19 +18,19 @@
 // alert centre (alerts.js) reads the same id, so a seen death never comes back
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.136';
-import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.136';
-import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.136';
-import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.136';
-import { huntName } from '../session/party-sections.js?v=0.2.136';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.136';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.136';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.136';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.136';
-import { whole } from '../render/format.js?v=0.2.136';
-import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.136';
-import { monsterName } from './widgets/bits.js?v=0.2.136';
-import { t } from '../render/player-text.js?v=0.2.136';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.137';
+import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.137';
+import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.137';
+import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.137';
+import { huntName } from '../session/party-sections.js?v=0.2.137';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.137';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
+import { whole } from '../render/format.js?v=0.2.137';
+import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.137';
+import { monsterName } from './widgets/bits.js?v=0.2.137';
+import { t } from '../render/player-text.js?v=0.2.137';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;

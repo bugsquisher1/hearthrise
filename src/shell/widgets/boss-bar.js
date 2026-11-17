@@ -13,12 +13,12 @@
 // WHICH BOSS: in a room, the room's boss for the whole fight (the room is the fight). On a ground, a boss with lines who stands hurt at
 // the instant shown: the party is on him. Before the first blow, and once a reset heals him, the bar steps aside.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.136';
-import { BOSS_HALL_WORDS, roomOfHunt, isNamedAdd } from '../../data/boss-halls.js?v=0.2.136';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.136';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.136';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.136';
-import { text, cls, style, prop } from '../../render/paint.js?v=0.2.136';
+import { BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.137';
+import { BOSS_HALL_WORDS, roomOfHunt, isNamedAdd } from '../../data/boss-halls.js?v=0.2.137';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.137';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.137';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.137';
+import { text, cls, style, prop } from '../../render/paint.js?v=0.2.137';
 
 /** The skeleton (built once). */
 export function renderBossBar() {

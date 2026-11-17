@@ -18,13 +18,13 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.136';
-import { VITALS } from '../data/core-model.js?v=0.2.136';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.136';
-import { HUNT_GROUNDS, groundOfHunt } from '../data/hunt-grounds.js?v=0.2.136';
-import { sessionModeOf } from '../data/session-modes.js?v=0.2.136';
-import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.136';
-import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.136';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.137';
+import { VITALS } from '../data/core-model.js?v=0.2.137';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.137';
+import { HUNT_GROUNDS, groundOfHunt } from '../data/hunt-grounds.js?v=0.2.137';
+import { sessionModeOf } from '../data/session-modes.js?v=0.2.137';
+import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.137';
+import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.137';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);

@@ -28,9 +28,9 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { TRAINING_RULES, TRAINING_GEAR } from '../../data/training.js?v=0.2.136';
-import { XP_FRAC_SCALE } from '../progression.js?v=0.2.136';
-import { DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.136';
+import { TRAINING_RULES, TRAINING_GEAR } from '../../data/training.js?v=0.2.137';
+import { XP_FRAC_SCALE } from '../progression.js?v=0.2.137';
+import { DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.137';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 

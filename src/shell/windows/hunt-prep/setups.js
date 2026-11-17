@@ -12,18 +12,18 @@
 // set's); any other row keeps Use off and says "Town only: needs ..." on its line. New and Use equipped
 // stay town-only (they take the worn gear). The server refuses the same (2027-05-04-setup-swap-mid-hunt.sql).
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.136';
-import { settingsOf, huntOf } from '../../../session/hunt-sections.js?v=0.2.136';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.136';
-import { runIntent } from '../../intent-words.js?v=0.2.136';
-import { gold } from '../../../render/format.js?v=0.2.136';
-import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.136';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.136';
-import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.136';
-import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.136';
-import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.136';
-import { t, hasText } from '../../../render/player-text.js?v=0.2.136';
-import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.136';
+import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.137';
+import { settingsOf, huntOf } from '../../../session/hunt-sections.js?v=0.2.137';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.137';
+import { runIntent } from '../../intent-words.js?v=0.2.137';
+import { gold } from '../../../render/format.js?v=0.2.137';
+import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.137';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.137';
+import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.137';
+import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.137';
+import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.137';
+import { t, hasText } from '../../../render/player-text.js?v=0.2.137';
+import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.137';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 

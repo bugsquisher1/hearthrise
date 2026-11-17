@@ -6,16 +6,16 @@
 // picks. The skills, which are unlocked, the price ladder and the next price are the server's (`training.dummy`); the
 // window names a skill and the price the player SAW (src/session/training-intents.js unlockDummy), after a confirm.
 // ════════════════════════════════════════════════════════════════════════
-import { trainingOf } from '../../session/training-sections.js?v=0.2.136';
-import { unlockDummy } from '../../session/training-intents.js?v=0.2.136';
-import { goldOf } from '../../session/item-sections.js?v=0.2.136';
-import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.136';
-import { text, cls, attr, prop, rows, element } from '../../render/paint.js?v=0.2.136';
-import { whole } from '../../render/format.js?v=0.2.136';
-import { t } from '../../render/player-text.js?v=0.2.136';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { runIntent } from '../intent-words.js?v=0.2.136';
-import { skillWord } from '../training-words.js?v=0.2.136';
+import { trainingOf } from '../../session/training-sections.js?v=0.2.137';
+import { unlockDummy } from '../../session/training-intents.js?v=0.2.137';
+import { goldOf } from '../../session/item-sections.js?v=0.2.137';
+import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.137';
+import { text, cls, attr, prop, rows, element } from '../../render/paint.js?v=0.2.137';
+import { whole } from '../../render/format.js?v=0.2.137';
+import { t } from '../../render/player-text.js?v=0.2.137';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
+import { runIntent } from '../intent-words.js?v=0.2.137';
+import { skillWord } from '../training-words.js?v=0.2.137';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { ask: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };

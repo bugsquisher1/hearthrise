@@ -7,7 +7,7 @@
 // hunts and answers; the character is re-read so the page shows what the server holds. No price, count or job is ever
 // sent: the server prices a training start and counts what a bench has left.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.136';
+import { askVia } from './intent-ledger.js?v=0.2.137';
 
 const CHOICE = /^[a-z_]{1,24}$/;
 const SKILL = /^[a-z_]{1,32}$/;

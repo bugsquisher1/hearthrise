@@ -21,23 +21,23 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.136';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.136';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.136';
-import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.136';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.136';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.136';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.136';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.136';
-import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.136';
-import { gotoAttr, patchParts } from '../goto.js?v=0.2.136';
-import { factsTarget } from './monster.js?v=0.2.136';
-import { t } from '../../render/player-text.js?v=0.2.136';
-import { groundLines } from '../live-events-view.js?v=0.2.136';
-import { afterHtml } from './hunt-after-pane.js?v=0.2.136';
-import { scaleHtml } from './scale-pane.js?v=0.2.136';
-import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.136';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.137';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.137';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.137';
+import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.137';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.137';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.137';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.137';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.137';
+import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.137';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.137';
+import { factsTarget } from './monster.js?v=0.2.137';
+import { t } from '../../render/player-text.js?v=0.2.137';
+import { groundLines } from '../live-events-view.js?v=0.2.137';
+import { afterHtml } from './hunt-after-pane.js?v=0.2.137';
+import { scaleHtml } from './scale-pane.js?v=0.2.137';
+import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.137';
 
 const PREP_LABEL = SHELL_WINDOWS.find((w) => w.id === 'hunt-prep').label;
 

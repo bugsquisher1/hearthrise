@@ -15,15 +15,15 @@
 //
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts, nothing a player can spend, no intent and no residue.
 // ════════════════════════════════════════════════════════════════════════
-import { prop, attr, text } from '../../render/paint.js?v=0.2.136';
-import { whole, chance, listWords } from '../../render/format.js?v=0.2.136';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { t } from '../../render/player-text.js?v=0.2.136';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.136';
-import { skillPages, groundPages, formulaPages, levelXpRows } from '../wiki-model.js?v=0.2.136';
-import { chronicleOf } from '../chronicle-model.js?v=0.2.136';
-import { levelOf } from '../../session/character-sections.js?v=0.2.136';
-import { linkHtml, targetOf } from '../goto.js?v=0.2.136';
+import { prop, attr, text } from '../../render/paint.js?v=0.2.137';
+import { whole, chance, listWords } from '../../render/format.js?v=0.2.137';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
+import { t } from '../../render/player-text.js?v=0.2.137';
+import { glyphSvg } from '../widgets/bits.js?v=0.2.137';
+import { skillPages, groundPages, formulaPages, levelXpRows } from '../wiki-model.js?v=0.2.137';
+import { chronicleOf } from '../chronicle-model.js?v=0.2.137';
+import { levelOf } from '../../session/character-sections.js?v=0.2.137';
+import { linkHtml, targetOf } from '../goto.js?v=0.2.137';
 
 /* THE BOOK (the top bar's groups, 2026-11-16): the Chronicle first, the story so far (Tyler: "Yeah build the chronicle"), then the wiki. */
 const WIKI_SECTIONS = Object.freeze(['chronicle', 'skills', 'grounds', 'formulas']);

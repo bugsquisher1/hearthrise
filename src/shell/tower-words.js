@@ -6,11 +6,11 @@
 // chance (render/format.js chance). A refusal with no number reads from src/data/refusal-words.js; src/shell/intent-words.js
 // refusalText asks here first.
 // ════════════════════════════════════════════════════════════════════════
-import { t, hasText } from '../render/player-text.js?v=0.2.136';
-import { chance, whole } from '../render/format.js?v=0.2.136';
-import { itemName } from './widgets/bits.js?v=0.2.136';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.136';
-import { END_WORDS } from '../hunt-view/summary-model.js?v=0.2.136';
+import { t, hasText } from '../render/player-text.js?v=0.2.137';
+import { chance, whole } from '../render/format.js?v=0.2.137';
+import { itemName } from './widgets/bits.js?v=0.2.137';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.137';
+import { END_WORDS } from '../hunt-view/summary-model.js?v=0.2.137';
 
 const VERBS = Object.freeze(['tower_start', 'chest_open', 'chest_stoke_default']);
 const num = (v) => Number.isSafeInteger(v) && v >= 0;

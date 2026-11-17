@@ -60,10 +60,10 @@
 //
 // PURE ESM DATA. Imports only the tempering table and the weapon families. Node, Deno and the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { TEMPER_MATERIALS } from './temper.js?v=0.2.136';
-import { WEAPON_FAMILIES } from './gear-tiers.js?v=0.2.136';
-import { TOWER_WEAPONS } from './tower-weapons.js?v=0.2.136';
-import { SKILL_PLUS_FIELDS } from '../core/combat.js?v=0.2.136';
+import { TEMPER_MATERIALS } from './temper.js?v=0.2.137';
+import { WEAPON_FAMILIES } from './gear-tiers.js?v=0.2.137';
+import { TOWER_WEAPONS } from './tower-weapons.js?v=0.2.137';
+import { SKILL_PLUS_FIELDS } from '../core/combat.js?v=0.2.137';
 
 /* The one chest today, on the Great Hearth's ledge in Havora (world/stations.js `hearth`). A later chest is a row. */
 export const CHESTS = Object.freeze({

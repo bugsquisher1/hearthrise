@@ -35,18 +35,18 @@
 // on the server's `ready`, never on the clock. Every control is off while an
 // intent is in flight; the field changes only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.136';
-import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.136';
-import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.136';
-import { CROPS } from '../../data/gathering.js?v=0.2.136';
-import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.136';
-import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.136';
-import { whole, gold } from '../../render/format.js?v=0.2.136';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { itemIconHtml, itemName, itemNameFor } from '../widgets/bits.js?v=0.2.136';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.136';
-import { t, hasText } from '../../render/player-text.js?v=0.2.136';
-import { patchParts, targetOf } from '../goto.js?v=0.2.136';
+import { farmLandOf, readyInMs } from '../../session/farm-sections.js?v=0.2.137';
+import { plantCrop, waterPlot, harvestPlot, clearPlot, upgradePlot } from '../../session/farm-intents.js?v=0.2.137';
+import { bagOf, skillsOf, goldOf, shopOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.137';
+import { CROPS } from '../../data/gathering.js?v=0.2.137';
+import { requiredPlotLevel, unlockedCrops, emptyPlotIndices } from '../../core/farm.js?v=0.2.137';
+import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.2.137';
+import { whole, gold } from '../../render/format.js?v=0.2.137';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
+import { itemIconHtml, itemName, itemNameFor } from '../widgets/bits.js?v=0.2.137';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.137';
+import { t, hasText } from '../../render/player-text.js?v=0.2.137';
+import { patchParts, targetOf } from '../goto.js?v=0.2.137';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', asked: null }; SCRATCH.set(cs, s); } return s; };

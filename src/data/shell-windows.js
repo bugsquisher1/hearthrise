@@ -52,7 +52,7 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.136';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.137';
 
 /* THE TOP BAR'S GROUPS (Tyler 2026-11-16: "Our top menu bar is starting to get long again ... It's getting a bit overwhelming").
    The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8), so the windows a player opens now and then sit one press

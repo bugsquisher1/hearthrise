@@ -46,32 +46,32 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.136';
-import { t } from '../render/player-text.js?v=0.2.136';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.136';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.136';
-import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.136';
-import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.136';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.136';
-import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.136';
-import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.136';
-import { noShotWords } from './hunt-go.js?v=0.2.136';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.136';
-import { deathSeen } from './death-popup.js?v=0.2.136';
-import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.136';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.136';
-import { benchStopRecapOf } from './bench-fee.js?v=0.2.136';
-import { workRow } from './town-work.js?v=0.2.136';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.136';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.136';
-import { gold } from '../render/format.js?v=0.2.136';
-import { levelOf } from '../session/character-sections.js?v=0.2.136';
-import { ITEMS } from '../data/items.js?v=0.2.136';
-import { trackOnce } from '../net/observability.js?v=0.2.136';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.136';
-import { endedWords as trainingEndWords } from './training-words.js?v=0.2.136';
-import { spellWatch, movesOnBar } from './spell-news.js?v=0.2.136';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.136';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.137';
+import { t } from '../render/player-text.js?v=0.2.137';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.137';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.137';
+import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.137';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.137';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.137';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.137';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.137';
+import { noShotWords } from './hunt-go.js?v=0.2.137';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.137';
+import { deathSeen } from './death-popup.js?v=0.2.137';
+import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.137';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.137';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.137';
+import { workRow } from './town-work.js?v=0.2.137';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.137';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.137';
+import { gold } from '../render/format.js?v=0.2.137';
+import { levelOf } from '../session/character-sections.js?v=0.2.137';
+import { ITEMS } from '../data/items.js?v=0.2.137';
+import { trackOnce } from '../net/observability.js?v=0.2.137';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.137';
+import { endedWords as trainingEndWords } from './training-words.js?v=0.2.137';
+import { spellWatch, movesOnBar } from './spell-news.js?v=0.2.137';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
 
 const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 

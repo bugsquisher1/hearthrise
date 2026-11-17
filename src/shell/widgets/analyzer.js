@@ -30,19 +30,19 @@
 // never steps back; display only, the next envelope replaces it. The view, tab
 // and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium, partyOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.136';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.136';
-import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.136';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.136';
-import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.136';
-import { glyphSvg } from '../launcher.js?v=0.2.136';
-import { foldButtonHtml } from '../widget-move.js?v=0.2.136';
-import { thenWords } from '../hunt-after.js?v=0.2.136';
-import { trainingNowOf } from '../training-now.js?v=0.2.136';
-import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.136';
-import { skillBarHtml, patchSkillProgress } from '../windows/skills.js?v=0.2.136';
-import { t } from '../../render/player-text.js?v=0.2.136';
+import { analyzerOf, isPremium, partyOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.137';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.137';
+import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.137';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.137';
+import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.137';
+import { glyphSvg } from '../launcher.js?v=0.2.137';
+import { foldButtonHtml } from '../widget-move.js?v=0.2.137';
+import { thenWords } from '../hunt-after.js?v=0.2.137';
+import { trainingNowOf } from '../training-now.js?v=0.2.137';
+import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.137';
+import { skillBarHtml, patchSkillProgress } from '../windows/skills.js?v=0.2.137';
+import { t } from '../../render/player-text.js?v=0.2.137';
 
 /* A TRAINING SESSION (../training-now.js; lane/a-training-display): it showed "Monsters killed 0, Level XP 0, Gold 0". While one runs the
    panel shows the trained skill's level and its progress (the server's skill_levels), its XP an hour, the hour's fee and the gold paid

@@ -20,12 +20,12 @@
 //                                addMovesOrOpen), the same way; with the bar full
 //                                it opens Hunt prep on that hero instead
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.136';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.136';
-import { glyphSvg } from '../launcher.js?v=0.2.136';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.136';
-import { cardFacts, shareCard } from '../share-card.js?v=0.2.136';
-import { addMovesOrOpen } from '../bar-assign.js?v=0.2.136';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.137';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.137';
+import { glyphSvg } from '../launcher.js?v=0.2.137';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.137';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.137';
+import { addMovesOrOpen } from '../bar-assign.js?v=0.2.137';
 
 const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends', training: 'training' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */

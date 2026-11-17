@@ -7,8 +7,8 @@
 // without them).
 // ════════════════════════════════════════════════════════════════════════
 
-import { partyOf, huntOf, huntTierOf } from '../session/hunt-sections.js?v=0.2.136';
-import { levelOf } from '../session/character-sections.js?v=0.2.136';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.136';
+import { partyOf, huntOf, huntTierOf } from '../session/hunt-sections.js?v=0.2.137';
+import { levelOf } from '../session/character-sections.js?v=0.2.137';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.137';
 
 export const HERO_READERS = Object.freeze({ partyOf, huntOf, huntTierOf, levelOf, endedSessionOf });

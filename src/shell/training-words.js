@@ -5,10 +5,10 @@
 // (src/session/training-sections.js) or a refusal's figures (src/session/training-intents.js). A refusal with no
 // number reads from src/data/refusal-words.js; src/shell/intent-words.js refusalText asks here first.
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.136';
-import { whole } from '../render/format.js?v=0.2.136';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.136';
-import { TRAINING_RULES } from '../data/training.js?v=0.2.136';
+import { t } from '../render/player-text.js?v=0.2.137';
+import { whole } from '../render/format.js?v=0.2.137';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
+import { TRAINING_RULES } from '../data/training.js?v=0.2.137';
 
 const MINUTE = 60000;
 const num = (v) => Number.isSafeInteger(v);

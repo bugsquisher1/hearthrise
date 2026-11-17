@@ -1163,8 +1163,11 @@ declare
   k        constant text := '000000c0-0000-4000-b000-704e';
   v        jsonb; v_sig text; v_role text; t text; v_sid uuid; v_tw jsonb; v_hunt text; v_t0 timestamptz; v_src text;
   v_end    jsonb := '{"accrued_to":"x"}'::jsonb;
+  v_sw     text;
 begin
   select hunt_id into v_hunt from public.hr_tower_rules where id;
+  -- the switch as the probe finds it (seeded off; on for everyone once 2027-05-03-tower-arm.sql has applied): (g) wants it back exactly so
+  select concat_ws('|', f.scope, f.accounts::text) into v_sw from public.hr_feature_switches f where f.switch_id = 'burning_tower';
   -- (a) PRIVILEGES: every helper the owner's alone; the verb the signed-in client's alone; the tables readable by their owner, written by no client.
   foreach v_sig in array array['public.hr_mode_checkpoints(text,integer)', 'public.hr_tower_record(uuid,integer)', 'public.hr_tower_floor_of(uuid)',
                                'public.hr_mode_pays(text,jsonb)', 'public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)',
@@ -1305,7 +1308,7 @@ begin
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = v_u) or exists (select 1 from public.tower_runs where user_id = v_u)
      or exists (select 1 from public.player_intents where user_id = v_u)
-     or exists (select 1 from public.hr_feature_switches f where f.switch_id = 'burning_tower' and f.scope <> 'off') then
+     or (select concat_ws('|', f.scope, f.accounts::text) from public.hr_feature_switches f where f.switch_id = 'burning_tower') is distinct from v_sw then
     raise exception 'tower-climb §10(g): §10 LEAKED a probe row'; end if;
   raise notice 'tower-climb: one door behind its switch, a checkpoint the hero (or the party''s lowest seat) reached, floors re-proved against the run, what a mode pays honored; all green';
 end $$;

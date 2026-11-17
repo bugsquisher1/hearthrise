@@ -10,7 +10,7 @@
 //   node tests/tower-climb.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
 //
 // mutant-anchors: src/core/hunt/tower.js, src/core/hunt-rewards.js, src/core/hunt/xp-share.js, src/core/combat-sim.js,
-//   supabase/migrations/2027-04-24-tower-climb.sql
+//   supabase/migrations/2027-04-24-tower-climb.sql, supabase/migrations/2027-05-03-tower-arm.sql
 //
 //   TC-ROOM    the room: floor F's five at Level F (the stat formula), a Keeper on every landing at the boss role and no second of his kind,
 //              the same room every read (no dice), a floor past the top playing the top's rows; the rows pay no coin and drop nothing; the
@@ -30,6 +30,10 @@
 //              (51); a forged landing 60 and a landing 35 (no checkpoint) are refused with the list and open nothing; a PARTY of best 50 and
 //              best 20, started by its leader, climbs from 21 (the highest landing both reached), one run a seat, every seat or none: a
 //              pick of 30 opens nobody; a seat that isn't the leader starts nothing
+//   TC-ARM     2027-05-03-tower-arm.sql: the switch is OFF on the chain up to the file before it and ON for everyone (a stranger included)
+//              on the whole chain; on the chain before it, with another switch moved, the file turns it on and moves no other switch row; a
+//              second apply moves nothing, the schema included; 2027-04-24-tower-climb.sql applied again over the armed row re-applies (its
+//              probe puts the switch back as it found it) and leaves it armed
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -38,7 +42,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, chainFiles, inventory } from './schema-replay.mjs';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q, makeExec } = H;
@@ -446,7 +450,51 @@ async function checkpointArm(db, M) {
   return bad;
 }
 
-const ARMS = { room: roomArm, engine: engineArm, doors: doorsArm, forged: forgedArm, start: startArm, checkpoint: checkpointArm };
+/* ── TC-ARM (2027-05-03-tower-arm.sql) ────────────────────────────────────────
+   The whole chain leaves burning_tower on for everyone. The chain up to the file before the arm leaves it off; on that database another
+   switch moved (factions to testers), the file applied: on for a stranger, every other row exactly as it was (scope, accounts, note,
+   updated_at); applied again: nothing moves, the schema included (a byte-identical second apply); then 2027-04-24-tower-climb.sql applied
+   again over the armed row: it re-applies and leaves the switch armed. A mutant's edit of a migration's text rides in SQL_EDIT. */
+const ARM_FILE = '2027-05-03-tower-arm.sql';
+let SQL_EDIT = null;
+const migration = (name) => {
+  let t = readFileSync(join(ROOT, 'supabase', 'migrations', name), 'utf8').replace(/\r\n/g, '\n');
+  if (SQL_EDIT && SQL_EDIT.file === name) for (const [a, b] of SQL_EDIT.edits) t = t.replace(a, () => b);
+  return t;
+};
+async function armArm(db) {
+  const bad = [];
+  const stranger = '00000000-0000-4000-8000-00007a3e9e99';
+  const rows = (d) => q(d, 'select switch_id, scope, accounts::text as accounts, note, updated_at::text as at from public.hr_feature_switches order by switch_id');
+  const tower = async (d) => (await rows(d)).find((r) => r.switch_id === 'burning_tower');
+  const others = async (d) => JSON.stringify((await rows(d)).filter((r) => r.switch_id !== 'burning_tower'));
+  const on = async (d) => (await one(d, "select public.hr_feature_on('burning_tower', $1::uuid)", [stranger])) === true;
+  const first = (e) => String(e && e.message).split('\n')[0].slice(0, 200);
+  const all = await tower(db);
+  if (!all || all.scope !== 'everyone' || all.accounts !== '{}' || !await on(db)) bad.push('TC-ARM the whole chain leaves burning_tower at ' + JSON.stringify(all));
+  const order = (await chainFiles()).map(([n]) => n);
+  if (order.indexOf(ARM_FILE) < 1) { bad.push('TC-ARM ' + ARM_FILE + ' is not in the chain'); return bad; }
+  const { db: pre } = await bootReplay({ upTo: order[order.indexOf(ARM_FILE) - 1] });
+  try {
+    const sw0 = await tower(pre);
+    if (!sw0 || sw0.scope !== 'off' || await on(pre)) bad.push('TC-ARM the chain before the arm leaves burning_tower at ' + JSON.stringify(sw0) + ' (off until the arm)');
+    await pre.query("update public.hr_feature_switches set scope = 'testers', updated_at = '2026-01-01T00:00:00Z' where switch_id = 'factions'");
+    const other = await others(pre);
+    const sql = migration(ARM_FILE);
+    try { await pre.exec(sql); } catch (e) { bad.push('TC-ARM the file refused: ' + first(e)); return bad; }
+    if (!await on(pre)) bad.push('TC-ARM applied over an off switch, burning_tower is still off for a stranger');
+    if (await others(pre) !== other) bad.push('TC-ARM the file moved another switch row');
+    const before = JSON.stringify({ inv: await inventory(pre), rows: await rows(pre) });
+    try { await pre.exec(sql); } catch (e) { bad.push('TC-ARM a second apply refused: ' + first(e)); return bad; }
+    if (JSON.stringify({ inv: await inventory(pre), rows: await rows(pre) }) !== before) bad.push('TC-ARM a second apply moved something');
+    const armed = JSON.stringify(await tower(pre));
+    try { await pre.exec(migration('2027-04-24-tower-climb.sql')); } catch (e) { bad.push('TC-ARM 2027-04-24-tower-climb.sql refused a second apply over the armed switch: ' + first(e)); return bad; }
+    if (JSON.stringify(await tower(pre)) !== armed || !await on(pre)) bad.push('TC-ARM 2027-04-24-tower-climb.sql applied again moved the armed switch to ' + JSON.stringify(await tower(pre)));
+  } finally { await pre.close(); }
+  return bad;
+}
+
+const ARMS = { room: roomArm, engine: engineArm, doors: doorsArm, forged: forgedArm, start: startArm, checkpoint: checkpointArm, arm: armArm };
 /* THE CLIMB'S HARNESS, shared (tests/tower-chest.mjs mints its keys through these climbs, both doors). */
 export const HARNESS = Object.freeze({ boot, load, climber, drive, rows, UID, SPAN });
 
@@ -481,6 +529,14 @@ const MUTANTS = [
     find: "    if current_setting('hr.tower', true) is distinct from p_hunt then", replace: '    if false then' },
   { name: 'the best is not written', arm: 'doors', want: /^TC-DOORS/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',
     find: '  insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at, updated_at)', replace: '  return;\n  insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at, updated_at)' },
+  { name: 'the arm writes on every apply', arm: 'arm', want: /^TC-ARM a second apply moved/, sql: { file: ARM_FILE, edits: [
+    ["   where switch_id = 'burning_tower' and (scope <> 'everyone' or cardinality(accounts) <> 0);", "   where switch_id = 'burning_tower';"]] } },
+  { name: 'the arm moves another switch', arm: 'arm', want: /^TC-ARM the file moved another switch row/, sql: { file: ARM_FILE, edits: [
+    ["   where switch_id = 'burning_tower' and (scope <> 'everyone' or cardinality(accounts) <> 0);",
+     "   where switch_id in ('burning_tower', 'factions') and (scope <> 'everyone' or cardinality(accounts) <> 0);"],
+    ["  if v_after is distinct from v_before then raise exception 'tower-arm §1: another switch row moved'; end if;\n", '']] } },
+  { name: 'the climb\'s probe wants the switch off again', arm: 'arm', want: /^TC-ARM 2027-04-24-tower-climb\.sql refused/, sql: { file: '2027-04-24-tower-climb.sql', edits: [
+    ["where f.switch_id = 'burning_tower') is distinct from v_sw then", "where f.switch_id = 'burning_tower') is distinct from 'off|{}' then"]] } },
 ];
 
 async function runArm(db, M, name) {
@@ -501,6 +557,11 @@ async function main() {
         if (def.split(m.find).length !== 2) { console.error(`HARNESS: ${m.fn} has no single ${JSON.stringify(m.find.slice(0, 70))}`); process.exit(2); }
         await db.exec(def.replace(m.find, () => m.replace));
         try { got = await runArm(db, await load(ROOT), m.arm); } finally { await db.exec(def); }
+      } else if (m.sql) {
+        const text = readFileSync(join(ROOT, 'supabase', 'migrations', m.sql.file), 'utf8').replace(/\r\n/g, '\n');
+        for (const [a] of m.sql.edits) if (text.split(a).length !== 2) { console.error(`HARNESS: ${m.sql.file} has no single ${JSON.stringify(a.slice(0, 70))}`); process.exit(2); }
+        SQL_EDIT = m.sql;
+        try { got = await runArm(db, await load(ROOT), m.arm); } finally { SQL_EDIT = null; }
       } else {
         const dir = mkdtempSync(join(tmpdir(), 'hr-tc-'));
         try {
@@ -533,7 +594,7 @@ async function main() {
     bad.push(...got);
   }
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? `tower-climb: ${bad.length} FAILED` : 'tower-climb: green (the room, the engine, both doors, forged windows refused, the one door)');
+  console.log(bad.length ? `tower-climb: ${bad.length} FAILED` : 'tower-climb: green (the room, the engine, both doors, forged windows refused, the one door, the arm)');
   process.exit(bad.length ? 1 : 0);
 }
 

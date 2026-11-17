@@ -7,9 +7,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 ## v0.2.135 — 2026-11-17 (The Burning Tower)
 
-<!-- tower -->
-**The Burning Tower.** Climb the Tower floor by floor, alone or with your party. Every 10th floor drops a key. Take your keys to the Hearth Chest in town to open it for Tower weapons, supplies and a rare chance at the Key Warden outfit. Each kind of key opens the chest a few times a week. The Key Ring in your bag holds every key you carry.
-<!-- /tower -->
+**The Burning Tower.** Climb the Tower floor by floor, alone or with your party. Every 10th floor drops a key. Take your keys to the Hearth Chest in town to open it for Tower weapons, supplies and a rare chance at the Key Warden outfit. Each kind of key opens the chest a few times a week. Unlock the Key Ring tab in your bag and it holds every key you carry.
 
 **Training gear.** The Arms Master now sells training gear. Each item says how long it lasts, like Training Sword (12 h), and Buy asks before it spends your gold. Open one in Training for 200% skill XP while you train.
 
@@ -35,7 +33,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Sharper art.** Pixel art stays crisp at 125% and 150% Windows scaling.
 
-**Fixes.** Training no longer stops after 10 minutes. Feeding the Hearth now sends your hero back to its job. Turning Cut now works with any melee weapon when you're not using a shield: two axes, a club or hammer, or bare hands. If you set up your own bar, add it from Spells. Inviting a hero who is already in a party now names them. More game text is now short labels.
+**Fixes.** Training no longer stops after 10 minutes. Feeding the Hearth now sends your hero back to its job. Turning Cut now works with any melee weapon and no shield, like two axes, a club or hammer, or bare hands. If you set up your own bar, add it from Spells. Inviting a hero who is already in a party now names them. More game text is now short labels.
 
 ## v0.2.134 — 2026-11-16 (When the Hunt Ends)
 

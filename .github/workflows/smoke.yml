@@ -4361,9 +4361,10 @@ jobs:
       # THE BURNING TOWER'S CLIMB (2027-04-24-tower-climb.sql; Tyler 2026-11-14, the board's §2-§4): floor F's room at Level F, a Keeper on each
       # landing; the engine climbs floor after floor, a death costs nothing, no coin, item or Bestiary, XP at the mode's share, a room out of time
       # ends floor_time; one hero from floor 1 browser closed and hunt viewed lands the same run, landing and best; forged windows refused; the
-      # one door behind its switch. --mutate (11): the stair, coin, the Bestiary, the split, the floor's time, the order check, the mode's pay,
-      # the bound's share, the start floor, the ordinary door, the landing write.
-      - name: Burning Tower climb — floors, both paths, forged windows refused (11 mutants)
+      # one door behind its switch; the switch off before 2027-05-03-tower-arm.sql and on for everyone after it, a second apply moving nothing.
+      # --mutate (17): the stair, coin, the Bestiary, the split, the floor's time, the order check, the mode's pay, the bound's share, the
+      # checkpoints, the party's record and start, the ordinary door, the landing write, the arm's second apply, another switch, the re-apply.
+      - name: Burning Tower climb — floors, both paths, forged windows refused, the switch armed (17 mutants)
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-tower.mjs --check

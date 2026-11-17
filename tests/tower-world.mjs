@@ -8,10 +8,10 @@
 // 2027-04-27-tower-chest.sql and 2027-04-28-tower-section.sql included), a brand-new account made from the sign-in screen. A MANUAL WALK
 // (Node 23.6+, the chain's first replay), like honor-roll-world; CI guards the halves: tests/tower-window.mjs (the window, mutation-proven),
 // tests/tower-climb.mjs and tests/tower-chest.mjs (the server, mutation-proven), tests/envelope-contract.mjs (the section's shape).
-//   TOW-1  the switch OFF (as seeded): the envelope carries no `tower`, the Havora window has no Tower door, and hr_tower_start refuses
-//          feature_off: nothing shows and nothing opens
-//   TOW-2  the switch ON for this account only (what the Coordinator's dated migration will do for the QA account): the Tower window shows
-//          floor 1 as the only start, Enter opens a climb (the server's tower_runs row), and the hunt bar says the floor
+//   TOW-1  the chain ends with the switch ON for everyone (2027-05-03-tower-arm.sql); put back OFF (as seeded) and the page reloaded: the
+//          envelope carries no `tower`, the Havora window has no Tower door, and hr_tower_start refuses feature_off: nothing shows and nothing opens
+//   TOW-2  the switch ON for everyone again (as the chain leaves it): the Tower window shows floor 1 as the only start, Enter opens a climb
+//          (the server's tower_runs row), and the hunt bar says the floor
 //   TOW-3  VIEWED: the page open while the real tick settles the climb; the server writes the floors, clears landing 10 and mints its Bronze
 //          Key (the mint's own ledger row); the hero leaves and the end card says the floors and the key, never "died"
 //   TOW-4  THE CHEST: the window shows the key the server minted with the server's chance; Use opens it on the server (a chest_opens row,
@@ -74,15 +74,18 @@ try {
   };
   const closeWins = async () => { for (let i = 0; i < 3; i++) { await p.page.keyboard.press('Escape'); await p.page.waitForTimeout(150); } };
 
-  // ── TOW-1 ──
-  const sw = await sql(`select scope from public.hr_feature_switches where switch_id = 'burning_tower'`);
+  // ── TOW-1 ── the chain ends with the switch on for everyone (2027-05-03-tower-arm.sql); put back off here (its seeded state), the page reloaded
+  const armed = await sql(`select scope, accounts::text as accounts from public.hr_feature_switches where switch_id = 'burning_tower'`);
+  await sql(`update public.hr_feature_switches set scope = 'off', accounts = '{}' where switch_id = 'burning_tower'`);
+  await play();
   const env0 = await sql('select public.hr_state_of($1, 0) ? \'tower\' as has, public.hr_state_of($1, 0)->\'tower\' as tower', [uid]);
   const shown0 = await door();
   await sql("select set_config('request.jwt.claim.sub', $1, false)", [uid]);
   const off = (await sql(`select public.hr_tower_start(0, 1, gen_random_uuid()) as r`))[0].r;
   await sql("select set_config('request.jwt.claim.sub', '', false)");
-  step('TOW-1 switch off: no section, no door, the door refuses feature_off', sw[0].scope === 'off' && (!env0[0].has || env0[0].tower === null) && !shown0
-    && off.error === 'feature_off', JSON.stringify({ sw, env0, shown0, off }));
+  step('TOW-1 the chain arms the switch for everyone', armed[0].scope === 'everyone' && armed[0].accounts === '{}', JSON.stringify(armed));
+  step('TOW-1 switch off: no section, no door, the door refuses feature_off', (!env0[0].has || env0[0].tower === null) && !shown0
+    && off.error === 'feature_off', JSON.stringify({ env0, shown0, off }));
   await closeWins();
 
   /* THE HERO: a Level 25 with Level 25 combat skills (the throwaway local database only), so ten floors are a climb it can make */
@@ -91,12 +94,12 @@ try {
     await sql(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, $2, public.hr_skill_xp_for_level($2, 25))
       on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [uid, sk]);
   }
-  // ── TOW-2 ──
-  await sql(`update public.hr_feature_switches set scope = 'accounts', accounts = array[$1]::uuid[] where switch_id = 'burning_tower'`, [uid]);
+  // ── TOW-2 ── the switch back as the chain leaves it: on for everyone
+  await sql(`update public.hr_feature_switches set scope = 'everyone', accounts = '{}' where switch_id = 'burning_tower'`);
   await play();
   const opened = await openTower();
   const starts = await p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-start-pick option')).map((o) => o.value));
-  step('TOW-2 switch on: the window opens on floor 1 (checkpoint 0), the one start', opened && starts.join() === '0', JSON.stringify({ opened, starts }));
+  step('TOW-2 switch on for everyone: the window opens on floor 1 (checkpoint 0), the one start', opened && starts.join() === '0', JSON.stringify({ opened, starts }));
   await p.shot('tower-climb-1440x900');
   await p.page.click('[data-hs-win="tower"] .tt-go');
   const went = await until(p.page, () => !!document.querySelector('[data-hs-act="leave"]'), null, 60000);

@@ -249,18 +249,21 @@ comment on table public.player_key_ring is '2027-04-27-tower-chest.sql (lane/c-k
 comment on table public.chest_opens is '2027-04-27-tower-chest.sql: append-only, one row a key used at the Hearth Chest: its index, key family, chance, roll, warmth, stokes, weapon, and its outfit roll and outfit found (the super-rare). The audit a dispute is replayed from, a family''s weekly open count (hr_chest_open) and the Turnkey title''s count. Written only by hr_chest_open. RLS: own rows readable, no client write.';
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
+-- PLANNED ONCE: every read helper here is plpgsql, never `language sql` with a SET clause, which PostgreSQL 17 re-plans on every call. The
+-- `tower` and `key_ring` sections read them on every envelope and settle once the switch is on (tests/settle-budget.mjs SB-3 named five).
 -- A key's chance in parts per million: base (permille) x the warmth after p_dry dry keys x the stoke (permille), at most 1,000,000. Null for
 -- a stoke count no row has. The same integer sum as src/data/chests.js chestChancePpm (tests/tower-chest.mjs TCH-DATA checks the two agree).
 create or replace function public.hr_chest_chance_ppm(p_base_pm int, p_dry int, p_stokes int)
-returns int language sql stable set search_path = public, pg_catalog as $$
+returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
-  select case when p_stokes is null or p_base_pm is null then null
+  return (select case when p_stokes is null or p_base_pm is null then null
               when p_stokes <> 0 and s.pm is null then null
               else least(1000000, (p_base_pm::bigint * (1000 + least(greatest(coalesce(p_dry, 0), 0)::bigint * l.warmth_step_pm, l.warmth_cap_pm - 1000))
                                    * (case when p_stokes = 0 then 1000 else s.pm end) / 1000))::int end
     from public.hr_chest_luck l left join public.hr_chest_stokes s on s.stokes = p_stokes
-   where l.id
-$$;
+   where l.id);
+end $fn$;
 
 -- ONE KEY'S ROLL: the hero's n-th key, rolled on the server's seeded stream. { roll (0..999999), weapon (roll < chance), family }: the family
 -- the hero wears ownPm of the time when the key has it, else even over the key's other families; no family worn (or one the key lacks): even
@@ -303,34 +306,37 @@ end $fn$;
 
 -- What the hero holds of an item: { bag, storage, ring }.
 create or replace function public.hr_chest_held(p_user uuid, p_slot int, p_item text)
-returns jsonb language sql stable set search_path = public, pg_catalog as $$
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
-  select jsonb_build_object(
+  return jsonb_build_object(
     'bag', coalesce((select i.qty from public.player_inventory i where i.user_id = p_user and i.slot = p_slot and i.item_id = p_item), 0),
     'storage', coalesce((select b.qty from public.account_bank b where b.user_id = p_user and b.item_id = p_item), 0),
-    'ring', coalesce((select r.qty from public.player_key_ring r where r.user_id = p_user and r.slot = p_slot and r.item_id = p_item), 0))
-$$;
+    'ring', coalesce((select r.qty from public.player_key_ring r where r.user_id = p_user and r.slot = p_slot and r.item_id = p_item), 0));
+end $fn$;
 
 -- What the hero holds of a key FAMILY: every key of it in the bag, on its Key Ring and in the account's Storage (the keys it could open). The
 -- mint's held limit.
 create or replace function public.hr_chest_family_held(p_user uuid, p_slot int, p_family text)
-returns bigint language sql stable set search_path = public, pg_catalog as $$
+returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
-  select coalesce((select sum(i.qty) from public.player_inventory i join public.hr_chest_keys k on k.item_id = i.item_id
+  return coalesce((select sum(i.qty) from public.player_inventory i join public.hr_chest_keys k on k.item_id = i.item_id
                     where i.user_id = p_user and i.slot = p_slot and k.key_family = p_family), 0)::bigint
        + coalesce((select sum(r.qty) from public.player_key_ring r join public.hr_chest_keys k on k.item_id = r.item_id
                     where r.user_id = p_user and r.slot = p_slot and k.key_family = p_family), 0)::bigint
        + coalesce((select sum(b.qty) from public.account_bank b join public.hr_chest_keys k on k.item_id = b.item_id
-                    where b.user_id = p_user and k.key_family = p_family), 0)::bigint
-$$;
+                    where b.user_id = p_user and k.key_family = p_family), 0)::bigint;
+end $fn$;
 
 -- THE KEY RING (lane/c-key-ring): does this hero own one (hr_unlock_buy's ownership row, GREATEST-merged)?
 create or replace function public.hr_key_ring_owned(p_user uuid, p_slot int)
-returns boolean language sql stable set search_path = public, pg_catalog as $$
+returns boolean language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- KEY-RING (2027-04-27-tower-chest.sql)
-  select exists (select 1 from public.player_progress g where g.user_id = p_user and g.slot = p_slot and g.kind = 'unlock'
-                  and g.key = 'key_ring' and g.period_key = '' and g.value >= 1)
-$$;
+  return exists (select 1 from public.player_progress g where g.user_id = p_user and g.slot = p_slot and g.kind = 'unlock'
+                  and g.key = 'key_ring' and g.period_key = '' and g.value >= 1);
+end $fn$;
 
 -- Every chest key in the hero's bag onto its ring (the purchase's sort). The number of keys moved.
 create or replace function public.hr_key_ring_sweep(p_user uuid, p_slot int)
@@ -503,10 +509,11 @@ end $fn$;
 
 -- The key week an instant is in: its Monday 00:00 UTC (the board: the Tower's week; every family's week).
 create or replace function public.hr_chest_week_start(p_at timestamptz)
-returns timestamptz language sql stable set search_path = public, pg_catalog as $$
+returns timestamptz language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
-  select date_trunc('week', p_at at time zone 'UTC') at time zone 'UTC'
-$$;
+  return date_trunc('week', p_at at time zone 'UTC') at time zone 'UTC';
+end $fn$;
 
 -- THE MENU'S NUMBERS, the server's own (the design's "One menu that shows all of it"). Reads only.
 create or replace function public.hr_chest_section(p_user uuid, p_slot int)

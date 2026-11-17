@@ -535,7 +535,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.hunt_settings.slots = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [] }];
         await pushEnvelope(page, s);
         const f3 = await page.evaluate(() => { const e = document.querySelector('.hb-socket.is-food'); return [e.querySelector('.hb-socket-k').textContent, e.title]; });
-        if (f3[0] !== 'Food: store' || !/Salted Shrimp at 14 gp each/.test(f3[1])) fails.push('HS-18 out of own food with store shrimp on the bar, the socket reads ' + JSON.stringify(f3));
+        if (f3[0] !== 'Food: store' || f3[1] !== 'No food in hunt bag. Bar buys Salted Shrimp (14 gp each)') fails.push('HS-18 out of own food with store shrimp on the bar, the socket reads ' + JSON.stringify(f3));
         s.env.hunt_settings.slots = [];
         await pushEnvelope(page, s);
         const f4 = await foodK();
@@ -1565,8 +1565,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, have 2$/, false],
-          [1, 'rune', /^No Fire rune, pick the store's rune/, true],
-          [2, 'none left', /^Out of Wheat Bread, next food or drink slot takes over$/, true],
+          [1, 'rune', /^No Fire rune: pick the store rune/, true],
+          [2, 'none left', /^Out of Wheat Bread: next food or drink slot takes over$/, true],
           [5, 'store off', /^Set to leave the hunt instead of buying$/, true],
           [7, 'server', /^This can’t fire right now\.$/, true],
         ];
@@ -1590,7 +1590,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const wrong = await why(0);
-        if (!/^Your weapon can’t use this\. Needs /.test(wrong.text) || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
+        if (wrong.text !== 'Requires Shield' || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
         await sweep('the healer bar');
         /* A SLOT THIS PARTY CAN'T FIRE (lane/a-silent-triggers): wanting more hurt heroes than the party holds never holds. Not struck: it says
            so, and the slot shows what it wants where an item shows its count (slot-waits.js), ahead of the mana it is also short of. */
@@ -1599,14 +1599,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const short = await why(9);
         const need = await page.evaluate(() => document.querySelector('.hb-slot[data-slot="9"] .hb-count').textContent);
-        if (short.text !== 'Waiting: needs 3 or more heroes under 80% health, and your party has 2.' || short.off || !short.wait || !short.glyph || need !== '3+') fails.push('HS-20 the group heal this party can\'t fire reads ' + JSON.stringify(short) + ', its corner ' + JSON.stringify(need));
+        if (short.text !== 'Waiting: needs 3 or more heroes under 80% health, party of 2' || short.off || !short.wait || !short.glyph || need !== '3+') fails.push('HS-20 the group heal this party can\'t fire reads ' + JSON.stringify(short) + ', its corner ' + JSON.stringify(need));
         await sweep('the bar with a slot waiting on a party');
         delete S.slots[9];
         delete S.role; delete S.discipline;
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const none = await why(0);
-        if (!/^Requires .+ \(spells come from your weapon\)$/.test(none.text) || !none.off || !none.glyph) fails.push('HS-20 the no-weapon slot reads ' + JSON.stringify(none));
+        if (none.text !== 'Requires Shield' || !none.off || !none.glyph) fails.push('HS-20 the no-weapon slot reads ' + JSON.stringify(none));
         await sweep('the bar with no weapon');
       } else fails.push('HS-20 the screen did not mount');
       await ctx.close();
@@ -1635,7 +1635,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           fails.push('HS-24 the picker does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const none = await card('meadowbrook_thicket');
-        if (!none || none.line !== 'No best yet' || none.page.join('|') !== 'No best yet (hunt 10+ min to set one)') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
+        if (!none || none.line !== 'No record yet' || none.page.join('|') !== 'No record yet (hunt 10+ min)') fails.push('HS-24 a ground with no best does not say so once: ' + JSON.stringify(none));
         /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
@@ -1788,7 +1788,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (firstLocked < 1 || sp.rows.slice(firstLocked).some((r) => !r.locked) || sp.rows.some((r) => r.locked !== r.lock)) fails.push('HS-8 the Spells list is not castable first, then locked with the lock showing: ' + JSON.stringify(sp.rows));
       else {
         await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + sp.rows[firstLocked].id + '"]');
-        const why = await wait(page, () => /^Your weapon can’t cast this\. It works once you hold a .+\.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
+        const why = await wait(page, () => /^Requires an? \S.*$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
         if (!why) fails.push('HS-8 a locked spell picked does not say which weapon casts it: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
       }
       await page.click('.ca-tab[data-tab="food"]');
@@ -1812,7 +1812,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await page.hover('.ca-run[data-run="food"] .ca-row[data-id="salted_lobster"]');
       const cmp = await page.evaluate(() => ({ vs: document.querySelector('.ca-vs').textContent, lines: Array.from(document.querySelectorAll('.ca-cmp li')).map((l) => l.textContent),
         pinned: (document.querySelector('.ca-pinned.is-on .ca-name') || {}).textContent, lead: document.querySelector('.ca-lead').textContent }));
-      if (cmp.vs !== 'vs your Salted Trout' || JSON.stringify(cmp.lines) !== JSON.stringify(['+96 HP a use', '+140 gold a use', '2.5× the gold per HP'])
+      if (cmp.vs !== 'vs Salted Trout' || JSON.stringify(cmp.lines) !== JSON.stringify(['+96 HP a use', '+140 gold a use', '2.5× the gold per HP'])
         || cmp.pinned !== 'Salted Trout' || !/^Eat Salted Trout/.test(cmp.lead)) fails.push('HS-8 the comparison or the sentence read ' + JSON.stringify(cmp));
       /* A food slot starts at HP below 50% (Eat at is gone); the player moves it to 60. */
       if ((await page.$$eval('.ca-cond.is-on', (n) => n.length)) !== 1) fails.push('HS-8 a new food slot does not start with its HP condition');
@@ -1834,7 +1834,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!saved) fails.push('HS-8 the town slot did not show the server’s Salted Trout after it confirmed');
       /* Nobody is told to buy first (Tyler 10-19): with a store food on the bar and an empty bag, Hunt prep reads the store per use. */
       await page.keyboard.press('p');
-      const prep = await wait(page, () => /Food: [^|]*Salted Trout from the store, 40 gp each/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null);
+      const prep = await wait(page, () => /Food: [^|]*Salted Trout \(40 gp\)/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null);
       const prepText = await page.evaluate(() => (document.querySelector('[data-hs-win="hunt-prep"]') || {}).innerText || '');
       if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for a store food: ' + prepText.slice(0, 500));
       await page.keyboard.press('p');
@@ -1873,10 +1873,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
          contract change, not a loosened guard). The Glade's Dangerous brings more monsters than a lone hero's Normal, so it reads TIER_LINES.dangerous.more
          and the one death line, word for word from the data, and no number at all: no percent, no HP, no blow (those are the wiki's). */
       const gdLine = TIERS.TIER_LINES.dangerous.more;
-      if (d0.note !== gdLine + ' ' + TIERS.TIER_DEATH_LINE) fails.push('HS-8 the tier note reads: ' + d0.note);
+      if (d0.note !== gdLine + '\n' + TIERS.TIER_DEATH_LINE) fails.push('HS-8 the tier note reads: ' + d0.note);
       if (/\d/.test(d0.note)) fails.push('HS-8 the tier note carries a number: ' + d0.note);
       /* A pick kept from last time is said at the press: the line beside Enter, the plain line's first sentence after the tier's name. */
-      if (d0.press !== 'Dangerous: ' + gdLine.split('. ')[0].replace(/^M/, 'm') + '.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
+      if (d0.press !== 'Dangerous: ' + gdLine.split('\n')[0].replace(/^M/, 'm') + '.') fails.push('HS-8 the line beside Enter reads: ' + d0.press);
       if (/\d/.test(d0.press)) fails.push('HS-8 the line beside Enter carries a number: ' + d0.press);
       /* the save answers Dangerous (not the Deadly asked, s.onTier): what shows afterwards is the server's. The answer
          is held while the unsaved draft is read, so a slow box cannot let it land first. */

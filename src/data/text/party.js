@@ -11,9 +11,9 @@
 
 export const PARTY_TEXT = Object.freeze({
   class_have: 'Classes: {have} of {of}',
-  class_none: 'No extra Level XP in {place}',
-  class_same: 'Level XP each: about the same as solo in {place}',
-  class_more: 'Level XP each: about +{pct}% vs solo in {place}',
-  class_less: 'Level XP each: about -{pct}% vs solo in {place}, mix {classes}',
-  class_less_full: 'Level XP each: about -{pct}% vs solo in {place}',
+  class_none: 'No extra Level XP in {place}.',
+  class_same: 'Each hero gets about the same Level XP as solo in {place}.',
+  class_more: 'Each hero gets about {pct}% more Level XP than solo in {place}.',
+  class_less: 'Each hero gets about {pct}% less Level XP than solo in {place}. Bring a mix of {classes} to get more.',
+  class_less_full: 'Each hero gets about {pct}% less Level XP than solo in {place}.',
 });

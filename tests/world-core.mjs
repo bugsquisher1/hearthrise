@@ -66,7 +66,7 @@ const atlasImage = (set) => { if (!SHEETS.has(set)) SHEETS.set(set, decodePNG(re
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, gv] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, gv, folk] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -74,13 +74,13 @@ async function load(base) {
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
-    'src/world/core/plates.js', 'src/world/core/ground-variety.js',
+    'src/world/core/plates.js', 'src/world/core/ground-variety.js', 'src/data/world/town/folk.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, gv,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, gv, folk,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -697,6 +697,8 @@ async function check(M) {
     const drawn = (id) => {
       const row = rows[id], m = compiled(id), at = row.start || [1, 1];
       const units = heroes.slice();
+      /* the townsfolk walk the map in their own bodies (src/world/town-folk.js folkExtras) */
+      for (const p of M.folk.FOLK[id] || []) units.push(p.body);
       if (row.kind === 'hunt') {
         for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
           if (g.map !== id) continue;

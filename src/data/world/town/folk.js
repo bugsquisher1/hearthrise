@@ -12,8 +12,8 @@
 //                  town paints, budget 25)
 //   FOLK_IDLE_FPS  a resting townsperson breathes at this rate (every 4th tick)
 //   FOLK_WALK_FPS  its walk clip turns at this rate (every 2nd tick)
-//   FOLK           map id -> its people: { id, body (a sprite with idle and walk clips), dye (a dye key,
-//                  src/data/outfits.js dyeKeyOf: what makes the body this person), speed (tiles a second: a
+//   FOLK           map id -> its people: { id, body (a sprite with idle and walk clips: the person's own, art/world/townsfolk,
+//                  drawn as it is; a hero's outfit only in a dye key, src/data/outfits.js dyeKeyOf), speed (tiles a second: a
 //                  stroll, under the hero's), offsetMs (where in its loop it is at time 0), route: [[x, y, restMs,
 //                  face], ...] map tiles it rests on in turn, facing `face` }. A stop is never a station stand
 //                  (a hero is set down there) and a walk is short: they work in bursts (tests/town-life.mjs TL-FOLK).
@@ -43,7 +43,7 @@ export const FOLK = Object.freeze({
     person({ id: 'dock_porter', body: 'outfit_brute', dye: '1.3.0.0', speed: 1.4, offsetMs: 21000,
       route: [stop(131, 83, 19000, 'e'), stop(141, 88, 13000, 's')] }),
     /* the stall keepers of Hearth Square (beside their stalls, looking out over the square) and the harbour's fishmonger */
-    person({ id: 'keeper_north', body: 'outfit_brute', dye: '2.5.0.0', speed: 1, offsetMs: 0,
+    person({ id: 'keeper_north', body: 'folk_market_woman', speed: 1, offsetMs: 0,
       route: [stop(131, 45, 9000, 'w'), stop(131, 45, 5000, 's'), stop(131, 45, 7000, 'w'), stop(131, 45, 4000, 'n')] }),
     person({ id: 'keeper_south', body: 'outfit_brute', dye: '9.4.0.0', speed: 1, offsetMs: 6000,
       route: [stop(131, 53, 8000, 'w'), stop(131, 53, 6000, 'n'), stop(131, 53, 9000, 'w'), stop(131, 53, 4000, 's')] }),

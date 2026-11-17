@@ -16,7 +16,7 @@
 //            and everyone else's); on a hunt map every monster its grounds and
 //            hunts spawn, their gather nodes and every hunt effect; at home
 //            every piece of furniture, its signposts and the trophy mounts; in
-//            the Common the sandbox's entry sign.
+//            the Common the sandbox's entry sign and its townsfolk (town/folk.js).
 // tests/world-core.mjs (family A) proves it covers what each shipped scene draws, and no more.
 // THE ORDER is the order to fetch them in (fetchOrder): the prewarm takes them one at a time, while a hero is picked (prewarm.js).
 // PURE: no DOM, no window, no G.
@@ -29,6 +29,7 @@ import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.133';
 import { effectIds } from '../data/hunt-vfx.js?v=0.2.133';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.133';
 import { SANDBOX } from '../data/world/sandbox.js?v=0.2.133';
+import { FOLK } from '../data/world/town/folk.js?v=0.2.133';
 import { furnish } from './home-scene.js?v=0.2.133';
 
 /* WHAT TO FETCH FIRST (phone, first visit: about 6 s for the town's six sheets): what nearly every first view draws, the hero's own
@@ -67,6 +68,7 @@ function actorIds(row) {
     for (const id of Object.values(TROPHY_MOUNT_SPRITES)) ids.add(id);
   }
   if (SANDBOX.open && SANDBOX.entry.map === row.id) ids.add(SANDBOX.entry.sprite);
+  for (const p of FOLK[row.id] || []) ids.add(p.body);
   return ids;
 }
 

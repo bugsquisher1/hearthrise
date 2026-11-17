@@ -1,0 +1,7 @@
+{
+  "south": { "tool": "create_object_pro_flash", "object": "36cfb316-8782-4af5-80ed-4f601c029f12", "seed": 22, "size": [48, 48], "view": "high top-down", "palette": "hr-world-56-v2",
+    "style_image": "Tamsin's south still (npc_crier), a 48 px crop", "request": "a market woman stall keeper, a cream linen headscarf, a russet red wool dress with a long cream apron, a wicker basket of green apples held on her hip, standing, game npc sprite" },
+  "walk": { "tool": "animate_object", "mode": "v3", "group": "47e8c718-2c42-4ccf-81cb-2c95e9753dee", "frame_count": 8, "keep_first_frame": true,
+    "request": "walking at a calm stroll, both feet lifting in turn, the basket of apples held steady on her hip, the same woman in the same red dress and cream apron the whole time" },
+  "gens": 30
+}

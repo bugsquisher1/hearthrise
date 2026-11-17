@@ -30,6 +30,7 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit, crop } from './png.mjs';
 import { ROOT, ART_DIR } from './build.mjs';
 import { reseam, fillTileOf } from './seams.mjs';
+import { caveWalls, wallOnWalk } from './cave-walls.mjs';
 import { lock } from './lock.mjs';
 import { varietyTiles } from './variety.mjs';
 import { mapRowOf } from '../../src/data/world/maps/index.js';
@@ -183,6 +184,63 @@ function widePlanks() {
   console.log('  ✓ warren/' + id + ' (span, ' + out.width + 'x' + src.height + ')');
 }
 
+/* ── a ford laid by hand: the meadow stones' own three stones, laid again a tile at a time (lane/a-cave-walls) ──
+   Wickstead's ford was one cluster sprite stamped on all twelve tiles of a 4 x 3 block: a grid. mb_stepping_stones holds three
+   stones (a big one, a middle one behind it, a small one to its right): each is cut out (every opaque px to the stone whose
+   middle is nearest along the art) and laid again in a variant of its own. The step under the walker's foot is the big stone
+   or, now and then, the middle one (a smaller step), nudged a few px; the other two move round it or are left out. A stone's
+   px are never turned or flipped: the light stays upper left (ART_DIRECTION §1), so a "turned" cluster is a different laying.
+   Every variant covers the foot (crossings.mjs FOOT) with stone, and the map gives no two neighbouring tiles the same one. */
+export const FORD_STONES = Object.freeze(['mb_stepping_stones_1', 'mb_stepping_stones_2', 'mb_stepping_stones_3', 'mb_stepping_stones_4', 'mb_stepping_stones_5', 'mb_stepping_stones_6']);
+/* [main stone, its nudge x, y; then [stone, x, y] for each other stone, its top-left in the frame] */
+const FORD_LAYINGS = Object.freeze([
+  ['big', -2, 0, ['mid', 13, 3], ['small', 3, 7]],
+  ['big', 3, -1, ['small', 2, 9]],
+  ['mid', -1, 2, ['small', 20, 12]],
+  ['big', 0, 1, ['mid', 3, 4]],
+  ['big', 2, 0, ['small', 1, 11], ['mid', 14, 2]],
+  ['mid', 2, 1, ['big', 1, 4], ['small', 22, 9]],
+]);
+function fordStones() {
+  const src = decodePNG(readFileSync(join(ROOT, ART_DIR, 'forest', 'mb_stepping_stones.png'))), sc0 = JSON.parse(readFileSync(join(ROOT, ART_DIR, 'forest', 'mb_stepping_stones.json'), 'utf8'));
+  const w = src.width, h = src.height, on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && src.data[(y * w + x) * 4 + 3] >= 128;
+  /* each opaque px to the stone whose middle is nearest through the art (a breadth-first walk from the three middles) */
+  const seeds = { mid: [10, 11], small: [24, 14], big: [14, 22] }, lab = new Array(w * h).fill(null);
+  let front = Object.entries(seeds).map(([k, [x, y]]) => { lab[y * w + x] = k; return [x, y]; });
+  while (front.length) {
+    const next = [];
+    for (const [x, y] of front) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const X = x + dx, Y = y + dy;
+      if (!on(X, Y) || lab[Y * w + X]) continue;
+      lab[Y * w + X] = lab[y * w + x]; next.push([X, Y]);
+    }
+    front = next;
+  }
+  const stone = {};
+  for (const k of Object.keys(seeds)) {
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (lab[y * w + x] === k) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    stone[k] = { x0, y0, x1, y1, lay: (out, ox, oy) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (lab[y * w + x] === k) { const X = x - x0 + ox, Y = y - y0 + oy; if (X >= 0 && Y >= 0 && X < w && Y < h) out.data.set(src.data.subarray((y * w + x) * 4, (y * w + x) * 4 + 4), (Y * w + X) * 4); } } };
+  }
+  FORD_LAYINGS.forEach(([main, nx, ny, ...rest], i) => {
+    const id = FORD_STONES[i], out = createImage(w, h), m = stone[main];
+    /* the step: its bottom on the art's own foot row (3 px over the contact row, under the walker's shadow), centred, nudged */
+    const mx = 16 - ((m.x1 - m.x0 + 1) >> 1) + nx, my = stone.big.y1 - (m.y1 - m.y0) + ny;
+    /* the far stones first: a nearer stone lies over a farther one */
+    const laid = rest.map(([k, x, y]) => ({ k, x, y })).concat([{ k: main, x: mx, y: my }]).sort((a, b) => (a.y + stone[a.k].y1 - stone[a.k].y0) - (b.y + stone[b.k].y1 - stone[b.k].y0));
+    for (const s of laid) stone[s.k].lay(out, s.x, s.y);
+    let foot = 0, n = 0;
+    for (let y = h - 1 - FOOT.rise - 3; y <= h - 1 - 3; y++) for (let x = 16 - FOOT.half; x <= 16 + FOOT.half; x++) { n++; if (out.data[(y * w + x) * 4 + 3] >= 128) foot++; }
+    if (foot * 2 < n) throw new Error(id + ': its step covers ' + foot + ' of the foot\'s ' + n + ' px');
+    const dir = join(ROOT, ART_DIR, 'stead');
+    writeFileSync(join(dir, id + '.png'), encodePNG(out));
+    const sc = Object.assign({}, sc0, { id, source: id + '.png', pixellab: Object.assign({}, sc0.pixellab, { derived: 'mb_stepping_stones, 0 gens' }),
+      notes: 'mb_stepping_stones\' own three stones laid again (' + laid.map((s) => s.k).join(', ') + ', the ' + main + ' one the step), a ford stone of Wickstead\'s laid by hand, by tools/world-art/seam-grounds.mjs; pixels unscaled, never turned or flipped, nothing drawn.' });
+    writeFileSync(join(dir, id + '.json'), JSON.stringify(sc, null, 2) + '\n');
+  });
+  console.log('  ✓ stead/' + FORD_STONES[0] + '..' + FORD_STONES.length + ' (the ford\'s stones, each its own laying)');
+}
+
 /** { 'x,y': ch } for every cell of a w x h block: a `cells` override for a block the pixel read gets wrong */
 const rect = (x0, y0, w, h, ch) => Object.fromEntries(Array.from({ length: w * h }, (_, i) => [(x0 + (i % w)) + ',' + (y0 + Math.floor(i / w)), ch]));
 /* grass, thicket, path: the meadow family's three open floors (their varieties' cells) */
@@ -234,6 +292,16 @@ const MOSSLIGHT_BENDS = [[0, 13, 20, 22], [14, 17, 19, 21], [18, 20, 19, 22], [2
 const MOSSLIGHT_CELLS = Object.assign({}, ...MOSSLIGHT_BENDS.flatMap(([x0, x1, y0, y1]) => Array.from({ length: x1 - x0 + 1 }, (_, i) =>
   Object.fromEntries([19, 20, 21, 22, 23].map((y) => [(x0 + i) + ',' + y, y >= y0 && y <= y1 ? 'W' : 'G'])))),
 { '45,17': 'G', '45,18': 'G', '44,17': 'D', '44,18': 'D' });
+/* THE WARRENS' WALLS (lane/a-cave-walls, Tyler's gate: no right-angle staircases). The tileset drew every wall on the grid, its
+   south faces a row too high (floor painted on the blocked row under them: a torch hung on floor, a pillar's last row looked
+   walkable). tools/world-art/cave-walls.mjs draws them again from the map rows, the foot curving inside the wall cells only,
+   in the paint's own px read here (each strip on the paint's 32 px phase, its x or y a multiple of 32 where it repeats):
+     face   the long south face over the Copper Face's floor: 30 rows from x512 y184, every 32 px the same
+     sideE  the Spoil Heap's west wall, its edge looking east: x99 (the outline) back to x91, rows y288-319
+     sideW  the Tool Store's east wall, its edge looking west: x1852 (the outline) on to x1861, rows y512-543
+     lip    the Copper Face's north edge over the hall below it: y448 (the outline) down to y451, x576-607
+   The floor fill is E's (the variety's `at` cell); `keep` holds the chasm the borders drew (C) as it is. */
+const WARRENS_WALLS = Object.freeze({ wall: 'X', floor: 'E', keep: 'C', seed: 61, face: [512, 184, 30], sideE: [99, 288, -1, 9], sideW: [1852, 512, 1, 10], lip: [576, 448, 4] });
 export const GROUNDS = Object.freeze({
   /* the brook ran dead straight down its banks and the footbridge was planks painted flat on the water */
   wickstead_ground: { set: 'stead-floor', map: 'wickstead', seed: 41, solid: { '~': 'W', '=': 'W', '#': 'T' }, samples: meadow([0, 0], [5, 3], [15, 8]),
@@ -243,7 +311,7 @@ export const GROUNDS = Object.freeze({
     pairs: BANKS(2, FORD_BANK, 0.35).concat([TRAIL_PAIR, { a: 'F', b: 'G', style: 'scatter', sweep: 10, warp: 9, mid: 4, loose: 0.5, holes: 0.35, fade: 16, fadeIn: 14 }, WALL('F')]),
     /* the tilled plot (x50-55 y23-24) is dark enough to read as thicket: it is its own floor, never touched (it would be crowned) */
     cells: Object.assign(rect(50, 23, 6, 2, 'P'), rect(39, 33, 13, 3, 'F'), rect(28, 30, 4, 3, 'W')), keep: 'P',
-    before: () => raft({ set: 'stead', id: 'wk_footbridge', cells: 4, footprint: [2, 1], what: 'The Wickstead footbridge' }) },
+    before: () => { raft({ set: 'stead', id: 'wk_footbridge', cells: 4, footprint: [2, 1], what: 'The Wickstead footbridge' }); fordStones(); } },
   /* the brook's banks stepped down the grid, and its two rafts (144 px of logs on 96 px of water) sat a row below the
      trail. Its brook cells carry their own grassy banks, so the water is read from the pixels as the floors are */
   meadowbrook_ground: { set: 'forest-floor', map: 'meadowbrook_thicket', seed: 43, solid: { '#': 'T' },
@@ -254,11 +322,16 @@ export const GROUNDS = Object.freeze({
   sewer_ground: { set: 'sewer', map: 'millrace_sewer', seed: 53, solid: { '#': 'X', '~': 'W' }, samples: { F: [4, 2] }, keep: 'X',
     mats: { W: { z: 0, own: true }, F: { z: 1 } }, pairs: [{ a: 'W', b: 'F', style: 'kerb', course: 'F' }] },
   /* the chasm was a hard rectangle cut into the cave floor; it is held to its own cells (it blocks a step) */
-  warrens_ground: { set: 'warren', map: 'coppercap_warrens', seed: 59, solid: { '#': 'X' }, samples: { E: [9, 0], C: [52, 21] }, keep: 'X',
+  warrens_ground: { set: 'warren', map: 'coppercap_warrens', seed: 61, solid: { '#': 'X' }, samples: { E: [9, 0], C: [52, 21] }, keep: 'X',
     /* the Drop was a box of one tile with a half-tile plank ladder over it: its rim wanders (smooth, wilder), its far wall shows
        under its north lip and it sinks into the dark (pit), and the boards are as wide as the corridor's trail (widePlanks) */
     mats: { C: { z: 0, own: true, pit: { face: 'E', rows: 10 } }, E: { z: 1 } }, smooth: true, before: widePlanks,
-    pairs: [{ a: 'C', b: 'E', style: 'ragged', bias: { E: 0.3 }, sweep: 9, warp: 8, mid: 4 }] },
+    pairs: [{ a: 'C', b: 'E', style: 'ragged', bias: { E: 0.45 }, sweep: 9, warp: 8, mid: 4 }],
+    /* the Drop's two end lips (x47, x57: chasm on the rows, "part of it") were painted floor a cell and a half wide, ground a hero
+       could not walk round it on: the chasm runs wall to wall, and the walls' bays beside it fall into it (cave-walls `keep`) */
+    cells: Object.assign(rect(47, 20, 1, 3, 'C'), rect(57, 20, 1, 3, 'C')),
+    /* every wall was a right-angle step on the grid, its south faces a row too high: drawn again from the map rows */
+    walls: WARRENS_WALLS },
   /* the river was one straight band edged by a hairline the length of the map */
   mosslight_ground: { set: 'glade-floor', map: 'mosslight_glade', seed: 47, solid: { '#': 'T' },
     samples: Object.assign(meadow([0, 0], [23, 2], [36, 6]), { W: [30, 21] }), mats: BROOK_MATS, smooth: true, trails: TRAIL, fillFrom: { D: TRAIL_FILL },
@@ -376,18 +449,42 @@ function run(id) {
   }
   let kept = 0;
   for (const ch of g.over || '') kept += overhang(r.img, img, rows, ch, fills, T);
-  varietiesKept(g.set, id, img, r.img);
+  /* a cave's walls drawn again from the map rows (cave-walls.mjs) in the paint's own px. A px of a walked cell drawn as wall is
+     counted twice (the pass's own and the map's materials) and stops the run: the picture never shows rock where a hero walks */
+  let out = r.img, walls = null;
+  if (g.walls) {
+    const wl = g.walls;
+    const side = ([x0, y0, dir, n]) => { const s = createImage(n, T); for (let d = 0; d < n; d++) blit(s, img, x0 + dir * d, y0, 1, T, d, 0); return s; };
+    const face = crop(img, wl.face[0], wl.face[1], T, wl.face[2]);
+    const tex = { top: fillTileOf(img, rows, wl.wall, T), floor: fills[wl.floor], face, rows: [...Array(wl.face[2]).keys()],
+      sideE: side(wl.sideE), sideW: side(wl.sideW), lip: crop(img, wl.lip[0], wl.lip[1], T, wl.lip[2]), dark: darkest(face) };
+    const cw = caveWalls(out, { rows, wall: wl.wall, T, seed: wl.seed, tex, keep: (x, y) => r.matAt(x, y) === wl.keep });
+    const onWalk = wallOnWalk(cw.wall, row.rows, T, open);
+    if (onWalk || cw.offWall) throw new Error(id + ': the cave walls drew ' + onWalk + ' px of rock on walked cells, ' + cw.offWall + ' off the wall cells');
+    out = cw.img;
+    walls = { changed: cw.changed, onWalk };
+  }
+  varietiesKept(g.set, id, img, out);
   const file = join(ROOT, ART_DIR, g.set, id + '.png');
-  writeFileSync(file, encodePNG(r.img));
+  writeFileSync(file, encodePNG(out));
   const jp = file.replace(/\.png$/, '.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
   sc.notes = sc.notes.replace(/ Seams \(lane\/a-ground-seams.*$/, '') + ' Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from ' + SRC + '/' + id + '.png): '
     + r.changed + ' px of ' + g.pairs.length + ' borders redrawn from the fills\' own pixels (' + [...new Set(g.pairs.map((p) => p.style))].join(', ') + ')'
-    + (g.grid ? ' on the paint grid ' + g.grid : '') + (g.over ? ', the ' + [...g.over].join(' and ') + ' edges kept as painted (' + kept + ' px laid back)' : '') + '.';
+    + (g.grid ? ' on the paint grid ' + g.grid : '') + (g.over ? ', the ' + [...g.over].join(' and ') + ' edges kept as painted (' + kept + ' px laid back)' : '')
+    + (walls ? '; the walls drawn again from the map rows (tools/world-art/cave-walls.mjs, lane/a-cave-walls): ' + walls.changed + ' px, none on a walked cell' : '') + '.';
   sc.material = 'native';   /* locked above: the build's lock is now the identity */
   writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
   mkdirSync(join(ROOT, 'art/review/ground-seams'), { recursive: true });
   writeFileSync(join(ROOT, 'art/review/ground-seams', id + '-grid.txt'), rows.join('\n') + '\n');
-  console.log('  ✓ ' + g.set + '/' + id + ': seams, ' + r.changed + ' px redrawn' + (g.over ? ', ' + kept + ' px of ' + [...g.over].join(' and ') + ' laid back' : '') + (C ? '; walked feet under the ' + C + ' crowns: ' + under + ', blocked ' + C + ' cells mostly open: ' + opened : ''));
+  console.log('  ✓ ' + g.set + '/' + id + ': seams, ' + r.changed + ' px redrawn' + (g.over ? ', ' + kept + ' px of ' + [...g.over].join(' and ') + ' laid back' : '') + (C ? '; walked feet under the ' + C + ' crowns: ' + under + ', blocked ' + C + ' cells mostly open: ' + opened : '')
+    + (walls ? '; walls ' + walls.changed + ' px, px of a walked cell drawn as wall: ' + walls.onWalk : ''));
+}
+
+/** The darkest colour of an image (a strip's outline). */
+function darkest(im) {
+  let best = null, bl = Infinity;
+  for (let i = 0; i < im.data.length; i += 4) { const l = im.data[i] * 3 + im.data[i + 1] * 6 + im.data[i + 2]; if (l < bl) { bl = l; best = [im.data[i], im.data[i + 1], im.data[i + 2]]; } }
+  return best;
 }
 
 /* every floor variety of this ground keys its variants on its `at` cell's tile (compose.js): a redrawn `at` cell would be a tile of

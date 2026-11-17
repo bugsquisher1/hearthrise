@@ -589,7 +589,7 @@ const mutants = [
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',
-    edits: [['src/data/world/maps/coppercap_warrens.js', "{ id: 'cw_plank_bridge', x: 51, y: 23 },", "{ id: 'cw_plank_bridge', x: 51, y: 23 }, { id: 'mushrooms', x: 38, y: 9 },"]] },
+    edits: [['src/data/world/maps/coppercap_warrens.js', "{ id: 'cw_plank_bridge_wide', x: 51, y: 23 },", "{ id: 'cw_plank_bridge_wide', x: 51, y: 23 }, { id: 'mushrooms', x: 38, y: 9 },"]] },
   { name: 'the Drop bridged two wide', case: 'one-choke',
     edits: [['src/data/world/maps/coppercap_warrens.js', "'#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',\n    '#######...#####################################~~~~=~~~~~~##',",
       "'#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',\n    '#######...#####################################~~~==~~~~~~##',"]] },

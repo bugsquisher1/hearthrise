@@ -4028,3 +4028,10 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   so the Meadowbrook, Mosslight and Muster grounds now live in forest-floor, glade-floor and a new muster-floor (one ATLAS_SETS row);
   the world-assets [wet] selftest had pointed at tiles the round-2 banks had moved (red since round 2), re-pinned; the Sewer's
   crossing is a kerbed walkway since round 2 (no water under the grate). Still painted: the meadow grounds' dirt paths (G/D steps).
+- **2026-11-17 art-director (lane/a-cave-walls): the Warrens' picture disagreed with its walk mask in two places, both fixed.**
+  (1) Every south wall face was painted a row too high: the floor ran on over the blocked row under each face, so the torches on
+  the faces hung on floor and each pillar's last row looked walkable. tools/world-art/cave-walls.mjs draws the walls from the map
+  rows (faces in the wall row over the floor, never rock on a walked cell: counted, 0). (2) The Drop's two end lips (chasm on the
+  rows) were painted as floor a cell and a half wide, ground a hero could not walk round it on: the chasm now runs wall to wall.
+  Same class still open (P3, art-director): the Thicket's and the Glade's fords are one stone cluster stamped on a 3x3 grid, as
+  Wickstead's was; seam-grounds FORD_STONES (six layings) serve them by an id edit (the edge payload hash moves with it).

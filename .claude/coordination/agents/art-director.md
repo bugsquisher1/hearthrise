@@ -3559,3 +3559,21 @@ mostly open; a meander that opens bays doubled the second, a lower grass bias tr
 outright let the bias drop to the cell line (Meadowbrook 24/43 -> 0/42, the Glade 18/37 -> 0/35); (2) a swing three times as deep as
 it is proud reads as bays, not blobs; past about 0.2 of share the bays open thicket a hero cannot walk; (3) a guard case that never
 reaches its condition (no crown near a foot) is no guard: push the fixture until the mutant goes red.
+## 2026-11-17 lane/a-cave-walls (Tyler's gate before new players: every seam and terrain edge right, no right-angle staircases)
+Task 1: tools/world-art/cave-walls.mjs (its own --selftest, registered in smoke.yml beside the seams proof) draws the Coppercap
+Warrens' walls again from the map rows, called from seam-grounds `walls` (WARRENS_WALLS names the paint strips it reads). Found on
+the render, not in the brief: the tileset painted every south face a ROW TOO HIGH (floor painted on the blocked row under it: the
+torches hung on floor, the pillars' last row looked walkable); the faces now stand in the wall row over the floor and every torch
+hangs on one. The Drop's two end lips (chasm on the rows) were painted floor a cell and a half wide: the chasm runs wall to wall.
+Task 2: Wickstead's twelve ford stones are six layings of mb_stepping_stones' own three stones (seam-grounds FORD_STONES, stead set),
+no two neighbours alike. Lessons: (1) "only cut into wall cells" + "no staircase" means every turn is carved INTO the wall: an
+outer corner by an arc tangent to the bay on both sides, an inner corner by a fillet whose middle stops just short of the corner
+(r = (bay - 0.75) / (1 - 1/sqrt2)), and an alcove (a deeper bay) round each inner corner; a B-spline share bulges OUT at an inner
+corner, and clipping it at the cell line gives back the right angle. (2) A 3/4 face is the foot's vertical extrusion: the bottom
+faceH px of each column's run of rock, the strip's top three rows kept and one strata period (7 rows) cut so 30 px fit the row.
+(3) A wall top's rim is chosen by the direction to the nearest px that is not top: floor or face to the side gives the side band
+(so it runs up beside a face's end: the inner-corner crease and the cut outer corner come free), floor above the lip, a face below
+nothing. (4) An `own: true` material clips on its cell line wherever the warp pushes it out: count the clipped columns and pick
+the seed (the Drop: 47 -> 0 at seed 61, bias 0.45). (5) Never flip or turn a lit sprite for variety (light is upper left): re-lay
+its parts. (6) lane/a-ground-paths left tests/hunt-core/forest-cave.mjs anchored on cw_plank_bridge (mutant-anchors red): re-anchored.
+Open: the Thicket's and the Glade's fords are the same 3x3 stamp; FORD_STONES serve them by an id edit (moves the edge hash).

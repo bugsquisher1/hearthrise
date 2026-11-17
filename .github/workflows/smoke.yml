@@ -6291,6 +6291,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tools/world-art/seams.mjs --selftest
 
+      # Cave walls (lane a-cave-walls 2026-11-17): tools/world-art/cave-walls.mjs draws a cave's walls from its map rows, the foot
+      # curving inside the wall cells only. --selftest: no px of a walked cell drawn as wall (and a wall grown onto the floor is
+      # counted), a one-cell staircase bends (no straight edge over 20 px), a south face stands in its wall row, a lone pillar
+      # keeps its rock, deterministic and palette-closed.
+      - name: Cave walls - proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/world-art/cave-walls.mjs --selftest
+
       # The hunt's combat clips (lane a-hunt-clips 2026-11-10): every swing, flinch and fall in the sheets is what
       # tools/world-art/import-clips.mjs lays from the reviewed raw frames named in tools/world-art/hunt-clips.mjs.
       - name: Hunt clips - drift

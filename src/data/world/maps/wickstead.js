@@ -82,10 +82,11 @@ export default Object.freeze({
        wide, centred on it (footprint 2 wide at x29-30), resting a few pixels on each bank; the water runs on under it
        (lane/a-ground-seams 2026-11-16: the row was an earth causeway painted flat on the brook). The cattle ford is the brook
        with a stone on every one of its twelve open tiles, as the Thicket's and the Glade's fords are (lane/a-ground-paths
-       2026-11-17: it was a square of dirt stamped through the brook) */
-    { id: 'mb_stepping_stones', x: 28, y: 30 }, { id: 'mb_stepping_stones', x: 29, y: 30 }, { id: 'mb_stepping_stones', x: 30, y: 30 }, { id: 'mb_stepping_stones', x: 31, y: 30 },
-    { id: 'mb_stepping_stones', x: 28, y: 31 }, { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 31 }, { id: 'mb_stepping_stones', x: 31, y: 31 },
-    { id: 'mb_stepping_stones', x: 28, y: 32 }, { id: 'mb_stepping_stones', x: 29, y: 32 }, { id: 'mb_stepping_stones', x: 30, y: 32 }, { id: 'mb_stepping_stones', x: 31, y: 32 },
+       2026-11-17: it was a square of dirt stamped through the brook), each tile its own laying of the meadow stones (lane/a-cave-walls:
+       one cluster stamped twelve times read as a grid; seam-grounds.mjs FORD_STONES, no two neighbours alike) */
+    { id: 'mb_stepping_stones_1', x: 28, y: 30 }, { id: 'mb_stepping_stones_2', x: 29, y: 30 }, { id: 'mb_stepping_stones_3', x: 30, y: 30 }, { id: 'mb_stepping_stones_4', x: 31, y: 30 },
+    { id: 'mb_stepping_stones_5', x: 28, y: 31 }, { id: 'mb_stepping_stones_6', x: 29, y: 31 }, { id: 'mb_stepping_stones_1', x: 30, y: 31 }, { id: 'mb_stepping_stones_2', x: 31, y: 31 },
+    { id: 'mb_stepping_stones_3', x: 28, y: 32 }, { id: 'mb_stepping_stones_4', x: 29, y: 32 }, { id: 'mb_stepping_stones_5', x: 30, y: 32 }, { id: 'mb_stepping_stones_6', x: 31, y: 32 },
     { id: 'wk_footbridge', x: 29, y: 8 },
     /* P0 the Rick Yard: the hay the rats nest in */
     { id: 'hay_bale', x: 8, y: 16 }, { id: 'hay_bale', x: 9, y: 16 }, { id: 'straw', x: 19, y: 24 }, { id: 'sack_pile', x: 20, y: 17 },

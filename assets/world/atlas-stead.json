@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-stead.png",
   "size": [2048,1144],
-  "pixels": "a89f26dcfe7e49f0c3ecdd3fc3365ece083c97a64b4c526ea6874c01a6016a73",
+  "pixels": "1703d97048a7a227c2f3600f23ef2ee6f3607fd61a66755a7059c5c1aed922e9",
   "sprites": {
     "barn_spider": {
       "class": "vermin",
@@ -306,6 +306,132 @@
             "sw": [[1323,945]],
             "ne": [[49,945]],
             "nw": [[392,945]]
+          }
+        }
+      }
+    },
+    "mb_stepping_stones_1": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 26,
+      "contact": [3,27],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[305,1092]]
+          }
+        }
+      }
+    },
+    "mb_stepping_stones_2": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 19,
+      "contact": [2,28],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[338,1092]]
+          }
+        }
+      }
+    },
+    "mb_stepping_stones_3": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 18,
+      "contact": [10,17],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[371,1092]]
+          }
+        }
+      }
+    },
+    "mb_stepping_stones_4": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 26,
+      "contact": [14,21],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[404,1092]]
+          }
+        }
+      }
+    },
+    "mb_stepping_stones_5": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 27,
+      "contact": [1,28],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[437,1092]]
+          }
+        }
+      }
+    },
+    "mb_stepping_stones_6": {
+      "class": "decal",
+      "layer": "decal",
+      "frame": [32,32],
+      "anchor": [16,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 25,
+      "contact": [14,15],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[470,1092]]
           }
         }
       }

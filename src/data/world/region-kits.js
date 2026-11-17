@@ -63,6 +63,7 @@ export const REGION_KITS = Object.freeze({
       cart_wheel chest chopping_block flour_sack sack_tall turnip_crate
       bush oak pine rocks woodpile
       mb_fallen_log mb_fern mb_flowers mb_hollow_oak mb_leaf_litter mb_reeds mb_stepping_stones
+      mb_stepping_stones_1 mb_stepping_stones_2 mb_stepping_stones_3 mb_stepping_stones_4 mb_stepping_stones_5 mb_stepping_stones_6
       cw_coal_seam cw_copper_pots cw_copper_vein cw_gold_seam cw_iron_vein cw_mine_cart cw_ore_stain cw_plank_bridge cw_plank_bridge_wide cw_puddle
       cw_rails cw_rubble cw_stalagmite cw_tool_rack`),
     units: ids(`rat slime hive_wasp drain_rat sump_slime cistern_spider culvert_bat kobold_tosher gray_whelp gray_wolf briarcoat_wolf

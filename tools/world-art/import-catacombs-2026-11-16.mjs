@@ -46,6 +46,10 @@ export const BODIES = Object.freeze([
   /* the dun habit reads 1.59:1 raw on the stand-in floor; two steps up its ramps, 3.14:1 (the Hold's lift for a dark body) */
   { set: 'vaultdead', id: 'keeper_dunn', cls: 'character', rot: `${B('keeper_dunn')}/rotations`, walk: [`${B('keeper_dunn')}/walk`, 1],
     idle: `${B('keeper_dunn')}/idle`, ramps: 'shadow,earth,stone,skin,bone,torch,bronze,iron,gold', lift: 2, object: '6d53dcba-b582-4a30-9911-ac7eff01189f', name: 'UC Keeper Dunn' },
+  /* the dark coat reads 1.46:1 raw; lift 2 gives S, E, W 2.98:1. His back (N) stays 1.13:1 at any lift: it is the shadow ramp, which
+     never lifts. The few leaf glints the palette call put on the coat are left off the list, so they land on the coat's greys. */
+  { set: 'vaultliving', id: 'night_carter', cls: 'character', rot: `${B('night_carter')}/rotations`, walk: [`${B('night_carter')}/walk`, 1],
+    idle: `${B('night_carter')}/idle`, ramps: 'shadow,stone,earth,iron,bone,bronze,skin,steel', lift: 2, object: 'bd21ccf4-aef4-44f4-b8e9-db4fa6a8f24d', name: 'UC Night Carter' },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));

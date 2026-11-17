@@ -38,4 +38,11 @@ export const CATACOMB_CLIPS = Object.freeze([
     ...fall(of('keeper_dunn', 'death', ['s', 'e', 'n', 'w', 'se', 'nw']), of('keeper_dunn', 'death', ['ne'], [1, 2, 3, 4, 5, 5]),
       of('keeper_dunn', 'death2', ['sw'])),
     ...flinch(of('keeper_dunn', 'hit', ['s', 'e', 'n'], [0, 1, 2, 1, 0]), of('keeper_dunn', 'hit', ['w', 'se', 'sw', 'nw'], FLINCH)) } },
+  /* the Night Carter: the hook jab (attack2) in six facings, re-rolled NW SW (attack3: the first jab drew two hooks in NW, a spark
+     in SW); the first roll's swing turned the hook into a pick or a hammer and threw sparks. The fall backwards in seven (S from
+     frame 2: frame 1 gives him a blank white face); N is the fall forward seen from behind (death2: the first stayed standing) */
+  { set: 'vaultliving', id: 'night_carter', clips: {
+    ...swing(of('night_carter', 'attack2', ['s', 'e', 'n', 'w', 'se', 'ne']), of('night_carter', 'attack3', ['sw', 'nw'])),
+    ...fall(of('night_carter', 'death', ['s'], [2, 3, 4, 5, 6, 6]), of('night_carter', 'death', ['e', 'w', 'se', 'sw', 'ne', 'nw']), of('night_carter', 'death2', ['n'])),
+    ...flinch(of('night_carter', 'hit', ALL8, FLINCH)) } },
 ]);

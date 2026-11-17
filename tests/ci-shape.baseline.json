@@ -357,6 +357,8 @@
     "node tools/world-art/tower-chest-icons.mjs --check": "db-replay-8",
     "node tests/tower-chest.mjs": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/tower-chest.mjs --mutate": "db-replay-8",
+    "node tests/tower-board.mjs": "db-replay-8",
+    "node tools/mutant-gate.mjs node tests/tower-board.mjs --mutate": "db-replay-8",
     "node tests/hunt-preset-read.mjs": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/hunt-preset-read.mjs --mutate": "db-replay-8",
     "node tests/hunt-tick-shards.mjs": "db-replay-8",

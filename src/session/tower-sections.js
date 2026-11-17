@@ -8,9 +8,10 @@
 //     pays { xp_pm, coin, drops, bestiary, death_loss_pm, blessings, stamina },
 //     best_floor, record, checkpoints [landing],
 //     run { session, start, top, floors, floor } | null,
-//     last { session, start, top, floors, end_reason, ended_at, keys [{ landing, key }], withheld, best_before } | null,
+//     last { session, start, top, floors, end_reason, ended_at, keys [{ landing, key }], withheld, best_before,
+//            board { rank | over, passed, name } | null } | null,
 //     party [{ seat, name, floor, outfit }],
-//     field { rank, above [{ name, floor, outfit }], below [...] } | absent,
+//     field { rank | over, above [{ name, floor, at, outfit }], below [...] } | absent,
 //     chest { on, dry, opens, per_call, own_pm, own_family, warmth_pm, week_ends, cinders { bag, storage, ring },
 //             families [{ family, name, max, held_max, opened, held }],
 //             keys [{ key, family, item, name, from, held { bag, storage, ring }, base_pm, chance_ppm, stokes_default, stokes [{ n, pm, cost }],
@@ -25,8 +26,10 @@
 // are held: the bag, the account's Storage and the hero's Key Ring (lane/c-key-ring).
 // THE CLIMB DRAWN (direction A, Tyler 2026-11-16): `party` is every OTHER seat of the hero's party with its best floor (the Climb tab's
 // party markers); `last.best_before` the hero's best before that climb, or null when it set no record (the end card's "New Best +N").
-// `field` (the hero's rank and the heroes just above and below) is a Tower board's, which the server does not send yet: absent, the
-// window draws no rank and no rivals, never a guess.
+// THE BOARD (2027-04-30-tower-board.sql, lane/c-tower-board): `field` is the hero's place (`rank`, or `over` when more heroes are ahead
+// than the board counts to: "#1,000+") and the two heroes just above and below it, top-down, never a seat of its own party (those are
+// `party`); absent for a hero with no floor on the board, so the window draws no rank and no rivals, never a guess. `last.board` is that
+// climb's place when it ended, the heroes it passed and the best of them (the end card's Rank (+N) and Passed).
 // Every envelope replaces it, and nothing here holds a number of its own (CLAUDE.md §6). A row that is not the server's shape is
 // dropped, never mended: the window shows less, never something the server did not say. A number the server did not send is null.
 // ════════════════════════════════════════════════════════════════════════
@@ -79,7 +82,7 @@ function lastOf(r) {
   if (!isObj(r) || !sid(r.session) || pos(r.start) === null) return null;
   return Object.freeze({ session: sid(r.session), start: r.start, top: pos(r.top), floors: nat(r.floors) ?? 0,
     endReason: word(r.end_reason), endedAt: at(r.ended_at), keys: landingKeys(r.keys), withheld: nat(r.withheld) ?? 0,
-    bestBefore: nat(r.best_before) });
+    bestBefore: nat(r.best_before), board: climbPlaceOf(r.board) });
 }
 
 /* A hero drawn on the tower: a name, a best floor, an outfit (null: its role's). A row without a name or a floor is not the server's. */
@@ -88,10 +91,26 @@ function heroOf(h) {
   return Object.freeze({ name: name(h.name), floor: h.floor, outfit: word(h.outfit), seat: nat(h.seat) });
 }
 const heroes = (v, max) => Object.freeze((Array.isArray(v) ? v : []).slice(0, max).map(heroOf).filter(Boolean));
-/* The field (a Tower board's: the hero's rank and the heroes just above and below), or null while the server sends none. */
+/* A place on the board: the exact `rank`, or `over` (more heroes ahead than the board counts to: "#1,000+"); one of them, never both.
+   Null when it is neither (not the server's shape). */
+function placeOf(p) {
+  if (!isObj(p)) return null;
+  const rank = pos(p.rank), over = pos(p.over);
+  return (rank === null) === (over === null) ? null : { rank, over };
+}
+/* The field (the Tower board's, 2027-04-30-tower-board.sql: the hero's place and the heroes just above and below), or null while the
+   server sends none (a hero with no floor on the board). */
 function fieldOf(f) {
-  if (!isObj(f) || pos(f.rank) === null) return null;
-  return Object.freeze({ rank: f.rank, above: heroes(f.above, 3), below: heroes(f.below, 3) });
+  const place = placeOf(f);
+  if (!place) return null;
+  return Object.freeze({ rank: place.rank, over: place.over, above: heroes(f.above, 3), below: heroes(f.below, 3) });
+}
+/* The last climb's place on the board (last.board): its rank when it ended, how many heroes it passed and the best of them (a name, or
+   null when it passed nobody or that hero left the board), or null when the server sends none. */
+function climbPlaceOf(b) {
+  const place = placeOf(b);
+  if (!place || nat(b.passed) === null) return null;
+  return Object.freeze({ rank: place.rank, over: place.over, passed: b.passed, passedName: b.passed > 0 ? name(b.name) : null });
 }
 
 /* Where a hero holds an item: its bag, the account's Storage, its Key Ring (hr_chest_held). All three, or not the server's shape. */

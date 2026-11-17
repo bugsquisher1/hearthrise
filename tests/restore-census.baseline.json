@@ -813,7 +813,9 @@
   "hearth_flames": "The Great Hearth's flame journal (2027-01-31-inner-flame.sql): which named fuel colours the square and until when, and the per-day burn count. Player-scoped by user_id, but it holds no value: the fuel debit, the Inner Flame XP and the journal row live in player_inventory, player_skills and player_ledger. Losing every row returns the square to plain fire and re-opens one day of the burn clamp early; nobody loses or gains a fuel, an XP point or a rank.",
   "hr_gm_accounts": "Who the Game Master is (2027-03-13-gm-tools.sql): one row a migration writes per GM account, no value. A rebuild creates it empty and the account's own file (tools/gm-allow.mjs) re-adds it by a join on auth.users.",
   "hr_bans": "Moderation state (2027-03-13-gm-tools.sql): which accounts are banned, no value. Losing it lifts every ban, which a restore must carry but costs no player anything.",
-  "hr_chat_mutes": "Moderation state (2027-03-13-gm-tools.sql): which accounts are muted until when, no value. Every row expires by itself."
+  "hr_chat_mutes": "Moderation state (2027-03-13-gm-tools.sql): which accounts are muted until when, no value. Every row expires by itself.",
+  "hr_mode_board": "The Burning Tower's board (2027-04-30-tower-board.sql): each hero's best floor and when it was first reached, one row per hero per session mode. Player-scoped by user_id, but DERIVED: tower_progress (restore_only) is the record, and re-running the file's §3 backfill (raise-only) rebuilds every row from it. Lost and not rebuilt, nobody holds a place until each hero's next record.",
+  "hr_mode_board_last": "The last climb's place on the Tower board (2027-04-30-tower-board.sql): its rank when it ended and the heroes it passed, one row per hero per mode, overwritten by the next climb. Player-scoped by user_id, no value: lost, one end card shows no Rank or Passed row."
  },
  "tables": {
   "account_bank": {
@@ -1697,6 +1699,18 @@
    "class": "seeded",
    "replay": 1,
    "note": "The items src/data/items.js marks premium:true, which the market never lists (2027-02-13-market-premium-bond.sql, written on every apply; tests/market-v2.mjs M5 pins it to the data). Lost empty: the premium bond reads as listable until a replay restores it."
+  },
+  "hr_mode_board": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "replay": 0,
+   "note": "2027-04-30-tower-board.sql, ships EMPTY on a fresh chain (its backfill reads tower_progress). One row per hero per session mode with a board: the best score and when it was first reached, written ONLY by the rise trigger on tower_progress inside the settle (raise-only); RLS on, no policy, no client grant. Derived, no value: after a restore, re-run the file's §3 backfill to rebuild it whole from tower_progress; until then the Tower window shows no rank or rivals."
+  },
+  "hr_mode_board_last": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "replay": 0,
+   "note": "2027-04-30-tower-board.sql, ships EMPTY. Each hero's last climb's place on its mode's board (its record at the start, its rank at the end, how many it passed and the best of them), written ONLY by the run triggers on tower_runs; RLS on, no policy, no client grant. No value: lost, the next climb writes it again and one end card shows no Rank row."
   },
   "hr_name_blocklist": {
    "class": "seeded",

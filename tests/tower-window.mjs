@@ -16,7 +16,8 @@
 //         falls back to the bag (shell-windows.js orElse), and no Tower verb is ever sent
 //   TW-2  THE CLIMB (direction A "The Chimney", Tyler 2026-11-16): the tower drawn, a landing every 10th floor in its key's metal (the
 //         server's key row), the dark above the best and only there, gold ticks to the next landing, you at your best and your party's
-//         seats at theirs (the section's party), no rank and no rival with no field (a rank and rivals when it sends one); the column
+//         seats at theirs (the section's party), no rank and no rival with no field (a rank and rivals when it sends one; "#1,000+" and
+//         the rivals when its place is past the board's depth, 2027-04-30-tower-board.sql `over`); the column
 //         as label rows (Best Floor, Next Key = the server's key for the next landing, Kill XP, Death penalty, Uses, Time limit). A start
 //         is picked by tapping a landing or in the Start Floor select, one pick, only the checkpoints the server lists (each said as the
 //         floor the climb starts on; the highest picked; a landing over the record is no press); Enter sends ONE hr_tower_start naming
@@ -40,7 +41,8 @@
 //         sideways, no text under 12 px, the chest still beside the fire in the phone's view of the scene, Enter and Use reachable
 //   TW-6  A CLIMB RUNNING: the hunt bar says the floor (a landing says Keeper); a climb's end card draws the run on the tower (start to
 //         top) and says spat out with the floors and the key as label rows, New Best +N only when the server's best_before says the climb
-//         set the record, never "died"; Open chest and Climb again open the Tower's tabs, Hunt again is off, and the death popup never opens for the Tower; its "What happened" (and Just now) says a fall in
+//         set the record, and then the board's Rank #N (+ heroes passed) and Passed <name> (last.board), never on a climb that set
+//         none, never "died"; Open chest and Climb again open the Tower's tabs, Hunt again is off, and the death popup never opens for the Tower; its "What happened" (and Just now) says a fall in
 //         the Tower's own words ("was spat out", "The last blow") while a hunt's still says "died"
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -281,6 +283,11 @@ async function checks(overrides, shots) {
       await replay(page); await openTower(page);
       v = await climbView(page);
       if (!v || v.marks.join() !== 'rival:Bram:63,you:Tyler:27,rival:Ode:25,party:Mira:21' || !/#14$/.test(v.rank || '')) fails.push('TW-2 the field reads ' + JSON.stringify(v && [v.marks, v.rank]));
+      /* PAST THE BOARD'S DEPTH (2027-04-30-tower-board.sql: more heroes ahead than it counts to): the server's `over`, "#1,000+", rivals still drawn */
+      s.tower = section({ field: { over: 1000, above: [{ name: 'Bram', floor: 29, at: '2026-11-15' }, { name: 'Ode', floor: 28 }], below: [{ name: 'Wren', floor: 27 }] } });
+      await replay(page); await openTower(page);
+      v = await climbView(page);
+      if (!v || v.marks.join() !== 'rival:Bram:29,rival:Ode:28,you:Tyler:27,rival:Wren:27' || !/#1,000\+$/.test(v.rank || '')) fails.push('TW-2 a place past the depth reads ' + JSON.stringify(v && [v.marks, v.rank]));
       if (errors.length) fails.push('TW-2 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -515,7 +522,9 @@ async function checks(overrides, shots) {
       /* the climb ends: the Hearth spat the hero out on 33, past the old best (27), with a Bronze Key from landing 30 */
       const ended = Object.assign(clone(hunt), { ended: true, session_id: SID, session: Object.assign({}, hunt.session || {}, { end_reason: 'died', ended_at: new Date().toISOString() }) });
       s.env = Object.assign(clone(BASE_ENV), { hunt: ended, death_log: [{ id: 1, at: new Date().toISOString(), hunt: 'the_burning_tower', session: SID, monster: 'rat', xp: 0, xp_lost: 0, saved: 0 }] });
-      const last = (bestBefore) => ({ session: SID, start: 21, top: 32, floors: 12, end_reason: 'died', ended_at: new Date().toISOString(), keys: [{ landing: 30, key: 'bronze' }], withheld: 1, best_before: bestBefore });
+      /* the climb's place on the board when it ended (2027-04-30-tower-board.sql last.board): #12, three heroes passed, the best of them Bram */
+      const BOARD = { rank: 12, passed: 3, name: 'Bram' };
+      const last = (bestBefore) => ({ session: SID, start: 21, top: 32, floors: 12, end_reason: 'died', ended_at: new Date().toISOString(), keys: [{ landing: 30, key: 'bronze' }], withheld: 1, best_before: bestBefore, board: BOARD });
       s.tower = section({ best: 32, checkpoints: [0, 10, 20, 30], last: last(27) });
       await replay(page);
       await page.keyboard.press('l');
@@ -534,14 +543,14 @@ async function checks(overrides, shots) {
       const card = await wait(page, () => !!document.querySelector('[data-hs-win="hunt-summary"] .hsum-climb:not([hidden]) .te-rows .tt-row'), null, 8000);
       let got = await cardOf();
       /* the run drawn: 21 to 32 up the stack (12 floors at 8 CSS px), the hero at the top, New Best over the old best, the key's landing */
-      if (!card || !got || got.rows.join(' | ') !== 'Best Floor: 32 (+5) | Floors cleared: 21 to 32 | Spat out: Floor 33 | XP lost: None | Key limit reached: 1 not dropped'
+      if (!card || !got || got.rows.join(' | ') !== 'Best Floor: 32 (+5) | Rank: #12 (+3) | Passed: Bram | Floors cleared: 21 to 32 | Spat out: Floor 33 | XP lost: None | Key limit reached: 1 not dropped'
         || /died|\byou\b/i.test(got.text + got.reason)) fails.push('TW-6 the end card reads ' + JSON.stringify(got));
       if (!got || got.keys.join() !== 'Bronze Key x1 | Floor 30' || got.run !== 12 * 8 || got.marks.join() !== 'you:32'
         || got.labels.join(' | ') !== 'New Best | 30 Bronze | 27 Old best | 21 Start') fails.push('TW-6 the run on the tower reads ' + JSON.stringify(got && [got.keys, got.run, got.marks, got.labels]));
       if (!got || got.again !== 'hidden' || got.tower !== 'on:Open chest' || got.climb !== 'on:Climb again') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
       if (got && got.death) fails.push('TW-6 the death popup opened for the Tower');
       if (shots) { await page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] .hs-win-body'); if (b) b.scrollTop = 0; }); await page.screenshot({ path: join(shots, 'tower-end-card-desktop-1440x900.png') }); }
-      /* a climb that set no record (the server's best_before null): no New Best, no old best; with no key, Climb again is the press */
+      /* a climb that set no record (the server's best_before null): no New Best, no old best, no Rank or Passed (its board place is no news); with no key, Climb again is the press */
       s.tower = section({ best: 40, checkpoints: [0, 10, 20, 30, 40], last: Object.assign(last(null), { keys: [], withheld: 0 }) });
       await replay(page);
       await page.keyboard.press('l');
@@ -591,6 +600,13 @@ async function checks(overrides, shots) {
   const p = read(section({ party: [{ seat: 1, name: 'Mira', floor: 21 }, { seat: 2, floor: 9 }, { seat: 3, name: 'X', floor: -1 }], field: { above: [{ name: 'Bram', floor: 63 }] } }));
   if (p.party.map((x) => x.name + x.floor).join() !== 'Mira21' || p.field !== null) fails.push('TW-2 the parser keeps a hero or a field the server did not state: ' + JSON.stringify([p.party, p.field]));
   const lb = (bb) => read(section({ last: { session: SID, start: 21, top: 32, floors: 12, keys: [], best_before: bb } })).last.bestBefore;
+  /* the board's place: an exact rank or a depth (over), never both and never neither; a climb's board needs its passed count, and names nobody when it passed nobody */
+  const fld = (f) => read(section({ field: f })).field;
+  if (fld({ rank: 3, over: 1000, above: [] }) !== null || fld({ over: 1000 })?.over !== 1000 || fld({ over: 1000 })?.rank !== null || fld({ rank: 0 }) !== null)
+    fails.push('TW-2 the parser reads a board place as ' + JSON.stringify([fld({ rank: 3, over: 1000 }), fld({ over: 1000 }), fld({ rank: 0 })]));
+  const bd = (b) => read(section({ last: { session: SID, start: 21, top: 32, floors: 12, keys: [], best_before: 27, board: b } })).last.board;
+  if (bd({ rank: 4 }) !== null || bd({ rank: 4, passed: 0, name: 'Bram' })?.passedName !== null || bd({ over: 1000, passed: 2, name: 'Bram' })?.passedName !== 'Bram' || bd(null) !== null)
+    fails.push('TW-6 the parser reads the last climb board as ' +JSON.stringify([bd({ rank: 4 }), bd({ rank: 4, passed: 0, name: 'Bram' }), bd({ over: 1000, passed: 2, name: 'Bram' })]));
   if (lb(27) !== 27 || lb(null) !== null || lb('27') !== null) fails.push('TW-6 the parser reads best_before as ' + JSON.stringify([lb(27), lb(null), lb('27')]));
   return fails;
 }
@@ -630,6 +646,11 @@ const MUTANTS = [
   ['a stoke press sends the page\'s count', 'src/shell/windows/tower-chest.js', "    const n = Number(el.getAttribute('data-n'));", '    const n = 3;'],
   ['New Best is said for a climb that set no record', 'src/shell/tower-words.js', '  const newBest = !!run && run.top !== null && run.bestBefore !== null && run.top > run.bestBefore;', '  const newBest = !!run && run.top !== null;'],
   ['the end card draws no run', 'src/shell/tower-end-card.js', ' run: [r.start, top], lo:', ' run: null, lo:'],
+  /* lane/c-tower-board: the board's place on the Climb tab and the end card */
+  ['a place past the depth reads as a rank', 'src/shell/tower-words.js', "p.rank !== null ? t('tower.rank_n', { rank: whole(p.rank) }) : t('tower.rank_over', { rank: whole(p.over) })", "t('tower.rank_n', { rank: whole(p.rank ?? p.over) })"],
+  ['the end card ranks a climb that set no record', 'src/shell/tower-words.js', '  const place = newBest ? run.board : null;', '  const place = run ? run.board : null;'],
+  ['the end card names nobody it passed', 'src/shell/tower-words.js', '  if (place && place.passedName) rows.push(', '  if (false) rows.push('],
+  ['the end card drops how many it passed', 'src/shell/tower-words.js', "v: place.passed > 0 ? t('tower.end_rank_up', { rank: rankWords(place), plus: whole(place.passed) }) : rankWords(place) });", 'v: rankWords(place) });'],
   ['Open chest shows for a climb with no key', 'src/shell/windows/hunt-summary.js', "    prop(toTower, 'hidden', !climb || !tw || !climb.keys.length);", "    prop(toTower, 'hidden', !climb || !tw);"],
   ['the bar never says Keeper', 'src/shell/widgets/tower-bar.js', "t(c.keeper ? 'tower.bar_keeper' : 'tower.bar_floor', { floor: c.floor })", "t('tower.bar_floor', { floor: c.floor })"],
 ];

@@ -28,6 +28,9 @@ export const familyWord = (id) => (hasText('tower.family_' + id) ? t('tower.fami
     none, so a family the server adds (the catacombs') draws its row with no words added here. */
 export const keyFamilyWord = (f) => t('tower.key_family', { name: (f && (f.name || String(f.family || '').replace(/_/g, ' '))) || '' });
 
+/** A place on the Tower's board as a player reads it: "#12", or "#1,000+" past the board's depth (the server's `over`); '' with none. */
+export const rankWords = (p) => (!p ? '' : p.rank !== null ? t('tower.rank_n', { rank: whole(p.rank) }) : t('tower.rank_over', { rank: whole(p.over) }));
+
 /** A multiplier in permille as a player reads it: 1700 -> "1.7", 2500 -> "2.5", 3000 -> "3". */
 export const timesWords = (pm) => (num(pm) ? String(Math.round(pm / 100) / 10) : '');
 
@@ -41,7 +44,8 @@ export function lootList(items) {
  * newest climb that ended, the server's floors, keys and the best before it); `card` the summary (summary-model.js: id, hunt, reason).
  * A climb never says "died": "Spat out" (the board's §1 "In the game's words"). The run's numbers only when the section's last run IS
  * this card's session; an older card says the bare labels.
- *   rows   [{ id, k, v, gold }]  New Best (+N) when the climb set the record (best_before), Floors cleared, Spat out / Ended, XP lost, and
+ *   rows   [{ id, k, v, gold }]  New Best (+N) when the climb set the record (best_before), and then its place on the board (last.board:
+ *                               Rank #N (+ heroes passed), Passed <the best of them>), Floors cleared, Spat out / Ended, XP lost, and
  *                               the keys the held limit kept back
  *   keys   [{ key, item, name, count, landing }]  every landing the run cleared mints its key, one entry a kind (the highest landing's)
  *   run    { start, top, best, before } | null   the climb drawn on the tower; `before` the old best when it set a new one
@@ -52,6 +56,10 @@ export function climbEnd(tw, card, towerHunt) {
   const rows = [];
   const newBest = !!run && run.top !== null && run.bestBefore !== null && run.top > run.bestBefore;
   if (newBest) rows.push({ id: 'best', k: t('tower.best_head'), v: t('tower.end_best', { floor: whole(run.top), plus: whole(run.top - run.bestBefore) }), gold: true });
+  /* the record's place on the board when the climb ended (the server's last.board): Rank (+ the heroes it passed), and the best of them */
+  const place = newBest ? run.board : null;
+  if (place) rows.push({ id: 'rank', k: t('tower.rank'), v: place.passed > 0 ? t('tower.end_rank_up', { rank: rankWords(place), plus: whole(place.passed) }) : rankWords(place) });
+  if (place && place.passedName) rows.push({ id: 'passed', k: t('tower.end_passed'), v: place.passedName });
   if (run) rows.push({ id: 'cleared', k: t('tower.end_cleared'), v: run.top !== null ? t('tower.end_climbed', { from: run.start, to: run.top }) : t('tower.none') });
   /* the floor it ended on: the one after the last it cleared, or the one it started on */
   const on = run ? (run.top !== null ? run.top + 1 : run.start) : null;

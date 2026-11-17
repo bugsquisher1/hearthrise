@@ -1223,6 +1223,8 @@ jobs:
       # Chimney" (2026-11-16): the tower drawn from the server's floors (landings in their keys' metal, the dark above the best, you and
       # your party on it), a landing tapped picks only a listed start, the chest beside the fire and the reveal where it sits, the end
       # card's run. The window's art: tools/world-art/tower-window-art.mjs (--check: fresh, placed where the town map puts chest and fire).
+      # The board (2027-04-30-tower-board.sql): the Climb tab's rank (#N, or #1,000+ past the board's depth) and rivals, and the end card's
+      # Rank (+ heroes passed) and Passed on a record climb only.
       - name: Tower window (play.html)
         if: ${{ !cancelled() }}
         run: |
@@ -4189,9 +4191,11 @@ jobs:
   # + proof arms (2026-11-13, lane/a-audit-guards, measured locally): leaderboard-lockdown-guard
   # --mutate 8 s warm + gen-plan-cache --selftest 6 s warm (102 s if its --check did not warm the
   # snapshot) = up to 110 s; x2 = 3.7 min, 30 -> 34.
+  # + tower-board (2026-11-17, lane/c-tower-board, measured locally on a warm chain): 4 s plain + 5 s --mutate (11 mutants) = 9 s;
+  # x2 = 0.3 min, 34 -> 35.
   db-replay-8:
     runs-on: ubuntu-latest
-    timeout-minutes: 34
+    timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@v4
@@ -4353,6 +4357,15 @@ jobs:
           node tools/world-art/tower-chest-icons.mjs --check
           node tests/tower-chest.mjs
           node tools/mutant-gate.mjs node tests/tower-chest.mjs --mutate
+      # THE BURNING TOWER'S BOARD (2027-04-30-tower-board.sql; Tyler 2026-11-14 "a leaderboard"): places by best floor, ties by who got there
+      # first (one instant one place), the two above and below with no account id, a party seat never a rival, a hidden hero never shown;
+      # the board written once a rise on both paths (browser closed, hunt viewed) and never on a re-climb; a record climb's place and the
+      # heroes it passed; the tables and reads refused to the client role; the depth; a second apply byte-identical. --mutate (11).
+      - name: Burning Tower board — places, once a rise both paths, read-only (11 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tower-board.mjs
+          node tools/mutant-gate.mjs node tests/tower-board.mjs --mutate
       # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
       # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
       # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled

@@ -20,6 +20,8 @@ export const TOWER_TEXT = Object.freeze({
   best_none: 'None',
   rank: 'Rank',
   rank_n: '#{rank}',
+  /* past the board's depth (the server's `over`, 1,000): the genre's "#1,000+" */
+  rank_over: '#{rank}+',
   next_head: 'Next Key',
   climb_head: 'Climb',
   stat_xp: 'Kill XP',
@@ -130,6 +132,9 @@ export const TOWER_TEXT = Object.freeze({
   end_key_count: '{key} x{count}',
   end_new_best: 'New Best',
   end_old_best: 'Old best',
+  /* the climb's place on the board (the section's last.board): "Rank: #12 (+3)", "Passed: <the best-placed hero it passed>" */
+  end_rank_up: '{rank} (+{plus})',
+  end_passed: 'Passed',
   end_start: 'Start',
   again_off: 'Start: Tower window, Great Hearth',
   end_open: 'Open chest',

@@ -3,7 +3,8 @@
 //
 // The hunt summary's card for a Burning Tower climb (src/shell/windows/hunt-summary.js): the stretch of the chimney the run climbed, its
 // start to the floor it reached in gold up the stack, the hero at the top, New Best over the old best when the climb set the record, each
-// key landing it cleared; beside it the label rows (../tower-words.js climbEnd: New Best +N, Floors cleared, Spat out, XP lost) and the
+// key landing it cleared; beside it the label rows (../tower-words.js climbEnd: New Best +N, Rank (+N) and Passed from the board, Floors
+// cleared, Spat out, XP lost) and the
 // keys it earned in their metal. Every floor is the `tower` section's `last` run (the server's: start, top, keys, best_before); an older
 // card than the section's last run shows the rows it can and no tower. Display only: the card's presses are hunt-summary.js's.
 // ════════════════════════════════════════════════════════════════════════

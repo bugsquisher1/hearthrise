@@ -30,6 +30,7 @@ import { whole } from '../../render/format.js?v=0.2.133';
 import { t } from '../../render/player-text.js?v=0.2.133';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
 import { runIntent } from '../intent-words.js?v=0.2.133';
+import { rankWords } from '../tower-words.js?v=0.2.133';
 import { stageHtml, stageModel, patchStage, climbLabels, scrollToFloor } from '../tower-stage.js?v=0.2.133';
 import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.133';
 
@@ -162,7 +163,7 @@ function patchClimb(root, cs, tw, sc) {
   text(root.querySelector('.tt-big'), tw.bestFloor > 0 ? whole(tw.bestFloor) : t('tower.best_none'));
   const rank = root.querySelector('.tt-rank');
   prop(rank, 'hidden', !tw.field);
-  text(rank.querySelector('.tt-v'), tw.field ? t('tower.rank_n', { rank: whole(tw.field.rank) }) : '');
+  text(rank.querySelector('.tt-v'), rankWords(tw.field));
   patchNext(root, tw);
   const p = tw.pays;
   stat(root, 'xp', p ? t('tower.xp_pct', { pct: p.xpPm / 10 }) : '');

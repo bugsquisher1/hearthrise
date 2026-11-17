@@ -182,8 +182,7 @@ try {
   if (await p.page.$('[data-app="play"][data-slot="0"]')) await p.page.click('[data-app="play"][data-slot="0"]');
   await p.page.waitForSelector('.hs-launchers');
   await p.page.waitForTimeout(1500);
-  const back = await p.page.evaluate(() => ({ reason: (document.querySelector('.hsum-climb:not([hidden]) .te-rows') ? Array.from(document.querySelectorAll('.hsum-climb .te-rows .tt-row')).map((r) => r.children[0].textContent + ': ' + r.children[1].textContent).join('
-') : ''), death: !!document.querySelector('[data-hs-win="death"]') }));
+  const back = { reason: await p.page.evaluate(climbCard), death: !!(await p.page.$('[data-hs-win="death"]')) };
   const wantTop = r2.top_floor;
   step('TOW-5 back on the page: the card reads the server\'s run, no death popup', !back.death && (back.reason === '' || (new RegExp('Floors cleared: 11 to ' + wantTop).test(back.reason) && !/died/i.test(back.reason))),
     JSON.stringify({ back, r2 }));

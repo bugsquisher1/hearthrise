@@ -4040,3 +4040,8 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   In town at 1518x845 the builder's second slot row (11-20) runs under the Close/Save foot, cut through its "+" marks; it was so before
   this lane (art/review/fix137-prep-and-bag/before/08-1518x845-hunt-prep.png) and after. window-fit.js rule 3 should end the body on a
   whole row; AW-93 measures Hunts, Inventory, Shop and Market but not Hunt prep. Owner: art-director (CSS) with window-fit.js. P2.
+  CLOSED in the same lane (Coordinator review): the dock left Hunt prep 526 px at 1518x845 (cap over the 480 rise threshold), its
+  rows sat 1 px into the foot's rule, so rule 3 counted them whole. Hunt prep's row now has `rise` (shell-windows.js): in town it
+  rises over the bar whenever it needs the room, as it already did at 1280 and 1366. AW-101 measures every slot against the foot's
+  drawn rule at 5 sizes, town and hunt. Left as is: in a hunt (no window rises over the hunt's bar, AW-95) at 1518 and under, and
+  on the phone sheet, the bar is one scroll down below Carry, Fights as and the four panels: whole once scrolled, never cut at rest.

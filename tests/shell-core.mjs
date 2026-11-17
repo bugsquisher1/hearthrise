@@ -310,9 +310,14 @@ async function runTests(mods) {
     }
     eq(SW.filter((r) => r.help).map((r) => r.id).sort(), ['hunt-prep', 'hunts', 'inventory', 'shop', 'skills-trade', 'storage', 'wiki'], 'the windows with a help line');
     for (const bad of [[{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['nope'] }], [{ id: 'a', label: 'A', key: 'a', width: 1, beside: ['a'] }],
-      [{ id: 'a', label: 'A', key: 'a', width: 1, pageOf: ['a'], launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, over: true, modal: true, launcher: false }]]) {
+      [{ id: 'a', label: 'A', key: 'a', width: 1, pageOf: ['a'], launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, over: true, modal: true, launcher: false }],
+      [{ id: 'a', label: 'A', key: 'a', width: 1, rise: true, modal: true, launcher: false }], [{ id: 'a', label: 'A', key: 'a', width: 1, rise: 'yes' }]]) {
       let threw = false; try { WM.validateWindowRows(bad); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(bad));
     }
+    /* RISE (Coordinator review 2026-11-17, Hunt prep at 1518x845): a docked window rises over the bar on a short World only; a row with rise
+       does whenever its content needs more than the dock leaves, and never when it fits */
+    eq([WM.overBar(526, 575), WM.overBar(526, 575, true), WM.overBar(526, 500, true), WM.overBar(440, 575), WM.overBar(Infinity, 575, true)], [false, true, false, true, false], 'who rises over the bar');
+    eq(SW.filter((r) => r.rise).map((r) => r.id), ['hunt-prep'], 'the windows that rise over the bar whenever they need it');
   });
   /* With Back, ?, key and Close the band's controls leave a 380 window's title 133 px. Cinzel at .12em set "Gathering and crafting" on THREE
      lines there (v0.2.124); at .04em it takes two (measured 1280, 1440). Widening instead breaks the Party pairing (W18). Two lines, never three. */
@@ -1202,6 +1207,9 @@ const MUTANTS = [
   { test: 'R3f', file: 'src/shell/hunt-after.js', from: "      if (!doing) continue;\n", to: '' },
   { test: 'R3f', file: 'src/shell/hunt-after.js', from: "  const d = a && a.last && a.last.session === id ? a.last.done : null;\n", to: "  const d = a && a.last ? a.last.done : null;\n" },
   { test: 'R3f', file: 'src/shell/hunt-after.js', from: "  if (!a || !a.now) return '';\n", to: "  if (!a) return '';\n" },
+  /* W17: rise (Hunt prep rises over the bar whenever it needs the room, Coordinator review 2026-11-17) */
+  { test: 'W17', file: 'src/shell/window-manager.js', from: '(rise || cap < DOCK_ROOM_PX)', to: '(cap < DOCK_ROOM_PX)' },
+  { test: 'W17', file: 'src/data/shell-windows.js', from: 'over: true, rise: true,', to: 'over: true,' },
   /* W17-W21: one window header (lane/b-window-header) */
   { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }' },
   { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },

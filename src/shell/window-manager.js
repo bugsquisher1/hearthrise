@@ -69,8 +69,9 @@ export const HOME_BOTTOM = 44;
    content needs more rises over the bar to the World's height (Tyler 2026-11-11: "when I open a menu, part of it shouldn't
    automatically be cut off"; the Hunts window had 338 px of a 652 px screen). src/shell/window-fit.js applies it. */
 export const DOCK_ROOM_PX = 480;
-/** Does a docked window with `cap` px above the bar and `need` px of content rise over the bar? Pure. */
-export function overBar(cap, need) { return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap; }
+/** Does a docked window with `cap` px above the bar and `need` px of content rise over the bar? A row with `rise` (shell-windows.js) does
+    whenever its content needs more, whatever the World's height. Pure. */
+export function overBar(cap, need, rise = false) { return Number.isFinite(cap) && (rise || cap < DOCK_ROOM_PX) && need > cap; }
 
 /* The slash opens the Wiki: every letter is a window's or WASD's. */
 const KEY_RE = /^([a-z]|\/|enter|escape)$/;
@@ -108,6 +109,7 @@ export function validateWindowRows(rows) {
     if ((r.home || r.resizable) && r.modal) throw new Error('shell windows: ' + r.id + ' a modal neither sits home nor resizes');
     if (r.beside !== undefined && !(Array.isArray(r.beside) && r.beside.length && r.beside.every((x) => typeof x === 'string' && x !== r.id))) throw new Error('shell windows: ' + r.id + ' beside is a list of other windows');
     if (r.over !== undefined && !(r.over === true && !r.modal && !r.home)) throw new Error('shell windows: ' + r.id + ' over is true on a docked row, or absent');
+    if (r.rise !== undefined && !(r.rise === true && !r.modal && !r.home)) throw new Error('shell windows: ' + r.id + ' rise is true on a docked row, or absent');
     if (r.pageOf !== undefined && !(Array.isArray(r.pageOf) && r.pageOf.length && r.pageOf.every((x) => typeof x === 'string' && x !== r.id) && r.launcher === false)) throw new Error('shell windows: ' + r.id + ' pageOf lists its hosts, on a row with no launcher icon');
     if (r.help !== undefined && !/^[a-z]+\.[a-z0-9_]+$/.test(r.help)) throw new Error('shell windows: ' + r.id + ' help names a text row');
     /* a group's menu holds icons: a row kept off the icon row has none to put there (launcher-menu.js barPlan names the group) */

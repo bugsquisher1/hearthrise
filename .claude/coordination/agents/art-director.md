@@ -3621,3 +3621,11 @@ check the name before inventing a custom property; (5) moving a press into a hea
 hid the bar's second row entirely; put a new press where the column has spare height (the setups column), not in the dense one.
 Trade-off flagged: with a coach card up in a hunt at 1366x768 the bag now keeps two whole rows (AW-62 was three, beside a doll cut
 after its second row). Pre-existing, filed in DISCOVERIES: Hunt prep's bar row 11-20 runs under its footer at 1518x845.
+Round 2 (Coordinator review): that clip, fixed here. Hunt prep's rows ended 1 px INTO the foot's 2 px rule, and window-fit counts a
+row hidden by 4 px or less as whole, so nothing trimmed it; the dock gave it 526 px because 526 >= the 480 rise threshold. In-window
+shaving (gaps, an inline Fights as head, wider notes) bought 20-40 px but one wrapped weapon line or the test font's wider notes gave
+it back, so the row got `rise: true` (shell-windows.js -> frame class is-rise -> window-fit overBar(cap, need, rise)): in town it
+rises over the bar whenever it needs the room, the way 1280 and 1366 already did. Lessons: (6) measure "whole" against what is DRAWN
+(the foot's box-shadow rule), not the box: a 1 px overlap reads cut to the eye and passes a box test; (7) a fixture can hide a
+clip the live hero shows (different fonts, weapon, setups): make the measuring rule strict enough that today's layout is red there
+too; (8) shell.js sits at the module-size cap: carry a row flag as a frame class, not a new line.

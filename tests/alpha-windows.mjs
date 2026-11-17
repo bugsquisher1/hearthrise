@@ -4784,6 +4784,60 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-101 the bar in Hunt prep is whole (Coordinator review 2026-11-17: at 1518x845 slots 11-20 ran under the Close/Save foot)
+      const inTown = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null }); };
+      const SIZES = [[1280, 720], [1366, 768], [1518, 845], [1920, 1080], [922, 423]];
+      for (const scene of ['town', 'hunt']) for (const [w, h] of SIZES) {
+        const at = w + 'x' + h + ' (' + scene + ')';
+        const { ctx, page, up } = await open(scene === 'town' ? { viewport: { width: w, height: h }, mutateEnv: inTown } : { viewport: { width: w, height: h } });
+        if (!up) { fails.push('AW-101 the ' + at + ' screen did not mount'); await ctx.close(); continue; }
+        if (!(await openWin(page, 'p', 'hunt-prep'))) { fails.push('AW-101 P did not open Hunt prep at ' + at); await ctx.close(); continue; }
+        await page.waitForTimeout(400);
+        const m = await page.evaluate(async () => {
+          const frames = (n) => new Promise((r) => { const f = (k) => (k ? requestAnimationFrame(() => f(k - 1)) : r()); f(n); });
+          const win = document.querySelector('[data-hs-win="hunt-prep"]');
+          const moving = () => { for (let n = win; n; n = n.parentElement) if (getComputedStyle(n).transform !== 'none') return true; return false; };
+          for (let i = 0; i < 40 && moving(); i++) await new Promise((r) => setTimeout(r, 50));
+          await frames(3);
+          const body = win.querySelector('.hs-win-body'), foot = win.querySelector('.hpb-foot');
+          /* each slot at rest: whole above the foot's drawn rule and the topmost thing at its middle, wholly out of view, or cut; the foot's
+             rule is its box-shadow drawn over the line above its box (a slot ending 1 px into it reads cut, and its well's frame under it) */
+          const rule = (() => { const m = /(-?[\d.]+)px\s+(-?[\d.]+)px/.exec(getComputedStyle(foot).boxShadow || ''); return m ? Math.min(0, parseFloat(m[2])) : 0; })();
+          const read = () => {
+            const br = body.getBoundingClientRect(), fr = foot.getBoundingClientRect();
+            const floor = Math.min(br.top + body.clientTop + body.clientHeight, fr.top + rule, innerHeight);
+            const n = { ok: 0, out: 0, cut: [] };
+            for (const s of win.querySelectorAll('.hpb-grid .hb-slot')) {
+              const q = s.getBoundingClientRect();
+              if (q.bottom <= br.top + 0.5 || q.top >= floor - 0.5) { n.out++; continue; }
+              const top = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+              if (q.top >= br.top - 0.5 && q.bottom <= floor + 0.5 && top && (top === s || s.contains(top))) n.ok++;
+              else n.cut.push(s.getAttribute('data-slot') + ' ' + Math.round(q.top) + '..' + Math.round(q.bottom) + ' over ' + Math.round(floor));
+            }
+            n.foot = fr.height > 0 && fr.bottom <= Math.min(win.getBoundingClientRect().bottom, innerHeight) + 0.5;
+            /* with every slot in view the bar's well is whole too: its frame never runs under the foot */
+            n.well = n.ok === 20 ? win.querySelector('.hpb-gridwrap').getBoundingClientRect().bottom <= floor + 0.5 : null;
+            return n;
+          };
+          const rest = read();
+          /* the player scrolls the bar's well up to the foot: every slot whole and pressable, the foot still there */
+          const g = win.querySelector('.hpb-gridwrap').getBoundingClientRect();
+          body.scrollTop += Math.max(0, g.bottom - foot.getBoundingClientRect().top + 2);
+          await frames(2);
+          const scrolled = read();
+          body.scrollTop = 0;
+          return { rest, scrolled, phone: matchMedia('(max-height: 540px) and (max-width: 1024px)').matches };
+        });
+        /* at rest a row is whole or wholly out of view, never cut; in town on a desktop the window has the room, so all twenty show */
+        if (m.rest.cut.length) fails.push('AW-101 at ' + at + ' Hunt prep opens with the bar cut: ' + JSON.stringify(m.rest));
+        if (scene === 'town' && !m.phone && (m.rest.ok !== 20 || !m.rest.well)) fails.push('AW-101 at ' + at + ' Hunt prep opens without its whole bar: ' + JSON.stringify(m.rest));
+        if (m.scrolled.ok !== 20 || !m.scrolled.well || !m.scrolled.foot) fails.push('AW-101 at ' + at + ' the bar scrolled into view is not whole above the foot: ' + JSON.stringify(m.scrolled));
+        if (!m.rest.foot) fails.push('AW-101 at ' + at + ' Hunt prep\'s Close and Save are out of view');
+        if (shots) await shot(page, 'prep-bar-' + w + 'x' + h + '-' + scene);
+        await ctx.close();
+      }
+    }
+
     { // AW-100 every worn slot in view, no scroll (Tyler 2026-11-17: "why am i scrolling to see my belt/ammo slots?")
       const inTown = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null }); };
       const SIZES = [[1280, 720, 'town', 52], [1518, 845, 'town', 52], [1920, 1080, 'town', 52], [922, 423, 'town', 36], [1280, 720, 'hunt', 36], [1366, 768, 'hunt', 36], [922, 423, 'hunt', 36]];
@@ -4983,8 +5037,9 @@ const MUTANTS = [
   ['AW-25 the page\'s band and its fit run together in text', 'src/shell/windows/hunt-detail.js', "prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);", "prop(band.querySelector('.hw-hunt-sep'), 'hidden', true);"],
   ['AW-25 the area casters back on each card (it grows a line)', 'src/shell/windows/hunt-detail.js', "'.hw-hd-mon-band'), m.boss ? 'boss' : m.band);", "'.hw-hd-mon-band'), (m.boss ? 'boss' : m.band) + (m.casts && m.casts.length ? ' · casts ' + m.casts.join(' and ') : ''));"],
   ['AW-25 the casters note is never shown', 'src/shell/windows/hunt-detail.js', "prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);", "prop(det.querySelector('.hw-hd-casts'), 'hidden', true);"],
-  ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
-  ['AW-95 a window rises over the action bar in a hunt again', 'src/shell/window-fit.js', 'if (cap !== null && !hunt && overBar(cap, Infinity)) {', 'if (cap !== null && overBar(cap, Infinity)) {'],
+  ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && (rise || cap < DOCK_ROOM_PX) && need > cap;', 'return false && need > cap;'],
+  ['AW-95 a window rises over the action bar in a hunt again', 'src/shell/window-fit.js', 'if (cap !== null && !hunt && overBar(cap, Infinity, rise)) {', 'if (cap !== null && overBar(cap, Infinity, rise)) {'],
+  ['AW-101 Hunt prep stays under the dock in town, its bar under Close and Save', 'src/data/shell-windows.js', "over: true, rise: true, help: 'windows.help_prep'", "over: true, help: 'windows.help_prep'"],
   ['AW-100 the doll scrolls with the bag again', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; }', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }'],
   ['AW-100 the doll\'s wells never fit a short column', 'src/shell/windows/inventory/doll.js', "    doll.style.setProperty(FIT, dollWell(room, parseFloat(cs.rowGap) || 0, parseFloat(cs.paddingTop) || 0) + 'px');\n", ''],
   ['AW-100 the phone\'s doll stands under the toolbar again', 'src/styles/windows.css', '  [data-hs-win="inventory"] .hw-inv { display: grid; grid-template-columns: auto minmax(0, 1fr);', '  [data-hs-win="inventory"] .hw-inv { display: block; grid-template-columns: auto minmax(0, 1fr);'],
@@ -5087,6 +5142,7 @@ const MUTANTS = [
   ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
   ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
   ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
+  ['AW-62 the bag gives way to one row beside the doll', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }', '[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 0 1 52px; min-height: 0; overflow-y: auto; }'],
   ['AW-63 the first press of Enter under the floor walks straight in', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Bag full", "  return false ? 'Bag full"],
   ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off || choosing);\n", ''],

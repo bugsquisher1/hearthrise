@@ -98,8 +98,8 @@ export default Object.freeze({
     { id: 'barrel_broken', x: 24, y: 25 }, { id: 'bones', x: 34, y: 23 }, { id: 'skull', x: 26, y: 22 }, { id: 'sack_pile', x: 33, y: 26 },
     /* the gather nodes (pack.js ground.gather): coal, the pyres' charcoal, until an emberstone vein node exists */
     { id: 'cw_coal_seam', x: 7, y: 4 }, { id: 'cw_coal_seam', x: 22, y: 8 }, { id: 'cw_coal_seam', x: 48, y: 16 }, { id: 'cw_coal_seam', x: 54, y: 20 },
-    /* ash trees the fire took, at the field's edge */
-    { id: 'westwood_ash', x: 4, y: 10 }, { id: 'westwood_ash', x: 54, y: 11 }, { id: 'westwood_ash', x: 36, y: 33 },
+    /* ash trees the fire took, at the field's edge: the Westwood ash charred (pyre/ma_burnt_ash, the same 2x2 footprint) */
+    { id: 'ma_burnt_ash', x: 4, y: 10 }, { id: 'ma_burnt_ash', x: 54, y: 11 }, { id: 'ma_burnt_ash', x: 36, y: 33 },
   ]),
   buildings: Object.freeze([]),
   /* the patrol loop, on the burn line by the road */

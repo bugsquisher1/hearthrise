@@ -156,9 +156,9 @@ export const REGION_KITS = Object.freeze({
       mu_kerbstones mu_shields_leaning mu_standard_fallen mu_sword_marker mu_urns mu_weapon_rack
       barrel_broken barrels bone_pile bones cart_wheel coins_scattered sack_pile skull
       mb_fallen_log mb_reeds mb_stepping_stones westwood_ash alder alder_stump
-      mr_drowned_pikes mr_eel_trap mr_green_harness mr_greened_shield mr_mooring_post mr_silt_ripples mr_silt_stain mr_silt_stain_small
+      mr_drowned_pikes mr_eel_trap mr_green_harness mr_greened_shield mr_mooring_post mr_silt_ripples mr_silt_ripples_b mr_silt_stain mr_silt_stain_small
       mr_stake_net_post mr_rope_coil mr_drowned_cart
-      ma_fire_rake ma_log_stack ma_ash_barrow ma_charred_stake
+      ma_fire_rake ma_log_stack ma_ash_barrow ma_charred_stake ma_burnt_ash
       kh_high_seat kh_lectern kh_hall_table kh_hall_table_runner kh_banner_stand kh_colors_upside_down kh_pell kh_weapon_rack
       kh_woodpile kh_well kh_coffin_open kh_chapel_bench kh_toll_box kh_brazier kh_candle_stand kh_banner_hung
       cw_coal_seam cw_coal_seam_spent`),

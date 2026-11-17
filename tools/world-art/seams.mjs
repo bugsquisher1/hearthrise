@@ -210,6 +210,16 @@ function engine(o) {
     }
     return wt > 0 ? wm / wt : 0;
   }
+  /* a pair's `soft` (cells): the share blurred over a 3 x 3 of samples soft cells apart, so a border can wander up to a cell
+     either way before the share saturates (a channel held to its own cells drew back at most half a cell, and its side stayed a
+     ruler line; lane/a-late-grounds-seams). Without `soft` the share is the bilinear one. */
+  function shareOf(m, px, py, S, soft) {
+    if (!soft) return share(m, px, py, S);
+    const k = soft * T / 2;
+    let sum = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) sum += share(m, px + dx * k, py + dy * k, S);
+    return sum / 9;
+  }
   /* the material that wins at (x, y), warped by the pair's noise; margin = its lead in px (how deep inside its own side) */
   function winAt(x, y, S, p, fine) {
     const e = warpEnv ? warpEnv(x, y) : 1;
@@ -227,7 +237,7 @@ function engine(o) {
     for (const m of S) {
       const own = mats[m] && mats[m].own;
       if (own && m !== home && (own === true || own.includes(home))) continue;
-      const v = share(m, wx, wy, S) + (p.bias && p.bias[m] || 0);
+      const v = shareOf(m, wx, wy, S, p.soft) + (p.bias && p.bias[m] || 0);
       if (v > bv || (v === bv && z(m) > z(best))) { second = bv; bv = v; best = m; } else if (v > second) second = v;
     }
     return { m: best, margin: (bv - Math.max(0, second)) * T / 2 };
@@ -380,8 +390,9 @@ const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { s
  *   o.mats   { ch: { z: layer (upper over lower), unit: true for a stone floor (laid stone by stone), mortar: the joints' share,
  *            own: true (never drawn outside its own cells) or the cell characters it is never drawn into, lift: n steps up its
  *            ramps for every px of it, canopy: { spacing, jitter } for the thicket the canopy style lays in crowns } }
- *   o.pairs  [{ a, b, style, warp, scale, fine, jitter, loose, holes, fade, fadeIn, bias, course, kerb, lift }]: the borders to
- *            redraw (others stay as painted). Every pair of materials that touch should be listed, or its border is left as painted
+ *   o.pairs  [{ a, b, style, warp, scale, fine, jitter, loose, holes, fade, fadeIn, bias, course, kerb, lift, soft, wet, wetDeep }]:
+ *            the borders to redraw (others stay as painted). soft: the share blurred over n cells (a wider wander); wet / wetDeep: a
+ *            bank's rim, px of its ground one / two steps darker. Every pair of materials that touch should be listed, or its border is left as painted
  *            beside a redrawn one.
  *   o.keep   characters never touched and never drawn into (a wall mass the importer lays over the paint)
  */
@@ -449,7 +460,7 @@ export function reseam(img, o) {
     const dark = [...n].filter(([, c]) => c >= T * T * 0.03).map(([k]) => rgbOf(k)).sort((a, b) => lumAt(a, 0) - lumAt(b, 0))[0];
     canopy = { C: eng.canopy, dark };
   }
-  rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt, canopy);
+  rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt, canopy, Math.max(3, ...pairs.filter((p) => p.style === 'bank').map((p) => p.wet)));
   /* a floor lifted whole (`mats.ch.lift`: steps up its ramps), drawn or kept: a mound that must not read as the track beside it */
   const lifts = Object.entries(o.mats || {}).filter(([, v]) => v.lift);
   if (lifts.length) for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
@@ -462,7 +473,7 @@ export function reseam(img, o) {
 }
 
 /* ── the rims a style adds on the pixels it drew: the bank's wet ground and lit water lip; the soft edge's shadow ── */
-function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy) {
+function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy, wetReach = 3) {
   const z = (m) => (mats[m] && mats[m].z) || 0;
   const step = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -489,18 +500,19 @@ function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy) {
         }
       }
     }
-    /* the bank: ground within `wet` px of the water (a ragged band: the wet line is no ruler either) is a step down */
-    let wetBy = null;
-    for (let r = 1; r <= 3 && !wetBy; r++) for (let dy = -r; dy <= r && !wetBy; dy++) for (let dx = -r; dx <= r; dx++) {
+    /* the bank: ground within `wet` px of the water (a ragged band: the wet line is no ruler either) is a step down, and within
+       `wetDeep` px of it two (the mud the water last left; lane/a-late-grounds-seams, the Slake's channels had no rim to read) */
+    let wetBy = null, wetR = 0;
+    for (let r = 1; r <= wetReach && !wetBy; r++) for (let dy = -r; dy <= r && !wetBy; dy++) for (let dx = -r; dx <= r; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
       const X = x + dx, Y = y + dy;
       if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) continue;
       const n = matOf[Y * w + X];
       if (n === m || n === null) continue;
       const p = pairOf(m, n);
-      if (p.style === 'bank' && z(n) < z(m) && r <= p.wet - (hash2(x, y, 41) < 0.35 ? 1 : 0)) { wetBy = n; break; }
+      if (p.style === 'bank' && z(n) < z(m) && r <= p.wet - (hash2(x, y, 41) < 0.35 ? 1 : 0)) { wetBy = n; wetR = r <= (p.wetDeep || 0) - (hash2(x, y, 43) < 0.35 ? 1 : 0) ? -2 : -1; break; }
     }
-    if (wetBy) { step.push([i, -1]); continue; }
+    if (wetBy) { step.push([i, wetR]); continue; }
     /* a raised floor (a barrow bank): its own last `outline` px darkened (two steps at the very edge, one inside), and the lower floor
        within `skirt` px of it laid with the skirt material's fill (the bare earth round its foot), its first px a step down */
     let edge = 0, skirt = 0, by = null;

@@ -94,11 +94,11 @@ export function rehearse(id, root = ROOT) {
  * A pack's additive file from one fold render: { sql, added, moved } where `moved` lists every file whose frame (its text with
  * rows, numbers and digests masked) changed, which a pack must not do (a new function body or a new statement is a world move).
  */
-export function shipText(id, root = ROOT, carried = null) {
+export function shipText(id, root = ROOT) {
   const { before, after } = renderFolded([id], root);
   const added = [], moved = [];
   for (const [f, now] of after) {
-    for (const t of diffRows(rowsOf(before.get(f)), rowsOf(now), carried)) added.push({ ...t, file: f });
+    for (const t of diffRows(rowsOf(before.get(f)), rowsOf(now))) added.push({ ...t, file: f });
     if (frameOf(before.get(f)) !== frameOf(now)) moved.push(f);
   }
   /* one block a table: a table two files write (none today) is merged in render order */

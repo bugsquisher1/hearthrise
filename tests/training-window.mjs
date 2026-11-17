@@ -68,7 +68,9 @@ async function stub(page, s) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load' || name === 'hr-accrue') return json(envOf(s));
     if (name === 'hr_training_start') {
-      s.training = SECTION({ run: { skill: body.p_skill, where: body.p_where, since: iso(Date.now() - 65 * 60000), fee_h: body.p_fee_seen, paid: body.p_fee_seen * 2 } });
+      /* 65.5 minutes ago: the page's server clock (the envelope's, offset by the read's round trip) may lag Node's by a few ms, and
+         an exact 65 then floors to "1 hour 4 minutes" on a fast machine */
+      s.training = SECTION({ run: { skill: body.p_skill, where: body.p_where, since: iso(Date.now() - 65 * 60000 - 30000), fee_h: body.p_fee_seen, paid: body.p_fee_seen * 2 } });
       return json({ ok: true });
     }
     if (name === 'hr_hunt_leave') { s.training = SECTION({ last_stop: { reason: 'left', skill: 'melee', at: iso(Date.now()) } }); return json({ ok: true, pending: false }); }
@@ -178,7 +180,7 @@ async function checks() {
         await page.click('[data-hs-act="train-stop"]');
         await wait(page, () => { const r = document.querySelector('[data-hs-win="training"] .tw-ended'); return !!r && !r.hidden; }, null, 4000);
         if (!s.calls.some((c) => c.name === 'hr_hunt_leave')) fails.push('TR-2 Stop did not send the hunt\'s Leave');
-        if (!/You stopped/.test(await q(page, '.tw-ended') || '')) fails.push('TR-2 the window does not say why it ended');
+        if (!/^Training stopped$/.test(await q(page, '.tw-ended') || '')) fails.push('TR-2 the window does not say why it ended: ' + JSON.stringify(await q(page, '.tw-ended')));
       }
       if (errors.length) fails.push('TR-2 console: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();

@@ -213,7 +213,7 @@ renderTraining.patch = function patchTraining(body, ctx) {
     text(root.querySelector('.tw-run-paid'), run.where === 'yard' ? t('training.run_paid', { gold: whole(run.paid) }) : '');
   }
   armClock(ctx, root, sc, !!run);
-  const ended = run ? '' : endedWords(tr.lastStop, nameOf(cs));
+  const ended = run ? '' : endedWords(tr.lastStop);
   prop(root.querySelector('.tw-ended'), 'hidden', !ended);
   text(root.querySelector('.tw-ended'), ended);
 

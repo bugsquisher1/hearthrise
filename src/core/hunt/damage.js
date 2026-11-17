@@ -43,7 +43,7 @@ import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.13
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.134';
 import { temperedAmount } from '../temper.js?v=0.2.134';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.134';
-import { dummyBlow, dummyStands } from './training.js?v=0.2.134';
+import { dummyBlow, dummyStands, trainingBasic } from './training.js?v=0.2.134';
 import { reaches } from './shooters.js?v=0.2.134';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
@@ -305,6 +305,9 @@ function pickShot(inst, u, h, t, sc) {
   const got = shotPasses(inst, u, h, rows, (own) => (slot, cx) => {
     const id = slot.action.id;
     if (id === 'loaded') {
+      /* THE YARD'S BASIC (training.js trainingBasic): free, whatever the hero carries; no mana, no shot. */
+      const yard = trainingBasic(inst.ground, t);
+      if (yard) return yard;
       /* THE CASTER'S MANA BASIC: never a rune (a loaded rune adds nothing: member.js combatWorn), its
          role's mana a swing; with too little it waits (`mana`) while the pool regenerates. */
       if (row.basic) {

@@ -74,7 +74,7 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
   /* A TRAINING SESSION (src/data/training.js) is no hunt: the Training window's own words ("Wren finished Defense training. That was the
      longest one session can run."), never "The hunt reached its time limit." or "You left the hunt." */
   const train = hunt ? trainedBy(hunt) : null;
-  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill }, hero);
+  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill });
   /* A KEYED HALL'S KILL (src/data/boss-halls.js) names him and no title: END_WORDS.boss_felled is a called room's. */
   const room = reason === 'boss_felled' && hunt ? roomOfHunt(hunt) : null;
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.felled.replace('{Boss}', room.Boss);

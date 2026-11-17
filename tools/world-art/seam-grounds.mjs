@@ -10,7 +10,12 @@
 //   GRID    read back from the pixels: each open cell takes the material whose sample cell (its floor variety's `at`, a plain cell)
 //           shares the most of its colours; a cell the map rows make solid keeps the rows' material (`rows`); `cells` overrides.
 //           A ground painted from a brief (`grid`: art/briefs/…, its PAINT rows) takes those rows instead: a pixel read misreads a
-//           shaded paint (the Ford's darkened bank cells read as thicket). The brief's ROWS must still be the map's.
+//           shaded paint (the Ford's darkened bank cells read as thicket). The brief's ROWS must still be the map's. A cell an
+//           override gives another floor than its paint is redrawn whole with the cells round it (the old floor's rims go).
+//   TRAILS  a path a cell wide (`trails`, lane/a-ground-paths) is drawn along its line, over the grass, through the map's crossing
+//           cells (planks, a ford: `links`), never on its cells (seams.mjs trailLine): no ruler sides, no staircase diagonals.
+//   WATER   held to its `walk` (seams.mjs own): never on an open cell's foot (crossings.mjs FOOT), so a bank may bend through the
+//           painted bank cells the map rows block, and swell round a walked foot.
 //   OVER    materials whose painted edge is kept (`over`: the alder canopy's round crowns, a reed bed's scallops) are in no
 //           pair, so their cells are never redrawn; what they hang over a redrawn neighbour is laid back from the paint, or the
 //           canopy would end on the cell line.
@@ -26,7 +31,11 @@ import { decodePNG, encodePNG, createImage, blit, crop } from './png.mjs';
 import { ROOT, ART_DIR } from './build.mjs';
 import { reseam, fillTileOf } from './seams.mjs';
 import { lock } from './lock.mjs';
+import { varietyTiles } from './variety.mjs';
 import { mapRowOf } from '../../src/data/world/maps/index.js';
+import { MATERIALS } from '../../src/data/world/terrain.js';
+import { FOOT, FOOTHOLD_IDS } from './crossings.mjs';
+import { VARIETY } from '../../src/world/core/ground-variety.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const T = 32;
@@ -155,14 +164,46 @@ function raft({ set, id, cells, footprint, what }) {
   console.log('  ✓ ' + set + '/' + id + ' (bridge, ' + out.width + 'x' + h + ', ' + reps + ' log lengths)');
 }
 
+/* ── boards as wide as the trail: the goblins' plank span with its deck widened by its own planks ──
+   cw_plank_bridge carries a 10 px deck between its rails: half the width of the trail it carries (Mosslight's sluice boards, the
+   Warrens' Drop: "a half-tile plank ladder"). Its posts and rails kept, its plank columns laid twice more between them (cols 19-24,
+   then 21-26 mirrored, so no 6 px repeat runs along a board): a 22 px deck. Same frame height, foot and class (span). */
+function widePlanks() {
+  const id = 'cw_plank_bridge_wide', dir = join(ROOT, ART_DIR, 'warren');
+  const src = decodePNG(readFileSync(join(dir, 'cw_plank_bridge.png'))), sc0 = JSON.parse(readFileSync(join(dir, 'cw_plank_bridge.json'), 'utf8'));
+  const cols = [...Array(25).keys(), 19, 20, 21, 22, 23, 24, 26, 25, 24, 23, 22, 21, ...Array.from({ length: src.width - 25 }, (_, i) => 25 + i)];
+  const out = createImage(cols.length, src.height);
+  cols.forEach((sx, x) => blit(out, src, sx, 0, 1, src.height, x, 0));
+  writeFileSync(join(dir, id + '.png'), encodePNG(out));
+  /* the deck (cols 14-43) centred on the tile */
+  const sc = Object.assign({}, sc0, { id, source: id + '.png', frame: [out.width, src.height], anchor_px: [29, sc0.anchor_px[1]],
+    pixellab: Object.assign({}, sc0.pixellab, { derived: 'cw_plank_bridge, 0 gens' }),
+    notes: 'cw_plank_bridge\'s posts and rails, its plank columns laid twice more between them (19-24, then 26-21), a 22 px deck as wide as the trail it carries, by tools/world-art/seam-grounds.mjs; pixels unscaled, nothing drawn.' });
+  writeFileSync(join(dir, id + '.json'), JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ warren/' + id + ' (span, ' + out.width + 'x' + src.height + ')');
+}
+
 /** { 'x,y': ch } for every cell of a w x h block: a `cells` override for a block the pixel read gets wrong */
 const rect = (x0, y0, w, h, ch) => Object.fromEntries(Array.from({ length: w * h }, (_, i) => [(x0 + (i % w)) + ',' + (y0 + Math.floor(i / w)), ch]));
 /* grass, thicket, path: the meadow family's three open floors (their varieties' cells) */
 const meadow = (g, m, p) => ({ T: g, G: m, D: p });
+/* THE MEADOW TRAIL (lane/a-ground-paths, Tyler's gate: no ruler-straight cut between two floors, no staircase on a diagonal).
+   The dirt path was one cell wide on the grid: ruler sides, every diagonal a staircase of squares. It is drawn along its line
+   (seams.mjs trailLine) over the grass, through its crossings (`links`: the map's planks and ford cells, so it meets a bridge's
+   end and a ford's water, never a strip of grass short of it). Its fill is the family's dirt tile with no rim: the three meadow
+   grounds were painted from one tile, pixel for pixel inside its rims, and only Wickstead's ford is wide enough to hold a cell of
+   it with no border (x29 y31). Each trail cell draws one of four of that tile (the plain and three shifted: variety.mjs, the
+   2 px ring kept, so two of them meet with no seam), the 32 px repeat broken as the path variety broke it. */
+const TRAIL_FILL = Object.freeze(['wickstead_ground', 29, 31]);
+const TRAIL = Object.freeze({ D: { host: 'G', links: '=:', blockGrow: 20, blockWarp: 11, variety: { seed: 32, tone: 'damp', shift: true } } });
+const TRAIL_PAIR = Object.freeze({ a: 'D', b: 'G', style: 'trail' });
+/* Wickstead's ford (x28-31 y30-32) was a dirt square stamped through the brook: the trail fills its cells and 12 px past them
+   (blockGrow), so its edge on the water is the bank's, and that bank wanders (bays a cell wide, a few px deep) */
+const FORD_BANK = Object.freeze({ bias: { G: 0.05 }, sweep: 12, warp: 10, mid: 5 });
 /* the meadow grounds' banks, and their thicket wall in crowns over the water (leaning out over it), the grass and the path; no
    soil line: the meadow canopy's painted edge had none, its crowns cast a shadow instead */
-const BANKS = (wet) => [
-  { a: 'W', b: 'G', style: 'bank', bias: { G: 0.3 }, sweep: 7, warp: 5, wet },
+const BANKS = (wet, grass = {}) => [
+  Object.assign({ a: 'W', b: 'G', style: 'bank', bias: { G: 0.3 }, sweep: 7, warp: 5, wet }, grass),
   { a: 'W', b: 'D', style: 'bank', bias: { D: 0.3 }, sweep: 5, warp: 4, wet },
   WALL('W', { bias: { T: 0.3 } }), WALL('G', { bias: { G: 0.25 } }), WALL('D', { bias: { D: 0.25 } }),
 ];
@@ -176,34 +217,58 @@ const TRACK = Object.freeze({ style: 'ragged', sweep: 6, warp: 6, mid: 3 });
 const CROWNS = Object.freeze({ spacing: 18, jitter: 3 });
 const WALL = (floor, o = {}) => Object.assign({ a: 'T', b: floor, style: 'canopy', sweep: 9, warp: 8 }, o);
 const MEADOW_MATS = { W: { z: 0, own: true }, D: { z: 1 }, G: { z: 2 }, T: { z: 3, canopy: CROWNS } };
+/* the brook may fill its painted bank cells (map cells nobody stands on) so a jog in it bends, never a walked foot (`walk`) */
+const BROOK_MATS = Object.assign({}, MEADOW_MATS, { W: { z: 0, own: 'walk', banks: 'G' } });
+/* Mosslight's brook was one straight band three cells wide the width of the map, its banks two ruler lines. It bends now: a row
+   up or down inside its five rows of brook (y19-23, which nobody stands on but at the ford and the boards), wider at two pools,
+   each jog a bend two cells long (smooth). It keeps y20-22 at the ford (x7-13: its stones) and at the boards (x43-46).
+   [x0, x1, first water row, last] */
+const MOSSLIGHT_BENDS = [[0, 13, 20, 22], [14, 17, 19, 21], [18, 20, 19, 22], [21, 27, 20, 22], [28, 34, 21, 23], [35, 38, 20, 22],
+  [39, 42, 19, 21], [43, 46, 20, 22], [47, 51, 21, 23], [52, 55, 20, 23], [56, 59, 20, 22]];
+/* the north trail came down x45 to the boards on x44, a cell to their right: it steps over at y17, onto the boards' line */
+const MOSSLIGHT_CELLS = Object.assign({}, ...MOSSLIGHT_BENDS.flatMap(([x0, x1, y0, y1]) => Array.from({ length: x1 - x0 + 1 }, (_, i) =>
+  Object.fromEntries([19, 20, 21, 22, 23].map((y) => [(x0 + i) + ',' + y, y >= y0 && y <= y1 ? 'W' : 'G'])))),
+{ '45,17': 'G', '45,18': 'G', '44,17': 'D', '44,18': 'D' });
 export const GROUNDS = Object.freeze({
   /* the brook ran dead straight down its banks and the footbridge was planks painted flat on the water */
   wickstead_ground: { set: 'stead', map: 'wickstead', seed: 41, solid: { '~': 'W', '=': 'W', '#': 'T' }, samples: meadow([0, 0], [5, 3], [15, 8]),
-    repaint: { '=': 'W' }, mats: MEADOW_MATS, pairs: BANKS(2),
+    repaint: { '=': 'W' }, mats: Object.assign({ F: { z: 2.5, unit: true } }, BROOK_MATS), smooth: true, trails: TRAIL, fillFrom: { D: TRAIL_FILL },
+    /* the Burned House's floor (x39-51 y33-35) was a pale slab of one flagstone tile ruled straight into the grass: it ends on its
+       own stones, the edge ones loose in the grass and a few gone inside (scatter), the slab's corners lost to the meander */
+    pairs: BANKS(2, FORD_BANK).concat([TRAIL_PAIR, { a: 'F', b: 'G', style: 'scatter', sweep: 10, warp: 9, mid: 4, loose: 0.5, holes: 0.35, fade: 16, fadeIn: 14 }, WALL('F')]),
     /* the tilled plot (x50-55 y23-24) is dark enough to read as thicket: it is its own floor, never touched (it would be crowned) */
-    cells: rect(50, 23, 6, 2, 'P'), keep: 'P',
+    cells: Object.assign(rect(50, 23, 6, 2, 'P'), rect(39, 33, 13, 3, 'F')), keep: 'P',
     before: () => raft({ set: 'stead', id: 'wk_footbridge', cells: 4, footprint: [2, 1], what: 'The Wickstead footbridge' }) },
   /* the brook's banks stepped down the grid, and its two rafts (144 px of logs on 96 px of water) sat a row below the
      trail. Its brook cells carry their own grassy banks, so the water is read from the pixels as the floors are */
   meadowbrook_ground: { set: 'forest-floor', map: 'meadowbrook_thicket', seed: 43, solid: { '#': 'T' },
-    samples: Object.assign(meadow([0, 0], [6, 2], [16, 5]), { W: [30, 2] }), mats: MEADOW_MATS, pairs: BANKS(2),
+    samples: Object.assign(meadow([0, 0], [6, 2], [16, 5]), { W: [30, 2] }), mats: BROOK_MATS, smooth: true, trails: TRAIL, fillFrom: { D: TRAIL_FILL },
+    pairs: BANKS(2).concat([TRAIL_PAIR]),
     before: () => raft({ set: 'forest', id: 'mb_log_bridge_long', cells: 3, footprint: [1, 1], what: 'The Meadowbrook footbridge' }) },
   /* the sewage channel's L was cut straight into the cobble with no edge: a built channel ends on a kerb course */
   sewer_ground: { set: 'sewer', map: 'millrace_sewer', seed: 53, solid: { '#': 'X', '~': 'W' }, samples: { F: [4, 2] }, keep: 'X',
     mats: { W: { z: 0, own: true }, F: { z: 1 } }, pairs: [{ a: 'W', b: 'F', style: 'kerb', course: 'F' }] },
   /* the chasm was a hard rectangle cut into the cave floor; it is held to its own cells (it blocks a step) */
   warrens_ground: { set: 'warren', map: 'coppercap_warrens', seed: 59, solid: { '#': 'X' }, samples: { E: [9, 0], C: [52, 21] }, keep: 'X',
-    mats: { C: { z: 0, own: true }, E: { z: 1 } }, pairs: [{ a: 'C', b: 'E', style: 'ragged', bias: { E: 0.3 }, sweep: 5, warp: 5 }] },
+    /* the Drop was a box of one tile with a half-tile plank ladder over it: its rim wanders (smooth, wilder), its far wall shows
+       under its north lip and it sinks into the dark (pit), and the boards are as wide as the corridor's trail (widePlanks) */
+    mats: { C: { z: 0, own: true, pit: { face: 'E', rows: 10 } }, E: { z: 1 } }, smooth: true, before: widePlanks,
+    pairs: [{ a: 'C', b: 'E', style: 'ragged', bias: { E: 0.3 }, sweep: 9, warp: 8, mid: 4 }] },
   /* the river was one straight band edged by a hairline the length of the map */
   mosslight_ground: { set: 'glade-floor', map: 'mosslight_glade', seed: 47, solid: { '#': 'T' },
-    samples: Object.assign(meadow([0, 0], [23, 2], [36, 6]), { W: [30, 21] }), mats: MEADOW_MATS, pairs: BANKS(2) },
+    samples: Object.assign(meadow([0, 0], [23, 2], [36, 6]), { W: [30, 21] }), mats: BROOK_MATS, smooth: true, trails: TRAIL, fillFrom: { D: TRAIL_FILL },
+    pairs: BANKS(2).concat([TRAIL_PAIR]), cells: MOSSLIGHT_CELLS, before: widePlanks },
   /* the river's banks were sawteeth on the grid, the ford a rectangle of shallows cut straight into its landings and banks, the
      mud track and the barrow banks stepped down the cells. The alder canopy keeps its painted edge (`over`): its crowns and dark rim are
      what tells a player the wall from the grass at night, and a crown cut by the noise loses both */
   hasks_ford_ground: { set: 'ford', map: 'hasks_ford', seed: 61, grid: 'art/briefs/hasks-ford-grid-2026-10-28.txt',
     samples: { G: [46, 4], M: [29, 15] },
     /* the river never reaches a walked cell (the ford's shallows and bars, grass, the track); it may lap into the reed beds */
-    mats: { W: { z: 0, own: 'SVGM' }, S: { z: 1 }, V: { z: 2 }, M: { z: 3 }, G: { z: 4 }, R: { z: 5 }, B: { z: 6 }, T: { z: 7, canopy: CROWNS } },
+    mats: { W: { z: 0, own: 'SVGM' }, S: { z: 1 }, V: { z: 2, relief: { from: 'S', steps: 2 } }, M: { z: 3 }, G: { z: 4 }, R: { z: 5 }, B: { z: 6 }, T: { z: 7, canopy: CROWNS } },
+    /* the shallows ended on a straight cut into the river four cells long at each end: they taper into it, a cell or two further on
+       river cells nobody stands on, rounded by the B-spline (smooth); the gravel bars, flattened to one grey by the palette lock,
+       take the shallows' pebbles pressed into their own grey (relief: two steps up, the ground's shade 3 flattens one) */
+    smooth: true, cells: { '21,19': 'S', '20,20': 'S', '21,20': 'S', '21,21': 'S', '36,19': 'S', '37,20': 'S', '37,21': 'S', '38,21': 'S', '37,22': 'S' },
     pairs: [
       { a: 'W', b: 'R', style: 'bank', bias: { R: 0.2 }, sweep: 9, warp: 7, mid: 4, wet: 2 },
       { a: 'W', b: 'S', style: 'bank', bias: { S: 0.5 }, sweep: 10, warp: 8, mid: 4, wet: 2 },
@@ -236,7 +301,9 @@ function run(id) {
   if (g.before) g.before();
   /* locked to the palette first (the grade the build would give it), so a kerb's or a bank's one-step rims land on real ramps */
   const img = lock(decodePNG(readFileSync(join(ROOT, SRC, id + '.png'))), g.material || 'terrain');
-  const rows = g.grid ? gridFromBrief(readFileSync(join(ROOT, g.grid), 'utf8'), row.rows) : gridFromPixels(img, row.rows, g);
+  /* a brief's grid takes the ground's `cells` overrides too (a shallows widened into the river past its walked cells) */
+  const brief = g.grid ? gridFromBrief(readFileSync(join(ROOT, g.grid), 'utf8'), row.rows) : null;
+  const rows = brief ? brief.map((r, y) => [...r].map((c, x) => (g.cells || {})[x + ',' + y] || c).join('')) : gridFromPixels(img, row.rows, g);
   /* each open floor's fill is its sample cell's own tile (a one-tile path has no deep cell to take it from); the rest, the commonest */
   const fills = {};
   for (const [ch, [sx, sy]] of Object.entries(g.samples)) fills[ch] = crop(img, sx * T, sy * T, T, T);
@@ -249,7 +316,45 @@ function run(id) {
     fills[m] = fills[m] || fillTileOf(img, rows, m, T);
     blit(img, fills[m], 0, 0, T, T, x * T, y * T);
   }
-  const r = reseam(img, { rows, mats: g.mats, pairs: g.pairs, keep: g.keep || '', seed: g.seed, fills });
+  /* a fill taken from a sibling ground painted from the same tile (fillFrom: { ch: [ground, x, y] }), locked as this one is */
+  for (const [ch, [src, sx, sy]] of Object.entries(g.fillFrom || {})) fills[ch] = crop(lock(decodePNG(readFileSync(join(ROOT, SRC, src + '.png'))), g.material || 'terrain'), sx * T, sy * T, T, T);
+  /* a hero stands on the map's open cells; water held to its `walk` never covers an open cell's FOOT (crossings.mjs, the box rule
+     [wet] reads) but may bite into its other px (the water's edge beside a ford is no ruler line on the cell edge). A foot a
+     bridge's planks or a stone hold (crossings.mjs FOOTHOLD_IDS) is dry whatever is under it */
+  const open = (x, y) => { const m = MATERIALS[row.legend[row.rows[y][x]]]; return !!m && !m.solid; };
+  const held = new Set((row.objects || []).filter((ob) => FOOTHOLD_IDS.includes(ob.id)).map((ob) => ob.x + ',' + ob.y));
+  row.rows.forEach((r, y) => [...r].forEach((c, x) => { if (row.legend[c] === 'planks') held.add(x + ',' + y); }));
+  const dry = (px, py) => {
+    const cx = Math.floor(px / T), cy = Math.floor(py / T);
+    if (cx < 0 || cy < 0 || cx >= row.rows[0].length || cy >= row.rows.length || !open(cx, cy) || held.has(cx + ',' + cy)) return false;
+    const fx = cx * T + (T >> 1), fy = cy * T + T - 1;
+    return Math.abs(px - fx) <= FOOT.half && py >= fy - FOOT.rise;
+  };
+  /* the clip alone leaves the foot's box cut into the water: the water's claim also fades out round every open foot (gone within
+     10 px of its middle, whole again 26 px off, the radius wobbling), so the bank swells round a foot as a rounded bay */
+  const dryness = (px, py) => {
+    const cx0 = Math.floor(px / T), cy0 = Math.floor(py / T);
+    let d = Infinity;
+    for (let cy = cy0 - 1; cy <= cy0 + 1; cy++) for (let cx = cx0 - 1; cx <= cx0 + 1; cx++) {
+      if (cx < 0 || cy < 0 || cx >= row.rows[0].length || cy >= row.rows.length || !open(cx, cy) || held.has(cx + ',' + cy)) continue;
+      d = Math.min(d, Math.hypot(px - cx * T - (T >> 1), py - cy * T - T + 1 + (FOOT.rise >> 1)));
+    }
+    return 1.5 * Math.max(0, Math.min(1, (26 + 4 * Math.sin(px * 0.21 + py * 0.13) - d) / 16));
+  };
+  /* a trail runs on over the map's crossing cells (its links: planks, a ford) and draws one of its fill's variants per cell */
+  const trails = g.trails && Object.fromEntries(Object.entries(g.trails).map(([ch, t]) => {
+    const crossing = (x, y) => (t.links || '').includes(row.rows[y][x]);
+    const variants = t.variety ? varietyTiles(fills[ch], t.variety).slice(0, VARIETY.micro) : null;
+    return [ch, Object.assign({}, t, { crossing, variants })];
+  }));
+  /* a cell the overrides give another floor than its paint is redrawn whole, and the cells round it (the old floor's rims) */
+  let redraw = null;
+  if (g.cells) {
+    const read = brief || gridFromPixels(img, row.rows, Object.assign({}, g, { cells: {} }));
+    redraw = new Set();
+    for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[0].length; x++) if (read[y][x] !== rows[y][x] && !(g.keep || '').includes(rows[y][x])) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) redraw.add((x + dx) + ',' + (y + dy));
+  }
+  const r = reseam(img, { rows, mats: g.mats, pairs: g.pairs, keep: g.keep || '', seed: g.seed, fills, smooth: !!g.smooth, open, dry, dryness, trails, redraw });
   let kept = 0;
   for (const ch of g.over || '') kept += overhang(r.img, img, rows, ch, fills, T);
   varietiesKept(g.set, id, img, r.img);

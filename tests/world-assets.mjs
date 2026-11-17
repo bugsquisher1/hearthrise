@@ -637,11 +637,11 @@ function selftest(atlases) {
     if (hit) console.log(`  ✓ ${name}: caught by [wet] at ${at}`);
     else { escaped++; console.log(`  ✗ ${name}: NOT caught by [wet] at ${at}`); }
   };
-  wetCase("the Glade's sluice boards on one 75 px span (Tyler 2026-11-14)", 'mosslight_glade 44,21', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
+  wetCase("the Glade's sluice boards on one 75 px span (Tyler 2026-11-14)", 'mosslight_glade 44,21', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge_wide' && x.y === 23))));
   wetCase("a stone taken out of the Glade's ford", 'mosslight_glade 9,21', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'mb_stepping_stones' && x.x === 9 && x.y === 21))));
   wetCase("Wickstead's footbridge taken up", 'wickstead 29,8', reworked('wickstead', (o) => o.filter((x) => x.id !== 'wk_footbridge')));
   wetCase("the Thicket's raft taken up", 'meadowbrook_thicket 30,5', reworked('meadowbrook_thicket', (o) => o.filter((x) => !(x.id === 'mb_log_bridge_long' && x.x === 30 && x.y === 5))));
-  wetCase("the Warrens' Drop on one span", 'coppercap_warrens 51,21', reworked('coppercap_warrens', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
+  wetCase("the Warrens' Drop on one span", 'coppercap_warrens 51,21', reworked('coppercap_warrens', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge_wide' && x.y === 23))));
   const WET_MUTANTS = 5;
 
   // PIXELLAB 2026-11-11: the real pro sets read clean; a grade on palette-locked art and each bad tileset is named.

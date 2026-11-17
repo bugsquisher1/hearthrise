@@ -21,11 +21,22 @@
 //            crown cut in half. The union is outlined in the thicket's darkest colour, its outer px lit up-left and shaded
 //            down-right, and the floor at its foot gets a soil line (`soil: 'M'`, that floor's grain lit a step, its outer px two)
 //            or a cast shadow; what the crowns leave of a thicket cell far from the floor stays as painted
+//   trail    a worn path a cell or two wide (`o.trails`): drawn along a line through its cells' centres, never on the cells, so
+//            its sides wander and a diagonal run of cells (a staircase of squares on the tileset) is one rounded line
+//            (trailLine); laid only over its host floor (grass), a pixel of shadow under the grass edge on its up-left side
 // Every style lays its UPPER material (the higher `z`) over the lower one, so a stone sits on the earth, never under it.
+// `o.smooth` blends the cells with a cubic B-spline (4 x 4 cells) instead of the bilinear four: a one-cell jog in a bank or a
+// wall is a bend two cells long, never a 45-degree step one cell long. `own: 'walk', banks: 'G'` lets water into its `banks` floor
+// but never onto a walked foot: never inside `o.dry(x, y)` (the box rule [wet] reads), its bank floor gaining `o.dryness(x, y)`
+// round every foot (so the bank swells round a foot in a curve, never a box), and never into any other floor (the thicket).
+// After the borders: `mats.ch.pit` gives a chasm its far wall and its depth, `mats.ch.relief` presses another fill's pebbles into a
+// floor the palette lock flattened.
 //
 //   reseam(img, o)              a PAINTED ground redrawn along its borders, in place of the tileset's straight ones.
 //        o { rows (one string per cell row), mats { ch: { z, unit, mortar } }, pairs [{ a, b, style, warp, scale, loose, holes,
-//            fade }], keep (chars never touched: a wall mass), seed, T = 32 }. Only cells within one cell of a listed pair change.
+//            fade }], keep (chars never touched: a wall mass), seed, T = 32, smooth, open, dry, dryness, trails { ch: { host,
+//            crossing(x, y), variants, half, swell, blockGrow, blockWarp, sigma } }, redraw (a Set of 'x,y' cells to redraw whole) }.
+//            Only cells within one cell of a listed pair, a trail or `redraw` change.
 //   transitionTiles(lower, upper, o)   a WANG-16 pair (the dual grid compose.js draws), `variants` tiles per key, every one built
 //        from the two 32x32 fill tiles. A variant's outer ring is the key's own (the warp is pinned to 0 at the tile's edge), so
 //        any variant sits beside any other: list them all under the key and compose.js's cell hash picks one per cell.
@@ -40,6 +51,7 @@ import { decodePNG, encodePNG, createImage } from './png.mjs';
 import { RAMPS } from './palette.mjs';
 import { hash2, noise } from './ground-finish.mjs';
 import { WANG_KEYS } from '../../src/data/world/art-budget.js';
+import { vhash } from '../../src/world/core/ground-variety.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const LIN = Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
@@ -56,7 +68,7 @@ function stepRgb(r, g, b, k) {
   return rgbOf(at.ramp[Math.max(0, Math.min(at.ramp.length - 1, at.k + k))]);
 }
 
-export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank', 'canopy']);
+export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank', 'canopy', 'trail']);
 const DEFAULTS = Object.freeze({ sweep: 9, reach: 96, warp: 6, scale: 26, mid: 2.5, fine: 0.8, loose: 0.55, holes: 0.3, fade: 14, fadeIn: 10, kerb: 5, lift: 1, wet: 3 });
 
 /* noise in [-1, 1] (ground-finish's three rotated octaves, stretched: it sits round 0.5 with a narrow spread) */
@@ -186,6 +198,9 @@ function engine(o) {
   const { T, cellAt, mats, tiles, pairOf, warpEnv } = o;
   const seed = o.seed || 1, phase = o.phase || 0;
   const z = (m) => (mats[m] && mats[m].z) || 0;
+  /* water held off the walked feet (`own: 'walk'`): its bank floors gain `o.dryness` round every foot, in its pairs only */
+  const walkHeld = (m) => !!(mats[m] && mats[m].own === 'walk');
+  const dryFloors = new Set(Object.values(mats).filter((m) => m.own === 'walk').flatMap((m) => [...(m.banks || '')]));
   const unit = (m) => !!(mats[m] && mats[m].stones);
   const wrap = (v) => ((((v - phase) % T) + T) % T);
   const fillAt = (m, x, y) => { const d = tiles[m].data, p = (wrap(y) * T + wrap(x)) * 4; return [d[p], d[p + 1], d[p + 2]]; };
@@ -198,10 +213,25 @@ function engine(o) {
     const lum = (h) => { const c = rgbOf(h); return lumAt([c[0], c[1], c[2]], 0); };
     tone[m] = { body: rgbOf([...n.entries()].sort((a, b) => b[1] - a[1])[0][0]), joint: rgbOf(common.sort((a, b) => lum(a) - lum(b))[0]) };
   }
-  /* the share of material m in the bilinear blend of the four cell centres round (px, py): 0.5 on the cell edge between two */
+  /* the share of material m in the bilinear blend of the four cell centres round (px, py): 0.5 on the cell edge between two;
+     smooth: the cubic B-spline over the 4 x 4 centres round it (a straight edge stays on the cell line, a jog bends over two cells) */
+  const bspline = (t) => { t = Math.abs(t); return t < 1 ? (4 - 6 * t * t + 3 * t * t * t) / 6 : t < 2 ? (2 - t) ** 3 / 6 : 0; };
   function share(m, px, py, S) {
     const fx = px / T - 0.5, fy = py / T - 0.5, i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j;
     let wm = 0, wt = 0;
+    if (o.smooth) {
+      for (let cj = j - 1; cj <= j + 2; cj++) {
+        const wy = bspline(fy - cj);
+        for (let ci = i - 1; ci <= i + 2; ci++) {
+          const c = cellAt(ci, cj);
+          if (!S.includes(c)) continue;
+          const w = wy * bspline(fx - ci);
+          wt += w;
+          if (c === m) wm += w;
+        }
+      }
+      return wt > 0 ? wm / wt : 0;
+    }
     for (const [ci, cj, w] of [[i, j, (1 - u) * (1 - v)], [i + 1, j, u * (1 - v)], [i, j + 1, (1 - u) * v], [i + 1, j + 1, u * v]]) {
       const c = cellAt(ci, cj);
       if (!S.includes(c)) continue;
@@ -222,12 +252,13 @@ function engine(o) {
     /* a material held to its own cells (`own`: water beside open floor) may draw back inside them, never spread out of them, so a
        tile a hero stands on is never painted under water (tests/world-assets.mjs [wet]); `own` as a string names only the cells it
        never spreads into (the open ones: water may still lap into a reed bed) */
-    const home = cellAt(Math.floor(x / T), Math.floor(y / T));
+    const hx = Math.floor(x / T), hy = Math.floor(y / T), home = cellAt(hx, hy);
+    const walked = () => (o.dry ? o.dry(x, y) : !!(o.open && o.open(Math.max(0, Math.min(o.W - 1, hx)), Math.max(0, Math.min(o.H - 1, hy)))));
     let best = null, bv = -1, second = -1;
     for (const m of S) {
       const own = mats[m] && mats[m].own;
-      if (own && m !== home && (own === true || own.includes(home))) continue;
-      const v = share(m, wx, wy, S) + (p.bias && p.bias[m] || 0);
+      if (own && m !== home && (own === true || (own === 'walk' ? !(mats[m].banks || '').includes(home) || walked() : own.includes(home)))) continue;
+      const v = share(m, wx, wy, S) + (p.bias && p.bias[m] || 0) + (o.dryness && dryFloors.has(m) && (walkHeld(p.a) || walkHeld(p.b)) ? o.dryness(x, y) : 0);
       if (v > bv || (v === bv && z(m) > z(best))) { second = bv; bv = v; best = m; } else if (v > second) second = v;
     }
     return { m: best, margin: (bv - Math.max(0, second)) * T / 2 };
@@ -369,10 +400,145 @@ function engine(o) {
     pick = pick || order[order.length - 1];
     return { m: pick, c: fillAt(pick, x, y) };
   }
-  return { draw, share, canopy: C };
+  return { draw, share, canopy: C, fillAt };
 }
 
 const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { sweep: 0, warp: 0, mid: 0, fine: 0 } : {}, p);
+
+/* ── A TRAIL'S LINE ──
+   A tileset path is a row of cells: one cell wide, its sides are ruler lines and a diagonal is a staircase of squares. The
+   trail is drawn along a line through its cells' centres instead: two trail cells side by side are joined, two that touch only
+   at a corner are joined diagonally (unless a trail cell beside both already joins them), each run between two forks or ends
+   is smoothed along its length (a gaussian of `sigma` px of arc, narrowed toward a fork or an end so they stay put: a staircase
+   of cells is one diagonal, a corner a bend), and a 2 x 2 block of trail cells is filled whole (a ford, a yard). A trail that
+   ends at a crossing (`crossing(x, y)`: a bridge's planks, a ford) runs on in a straight line over it to the trail beyond, the
+   open cells between included, so it meets the bridge's end and the water's edge. Returns dist(x, y): px from (x, y) to the
+   line, and `nodes`. */
+export function trailLine(isTrail, W, H, T, o = {}) {
+  const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+  const trail = (x, y) => inside(x, y) && isTrail(x, y);
+  const four = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const links = new Set();
+  if (o.crossing) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!trail(x, y)) continue;
+    const from = four.filter(([dx, dy]) => trail(x + dx, y + dy));
+    if (from.length !== 1) continue;
+    /* an end: straight on, away from the cell it came from, over open or crossing cells to a trail cell past a crossing */
+    const [dx, dy] = [-from[0][0], -from[0][1]], walked = [];
+    let crossed = false;
+    for (let k = 1, X = x + dx, Y = y + dy; k <= (o.reachCells || 8) && inside(X, Y); k++, X += dx, Y += dy) {
+      if (trail(X, Y)) { if (crossed) for (const w of walked) links.add(w); break; }
+      if (o.crossing(X, Y)) crossed = true;
+      else if (!(o.open && o.open(X, Y))) break;
+      walked.push(X + ',' + Y);
+    }
+  }
+  const node = (x, y) => inside(x, y) && (isTrail(x, y) || links.has(x + ',' + y));
+  const nodes = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (node(x, y)) nodes.push([x, y]);
+  const nb = (x, y) => {
+    const out = [];
+    for (const [dx, dy] of four) if (node(x + dx, y + dy)) out.push([x + dx, y + dy]);
+    for (const [dx, dy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) if (node(x + dx, y + dy) && !node(x + dx, y) && !node(x, y + dy)) out.push([x + dx, y + dy]);
+    return out;
+  };
+  const deg = new Map(nodes.map(([x, y]) => [x + ',' + y, nb(x, y).length]));
+  const c = (x, y) => [x * T + T / 2, y * T + T / 2];
+  /* the runs: walk from every fork or end along cells of two neighbours; what is left are loops */
+  const done = new Set(), runs = [];
+  const ek = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+  const walk = (x0, y0, x1, y1) => {
+    const run = [[x0, y0], [x1, y1]];
+    done.add(ek(x0 + ',' + y0, x1 + ',' + y1));
+    let [px, py, x, y] = [x0, y0, x1, y1];
+    while (deg.get(x + ',' + y) === 2) {
+      const next = nb(x, y).find(([nx, ny]) => !(nx === px && ny === py));
+      if (!next || done.has(ek(x + ',' + y, next[0] + ',' + next[1]))) break;
+      done.add(ek(x + ',' + y, next[0] + ',' + next[1]));
+      run.push(next);
+      [px, py, x, y] = [x, y, next[0], next[1]];
+    }
+    return run;
+  };
+  for (const [x, y] of nodes) if (deg.get(x + ',' + y) !== 2) for (const [nx, ny] of nb(x, y)) if (!done.has(ek(x + ',' + y, nx + ',' + ny))) runs.push({ pts: walk(x, y, nx, ny), loop: false });
+  for (const [x, y] of nodes) for (const [nx, ny] of nb(x, y)) {
+    if (done.has(ek(x + ',' + y, nx + ',' + ny))) continue;
+    const pts = walk(x, y, nx, ny);
+    if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
+    runs.push({ pts, loop: true });
+  }
+  /* the run resampled every `step` px of arc, then each point the gaussian mean of its neighbours along the arc (a loop wraps;
+     an open run's sigma shrinks to a third of the arc to its nearer end, so a fork or an end holds still) */
+  const sigma = o.sigma ?? 44, step = 4, segs = [];
+  for (const r of runs) {
+    const cs = r.pts.map(([x, y]) => c(x, y));
+    if (r.loop) cs.push(cs[0]);
+    const p = [];
+    for (let i = 0; i < cs.length - 1; i++) {
+      const [ax, ay] = cs[i], [bx, by] = cs[i + 1], n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / step));
+      for (let k = 0; k < n; k++) p.push([ax + (bx - ax) * k / n, ay + (by - ay) * k / n]);
+    }
+    if (!r.loop) p.push(cs[cs.length - 1]);
+    const n = p.length, q = [];
+    for (let i = 0; i < n; i++) {
+      const s = r.loop ? sigma : Math.min(sigma, Math.min(i, n - 1 - i) * step / 3);
+      if (s < 1) { q.push(p[i]); continue; }
+      const w = Math.ceil(2.5 * s / step);
+      let sx = 0, sy = 0, sw = 0;
+      for (let k = -w; k <= w; k++) {
+        const j = r.loop ? ((i + k) % n + n) % n : i + k;
+        if (j < 0 || j >= n) continue;
+        const g = Math.exp(-((k * step) ** 2) / (2 * s * s));
+        sx += p[j][0] * g; sy += p[j][1] * g; sw += g;
+      }
+      q.push([sx / sw, sy / sw]);
+    }
+    for (let i = 0; i < q.length - (r.loop ? 0 : 1); i++) segs.push([q[i], q[(i + 1) % q.length]]);
+  }
+  /* a lone trail cell is a point; a 2 x 2 block of them is a square between their centres */
+  for (const [x, y] of nodes) if (!deg.get(x + ',' + y)) segs.push([c(x, y), c(x, y)]);
+  const squares = [];
+  for (const [x, y] of nodes) if (trail(x, y) && trail(x + 1, y) && trail(x, y + 1) && trail(x + 1, y + 1)) squares.push([x * T + T / 2, y * T + T / 2, x * T + T * 1.5, y * T + T * 1.5]);
+  /* every segment and square filed under the cells within `reach` px of it */
+  const reach = o.reach || T * 1.5, grow = o.blockGrow || 0, bucket = new Map();
+  const file = (item, x0, y0, x1, y1) => {
+    for (let cy = Math.floor((Math.min(y0, y1) - reach) / T); cy <= Math.floor((Math.max(y0, y1) + reach) / T); cy++)
+      for (let cx = Math.floor((Math.min(x0, x1) - reach) / T); cx <= Math.floor((Math.max(x0, x1) + reach) / T); cx++) {
+        const k = cx + ',' + cy;
+        if (!bucket.has(k)) bucket.set(k, []);
+        bucket.get(k).push(item);
+      }
+  };
+  for (const s of segs) file({ s }, s[0][0], s[0][1], s[1][0], s[1][1]);
+  for (const q of squares) file({ q }, q[0], q[1], q[2], q[3]);
+  /* the distance to the line (`blocks` false) or to the filled blocks less their growth (`blocks` true) */
+  function dist(x, y, blocks = null) {
+    const list = bucket.get(Math.floor(x / T) + ',' + Math.floor(y / T));
+    if (!list) return Infinity;
+    let best = Infinity;
+    for (const it of list) {
+      if (!!it.q !== !!blocks && blocks !== null) continue;
+      if (it.q) { const [x0, y0, x1, y1] = it.q; best = Math.min(best, Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(y0 - y, 0, y - y1)) - grow); continue; }
+      const [[ax, ay], [bx, by]] = it.s, vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+      const t = l2 ? Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / l2)) : 0;
+      best = Math.min(best, Math.hypot(x - ax - t * vx, y - ay - t * vy));
+    }
+    return best;
+  }
+  return { dist, nodes, segs: segs.length, squares: squares.length };
+}
+
+/** Whether (x, y) is on the trail: its distance to the line, at a point warped by the pair's noise, under a half width that
+    wanders along it. t { line, half, swell, sweep, reach, warp, scale, mid, fine }. */
+function onTrail(t, x, y, seed) {
+  const ox = t.sweep * sn(x, y, t.reach, seed + 7) + t.warp * sn(x, y, t.scale, seed) + t.mid * sn(x, y, 10, seed + 5) + t.fine * sn(x, y, 4, seed + 3);
+  const oy = t.sweep * sn(x, y, t.reach, seed + 8) + t.warp * sn(x, y, t.scale, seed + 1) + t.mid * sn(x, y, 10, seed + 6) + t.fine * sn(x, y, 4, seed + 4);
+  const half = t.half + t.swell * sn(x, y, 48, seed + 19);
+  if (!t.blockWarp) return t.line.dist(x + 0.5 + ox, y + 0.5 + oy) < half;
+  /* a block (a ford) wanders more than the line: its sides are a cell or more long */
+  const bx = x + 0.5 + ox + t.blockWarp * sn(x, y, 34, seed + 31), by = y + 0.5 + oy + t.blockWarp * sn(x, y, 34, seed + 37);
+  return t.line.dist(x + 0.5 + ox, y + 0.5 + oy, false) < half || t.line.dist(bx, by, true) < half;
+}
 
 /**
  * A painted ground's borders redrawn. Returns { img (a new image), changed (px) }.
@@ -389,7 +555,10 @@ export function reseam(img, o) {
   const T = o.T || 32, rows = o.rows, W = rows[0].length, H = rows.length;
   if (img.width !== W * T || img.height !== H * T) throw new Error(`seams: the ground is ${img.width}x${img.height}, the grid ${W}x${H} cells of ${T}`);
   const keep = o.keep || '';
-  const cellAt = (x, y) => rows[Math.max(0, Math.min(H - 1, y))][Math.max(0, Math.min(W - 1, x))];
+  /* a trail's cells are its host floor's to every border (the trail is laid over that floor along its own line, after) */
+  const trails = Object.entries(o.trails || {});
+  const grid = trails.length ? rows.map((r) => [...r].map((ch) => (o.trails[ch] ? o.trails[ch].host : ch)).join('')) : rows;
+  const cellAt = (x, y) => grid[Math.max(0, Math.min(H - 1, y))][Math.max(0, Math.min(W - 1, x))];
   const pairs = (o.pairs || []).map((p) => { if (!STYLES.includes(p.style)) throw new Error(`seams: unknown style '${p.style}' (${STYLES.join(', ')})`); return pairDefaults(p); });
   const pairOf = (a, b) => pairs.find((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a)) || pairDefaults({ style: 'ragged' });
   const listed = (a, b) => pairs.some((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a));
@@ -402,24 +571,42 @@ export function reseam(img, o) {
     if (m.unit) { const st = stonesOf(tiles[ch], m); if (st.ok) m.stones = st; }
     mats[ch] = m;
   }
-  const eng = engine({ T, cellAt, mats, tiles, pairOf, seed: o.seed || 1 });
+  const seed = o.seed || 1;
+  const eng = engine({ T, cellAt, mats, tiles, pairOf, seed, smooth: !!o.smooth, open: o.open, dry: o.dry, dryness: o.dryness, W, H });
+  /* each trail's line, and the cells it may reach: its own cells and links, and the cells round them (the old path's rims too) */
+  const lines = trails.map(([ch, t]) => {
+    if (!tiles[ch]) throw new Error(`seams: the trail '${ch}' needs its pair with '${t.host}' listed (style trail) and a fill`);
+    const line = trailLine((x, y) => rows[y][x] === ch, W, H, T, { crossing: t.crossing, open: o.open, sigma: t.sigma, blockGrow: t.blockGrow });
+    const near = new Set();
+    for (const [x, y] of line.nodes) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) near.add((x + dx) + ',' + (y + dy));
+    const over = t.over || t.host;
+    return { ch, near, over, t: Object.assign({ half: 15, swell: 3, sweep: 3, reach: 96, warp: 3, scale: 26, mid: 1.5, fine: 0.7 }, t, { line }) };
+  });
   const out = createImage(img.width, img.height);
   out.data.set(img.data);
   const lab = new Uint8Array(img.width * img.height);   /* 1 where this pass drew, for the rims */
   const matOf = new Array(img.width * img.height);
   let changed = 0;
   for (let cy = 0; cy < H; cy++) for (let cx = 0; cx < W; cx++) {
-    const c = rows[cy][cx];
+    const c = grid[cy][cx];
     if (keep.includes(c) || !used.has(c)) continue;
     const S = [c];
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       const q = cellAt(cx + dx, cy + dy);
       if (!keep.includes(q) && !S.includes(q) && listed(c, q)) S.push(q);
     }
-    if (S.length < 2) continue;
+    const by = lines.filter((l) => l.near.has(cx + ',' + cy));
+    if (S.length < 2 && !by.length && !(o.redraw && o.redraw.has(cx + ',' + cy))) continue;
     for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
       const x = cx * T + i, y = cy * T + j;
-      const r = eng.draw(x, y, S);
+      /* a cell with no border of its own beside a trail: its own floor's fill, the old path's paint gone */
+      let r = S.length < 2 ? { m: c, c: eng.fillAt(c, x, y) } : eng.draw(x, y, S);
+      for (const l of by) {
+        if (!(r ? l.over.includes(r.m) : l.over.includes(c)) || !onTrail(l.t, x, y, seed + 71)) continue;
+        const v = l.t.variants, tile = v ? v[vhash(Math.floor(x / T), Math.floor(y / T), seed + 97) % v.length] : tiles[l.ch];
+        const p = ((y % T) * T + (x % T)) * 4;
+        r = { m: l.ch, c: [tile.data[p], tile.data[p + 1], tile.data[p + 2]] };
+      }
       if (!r) continue;
       const d = (y * img.width + x) * 4;
       out.data[d] = r.c[0]; out.data[d + 1] = r.c[1]; out.data[d + 2] = r.c[2]; out.data[d + 3] = 255;
@@ -457,6 +644,61 @@ export function reseam(img, o) {
     if (!l) continue;
     const c = stepRgb(out.data[i * 4], out.data[i * 4 + 1], out.data[i * 4 + 2], l[1].lift);
     out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2];
+  }
+  /* a pit (`mats.ch.pit` { face, rows }: a chasm painted as one dark tile, a box of the same motif every 32 px) is given depth:
+     under its far (north) lip the rock face the viewer looks at, `rows` px of the face floor's own grain stepping down its ramps as
+     it falls; the floor's lip above it a step lit; its near (south) lip a 2 px black under-cut; and the pit's own fill sinking a
+     step every 6 px from its edge, so its motif fades into the dark instead of tiling a box */
+  for (const [P, v] of Object.entries(o.mats || {})) {
+    if (!v.pit || !tiles[P] || !tiles[v.pit.face]) continue;
+    const w = img.width, h = img.height, F = v.pit.face, fr = v.pit.rows || 10;
+    const isP = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; isP[i] = (lab[i] ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]) === P ? 1 : 0; }
+    /* the 3-4 chamfer distance (in thirds of a px) from each pit px to the nearest px that is not pit */
+    const D = new Float32Array(w * h).fill(1e9);
+    for (let i = 0; i < w * h; i++) if (!isP[i]) D[i] = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; if (!D[i]) continue; if (x) D[i] = Math.min(D[i], D[i - 1] + 3); if (y) { D[i] = Math.min(D[i], D[i - w] + 3); if (x) D[i] = Math.min(D[i], D[i - w - 1] + 4); if (x < w - 1) D[i] = Math.min(D[i], D[i - w + 1] + 4); } }
+    for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) { const i = y * w + x; if (!D[i]) continue; if (x < w - 1) D[i] = Math.min(D[i], D[i + 1] + 3); if (y < h - 1) { D[i] = Math.min(D[i], D[i + w] + 3); if (x < w - 1) D[i] = Math.min(D[i], D[i + w + 1] + 4); if (x) D[i] = Math.min(D[i], D[i + w - 1] + 4); } }
+    const put = (i, c) => { out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2]; };
+    const at = (i) => [out.data[i * 4], out.data[i * 4 + 1], out.data[i * 4 + 2]];
+    const lit = [];
+    for (let y = 1; y < h - 2; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!isP[i]) continue;
+      let up = 0;
+      while (up <= fr && y - up - 1 >= 0 && isP[i - (up + 1) * w]) up++;
+      if (up < fr && y - up - 1 >= 0) {
+        /* the far wall's face, its top px row the lip's own (lit), darkening as it falls */
+        const fx = ((x % T) + T) % T, fy = ((y % T) + T) % T, f = tiles[F].data, p = (fy * T + fx) * 4;
+        /* its cracks: a column in four a step darker down the face, one rock ledge across it */
+        const crack = hash2(Math.floor(x / 2), 0, seed + 61) < 0.25 && up > 1 ? 1 : 0, ledge = up === (fr >> 1) && hash2(Math.floor(x / 5), 1, seed + 67) < 0.6 ? 1 : 0;
+        put(i, stepRgb(f[p], f[p + 1], f[p + 2], -1 - Math.floor((up * 3) / fr) - crack - ledge));
+        if (!up) lit.push(i - w);
+        continue;
+      }
+      /* the near lip: the floor below overhangs the dark */
+      if (!isP[i + w] || !isP[i + 2 * w]) { put(i, stepRgb(...at(i), -6)); continue; }
+      put(i, stepRgb(...at(i), -Math.min(3, Math.floor(Math.max(0, D[i] / 3 - 3) / 6))));
+    }
+    for (const i of lit) put(i, stepRgb(...at(i), 1));
+  }
+  /* a gravel in relief (`mats.ch.relief` { from, steps }: a gravel the palette lock flattened to one grey, 75% of it a single
+     colour). The pebbles of floor `from` (a fill whose stones survived the lock: the shallows' grey pebbles on mud) are pressed into
+     every px of this floor, painted or drawn, by the fills' shared phase: where `from` is lighter than its body `steps` steps up,
+     where it is darker a step down, so the bar reads as packed pebbles in its own grey */
+  for (const [R, v] of Object.entries(o.mats || {})) {
+    const src = v.relief && tiles[v.relief.from || R];
+    if (!src || !tiles[R]) continue;
+    const n = new Map();
+    for (let q = 0; q < T * T; q++) { const k = hexOf(src.data[q * 4], src.data[q * 4 + 1], src.data[q * 4 + 2]); n.set(k, (n.get(k) || 0) + 1); }
+    const body = lumAt(rgbOf([...n].sort((p, q) => q[1] - p[1])[0][0]), 0), k = v.relief.steps || 1;
+    const lift = Array.from({ length: T * T }, (_, q) => { const d = lumAt(src.data, q * 4) - body; return d > 0.006 ? k : d < -0.006 ? -1 : 0; });
+    for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+      const i = y * img.width + x, l = lift[(y % T) * T + (x % T)];
+      if (!l || (lab[i] ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]) !== R) continue;
+      const c = stepRgb(out.data[i * 4], out.data[i * 4 + 1], out.data[i * 4 + 2], l);
+      out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2];
+    }
   }
   return { img: out, changed };
 }
@@ -528,7 +770,7 @@ function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy) {
       if (p.style === 'bank') {
         /* the lower material is the water: its first pixel under the bank's lit side is a lit lip */
         if (z(m) < z(n) && dx <= 0 && dy <= 0) step.push([i, 1]);
-      } else if (p.style === 'ragged' && z(n) > z(m) && (dx < 0 || dy < 0)) {
+      } else if ((p.style === 'ragged' || p.style === 'trail') && z(n) > z(m) && (dx < 0 || dy < 0)) {
         /* a soft upper floor (grass over earth) casts a pixel of shadow down-right onto the lower */
         step.push([i, -1]);
       }
@@ -737,6 +979,29 @@ function selftest() {
     if (n < 120) crumbs++;
   }
   ok(crumbs === 0 && notches >= 3, 'canopy: laid in whole crowns: no crumb apart (' + crumbs + '), ' + notches + ' notches between crowns down a 104 px edge');
+  /* the trail (lane/a-ground-paths, Tyler: "ruler-straight cut lines" and "tile staircases on diagonals"): a one-cell path that
+     runs straight, then down a diagonal staircase of cells, then straight again, painted the tileset's way (whole dirt cells) */
+  const TG = flat(RAMPS.leaf[3]), TD = flat(RAMPS.earth[3]), dirtHex = RAMPS.earth[3].toLowerCase();
+  const tr = ['gggggggggggggg', 'DDDDDggggggggg', 'gggggDgggggggg', 'ggggggDggggggg', 'gggggggDgggggg', 'ggggggggDggggg', 'gggggggggDDDDD', 'gggggggggggggg'];
+  const to = { rows: tr, mats: { D: { z: 1 }, g: { z: 2 } }, fills: { D: TD, g: TG }, seed: 12, pairs: [{ a: 'D', b: 'g', style: 'trail' }], trails: { D: { host: 'g' } } };
+  const ta = reseam(paint(tr, { D: TD, g: TG }), to).img, tb = reseam(paint(tr, { D: TD, g: TG }), to).img;
+  ok(Buffer.compare(Buffer.from(ta.data), Buffer.from(tb.data)) === 0, 'trail: deterministic');
+  const isDirt = (x, y) => { const c = colourAt(ta, x, y); return c === dirtHex || RAMP_AT.get(c)?.ramp === RAMPS.earth; };
+  /* along the staircase, the trail's middle row by row: a staircase of cells jumps a cell every cell, a drawn line moves a px or two */
+  let jump = 0, prev = null, gaps = 0;
+  /* rows 3-4: the staircase's two middle cells, clear of the straight runs' reach */
+  for (let y = 3 * T; y < 5 * T; y++) {
+    let sx = 0, n = 0;
+    for (let x = 3 * T; x < 11 * T; x++) if (isDirt(x, y)) { sx += x; n++; }
+    if (!n) { gaps++; continue; }
+    if (prev !== null) jump = Math.max(jump, Math.abs(sx / n - prev));
+    prev = sx / n;
+  }
+  ok(gaps === 0 && jump <= 4, 'trail: the diagonal is one line, no staircase (its middle moves at most ' + jump.toFixed(1) + ' px a row, ' + gaps + ' rows with no trail)');
+  /* along the straight run, its top edge row by column: never one ruler line */
+  let first = null, same = 0;
+  for (let x = 4; x < 3 * T; x++) { let y = T - 8; while (y < 3 * T && !isDirt(x, y)) y++; if (first === null) first = y; if (y === first) same++; }
+  ok(same / (3 * T - 4) < 0.5, 'trail: its straight edge wanders (' + Math.round((100 * same) / (3 * T - 4)) + '% of columns on one row)');
   console.log(bad ? `✗ seams selftest: ${bad} failed` : '✓ seams selftest');
   return bad ? 1 : 0;
 }

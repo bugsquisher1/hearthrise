@@ -75,7 +75,7 @@ export default Object.freeze({
     { id: 'cw_coal_seam', x: 57, y: 30 }, { id: 'cw_iron_vein', x: 22, y: 30 }, { id: 'cw_iron_vein', x: 35, y: 29 }, { id: 'cw_gold_seam', x: 2, y: 30 },
     { id: 'cw_gold_seam', x: 2, y: 34 },
     /* the Drop: the plank bridge (the one 1-tile choke), two spans meeting on one pair of posts so it lands on both rims */
-    { id: 'cw_plank_bridge', x: 51, y: 21 }, { id: 'cw_plank_bridge', x: 51, y: 23 },
+    { id: 'cw_plank_bridge_wide', x: 51, y: 21 }, { id: 'cw_plank_bridge_wide', x: 51, y: 23 },
     /* torches on the wall faces, a brazier in the hall and at the heap */
     { id: 'wall_torch', x: 12, y: 5 }, { id: 'wall_torch', x: 31, y: 2 }, { id: 'wall_torch', x: 40, y: 4 }, { id: 'wall_torch', x: 52, y: 2 },
     { id: 'wall_torch', x: 50, y: 31 }, { id: 'wall_torch', x: 29, y: 30 }, { id: 'wall_torch', x: 5, y: 24 }, { id: 'wall_torch', x: 11, y: 24 },

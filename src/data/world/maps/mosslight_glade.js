@@ -77,7 +77,7 @@ export default Object.freeze({
     { id: 'oak', x: 4, y: 10 },
     /* the crossings: the goblins' sluice boards (the one 1-tile choke: two spans meeting on one pair of posts, bank to bank;
        one 75 px deck left the hero wading its south row, Tyler 2026-11-14) and the ford stones, one on every open tile of the brook */
-    { id: 'cw_plank_bridge', x: 44, y: 21 }, { id: 'cw_plank_bridge', x: 44, y: 23 },
+    { id: 'cw_plank_bridge_wide', x: 44, y: 21 }, { id: 'cw_plank_bridge_wide', x: 44, y: 23 },
     { id: 'mb_stepping_stones', x: 8, y: 20 }, { id: 'mb_stepping_stones', x: 9, y: 20 }, { id: 'mb_stepping_stones', x: 10, y: 20 }, { id: 'mb_stepping_stones', x: 8, y: 21 },
     { id: 'mb_stepping_stones', x: 9, y: 21 }, { id: 'mb_stepping_stones', x: 10, y: 21 }, { id: 'mb_stepping_stones', x: 8, y: 22 }, { id: 'mb_stepping_stones', x: 9, y: 22 },
     { id: 'mb_stepping_stones', x: 10, y: 22 }, { id: 'mb_reeds', x: 43, y: 19 }, { id: 'mb_reeds', x: 45, y: 23 },

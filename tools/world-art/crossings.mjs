@@ -20,8 +20,8 @@
 // another grid than the base one is skipped (its own lane checks it). Pure: takes the decoded atlases, reads no file.
 
 const FOOTHOLD_CLASSES = Object.freeze(['span', 'bridge']);
-const FOOTHOLD_IDS = Object.freeze(['mb_stepping_stones']);
-const FOOT = Object.freeze({ half: 6, rise: 6 });   // 13 px wide, 7 px tall, ending on the tile's south row
+export const FOOTHOLD_IDS = Object.freeze(['mb_stepping_stones']);
+export const FOOT = Object.freeze({ half: 6, rise: 6 });   // 13 px wide, 7 px tall, ending on the tile's south row
 const WET_SHARE = 0.5;
 const WATER_ODDS = 20;
 

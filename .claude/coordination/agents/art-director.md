@@ -3535,3 +3535,18 @@ reaches stays painted, or a crown gap opens onto a neighbour the pair never name
 whole-ground reseams overflow 2048: move the ground to its -floor set (one ATLAS_SETS row) and its varieties' `of` with it, and scan
 every set for varieties; (5) a pixel read marks a dark tilled plot as thicket (it got crowned): override with `cells` and keep it;
 (6) run world-assets --selftest after any reseam: moved banks silently stale its [wet] plants.
+## 2026-11-17 lane/a-ground-paths (Tyler's gate before new players: no ruler cuts between ground types, no tile staircases on diagonals)
+Fixed through tools/world-art/seams.mjs + seam-grounds.mjs (0 gens): meadow trails drawn along their line (trailLine), the brooks
+bent with a B-spline share, Mosslight's river given bends in its own blocked rows, the Glade and Warrens boards widened from their
+own planks (cw_plank_bridge_wide), Wickstead's slab scattered into the grass, Hask's shallows tapered and its bars given pebbles, the
+Drop given a far wall and depth. Not done: the Warrens' cut-corner cave walls (their faces are painted per cell; an organic wall
+needs a face-aware wall renderer). Lessons: (1) a one-cell path drawn on cells keeps its staircase whatever the noise: draw it on
+its centre line (8-connected, a diagonal join only where no side cell joins), smoothed by a gaussian over arc length; Chaikin is too
+local for a two-row Z-step. (2) bilinear share makes a one-cell jog a 45-degree step one cell long; a cubic B-spline over 4x4 cells
+bends it over two and keeps a 3-wide channel's edges. (3) `own: true` clips water on the cell line wherever a smoothed bank crosses
+it: hold water off the walked FOOT only (crossings.mjs FOOT), give the bank floor a smooth dryness round each foot (a hard clip alone
+cuts the foot's box into the water) and keep water out of every floor but its banks (else it fills thicket gaps). (4) the palette
+lock flattened Hask's gravel to 75% one grey; an emboss on that noise reads as rain hatching; press a sibling fill's pebbles in.
+(5) the three meadow grounds share one dirt tile pixel for pixel; only Wickstead's ford holds a clean cell of it. (6) map objects
+ride the edge bundle (src/core/hunt-ground.js vendors world/maps): an object id edit moves the payload hash. (7) the shared in-app
+browser pane is not a lane's: headless region-kit shots (extra=SET&from=DIR renders the base atlases for true befores).

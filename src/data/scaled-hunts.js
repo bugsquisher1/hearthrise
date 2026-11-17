@@ -26,7 +26,7 @@
 // Level are READ from the ground data (hunt-grounds.js OPEN_GROUNDS, hunts.js bands; every ground pack folds into them), never typed
 // here, so opening a ground needs no row in this file (the ground-pack lane, CONFLICTS.md 2026-11-07).
 // ════════════════════════════════════════════════════════════════════════
-import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES, GROUND_XP_FIT } from './balance-sheet.js?v=0.2.134';
+import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES, GROUND_XP_FIT, GROUND_GP_FIT } from './balance-sheet.js?v=0.2.134';
 import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.134';
 import { HUNT_INDEX } from './hunts.js?v=0.2.134';
 
@@ -77,6 +77,9 @@ export function topGroundOf(open = OPEN_GROUNDS, huntIndex = HUNT_INDEX) {
    number for every scaled Level, so the server's kill bound never falls from one Level to the next (2027-03-21-scaled-hunts.sql's self-check;
    the fit of the ground that owns each Level fell 0.90 -> 0.76 at 32 and broke it). A new top ground moves it for every scaled hunt, from the data. */
 const xpFitAt = (groundId) => ({ [groundId]: GROUND_XP_FIT[topGroundOf()] || 1 });
+/* ...AND ITS COIN RISE ON THE TOP GROUND'S INCOME DIAL (designer 2026-11-16, lane/d-supply-prices; balance-sheet.js GROUND_GP_FIT): the scaled formula
+   reads the top ground's dial, so a scaled early ground can't pay a Level the coin the dialed grounds no longer do. Its own coin (an unscaled kill) is its own. */
+const gpFitAt = (groundId) => ({ [groundId]: GROUND_GP_FIT[topGroundOf()] || 1 });
 
 export const SCALED_HUNTS = Object.freeze({
   /* the slider: whole hours, 1 to 24 a purchase (Tyler 11-07 "up to 24 hours") */
@@ -147,7 +150,7 @@ function formulaOf(g, floor) {
    floor, Level XP x xpPm, coin its own plus coinPm of the rise (the roll kept on the formula's mean, STAT_FORMULA.gp.keepMean). */
 function scaledStats(level, role, tier, g, groundId, to) {
   const gap = to - g.floor;
-  const f = formulaStats({ level: level + gap, role, tier, floor: to, fit: g.fit, ground: groundId }, { formula: formulaOf(g, to), groundXp: xpFitAt(groundId) });
+  const f = formulaStats({ level: level + gap, role, tier, floor: to, fit: g.fit, ground: groundId }, { formula: formulaOf(g, to), groundXp: xpFitAt(groundId), groundGp: gpFitAt(groundId) });
   const own = formulaStats({ level, role, tier, floor: g.floor, fit: g.fit, ground: groundId });
   const ownMean = (own.gp[0] + own.gp[1]) / 2, mean = ownMean + Math.max(0, (f.gp[0] + f.gp[1]) / 2 - ownMean) * (SCALED_HUNTS.coinPm[g.fit] / 1000);
   const lo = Math.max(1, Math.round(mean * STAT_FORMULA.gp.lo));

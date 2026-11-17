@@ -624,15 +624,28 @@ async function run(mutate) {
         + 'discount is not being applied at all, so "the two agree" would only mean they are both wrong');
     }
     const unshopped = (id) => !Object.prototype.hasOwnProperty.call(cat.SHOP_UNIT_PRICE, id);
-    const plain = Object.keys(ITEMS).find((id) => !ITEMS[id].raw && Number(ITEMS[id].v) >= 10 && unshopped(id)
+    const LS = await import('../src/data/loot-sale.js');
+    const plain = Object.keys(ITEMS).find((id) => !ITEMS[id].raw && Number(ITEMS[id].v) >= 10 && unshopped(id) && !(id in LS.SALE_FIT_PM)
       && !LB.VENDOR_GEAR_TYPES.includes(ITEMS[id].type));
     ok(plain && cat.vendorPriceOf(ITEMS, plain) === Number(ITEMS[plain].v),
       `G1-CONTROL: ${plain} is NOT raw and the server does not bid book value — the discount is `
       + 'being applied to everything, which the comparison above would not distinguish');
-    /* worn gear at the gear rate: sampled at v >= 10 and off the shop list, so neither floor nor cap can hide it */
+    /* worn gear at the gear rate: sampled at v >= 10 and off the shop list, so neither floor nor cap can hide it; then the ground's income dial
+       (src/data/loot-sale.js: a dialed ground's drop sells at its dial, the highest of the grounds that drop it) */
     const gear = Object.keys(ITEMS).filter((id) => LB.VENDOR_GEAR_TYPES.includes(ITEMS[id].type) && Number(ITEMS[id].v) >= 10 && unshopped(id));
-    ok(gear.length > 20 && gear.slice(0, 5).every((id) => cat.vendorPriceOf(ITEMS, id) === Math.max(1, Math.floor(Number(ITEMS[id].v) * LB.gearSaleRate(ITEMS[id])))),
+    ok(gear.length > 20 && gear.slice(0, 5).every((id) => cat.vendorPriceOf(ITEMS, id) === LS.dialedSale(Math.max(1, Math.floor(Number(ITEMS[id].v) * LB.gearSaleRate(ITEMS[id]))), id)),
       `G1-CONTROL: worn gear is not bid at its tier's share of book (${gear.slice(0, 5).map((id) => id + ' ' + cat.vendorPriceOf(ITEMS, id) + '/' + ITEMS[id].v).join(', ')})`);
+    /* THE DIAL BITES: a dialed ground's own drop (the Ford's Kennel Tag, the Slake's tier 4 body) sells at its dial, never at the whole bid */
+    for (const id of ['mithril_platebody', 'kennel_tag']) {
+      const whole = LB.VENDOR_GEAR_TYPES.includes(ITEMS[id].type) ? Math.max(1, Math.floor(Number(ITEMS[id].v) * LB.gearSaleRate(ITEMS[id])))
+        : ITEMS[id].raw ? Math.max(1, Math.floor(Number(ITEMS[id].v) * cat.VENDOR_RAW_RATE)) : Number(ITEMS[id].v);
+      const pm = LS.SALE_FIT_PM[id];
+      ok(pm > 0 && pm < 1000 && cat.vendorPriceOf(ITEMS, id) === Math.max(1, Math.floor((whole * pm) / 1000)) && cat.vendorPriceOf(ITEMS, id) < whole,
+        `G1-CONTROL: ${id} drops only on dialed grounds and sells for ${cat.vendorPriceOf(ITEMS, id)} against its whole bid ${whole} at ${pm} permille: the income dial is not applied`);
+    }
+    /* ...and never reaches a drop a gathering node also produces (Coal: the miner's pay) */
+    ok(!('coal' in LS.SALE_FIT_PM) && cat.vendorPriceOf(ITEMS, 'coal') === Math.max(1, Math.floor(Number(ITEMS.coal.v) * cat.VENDOR_RAW_RATE)),
+      `G1-CONTROL: Coal is mined and sells for ${cat.vendorPriceOf(ITEMS, 'coal')}: the income dial reached a gatherer's pay`);
     ok(cat.vendorPriceOf({}, 'constructor') === 0,
       'G1: vendorPriceOf priced a prototype member — `ITEMS[\'constructor\']` must not resolve');
   }

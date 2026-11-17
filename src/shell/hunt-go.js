@@ -149,7 +149,7 @@ function partWords(p) {
   /* a rune a new hero never had is not "left": "no Fire runes of yours". With the store behind it the empty stock says
      nothing ("no Fire runes of yours, then Plain Fire Rune..." read like a robot, first-hour play 2026-10-31). */
   const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' carried' : ' left')) : null;
-  const store = p.store ? p.store.name + ' (' + p.store.price + ' gp' + (p.store.each === 'each' ? '' : ' ' + p.store.each) + ')' : null;
+  const store = p.store ? p.store.name + ' (' + whole(p.store.price) + ' gp' + (p.store.each === 'each' ? '' : ' ' + p.store.each) + ')' : null;
   return [own, store].filter(Boolean).join(', then ');
 }
 
@@ -233,7 +233,7 @@ function shotLine(s, cs, carried) {
   }
   const parts = (dry ? [dry] : [])
     .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id)) + (o.id === worn ? ' (loaded)' : '')))
-    .concat(plan.store.map((st) => st.name + ' (' + st.price + ' gp)'));
+    .concat(plan.store.map((st) => st.name + ' (' + whole(st.price) + ' gp)'));
   const idle = plan.own.length && !plan.own[0].free ? []
     : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));
   const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);

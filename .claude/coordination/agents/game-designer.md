@@ -2,6 +2,21 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-16 lane/d-supply-prices (Tyler: raise supply costs for the gold imbalance)
+- Supplies scale with RISK, not with hours played. A lone hero on Normal in its range buys almost nothing (the career tank 0 g/h from 30 to 39 and 60 to 69, the Mage under 1k in Plain runes), so no store price reaches the audit's F12 hero; only coin and loot do. Read a career's bill by item before promising a sink.
+- A store price never changes a fight, so play a cell once, keep its buys by row (cell.mjs `buysPerH`), and price them at any list. `tools/balance-sim/supply-prices-table.mjs` does it; its "was" column reproduced the separate old-price run to the gold.
+- Food and deeper runes are coupled: a deeper rune pays back in food (faster kills, fewer blows). Raise food and re-measure the rune ladder in the same lane (Carved and Graven moved 28 -> 34, 44 -> 55 to stay a trade).
+- One store food (Salted Lobster) is every guide's pick from 32 to 185, so "by tier" lands on that one row. The deeper rows have no measured buyer.
+- Never run a test loop across a `git merge`: conflict markers in src/core crash every engine test mid-loop. Merge first, then run.
+- REWORKED the same day (Tyler: "cut income instead"): a per-ground `gpFit` on coin (the formula) and on the SALE (loot-sale.js in vendorPriceOf), never on book `v`. 93 drops are shared across grounds, so a per-ground sale needs a rule (the highest dial of its grounds; gathered or made items exempt). Book `v` is the crafting measure, not the faucet.
+- A per-ground dial can't split a ground's in-band Levels from its over-levelled ones: the lone career lives on the Glade from 16 to 44, so "cut from 30" and "leave 1-31 alone" can't both hold. Say which one you broke.
+- Deadly's cut runs 2x Normal's under an income dial (its supply bill doesn't shrink); report both.
+
+## 2026-11-15 lane/d-mage-110: the Mage at 110 and up was cloth, not spawns
+- **Move one lever at a time before naming the limit.** "+Magic does nothing, so the Mage is spawn-bound" read right and was wrong: respawn 60 s to 1 s moved nothing (424 vs 419 kills). Splitting the Mage's damage by source (`dealtBy`) said it in one line: 85% is the basic wand blow, so the gear term in max hit decides.
+- **A stat sized off another stat inherits that stat's curve.** Cloth's damage was 0.4 of plate's defence, and defence climbs about 16x over seven tiers while weapons climb 10-11x. So the lead grew with Level and hid under Level 30, where a lone hour is mostly walking.
+- **Check the grader's kit before trusting a staged ground's spread.** `gear.mjs` reachWith dropped the open keyed halls, so the Morrow was graded with Melee and the bow a weapon tier short. Print the kit (`h.kit`) of every style once per ground.
+- **A cut has a floor where it stops paying.** 0.1 a point took the Carter's Rest Mage from 1.82 to 1.46 of the pace, and 0.05 only to 1.42. Measure one step past the pick, so the board can say what's left isn't the row's.
 ## 2026-11-14 lane/d-labels-sweep (Tyler: "Recommended: 4+ players" for everything outside lore)
 - A label has no period. "Label: lower-case clause." trips label-sentence, and a placeholder right after the colon counts as lower case: end a label without a period, or open its value on a number.
 - Several labels on one line read as one sentence to colon-join and run together for the eye: break them per line (white-space: pre-line on the element). The lint now treats a line break as a boundary.
@@ -906,3 +921,18 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+## 2026-11-15 lane/d-coherence-133 (coherence pass: v0.2.133 + the day's lanes, CLAUDE.md §3.5)
+- `cell.mjs` takes `skillsBySeat: [{ melee, ranged, magic, defense }]` and `options: { tier }`, so a +skill or "trains every spare hour" question is one scratch script and a few seconds a cell. Use the career's skill at a Level (the training lane's table: 22 at Level 10, 37 at 25), never skill = Level, or a training gain reads 2 to 3 times too big.
+- "+Magic does nothing" at the Hold is the Mage being spawn-bound (lowest typical HP 98.8%, 1.47x a hammer), not a flat formula (`abilities.js` lvPm is +2% of base a level). Before calling a stat worthless, check whether the hero measured is already capped by monster supply.
+- "Less damage from every blow" already exists as `steadyPm` (capes, food, joined with Tempering in `mitigation.js`). Grep the engine for an effect before a lane proposes a new hook for it.
+- A walk-through written yesterday can be stale today: the Ox Road's "can't target the Drover" was false (`widgets/first-target.js`, `targeting.js` tkind). Re-grep every "missing control" claim before ruling on it.
+- Driving the pane: coordinates from `getBoundingClientRect` scaled by 800 / innerWidth beat refs, which go stale on every repaint. A `skip` that answers `moved: 0` means the Enter never landed.
+- Two lanes on one day placed the same idea twice (Kingstooth and Widow's Fang, an Iron Sword with crit on the Sewer). A catalogue's placement map must list call-only and daily-prize rows too, or the next lane duplicates them.
+
+## 2026-11-15 lane/d-catacombs: the Pauper Vaults (Tyler's catacombs hunt)
+- Past Dawnsteel the hero stops getting armor, so the one formula grows harder with Level: the same tree read a lone tank's Normal low 73% at Carter's Rest (110) and 59% at the Vaults (165), a four's Deadly 2 deaths against 38. Grade every post-Morrow ground beside Carter's Rest before blaming its own rows.
+- drop-tables plays its own reference group on its own bar: a lone tank that lives the grade on Salted Lobster can die there. A high-Level pack names a pair in checks.dropRef.
+- A Rare row needs its pixel icon before it can exist (loot-structure). A named fuel is a Rare, so it waits on art; write the row into the pack header instead of a stand-in.
+- spell-rows: a non-boss carries exactly one spell. Design the elite's one spell first.
+- Staged maps are lint-checked (world-core, forest-cave one-choke) but not kit-checked; a pillar next to a 1-wide water edge breaks the 3x3 rule on the row above it.
+- Python's text mode on Windows writes CRLF; read and write bytes when editing repo files.

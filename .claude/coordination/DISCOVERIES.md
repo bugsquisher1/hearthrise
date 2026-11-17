@@ -4,6 +4,17 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-15 · game-designer (lane/d-mage-110) · the balance-sim graded every staged ground without Krell's hall drops
+- `tools/balance-sim/gear.mjs` reachWith built a staged ground's reach from `OPEN_GROUNDS` plus the ground and left out `OPEN_HALL_GROUNDS`, which `reachableSources`' own default carries. At Carter's Rest a Level 110 hammer wore the Ember Warhammer and Ember plate and a bow the Runewood Bow, while the Mage kept its Duskwood wand. Fixed on lane/d-mage-110. Every Morrow and Pauper Vaults grade before it read Melee and the bow a weapon tier short (Carter's Rest hammer 0.97 of the contract where it is 1.09).
+- The Mage's high-Level lead was cloth's `magicStrB` (0.4 of plate's defence a slot), not spawn density: the board's "2026-11-15 The Mage at 110 and up".
+
+## 2026-11-15 · game-designer (lane/d-catacombs) · past Dawnsteel the one formula gets harder with every Level
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 design, every post-Morrow ground · Dawnsteel (tier 7, worn from 88) is the last armor, but the stat formula keeps aiming a ground's monsters at a same-Level hero. On one tree (the Morrow's three packs open, quick grade) Carter's Rest at 110 reads a lone tank's Normal low 73% and a four's Deadly 2 deaths; the Pauper Vaults at 165 read 59% and 38. Spells are 6% of what lands. | src/data/balance-sheet.js STAT_FORMULA, the unique pieces (the Morrow's section 9), every ground past 128 | Tyler's call, on the board's "2026-11-15 The Pauper Vaults" section 8: the uniques carry the armor curve, or the formula reads the gear a hero can have at that Level. Not papered over with a named exception |
+| 2 | P2 economy, printed only · A lone melee at 165 eats about 300-350 Salted Lobster an hour (216 HP each against a 2,291 HP tank) and nets -33k to -34k; a bow +14k, a Mage +44k. The store's food stops at Level-50 sizes | src/data/supply-basics.js heal rows | NO PROFIT MOLDS: brought to Tyler as a case-by-case look, not tuned |
+
 ## 2026-11-14 · art-director (lane/b-map-audit) · a unit's feet land on its tile's SOUTH pixel row, so a bridge drawn on the tile rows misses them
 
 | # | Found | Affected | Action |

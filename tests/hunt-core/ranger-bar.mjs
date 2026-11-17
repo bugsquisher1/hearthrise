@@ -160,9 +160,9 @@ async function clientWords(root) {
   const set = { role: 'ranger', supplySource: 'mine', onEmpty: 'switch', store: [] };
   const slot = (id) => ({ action: { type: 'attack_with_item', id }, conditions: [], join: 'and', usable: true, count: 5 });
   const stone = F.reasonOf(slot('copper_whetstone'), set, [{ id: 'copper_whetstone', qty: 5 }], null);
-  if (!stone || !stone.strike || !/^A whetstone is not a shot/.test(stone.text)) return 'a bow\'s Copper Whetstone slot reads ' + JSON.stringify(stone);
+  if (!stone || !stone.strike || !/^Not a shot \(sharpens/.test(stone.text)) return 'a bow\'s Copper Whetstone slot reads ' + JSON.stringify(stone);
   const rune = F.reasonOf(slot('chalked_fire_rune'), set, [{ id: 'chalked_fire_rune', qty: 5 }], null);
-  if (!rune || !rune.strike || !/^A rune isn’t a shot/.test(rune.text)) return 'a bow\'s Chalked Fire Rune slot reads ' + JSON.stringify(rune);
+  if (!rune || !rune.strike || !/^Not a shot \(runes fuel spells\)/.test(rune.text)) return 'a bow\'s Chalked Fire Rune slot reads ' + JSON.stringify(rune);
   const arrows = F.reasonOf(slot('iron_arrows'), set, [{ id: 'iron_arrows', qty: 5 }], null);
   if (arrows) return 'a bow\'s Iron Arrows slot (5 carried) reads ' + JSON.stringify(arrows);
   if (!F.weaponWarning({ type: 'attack_with_item', id: 'copper_whetstone' }, null, 'ranger')) return 'Configure action says nothing about a whetstone attack slot';

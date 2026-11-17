@@ -188,12 +188,22 @@ export const REASONS = Object.freeze({
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
   ],
+  /* a scaled hunt's Buy (audit F26): off with the bank full, the day's hours bought, or the purse short of the total */
+  'src/shell/windows/scale-pane.js': [
+    { cond: 'pending || !!s.why', words: "s.why === 'bank' ? t('hunts.scale_bank_full', { max: s.bankMaxH })", where: 'Buy hours: the line above it says why (the bank full, the day\'s limit bought, not enough gold); a full bank or day hides the slider too' },
+  ],
   'src/shell/windows/boss-call-pane.js': [
     { cond: '!open', words: 'BOSS_CALL_WORDS.noQuote', where: 'Call out: the line above the press reads the server\'s why (party of two, leader only, 3 a day), the hunt under way, or no answer yet' },
   ],
   /* a keyed hall's press (lane/b-barrow-boss-room): off while hunting, for a party member who is not its leader, with no key, and while the door opens */
   'src/shell/windows/boss-hall-pane.js': [
     { cond: '!open', words: "text(box.querySelector('.hw-call-line'), hallWords(said, hall))", where: 'Open the hall: the line above the press says why (out hunting, only the party leader can open it, no key in the bag), or how many keys the hero has' },
+  ],
+  /* the Faction tab (lane/b-faction-ui): each press that waits on the server's clock or standing has its line beside it */
+  'src/shell/windows/character/faction.js': [
+    { cond: '!swapReady(f, now)', words: 'nextSwapWords(f, now)', where: 'Swap to the other side: the swap line above it says when the cooldown ends ("next swap in 3 days"), from the server\'s swap_ready_at' },
+    { cond: '!(f && f.swap && f.swap.ms >= f.swap.needMs)', words: 'swapLeftWords(f)', where: 'Finish the swap: the swap line above it says the hunting time still owed ("4 h 10 m left"), from the server\'s credited swap time' },
+    { cond: '!claimable(f, p)', words: "t('factions.piece_needs'", where: 'Claim a piece: its row says the hours of that side\'s standing it needs' },
   ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
@@ -253,9 +263,12 @@ export const REASONS = Object.freeze({
     { cond: '!show || !!opt.locked', words: 'GEAR_HUNT_WORDS.upgrades', where: 'the upgrade line\'s why' },
   ],
   'src/shell/windows/hunts.js': [
-    { cond: 'follower', words: "'Your party leader picks the hunt and starts it.", where: 'the page lead for a party member' },
+    { cond: 'follower', words: "t('hunts.lead_follower')", where: 'the page lead for a party member' },
     { cond: '!tiersOf(groundOf(hunt).id).includes(want)', words: 'tierWords(r, tier, size)', where: 'a ground offers its tiers as buttons, and the note says what each does' },
     { cond: '!!now', words: 'carriedWords(carried)', where: 'a running hunt: the page says what it carries; the top bar has Leave' },
+  ],
+  'src/shell/windows/hunt-after-pane.js': [
+    { cond: '!!v.now', words: "t('away.after_hunting')", where: 'When the hunt ends: while a hunt runs the control is off, and the line under it says that hunt\'s own plan and that it can be changed once the hunt is over' },
   ],
   'src/shell/windows/hunt-detail.js': [
     { cond: 'v.partyBlock.full', words: 'v.partyBlock.why', where: 'the party block says the party\'s size' },
@@ -340,7 +353,7 @@ export const REASONS = Object.freeze({
     { cond: 'row.removable', words: 'hs-hudset-show', where: 'a fixed widget\'s box (cannot be hidden by design; the row is labelled)' },
   ],
   'src/app/slot-offer.js': [
-    { cond: 'short > 0', words: "You need ' + whole(short) + ' more gold.", where: 'the offer block' },
+    { cond: 'short > 0', words: "t('slots.short', { gold: whole(short) })", where: 'the offer block' },
   ],
   /* Other lanes own these files right now (lane/a-v0246-followups); listed as they stand, see the report. */
   'src/shell/windows/farm.js': [

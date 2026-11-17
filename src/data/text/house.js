@@ -40,8 +40,8 @@ export const HOUSE_TEXT = Object.freeze({
   tier_n: 'tier {n}',
   your_house: 'Your house',
   loading: 'Reading your house from the server…',
-  head_note: 'One house for all your characters. Gold comes from your shared purse, and materials from this hero\'s bag first, then Storage.',
-  head_note_named: 'One house for all your characters. Gold comes from your shared purse, and materials from {name}\'s bag first, then Storage.',
+  head_note: 'Shared house. Gold: shared purse. Materials: your bag, then Storage',
+  head_note_named: 'Shared house. Gold: shared purse. Materials: {name}\'s bag, then Storage',
 
   /* The deed. */
   deed_yours: 'Yours',
@@ -82,8 +82,8 @@ export const HOUSE_TEXT = Object.freeze({
   confirm_buy: 'Buy the {name}?',
   mat_qty: '{qty} {item}',
   confirm_cost: 'Costs {price} from your shared purse.',
-  confirm_cost_mats: 'Costs {price} from your shared purse, and {mats} from this hero\'s bag first, then Storage.',
-  confirm_cost_mats_named: 'Costs {price} from your shared purse, and {mats} from {name}\'s bag first, then Storage.',
+  confirm_cost_mats: 'Costs {price} (shared purse) and {mats} (your bag, then Storage)',
+  confirm_cost_mats_named: 'Costs {price} (shared purse) and {mats} ({name}\'s bag, then Storage)',
   pay: 'Pay {price}',
   step_room: '{room}: {rung}',
   building: 'Building…',

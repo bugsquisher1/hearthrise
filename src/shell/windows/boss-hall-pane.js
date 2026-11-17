@@ -6,19 +6,20 @@
 // stays off with no key, while the hero hunts and for a party's member; the server decides the rest (hr_boss_hall_enter) and its refusal
 // keeps the key. hunts.js owns the window, its status line and the run of the press. A ground with no hall shows nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.133';
-import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.133';
-import { isGuarded } from '../../data/boss-calls.js?v=0.2.133';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.133';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.133';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.133';
-import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.133';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.133';
-import { settingsOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { storeFoodUnder } from '../hunt-go.js?v=0.2.133';
-import { storeName } from '../bar-draft.js?v=0.2.133';
-import { openHall } from '../../session/boss-intents.js?v=0.2.133';
-import { itemName } from '../widgets/bits.js?v=0.2.133';
+import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.134';
+import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.134';
+import { isGuarded } from '../../data/boss-calls.js?v=0.2.134';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.134';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.134';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.134';
+import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.134';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.134';
+import { settingsOf } from '../../session/hunt-sections.js?v=0.2.134';
+import { storeFoodUnder } from '../hunt-go.js?v=0.2.134';
+import { storeName } from '../bar-draft.js?v=0.2.134';
+import { openHall } from '../../session/boss-intents.js?v=0.2.134';
+import { itemName } from '../widgets/bits.js?v=0.2.134';
+import { partyNote } from '../hunt-list.js?v=0.2.134';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { hall: null, warned: false }; SCRATCH.set(cs, s); } return s; };
@@ -94,7 +95,7 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
     text(warn.querySelector('.hw-confirm-q'), hallWords(W.warnTitle, hall));
     const a = warn.querySelector('.hw-hall-note-alone');
     prop(a, 'hidden', !alone);
-    text(a, alone ? hallWords(W.warnAlone, hall) : '');
+    text(a, alone ? partyNote(v.hunt) || W.warnAlone : '');
     text(warn.querySelector('.hw-hall-note-a'), hallWords(W.warn[0], hall));
     text(warn.querySelector('.hw-hall-note-b'), hallWords(W.warn[1], hall));
     text(warn.querySelector('[data-hs-act="hall-go"]'), hallWords(W.confirm, hall));

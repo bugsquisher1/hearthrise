@@ -17,6 +17,7 @@ import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.136';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
 import { text, style, attr } from '../../render/paint.js?v=0.2.136';
+import { t, hasText } from '../../render/player-text.js?v=0.2.136';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */
@@ -42,12 +43,18 @@ export function patchGauge(el, cur, max, readout) {
   attr(el, 'aria-valuemax', known ? Math.round(max) : null);
 }
 
-const spelled = (id) => { const t = String(id).replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };
+const spelled = (id) => { const s = String(id).replace(/_/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1); };
 
 /** An item's player-facing name (the catalogue's), or the id spelled out. */
 export function itemName(id) {
   const it = ITEMS[id] || DRINK_ITEMS[id] || BASIC_INDEX[id];
   return it && it.n ? it.n : spelled(id);
+}
+
+/** Item `id`'s name beside a count of `n`: "1 Bone", "2,530 Bones" (live v0.2.135 read "with 1 Bones").
+    An item named in the plural carries its one-form as text row item.one_<id>; any other name serves every count. */
+export function itemNameFor(id, n) {
+  return n === 1 && hasText('item.one_' + id) ? t('item.one_' + id) : itemName(id);
 }
 
 /* A RUNE SPELL spends any tier of its family (src/data/runes.js; src/core/hunt/abilities.js runeFor), so the screen

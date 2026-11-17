@@ -39,7 +39,7 @@ import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.136';
 import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.136';
 import { recipeInputs } from '../../../core/artisan.js?v=0.2.136';
 import { whole } from '../../../render/format.js?v=0.2.136';
-import { itemName } from '../../widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.136';
 import { riteOf, cookOf } from '../../bag-model.js?v=0.2.136';
 import { skillsOf, heldOf } from '../../../session/item-sections.js?v=0.2.136';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.136';
@@ -123,7 +123,7 @@ export function buryBlock(cs, e) {
   /* "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — the sentence the server's refusal reads as too (town-work.js). */
   if (lv < e.recipe.req) { const w = workRow('artisan', e.recipe.id); return skillShortWords(e.skill, e.recipe.req, lv, w ? doWords(w) : ''); }
   const qty = buryQty(cs, e.input);
-  if (qty < e.need) return 'Need ' + e.need + ' ' + itemName(e.input) + ', have ' + whole(qty);
+  if (qty < e.need) return 'Need ' + e.need + ' ' + itemNameFor(e.input, e.need) + ', have ' + whole(qty);
   /* The bag's room for the product, as the Work window says it (town-work.js workBlock: the engine's own test). */
   const why = workBlock(cs, workRow('artisan', e.recipe.id), false);
   if (/^Your bag is full/.test(why)) return why;
@@ -141,7 +141,7 @@ export function startBury(cs, sc, id, send, repaint, count) {
   const qty = buryQty(cs, id);
   /* "Fuel the hearth" on a stack is a run of ONE (the bench's count); Fuel all / Cook all spend the stack */
   const n = e.skill === FLAME && count === 1 ? 1 : null;
-  return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(n || qty) + ' ' + itemName(id) + '…', n);
+  return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(n || qty) + ' ' + itemNameFor(id, n || qty) + '…', n);
 }
 
 /* ── A NAMED FUEL (src/data/hearth.js NAMED_FUELS): it burns alone, by one call the server decides whole ── */
@@ -185,7 +185,7 @@ export function stopBury(cs, sc, send) {
 export function buryParts(cs) {
   const e = buryingOf(cs);
   /* How far it has got: the server's bag and the ticker's pending part (town-work.js runParts); the open bag settles it as it goes. */
-  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs)), '');
+  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs), true), '');
   const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
   const words = townActivityWords(s);
   return words ? [{ key: 'lead', text: words.charAt(0).toUpperCase() + words.slice(1) }] : [];

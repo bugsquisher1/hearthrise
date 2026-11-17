@@ -202,7 +202,8 @@ async function dumpTables(db) {
 /* every shipped pack no whole file folds yet: its own file is part of the chain end, so GP-6 applies it and folds it with the planted ones */
 const openPacks = () => packIds().filter((id) => packSqlOf(id) && !COVERED.every((g) => foldedPacks(outOf(g)).includes(id)));
 async function gp6(planted, mutate = null) {
-  const ships = { ...planted, ...Object.fromEntries(openPacks().filter((id) => !(id in planted)).map((id) => [id, shipText(id)])) };
+  /* an open pack's own file as it stands on disk: GP-3 holds an unfolded one to its render, and a partly folded one cannot render whole (its carried tables move) */
+  const ships = { ...planted, ...Object.fromEntries(openPacks().filter((id) => !(id in planted)).map((id) => [id, { sql: readFileSync(join(MIG, packSqlOf(id)), 'utf8') }])) };
   const { bootReplay } = await import('./schema-replay.mjs');
   const { db } = await bootReplay();
   const sqls = Object.values(ships).map((s) => s.sql);

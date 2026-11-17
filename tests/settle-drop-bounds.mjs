@@ -63,8 +63,13 @@ async function check(root, sql) {
   /* A GROUND PACK's bounds AND spawn rows ship in its own additive file until a whole file folds it (tools/pack/whole.mjs, lane/b-ground-pack):
      the settle reads both tables whole, so this reads both files. An open pack with no file on disk has neither, and reads red here (and in
      tests/ground-pack.mjs GP-2). (The spawn rows were missed until the Barrow March opened, lane/b-open-march: every open pack read unreached.) */
-  const { packIds } = await imp(root, 'tools/pack/files.mjs'), { packSqlOf } = await imp(root, 'tools/pack/whole.mjs'), { rowsOf } = await imp(root, 'tools/pack/sql.mjs');
+  const { packIds } = await imp(root, 'tools/pack/files.mjs'), { packSqlOf, foldedPacks } = await imp(root, 'tools/pack/whole.mjs'), { rowsOf } = await imp(root, 'tools/pack/sql.mjs');
+  /* A FOLDED pack's file applied BEFORE the whole file, which empties both tables (`delete from`) and re-states them: on the server its
+     rows are the whole file's, never its own file's. Read them there only, or a row the fold lost hides behind the pack file (v0.2.134
+     folded the five March packs). */
+  const folded = new Set(foldedPacks((await imp(root, 'tools/gen-hunt-sessions.mjs')).OUT_NAME, root));
   for (const pid of packIds(root)) {
+    if (folded.has(pid)) continue;
     const f = packSqlOf(pid, root), path = f && join(root, 'supabase', 'migrations', f);
     if (!path || !existsSync(path)) continue;
     const str = (x) => x.replace(/^'|'(::jsonb)?$/g, '').replace(/''/g, "'");
@@ -113,9 +118,10 @@ const MUTANTS = [
   { name: 'a kill bound of one unit whatever the rows', want: /^item-bound: .*\(2 a kill\), the settle's bound is 1/,
     edits: [['tools/gen-hunt-sessions.mjs', 'drops[d.id] = (drops[d.id] || 0) + 1;', 'drops[d.id] = 1;'],
       ['src/data/monsters.js', "{ id: 'raw_bear_meat', ch: .6, band: 'common' },", "{ id: 'raw_bear_meat', ch: .6, band: 'common' }, { id: 'raw_bear_meat', ch: .2, band: 'common' },"]] },
-  /* an open pack's file without one of its spawn rows (the pack files are read as the settle reads its tables) */
-  { name: 'the Pyre Field\'s pack file loses its Charred Pikeman spawn row', want: /^reach: pyre_field: the engine spawns charred_pikeman/, committed: true,
-    edits: [['supabase/migrations/2027-04-22-pack-pyre_field.generated.sql', "  ('pyre_field', 'charred_pikeman', 23),\n", '']] },
+  /* a folded pack's spawn row lost by the whole file that empties the table after it (the pack's own earlier file still names it, and
+     must not hide the loss: the tables are read as the settle reads them, last writer first) */
+  { name: 'the whole file loses the folded Pyre Field\'s Charred Pikeman spawn row', want: /^reach: pyre_field: the engine spawns charred_pikeman/, committed: true,
+    edits: [['supabase/migrations/2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql', "  ('pyre_field', 'charred_pikeman', 23),\n", '']] },
   { name: 'the gold bound read off the low roll', want: /^value-bound: /,
     edits: [['tools/gen-hunt-sessions.mjs', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[1]) || 0));', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[0]) || 0));']] },
 ];

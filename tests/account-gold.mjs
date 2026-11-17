@@ -72,6 +72,7 @@ import { bootReplay, ROOT, inventory, manifest } from './schema-replay.mjs';
 import { HARNESS } from './hunt-sessions-settle.mjs';
 import { ownHeroSlots } from './_slots.mjs';
 import { WORLD_VERSION, SHAPE, FIELDS } from '../src/core/hunt/world-state.js';
+import { DEFAULT_SESSION_MODE } from '../src/data/session-modes.js';
 
 const MIG = '2026-12-15-account-gold.sql';
 const PREV = await (async () => { const o = (await manifest()).order; return o[o.indexOf(MIG) - 1]; })();
@@ -592,6 +593,17 @@ async function huntArms(mutate, M) {
     await db.query('insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, $1, $2, $3::jsonb)', [WORLD_VERSION, SHAPE, JSON.stringify(FIELDS)]);
   }
   const d = drivers(db);
+  /* The same cut predates 2027-04-23-session-modes.sql too: no hunt_instances.session_mode and no `session_mode` in the instance
+     read, so today's engine answers mode_pending and no arm runs (v0.2.134). The read carries the mode that file's backfill stamps on
+     every instance already open, its ground's (every ground: DEFAULT_SESSION_MODE); a read that names one is left alone. */
+  if (end !== CHAIN_END) {
+    const raw = d.exec;
+    d.exec = async (text, params) => {
+      const rows = await raw(text, params);
+      for (const row of rows) { const i = row && row.inst && row.inst.instance; if (i && i.session_mode === undefined) i.session_mode = DEFAULT_SESSION_MODE; }
+      return rows;
+    };
+  }
 
   // G2 and G8 AT THE CHAIN END: the envelope's last author still projects one purse, and no body reads a per-hero one.
   await onePurse(d, 'G2 (chain end)');

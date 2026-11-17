@@ -206,6 +206,16 @@ export const GROUNDS = Object.freeze({
       { a: 'G', b: 'R', ...WILD },
       { a: 'G', b: 'B', ...WILD, outline: 2, skirt: 'M' },
     ] },
+  /* the barrow mounds were blocks stepped on the grid, the mud track's edges hexagon steps. The reed beds keep their painted
+     scallops and earth rim (`over`): a cut through the reeds read as a box */
+  muster_barrows_ground: { set: 'muster', map: 'muster_barrows', seed: 67, grid: 'art/briefs/muster-barrows-grid-2026-10-29.txt', over: 'TR',
+    samples: { G: [39, 4], M: [16, 9] },
+    mats: { M: { z: 0 }, G: { z: 1 }, R: { z: 2 }, B: { z: 3 } },
+    pairs: [
+      { a: 'M', b: 'G', ...TRACK },
+      { a: 'M', b: 'B', ...TRACK, outline: 2 },
+      { a: 'G', b: 'B', ...WILD, outline: 2, skirt: 'M' },
+    ] },
 });
 
 function run(id) {

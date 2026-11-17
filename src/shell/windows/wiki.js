@@ -7,9 +7,11 @@
 //
 // Every page is src/shell/wiki-model.js's, generated from the data rows and the engine's functions; every word
 // is a row of src/data/text/wiki.js. The pages never change while the game runs, so the body is built once per
-// opening and the patch only shows and hides pages for the tab and the search (src/render/paint.js).
+// opening and the patch shows and hides pages for the tab and the search (src/render/paint.js); it redraws only what
+// follows the server: the Chronicle's pages and the Level XP table's row for the viewed hero's Level.
 // Each formula's worked example carries its stated terms and the engine's answer (data-wk-check), which
-// tests/wiki-window.mjs recomputes: the page can never say one thing while a hunt does another.
+// tests/wiki-window.mjs recomputes: the page can never say one thing while a hunt does another. The two XP pages are
+// tables (data-wk-xp) whose every row the same test works from the curves' data rows.
 //
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts, nothing a player can spend, no intent and no residue.
 // ════════════════════════════════════════════════════════════════════════
@@ -18,8 +20,9 @@ import { whole, chance, listWords } from '../../render/format.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
 import { t } from '../../render/player-text.js?v=0.2.136';
 import { glyphSvg } from '../widgets/bits.js?v=0.2.136';
-import { skillPages, groundPages, formulaPages } from '../wiki-model.js?v=0.2.136';
+import { skillPages, groundPages, formulaPages, levelXpRows } from '../wiki-model.js?v=0.2.136';
 import { chronicleOf } from '../chronicle-model.js?v=0.2.136';
+import { levelOf } from '../../session/character-sections.js?v=0.2.136';
 import { linkHtml, targetOf } from '../goto.js?v=0.2.136';
 
 /* THE BOOK (the top bar's groups, 2026-11-16): the Chronicle first, the story so far (Tyler: "Yeah build the chronicle"), then the wiki. */
@@ -86,13 +89,16 @@ function groundHtml(g) {
     + (drops ? '<ul class="wk-list">' + drops + '</ul>' : '<p class="wk-text">' + esc(t('wiki.no_drops')) + '</p>'));
 }
 
-/* Each formula: its name, its rule in words with the engine's constants, and the example worked by the engine's own function. */
+/* Each formula: its name, its rule in words with the engine's constants, and the example worked by the engine's own function.
+   A tougher monster's own factor is listed by value, never by its tier's number: no page shows a monster's tier, and a
+   monster's page names its hunt's Tier (Normal, Dangerous, Deadly), a different thing (Tyler 2026-11-17, kill the class). */
+const factors = (vals, word) => listWords([...new Set(vals)].sort((a, b) => a - b).map(word), Infinity, t('wiki.or'));
 function formulaWords(f) {
   const T = f.terms, I = f.example.inputs, r = f.example.result;
   switch (f.id) {
     case 'hit': return { name: t('wiki.hit_name'),
-      words: t('wiki.hit_words', { base: pc(T.base), per: pc(T.per), weak: extra(T.weak), min: pc(T.min), max: pc(T.max) }) + ' '
-        + t('wiki.hit_tiers', { list: listWords(Object.keys(T.defMul).map((tier) => t('wiki.hit_tier', { tier, pct: extra(T.defMul[tier]) })), Infinity) }),
+      words: t('wiki.hit_words', { base: pc(T.base), per: pc(T.per), weak: extra(T.weak), min: pc(T.min), max: pc(T.max),
+        list: factors(Object.values(T.defMul).map(extra), (pct) => t('wiki.hit_more', { pct })) }),
       example: t('wiki.hit_example', { level: I.level, monster: I.monster, def: I.def, result: pc(r) }) };
     case 'max': return { name: t('wiki.max_name'),
       words: t('wiki.max_words', { lvl: T.lvl, str: T.str, flat: T.flat, cut: T.cut, weak: extra(T.weak) }),
@@ -101,39 +107,56 @@ function formulaWords(f) {
       words: t('wiki.mon_hit_words', { base: pc(T.base), per: pc(T.per), min: pc(T.min), max: pc(T.max) }),
       example: t('wiki.mon_hit_example', { monster: I.monster, start: pc(I.baseAcc === null ? T.base : I.baseAcc), atk: I.atk, def: I.defense, result: pc(r) }) };
     case 'mon_max': return { name: t('wiki.mon_max_name'),
-      words: t('wiki.mon_max_words', { scale: T.scale, list: listWords(Object.keys(T.byTier).map((tier) => t('wiki.mon_max_tier', { scale: T.byTier[tier], tier })), Infinity) }),
+      words: t('wiki.mon_max_words', { scale: T.scale, list: factors(Object.values(T.byTier), String) }),
       example: t('wiki.mon_max_example', { monster: I.monster, atk: I.atk, result: whole(r) }) };
-    case 'level_curve': return { name: t('wiki.level_curve_name'), words: t('wiki.level_curve_words'),
-      example: t('wiki.level_curve_example', { level: I.level, result: whole(r) }) };
-    case 'skill_xp': return { name: t('wiki.skill_xp_name'),
-      words: t('wiki.skill_xp_words', { base: T.base, growth: 1 + T.growthPermille / 1000, skills: listWords(T.uncapped, Infinity), cap: T.cap }),
-      example: t('wiki.skill_xp_example', { level: I.level, result: whole(r) }) };
     case 'death': return { name: t('wiki.death_name'),
       words: t('wiki.death_words', { share: pc(T.share), cuts: listWords(T.cuts.map((pm, i) => t('wiki.death_cut', { pct: pm / 10, count: i + 1 })), Infinity) }),
-      example: t('wiki.death_example', { xp: whole(I.xp), result: whole(r), blessed: whole(f.example.blessed) }) };
+      example: t('wiki.death_example', { level: I.level, xp: whole(I.xp), result: whole(r), blessed: whole(f.example.blessed) }) };
     default: return null;
   }
 }
 
-/* The Level curve's brackets as a table: where each starts, its base, its step and its curve. */
-const levelTable = (rows) => '<table class="wk-table wk-rows"><tr><th scope="col">' + esc(t('wiki.level_from')) + '</th><th scope="col">' + esc(t('wiki.level_base'))
-  + '</th><th scope="col">' + esc(t('wiki.level_step')) + '</th><th scope="col">' + esc(t('wiki.level_curve')) + '</th></tr>'
-  + rows.map((r) => '<tr><td>' + esc(whole(r.from)) + '</td><td>' + esc(whole(r.first)) + '</td><td>' + esc(whole(r.rise)) + '</td><td>' + esc(whole(r.bend)) + '</td></tr>').join('') + '</table>';
+/* ── THE XP TABLES (Tyler 2026-11-17, on the bracket formula they replace: "This is very confusing"): a Level, the XP across it
+   and the total that reaches it, like any MMO wiki's experience table. The Level table's gold row is the viewed hero's own
+   Level, the server's (levelOf), redrawn by the patch whenever an envelope moves it (CLAUDE.md §6). */
+const xpRowsHtml = (rows) => rows.map((r) => '<tr' + (r.me ? ' class="is-viewed" aria-current="true"' : '') + '><td>' + esc(whole(r.level)) + '</td><td>'
+  + esc(whole(r.next)) + '</td><td>' + esc(whole(r.total)) + '</td></tr>').join('');
+const xpTable = (kind, head, rows, me) => '<table class="wk-table wk-rows wk-xp" data-wk-xp="' + kind + '"' + (me === undefined ? '' : ' data-wk-me="' + esc(me) + '"')
+  + '><thead><tr><th scope="col">' + esc(head) + '</th><th scope="col">' + esc(t('wiki.xp_next')) + '</th><th scope="col">' + esc(t('wiki.xp_total'))
+  + '</th></tr></thead><tbody>' + xpRowsHtml(rows) + '</tbody></table>';
+const heroLevelOf = (ctx) => { const lv = levelOf(ctx.character); return lv ? lv.level : null; };
+const meKey = (level) => (level === null ? '' : String(level));
+const label = (words) => '<p class="wk-text">' + esc(words) + '</p>';
 
-function formulaHtml(f) {
+function formulaHtml(f, heroLevel) {
+  if (f.id === 'level_curve') return page('formulas', f.id, t('wiki.level_curve_name'), xpTable('level', t('wiki.xp_level_col'), f.rows, meKey(heroLevel)));
+  if (f.id === 'skill_xp') return page('formulas', f.id, t('wiki.skill_xp_name'), (f.rows.length ? label(t('wiki.skill_uncapped')) : '')
+    + (f.cap === null ? '' : label(t('wiki.skill_capped', { cap: f.cap }))) + xpTable('skill', t('wiki.xp_skill_col'), f.rows));
   const w = formulaWords(f);
   if (!w) return '';
   const check = JSON.stringify({ terms: f.terms, inputs: f.example.inputs, result: f.example.result, blessed: f.example.blessed });
   /* the rule as labels, one a line (Tyler 2026-11-16: outside lore a page states labels, never a paragraph) */
-  return page('formulas', f.id, w.name, w.words.split('\n').map((l) => '<p class="wk-text">' + esc(l) + '</p>').join('') + (f.id === 'level_curve' ? levelTable(f.terms.rows) : '')
+  return page('formulas', f.id, w.name, w.words.split('\n').map(label).join('')
     + '<p class="wk-example" data-wk-formula="' + esc(f.id) + '" data-wk-check="' + esc(check) + '"><b>' + esc(t('wiki.example')) + '</b> ' + esc(w.example) + '</p>');
+}
+/* The Level table's rows follow the server: redrawn only when the viewed hero's Level moves (its key), so a display tick does no work. */
+function patchLevelTable(root, ctx) {
+  const table = root.querySelector('table[data-wk-xp="level"]');
+  const level = heroLevelOf(ctx);
+  if (!table || table.getAttribute('data-wk-me') === meKey(level)) return;
+  table.setAttribute('data-wk-me', meKey(level));
+  table.tBodies[0].innerHTML = xpRowsHtml(levelXpRows(level));
+  /* the search's words for the page are read again */
+  table.closest('.wk-page').removeAttribute('data-wk-find');
 }
 
 /** The whole wiki, built once per opening: the search, the tabs, then every page of every section. */
 export function renderWiki(ctx) {
   const g = ctx.glyphs;
+  const level = heroLevelOf(ctx);
   /* the Chronicle's pages are drawn by the patch (they follow the server) */
-  const secs = { chronicle: [], skills: skillPages().map((s) => skillHtml(ctx, s)), grounds: groundPages().map(groundHtml), formulas: formulaPages().map(formulaHtml) };
+  const secs = { chronicle: [], skills: skillPages().map((s) => skillHtml(ctx, s)), grounds: groundPages().map(groundHtml),
+    formulas: formulaPages(level).map((f) => formulaHtml(f, level)) };
   return '<div class="wk">'
     + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="wk-search" placeholder="'
     + esc(t('wiki.search')) + '" aria-label="' + esc(t('wiki.search')) + '" autocomplete="off"></span></div>'
@@ -152,6 +175,7 @@ renderWiki.patch = function patchWiki(body, ctx) {
   const root = body.querySelector('.wk');
   if (!root) return;
   patchChronicle(root.querySelector('section.wk-sec[data-wk-sec="chronicle"]'), ctx);
+  patchLevelTable(root, ctx);
   const q = sc.query.trim().toLowerCase();
   /* the count of pages found reads beside the pages, not over a search's matches */
   prop(root.querySelector('.ck-found'), 'hidden', !!q);

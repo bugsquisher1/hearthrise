@@ -1241,6 +1241,11 @@
 .wk-table th { padding: 2px 14px 2px 0; font-weight: 400; text-align: left; color: var(--ink-3); }
 .wk-table td { padding: 2px 14px 2px 0; font-weight: 700; color: var(--ink); }
 .wk-rows tr + tr td { border-top: 1px solid var(--steel-sep); }
+/* The XP tables (wiki.js xpTable): numbers set right under their headings, like any wiki's experience table; the viewed
+   hero's own Level is the gold row, marked at its left edge like the Honor Roll's viewed line. */
+.wk-xp th, .wk-xp td { padding-left: 10px; text-align: right; }
+.wk-xp tr.is-viewed td { color: var(--gold-2); }
+.wk-xp tr.is-viewed td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .wk-example { margin: 8px 0 0; padding-left: 10px; border-left: 2px solid var(--gold); font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
 .wk-example b { margin-right: 6px; color: var(--gold-2); }
 /* THE CHRONICLE (wiki.js chronicleHtml): a book's pages, read top to bottom. The story reads at the body's size with a book's

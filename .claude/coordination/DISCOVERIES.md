@@ -3970,3 +3970,7 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   bodies lifted (build.mjs `lift`/`shade`), every March monster now 3.06:1 or more on all four facings; world-assets [ring] holds it.
   Left: lifted earth-ramp bodies (Barrow Knight, Captain Hask) read as one warm brown with less dark weight than their drawings; a
   palette-born regen with a real lit rim would keep Hask's menace (gens, asset-director's call).
+
+## 2026-11-16 · qa-engineer (lane/a-text-short) · what re-pinning the short text pass turned up
+- P3, FIXED here: label lines (no period) glued into prose. Away card "The hunt has ended. Died Then Wrenna waited..." and "...train at the Yard Stamina now" (src/shell/away-recap.js now ends each label with a period); farm "Room for 2 plots 1 extra plot, gone..." (farm.js joins with " · "); Tempering way "...1 Bone Chips Bone Chips drop from..." (temper-pane.js puts a period after the smith's label). Class: any shell code that joins t() labels with ' ' into a sentence; not swept beyond these three.
+- P3, game-designer: facts the label sweep (base 5c64124de) dropped that a test used to prove: "waited in town" no longer gives the yard fee and purse (away.done_gold); the yard note lost "(can't pay: waits in town)"; already_in_party lost "Leave it in the Party window"; the stamina end lost "refills hour for hour"; wrong-weapon and no-weapon slots both read "Requires Shield". Pins now follow the source; rule whether any should come back.

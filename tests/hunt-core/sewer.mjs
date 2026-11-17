@@ -591,7 +591,7 @@ const cases = {
     if (id(at(5, { visited: new Set(['mill_cellar']), tally: paid, sellable: 0 })) === 'back_down') return 'a Level 5 hero is sent back down';
     /* 5. the second trip: the invitation leads. A hero who never took her rats reads the first trip's words */
     const second = said(at(3, { ...inCellar, tally: paid }));
-    if (!second || second.id !== 'earn_the_thicket' || !second.text.startsWith('Close the game, your hero keeps hunting')) return 'the second trip reads ' + JSON.stringify(second && [second.id, second.text]);
+    if (!second || second.id !== 'earn_the_thicket' || !second.text.startsWith('Safe to close the game: your hero keeps hunting')) return 'the second trip reads ' + JSON.stringify(second && [second.id, second.text]);
     const never = said(at(3, inCellar));
     if (!never || never.id !== 'earn_the_thicket' || !never.text.startsWith('Hunt here to Level')) return 'a hero without her rats reads ' + JSON.stringify(never && [never.id, never.text]);
     /* 6. her rats are not her wolves: the Thicket's task is still asked for, and its pay still waited for */
@@ -948,7 +948,7 @@ const cases = {
     const bless = said('bless');
     if (!bless || bless.text !== 'Shop → Services → Bless all three') return 'the Blessing card reads ' + JSON.stringify(bless && bless.text);
     const tam = said('tamsins_task');
-    if (!tam || tam.textIn !== 'Pick heavy armor, then Take the Gray Wolves' || tam.text !== 'Open Tamsin\'s tally and take the 200 Gray Wolves') return 'Tamsin\'s card reads ' + JSON.stringify(tam && [tam.text, tam.textIn]);
+    if (!tam || tam.textIn !== 'Pick heavy armor, then Take Gray Wolves' || tam.text !== 'Open Tamsin\'s tally → Take 200 Gray Wolves') return 'Tamsin\'s card reads ' + JSON.stringify(tam && [tam.text, tam.textIn]);
     /* a card shown from the first kill until Level 2 never names the Level; words inside a window name the server's slot */
     const lv = M.tut.HUNT_TUTORIAL.find((c) => c.id === 'first_level');
     if (!lv || /\bLevel \d/.test(lv.title + ' ' + lv.text)) return 'the first-Level card (shown at Level 1) names a Level: ' + JSON.stringify(lv && lv.title);

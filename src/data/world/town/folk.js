@@ -47,7 +47,7 @@ export const FOLK = Object.freeze({
       route: [stop(131, 45, 9000, 'w'), stop(131, 45, 5000, 's'), stop(131, 45, 7000, 'w'), stop(131, 45, 4000, 'n')] }),
     person({ id: 'keeper_south', body: 'outfit_brute', dye: '9.4.0.0', speed: 1, offsetMs: 6000,
       route: [stop(131, 53, 8000, 'w'), stop(131, 53, 6000, 'n'), stop(131, 53, 9000, 'w'), stop(131, 53, 4000, 's')] }),
-    person({ id: 'fishmonger', body: 'outfit_brute', dye: '15.12.0.0', speed: 1, offsetMs: 3000,
+    person({ id: 'fishmonger', body: 'folk_fishmonger', speed: 1, offsetMs: 3000,
       route: [stop(122, 85, 10000, 'e'), stop(122, 85, 6000, 's'), stop(122, 85, 8000, 'e')] }),
   ]),
 });

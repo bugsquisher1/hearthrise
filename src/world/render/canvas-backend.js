@@ -478,9 +478,8 @@ export function createCanvasBackend(o) {
     return s.end();
   }
 
-  /* THE FRAME'S COLORS (hero-dye.js): every dyed unit it draws, then at most one bake, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
+  /* THE FRAME'S COLORS (hero-dye.js, monster-pour.js): every dyed unit and every poured unit's sheet it draws, then at most one bake of each, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
   function wantDyes(list) {
-    /* and every poured unit's sheet, at most one bake a frame (monster-pour.js) */
     if (pours) { for (const d of list.sprites) if (d.pour) pours.want(d.id, d.pour, book.sprite(d.id), images[d.set]); pours.pump(); }
     if (!dyes) return;
     for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);

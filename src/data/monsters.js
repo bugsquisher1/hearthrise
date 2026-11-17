@@ -806,8 +806,7 @@ export const MONSTERS = {
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
       { id: 'willow_wand', ch: .011, band: 'rare' }, { id: 'willow_spellbook', ch: .011, band: 'rare' }, { id: 'willow_staff', ch: .011, band: 'rare' },
-      /* the Cauldron .00122 to .0014 (lane/d-mage-110): cloth's smaller damage slowed the reference four (Level 32, a Mage and a Healer in
-         Scholar cloth), and the Cauldron came every 161 h a hero, past the trophy band's 150 (tests/hunt-core/drop-tables.mjs trophy-pace) */
+      /* the Cauldron .00122 to .0014 (lane/d-mage-110): with cloth's smaller damage it came every 161 h a hero, past the trophy band's 150 (drop-tables.mjs trophy-pace) */
       { id: 'verdigris_cake', ch: .011, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .0014, band: 'trophy' }] },
 
   /* ══ THE CALLED BOSSES (src/data/boss-calls.js): a stronger copy, in one room a party pays to enter. A CALLED BOSS PAYS ONLY HIS DROPS, ON A WIN (Tyler 2026-11-14): xp 0, gp [0, 0], his ground table plus one call-only piece; his adds pay nothing (tests/boss-call.mjs). Stats are the only dials, through the normal paths: measured on tools/balance-sim/boss-call-table.mjs. The low `baseAcc` takes his to-hit off the 85% ceiling, so Defense and a shield count. Art: monster-art.js HUNT_ART_ALIAS. ══ */
@@ -826,11 +825,10 @@ export const MONSTERS = {
     elements: { frost: 25, poison: -15 },
     spells: ['slag_toss', 'slag_rain_called'],   // his own pulse (monster-spells.js slag_rain_called); the field Chief keeps slag_rain
     hp: 6000, atk: 110, baseAcc: -1.3, def: 28, xp: 0, gp: [0, 0], speed: 2800,
-    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): Chief Coppercap's ground rows at the ground's rates, then his call-only piece. */
+    /* A WIN PAYS HIS OWN TABLE (Tyler 2026-11-14): Chief Coppercap's ground rows at the ground's rates (the Cauldron at the field Chief's .0014), then his call-only piece. */
     drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_ore', ch: .5, band: 'common' }, { id: 'goblin_totem', ch: .3, band: 'common' }, { id: 'coppercaps_tallow', ch: .15, band: 'uncommon' },
       { id: 'steel_platebody', ch: .044, band: 'scarce' }, { id: 'boarhide_body', ch: .044, band: 'scarce' }, { id: 'scholar_body', ch: .044, band: 'scarce' }, { id: 'war_crown', ch: .0141, band: 'rare' },
       { id: 'willow_wand', ch: .011, band: 'rare' }, { id: 'willow_spellbook', ch: .011, band: 'rare' }, { id: 'willow_staff', ch: .011, band: 'rare' },
-      /* the Cauldron at the field Chief's .0014 (lane/d-mage-110 moved his; a called win pays his rows at the ground's rates) */
       { id: 'verdigris_cake', ch: .011, band: 'rare' }, { id: 'coppercaps_cauldron', ch: .0014, band: 'trophy' },
       { id: 'cauldron_lid', ch: .008, band: 'rare' }],
     phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1400, guardPm: 800 } },

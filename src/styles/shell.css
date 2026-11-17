@@ -23,7 +23,7 @@
 .hs-layer { position: absolute; top: 0; left: 0; bottom: 0; right: 0; pointer-events: none; z-index: 3; }
 
 /* ── Widgets: placed by src/shell/hud.js; faded per the layout, full on hover ── */
-.hs-widget { position: absolute; pointer-events: auto; opacity: var(--hs-op, 1); transition: opacity 120ms ease-out; }
+.hs-widget { position: absolute; pointer-events: auto; opacity: var(--hs-op, 1); min-width: var(--hs-min-w, auto); transition: opacity 120ms ease-out; }
 .hs-widget:hover, .hs-widget:focus-within { opacity: 1; }
 /* No room beside the docked windows (src/shell/hud.js clearOfDock): the widget waits, never under a window. */
 .hs-widget.is-under-dock { visibility: hidden; }

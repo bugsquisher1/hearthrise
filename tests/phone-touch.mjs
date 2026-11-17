@@ -129,6 +129,7 @@ const ALPHA = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelop
 HUNT.hunt_server_now_ms += (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href)).SESSION_CONFIG.huntPlaybackDelayMs;
 const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
 const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+const { CROPS } = await import(pathToFileURL(join(ROOT, 'src/data/gathering.js')).href);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
 const { HUNT_TUTORIAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href);
 /* A long bag (the playtest's hero carried 42 stacks): thirty more stacks of plain materials. */
@@ -458,14 +459,27 @@ async function bagByTouch(page, tag, fails) {
 }
 
 /* ── PH-6 ── A high Level's "What next" (the Coordinator's 10-24 gate: a Level 29 mage at 844x390, the card ran down
-   over HP / XP / MP). Since the label sweep (2026-11-16) every goal is one short label and the deed line no longer names its materials, so the long
-   card is a hero with many goals: first the deed, its name the server's longest (home-sections.js takes 60), then under More the next gear, the next
-   ground (a party's, with how to make one), an empty field (the plant line) and the next spell. A Level 29 mage who has walked the grounds above her. */
+   over HP / XP / MP). Since the label sweep (2026-11-16) every goal is one short label, so the long card is a hero with many goals: first the harvest
+   (the longest list a line holds, below), then under More the deed (its name the server's longest: home-sections.js takes 60), the next gear, the next
+   ground (a party's, with how to make one) and the next spell. A Level 29 mage who has walked the grounds above her.
+   NO ENGLISH LABEL RUNS PAST FIVE LINES on a phone (set v0.2.135: the whole harvest list is 4 lines at 667x375 and fits every cap), so the card's
+   words never scrolled and this rule proved nothing. The cap and its scroll are still the card's guard for longer words (a translation, a
+   longer list), so PH-6 serves the harvest row at three times its English (LONG_WORDS, through open()'s route): the layout reads the words the
+   page draws, never where they came from. */
+const LONG_ROW = "  goal_harvest: 'Harvest {crops} on the Farm (J)',";
+const LONG_WORDS = async (page) => {
+  const real = await readFile(join(ROOT, 'src/data/text/coach.js'), 'utf8');
+  if (!real.includes(LONG_ROW)) throw new Error('PH-6: src/data/text/coach.js has no harvest row ' + LONG_ROW);
+  const body = real.replace(LONG_ROW, "  goal_harvest: '" + Array(3).fill('Harvest {crops} on the Farm (J)').join(', then ') + "',");
+  await page.route(/\/src\/data\/text\/coach\.js(\?|$)/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', headers: { 'Cache-Control': 'no-store' }, body }));
+};
 function longCoach(env) {
   env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100, gold: 5000 });
   env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
   env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 900, level: 5 } };
-  env.farm_land = { cap: 2, plot_level: 1, plots: [] };
+  /* THE LONGEST FIRST LINE A HERO CAN READ: the account's field with one plot of every crop ready (a Keep's ten plots). The harvest goes
+     before the deed (hunt-tutorial.js nextGoal), so the card's words are the whole list. */
+  env.farm_land = { cap: 10, plot_level: 1, plots: Object.keys(CROPS).map((crop, i) => ({ i, crop, ready: true, ready_in_s: 0, waterable: false, regrows_left: 0, by: 0, by_name: 'Basil' })) };
   /* walked: the Warrens (no step up ahead of the deed), Hask's Ford and the Slake, so the next ground is the Muster Barrows, a party's, and the line says how to make one */
   env.hunt_bests = { min_ms: 600000, grounds: Object.fromEntries(['coppercap_warrens', 'hasks_ford', 'the_slake'].map((g) => [g, { solo: { xp_h: 90000, balance_h: 100 }, party: null }])) };
   const materials = ['crow_quill', 'glowing_copper_fleck', 'mosslight_tendril', 'coppercaps_tallow', 'dented_copper_pot', 'skulkers_shiv', 'goblin_totem', 'foremans_lash', 'snare_wire', 'raw_bear_meat', 'raw_wolf_meat', 'magic_essence', 'cooked_shrimp', 'silk_thread', 'lamp_jelly', 'bone_chips'];
@@ -1522,7 +1536,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     for (const vp of run('coach') ? [...PHONES, { width: 1440, height: 900 }] : []) {
       const tag = tagOf(vp);
       for (const [where, fixture, prep] of [['hunt', HUNT, longCoach], ['town', ALPHA, inTown]]) {
-        const o = await open(vp, fixture, prep);
+        const o = await open(vp, fixture, prep, { route: LONG_WORDS });
         if (!o.up) { fails.push('PH-6 [' + tag + '] the ' + where + ' did not mount'); await o.ctx.close(); continue; }
         await shot(o.page, 'coach-long-' + where + '-' + tag);
         await coachFits(o.page, tag + ' ' + where, fails, vp.width < 1024);
@@ -2033,7 +2047,7 @@ const MUTANTS = [
   ['PH-28 nothing says the column runs on', 'src/app/hero-create.js', '    if (more.hidden !== hide) more.hidden = hide;\n', ''],
   ['PH-29 a hero alone keeps the panel open', 'src/data/hud-widgets.js', "phone: Object.freeze({ dx: 4, dy: 4, folded: 'alone' }),", 'phone: Object.freeze({ dx: 4, dy: 4 }),'],
   ['PH-29 a party\'s panel folds as well', 'src/shell/shell-hud.js', 'alone: () => heroIsAlone(opts.character),', 'alone: () => true,'],
-  ['PH-29 a folded panel keeps its empty box', 'src/shell/shell.js', "el.style.minWidth = L.folded ? '' : row.min[0] + 'px';", "el.style.minWidth = row.min[0] + 'px';"],
+  ['PH-29 a folded panel keeps its empty box', 'src/shell/shell.js', "el.style.setProperty('--hs-min-w', L.folded ? '' : row.min[0] + 'px');", "el.style.setProperty('--hs-min-w', row.min[0] + 'px');"],
   ['PH-29 a wide desktop folds a lone hero\'s panel', 'src/data/hud-widgets.js', "folded: 'narrow-alone',", "folded: 'alone',"],
   ['PH-30 More slots stays 24 px', 'src/styles/hunt.css', 'align-self: center; width: 36px; height: 74px;', 'align-self: center; width: 24px; height: 74px;'],
   ['PH-30 the setup\'s name stays a line of text', 'src/styles/hunt.css', '  .hb-set .hs-name { width: 100%; height: 100%; }\n', ''],
@@ -2044,7 +2058,7 @@ const MUTANTS = [
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
   ['PH-33 the bar keeps its full width beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }\n', ''],
   ['PH-33 the hub and the fight panel stay beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }\n', ''],
-  ['PH-33 the widget keeps its 320 px floor beside a sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0 !important; }\n', ''],
+  ['PH-33 the widget keeps its 320 px floor beside a sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0; }\n', ''],
 ];
 
 async function main() {

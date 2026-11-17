@@ -780,9 +780,9 @@ label.st-line { cursor: pointer; }
      Where ten still do not (667 px), the slots page as they always have (.hb-page). In a hunt the sheet ends above the bar instead (shell.js capDock). */
   #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }
   #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }
-  /* The widget's own floor (320 px, written inline from its HUD row by shell.js) is 3 px wider than the room a 667 px screen
+  /* The widget's own floor (320 px, its HUD row's --hs-min-w from shell.js) is 3 px wider than the room a 667 px screen
      leaves beside the sheet, and the band would stay under it: beside a sheet the band's width above is the floor. */
-  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0 !important; }
+  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0; }
   .hb-stance .hh-seg { flex: 1 0 auto; padding: 0 clamp(2px, calc((100vw - 667px) / 30), 6px); }
   .hb-dist .hb-label { letter-spacing: 0; }
   .hb-dist .hh-step .hh-seg { min-width: 30px; }

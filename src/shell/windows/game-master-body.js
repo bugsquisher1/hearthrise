@@ -32,7 +32,7 @@ const SKELETON = '<section class="gm-part"><h3 class="hs-sub">Who\'s playing</h3
   + '<button type="button" class="hh-tool" data-hs-act="gm-no">Cancel</button></div></div></div></section>'
   + '<section class="gm-part"><h3 class="hs-sub">Say to everyone</h3><div class="gm-row"><input class="hh-num gm-field gm-say" type="text" maxlength="240" aria-label="A line to everyone" placeholder="Everyone reads this as the Game Master">'
   + '<button type="button" class="hh-tool" data-hs-act="gm-say">Say</button></div></section>'
-  + '<section class="gm-part"><h3 class="hs-sub">This test hero</h3><p class="hs-note">Test account only, no trade, market or leaderboard</p><p class="hs-note">Idle hero only</p>'
+  + '<section class="gm-part"><h3 class="hs-sub">This test hero</h3><p class="hs-note">Test account only, no trade, market or leaderboard, idle hero only</p>'
   + '<input class="hh-num gm-field gm-grant-why" type="text" maxlength="200" aria-label="Why" placeholder="Reason, logged">'
   + '<div class="gm-row"><input class="hh-num gm-field gm-gold" type="number" min="1" aria-label="Gold" placeholder="Gold"><button type="button" class="hh-tool" data-hs-act="gm-give-gold">Give gold</button></div>'
   + '<div class="gm-row"><input class="hh-num gm-field gm-item" type="text" maxlength="64" aria-label="Item id" placeholder="Item id"><input class="hh-num gm-field gm-qty" type="number" min="1" aria-label="How many" placeholder="How many"><button type="button" class="hh-tool" data-hs-act="gm-give-item">Give item</button></div>'

@@ -225,7 +225,7 @@ async function runTests(M) {
     const plain = card(sess({ forfeit: false }));
     eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
     const left = card(sess({ end_reason: 'left' }));
-    ok(/^You left: .*nothing from them counted$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
+    ok(/^Left: .*nothing from them counted$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
   });
@@ -262,7 +262,7 @@ async function runTests(M) {
     eq(MD.withTrainingStop(early, stop).train, c.train, 'the stop fills the fee and levels');
     eq([MD.withTrainingStop(early, { ...stop, session: 'sess-other' }), MD.withTrainingStop(c, stop)], [null, null], 'another session\'s stop, or a card already full: nothing');
     /* why it ended: the Training window's words, never a hunt's */
-    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'You stopped Wren\'s Defense training.', 'stopped');
+    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'Stopped Wren\'s Defense training', 'stopped');
     eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Wren finished Defense training. That was the longest one session can run.', 'the 12-hour end');
     eq(MD.endWords('hours', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.hours, 'a hunt keeps its own words');
     eq(card(sess({ hunt: 'wickstead' }), stop).train, null, 'a hunt is no training card');
@@ -400,7 +400,7 @@ async function runTests(M) {
     eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
     eq(r.steps[0].words, 'Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense).', 'Equip says what goes on');
     eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
-    eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt (frees 1 bag space)', 'Deposit says what it frees');
+    eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt, frees 1 bag space', 'Deposit says what it frees');
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
     eq(steps({ rules: { locked: new Set(['sticky_core', 'wolf_pelt']), loot: rules.loot } }).steps.map((s) => s.id), ['equip', 'sell', 'bless'], 'a locked Deposit stack is not a step');
     eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30, less death loss'], 'Bless names the tiers not on');

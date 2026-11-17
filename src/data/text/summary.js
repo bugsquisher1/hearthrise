@@ -45,7 +45,7 @@ export const SUMMARY_TEXT = Object.freeze({
   end_no_fight: 'No blows landed, came home',
   end_gold_out: 'Gold reserve reached',
   end_rule: 'Stop rule met',
-  end_stamina: 'Out of stamina',
+  end_stamina: 'Out of stamina, refills hour for hour',
   end_hours: 'Time limit reached',
   end_boss_time: 'Time ran out, party came home',
   end_left: 'Left the hunt',

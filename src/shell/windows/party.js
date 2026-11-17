@@ -95,7 +95,7 @@ renderParty.patch = function patchParty(body, ctx) {
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === tab);
   /* On every tab (party panel 11-03: it opened on the finder and never said how to invite; the how-to was a tab away). The Invites tab says the rest in its own empty line. */
   cls(root.querySelector('.hw-invite-name'), 'is-on', true);
-  text(root.querySelector('.hw-invite-how'), tab === 'find' ? (ctx.isPhone && ctx.isPhone() ? 'Type a name to invite them, or hold a player’s name' : 'Type a name to invite them, or right-click a player') + ' and choose Invite to party.' : '');
+  text(root.querySelector('.hw-invite-how'), tab === 'find' ? (ctx.isPhone && ctx.isPhone() ? 'Type a name, or hold a player’s name' : 'Type a name, or right-click a player') + ' → Invite to party' : '');
   prop(root.querySelector('[data-hs-act="invite-name"]'), 'disabled', sc.pending);
   cls(root, 'is-pending', sc.pending);
   patchRoster(root, ctx, sc, mine);

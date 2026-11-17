@@ -177,8 +177,8 @@ async function checks(overrides, shots) {
         if (!melee.includes('skills:melee') || melee.includes('skills:fishing')) fails.push('WK-2 searching "melee" shows ' + JSON.stringify(melee));
         const ground = await search(page, firstGround.name);
         if (!ground.includes('grounds:' + firstGround.id)) fails.push('WK-2 searching "' + firstGround.name + '" shows ' + JSON.stringify(ground));
-        const max = await search(page, 'your max hit');
-        if (!max.includes('formulas:max') || max.some((p) => p.startsWith('skills:'))) fails.push('WK-2 searching "your max hit" shows ' + JSON.stringify(max));
+        const max = await search(page, 'max hit gear strength');
+        if (!max.includes('formulas:max') || max.some((p) => p.startsWith('skills:'))) fails.push('WK-2 searching "max hit gear strength" shows ' + JSON.stringify(max));
         if (shots) { await page.waitForTimeout(200); await page.screenshot({ path: join(shots, 'wiki-desktop-search-1440x900.png') }); }
         const nothing = await search(page, 'zzqx');
         const none = await page.evaluate((w) => { const n = document.querySelector(w + ' .wk-none'); return n && !n.hidden ? n.textContent : ''; }, W);

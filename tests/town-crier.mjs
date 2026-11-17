@@ -317,7 +317,7 @@ const ARMS = {
       [{ error: 'crier_link' }, 'The Crier won\'t shout web addresses. You weren\'t charged.'],
       [{ error: 'crier_long', n: 133, max: 120 }, 'Max 120 letters (yours: 133)'],
       [{ error: 'crier_limit', perDay: 5 }, 'Daily limit: 5 Crier lines per account, resets at midnight UTC'],
-      [{ error: 'crier_busy', waitS: 12 }, 'Crier busy, retry in 12 s, not charged'],
+      [{ error: 'crier_busy', waitS: 12 }, 'Crier busy, not charged, retry in 12 s'],
       [{ error: 'crier_off' }, 'Crier off duty, not charged'],
       [{ error: 'quote_changed', price: 2000 }, 'Price changed to 2,000 gp, not charged. Press again to pay.'],
       /* a muted press, said for the Crier (the raised row lock reads the same code through src/session/server.js raisedCode) */

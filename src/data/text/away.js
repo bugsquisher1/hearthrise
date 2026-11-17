@@ -36,10 +36,10 @@ export const AWAY_TEXT = Object.freeze({
   opt_wait: 'Wait in town',
   opt_job: 'Go back to {doing}',
   opt_train: 'Train {skill} at the yard',
-  note_wait: 'Hero waits in town',
-  note_job: 'Hero keeps working until stopped',
+  note_wait: 'Waits in town',
+  note_job: 'Works until stopped',
   /* {n} what the bench still had to make, the server's count. */
-  note_job_left: 'Hero makes the {n} still left',
+  note_job_left: 'Makes the last {n}',
   note_no_job: 'Waits in town, no job to go back to',
   /* {fee} the yard's fee for an hour at this hero's skill, {hours} its longest stay; both the server's. */
   train_cost: '{fee} gold/h, up to {hours} h',

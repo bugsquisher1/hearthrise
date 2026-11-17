@@ -850,7 +850,7 @@ const ARMS = {
       [{ error: 'show_limit', verb: 'town_powder', perDay: 7 }, 'Daily limit: 7 powders per account, resets at midnight UTC'],
       [{ error: 'show_busy', verb: 'town_powder', bookedS: 360, waitS: 60 }, 'Hearth powders booked for 6 min, not charged'],
       [{ error: 'show_limit', verb: 'town_round', perDay: 4 }, 'Daily limit: 4 rounds per account, resets at midnight UTC'],
-      [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Round in progress, retry in 20 s, not charged'],
+      [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Round in progress, not charged, retry in 20 s'],
       [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'Price changed to 4,000 gp, not charged. Press again to pay.'],
       [{ error: 'not_a_show', verb: 'town_powder' }, 'Havora doesn\'t sell that.'],
     ];

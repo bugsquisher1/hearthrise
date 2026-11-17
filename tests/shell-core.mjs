@@ -989,7 +989,7 @@ async function runTests(mods) {
   }, o);
   const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
   /* out of stamina, the next line names what uses none (R3n) */
-  const STAMINA_NEXT = 'Stamina refilling: work a bench or train at the Yard (Level 10+)';
+  const STAMINA_NEXT = 'Refill stamina: work a bench or train at the Yard';
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
     ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
@@ -1036,7 +1036,7 @@ async function runTests(mods) {
      and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
   t('R3t a training session\'s end gives its own line, never a hunt\'s', () => {
     const yard = (reason) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason, { hunt: 'training_yard_melee' }), 's-1');
-    eq(yard('hours'), 'Training uses no stamina, so start it again to keep going.', 'the 12-hour cap');
+    eq(yard('hours'), 'Start training again to keep going', 'the 12-hour cap');
     eq([yard('gold_out'), yard('server')], ['', ''], 'the purse or the server: the reason says it all');
     eq(AH.endCardAfter(wrenna(END + MIN, mining(END), 'hours', { hunt: 'training_yard_melee' }), 's-1'), 'Then Wrenna went back to mining the Copper Rock.', 'a resumed job is still said');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'hours'), 's-1'), 'Set a longer hunt, up to your stamina.', 'a hunt\'s own limit keeps its line');
@@ -1050,11 +1050,11 @@ async function runTests(mods) {
     eq(AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000), 'died', { hunt: 'krells_hold_hall' }), 's-1'), 'Then Wrenna waited in town for 2 h 0 min.', 'a hall lost, the page left open: the wait, no advice');
     const bar = { preset: 1, supply_source: 'mine', on_empty: 'switch', slots: [{ action: { type: 'consume', id: 'wheat_bread' } }] };
     const goldOut = (inventory) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'gold_out', { settings: bar, inventory }), 's-1');
-    eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Tip: put Cooked Trout on your bar (Wrenna bought store supplies instead)', 'food in the bag, off the bar (the label, lane/d-labels-sweep)');
+    eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Tip: put Cooked Trout on the bar', 'food in the bag, off the bar (the label, lane/d-labels-sweep)');
     eq(goldOut({ wheat_bread: 4, copper_ore: 3 }), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'only what the bar names: the old line');
     eq(goldOut({}), 'Lower your gold reserve, carry more gold, or pack your own supplies.', 'nothing in the bag: the old line');
     const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'gold_out', { settings: bar, inventory: { cooked_trout: 12 } })) || {}).text || '';
-    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Tip: put Cooked Trout on your bar'), 'the away card says it too: ' + away);
+    ok(away.includes('Then Wrenna waited in town for 5 h 46 min. Tip: put Cooked Trout on the bar'), 'the away card says it too: ' + away);
     const hall = (AR.awayRecapOf(wrenna(NOW, idleSince(END), 'boss_felled', { hunt: 'krells_hold_hall' })) || {}).text || '';
     ok(hall.includes('Then Wrenna waited in town for 5 h 46 min. Stamina now') && !/Start mining|  /.test(hall), 'the away card after a hall: ' + JSON.stringify(hall));
   });
@@ -1072,7 +1072,7 @@ async function runTests(mods) {
     eq(a.picked, 'job', 'the server\'s choice is the picked one');
     /* a bench says what it still has to make: the server's count */
     const b = HA.afterChoices(hero({ choice: 'job', skill: null, job: { kind: 'artisan', id: 'cook_shrimp', left: 7 } }));
-    eq(b.note, 'Your hero makes the 7 still left, no more', 'a bench\'s count');
+    eq(b.note, 'Makes the last 7', 'a bench\'s count');
     /* no job to go back to: the job is not offered, and the default reads as what will happen */
     const c = HA.afterChoices(hero({ choice: 'job', skill: null, job: null }));
     ok(!c.options.some((o) => o.value === 'job') && c.picked === 'wait' && /no job to go back to/.test(c.note), 'no job: ' + JSON.stringify(c));

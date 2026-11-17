@@ -32,17 +32,17 @@ const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], 
 /* What each armour line means, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
    a blow meets them in that order: dodge, absorb, resistances, ward, then health). */
 const COMBAT_TIPS = Object.freeze({
-  defence: ['Monsters miss more', 'Source: Defense skill, shield'].join('\n'),
-  dodge: ['Chance a blow misses', 'Source: Medium armor'].join('\n'),
-  absorb: ['Share of each blow blocked', 'Source: Heavy armor'].join('\n'),
-  ward: ['Flat damage off each blow', 'Source: Light armor', 'Best against many small blows'].join('\n'),
-  steady: ['Share off each blow, applied last', 'Source: cape, some foods'].join('\n'),
-  temper: ['Smith upgrades on worn gear', 'Get: Shop → Services'].join('\n'),
+  defence: 'Monsters miss more. Source: Defense skill, shield',
+  dodge: 'Chance a blow misses. Source: Medium armor',
+  absorb: 'Share of each blow blocked. Source: Heavy armor',
+  ward: 'Flat damage off each blow. Source: Light armor',
+  steady: 'Share off each blow, applied last. Source: cape, some foods',
+  temper: 'Smith upgrades on worn gear. Get: Shop → Services',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
-const LEVEL_TIP = ['Level XP: monster kills only', 'Each Level: more max health and mana', 'Heavy armor: more health', 'Light armor: more mana',
-  'Death: lose Level XP, can drop a Level'].join('\n');
+const LEVEL_TIP = 'Level XP: monster kills only. Each Level: more health and mana\n'
+  + 'Heavy: more health. Light: more mana. Death: lose XP, even a Level';
 
 const lineHtml = ([k, l], kind, tips) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"'
   + (tips && tips[k] ? ' title="' + esc(tips[k]) + '"' : '') + '><dt>' + esc(l) + '</dt><dd></dd></div>';

@@ -160,7 +160,7 @@ function account(M, srv) {
 /* (a seat's weapon is the server's ROLE KEY: a sword and a shield is 'shield', Tyler 2026-10-23) */
 const ANDY_SEATS = [[0, 1, 'Eddie', 39, 'shield', 616, 'tank'], [1, 7, 'Hank', 27, 'hammer', 420, 'melee_dps'],
   [2, 13, 'Apollo', 28, 'wand', 390, 'mage'], [3, 20, 'Fremulon', 38, 'shield', 604, 'tank']];
-const TURNS_NOTE = 'Your tanks take turns holding the pack, one lap each. The other tank pulls monsters off the rest of the party.';
+const TURNS_NOTE = 'Tanks take turns, one lap each';
 /** The party section the server projects (hunting or in town; `self` the viewer's seat, `hold` the hold seat, `frem` Fremulon's max HP). */
 function andyParty(o) {
   const { hunting = false, self = 0, hold = null, frem = 604 } = o || {};
@@ -215,7 +215,7 @@ async function pureRules(M, base) {
       [{ active_kind: 'gather', active_id: 'copper_rock' }, 'mining the '], [{ active_kind: 'training', active_id: 'dummy' }, 'training'],
       [{ active_kind: 'artisan', active_id: 'no_such_recipe' }, 'at a workbench']]) {
       const line = M.BURY.buryLine(at(st));
-      if (!/or stop it here\.$/.test(line) || !line.includes(want)) return 'the Stop line for ' + JSON.stringify(st) + ' reads ' + JSON.stringify(line);
+      if (!line || !/^[A-Z]/.test(line) || !line.toLowerCase().includes(want.toLowerCase())) return 'the Stop line for ' + JSON.stringify(st) + ' reads ' + JSON.stringify(line);
       const doing = M.PS.assignmentOf(at(st)).text;
       if (!doing.startsWith('In town, ' + want)) return 'Characters reads ' + JSON.stringify(doing) + ' for ' + JSON.stringify(st);
     }
@@ -253,7 +253,7 @@ async function pureRules(M, base) {
     if (centre2.list().length) return 'the on-screen hero’s death also raised a side line: ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
     acc2.viewed = 1;   // another hero on screen
     await cs2.load(); await cs2.load();
-    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/died in .* and returned to town/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
+    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/^Tyler died in The Sewer$/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
     srv.env[0].hunt.ended = false;
     srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: null, ended_at: null, phase: 'hunting' });
     M.AL.setAlertShown(cs2, 'rare', false);
@@ -708,7 +708,7 @@ async function pureRules(M, base) {
     const cs = { read: (k) => (k === 'party' ? section : undefined), live: engine };
     const dom = fakeDom();
     const ctx = { character: cs, account: null, doc: dom.doc, glyphs: {} };
-    const FREM = 'Fremulon holds the pack every lap. Eddie takes over if Fremulon leaves. Only Fremulon trains Defense from holding.';
+    const FREM = 'Fremulon holds every lap, Eddie takes over if Fremulon leaves';
     const want = (v, rows, holding, note, warn, what) => (v.rows === rows && v.holding === holding && v.note === note && v.warn === warn) || what + ' reads ' + JSON.stringify(v);
     andySeed(M, engine, { runs: 0, hold: 20, holdNext: 20 });
     const held = want(panelShown(M, dom, ctx), 'Eddie:Guards the party|Hank:|Apollo:|Fremulon:Holds every lap', 'Fremulon', FREM, '', 'the pick in force');
@@ -855,7 +855,7 @@ async function pureRules(M, base) {
     const L = M.PRO.classXpLine;
     const head = (k) => 'Classes: ' + k + ' of 4. ';
     const more = (k, vs, place) => head(k) + 'Level XP each: about +' + vs + '% vs solo in ' + place;
-    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + ' (mix Melee, Ranger, Mage and Healer)';
+    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + ', mix Melee, Ranger, Mage and Healer';
     for (const [roles, hunt, want] of [
       [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
@@ -924,7 +924,7 @@ async function pureRules(M, base) {
     if (M.SM.endedSessionOf({ read: (k) => (k === 'hunt' ? { session_id: 's', ended: true, session: { id: 's', end_reason: 'party_member_left', end_by: 'Bramwell', end_by_why: 'stamina', ended_at: '2026-10-17T12:30:00Z' } } : null) }).why !== 'stamina') return 'the ended session drops end_by_why';
     /* (3) THE NOTICES: every kind's words; then one line, once, on the server's id. One notice in the centre at a time, since the mutant
        "an alert fires on every read" recurses through setResidue, and two lines rotating in `seen` never settle: it would hang, not go red. */
-    for (const [kind, who, want] of [['declined', 'Wrenna', 'Wrenna said no to your party invite.'], ['removed', 'Bramwell', 'Bramwell removed Tyler from the party.'],
+    for (const [kind, who, want] of [['declined', 'Wrenna', 'Wrenna declined the party invite'], ['removed', 'Bramwell', 'Bramwell removed Tyler from the party.'],
       ['disbanded', 'Bramwell', 'Bramwell closed the party.'], ['left', 'Solace', 'Solace left the party.'], ['dropped', 'Solace', 'Solace was away too long and lost their party seat.'], ['no_such_kind', 'X', '']]) {
       const got = M.PW.noticeWords({ kind, who }, { name: 'Tyler' });
       if (got !== want) return kind + ' reads ' + JSON.stringify(got);
@@ -1352,7 +1352,7 @@ async function pageRules(overrides, shots) {
         const w1 = sent(s, 'hr_hunt_party_warn').slice(warned0);
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
-        if (!/^Under Level \d+, death risk: Mira \(Level 3\)\. Party warned\./.test(warnSaid[0]) || !/^Under Level \d+, death risk: Mira \(Level 3\)/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        if (!/^Under Level \d+, death risk: Mira, Level 3\. Party warned, press Enter anyway to go$/.test(warnSaid[0]) || !/^Under Level \d+, death risk: Mira, Level 3$/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
         /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
         const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
         s.env[0].party.members.push(late);

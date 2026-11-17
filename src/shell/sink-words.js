@@ -24,13 +24,13 @@ export function sinkRefusal(r, heroName) {
       const n = Math.max(1, Math.ceil(r.bookedS / 60));
       return 'Hearth powders booked for ' + n + ' min, not charged';
     }
-    if (r.error === 'show_busy' && r.verb === 'town_round' && num(r.waitS)) return 'Round in progress, retry in ' + Math.max(1, r.waitS) + ' s, not charged';
+    if (r.error === 'show_busy' && r.verb === 'town_round' && num(r.waitS)) return 'Round in progress, not charged, retry in ' + Math.max(1, r.waitS) + ' s';
   }
   if (r.verb === 'crier') {
     if (r.error === 'crier_level' && num(r.need) && num(r.level)) return 'Requires Level ' + r.need + ' (' + (heroName || 'this hero') + ': Level ' + r.level + ')';
     if (r.error === 'crier_long' && num(r.n)) return 'Max ' + (num(r.max) ? r.max : 120) + ' letters (yours: ' + r.n + ')';
     if (r.error === 'crier_limit' && num(r.perDay)) return 'Daily limit: ' + r.perDay + ' Crier lines per account, resets at midnight UTC';
-    if (r.error === 'crier_busy' && num(r.waitS)) return 'Crier busy, retry in ' + Math.max(1, r.waitS) + ' s, not charged';
+    if (r.error === 'crier_busy' && num(r.waitS)) return 'Crier busy, not charged, retry in ' + Math.max(1, r.waitS) + ' s';
   }
   if (r.verb === 'town_works') {
     const name = (TOWN_WORKS[r.project] && TOWN_WORKS[r.project].name) || 'The Works';

@@ -44,15 +44,15 @@ const MOVES = new Set(['deposit', 'sell']);
     pass `held` false and the server's own refusal answers the press. */
 export function planBlock(id, plan, bids, held = true) {
   if (!MOVES.has(plan)) return '';
-  if (plan === 'sell' && isStartKit(id)) return 'Shop doesn\'t buy starting kit';
-  if (plan === 'sell' && held && bids && !bids.has(id)) return 'The shop does not buy this.';
+  if (plan === 'sell' && isStartKit(id)) return 'The shop won\'t buy starting kit.';
+  if (plan === 'sell' && held && bids && !bids.has(id)) return 'The shop won\'t buy this.';
   return '';
 }
 
 /** Why Dispatch loot is off for this hero now, or '' (from the server's bag, rules and hunt; nothing planned = off). */
 export function dispatchBlock(cs) {
   const h = huntOf(cs);
-  if (h && !h.ended) return 'Dispatch loot works in town';
+  if (h && !h.ended) return 'Dispatch loot only works in town';
   const rules = rulesOf(cs), bag = bagOf(cs);
   if (!rules || !bag) return 'Loading bag…';
   const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && isStartKit(r.id)));
@@ -74,11 +74,11 @@ export function dispatchWords(a) {
   const did = [];
   if (stored) did.push('stored ' + stacks(stored));
   if (sold) did.push('sold ' + stacks(sold) + ' for ' + gold(g));
-  let line = did.length ? did.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.' : 'Nothing moved.';
-  if (typeof a.sell_refused === 'string' && a.sell_refused) line += ' Nothing sold: ' + refusalWords(a.sell_refused, 'loot_dispatch');
-  if (unplaced) line += ' ' + whole(unplaced) + ' didn\'t fit: Storage is full.';
-  if (num(kept.locked)) line += ' ' + stacks(num(kept.locked)) + ' locked, so kept.';
-  if (num(kept.later)) line += ' ' + stacks(num(kept.later)) + ' more next press.';
+  let line = did.length ? did.join(' and ').replace(/^./, (c) => c.toUpperCase()) + '.' : 'Nothing moved.';
+  if (typeof a.sell_refused === 'string' && a.sell_refused) line += ' Nothing was sold: ' + refusalWords(a.sell_refused, 'loot_dispatch');
+  if (unplaced) line += ' ' + stacks(unplaced) + ' didn\'t fit because your storage is full.';
+  if (num(kept.locked)) line += ' ' + stacks(num(kept.locked)) + ' stayed in your bag because ' + (num(kept.locked) === 1 ? 'it\'s' : 'they\'re') + ' locked.';
+  if (num(kept.later)) line += ' Press again for ' + stacks(num(kept.later)) + ' more.';
   return line;
 }
 

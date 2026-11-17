@@ -225,10 +225,10 @@ export function runOutOf(cs, ev) {
   const h = huntOf(cs);
   if (!h || !h.hero || !Number.isInteger(ev.u) || ev.u !== h.hero.unit) return null;
   const then = typeof ev.next === 'string' && Number.isInteger(ev.slot)
-    ? ': slot ' + ev.slot + ' (' + itemName(ev.next) + ') takes over.'
-    : ', and no slot takes over: ' + who(cs) + ' hunts on without it.';
+    ? ' Slot ' + ev.slot + ' takes over with ' + itemName(ev.next) + '.'
+    : ' Nothing takes over, so ' + who(cs) + ' hunts on without it.';
   return { id: 'out:' + h.sessionId + ':' + ev.key.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 60), kind: 'low', session: h.sessionId, item: ev.item,
-    text: who(cs) + '’s ' + itemName(ev.item) + ' ran out' + then };
+    text: who(cs) + ' ran out of ' + itemName(ev.item) + '.' + then };
 }
 
 /**

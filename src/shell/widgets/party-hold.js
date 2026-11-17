@@ -31,7 +31,7 @@ const FLOOR = Math.round(CHALLENGE.holderMinHpPm / 10) + '%';
 export function turnWords(turn, healer) {
   if (turn === 'every') return 'Holds every lap';
   if (turn === 'now') return 'Holding this lap';
-  if (turn === 'later-every') return 'Holds every lap from next lap';
+  if (turn === 'later-every') return 'Holds every lap from the next one';
   if (turn === 'guard') return healer ? 'Guards the healer' : 'Guards the party';
   if (turn === 'weak') return 'Too weak to hold';
   return turn === 1 ? 'Holds next lap' : 'Holds in ' + turn + ' laps';
@@ -39,14 +39,14 @@ export function turnWords(turn, healer) {
 
 /* The note while the tanks take turns: the engine's count of tanks in the turns and out of them (in town, all in). */
 function turnsNote(rotation, weak) {
-  if (rotation > 1 && weak) return 'Tanks take turns, one lap each, under ' + FLOOR + ' max health skipped';
+  if (rotation > 1 && weak) return 'Tanks take turns, one lap each. A tank under ' + FLOOR + ' of the strongest one\'s max health sits out.';
   if (rotation > 1) return 'Tanks take turns, one lap each';
-  return rotation === 1 && weak ? 'Strongest tank holds every lap, under ' + FLOOR + ' max health skipped' : '';
+  return rotation === 1 && weak ? 'The strongest tank holds every lap. A tank under ' + FLOOR + ' of its max health sits out.' : '';
 }
 
 /* The note while one tank holds. */
 function holdNote(name, others) {
-  return name + ' holds every lap, ' + (others.length === 1 ? others[0] + ' takes over if ' + name + ' leaves' : 'the others take turns if ' + name + ' leaves');
+  return name + ' holds every lap. ' + (others.length === 1 ? others[0] + ' takes over if ' + name + ' leaves.' : 'The others take turns if ' + name + ' leaves.');
 }
 
 /**

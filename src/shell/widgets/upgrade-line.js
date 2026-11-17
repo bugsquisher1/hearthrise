@@ -69,5 +69,5 @@ export function equipUpgrades(cs, sc, repaint, plan) {
   const n = slots.length;
   return runIntent(sc, repaint, async () => {
     try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }
-  }, 'Putting it on…', () => { sc.msgAt = null; return n === 1 ? 'Put on 1 piece.' : 'Put on ' + n + ' pieces.'; }, cs);
+  }, 'Equipping…', () => { sc.msgAt = null; return n === 1 ? 'Equipped 1 piece.' : 'Equipped ' + n + ' pieces.'; }, cs);
 }

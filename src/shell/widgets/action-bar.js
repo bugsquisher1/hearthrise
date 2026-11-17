@@ -178,7 +178,7 @@ function patchSlot(li, s, w, ctx, bag, conflict, why) {
 function tipHtml(i, ctx) {
   const set = settingsOf(ctx.character);
   const s = set && set.slots[i];
-  if (!s || s.empty) return '<b>Slot ' + (i + 1) + '</b><p>Empty, press to set a spell, rune or item</p>';
+  if (!s || s.empty) return '<b>Slot ' + (i + 1) + '</b><p>Empty. Press to set a spell, rune or item.</p>';
   const wires = Array.from({ length: SLOTS }, (_, k) => wireSlot(set.slots[k]));
   const facts = whyFacts(ctx.character);
   const lines = hoverLines(wires[i], { bag: facts.bag, store: set.store, skills: facts.skills, set, worn: facts.worn }, slotWhy(s, facts), conflictsOf(wires, set).get(i));

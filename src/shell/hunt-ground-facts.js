@@ -139,10 +139,10 @@ export function dropWhereWords(item) {
   const { standing, best } = dropsAt(item);
   if (standing.length) {
     const [first, ...more] = standing;
-    return 'Dropped by ' + listWords(first.names) + ' at ' + groundName(first.g) + '.' + (more.length ? ' Also drops at ' + listWords(more.map((x) => groundName(x.g))) + '.' : '');
+    return 'Dropped by ' + listWords(first.names) + ' at ' + groundName(first.g) + (more.length ? '. Also drops at ' + listWords(more.map((x) => groundName(x.g))) : '');
   }
   if (!best) return '';
-  return 'Only a harder hunt at ' + groundName(best.g) + ' summons the ' + MONSTERS[best.id].name + '.';
+  return 'Only a harder hunt at ' + groundName(best.g) + ' summons the ' + MONSTERS[best.id].name;
 }
 
 /** Where dropWhereWords' link goes (src/shell/goto.js targetOf): the hunt it names first, { kind: 'hunt', hunt }; for a creature only a harder

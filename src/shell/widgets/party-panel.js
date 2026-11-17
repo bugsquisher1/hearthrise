@@ -96,9 +96,9 @@ function patchMember(el, m, party, glyphs) {
 
 /* "Away, seat kept 7 min" (the server's seat_ms, whole minutes up); else what the hunt says it is doing. Exported for tests/party-ui.mjs (PR-4). */
 export function stateWords(m) {
-  if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';
+  if (m.away) return m.seatMs === null ? 'Away' : 'Away (seat held ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min)';
   /* The server says a seat's stamina only once it is low: their hunt ends with it, and the ticked boxes with theirs. */
-  if (Number.isFinite(m.staminaLowMs)) return 'Stamina ' + Math.max(1, Math.ceil(m.staminaLowMs / 60000)) + ' min';
+  if (Number.isFinite(m.staminaLowMs)) return 'Stamina: ' + Math.max(1, Math.ceil(m.staminaLowMs / 60000)) + ' min left';
   if (m.eating) return 'Eating';
   if (m.drinking) return 'Drinking';
   if (m.aggro) return 'Targeted';
@@ -168,12 +168,12 @@ export function liveRoster(cs, r) {
  * Your party tab (src/shell/windows/party-roster.js) both press it. True when `action` was one of the two.
  */
 export function leaveOrDisband(ctx, cs, sc, repaint, action) {
-  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'Left the party');
+  if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
   else if (action === 'disband') {
     /* It asks twice, on every screen (panels 2026-11-01: one press, no question, party gone): the first press arms it, and its words say so. */
     if (!sc.disbandArmed) {
       sc.disbandArmed = true;
-      sc.msg = 'Press Sure? to end the party for everyone in it.';
+      sc.msg = 'Press Sure? to disband the party for everyone.';
       repaint();
       setTimeout(() => { if (sc.disbandArmed) { sc.disbandArmed = false; sc.msg = ''; repaint(); } }, DISBAND_ARMED_MS);
       return true;

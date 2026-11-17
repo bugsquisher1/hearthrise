@@ -49,7 +49,7 @@ import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sect
 import { nameOf } from '../session/item-sections.js?v=0.2.134';
 import { huntName } from '../session/party-sections.js?v=0.2.134';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
-import { whole } from '../render/format.js?v=0.2.134';
+import { whole, listWords } from '../render/format.js?v=0.2.134';
 import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.134';
 import { bestFind, END_WORDS } from '../hunt-view/summary-model.js?v=0.2.134';
 import { itemName } from './widgets/bits.js?v=0.2.134';
@@ -93,7 +93,6 @@ export function awayMinMsOf(cs, was) {
 const awayWords = spanWords;
 /* Plain words where the shared copy says "1:1" (that copy ships in the engine's bundle; this line is the client's). How it comes back is the end card's. */
 const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina, so {name} came home.' });
-const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
 
 /* The coins this hero's hunt has taken (the analyzer's session tally), or null. */
 const coinsOf = (a) => (a && a.hero && Number.isSafeInteger(a.hero.gold) && a.hero.gold >= 0 ? a.hero.gold : null);
@@ -133,19 +132,23 @@ export function awayRecapOf(cs) {
   const parts = [];
   /* two server answers, the stamp's Level and this one's; a stamp from before `lv` was kept says no Levels, only the XP */
   const from = Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : null;
-  if (from !== null && lv.level > from) parts.push('Level ' + from + ' to ' + lv.level);
-  if (lv.xp > was.xp) parts.push(signed(lv.xp - was.xp, 'Level XP'));
+  /* "Earned 3,200 XP and 540 gold from 120 kills." then "Went from Level 4 to 6." */
+  const earned = [];
+  if (lv.xp > was.xp) earned.push(whole(lv.xp - was.xp) + ' XP');
   const a = analyzerOf(cs);
   const gold = coinsOf(a);
-  if (Number.isSafeInteger(was.gold) && gold !== null && gold > was.gold) parts.push(signed(gold - was.gold, 'gold'));
+  if (Number.isSafeInteger(was.gold) && gold !== null && gold > was.gold) earned.push(whole(gold - was.gold) + ' gold');
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
-  if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
+  const slain = kills !== null && kills > 0 ? whole(kills) + (kills === 1 ? ' kill' : ' kills') : '';
+  if (earned.length) parts.push('Earned ' + listWords(earned) + (slain ? ' from ' + slain : '') + '.');
+  else if (slain) parts.push(slain[0].toUpperCase() + slain.slice(1) + '.');
+  if (from !== null && lv.level > from) parts.push('Went from Level ' + from + ' to ' + lv.level + '.');
   const name = nameOf(cs) || 'Hero';
-  const head = 'Away ' + awayWords(gone) + ': ' + name + ' hunted ' + huntName(h.huntId);
+  const head = name + ' hunted ' + huntName(h.huntId) + ' while you were away (' + awayWords(gone) + ').';
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
-  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '');
+  const said = head + (parts.length ? ' ' + parts.join(' ') : '') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '');
   /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does) */
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     at: was.at, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
@@ -169,10 +172,10 @@ function nowWords(cs, h, now) {
   const then = said ? ' ' + said : '';
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
-    ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
+    ? (ago ? ' The hunt ended' + ago + '. ' : ' The hunt has ended. ') + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
       .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
-      + then + (stamina ? ' Stamina now: ' + stamina + '.' : '')
-    : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';
+      + then + (stamina ? ' ' + name + ' has ' + stamina + ' of stamina.' : '')
+    : stamina ? ' Still hunting with ' + stamina + ' of stamina left.' : ' Still hunting.';
 }
 
 /**

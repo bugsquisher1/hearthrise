@@ -33,7 +33,7 @@ function lookText(id) {
   const m = MONSTERS[id];
   if (!m) return null;
   const kind = String(m.className || m.family || 'creature').toLowerCase();
-  let s = monsterName(id) + ', a tier ' + (Number.isInteger(m.tier) ? m.tier : '?') + ' ' + kind + (m.boss ? ' boss' : '') + '.';
+  let s = monsterName(id) + ' is a tier ' + (Number.isInteger(m.tier) ? m.tier : '?') + ' ' + kind + (m.boss ? ' boss' : '') + '.';
   if (m.weaponWeak && WEAPON_WORDS[m.weaponWeak]) s += ' Weak to ' + WEAPON_WORDS[m.weaponWeak].toLowerCase() + '.';
   /* Never a weapon resistance: no engine code reads `weaponResist`, so a claim
      here would be false (tests/chat-social.mjs MN-2 holds this). */
@@ -90,7 +90,7 @@ function partyEntries(ctx, cs) {
       run: async (t) => {
         if (mine(t)) {
           const r = await inviteOwn(account, cs, t.slot);
-          return r.ok ? { done: t.name + ' joined the party' } : { say: refusalText(r) };
+          return r.ok ? { done: t.name + ' joined the party.' } : { say: refusalText(r) };
         }
         const r = t.id && UUID.test(t.id) ? await invitePlayer(account, cs, t.id, Number.isInteger(t.slot) ? t.slot : null) : await cs.inviteByName(t.name);
         return r.ok ? { done: 'Invite sent to ' + t.name + '.' } : { say: refusalText({ ...r, verb: 'party_invite' }) };

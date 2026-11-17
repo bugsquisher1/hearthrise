@@ -46,6 +46,7 @@ import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/arti
 import { recipeInputs } from '../core/artisan.js?v=0.2.134';
 import { pacedXp } from '../core/pacing.js?v=0.2.134';
 import { whole } from '../render/format.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 import { itemName } from './widgets/bits.js?v=0.2.134';
 import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.134';
 import { townWorkRunning } from '../session/town-poll.js?v=0.2.134';
@@ -79,7 +80,7 @@ const eqOf = (cs) => (cs && typeof cs.read === 'function' && cs.read('equipment'
    Storage where the server says so (item-sections.js heldOf). The bag alone (invOf) stays the tools and the room. */
 const supplyOf = (cs) => heldOf(cs);
 /* Where the inputs are, in words: "in bag" until the server says Storage counts too. */
-const fromWords = (cs) => (drawsOnStorage(cs) ? 'in bag or Storage' : 'in bag');
+const fromWords = (cs) => (drawsOnStorage(cs) ? 'in your bag or storage' : 'in your bag');
 
 /** A work row: { kind, id, skill, row } for a gathering node or a bench recipe id, or null. */
 export function workRow(kind, id) {
@@ -223,8 +224,8 @@ function inputShortOf(cs, w) {
   }
   return inHand ? { inHand } : null;
 }
-/* "No Silk Thread in bag or Storage." / "Needs 4 Silk Thread, have 1." */
-const shortWords = (cs, s) => (s.have ? 'Needs ' + whole(s.need) + ' ' + itemName(s.id) + ', have ' + whole(s.have) + '.' : 'No ' + itemName(s.id) + ' ' + fromWords(cs) + '.');
+/* "No Silk Thread in your bag or storage." / "You need 4 Silk Thread and have 1." */
+const shortWords = (cs, s) => (s.have ? 'You need ' + whole(s.need) + ' ' + itemName(s.id) + ' and have ' + whole(s.have) + '.' : 'No ' + itemName(s.id) + ' ' + fromWords(cs) + '.');
 
 /**
  * workBlock's line when its reason is an input the hero is short of, piece by piece so each place it names can be a link
@@ -238,21 +239,21 @@ export function shortInputLine(cs, w, huntRunning) {
 }
 
 /* A full bag, said once for a bench and a gathering row alike. */
-const roomWords = (id) => 'Bag full, no room for ' + itemName(id);
+const roomWords = (id) => 'Your bag is full. There\'s no room for ' + itemName(id) + '.';
 
 /** Why this row cannot start now (plain words), or '' when it can. Every number is the server's. */
 export function workBlock(cs, w, huntRunning) {
-  if (huntRunning) return 'Not while a hunt is running.';
+  if (huntRunning) return 'Not while you\'re hunting.';
   const lv = levelFor(cs, w.skill);
   if (lv === null) return 'Loading ' + skillWord(w.skill) + ' level…';
   if (lv < (w.row.req || 1)) return skillShortWords(w.skill, w.row.req, lv, doWords(w));
   if (w.kind === 'artisan') {
-    if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
+    if (w.row.gated) return 'You need the ' + itemName(w.row.gated) + ' recipe.';
     /* The row that says what is short says where it comes from (panel 2026-11-01: "No Silk Thread", and no word on where). A worn piece is
        not in the bag, and the bench spends the bag's: said last, so nobody takes a weapon off for a job the rest of the row can't do yet. */
     const short = inputShortOf(cs, w);
     if (short && short.id) { const where = whereToGet(short.id); return shortWords(cs, short) + (where ? ' ' + where + '.' : ''); }
-    if (short) return 'Equipped: ' + itemName(short.inHand) + '. Unequip it first.';
+    if (short) return 'You\'re wearing ' + itemName(short.inHand) + '. Take it off first.';
     /* The bag's room (the engine's own test, artisan-sim.js bagFullFor, on the server's bag and stack cap): the
        product needs a new stack and the bag has none. The engine would stop the bench at once and say so. */
     const full = bagFullFor({ inventory: invOf(cs) }, w.row, w.skill, { bagCap: bagCapOf(cs), burns: false });
@@ -281,13 +282,13 @@ export function toolLine(cs, skill) {
   const row = TOOLS.filter((id) => ITEMS[id].toolSkill === skill && whereToGet(id));
   const inBag = pick(skill, invOf(cs));
   const stored = pick(skill, Object.fromEntries((bankOf(cs) || []).map((r) => [r.id, r.qty])));
-  const better = stored && (!inBag || (stored.toolTier || 0) > (inBag.toolTier || 0)) ? itemName(stored.id) + ' in Storage, not counted' : '';
+  const better = stored && (!inBag || (stored.toolTier || 0) > (inBag.toolTier || 0)) ? 'Your ' + itemName(stored.id) + ' is in storage, so it doesn\'t count' : '';
   if (inBag) return ['Tool: ' + itemName(inBag.id), toolEffect(inBag.id), better].filter(Boolean).join('\n');
   if (better) return better;
   if (!row.length) return '';
   const first = row.slice().sort((a, b) => (ITEMS[a].toolTier || 0) - (ITEMS[b].toolTier || 0))[0];
   const sold = ((shopOf(cs) || {}).offers || []).some((o) => o.item === first);
-  return 'Tool: none\n' + itemName(first) + ': ' + (sold ? 'Shop' : whereToGet(first)) + '\n' + toolEffect(first);
+  return 'Tool: none\n' + itemName(first) + ': ' + (sold ? t('item.sold_at_shop') : whereToGet(first)) + '\n' + toolEffect(first);
 }
 
 /**
@@ -303,7 +304,7 @@ export function toolLossWords(cs, id, qty) {
   const left = (inv[id] || 0) - qty;
   if (left > 0) return '';
   const after = pick(it.toolSkill, Object.assign({}, inv, { [id]: 0 }));
-  return skillWord(it.toolSkill) + ' slower without it' + (after ? ', ' + itemName(after.id) + ' takes over' : '');
+  return skillWord(it.toolSkill) + ' will be slower without it.' + (after ? ' Your ' + itemName(after.id) + ' takes over.' : '');
 }
 
 /* ── The one run per character: the armed stop and the numbers it started from (display only). ── */
@@ -383,21 +384,23 @@ export function rolledWords(outs, bag) {
   return plain.concat(said(grade.fine, 'Fine', true), said(grade.hallmarked, 'Hallmarked', grade.hallmarked.size > 1 || [...grade.hallmarked.values()].some((n) => n > 1)));
 }
 
-/* "Done: 7 Cooked Wolf Meat, 3 burnt, +245 Cooking XP." — every number a difference of two server envelopes. */
+/* "Done. You made 7 Cooked Wolf Meat and burnt 3. +245 Cooking XP." — every number a difference of two server envelopes. */
 function doneWords(cs, from, xpBefore, sinceMs) {
   const xp = xpOf(cs, from.skill);
   const x0 = from.xp !== null ? from.xp : xpBefore;
   const bag = invOf(cs);
-  const parts = [];
-  const made = from.out && !from.outs ? (bag[from.out] || 0) - from.made : 0;
+  const made = [];
+  const n = from.out && !from.outs ? (bag[from.out] || 0) - from.made : 0;
   const burnt = from.out ? (bag[BURNT] || 0) - from.burnt : 0;
-  if (made > 0) parts.push(whole(made) + ' ' + itemName(from.out));
-  if (from.outs) parts.push(...rolledWords(from.outs, bag));
-  if (burnt > 0) parts.push(whole(burnt) + ' burnt');
-  if (xp !== null && x0 !== null && xp > x0) parts.push('+' + whole(xp - x0) + ' ' + skillWord(from.skill) + ' XP');
+  if (n > 0) made.push(whole(n) + ' ' + itemName(from.out));
+  if (from.outs) made.push(...rolledWords(from.outs, bag));
+  const said = [];
+  if (made.length) said.push('You made ' + made.join(', ') + (burnt > 0 ? ' and burnt ' + whole(burnt) : '') + '.');
+  else if (burnt > 0) said.push('You burnt ' + whole(burnt) + '.');
+  if (xp !== null && x0 !== null && xp > x0) said.push('+' + whole(xp - x0) + ' ' + skillWord(from.skill) + ' XP.');
   const paid = benchPaidWords(cs, from.id, sinceMs);
-  if (paid) parts.push(paid);
-  return parts.length ? 'Done: ' + parts.join(', ') + '.' : 'Stopped.';
+  if (paid) said.push(paid[0].toUpperCase() + paid.slice(1) + '.');
+  return said.length ? 'Done. ' + said.join(' ') : 'Stopped.';
 }
 
 /** Stop whatever runs: ONE set_activity idle; the engine pays what was done first. */
@@ -454,7 +457,7 @@ export function tickOf(cs) {
     ticker is sure of on the node running (blind playtest 2026-10-31: "2 caught so far · 0 in your bag"). Nothing spends it. */
 export function gatherBagWords(cs, w, running) {
   const out = productOf(w);
-  return whole(shownQty(running ? tickOf(cs) : null, out, invOf(cs)[out] || 0).qty) + ' in bag';
+  return whole(shownQty(running ? tickOf(cs) : null, out, invOf(cs)[out] || 0).qty) + ' in your bag';
 }
 
 /**
@@ -481,10 +484,10 @@ export function runParts(cs, w) {
     if (burnt > 0) parts.push({ key: 'burnt', text: whole(burnt) + ' burnt' });
   } else if (out && w.kind === 'gather') {
     const s = shownQty(tick, out, bag[out] || 0);
-    parts.push({ key: 'bag', text: whole(s.qty) + ' in bag', ahead: s.ahead !== 0 });
+    parts.push({ key: 'bag', text: whole(s.qty) + ' in your bag', ahead: s.ahead !== 0 });
   }
   /* A dish that may burn: the actions done, not yet cooked or burnt (the payout says which). */
-  if (tick && tick.unsure > 0) parts.push({ key: 'fire', text: whole(tick.unsure) + (w.row.roll ? ' more at the bench, grade still to come' : ' more on the fire'), ahead: true });
+  if (tick && tick.unsure > 0) parts.push({ key: 'fire', text: whole(tick.unsure) + (w.row.roll ? ' more at the bench (grade still to come)' : ' more on the fire'), ahead: true });
   if (w.kind === 'artisan') {
     const first = Object.keys(recipeInputs(w.row))[0];
     if (first) {

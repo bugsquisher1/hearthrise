@@ -26,7 +26,7 @@ const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', pa
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
 const SHARE_WORDS = Object.freeze({
   copied: 'Card copied', shared: 'Card shared', saved: 'Card saved to downloads',
-  cancelled: '', card_failed: 'Card failed',
+  cancelled: '', card_failed: 'Couldn\'t make the card',
 });
 
 /** The skeleton (built once). */

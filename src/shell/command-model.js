@@ -11,6 +11,7 @@ import { nameOf, bagOf, shopOf } from '../session/item-sections.js?v=0.2.134';
 import { assignmentOf, vitalsOf, roleIdOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.134';
 import { bagValue } from './bag-model.js?v=0.2.134';
 import { readinessOf } from './readiness.js?v=0.2.134';
+import { listWords } from '../render/format.js?v=0.2.134';
 
 /**
  * @param {object} cs        a CharacterSession
@@ -30,7 +31,7 @@ export function summaryOf(cs, alerts) {
     doing: assignmentOf(cs),
     bagValue: worth ? worth.total : null,
     ready: ready.ready,
-    readyLine: !cs.record ? 'Not read yet' : ready.ready ? 'Ready to hunt' : 'Short: ' + ready.short.join(', '),
+    readyLine: !cs.record ? 'Loading…' : ready.ready ? 'Ready to hunt' : 'Not ready: ' + listWords(ready.short, Infinity),
     party: partyMembershipOf(cs),
     alerts: alerts ? alerts.countFor(cs.slot) : 0,
   };

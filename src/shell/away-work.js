@@ -78,9 +78,9 @@ function didWords(w) {
 function whyStopped(cs, w) {
   if (w.kind !== 'artisan') return '';
   const held = heldOf(cs) || {};
-  if (runsOf(w.row, held) > 0) return leftOf(cs) === null ? ': the run is done' : '';
+  if (runsOf(w.row, held) > 0) return leftOf(cs) === null ? ' because the run was done' : '';
   const out = Object.entries(recipeInputs(w.row)).find(([id, need]) => (held[id] || 0) < need);
-  return out ? ': out of ' + itemName(out[0]) : '';
+  return out ? ' because it ran out of ' + itemName(out[0]) : '';
 }
 
 /**
@@ -92,14 +92,19 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const w = m && workRow(m[1], m[2]);
   const now = serverNowOf(cs);
   if (!w || !Number.isFinite(now)) return null;
-  const parts = [];
+  /* "Got 120 Oak Logs and 300 Woodcutting XP." or "Got 120 Oak Logs. Woodcutting went from 10 to 12." */
+  const got = [], parts = [];
   const made = productOf(w);
   const gained = made && Number.isSafeInteger(was.n) ? qtyOf(cs, made) - was.n : 0;
-  if (gained > 0) parts.push('+' + whole(gained) + ' ' + itemName(made));
+  if (gained > 0) got.push(whole(gained) + ' ' + itemName(made));
   const sk = (skillsOf(cs) || {})[w.skill];
   const skill = (SKILLS_DEF[w.skill] && SKILLS_DEF[w.skill].name) || w.skill;
   const xp = sk && Number.isSafeInteger(was.sx) ? sk.xp - was.sx : 0;
-  if (xp > 0) { const from = Number.isSafeInteger(was.sl) && was.sl >= 1 ? was.sl : null; parts.push(from !== null && sk.level > from ? skill + ' ' + from + ' to ' + sk.level : '+' + whole(xp) + ' ' + skill + ' XP'); }
+  const from = Number.isSafeInteger(was.sl) && was.sl >= 1 ? was.sl : null;
+  const rose = xp > 0 && from !== null && sk.level > from;
+  if (xp > 0 && !rose) got.push(whole(xp) + ' ' + skill + ' XP');
+  if (got.length) parts.push('Got ' + got.join(' and ') + '.');
+  if (rose) parts.push(skill + ' went from ' + from + ' to ' + sk.level + '.');
   if (!parts.length) return null;
   const goes = runningWork(cs);
   const still = !!goes && keyOf(goes) === was.s;
@@ -110,6 +115,6 @@ export function awayWorkLineOf(cs, was, awayWords) {
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     action: made ? 'bag' : 'show', button: made ? 'Open your inventory' : 'See your hero',
-    text: 'Away ' + awayWords(now - was.at) + ': ' + name + ' ' + didWords(w) + ', ' + parts.join(', ') + '.' + tail,
+    text: name + ' ' + didWords(w) + ' while you were away (' + awayWords(now - was.at) + '). ' + parts.join(' ') + tail,
   };
 }

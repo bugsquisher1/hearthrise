@@ -123,8 +123,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
   /* Call out (2027-03-12-boss-call.sql): a slot, a catalogue id and the price shown; the fee, the count and the party are the server's. */
-  hr_boss_call: 'the party leader pays the server\'s fee and the party enters the called room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
-  hr_boss_call_view: 'the call as the server prices it, read while the ground\'s page is open (boss-quote.js readCall)',
+  hr_boss_call: 'a series of called fights (the count bounded by the server, bad_fights): every seat pays the first fight, its own stamina and the server\'s fee, and enters the room, every member or none; a stale price is quote_changed (boss-intents.js callOut)',
+  hr_boss_call_view: 'the call as the server prices it (one fight\'s stamina and fee, the slider\'s top, each count\'s total), read while the ground\'s page is open (boss-quote.js readCall)',
   hr_boss_hall_enter: 'a hero alone, or a party\'s leader with every member, spends one of the hall\'s keys and enters its room; the server names the key (boss-intents.js openHall)',
   hr_hunt_party_warn: 'the leader, before Start, tells the seats under a ground; a catalogue ground only, display notices, no value (party-intents.js warnPartyGround)',
   hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',

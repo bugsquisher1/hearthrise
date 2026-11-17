@@ -475,6 +475,23 @@
 .hw-call-line:empty { display: none; }
 .hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
 .hw-call-press[hidden] { display: none; }
+/* THE SERIES (boss-call-pane.js): the slider that picks how many fights in a row, its count beside it, then what a fight costs as a short list.
+   The track and its gold plate are the windows' one slider (shell.css). */
+.hw-call-pick { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-pick input[type="range"] { flex: 1; min-width: 80px; }
+.hw-call-count { min-width: 76px; text-align: right; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hw-call-facts { margin: 6px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; }
+.hw-call-facts li[hidden] { display: none; }
+.hw-call-f-total { color: var(--ink); font-weight: 700; }
+/* WHAT A WIN CAN DROP (the server's list, each row its odds) and THE DANGER lines, above the press (audit F24) */
+.hw-call-drops-h { margin: 0 0 2px; font-size: var(--t-micro); font-weight: 700; color: var(--ink); }
+.hw-call-drops-h[hidden] { display: none; }
+.hw-call-drops { margin: 0 0 6px; padding: 0; list-style: none; columns: 2; column-gap: 12px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-call-drops:empty, .hw-call-danger:empty { display: none; }
+.hw-call-drop { display: flex; justify-content: space-between; gap: 8px; break-inside: avoid; line-height: 1.5; }
+.hw-call-drop b { font-weight: 400; color: var(--ink); }
+.hw-call-drop span { white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-call-danger { margin: 0 0 6px; padding: 0; list-style: none; }
 /* A scaled hunt (scale-pane.js, audit F26): its facts, the dials in the small ink, Use scaled hours, then the hours slider with Buy beside it. */
 .hw-hd-scale[hidden], .hw-scale-use[hidden], .hw-scale-buy[hidden], .hw-scale-dials[hidden], .hw-scale-note[hidden] { display: none; }
 .hw-scale-facts { margin: 0 0 4px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }

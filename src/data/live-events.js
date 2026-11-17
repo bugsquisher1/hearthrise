@@ -42,9 +42,12 @@ export const LIVE_EVENT_TYPES = Object.freeze({
 
 /* THE WORDS, one set an event. `name`, `start` and `end` are the server's too (the generated catalogue); the rest only the client reads
    (src/shell/live-events-view.js): `soon` and `on` the plate's tooltip, `chip` the plate, `hunts` a Hunts line, `page` the ground's page
-   (`pageUntil`, `pageFree` its second sentence), `callLine` and `callEnding` the Call out section, `warning` and `confirm` its free call.
+   (`pageUntil`, `pageFree` its second sentence), `callLine` and `callEnding` the Call out section (the section's own labels say a fight
+   costs no gold: src/data/boss-calls.js series.costFree).
    TRUTHFUL TO THE SERVER'S RULE (2027-03-22-live-events.sql: a dial moves Level XP a kill or a fee, never coin, drops, rares or skill
-   XP): the XP event says what stays the same, and a called room still pays nothing (src/data/boss-calls.js). */
+   XP): the XP event says what stays the same. OPEN HALLS WAIVES GOLD ONLY (2027-04-24-boss-call-series.sql): a called fight still costs
+   its stamina and still drops on a win, so no client line here says "free" or "no drops". `start` and `end` are the SERVER'S announcer
+   lines (the generated catalogue) and still say "free": they move with that catalogue's next regeneration, before the switch goes on. */
 export const WORDS = Object.freeze({
   bonus_weekend: Object.freeze({
     name: 'Bonus XP weekend',
@@ -59,19 +62,17 @@ export const WORDS = Object.freeze({
   }),
   open_halls: Object.freeze({
     name: 'Open Halls',
-    soon: 'Open Halls from {start}, free boss calls',
-    on: 'Free boss calls until {end}, no XP or drops',
+    soon: 'Open Halls starts {start}. Calling out the Rat King or Chief Coppercap will cost no gold, only stamina.',
+    on: 'Until {end}, calling out the Rat King or Chief Coppercap costs no gold, only stamina. He still drops only when you win.',
     chip: 'Open Halls',
-    start: 'Open Halls: free boss calls until {end}',
-    end: 'Open Halls over, boss calls cost their fee',
-    hunts: 'Call out {boss} for free',
+    start: 'The halls are open. Until {end}, calling out the Rat King or Chief Coppercap is free. Bring a friend or a second hero.',
+    end: 'The halls are closed again. Calling out costs its usual fee.',
+    hunts: 'Call out {boss} for no gold',
     page: 'Open Halls is on.',
-    pageUntil: 'Call out {boss} for free until {end}',
-    pageFree: 'Call out {boss} for free',
+    pageUntil: 'You can call out {boss} for no gold until {end}.',
+    pageFree: 'You can call out {boss} for no gold.',
     callLine: 'Open Halls is on until {end}.',
     callEnding: 'Open Halls ends in {mins} min.',
-    warning: 'Open Halls: free call, no XP or drops, {minutes} min limit',
-    confirm: 'Call him out for free',
   }),
 });
 

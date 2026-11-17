@@ -1,15 +1,17 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/hunt-view/boss-loss.js — THE LOSING LINE (Tyler 2026-11-05: "a losing line naming the phase"; src/data/boss-calls.js).
 //
-// Retrying is the decision, at 3 tries a day and a 10-30k fee, so a lost fight says where it was lost and what this hero's
+// Retrying is the decision (each try costs a fight's stamina and fee, and a death costs a death), so a lost fight says where it was lost and what this hero's
 // bar did about that part, then what answers it. Every number is the server's record of the fight (hunt_session_tally.fight,
 // accrual.js fightOf); nothing here counts. Null for a fight won, one with no record, or one a hero walked out of.
+// THE SERIES' LINE (seriesLine; Tyler 2026-11-14, a slider of fights): how many fights the server counted, how many were won and what it charged.
 // PURE.
 // ════════════════════════════════════════════════════════════════════════
 import { ABILITIES } from '../data/abilities.js?v=0.2.134';
 import { MONSTERS } from '../data/monsters.js?v=0.2.134';
 import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.134';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.134';
+import { whole } from '../render/format.js?v=0.2.134';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
 /* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */
@@ -18,6 +20,24 @@ const AREAS = Object.values(ABILITIES).filter((r) => r.target === 'area' || r.ta
 
 const sum = (fired, ids) => ids.reduce((n, id) => n + (Number.isInteger(fired[id]) ? fired[id] : 0), 0);
 const count = (line, n) => line.replace('{n}', String(n));
+
+/* Milliseconds as minutes, the way a label says them: 2, 2.5, 10. */
+const minutes = (ms) => { const m = ms / 60000; return Number.isInteger(m) ? String(m) : (Math.round(m * 10) / 10).toFixed(1); };
+
+/**
+ * A CALL OUT SERIES' LINE for the summary: the server's own count of fights and wins and what it charged (hr_hunt_view `call`, read by
+ * hunt-sections.js callOf). Nothing here counts or multiplies. Null on any other hunt.
+ * @param {{fights:number, fight:number, won:number, paidGold:number|null, paidStaminaMs:number|null}|null} c
+ * @returns {string|null}
+ */
+export function seriesLine(c) {
+  if (!c || !Number.isInteger(c.fight) || !Number.isInteger(c.won)) return null;
+  const S = BOSS_CALL_WORDS.series;
+  const done = (c.fight === 1 ? S.done.one : S.done.other).replace('{won}', String(c.won)).replace('{fought}', String(c.fight));
+  if (!Number.isFinite(c.paidStaminaMs) || !Number.isFinite(c.paidGold)) return done + '.';
+  const paid = (c.paidGold === 0 ? S.paidFree : S.paid).replace('{stamina}', minutes(c.paidStaminaMs)).replace('{gold}', whole(c.paidGold));
+  return done + '. ' + paid + '.';
+}
 
 /* Which line of his he stood past when it ended. */
 export function phaseAt(monster, bossPm) {

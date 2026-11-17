@@ -47,6 +47,8 @@ export function sanitizeSummary(v) {
     deaths: Array.isArray(v.deaths) ? v.deaths.filter((d) => typeof d === 'string').slice(0, DEATH_LINES_MAX).map((d) => d.slice(0, 280)) : [],
     /* A lost called fight's line (hunt-view/boss-loss.js): display only, from the server's record. */
     loss: typeof v.loss === 'string' ? v.loss.slice(0, 280) : null,
+    /* A Call out series' line (hunt-view/boss-loss.js seriesLine): display only, the server's count of fights and wins and what it charged. */
+    series: typeof v.series === 'string' ? v.series.slice(0, 200) : null,
     train: trainOf(v.train),
   };
 }

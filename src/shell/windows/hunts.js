@@ -389,7 +389,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   const repaint = () => renderHunts.patch(body, ctx);
   /* Scaled hunt: its slider moves on 'input' (renderHunts.events), its presses run on the status line; its refusals read refusal-words.js */
   if (sc.pick && actScale(ctx, sc.pick, action, ev, el, repaint, (send, busy, done) => runIntent(sc, repaint, send, busy, done, cs))) return true;
-  if (ev.type !== 'click') return false;
+  /* Presses; and the Call out slider, which answers as it moves (an `input` a step, a `change` on release: boss-call-pane.js). */
+  if (ev.type !== 'click' && !(action === 'call-fights' && (ev.type === 'input' || ev.type === 'change'))) return false;
   const hunt = el.getAttribute('data-hunt');
   /* To a ground's page and back: the header's Back follows the page AT ONCE (the shell's refresh paints both), not on its next display tick. */
   const repage = () => (typeof ctx.refresh === 'function' ? ctx.refresh('hunts') : repaint());
@@ -443,7 +444,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }))) return true;
+  }), el)) return true;
   /* A keyed hall: its section's presses, the same way; its refusals read its own words, with the key's name. */
   const hall = hallFromGround(sc.pick);
   if (actHall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -496,7 +497,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   return false;
 };
 
-/* The DOM events beyond click and change: the scaled hunt's hours slider follows the thumb (scale-pane.js). */
+/* The DOM events beyond click and change: the scaled hunt's hours slider and the Call out series' slider follow the thumb (scale-pane.js,
+   boss-call-pane.js; shell.js onExtra routes only the types a renderer names). */
 renderHunts.events = Object.freeze(['input']);
 
 /* The header's Back (src/shell/window-head.js): on a phone, a ground's page goes back to the list. */

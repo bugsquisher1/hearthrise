@@ -403,7 +403,11 @@ export const REFUSAL_WORDS = Object.freeze({
   not_party_leader: 'Party leader only',
   /* Call out (2027-03-12-boss-call.sql). The press's own section reads src/data/boss-calls.js, with the boss's name; these are the codes' lines anywhere else. */
   call_leader: 'Party leader only',
-  call_limit: 'Daily limit: 3 calls. Resets at midnight UTC',
+  /* The series (2027-04-24-boss-call-series.sql): the count picked, and a hero who can't pay the first fight. */
+  bad_fights: 'Pick how many fights first, not charged',
+  call_stamina: 'Not enough stamina for a fight, not charged',
+  party_stamina: 'Party member short on stamina for a fight, nobody charged',
+  party_gold: 'Party member short on gold for a fight, nobody charged',
   call_unknown: 'Nobody answers that call, not charged',
   call_only: 'Call him out from the ground\'s page',
   called_pays: 'Called fights pay nothing',

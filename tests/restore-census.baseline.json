@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-15",
+ "generated": "2026-11-16",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -741,7 +741,8 @@
   "hr_faction_ledger",
   "hr_faction_members",
   "hr_faction_standing",
-  "player_training_gear"
+  "player_training_gear",
+  "player_boss_loot_day"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -1507,7 +1508,7 @@
   },
   "hr_hunt_shields": {
    "class": "seeded",
-   "replay": 6,
+   "replay": 8,
    "note": "Generated catalogue (2027-01-13-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data/shields.js isShield): the off-hand items that turn a shield arm into the tank (hr_hunt_weapon_of). Empty = no worn set plays the tank. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_spawns": {
@@ -1538,7 +1539,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 598,
+   "replay": 602,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1548,7 +1549,7 @@
   },
   "hr_hunt_weapons": {
    "class": "seeded",
-   "replay": 76,
+   "replay": 77,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon item -> weapon type, the role a hero plays (hr_hunt_weapon_of). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_world_shape": {
@@ -1573,12 +1574,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 347,
+   "replay": 351,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 631,
+   "replay": 635,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1802,7 +1803,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 46,
+   "replay": 47,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -1832,7 +1833,7 @@
   },
   "hr_tally_tiers": {
    "class": "seeded",
-   "replay": 154,
+   "replay": 155,
    "note": "Generated catalogue (2027-04-08-tally-worn.generated.sql by tools/gen-tally-tasks.mjs from src/data/items.js and gear-tiers.js): the gear tier of every item a hero can wear in one of Tamsin's slots, read by hr_tally_pick to skip a slot the hero already wears at the piece's tier or better. Rebuilt from repo, never restored. Empty, her pick fails open to paying a piece the hero wears (the pre-2027-04-08 behaviour, no extra mint)."
   },
   "hr_tick_cohort": {
@@ -2151,6 +2152,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE (2026-10-25-blessings.sql) — held blessing tiers, bought with gold (paid column), used up by a death. Losing a row loses gold a player spent; restoring it without the ledger is safe (a tier is held once)."
+  },
+  "player_boss_loot_day": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE, A BUDGET LEDGER (2027-04-25-boss-daily.sql) - a row = this hero made its daily prize roll on that keyed-hall boss on that UTC day; the primary key (user_id, slot, boss, day) IS the once-a-day rule. Written only by hr_boss_prize_take inside the hunt settle; 7 days kept a hero and boss (the boss_daily player_ledger row is the permanent record). LOSING TODAY'S ROWS RE-MINTS VALUE: every hero who took Lord Krell's prize today could roll it again. Older rows carry nothing a restore needs. RLS on, no policy, no client grant (read through the boss_halls section); FK cascade to player_state; on the character wipe's list."
   },
   "player_cosmetics": {
    "class": "restore_only",

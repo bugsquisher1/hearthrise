@@ -34,8 +34,18 @@ export const PHYSICAL = 'physical';
 
 /** A HERO'S RESISTANCE to one element, permille less taken (Tyler 2026-11-08: gear and imbuements answer a monster's group
     spell; design "2026-11-08 Area spells", next phase): from its worn gear, summed and capped at maxPm (40%: "No
-    resistance goes above 40%, so nothing is ever immune"). Never below 0: no gear makes a hero weak to an element. */
-export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400 });
+    resistance goes above 40%, so nothing is ever immune"). Never below 0: no gear makes a hero weak to an element.
+    PHYSICAL RESISTANCE (Tyler 2026-11-14: "maybe the legs have a % physical resistance"; the designer's "2026-11-15
+    Special-attribute gear", the attribute catalogue's resist_physical) is the same profile's `physical` key: less taken from a
+    blow that carries no element (a swing, a bite, an arrow, a bleed), under its own lower cap `physicalMax` (10%: most of
+    what a tank takes is physical, so 10% there is worth more than 40% of one element). */
+export const HERO_RESIST_PM = Object.freeze({ min: 0, max: 400, physicalMax: 100 });
+
+/** The keys a hero's resistance profile may carry, in the order it is written: the elements, then PHYSICAL. */
+export const HERO_RESIST_KEYS = Object.freeze([...ELEMENTS, PHYSICAL]);
+
+/** The most a hero's worn gear takes off a blow of `key` (an element, or PHYSICAL), permille. */
+export const heroResistCap = (key) => (key === PHYSICAL ? HERO_RESIST_PM.physicalMax : HERO_RESIST_PM.max);
 
 const SET = new Set(ELEMENTS);
 
@@ -66,6 +76,10 @@ export function validate() {
   const p = ELEMENT_PCT;
   if (!(Number.isInteger(p.min) && Number.isInteger(p.max) && p.min >= -100 && p.min < 0 && p.max > 0 && p.max < 100)) {
     out.push('ELEMENT_PCT: integers, -100 <= min < 0 < max < 100');
+  }
+  const h = HERO_RESIST_PM;
+  if (!(Number.isInteger(h.max) && Number.isInteger(h.physicalMax) && h.min === 0 && h.max > 0 && h.max < 1000 && h.physicalMax > 0 && h.physicalMax <= h.max)) {
+    out.push('HERO_RESIST_PM must be whole permille with 0 = min < physicalMax <= max < 1000, so no resistance is ever an immunity');
   }
   return out;
 }

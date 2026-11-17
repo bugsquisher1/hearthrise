@@ -21,7 +21,9 @@
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.134';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
 import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.134';
-import { lossLine } from './boss-loss.js?v=0.2.134';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.134';
+import { lossLine, seriesLine } from './boss-loss.js?v=0.2.134';
+import { callOf } from '../session/hunt-sections.js?v=0.2.134';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.134';
 import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.134';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
@@ -77,6 +79,9 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
   /* A KEYED HALL'S KILL (src/data/boss-halls.js) names him and no title: END_WORDS.boss_felled is a called room's. */
   const room = reason === 'boss_felled' && hunt ? roomOfHunt(hunt) : null;
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.felled.replace('{Boss}', room.Boss);
+  /* A CALL OUT SERIES that ended short of its count: the hero could not pay another fight (src/data/boss-calls.js series.ended). */
+  const short = BOSS_CALL_WORDS.series.ended;
+  if (forfeit !== true && hunt && Object.hasOwn(short, reason) && (roomOfHunt(hunt) || {}).kind === 'call') return short[reason];
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || t('summary.end_plain');
 }
 
@@ -150,6 +155,8 @@ export function endedSessionOf(cs) {
     tier: typeof s.tier === 'string' ? s.tier : null,
     /* A called fight's record, the server's (hunt_session_tally.fight): the losing line reads it. */
     fight: isObj(s.tally) && isObj(s.tally.fight) ? s.tally.fight : null,
+    /* A Call out series, the server's count and bill (hr_hunt_view `call`), or null. */
+    call: callOf(s.call),
   };
 }
 
@@ -220,6 +227,7 @@ export function buildSummary(s, an, deaths, role, stop) {
     died: s.died, loot, supplies,
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
     loss: lossLine({ hunt: s.hunt, reason: s.reason, fight: s.fight || null, role: role || null }),
+    series: seriesLine(s.call || null),
   });
 }
 

@@ -129,6 +129,14 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    and the market): 2027-04-23-training-gear-items-catalogue is APPLIED history. hr_items.name of the sixteen training rows takes its size,
    "Training Sword (12 h)" (src/data/training.js trainingGearName), in ONE forward file, the same full delete+insert replace, ids, values
    and tradeability unchanged. The emitted self-check pins every landed name to the source by digest. */
+/* BOSS CALL DROPS (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: a called boss's win drops his table plus one call-only piece):
+   2027-04-23-training-gear-items-catalogue is the file before this one and this one carries it whole; the two call-only pieces (hr_items, hr_item_slots: the Kingstooth, a weapon, and the
+   Cauldron Lid, a shield; src/data/boss-calls.js CALL_ITEMS) land in ONE forward file, the same full delete+insert replace. No hero holds one until
+   lane C's call-drops migration lets a felled window carry them. */
+/* ...AND KRELL'S HOLD AS RE-SHIPPED (lane/c-krell-uniques: 2027-04-25-pack-krells_hold-2, Krell's two unique pieces). The applied training-gear whole files fold the
+   pack as its first file shipped it; the re-ship applies BEFORE this file (tests/schema-apply-order.json), so this file folds it as re-shipped
+   (tools/pack/whole.mjs). The 2027-04-26-krell-reship pair lane/d-audit-f22 staged for that alone was collapsed into this one when the lanes met
+   (one generator vouches for one file). */
 const OUT = join(ROOT, 'supabase', 'migrations', '2027-04-30-training-gear-names-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational

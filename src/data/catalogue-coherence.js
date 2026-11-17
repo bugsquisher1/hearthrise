@@ -43,7 +43,8 @@ import { MONSTERS } from './monsters.js?v=0.2.134';
 import { NAMED_FUELS } from './hearth.js?v=0.2.134';
 import { TEMPER_OFFERS } from './temper.js?v=0.2.134';
 import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.134';
-import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS } from './hunt-grounds.js?v=0.2.134';
+import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GROUNDS } from './hunt-grounds.js?v=0.2.134';
+import { BOSS_CALLS } from './boss-calls.js?v=0.2.134';
 import { HUNT_INDEX } from './hunts.js?v=0.2.134';
 import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.134';
 import {
@@ -270,6 +271,8 @@ export function reachableSources(opts = {}) {
     for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) met.add(s.monster);
     for (const s of (HUNT_INDEX[g.hunt] || {}).spawns || []) met.add(s.monster);
   }
+  /* A CALLED ROOM is a door from its open ground's Call out (src/data/boss-calls.js): its boss's win drops his table and his call-only piece (Tyler 2026-11-14). */
+  for (const c of Object.values(BOSS_CALLS)) if (grounds[c.from] && CALLED_GROUNDS[c.hunt]) met.add(c.monster);
   for (const id of met) for (const d of (MONSTERS[id] && MONSTERS[id].drops) || []) put(d.id, 'drops from ' + id);
   for (const o of SHOP_OFFERS) if (o && SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g && g.kind === 'item') put(g.id, 'shop ' + o.id);
   for (const id of Object.keys(START_INVENTORY)) put(id, 'start kit');

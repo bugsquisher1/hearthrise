@@ -32,5 +32,5 @@
     "name": "S1 mb_log_bridge",
     "derived": "mb_log_bridge, 0 gens"
   },
-  "notes": "The Wickstead footbridge: mb_log_bridge's ends and lashings, its plain log body repeated 5 times between them (157 px over the 128 px brook), by tools/world-art/seam-grounds.mjs; pixels unscaled, nothing drawn."
+  "notes": "The Wickstead footbridge: mb_log_bridge's ends and lashings, its plain log body repeated 5 times between them (157 px over a 128 px brook), by tools/world-art/seam-grounds.mjs; pixels unscaled, nothing drawn."
 }

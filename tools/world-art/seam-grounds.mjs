@@ -49,27 +49,27 @@ export function gridFromPixels(img, rows, { solid = {}, samples = {}, cells = {}
   }).join(''));
 }
 
-/* ── the footbridge over the Wickstead brook: the Meadowbrook raft's own logs, lengthened by its plain middle ──
-   The raft (mb_log_bridge, 72 px of logs) is shorter than the 128 px brook. Its left end and first lashing, then its plain log
-   body repeated, then its right lashing and end: one raft long enough to rest a few pixels on each bank, centred on the brook. */
-function footbridge() {
+/* ── a raft as long as its brook is wide: the Meadowbrook raft's own logs, lengthened by its plain middle ──
+   mb_log_bridge carries 72 px of logs, shorter than any brook it stood on. Its left end and first lashing, its plain log body
+   repeated, its right lashing and end: one raft that rests about 18 px on each bank. The frame is the logs' own box and its contact
+   row their foot, so placed on the walked row the logs lie over that row's feet, not a row below the trail. */
+function raft({ set, id, cells, footprint, what }) {
   const src = decodePNG(readFileSync(join(ROOT, ART_DIR, 'forest', 'mb_log_bridge.png')));
   let x0 = src.width, x1 = -1, y0 = src.height, y1 = -1;
   for (let y = 0; y < src.height; y++) for (let x = 0; x < src.width; x++) if (src.data[(y * src.width + x) * 4 + 3] >= 128) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-  const w = x1 - x0 + 1, h = y1 - y0 + 1, end = 26, mid = w - 2 * end, want = 4 * T + 2 * 18;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, end = 26, mid = w - 2 * end, want = cells * T + 2 * 18;
   const reps = Math.max(1, Math.round((want - 2 * end) / mid)), out = createImage(2 * end + reps * mid, h);
   blit(out, src, x0, y0, end, h, 0, 0);
   for (let r = 0; r < reps; r++) blit(out, src, x0 + end, y0, mid, h, end + r * mid, 0);
   blit(out, src, x1 - end + 1, y0, end, h, end + reps * mid, 0);
-  const dir = join(ROOT, ART_DIR, 'stead');
-  writeFileSync(join(dir, 'wk_footbridge.png'), encodePNG(out));
-  /* its contact row is its middle log's foot: the logs stand over the walked row's feet, not a row below it */
-  const sc = { id: 'wk_footbridge', class: 'bridge', style: 's1', material: 'wood', source: 'wk_footbridge.png', frame: [out.width, h], anchor_px: [out.width >> 1, h - 1],
-    footprint: [2, 1], anims: [{ name: 'idle', fps: 0, loop: false, dirs: { s: 1 } }],
+  const dir = join(ROOT, ART_DIR, set);
+  writeFileSync(join(dir, id + '.png'), encodePNG(out));
+  const sc = { id, class: 'bridge', style: 's1', material: 'wood', source: id + '.png', frame: [out.width, h], anchor_px: [out.width >> 1, h - 1],
+    footprint, anims: [{ name: 'idle', fps: 0, loop: false, dirs: { s: 1 } }],
     pixellab: Object.assign({}, JSON.parse(readFileSync(join(ROOT, ART_DIR, 'forest', 'mb_log_bridge.json'), 'utf8')).pixellab, { derived: 'mb_log_bridge, 0 gens' }),
-    notes: 'The Wickstead footbridge: mb_log_bridge\'s ends and lashings, its plain log body repeated ' + reps + ' times between them (' + out.width + ' px over the 128 px brook), by tools/world-art/seam-grounds.mjs; pixels unscaled, nothing drawn.' };
-  writeFileSync(join(dir, 'wk_footbridge.json'), JSON.stringify(sc, null, 2) + '\n');
-  console.log('  ✓ stead/wk_footbridge (bridge, ' + out.width + 'x' + h + ', ' + reps + ' log lengths)');
+    notes: what + ': mb_log_bridge\'s ends and lashings, its plain log body repeated ' + reps + ' times between them (' + out.width + ' px over a ' + cells * T + ' px brook), by tools/world-art/seam-grounds.mjs; pixels unscaled, nothing drawn.' };
+  writeFileSync(join(dir, id + '.json'), JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ ' + set + '/' + id + ' (bridge, ' + out.width + 'x' + h + ', ' + reps + ' log lengths)');
 }
 
 /* grass, thicket, path: the meadow family's three open floors (their varieties' cells) */
@@ -83,7 +83,13 @@ const MEADOW_MATS = { W: { z: 0, own: true }, D: { z: 1 }, G: { z: 2 }, T: { z: 
 export const GROUNDS = Object.freeze({
   /* the brook ran dead straight down its banks and the footbridge was planks painted flat on the water */
   wickstead_ground: { set: 'stead', map: 'wickstead', seed: 41, solid: { '~': 'W', '=': 'W', '#': 'T' }, samples: meadow([0, 0], [5, 3], [15, 8]),
-    repaint: { '=': 'W' }, mats: MEADOW_MATS, pairs: BANKS(2), before: footbridge },
+    repaint: { '=': 'W' }, mats: MEADOW_MATS, pairs: BANKS(2),
+    before: () => raft({ set: 'stead', id: 'wk_footbridge', cells: 4, footprint: [2, 1], what: 'The Wickstead footbridge' }) },
+  /* the brook's banks stepped down the grid, and its two rafts (144 px of logs on 96 px of water) sat a row below the
+     trail. Its brook cells carry their own grassy banks, so the water is read from the pixels as the floors are */
+  meadowbrook_ground: { set: 'forest', map: 'meadowbrook_thicket', seed: 43, solid: { '#': 'T' },
+    samples: Object.assign(meadow([0, 0], [6, 2], [16, 5]), { W: [30, 2] }), mats: MEADOW_MATS, pairs: BANKS(2),
+    before: () => raft({ set: 'forest', id: 'mb_log_bridge_long', cells: 3, footprint: [1, 1], what: 'The Meadowbrook footbridge' }) },
 });
 
 function run(id) {

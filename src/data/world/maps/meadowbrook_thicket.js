@@ -73,9 +73,10 @@ export default Object.freeze({
     { id: 'oak', x: 56, y: 6 }, { id: 'oak', x: 37, y: 17 }, { id: 'oak', x: 56, y: 17 }, { id: 'oak', x: 39, y: 23 },
     { id: 'oak', x: 54, y: 23 }, { id: 'mb_hollow_oak', x: 55, y: 36 }, { id: 'mb_hollow_oak', x: 39, y: 30 }, { id: 'pine', x: 4, y: 31 },
     { id: 'pine', x: 4, y: 36 }, { id: 'oak', x: 19, y: 36 },
-    /* the crossings: the log bridge (the one 1-tile choke: two rafts lashed end to end, a row below the trail because a
-       unit's feet land on its tile's south row) and the ford stones, one on every open tile of the brook */
-    { id: 'mb_log_bridge', x: 29, y: 6 }, { id: 'mb_log_bridge', x: 31, y: 6 },
+    /* the crossings: the log bridge over the one 1-tile choke (y5), one raft as long as the brook is wide, centred on it and on
+       the trail (its contact row is the logs' foot, so it lies over the walked row's feet; lane/a-ground-seams 2026-11-16: two
+       short rafts a row below the trail touched neither bank), and the ford stones, one on every open tile of the brook */
+    { id: 'mb_log_bridge_long', x: 30, y: 5 },
     { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 31 }, { id: 'mb_stepping_stones', x: 31, y: 31 }, { id: 'mb_stepping_stones', x: 29, y: 32 },
     { id: 'mb_stepping_stones', x: 30, y: 32 }, { id: 'mb_stepping_stones', x: 31, y: 32 }, { id: 'mb_stepping_stones', x: 29, y: 33 }, { id: 'mb_stepping_stones', x: 30, y: 33 },
     { id: 'mb_stepping_stones', x: 31, y: 33 },

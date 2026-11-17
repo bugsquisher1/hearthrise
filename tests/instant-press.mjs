@@ -250,7 +250,7 @@ async function checks(overrides) {
             msg: document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hh-intent-msg').textContent }), bless);
           if (!refused) fails.push('IP-3 a refused purchase left no refused mark on its button');
           if (after.sending) fails.push('IP-3 a refused purchase stayed pending');
-          if (!/Prices or your bag changed/.test(after.msg)) fails.push('IP-3 the window does not say why: ' + JSON.stringify(after.msg));
+          if (!/^Prices changed, check the total and try again$/.test(after.msg)) fails.push('IP-3 the window does not say why: ' + JSON.stringify(after.msg));
         }
         if (await page.evaluate(() => !!document.querySelector('[data-live-overlay]'))) fails.push('IP-5 the overlay shows without ?debug=live');
         if (errors.length) fails.push('IP-1 console errors: ' + errors.join(' | ').slice(0, 300));
@@ -258,8 +258,8 @@ async function checks(overrides) {
       await ctx.close();
     }
     // IP-6: each size, a gather Start and a hunt Enter; the two refusals, each with its own words.
-    const HERE = 'Four heroes already playing on this connection (any account). Stop one first.';
-    const OWN = 'Four heroes already playing. Stop one to start this one.';
+    const HERE = 'Four heroes already playing on this connection';
+    const OWN = 'Four heroes already playing, stop one first';
     for (const [tag, viewport] of [['1440x900', { width: 1440, height: 900 }], ['922x423', { width: 922, height: 423 }], ['667x375', { width: 667, height: 375 }]]) {
       const { ctx, page, errors, s } = await inTown(viewport);
       s.edgeNo = { set_activity: 'too_many_playing_here' };

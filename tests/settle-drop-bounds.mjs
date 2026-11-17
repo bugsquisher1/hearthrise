@@ -105,6 +105,9 @@ async function check(root, sql) {
   return out;
 }
 
+/* The committed whole hunt-sessions file, as the generator names it (a regen moves it forward: a literal name here went stale on 2027-05-02). */
+const WHOLE = 'supabase/migrations/' + (await imp(ROOT, 'tools/gen-hunt-sessions.mjs')).OUT_NAME;
+
 const MUTANTS = [
   /* The bear stands in Vine Hollow as built since lane/c-brook-bear (the designer's ruling 3, 2026-11-10), so no open ground has a creature only a bigger
      pull brings: the bug needs one, and the mutant puts the bear back where it stood on 2026-10-30 (the fill rows) beside the generator's slip. */
@@ -121,7 +124,7 @@ const MUTANTS = [
   /* a folded pack's spawn row lost by the whole file that empties the table after it (the pack's own earlier file still names it, and
      must not hide the loss: the tables are read as the settle reads them, last writer first) */
   { name: 'the whole file loses the folded Pyre Field\'s Charred Pikeman spawn row', want: /^reach: pyre_field: the engine spawns charred_pikeman/, committed: true,
-    edits: [['supabase/migrations/2027-04-23-training-gear-hunt-sessions-catalogue.generated.sql', "  ('pyre_field', 'charred_pikeman', 23),\n", '']] },
+    edits: [[WHOLE, "  ('pyre_field', 'charred_pikeman', 23),\n", '']] },
   { name: 'the gold bound read off the low roll', want: /^value-bound: /,
     edits: [['tools/gen-hunt-sessions.mjs', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[1]) || 0));', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[0]) || 0));']] },
 ];
@@ -131,7 +134,7 @@ const TREES = ['src/session', 'supabase/functions/hr-accrue', 'tools/gen-hunt-se
   ...(await (async () => { const { packIds } = await imp(ROOT, 'tools/pack/files.mjs'), { packSqlOf } = await imp(ROOT, 'tools/pack/whole.mjs');
     return packIds(ROOT).map((id) => packSqlOf(id, ROOT)).filter(Boolean).map((f) => 'supabase/migrations/' + f); })()),
   /* the committed whole file a `committed` mutant reads (GEN.render() of a tree with open packs folds them in, which would hide a pack file's edit) */
-  'supabase/migrations/' + (await imp(ROOT, 'tools/gen-hunt-sessions.mjs')).OUT_NAME];
+  WHOLE];
 
 if (process.argv.includes('--mutate')) {
   const clean = await check(ROOT, readFileSync((await imp(ROOT, 'tools/gen-hunt-sessions.mjs')).OUT, 'utf8'));

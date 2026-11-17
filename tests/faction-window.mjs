@@ -156,7 +156,7 @@ async function checks(overrides, shots) {
         if (await promptOpen(page)) fails.push('FW-2 after Not now a reload asked again');
         if (!(await factionTab(page))) fails.push('FW-2 the Faction tab never drew');
         const t1 = await tabText(page);
-        if (!/^Side: none \|/.test(t1) || !/Choose a side/.test(t1) || !/waiting for your answer/.test(t1)) fails.push('FW-2 the neutral tab reads ' + t1.slice(0, 200));
+        if (!/^Side: none \|/.test(t1) || !/Choose a side/.test(t1) || !/Holly and Quartermaster Venn are waiting, pick any time/.test(t1)) fails.push('FW-2 the neutral tab reads ' + t1.slice(0, 200));
         await page.click('[data-hs-act="fx-choose"]');
         if (!(await wait(page, () => document.querySelector('[data-hs-win="faction-join"] [data-side="first_flame"]')))) fails.push('FW-2 Choose a side opened no prompt');
         else {
@@ -194,7 +194,7 @@ async function checks(overrides, shots) {
       p = await pieces(page);
       if (!p.flamebearer || p.flamebearer.press !== 'on' || p.flamebearer_shield.press !== 'off' || p.emberkeeper.press !== 'off') fails.push('FW-3 with 30 h the claims read ' + JSON.stringify(p));
       await page.click('[data-hs-act="fx-claim"][data-piece="flamebearer"]');
-      const said = await wait(page, () => /needs 25 h of First Flame standing\. You have 24 h\./.test(document.querySelector('.hw-cs-faction .hh-intent-msg')?.textContent || ''));
+      const said = await wait(page, () => /needs 25 h First Flame standing\. Standing: 24 h/.test(document.querySelector('.hw-cs-faction .hh-intent-msg')?.textContent || ''));
       const sent = verbs(s);
       const keys = sent.length ? Object.keys(sent[0].body).sort().join(',') : '';
       if (sent.length !== 1 || sent[0].name !== 'hr_faction_outfit_claim' || keys !== 'p_idem,p_piece,p_slot' || sent[0].body.p_piece !== 'flamebearer') fails.push('FW-3 Claim sent ' + JSON.stringify(sent));

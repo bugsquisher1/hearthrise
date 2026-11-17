@@ -187,11 +187,10 @@ async function coverArm(db, { H, M }, forged) {
    Each hook is planted in the body that RUNS, the chain's last author of its function (staleAnchors refuses any
    other): hr_hunt_loot_rules is restated last by 2027-01-23-loot-dispatch.sql (the pickup filter only, md5-pinned to
    its pre-image, so a plant in an earlier file trips that pin); hr_hunt_apply_member's mutants are planted in its LIVE body
-   (memberPlant + plantLive, tests/alpha-server.mjs: the body MEMBER_LAST holds whole, whichever file that is); hr_hunt_member_read
-   by 2027-04-23-training-gear.sql (whole: 2026-11-07-store-by-slot.sql's text plus train_boost_ms, md5-pinned to that pre-image, so a
-   plant in the older file trips the pin). */
+   (memberPlant + plantLive, tests/alpha-server.mjs: the body MEMBER_LAST holds whole, whichever file that is); hr_hunt_member_read's
+   too: 2027-04-23-training-gear.sql restates it whole and 2027-04-24-boss-call-series.sql splices it after (its CALL-SERIES line), so
+   its last author is a patch and no file holds the body that runs (staleAnchors names the splice). */
 const LOOT = '2027-01-23-loot-dispatch.sql';
-const READ = '2027-04-23-training-gear.sql';
 const MUTANTS = [
   { arm: 'H-ALL', why: 'the settle skips the loot filter',
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
@@ -203,7 +202,7 @@ const MUTANTS = [
     find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule = 'ignore'" },
   { arm: 'H-ALL', file: LOOT, why: 'a sell plan acts at pickup again',
     find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule in ('ignore', 'sell') and not r.locked" },
-  { arm: 'H-COVER', file: READ, why: 'the read offers a locked item to sell-to-cover',
+  { arm: 'H-COVER', fn: 'hr_hunt_member_read', why: 'the read offers a locked item to sell-to-cover',
     find: '                where not public.hr_item_locked(p_s.user_id, p_s.slot, c.item_id)), \'{}\'::jsonb))', repl: "                where true), '{}'::jsonb))" },
   { arm: 'H-COVER-FORGED', why: 'the member settle takes a cover line naming a locked item',
     ...memberPlant("      if public.hr_item_locked(p_user, p_slot, v_k) then perform public.hr_reject('item_locked', jsonb_build_object('item', v_k)); end if;", '') },

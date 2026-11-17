@@ -222,7 +222,7 @@ async function checks(overrides) {
     await page.waitForTimeout(300);
     const late = await page.evaluate(() => ({ msg: document.querySelector('.hb-plaque .hh-intent-msg').textContent, name: document.querySelector('.hb-set .hs-name-t').textContent,
       off: document.querySelector('.hb-set .hs-name').disabled }));
-    if (!/has not answered/.test(late.msg) || late.name !== 'Tank bar' || late.off || errors.length > thrown)
+    if (!/^No answer from the server/.test(late.msg) || late.name !== 'Tank bar' || late.off || errors.length > thrown)
       fails.push('PN-10 a rename the server never answers left ' + JSON.stringify(late) + (errors.length > thrown ? ' and threw: ' + errors[thrown] : ''));
     s.hang = false;
     // after a reload, everything reads from the server's record
@@ -325,7 +325,7 @@ async function checks(overrides) {
       s.env.hunt_presets = setups(upTo(R.free));
       await at();
       p = await prep();
-      if (!p.off || !p.why.endsWith('You need 1 gp more.')) fails.push('PN-11 a short purse reads ' + JSON.stringify(p));
+      if (!p.off || !p.why.endsWith(' Need 1 gp more')) fails.push('PN-11 a short purse reads ' + JSON.stringify(p));
       /* Use equipped asks once (nothing sent), then ONE hr_hunt_preset_save over the picked setup (the one in use, 0) */
       const overBefore = sent(s, 'hr_hunt_preset_save').length;
       await page.click('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]');
@@ -336,7 +336,7 @@ async function checks(overrides) {
       const over = sent(s, 'hr_hunt_preset_save').slice(overBefore);
       if (over.length !== 1 || over[0].body.p_preset !== 0) fails.push('PN-11 Use equipped sent ' + JSON.stringify(over.map((c) => c.body)));
       p = await prep();
-      if (!/^Replaced/.test(p.msg) || !p.why.endsWith('You need 1 gp more.')) fails.push('PN-11 an answer hid why Save is off: ' + JSON.stringify(p));
+      if (!/^Replaced/.test(p.msg) || !p.why.endsWith(' Need 1 gp more')) fails.push('PN-11 an answer hid why Save is off: ' + JSON.stringify(p));
       /* A SETUP ALREADY SAVED past the count: every control stays, and the first free number is still under the count */
       s.env.state = Object.assign({}, s.env.state, { gold: 10000000, gold_v: 3 });
       s.env.hunt_presets = setups([0, max - 1]);

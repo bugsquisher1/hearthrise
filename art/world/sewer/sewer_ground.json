@@ -4,7 +4,7 @@
   "kind": "fill",
   "painted": true,
   "style": "s1",
-  "material": "terrain",
+  "material": "native",
   "source": "sewer_ground.png",
   "lower": "painted",
   "upper": "painted",
@@ -9638,5 +9638,5 @@
       ]
     ]
   },
-  "notes": "The Millrace Sewer's ground: PixelLab map d9c3544c (the cut-wall sewer: tileset b342fc89 floor and brick walls, e0c9621c sewage channel), painted on the map row's walkable grid (the x18-23 link to the channel three tiles high, edited 2026-10-18). Stitched from four full-scale view_map renders (x -1/30, y -1/20)."
+  "notes": "The Millrace Sewer's ground: PixelLab map d9c3544c (the cut-wall sewer: tileset b342fc89 floor and brick walls, e0c9621c sewage channel), painted on the map row's walkable grid (the x18-23 link to the channel three tiles high, edited 2026-10-18). Stitched from four full-scale view_map renders (x -1/30, y -1/20). Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/sewer_ground.png): 19784 px of 1 borders redrawn from the fills' own pixels (kerb)."
 }

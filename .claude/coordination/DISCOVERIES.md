@@ -4008,3 +4008,23 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   channel's L has no kerb. (6) Warrens: the chasm is a hard rectangle. (7) Muster: the barrow mounds step on the grid. (8) Hask's Ford:
   the ford's water edges are straight. Mill Cellar: nothing. 1-3 are PixelLab view_map grounds with no paint grid: they need a grid
   classified from their pixels and the pre-seam paint kept in art/world-src. No new PixelLab pixels needed so far. Owner: art-director.
+  UPDATE same day: shipped Wickstead (wk_footbridge), Meadowbrook (mb_log_bridge_long), Mosslight, Pyre Field, Sewer (kerb),
+  Warrens (all on lane/a-ground-seams, 0 gens). OPEN: Hask's Ford and Muster Barrows. Their pixel-read grids misclassify the
+  3-step-shaded bank cells (thicket squares over the ford: reverted). The paint grids their sidecars name
+  (art/briefs/hasks-ford-grid-2026-10-28.txt, muster-barrows-grid-2026-10-29.txt) are NOT in the tree: they exist only in WIP
+  commit a9277639e (b-muster-barrows-art). Next: restore those two files, feed them to seam-grounds as `grid`, render and read.
+  UPDATE round 3: SHIPPED Hask's Ford and the Muster Barrows from the restored briefs (`grid`), 0 gens. All eight are now done; what
+  is left, ranked: (1) EVERY ground's alder/thicket edge is still the painted one and steps on the grid (both March grounds, Wickstead,
+  Meadowbrook, Mosslight): a ragged cut through the canopy loses the crowns and the soil line that tell the wall from the grass at
+  night (rendered, rejected), so the next step is a `canopy` style that lays whole crowns along a wandering line. (2) Mosslight /
+  Meadowbrook / Wickstead lost a little canopy overhang where a grass cell touching both water and thicket was redrawn (the crowns
+  end on the cell line there): rerun them with `over: 'T'` (seam-grounds.mjs), render, read. (3) The Muster's barrow turf and its
+  mud track render the same dark brown at shade 3, so a mound reads as track (pre-existing; the turf needs its own value). Owner:
+  art-director (1, 2), asset-director/art-director (3). P3 each.
+  UPDATE round 4 (Coordinator's gate before new players): all three CLOSED. (1) seams.mjs style `canopy`: the thicket wall on all
+  five thicket grounds is laid in whole crowns on a jittered hex lattice along a wavy line, outlined, lit up-left, with a soil line
+  (March) or a cast shadow (meadow); read at night on the March grounds. (2) closed by (1): the overhang is drawn, not restored.
+  (3) the Muster's barrow turf is lifted two ramp steps (`lift`). Side effects to know: the whole-ground reseams overflow their sets,
+  so the Meadowbrook, Mosslight and Muster grounds now live in forest-floor, glade-floor and a new muster-floor (one ATLAS_SETS row);
+  the world-assets [wet] selftest had pointed at tiles the round-2 banks had moved (red since round 2), re-pinned; the Sewer's
+  crossing is a kerbed walkway since round 2 (no water under the grate). Still painted: the meadow grounds' dirt paths (G/D steps).

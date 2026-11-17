@@ -108,6 +108,7 @@ export function groundParts(run) {
       '--legend', `A=${ash.slice(0, 8)},S=${metas[0].base_tile_ids.upper.slice(0, 8)},C=${metas[1].base_tile_ids.upper.slice(0, 8)},W=${metas[2].base_tile_ids.upper.slice(0, 8)},G=${metas[3].base_tile_ids.upper.slice(0, 8)},M=${metas[5].base_tile_ids.upper.slice(0, 8)}`,
       /* pairs 3 and 4 were rolled unchained: their ash is the family's ash born again (23-note.json "the same ash family") */
       '--same', `${metas[1].base_tile_ids.lower}=${ash},${metas[2].base_tile_ids.lower}=${ash}`, '--material', 'native']);
+    seam('pyre', 'pyre_field_ground', rows, PYRE_SEAMS);
     finish('pyre', 'pyre_field_ground', rows, PYRE_FINISH, objectCells(PYRE_MAP, [[25, 16, 10, 5]]));
     pyreRows();
     /* the Great Pyre (b9): the kept one-bed pyre, its embers the round-2 lay (still a b a) of the cut laid back at its crop */
@@ -170,10 +171,13 @@ export function groundParts(run) {
    decals   the floors each kept decal may lie on, and the jitter cell (`every` tiles: one decal per every^2 tiles at most). */
 const SLAKE_FINISH = Object.freeze({
   /* the silt's chevron rows come from its one green wave (#1f3322): bare mud patches drop it, damp patches darken the mud */
-  patches: [['S', 192, 0.5, 11, { '#1f3322': '#2f2723' }], ['S', 160, 0.62, 12, { '#2f2723': '#231d1f', '#553a26': '#3d2a1d' }]],
+  /* 'SW': silt the seams drew into a channel cell is patched like the rest */
+  patches: [['SW', 192, 0.5, 11, { '#1f3322': '#2f2723' }], ['SW', 160, 0.62, 12, { '#2f2723': '#231d1f', '#553a26': '#3d2a1d' }]],
 });
 const PYRE_FINISH = Object.freeze({
-  patches: [['A', 72, 0.58, 21, { '#8a867d': '#6a6865', '#6a6865': '#4f4e52' }]],
+  /* 'ASWC': ash the seams drew into a scorch, timber or pit cell is patched like the rest (by cell it read as a light square);
+     the map moves only the ash's own two colours */
+  patches: [['ASWC', 72, 0.58, 21, { '#8a867d': '#6a6865', '#6a6865': '#4f4e52' }]],
   every: 4.4, seed: 22,
   /* the Banded Company's gear where it fell, and the burn's own marks (the bones and skulls stand as the map's objects) */
   /* (the Company's round shield was tried: on the ash it read as the map's cart wheel, a dozen times over) */
@@ -220,6 +224,17 @@ const SLAKE_SEAMS = Object.freeze({
   seed: 23,
   mats: { W: { z: 0, own: true }, S: { z: 1 }, R: { z: 2 } },
   pairs: [{ a: 'W', b: 'S', style: 'bank', bias: { S: 0.3 }, sweep: 7, warp: 5 }, { a: 'S', b: 'R', style: 'ragged' }],
+});
+/* The Pyre Field: the cinder pits and the charred timber were hard squares on the ash, the scorch marks rounded boxes. The pits
+   and the timber are held to their own cells (they block a step); the ash and the scorched earth run into them and each other. */
+const PYRE_SEAMS = Object.freeze({
+  seed: 37,
+  mats: { A: { z: 1 }, S: { z: 2 }, C: { z: 0, own: true }, W: { z: 0, own: true }, G: { z: 1 } },
+  pairs: [
+    { a: 'A', b: 'S', style: 'ragged' }, { a: 'A', b: 'C', style: 'ragged', bias: { A: 0.3 }, sweep: 4, warp: 5 },
+    { a: 'A', b: 'W', style: 'ragged', bias: { A: 0.3 }, sweep: 6, warp: 5 }, { a: 'G', b: 'W', style: 'ragged', bias: { G: 0.3 } },
+    /* the burnt grass and the March's grass at the map's rim keep the tileset's own border: the rim has too little grass for a fill */
+  ],
 });
 function seam(set, id, rows, cfg) {
   const file = join(ROOT, ART_DIR, set, id + '.png');

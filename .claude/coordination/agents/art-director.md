@@ -3487,3 +3487,30 @@ a walk clip that reads as a townsperson is the Quarry Brute: real townsfolk (a w
 bell) need new bodies; (2) moving kit art cannot be an overlay when its outline changes (the static copy shows through): draw a
 TWIN in its place (sway) or cut the piece from a still twin and lay it over (stir); frame 0 is the art, held by the guard; (3) a
 piece read from the BUILT atlas makes --check go stale when the kit is rebuilt, which is the point.
+Round 2 (same lane): tools/world-art/seam-grounds.mjs reseams the PixelLab view_map grounds from their paint kept in
+art/world-src/seams (locked to the palette first, ground marked native), the grid read back from the pixels (cell mean colour vs
+each floor variety's `at` cell; `only` keeps water off walked fords). Bridges derived from mb_log_bridge's own logs, lengthened
+by its plain middle (wk_footbridge, mb_log_bridge_long: class bridge, the frame the logs' box so they lie over the walked row's
+feet). Lessons: (1) where three materials meet, use the pair nearest the pixel, not the top two by layer (a W/G bank got the
+T/G default and stayed straight); (2) a wear pass keyed by CELL leaves a light square where the seams moved a floor into a
+neighbour's cell: key the patches to every cell the floor can reach; (3) a one-tile path has no deep cell: take fills from the
+variety sample cells, or from four pure corners; (4) brook cells may carry painted grass banks: read water from the pixels;
+(5) a pixel read fails on a shaded paint (the Ford): use the real paint grid, never ship a ground whose render I haven't read.
+Round 3 (same lane): Hask's Ford and the Muster Barrows reseamed from their restored paint briefs (seam-grounds `grid`; the brief's
+ROWS are checked against the map's). Lessons: (1) the warp noise spreads about 0.4 of its nominal reach, so a border meant to wander
+takes about twice the defaults (WILD 9/8/4); (2) a ragged cut through a canopy loses the crowns and the soil line, and at night the
+thicket and the grass then read the same: keep the painted edge (`over`) and lay its crowns and soil line back over redrawn cells,
+6-8 px clear of any other floor's cell (a mound's dark rim shares the canopy's darkest colour); (3) a reed bed cut the same way read
+as a box: its painted scallops stay; (4) a mound redrawn flat reads as a stain: `outline` + an earth `skirt` keep the bank face;
+(5) a floor variety's `at` cell must stay untouched (compose.js keys every variant on its tile): the driver now stops if one is
+redrawn, and the Ford's mud `at` was an edge tile with a grass rim, moved to a plain cell; (6) an `own` water that may not leave its
+cells clips at the cell line wherever the warp pushes outward: name only the walked cells (`own: 'SVGM'`).
+Round 4 (same lane, the Coordinator's gate): the thicket edge in whole crowns (seams.mjs `canopy`). Lessons: (1) a crown cannot be
+found in a painted canopy fill (the dark-gap segmentation finds shading, not crowns): lay crowns on a jittered hex lattice in the
+plane and decide each by the warped share at its centre, filling the disc with the fill itself so the body joins the painted
+interior; spacing 18 reads as crowns, 14 as a cloud outline; (2) a crowned edge needs its outline and a foot (soil on the March,
+shadow on the meadow: a light soil line there read as a sticker outline); (3) a thicket cell px the crowns leave and no listed floor
+reaches stays painted, or a crown gap opens onto a neighbour the pair never named; (4) every redrawn border cell is unique, so
+whole-ground reseams overflow 2048: move the ground to its -floor set (one ATLAS_SETS row) and its varieties' `of` with it, and scan
+every set for varieties; (5) a pixel read marks a dark tilled plot as thicket (it got crowned): override with `cells` and keep it;
+(6) run world-assets --selftest after any reseam: moved banks silently stale its [wet] plants.

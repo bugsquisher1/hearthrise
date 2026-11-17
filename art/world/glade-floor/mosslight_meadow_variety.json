@@ -3,7 +3,7 @@
   "class": "terrain",
   "kind": "variety",
   "style": "s1",
-  "of": "glade/mosslight_ground",
+  "of": "glade-floor/mosslight_ground",
   "at": [
     23,
     2

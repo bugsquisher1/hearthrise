@@ -90,7 +90,7 @@ const RING_LIFT = Object.freeze({
   'march/banded_pikeman': 2, 'march/fordsunk': 3, 'march/wight': 4, 'march/bannerman': 3, 'muster/barrow_knight': 2, 'muster/captain_hask': 3,
   'slake/greened_pikeman': 1, 'slake/bargeman': 1, 'holdguard/farmhand': 1, 'holdguard/hasks_lookout': 1, 'holdkeep/pyre_priest': 1,
 });
-const RING_SHADE = Object.freeze({ 'ford/hasks_ford_ground': 3, 'muster/muster_barrows_ground': 3 });
+const RING_SHADE = Object.freeze({ 'ford/hasks_ford_ground': 3, 'muster-floor/muster_barrows_ground': 3 });
 /** Set a sidecar's readability key (`lift` or `shade`) just after its `material`, as the build reads it. */
 function ringKey(path, key, n) {
   const f = join(ROOT, ART_DIR, path + '.json'), sc = JSON.parse(readFileSync(f, 'utf8')), out = {};

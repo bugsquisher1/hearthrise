@@ -58,8 +58,10 @@
 // own (never another ground's), and its painted floor comes from its kit's tile family. --selftest plants each defect.
 //
 // NOBODY WADES (Tyler 2026-11-14, tools/world-art/crossings.mjs, rule [wet]): on a painted ground, no open tile's foot (the
-// unit's contact row) is painted water with no bridge or stepping stone under it. --selftest puts back each crossing as it
-// shipped before that day (the Glade's one-span sluice boards and a ford stone, the Sewer's grate, the Thicket's raft, the Drop).
+// unit's contact row) is painted water with no bridge or stepping stone under it. --selftest takes a crossing up and names the
+// tile that then wades (the Glade's sluice boards and a ford stone, Wickstead's footbridge, the Thicket's raft, the Drop). The
+// borders were redrawn on 2026-11-16 (tools/world-art/seam-grounds.mjs): the banks moved, so each case names the tile that wades
+// now, and the Sewer's crossing is a kerbed walkway with no water under it (no case).
 //
 // A REGION-MASK SET (src/data/world/atlas-sets.js MASK_SETS, the dyes' masks) is never drawn: it is held to
 // validateMask (only exact region keys, binary alpha, <sprite>_mask names) instead of the scale budget and
@@ -204,9 +206,10 @@ const REQUIRED = {
     ['cw_iron_vein_spent', 'clutter'], ['cw_coal_seam_spent', 'clutter'], ['cw_gold_seam_spent', 'clutter']]
     .map(([id, cls]) => [id, { set: id.startsWith('mb_') ? 'forest' : 'warren', class: cls, anims: ['idle'], dirs: PROP }])),
 };
-// every reachable map's ground: one painted style-1 ground each (tools/world-art/port-pixellab.mjs)
+// every reachable map's ground: one painted style-1 ground each (tools/world-art/port-pixellab.mjs); a ground whose borders
+// were redrawn whole (tools/world-art/seam-grounds.mjs) lives in its set's companion floor set when the set is full
 const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage',
-  meadowbrook_ground: 'forest', warrens_ground: 'warren', mosslight_ground: 'glade', wickstead_ground: 'stead' };
+  meadowbrook_ground: 'forest-floor', warrens_ground: 'warren', mosslight_ground: 'glade-floor', wickstead_ground: 'stead' };
 
 // THE LIVE-GROUND CONTRACT: what a kill on a walked ground asks the renderer for. The sprite id is the
 // monster id (src/hunt-view/scene.js spriteOf, src/world/choreo.js corpses); the clips are the ones the
@@ -634,11 +637,11 @@ function selftest(atlases) {
     if (hit) console.log(`  ✓ ${name}: caught by [wet] at ${at}`);
     else { escaped++; console.log(`  ✗ ${name}: NOT caught by [wet] at ${at}`); }
   };
-  wetCase("the Glade's sluice boards on one 75 px span (Tyler 2026-11-14)", 'mosslight_glade 44,22', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
+  wetCase("the Glade's sluice boards on one 75 px span (Tyler 2026-11-14)", 'mosslight_glade 44,21', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
   wetCase("a stone taken out of the Glade's ford", 'mosslight_glade 9,21', reworked('mosslight_glade', (o) => o.filter((x) => !(x.id === 'mb_stepping_stones' && x.x === 9 && x.y === 21))));
-  wetCase("the Sewer's grate half a tile above the feet", 'millrace_sewer 33,24', reworked('millrace_sewer', (o) => o.map((x) => (x.id === 'grate_bridge' ? { ...x, y: 24 } : x))));
-  wetCase("the Thicket's log bridge as one raft on the trail row", 'meadowbrook_thicket 30,5', reworked('meadowbrook_thicket', (o) => o.filter((x) => !(x.id === 'mb_log_bridge' && x.x === 31)).map((x) => (x.id === 'mb_log_bridge' ? { ...x, x: 30, y: 5 } : x))));
-  wetCase("the Warrens' Drop on one span", 'coppercap_warrens 51,22', reworked('coppercap_warrens', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
+  wetCase("Wickstead's footbridge taken up", 'wickstead 29,8', reworked('wickstead', (o) => o.filter((x) => x.id !== 'wk_footbridge')));
+  wetCase("the Thicket's raft taken up", 'meadowbrook_thicket 30,5', reworked('meadowbrook_thicket', (o) => o.filter((x) => !(x.id === 'mb_log_bridge_long' && x.x === 30 && x.y === 5))));
+  wetCase("the Warrens' Drop on one span", 'coppercap_warrens 51,21', reworked('coppercap_warrens', (o) => o.filter((x) => !(x.id === 'cw_plank_bridge' && x.y === 23))));
   const WET_MUTANTS = 5;
 
   // PIXELLAB 2026-11-11: the real pro sets read clean; a grade on palette-locked art and each bad tileset is named.

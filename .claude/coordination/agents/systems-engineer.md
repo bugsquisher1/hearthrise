@@ -4943,3 +4943,8 @@ Merged in order: lane/c-tower-all b1e4ab021, lane/a-next-steps ded1b94a6, lane/b
 5. *Mode, not ground, is the death rule.* `first_death` and the Bless step key on the ended hunt's session mode (`deathLossPm === 0`), so the Catacombs' descent inherits it.
 6. *Kept, against the brief:* "Died on floor 23" stays "Spat out: Floor 23" (the Tower's locked words; TW-6 refuses "died"); every other end is an "Ended: <the hunt card's label>" row and a climb gets no hunt advice line.
 7. *Left:* the Key Warden's flavour line (chests.js CHEST_ITEM_DESC) repeats its new Used-for line; rewriting it is designer text in an edge file, so it waits for the next chests.js change.
+
+## 2026-11-17 · lane/fix135-krell-advice (boss-hall-advice red on set/v0.2.135, run 44144849725)
+1. *A card measured on one lane's numbers depends on every lane that moves them.* F22 fitted Krell's card on 0.4-of-plate cloth; d-mage-110 cut it and re-measured lone ways, not the hall. Bisect by file overlay on the red merge (4f520af3b): gear-tiers.js alone flips it. The card now asks for four (36 pairs measured); the designer question is in CONFLICTS.
+2. *pack.js text is edge payload.* A card line moves hr-accrue's hash (67a50043 -> ad046e19), so a display-only fix still owes a deploy.
+3. *Keyed hall moved to client-guards-4* (client-guards-3 cancelled at 30 min in full mutant-gate mode); the four-line guard is ~2.8 min plain locally, its --mutate 23 s plus the gate's clean control.

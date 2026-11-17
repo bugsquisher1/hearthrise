@@ -63,6 +63,7 @@ import { assignmentOf } from './party-sections.js?v=0.2.135';
 import { benchJobOver } from './bench-sections.js?v=0.2.135';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.135';
 import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.135';
+import { lastClimbOf } from './tower-sections.js?v=0.2.135';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */
@@ -415,6 +416,15 @@ export class AccountSession {
     cs.subscribe((s) => this._noteStorage(s));
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
+    /* THE BURNING TOWER'S BOARD (2027-04-30-tower-board.sql) is every hero's: a climb that ends moves the others' rank and rivals, which
+       each hero's own envelope states. A NEW last climb (never the first read's) re-reads every OTHER hero once, coalesced as a nudge. */
+    let climb;
+    cs.subscribe((s) => {
+      if (!s.record) return;
+      const c = lastClimbOf(s);
+      if (climb !== undefined && c !== null && c !== climb) for (const o of this._chars.keys()) if (o !== slot) this._nudged(o);
+      climb = c;
+    });
     /* THE SERVER NO LONGER HOLDS A HERO THIS TAB WAS PLAYING: it closes here, and nothing it had pending reaches whatever hero stands in that slot
        next (CharacterSession.close drops it). A first read's empty answer has no record yet, and _open itself answers that one. */
     cs.subscribe((s, why) => { if (why === 'empty' && s.record && this._chars.get(slot) === s) { this.close(slot); this._emit('hero-gone', slot); } });

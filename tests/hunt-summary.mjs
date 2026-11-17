@@ -427,6 +427,8 @@ async function runTests(M) {
     eq(steps({ blessings: dear, purse: 100 }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'short of the next Blessing, no Bless step');
     eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Cost: 2,300 gp', 'the purse covers the next');
     eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
+    /* after a hunt whose death costs nothing (the Tower: QA gate 2026-11-17, the climb's card upsold Bless I/II/III) there is no Bless step */
+    eq(steps({ free: true }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'no Bless step after a free-death mode');
     /* nothing to do at all: no steps, Hunt again is the press */
     const none = steps({ plan: { ops: {}, picks: [], choices: [] }, rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
     eq([none.steps, none.primary], [[], 'again'], 'nothing to do lists nothing');
@@ -591,6 +593,7 @@ const MUTANTS = [
   /* one sale's worth of lines: sellPlan stops at SELL_LINES_MAX (audit F18 moved the cap there, where every bulk sale reads it) */
   { test: 'T1', file: 'src/shell/bag-model.js', from: "    if (lines.length >= SELL_LINES_MAX) { more++; continue; }\n", to: '' },
   { test: 'T1', file: TOWN, from: "const can = missing.length > 0 && (purse === null || purse >= missing[0].price);", to: "const can = missing.length > 0;" },
+  { test: 'T1', file: TOWN, from: 'const offer = can && !(o && o.free);', to: 'const offer = can;' },
   { test: 'T1', file: TOWN, from: "if (step.count > 0) out.push(Object.assign(step, { done: false }));", to: "if (step.count >= 0) out.push(Object.assign(step, { done: false }));" },
   { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy');", to: "const first = out[0];" },
   { test: 'T5', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy');", to: "const first = out.find((s) => !s.done);" },

@@ -20,7 +20,9 @@
 // resumes it and it never runs out (a bench resumes only for the count it had left). A limit the player set (`hours`) is filled by a
 // longer hunt; a bag that ran dry by packing more; a purse that ran dry by keeping gold or packing your own, and when the bag
 // held food or drink of a kind the bar eats that no slot named, by putting THAT on the bar (the store sold what the bag had).
-// A BOSS ROOM (a call or a hall: boss-halls.js roomOfHunt) is one fight, not a night: no next line, only what the hero did.
+// A BOSS ROOM (a call or a hall: boss-halls.js roomOfHunt) is one fight, not a night: no next line, only what the hero did. Nor A CLIMB
+// (the Burning Tower, hunts.js `tower`): its card says how it ended in its own label rows (tower-words.js climbEnd), never a hunt's advice
+// (QA gate 2026-11-17: "Start a gathering job" topped a Tower card after a fall and a party member leaving).
 // STAMINA (the designer's coherence pass 2026-11-15, walk row 6): the hours it takes to come back are the first day's dead moment, so
 // its line names everything that uses none: the yard (from its Level, src/data/training.js), a bench, gathering, and gathering's resume.
 // A TRAINING SESSION (src/data/training.js) uses no stamina and has its own cap (walk row 7: its 12-hour end read "Set a longer hunt
@@ -97,6 +99,7 @@ export function afterHuntOf(st, h, nowMs, spare) {
   if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;
   const idleMs = Math.max(0, nowMs - home);
   if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };
+  if (ground && ground.tower === true) return { kind: 'waited', idleMs, next: null };
   if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };
   if (h.endReason === 'gold_out' && typeof spare === 'string') return { kind: 'waited', idleMs, next: 'away.next_bar', item: spare };
   return { kind: 'waited', idleMs, next: NEXT[h.endReason] || 'away.next_gather' };

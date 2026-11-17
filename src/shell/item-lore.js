@@ -31,7 +31,7 @@ import { SHOP_OFFERS } from '../data/shops.js?v=0.2.135';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.135';
 import { itemName } from './widgets/bits.js?v=0.2.135';
-import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends } from './bag-model.js?v=0.2.135';
+import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromKit, temperSpends, isSuperRare } from './bag-model.js?v=0.2.135';
 import { FLAMES } from '../data/hearth.js?v=0.2.135';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.135';
 import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.135';
@@ -39,6 +39,7 @@ import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.135';
 import { t, hasText } from '../render/player-text.js?v=0.2.135';
 import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.135';
 import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.135';
+import { OUTFIT_ROWS } from '../data/outfits.js?v=0.2.135';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 /* A rarity's word (item.rarity_<rarity>, else Common) and a type's (item.type_<type>, else `or`); own-property reads only. */
@@ -216,7 +217,7 @@ export function baneWords(id) {
 
 /** A sale's rare finds by name, for its confirmation ("Sell 7 stacks?" hid 3 Alpha Fang worth 1,350 of 2,054 gp, newcomer panel 2026-11-01), or ''. `lines`: { item, qty }. */
 export function rareSaleWords(lines) {
-  const rare = (lines || []).filter((l) => isRareItem(l.item)).map((l) => t('item.qty_item', { qty: whole(l.qty), item: itemName(l.item) }));
+  const rare = (lines || []).filter((l) => isRareItem(l.item) || isSuperRare(l.item)).map((l) => t('item.qty_item', { qty: whole(l.qty), item: itemName(l.item) }));
   const once = (lines || []).filter((l) => madeFromKit(l.item)).map((l) => t('item.kit_once', { kit: itemName(madeFromKit(l.item)), item: itemName(l.item) }));
   return [rare.length ? t('item.sells_rares', { items: listWords(rare) }) : '', ...once].filter(Boolean).join(' ');
 }
@@ -262,6 +263,8 @@ export function usesOf(id) {
   if (it.seed) out.push(t('item.plant_it'));
   /* A training item (src/data/training.js): opened in the Training window into the hero's hours for its skill, never "sell it" */
   if (it.type === 'training' && it.training) out.push(t('item.train_open', { hours: it.training.hours, skill: skillName(it.training.skill) }));
+  /* An outfit's bundle (chests.js CHEST_OUTFITS): used once, the hero owns the outfit for good, never "sell it" (QA gate 2026-11-17) */
+  if (it.type === 'outfit_bundle' && typeof it.outfit === 'string' && Object.hasOwn(OUTFIT_ROWS, it.outfit)) out.push(t('item.outfit_unlocks', { outfit: OUTFIT_ROWS[it.outfit].label }));
   if (houseSpends(id)) out.push(t('item.house_asks'));
   if (temperSpends(id)) out.push(t('item.temper_asks'));
   /* The last word only where it is true: the shop bids on what has a book value (catalogue.js vendorPriceOf). */

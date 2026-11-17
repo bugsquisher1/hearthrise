@@ -25,7 +25,10 @@ export function climbOf(cs, h) {
   const shown = cs.timeline && typeof cs.timeline.serverNowAt === 'function' ? cs.timeline.serverNowAt(cs.now()) : null;
   const floor = live ? live.floor : tw.run ? tw.run.floor : null;
   if (floor === null) return null;
-  const leftMs = live && Number.isFinite(live.endsAtMs) && Number.isFinite(shown) ? Math.max(0, live.endsAtMs - shown) : null;
+  /* never more than the floor's own limit (QA gate 2026-11-17: "3:03 left" on a three-minute floor, the prediction's next room standing a
+     stair ahead of the clock it is read against): the server's rule for a floor, or a landing's */
+  const limit = isLanding(tw, floor) ? tw.rules.landingLimitMs : tw.rules.floorLimitMs;
+  const leftMs = live && Number.isFinite(live.endsAtMs) && Number.isFinite(shown) ? Math.min(limit, Math.max(0, live.endsAtMs - shown)) : null;
   return { floor, leftMs, keeper: isLanding(tw, floor), key: isLanding(tw, floor) ? keyForLanding(tw, floor) : null };
 }
 

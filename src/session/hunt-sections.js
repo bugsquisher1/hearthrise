@@ -21,7 +21,8 @@
 import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.135';
 import { VITALS } from '../data/core-model.js?v=0.2.135';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.135';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.135';
+import { HUNT_GROUNDS, groundOfHunt } from '../data/hunt-grounds.js?v=0.2.135';
+import { sessionModeOf } from '../data/session-modes.js?v=0.2.135';
 import { TIER_IDS } from '../data/hunt-tiers.js?v=0.2.135';
 import { RUNE_ON_EMPTY } from '../data/runes.js?v=0.2.135';
 
@@ -68,6 +69,14 @@ export function leaveAtOf(h) {
 export function callOf(c) {
   if (!isObj(c) || int(c.fights) === null || int(c.fight) === null || int(c.won) === null || c.fights < 1 || c.fight < 1 || c.won < 0) return null;
   return { fights: c.fights, fight: c.fight, won: c.won, paidGold: int(c.paid_gold), paidStaminaMs: int(c.paid_stamina_ms) };
+}
+
+/** The session mode row hunt `huntId` plays in: its ground's `mode` (hunt-grounds.js), else the default full hunt (session-modes.js).
+    Display reads it to word what a hunt cost (a Tower death costs nothing, so no Blessing card speaks of it); the server freezes its own
+    copy on the instance and no intent carries it. Pure. */
+export function sessionModeOfHunt(huntId) {
+  const g = groundOfHunt(huntId);
+  return sessionModeOf(g && g.mode);
 }
 
 /** `hunt`: the session (and why it ended), the viewed hero's vitals and the instance's units (who is who). */

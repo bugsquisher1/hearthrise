@@ -383,6 +383,9 @@ async function checks(overrides, shots) {
         return { ok: true };
       };
       await openTower(page, 'chest');
+      /* the window still sliding in moves the scene (a --shots run measured the chest 16 px off the reveal): read it once it stands still */
+      await page.waitForFunction(() => { const e = document.querySelector('[data-hs-win="tower"] .tc-chest'); if (!e) return false;
+        const x = Math.round(e.getBoundingClientRect().left); const still = window.__tcX === x; window.__tcX = x; return still; }, null, { polling: 120, timeout: 3000 }).catch(() => {});
       let c = await chestView(page);
       /* THE SCENE: the chest on the ledge BESIDE the fire, never over it (Tyler 2026-11-16), both inside the scene */
       const sc0 = c.scene;

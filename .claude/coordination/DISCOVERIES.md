@@ -3987,3 +3987,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   3-step-shaded bank cells (thicket squares over the ford: reverted). The paint grids their sidecars name
   (art/briefs/hasks-ford-grid-2026-10-28.txt, muster-barrows-grid-2026-10-29.txt) are NOT in the tree: they exist only in WIP
   commit a9277639e (b-muster-barrows-art). Next: restore those two files, feed them to seam-grounds as `grid`, render and read.
+  UPDATE round 3: SHIPPED Hask's Ford and the Muster Barrows from the restored briefs (`grid`), 0 gens. All eight are now done; what
+  is left, ranked: (1) EVERY ground's alder/thicket edge is still the painted one and steps on the grid (both March grounds, Wickstead,
+  Meadowbrook, Mosslight): a ragged cut through the canopy loses the crowns and the soil line that tell the wall from the grass at
+  night (rendered, rejected), so the next step is a `canopy` style that lays whole crowns along a wandering line. (2) Mosslight /
+  Meadowbrook / Wickstead lost a little canopy overhang where a grass cell touching both water and thicket was redrawn (the crowns
+  end on the cell line there): rerun them with `over: 'T'` (seam-grounds.mjs), render, read. (3) The Muster's barrow turf and its
+  mud track render the same dark brown at shade 3, so a mound reads as track (pre-existing; the turf needs its own value). Owner:
+  art-director (1, 2), asset-director/art-director (3). P3 each.

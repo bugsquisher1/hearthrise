@@ -264,5 +264,8 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
   For a painted patch (Hearth Square): `reseam(img, { rows, mats, pairs, keep })`, called the way `barrow-grounds.mjs seam()` calls it.
   Styles: kerb where stone meets stone, scatter for stone on a soft floor (stones whole, loose ones fading), ragged for grass/earth,
   bank for water (`mats.W.own` keeps water off walked tiles: world-assets [wet]). No PixelLab pixels, the palette stays closed.
+  Round 3 added: `own: 'SVGM'` (water kept off only those cells: it may lap into a reed bed), and on ragged pairs `outline: 1|2` +
+  `skirt: 'M'` (a raised mass keeps a dark rim and an earth foot, as the tileset's bank face had). seam-grounds.mjs: `grid` (a brief's
+  PAINT rows) and `over` (materials whose painted edge is kept, the canopy's crowns and soil line laid back over redrawn cells).
 - **Coordinator:** a painted ground with every border redrawn packs more unique cells. The Slake's set hit 4096 wide, so its ground
   moved to `slake-floor` (its varieties already lived there). Expect the same for any whole ground reseamed later.

@@ -3405,3 +3405,17 @@ is the median colour changes almost nothing (earth, ash): use damp or an explici
 dark floor read as litter: details only where they belong (town grass/dirt, wickstead); (3) moss on the sewer cobble is the
 lattice: a map of the moss to its mortar breaks it without cutting a stone. Open: wang TRANSITION tiles are still one variant
 (a regular pebble row along every town grass edge), water is not varied, the cottage ground (49 repeats) was left.
+## 2026-11-16 lane/a-living-town (Tyler: "it doesn't feel 'alive' what so ever"; motion and life, the layout is lane/a-havora-art's)
+Watched (local-world + a harness on the real renderer at six spots): the water is a frozen 32 px tile, all 17 lit chimneys and the
+Great Hearth's flue are cold, lamps, awnings, banners, washing and nets are stills, the goat and chickens are props, the four NPCs
+breathe but never move, the square's benches and stalls are empty. Sample: map.life (src/world/core/ambient.js) laid from sprite
+EMITTERS (a chimney's point in the sprite's own pixels, so smoke follows a home wherever it stands) and opted-in SURFACES (water:
+glints only where a cell and its 8 neighbours are water, never under a placed box, never touching). Art by rule
+(tools/world-art/town-life.mjs, 0 gens): cauliflower puffs, each lobe sphere-lit from the upper left in bone/steel, thinning
+through an ordered dither in the puff's own coordinates. Lessons: (1) the World repaints the whole frame when anything turns, so
+every ambient clip runs on the Hearth fire's 8 fps beat (LIFE_BEAT_FPS): loops that turn together are one paint (5 -> 12 paints/s,
+the rate the Hearth already cost); (2) a water decal defeats the kept ground layer (+2-3 ms a paint): glints go first in the
+standing list instead (nothing stands on open water), smoke last in the raised list, both before the light so the vignette falls
+on them; only sparks (fire) go after it; (3) one sphere per puff with a hard diagonal split reads as a stack of rocks, a union
+rim-lit as one silhouette reads flat: per-lobe sphere shading is the one that reads as smoke; (4) sparse 1-row glints vanish in
+the tile's own wave marks: they need the bone peak and 2 rows. Open: a flowing water surface, townsfolk, animals, lamps, cloth.

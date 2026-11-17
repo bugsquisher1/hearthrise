@@ -169,7 +169,8 @@ async function townStands() {
   return { quiet, onHavora };
 }
 const TOWN_VIEWS = await townStands();
-const sheetOf = (url) => (/\/assets\/world\/atlas-([a-z0-9_]+)\.png/.exec(url) || [])[1] || null;
+/* a set name may carry a hyphen (havora-floor: the first such set the town draws) */
+const sheetOf = (url) => (/\/assets\/world\/atlas-([a-z0-9_-]+)\.png/.exec(url) || [])[1] || null;
 
 async function stubServer(page, o) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
@@ -432,7 +433,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const d = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
         const loads = window.__sheetLoads = {};
         Object.defineProperty(HTMLImageElement.prototype, 'src', { configurable: true, get() { return d.get.call(this); },
-          set(v) { const m = /\/assets\/world\/atlas-([a-z0-9_]+)\.png/.exec(String(v)); if (m) loads[m[1]] = (loads[m[1]] || 0) + 1; d.set.call(this, v); } });
+          set(v) { const m = /\/assets\/world\/atlas-([a-z0-9_-]+)\.png/.exec(String(v)); if (m) loads[m[1]] = (loads[m[1]] || 0) + 1; d.set.call(this, v); } });
       });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       if (!(await wait(page, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-1 no sign-in screen');

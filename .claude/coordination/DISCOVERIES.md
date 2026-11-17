@@ -3995,3 +3995,10 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   end on the cell line there): rerun them with `over: 'T'` (seam-grounds.mjs), render, read. (3) The Muster's barrow turf and its
   mud track render the same dark brown at shade 3, so a mound reads as track (pre-existing; the turf needs its own value). Owner:
   art-director (1, 2), asset-director/art-director (3). P3 each.
+  UPDATE round 4 (Coordinator's gate before new players): all three CLOSED. (1) seams.mjs style `canopy`: the thicket wall on all
+  five thicket grounds is laid in whole crowns on a jittered hex lattice along a wavy line, outlined, lit up-left, with a soil line
+  (March) or a cast shadow (meadow); read at night on the March grounds. (2) closed by (1): the overhang is drawn, not restored.
+  (3) the Muster's barrow turf is lifted two ramp steps (`lift`). Side effects to know: the whole-ground reseams overflow their sets,
+  so the Meadowbrook, Mosslight and Muster grounds now live in forest-floor, glade-floor and a new muster-floor (one ATLAS_SETS row);
+  the world-assets [wet] selftest had pointed at tiles the round-2 banks had moved (red since round 2), re-pinned; the Sewer's
+  crossing is a kerbed walkway since round 2 (no water under the grate). Still painted: the meadow grounds' dirt paths (G/D steps).

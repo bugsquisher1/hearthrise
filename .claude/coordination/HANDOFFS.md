@@ -267,5 +267,8 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
   Round 3 added: `own: 'SVGM'` (water kept off only those cells: it may lap into a reed bed), and on ragged pairs `outline: 1|2` +
   `skirt: 'M'` (a raised mass keeps a dark rim and an earth foot, as the tileset's bank face had). seam-grounds.mjs: `grid` (a brief's
   PAINT rows) and `over` (materials whose painted edge is kept, the canopy's crowns and soil line laid back over redrawn cells).
+  Round 4: style `canopy` (`mats.T.canopy` { spacing, jitter }; pair `soil: 'M'` or a shadow) for any thicket or hedge edge, and
+  `mats.ch.lift`. Coordinator: new atlas set `muster-floor` (atlas-sets.js), and the Meadowbrook/Mosslight grounds moved into their
+  existing -floor sets; tests/world-assets.mjs REQUIRED_TERRAIN follows them.
 - **Coordinator:** a painted ground with every border redrawn packs more unique cells. The Slake's set hit 4096 wide, so its ground
   moved to `slake-floor` (its varieties already lived there). Expect the same for any whole ground reseamed later.

@@ -3437,3 +3437,12 @@ as a box: its painted scallops stay; (4) a mound redrawn flat reads as a stain: 
 (5) a floor variety's `at` cell must stay untouched (compose.js keys every variant on its tile): the driver now stops if one is
 redrawn, and the Ford's mud `at` was an edge tile with a grass rim, moved to a plain cell; (6) an `own` water that may not leave its
 cells clips at the cell line wherever the warp pushes outward: name only the walked cells (`own: 'SVGM'`).
+Round 4 (same lane, the Coordinator's gate): the thicket edge in whole crowns (seams.mjs `canopy`). Lessons: (1) a crown cannot be
+found in a painted canopy fill (the dark-gap segmentation finds shading, not crowns): lay crowns on a jittered hex lattice in the
+plane and decide each by the warped share at its centre, filling the disc with the fill itself so the body joins the painted
+interior; spacing 18 reads as crowns, 14 as a cloud outline; (2) a crowned edge needs its outline and a foot (soil on the March,
+shadow on the meadow: a light soil line there read as a sticker outline); (3) a thicket cell px the crowns leave and no listed floor
+reaches stays painted, or a crown gap opens onto a neighbour the pair never named; (4) every redrawn border cell is unique, so
+whole-ground reseams overflow 2048: move the ground to its -floor set (one ATLAS_SETS row) and its varieties' `of` with it, and scan
+every set for varieties; (5) a pixel read marks a dark tilled plot as thicket (it got crowned): override with `cells` and keep it;
+(6) run world-assets --selftest after any reseam: moved banks silently stale its [wet] plants.

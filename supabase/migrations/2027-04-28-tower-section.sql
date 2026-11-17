@@ -105,11 +105,14 @@ begin
     end if;
     v_last_j := jsonb_build_object('session', v_last.session_id, 'start', v_last.start_floor, 'top', v_last.top_floor, 'floors', v_last.floors,
       'end_reason', v_last.end_reason, 'ended_at', v_last.ended_at, 'best_before', v_before,
+      -- the run's own ledger rows, never older than the run (player_ledger is pruned at retain_days: tests/ledger-rollup.mjs (5))
       'keys', coalesce((select jsonb_agg(jsonb_build_object('landing', (l.meta->>'landing')::int, 'key', l.meta->>'key') order by (l.meta->>'landing')::int)
                           from public.player_ledger l
-                         where l.session_id = v_last.session_id and l.user_id = p_user and l.slot = p_slot and l.intent = 'tower_key'), '[]'::jsonb),
+                         where l.session_id = v_last.session_id and l.user_id = p_user and l.slot = p_slot and l.intent = 'tower_key'
+                           and l.at >= v_last.started_at), '[]'::jsonb),
       'withheld', (select count(*) from public.player_ledger l
-                    where l.session_id = v_last.session_id and l.user_id = p_user and l.slot = p_slot and l.intent = 'tower_key_withheld')::int);
+                    where l.session_id = v_last.session_id and l.user_id = p_user and l.slot = p_slot and l.intent = 'tower_key_withheld'
+                      and l.at >= v_last.started_at)::int);
   end if;
   -- TOWER-SECTION-A: the hero's party, every OTHER seat with its own name (as the party shows it), its best floor and its worn outfit
   v_party := public.hr_hunt_party_of(p_user, p_slot);

@@ -193,15 +193,18 @@ function contract(R, cs, body, tl) {
     'factionOf yields ' + JSON.stringify(fx) + ' from ' + JSON.stringify(body.factions).slice(0, 240));
   // the Burning Tower (2027-04-28-tower-section.sql, the switch on inside this test): a hero who never climbed, checkpoint 0 (floor 1) its
   // one start, the Tower mode's own pay (no coin, no death loss), the rules the window says, and the chest's menu with every key row and
-  // key family the server lists and the instant its week resets; alone, no party seats; no field (no Tower board yet: no rank, no rivals)
+  // key family the server lists and the instant its week resets; every OTHER seat of the hero's party with the name the party section
+  // shows and its best (0: nobody climbed); no field (no Tower board yet: no rank, no rivals)
   const tw = R.TWR.towerOf(cs);
+  const others = body.party && Array.isArray(body.party.members) ? body.party.members.filter((m) => m.seat !== body.party.self_seat) : [];
   need('tower', !!tw && tw.checkpoints.join() === '0' && tw.record === 0 && tw.bestFloor === 0 && tw.run === null && tw.last === null && tw.rules.landingEvery > 0
     && tw.rules.floorLimitMs > 0 && tw.rules.landingLimitMs >= tw.rules.floorLimitMs && !!tw.pays && tw.pays.deathLossPm === 0 && tw.pays.coin === false
-    && tw.pays.xpPm > 0 && tw.pays.xpPm < 1000 && Array.isArray(body.tower.party) && tw.party.length === 0 && tw.field === null
+    && tw.pays.xpPm > 0 && tw.pays.xpPm < 1000 && Array.isArray(body.tower.party) && tw.field === null
+    && tw.party.length === others.length && tw.party.every((p) => p.floor === 0 && others.some((m) => m.seat === p.seat && m.name === p.name))
     && !!tw.chest && tw.chest.keys.length >= 4 && tw.chest.keys.every((k) => k.basePm > 0 && k.chancePpm > 0 && k.stokes.length > 0 && k.heldAll === 0)
     && tw.chest.perCall > 0 && tw.chest.weekEnds !== null && tw.chest.families.length >= 1
     && tw.chest.families.every((x) => x.openedWeek === 0 && x.maxWeek > 0 && x.held === 0 && x.maxHeld >= x.maxWeek && !!x.name),
-    'towerOf yields ' + JSON.stringify(tw).slice(0, 300) + ' from ' + JSON.stringify(body.tower).slice(0, 300));
+    'towerOf yields ' + JSON.stringify(tw && { party: tw.party, field: tw.field }) + ' ' + JSON.stringify(tw).slice(0, 300) + ' from ' + JSON.stringify(body.tower).slice(0, 300));
   // the bag's next rung (2027-04-15-bag-expand-view.sql): the cap and bank.0 at the server's price, the Storage window's Expand
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,

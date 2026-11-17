@@ -46,7 +46,9 @@ export function buildSql(O, dyes, palette) {
   if (problems.length) throw new Error('gen-outfits: src/data/outfits.js is invalid: ' + problems.join('; '));
   const pal = new Set(Object.values(palette.ramps).flat().map((h) => h.toLowerCase()));
   for (const h of dyes) if (!pal.has(h)) throw new Error('gen-outfits: the dye ' + h + ' is not a world palette colour');
-  const ids = O.OUTFIT_IDS;
+  /* A BUNDLE OUTFIT IS NOT EMITTED (src/data/outfits.js `bundle`): hr_outfit_owned owns every non-premium row for everyone, so the
+     Sweep's Coat in hr_outfits would dress every hero for free. It joins the catalogue with the server half that owns it by its bundle. */
+  const ids = O.OUTFIT_IDS.filter((id) => !O.OUTFIT_ROWS[id].bundle);
   for (const id of ids) if (!/^[a-z0-9_]{1,32}$/.test(id)) throw new Error('gen-outfits: bad outfit id ' + id);
   const rows = ids.map((id, i) => "  ('" + id + "', " + O.OUTFIT_ROWS[id].premium + ", '{" + O.OUTFIT_ROWS[id].regions.join(',') + "}', " + (i + 1) + ')');
   const dyeRows = dyes.map((h, i) => '  (' + i + ", '" + h + "')");
@@ -125,6 +127,9 @@ async function selftest() {
   const idBad = { ...O, OUTFIT_IDS: ['Bad Id'], OUTFIT_ROWS: { 'Bad Id': { premium: false, regions: [] } } };
   expectThrow('a bad outfit id', () => buildSql(idBad, dyes, palette));
   if (!/on conflict \(outfit_id\) do update/.test(buildSql(O, dyes, palette))) { console.error('  MISSED  the rows are not upserted'); bad++; }
+  const bundled = Object.keys(O.OUTFIT_ROWS).filter((id) => O.OUTFIT_ROWS[id].bundle);
+  if (!bundled.length || bundled.some((id) => buildSql(O, dyes, palette).includes("'" + id + "'"))) { console.error('  MISSED  a bundle outfit reached hr_outfits (everyone would own it)'); bad++; }
+  else console.log('  caught  a bundle outfit kept out of hr_outfits');
   if (bad) { console.error('gen-outfits --selftest: ' + bad + ' refusal(s) did not bite'); process.exit(1); }
   console.log('gen-outfits --selftest: every refusal bites');
 }

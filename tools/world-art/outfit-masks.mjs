@@ -130,6 +130,16 @@ export const OUTFIT_MASKS = Object.freeze({
     bands: { head: 27, body: 15, legs: 4 },
     parts: { blue: { region: 'body', n4: true } },
   },
+  /* the Sweep's Coat (lane/a-tower-art-gen, 2026-11-16; palette-locked, so its colours are exact ramp entries): the soot greys
+     (stone, iron, the shadow ramp's mid steps) are the cap above the face and the coat below it, height splitting them as on the
+     sorcerer; the boots are the dark earths under the hem. The tan rope, the skin, the scorched hem (earth #6e4c30) and the
+     coat's black shadows (the outline's own colour) are not cloth. Its knee leathers barely show under the long coat: no legs. */
+  sweeps_coat: {
+    materials: [OUTLINE(0.06), ['skin', { h: [15, 35], s: [0.3, 0.5], v: [0.68, 1] }], ['grey', { s: [0, 0.18], v: [0.1, 0.65] }],
+      ['leather', { h: [10, 40], s: [0.2, 0.62], v: [0.1, 0.36] }]],
+    bands: { head: 34, body: 9, legs: 9 },
+    parts: { grey: { byBand: ['head', 'body', 'feet'], n4: true, min: 2, split: 3 }, leather: { byBand: ['feet'], n4: true } },
+  },
 });
 
 /* ── HELD: no mask ships; each needs a hand touch-up (not available in this lane) before it can. ──── */

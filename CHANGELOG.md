@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.137 — 2026-11-17 (Setups on the Go)
+
+**Switch setups mid-hunt.** Press Use on another setup during a hunt to swap to its bar. Your gear stays on. Works for setups that use the weapon you wear.
+
+**Hunt prep.** The button on the action bar now says Hunt prep (P). Basic setup is a big button that loads your weapon's starter bar. Both rows of the bar fit in the window.
+
+**Bag.** All your gear slots show without scrolling.
+
+**Wiki.** Level XP and skill XP are now plain tables with XP to the next Level and total XP.
+
+**Havora.** The Hearth Chest sits by the fire with metal locks that catch the light. The props and seats around the Hearth are no longer copies of each other.
+
+**Krell's Hall.** The card now asks for four heroes: a tank, a healer and two more.
+
+**Fixes.** "1 Bone" instead of "1 Bones" everywhere. A single Hearth feed no longer counts down your whole stack.
+
 ## v0.2.136 — 2026-11-17 (Ground and Stone)
 
 **Havora's mountain.** The mountain above Havora is real rock now, with cliff faces, terraces and loose scree. The quarry floor is worn granite and the mine yard has rough dirt edges.

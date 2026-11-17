@@ -74,7 +74,24 @@ export function fillTileOf(img, rows, ch, T) {
     seen.set(h, s);
   }
   const best = [...seen.values()].sort((a, b) => b.n - a.n)[0];
-  if (!best) throw new Error(`seams: material '${ch}' has no deep cell (a cell with all eight neighbours the same) to take its fill from`);
+  if (!best) {
+    /* no deep cell (small scorch blobs): each quarter of the fill comes from a cell whose three neighbours round that corner are the
+       same material, so that quarter is the fill's own (the fill repeats every T px, so a quarter sits at the same offset in any cell) */
+    const tile = createImage(T, T), h = T / 2;
+    for (const [qx, qy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      let found = null;
+      for (let y = 0; y < H && !found; y++) for (let x = 0; x < W && !found; x++) {
+        const sx = qx ? 1 : -1, sy = qy ? 1 : -1;
+        if (rows[y][x] === ch && at(x + sx, y) === ch && at(x, y + sy) === ch && at(x + sx, y + sy) === ch) found = [x, y];
+      }
+      if (!found) throw new Error(`seams: material '${ch}' has no deep cell and no pure corner to take its fill from`);
+      for (let j = 0; j < h; j++) for (let i = 0; i < h; i++) {
+        const s = ((found[1] * T + qy * h + j) * img.width + found[0] * T + qx * h + i) * 4;
+        tile.data.set(img.data.subarray(s, s + 4), ((qy * h + j) * T + qx * h + i) * 4);
+      }
+    }
+    return tile;
+  }
   const tile = createImage(T, T);
   for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
     const s = ((best.y * T + j) * img.width + best.x * T + i) * 4, d = (j * T + i) * 4;

@@ -32,5 +32,5 @@
     "name": "S1 mb_stepping_stones",
     "derived": "mb_stepping_stones, 0 gens"
   },
-  "notes": "mb_stepping_stones' own three stones laid again (small, big, the big one the step), a ford stone of Wickstead's laid by hand, by tools/world-art/seam-grounds.mjs; pixels unscaled, never turned or flipped, nothing drawn."
+  "notes": "mb_stepping_stones' own three stones laid again (small, big, the big one the step), a meadow ford stone laid by hand (Wickstead, the Thicket, the Glade), by tools/world-art/seam-grounds.mjs; pixels unscaled, never turned or flipped, nothing drawn."
 }

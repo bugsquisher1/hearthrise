@@ -185,7 +185,7 @@ function widePlanks() {
 }
 
 /* ── a ford laid by hand: the meadow stones' own three stones, laid again a tile at a time (lane/a-cave-walls) ──
-   Wickstead's ford was one cluster sprite stamped on all twelve tiles of a 4 x 3 block: a grid. mb_stepping_stones holds three
+   Wickstead's ford (and the Thicket's and the Glade's, 3 x 3) was one cluster sprite stamped on every tile: a grid. mb_stepping_stones holds three
    stones (a big one, a middle one behind it, a small one to its right): each is cut out (every opaque px to the stone whose
    middle is nearest along the art) and laid again in a variant of its own. The step under the walker's foot is the big stone
    or, now and then, the middle one (a smaller step), nudged a few px; the other two move round it or are left out. A stone's
@@ -235,7 +235,7 @@ function fordStones() {
     const dir = join(ROOT, ART_DIR, 'forest');
     writeFileSync(join(dir, id + '.png'), encodePNG(out));
     const sc = Object.assign({}, sc0, { id, source: id + '.png', pixellab: Object.assign({}, sc0.pixellab, { derived: 'mb_stepping_stones, 0 gens' }),
-      notes: 'mb_stepping_stones\' own three stones laid again (' + laid.map((s) => s.k).join(', ') + ', the ' + main + ' one the step), a ford stone of Wickstead\'s laid by hand, by tools/world-art/seam-grounds.mjs; pixels unscaled, never turned or flipped, nothing drawn.' });
+      notes: 'mb_stepping_stones\' own three stones laid again (' + laid.map((s) => s.k).join(', ') + ', the ' + main + ' one the step), a meadow ford stone laid by hand (Wickstead, the Thicket, the Glade), by tools/world-art/seam-grounds.mjs; pixels unscaled, never turned or flipped, nothing drawn.' });
     writeFileSync(join(dir, id + '.json'), JSON.stringify(sc, null, 2) + '\n');
   });
   console.log('  ✓ forest/' + FORD_STONES[0] + '..' + FORD_STONES.length + ' (the ford\'s stones, each its own laying)');

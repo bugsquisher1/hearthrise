@@ -23,6 +23,10 @@ const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 
 const HOUR = 3600000, WARRENS = 'coppercap_warrens', L = 45;
+/* spells-grow's own hunt seed (lane/a-cave-walls 2026-11-17): the Warrens' reshaped rows moved which goblin the Mage hits first, and on
+   the harness's default seed its first six spells all landed where two Magic levels round to the same hit (tower = twin = twinUp), so the
+   case could not tell. On this seed the +2 shows in the first six and both mutants are caught (seeds 1, 7, 42, -1 all do). */
+const SPELL_SEED = '7';
 /* The Silver Key's weapons (worn at 45, +2) by the role that wields them in the harness (play-ground.mjs kit: a tank holds a sword and a
    shield, a ranger a bow, a healer a staff, a mage a wand and a book) */
 const TOWER = Object.freeze({ tank: 'tollkeepers_sword', ranger: 'ferrymans_bow', healer: 'old_ash_rake', mage: 'chandlers_wand', melee_dps: 'quarry_maul' });
@@ -91,7 +95,7 @@ const cases = {
     /* the Mage's first spell hits (ability, amount), on one seed: a hero whose every roll and every spell's output is the same draws
        the same dice, so the tower wand at Magic L lands the plain wand's hits at Magic L+2 (until a skill level-up parts them) */
     const first = (o) => {
-      const p = play(P, X, ['mage'], { spanMs: HOUR / 12, ...o });
+      const p = play(P, X, ['mage'], { spanMs: HOUR / 12, secret: SPELL_SEED, ...o });
       return p.events.filter((x) => x.type === 'dmg' && p.ids.has(x.u) && x.ability && x.ability !== 'basic').slice(0, 6)
         .map((x) => x.ability + ':' + x.amount).join(' ');
     };

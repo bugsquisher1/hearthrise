@@ -4033,5 +4033,6 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   the faces hung on floor and each pillar's last row looked walkable. tools/world-art/cave-walls.mjs draws the walls from the map
   rows (faces in the wall row over the floor, never rock on a walked cell: counted, 0). (2) The Drop's two end lips (chasm on the
   rows) were painted as floor a cell and a half wide, ground a hero could not walk round it on: the chasm now runs wall to wall.
-  Same class still open (P3, art-director): the Thicket's and the Glade's fords are one stone cluster stamped on a 3x3 grid, as
-  Wickstead's was; seam-grounds FORD_STONES (six layings) serve them by an id edit (the edge payload hash moves with it).
+  Same class (the Thicket's and the Glade's fords stamped on a 3x3 grid): CLOSED in round 2, both lay the six FORD_STONES. Round 2 also
+  reshaped the Warrens' map rows off their rectangles (walk mask moved: mask hash and engine-parity warrens-4 re-pinned). Found: the
+  called Chief's adds at 4,26 and 4,36 stand in rock on the rows; the engine moves them to the nearest free tile (P4, game-designer).

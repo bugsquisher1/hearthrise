@@ -68,7 +68,11 @@ const SEED = '-4611686018427387904';
    party's XP moves its Levels, and the Levels their rolls. The baseline is --write here.
    RE-PINNED 2026-11-17 (the same lane's tier fix), THE TABLE ONLY: the four cells 1765 / 1800 -> 1670 / 1700 (so Deadly can pay more an hour than Dangerous
    under Tyler's ~2.5x) move warrens-4 and glade-4 from settle 1, kills as pinned; sewer-2 (two classes) and the lone ranger hold. Proof: the set's
-   src/data/party-class-xp.js laid back into an archive of this tree, every pin holds (exit 0). The tier rows move no pin (no scenario plays a tier). */
+   src/data/party-class-xp.js laid back into an archive of this tree, every pin holds (exit 0). The tier rows move no pin (no scenario plays a tier).
+   RE-PINNED 2026-11-17 (lane/a-cave-walls round 2), THE WARRENS' WALK GRID ONLY: warrens-4 moved at settle 1 (kills 209 -> 211); glade-4, sewer-2 and the
+   lone ranger hold. Cause: src/data/world/maps/coppercap_warrens.js rows reshaped off the rectangles (the Coordinator: the rooms read as boxes; every
+   pack tile, pull, node, the patrol path and the walk between the pockets held, 981 -> 986 open tiles), so the party walks other steps. Proof: the
+   merged tree with origin/lane/a-art-136's coppercap_warrens.js laid back alone holds every pin (exit 0). The Glade's ford stone ids move no pin. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

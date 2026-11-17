@@ -3576,7 +3576,15 @@ faceH px of each column's run of rock, the strip's top three rows kept and one s
 nothing. (4) An `own: true` material clips on its cell line wherever the warp pushes it out: count the clipped columns and pick
 the seed (the Drop: 47 -> 0 at seed 61, bias 0.45). (5) Never flip or turn a lit sprite for variety (light is upper left): re-lay
 its parts. (6) lane/a-ground-paths left tests/hunt-core/forest-cave.mjs anchored on cw_plank_bridge (mutant-anchors red): re-anchored.
-Open: the Thicket's and the Glade's fords are the same 3x3 stamp; FORD_STONES serve them by an id edit (moves the edge hash).
+Round 2 (the Coordinator: "the rooms still read as boxes"): the Warrens' ROWS reshaped (src/data/world/maps/coppercap_warrens.js,
+mask hash re-pinned, engine-parity warrens-4 re-pinned with its proof): the old outline moved by smooth noise, every straight run over
+4 stepped, held to the pack tiles, pulls, nodes, props, torch faces, path, the walk between pockets and forest-cave's one-choke rule.
+The fords of the Thicket and the Glade now lay the six stones too; the stones live in the forest set (every meadow ground loads it).
+Lessons: (7) on a cell map, a 1-cell bay or bulge renders as a crenellation; the one-choke rule (every open tile in an open 3x3) already
+forbids 1-2 wide bays, so break a run with a STEP (the run's head or tail moved a cell) and ban teeth (rock a cell proud with floor on
+three sides) and fins (rock a cell thin): steps render as slopes. (8) protect the walk between pockets as a 3x3 of the old ground round
+every step, or a noise edit closes a 3-wide corridor and the whole east goes unreached. (9) a spawn row may sit in rock (the called
+adds at 4,26 and 4,36): the engine stands it on the nearest free tile (pull-cycle.js freeNear), so hold only rows on ground.
 ## 2026-11-17 lane/a-havora-seams-2 (Tyler's gate: every seam right, the Hearth plaza perfect; audit rows 1-3, 13-16, 23, 25)
 seams.mjs `rise` (a raised mass: a face of its own grain stepped down where the floor lies below, a lit lip, outline, cast shadow),
 `arch` (the warp eases from 2 px off the tile edge to its middle, so a border bows between the pinned crossings) and bank `shore`

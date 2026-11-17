@@ -371,9 +371,8 @@ export function mountShell(root, o) {
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: rel(r, left) });
     }
-    /* THE COACH NEVER LIES ON THE HERO (playtest 10-29 #10; audit 2026-11-15 F1, F13): the phone's open card stands at the hunt bar's right end, the desktop's in
-       the left column (hud-room.js dockCoach), and the camera frames the World beside it. So is an alert in a hunt (`alertToo`: heroAt asks without it, or the alert is
-       placed by its own shadow): the phone's by its half, the desktop's (hud-room.js clearPlates) by the SIDE costing the World less (anchor 'm.', never the top strip). */
+    /* THE COACH NEVER LIES ON THE HERO (playtest 10-29 #10; audit F1, F13): the phone's card at the hunt bar's right end, the desktop's in the left column (hud-room.js
+       dockCoach), the camera framing the World beside it. So is an alert in a hunt (`alertToo`; heroAt asks without it): the phone's by its half, the desktop's by the SIDE costing less. */
     const side = (r) => (r.left + r.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr');
     const shown = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? r : null; };
     const bar = worldHud.querySelector('[data-hs-widget="hunt-topbar"]');

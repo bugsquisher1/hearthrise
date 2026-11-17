@@ -1397,18 +1397,18 @@ async function planRules(base) {
     const bar = (id) => ({ slots: [slot('consume', id, null)] });
     const prep = [weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 56, 850), weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 64, 990),
       weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'the_slake', 50, 819)];
-    if (prep[0] !== 'Salted Shrimp heals 72 of 850 HP (death risk). Pick Salted Lobster instead.'
-      || !/^Salted Trout heals 120 of 990 HP.*Pick Salted Lobster instead\.$/.test(prep[1]) || prep[2] !== '' || !/^Salted Shrimp heals 72 of 1,011 HP.*Pick Salted Trout instead\.$/.test(prep[3]) || prep[4] !== '')
+    if (prep[0] !== 'Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
+      || prep[1] !== 'Salted Trout heals 120 of 990 HP. Pick Salted Lobster' || prep[2] !== '' || prep[3] !== 'Salted Shrimp heals 72 of 1,011 HP. Pick Salted Trout' || prep[4] !== '')
       fails.push('AW-27 the weak store food at the hero\'s Level reads ' + JSON.stringify(prep));
     const facts = (o) => Object.assign({ set: bar('salted_shrimp'), bag: [], hero: { mana: 0 }, worn: null, skills: {}, pack: null, party: 1, alone: true, holding: false, test: null,
       ground: 'muster_barrows', level: 56, hpMax: 850, healed: false }, o);
     const on = (id, o) => slotWhy(slot('consume', id, null), facts(o));
     const why = [on('salted_shrimp'), on('salted_lobster'), on('salted_shrimp', { healed: true }), on('salted_shrimp', { ground: 'the_slake' }), on('salted_shrimp', { ground: null }), on('cooked_shrimp')];
-    if (!why[0] || why[0].code !== 'food_weak' || why[0].strike !== false || why[0].text !== 'Salted Shrimp heals 72 of 850 HP (death risk). Pick Salted Lobster instead'
+    if (!why[0] || why[0].code !== 'food_weak' || why[0].strike !== false || why[0].text !== 'Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
       || why.slice(1).some((x) => x && x.code === 'food_weak')) fails.push('AW-27 the bar\'s weak food slot reads ' + JSON.stringify(why));
     const notes = [healerNote('muster_barrows', 56, 'melee', false), healerNote('muster_barrows', 56, 'ranged', false), healerNote('muster_barrows', 56, 'magic', false),
       healerNote('muster_barrows', 56, 'melee', true), healerNote('muster_barrows', 65, 'melee', false), healerNote('the_slake', 50, 'melee', false)];
-    if (notes[0] !== 'Recommended: Healer (Barrow Knight hits harder than food heals)' || notes[1] !== notes[0]
+    if (notes[0] !== 'Recommended: Healer (Barrow Knight hits too hard for food)' || notes[1] !== notes[0]
       || notes.slice(2).some(Boolean)) fails.push('AW-27 the ground that expects a healer reads ' + JSON.stringify(notes));
     /* no text anywhere tells a player to turn Challenge on or off (Tyler 2026-11-14) */
     if (/challenge/i.test(prep.concat(notes, [why[0] && why[0].text]).join(' '))) fails.push('AW-27 a food or healer line names Challenge');
@@ -1718,7 +1718,7 @@ async function planRules(base) {
     const sk = (melee) => ({ defense: { level: 50, xp: XPC.skillXpForLevel('defense', 50) }, melee: { level: melee, xp: XPC.skillXpForLevel('melee', melee) }, ranged: { level: 1, xp: 0 }, magic: { level: 1, xp: 0 } });
     const seasoned = sk(50);
     const past = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 3], ['mithril_sword', 40]], seasoned, 55);
-    if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Wear Mithril Sword (+12 Melee accuracy).')
+    if (ops2(past) !== '{"weapon":"mithril_sword"}' || past.choices.length || UP.upgradeWords(past) !== 'Upgrade: Mithril Sword (+12 Melee accuracy)')
       fails.push('AW-21 a Level 55 hero in a Bramble Blade with Mithril Swords in the bag reads ' + ops2(past) + ' / ' + JSON.stringify(past.choices) + ' / ' + UP.upgradeWords(past));
     const vines = plan({ weapon: 'bramble_blade', shield: 'practice_shield' }, [['steel_sword', 2]], sk(30), 30);
     if (ops2(vines) !== '{}' || JSON.stringify(vines.choices) !== '[{"slot":"weapon","ids":["steel_sword"],"keeps":"bramble_blade","lost":[{"cls":"plant","pct":40}]}]')
@@ -1726,7 +1726,7 @@ async function planRules(base) {
     /* A WORN OFF-HAND TAKES A BETTER ONE OF ITS KIND (audit 2026-11-15 F8: a Level 31 tank still held the Practice Shield): a shield for a shield, a spellbook for a
        spellbook; never a piece into an empty off-hand (above), never a shield for a spellbook, and a shield that costs accuracy for its guard is the player's pick. */
     const guard = plan({ weapon: 'steel_sword', shield: 'practice_shield' }, [['bronze_rimmed_shield'], ['practice_spellbook']], lv1, 31);
-    if (ops2(guard) !== '{"shield":"bronze_rimmed_shield"}' || UP.upgradeWords(guard) !== 'Wear Bronze-Rimmed Shield (+1 Defense).') fails.push('AW-21 a tank in the Practice Shield with a Bronze-Rimmed Shield in the bag reads ' + ops2(guard) + ' / ' + UP.upgradeWords(guard));
+    if (ops2(guard) !== '{"shield":"bronze_rimmed_shield"}' || UP.upgradeWords(guard) !== 'Upgrade: Bronze-Rimmed Shield (+1 Defense)') fails.push('AW-21 a tank in the Practice Shield with a Bronze-Rimmed Shield in the bag reads ' + ops2(guard) + ' / ' + UP.upgradeWords(guard));
     if (ops2(plan({ weapon: 'practice_wand', shield: 'practice_spellbook' }, [['bronze_rimmed_shield'], ['ironbound_shield']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would trade a spellbook for a shield');
     if (ops2(plan({ weapon: 'steel_sword', shield: 'ironbound_shield' }, [['kingsgrate']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would put on a shield that costs accuracy');
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
@@ -1800,11 +1800,11 @@ async function planRules(base) {
     try {
       const legs = (worn, bag, level) => plan({ weapon: 'practice_sword', pants: worn }, [[bag]], lv1, level);
       const gain = legs('bronze_platelegs', 'aw21_fire_legs', 17);
-      if (ops2(gain) !== '{"pants":"aw21_fire_legs"}' || UP.upgradeWords(gain) !== 'Wear Fireproof Legs (-10% Fire damage taken).') fails.push('AW-21 fire resistance where fire is dealt reads ' + ops2(gain) + ' / ' + UP.upgradeWords(gain));
+      if (ops2(gain) !== '{"pants":"aw21_fire_legs"}' || UP.upgradeWords(gain) !== 'Upgrade: Fireproof Legs (-10% Fire damage taken)') fails.push('AW-21 fire resistance where fire is dealt reads ' + ops2(gain) + ' / ' + UP.upgradeWords(gain));
       if (Object.keys(legs('bronze_platelegs', 'aw21_fire_legs', 20).ops).length) fails.push('AW-21 fire resistance counts with no fire in range');
       const keep = legs('aw21_fire_legs', 'iron_platelegs', 17);
       if (ops2(keep) !== '{}' || JSON.stringify(keep.choices) !== '[{"slot":"pants","ids":["iron_platelegs"],"keeps":"aw21_fire_legs","lost":[{"resist":"ember","pct":10}],"gain":"+4 Defense"}]'
-        || UP.upgradeWords(keep) !== 'No clear upgrade. Iron Platelegs adds +4 Defense, and Fireproof Legs cuts fire damage by 10%. Pick on the doll.')
+        || UP.upgradeWords(keep) !== 'No clear upgrade: Iron Platelegs adds +4 Defense, Fireproof Legs cuts fire damage by 10%')
         fails.push('AW-21 a worn fire resistance against bigger plain numbers where fire is dealt reads ' + ops2(keep) + ' / ' + JSON.stringify(keep.choices) + ' / ' + UP.upgradeWords(keep));
       const gone = legs('aw21_fire_legs', 'iron_platelegs', 20);
       if (ops2(gone) !== '{"pants":"iron_platelegs"}' || gone.choices.length) fails.push('AW-21 a fire resistance with no fire in range holds the bigger numbers off: ' + ops2(gone) + ' / ' + JSON.stringify(gone.choices));
@@ -2540,7 +2540,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             words: li ? li.querySelector('small').textContent : null, verb: b ? b.textContent : null, gold: b ? b.classList.contains('is-primary') : null,
             go: b ? b.getAttribute('data-hs-goto') : null, inside: !!r && r.left >= body.left - 1 && r.right <= body.right + 1 };
         });
-        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Buy Bronze Belt for 110 gp' || row.words !== '+2 Defense, +8 health (empty belt slot)'
+        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Next buy: Bronze Belt (110 gp)' || row.words !== '+2 Defense, +8 health, empty belt slot'
           || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|bronze_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
         if (shots) await shot(page, 'alpha-' + tag + '-back-in-town-buy');
         if (tag === '1440x900') {
@@ -2574,7 +2574,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(160); }
         await page.waitForTimeout(300);
         const card = await page.evaluate(() => { const p = document.querySelector('.hs-pointer[data-tutorial]'); return p ? { id: p.getAttribute('data-tutorial'), text: (p.querySelector('.hs-coach-text') || {}).textContent || null } : null; });
-        if (!card || card.id !== 'first_dangerous' || !/^Open Hunts, pick Meadowbrook Thicket, press Dangerous, then Enter\./.test(card.text || '')) fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
+        if (!card || card.id !== 'first_dangerous' || card.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter') fails.push('AW-99 in town the coach shows ' + JSON.stringify(card));
         if (shots) await shot(page, 'alpha-1440x900-first-dangerous');
         if (!(await openWin(page, 'h', 'hunts'))) fails.push('AW-99 Hunts did not open');
         else {

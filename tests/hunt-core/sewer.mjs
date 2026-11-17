@@ -801,8 +801,8 @@ const cases = {
       /* ONE VISIT SETS BOTH (the playthrough audit 2026-11-15, F4): the card that lowers the own food names the store food slot and the same line,
          so its advice does not make the "Own food first" card; a bar with no store food above the new line is told nothing more */
       const storeSlot = T.slots.findIndex((x) => x.type === 'consume' && x.id === 'salted_shrimp');
-      const both = stop < 60 && storeSlot >= 0;
-      const eatWant = both ? 'Press slot ' + (food + 1) + ' and slot ' + (storeSlot + 1) + ', set both to ' + stop + '% HP'
+      const bothSlots = stop < 60 && storeSlot >= 0;
+      const eatWant = bothSlots ? 'Press slot ' + (food + 1) + ' and slot ' + (storeSlot + 1) + ', set both to ' + stop + '% HP'
         : lost > 0 ? 'Press slot ' + (food + 1) + ' and set it to ' + stop + '% HP' : 'Press slot ' + (food + 1) + ' and set its HP with − or +';
       if (!eat || eat.id !== 'food_when' || eat.barSlot !== food || eat.text !== eatWant || (lost > 0 && eat.goal !== stop)) return set + ': the eat card reads ' + JSON.stringify(eat && [eat.text, eat.goal]) + ', wanted ' + JSON.stringify(eatWant);
       const noStore = say({ ...fixed, slots: fixed.slots.filter((x) => x.id !== 'salted_shrimp') });
@@ -1284,16 +1284,16 @@ const cases = {
     const id = (o, ...read) => (say(at(o, ...read)) || {}).id;
     const base = { lv: 8, eq: DRESSED, tiers: { picks: {}, playing: null } };
     const offer = say(at(base));
-    if (!offer || offer.id !== 'first_dangerous' || offer.title !== 'Try a Dangerous hunt' || !offer.gotIt
-      || offer.text !== 'Open Hunts, pick Meadowbrook Thicket, press Dangerous, then Enter. More XP, more food, higher risk.'
-      || !/^Pick Meadowbrook Thicket, press Dangerous, then Enter\./.test(offer.textIn || '') || M.tut.coachIcon(offer, () => false) !== 'hunts')
+    if (!offer || offer.id !== 'first_dangerous' || offer.title !== 'Try Dangerous' || !offer.gotIt
+      || offer.text !== 'Hunts → Meadowbrook Thicket → Dangerous → Enter'
+      || offer.textIn !== 'Press Meadowbrook Thicket, then Dangerous, then Enter' || M.tut.coachIcon(offer, () => false) !== 'hunts')
       return 'at Level 8 in helm and body the offer reads ' + JSON.stringify(offer && { id: offer.id, title: offer.title, text: offer.text, textIn: offer.textIn });
     /* the ring: the named ground's Dangerous press, unpressed, then its Enter */
     const ring = L.ringPlan(offer, { open: (w) => w === 'hunts' });
     if (!ring[0] || !ring[0].includes('[data-tier="dangerous"][data-hunt="meadowbrook_thicket"][aria-pressed="false"]') || !ring[1].includes('.hw-hunt-enter[data-hunt="meadowbrook_thicket"]')) return 'the offer rings ' + JSON.stringify(ring);
     /* the ground it last hunted, when it has the tier and the Level is in its band */
-    if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('pick Wickstead,')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
-    if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('pick Meadowbrook Thicket,')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
+    if (!(say(at({ ...base, last: 'wickstead' })) || {}).text.includes('→ Wickstead →')) return 'back from Wickstead the offer names ' + JSON.stringify((say(at({ ...base, last: 'wickstead' })) || {}).text);
+    if (!(say(at({ ...base, last: 'mill_cellar' })) || {}).text.includes('→ Meadowbrook Thicket →')) return 'back from the Cellar (Normal only) the offer names ' + JSON.stringify((say(at({ ...base, last: 'mill_cellar' })) || {}).text);
     /* not before its Level, not without armor on head and body, not unknown */
     if (id({ ...base, lv: 7 }) === 'first_dangerous') return 'the offer came at Level 7';
     if (id({ ...base, eq: { weapon: 'practice_sword', shield: 'practice_shield' } }) === 'first_dangerous') return 'the offer came to a hero in the practice kit (22 deaths in 2 h on the board)';
@@ -1438,7 +1438,7 @@ const cases = {
       hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     for (const [skill, word] of [['melee', 'Melee'], ['defense', 'Defense']]) {
       const said = withTrain(skill);
-      if (!said.includes('Train ' + word + ' to 21: about 2 hours') || /Shop → Buy gloves/.test(said)) return 'a ' + word + ' training session: the what-next line does not name the trained skill: ' + said;
+      if (!said.includes('Next: ' + word + ' 21 in about 2 hours') || /Shop → Buy gloves/.test(said)) return 'a ' + word + ' training session: the what-next line does not name the trained skill: ' + said;
     }
     /* THE LAND IS THE ACCOUNT'S (2026-12-14-shared-farm). v0.2.35 gate: Fingerguns, 0 Farming XP, was told "Nothing
        grows on your farm yet" over 5 READY turnips the other heroes planted. The line reads the server's `farm_land`

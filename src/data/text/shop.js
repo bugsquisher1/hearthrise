@@ -31,7 +31,7 @@ export const SHOP_TEXT = Object.freeze({
   upgrade_tie_bane: '{plain} hits harder, {bane} does {more}',
   /* The same for a worn piece's resistance (src/shell/upgrade-plan.js, lane/a-next-steps): a plain piece that adds a number would lose it where a monster in range
      deals that damage. {gain} is the piece's first gain ("+4 Defense"), {cuts} what the worn one keeps off ("fire damage by 10%"). */
-  upgrade_tie_resist: '{plain} adds {gain}, and {worn} cuts {cuts}',
+  upgrade_tie_resist: '{plain} adds {gain}, {worn} cuts {cuts}',
   upgrade_resist_cut: '{element} damage by {pct}%',
   /* A resistance a pick adds, in the preview: "-10% Fire damage taken" ({element} is the monster page's own word, monster.el_*). */
   upgrade_resist_gain: '-{pct}% {element} damage taken',

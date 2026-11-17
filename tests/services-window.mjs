@@ -311,7 +311,7 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-7 the Services tab did not open on Mithril');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/Can't temper Mithril Sword yet \(rungs only for Level 15 to 30 gear\)/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
+        if (!/Not temperable yet, rungs only for Level 15 to 30 gear/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Mithril Sword above the ladders reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }

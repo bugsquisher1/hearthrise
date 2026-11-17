@@ -483,11 +483,11 @@ async function runTests(M) {
     const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
       temper: null, dummy: null, home: null, bag: [], bank: [] }, over || {}));
     const shield = buy();
-    eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Buy Bronze-Rimmed Shield for 140 gp', '+1 Defense vs Practice Shield', 'bronze_rimmed_shield',
+    eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'bronze_rimmed_shield',
       { kind: 'shop', item: 'bronze_rimmed_shield' }], 'a Shop piece better than the worn one, its price and what it adds');
     /* a bare slot first, though dearer; a piece worse than the worn one, another style's, or past the purse is never named */
     const bare = buy({ shop: shop(['bronze_rimmed_shield', 140], ['bronze_belt', 200]) });
-    eq(bare && [bare.title, bare.words], ['Buy Bronze Belt for 200 gp', '+2 Defense, +22 health (empty belt slot)'], 'an empty slot comes first');
+    eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (200 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first');
     eq(buy({ purse: 139 }), null, 'past the purse, nothing');
     eq(buy({ equipment: { ...tank, shield: 'bronze_rimmed_shield' } }), null, 'what is worn already is not bought again');
     eq(buy({ shop: shop(['bronze_rimmed_shield', 140, 'tool']) }), null, 'only the Shop\'s gear');
@@ -495,21 +495,21 @@ async function runTests(M) {
     const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });
     const temper = { blows: rung('Steel Sword', 3000, 0, 10), armor: rung('Bronze armor', 2000, 0, 10) };
     const tb = buy({ shop: null, temper });
-    eq(tb && [tb.kind, tb.title, tb.words, tb.place], ['temper', 'Temper Steel Sword for 3,000 gp', 'Blows and heals +1%', { kind: 'temper' }], 'the weapon\'s rung');
+    eq(tb && [tb.kind, tb.title, tb.words, tb.place], ['temper', 'Next buy: Temper Steel Sword (3,000 gp)', 'Damage and heals +1%', { kind: 'temper' }], 'the weapon\'s rung');
     const ta = buy({ shop: null, temper: { ...temper, blows: rung('Steel Sword', 3000, 1, 10) } });
-    eq(ta && [ta.title, ta.words], ['Temper Bronze armor for 2,000 gp', 'Damage taken −1%'], 'short of a material, the armor\'s rung');
+    eq(ta && [ta.title, ta.words], ['Next buy: Temper Bronze armor (2,000 gp)', 'Damage taken −1%'], 'short of a material, the armor\'s rung');
     eq(buy({ shop: null, temper, purse: 1999 }), null, 'neither rung in the purse');
     /* the dummy's next skill, a house to hold it, nobody on it */
     const dummy = { needs: null, hasHome: true, owned: ['melee'], ladder: [100000, 250000], nextPrice: 250000, busy: null };
     const dm = buy({ shop: null, purse: 300000, dummy });
-    eq(dm && [dm.kind, dm.title, dm.words, dm.place], ['dummy', 'Unlock dummy skill for 250,000 gp', 'Yard speed, no fee', { kind: 'house' }], 'the dummy\'s next unlock');
+    eq(dm && [dm.kind, dm.title, dm.words, dm.place], ['dummy', 'Next buy: House dummy skill (250,000 gp)', 'Train at home, no hourly fee', { kind: 'house' }], 'the dummy\'s next unlock');
     eq([buy({ shop: null, purse: 300000, dummy: { ...dummy, hasHome: false } }), buy({ shop: null, purse: 300000, dummy: { ...dummy, busy: 'Ilsa' } }), buy({ shop: null, purse: 300000, dummy: { ...dummy, nextPrice: null } })],
       [null, null, null], 'no house, someone on it, or every skill unlocked: nothing');
     /* the cheapest room rung the house is ready for, gold and material in hand (the bag, then Storage) */
     const room = (r, name, gold, need, opens) => ({ room: r, name, level: 1, rungs: 5, opens: opens || 1, rungName: null, next: { offer: 'home.' + r, name: name + ' II', rung: 2, need: need || 1, item: null, gold, items: [{ id: 'oak_log', qty: 20 }] } });
     const home = { tier: 1, tiers: [], rooms: [room('forge', 'Forge', 9000), room('cellar', 'Cellar', 6000), room('garden', 'Garden', 4000, 2)] };
     const rm = buy({ shop: null, purse: 10000, home, bag: [{ id: 'oak_log', qty: 5 }], bank: [{ id: 'oak_log', qty: 15 }] });
-    eq(rm && [rm.kind, rm.title, rm.words, rm.place], ['room', 'Upgrade Cellar for 6,000 gp', 'Next: Cellar II', { kind: 'house' }], 'the cheapest rung the house is ready for (the Garden waits on the next tier)');
+    eq(rm && [rm.kind, rm.title, rm.words, rm.place], ['room', 'Next buy: Cellar upgrade (6,000 gp)', 'Next: Cellar II', { kind: 'house' }], 'the cheapest rung the house is ready for (the Garden waits on the next tier)');
     eq(buy({ shop: null, purse: 10000, home, bag: [{ id: 'oak_log', qty: 5 }], bank: [] }), null, 'short of the logs: nothing');
     /* the order (the designer's, board 2026-11-15 F8/F12): gear, then Tempering, then a room rung, then the dummy; no purse read, nothing */
     eq(buy({ temper, dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'gear', 'gear first');
@@ -523,7 +523,7 @@ async function runTests(M) {
     /* on the card: one row, last, Show opens where it is bought, and it is never the gold press */
     const none = { ops: {}, picks: [], choices: [] };
     const solo = steps({ plan: none, rules: { locked: new Set(), loot: {} }, blessings: null, buy: shield });
-    eq([solo.steps.map((s) => [s.id, s.title, s.words, s.verb, s.icon]), solo.primary], [[['buy', 'Buy Bronze-Rimmed Shield for 140 gp', '+1 Defense vs Practice Shield', 'Show', 'bronze_rimmed_shield']], 'again'],
+    eq([solo.steps.map((s) => [s.id, s.title, s.words, s.verb, s.icon]), solo.primary], [[['buy', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'Show', 'bronze_rimmed_shield']], 'again'],
       'with the bag sorted the card still names the buy, and Hunt again stays the press');
     const all = steps({ buy: shield });
     eq([all.steps.map((s) => s.id), all.primary], [['equip', 'sell', 'deposit', 'bless', 'buy'], 'equip'], 'after the other steps, never ahead of them');

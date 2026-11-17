@@ -11,7 +11,7 @@
 //   room     the cheapest next House room rung the house is ready for and the purse and materials cover (home-sections.js; the
 //            first rung of a bench's room also ends its tax, bench-tax.js BENCH_TAX_ROOMS)
 //   dummy    the next skill on the account's training dummy (training-sections.js), a house to put it in owned
-// Its words are labels (Tyler 2026-11-14: "Recommended: 4+ players"), never sentences: "Buy Bronze-Rimmed Shield for 140 gp", "+1 Defense vs Practice Shield".
+// Its words are labels (Tyler 2026-11-14: "Recommended: 4+ players"), never sentences: "Next buy: Bronze-Rimmed Shield (140 gp)", "+1 Defense vs Practice Shield".
 // PURE (nextBuy) over the server's sections; nextBuyOf reads them from a CharacterSession. Every price, rung, gate and count
 // is the server's (CLAUDE.md §6): nothing here is a gate the server trusts, and the press only opens the window where the
 // buy is made (goto.js targetOf), where the server prices it again.

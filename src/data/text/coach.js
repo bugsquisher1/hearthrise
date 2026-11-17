@@ -34,7 +34,7 @@ export const COACH_TEXT = Object.freeze({
   tamsins_task_in_any: 'Pick an armor weight for your reward, then press Take on the {label}.',
   tamsin_pays: 'Kill {count} {label}. Tamsin pays you {gold} gp and a piece of armor back in town.',
   /* the cards a builder states from the facts (hunt-tutorial.js SAY) */
-  styles: 'There are no classes. Your weapon decides how you fight, and you can swap it any time in town.',
+  styles: 'There are no classes. Your weapon decides how you fight. Equip a different one in town to switch styles.',
   styles_in: 'Press a weapon in your bag, then Equip.',
   load_shot: 'Your weapon has nothing to shoot. Open your bag, press {shot}, then Put on the bar.',
   load_shot_in: 'Press {shot}, then Put on the bar. Your hero shoots them from then on.',

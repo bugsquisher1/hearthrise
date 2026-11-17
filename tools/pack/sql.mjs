@@ -107,10 +107,13 @@ function keyed(stmts) {
 /**
  * The rows `after` adds over `before` (two renders of the same whole files): [{ table, cols, rows }], in `after`'s table order.
  * Throws, naming the row, when a row of `before` is changed or gone, or when an added row is in a table a pack may not write.
+ * `carried` (a Set of tables, ground-pack GP-3's partly folded pack): tables a whole file that folds the pack writes, whose rows that
+ * file and its --check own; they are neither diffed nor added. Absent: every table is diffed (tools/pack.mjs ship).
  */
-export function diffRows(before, after) {
+export function diffRows(before, after, carried = null) {
   const b = keyed(before), a = keyed(after), added = [], bad = [];
   for (const [table, e] of a) {
+    if (carried && carried.has(table)) continue;
     const was = b.get(table);
     const rows = [];
     for (const [k, r] of e.rows) {
@@ -121,7 +124,7 @@ export function diffRows(before, after) {
     if (rows.length && !PACK_TABLES[table]) bad.push(table + ' gains ' + rows.length + ' row(s), and a pack may not write ' + table);
     if (rows.length) added.push({ table, cols: e.cols, rows });
   }
-  for (const [table, e] of b) for (const k of e.rows.keys()) if (!(a.get(table) && a.get(table).rows.has(k))) bad.push(table + ' row ' + k.split('\u0001').join('/') + ' is gone');
+  for (const [table, e] of b) for (const k of e.rows.keys()) if (!(carried && carried.has(table)) && !(a.get(table) && a.get(table).rows.has(k))) bad.push(table + ' row ' + k.split('\u0001').join('/') + ' is gone');
   if (bad.length) { const err = new Error('not additive (a pack only adds rows; this is a world move):\n  ' + bad.slice(0, 20).join('\n  ') + (bad.length > 20 ? '\n  ... ' + (bad.length - 20) + ' more' : '')); err.rows = bad; throw err; }
   return added;
 }

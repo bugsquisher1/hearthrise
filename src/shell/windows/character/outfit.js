@@ -48,7 +48,7 @@ export function outfitHtml(g) {
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
     + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Show only owned</label></div>'
-    + '<p class="hs-note hw-of-looks">Cosmetic only</p>'
+    + '<p class="hs-note hw-of-looks">Looks only. Your weapon decides how you fight.</p>'
     + '<ul class="hw-of-grid"></ul><p class="hh-empty hw-of-none">No outfit matches.</p></div>'
     + '</section>';
 }
@@ -80,7 +80,7 @@ export function showsWords(row, hiddenChange) {
   if (!row) return '';
   if (!row.regions.length) return row.plain;
   const parts = row.regions.map((g) => row.parts[g]).join(', ');
-  return 'Dyeable here: ' + parts + (hiddenChange ? '. Some changes show only on other outfits' : '');
+  return 'You can dye the ' + parts.replace(/, ([^,]*)$/, ' and $1') + ' on this outfit.' + (hiddenChange ? ' Some of your changes only show on other outfits.' : '');
 }
 
 /* Has the draft moved a region this outfit's art doesn't show, and no region it does? */
@@ -113,7 +113,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const d = draftOf(cs, sc);
   const row = OUTFIT_ROWS[d.outfit];
   const owned = !!o && o.owned.has(d.outfit);
-  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ', Premium' : '') + (o && !owned ? ', not owned' : ''));
+  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ' (Premium' + (o && !owned ? ', not owned)' : ')') : o && !owned ? ' (not owned)' : ''));
   const shown = colorsShown(cs, d);
   const changedColors = !!d.colors && !!o && dyeKeyOf(d.colors) !== dyeKeyOf(o.base);
   /* The picker: this outfit's parts, by their names, once the masks are here. The druid's row says why it has none. */
@@ -159,13 +159,13 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const offer = changedColors && !!row && row.regions.length > 0;
   const save = root.querySelector('[data-hs-act="of-colors"]');
   cls(save, 'is-on', offer);
-  text(save, !offer ? '' : sc.price !== null ? 'Save colors: ' + gold(sc.price) : 'Asking the price…');
+  text(save, !offer ? '' : sc.price !== null ? 'Save colors: ' + gold(sc.price) : 'Checking the price…');
   /* the envelope's purse against the server's quote: short, the button stays off and says by how much */
   const purse = goldOf(cs);
   const short = offer && sc.price !== null && Number.isSafeInteger(purse) && purse < sc.price ? sc.price - purse : 0;
   prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);
-  attr(save, 'data-off-why', short ? 'Need ' + gold(short) + ' more' : null);
-  text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '');
+  attr(save, 'data-off-why', short ? 'You need ' + gold(short) + ' more' : null);
+  text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more' : '');
   cls(root.querySelector('.hw-of-undo'), 'is-on', changedColors);
   prop(root.querySelector('.hw-of-undo'), 'disabled', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
@@ -208,7 +208,7 @@ export function actOutfit(ctx, sc, action, ev, el, repaint) {
     const price = sc.price;
     /* every answer re-reads the price: a Level may have moved it, and a refusal may be the reason */
     runIntent(sc, repaint, () => saveHeroColors(ctx.account, cs, d.colors, price).then((r) => { sc.price = null; sc.priceAskedAt = 0; return r; }), 'Saving…',
-      () => { sc.draft = { outfit: d.outfit, colors: null }; return 'Saved'; }, cs);
+      () => { sc.draft = { outfit: d.outfit, colors: null }; return 'Saved. Everyone sees your new colors.'; }, cs);
     return true;
   }
   return false;

@@ -107,7 +107,7 @@ export function buryingOf(cs) {
 /* "Brannoc is hunting in The Sewer, and the Great Hearth is in town." (the board's refusal, Tyler 10-25: say why) */
 function huntingWords(cs, h) {
   const hunt = h.huntId && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null;
-  return 'Great Hearth is in town';
+  return hunt ? 'You\'re hunting in ' + hunt + '. The Great Hearth is back in town.' : 'You\'re hunting. The Great Hearth is back in town.';
 }
 
 /** Why the stack cannot be spent now (plain words), or '' when it can. Every number is the server's. */
@@ -115,7 +115,7 @@ export function buryBlock(cs, e) {
   const on = buryingOf(cs);
   if (on) return 'Already ' + (on.skill === FLAME ? 'fueling the Great Hearth with ' + itemName(on.input) : buryingWord(on).toLowerCase()) + '. Stop it first.';
   const h = huntOf(cs);
-  if (h && !h.ended) return e.skill === FLAME ? huntingWords(cs, h) : 'Not while a hunt is running.';
+  if (h && !h.ended) return e.skill === FLAME ? huntingWords(cs, h) : 'Not while you\'re hunting.';
   const sk = skillsOf(cs);
   const lv = sk && sk[e.skill] ? sk[e.skill].level : null;
   const name = skillName(e.skill);
@@ -123,7 +123,7 @@ export function buryBlock(cs, e) {
   /* "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — the sentence the server's refusal reads as too (town-work.js). */
   if (lv < e.recipe.req) { const w = workRow('artisan', e.recipe.id); return skillShortWords(e.skill, e.recipe.req, lv, w ? doWords(w) : ''); }
   const qty = buryQty(cs, e.input);
-  if (qty < e.need) return 'Need ' + e.need + ' ' + itemName(e.input) + ', have ' + whole(qty);
+  if (qty < e.need) return 'You need ' + e.need + ' ' + itemName(e.input) + ' and have ' + whole(qty) + '.';
   /* The bag's room for the product, as the Work window says it (town-work.js workBlock: the engine's own test). */
   const why = workBlock(cs, workRow('artisan', e.recipe.id), false);
   if (/^Your bag is full/.test(why)) return why;
@@ -152,12 +152,12 @@ export function namedBlock(cs, id) {
   if (!f) return '';
   const h = huntOf(cs);
   if (h && !h.ended) return huntingWords(cs, h);
-  if (!(heldOf(cs)[id] > 0)) return 'No ' + itemName(id) + ' in bag';
+  if (!(heldOf(cs)[id] > 0)) return 'No ' + itemName(id) + ' in your bag';
   const sk = skillsOf(cs);
   const lv = sk && sk[FLAME] ? sk[FLAME].level : null;
   if (lv === null) return 'Loading ' + skillName(FLAME) + ' level…';
   /* "Den Knot needs Inner Flame 3. You have 1." (the board's words) */
-  if (lv < f.req) return itemName(id) + ': requires ' + skillName(FLAME) + ' ' + f.req;
+  if (lv < f.req) return itemName(id) + ' needs ' + skillName(FLAME) + ' ' + f.req + '. Yours is ' + lv + '.';
   return '';
 }
 

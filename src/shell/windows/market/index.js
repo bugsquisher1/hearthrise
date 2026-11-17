@@ -38,7 +38,7 @@ export function renderMarket(ctx) {
 
 /* What stands between this account and a trade, in the server's own terms ('' = nothing). */
 function blockWords(sc) {
-  if (sc.closed) return 'Weighhouse closed, listings safe';
+  if (sc.closed) return 'The Weighhouse is closed. Your listings are safe.';
   if (sc.locked && sc.rules && sc.rules.minLevel) return lockedWords(sc.rules.minLevel, sc.rules.minSkillLevel) + ' Until then, have a look around.';
   return '';
 }

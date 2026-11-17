@@ -32,17 +32,17 @@ const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], 
 /* What each armour line means, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
    a blow meets them in that order: dodge, absorb, resistances, ward, then health). */
 const COMBAT_TIPS = Object.freeze({
-  defence: 'Monsters miss more. Source: Defense skill, shield',
-  dodge: 'Chance a blow misses. Source: Medium armor',
-  absorb: 'Share of each blow blocked. Source: Heavy armor',
-  ward: 'Flat damage off each blow. Source: Light armor',
-  steady: 'Share off each blow, applied last. Source: cape, some foods',
-  temper: 'Smith upgrades on worn gear. Get: Shop → Services',
+  defence: 'Makes monsters miss you more often. Comes from your Defense skill and your shield.',
+  dodge: 'The chance a blow misses you completely. Comes from medium armor.',
+  absorb: 'The share of each blow your armor soaks up. Comes from heavy armor.',
+  ward: 'A flat amount taken off every blow. Comes from light armor. Best against lots of small hits.',
+  steady: 'A share taken off every blow after everything else. Comes from your cape and some foods.',
+  temper: 'Smith upgrades on the gear you wear. Get them in the Shop under Services.',
 });
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
-const LEVEL_TIP = 'Level XP: monster kills only. Each Level: more health and mana\n'
-  + 'Heavy: more health. Light: more mana. Death: lose XP, even a Level';
+const LEVEL_TIP = 'Your Level only goes up from killing monsters. Each Level adds max health and mana.\n'
+  + 'Heavy armor adds more health and light armor adds more mana. Dying costs Level XP and can cost a Level.';
 
 const lineHtml = ([k, l], kind, tips) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"'
   + (tips && tips[k] ? ' title="' + esc(tips[k]) + '"' : '') + '><dt>' + esc(l) + '</dt><dd></dd></div>';
@@ -104,26 +104,26 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   /* Vitals: max HP and max mana, the engine's regeneration and walk speed, the bag's spaces, the stamina pool. */
   line(root, '[data-vital="hp"]', hv.hpMax !== null ? whole(hv.hpMax) : null);
   line(root, '[data-vital="mana"]', hv.manaMax !== null ? whole(hv.manaMax) : null);
-  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? 'Inner Flame ' + signedPct((c.regenPct - 100) / 100) : null);
+  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? signedPct((c.regenPct - 100) / 100) + ' from Inner Flame' : null);
   line(root, '[data-vital="speed"]', c && c.moveSpeed !== null ? (Math.round(c.moveSpeed / 100) / 10) + ' tiles a second' : null);
   line(root, '[data-vital="cap"]', cap !== null ? whole(cap) + ' bag spaces' : null);
   line(root, '[data-vital="stamina"]', st ? hoursMinutes(st.msLeft) : null);
   combatLedger.patch(root, ctx);
   /* The engine's numbers, only while its sheet is fresh. */
   line(root, '[data-combat="damage"]', c && c.damage ? c.damage.min + '–' + c.damage.max : null);
-  line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against no armor' : null);
+  line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against an unarmored target' : null);
   line(root, '[data-combat="crit"]', c && c.critPct !== null ? c.critPct + '%' : null);
   line(root, '[data-combat="defence"]', c && c.defence !== null ? whole(c.defence) : null);
   /* The armour's mitigation (ruling K7), the engine's numbers against a monster of this Level: a stronger one gets through more. */
-  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows vs same Level' : null);
-  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow vs same Level' : null);
+  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows from monsters your level' : null);
+  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow from monsters your level' : null);
   line(root, '[data-combat="ward"]', c && c.ward !== null ? whole(c.ward) + ' off each blow' : null);
   line(root, '[data-combat="steady"]', c && c.steadyPct ? c.steadyPct + '% off each blow' : null);
   /* Tempering: the server's rungs through the fight's own rule, over the server's worn set (src/session/temper-sections.js). */
   const tempered = temperNowOf(cs);
   line(root, '[data-combat="temper"]', tempered ? [tempered.blowsPm ? 'blows +' + tempered.blowsPm / 10 + '%' : '', tempered.armorPm ? 'damage taken -' + tempered.armorPm / 10 + '%' : ''].filter(Boolean).join(', ') : null);
   const wait = root.querySelector('.hw-cs-wait');
-  text(wait, !sh ? '' : c ? '' : 'Loading combat stats…');
+  text(wait, !sh ? '' : c ? '' : 'Loading your combat stats…');
   cls(wait, 'is-on', !!sh && !c);
   /* The bestiary: distinct monsters slain over the server's roster. */
   const b = sh && sh.bestiary;
@@ -146,6 +146,6 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
     line(root, '[data-xp="' + k + '"]', f !== null ? signedPct(f) : null);
   }
   cls(root.querySelector('.hw-cs-xhead'), 'is-on', !!c);
-  line(root, '.hw-cs-total', c && any ? signedPct(total) + (x.combat ? ', ' + signedPct(total + x.combat) + ' on combat skills' : '') : null);
+  line(root, '.hw-cs-total', c && any ? signedPct(total) + (x.combat ? ' (' + signedPct(total + x.combat) + ' on combat skills)' : '') : null);
   cls(root.querySelector('.hw-cs-xnone'), 'is-on', !!c && !any);
 }

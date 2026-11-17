@@ -31,7 +31,7 @@ function whenWords(atMs, nowMs) {
 /** The Deaths tab's skeleton. */
 export function deathsHtml() {
   return '<section class="hw-cs-deaths"><ul class="hw-dl-list"></ul>'
-    + '<p class="hh-empty hw-dl-none">No deaths on record</p></section>';
+    + '<p class="hh-empty hw-dl-none">No deaths yet</p></section>';
 }
 
 /** Patch the Deaths tab. */

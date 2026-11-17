@@ -73,7 +73,7 @@ export function patchLedger(v) {
     },
   });
   const none = root.querySelector('.hw-mk-hist-none');
-  text(none, mine && !hist.length ? 'No history yet, kept 30 days' : '');
+  text(none, mine && !hist.length ? 'No history yet. Trades show here for 30 days.' : '');
   cls(none, 'is-on', !!(mine && !hist.length));
 }
 

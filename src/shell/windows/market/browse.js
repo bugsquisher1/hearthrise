@@ -31,7 +31,7 @@ import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGest
 import { t } from '../../../render/player-text.js?v=0.2.134';
 
 const SEARCH_MAX = 50;
-const LOST_WORDS = 'No answer, safe to press again';
+const LOST_WORDS = 'No answer from the Weighhouse. It\'s safe to press again. It won\'t buy twice.';
 
 /** The Browse pane's skeleton. */
 export function browseHtml(ctx) {
@@ -90,7 +90,7 @@ function floorWarning(ctx, left) {
     const h = huntOf(c);
     const s = h && !h.ended ? settingsOf(c) : null;
     if (s && Number.isSafeInteger(s.goldFloor) && s.goldFloor > left) {
-      return (nameOf(c) || 'Hero') + ' stops buying food below ' + goldWords(s.goldFloor) + '. Left after: ' + whole(Math.max(0, left));
+      return (nameOf(c) || 'Your hero') + ' stops buying food below ' + goldWords(s.goldFloor) + '. This leaves ' + goldWords(Math.max(0, left)) + '.';
     }
   }
   return '';
@@ -145,10 +145,10 @@ function patchBuy(root, v, page) {
   const press = buy.querySelector('[data-hs-act="mk-buy"]');
   text(press, g ? 'Try again' : plan.qty ? 'Buy ' + whole(plan.qty) + ' for ' + goldWords(plan.total) : t('controls.buy'));
   prop(press, 'disabled', v.off || !plan.qty || (short && !g));
-  attr(press, 'data-off-why', v.offWhy || (short ? 'Need ' + goldWords(-left) + ' more' : null));
+  attr(press, 'data-off-why', v.offWhy || (short ? 'You need ' + goldWords(-left) + ' more' : null));
   prop(buy.querySelector('.hw-mk-forget'), 'hidden', !g);
-  text(buy.querySelector('.hw-mk-after'), left === null || !plan.qty ? '' : short ? 'Need ' + whole(plan.total) + ' gold, have ' + whole(purse)
-    : 'Left after: ' + goldWords(left) + (plan.qty < n ? '. Only ' + whole(plan.qty) + ' for sale' : ''));
+  text(buy.querySelector('.hw-mk-after'), left === null || !plan.qty ? '' : short ? goldWords(plan.total) + ' (you need ' + goldWords(-left) + ' more)'
+    : 'You\'ll have ' + goldWords(left) + ' left.' + (plan.qty < n ? ' Only ' + whole(plan.qty) + ' are for sale.' : ''));
   text(buy.querySelector('.hw-mk-warn'), left === null || short || !plan.qty ? '' : floorWarning(ctx, left));
 }
 
@@ -158,24 +158,24 @@ function patchLine(root, ctx, page) {
   const on = days.length > 0;
   for (const s of ['.hw-mk-line-h', '.hw-mk-line', '.hw-mk-line-note']) prop(root.querySelector(s), 'hidden', !on);
   const line = root.querySelector('.hw-mk-line');
-  attr(line, 'aria-label', on ? 'The average price each day it sold' : null);
+  attr(line, 'aria-label', on ? 'Average price on each day it sold' : null);
   rows(line, days, {
     key: (d) => String(d.day),
     build: () => element(ctx.doc, '<i class="hw-mk-bar"></i>'),
     patch: (el, d) => {
       style(el, 'height', Math.max(8, Math.round(Number(d.avg_each) / top * 100)) + '%');
-      attr(el, 'title', String(d.day) + ': ' + whole(Number(d.avg_each)) + ' each, ' + whole(Number(d.qty)) + ' sold');
+      attr(el, 'title', String(d.day) + ': ' + whole(Number(d.qty)) + ' sold at ' + whole(Number(d.avg_each)) + ' gp each');
     },
   });
   const sold = days.reduce((s, d) => s + (Number(d.qty) || 0), 0);
-  text(root.querySelector('.hw-mk-line-note'), on ? whole(sold) + ' sold on ' + whole(days.length) + (days.length === 1 ? ' day' : ' days') + ', from ' + whole(Math.min(...days.map((d) => Number(d.low) || 0))) + ' to ' + whole(top) + ' each.' : '');
+  text(root.querySelector('.hw-mk-line-note'), on ? whole(sold) + ' sold over ' + whole(days.length) + (days.length === 1 ? ' day' : ' days') + ' for ' + whole(Math.min(...days.map((d) => Number(d.low) || 0))) + ' to ' + whole(top) + ' gp each.' : '');
   const recent = page.recent.filter((r) => r && Number.isFinite(Number(r.each)));
   prop(root.querySelector('.hw-mk-sales-h'), 'hidden', !recent.length);
   const now = Date.now();
   rows(root.querySelector('.hw-mk-sales'), recent, {
     key: (r) => String(r.at) + ':' + r.qty,
     build: () => element(ctx.doc, '<li class="hw-mk-sale"></li>'),
-    patch: (li, r) => text(li, whole(Number(r.qty)) + ' at ' + whole(Number(r.each)) + ' each, ' + ageWords(Date.parse(r.at), now)),
+    patch: (li, r) => text(li, whole(Number(r.qty)) + ' sold at ' + whole(Number(r.each)) + ' gp each ' + ageWords(Date.parse(r.at), now)),
   });
 }
 
@@ -195,7 +195,7 @@ function patchPage(root, v) {
   const sample = page ? priceSample(page) : null;
   const now = Date.now();
   text(root.querySelector('.hw-mk-price'), !s ? 'Reading the market…' : !s.listable ? notListableWords(s.why)
-    : [s.typical !== null ? 'Usually ' + whole(s.typical) + ' each' : '', s.lastEach !== null ? 'Last sold for ' + whole(s.lastEach) + ', ' + ageWords(s.lastAt, now) : '', sample && sample.sales7d ? sample.line : ''].filter(Boolean).join('. '));
+    : [s.typical !== null ? 'Usually sells for ' + whole(s.typical) + ' gp each.' : '', s.lastEach !== null ? 'Last sold ' + ageWords(s.lastAt, now) + ' for ' + whole(s.lastEach) + ' gp.' : '', sample && sample.sales7d ? sample.line[0].toUpperCase() + sample.line.slice(1) + '.' : ''].filter(Boolean).join(' '));
   patchAsks(root, ctx, sc, page, v.off);
   const none = root.querySelector('.hw-mk-asks-none');
   const empty = page && !page.asks.length;
@@ -217,7 +217,7 @@ export function patchBrowse(v) {
   /* THE EMPTY MARKET READS AS AN INVITATION: said only once the server has answered that nothing is for sale. */
   const bare = sc.forSale !== null && !sc.forSale.length && !sc.query && !sc.closed;
   cls(pane.querySelector('.hw-mk-invite'), 'is-on', bare);
-  text(pane.querySelector('.hw-mk-invite-p'), 'Nothing for sale yet');
+  text(pane.querySelector('.hw-mk-invite-p'), 'Nothing is for sale yet. List something and the Weighhouse holds it until someone buys it.');
   const cols = pane.querySelector('.hw-mk-cols');
   prop(cols, 'hidden', bare);
   if (!sc.pick && list.length && !ctx.isPhone()) { sc.pick = list[0].id; readItem(ctx, cs, sc, sc.pick); }
@@ -259,11 +259,11 @@ async function runBuy(o, plan, deliver) {
   const name = itemName(item);
   if (stop && answerLost(stop)) { sc.msg = LOST_WORDS; repaint(); return; }
   dropGesture(sc);
-  const done = g.bought ? 'Bought ' + whole(g.bought) + ' ' + name + ' for ' + goldWords(g.spent) : '';
+  const done = g.bought ? 'Bought ' + whole(g.bought) + ' ' + name + ' for ' + goldWords(g.spent) + '.' : '';
   const raced = stop && ['gone', 'not_enough', 'expired'].includes(stop.error);
-  sc.msg = !stop ? done + (g.deliver === 'storage' ? ', sent to storage' : ', sent to bag')
-    : raced && g.bought ? done + ', the rest sold first'
-    : (done ? done + '. ' : '') + said;
+  sc.msg = !stop ? done + (g.deliver === 'storage' ? ' It\'s in your storage.' : ' It\'s in your bag.')
+    : raced && g.bought ? done + ' The rest sold to someone else first.'
+    : (done ? done + ' ' : '') + said;
   if (!stop) sc.want = 1;
   repaint();
   await rereadAll(ctx, cs, sc);
@@ -336,10 +336,10 @@ export async function cancelListing(o, listing) {
   let r;
   try { r = await marketCancel(ctx.account, cs, listing, cancelKey(sc, listing)); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
-  if (answerLost(r)) { sc.msg = 'No answer, safe to press Cancel again'; repaint(); return; }
+  if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. It\'s safe to press Cancel again.'; repaint(); return; }
   sc.cancels.delete(listing);
   const c = r.ok && r.receipt ? r.receipt : null;
-  sc.msg = !r.ok ? refusalText(r, cs) : c && c.item_id ? 'Canceled, ' + whole(c.qty) + ' ' + itemName(c.item_id) + ' back in storage' : 'Canceled, back in storage';
+  sc.msg = !r.ok ? refusalText(r, cs) : c && c.item_id ? 'Canceled. ' + whole(c.qty) + ' ' + itemName(c.item_id) + (c.qty === 1 ? ' is' : ' are') + ' back in your storage.' : 'Canceled. It\'s back in your storage.';
   repaint();
   await rereadAll(ctx, cs, sc);
 }

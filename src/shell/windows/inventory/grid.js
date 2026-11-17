@@ -94,7 +94,7 @@ export function toolsHtml(g) {
 const aheadWords = (d) => whole(Math.abs(d)) + (d > 0 ? ' more on the way' : ' being used');
 /** The picked stack's count: what is in hand, then the pending part. A stack being spent counts what is left, the same number as
     its pocket and the work line ("×15 · 14 being used" sat beside a pocket of 1, the panel 2026-11-01). Pure. */
-export const pickCountWords = (qty, ahead) => '×' + whole(qty + Math.min(0, ahead)) + (ahead ? ', ' + aheadWords(ahead) : '');
+export const pickCountWords = (qty, ahead) => '×' + whole(qty + Math.min(0, ahead)) + (ahead ? ' (' + aheadWords(ahead) + ')' : '');
 
 function patchPocket(li, r, st) {
   const locked = !!(st.rules && st.rules.locked.has(r.id));
@@ -194,7 +194,7 @@ export function patchTools(root, st, ctx) {
   /* Dispatch loot: off with the server-sections' reason (a hunt running, nothing planned), said on its own line. */
   const dWhy = dispatchBlock(st.cs);
   const db = tools.querySelector('[data-hs-act="dispatch"]');
-  attr(db, 'title', dWhy || 'Deposits every stack planned "Deposit" and sells every stack planned "Sell"');
+  attr(db, 'title', dWhy || 'Deposits everything marked Deposit and sells everything marked Sell');
   prop(db, 'disabled', sc.pending || !!dWhy);
   whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);
   const cb = tools.querySelector('[data-hs-act="sell-cat"]');
@@ -209,7 +209,7 @@ export function patchTools(root, st, ctx) {
   prop(ob, 'hidden', !st.outgrown.length);
   prop(ob, 'disabled', sc.pending);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
-  text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth: ' + gold(val.total) + (val.unpriced ? ', ' + val.unpriced + ' unpriced' : ''));
+  text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + (val.unpriced === 1 ? ' item' : ' items') + ' unpriced)' : ''));
 
   const cf = root.querySelector('.hw-confirm');
   cls(cf, 'is-on', !!sc.confirm);

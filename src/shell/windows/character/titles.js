@@ -40,7 +40,7 @@ function rowWords(r, purse) {
   const count = label + ': ' + whole(r.have) + ' of ' + whole(r.kills);
   if (r.have < r.kills) return { small: count, press: null, off: true };
   const short = purse !== null && purse < r.price ? r.price - purse : 0;
-  return { small: count + (short ? '. Need ' + gold(short) + ' more' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
+  return { small: count + (short ? ' (you need ' + gold(short) + ' more)' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
 }
 
 /** Patch the Titles tab. */
@@ -67,7 +67,7 @@ export function patchTitles(body, ctx, sc) {
   });
   const none = root.querySelector('.hw-titles-none');
   cls(none, 'is-on', !titles || !titles.rows.length);
-  text(none, !titles ? 'Titles load from the server.' : !titles.rows.length ? 'There are no titles to earn right now.' : '');
+  text(none, !titles ? 'Loading titles…' : !titles.rows.length ? 'There are no titles to earn right now.' : '');
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 }
 
@@ -83,7 +83,7 @@ export function actTitles(ctx, sc, action, ev, el, repaint) {
     runIntent(sc, repaint, () => wearTitle(ctx.account, cs, r.worn ? null : r.id), r.worn ? 'Unequipping…' : 'Equipping…',
       () => (r.worn ? name + ' unequipped' : name + ' equipped'), cs);
   } else {
-    runIntent(sc, repaint, () => buyTitle(ctx.account, cs, r.id, r.price), 'Claiming…', () => name + ' claimed, press Equip to show it', cs);
+    runIntent(sc, repaint, () => buyTitle(ctx.account, cs, r.id, r.price), 'Claiming…', () => name + ' is yours. Press Equip to show it.', cs);
   }
   return true;
 }

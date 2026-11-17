@@ -46,7 +46,7 @@ export function renderInventory(ctx) {
 
 /** What a bag at or past its spaces means (midgame panel 2026-11-01: "114 of 100 spaces" with no word): the server's rule, 2027-02-11-hunt-loot-past-bag-cap.sql. Pure. */
 export function overBagWords(used, cap) {
-  return used >= cap ? 'Bag full: sell or deposit to make room' : '';
+  return used >= cap ? 'Your bag is full. Sell or deposit something to make room.' : '';
 }
 
 /* The foot: the bag's spaces against the server's stack cap (hidden when the server sends none), and the gold. */

@@ -143,8 +143,8 @@ export function confirmWords(c) {
   const lines = [];
   if (c.empty) lines.push(p.kept.length ? 'Everything chosen is locked, so nothing will be sold.' : 'The shop has no price for these yet.');
   else lines.push('Sell ' + (n === 1 ? itemName(p.lines[0].item) + ' ×' + p.lines[0].qty : n + ' stacks') + '?');
-  if (p.kept.length) lines.push(p.kept.length + (p.kept.length === 1 ? ' locked stack is' : ' locked stacks are') + ' kept.');
-  if (p.unpriced.length) lines.push(p.unpriced.length + (p.unpriced.length === 1 ? ' stack has' : ' stacks have') + ' no shop price and stays.');
+  if (p.kept.length) lines.push(p.kept.length + (p.kept.length === 1 ? ' locked stack stays' : ' locked stacks stay') + ' in your bag.');
+  if (p.unpriced.length) lines.push(p.unpriced.length + (p.unpriced.length === 1 ? ' stack has no shop price and stays' : ' stacks have no shop price and stay') + ' in your bag.');
   /* a Rare in the sale is said before the press (never sold unasked, Tyler 2026-10-14), and so is what one sale's 64 stacks leave (audit F18) */
   const rares = c.empty ? 0 : p.lines.filter((l) => isRareOnly(l.item)).length;
   const labels = [rares ? t('bag.confirm_rares', { count: rares }) : '', p.more ? t('bag.confirm_remaining', { count: p.more }) : ''].filter(Boolean);

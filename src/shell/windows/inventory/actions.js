@@ -258,7 +258,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const item = (act, label, on, extra, why) => '<button type="button" role="menuitem" class="hw-mi" data-hs-act="' + act + '"' + (extra || '') + off(on) + '>' + esc(label) + '</button>'
     + (!on && why ? '<small class="hw-mi-why" data-why="' + act + '">' + esc(why) + '</small>' : '');
   let h = '<b class="hw-menu-title">' + esc(itemName(id)) + '</b>';
-  const block = k === 'gear' ? wearBlock(st.cs, id) || (equipSlotFor(id, st.eq) ? '' : itemName(id) + ' does not go in any slot.') : '';
+  const block = k === 'gear' ? wearBlock(st.cs, id) || (equipSlotFor(id, st.eq) ? '' : itemName(id) + ' can\'t be equipped.') : '';
   if (k === 'gear') h += item('m-equip', t('controls.equip'), !block, '', block);
   const eatWhy = k === 'food' ? eatBlock(st.cs, id) : '';
   if (k === 'food') h += item('m-eat', 'Eat', !eatWhy, '', eatWhy);
@@ -271,7 +271,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const nfWhy = nf ? namedBlock(st.cs, id) : '';
   if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
-  const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
+  const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop won\'t buy this.';
   h += item('m-sell', t('controls.sell'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
   h += item('m-market', t('controls.list_on_market'), !locked, '', locked ? 'Unlock it first.' : '');
   h += item('m-lock', locked ? t('controls.unlock') : t('controls.lock'), !!st.rules);
@@ -368,7 +368,7 @@ function onSlotDrag(st, ev, el, repaint) {
     /* the drop opens that slot's line: its words (and the server's answer) show there */
     st.sc.slot = slot;
     if (fitsSlot(id, slot)) wear(st, repaint, slot, id, 'slot');
-    else say(st, repaint, itemName(id) + ' does not go in that slot.', 'slot');
+    else say(st, repaint, itemName(id) + ' doesn\'t go in that slot.', 'slot');
   }
   return true;
 }

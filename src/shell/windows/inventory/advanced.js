@@ -54,8 +54,8 @@ function roleWords(cs, eq) {
     id = me ? me.role : null;
   }
   const w = eq.weapon ? itemName(eq.weapon) : null;
-  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ', from the ' + w : '');
-  return w ? 'Role: none yet for the ' + w : 'Role: none, no weapon';
+  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ' (from your ' + w + ')' : '');
+  return w ? 'Role: none for your ' + w + ' yet' : 'Role: none. Equip a weapon to get one.';
 }
 
 function buffWords(b) {

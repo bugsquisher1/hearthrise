@@ -34,7 +34,7 @@ const person = (o) => Object.freeze(Object.assign({}, o, { route: Object.freeze(
 export const FOLK = Object.freeze({
   [TOWN_MAP]: Object.freeze([
     /* the carter: from the arrival yard's crates by the gate down to the trough and the hay, and back */
-    person({ id: 'carter', body: 'outfit_brute', dye: '3.1.0.0', speed: 1.5, offsetMs: 0,
+    person({ id: 'carter', body: 'folk_carter', speed: 1.5, offsetMs: 0,
       route: [stop(77, 17, 18000, 'n'), stop(88, 22, 12000, 'ne')] }),
     /* the water carrier: from the well on the square's west lane to the Great Hearth's side, and back */
     person({ id: 'water_carrier', body: 'folk_water_carrier', speed: 1.3, offsetMs: 7000,

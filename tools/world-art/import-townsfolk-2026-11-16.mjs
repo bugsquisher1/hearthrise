@@ -15,11 +15,12 @@
 // the rotations and clips come back near it). Repeatable: every file it writes is a function of art/world-src.
 // Then: build.mjs --set townsfolk, tests/world-assets.mjs, tests/town-life.mjs.
 // ════════════════════════════════════════════════════════════════════════
-import { mkdirSync, mkdtempSync, copyFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, copyFileSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { ROOT } from './build.mjs';
+import { decodePNG, encodePNG, createImage } from './png.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const G = 'art/world-src/gen-2026-11-16-folk';
@@ -32,7 +33,9 @@ function run(tool, argv) {
   if (r.status !== 0) { process.stderr.write(r.stderr || ''); throw new Error(tool + ' ' + argv.slice(0, 6).join(' ') + ' … exit ' + r.status); }
 }
 
-/* THE BODIES: object (the 8-direction Pro Flash object), ramps (what its south wears), walk skip (frame_000 is the still). */
+/* THE BODIES: object (the 8-direction Pro Flash object), ramps (what its south wears); frame_000 of a walk is the still and is skipped.
+   walkMirror { facing: from }: that facing's walk is the other side's walk flipped (a body with no handedness, whose own rolls of
+   the facing kept drawing sweat or sparks in the air: the carter's NE, three rolls; his NW mirrored is his NE rotation to a pixel's read). */
 export const FOLK_BODIES = Object.freeze([
   { id: 'folk_market_woman', object: '3300bc6b-aa94-41c2-829f-4cdc42db331e', name: 'S1 market woman',
     ramps: 'shadow,earth,bone,skin,bronze,blood,cloth,leaf,gold' },
@@ -42,9 +45,18 @@ export const FOLK_BODIES = Object.freeze([
     ramps: 'shadow,earth,bone,bronze,water,steel,skin,torch' },
   { id: 'folk_fishmonger', object: 'cabbf241-072d-4fd5-bdce-78c327be334a', name: 'S1 fishmonger',
     ramps: 'stone,shadow,bone,iron,moss,earth,skin,steel,mithril' },
+  { id: 'folk_carter', object: '3c206e45-f25c-4574-a005-093921ad4dc7', name: 'S1 carter',
+    ramps: 'shadow,bronze,gold,earth,torch,skin,bone,stone,leaf', walkMirror: { 'north-east': 'north-west' } },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
+
+/** An image flipped left to right. */
+function flip(im) {
+  const o = createImage(im.width, im.height);
+  for (let y = 0; y < im.height; y++) for (let x = 0; x < im.width; x++) for (let k = 0; k < 4; k++) o.data[(y * im.width + x) * 4 + k] = im.data[(y * im.width + im.width - 1 - x) * 4 + k];
+  return o;
+}
 
 /** One body: staged as port-pixellab.mjs unit reads it (rotations, walk/<facing>/<i>.png less the still), ported, then its idle. */
 function body(b) {
@@ -54,7 +66,12 @@ function body(b) {
     for (const f of FACING) {
       copyFileSync(abs(`${src}/rotations/${f}.png`), join(stage, f + '.png'));
       mkdirSync(join(stage, 'walk', f), { recursive: true });
-      pngs(`${src}/walk/${f}`).slice(1).forEach((file, i) => copyFileSync(abs(`${src}/walk/${f}/${file}`), join(stage, 'walk', f, i + '.png')));
+      const from = (b.walkMirror && b.walkMirror[f]) || f;
+      pngs(`${src}/walk/${from}`).slice(1).forEach((file, i) => {
+        const to = join(stage, 'walk', f, i + '.png');
+        if (from === f) return copyFileSync(abs(`${src}/walk/${f}/${file}`), to);
+        writeFileSync(to, encodePNG(flip(decodePNG(readFileSync(abs(`${src}/walk/${from}/${file}`))))));
+      });
     }
     run('port-pixellab.mjs', ['unit', '--set', 'townsfolk', '--id', b.id, '--class', 'character', '--dir', stage, '--object', b.object, '--name', b.name,
       '--ramps', b.ramps, '--meta', abs(`${src}/meta.json`)]);

@@ -63,7 +63,7 @@ export function patchServicesPane(body, ctx) {
   text(root.querySelector('.hw-stam-now'), st ? 'Stamina ' + hoursText(st.msLeft) + ' of ' + hoursText(st.capMs) + '.' : 'Stamina loads from the server.');
   const quote = root.querySelector('.hw-stam-quote');
   const ask = root.querySelector('[data-hs-act="stam-ask"]');
-  if (!q) { text(quote, 'The server has not priced a refill yet.'); text(ask, 'Buy stamina'); }
+  if (!q) { text(quote, 'No refill price yet'); text(ask, 'Buy stamina'); }
   else if (!q.available) {
     text(quote, q.why === 'stamina_full' ? 'Stamina full' : 'Daily refills used: ' + whole(q.perDay) + ' of ' + whole(q.perDay));
     text(ask, 'Buy stamina');
@@ -86,8 +86,8 @@ export function patchServicesPane(body, ctx) {
   prop(yes, 'disabled', sc.pending);
   /* BLESSINGS */
   const b = blessingsOf(cs);
-  text(root.querySelector('.hw-bless-note'), !b ? 'Blessings load from the server.'
-    : 'Cuts death XP loss, used up on death' + (b.freeUntil ? ', free below Level ' + b.freeUntil : ''));
+  text(root.querySelector('.hw-bless-note'), !b ? 'Loading Blessings…'
+    : 'Each Blessing: −25% death XP loss. Used up on death' + (b.freeUntil ? '. Free until Level ' + b.freeUntil : ''));
   const next = b ? b.tiers.find((r) => !r.held) : null;
   rows(root.querySelector('.hw-bless'), b ? b.tiers : [], {
     key: (r) => String(r.tier),

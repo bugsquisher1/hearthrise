@@ -27,7 +27,7 @@ const CAME_HOME_BECAUSE = Object.freeze({
   runes_out: '{member} ran out of runes, so {name} came home too.',
   rule: '{member}’s stop rule was met, so {name} came home too.',
   hours: '{member}’s time limit was up, so {name} came home too.',
-  no_fight: '{member} landed no blows too long, party came home',
+  no_fight: '{member} landed no hits for too long. Party left the hunt',
   changed: '{member} moved on to another hunt, so {name} came home too.',
   server: 'The server stopped {member}’s hunt, so {name} came home too.',
 });

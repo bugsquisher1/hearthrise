@@ -209,7 +209,7 @@ export function patchTools(root, st, ctx) {
   prop(ob, 'hidden', !st.outgrown.length);
   prop(ob, 'disabled', sc.pending);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
-  text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth: ' + gold(val.total) + (val.unpriced ? ', ' + val.unpriced + ' unpriced' : ''));
+  text(tools.querySelector('.hw-value'), !st.shop ? 'Loading shop prices…' : !val ? 'Value –' : 'Worth: ' + gold(val.total) + (val.unpriced ? ', ' + val.unpriced + ' unpriced' : ''));
 
   const cf = root.querySelector('.hw-confirm');
   cls(cf, 'is-on', !!sc.confirm);

@@ -67,7 +67,7 @@ export function patchTitles(body, ctx, sc) {
   });
   const none = root.querySelector('.hw-titles-none');
   cls(none, 'is-on', !titles || !titles.rows.length);
-  text(none, !titles ? 'Titles load from the server.' : !titles.rows.length ? 'There are no titles to earn right now.' : '');
+  text(none, !titles ? 'Loading titles…' : !titles.rows.length ? 'No titles available' : '');
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 }
 

@@ -38,7 +38,7 @@ export function keptWords(kept) {
 const MARKET_VERBS = new Set(['market_list', 'market_buy', 'market_cancel', 'market_browse', 'market_item', 'market_mine']);
 
 /** Who the Weighhouse trades with, in the server's numbers: a refusal's, or the rules row's in the window. */
-export const lockedWords = (minLevel, minSkill) => 'The Weighhouse trades with heroes of Level ' + whole(minLevel) + ', or with a bench skill at ' + whole(minSkill) + '.';
+export const lockedWords = (minLevel, minSkill) => 'Requires Level ' + whole(minLevel) + ' or a bench skill at ' + whole(minSkill);
 
 /** The next UTC midnight as this player's clock reads it (display only): when the daily counts reset. */
 function resetWords() {

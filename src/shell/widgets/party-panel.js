@@ -173,7 +173,7 @@ export function leaveOrDisband(ctx, cs, sc, repaint, action) {
     /* It asks twice, on every screen (panels 2026-11-01: one press, no question, party gone): the first press arms it, and its words say so. */
     if (!sc.disbandArmed) {
       sc.disbandArmed = true;
-      sc.msg = 'Press Sure? to end the party for everyone in it.';
+      sc.msg = 'Press Sure? to disband the party';
       repaint();
       setTimeout(() => { if (sc.disbandArmed) { sc.disbandArmed = false; sc.msg = ''; repaint(); } }, DISBAND_ARMED_MS);
       return true;

@@ -12,7 +12,7 @@ export const CRIERS_TEXT = Object.freeze({
   /* the Town Crier at the gate */
   say_gate: 'Hunts are at the gate. Pick one and your hero walks out and fights on its own. You don\'t have to watch.',
   go_gate: 'Open Hunts',
-  say_blessing: 'Dying costs you XP. A Blessing keeps most of it. The Shop sells them under Services.',
+  say_blessing: 'Dying costs you XP. Each Blessing cuts that loss by a quarter. The Shop sells them under Services.',
   go_blessing: 'Open Services',
   say_storage: 'Bag getting full? Storage holds the rest, and every hero on your account can take from it.',
   go_storage: 'Open Storage',

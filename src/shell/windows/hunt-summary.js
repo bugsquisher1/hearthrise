@@ -49,7 +49,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
 const againOffWords = (cur) => {
   const room = roomOfHunt(cur.hunt);
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
-  return callOfHunt(cur.hunt) ? 'He comes when he is called, from the ground\'s page.' : 'This hunt did not keep its settings.';
+  return callOfHunt(cur.hunt) ? 'Call him out from the ground\'s page' : 'Hunt settings not saved';
 };
 
 /* The tutorial card up now (a card of the guide, never the "What next" line), or null. */

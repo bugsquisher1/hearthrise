@@ -267,10 +267,10 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   const groups = Array.from(byId.values());
   /* a perk the piece's own name already says ("Banded Signet (Follow-through)") is not said twice; the tooltip holds its sentence */
   const said = (p) => p.gains.filter((g) => !(g.perk && itemName(p.id).includes(g.label))).slice(0, gains);
-  /* the gains follow the name as labels, never a bracket: "Banded Signet (Follow-through) +1 Melee accuracy" (the bracket is the catalogue's name) */
+  /* the gains follow the name in a bracket: "Leather Hood (+2 Defense)" */
   const named = groups.slice(0, names).map(({ p, n }) => {
     const name = itemName(p.id) + (n > 1 ? ' ×' + n : '');
-    return said(p).length ? name + ' ' + said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '') : name;
+    return said(p).length ? name + ' (' + said(p).map((g) => g.text).join(', ') + (n > 1 ? ' each' : '') + ')' : name;
   });
   const more = groups.length - named.length;
   if (more > 0) named.push(more + (more === 1 ? ' more piece' : ' more pieces'));

@@ -143,13 +143,13 @@ function bareWords(kind, parts, carried) {
 /* Every item the bar's slots name. */
 const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));
 
-/* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
+/* One part of a supply line: "20 Cooked Shrimp", "no Cooked Shrimp left", "Salted Shrimp (14 gp)", a rune's "(14 gp a cast)". */
 function partWords(p) {
   const name = p.own ? p.own.name || itemName(p.own.id) : '';
   /* a rune a new hero never had is not "left": "no Fire runes of yours". With the store behind it the empty stock says
      nothing ("no Fire runes of yours, then Plain Fire Rune..." read like a robot, first-hour play 2026-10-31). */
-  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' carried' : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' carried' : ' left')) : null;
-  const store = p.store ? p.store.name + ' from the store, ' + p.store.price + ' gp ' + p.store.each : null;
+  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' carried' : ' left')) : null;
+  const store = p.store ? p.store.name + ' (' + p.store.price + ' gp' + (p.store.each === 'each' ? '' : ' ' + p.store.each) + ')' : null;
   return [own, store].filter(Boolean).join(', then ');
 }
 
@@ -167,7 +167,7 @@ function liveRunes(live) {
     else spends.push({ price: p.store.price, names: [p.store.name] });
   }
   const andWords = (n) => (n.length < 2 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]);
-  return spends.map((x) => x.words || andWords(x.names) + ' from the store, ' + x.price + ' gp a cast').join('. ');
+  return spends.map((x) => x.words || andWords(x.names) + ' (' + x.price + ' gp a cast)').join('. ');
 }
 
 /* THE RUNES LINE: what casts (liveRunes), then the spells that will not fire and their fix. Nothing usable keeps the listed stocks (bareWords). */
@@ -228,12 +228,12 @@ function shotLine(s, cs, carried) {
   const dry = !!worn && shootsItem(s.role, ITEMS[worn]) && !((carried.find((r) => r.id === worn) || {}).qty > 0) ? 'no ' + itemName(worn) + ' left' : null;
   if (!plan.own.length && !plan.store.length) {
     const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && !shortOf(r.id, skills, null));
-    return { id: 'ammo', text: 'Ammo: ' + (dry || 'nothing loaded') + ', no attacks'
-      + (spare ? ', Bag → ' + itemName(spare.id) + ' → Put on the bar' : ', empty slot → Ammo → pick a store shot') + waiting, short: true, pays: false };
+    return { id: 'ammo', text: 'Ammo: ' + (dry || 'none loaded') + ' (no attacks)'
+      + (spare ? '. Bag → ' + itemName(spare.id) + ' → Put on the bar' : '. Empty slot → Ammo → pick a store shot') + waiting, short: true, pays: false };
   }
   const parts = (dry ? [dry] : [])
-    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id) + ' carried') + (o.id === worn ? (o.free ? ' loaded' : ', loaded') : '')))
-    .concat(plan.store.map((st) => st.name + ' from the store, ' + st.price + ' gp each'));
+    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id)) + (o.id === worn ? ' (loaded)' : '')))
+    .concat(plan.store.map((st) => st.name + ' (' + st.price + ' gp)'));
   const idle = plan.own.length && !plan.own[0].free ? []
     : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));
   const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);

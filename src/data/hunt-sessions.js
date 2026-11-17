@@ -275,8 +275,8 @@ export const EVENT_COPY = Object.freeze({
   rare_drop: Object.freeze({ one: 'Rare drop: {item}.' }),
   death: Object.freeze({ one: 'Killed by {monster}.' }),
   slot_dry: Object.freeze({ one: 'Ran out of {item}.' }),
-  stamina_low: Object.freeze({ one: 'Stamina is low, with about 1 minute left.', other: 'Stamina is low, with about {n} minutes left.' }),
+  stamina_low: Object.freeze({ one: 'Stamina low: about 1 minute left', other: 'Stamina low: about {n} minutes left' }),
   /* Sell-to-cover: loot sold to the vendor so the shop could be paid. */
-  cover: Object.freeze({ one: 'Sold 1 item to keep the shop paid.', other: 'Sold {n} items to keep the shop paid.' }),
+  cover: Object.freeze({ one: 'Sold 1 item to pay for supplies', other: 'Sold {n} items to pay for supplies' }),
   ended: Object.freeze({ one: 'Hunt over: {reason}' }),
 });

@@ -52,7 +52,7 @@ const monstersWord = (n) => (n === 1 ? 'a monster' : n + ' or more monsters') + 
 function neverWords(c, slot, party) {
   const need = atLeast(c), top = topOf(c, slot, party);
   if (need !== null && c.metric === 'allies_below') return 'Waiting: needs ' + heroesWord(c, need) + (party > 1 ? ', party of ' + party : ', not in a party');
-  if (need !== null && c.metric === 'enemies_in_aoe') return 'Waiting: this reaches ' + (top === 1 ? 'one monster' : top + ' monsters') + ' at most, so it never gets to ' + need + '. Change this condition to let it fire.';
+  if (need !== null && c.metric === 'enemies_in_aoe') return 'Never fires: reaches ' + (top === 1 ? '1 monster' : top + ' monsters') + ' at most, condition needs ' + need;
   return 'Never fires: “' + conditionWords(c) + '” never happens';
 }
 

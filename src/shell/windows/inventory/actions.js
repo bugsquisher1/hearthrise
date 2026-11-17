@@ -270,8 +270,8 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const nf = namedFuelOf(id);
   const nfWhy = nf ? namedBlock(st.cs, id) : '';
   if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);
-  if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
-  const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
+  if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
+  const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
   h += item('m-sell', t('controls.sell'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
   h += item('m-market', t('controls.list_on_market'), !locked, '', locked ? 'Unlock it first.' : '');
   h += item('m-lock', locked ? t('controls.unlock') : t('controls.lock'), !!st.rules);

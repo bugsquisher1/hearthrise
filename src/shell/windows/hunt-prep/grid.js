@@ -82,8 +82,8 @@ function openOn(ctx, sc, i) {
   const host = {
     bar: () => sc.draft.slots.slice(),
     set: () => sc.view,
-    write: (k, slot) => { sc.draft.slots[k] = slot; sc.sorted = false; sc.cleared = false; },
-    move: (a, b) => { const s = sc.draft.slots; [s[a], s[b]] = [s[b], s[a]]; sc.sorted = false; },
+    write: (k, slot) => { sc.draft.slots[k] = slot; sc.sorted = false; sc.cleared = false; sc.basic = false; },
+    move: (a, b) => { const s = sc.draft.slots; [s[a], s[b]] = [s[b], s[a]]; sc.sorted = false; sc.basic = false; },
     after: () => ctx.refresh('hunt-prep'),
   };
   openSlotIn(cs, i, host);
@@ -139,7 +139,7 @@ function startDrag(ctx, sc, repaint, ev, el) {
     endGhost(wrap);
     const to = e.type === 'pointerup' ? tileAt(doc, grid, e) : null;
     const plan = d() && to !== null ? dropPlan(d().slots, g.from, to) : null;
-    if (plan) { d().slots = plan; sc.sorted = false; sc.cleared = false; }
+    if (plan) { d().slots = plan; sc.sorted = false; sc.cleared = false; sc.basic = false; }
     sc.swallowUntil = ctx.now() + SWALLOW_MS;
     repaint();
   };

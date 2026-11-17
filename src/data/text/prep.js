@@ -72,6 +72,8 @@ export const PREP_TEXT = Object.freeze({
   slot_always: 'Fires when ready',
   sorted: 'Sorted: moves, food and drink, then ammo',
   cleared: 'Cleared (weapon moves kept)',
+  /* a label, not a sentence (Tyler 2026-11-14: everything outside lore is a genre-standard label) */
+  basic_loaded: 'Basic setup: unsaved',
 
   /* THE FOOTER. */
   save_and_use: 'Save and use',

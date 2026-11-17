@@ -32,6 +32,9 @@
 //   partywarn  a warning first: the leader is about to take the party above this
 //           hero's level (a `party_notices` ground_warn, id = the notice's), or a
 //           friend's stamina is low (`stamina_low_ms`, id = session + seat)
+//   spell   a level-up in the record unlocked moves for the weapon worn (spell-news.js:
+//           the projection's own diff, never on a load), one line for all of them,
+//           id = each move's (`also` records the rest); it goes once they are on the bar
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
 // in memory for the page and in the character's residue (`alerts.seen`,
@@ -67,6 +70,7 @@ import { ITEMS } from '../data/items.js?v=0.2.134';
 import { trackOnce } from '../net/observability.js?v=0.2.134';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.134';
 import { endedWords as trainingEndWords } from './training-words.js?v=0.2.134';
+import { spellWatch, movesOnBar } from './spell-news.js?v=0.2.134';
 
 const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 
@@ -275,12 +279,17 @@ export function createAlertCenter(account, opts) {
   /* No stamp over a card still being read, on screen or on the way out (a page only hidden may flicker back, so it stamps as ever); every other stamp is away-recap.js's own. */
   const stampAway = (cs, leaving) => ((leaving ? cardUnread(cs) : cardYoung(cs)) ? false : stampNow(cs, leaving));
   const seenOf = (slot) => { let s = seen.get(slot); if (!s) { s = new Set(); seen.set(slot, s); } return s; };
+  /* Has this character been shown id `id`, on this page or (the residue) before it. */
+  const wasSeen = (cs, id) => { const stored = residueOf(cs).seen; return seenOf(cs.slot).has(id) || (Array.isArray(stored) && stored.includes(id)); };
+  const spells = spellWatch();
 
+  /* `c.also`: more ids the one line stands for (a prompt for several spells), recorded as seen with its own. */
   function fire(cs, c) {
     const mine = seenOf(cs.slot);
     const stored = residueOf(cs).seen;
-    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;
-    mine.add(c.id);
+    if (wasSeen(cs, c.id)) return false;
+    const ids = [c.id].concat(Array.isArray(c.also) ? c.also : []);
+    for (const id of ids) mine.add(id);
     if (c.quiet) return false;
     if (!alertShown(cs, c.kind)) return false;
     const kind = ALERT_INDEX[c.kind];
@@ -292,7 +301,7 @@ export function createAlertCenter(account, opts) {
     /* `transient`: live news a reload never raises again, so it takes no place in the saved list */
     if (!c.transient) {
       const r = residueOf(cs);
-      cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });
+      cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(ids).slice(-ALERTS_SEEN_MAX) });
     }
     return true;
   }
@@ -342,6 +351,9 @@ export function createAlertCenter(account, opts) {
     /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);
+    /* A level-up in this record that unlocked moves (spell-news.js): one line for all of them, never on a load. */
+    const spell = spells.news(cs, (id) => wasSeen(cs, id), who(cs));
+    if (spell) now.push(spell);
     /* Before it fires: firing writes the residue, and the listeners' scan runs inside that write. */
     if (away && !seenOf(cs.slot).has(away.id)) youngAway.set(cs.slot, { at: Date.now(), seen: residueOf(cs).seen, off: residueOf(cs).off });
     for (const c of now) any = fire(cs, c) || any;
@@ -365,10 +377,12 @@ export function createAlertCenter(account, opts) {
       const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
       /* AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary): the player closed the summary, or dismissed the death. */
       const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'trained' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
+      /* A new spell prompt is answered once the server's bar holds every move it named (added here, or by hand). */
+      const added = a.kind === 'spell' && Array.isArray(a.spells) && a.spells.every((id) => movesOnBar(settingsOf(cs)).has(id));
       /* A live line goes when the server stops saying it, and its words are this read's (LIVE, above). */
       if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }
       if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }
-      if (stale || seenEnd || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
+      if (stale || seenEnd || added || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
       /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
       const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;
       if (line === null) { alerts.splice(i, 1); any = true; } else if (line !== a.text) { a.text = line; any = true; }
@@ -393,6 +407,7 @@ export function createAlertCenter(account, opts) {
     returning.delete(slot);
     gearSeen.delete(slot);
     heroUnit.delete(slot);
+    spells.forget(slot);
     seen.delete(slot);
     for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].slot === slot) alerts.splice(i, 1);
     changed();

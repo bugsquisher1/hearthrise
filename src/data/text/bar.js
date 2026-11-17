@@ -81,6 +81,9 @@ export const BAR_TEXT = Object.freeze({
   /* a spell that waits for a level in its own skill (abilities.js unlock), and its slot while the hero is under it */
   unlock: 'Unlocks at {skill} {level}.',
   unlock_wait: 'Requires {skill} {level}, now {have}',
+  /* The new spell prompt (src/shell/spell-news.js, Tyler 2026-11-16): a level-up unlocked these moves for the weapon {hero} wears. A label,
+     never a sentence: the hero as its prefix (up to four play at once and the line's Add acts on that hero's bar), then the names. */
+  new_spell: { one: '{hero}: New spell {names}', other: '{hero}: New spells {names}' },
   cost_mana: '{mana} mana',
   cost_no_mana: 'No mana',
   cost_rune: '1 {rune}',

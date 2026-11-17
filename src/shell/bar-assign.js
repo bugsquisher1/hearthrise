@@ -20,6 +20,8 @@ import { attackItem } from '../core/hunt/conditions.js?v=0.2.134';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.134';
 import { kindOf } from './bag-model.js?v=0.2.134';
 import { startConditions, moveOffWeapon } from './bar-draft.js?v=0.2.134';
+import { moveReady, moveSlot } from './basic-setup.js?v=0.2.134';
+import { skillsOf } from '../session/item-sections.js?v=0.2.134';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
@@ -72,6 +74,36 @@ export async function assignToBar(cs, id, at) {
     wire[Math.min(free, store)] = { action, conditions: conditions.map((c) => Object.assign({}, c)), join };
   }
   return cs.setHuntOptions(s.preset, { slots: wire });
+}
+
+/**
+ * PUT NEW MOVES ON THE BAR (the new spell prompt's Add to bar, spell-news.js): each move `ids` names that the server's bar
+ * does not hold yet goes in the next empty slot, written as the basic setup writes it (basic-setup.js moveSlot: its role
+ * rule set's trigger and Plain store rune). ONE intent, the whole bar restated, like assignToBar. Nothing to add answers
+ * ok with no intent; fewer empty slots than moves answers { ok:false, error:'bar_full' } and sends nothing (the caller
+ * opens Hunt prep instead).
+ */
+async function assignMoves(cs, ids) {
+  const s = settingsOf(cs);
+  if (!s || !s.discipline) return { ok: false, error: 'no_bar' };
+  const wire = Array.from({ length: SLOTS }, (_, i) => wireSlot(s.slots[i]));
+  const held = new Set(wire.filter((w) => w && w.action.type === 'ability').map((w) => w.action.id));
+  /* Only a move the worn weapon plays at the levels the server states (a prompt never names another, but a stale one might). */
+  const skills = skillsOf(cs);
+  const todo = (Array.isArray(ids) ? ids : []).filter((id, i, all) => all.indexOf(id) === i && !held.has(id) && moveReady(id, s.discipline, skills));
+  if (!todo.length) return { ok: true };
+  const free = wire.map((w, i) => (w ? -1 : i)).filter((i) => i >= 0);
+  if (free.length < todo.length) return { ok: false, error: 'bar_full' };
+  todo.forEach((id, k) => { wire[free[k]] = moveSlot(id, s.discipline); });
+  return cs.setHuntOptions(s.preset, { slots: wire });
+}
+
+/** The prompt's Add to bar: assignMoves, and with the bar full `openPrep()` (Hunt prep on that hero) in place of an intent, which answers ok. */
+export async function addMovesOrOpen(cs, ids, openPrep) {
+  const r = await assignMoves(cs, ids);
+  if (r.error !== 'bar_full') return r;
+  openPrep();
+  return { ok: true };
 }
 
 /**

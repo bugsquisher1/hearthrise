@@ -47,7 +47,7 @@
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
-import { bootReplay, inventory } from './schema-replay.mjs';
+import { bootReplay, closeReplays, inventory } from './schema-replay.mjs';
 import { setGold } from './_gold.mjs';
 import { BOSS_CALLS, BOSS_CALL_RULES } from '../src/data/boss-calls.js';
 import { readFileSync } from 'node:fs';
@@ -947,7 +947,15 @@ async function main() {
     let escaped = 0;
     const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
     const list = MUTANTS.filter((m) => !m.equivalent && (!pick || m.name.includes(pick)));
-    for (const m of list) {
+    /* ONE REPLAY AT A TIME (lane/fix135-boss-call-db). Every v0.2.135 release run was killed inside this loop ("The operation was canceled.", no
+       timeout, during the same mutant, its 37th): each mutant booted a replay and none was ever closed, and an unclosed replay is never collected
+       (tests/schema-replay.mjs closeReplays). So each mutant closes what it booted, and the loop holds the line in two ways: the registry must have
+       seen the mutant's boot, and past the first WARM mutants the process may grow at most RSS_GROWTH_MB over the largest it was during them (an
+       unclosed replay is ~300 MB; closed, the arms swing 0.7-1.6 GB on the dev machine, so the warm-up holds the heavy arm's size, not the light one's). */
+    const RSS_GROWTH_MB = 1024, WARM = 5;
+    const mb = (b) => Math.round(b / 1048576);
+    let base = 0;
+    for (const [i, m] of list.entries()) {
       const boot = async (o) => {
         const b = await bootReplay(o);
         const def = (await one(b.db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).replace(/\r/g, '');
@@ -957,9 +965,17 @@ async function main() {
       };
       let got = [];
       try { got = await ARMS[m.arm](boot); } catch (e) { if (/HARNESS/.test(String(e.message))) throw e; got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+      const booted = await closeReplays();
+      const rss = process.memoryUsage().rss;
+      if (i < WARM) base = Math.max(base, rss);
       const hit = got.some((p) => m.want.test(p));
       if (!hit) escaped++;
-      console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + String(got[0] || 'every check held').slice(0, 150));
+      console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + String(got[0] || 'every check held').slice(0, 150) + '  [rss ' + mb(rss) + ' MB]');
+      if (!booted) { console.log('boss-call-db --mutate: HARNESS: closeReplays saw no replay for "' + m.name + '": the registry is not seeing the boots it must close'); process.exit(2); }
+      if (i >= WARM && mb(rss - base) > RSS_GROWTH_MB) {
+        console.log(`boss-call-db --mutate: RED: the process grew ${mb(rss - base)} MB past its first ${WARM} mutants (${mb(base)} -> ${mb(rss)} MB, the line is ${RSS_GROWTH_MB}): a replay is not being closed`);
+        process.exit(1);
+      }
     }
     console.log(escaped ? `boss-call-db --mutate: ${escaped} ESCAPED` : `boss-call-db --mutate: ${list.length}/${list.length} caught`);
     process.exit(escaped ? 1 : 0);
@@ -967,7 +983,7 @@ async function main() {
   const boot = (o) => bootReplay(o);
   const only = (process.argv.find((a) => a.startsWith('--arm=')) || '').slice(6);
   const bad = [];
-  for (const arm of Object.keys(ARMS)) if (!only || arm === only) bad.push(...await ARMS[arm](boot));
+  for (const arm of Object.keys(ARMS)) if (!only || arm === only) { bad.push(...await ARMS[arm](boot)); await closeReplays(); }
   for (const p of bad) console.log('FAIL  ' + p);
   console.log(bad.length ? 'boss-call-db: ' + bad.length + ' FAILED' : 'boss-call-db: green (the verb, the one door, the forged windows, one fight and a series through both doors, the prize)');
   process.exit(bad.length ? 1 : 0);

@@ -223,6 +223,48 @@ export function replayScopeError({ patches, upTo, fullChain } = {}) {
   return null;
 }
 
+/* ── EVERY REPLAY IS CLOSED BY SOMEONE (lane/fix135-boss-call-db, 2026-11-17) ──
+   A replay restored from a snapshot is NEVER garbage-collected: the itimer chain
+   PGlite arms on `loadDataDir` (see bootTemplated's timer note) keeps the whole
+   WASM instance reachable until db.close(). Measured on the dev machine: 8 boots
+   dropped without a close grew RSS 790 -> 2,939 MB (~300 MB each, a forced GC
+   took back none of it, and a WeakRef to each dropped db still derefs); the same
+   8 boots closed held 593-722 MB. A --mutate loop that boots once per mutant and
+   closes nothing therefore grows until the CI runner runs out of memory, and
+   GitHub reports that as "The operation was canceled." with no timeout
+   (tests/boss-call-db.mjs --mutate: all three v0.2.135 release runs were killed
+   during the same mutant, its 37th, 2.8 to 4.3 min into the loop, one of them
+   saying "The runner has received a shutdown signal"; the same loop measured on
+   the dev machine reached 13 GB by that mutant and 17.5 GB at its 62nd, and
+   1.7 GB at most with this). So every replay this process boots is registered
+   here, and closeReplays() closes each one still open: a mutation loop calls it
+   after each mutant, once nothing holds the db. The registry holds WEAK refs:
+   an UNCACHED replay (no snapshot, so no timer) is collected once dropped
+   (measured with HR_PGLITE_CACHE=0: 3 dropped boots, 1 still alive, RSS flat at
+   738-741 MB), and a strong registry would pin it, so a guard that never calls
+   closeReplays keeps exactly its old footprint. */
+const BOOTED = [];
+
+/**
+ * Close every replay this process booted since the last call and has not
+ * closed. Returns how many replays were booted since the last call (closed here,
+ * closed by their guard, or already collected), so a loop can prove the
+ * registry saw its boots. A close that throws is not swallowed (an instance that
+ * cannot be closed is the leak this exists to end): every other replay is still
+ * closed, then the first error is thrown.
+ */
+export async function closeReplays() {
+  const seen = BOOTED.splice(0);
+  let first = null;
+  for (const ref of seen) {
+    const d = ref.deref();
+    if (!d || d.closed) continue;
+    try { await d.close(); } catch (err) { first = first || err; }
+  }
+  if (first) { const e = new Error('closeReplays: a replay would not close: ' + (first.message || first)); e.harness = true; throw e; }
+  return seen.length;
+}
+
 /**
  * Apply the whole chain to a fresh in-process PostgreSQL.
  *
@@ -459,6 +501,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
       e.replay = true; e.failures = failures; throw e;
     }
     db = boot.db;
+    BOOTED.push(new WeakRef(db));   // before anything else can throw: closeReplays closes a failed boot too
     endCapture = boot.endCapture || (() => 0);
     for (const [name] of prefix) applied.push(name);
     if (process.env.HR_PGLITE_CACHE_DEBUG) {
@@ -476,6 +519,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     }
   } else {
     db = await PGlite.create();
+    BOOTED.push(new WeakRef(db));
     await session(db);
     await db.exec(fixture);
     await db.exec(SCAFFOLD);

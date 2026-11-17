@@ -232,9 +232,12 @@ function contract(R, cs, body, tl) {
   const kr = R.IS.keyRingOf(cs);
   need('key_ring', !!kr && kr.unlocked === false && !!kr.offer && kr.offer.offer === 'key_ring.0' && Number.isInteger(kr.offer.gold) && kr.offer.gold > 0
     && Array.isArray(kr.keys) && kr.keys.length === 0, 'keyRingOf yields ' + JSON.stringify(kr) + ' from ' + JSON.stringify(body.key_ring));
-  // Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window
+  /* Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window. The ladders are the data's
+     (src/data/temper.js TEMPER_UNLOCKS, one per track and tier), never a written count: tiers 4 to 6 (v0.2.135) made a literal 4 stale. */
   const tp = R.TP.temperOf(cs);
-  need('temper', Array.isArray(tp) && tp.length === 4 && tp.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold) && l.gold > 0),
+  const ladders = R.TD.TEMPER_UNLOCKS.map((x) => x.unlock_id).sort().join();
+  need('temper', Array.isArray(tp) && tp.map((l) => R.TD.temperUnlockId(l.track, l.tier)).sort().join() === ladders
+    && tp.every((l) => l.rung === 0 && l.max === R.TD.TEMPER_RUNGS && l.offer === R.TD.temperOfferId(l.track, l.tier, 1) && Number.isInteger(l.gold) && l.gold > 0),
     'temperOf yields ' + JSON.stringify(tp) + ' from ' + JSON.stringify(body.temper).slice(0, 160));
   // the Hallmark step (2027-03-14-jewelry-hallmark.sql): the offers for the Fine pieces held (none here), the account's count and the day's limit
   const hm = R.JW.hallmarkOf(cs);
@@ -410,7 +413,7 @@ async function readers(root) {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
     CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
-    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
+    TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')), TD: await import(u('src/data/temper.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
     TWR: await import(u('src/session/tower-sections.js')),

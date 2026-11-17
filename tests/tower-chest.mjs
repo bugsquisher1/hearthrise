@@ -522,8 +522,9 @@ async function openArm(db, M) {
     out.def = await call(db, 'select public.hr_chest_stoke_default(0, $1, $2, $3::uuid)', ['silver', 2, idem()]);
     await db.query('update public.chest_luck set dry = 0 where user_id = $1 and slot = 0', [UID]);
     out.defOpen = await open(db, 'silver', 1, null);
-    /* (7) THE HAUL: one cold, unstoked Silver Key on a fresh count of its own items */
-    for (const it of ['fine_temper_salts', 'cooked_lobster']) await db.query('delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2', [UID, it]);
+    /* (7) THE HAUL: one cold, unstoked Silver Key on a fresh count of its own items. Which salts is the data's (keySalts), never a written
+       id: (6)'s Silver Key paid them too, and a stale id here counted both keys' salts once the Silver Key moved to Mithril (C4). */
+    for (const it of [M.CH.keySalts(by.silver), by.silver.food]) await db.query('delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2', [UID, it]);
     await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'tower_cinders', 1000) on conflict (user_id, slot, item_id) do update set qty = 1000", [UID]);
     const keys0 = await bag(db, 'tower_key_silver');
     out.haul = await open(db, 'silver', 1, 0);
@@ -631,7 +632,7 @@ async function forgedArm(db, M) {
     out.rows = Number(await one(db, 'select count(*) from public.chest_opens where user_id = $1', [UID]));
     /* the full bag: refused BEFORE any roll (no row, no count moved) */
     await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'tower_key_bronze', 1) on conflict (user_id, slot, item_id) do update set qty = 1", [UID]);
-    for (const it of ['temper_salts', 'cooked_shrimp', 'tower_cinders']) await db.query('delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2', [UID, it]);
+    for (const it of Object.keys(M.CH.keyHaul(M.CH.CHEST_KEYS.find((k) => k.id === 'bronze')))) await db.query('delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2', [UID, it]);
     await db.query('update public.player_state set bank_cap = (select count(*) from public.player_inventory where user_id = $1 and slot = 0) where user_id = $1 and slot = 0', [UID]);
     const n0 = Number(await one(db, 'select opens from public.chest_luck where user_id = $1 and slot = 0', [UID]));
     out.full = await open(db, 'bronze', 1, 0);

@@ -64,7 +64,7 @@ const TOWN = { hunt: null, state: Object.assign(clone(BASE_ENV.state), { active_
 const DAY = 86400000;
 const SID = '0a0a0a0a-0000-4000-8000-00000000c1b0';
 const KEYS = [['bronze', 'tower_key_bronze', 'Bronze Key', 10, 160, 50, 'temper_salts', 15, 'cooked_shrimp', 20, 1],
-  ['silver', 'tower_key_silver', 'Silver Key', 40, 80, 150, 'fine_temper_salts', 25, 'cooked_lobster', 15, 2]];
+  ['silver', 'tower_key_silver', 'Silver Key', 40, 80, 150, 'mithril_temper_salts', 25, 'cooked_lobster', 15, 2]];
 /* The section as hr_tower_section answers it. */
 /* The key families' rows as hr_chest_section answers them: Tower's week by default, none when null. */
 const FAM_NAME = { tower: 'Tower', catacomb: 'Catacomb' };

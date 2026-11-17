@@ -8,8 +8,9 @@
 // a cell on that edge is DRAWN as its neighbour's material where smooth value noise says so, in runs of a few cells, the dirt
 // spilling into the grass in one place and the grass creeping onto the dirt in another. The map's own ground (the lint, the
 // walk mask, the stands) never changes: this is how the edge is drawn, not where anything stands.
-//   rough { seed, pairs: [[lower, upper, spill?, bite?]], spill (0-1: the lower side's cell is drawn as the upper above it),
-//           bite (0-1: the upper side's cell is drawn as the lower below it), scale (tiles), deep (cells) }
+//   rough { seed, pairs: [[lower, upper, spill?, bite?, deep?]], spill (0-1: the lower side's cell is drawn as the upper above it),
+//           bite (0-1: the upper side's cell is drawn as the lower below it), scale (tiles), deep (cells; a pair's own deep for a band
+//           only two cells wide, the square's setts between its paving and the dirt, lane/a-havora-seams-2) }
 // A cell is drawn as its neighbour only when it has a 4-neighbour of that material, all eight neighbours are one of the pair's
 // two materials, and its own side runs on `deep` cells behind it (so a two-wide road is never narrowed, only widened, and a
 // strip never pinches to nothing). Read from the map as it was authored, never from cells already re-drawn: one pass.
@@ -38,9 +39,10 @@ const DIRS = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]);
 export function roughEdges(mat, W, H, idOf, rough) {
   const out = Int16Array.from(mat);
   if (!rough || !rough.pairs) return out;
-  const { seed = 1, spill = 0.6, bite = 0.4, scale = 2.6, deep = 4 } = rough;
+  const { seed = 1, spill = 0.6, bite = 0.4, scale = 2.6, deep: deepAll = 4 } = rough;
   const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? -1 : mat[y * W + x]);
-  for (const [lowName, upName, pSpill = spill, pBite = bite] of rough.pairs) {
+  for (const [lowName, upName, pSpill = spill, pBite = bite, pDeep = deepAll] of rough.pairs) {
+    const deep = pDeep;
     const lo = idOf.get(lowName), up = idOf.get(upName);
     if (lo === undefined || up === undefined) continue;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {

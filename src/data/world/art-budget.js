@@ -90,9 +90,10 @@ export const CLASSES = Object.freeze({
   // than a hall (footprint depth plus the facade), so its own row. Drawn like a building.
   lot: row({ body: [160, 480], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   // A town palisade (Havora's wall): an east-west run is one 32 px slice of a log strip per column (footprint 1 x 2,
-  // the band's two rows), a north-south run one 32 px slice per row seen from above (footprint 2 x 1, raw).
+  // the band's two rows), a north-south run one 32 px row of the same stakes stood one behind the other, each rising 96 px
+  // over its foot (footprint 2 x 1, raw: one perspective for the whole wall, lane/a-havora-seams-2, tools/world-art/palisade-art.mjs).
   palisade: row({ body: [56, 96], measure: 'h', contact: 'solid', shadow: null, layer: 'unit' }),
-  palisade_v: row({ body: [24, 32], measure: 'h', raw: true, contact: 'touch', shadow: null, layer: 'unit' }),
+  palisade_v: row({ body: [96, 128], measure: 'h', raw: true, contact: 'touch', shadow: null, layer: 'unit' }),
   // A bridge laid over a river (Havora's river crossing): a span wider than the Sewer's grate, walked on.
   bridge: row({ body: [128, 416], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
   door: row({ body: [48, 48], measure: 'h', contact: 'solid', shadow: null, layer: 'wall' }),

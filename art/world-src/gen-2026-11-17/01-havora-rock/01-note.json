@@ -1,0 +1,14 @@
+{
+  "brief": "Havora's mountain (town/ground.js '^' and its upper tier 'M') read as a flat grey field of cobble/flagstone plates with boulders on it (Coordinator, seams-2 audit). Wanted: real rock, cliff faces lit from the upper left, scree at the foot, grass tufts in the cracks, organic edges.",
+  "lane": "lane/a-havora-rock 2026-11-17",
+  "call": "create_topdown_tileset mode pro, 32 px, high top-down, lower 'light tan packed dirt road' (not used: the town's own dirt and grass are the floors), palette = hr-world-56-v2 stone, shadow, moss (and leaf, earth) ramps, max_colors 10-12; no chained base (the 11-11 palette lesson). Imported as drawn: every opaque pixel a palette entry (havora-seams.mjs sheetCut checks it).",
+  "rolls": {
+    "r1-181b4f19": { "words": "rough weathered warm grey granite bedrock, broken ledges, angular boulders, grass in the cracks", "transition": 0.25, "verdict": "REFUSED: drew crazy paving (polygon slabs with joints), the look the brief was written against" },
+    "r2-9e01cc00": { "words": "craggy lumpy rock, ridges and crevices, olive grass tufts", "transition": 0.5, "verdict": "REFUSED for the town: natural lumpy rock with a good tall face, but tiled every 32 px its outlined lumps read as scales/cobble, and its moss as a weed grid" },
+    "r3-72a06808": { "words": "jagged jumble of rough boulders, deep shadows, moss", "transition": 0.25, "verdict": "REFUSED: a boulder field, no cliff; as a fill it is a repeating heap of the same stones" },
+    "r4-74d5116e": { "words": "weathered grey rock, soft mottled tones, thin cracks", "transition": 0.5, "verdict": "REFUSED: calm, but one zigzag crack repeats on the 32 px grid" },
+    "r5-6c5f1090": { "words": "dark grey granite mountain top, rough uneven surface, gentle bumps, faint lichen, calm low-contrast texture", "transition": 0.5, "verdict": "KEPT: low-contrast mottled granite that shows no slab or crack on a grid; its tall cliff tile (x96, rows 18-40: vertical cracks and ledges, darkest at the foot) is the face", "fill": [0, 192], "face": [96, 19, 32, 14] }
+  },
+  "gens": "5 pro rolls x 15 = 75 subscription generations (credits $0.00 before and after)",
+  "wiring": "tools/world-art/havora-seams.mjs: the slopes ('^') take r5's fill as drawn, the upper terraces ('M') the same fill a value step up; every rock pair (grass, dirt, the quarry's gravel, the sea, and rock/peak) draws its south edges with r5's face rows and its sides with a 4 px strip of them (seams.mjs rise faceTex, side). The cliff and peak varieties shift the grain inside the tile and add pebbles and grass tufts."
+}

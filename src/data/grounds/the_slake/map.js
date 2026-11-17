@@ -6,6 +6,13 @@
 // banks and one crossing. The Slake is three silt bars and two deep channels with FOUR crossings, so the route is a ring and
 // shutting any one crossing strands nothing (checked: 1,358 open tiles, every one reachable from the road and inside an open
 // 3x3, every pull tile with a full box). The road comes in from the north at x12-15.
+// THE CHANNELS REDRAWN (lane/a-late-grounds-seams 2026-11-17; Tyler's bar, "rectangles with straight sides and right-angle steps"):
+// the six pools between the crossings were straight three-row bands. Their water now bays into the banks and the banks push into it,
+// so no edge against walked silt runs straight past three cells, and the reed banks put out spits where a bank ran on. Every pool
+// keeps two rows of water running from column to column, so the bank's silt never closes it into puddles. The four crossings, every
+// spawn and every placed thing are where they were (the Mudlark Holes' box gave four silt tiles of its top row to two bays); every
+// open tile is still reachable from the road and inside an open 3x3, no new way across the water opened, and the walked area moved
+// by two tiles (1,408 -> 1,410).
 //   '.' silt (earth: a mudflat, not a meadow, so the outdoor tree rule does not ask for trees on it)
 //   ':' the shallows, walked (earth; the painter lays the March's shallows tiles here)
 //   '~' a deep channel (brook: flat water, blocks a step)
@@ -39,27 +46,27 @@ export default Object.freeze({
     '########......................###.....................######',
     '#########.............................................######',
     '##########............................................######',
-    '###########.....::::::.................::::::::.......######', // 10
+    '##~~###~~~#.....::::::..~~...~....~~~..::::::::....~~~##~~##', // 10
+    '~~~~~~~~~~~~~~..::::::..~~~~~~...~~~~~.::::::::..~~~~~~~~~~~',
     '~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~',
-    '~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~',
-    '~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~~~~~~',
-    '~~~~~~########..::::::...######~~~~~~~~::::::::...#######~~~',
-    '~~~~#########.........................................####~~', // 15
+    '~~~~~~~~~~~~~~~~::::::~~~~~~~~~~~~~~~~~::::::::~~~~~~~~##~~~',
+    '~~~~###~~~##~~..::::::...~~~##~~~...~~~::::::::..~~~#~~##~~~',
+    '~~~~#########.........................................###~~~', // 15
+    '~~~##########..........................................##~~~',
     '~~~##########..........................................###~~',
-    '~~###########..........................................###~~',
-    '~~###########.............................................#~',
-    '~~##########..............................................#~', //    P5 the Grounded Barge, P2 the Greenbar
-    '~~##########..............................................#~', // 20
-    '~~##########.............................................##~',
-    '~~###########...........................................###~',
-    '~~#############..........................................#~~',
-    '~~##############.........................................#~~',
-    '~~~#############.......::::::::::.............:::::::....#~~', // 25
-    '~~~~~###########.......::::::::::.............:::::::...##~~',
+    '~~###########.............................................~~',
+    '~~##########..............................................~~', //    P5 the Grounded Barge, P2 the Greenbar
+    '~~##########..............................................~~', // 20
+    '~~##########.............................................#~~',
+    '~~~##########...........................................##~~',
+    '~~~############..........................................#~~',
+    '~~~#############.........................................#~~',
+    '~~~##~~~####~~~#...~~..::::::::::.......~~....:::::::....#~~', // 25
+    '~~~~~~~~#~~~~~#~...~~..::::::::::~~....~~~....:::::::...#~~~',
+    '~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~...~~~~~..:::::::..~~~~~',
     '~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~',
-    '~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~',
-    '~~~~~~~~~~~~~~~~~~~~~~~::::::::::~~~~~~~~~~~~~:::::::~~~~~~~',
-    '~~~~~~#####............::::::::::.............:::::::....###', // 30
+    '~~~~~~~~#~#~~~...~~~...::::::::::.~~~~~~##~~~~:::::::~~~##~~',
+    '~~~~~~#####............::::::::::..~~......~~.:::::::....###', // 30
     '####.....................................................###',
     '###..............................................###......##',
     '###...........###.............##................#####.....##',
@@ -82,23 +89,23 @@ export default Object.freeze({
     /* the river kit and the March kit: the Tow Path's war-dead, the Mudlark Holes' helms, the posts and traps the silt keeps */
     { id: 'hf_pikes_fallen', x: 14, y: 9 }, { id: 'hf_banded_shield', x: 19, y: 6 }, { id: 'hf_helm_heap', x: 37, y: 34 }, { id: 'mr_mooring_post', x: 27, y: 10 }, { id: 'mr_mooring_post', x: 44, y: 26 }, { id: 'mr_eel_trap', x: 36, y: 25 }, { id: 'mr_drowned_pikes', x: 31, y: 25 },
     /* wear: silt stains, ripples, the company's harness and shields gone green, scattered about one to a dozen tiles and never twice alike in a row (ART_DIRECTION 5) */
-    { id: 'mr_silt_stain', x: 12, y: 1 }, { id: 'mr_silt_ripples', x: 9, y: 2 }, { id: 'mr_silt_stain_small', x: 18, y: 2 }, { id: 'mr_silt_stain', x: 39, y: 2 }, { id: 'mr_silt_ripples', x: 23, y: 3 }, { id: 'mr_silt_stain_small', x: 36, y: 3 },
+    { id: 'mr_silt_stain', x: 12, y: 1 }, { id: 'mr_silt_ripples', x: 9, y: 2 }, { id: 'mr_silt_stain_small', x: 18, y: 2 }, { id: 'mr_silt_stain', x: 39, y: 2 }, { id: 'mr_silt_ripples_b', x: 23, y: 3 }, { id: 'mr_silt_stain_small', x: 36, y: 3 },
     { id: 'mr_green_harness', x: 45, y: 3 }, { id: 'mr_silt_ripples', x: 27, y: 4 }, { id: 'mr_silt_stain', x: 32, y: 4 }, { id: 'mr_greened_shield', x: 42, y: 4 }, { id: 'mr_silt_stain', x: 11, y: 6 },
-    { id: 'mr_silt_stain_small', x: 21, y: 6 }, { id: 'mr_silt_stain', x: 48, y: 6 }, { id: 'mr_silt_ripples', x: 8, y: 7 }, { id: 'mr_silt_stain_small', x: 37, y: 7 }, { id: 'mr_green_harness', x: 45, y: 7 }, { id: 'mr_silt_ripples', x: 24, y: 8 },
-    { id: 'mr_silt_stain', x: 28, y: 8 }, { id: 'mr_greened_shield', x: 34, y: 8 }, { id: 'mr_silt_stain', x: 42, y: 8 }, { id: 'mr_silt_ripples', x: 13, y: 9 }, { id: 'mr_silt_stain_small', x: 17, y: 9 }, { id: 'mr_silt_stain', x: 53, y: 9 },
-    { id: 'mr_silt_ripples', x: 31, y: 10 }, { id: 'mr_silt_stain_small', x: 38, y: 10 }, { id: 'mr_green_harness', x: 49, y: 10 }, { id: 'mr_silt_ripples', x: 21, y: 11 }, { id: 'mr_silt_stain', x: 18, y: 12 }, { id: 'mr_greened_shield', x: 41, y: 12 },
-    { id: 'mr_silt_stain', x: 46, y: 12 }, { id: 'mr_silt_ripples', x: 24, y: 14 }, { id: 'mr_silt_stain_small', x: 16, y: 15 }, { id: 'mr_silt_stain', x: 27, y: 15 }, { id: 'mr_silt_ripples', x: 31, y: 15 }, { id: 'mr_silt_stain_small', x: 39, y: 15 },
-    { id: 'mr_green_harness', x: 36, y: 16 }, { id: 'mr_silt_ripples', x: 51, y: 16 }, { id: 'mr_silt_stain', x: 20, y: 17 }, { id: 'mr_greened_shield', x: 43, y: 17 }, { id: 'mr_silt_stain', x: 48, y: 17 }, { id: 'mr_silt_ripples', x: 13, y: 18 },
-    { id: 'mr_silt_stain_small', x: 17, y: 18 }, { id: 'mr_silt_stain', x: 25, y: 18 }, { id: 'mr_silt_ripples', x: 40, y: 18 }, { id: 'mr_silt_stain_small', x: 54, y: 18 }, { id: 'mr_green_harness', x: 45, y: 20 }, { id: 'mr_silt_ripples', x: 57, y: 20 },
+    { id: 'mr_silt_stain_small', x: 21, y: 6 }, { id: 'mr_silt_stain', x: 48, y: 6 }, { id: 'mr_silt_ripples_b', x: 8, y: 7 }, { id: 'mr_silt_stain_small', x: 37, y: 7 }, { id: 'mr_green_harness', x: 45, y: 7 }, { id: 'mr_silt_ripples', x: 24, y: 8 },
+    { id: 'mr_silt_stain', x: 28, y: 8 }, { id: 'mr_greened_shield', x: 34, y: 8 }, { id: 'mr_silt_stain', x: 42, y: 8 }, { id: 'mr_silt_ripples_b', x: 13, y: 9 }, { id: 'mr_silt_stain_small', x: 17, y: 9 }, { id: 'mr_silt_stain', x: 53, y: 9 },
+    { id: 'mr_silt_ripples', x: 31, y: 10 }, { id: 'mr_silt_stain_small', x: 38, y: 10 }, { id: 'mr_green_harness', x: 49, y: 10 }, { id: 'mr_silt_ripples_b', x: 21, y: 11 }, { id: 'mr_silt_stain', x: 18, y: 12 }, { id: 'mr_greened_shield', x: 41, y: 12 },
+    { id: 'mr_silt_stain', x: 46, y: 12 }, { id: 'mr_silt_ripples', x: 24, y: 14 }, { id: 'mr_silt_stain_small', x: 16, y: 15 }, { id: 'mr_silt_stain', x: 27, y: 15 }, { id: 'mr_silt_ripples_b', x: 31, y: 15 }, { id: 'mr_silt_stain_small', x: 39, y: 15 },
+    { id: 'mr_green_harness', x: 36, y: 16 }, { id: 'mr_silt_ripples', x: 51, y: 16 }, { id: 'mr_silt_stain', x: 20, y: 17 }, { id: 'mr_greened_shield', x: 43, y: 17 }, { id: 'mr_silt_stain', x: 48, y: 17 }, { id: 'mr_silt_ripples_b', x: 13, y: 18 },
+    { id: 'mr_silt_stain_small', x: 17, y: 18 }, { id: 'mr_silt_stain', x: 25, y: 18 }, { id: 'mr_silt_ripples', x: 40, y: 18 }, { id: 'mr_silt_stain_small', x: 54, y: 18 }, { id: 'mr_green_harness', x: 45, y: 20 }, { id: 'mr_silt_ripples_b', x: 57, y: 20 },
     { id: 'mr_silt_stain', x: 15, y: 21 }, { id: 'mr_greened_shield', x: 20, y: 21 }, { id: 'mr_silt_stain', x: 24, y: 21 }, { id: 'mr_silt_ripples', x: 38, y: 21 }, { id: 'mr_silt_stain_small', x: 51, y: 21 }, { id: 'mr_silt_stain', x: 42, y: 22 },
-    { id: 'mr_silt_ripples', x: 54, y: 22 }, { id: 'mr_silt_stain_small', x: 46, y: 23 }, { id: 'mr_green_harness', x: 21, y: 24 }, { id: 'mr_silt_ripples', x: 32, y: 24 }, { id: 'mr_silt_stain', x: 24, y: 25 }, { id: 'mr_greened_shield', x: 29, y: 25 },
-    { id: 'mr_silt_stain', x: 38, y: 25 }, { id: 'mr_silt_ripples', x: 56, y: 25 }, { id: 'mr_silt_stain_small', x: 16, y: 26 }, { id: 'mr_silt_stain', x: 35, y: 26 }, { id: 'mr_silt_ripples', x: 42, y: 26 }, { id: 'mr_silt_stain_small', x: 47, y: 26 },
-    { id: 'mr_green_harness', x: 52, y: 26 }, { id: 'mr_silt_ripples', x: 25, y: 28 }, { id: 'mr_silt_stain', x: 32, y: 28 }, { id: 'mr_greened_shield', x: 29, y: 29 }, { id: 'mr_silt_stain', x: 17, y: 30 }, { id: 'mr_silt_ripples', x: 21, y: 30 },
-    { id: 'mr_silt_stain_small', x: 42, y: 30 }, { id: 'mr_silt_stain', x: 9, y: 31 }, { id: 'mr_silt_ripples', x: 13, y: 31 }, { id: 'mr_silt_stain_small', x: 26, y: 31 }, { id: 'mr_green_harness', x: 39, y: 31 }, { id: 'mr_silt_ripples', x: 47, y: 31 },
-    { id: 'mr_silt_stain', x: 52, y: 31 }, { id: 'mr_greened_shield', x: 56, y: 31 }, { id: 'mr_silt_stain', x: 30, y: 32 }, { id: 'mr_silt_ripples', x: 36, y: 32 }, { id: 'mr_silt_stain_small', x: 6, y: 33 }, { id: 'mr_silt_stain', x: 33, y: 33 },
-    { id: 'mr_silt_ripples', x: 44, y: 33 }, { id: 'mr_silt_stain_small', x: 3, y: 34 }, { id: 'mr_green_harness', x: 11, y: 34 }, { id: 'mr_silt_ripples', x: 18, y: 34 }, { id: 'mr_silt_stain', x: 24, y: 34 },
-    { id: 'mr_silt_stain', x: 57, y: 34 }, { id: 'mr_silt_ripples', x: 21, y: 35 }, { id: 'mr_silt_stain_small', x: 29, y: 35 }, { id: 'mr_silt_stain', x: 47, y: 35 }, { id: 'mr_silt_ripples', x: 54, y: 35 }, { id: 'mr_silt_stain_small', x: 7, y: 37 },
-    { id: 'mr_green_harness', x: 17, y: 37 }, { id: 'mr_silt_ripples', x: 26, y: 37 }, { id: 'mr_silt_stain', x: 35, y: 37 }, { id: 'mr_greened_shield', x: 40, y: 37 }, { id: 'mr_silt_stain', x: 44, y: 37 }, { id: 'mr_silt_ripples', x: 51, y: 37 },
+    { id: 'mr_silt_ripples_b', x: 54, y: 22 }, { id: 'mr_silt_stain_small', x: 46, y: 23 }, { id: 'mr_green_harness', x: 21, y: 24 }, { id: 'mr_silt_ripples', x: 32, y: 24 }, { id: 'mr_silt_stain', x: 24, y: 25 }, { id: 'mr_greened_shield', x: 29, y: 25 },
+    { id: 'mr_silt_stain', x: 38, y: 25 }, { id: 'mr_silt_ripples_b', x: 56, y: 25 }, { id: 'mr_silt_stain_small', x: 16, y: 26 }, { id: 'mr_silt_stain', x: 35, y: 26 }, { id: 'mr_silt_ripples', x: 42, y: 26 }, { id: 'mr_silt_stain_small', x: 47, y: 26 },
+    { id: 'mr_green_harness', x: 52, y: 26 }, { id: 'mr_silt_ripples_b', x: 25, y: 28 }, { id: 'mr_silt_stain', x: 32, y: 28 }, { id: 'mr_greened_shield', x: 29, y: 29 }, { id: 'mr_silt_stain', x: 17, y: 30 }, { id: 'mr_silt_ripples', x: 21, y: 30 },
+    { id: 'mr_silt_stain_small', x: 42, y: 30 }, { id: 'mr_silt_stain', x: 9, y: 31 }, { id: 'mr_silt_ripples_b', x: 13, y: 31 }, { id: 'mr_silt_stain_small', x: 26, y: 31 }, { id: 'mr_green_harness', x: 39, y: 31 }, { id: 'mr_silt_ripples', x: 47, y: 31 },
+    { id: 'mr_silt_stain', x: 52, y: 31 }, { id: 'mr_greened_shield', x: 56, y: 31 }, { id: 'mr_silt_stain', x: 30, y: 32 }, { id: 'mr_silt_ripples_b', x: 36, y: 32 }, { id: 'mr_silt_stain_small', x: 6, y: 33 }, { id: 'mr_silt_stain', x: 33, y: 33 },
+    { id: 'mr_silt_ripples', x: 44, y: 33 }, { id: 'mr_silt_stain_small', x: 3, y: 34 }, { id: 'mr_green_harness', x: 11, y: 34 }, { id: 'mr_silt_ripples_b', x: 18, y: 34 }, { id: 'mr_silt_stain', x: 24, y: 34 },
+    { id: 'mr_silt_stain', x: 57, y: 34 }, { id: 'mr_silt_ripples', x: 21, y: 35 }, { id: 'mr_silt_stain_small', x: 29, y: 35 }, { id: 'mr_silt_stain', x: 47, y: 35 }, { id: 'mr_silt_ripples_b', x: 54, y: 35 }, { id: 'mr_silt_stain_small', x: 7, y: 37 },
+    { id: 'mr_green_harness', x: 17, y: 37 }, { id: 'mr_silt_ripples', x: 26, y: 37 }, { id: 'mr_silt_stain', x: 35, y: 37 }, { id: 'mr_greened_shield', x: 40, y: 37 }, { id: 'mr_silt_stain', x: 44, y: 37 }, { id: 'mr_silt_ripples_b', x: 51, y: 37 },
     { id: 'mr_silt_stain_small', x: 13, y: 38 }, { id: 'mr_silt_stain', x: 22, y: 38 }, { id: 'mr_silt_ripples', x: 30, y: 38 },
     /* P0 the Tow Path: the bank the barge was hauled up, and what the haulers left */
     { id: 'cart_wheel', x: 10, y: 8 }, { id: 'sack_pile', x: 20, y: 3 }, { id: 'mb_fallen_log', x: 22, y: 8 }, { id: 'bones', x: 18, y: 9 },
@@ -134,5 +141,6 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 13, y: 0, to: 'town_common' }]),
   start: Object.freeze([13, 1]),
-  maskHash: 'f74c683b',
+  /* f74c683b -> 155670af: the channels redrawn (header, lane/a-late-grounds-seams 2026-11-17) */
+  maskHash: '155670af',
 });

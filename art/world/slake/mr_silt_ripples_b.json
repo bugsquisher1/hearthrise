@@ -1,0 +1,47 @@
+{
+  "id": "mr_silt_ripples_b",
+  "class": "decal",
+  "style": "s1",
+  "material": "terrain",
+  "restyle": {
+    "map": {
+      "#6a6865": "#3d2a1d",
+      "#4f4e52": "#2a1c14",
+      "#3a3a3e": "#2a1c14",
+      "#8a867d": "#553a26",
+      "#aaa49a": "#6e4c30",
+      "#c4ccd2": "#6a6865",
+      "#969aa1": "#4f4e52"
+    }
+  },
+  "source": "mr_silt_ripples_b.png",
+  "frame": [
+    48,
+    38
+  ],
+  "anchor_px": [
+    23,
+    37
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "derived (0 gens)",
+    "image": "4275829b-11ed-534d-a45e-2ac92ff5cacd",
+    "cell": 12,
+    "from": "mr_silt_ripples"
+  },
+  "notes": "mr_silt_ripples mirrored left to right by tools/world-art/barrow-grounds.mjs ripplesTwin, its restyle the original's: the Slake lays the two in turn. 0 gens."
+}

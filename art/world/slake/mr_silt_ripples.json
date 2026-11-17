@@ -3,6 +3,17 @@
   "class": "decal",
   "style": "s1",
   "material": "terrain",
+  "restyle": {
+    "map": {
+      "#6a6865": "#3d2a1d",
+      "#4f4e52": "#2a1c14",
+      "#3a3a3e": "#2a1c14",
+      "#8a867d": "#553a26",
+      "#aaa49a": "#6e4c30",
+      "#c4ccd2": "#6a6865",
+      "#969aa1": "#4f4e52"
+    }
+  },
   "source": "mr_silt_ripples.png",
   "frame": [
     48,
@@ -31,5 +42,5 @@
     "image": "4275829b-11ed-534d-a45e-2ac92ff5cacd",
     "cell": 12
   },
-  "notes": "Cell 12 of a 4x4 style-1 prop sheet (PixelLab image 4275829b-11ed-534d-a45e-2ac92ff5cacd, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Cell 12 of a 4x4 style-1 prop sheet (PixelLab image 4275829b-11ed-534d-a45e-2ac92ff5cacd, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Toned to the silt (lane/a-late-grounds-seams 2026-11-17, the seams audit row 24): its pale stone greys stood out on the dark mud, the same mark thirty times over; the restyle maps the stone ramp onto the silt's own earth (a ridge a step lighter than the mud, its glints a dull grey)."
 }

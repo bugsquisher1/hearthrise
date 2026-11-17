@@ -831,6 +831,10 @@ body[data-theme="hearthlight"] {
   --world-ground-setts-b:     #6a6c6e;
   --world-ground-sand-a:      #8a7048;
   --world-ground-sand-b:      #856b44;
+  --world-ground-beach-a:     #a88457;
+  --world-ground-beach-b:     #a3804f;
+  --world-ground-peak-a:      #8a867d;
+  --world-ground-peak-b:      #85817a;
   --world-ground-cobble-a:    #6a6865;
   --world-ground-cobble-b:    #646260;
   --world-ground-flagstone-a: #8a867d;

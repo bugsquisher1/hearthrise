@@ -24,6 +24,10 @@
 //   in FACINGS order (s,e,n,w, then se,sw,ne,nw), frames left to right at the frame size.
 // Terrain sidecar: { id, class: 'terrain', material, source, lower, upper,
 //   tiles: { NWNESWSE: [[col, row], …] }, shade?, pixellab } — T×T cells of the source.
+// Variety sidecar (tools/world-art/variety.mjs): { id, class: 'terrain', kind: 'variety', of: 'set/terrain', key | at,
+//   lower, upper, seed, tone?, shift?, spots?, detail?: ['set/decal', …] } — no source of its own: its base is the of-terrain's
+//   first tile of corners `key` (a wang pair's interior), or the tile of map cell `at` [x, y] of a painted ground, locked
+//   exactly as that terrain locks it, so every variant meets the floor it varies with no seam.
 //   lift (a sprite) / shade (a terrain): whole value steps up a body's ramps or down a painted floor's, after the lock (lockOf),
 //   for the [ring] readability rule (tests/world-assets.mjs); never another hue.
 // THE SET'S GRID: art/world/<set>/_set.json { "grid": "hd64" } names the art grid the set is
@@ -47,6 +51,8 @@ import { FACINGS, MANIFEST_VERSION, atlasPaths, gridOf } from '../../src/data/wo
 import { PALETTE_ID } from './palette.mjs';
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
 import { MASK_SETS } from '../../src/data/world/atlas-sets.js';
+import { VARIETY_COUNT } from '../../src/world/core/ground-variety.js';
+import { varietyTiles, decalOf } from './variety.mjs';
 import { isMain as isEntryModule } from '../../tests/_is-main.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -134,6 +140,28 @@ function contactOf(sc, m, k = 1) {
   return spans.length ? [spans[0][0], spans[spans.length - 1][1]] : [m.box.x0, m.box.x1];
 }
 
+/** A variety sidecar's variants (tools/world-art/variety.mjs), from the base its of-terrain locks: { tiles } or { findings }. */
+function varietyOf(root, sc, T) {
+  const bad = (detail) => ({ findings: [{ rule: 'variety', id: sc.id, detail }] });
+  const [ofSet, ofId] = String(sc.of || '').split('/');
+  const ofFile = join(root, ART_DIR, ofSet || '', (ofId || '') + '.json');
+  if (!ofSet || !ofId || !existsSync(ofFile)) return bad(`of "${sc.of}" is not a terrain sidecar (set/id)`);
+  const of = JSON.parse(readFileSync(ofFile, 'utf8'));
+  if (of.class !== 'terrain' || of.kind === 'variety') return bad(`of "${sc.of}" is not a floor terrain`);
+  let cell;
+  if (Array.isArray(sc.at)) {
+    if (!of.painted || !of.cycle) return bad(`at [x, y] names a cell of a painted ground; ${sc.of} is not one`);
+    const [x, y] = sc.at;
+    cell = x >= 0 && y >= 0 && x < of.cycle[0] && y < of.cycle[1] ? of.tiles['1111'][y * of.cycle[0] + x] : null;
+  } else cell = ((of.tiles || {})[sc.key] || [])[0];
+  if (!cell) return bad(`no base tile: ${sc.at ? 'cell ' + JSON.stringify(sc.at) : 'key ' + sc.key} of ${sc.of}`);
+  const sheet = decodePNG(readFileSync(join(root, ART_DIR, ofSet, of.source)));
+  const base = lockOf(of, crop(sheet, cell[0] * T, cell[1] * T, T, T));
+  const details = (sc.detail || []).map((ref) => decalOf(root, ART_DIR, ref));
+  const tiles = varietyTiles(base, { seed: sc.seed | 0, tone: sc.tone, shift: !!sc.shift, spots: sc.spots, details });
+  return tiles.length === VARIETY_COUNT ? { tiles, findings: [] } : bad(`${tiles.length} variants, the picker reads ${VARIETY_COUNT}`);
+}
+
 /** Build one set in memory. */
 export function buildSet(root, set) {
   const findings = [];
@@ -141,6 +169,12 @@ export function buildSet(root, set) {
   const masks = !!MASK_SETS[set];
   const sprites = [], terrains = [];
   for (const sc of readSidecars(root, set)) {
+    if (sc.class === 'terrain' && sc.kind === 'variety') {
+      const v = varietyOf(root, sc, T);
+      findings.push(...v.findings);
+      if (v.tiles) { findings.push(...validateTerrain({ id: sc.id, kind: 'variety', tiles: { 1111: v.tiles } }, grid)); terrains.push({ sc, tiles: { 1111: v.tiles } }); }
+      continue;
+    }
     const src = join(root, ART_DIR, set, sc.source || '');
     if (!sc.source || !existsSync(src)) { findings.push({ rule: 'source', id: sc.id, detail: `missing source ${sc.source}` }); continue; }
     const sheet = decodePNG(readFileSync(src));
@@ -192,7 +226,8 @@ export function buildSet(root, set) {
   for (const { sc, tiles } of terrains.sort((a, b) => (a.sc.id < b.sc.id ? -1 : 1))) {
     const out = {};
     for (const k of Object.keys(tiles).sort()) out[k] = tiles[k].map((_, i) => packed.rects.get(`${sc.id}:${k}:${i}`));
-    manifest.terrain[sc.id] = { kind: sc.kind || 'wang16', lower: sc.lower, upper: sc.upper, ...(sc.cycle ? { cycle: sc.cycle } : {}), ...(sc.painted ? { painted: true } : {}), tiles: out };
+    const variety = sc.kind === 'variety' ? { of: sc.of.split('/')[1], ...(sc.at ? { at: sc.at } : { key: sc.key }), seed: sc.seed | 0 } : {};
+    manifest.terrain[sc.id] = { kind: sc.kind || 'wang16', lower: sc.lower, upper: sc.upper, ...(sc.cycle ? { cycle: sc.cycle } : {}), ...(sc.painted ? { painted: true } : {}), ...variety, tiles: out };
   }
   return { set, findings, manifest, atlas: packed.image, sprites, grid };
 }

@@ -574,6 +574,11 @@ function selftest(atlases) {
   const planted = (o) => { const inp = style1Input(); const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].concat([Object.assign({ id: 'planted', style: 's1', source: 'planted.png' }, o)]); return inp; };
   s1('an effect naming a drawing script that is not in the tree', 's1-source', planted({ class: 'vfx', drawn: 'tools/world-art/no-such-script.mjs' }));
   s1('a world sprite claiming a drawing script', 's1-source', planted({ class: 'barrel', drawn: 'tools/world-art/glance-spark.mjs' }));
+  /* a floor variety is style 1 only through what it varies and lays: an old floor, or a decal no set carries, is not */
+  { const inp = style1Input(); inp.sidecars.oldkit = [{ id: 'old_floor', class: 'terrain', kind: 'fill', material: 'terrain', source: 'old_floor.png' }];
+    const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].concat([{ id: 'planted_variety', class: 'terrain', kind: 'variety', style: 's1', of: 'oldkit/old_floor' }]);
+    s1('a variety of a pre-style-1 floor', 's1-source', inp); }
+  s1('a variety laying a decal no set carries', 's1-source', planted({ class: 'terrain', kind: 'variety', of: 'common/havora_grass_earth', detail: ['common/no_such_decal'] }));
   { const maps = WORLD_MAPS.map((m) => (m.id === 'mill_cellar' ? Object.assign({}, m, { objects: m.objects.concat([{ id: 'barrel_old', x: 10, y: 6 }]) }) : m));
     s1('an old sprite id placed on a reachable map', 's1-ref', style1Input(ROOT, { maps })); }
   { const maps = WORLD_MAPS.map((m) => (m.id === 'town_common' ? Object.assign({}, m, { ground: 'town_ground' }) : m)); s1('a map on the old town ground', 's1-ref', style1Input(ROOT, { maps })); }

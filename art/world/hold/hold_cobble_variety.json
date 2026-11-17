@@ -1,0 +1,17 @@
+{
+  "id": "hold_cobble_variety",
+  "class": "terrain",
+  "kind": "variety",
+  "style": "s1",
+  "of": "hold/krells_hold_ground",
+  "at": [
+    4,
+    14
+  ],
+  "lower": "painted",
+  "upper": "painted",
+  "seed": 21,
+  "tone": "soft",
+  "notes": "One floor tile made into 96 (tools/world-art/variety.mjs), picked per cell by src/world/core/ground-variety.js: the floor no longer shows its 32 px repeat (Tyler 2026-11-16).",
+  "spots": "down"
+}

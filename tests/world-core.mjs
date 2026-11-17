@@ -38,6 +38,11 @@
 //      overlaps; compose carries the title of your hero and of every unit; a plate that YIELDS (a monster's
 //      name, Monster names on) steps up one line at most and is left out of a crowd rather than towering,
 //      never moving a hero's plate
+//   V  FLOOR VARIETY (src/world/core/ground-variety.js; Tyler 2026-11-16: "you can see the tile repeat"): the
+//      picker has no period under 64 cells along a row (a fixed cycle fails); every varied floor (the town's grass and
+//      dirt, each painted ground's repeated tiles) draws its variants, at most 40% the plain tile, no run cycling under 12;
+//      a variant's plain sides are the floor's own edge pixel for pixel; details 1 in 7-14 cells, never touching; the
+//      same cell picks the same tile on a second load
 //   A  art by scene (src/world/scene-sets.js): every shipped scene loads every
 //      sheet it draws from (the whole map, every hero, its monsters and effects,
 //      every room's furniture), and a walked scene loads nothing more: the
@@ -51,15 +56,19 @@ import { readFileSync, readdirSync, mkdtempSync, cpSync, writeFileSync, rmSync, 
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { decodePNG } from '../tools/world-art/png.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const argv = process.argv.slice(2);
+/* a shipped atlas sheet, decoded once a run (family V reads the variants' pixels; the selftest copy carries no PNGs) */
+const SHEETS = new Map();
+const atlasImage = (set) => { if (!SHEETS.has(set)) SHEETS.set(set, decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.png')))); return SHEETS.get(set); };
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -67,13 +76,13 @@ async function load(base) {
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
-    'src/world/core/plates.js', 'src/world/idle-banner.js', 'src/world/view-sheets.js', 'src/render/images.js',
+    'src/world/core/plates.js', 'src/world/idle-banner.js', 'src/world/view-sheets.js', 'src/render/images.js', 'src/world/core/ground-variety.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -441,14 +450,25 @@ async function check(M) {
       ok('W2', Object.entries(want).every(([k, v]) => at(...k.split(',').map(Number)) === v) && out.length === 5 * 4,
         'the blend must draw every dual tile of a planted town with the pair and key of its corners (got ' + got.join(' ') + ', ' + out.length + ' tiles)');
     }
-    /* A fill floor (one periodic field, e.g. the cellar's flat earth) is laid in its cycle order, never hashed into seams. */
+    /* A fill floor (one periodic field, e.g. the cellar's flat earth) is laid in its cycle order, never hashed into seams.
+       The one exception is a painted ground's VARIETY (src/world/core/ground-variety.js): a cell whose cycle tile is the
+       tile a variety names (`at`) may draw one of that variety's variants instead, and no other cell may. */
     for (const id of Object.keys(rows)) {
       const m = compiled(id), terr = book.terrains[m.groundTerrain];
       if (!terr || terr.kind !== 'fill') continue;
       const [cols, rws] = terr.cycle || [1, 1];
       const want = (x, y) => book.tile(m.groundTerrain, '1111', (y % rws) * cols + (x % cols));
-      const bad = M.compose.groundTiles(m, book, tables, T).tiles.filter((t) => { const w = want(t.x / T, t.y / T); return !w || w.sx !== t.sx || w.sy !== t.sy; });
-      ok('W3', bad.length === 0, id + ': ' + bad.length + ' fill tiles are out of their ' + cols + 'x' + rws + ' cycle');
+      const vars = Object.entries(book.terrains).filter(([, v]) => v.kind === 'variety' && v.of === m.groundTerrain);
+      const bases = vars.map(([, v]) => terr.tiles['1111'][v.at[1] * cols + v.at[0]]);
+      const varied = (t, w) => {
+        const k = bases.findIndex((b) => b && b[0] === w.sx && b[1] === w.sy);
+        return k >= 0 && t.set === vars[k][1].set && vars[k][1].tiles['1111'].some(([sx, sy]) => sx === t.sx && sy === t.sy);
+      };
+      const bad = M.compose.groundTiles(m, book, tables, T).tiles.filter((t) => {
+        const w = want(t.x / T, t.y / T);
+        return !w || ((w.set !== t.set || w.sx !== t.sx || w.sy !== t.sy) && !varied(t, w));
+      });
+      ok('W3', bad.length === 0, id + ': ' + bad.length + ' fill tiles are out of their ' + cols + 'x' + rws + ' cycle (and not a variant of a varied tile)');
     }
     ok('W3', (book.terrains[compiled('mill_cellar').groundTerrain] || {}).kind === 'fill', 'the Mill Cellar floor must be a fill (its painted style-1 ground), never a Wang patch that reads as a raised slab');
     /* W4 (perf lane P2): a scene's ground made in SLICES (compose.js groundOfSliced, the World's prepare task) is the
@@ -810,6 +830,87 @@ async function check(M) {
     const ground = new Set(base.filter((r) => r.kind === 'hunt').flatMap((r) => M.sceneSets.sceneSets(compiled(r.id), r, book, tables)));
     ok('A2', [...ground].some((s) => !town.has(s)) && town.size < M.atlasSets.ATLAS_SETS.length, 'the Common loads every hunting ground\'s sheet: ' + [...town].join(', '));
   });
+  /* V  FLOOR VARIETY (src/world/core/ground-variety.js, tools/world-art/variety.mjs; Tyler 2026-11-16: "you can see the tile repeat").
+     The picker never cycles along a row; every varied floor draws its variants, the plain tile only where the pick lands on it;
+     a variant meets the plain floor on its plain sides pixel for pixel; details never touch; the same cell picks the same tile. */
+  fam('V', () => {
+    const GV = M.gv, MIN = 64;
+    /* the shortest p with seq[i] === seq[i + p] all along (the whole length when none) */
+    const period = (seq) => { for (let p = 1; p < seq.length; p++) { let i = 0; while (i + p < seq.length && seq[i] === seq[i + p]) i++; if (i + p >= seq.length) return p; } return seq.length; };
+    let worst = Infinity, where = '';
+    for (const seed of [1, 2, 11, 25]) for (let y = -4; y < 60; y++) {
+      const p = period(Array.from({ length: 192 }, (_, x) => GV.subAt(x, y, seed)));
+      if (p < worst) { worst = p; where = 'seed ' + seed + ', row ' + y; }
+    }
+    ok('V1', worst >= MIN, 'the floor picker repeats every ' + worst + ' cells along a row (' + where + '): a cycle under ' + MIN + ' shows the tile repeat');
+    /* V2 the town and V3 each painted ground: of the cells a variety covers, few draw its plain tile, and no long run of them cycles */
+    const vars = Object.entries(book.terrains).filter(([, t]) => t.kind === 'variety');
+    const rectKey = (t) => t.set + ':' + t.sx + ':' + t.sy;
+    const share = (id, fam2, tiles, isVaried, plain) => {
+      const rowsOf = new Map();
+      let n = 0, flat = 0;
+      for (const t of tiles) {
+        if (!isVaried(t)) continue;
+        n++; if (plain.has(rectKey(t))) flat++;
+        if (!rowsOf.has(t.y)) rowsOf.set(t.y, []);
+        rowsOf.get(t.y).push(t);
+      }
+      /* the plain tile is one pick in about four (j 0 of the 4 plain-or-shifted picks); 40% leaves 3 sd over 60 cells */
+      ok(fam2, n > 0 && flat / n <= 0.4, id + ': ' + flat + ' of ' + n + ' varied floor cells draw the plain tile (the rest must be its variants: at most 40% plain)');
+      let short = null;
+      for (const list of rowsOf.values()) {
+        list.sort((a, b) => a.x - b.x);
+        for (let i = 0, j = 0; i < list.length; i = j) {
+          for (j = i + 1; j < list.length && list[j].x === list[j - 1].x + T; j++);
+          if (j - i < 24) continue;
+          const p = period(list.slice(i, j).map(rectKey));
+          if (p < 12 && !short) short = 'row ' + list[i].y / T + ' x ' + list[i].x / T + '..' + list[j - 1].x / T + ' repeats every ' + p;
+        }
+      }
+      ok(fam2, !short, id + ': ' + short + ' (a floor run that cycles shows its tile repeat)');
+    };
+    const town = compiled('town_common');
+    const townTiles = M.compose.groundTiles(town, book, tables, T).tiles;
+    /* the town: an all-one-material dual tile of a material with a variety (those tiles are the variety's, the plain one is the pair's interior) */
+    const townVars = vars.filter(([, v]) => v.key);
+    const plainTown = new Set(townVars.map(([, v]) => { const o = book.terrains[v.of]; const [sx, sy] = o.tiles[v.key][0]; return o.set + ':' + sx + ':' + sy; }));
+    const townRects = new Set(townVars.flatMap(([, v]) => v.tiles['1111'].map(([sx, sy]) => v.set + ':' + sx + ':' + sy)));
+    share('town_common', 'V2', townTiles, (t) => townRects.has(rectKey(t)) || plainTown.has(rectKey(t)), plainTown);
+    ok('V2', townVars.length >= 2, 'the town\'s grass and dirt have no variety (' + townVars.length + ')');
+    for (const row of M.maps.WORLD_MAPS) {
+      const own = vars.filter(([, v]) => v.at && v.of === row.ground);
+      if (!own.length) continue;
+      const m = compiled(row.id), terr = book.terrains[m.groundTerrain], [cols] = terr.cycle;
+      const bases = own.map(([, v]) => terr.tiles['1111'][v.at[1] * cols + v.at[0]]);
+      const plain = new Set(bases.map(([sx, sy]) => terr.set + ':' + sx + ':' + sy));
+      const isBase = (x, y) => { const [sx, sy] = terr.tiles['1111'][y * cols + x]; return plain.has(terr.set + ':' + sx + ':' + sy); };
+      share(row.id, 'V3', M.compose.groundTiles(m, book, tables, T).tiles, (t) => t.set !== undefined && isBase(t.x / T, t.y / T), plain);
+    }
+    /* V4 a variant's side whose two corners are plain is the floor's own edge, pixel for pixel (no seam against the plain floor,
+       a transition or a painted wall): read off the shipped sheets */
+    for (const [id, v] of vars) {
+      const o = book.terrains[v.of];
+      const base = v.at ? o.tiles['1111'][v.at[1] * o.cycle[0] + v.at[0]] : (o.tiles[v.key] || [])[0];
+      if (!base) { ok('V4', false, id + ': names no base tile of ' + v.of); continue; }
+      const img = atlasImage(v.set), baseImg = atlasImage(o.set);
+      const px = (im, x, y) => { const i = (y * im.width + x) * 4; return im.data[i] << 16 | im.data[i + 1] << 8 | im.data[i + 2]; };
+      let seams = 0;
+      v.tiles['1111'].forEach(([sx, sy], i) => {
+        const key = Math.floor(i / GV.VARIETY.sub), nw = key >> 3 & 1, ne = key >> 2 & 1, sw = key >> 1 & 1, se = key & 1;
+        const sides = [[!nw && !ne, (k) => [k, 0]], [!sw && !se, (k) => [k, T - 1]], [!nw && !sw, (k) => [0, k]], [!ne && !se, (k) => [T - 1, k]]];
+        for (const [plainSide, at] of sides) if (plainSide) for (let k = 0; k < T; k++) { const [x, y] = at(k); if (px(img, sx + x, sy + y) !== px(baseImg, base[0] + x, base[1] + y)) { seams++; break; } }
+      });
+      ok('V4', seams === 0 && v.tiles['1111'].length === GV.VARIETY_COUNT, id + ': ' + seams + ' plain sides differ from ' + v.of + '\'s own edge (' + v.tiles['1111'].length + ' variants)');
+    }
+    /* V5 details: about one cell in ten, never beside another in a row or a column */
+    let det = 0, touch = 0;
+    const isDet = (x, y) => GV.subAt(x, y, 7) >= GV.VARIETY.micro;
+    for (let y = 0; y < 200; y++) for (let x = 0; x < 200; x++) if (isDet(x, y)) { det++; if (isDet(x + 1, y) || isDet(x, y + 1)) touch++; }
+    ok('V5', det >= 40000 / 14 && det <= 40000 / 7 && touch === 0, 'details on ' + det + ' of 40000 cells (want 1 in 7 to 14), ' + touch + ' beside another');
+    /* V6 the same cell picks the same tile on every load (and on the server's replayed world): no clock, no Math.random */
+    const again = M.compose.groundTiles(compiled('town_common'), M.bookm.createBook(M.manifests), tables, T).tiles;
+    ok('V6', again.length === townTiles.length && again.every((t, i) => rectKey(t) === rectKey(townTiles[i]) && t.x === townTiles[i].x && t.y === townTiles[i].y), 'the town\'s ground differs between two loads');
+  });
   return fails;
 }
 
@@ -892,6 +993,12 @@ const MUTANTS = [
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);', 'const n = cellHash(x, y);']]],
   ['G6', 'a training session reads as a fight the World is missing (audit F25)', 'src/world/idle-banner.js', [['  if (train) {', '  if (false) {']]],
   ['G7', 'the World\'s line sits under the action bar again (its foot ignores the shell\'s inset)', 'src/world/idle-banner.js', [['  return Math.round(Math.max(0, b) + BANNER_GAP);', '  return Math.round(BANNER_GAP);']]],
+  ['V1', 'the floor pick a fixed cycle again', 'src/world/core/ground-variety.js', [['export function subAt(x, y, seed) {\n', 'export function subAt(x, y, seed) {\n  return ((x % 4) + 4) % 4;\n']]],
+  ['V2', 'the town grass and dirt drawn from one tile again', 'src/world/core/compose.js', [['const v = c[0] === c[1] && c[0] === c[2] && c[0] === c[3] ? VAR[c[0]] : null;', 'const v = null;']]],
+  ['V3', 'a painted ground repeated tile drawn as painted', 'src/world/core/compose.js', [['const k = vkind ? vkind[y * map.w + x] : -1;', 'const k = -1;']]],
+  ['V4', 'a variety laid over another floor (its edges seam)', 'assets/world/atlas-common.json', [['"key": "0000"', '"key": "1111"']]],
+  ['V5', 'details laid side by side', 'src/world/core/ground-variety.js', [['if (rolls(x, y, seed) && !rolls(x - 1, y, seed) && !rolls(x, y - 1, seed))', 'if (rolls(x, y, seed))']]],
+  ['V6', 'a pick that changes every load', 'src/world/core/ground-variety.js', [['export function vhash(x, y, seed) {\n', 'export function vhash(x, y, seed) {\n  if (y > 40) return (Math.random() * 4294967296) >>> 0;\n']]],
   ['G1', 'an unmapped monster falls into the cellar', 'src/world/core/scene-route.js', [['if (id && index[id]) return', "if (id) return { map: 'mill_cellar', kind: 'hunt' }; if (id && index[id]) return"]]],
   ['G5', 'a keyed hall left off its map (Krell\'s Hall showed the town)', 'src/data/grounds/krells_hold/map.js', [["hunts: Object.freeze(['krells_hold', 'krells_hold_hall'])", "hunts: Object.freeze(['krells_hold'])"]]],
   ['G5', 'a called room left off its map', 'src/data/world/maps/coppercap_warrens.js', [["hunts: Object.freeze(['coppercap_warrens', 'coppercap_warrens_called'])", "hunts: Object.freeze(['coppercap_warrens'])"]]],
@@ -950,5 +1057,5 @@ else if (argv.includes('--hashes')) {
     console.error('world-core: ' + fails.length + ' failure(s)');
     process.exit(1);
   }
-  console.log('world-core: green — y-sort, roofs, shadows, camera, map lint (' + M.maps.WORLD_MAPS.length + ' maps over ' + Object.keys(M.manifests).length + ' atlases), path, Wang, routing, stubs, layer order, art by scene');
+  console.log('world-core: green — y-sort, roofs, shadows, camera, floor variety, map lint (' + M.maps.WORLD_MAPS.length + ' maps over ' + Object.keys(M.manifests).length + ' atlases), path, Wang, routing, stubs, layer order, art by scene');
 }

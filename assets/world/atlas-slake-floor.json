@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-slake-floor.png",
   "size": [2048,792],
-  "pixels": "c155613498df4138184b9d5a3f4cf1d37681992c6226782981183f4b6369b773",
+  "pixels": "d642c5816a119e78ef73ee01c1305f16fb6e58d264cec79b9433f91b7bf23050",
   "sprites": {},
   "terrain": {
     "slake_bank_variety": {

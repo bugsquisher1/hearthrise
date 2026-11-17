@@ -15,11 +15,11 @@ export const WINDOWS_TEXT = Object.freeze({
   key_line: 'Shortcut: {key}',
 
   /* Each window's one help line: what it is for, in a sentence or two. @sentence: the ? button teaches the window, a label can't. */
-  help_hunts: 'Pick a hunt, then press Enter',
-  help_inventory: 'Press a stack, then Equip, Use or Sell',
-  help_storage: 'Press a stack to move it to the bag or back',
-  help_wiki: 'Search for a skill, a ground or a formula',
-  help_shop: 'Buy tools and gear, sell loot, Bless on Services',
-  help_skills: 'Press a skill to gather or make something',
-  help_prep: 'Pick a setup and press Use before a hunt',
+  help_hunts: 'Pick a hunt and press Enter.',
+  help_inventory: 'Select an item to equip, use or sell it.',
+  help_storage: 'Select an item to move it between your bag and Storage. All your heroes share Storage.',
+  help_wiki: 'Look up any skill, hunting ground or formula.',
+  help_shop: 'Buy supplies and gear, or sell your loot. Blessings and tempering are under Services.',
+  help_skills: 'Pick a skill to start gathering or crafting.',
+  help_prep: 'Pick a setup and press Use before you hunt.',
 });

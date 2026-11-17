@@ -19,7 +19,7 @@ import { findPath } from './core/path.js?v=0.2.135';
 import { diagonalOf } from './core/facing.js?v=0.2.135';
 import { GRIDS } from '../data/world/art-budget.js?v=0.2.135';
 
-const TICK_MS = 1000 / FOLK_TICK_HZ;
+const FOLK_TICK_MS = 1000 / FOLK_TICK_HZ;
 
 /** A facing name ('s', 'ne', ...) as the unit's cardinal and diagonal. */
 const facing = (f) => (f.length === 2 ? { dir: f[0], diag: f } : { dir: f, diag: null });
@@ -46,7 +46,7 @@ function loopOf(map, row) {
     legs.push({ walk: true, from: t, ms, pts, cum });
     t += ms;
   }
-  return { row, legs, loop: Math.max(TICK_MS, t) };
+  return { row, legs, loop: Math.max(FOLK_TICK_MS, t) };
 }
 
 /** Where a walk leg is `ms` into it: the point, and the facing of the step it is on. */
@@ -77,7 +77,7 @@ export function createTownFolk(map, sprites, rows = FOLK[map.id] || []) {
   return {
     /** The townsfolk on the clock's last tick. @param {number} now ms */
     frame(now) {
-      const q = Math.floor(now / TICK_MS) * TICK_MS;
+      const q = Math.floor(now / FOLK_TICK_MS) * FOLK_TICK_MS;
       return loops.map(({ row, legs, loop }, who) => {
         const local = (((q + row.offsetMs) % loop) + loop) % loop;
         let leg = legs[legs.length - 1];

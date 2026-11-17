@@ -55,8 +55,8 @@
 // --selftest copies the closure to a temp dir, plants one defect per family,
 // and requires that family to go red after a clean control.
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { join, dirname, posix } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -495,8 +495,32 @@ function check(M) {
 
 /* src/data/grounds: the map index and hunts.js fold the ground packs in (lane/b-ground-pack; release run 42519810819 missed it).
    src/data/skills.js: residue.js bounds the station sorts by the skill catalogue (lane/a-station-sort).
-   src/data/training.js: hunts.js and the map index fold the training grounds in (lane/c-combat-training). */
-const COPY = ['src/world', 'src/data/world', 'src/data/grounds', 'src/data/hunts.js', 'src/data/training.js','src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/data/panel-alpha.js', 'src/data/fx-alpha.js', 'src/data/skills.js', 'src/build-info.js', 'assets/world', 'src/session'];
+   src/data/training.js: hunts.js and the map index fold the training grounds in (lane/c-combat-training).
+   Past those: every module a copied file imports, followed to the end (importClosure below), so a data module a pack or hunts.js
+   starts to read is copied with it (release/v0.2.135 run 44066147612 missed src/data/tower.js, then special-attributes.js). */
+const HAND = ['src/world', 'src/data/world', 'src/data/grounds', 'src/data/hunts.js', 'src/data/training.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/data/panel-alpha.js', 'src/data/fx-alpha.js', 'src/data/skills.js', 'src/build-info.js', 'assets/world', 'src/session'];
+/* Every .js under `seeds` (files or folders), then every relative module they import (static `from`, literal `import()`), followed. */
+function importClosure(seeds) {
+  const todo = [], seen = new Set();
+  const add = (rel) => {
+    const abs = join(ROOT, rel);
+    if (!existsSync(abs)) return;
+    if (statSync(abs).isDirectory()) { for (const n of readdirSync(abs)) add(posix.join(rel, n)); return; }
+    if (rel.endsWith('.js')) todo.push(rel);
+  };
+  seeds.forEach(add);
+  while (todo.length) {
+    const rel = todo.pop();
+    if (seen.has(rel)) continue;
+    seen.add(rel);
+    for (const m of readFileSync(join(ROOT, rel), 'utf8').matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*)['"](\.{1,2}\/[^'"?]+)/g)) {
+      const dep = posix.normalize(posix.join(posix.dirname(rel), m[1]));
+      if (existsSync(join(ROOT, dep)) && !seen.has(dep)) todo.push(dep);
+    }
+  }
+  return [...seen];
+}
+const COPY = [...new Set([...HAND, ...importClosure(HAND)])];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-town-home-'));
   for (const p of COPY) {

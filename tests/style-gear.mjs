@@ -194,7 +194,8 @@ function mutate() {
   /* a rung has two doors since the loot bands (made, and a Sewer Rare): a style loses its upgrade only when both close */
   const undrop = (mid, item) => { const m = MONSTERS[mid]; const was = m.drops; m.drops = was.filter((d) => d.id !== item); return () => { m.drops = was; }; };
   run('the wand rung loses its recipe and its drop (a style with no reachable upgrade)', 'SG-1', () => { const a = unbench('crafting', 'carve_oak_wand'); const b = undrop('sump_slime', 'oak_wand'); return () => { b(); a(); }; });
-  run('the wand\'s tier-3 rung loses its one drop (the Chief\'s hoard)', 'SG-1', () => undrop('chief_coppercap', 'willow_wand'));
+  /* the hoard is the Chief's and its called copy's (src/data/boss-calls.js: chief_coppercap_called drops the same rows) */
+  run('the wand\'s tier-3 rung loses its one drop (the Chief\'s hoard)', 'SG-1', () => { const a = undrop('chief_coppercap', 'willow_wand'); const b = undrop('chief_coppercap_called', 'willow_wand'); return () => { b(); a(); }; });
   run('the hatchets rung worn only at Melee 30', 'SG-2', () => setField('iron_hatchets', 'reqLv', 30));
   run('the crossbow rung no stronger than the practice crossbow', 'SG-2', () => { const a = setField('oak_crossbow', 'rangeAtkB', 4); const b = setField('oak_crossbow', 'rangeStrB', 4); return () => { b(); a(); }; });
   run('the club rung one-handed again', 'SG-2', () => setField('iron_warhammer', 'twoHanded', false));

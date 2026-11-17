@@ -114,7 +114,7 @@ export const TRAINING_GEAR = Object.freeze({
       '12b': 'A blunt sword with its owner\'s name burned into the grip',
       '24b': 'A weighted blunt sword with its owner\'s name burned into the grip' }),
     ranged: Object.freeze({
-      12: 'A heavy-draw bow from the archery lane',
+      12: 'A heavy-draw bow off the rack at the archery lane',
       24: 'A heavy-draw bow from the archery lane, with a spare string',
       '12b': 'A heavy-draw bow with its owner\'s name cut into the limb',
       '24b': 'A heavy-draw bow and spare string, its owner\'s name on the limb' }),

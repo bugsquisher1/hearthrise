@@ -231,7 +231,7 @@ export const REASONS = Object.freeze({
   ],
   'src/shell/windows/inventory/grid.js': [
     { cond: '!prim || !!wearWhy', words: 'wearWhy || buryWhy', where: 'the picked stack\'s line (.hw-pick-why): Equip\'s and Cook all\'s reason' },
-    { cond: '!st.shop', words: "'Reading the shop prices…'", where: 'Sell selected / Sell all: off only before the shop section loads; the tools row value line says so' },
+    { cond: '!st.shop', words: "'Loading shop prices…'", where: 'Sell selected / Sell all: off only before the shop section loads; the tools row value line says so' },
     { cond: 'sc.pending || !!dWhy', words: "whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);", where: 'Dispatch loot: its own line under the tools row (out hunting, nothing planned, reading the bag)' },
     { cond: '!!why', words: "(offWhy ? '. ' + offWhy : '')", where: 'the This hunt row: a plan the server refuses for the item (starting kit, no shop price) is said on the row line' },
     { cond: 'sc.confirm.empty', words: 'hw-confirm-note', where: 'the confirmation lists what is kept' },

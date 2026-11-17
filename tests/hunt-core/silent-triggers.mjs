@@ -265,10 +265,10 @@ const cases = {
     /* The player's own numbers: three on the area, a test that can't happen, more than a single-target strike can ever reach. */
     const set = (id, c) => M.W.setupNote({ action: { type: 'ability', id }, conditions: [c], join: 'and' }, 1);
     if (!/^Waits under 3 monsters/.test(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }))) return 'three on the area reads ' + JSON.stringify(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }));
-    if (!/never gets to 2/.test(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a strike wanting 2 reads ' + JSON.stringify(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
+    if (!/^Never fires: reaches 1 monster at most, condition needs 2$/.test(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a strike wanting 2 reads ' + JSON.stringify(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
     /* A Cleave hits up to three beside its hero (abilities.js maxHits): two is a crowd it can see, four never comes. */
-    if (/never gets to/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a Cleave wanting 2 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
-    if (!/reaches 3 monsters at most, so it never gets to 4/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }))) return 'a Cleave wanting 4 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }));
+    if (/Never fires/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a Cleave wanting 2 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
+    if (!/^Never fires: reaches 3 monsters at most, condition needs 4$/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }))) return 'a Cleave wanting 4 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 4 }));
     return /never happens/.test(set('mend', { metric: 'self_hp_pct', op: 'lt', value: 0 })) ? null : 'below 0% HP reads ' + JSON.stringify(set('mend', { metric: 'self_hp_pct', op: 'lt', value: 0 }));
   },
 };

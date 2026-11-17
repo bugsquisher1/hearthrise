@@ -80,7 +80,7 @@ async function run(base) {
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
     /* G7 (Tyler 2026-11-11): "no good hunt" only when NO ground holds the Level; a ground that does (its row reads "In your range") is named right for it */
     const held = rows.filter((g) => g.band[0] <= lv && lv <= g.band[1]).sort((x, y) => y.band[0] - x.band[0])[0];
-    const said = held ? held.name + ': right for Level ' + lv + ', tough monsters. Easier: ' + r.row.name + ', Level ' + r.row.band[0] + ' to ' + r.row.band[1]
+    const said = held ? held.name + ': right for Level ' + lv + ', tough monsters. Easier: ' + r.row.name + ' (Levels ' + r.row.band[0] + '–' + r.row.band[1] + ')'
       : 'No good hunt for Level ' + lv + ' yet. Nearest below: ' + r.row.name;
     if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith(said))) {
       ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
@@ -91,11 +91,11 @@ async function run(base) {
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
   /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  ok('G4', lone(44).row.hunt === 'mosslight_glade' && lone(44).note === 'Coppercap Warrens: right for Level 44, tough monsters. Easier: Mosslight Glade, Level 16 to 31'
+  ok('G4', lone(44).row.hunt === 'mosslight_glade' && lone(44).note === 'Coppercap Warrens: right for Level 44, tough monsters. Easier: Mosslight Glade (Levels 16–31)'
     && !/party|one hero|solo/i.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
   const lostThere = HL.recommendation(36, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: -1250 }, party: null } } });
   const wonThere = HL.recommendation(36, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: 800 }, party: null } } });
-  ok('G7', lostThere.note === 'Coppercap Warrens: right for Level 36, lost 1,250 gp/h alone. Easier: Mosslight Glade, Level 16 to 31'
+  ok('G7', lostThere.note === 'Coppercap Warrens: right for Level 36, but lost 1,250 gp/h solo. Easier: Mosslight Glade (Levels 16–31)'
     && /^Coppercap Warrens: right for Level 36, tough monsters\. /.test(wonThere.note || '') && !/no good hunt/i.test(lostThere.note + wonThere.note) && (HL.recommendation(top + 5, 1, rows).note || '').startsWith('No good hunt for Level ' + (top + 5) + ' yet. '),
     'a lone Level 36 reads ' + JSON.stringify([lostThere.note, wonThere.note]));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
@@ -152,7 +152,7 @@ async function run(base) {
   const seats = { me: 0, seats: [{ seat: 0, name: 'Wren', level: 5 }, { seat: 1, name: 'Sorrel', level: 9 }, { seat: 2, name: 'Bram', level: 20 }, { seat: 3, name: 'Null', level: null }] };
   const low = HL.seatsUnder(glade, seats);
   ok('G3', low.under.map((s) => s.name).join() === 'Sorrel', 'seatsUnder reads ' + JSON.stringify(low));
-  ok('G3', HL.underWords(glade, low.under) === 'Under Level 16, death risk: Sorrel, Level 9' && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
+  ok('G3', HL.underWords(glade, low.under) === 'Under Level 16 (death risk): Sorrel, Level 9' && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
   /* The Hunts window is the list (hunts.js) and the picked ground's page (hunt-detail.js, master-detail 2026-10-22). */
   const win = read('src/shell/windows/hunts.js') + read('src/shell/windows/hunt-detail.js');
   ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list, bests)")

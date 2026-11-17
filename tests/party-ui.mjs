@@ -602,7 +602,7 @@ async function pureRules(M, base) {
     if (none !== true) return none;
     andySeed(M, engine, { runs: 0, frem: 500 });
     return want(panelShown(M, dom, ctx), 'Eddie:Holds every lap|Hank:|Apollo:|Fremulon:Too weak to hold', 'Eddie',
-      'Your strongest tank holds the pack every lap. A tank with under 90% of its max health never holds.', 'the next hunt, a weak second tank');
+      'Strongest tank holds every lap, under 90% max health skipped', 'the next hunt, a weak second tank');
   });
 
   /* PR-6 WHO HOLDS THE PACK, THE LEADER'S CHOICE (Tyler 2026-10-22): with two or more tanks the LEADER sees
@@ -649,7 +649,7 @@ async function pureRules(M, base) {
     if (sent.length !== 1 || Object.keys(sent[0][1]).sort().join() !== 'p_idem,p_seat,p_slot' || sent[0][1].p_seat !== 0 || sent[0][1].p_slot !== 0) return '"One tank holds" sent ' + JSON.stringify(sent);
     if (!srv.calls.some((c) => c[0] === 'hr_load')) return 'the answer was not re-read';
     v = panelShown(M, dom, ctx);
-    const EDDIE = 'Eddie holds the pack every lap. Fremulon takes over if Eddie leaves. Only Eddie trains Defense from holding.';
+    const EDDIE = 'Eddie holds every lap, Fremulon takes over if Eddie leaves';
     if (btn('hold-one').getAttribute('aria-pressed') !== 'true' || tanksShown() !== 'Eddie*,Fremulon' || v.note !== EDDIE) return 'after the answer the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
     /* a reload: a new session over the same server shows the pick still set */
     const acc2 = account(M, srv);
@@ -671,7 +671,7 @@ async function pureRules(M, base) {
     const third = srv.calls.filter((c) => c[0] === 'hr_party_hold_set');
     if (third.length !== 1 || third[0][1].p_seat !== 3) return 'a press on Fremulon sent ' + JSON.stringify(third);
     v = panelShown(M, dom, ctx);
-    if (tanksShown() !== 'Eddie,Fremulon*' || v.note !== 'Fremulon holds the pack every lap. Eddie takes over if Fremulon leaves. Only Fremulon trains Defense from holding.') return 'after Fremulon the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
+    if (tanksShown() !== 'Eddie,Fremulon*' || v.note !== 'Fremulon holds every lap, Eddie takes over if Fremulon leaves') return 'after Fremulon the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
     srv.calls.length = 0;
     await press('hold-seat', fremulon());
     await press('hold-one');
@@ -855,7 +855,7 @@ async function pureRules(M, base) {
     const L = M.PRO.classXpLine;
     const head = (k) => 'Classes: ' + k + ' of 4. ';
     const more = (k, vs, place) => head(k) + 'Level XP each: about +' + vs + '% vs solo in ' + place;
-    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + ', mix Melee, Ranger, Mage and Healer';
+    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + '. Mix Melee, Ranger, Mage and Healer for more';
     for (const [roles, hunt, want] of [
       [['tank', 'ranger'], 'meadowbrook_thicket', more(2, 45, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
@@ -941,7 +941,7 @@ async function pureRules(M, base) {
     const cs = (await acc.open(0)).session;
     const lines = () => centre.list().filter((a) => a.kind === 'party' || a.kind === 'partywarn');
     const warnLine = lines().find((a) => a.kind === 'partywarn');
-    if (!warnLine || !/^Bramwell wants to take the party to Mosslight Glade, above Tyler’s level\. It will hit hard/.test(warnLine.text)) return 'the ground warning reads ' + JSON.stringify(warnLine);
+    if (!warnLine || !/^Bramwell picked Mosslight Glade, high death risk for Tyler$/.test(warnLine.text)) return 'the ground warning reads ' + JSON.stringify(warnLine);
     if (lines().length !== 1) return 'an unknown kind raised a line: ' + JSON.stringify(lines().map((a) => a.text));
     await cs.load();
     if (lines().length !== 1) return 'a re-read repeated a notice: ' + lines().length;
@@ -968,7 +968,7 @@ async function pureRules(M, base) {
     /* (5) WORDS A DEAD END CANNOT HIDE IN. */
     if (M.FR.answerWords({ done: 'Invite sent to Mira.' }, '') !== 'Invite sent to Mira.') return 'a friends-row invite that worked reads ' + JSON.stringify(M.FR.answerWords({ done: 'Invite sent to Mira.' }, ''));
     if (!/Leave your hunt to invite/.test(M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' }))) return 'an invite on a hunt reads ' + M.IW.refusalText({ error: 'hunt_open', verb: 'party_invite' });
-    if (!/Leave it in the Party window/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
+    if (!/^Already in a party$/.test(M.IW.refusalText({ error: 'already_in_party' }))) return 'already_in_party reads ' + M.IW.refusalText({ error: 'already_in_party' });
     return true;
   });
 
@@ -1352,7 +1352,7 @@ async function pageRules(overrides, shots) {
         const w1 = sent(s, 'hr_hunt_party_warn').slice(warned0);
         if (w1.length !== 1 || w1[0].body.p_hunt !== 'millrace_sewer' || sent(s, 'hr_hunt_party_start').length !== started0) fails.push('UI-TRUTH [' + tag + '] the first press sent warn ' + JSON.stringify(w1.map((c) => c.body)) + ', starts ' + (sent(s, 'hr_hunt_party_start').length - started0));
         const warnSaid = await page.evaluate((q) => [document.querySelector(q + '.hh-intent-msg').textContent, document.querySelector(q + '.hw-hunt-warn').textContent, document.querySelector(q + '.hw-hunt-detail [data-hs-act="enter"]').textContent], W);
-        if (!/^Under Level \d+, death risk: Mira, Level 3\. Party warned, press Enter anyway to go$/.test(warnSaid[0]) || !/^Under Level \d+, death risk: Mira, Level 3$/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
+        if (!/^Under Level \d+ \(death risk\): Mira, Level 3\. Party warned\. Press Enter anyway to go$/.test(warnSaid[0]) || !/^Under Level \d+ \(death risk\): Mira, Level 3$/.test(warnSaid[1]) || warnSaid[2] !== 'Enter anyway') fails.push('UI-TRUTH [' + tag + '] the warning reads ' + JSON.stringify(warnSaid));
         /* Someone sits down under the floor after that warning: this press tells them too, and still starts nothing. */
         const late = Object.assign(clone(mira), { seat: 2, unit: null, name: 'Oren', level: 3 });
         s.env[0].party.members.push(late);
@@ -1404,7 +1404,7 @@ async function pageRules(overrides, shots) {
         await page.click(P + '.hw-tab[data-tab="find"]');
         const way = await page.evaluate((q) => { const box = document.querySelector(q + '.hw-invite-name'), how = document.querySelector(q + '.hw-invite-how'), sw = document.querySelector(q + '.hw-list-party');
           return { box: !!box && box.getClientRects().length > 0, how: how ? how.textContent : '', sw: !!sw && sw.getClientRects().length > 0 }; }, P);
-        if (!way.box || !/Invite to party\.$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
+        if (!way.box || !/Invite to party$/.test(way.how) || way.sw) fails.push('UI-17 [' + tag + '] with no party the finder tab reads ' + JSON.stringify(way));
         await page.click(P + '.hw-tab[data-tab="invites"]');
         await shot('party-invites');
         const acc1 = sent(s, 'hr_hunt_party_accept').length;

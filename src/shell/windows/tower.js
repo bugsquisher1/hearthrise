@@ -72,7 +72,7 @@ export function enterBlock(cs, tw, landing) {
 function climbHeroes(cs, tw) {
   const party = partyMembershipOf(cs);
   const roleOf = (seat) => { const s = party ? party.seats.find((x) => x.seat === seat) : null; return s ? s.role : null; };
-  const you = { who: 'you', name: nameOf(cs) || t('training.your_hero'), floor: tw.run && tw.run.floor !== null ? tw.run.floor : tw.bestFloor, sprite: heroSprite(cs) };
+  const you = { who: 'you', name: nameOf(cs) || t('away.your_hero'), floor: tw.run && tw.run.floor !== null ? tw.run.floor : tw.bestFloor, sprite: heroSprite(cs) };
   const seats = tw.party.map((p) => ({ who: 'party', name: p.name, floor: p.floor, sprite: outfitSprite(p.outfit, roleOf(p.seat)) }));
   const field = tw.field ? tw.field.above.concat(tw.field.below).map((r) => ({ who: 'rival', name: r.name, floor: r.floor, sprite: outfitSprite(r.outfit, null) })) : [];
   return [you].concat(seats, field);
@@ -148,7 +148,7 @@ function patchNext(root, tw) {
 
 /* THE CLIMB TAB, every line from the section. */
 function patchClimb(root, cs, tw, sc) {
-  const name = nameOf(cs) || t('training.your_hero');
+  const name = nameOf(cs) || t('away.your_hero');
   const run = tw.run;
   const now = root.querySelector('.tt-now');
   prop(now, 'hidden', !run);
@@ -231,7 +231,7 @@ renderTower.act = function actTower(ctx, body, action, ev, el) {
     const landing = landingPicked(sc, tw);
     if (enterBlock(cs, tw, landing)) { repaint(); return true; }
     runIntent(sc, repaint, () => startClimb(ctx.account, cs, landing), t('tower.busy_start'),
-      () => t('tower.started', { name: nameOf(cs) || t('training.your_hero') }), cs);
+      () => t('tower.started', { name: nameOf(cs) || t('away.your_hero') }), cs);
     return true;
   }
   return false;

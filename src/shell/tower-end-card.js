@@ -51,7 +51,7 @@ export function patchClimbCard(host, cs, tw, end) {
   prop(stage, 'hidden', !r || !tw);
   if (r && tw) {
     const top = r.top !== null ? r.top : r.start;
-    const m = stageModel(tw, { heroes: [{ who: 'you', name: nameOf(cs) || t('training.your_hero'), floor: top, sprite: heroSprite(cs) }],
+    const m = stageModel(tw, { heroes: [{ who: 'you', name: nameOf(cs) || t('away.your_hero'), floor: top, sprite: heroSprite(cs) }],
       labels: endLabels(end, tw), ticks: false, run: [r.start, top], lo: Math.max(0, r.start - BELOW), hi: top + ABOVE });
     patchStage(stage, m);
     if (stage.getAttribute('data-run') !== r.start + ':' + top && scrollToFloor(stage, m, top)) attr(stage, 'data-run', r.start + ':' + top);

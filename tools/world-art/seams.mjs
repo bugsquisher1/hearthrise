@@ -16,6 +16,11 @@
 //   kerb     stagger, plus a course of dressed kerb stones (the stone's own pixels, the top lit one ramp step, a dark joint at
 //            every stone) laid along the border; for paving that is meant to end on a built edge
 //   bank     ragged, the ground's rim darkened where it is wet and the water's lip lit one step; for water and its bank
+//   canopy   a thicket's edge laid in whole crowns: a jittered hex lattice of round crowns (`mats.C.canopy` { spacing, jitter }),
+//            each laid or not by the warped share at its centre, so the wall's edge is a row of crowns along a wavy line, never a
+//            crown cut in half. The union is outlined in the thicket's darkest colour, its outer px lit up-left and shaded
+//            down-right, and the floor at its foot gets a soil line (`soil: 'M'`, that floor's grain lit a step, its outer px two)
+//            or a cast shadow; what the crowns leave of a thicket cell far from the floor stays as painted
 // Every style lays its UPPER material (the higher `z`) over the lower one, so a stone sits on the earth, never under it.
 //
 //   reseam(img, o)              a PAINTED ground redrawn along its borders, in place of the tileset's straight ones.
@@ -51,7 +56,7 @@ function stepRgb(r, g, b, k) {
   return rgbOf(at.ramp[Math.max(0, Math.min(at.ramp.length - 1, at.k + k))]);
 }
 
-export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank']);
+export const STYLES = Object.freeze(['ragged', 'stagger', 'scatter', 'kerb', 'bank', 'canopy']);
 const DEFAULTS = Object.freeze({ sweep: 9, reach: 96, warp: 6, scale: 26, mid: 2.5, fine: 0.8, loose: 0.55, holes: 0.3, fade: 14, fadeIn: 10, kerb: 5, lift: 1, wet: 3 });
 
 /* noise in [-1, 1] (ground-finish's three rotated octaves, stretched: it sits round 0.5 with a narrow spread) */
@@ -290,8 +295,51 @@ function engine(o) {
     }
     return c;
   }
-  /** The pixel at (x, y) among the materials S (the cell's and its listed neighbours'): { m, c, kerb }. */
+  /* ── the canopy: crowns on a jittered hex lattice (spacing s), crown (i, j) laid when its centre's warped share says canopy ── */
+  const C = Object.keys(mats).find((m) => mats[m].canopy) || null;
+  const lattice = C ? Object.assign({ spacing: 14, jitter: 2 }, mats[C].canopy) : null;
+  const crownMemo = new Map();
+  function crown(i, j) {
+    const key = i + ':' + j;
+    if (crownMemo.has(key)) return crownMemo.get(key);
+    const s = lattice.spacing, rh = s * Math.sqrt(3) / 2;
+    const gx = i * s + (j & 1 ? s / 2 : 0) + (hash2(i, j, seed + 51) * 2 - 1) * lattice.jitter;
+    const gy = j * rh + (hash2(i, j, seed + 53) * 2 - 1) * lattice.jitter;
+    const r = s * 0.5 + 1 + hash2(i, j, seed + 57) * 1.5;
+    /* laid by the pair between the canopy and the floor that leads at its centre (the floors listed with it round that cell) */
+    const cx = Math.floor(gx / T), cy = Math.floor(gy / T), S = [C];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const q = cellAt(cx + dx, cy + dy); if (!S.includes(q) && pairOf(C, q).style === 'canopy') S.push(q); }
+    let laid = cellAt(cx, cy) === C;
+    if (S.length > 1) {
+      const other = S.slice(1).sort((a, b) => share(b, gx, gy, S) - share(a, gx, gy, S))[0];
+      laid = winAt(gx, gy, S, pairOf(C, other), false).m === C;
+    }
+    const k = { gx, gy, r, laid };
+    crownMemo.set(key, k);
+    return k;
+  }
+  /** Whether a canopy crown covers (x, y): inside a laid crown, or among three laid crowns (the gaps of the wall's own body). */
+  function canopyAt(x, y) {
+    const s = lattice.spacing, rh = s * Math.sqrt(3) / 2, px = x + 0.5, py = y + 0.5;
+    const j0 = Math.floor(py / rh), near = [];
+    for (let j = j0 - 2; j <= j0 + 2; j++) {
+      const i0 = Math.floor((px - (j & 1 ? s / 2 : 0)) / s);
+      for (let i = i0 - 2; i <= i0 + 2; i++) { const k = crown(i, j); near.push({ k, d: Math.hypot(px - k.gx, py - k.gy) }); }
+    }
+    if (near.some(({ k, d }) => k.laid && d <= k.r)) return true;
+    near.sort((a, b) => a.d - b.d);
+    return near[0].k.laid && near[1].k.laid && near[2].k.laid;
+  }
+  /** The pixel at (x, y) among the materials S (the cell's and its listed neighbours'): { m, c, kerb }, or null to keep the paint. */
   function draw(x, y, S) {
+    if (C && S.includes(C) && S.length > 1) {
+      if (canopyAt(x, y)) return { m: C, c: fillAt(C, x, y) };
+      const rest = S.filter((m) => m !== C);
+      /* a thicket cell's px the crowns leave: the floor it borders where that floor reaches, else the paint (an unlisted edge) */
+      if (cellAt(Math.floor(x / T), Math.floor(y / T)) === C && !rest.some((m) => share(m, x + 0.5, y + 0.5, S) > 0)) return null;
+      if (rest.length === 1) return { m: rest[0], c: fillAt(rest[0], x, y) };
+      S = rest;
+    }
     const order = S.slice().sort((a, b) => z(b) - z(a));
     /* the border this pixel is on: the two materials with the largest share here (where three meet, the pair whose border is
        nearest, never the top two by layer, which may not touch here at all) */
@@ -321,7 +369,7 @@ function engine(o) {
     pick = pick || order[order.length - 1];
     return { m: pick, c: fillAt(pick, x, y) };
   }
-  return { draw, share };
+  return { draw, share, canopy: C };
 }
 
 const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { sweep: 0, warp: 0, mid: 0, fine: 0 } : {}, p);
@@ -330,7 +378,8 @@ const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { s
  * A painted ground's borders redrawn. Returns { img (a new image), changed (px) }.
  *   o.rows   the paint grid: one string per cell row, one character per cell (the same grid the ground was painted from)
  *   o.mats   { ch: { z: layer (upper over lower), unit: true for a stone floor (laid stone by stone), mortar: the joints' share,
- *            own: true (never drawn outside its own cells) or the cell characters it is never drawn into } }
+ *            own: true (never drawn outside its own cells) or the cell characters it is never drawn into, lift: n steps up its
+ *            ramps for every px of it, canopy: { spacing, jitter } for the thicket the canopy style lays in crowns } }
  *   o.pairs  [{ a, b, style, warp, scale, fine, jitter, loose, holes, fade, fadeIn, bias, course, kerb, lift }]: the borders to
  *            redraw (others stay as painted). Every pair of materials that touch should be listed, or its border is left as painted
  *            beside a redrawn one.
@@ -371,6 +420,7 @@ export function reseam(img, o) {
     for (let j = 0; j < T; j++) for (let i = 0; i < T; i++) {
       const x = cx * T + i, y = cy * T + j;
       const r = eng.draw(x, y, S);
+      if (!r) continue;
       const d = (y * img.width + x) * 4;
       out.data[d] = r.c[0]; out.data[d + 1] = r.c[1]; out.data[d + 2] = r.c[2]; out.data[d + 3] = 255;
       lab[y * img.width + x] = 1;
@@ -391,18 +441,54 @@ export function reseam(img, o) {
     const p = ((y % T) * T + (x % T)) * 4, c = [d[p], d[p + 1], d[p + 2]];
     return grain[m].keep.has(hexOf(c[0], c[1], c[2])) ? c : grain[m].body;
   };
-  rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt);
+  /* the canopy's outline: its fill's darkest common colour */
+  let canopy = null;
+  if (eng.canopy) {
+    const d = tiles[eng.canopy].data, n = new Map();
+    for (let i = 0; i < d.length; i += 4) { const k = hexOf(d[i], d[i + 1], d[i + 2]); n.set(k, (n.get(k) || 0) + 1); }
+    const dark = [...n].filter(([, c]) => c >= T * T * 0.03).map(([k]) => rgbOf(k)).sort((a, b) => lumAt(a, 0) - lumAt(b, 0))[0];
+    canopy = { C: eng.canopy, dark };
+  }
+  rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt, canopy);
+  /* a floor lifted whole (`mats.ch.lift`: steps up its ramps), drawn or kept: a mound that must not read as the track beside it */
+  const lifts = Object.entries(o.mats || {}).filter(([, v]) => v.lift);
+  if (lifts.length) for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+    const i = y * img.width + x, m = lab[i] ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)], l = lifts.find(([ch]) => ch === m);
+    if (!l) continue;
+    const c = stepRgb(out.data[i * 4], out.data[i * 4 + 1], out.data[i * 4 + 2], l[1].lift);
+    out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2];
+  }
   return { img: out, changed };
 }
 
 /* ── the rims a style adds on the pixels it drew: the bank's wet ground and lit water lip; the soft edge's shadow ── */
-function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt) {
+function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt, canopy) {
   const z = (m) => (mats[m] && mats[m].z) || 0;
   const step = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = y * w + x;
     if (!lab[i] || matOf[i] === null) continue;
     const m = matOf[i];
+    /* the canopy's edge: its outline, its outer px lit up-left and shaded down-right; at its foot the soil line or its shadow */
+    if (canopy) {
+      const other = (X, Y) => { if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) return null; const n = matOf[Y * w + X]; return n !== null && (n === canopy.C) !== (m === canopy.C) && pairOf(m, n).style === 'canopy' ? n : null; };
+      if (m === canopy.C) {
+        if (other(x - 1, y) || other(x + 1, y) || other(x, y - 1) || other(x, y + 1)) { out.data.set(canopy.dark, i * 4); continue; }
+        if (other(x - 2, y) || other(x, y - 2) || other(x - 1, y - 1)) { step.push([i, 1]); continue; }
+        if (other(x + 2, y) || other(x, y + 2) || other(x + 1, y + 1)) { step.push([i, -1]); continue; }
+      } else {
+        let d = 0, up = false, p = null;
+        for (let r = 1; r <= 2 && !d; r++) for (let dy = -r; dy <= r && !d; dy++) for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !other(x + dx, y + dy)) continue;
+          d = r; up = dx <= 0 && dy <= 0; p = pairOf(m, canopy.C); break;
+        }
+        if (d) {
+          const c = p.soil && skirtAt(p.soil, x, y);
+          if (c) { out.data.set(c, i * 4); step.push([i, d]); continue; }
+          if (up) { step.push([i, -1]); continue; }
+        }
+      }
+    }
     /* the bank: ground within `wet` px of the water (a ragged band: the wet line is no ruler either) is a step down */
     let wetBy = null;
     for (let r = 1; r <= 3 && !wetBy; r++) for (let dy = -r; dy <= r && !wetBy; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -594,6 +680,63 @@ function selftest() {
     }
   }
   ok(rim > 0 && skirt > 0 && stray === 0, 'outline 2 + skirt: ' + rim + ' rim px on the mass, ' + skirt + ' skirt px at its foot, ' + stray + ' skirt px astray');
+  /* a lifted floor: every px of it a step up, drawn or kept, and nothing else */
+  const lo = reseam(paint(br, bf), { rows: br, mats: { m: { z: 0 }, g: { z: 1 }, b: { z: 2, lift: 1 } }, fills: bf, seed: 4,
+    pairs: [{ a: 'g', b: 'b', style: 'ragged' }, { a: 'g', b: 'm', style: 'ragged' }] }).img;
+  const up = hexOf(...stepRgb(...rgbOf(B), 1));
+  ok(colourAt(lo, 3 * T + 16, T + 16) === up && colourAt(lo, 16, 16) === G.toLowerCase(), 'lift 1: the mass a step up (' + colourAt(lo, 3 * T + 16, T + 16) + '), the grass as it was');
+  /* the canopy: a thicket block (a leaf fill with dark gaps) beside grass, a dead-straight border four cells long */
+  const LEAF = [RAMPS.leaf[1], RAMPS.leaf[3], RAMPS.leaf[4], RAMPS.leaf[0]], GR = RAMPS.moss[0], SO = RAMPS.earth[3];
+  const leaf = createImage(T, T);
+  for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) leaf.data.set([...rgbOf(LEAF[(x * 7 + y * 3) % 11 < 1 ? 3 : (x + 2 * y) % 3]), 255], (y * T + x) * 4);
+  const cr = ['TTTTgggg', 'TTTTgggg', 'TTTTgggg', 'TTTTgggg', 'TTTTgggg', 'TTTTmmmm'];
+  const cf = { T: leaf, g: flat(GR), m: flat(SO) };
+  const co = { rows: cr, mats: { m: { z: 0 }, g: { z: 1 }, T: { z: 2, canopy: { spacing: 18, jitter: 3 } } }, fills: cf, seed: 6,
+    pairs: [{ a: 'T', b: 'g', style: 'canopy', sweep: 9, warp: 8, soil: 'm' }, { a: 'T', b: 'm', style: 'canopy' }, { a: 'g', b: 'm', style: 'ragged' }] };
+  const ca = reseam(paint(cr, cf), co).img, cb = reseam(paint(cr, cf), co).img;
+  ok(Buffer.compare(Buffer.from(ca.data), Buffer.from(cb.data)) === 0, 'canopy: deterministic');
+  const leafSet = new Set(LEAF.map((h) => h.toLowerCase())), isLeaf = (x, y) => leafSet.has(colourAt(ca, x, y)) || RAMP_AT.get(colourAt(ca, x, y))?.ramp === RAMPS.leaf || RAMP_AT.get(colourAt(ca, x, y))?.ramp === RAMPS.shadow;
+  const lab2 = new Uint8Array(ca.width * ca.height);
+  for (let y = 0; y < ca.height; y++) for (let x = 0; x < ca.width; x++) lab2[y * ca.width + x] = isLeaf(x, y) ? 1 : 0;
+  const cs = straightness(lab2, ca.width, ca.height, 4 * T, 0, 4 * T);
+  ok(cs < 0.35, 'canopy: the straight border is broken (' + Math.round(cs * 100) + '% of rows switch on one column)');
+  /* outlined: every canopy px beside a grass px is the thicket's darkest colour; soil at the foot; no hole in the wall's body */
+  const dark = hexOf(...rgbOf(RAMPS.leaf[0])), soil = [SO, hexOf(...stepRgb(...rgbOf(SO), 1)), hexOf(...stepRgb(...rgbOf(SO), 2))].map((h) => h.toLowerCase());
+  let edgePx = 0, unlined = 0, soilPx = 0, holes = 0;
+  for (let y = 1; y < 5 * T - 1; y++) for (let x = 1; x < ca.width - 1; x++) {
+    if (!lab2[y * ca.width + x]) continue;
+    const grassBy = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !lab2[(y + dy) * ca.width + x + dx]);
+    if (!grassBy) continue;
+    edgePx++;
+    if (colourAt(ca, x, y) !== dark) unlined++;
+  }
+  for (let y = 0; y < 4 * T; y++) for (let x = 3 * T; x < ca.width; x++) if (soil.includes(colourAt(ca, x, y))) soilPx++;
+  /* a hole: floor the crowns enclose, cut off from the open floor (a flood from the grass side never reaches it) */
+  const open = new Uint8Array(lab2.length), fq = [];
+  for (let y = 0; y < 4 * T; y++) { const i = y * ca.width + ca.width - 1; if (!lab2[i]) { open[i] = 1; fq.push(i); } }
+  while (fq.length) { const p = fq.pop(), px = p % ca.width, py = Math.floor(p / ca.width); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = px + dx, Y = py + dy, i = Y * ca.width + X; if (X >= 0 && Y >= 0 && X < ca.width && Y < 4 * T && !lab2[i] && !open[i]) { open[i] = 1; fq.push(i); } } }
+  for (let y = 0; y < 4 * T; y++) for (let x = 0; x < ca.width; x++) { const i = y * ca.width + x; if (!lab2[i] && !open[i]) holes++; }
+  /* whole crowns: the edge is a row of round crowns, so walking down it the border dips into a notch between two crowns about
+     every crown; a cut through the canopy wanders without them */
+  const xb = [];
+  for (let y = 0; y < 4 * T; y++) { let x = 2 * T; while (x < ca.width && lab2[y * ca.width + x]) x++; xb.push(x); }
+  let notches = 0;
+  for (let y = 12; y < 4 * T - 12; y++) if (xb[y] <= xb[y - 1] && xb[y] < xb[y + 1] && xb[y] <= xb[y - 5] - 2 && xb[y] <= xb[y + 5] - 2) notches++;
+  ok(edgePx > 0 && unlined === 0, 'canopy: the crowns are outlined (' + edgePx + ' edge px, ' + unlined + ' not dark)');
+  ok(soilPx > 0, 'canopy: a soil line at the foot (' + soilPx + ' px)');
+  ok(holes === 0, 'canopy: no hole in the wall a cell in from its edge (' + holes + ' px)');
+  /* whole crowns: no piece of canopy smaller than half a crown stands apart (a cut through the canopy leaves crumbs) */
+  const seenC = new Uint8Array(lab2.length);
+  let crumbs = 0;
+  for (let s0 = 0; s0 < lab2.length; s0++) {
+    if (!lab2[s0] || seenC[s0]) continue;
+    const q = [s0];
+    seenC[s0] = 1;
+    let n = 0;
+    while (q.length) { const p = q.pop(); n++; const px = p % ca.width, py = Math.floor(p / ca.width); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = px + dx, Y = py + dy, i = Y * ca.width + X; if (X >= 0 && Y >= 0 && X < ca.width && Y < ca.height && lab2[i] && !seenC[i]) { seenC[i] = 1; q.push(i); } } }
+    if (n < 120) crumbs++;
+  }
+  ok(crumbs === 0 && notches >= 3, 'canopy: laid in whole crowns: no crumb apart (' + crumbs + '), ' + notches + ' notches between crowns down a 104 px edge');
   console.log(bad ? `✗ seams selftest: ${bad} failed` : '✓ seams selftest');
   return bad ? 1 : 0;
 }

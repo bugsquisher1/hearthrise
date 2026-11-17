@@ -1,0 +1,7 @@
+{
+  "south": { "tool": "create_object_pro_flash", "object": "ee54686c-8d79-41d4-8068-e2b6e4b0caf3", "seed": 41, "size": [52, 52], "view": "high top-down", "palette": "hr-world-56-v2",
+    "style_image": "Tamsin's south still (npc_crier), a 48 px crop", "request": "a dock porter, a big tied grain sack carried on his right shoulder and steadied with one hand, bare muscular arms, a sleeveless ochre tunic with a rope belt, dark brown trousers, a knitted dark blue cap, standing upright, full body, game npc sprite" },
+  "walk": { "tool": "animate_object", "mode": "v3", "group": "9dfa2f24-21d1-4a01-8f7a-28d05c435e00", "frame_count": 8, "keep_first_frame": true,
+    "request": "walking at a steady pace under the load, both feet lifting in turn, the grain sack held on his shoulder the whole time, the same man the whole time" },
+  "gens": 28
+}

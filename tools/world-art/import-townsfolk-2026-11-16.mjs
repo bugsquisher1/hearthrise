@@ -38,6 +38,8 @@ export const FOLK_BODIES = Object.freeze([
     ramps: 'shadow,earth,bone,skin,bronze,blood,cloth,leaf,gold' },
   { id: 'folk_water_carrier', object: '8a434966-705f-44f5-bd8e-ca9bc2d68e44', name: 'S1 water carrier',
     ramps: 'shadow,stone,earth,bronze,skin,steel,mithril,frost,water' },
+  { id: 'folk_dock_porter', object: '51e287e9-526e-4099-b4e8-f6fc7462d45b', name: 'S1 dock porter',
+    ramps: 'shadow,earth,bone,bronze,water,steel,skin,torch' },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));

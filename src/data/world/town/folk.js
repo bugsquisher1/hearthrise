@@ -40,7 +40,7 @@ export const FOLK = Object.freeze({
     person({ id: 'water_carrier', body: 'folk_water_carrier', speed: 1.3, offsetMs: 7000,
       route: [stop(100, 41, 20000, 'w'), stop(108, 51, 14000, 'e')] }),
     /* the dock porter: from the cargo by the harbour square down the quay to the pier head, and back */
-    person({ id: 'dock_porter', body: 'outfit_brute', dye: '1.3.0.0', speed: 1.4, offsetMs: 21000,
+    person({ id: 'dock_porter', body: 'folk_dock_porter', speed: 1.4, offsetMs: 21000,
       route: [stop(131, 83, 19000, 'e'), stop(141, 88, 13000, 's')] }),
     /* the stall keepers of Hearth Square (beside their stalls, looking out over the square) and the harbour's fishmonger */
     person({ id: 'keeper_north', body: 'folk_market_woman', speed: 1, offsetMs: 0,

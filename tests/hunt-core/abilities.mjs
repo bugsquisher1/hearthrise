@@ -770,6 +770,43 @@ const cases = {
     const want = ['the party’s HP is below 50%', 'the pack has at least 1 monster casting at me', 'the fight is on', 'my target is weak to it', 'my target is resistant to it'];
     return JSON.stringify(said) === JSON.stringify(want) ? null : 'the area conditions read ' + JSON.stringify(said);
   },
+  /* TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on"):
+     every worn set that plays Melee damage keeps the slot (a sword alone, two axes, a club or hammer, bare hands) and every other one drops it
+     (hunt-spawn heroSetup, the key's discipline list), the tank's sword and shield first. A club at Melee 10, its unlock, casts it on its
+     starting rule and strikes all three monsters beside it, each for its share of the club's own blow; at Melee 9 it waits; the tank's set
+     never casts it. The card and a struck slot name every weapon that casts a move (not its first discipline's alone). */
+  'turning-cut-every-shieldless-melee': (M) => {
+    const tc = M.AD.ABILITIES.turning_cut;
+    const slot = { action: { type: 'ability', id: 'turning_cut' }, conditions: M.AD.suggestedTrigger(tc), join: 'and' };
+    const setupOf = (key) => M.spawn.heroSetup({ weaponType: key, options: {}, bar: [slot], partyRoles: [] });
+    for (const [key, row] of Object.entries(M.HR.ROLE_KEYS)) {
+      const keeps = setupOf(key).slots.some((r) => r.slot.action.id === 'turning_cut');
+      if (keeps !== row.roles.includes('melee_dps')) return 'a ' + key + ' hero ' + (keeps ? 'keeps' : 'drops') + ' Turning Cut';
+    }
+    const fight = (key, lv) => {
+      const x = oneHero(M, { role: M.HR.ROLE_KEYS[key].roles[0], acc: 1000, maxHit: 20, target: 10 }, { slots: setupOf(key).slots, skills: { melee: M.XP.skillXpForLevel('melee', lv) } },
+        [{ x: 13, y: 3, hp: 900, maxHp: 900 }, { x: 11, y: 3, hp: 900, maxHp: 900 }, { x: 12, y: 4, hp: 900, maxHp: 900 }]);
+      x.sc.rng = rngOf(M, 12);
+      M.abilities.castAbilities(x.inst, x.sc);
+      return x.sc;
+    };
+    const club = fight('hammer', tc.unlock);
+    const hits = club.events.filter((e) => e.type === 'dmg' && e.ability === 'turning_cut');
+    const [lo, top] = M.AD.blowShare(20, tc);
+    if (JSON.stringify(casts(club)) !== '["turning_cut"]' || JSON.stringify(hits.map((e) => e.t).sort()) !== '[10,11,12]') return 'a club at Melee ' + tc.unlock + ' cast ' + JSON.stringify(casts(club)) + ', struck ' + JSON.stringify(hits.map((e) => e.t));
+    if (hits.some((e) => e.amount < lo || e.amount > top)) return 'a club\'s Turning Cut hit off its share [' + lo + ', ' + top + '] of the blow: ' + hits.map((e) => e.amount);
+    const under = fight('hammer', tc.unlock - 1);
+    if (casts(under).length || !under.events.some((e) => e.type === 'rule_wait' && e.why === 'level')) return 'a club under its unlock cast or did not wait: ' + JSON.stringify(casts(under));
+    if (casts(fight('shield', 40)).includes('turning_cut')) return 'a sword and shield cast Turning Cut';
+    if (!M.shell) return null;
+    const { factsOf, reasonOf } = M.shell.facts;
+    const req = (id) => factsOf({ type: 'ability', id }).requires;
+    if (!req('turning_cut').includes('Melee weapon (no shield)') || /Sword/.test(req('turning_cut'))) return 'Turning Cut reads ' + JSON.stringify(req('turning_cut'));
+    if (!/Melee weapon\.$/.test(req('power_strike'))) return 'Power Strike, every melee weapon\'s, reads ' + JSON.stringify(req('power_strike'));
+    if (!/Shield/.test(req('flame_strike')) || !/Sword/.test(req('flame_strike'))) return 'Flame Strike, a shield\'s and a sword\'s, reads ' + JSON.stringify(req('flame_strike'));
+    const struck = reasonOf({ action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and', usable: false }, { discipline: 'shield', role: 'tank', slots: [], store: [], supplySource: 'store', onEmpty: 'switch' }, [], null, null, null, null);
+    return struck && struck.code === 'weapon' && struck.text.includes('Melee weapon (no shield)') ? null : 'a sword and shield\'s Turning Cut slot reads ' + JSON.stringify(struck);
+  },
   /* HERO AREA ABILITIES BY SHAPE (lane/b-area-engine; Tyler 2026-11-08 "our heros some more aoe spells"): a LINE from the hero
      through its best aim, a RING round the hero up to maxHits, a hitPm row hitting for a share of the hero's own largest blow,
      `unlock` waiting on the row's skill, a row's own `trigger`, and the boss set skipping both shapes. The designer's rows are
@@ -1056,6 +1093,12 @@ const mutants = [
     edits: [['src/shell/bar-draft.js', "  return !conds || !conds.length || untouched ? startConditions(next) : conds;", '  return !conds || !conds.length ? startConditions(next) : conds;']] },
   { name: '[area-client] a picked count starts below 0', case: 'configure-words', also: ['src'],
     edits: [['src/shell/bar-draft.js', "  const any = m.value === 'count' && m.ops.includes('gte');", '  const any = false;']] },
+  { name: '[turning cut] a sword alone\'s again (Tyler 2026-11-16: every melee weapon without a shield)', case: 'turning-cut-every-shieldless-melee',
+    edits: [['src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,"]] },
+  { name: '[turning cut] the tank\'s too', case: 'turning-cut-every-shieldless-melee',
+    edits: [['src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,"]] },
+  { name: '[turning cut] a move names its first discipline\'s weapons alone', case: 'turning-cut-every-shieldless-melee', also: ['src'],
+    edits: [['src/shell/action-facts.js', '  const ds = r.disciplines;\n', '  const ds = r.disciplines.slice(0, 1);\n']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',
     edits: [['src/core/hunt/abilities.js', "['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],", "['regenPm', 'int'], ['cds', 'json'],"]] },
 ];

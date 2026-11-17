@@ -292,6 +292,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE INCOME DIAL (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): 2027-04-23-training-gear is APPLIED history (v0.2.134) and this
    file carries it whole. A ground's dial (balance-sheet.js GROUND_GP_FIT) moves hr_hunt_kill_bounds' gold and hr_hunt_vendor_value (src/data/loot-sale.js),
    both only down, and the store runes are Carved 28 / Graven 44. The hr-accrue carrying the same src/data deploys right after it. */
+/* TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (lane/d-turning-cut-melee, designer 2026-11-16; Tyler, from Andy: "Give it to all melee that doesn't
+   have a shield on"): 2027-04-23-training-gear is APPLIED history (v0.2.134) and this file carries it whole. hr_hunt_abilities' turning_cut row lists
+   club, dual_axe and sword (was sword), so the bar view projects it on a club's or two axes' unedited bar and reads it usable there. No other row moves. */
 export const OUT_NAME = '2027-04-27-income-dial-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -988,6 +991,13 @@ export function render(src) {
 -- Graven 44 (lane/d-andy-march-feedback, Tyler-approved). No other row, no shape. The bounds only fall: the hr-accrue carrying the same src/data
 -- deploys at once after this file (until it lands an old engine's coin can pass the lower bound, so a hunt on a dialed ground is refused
 -- kills_over and the next tick retries it; nothing is lost). ORDER: after everything applied with v0.2.134.
+--
+-- NEW IN THIS FILE: TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (lane/d-turning-cut-melee, designer 2026-11-16; Tyler, from Andy: "Give it to
+-- all melee that doesn't have a shield on"): hr_hunt_abilities' turning_cut row lists club, dual_axe and sword (was sword alone), so
+-- hr_hunt_settings_view puts it on a club's, two axes' or bare hands' unedited bar (hr_hunt_role_rules' melee_dps set already names it last) and
+-- reads it usable there, as the engine casts it. The tank's shield never gets it. No other row, no shape, no bound. ORDER: after everything applied
+-- with v0.2.134; the hr-accrue carrying the same src/data/abilities.js deploys right after it (until then the engine drops the slot a club's bar
+-- shows, and before the file the view strikes the slot the new engine casts: both close once the two land).
 --
 -- CARRIED FROM 2027-04-23-training-gear-hunt-sessions-catalogue (APPLIED with v0.2.134; lane/c-training-gear, backend-architect, 2026-11-14; Tyler 2026-11-14: "the same RATE for every skill/level", "training with the
 -- weapon should be 2:1", "all training weapons should be the same gold price", "store bought items other than crowns are non tradable"; src/data/training.js):

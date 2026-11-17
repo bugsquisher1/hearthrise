@@ -1,4 +1,0 @@
-{
-  "about": "tests/copy-lint.mjs THE LABEL PINS: lines that broke a LABEL FORM rule on 2026-11-16 and were not rewritten in the text sweep, \"<file>#<rule>#<text>\": edge-bundled files (EDGE_LABEL_DATA, they move with the next edge deploy) and pieces written in src/shell, src/app, src/hunt-view, src/social. Only shrinks (--prune-labels).",
-  "hits": []
-}

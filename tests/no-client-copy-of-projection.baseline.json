@@ -8,6 +8,7 @@
       "bench_run",
       "bench_tax",
       "blessings",
+      "boss_halls",
       "bounty",
       "buffs",
       "character_sheet",
@@ -37,6 +38,7 @@
       "hunt_tier",
       "inventory",
       "inventory_complete",
+      "key_ring",
       "level",
       "live_events",
       "login",
@@ -70,6 +72,7 @@
       "temper",
       "titles",
       "total_level",
+      "tower",
       "training",
       "traits",
       "unlocked_recipes",
@@ -108,5 +111,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-16"
+  "generatedAt": "2026-11-17"
 }

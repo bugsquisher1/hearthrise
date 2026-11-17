@@ -666,11 +666,12 @@ export const ITEMS={
      fighter's way to them, and a smith's market. */
   temper_salts: {n:'Tempering Salts', icon:'🧂', v:35, tag:'temper'},
   fine_temper_salts: {n:'Fine Tempering Salts', icon:'🧂', v:60, tag:'temper'},
-  /* Tiers 4 to 6 (designer 2026-11-15, lane/d-audit-balance-2): each bids just under what the forge's inputs bid (135, 185 and 245 of book),
-     as the two above do; the workbench's planks ask a little more (recipes.js pack_*_temper_salts). */
-  mithril_temper_salts: {n:'Mithril Tempering Salts', icon:'🧂', v:130, tag:'temper'},
-  rune_temper_salts: {n:'Rune Tempering Salts', icon:'🧂', v:180, tag:'temper'},
-  ember_temper_salts: {n:'Ember Tempering Salts', icon:'🧂', v:235, tag:'temper'},
+  /* Tiers 4 to 6 (designer 2026-11-15, lane/d-audit-balance-2): each bids just under what the forge's inputs bid, as the two above do; the
+     workbench's planks ask a little more (recipes.js pack_*_temper_salts). The inputs' bids are the INCOME DIAL's (src/data/loot-sale.js, x0.7
+     from the Glade up: Grave Dust 13, Magic Essence 7), so the forge's inputs bid 21, 28 and 37 and the salts 20, 27 and 36 (v0.2.135). */
+  mithril_temper_salts: {n:'Mithril Tempering Salts', icon:'🧂', v:100, tag:'temper'},
+  rune_temper_salts: {n:'Rune Tempering Salts', icon:'🧂', v:135, tag:'temper'},
+  ember_temper_salts: {n:'Ember Tempering Salts', icon:'🧂', v:180, tag:'temper'},
 
   /* ══════════════════════════════════════════════════════════════════
      b223 — THE HUNT: SIGNATURE MATERIALS + THE HUNT-FORGED KIT

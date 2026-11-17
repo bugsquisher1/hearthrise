@@ -1590,7 +1590,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const wrong = await why(0);
-        if (wrong.text !== 'Requires Shield' || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
+        /* slot 0's move is cast by every melee weapon (action-facts.js weaponsFor, d190f3abc: its first discipline alone said Shield) */
+        if (wrong.text !== 'Requires Melee weapon' || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
         await sweep('the healer bar');
         /* A SLOT THIS PARTY CAN'T FIRE (lane/a-silent-triggers): wanting more hurt heroes than the party holds never holds. Not struck: it says
            so, and the slot shows what it wants where an item shows its count (slot-waits.js), ahead of the mana it is also short of. */
@@ -1947,12 +1948,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         });
         if (!shown || m.v !== 'Set by Fingerguns: Dangerous') fails.push('HS-14 a member does not see the leader\'s tier read-only: ' + JSON.stringify(m));
         if (m.visible !== 0) fails.push('HS-14 a member\'s picker still shows ' + m.visible + ' tier button(s)');
-        if (!/ packs? of 5[ ,]/.test(m.facts)) fails.push('HS-14 a pair\'s facts line does not say the leader\'s pull: ' + m.facts);
+        /* The pull a pair brings on the leader's tier, from the data (balance-sheet.js moves it: the Glade's Dangerous brings 6 since 2026-11-16). */
+        const { tierRowOf, pullOfTier } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
+        const pullOf = (h, t) => pullOfTier(tierRowOf(h, t), 2);
+        if (!new RegExp(' packs? of ' + pullOf(picked, 'dangerous') + '[ ,]').test(m.facts)) fails.push('HS-14 a pair\'s facts line does not say the leader\'s pull: ' + m.facts);
         /* The leader's pick is per ground too: another ground's page reads the leader's pick THERE. */
         await page.click('.hw-hunt[data-hunt="' + other + '"]');
         const there = await page.evaluate(() => (document.querySelector('.hw-hunt-detail .hw-hunt-facts') || {}).textContent || '');
         await page.click('.hw-hunt[data-hunt="' + picked + '"]');
-        if (!/ packs? of 8[ ,]/.test(there)) fails.push('HS-14 ' + other + ' does not read the leader\'s pick there: ' + there);
+        if (!new RegExp(' packs? of ' + pullOf(other, 'deadly') + '[ ,]').test(there)) fails.push('HS-14 ' + other + ' does not read the leader\'s pick there: ' + there);
         const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_tier_set' || c.name === 'hr_action_set_options').length;
         const before = asks();
         await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt-detail .hw-tiers [data-tier]')) b.click(); });

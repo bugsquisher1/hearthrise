@@ -218,8 +218,8 @@ const TO_BLESS = ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="
 export const HUNT_TUTORIAL = Object.freeze([
   /* ── THE WEAPON IS THE STYLE, ONCE HOME FROM THE FIRST HUNT (designer 2026-11-12, first-30 play: before any hunt it sent a new
      hero into the bag instead of to the Cellar; the kit's sword needs nothing loaded, and load_shot still catches a bow). ── */
-  step('styles', 'Weapon sets the style',
-    'Equip another weapon in town to switch style',
+  step('styles', 'Your weapon is your style',
+    t('coach.styles'),
     'inventory', { kind: 'any', of: [READ, { kind: 'weapon_changed' }] },
     { knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'kills', atLeast: 1 }], hooks: ['[data-hs-win="inventory"] .hw-slot[data-slot="weapon"]'] }),
   /* ── A. Before the first pull ───────────────────────────────────────── */
@@ -228,51 +228,51 @@ export const HUNT_TUTORIAL = Object.freeze([
     'tally', orGotIt({ kind: 'tally_taken', task: RATS.id }), { gotIt: true, when: [IN_TOWN, { kind: 'unhunted' }], ring: { task: RATS.id },
       inWindow: t('coach.tamsins_rats_in', RATS_WORDS) }),
   step('to_the_cellar', 'Rats in the mill',
-    'Hunts → Mill Cellar → Enter',
+    'Open Hunts, pick the Mill Cellar and press Enter.',
     'hunt_picker', { kind: 'enter', hunt: CELLAR },
     /* "Press the Mill Cellar, then Enter": on a phone the sheet opens on the list, so the first press is the row
        (playtest 2026-10-29: the card said Enter while the ring sat on the row) */
-    { inWindow: 'Press the Mill Cellar, then Enter' }),
+    { inWindow: 'Press the Mill Cellar, then Enter.' }),
   /* ── A BOW WITH NOTHING LOADED (first-hour play 2026-10-31: the kit's bow shot nothing for 7 minutes and no card said
      why, since the first kill's card waits for a kill that never comes). Equip loads a shot now (bag-model.js equipOps);
      these catch a hero who took it off or came by another door. First, so they stand before that wait. ── */
   step('load_shot', 'Nothing to shoot',
-    'Put arrows on your bar from the bag',
+    'Your weapon has nothing to shoot. Put arrows on your bar from your bag.',
     'inventory', { kind: 'shot_ready' }, { when: [IN_TOWN, { kind: 'no_shot' }],
       hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="{shot}"]', '[data-hs-win="inventory"] .hw-pick[data-item="{shot}"] [data-hs-act="primary"]'] }),
   step('load_shot_hunt', 'Nothing to shoot',
-    'Leave the hunt, then load arrows from the bag',
+    'Your hero has nothing to shoot. Leave the hunt, then put arrows on your bar from your bag.',
     'hunt_topbar', { kind: 'shot_ready' }, { when: [HUNTING, { kind: 'no_shot' }] }),
   /* ── B. The first hunt: the cards the server finishes on its own come first (AUTO_KINDS) ── */
-  step('first_kill', 'Fights on its own',
-    'Let your hero pick and fight each monster',
+  step('first_kill', 'Your hero fights for you',
+    'No clicking needed. It picks its own targets.',
     'world', { kind: 'kills', atLeast: 1 }, { knowledge: true }),
   /* Shown from the first kill until Level 2 lands, so it never names the Level (playtest 2026-10-29: "Level 2" sat
      over a bar that read Lv 1). */
   step('first_level', 'Level up',
-    'Kill monsters to fill the ring around your Level',
+    'Every kill fills the XP ring. Fill it to level up.',
     'hud_vitals', { kind: 'level' }, { knowledge: true, holdOpen: true, hooks: ['[data-coach-hook="level"]'] }),
   /* THE COUNT IS DONE: ahead of every lesson of the first hunt, so a hero who pressed nothing still hears it. The hunt bar's Leave is ringed. */
   step('tamsin_owes', t('coach.tamsin_owes_title'), t('coach.tamsin_owes', RATS_WORDS),
     'hunt_topbar', IN_TOWN, { holdOpen: true, when: [HUNTING, UNDER_THICKET, { kind: 'tally_counted', task: RATS.id }] }),
   /* ── Reactive cards that interrupt the chain (after the first-minute cards, so the shell's "passed" rule never
      replays one of those). Each starts on its own fact and explains what just happened. ── */
-  step('stamina_low', 'Stamina low',
-    'Press + beside stamina to top up',
+  step('stamina_low', 'Stamina is low',
+    'The hunt ends when it runs out. Press + beside your stamina to top up.',
     'hud_vitals', READ, { reactive: true, when: [HUNTING, { kind: 'stamina_low' }], hooks: ['[data-coach-hook="stamina-buy"]'] }),
-  step('first_death', 'Defeated',
-    'Shop → Services → Bless',
+  step('first_death', 'You died',
+    'Blessings cut what a death costs, and they\'re free for now. Bless again in the Shop\'s Services tab.',
     'services', { kind: 'blessed' }, { reactive: true, when: [IN_TOWN, { kind: 'died' }, { kind: 'below_free' }],
-      inWindow: 'Press Bless on each Blessing', hooks: TO_BLESS }),
-  step('first_eat', 'Food eaten',
-    'Cook more food to save gold',
+      inWindow: 'Press Bless on each Blessing.', hooks: TO_BLESS }),
+  step('first_eat', 'Your hero ate',
+    'Your HP fell low, so a food slot ate for you.',
     'action_bar', READ, { reactive: true, when: [HUNTING, FRESH, { kind: 'ate' }] }),
-  step('first_drink', 'Drink used',
-    'Brew your own drinks to save gold',
+  step('first_drink', 'Your hero drank',
+    'Your moves cost mana, so a drink slot drank for you.',
     'action_bar', READ, { reactive: true, when: [HUNTING, FRESH, { kind: 'drank' }] }),
   /* Tyler 2026-10-25: the stance, chase and distance sit ON the bar's right side, never behind the sliders popup. */
   step('fight_settings', 'Taking a beating?',
-    'Set the stance on your bar to Defensive',
+    'Try the Defensive stance on your bar. You take less damage, but you deal less too.',
     'hud_vitals', { kind: 'any', of: [READ, { kind: 'stance_changed' }] },
     { reactive: true, knowledge: true, gotIt: true, when: [HUNTING, FRESH, { kind: 'eating_fast', n: BEATING_EATS, perHour: BEATING_PER_HOUR }], hooks: ['[data-coach-hook="stance"]'] }),
   step('more_heroes', 'More than one hero',
@@ -286,25 +286,25 @@ export const HUNT_TUTORIAL = Object.freeze([
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */
   /* A card that asks never walls (optimizer panel 11-03: "Next: Hunt together" for two days over a woodcutting alt, and nothing behind it was reached). */
   step('party_own', 'Hunt together',
-    'Right-click a hero\'s tab → Invite to party',
+    'Your heroes can hunt together. Right-click another hero\'s tab and choose Invite to party.',
     'strip', orGotIt({ kind: 'partied' }), { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'own_hero_in_town' }],
       hooks: ['.char-tab[data-slot="{other}"]'] }),
-  step('equip_upgrades', 'Better gear found',
-    'Bag → Equip upgrades',
+  step('equip_upgrades', 'Upgrade found',
+    'You found gear that beats what you\'re wearing. Open your bag and press Equip upgrades.',
     'inventory', { kind: 'upgrades_none' }, { reactive: true, when: [IN_TOWN, { kind: 'upgrades' }],
-      inWindow: 'Press Equip upgrades',
+      inWindow: 'Press Equip upgrades. You can swap any piece back later.',
       /* the hunt summary's Back in town Equip row while that card shows (a card about the return rings its row, never the summary's gold press), then the bag's Equip upgrades */
       hooks: ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="equip"]', '[data-hs-win="inventory"] [data-hs-act="equip-upgrades"]'] }),
-  step('storage', 'Bag nearly full',
-    'Deposit stacks in Storage',
+  step('storage', 'Your bag is almost full',
+    'Storage holds more, and all your heroes share it. Open Storage and deposit a few stacks.',
     'storage', { kind: 'any', of: [READ, { kind: 'stored_stack' }] }, { reactive: true, gotIt: true, when: [{ kind: 'bag_full' }] }),
   /* THE HEARTH, TAUGHT (designer 2026-10-28, lane/b-first-hour): Inner Flame was named only in a bracket of the Sell
      card, so no hero was ever asked to fuel the Hearth. In town with a stack of fuel and no Inner Flame XP yet, the
      card names the stack and rings it in the bag, then its Fuel all. Finished by the server's Inner Flame XP. */
   step('fuel_hearth', 'Feed the Hearth',
-    'Bag → Bones → Fuel all',
+    'Burning Bones in the Great Hearth raises your Inner Flame. Open your bag, press Bones, then Fuel all.',
     'inventory', { kind: 'skill_xp', skill: 'inner_flame' }, { reactive: true, when: [IN_TOWN, { kind: 'fuel_held', n: FUEL_CARD_AT }],
-      inWindow: 'Press Bones, then Fuel all',
+      inWindow: 'Press Bones, then Fuel all.',
       /* while the walk and the burn run (no XP yet) the ring rests: pressing Fuel all again only says it is running */
       hooks: ['[data-hs-win="inventory"]:not(:has(.hw-burying.is-on)) .hw-pocket[data-item="{fuel}"]', '[data-hs-win="inventory"]:not(:has(.hw-burying.is-on)) .hw-pick[data-item="{fuel}"] [data-hs-act="primary"]'] }),
   /* DEFENSE THAT NEVER TRAINS (designer 2026-10-28): it rises only from blows taken in armor or behind a shield
@@ -313,10 +313,10 @@ export const HUNT_TUTORIAL = Object.freeze([
      cards come before it, so never ahead of the first hunt), the card says so and names the Shop's piece every style
      can wear; wearing one finishes it. */
   step('no_defense', 'Defense isn\'t training',
-    'Buy Leather Gloves in the Shop and wear them',
+    'Defense only goes up when you get hit wearing armor or a shield. Buy Leather Gloves in the Shop and equip them.',
     'shop', { kind: 'any', of: [READ, { kind: 'armoured' }] },
     { reactive: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND, { kind: 'unarmoured' }],
-      inWindow: 'Press Buy, then Leather Gloves', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
+      inWindow: 'Press Buy, then Leather Gloves.', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
   /* PAID, AND BACK DOWN: after "Wear what you found" and the Hearth (reactive, above), and ahead of the hunt's own lessons, which wait for the hunt.
      The invitation to close the game, at the minute the designer would have quit. */
   step('back_down', t('coach.back_down_title', RATS_WORDS), t('coach.back_down', RATS_WORDS),
@@ -327,27 +327,27 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('plant_land', 'Plant your land',
     /* THE HOOK, SHOWN (designer 2026-11-10, lane/d-first-ten-minutes, played): the first thing a new player does while the hero fights
        without them. The card says so first, then the job. */
-    'Plant a Turnip Seed in each empty plot',
-    'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [LESSON], ring: { crop: 'turnip' }, inWindow: 'Press Plant on each empty plot' }),
-  step('bar_intro', 'Action bar',
-    'Press a slot to change what it does',
+    'Your hero doesn\'t need you watching. While it fights, plant a Turnip Seed in each empty plot on your Farm.',
+    'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [LESSON], ring: { crop: 'turnip' }, inWindow: 'Press Plant on each empty plot.' }),
+  step('bar_intro', 'Your action bar',
+    t('coach.bar_intro'),
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON] }),
   /* WHY IT WAITS (designer 2026-11-05, lane/d-caster-first-fights): a default bar no longer reaches "Spells need runes", so a caster
      would lose the lesson about what a cast costs and why a slot waits. It sits on a real slot, the one the bar marks (src/shell/slot-waits.js).
      A bar with no slot waiting on a count (a tank, a Ranger) passes it by. */
   step('why_it_waits', 'Why it waits',
-    'Press the waiting slot to change when it fires',
+    'A slot on your bar is waiting for its moment. Press it to change when it fires.',
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON, { kind: 'slot_waits' }] }),
   /* A slot the hero picked Carried runes only for, with none left: no default bar reaches it (every default rune spell names its store rune). */
   step('spell_runes', 'Spells need runes',
-    'Press the crossed-out spell and pick the store\'s rune',
+    'A spell on your bar is crossed out because you have no runes. Press it and pick the store\'s rune.',
     'action_bar', orGotIt({ kind: 'rune_ready' }), { gotIt: true, when: [LESSON, { kind: 'rune_struck' }], hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]'] }),
   step('food_when', 'Eat on time',
-    'Press the food slot and set its HP',
+    'Your food slot eats below an HP you set. Press it to pick when your hero eats.',
     'action_bar', orGotIt({ kind: 'food_cond' }), { gotIt: true, when: [{ kind: 'eaten_at_least', n: BEATING_EATS }, { kind: 'food_slot' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
   /* Was "Order matters": the lesson is what it costs, not slot arithmetic (first-hour play 2026-10-31). */
-  step('food_order', 'Own food first',
-    'Move your own food ahead of store food',
+  step('food_order', 'Your own food first',
+    'Store food costs gold. Move your own food ahead of it on your bar.',
     'action_bar', orGotIt({ kind: 'food_order' }), { gotIt: true, when: [LESSON, { kind: 'food_order_bad' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
   /* A SPELL IS A CHOICE (designer 2026-10-29, lane/a-starter-bars; 2026-11-05 for the bow and the axes): a weapon hero's default bar
      holds no rune spell (Flame Strike, Flame Volley and Rend each measured against the first grounds, rule-subjects.js), so the hero
@@ -355,14 +355,14 @@ export const HUNT_TUTORIAL = Object.freeze([
      Here a bar with no rune spell is offered one of its own style: what it adds, what each cast costs, and the store rune to
      pick, on the real controls. Adding it or Got it finishes it; a hero who adds it with no rune met "Spells need runes". */
   step('first_spell', 'Try a rune spell',
-    'Press an empty slot, then Spells',
+    'Your bar has no spell that uses runes yet. Press an empty slot, then open Spells.',
     'action_bar', { kind: 'any', of: [READ, { kind: 'rune_spell_on' }] }, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND, { kind: 'rune_spell_none' }],
       /* deepest first: the first on screen is ringed (launcher.js ringPlan), so the ring walks tab -> spell -> rune */
       hooks: ['[data-hs-win="configure-action"] .ca-rs[data-store="{store}"]', '[data-hs-win="configure-action"] .ca-row[data-id="{spell}"]',
         '[data-hs-win="configure-action"] .ca-tab[data-tab="spells"]'] }),
   /* THE HELP PAGE, POINTED AT (the panel: "the best thing you've written, buried behind a gear icon"). */
   step('help_page', 'Help',
-    'Settings → Help',
+    'The Help page explains hunting, supplies, loot, gear and dying. You\'ll find it in Settings.',
     'settings', READ, { knowledge: true, gotIt: true, when: [HUNTING, THICKET_BEHIND], hooks: ['[data-hs-win="settings"] .st-tab[data-cat="help"]'] }),
   /* WHILE HER COUNT RUNS the wait has a goal, and "Out to the brook" keeps for the second trip (the designer's beat sheet). It also holds the
      chain: the cards after it speak of Level 5 and the Thicket. */
@@ -379,54 +379,54 @@ export const HUNT_TUTORIAL = Object.freeze([
   /* Blessings first on the way back: they are one press and the next ground is where a hero can die (the panel: "Before the
      wolves" came after the wolves). */
   step('bless', 'Before the wolves',
-    'Shop → Services → Bless all three',
+    t('coach.bless', { n: 'three' }),
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
-      inWindow: 'Press Bless on each Blessing', hooks: TO_BLESS }),
-  step('sell_loot', 'Sell junk',
-    'Shop → Sell all junk',
+      inWindow: 'Press Bless on each Blessing.', hooks: TO_BLESS }),
+  step('sell_loot', 'Sell your junk',
+    'Junk is only worth gold. Open the Shop, press Sell, then Sell all junk.',
     'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk',
+    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk. Your materials stay in your bag.',
       /* the hunt summary's Back in town Sell row while that card shows (the card rings the row, never the summary's gold press), then the Shop's way */
       hooks: ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="sell"]',
         '[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),
   /* One decision, not a form (panel 2026-11-01: a 14-dropdown list at hour one, "I don't know what I don't need yet"): after the
      Thicket the bag knows what piles up, and a plan once set is kept for every hunt after (the first principle). */
   step('loot_rules', 'Decide once',
-    'Bag → This hunt → set one item to Sell',
+    'Pick something you always sell and set it to Sell in your bag\'s This hunt tab. The game remembers it for every hunt.',
     'inventory', { kind: 'any', asks: true, of: [READ, { kind: 'loot_rule' }] },
-    { knowledge: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND], inWindow: 'Press This hunt, then set one item to Sell',
+    { knowledge: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND], inWindow: 'Press This hunt, then set one item to Sell. The game remembers it.',
       hooks: ['[data-hs-win="inventory"] .hw-tab[data-tab="hunt"]', '[data-hs-win="inventory"] [data-rule-item][data-coin]'] }),
   step('cook_catch', 'Cook your catch',
-    'Gathering and crafting → Cooking → Cook Shrimp',
+    'Cook your shrimp into food for your hero. Open Gathering and crafting, press Cooking, then Cook Shrimp.',
     'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },
-      inWindow: 'Press Cooking, then Start on Cook Shrimp' }),
+      inWindow: 'Press Cooking, then Start on Cook Shrimp.' }),
   step('tamsins_task', 'Tamsin\'s wolves',
     TAMSIN_WAY,
     'tally', orGotIt({ kind: 'tally_taken', task: WOLVES.id }), { gotIt: true, when: [IN_TOWN], ring: { task: WOLVES.id } }),
   step('into_the_thicket', 'Into the Thicket',
-    'Hunts → ' + HUNT_INDEX[THICKET].name + ' → Enter',
+    'Open Hunts, pick ' + HUNT_INDEX[THICKET].name + ' and press Enter.',
     'hunt_picker', { kind: 'enter', hunt: THICKET },
-    { inWindow: 'Press Enter on ' + HUNT_INDEX[THICKET].name }),
+    { inWindow: 'Press Enter on ' + HUNT_INDEX[THICKET].name + '.' }),
   /* ── D / E. The second hunt and the second return ─────────────────── */
   /* Done when Tamsin pays, or once the hero hunts PAST the Thicket (#58, Andy: the wolves still held, out of the
      Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
-  step('tamsin_pays', 'Paid in town',
+  step('tamsin_pays', 'Hunt the wolves',
     t('coach.tamsin_pays', { count: WOLVES.count, label: WOLVES.label, gold: WOLVES.gold }),
     'world', { kind: 'any', of: [{ kind: 'tally_paid', task: WOLVES.id }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
-  step('go_below', 'Into the sewer, together',
-    'Hunts → The Sewer → Enter with party',
+  step('go_below', 'Into the Sewer, together',
+    'The Sewer is a party hunt. Open Hunts, pick The Sewer and press Enter with party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
-  step('save_setup', 'Keep this bar',
-    'Hunt prep → New setup → Save',
+  step('save_setup', 'Save this setup',
+    'A setup saves your bar and gear together. Open Hunt prep, press New setup, name it and Save.',
     'hunt_prep', { kind: 'setup_saved' }, { when: [IN_TOWN, { kind: 'bar_saved' }, { kind: 'been', hunt: THICKET }],
-      inWindow: 'Press New setup, name it, then Save',
+      inWindow: 'Press New setup, name it, then Save.',
       hooks: ['[data-hs-act="setups"]', '[data-hs-win="hunt-prep"] [data-coach-hook="setup-save"]'] }),
   /* ── F. Day one: each waits for the chain, then starts on its own fact ── */
   step('harvest_juice', 'Turnips are ready',
-    'Harvest on the Farm, then cook Turnip Juice',
+    t('coach.harvest_ready'),
     'farm', { kind: 'juice_made' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'turnips' }] }),
   step('juice_slot', 'Drink your own juice',
-    'Put Turnip Juice in a slot before store juice',
+    'Your own Turnip Juice is free. Put it in a slot before the store juice.',
     'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
   /* KLAPPA'S CLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
@@ -441,35 +441,35 @@ export const HUNT_TUTORIAL = Object.freeze([
      speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse is a real start on the next hero, one card names what exists at the server's
      prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
      keeps. */
-  step('purse_goal', 'Spend your gold',
+  step('purse_goal', 'What your gold buys',
     t('coach.purse_goal'),
     'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),
   step('home', 'Build your home',
-    'Gather logs and ore for your first house',
+    'Your first house needs gold, logs and ore. Start with logs from Woodcutting.',
     'house', { kind: 'home_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'home_unowned' }] }),
   step('own_runes', 'Make your own runes',
-    'Mine Rune Essence, then bind runes in Runecrafting',
+    'Your own runes cast the full spell. Mine Rune Essence, then bind runes in Runecrafting.',
     'crafting', { kind: 'rune_owned' }, { reactive: true, dayOne: true, when: [IN_TOWN, { kind: 'level_at', at: DAY_ONE_LEVEL }, { kind: 'rune_unowned' }] }),
   /* The first-hour rung (slot-ladders.js graypelt_cloak): at its Level with the pelts in the bag, the card rings the
      recipe. Finished by any Crafting XP (a fresh hero has none: the cloak is most heroes' first craft). */
-  step('stitch_cloak', 'Stitch a cloak',
-    'Gathering and crafting → Crafting → Stitch Graypelt Cloak',
+  step('stitch_cloak', 'A cloak from the wolves',
+    'You can wear a Graypelt Cloak now. Open Gathering and crafting, press Crafting, then Stitch Graypelt Cloak.',
     'crafting', { kind: 'skill_xp', skill: 'crafting' }, { reactive: true, dayOne: true, ring: { skill: 'crafting', work: 'stitch_graypelt_cloak' },
       when: [IN_TOWN, { kind: 'level_at', at: CLOAK.reqLv }, { kind: 'carries', item: 'wolf_pelt', n: CLOAK_PELTS }] }),
   step('bless_paid', 'Blessings cost gold now',
-    'Shop → Services → Bless',
+    'They still cut what a death costs. Bless in the Shop\'s Services tab.',
     'services', { kind: 'any', of: [{ kind: 'blessed' }, READ] }, { reactive: true, gotIt: true, when: [IN_TOWN, { kind: 'at_free' }, { kind: 'unblessed' }],
       hooks: TO_BLESS }),
   step('weighhouse', 'The Weighhouse is open',
-    'List items for other players to buy',
+    'Sell your finds to other players there. They may pay more than the Shop.',
     'market', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'market_open', below: WANT_BELOW }] }),
   step('roll_of_honor', 'Leaderboards',
-    'Press Leaderboards to see where you stand',
+    'See where you rank against every hero in Havora.',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
   /* THE ONE DECISION OF LEVELS 10-30 (designer 2026-11-02, re-ruled with Tyler's harder monsters; a blind veteran found it by poking, +110% XP/h): it costs food now, and too big
      can kill, so it is named once with its price. The tier is that decision since 2026-11-04 (hunt-tiers.js). */
-  step('pull_goal', 'Harder tiers',
-    'Pick Dangerous or Deadly for more XP and more risk',
+  step('pull_goal', 'Want more XP?',
+    'Most hunts can be played on Dangerous or Deadly. You get more XP, but the monsters hit harder and can kill you.',
     'hunt_picker', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: PULL_LEVEL, below: WANT_BELOW }] }),
 ]);
 
@@ -828,7 +828,7 @@ export const wasteAt = (amount, pct, max) => amount - Math.round((max * (100 - p
    Melee): what Tamsin's card advises. */
 export const WEIGHT_FOR_ROLE = Object.freeze({ tank: 'heavy', melee_dps: 'heavy', ranger: 'medium', mage: 'light', healer: 'light' });
 export const ROLE_WORDS = Object.freeze({ tank: 'a shield tank', melee_dps: 'a Melee hero', ranger: 'a Ranger', mage: 'a Mage', healer: 'a Healer' });
-/* THE CARDS STATED FROM THE FACTS (Tyler 2026-11-16: a coach card is a short title and ONE line that names the press, tests/copy-lint.mjs coach-card).
+/* THE CARDS STATED FROM THE FACTS (Tyler 2026-11-16: a coach card is a short title and a line or two of plain English that names the press).
    A builder fills its coach.js row from the facts (the slot, the item, the rune), rings what it names, and answers null when it cannot be stated truly. */
 const SAY = Object.freeze({
   /* THE SECOND TRIP (back from Tamsin's pay): the invitation leads. */

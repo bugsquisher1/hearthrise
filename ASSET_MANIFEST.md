@@ -219,6 +219,7 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 | outfit_ranger | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
 | outfit_sorcerer | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
 | outfit_witch | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_sweeps_coat | heroes | character | 64×64 | idle 4@5, walk 6@8, hit 5@12 (s e n w) | senwseswnenw | **retain**: the Hearth Chest's super-rare, hidden until owned | create_character v3 `41584eda` (2026-11-16, 44 gens) |
 | rat | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | rat_king | hunt | beast | 64×64 | idle 1@5, walk 8@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | slime | hunt | vermin | 48×48 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |

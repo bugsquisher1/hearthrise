@@ -134,9 +134,11 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
       patch: (b, i) => { style(b, 'background-color', 'var(--dye-' + i + ')'); attr(b, 'aria-pressed', String(!!shown && shown[sc.region] === i)); },
     });
   }
-  /* The grid: search and the owned filter; premium and not-owned marked. */
+  /* The grid: search and the owned filter; premium and not-owned marked. A bundle outfit (the Sweep's Coat) shows only once the server
+     says this hero owns it: it is a find, never a shop window, and until its server half lands no hero owns it. */
   const q = sc.query.trim().toLowerCase();
-  const ids = OUTFIT_IDS.filter((id) => (!q || OUTFIT_ROWS[id].label.toLowerCase().includes(q)) && (!sc.ownedOnly || (o && o.owned.has(id))));
+  const ids = OUTFIT_IDS.filter((id) => (!q || OUTFIT_ROWS[id].label.toLowerCase().includes(q)) && (!sc.ownedOnly || (o && o.owned.has(id)))
+    && (!OUTFIT_ROWS[id].bundle || (!!o && o.owned.has(id))));
   rows(root.querySelector('.hw-of-grid'), ids, {
     key: (id) => id,
     build: (id) => element(ctx.doc, '<li><button type="button" class="hw-of-card" data-hs-act="of-pick" data-outfit="' + esc(id) + '">'

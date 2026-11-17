@@ -19,6 +19,7 @@
 const B10 = 'art/world-src/gen-2026-11-08b';    // brief 10: the live 30's flinches (B3), the heroes' (H1)
 const S11 = 'art/world-src/gen-2026-11-09';     // brief 11 samples: M1 first fights, M2 falls, M3 and H1d flinches
 const B13 = 'art/world-src/gen-2026-11-09b';    // brief 13: Q1 sample, B3 first fights, Q4 sample, B6 falls
+const SWEEP = 'art/world-src/gen-2026-11-16/04-sweeps-coat/r3b-41584eda';   // lane/a-tower-art-gen round 4: the Sweep's Coat's own flinch
 
 export const NAME = Object.freeze({ s: 'south', e: 'east', n: 'north', w: 'west', se: 'south-east', sw: 'south-west', ne: 'north-east', nw: 'north-west' });
 const ALL = [0, 1, 2, 3, 4, 5];
@@ -181,4 +182,10 @@ export const HUNT_CLIPS = Object.freeze([
       o === 'ranger' ? flinchDiag('h1d-hero-flinch-diagonals-sample', 'outfit_ranger', 'sw', 'h1d') : {},
       o === 'sorcerer' ? flinchDiag('h1d-hero-flinch-diagonals-sample', 'outfit_sorcerer', 'nw', 'h1d') : {}) },
   } })),
+  /* the Sweep's Coat (the Hearth Chest's super-rare, lane/a-tower-art-gen 2026-11-16): H1's recipe on its v3 character 41584eda, one 6-frame
+     roll a facing (south pushed from the front; east, north and west from the side faced), frames 0-4. The frames sit on PixelLab's 76 px
+     animation canvas, so each `still` is the facing's rotation on that canvas (6 px in), the drawing the roll started from. */
+  { set: 'heroes', id: 'outfit_sweeps_coat', clips: {
+    hit: { fps: 12, dirs: Object.fromEntries(CARD.map((f) => [f, { dir: `${SWEEP}/hit/${NAME[f]}`, still: `${SWEEP}/hit/${NAME[f]}.png`, lay: HIT5 }])) },
+  } },
 ]);

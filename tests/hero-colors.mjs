@@ -438,7 +438,11 @@ const ARMS = {
     const out = [];
     const server = new Map((await q(db, 'select outfit_id, regions from public.hr_outfits')).map((r) => [r.outfit_id, r.regions]));
     const { OUTFIT_ROWS, BASE_REGIONS, MASK_COLOURS } = X.OF;
-    for (const [id, r] of Object.entries(OUTFIT_ROWS)) if (JSON.stringify(server.get(id)) !== JSON.stringify(r.regions)) out.push(`${id}: the server's regions ${JSON.stringify(server.get(id))}, the data's ${JSON.stringify(r.regions)}`);
+    for (const [id, r] of Object.entries(OUTFIT_ROWS)) {
+      /* a bundle outfit (the Sweep's Coat) is owned only through its bundle: in hr_outfits before that half exists, every hero owns it */
+      if (r.bundle) { if (server.has(id)) out.push(`${id}: a bundle outfit is in hr_outfits, so hr_outfit_owned hands it to everyone`); continue; }
+      if (JSON.stringify(server.get(id)) !== JSON.stringify(r.regions)) out.push(`${id}: the server's regions ${JSON.stringify(server.get(id))}, the data's ${JSON.stringify(r.regions)}`);
+    }
     if (X.OF.validate().length) out.push('outfits.js: ' + X.OF.validate().join('; '));
     /* WHAT THE PICKER OFFERS IS WHAT THE ART SHOWS: read off the shipped atlas, pixel by pixel. */
     const { decodePNG } = await import(pathToFileURL(join(ROOT, 'tools/world-art/png.mjs')).href);

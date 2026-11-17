@@ -272,7 +272,10 @@ function engine(o) {
   /** The pixel at (x, y) among the materials S (the cell's and its listed neighbours'): { m, c, kerb }. */
   function draw(x, y, S) {
     const order = S.slice().sort((a, b) => z(b) - z(a));
-    const p = pairOf(order[0], order[1]);
+    /* the border this pixel is on: the two materials with the largest share here (where three meet, the pair whose border is
+       nearest, never the top two by layer, which may not touch here at all) */
+    const near = S.slice().sort((a, b) => share(b, x + 0.5, y + 0.5, S) - share(a, x + 0.5, y + 0.5, S) || z(b) - z(a));
+    const p = pairOf(near[0], near[1]);
     if (p.style === 'kerb') {
       const K = p.course || order[0];
       const c = kerbAt(x, y, S, K, p);

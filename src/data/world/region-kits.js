@@ -71,7 +71,7 @@ export const REGION_KITS = Object.freeze({
       meadowbrook_thicket: Object.freeze({ family: 'meadow', signature: ids('mb_log_bridge') }),
       coppercap_warrens: Object.freeze({ family: 'cave', signature: ids('cw_throne') }),
       mosslight_glade: Object.freeze({ family: 'meadow', signature: ids('') }),
-      wickstead: Object.freeze({ family: 'meadow', signature: ids('') }),
+      wickstead: Object.freeze({ family: 'meadow', signature: ids('wk_footbridge') }),
     }),
     pending: ids(''),
   }),

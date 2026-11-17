@@ -78,9 +78,11 @@ export default Object.freeze({
     { id: 'pine', x: 5, y: 35 }, { id: 'pine', x: 21, y: 35 }, { id: 'pine', x: 12, y: 37 },
     /* the yard's scatter: a pine in the open rick yard */
     { id: 'pine', x: 18, y: 23 },
-    /* the crossings: the ford stones. The footbridge row (the one 1-tile choke) is painted as an earth causeway: a plank
-       bridge stood on it running north-south, along the river, and was taken off 2026-11-14 */
+    /* the crossings: the ford stones, and the footbridge over the one 1-tile choke (y8): a log raft as long as the brook is
+       wide, centred on it (footprint 2 wide at x29-30), resting a few pixels on each bank; the water runs on under it
+       (lane/a-ground-seams 2026-11-16: the row was an earth causeway painted flat on the brook) */
     { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 30 },
+    { id: 'wk_footbridge', x: 29, y: 8 },
     /* P0 the Rick Yard: the hay the rats nest in */
     { id: 'hay_bale', x: 8, y: 16 }, { id: 'hay_bale', x: 9, y: 16 }, { id: 'straw', x: 19, y: 24 }, { id: 'sack_pile', x: 20, y: 17 },
     { id: 'grain_spill', x: 10, y: 24 },

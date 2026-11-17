@@ -57,9 +57,19 @@
   ],
   "pixellab": {
     "tool": "create_character",
-    "object": "41584eda-d313-4adc-9f9c-be3823c44eba",
+    "object": "2abf0617-bb4c-4dcc-83e3-2a8f9cc9f207",
     "n_directions": 8,
     "name": "Sweep's Coat",
+    "mode": "v3",
+    "reference": "art/world-src/gen-2026-11-16/05-keykeeper/r5-B-squarekey-017ac094.png (concept B, an edit of the shipped Quarry Brute south; its key bow hand-passed to a square gold frame round an ember window)",
+    "groups": {
+      "idle": "9c08f4e5-9301-4c5a-a172-b077739ddf5a (second roll; its smoke and sparks cleared by rule, 01-note.json round 6)",
+      "walk": "6bff8b1c-7efd-46a2-a4d4-a49044c4d863 (template walking-6-frames)",
+      "hit_s": "190b5937-d523-4fc3-9d64-983fd68b11e7",
+      "hit_enw": "1ab41247-788a-4b91-aca1-6e4973979f66"
+    },
+    "generations": 33,
+    "note": "art/world-src/gen-2026-11-16/01-note.json round 6",
     "idle": {
       "tool": "animate_object",
       "mode": "v3",
@@ -69,71 +79,61 @@
         "s": [
           0,
           8,
-          7,
+          1,
           8
         ],
         "e": [
           0,
           8,
-          7,
+          3,
           8
         ],
         "n": [
           0,
           8,
-          2,
+          7,
           8
         ],
         "w": [
           0,
-          4,
+          1,
           8,
-          4
+          1
         ],
         "se": [
           0,
-          2,
+          8,
           1,
-          2
+          8
         ],
         "sw": [
           0,
+          1,
           8,
-          7,
-          8
+          1
         ],
         "ne": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "nw": [
           0,
           7,
           2,
           7
-        ],
-        "nw": [
-          0,
-          8,
-          1,
-          8
         ]
       }
     },
     "clips": {
       "hit": {
-        "s": "art/world-src/gen-2026-11-16/04-sweeps-coat/r3b-41584eda/hit/south lay 0 1 2 3 4",
-        "e": "art/world-src/gen-2026-11-16/04-sweeps-coat/r3b-41584eda/hit/east lay 0 1 2 3 4",
-        "n": "art/world-src/gen-2026-11-16/04-sweeps-coat/r3b-41584eda/hit/north lay 0 1 2 3 4",
-        "w": "art/world-src/gen-2026-11-16/04-sweeps-coat/r3b-41584eda/hit/west lay 0 1 2 3 4"
+        "s": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/south lay 0 1 2 3 4",
+        "e": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/east lay 0 1 2 3 4",
+        "n": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/north lay 0 1 2 3 4",
+        "w": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/west lay 0 1 2 3 4"
       }
-    },
-    "mode": "v3",
-    "reference": "art/world-src/gen-2026-11-16/04-sweeps-coat/hero-r3-s47-face-b46dcadb.png (an edit of the shipped Quarry Brute south, hand-passed face)",
-    "groups": {
-      "idle": "5c94d542-7b82-4bf1-9dcf-9372ac3b8424",
-      "walk": "2a0c4f58-e27c-4ff2-bf1d-66f6e0ad861a (template walking-6-frames)",
-      "hit_s": "bd1b0a50-8080-4508-912b-7413544f1a0e",
-      "hit_enw": "e5da67cb-314c-4e01-8a25-2ad3c4a3fbc4"
-    },
-    "generations": 44,
-    "note": "art/world-src/gen-2026-11-16/01-note.json round 4"
+    }
   },
-  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab character 41584eda-d313-4adc-9f9c-be3823c44eba (style 1, 64 px canvas, 8 rotations and a template walk at the heroes' 8 fps) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, stone, iron, earth, skin, bronze, bone ramps before the lock (lock.mjs snapTo): its hue is its identity. Combat clips (hit) laid from reviewed raw frames by tools/world-art/import-clips.mjs (hunt-clips.mjs): registered on the idle still by whole pixels, falls seated on the anchor row, never scaled or redrawn."
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab character 2abf0617-bb4c-4dcc-83e3-2a8f9cc9f207 (style 1, 64 px canvas, 8 rotations and a template walk at the heroes' 8 fps) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, stone, iron, earth, skin, bronze, bone, torch, blood, gold, cloth ramps before the lock (lock.mjs snapTo): its hue is its identity. Combat clips (hit) laid from reviewed raw frames by tools/world-art/import-clips.mjs (hunt-clips.mjs): registered on the idle still by whole pixels, falls seated on the anchor row, never scaled or redrawn."
 }

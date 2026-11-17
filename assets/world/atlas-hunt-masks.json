@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-hunt-masks.png",
   "size": [2048,1560],
-  "pixels": "03ab4cff3914ac386bbb7355608ea86d6e511e1ae18116f328f850c4253ada84",
+  "pixels": "23db9b39a17b571402def903d5ef6f297be381d7167de2933cb830d185b5d3b1",
   "sprites": {
     "outfit_berserker_mask": {
       "class": "character",
@@ -330,8 +330,8 @@
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 25,
-      "contact": [26,38],
+      "height": 31,
+      "contact": [26,34],
       "shadow": null,
       "anims": {
         "idle": {

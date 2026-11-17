@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-17",
- "digest": "84bc5c95092c25a2e530108a595c54491602175cc6d8ce631ae56a44b822bad5",
+ "digest": "5c45a308c77f241363ba5335cc9ef08c84efe56125b09f592f7247a8d48dd3aa",
  "counts": {
   "relations": 294,
-  "functions": 757,
+  "functions": 758,
   "policies": 121,
   "indexes": 413,
   "triggers": 100,

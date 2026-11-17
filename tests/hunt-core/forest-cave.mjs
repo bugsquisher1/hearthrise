@@ -520,7 +520,7 @@ cases['wickstead-solo-floor'] = async (M) => {
 
 /* The glade put back to STAGED as a whole (flag + map), so the two leak mutants below have a staged hunt to leak. */
 const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"],
-  ['src/data/world/maps/index.js', "meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, sandboxHd64, ...packMaps('open')]);", "meadowbrookThicket, coppercapWarrens, wickstead, sandboxHd64, ...packMaps('open')]);"],
+  ['src/data/world/maps/index.js', "meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, burningTower, sandboxHd64, ...packMaps('open')]);", "meadowbrookThicket, coppercapWarrens, wickstead, burningTower, sandboxHd64, ...packMaps('open')]);"],
   ['src/data/world/maps/index.js', "export const STAGED_MAPS = Object.freeze([...packMaps('staged')]);", "export const STAGED_MAPS = Object.freeze([mosslightGlade, ...packMaps('staged')]);"]];
 const mutants = [
   /* an open pack's body drawn as another (HUNT_ART_ALIAS) whose sprite no atlas carries: the renderer would draw nothing */

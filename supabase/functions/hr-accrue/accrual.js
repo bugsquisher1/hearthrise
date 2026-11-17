@@ -1213,6 +1213,8 @@ function fightOf(sim, unitId, call) {
  *        hearthfindReady) }]
  * @param inp.scale    { level } when the server scales this window (hr_scaled_hunt_of through the instance read), else absent
  * @param inp.sessionMode  the instance's frozen session mode id (hunt_instances.session_mode through the instance read; src/data/session-modes.js)
+ * @param inp.towerFloor  the Burning Tower's floor whose room stands, or stands next (hr_hunt_instance_read `tower_floor`: the run's start, or
+ *        the highest floor its heroes cleared + 1); required on the Tower's ground (src/core/hunt/tower.js), never read elsewhere
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }], scaleLevel }
  */
@@ -1245,7 +1247,7 @@ export function accrueHunt(inp) {
   const sim = simulateHuntInstance(
     { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
     { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}),
-      ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode });
+      ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode, ...(Number.isInteger(inp.towerFloor) ? { towerFloor: inp.towerFloor } : {}) });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
 
   const out = [];
@@ -1370,7 +1372,9 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
          monster (`km`, summing to `kills`). */
       meta: { ms: settledTo - winFrom, ticks: summary.ticks, kills: summary.kills,
               mon: String(mi.huntId || '').slice(0, 64),
-              ...(summary.kills > 0 ? { km: s.bestiary.counts() } : {}),
+              /* (none in a session mode that counts no Bestiary, the Burning Tower's: its kills are journalled, never by monster, so no tally
+                 task reads them; hr_mode_pays refuses a `km` there) */
+              ...(summary.kills > 0 && Object.keys(s.bestiary.counts()).length ? { km: s.bestiary.counts() } : {}),
               /* A TRAINING WINDOW'S ITEM TIME (src/core/hunt/training.js trainingTick): the ms it played at the item's rate, the
                  claim hr_training_window re-proves against the hero's bank and spends (2027-04-23-training-gear.sql). */
               ...(hs.tally.boostMs > 0 ? { boost_ms: hs.tally.boostMs } : {}),
@@ -1479,6 +1483,9 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     unit_id: summary && Number.isInteger(summary.unitId) ? summary.unitId : null,
     tick_ms: tickMs,
     ...(xpEvent > 0 ? { xp_event: xpEvent } : {}),
+    /* THE BURNING TOWER (src/core/hunt/tower.js): the floors this hero cleared standing in this window, in order; the database re-proves
+       them against its own run (one after another from its record, no faster than the stair, each a room of kills) and writes the climb. */
+    ...(summary && summary.tower ? { tower: { floors: summary.tower.floors.slice() } } : {}),
   };
 }
 

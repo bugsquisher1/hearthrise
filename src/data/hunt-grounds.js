@@ -144,6 +144,7 @@ import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shap
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.135';
 import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.135';
 import { sessionModeOf } from './session-modes.js?v=0.2.135';
+import { TOWER_RULES } from './tower.js?v=0.2.135';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -409,9 +410,28 @@ export const TRAINING_GROUNDS = Object.freeze(Object.fromEntries(Object.keys(TRA
     route: Object.freeze([0]), respawnMs: 10000, pullDist: 1.5, groupFit: 'solo' })];
 }))));
 
-/** The ground row a hunt is fought on, called rooms, keyed halls and training grounds included, or null: the engine's and the scene's one lookup. */
+/* THE BURNING TOWER (src/data/tower.js; Tyler 2026-11-14; the board's "2026-11-14 The Burning Tower" §2): one pocket, one room a floor, reached by one
+   verb, hr_tower_start. Not in HUNT_GROUNDS, so nothing that lists grounds sees it; the engine and the scene reach it by hunt (groundOfHunt). `tower`
+   marks the ground: the engine fields each floor's room from the stat formula at Level F, opens the stair when the last of it falls and ends the climb
+   `floor_time` when a floor runs out of time (src/core/hunt/tower.js); `mode` is the session mode the server freezes on it (session-modes.js `tower`:
+   a death costs nothing, no coin, no drops, no Bestiary). Its as-built spawns are the catalogue's placeholders, one a slot of the room. THE ROOM IS THE
+   FLUE'S OWN (src/data/world/maps/burning_tower.js, lane/a-tower-art-gen 2026-11-16): the pocket the whole round shaft, the five slots on the ash in
+   an arc under the climbing irons (slot 0, a landing's Keeper, on the axis), the four seats on the ash at the iron landing's lip, the party
+   stepping up the stair at the south. */
+export const TOWER_GROUNDS = Object.freeze({
+  [TOWER_RULES.hunt]: Object.freeze({
+    id: TOWER_RULES.hunt, hunt: TOWER_RULES.hunt, map: 'burning_tower', tower: true, mode: 'tower',
+    start: Object.freeze([[30, 21], [29, 21], [31, 21], [30, 22]]),
+    pockets: Object.freeze([pocket([23, 14, 37, 25], ['rat', 30, 16], ['rat', 27, 17], ['rat', 33, 17], ['rat', 25, 19], ['rat', 35, 19])]),
+    route: Object.freeze([0]),
+    respawnMs: TOWER_RULES.stairMs, pullDist: 1.5, groupFit: 'both',
+  }),
+});
+
+/** The ground row a hunt is fought on, called rooms, keyed halls, training grounds and the Tower included, or null: the engine's and the scene's one lookup. */
 export function groundOfHunt(huntId) {
-  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || HALL_GROUNDS[huntId] || TRAINING_GROUNDS[huntId] || null;
+  return Object.values(HUNT_GROUNDS).find((g) => g.hunt === huntId) || CALLED_GROUNDS[huntId] || HALL_GROUNDS[huntId] || TRAINING_GROUNDS[huntId]
+    || TOWER_GROUNDS[huntId] || null;
 }
 
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
@@ -638,7 +658,8 @@ export function validateGround(row, refs) {
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
-  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS), ...Object.entries(HALL_GROUNDS), ...Object.entries(TRAINING_GROUNDS)]) {
+  for (const [key, row] of [...Object.entries(HUNT_GROUNDS), ...Object.entries(CALLED_GROUNDS), ...Object.entries(HALL_GROUNDS), ...Object.entries(TRAINING_GROUNDS),
+    ...Object.entries(TOWER_GROUNDS)]) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
     out.push(...validateGround(row));
   }

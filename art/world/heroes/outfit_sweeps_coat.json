@@ -1,0 +1,139 @@
+{
+  "id": "outfit_sweeps_coat",
+  "class": "character",
+  "style": "s1",
+  "material": "native",
+  "source": "outfit_sweeps_coat.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
+        "ne": 4,
+        "nw": 4
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "n": 5,
+        "w": 5
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_character",
+    "object": "2abf0617-bb4c-4dcc-83e3-2a8f9cc9f207",
+    "n_directions": 8,
+    "name": "Sweep's Coat",
+    "mode": "v3",
+    "reference": "art/world-src/gen-2026-11-16/05-keykeeper/r5-B-squarekey-017ac094.png (concept B, an edit of the shipped Quarry Brute south; its key bow hand-passed to a square gold frame round an ember window)",
+    "groups": {
+      "idle": "9c08f4e5-9301-4c5a-a172-b077739ddf5a (second roll; its smoke and sparks cleared by rule, 01-note.json round 6)",
+      "walk": "6bff8b1c-7efd-46a2-a4d4-a49044c4d863 (template walking-6-frames)",
+      "hit_s": "190b5937-d523-4fc3-9d64-983fd68b11e7",
+      "hit_enw": "1ab41247-788a-4b91-aca1-6e4973979f66"
+    },
+    "generations": 33,
+    "note": "art/world-src/gen-2026-11-16/01-note.json round 6",
+    "idle": {
+      "tool": "animate_object",
+      "mode": "v3",
+      "frame_count": 8,
+      "keep_first_frame": true,
+      "picked": {
+        "s": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "e": [
+          0,
+          8,
+          3,
+          8
+        ],
+        "n": [
+          0,
+          8,
+          7,
+          8
+        ],
+        "w": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "se": [
+          0,
+          8,
+          1,
+          8
+        ],
+        "sw": [
+          0,
+          1,
+          8,
+          1
+        ],
+        "ne": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "nw": [
+          0,
+          7,
+          2,
+          7
+        ]
+      }
+    },
+    "clips": {
+      "hit": {
+        "s": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/south lay 0 1 2 3 4",
+        "e": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/east lay 0 1 2 3 4",
+        "n": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/north lay 0 1 2 3 4",
+        "w": "art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617/hit/west lay 0 1 2 3 4"
+      }
+    }
+  },
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab character 2abf0617-bb4c-4dcc-83e3-2a8f9cc9f207 (style 1, 64 px canvas, 8 rotations and a template walk at the heroes' 8 fps) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the shadow, stone, iron, earth, skin, bronze, bone, torch, blood, gold, cloth ramps before the lock (lock.mjs snapTo): its hue is its identity. Combat clips (hit) laid from reviewed raw frames by tools/world-art/import-clips.mjs (hunt-clips.mjs): registered on the idle still by whole pixels, falls seated on the anchor row, never scaled or redrawn."
+}

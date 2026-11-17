@@ -1220,6 +1220,11 @@ async function shellGuard() {
        (hunt_instances.session_mode, set by hr_hunt_mode_freeze from the server's ground catalogue), handed over by hunt-settle.js
        proposeHuntSettle only after readHuntSettle's modePending check; never hr_state_of, never a client field. */
     'sessionMode',
+    /* THE BURNING TOWER (2027-04-24-tower-climb.sql): the floor whose room stands or stands next, the instance read's `instance.tower_floor`
+       (hr_tower_floor_of: the open runs' highest floor cleared + 1, or the run's start, written only by hr_tower_start and the settle),
+       handed over by hunt-settle.js proposeHuntSettle on the Tower's ground only, after readHuntSettle's towerPending check; never
+       hr_state_of, never a client field. */
+    'towerFloor',
     /* accrueHunt's world bound: HUNT_TUNING.worldMaxBytes. This key is a TEST seam that
        can only TIGHTEN it (hunt-settle.js passes o.worldMaxBytes, which production never sets). */
     'worldMaxBytes',

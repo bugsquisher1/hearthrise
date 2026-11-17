@@ -1298,3 +1298,12 @@
   .tw-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
   .tw-skills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* THE BURNING TOWER window itself is src/styles/tower.css; the hunt bar's floor and the Havora door stay here, with their surfaces. */
+.ht-tower { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: lining-nums tabular-nums; }
+.ht-tower .ht-floor { color: var(--gold-2); }
+.ht-tower.is-keeper .ht-floor { color: var(--gold); }
+.ht-floor-left { color: var(--ink); }
+.hv-tower { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 2px 0; font-size: var(--t-small); color: var(--ink); }
+.hv-tower[hidden] { display: none; }
+.hv-tower .hh-tool { min-height: 32px; padding: 0 10px; }

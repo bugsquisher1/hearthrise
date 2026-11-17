@@ -134,7 +134,7 @@ const mutants = [
   /* member.js engineSkillsOf also reads scalesWith (which skill levels a frozen peer row keeps, switch-catchup 10-25),
      so the field is dead only when BOTH readers drop it. */
   { name: 'bleed stops scaling with its skill', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) : 0,', "skillLv: h && h.skills ? levelOf(h.skills, 'melee') : 0,"],
+    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills && srow.scalesWith ? levelOf(h.skills, srow.scalesWith) + plusOf(h, srow.scalesWith) : 0,', "skillLv: h && h.skills ? levelOf(h.skills, 'melee') : 0,"],
       ['src/core/member.js', "    if (st && typeof st.scalesWith === 'string') out.add(st.scalesWith);\n", "    if (st) out.add('melee');\n"]] },
   { name: 'the suggested trigger stops reading the heal thresholds (a row promises a trigger no slot starts with)', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];\n", ''],
@@ -143,7 +143,7 @@ const mutants = [
   { name: 'the area minimum is read by nothing', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (AREA_TARGETS.includes(row.target)) return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];\n", '']] },
   { name: '[spell-content] the engine stops reading the level scaling (outputPm)', case: 'every-row-field-has-a-reader',
-    edits: [['src/core/hunt/abilities.js', 'const pm = Math.floor((outputPm(row, s.version, skillLevel(h, row)) * s.pm) / 1000);', 'const pm = Math.floor((v.outPm * s.pm) / 1000);']] },
+    edits: [['src/core/hunt/abilities.js', 'const pm = Math.floor((outputPm(row, s.version, powerLevel(h, row)) * s.pm) / 1000);', 'const pm = Math.floor((v.outPm * s.pm) / 1000);']] },
   { name: '[area-engine] the 3x3 side is read by nothing', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', "  if (row.target === 'area') return { shape: 'square', n: ABILITY_RULES.areaSide };", "  if (row.target === 'area') return { shape: 'square', n: 3 };"]] },
   { name: '[area-engine] the engine stops sharing a hitPm blow (blowShare)', case: 'every-row-field-has-a-reader',

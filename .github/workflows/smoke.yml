@@ -1230,6 +1230,21 @@ jobs:
           node tests/faction-window.mjs
           node tools/mutant-gate.mjs node tests/faction-window.mjs --mutate
 
+      # THE BURNING TOWER ON SCREEN (lane/b-tower-window, Tyler 2026-11-14): hidden with the `burning_tower` switch off; the server's
+      # start floors the only picks and one Enter one floor; forged and stale floors never sent; the chest's odds the server's and Use
+      # sends the saved stokes (never a number); off with why; a sheet on the phone; the climb's bar and end card. Direction A "The
+      # Chimney" (2026-11-16): the tower drawn from the server's floors (landings in their keys' metal, the dark above the best, you and
+      # your party on it), a landing tapped picks only a listed start, the chest beside the fire and the reveal where it sits, the end
+      # card's run. The window's art: tools/world-art/tower-window-art.mjs (--check: fresh, placed where the town map puts chest and fire).
+      # The board (2027-04-30-tower-board.sql): the Climb tab's rank (#N, or #1,000+ past the board's depth) and rivals, and the end card's
+      # Rank (+ heroes passed) and Passed on a record climb only.
+      - name: Tower window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/world-art/tower-window-art.mjs --check
+          node tests/tower-window.mjs
+          node tools/mutant-gate.mjs node tests/tower-window.mjs --mutate
+
       # A MONSTER'S PAGE (lane/b-monster-facts, Tyler 2026-11-09: every monster's stats are
       # visible): a creature on a hunt's page opens it beside Hunts; every number equals its
       # data row, worked out in the test with plain arithmetic; uses link to their windows;
@@ -4201,9 +4216,11 @@ jobs:
   # + proof arms (2026-11-13, lane/a-audit-guards, measured locally): leaderboard-lockdown-guard
   # --mutate 8 s warm + gen-plan-cache --selftest 6 s warm (102 s if its --check did not warm the
   # snapshot) = up to 110 s; x2 = 3.7 min, 30 -> 34.
+  # + tower-board (2026-11-17, lane/c-tower-board, measured locally on a warm chain): 4 s plain + 5 s --mutate (11 mutants) = 9 s;
+  # x2 = 0.3 min, 34 -> 35.
   db-replay-8:
     runs-on: ubuntu-latest
-    timeout-minutes: 34
+    timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@v4
@@ -4341,6 +4358,39 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-session-modes.mjs --selftest
           node tests/mode-death.mjs
           node tools/mutant-gate.mjs node tests/mode-death.mjs --mutate
+      # THE BURNING TOWER'S CLIMB (2027-04-24-tower-climb.sql; Tyler 2026-11-14, the board's §2-§4): floor F's room at Level F, a Keeper on each
+      # landing; the engine climbs floor after floor, a death costs nothing, no coin, item or Bestiary, XP at the mode's share, a room out of time
+      # ends floor_time; one hero from floor 1 browser closed and hunt viewed lands the same run, landing and best; forged windows refused; the
+      # one door behind its switch. --mutate (11): the stair, coin, the Bestiary, the split, the floor's time, the order check, the mode's pay,
+      # the bound's share, the start floor, the ordinary door, the landing write.
+      - name: Burning Tower climb — floors, both paths, forged windows refused (11 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-tower.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-tower.mjs --selftest
+          node tests/tower-climb.mjs
+          node tools/mutant-gate.mjs node tests/tower-climb.mjs --mutate
+      # THE HEARTH CHEST (2027-04-27-tower-chest.sql; Tyler 2026-11-14, the Burning Tower board §5): a key from every landing row, both paths
+      # (browser closed, hunt viewed), once; the open on the server's seeded dice at 16 / 8 / 4.5 / 2% x the warmth x the stoke, half the
+      # family worn; the warmth grows and caps, a weapon cools it, a stoke burns its Cinders bag then Storage; every forged chest, key,
+      # count and stoke refused, a key used once, the bag checked before any roll. --mutate (17).
+      - name: Hearth Chest — keys from landings, the server's dice, forged values refused (17 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-chests.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-chests.mjs --selftest
+          node tools/world-art/tower-chest-icons.mjs --check
+          node tests/tower-chest.mjs
+          node tools/mutant-gate.mjs node tests/tower-chest.mjs --mutate
+      # THE BURNING TOWER'S BOARD (2027-04-30-tower-board.sql; Tyler 2026-11-14 "a leaderboard"): places by best floor, ties by who got there
+      # first (one instant one place), the two above and below with no account id, a party seat never a rival, a hidden hero never shown;
+      # the board written once a rise on both paths (browser closed, hunt viewed) and never on a re-climb; a record climb's place and the
+      # heroes it passed; the tables and reads refused to the client role; the depth; a second apply byte-identical. --mutate (11).
+      - name: Burning Tower board — places, once a rise both paths, read-only (11 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tower-board.mjs
+          node tools/mutant-gate.mjs node tests/tower-board.mjs --mutate
       # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
       # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
       # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled

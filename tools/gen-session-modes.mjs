@@ -18,7 +18,9 @@
 // use refuses to go, loudly. hr_ground_session_modes is rewritten whole: a row for each open ground that names a mode (today none).
 // REFUSES (throws, nothing written): the table's problems (session-modes.js validateSessionModes, the load-time rule: a mode whose
 // death costs less than a hunt's pays no coin, drops or Bestiary, and the default is a full hunt); a ground naming no mode row; one
-// hunt with two modes; and, until phase 2 wires what a mode pays, a ground naming a mode that pays less than a hunt (the Tower).
+// hunt with two modes. PHASE 2 (lane/c-tower-climb) lifted phase 1's last line ("a ground naming a mode that pays less than a hunt"):
+// the engine pays a mode's row (src/core/hunt-rewards.js, xp-share.js) and the settle refuses a window that pays more (mode_pays, every
+// XP bound at the mode's share: 2027-04-24-tower-climb.sql), so the Tower names `tower`.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -26,29 +28,32 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
 import { SESSION_MODES, DEFAULT_SESSION_MODE, validateSessionModes } from '../src/data/session-modes.js';
-import { OPEN_GROUNDS, CALLED_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, CALLED_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS, TOWER_GROUNDS } from '../src/data/hunt-grounds.js';
+import { TOWER_RULES } from '../src/data/tower.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a changed row moves OUT_NAME to a forward file, like every generated catalogue. */
-export const OUT_NAME = '2027-04-23-session-modes-catalogue.generated.sql';
+/* 2027-04-23-session-modes-catalogue is phase 1's. This forward file names the Tower's ground `tower` (lane/c-tower-climb), carries its XP share
+   375 permille fitted on real climbs (lane/c-tower-chest) and every mode's checkpoint spacing (lane/c-tower-checkpoints, Tyler 2026-11-16), all
+   STAGED: the chest lane's own forward file (2027-04-27-tower-chest-session-modes-catalogue) folded back in here, because the climb's start
+   (2027-04-24-tower-climb.sql) reads checkpoint_every and so must come after it. */
+export const OUT_NAME = '2027-04-24-tower-climb-session-modes-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
-/* Every ground a hunt can be entered on: the open grounds, the called rooms, the open keyed halls and the training grounds. */
-const SERVED = () => [OPEN_GROUNDS, CALLED_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS].flatMap((t) => Object.values(t));
+/* Every ground a hunt can be entered on: the open grounds, the called rooms, the open keyed halls, the training grounds and the Tower. */
+const SERVED = () => [OPEN_GROUNDS, CALLED_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS, TOWER_GROUNDS].flatMap((t) => Object.values(t));
 
 /** The catalogue's rows, or a throw naming every problem. Pure. */
 export function catalogueRows({ modes = SESSION_MODES, def = DEFAULT_SESSION_MODE, grounds = SERVED() } = {}) {
   const problems = validateSessionModes(modes, def);
   const named = grounds.filter((g) => g.mode !== undefined).map((g) => ({ hunt: g.hunt, mode: g.mode }));
   for (const g of named) if (!Object.hasOwn(modes, String(g.mode))) problems.push(`${g.hunt} plays mode ${g.mode}, which is no row`);
-  /* PHASE 1 (lane/c-tower-mode): the engine and the settle honor what a mode's DEATH costs (deathLossPm, blessings) and nothing else
-     yet. What a mode PAYS (coin, drops, Bestiary, xpPm) lands with the Tower's ground (phase 2), engine and settle together. Until then
-     a ground may name only a mode that pays as a hunt does, or a free death would pay like one. Phase 2 lifts this line. */
-  for (const g of named) {
-    const m = modes[g.mode];
-    if (m && !(m.coin && m.drops && m.bestiary && m.xpPm === 1000)) problems.push(`${g.hunt} plays mode ${g.mode}, which pays less than a hunt, and nothing honors that pay yet (phase 2)`);
-  }
   if (new Set(named.map((g) => g.hunt)).size !== named.length) problems.push('a hunt names a mode twice');
+  /* a Tower checkpoint IS a landing: the mode's spacing and the climb's landings are one number in two rows, held equal here */
+  const tw = named.find((g) => g.hunt === TOWER_RULES.hunt);
+  if (tw && Object.hasOwn(modes, String(tw.mode)) && modes[tw.mode].checkpointEvery !== TOWER_RULES.landingEvery) {
+    problems.push(`the Tower's mode ${tw.mode} checkpoints every ${modes[tw.mode].checkpointEvery} floors, its landings every ${TOWER_RULES.landingEvery}`);
+  }
   if (problems.length) throw new Error('gen-session-modes: ' + problems.join('; '));
   return {
     modes: Object.values(modes).map((m) => ({ ...m, isDefault: m.id === def })).sort((a, b) => (a.id < b.id ? -1 : 1)),
@@ -68,13 +73,16 @@ export function build(input) {
 -- ${OUT_NAME} — THE SESSION MODES: WHAT A DEATH COSTS AND WHAT A KILL PAYS IN EACH, AND WHICH GROUND PLAYS WHICH.
 -- Generated by tools/gen-session-modes.mjs from src/data/session-modes.js and the ground rows' \`mode\` (src/data/hunt-grounds.js).
 --   Any hand edit FAILS \`node tools/gen-session-modes.mjs --check\`.
--- STATUS: STAGED, NOT APPLIED (lane/c-tower-mode, backend-architect, 2026-11-14). The Coordinator applies (tools/apply-migration.mjs,
---   one file, never inside begin/commit). ORDER: before 2027-04-23-session-modes.sql, which freezes a mode on every hunt instance and
---   bounds every settle by it. No function body.
+-- STATUS: STAGED, NOT APPLIED (lane/c-tower-climb, backend-architect, 2026-11-15; the Tower's XP 375 from lane/c-tower-chest and every
+--   mode's checkpoint_every from lane/c-tower-checkpoints, 2026-11-16, folded in; phase 1 was 2027-04-23-session-modes-catalogue). The
+--   Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). ORDER: after
+--   2027-05-02-tower-hunt-sessions-catalogue.generated.sql (the Tower's ground must be served), before 2027-04-24-tower-climb.sql
+--   (its start reads checkpoint_every, its settle xp_pm) and BEFORE the hr-accrue deploy that pays the new share: an engine paying more
+--   than xp_pm is refused value_over, one paying less is merely less. No function body.
 -- A row moves no value. hr_session_modes is upserted (an instance's frozen mode points at it: a mode in use refuses to go);
--- hr_ground_session_modes is rewritten whole: one row for each open ground that names a mode, today none (every ground plays the
--- default). THE LOAD-TIME RULE IS A CHECK HERE TOO: a mode whose death costs less than a hunt's pays no coin, drops or Bestiary, a
--- death that costs nothing uses no Blessing, and the one default is a full hunt.
+-- hr_ground_session_modes is rewritten whole: one row for each open ground that names a mode, today the Burning Tower's (every other
+-- ground plays the default). THE LOAD-TIME RULE IS A CHECK HERE TOO: a mode whose death costs less than a hunt's pays no coin, drops or
+-- Bestiary, a death that costs nothing uses no Blessing, and the one default is a full hunt.
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST.
 -- REVERSIBLE: drop both tables after 2027-04-23-session-modes.sql's reversal (it drops the column and the FK that read them).
 -- ════════════════════════════════════════════════════════════════════════
@@ -88,12 +96,15 @@ create table if not exists public.hr_session_modes (
   drops         boolean not null,
   bestiary      boolean not null,
   stamina       boolean not null,
+  checkpoint_every int  not null default 0 check (checkpoint_every between 0 and 1000),
   constraint hr_session_modes_no_free_pay check (death_loss_pm = 1000 or not (coin or drops or bestiary)),
   constraint hr_session_modes_free_keeps_blessings check (death_loss_pm > 0 or not blessings),
   constraint hr_session_modes_default_hunts check (not is_default
     or (death_loss_pm = 1000 and blessings and xp_pm = 1000 and coin and drops and bestiary and stamina))
 );
 create unique index if not exists hr_session_modes_one_default on public.hr_session_modes (is_default) where is_default;
+-- phase 1 made the table: the checkpoint spacing joins it (Tyler 2026-11-16: a run starts from any checkpoint up to its record)
+alter table public.hr_session_modes add column if not exists checkpoint_every int not null default 0 check (checkpoint_every between 0 and 1000);
 create table if not exists public.hr_ground_session_modes (
   hunt_id text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   mode_id text not null references public.hr_session_modes (mode_id)
@@ -106,17 +117,18 @@ begin
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
   end loop;
 end $$;
-comment on table public.hr_session_modes is '${OUT_NAME}: each session mode (src/data/session-modes.js): its share of a death''s price (permille), whether a death uses the Blessings, a kill''s XP (permille), coin, drops, Bestiary and stamina; the one default. Upserted, never re-inserted: hunt_instances.session_mode points here.';
+comment on table public.hr_session_modes is '${OUT_NAME}: each session mode (src/data/session-modes.js): its share of a death''s price (permille), whether a death uses the Blessings, a kill''s XP (permille), coin, drops, Bestiary and stamina, the checkpoint spacing a run may start from (0: none); the one default. Upserted, never re-inserted: hunt_instances.session_mode points here.';
 comment on table public.hr_ground_session_modes is '${OUT_NAME}: each open ground (by hunt) that names a session mode; a ground with no row plays the default. Read only when an instance starts (hr_hunt_mode_freeze).';
 
 update public.hr_session_modes set is_default = false where is_default and mode_id <> ${lit(def.id)};
-insert into public.hr_session_modes (mode_id, is_default, death_loss_pm, blessings, xp_pm, coin, drops, bestiary, stamina) values
-${r.modes.map((m) => `  (${lit(m.id)}, ${bool(m.isDefault)}, ${m.deathLossPm}, ${bool(m.blessings)}, ${m.xpPm}, ${bool(m.coin)}, ${bool(m.drops)}, ${bool(m.bestiary)}, ${bool(m.stamina)})`).join(',\n')}
+insert into public.hr_session_modes (mode_id, is_default, death_loss_pm, blessings, xp_pm, coin, drops, bestiary, stamina, checkpoint_every) values
+${r.modes.map((m) => `  (${lit(m.id)}, ${bool(m.isDefault)}, ${m.deathLossPm}, ${bool(m.blessings)}, ${m.xpPm}, ${bool(m.coin)}, ${bool(m.drops)}, ${bool(m.bestiary)}, ${bool(m.stamina)}, ${m.checkpointEvery})`).join(',\n')}
 on conflict (mode_id) do update set is_default = excluded.is_default, death_loss_pm = excluded.death_loss_pm, blessings = excluded.blessings,
-  xp_pm = excluded.xp_pm, coin = excluded.coin, drops = excluded.drops, bestiary = excluded.bestiary, stamina = excluded.stamina;
+  xp_pm = excluded.xp_pm, coin = excluded.coin, drops = excluded.drops, bestiary = excluded.bestiary, stamina = excluded.stamina,
+  checkpoint_every = excluded.checkpoint_every;
 
 delete from public.hr_ground_session_modes;
-${groundRows ? `insert into public.hr_ground_session_modes (hunt_id, mode_id) values\n${groundRows};` : '-- (no open ground names a mode in the data: every ground plays the default, and the Burning Tower is not built)'}
+${groundRows ? `insert into public.hr_ground_session_modes (hunt_id, mode_id) values\n${groundRows};` : '-- (no open ground names a mode in the data: every ground plays the default)'}
 
 -- A mode dropped from the data goes last, once no ground names it (an instance still frozen on it refuses, loudly).
 delete from public.hr_session_modes where mode_id <> all (array[${ids}]::text[]);
@@ -130,6 +142,9 @@ begin
   if (select count(*) from public.hr_session_modes where is_default) <> 1
      or (select mode_id from public.hr_session_modes where is_default) is distinct from ${lit(def.id)} then
     raise exception 'session-modes-catalogue §4: the default is not the one row ${def.id}'; end if;
+  if (select checkpoint_every from public.hr_session_modes where is_default) <> 0
+     or (select string_agg(mode_id || '=' || checkpoint_every, ',' order by mode_id) from public.hr_session_modes) is distinct from ${lit(r.modes.map((m) => m.id + '=' + m.checkpointEvery).join(','))} then
+    raise exception 'session-modes-catalogue §4: the checkpoints are not the data''s, or the default hunt has some'; end if;
   if exists (select 1 from public.hr_session_modes where death_loss_pm < 1000 and (coin or drops or bestiary)) then
     raise exception 'session-modes-catalogue §4: a mode whose death costs less than a hunt''s pays'; end if;
   if (select count(*) from public.hr_ground_session_modes) <> ${r.grounds.length} then
@@ -168,7 +183,14 @@ function selftest() {
   bites('a loss that is no permille', 'whole permille', { modes: { ...M, tower: { ...M.tower, deathLossPm: 0.5 } } });
   bites('a ground naming no mode row', 'which is no row', { grounds: [{ hunt: 'zz_tower', mode: 'arena' }] });
   bites('one hunt naming two modes', 'names a mode twice', { grounds: [{ hunt: 'zz_tower', mode: 'hunt' }, { hunt: 'zz_tower', mode: 'hunt' }] });
-  bites('a ground naming the Tower before its pay is honored', 'nothing honors that pay yet', { grounds: [{ hunt: 'zz_tower', mode: 'tower' }] });
+  bites('the Tower checkpointing off its landings', 'checkpoints every 5 floors', { modes: { ...M, tower: { ...M.tower, checkpointEvery: 5 } } });
+  bites('a hunt with checkpoints as the default', 'is not a full hunt', { modes: { ...M, hunt: { ...M.hunt, checkpointEvery: 10 } } });
+  bites('a checkpoint spacing that is no whole number', 'checkpointEvery is not', { modes: { ...M, tower: { ...M.tower, checkpointEvery: -1 } } });
+  /* PHASE 2: the Tower's ground names `tower`, from the data (tower.js, hunt-grounds.js TOWER_GROUNDS) */
+  const served = catalogueRows().grounds;
+  const tw = served.length === 1 && served[0].hunt === TOWER_RULES.hunt && served[0].mode === 'tower';
+  console.log(`  ${tw ? 'CAUGHT' : 'MISSED'} the Burning Tower names the tower mode, and no other ground names one`);
+  if (!tw) bad++;
   /* a ground that names a mode becomes a row, one that names none does not: the rows say what the input says (a second mode that pays
      as a hunt does, for the proof: phase 1 serves no other kind) */
   const modes = { ...M, arena: { ...M.hunt, id: 'arena', stamina: false } };
@@ -178,7 +200,7 @@ function selftest() {
   if (!ok) bad++;
   const sql = build({ modes, grounds: [{ hunt: 'zz_a', mode: 'arena' }] });
   const row = sql.includes("insert into public.hr_ground_session_modes (hunt_id, mode_id) values\n  ('zz_a', 'arena');")
-    && sql.includes("  ('tower', false, 0, false, 200, false, false, false, true)") && sql.includes("  ('hunt', true, 1000, true, 1000, true, true, true, true)");
+    && sql.includes("  ('tower', false, 0, false, " + M.tower.xpPm + ", false, false, false, true, " + M.tower.checkpointEvery + ")") && sql.includes("  ('hunt', true, 1000, true, 1000, true, true, true, true, 0)");
   console.log(`  ${row ? 'CAUGHT' : 'MISSED'} the rows are the data's, one insert line each`);
   if (!row) bad++;
   if (bad) { console.error(`gen-session-modes --selftest: ${bad} refusal(s) did not bite`); process.exit(1); }

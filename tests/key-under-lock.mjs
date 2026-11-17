@@ -235,6 +235,11 @@ const DB_MUTANTS = [
   { arm: 'KL-HEARTH', name: 'the Hearth burn as it was: the key read only before the lock', fn: SIG.hearth, edits: old("'hearth_burn'", '    ') },
   { arm: 'KL-STAMINA', name: 'the stamina refill as it was: the key read only before the lock', fn: SIG.stamina, edits: old("'stamina_refill'", '  ') },
   { arm: 'KL-CLASS', name: 'the scaled purchase reads its key only before the lock (its replayed line kept)', fn: SIG.scaled, edits: [{ find: REREAD('c_verb'), replace: '' }] },
+  /* lane/c-tower-paydown: the Burning Tower's door read its key only before its lock (the climb's staged image); the read under its own door
+     lock is the fix, and its loss must read red here. */
+  { arm: 'KL-CLASS', name: 'the Tower\'s door reads its key only before its lock (its replayed line kept)', fn: 'public.hr_tower_start(integer,integer,uuid)',
+    edits: [{ find: "  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);\n  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;\n  v_party := public.hr_hunt_party_of(v_uid, p_slot);",
+      replace: '  v_party := public.hr_hunt_party_of(v_uid, p_slot);' }] },
   { arm: 'KL-CLASS', name: 'a safe-by-state verb loses the row check that refuses its second press', fn: 'public.hr_title_buy(integer,text,bigint,uuid)',
     edits: [{ find: "  if exists (select 1 from public.player_titles h where h.user_id = v_uid and h.slot = p_slot and h.title_id = p_title) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'title_owned', 'title', p_title)); end if;\n", replace: '' }] },
   { arm: 'KL-AGAIN', name: 'another file moved a restated body (the §0 pin must refuse to overwrite it)', fn: SIG.hearth,

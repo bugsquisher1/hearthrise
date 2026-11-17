@@ -1,0 +1,17 @@
+{
+  "id": "flue_ash_variety",
+  "class": "terrain",
+  "kind": "variety",
+  "style": "s1",
+  "of": "tower/burning_tower_ground",
+  "at": [
+    29,
+    18
+  ],
+  "lower": "painted",
+  "upper": "painted",
+  "seed": 37,
+  "tone": "soft",
+  "shift": true,
+  "notes": "The flue's plain ash tile (the 27 cells the hand finish in tools/world-art/tower-flue.mjs leaves untouched) made into 96 by tools/world-art/variety.mjs and picked per cell by src/world/core/ground-variety.js (lane/a-ground-variety): the open ash no longer shows its 32 px repeat. Tone soft (only the colours above the tile's median step down), so the fight floor keeps its #8a867d body."
+}

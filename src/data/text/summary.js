@@ -48,6 +48,7 @@ export const SUMMARY_TEXT = Object.freeze({
   end_stamina: 'Out of stamina · Stamina refills 1 h per hour',
   end_hours: 'Time limit reached',
   end_boss_time: 'Time ran out',
+  end_floor_time: 'Floor time ran out',
   end_left: 'Left the hunt',
   end_changed: 'Moved to another hunt',
   end_server: 'Ended by the server',

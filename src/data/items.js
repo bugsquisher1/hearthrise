@@ -16,6 +16,7 @@ import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.135';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.135';
 import { foldRows } from './grounds/shape.js?v=0.2.135';
 import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.135';
+import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.135';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -57,6 +58,8 @@ export const ITEMS={
   ...SHIELD_ITEMS,
   /* The training items (src/data/training.js, Tyler 2026-11-14): one a combat skill in 12 and 24 hours, the Arms Master's for gold and the Crowns store's bound copy. New ids only. */
   ...TRAINING_GEAR_ITEM_ROWS,
+  /* The Burning Tower's chest (src/data/chests.js, Tyler 2026-11-14): the four keys a landing mints and the Hearth Cinders the chest pays. Bound to the account. New ids only. */
+  ...CHEST_ITEM_ROWS,
   /* The call-only pieces (src/data/boss-calls.js, Tyler 2026-11-14): a called boss's win drops them, nothing else. New ids only. */
   ...CALL_ITEMS,
 
@@ -839,6 +842,14 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
     if (live[k] == null && generated[k] != null) live[k] = generated[k];
   }
 });
+
+/* THE TOWER WEAPONS (src/data/chests.js towerWeaponItems, src/data/tower-weapons.js; Tyler 2026-11-14): each the standard weapon of its
+   key's rank as the ladder stands NOW (after the backfill above: a hand-authored rung's own numbers), its own name and its +skill. New
+   ids only, the Hearth Chest's. */
+for (const [id, row] of Object.entries(towerWeaponItems(ITEMS))) {
+  if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('tower weapon ' + id + ' is already an item');
+  ITEMS[id] = row;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — foodClassOf(item): the single answer to "what is this food FOR?"

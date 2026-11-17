@@ -59,6 +59,8 @@ import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, named
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.135';
 import { wearBlock } from '../../gear-gate.js?v=0.2.135';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.135';
+import { unlockRing } from './key-ring.js?v=0.2.135';
+import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.135';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -157,7 +159,17 @@ function doPrimary(st, id, repaint) {
     send(st, repaint, () => assignToBar(cs, id), 'Putting it on the bar…');
   } else if (buryRecipeOf(id)) doBury(st, id, repaint);
   else if (namedFuelOf(id)) doNamed(st, id, repaint);
+  else if (bundleOutfitOf(id)) doBundle(st, id, repaint);
   else askSell(st, [id], t('controls.sell'), repaint);
+}
+
+/* Use ONE outfit bundle (outfit-bundle.js): refused here only for what the server's outfit section already says (owned); the first
+   press arms it and asks for a second (a tradeable item worth a lot, used for good). */
+function doBundle(st, id, repaint) {
+  const why = bundleUseBlock(st.cs, id);
+  if (why) { say(st, repaint, why, 'pick:' + id); return; }
+  if (!armBundle(st.sc, id)) { say(st, repaint, t('bag.bundle_confirm'), 'pick:' + id); return; }
+  useBundle(st.account, st.cs, id, (fn, busy, done) => send(st, repaint, fn, busy, done, 'pick:' + id));
 }
 
 /* Bury or cook the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, one running). */
@@ -270,6 +282,9 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const nf = namedFuelOf(id);
   const nfWhy = nf ? namedBlock(st.cs, id) : '';
   if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);
+  /* an outfit's bundle: Use owns the outfit for this hero (off, with why, once the server says it owns it already) */
+  const ubWhy = bundleOutfitOf(id) ? bundleUseBlock(st.cs, id) : '';
+  if (bundleOutfitOf(id)) h += item('m-use', t('controls.use'), !ubWhy, '', ubWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
   const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
   h += item('m-sell', t('controls.sell'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
@@ -474,6 +489,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'confirm-no': sc.confirm = null; repaint(); return true;
     case 'bury-stop': doStopBury(st, repaint); return true;
     case 'equip-upgrades': sc.menu = null; equipUpgrades(st.cs, sc, repaint, st.upgrade); return true;
+    case 'ring-unlock': unlockRing(st, repaint); return true;
     case 'inv': closeMenu(ctx, st); return false;
     default: break;
   }
@@ -484,6 +500,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'm-bury': doBury(st, id, repaint); return true;
     case 'm-fuel-one': doBury(st, id, repaint, 1); return true;
     case 'm-hearth': doNamed(st, id, repaint); return true;
+    case 'm-use': doBundle(st, id, repaint); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], t('controls.sell'), repaint); return true;
     case 'm-market': closeMenu(ctx, st); offerForSale(ctx, id, 'bag'); return true;

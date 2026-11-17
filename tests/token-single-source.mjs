@@ -79,6 +79,13 @@ const COMPONENT_SCOPED = {
   '--cs-inset': 'clan-seat scene inset; local to .hr-cs',
   '--tier-tint': 'combat scrim tint, one value per [data-foe-tier]; varies per element',
   '--hw-well': 'the recessed well shadow the alpha windows share (pockets, slots, choice strips); scoped to .hs-win',
+  '--tr-col-x': 'the Burning Tower stage: where the chimney stands across it (tower.css; the phone moves it); local to .tt-stage',
+  '--tr-mk': 'the Burning Tower stage: one hero marker leader colour (you, party, rival); varies per .tt-mk',
+  '--tr-loop': 'the Burning Tower chest scene: one sprite loop, last frame offset, from its own frame count; varies per .tc-fire / .tc-chest',
+  '--tr-row': 'the Burning Tower stage: one landing row in landings.png (the metal of its key), set per landing by src/shell/tower-stage.js',
+  '--tr-colw': 'the Burning Tower stage: the chimney width, set from src/data/tower-art.js on .tt-stage and narrowed on the phone sheet (.tt-shaft)',
+  '--tr-lw': 'the Burning Tower stage: a landing band width, set from src/data/tower-art.js on .tt-stage and narrowed on the phone sheet (.tt-shaft)',
+  '--tr-hi': 'the Burning Tower stage: one marker head in heads.png (its outfit), set per marker by src/shell/tower-stage.js',
   '--pocket-rar': 'the rarity colour of one pocket, slot or tooltip name, set by its .rar-* class from the --rar-* tokens; varies per element',
 };
 

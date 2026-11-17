@@ -137,6 +137,12 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     bad_choice: 'Choice no longer offered',
     bad_skill: 'Yard doesn\'t train that skill',
   }),
+  /* An outfit's bundle (2027-04-30-sweeps-coat.sql hr_outfit_bundle_use): labels, as the Tower's are. */
+  outfit_bundle_use: Object.freeze({
+    already_owned: 'Outfit already owned',
+    none_held: 'Not in bag or Storage',
+    bad_item: 'Not an outfit',
+  }),
   house_dummy: Object.freeze({
     quote_changed: 'Price changed, check it and try again',
     no_home: 'Requires the Hearthside Homestead',
@@ -357,6 +363,18 @@ export const REFUSAL_WORDS = Object.freeze({
   same_hunt: 'Already hunting there',
   training_only: 'Training spot: use the Training window',
   dummy_max: 'Every skill unlocked',
+  /* The Burning Tower (2027-04-24-tower-climb.sql): its one door is hr_tower_start. Drafts: the window and art lane words the Tower. */
+  tower_only: 'Enter at the Great Hearth',
+  in_party: 'Already in a party',
+  bad_landing: 'Start Floor not reached',
+  /* The Hearth Chest (2027-04-27-tower-chest.sql: hr_chest_open). Drafts, read when the window lane wires the chest. */
+  chest_not_ready: 'Key not ready',
+  in_hunt: 'Out on a hunt',
+  bad_chest: 'Unknown chest',
+  bad_key: 'Not a chest key',
+  bad_count: 'Keys per open: 1 to 20',
+  bad_stokes: 'Stokes: 0 to 3',
+  week_limit: 'Weekly limit reached',
   /* The training items (2027-04-23-training-gear.sql); the verbs' own lines are above, these read anywhere. */
   buy_limit: 'Daily limit reached',
   still_open: 'Training item already active',

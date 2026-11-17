@@ -264,6 +264,9 @@ const END_CHECKS = Object.freeze({
   hours: (hs, t) => Number(hs.hoursLimit) > 0 && t - hs.huntFromMs >= Number(hs.hoursLimit) * 3600000,
   /* CALL OUT: the fight's limit, the one instant combat-sim.js sets on every member from the party's first swing. */
   boss_time: (hs, t) => at(hs.callEndsAtMs, t),
+  /* THE BURNING TOWER: the floor's room ran out of time (src/core/hunt/tower.js towerEndsAt), the one instant combat-sim.js sets on every
+     member in the world at each boundary; a working value of the span, never stored. */
+  floor_time: (hs, t) => at(hs.floorEndsAtMs, t),
   left: (hs, t) => at(hs.leaveAtMs, t),
   changed: (hs, t) => at(hs.changeAtMs, t),
   /* THE NO-FIGHT END (designer 2026-10-31): `fightAtMs` is this boundary's reading of the world's last blow on a monster

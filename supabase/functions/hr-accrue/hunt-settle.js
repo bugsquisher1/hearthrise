@@ -66,6 +66,7 @@ import { WORLD_VERSION, SHAPE as WORLD_SHAPE } from '../../../src/core/hunt/worl
 import { seederFor } from './hunt-seed.js';
 import { trainingStopMs } from '../../../src/core/hunt/training.js';
 import { sessionModeOf } from '../../../src/data/session-modes.js';
+import { towerOf, towerMonsters, towerRoom } from '../../../src/core/hunt/tower.js';
 
 /* A DEPLOY IN FLIGHT (2026-12-11-hunt-deploy-no-forfeit.sql). The read carries the server catalogue's
    world shape (hr_hunt_instance_read instance.world_shape = hr_hunt_world_shape { v, s }). When it is not
@@ -89,8 +90,16 @@ function modePending(id) {
   return typeof id !== 'string' || sessionModeOf(id) === null;
 }
 
+/* THE BURNING TOWER'S FLOOR (src/core/hunt/tower.js; 2027-04-24-tower-climb.sql): the server's own, read back here (hr_hunt_instance_read
+   `tower_floor`: the run's start, or the highest floor its heroes cleared + 1), the ONLY place the engine takes it from. A climb whose read
+   carries none (a database before that file) is the same deploy gap as another world shape: nothing proposed, refused or counted. Never a
+   guess: a guessed floor is a forged one. Answers whether this instance must wait. */
+function towerPending(where, floor) {
+  return !!(where && towerOf(where.ground)) && !(Number.isInteger(floor) && floor >= 1);
+}
+
 /** The `nothing` reasons that OWE a window (a deploy in flight): a verb that settles before it mutates waits for them (set-activity.js). */
-export const OWED_WINDOW_REASONS = Object.freeze(['world_shape_pending', 'mode_pending']);
+export const OWED_WINDOW_REASONS = Object.freeze(['world_shape_pending', 'mode_pending', 'tower_pending']);
 
 /* THE LIVE VIEW (option B, Tyler 2026-10-19). The browser runs the SAME instance engine
    (src/core/combat-sim.js, the member assembly src/core/member.js) for the VIEWED character,
@@ -117,21 +126,24 @@ function frozenAt(inst) {
   const play = inst.play || { level: null, restart: false };
   const world = typeof inst.world === 'string' && !play.restart ? inst.world : null;
   const where = play.level === null ? null : huntGroundOf(String(inst.hunt));
+  /* THE BURNING TOWER: the floor the server says stands (or stands next), the live engine's ctx.towerFloor; its table is the peers' rows */
+  const tower = towerOf((huntGroundOf(String(inst.hunt)) || {}).ground) && Number.isInteger(inst.tower_floor) ? inst.tower_floor : null;
   /* a peer's frozen rolls against the rows the instance plays (null: member.js reads the catalogue, as before) */
-  const rows = where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
+  const rows = tower !== null ? towerMonsters(tower) : where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
   const atMs = Number(inst.next_swing_at_ms);
   /* the kinds, read once and only for a frozen row (a lone viewer's start point parses no world for them) */
   let kinds = null;
-  return { play, world, row: (m) => frozenOf(memberSide(m, { items: ITEMS }), kinds || (kinds = kindsOf(inst, world)), atMs, rows) };
+  return { play, world, tower, row: (m) => frozenOf(memberSide(m, { items: ITEMS }), kinds || (kinds = kindsOf(inst, world, tower)), atMs, rows) };
 }
 export function huntLive(inst, members, user, slot) {
   const from = Math.max(0, Math.floor(Number(inst.world_swing) || 0));
-  const { play, world, row } = frozenAt(inst);
+  const { play, world, tower, row } = frozenAt(inst);
   return {
     v: 1,
     instance: { id: String(inst.id), hunt: String(inst.hunt), world, world_hash: worldHash(world),
       settled_to_ms: Number(inst.settled_to_ms), next_swing_at_ms: Number(inst.next_swing_at_ms), world_swing: from,
       scale: play.level === null ? null : { level: play.level },
+      ...(tower !== null ? { tower_floor: tower } : {}),
       /* A LIVE EVENT: each member's Level XP windows by member key (src/core/live-events.js), so the browser's prediction earns what the server will */
       ...(members.some((m) => m.liveXp) ? { live_xp: Object.fromEntries(members.filter((m) => m.liveXp).map((m) => [m.key, m.liveXp])) } : {}) },
     seeds: liveSeeds(inst, from),
@@ -167,12 +179,13 @@ export function huntCheckOf(inst, out, peers) {
     seeds: liveSeeds(inst, out.worldSwingTo), ...(peers ? { peers } : {}) };
 }
 
-/* The monster kinds a peer's rolls are frozen against: every kind the ground's pockets field,
-   and any standing in the stored world. */
-function kindsOf(inst, worldText) {
+/* The monster kinds a peer's rolls are frozen against: every kind the ground's pockets field (on the Tower, the room of the floor
+   standing: `tower`), and any standing in the stored world. */
+function kindsOf(inst, worldText, tower) {
   const out = new Set();
   const where = huntGroundOf(String(inst.hunt));
   for (const p of (where && where.ground.pockets) || []) for (const sp of [...(p.spawns || []), ...(p.pack || [])]) if (sp && MONSTERS[sp.monster]) out.add(sp.monster);
+  if (Number.isInteger(tower)) for (const id of towerRoom(tower).monsters) out.add(id);
   if (worldText) for (const u of JSON.parse(worldText).u || []) for (const v of u) if (typeof v === 'string' && MONSTERS[v]) out.add(v);
   return Array.from(out).sort();
 }
@@ -558,6 +571,10 @@ export async function readHuntSettle(o, mode) {
   }
   const where = (o.grounds && o.grounds[inst.hunt]) || huntGroundOf(inst.hunt);
   if (!where) return { answer: { outcome: 'refused', reason: 'no_ground', ...refusal(409, 'no_ground') } };
+  if (towerPending(where, inst.tower_floor)) {
+    return { answer: { outcome: 'nothing', reason: 'tower_pending', status: 200,
+      body: { ok: true, settled: false, reason: 'tower_pending', ...(await envOf()) } } };
+  }
   /* A SCALED HUNT (scalePlanOf): the Level this window plays, whether the stored world restarts for it, and its hours as a cap. */
   inst.play = scalePlanOf(inst, where);
   const members = [];
@@ -630,6 +647,8 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
     worldMaxBytes: plan.worldMaxBytes, ...(play.level !== null ? { scale: { level: play.level } } : {}),
     /* the instance's frozen mode, the read's own (readHuntSettle proposes nothing without one this engine knows) */
     sessionMode: inst.session_mode,
+    /* the Tower's floor, the read's own (readHuntSettle proposes nothing on the Tower without one) */
+    ...(towerOf(where.ground) ? { towerFloor: inst.tower_floor } : {}),
   });
   const engineMs = Math.max(0, tick() - t0);
   if (!out.accrued) return { out, commit: null, engineMs };

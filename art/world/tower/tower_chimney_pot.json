@@ -1,0 +1,35 @@
+{
+  "id": "tower_chimney_pot",
+  "class": "bulky",
+  "style": "s1",
+  "material": "native",
+  "source": "tower_chimney_pot.png",
+  "frame": [
+    20,
+    34
+  ],
+  "anchor_px": [
+    10,
+    33
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "a7e2aca8-23f3-4fec-b1e2-f18651ea916b",
+    "cell": 7
+  },
+  "notes": "Cell 7 of a 4x4 style-1 prop sheet (PixelLab image a7e2aca8-23f3-4fec-b1e2-f18651ea916b, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

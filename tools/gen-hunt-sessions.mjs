@@ -124,7 +124,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, TOWER_HUNTS, trainingHunt } from '../src/data/hunts.js';
 import { OPEN_BOSS_HALLS, BOSS_HALL_RULES } from '../src/data/boss-halls.js';
 import { REVEAL_BANDS } from '../src/data/loot-bands.js';
 import { TRAINING_RULES, TRAINING_PLACES, TRAINING_SKILLS, TRAINING_GEAR, TRAINING_GEAR_ITEMS, trainingHuntId } from '../src/data/training.js';
@@ -146,7 +146,7 @@ import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, roleWeaponOf } from '../src/data/hun
 import { isShield } from '../src/data/shields.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { OPEN_GROUNDS, DENSITY_PICK, MAX_HEROES, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
-import { CALLED_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS } from '../src/data/hunt-grounds.js';
+import { CALLED_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, TRAINING_GROUNDS, TOWER_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -311,7 +311,21 @@ export const WORLD_FIELDS_READ = Object.freeze({
    2027-04-23-boss-call-drops-hunt-sessions-catalogue (all STAGED, never applied) are collapsed into this one file. ORDER: after the v0.2.135 items
    file (the call pieces in hr_items) and 2027-04-25-pack-krells_hold-2; RIGHT BEFORE 2027-04-24-boss-call-series.sql; the hr-accrue carrying the same
    src/data deploys right after the series file. */
-export const OUT_NAME = '2027-05-01-v0135-hunt-sessions-catalogue.generated.sql';
+/* THE BURNING TOWER (lane/c-tower-climb, Tyler 2026-11-14; src/data/tower.js): 2027-04-23-training-gear is the file before this one and this file carries it
+   whole. The Tower's ground joins hr_hunt_grounds, its placeholder spawn rows hr_hunt_ground_spawns and its hunt hr_hunt_travel (served to one verb,
+   hr_tower_start; the roster leaves it out, as it leaves the training grounds: no Tower kill is a Bestiary kill), and END_ORDER's floor_time (the floor's
+   time ran out) joins hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK. Read by 2027-04-24-tower-climb.sql. No world shape, limit or kill bound moves. */
+/* THE TOWER'S WEAPONS, AND THE TOWER ON ITS OWN ROOM (lane/a-tower-art-gen, 2026-11-16): 2027-04-24-tower-climb is the file before this one and this file
+   carries it whole. lane/d-tower-weapons added the Hearth Chest's 28 weapons (src/data/items) without this catalogue, so --check was red on every Tower
+   lane: they join hr_hunt_weapons (each one's weapon type) and hr_hunt_vendor_value (each one's bid). The Tower's ground moving off the Sewer's grid onto
+   the flue's own room (hunt-grounds.js TOWER_GROUNDS map burning_tower) moves NO row: hr_hunt_grounds holds counts (1 pocket, 5 spawns, 4 seats), the
+   same before and after. ORDER: after 2027-04-28-tower-section.sql (the weapons' own rows, 2027-04-27-tower-chest-items-catalogue, land first). No
+   ground, spawn, kill bound, limit, end reason or world shape moves. */
+/* THE BURNING TOWER ON THE v0.2.135 SET (lane/c-tower-all, backend-architect, 2026-11-17; the Coordinator: one generator, ONE forward file regenerated
+   on the assembled branch): 2027-05-01-v0135-hunt-sessions-catalogue is the file before this one and this one carries it whole. It collapses the two
+   notes above, 2027-04-24-tower-climb- and 2027-04-29-tower-weapons-hunt-sessions-catalogue (both STAGED, never applied, now deleted), and adds the
+   Key Warden's bundle bid. ORDER: after every v0.2.135 file and 2027-05-02-tower-items-catalogue.generated.sql; before the Tower's session-modes file. */
+export const OUT_NAME = '2027-05-02-tower-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -415,6 +429,7 @@ export function catalogueRows(src = {}) {
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, calledHunts: CALLED_HUNTS, calledGrounds: CALLED_GROUNDS, calls: BOSS_CALLS, callRules: BOSS_CALL_RULES, partyMax: PARTY.maxSize,
     trainingHunts: TRAINING_HUNTS, trainingGrounds: TRAINING_GROUNDS, training: { rules: TRAINING_RULES, places: TRAINING_PLACES, skills: TRAINING_SKILLS, homes: PROPERTY_TIERS, gear: TRAINING_GEAR, gearItems: TRAINING_GEAR_ITEMS },
+    towerHunts: TOWER_HUNTS, towerGrounds: TOWER_GROUNDS,
     /* the OPEN halls only (a staged pack's hall is served nowhere); everyHall, staged too, is where a named add may stand (hallRows) */
     hallHunts: OPEN_HALL_HUNTS, hallGrounds: OPEN_HALL_GROUNDS, halls: OPEN_BOSS_HALLS, hallRules: BOSS_HALL_RULES, everyHall: HALL_GROUNDS,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
@@ -429,6 +444,9 @@ export function catalogueRows(src = {}) {
   /* THE TRAINING GROUNDS (training.js) stand beside them too, served to one verb, hr_training_start; the roster below leaves them out as well. */
   S.hunts = [...S.hunts, ...S.trainingHunts];
   S.grounds = { ...S.grounds, ...S.trainingGrounds };
+  /* THE BURNING TOWER (tower.js) stands beside them too, served to one verb, hr_tower_start; the roster below leaves it out as well. */
+  S.hunts = [...S.hunts, ...S.towerHunts];
+  S.grounds = { ...S.grounds, ...S.towerGrounds };
   /* THE KEYED HALLS (boss-halls.js) stand beside them as well, served to one verb, hr_boss_hall_enter; they PAY, so the roster and the drop bounds read them like any ground. */
   S.hunts = [...S.hunts, ...S.hallHunts];
   S.grounds = { ...S.grounds, ...S.hallGrounds };
@@ -694,7 +712,7 @@ export function catalogueRows(src = {}) {
      nothing but what a blow on it teaches, and each training ground holds one seat and the dummy alone. */
   const training = trainingRows(S, grounds);
   /* what a player can meet on the grounds served above (a staged ground is not among them, nor a called room: the Bestiary's total never counts one) */
-  const reach = reachableOf(Object.fromEntries(Object.entries(S.grounds).filter(([, g]) => !g.call && !g.train)), S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
+  const reach = reachableOf(Object.fromEntries(Object.entries(S.grounds).filter(([, g]) => !g.call && !g.train && !g.tower)), S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}));
   for (const id of reach.monsters) if (!ID.test(id) || !own(S.monsters, id)) throw new Error(`roster monster ${id} is not a monster id`);
   const roster = [...reach.monsters];
   /* THE DROP BOUNDS the self-check executes (dropNeeds: each ground's items, a second derivation from the authored rows) */
@@ -738,7 +756,9 @@ export function catalogueRows(src = {}) {
   return { bossCalls, bossHalls, training, supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
     cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, drops, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, shields,
-    defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
+    defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots,
+    /* THE BURNING TOWER'S HUNTS (tower.js): served here; in hr_hunts only once its one door stands (2027-05-02-tower-hunts-catalogue) */
+    towerHunts: S.towerHunts.map((h) => h.id).sort() };
 }
 
 /* A boss row's two lines (src/core/hunt/boss-phases.js): adds at addsPm, a raised blow under enragePm, whole permille in order. */
@@ -1046,27 +1066,47 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE: THE INCOME DIAL (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): a ground's dial (balance-sheet.js
+-- NEW IN THIS FILE (lane/c-tower-all, backend-architect, 2026-11-17: the Burning Tower on the v0.2.135 set, ONE forward file regenerated on the
+-- assembled branch). It collapses 2027-04-24-tower-climb- and 2027-04-29-tower-weapons-hunt-sessions-catalogue (both STAGED, never applied, now
+-- deleted) and carries 2027-05-01-v0135-hunt-sessions-catalogue whole. ORDER: after every v0.2.135 file and 2027-05-02-tower-items-catalogue.generated.sql
+-- (the self-check wants the weapons and the bundle in hr_items); before 2027-04-24-tower-climb-session-modes-catalogue.generated.sql. EDGE: either side
+-- of the ONE hr-accrue deploy (no world shape, no bound of an open ground moves; no client can open a climb while burning_tower is off).
+--
+-- THE TOWER'S GROUND (lane/c-tower-climb, backend-architect, 2026-11-15; Tyler 2026-11-14, the Burning Tower; src/data/tower.js): the Tower's ground
+-- (${r.grounds.filter((g) => r.towerHunts.includes(g.hunt)).length} row) in hr_hunt_grounds, its ${r.groundSpawns.filter((s) => r.towerHunts.includes(s.hunt)).length} placeholder spawn rows (the engine fields each floor's own room, src/core/hunt/tower.js) in
+-- hr_hunt_ground_spawns and its hunt in hr_hunt_travel, served to one verb (hr_tower_start) and left off the roster (no Tower kill is a Bestiary
+-- kill); END_ORDER's floor_time (a floor's room ran out of time: it resumes, like boss_time) in hr_hunt_end_reasons and hunt_sessions.end_reason's
+-- CHECK. No limit, kill bound or world shape moves. Before
+-- 2027-04-24-tower-climb-session-modes-catalogue.generated.sql (which names the Tower's mode and wants its ground served) and
+-- 2027-04-24-tower-climb.sql (which proves floor_time and opens the one door). The Tower joins hr_hunts only after that file
+-- (2027-05-02-tower-hunts-catalogue.generated.sql), so until it the ordinary door refuses it (hr_hunt_admit -> hr_hunt_gate:
+-- unknown_activity), and after it hr_hunt_admit sends it to hr_tower_start.
+--
+-- THE TOWER'S WEAPONS (lane/a-tower-art-gen, 2026-11-16; lane/d-tower-weapons, src/data/items) in hr_hunt_weapons and hr_hunt_vendor_value, and the
+-- Key Warden's bundle bid (lane/c-sweeps-coat-drop, sweeps_coat_bundle 20,000 = its book value: the market's listable rule needs a shop bid). The Tower's
+-- ground on the flue's own room (hunt-grounds.js TOWER_GROUNDS map burning_tower) moves no row: hr_hunt_grounds holds its counts.
+--
+-- CARRIED FROM 2027-05-01-v0135-hunt-sessions-catalogue (set/v0.2.135, 2026-11-17), whole: THE INCOME DIAL (lane/d-supply-prices, designer 2026-11-16; Tyler: "cut income instead"): a ground's dial (balance-sheet.js
 -- GROUND_GP_FIT, 0.7 from the Glade up) is x its kills' coin and x what its loot sells for (src/data/loot-sale.js), so hr_hunt_kill_bounds' gold FALLS
 -- for every dialed monster and hr_hunt_vendor_value FALLS for every dialed drop; hr_hunt_basic_supplies carries the store runes at Carved 28 and
 -- Graven 44 (lane/d-andy-march-feedback, Tyler-approved). No other row, no shape. The bounds only fall: the hr-accrue carrying the same src/data
 -- deploys at once after this file (until it lands an old engine's coin can pass the lower bound, so a hunt on a dialed ground is refused
 -- kills_over and the next tick retries it; nothing is lost). ORDER: after everything applied with v0.2.134.
 --
--- NEW IN THIS FILE: TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (lane/d-turning-cut-melee, designer 2026-11-16; Tyler, from Andy: "Give it to
+-- (v0135) TURNING CUT ON EVERY MELEE WEAPON WITHOUT A SHIELD (lane/d-turning-cut-melee, designer 2026-11-16; Tyler, from Andy: "Give it to
 -- all melee that doesn't have a shield on"): hr_hunt_abilities' turning_cut row lists club, dual_axe and sword (was sword alone), so
 -- hr_hunt_settings_view puts it on a club's, two axes' or bare hands' unedited bar (hr_hunt_role_rules' melee_dps set already names it last) and
 -- reads it usable there, as the engine casts it. The tank's shield never gets it. No other row, no shape, no bound. ORDER: after everything applied
 -- with v0.2.134; the hr-accrue carrying the same src/data/abilities.js deploys right after it (until then the engine drops the slot a club's bar
 -- shows, and before the file the view strikes the slot the new engine casts: both close once the two land).
 --
--- NEW IN THIS FILE (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: "it should definitely have a chance for an item drop otherwise there is no
+-- (v0135) BOSS CALL DROPS (lane/d-boss-call-drops, designer 2026-11-14; Tyler 2026-11-14: "it should definitely have a chance for an item drop otherwise there is no
 -- point"): the two called bosses' hr_hunt_kill_bounds rows carry drops (rat_king_called: the Rat King's table and the Kingstooth; chief_coppercap_called:
 -- Chief Coppercap's table and the Cauldron Lid), still gold 0 and xp 0, and hr_hunt_kill_bounds_xp_max_check lets a called row carry drops, never XP or
 -- coin. hr_hunt_vendor_value gains the two pieces, hr_hunt_weapons the Kingstooth (76 -> 77), hr_hunt_shields the Cauldron Lid (6 -> 7).
 -- No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-05-01-v0135-items-catalogue.generated.sql (the self-check wants
 -- both pieces in hr_items); then 2027-04-24-boss-call-series.sql (hr_boss_call_pays lets a felled window carry the drops) BEFORE the hr-accrue that pays them.
--- ALSO NEW (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
+-- (v0135) ALSO (lane/c-boss-call-b, backend-architect, 2026-11-15; Tyler 2026-11-14 "BOSS CALL = option B": a slider of fights, each costing stamina and a small
 -- fee, no daily cap): hr_boss_calls carries one fight's price and the slider's top (fight_fee, fight_stamina_ms, max_fights) and loses the one-fight verb's
 -- fee and per_day. 2027-04-24-boss-call-series.sql restates every reader of those columns and applies RIGHT AFTER this file; between the two the old quote
 -- names a column that is gone, so Call out answers an error and charges nothing. hr_boss_calls also carries its drops column (audit F24): what a win can drop, his table
@@ -1848,9 +1888,12 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
      or exists (select 1 from public.hr_premium_login_reward l where l.item_id is not null
                   and not exists (select 1 from public.hr_items i where i.item_id = l.item_id)) then
     raise exception 'a supply, vendor-value, ability-rune or login-reward row names an item hr_items does not have'; end if;
-  if exists (select 1 from public.hr_hunt_travel t where not t.training
+  -- (the Burning Tower's hunt joins hr_hunts only once its one door stands, 2027-05-02-tower-hunts-catalogue.generated.sql, after
+  --  2027-04-24-tower-climb.sql: until then the ordinary door's gate refuses what hr_hunts does not name)
+  if exists (select 1 from public.hr_hunt_travel t where not t.training and t.hunt_id <> all (array[${r.towerHunts.map(sq).join(', ')}]::text[])
                and not exists (select 1 from public.hr_hunts h where h.hunt_id = t.hunt_id))
-     or exists (select 1 from public.hr_hunt_grounds g where not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id)) then
+     or exists (select 1 from public.hr_hunt_grounds g where g.hunt_id <> all (array[${r.towerHunts.map(sq).join(', ')}]::text[])
+                  and not exists (select 1 from public.hr_hunts h where h.hunt_id = g.hunt_id)) then
     raise exception 'a named hunt or a ground hunt is not in hr_hunts'; end if;
   if exists (select 1 from public.hr_hunt_travel t where t.training
                and not exists (select 1 from public.hr_activities a
@@ -2012,6 +2055,9 @@ function selftest() {
      refusal below was played: this selftest was red on set/v0.2.133, measured 2026-11-15, and green again with the hall's ground beside the two calls'.) */
   const roomGrounds = Object.fromEntries([...Object.values(BOSS_CALLS).map((c) => c.from), ...Object.values(OPEN_BOSS_HALLS).map((h) => h.id)].map((id) => [id, OPEN_GROUNDS[id]]));
   catalogueRows({ grounds: { ...fixtureGround, ...roomGrounds } });
+  /* ...and the hall path is live in that fixture (lane/c-tower-climb): the same grounds less an open hall's own ground are refused */
+  const hallIds = Object.values(OPEN_BOSS_HALLS).map((h) => h.id);
+  if (hallIds.length) cases['an open hall whose ground is not served'] = () => ({ grounds: { ...fixtureGround, ...Object.fromEntries(Object.entries(roomGrounds).filter(([id]) => !hallIds.includes(id))) } });
   let bad = 0;
   for (const [name, mk] of Object.entries(cases)) {
     let threw = false;

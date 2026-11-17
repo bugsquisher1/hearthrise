@@ -12,7 +12,7 @@
 // mutant-anchors: src/core/combat-sim.js, src/data/session-modes.js, src/session/character-session.js,
 //   supabase/migrations/2027-04-23-session-modes.sql
 //
-//   MD-DATA    the two ruled rows (hunt: the full price, Blessings used, everything paid; tower: no loss, Blessings kept, 200 permille
+//   MD-DATA    the two ruled rows (hunt: the full price, Blessings used, everything paid; tower: no loss, Blessings kept, 375 permille
 //              XP, no coin, drops or Bestiary, stamina drains); the default is the full hunt; the load-time rule refuses a free death
 //              that pays coin, drops or Bestiary, a free death that spends a Blessing and a default that is not a full hunt; the
 //              engine's share is DEATH_XP_LOSS to the bit in a hunt and nothing in the Tower; the server's catalogue is the data,
@@ -69,7 +69,7 @@ async function dataArm(db, M) {
   const { SESSION_MODES: S, DEFAULT_SESSION_MODE: D, validateSessionModes: check } = M.SM;
   const row = (m) => m && [m.deathLossPm, m.blessings, m.xpPm, m.coin, m.drops, m.bestiary, m.stamina].join(',');
   if (row(S.hunt) !== '1000,true,1000,true,true,true,true') bad.push('MD-DATA the hunt row reads ' + row(S.hunt));
-  if (row(S.tower) !== '0,false,200,false,false,false,true') bad.push('MD-DATA the tower row reads ' + row(S.tower));
+  if (row(S.tower) !== '0,false,375,false,false,false,true') bad.push('MD-DATA the tower row reads ' + row(S.tower));
   if (D !== 'hunt') bad.push('MD-DATA the default mode is ' + D + ', not the full hunt');
   const refuses = (name, modes, def, want) => { const p = check(modes, def); if (!p.some((x) => x.includes(want))) bad.push('MD-DATA the load-time rule let through ' + name + ': ' + JSON.stringify(p)); };
   if (check(S, D).length) bad.push('MD-DATA the table itself does not pass its rule: ' + check(S, D).join('; '));
@@ -90,7 +90,14 @@ async function dataArm(db, M) {
   const want = Object.values(S).map((m) => [m.id, m.id === D, m.deathLossPm, m.blessings, m.xpPm, m.coin, m.drops, m.bestiary, m.stamina]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
   const got = srv.map((r) => [r.mode_id, r.is_default, Number(r.death_loss_pm), r.blessings, Number(r.xp_pm), r.coin, r.drops, r.bestiary, r.stamina]);
   if (JSON.stringify(got) !== JSON.stringify(want)) bad.push('MD-DATA the server holds ' + JSON.stringify(got) + ', the data ' + JSON.stringify(want));
-  if (Number(await one(db, 'select count(*) from public.hr_ground_session_modes'))) bad.push('MD-DATA a ground names a mode on the server, and none does in the data');
+  /* the grounds that name a mode: the server's rows are the data's (lane/c-tower-climb: the Burning Tower names `tower`) */
+  const G = await import(pathToFileURL(join(M.root, 'src/data/hunt-grounds.js')).href + V);
+  const named = [G.OPEN_GROUNDS, G.CALLED_GROUNDS, G.OPEN_HALL_GROUNDS, G.TRAINING_GROUNDS, G.TOWER_GROUNDS].flatMap((t) => Object.values(t))
+    .filter((g) => g.mode !== undefined).map((g) => [g.hunt, g.mode]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  const onSrv = (await q(db, 'select hunt_id, mode_id from public.hr_ground_session_modes order by hunt_id')).map((r) => [r.hunt_id, r.mode_id]);
+  if (JSON.stringify(onSrv) !== JSON.stringify(named)) bad.push('MD-DATA the server maps ' + JSON.stringify(onSrv) + ' to modes, the data ' + JSON.stringify(named));
+  const tower = (await import(pathToFileURL(join(M.root, 'src/data/tower.js')).href + V)).TOWER_RULES.hunt;
+  if (!named.some(([h, m]) => h === tower && m === 'tower')) bad.push('MD-DATA CONTROL: the Burning Tower names no mode in the data');
   return bad;
 }
 
@@ -193,16 +200,21 @@ async function doorsArm(db, M) {
         if (!(Number(s1.level_xp) >= Number(s0.level_xp))) bad.push(`${tag} the Level XP fell ${s0.level_xp} -> ${s1.level_xp}`);
       }
     }
-    /* THE SAME FIGHT, ONLY THE LOSS MOVES: the same dice play the same swings in both modes; the Tower ends where the hunt
-       does, holding exactly what the hunt's death took (and nothing a skill's death did not). */
+    /* THE SAME FIGHT, ONLY THE LOSS AND THE MODE'S SHARE MOVE: the same dice play the same swings in both modes; the Tower's hero
+       keeps everything the hunt's death took, and earns on every route the mode's share of what the hunt's hero earned
+       (lane/c-tower-climb wired what a mode pays: xpPm on the split and on every skill route; the stored XP is the floor of the carry,
+       so a route reads within 1, and the Level within a floor a kill). */
     const hu = runs[door + ':hunt'], tw = runs[door + ':tower'];
     if (hu && tw && hu.s1.deaths && tw.s1.deaths) {
       const tag = `MD-DOORS the ${door === 'closed' ? 'browser closed' : 'hunt viewed'}:`;
+      const pm = M.SM.SESSION_MODES.tower.xpPm;
       if (hu.s1.deaths[0][0] !== tw.s1.deaths[0][0] || hu.s1.ended_at !== tw.s1.ended_at) bad.push(`${tag} the Tower's hero died ${tw.s1.deaths[0][0]} ms into the hunt, the hunt's ${hu.s1.deaths[0][0]} ms: not the same fight`);
       const took = hu.s1.death_xp || {};
-      if (Number(tw.s1.level_xp) - Number(hu.s1.level_xp) !== Number(took.level || 0)) bad.push(`${tag} the Tower ends ${Number(tw.s1.level_xp) - Number(hu.s1.level_xp)} Level XP above the hunt, the hunt's death took ${took.level}`);
+      const gainHu = Number(hu.s1.level_xp) + Number(took.level || 0) - Number(hu.s0.level_xp), gainTw = Number(tw.s1.level_xp) - Number(tw.s0.level_xp);
+      if (Math.abs(gainTw - gainHu * pm / 1000) > Math.max(1, Math.ceil(gainHu * pm / 1000 / 50))) bad.push(`${tag} the Tower's hero earned ${gainTw} Level XP, the hunt's ${gainHu} before its death took ${took.level}: not ${pm} permille of it`);
       for (const k of COMBAT) {
-        if (Number(tw.s1.skills[k] || 0) - Number(hu.s1.skills[k] || 0) !== Number(took[k] || 0)) bad.push(`${tag} ${k} ends ${Number(tw.s1.skills[k] || 0) - Number(hu.s1.skills[k] || 0)} above the hunt, its death took ${took[k] || 0}`);
+        const h = Number(hu.s1.skills[k] || 0) + Number(took[k] || 0) - Number(hu.s0.skills[k] || 0), t = Number(tw.s1.skills[k] || 0) - Number(tw.s0.skills[k] || 0);
+        if (Math.abs(t - h * pm / 1000) > 1) bad.push(`${tag} ${k}: the Tower's hero earned ${t}, the hunt's ${h} before its death took ${took[k] || 0}: not ${pm} permille of it`);
       }
     }
   }
@@ -327,10 +339,10 @@ const MUTANTS = [
   { name: 'an intent carries a mode field', arm: 'intent', want: /^MD-INTENT/, file: 'src/session/character-session.js',
     from: "this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: hunt,", to: "this._server.rpc('hr_hunt_enter', { p_mode: 'tower', p_slot: this.slot, p_hunt: hunt," },
   { name: 'the table check: a no-loss mode with coin or drops on', arm: 'data', want: LOAD_REFUSED, file: 'src/data/session-modes.js',
-    from: "deathLossPm: 0, blessings: false, xpPm: 200, coin: false, drops: false,", to: "deathLossPm: 0, blessings: false, xpPm: 200, coin: true, drops: true," },
+    from: "deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false,", to: "deathLossPm: 0, blessings: false, xpPm: 375, coin: true, drops: true," },
   { name: 'the table check is gone and a no-loss mode pays', arm: 'data', want: /^MD-DATA/, file: 'src/data/session-modes.js',
     edits: [["    if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(", "    if (false) out.push("],
-            ["deathLossPm: 0, blessings: false, xpPm: 200, coin: false,", "deathLossPm: 0, blessings: false, xpPm: 200, coin: true,"]] },
+            ["deathLossPm: 0, blessings: false, xpPm: 375, coin: false,", "deathLossPm: 0, blessings: false, xpPm: 375, coin: true,"]] },
   { name: 'the freeze keeps a caller\'s value', arm: 'freeze', want: /^MD-FREEZE/, fn: 'public.hr_hunt_mode_freeze()',
     find: '  new.session_mode := public.hr_session_mode_of(new.hunt_id);', replace: '  new.session_mode := coalesce(new.session_mode, public.hr_session_mode_of(new.hunt_id));' },
   { name: 'the edge takes a mode from the request', arm: 'intent', want: /^MD-INTENT/, file: join(FN, 'hunt-settle.js'),

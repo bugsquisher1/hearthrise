@@ -205,6 +205,16 @@ export const REASONS = Object.freeze({
     { cond: '!(f && f.swap && f.swap.ms >= f.swap.needMs)', words: 'swapLeftWords(f)', where: 'Finish the swap: the swap line above it says the hunting time still owed ("4 h 10 m left"), from the server\'s credited swap time' },
     { cond: '!claimable(f, p)', words: "t('factions.piece_needs'", where: 'Claim a piece: its row says the hours of that side\'s standing it needs' },
   ],
+  /* the Burning Tower (lane/b-tower-window): Enter and Use each have the line above them that says why they're off */
+  'src/shell/windows/tower.js': [
+    { cond: 'pending || !tw.checkpoints.length', words: "t('tower.off_no_start')", where: 'Start Floor: off while a press is out (the busy line says so) or when the server lists no checkpoint, which the line above Enter says (No start floor available)' },
+    { cond: '!!block', words: "text(root.querySelector('.tt-off-why'), block)", where: 'Enter: the line above it says why (out hunting, already climbing, a party seat that does not lead, no checkpoint the server lists), and data-off-why says it on a press' },
+  ],
+  'src/shell/windows/tower-chest.js': [
+    { cond: '!!block', words: "text(pane.querySelector('.tc-off-why'), k ? block : '')", where: 'Use: the line above it says why (out on a hunt, no key, its weapons not built, the key family\'s week of chests used); with no key held the press is hidden and the pane says how to earn one' },
+    { cond: '!!block || all < 2', words: "t('tower.opens_left')", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Opens left 1 / 6" line says; hidden with fewer than two keys held' },
+    { cond: 'pending || !held', words: "t('tower.count', { count: whole(k.heldAll) })", where: 'A key slot (direction A): off for a key not held, which its own count says on it ("x0"), dimmed' },
+  ],
   'src/shell/windows/temper-pane.js': [
     { cond: '!offer || !!short', words: "'. Need ' + gold(short) + ' more'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
     { cond: 'itemsShort', words: "n.name + ': ' + whole(n.held) + '/' + whole(n.need)", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },

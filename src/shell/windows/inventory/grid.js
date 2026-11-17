@@ -32,6 +32,7 @@ import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.13
 import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.135';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.135';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.135';
+import { ringTabHtml, ringPaneHtml, patchRing } from './key-ring.js?v=0.2.135';
 import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.135';
 import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.135';
 import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.135';
@@ -49,7 +50,7 @@ const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) =>
 export function toolbarHtml(g) {
   return '<div class="hw-inv-head"><div class="hw-tabs" role="tablist">'
     + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="bag" aria-selected="true">Bag</button>'
-    + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="hunt" aria-selected="false">This hunt</button></div>'
+    + '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="hunt" aria-selected="false">This hunt</button>' + ringTabHtml() + '</div>'
     + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Search items" aria-label="Search items" autocomplete="off"></span>'
     + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>';
@@ -63,7 +64,7 @@ export function gridHtml() {
     + '<section class="hw-pane" data-pane="hunt">'
     + '<p class="hw-cap"><span class="hw-loot-sum"></span></p>'
     + '<ul class="hw-loot"></ul><p class="hh-empty hw-loot-none">Nothing picked up yet</p>'
-    + '<p class="hw-loot-note"></p></section>';
+    + '<p class="hw-loot-note"></p></section>' + ringPaneHtml();
 }
 
 /** Under both columns: the picked stack's line, the bulk tools and their confirmation. */
@@ -123,6 +124,7 @@ export function patchToolbar(root, st, ctx) {
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === st.sc.tab));
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === st.sc.tab);
   cls(root.querySelector('.hw-cats'), 'is-off', st.sc.tab !== 'bag');
+  patchRing(root, st, ctx.doc, ctx.glyphs);
 }
 
 function patchBagPane(root, st, ctx) {
@@ -260,5 +262,5 @@ function patchHuntPane(root, st, ctx) {
 
 /** The grid column for the open tab. */
 export function patchGrid(root, st, ctx) {
-  if (st.sc.tab === 'bag') patchBagPane(root, st, ctx); else patchHuntPane(root, st, ctx);
+  if (st.sc.tab === 'bag') patchBagPane(root, st, ctx); else if (st.sc.tab === 'hunt') patchHuntPane(root, st, ctx);
 }

@@ -130,6 +130,18 @@ export const OUTFIT_MASKS = Object.freeze({
     bands: { head: 27, body: 15, legs: 4 },
     parts: { blue: { region: 'body', n4: true } },
   },
+  /* the Sweep's Coat (lane/a-tower-art-gen, 2026-11-16; round 6 redrew it as Tyler's hooded keeper; palette-locked, so its colours are
+     exact ramp entries): the soot greys (the shadow ramp's mid steps, the dark stones) are the hood and its torn cape above the shoulders'
+     line and the robe below it, height splitting them at their narrow links; the pale ash apron (light stones, bone) under the chest is
+     dyed with the boots (the dark earths under the hem), so the regions stay head, body and feet. The gold key and chain, the gold hood
+     trim, the singed orange and red edges, the rope sash, the bracers (pale, but above the apron) and the skin are not cloth: no legs. */
+  sweeps_coat: {
+    materials: [OUTLINE(0.06), ['skin', { h: [15, 35], s: [0.3, 0.5], v: [0.68, 1] }], ['pale', { s: [0, 0.25], v: [0.38, 0.95] }],
+      ['grey', { s: [0, 0.3], v: [0.1, 0.36] }], ['leather', { h: [10, 40], s: [0.2, 0.62], v: [0.1, 0.36] }]],
+    bands: { head: 24, body: 4, legs: 4 },
+    parts: { grey: { byBand: ['head', 'body'], clamp: true, n4: true, min: 2, split: 3 }, pale: { region: 'feet', n4: true, min: 3, below: 16 },
+      leather: { byBand: ['feet'], n4: true } },
+  },
 });
 
 /* ── HELD: no mask ships; each needs a hand touch-up (not available in this lane) before it can. ──── */

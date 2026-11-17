@@ -16,7 +16,7 @@ since been executed.
 
 | Layer | Path | Files | Drawn by the client? |
 |---|---|---|---|
-| World atlases (town, grounds, every creature, effects) | `assets/world/` | 12 sets | **live** (`src/render/creature-sprite.js`, `src/world/`) |
+| World atlases (town, grounds, every creature, effects) | `assets/world/` | 25 sets (`tower`, 2026-11-16: the Burning Tower's painted room, `tools/world-art/tower-flue.mjs`; no sprites of its own, its props are the Stokers' and the Hold's) | **live** (`src/render/creature-sprite.js`, `src/world/`) |
 | Pixel item icons | `assets/icons-bundle/pixel/items/` | 573 (one per ITEMS key) | **live** (`src/shell/widgets/bits.js`, `itemIconHtml`) |
 | Shop supply icons | `assets/icons-bundle/pixel/supplies/` | 25 | **live** |
 | Ability tiles | `assets/icons-bundle/pixel/abilities/` | 16 | **live** (`ABILITY_ART`) |
@@ -219,6 +219,7 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 | outfit_ranger | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
 | outfit_sorcerer | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
 | outfit_witch | hunt | character | 64×64 | idle 1@5, walk 6@8 | senwseswnenw | **retain** | hand / script |
+| outfit_sweeps_coat | heroes | character | 64×64 | idle 4@5, walk 6@8, hit 5@12 (s e n w) | senwseswnenw | **retain**: the Hearth Chest's super-rare, hidden until owned; round 6 redrew it as Tyler's hooded keeper (faceless hood, singed cape, square ember key) | create_character v3 `2abf0617` (2026-11-16, round 6; r3 was `41584eda`) |
 | rat | hunt | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | rat_king | hunt | beast | 64×64 | idle 1@5, walk 8@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |
 | slime | hunt | vermin | 48×48 | idle 1@5, walk 6@8, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | hand / script |

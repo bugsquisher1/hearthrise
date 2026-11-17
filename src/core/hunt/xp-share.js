@@ -6,6 +6,8 @@
 //   hero XP    = floor(base share x party factor x that hero's multiplier)   (XP-02)
 //   on a SCALED hunt a party's factor is thinned by the row's partyPm (src/data/scaled-hunts.js, on every scaled row: the kill
 //   carries it from damage.js); a hero alone is never thinned
+//   in a SESSION MODE that pays part of a kill (src/data/session-modes.js xpPm; the Burning Tower's 375) the monster XP is that share
+//   of the row's before anything else (inst.xpPm, world-step.js; absent, the whole kill, exactly as before)
 // THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
 // src/data/party-class-xp.js, ONE table for every ground and tier (Tyler 2026-11-16), read from the
 // living heroes at each kill, never latched: a death or a leave changes the next kill.
@@ -33,6 +35,7 @@
 
 import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.135';
 import { partyClassXp } from '../../data/party-class-xp.js?v=0.2.135';
+import { TOWER_RULES, TOWER_PARTY_XP } from '../../data/tower.js?v=0.2.135';
 import { underFloorSharePm } from '../../data/hunt-grounds.js?v=0.2.135';
 import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.135';
 import { makeEvent } from './events.js?v=0.2.135';
@@ -59,12 +62,16 @@ const xpOf = (kill) => {
  * Answers { [id]: { xp, raw, ev } }; nobody alive is nobody paid. `ev`: the part of `xp` the hero's multiplier added (a live event's, its
  * only user), so a personal best can leave it out (hunt_session_tally.xp_event); 0 when the multiplier is 1.
  */
-function splitKillXp(xp, heroes, sc, ground, partyPm = 1000) {
+function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, xpPm = 1000) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
-  const raw = xp / heroes.length;
+  /* THE MODE'S SHARE of the kill, first (never multiplied at 1000: a hunt's split is the same arithmetic it always was) */
+  const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;
   const cell = partyClassXp(heroes.map((h) => h.role)).permille;
-  const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;
+  /* THE BURNING TOWER is a session mode, not a hunting ground: its own row by size (src/data/tower.js TOWER_PARTY_XP, the Tower board's §7), no class
+     mix and no solo boost (the party's edge there is the floors it reaches). Every hunting ground reads the one table above (Tyler 2026-11-16). */
+  const base = ground && ground.id === TOWER_RULES.hunt ? TOWER_PARTY_XP[Math.min(Math.max(heroes.length, 1), 4)] : cell;
+  const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (base * partyPm) / 1000 : base;
   const top = heroes.reduce((m, h) => (Number.isInteger(h.heroLv) && h.heroLv > m ? h.heroLv : m), 0);
   for (const h of heroes) {
     const paid = (raw * party * multOf(sc, h)) / 1000;
@@ -86,7 +93,8 @@ export function shareKillXp(inst, kill, sc) {
   const xp = xpOf(kill);
   const units = (inst && inst.world && inst.world.units) || [];
   const living = units.filter((u) => u.side === 'hero' && u.alive === true);
-  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000);
+  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000,
+    inst && Number.isInteger(inst.xpPm) ? inst.xpPm : 1000);
   const ids = Object.keys(paid);
   const answer = {};
   if (!ids.length) return answer;

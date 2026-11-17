@@ -51,6 +51,8 @@ export const CONTROLS_TEXT = Object.freeze({
   unequip: 'Unequip',
   use: 'Use',
   use_equipped: 'Use equipped',
+  /* the Hearth Chest: every key of the kind held, one press (the board's Burning Tower §5 (c)) */
+  use_all: 'Use all',
   new_setup: 'New setup',
   delete: 'Delete',
   delete_confirm: 'Delete it?',

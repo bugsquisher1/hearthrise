@@ -50,6 +50,7 @@ export const END_WORDS = Object.freeze({
   stamina: t('summary.end_stamina'),
   hours: t('summary.end_hours'),
   boss_time: t('summary.end_boss_time'),
+  floor_time: t('summary.end_floor_time'),
   left: t('summary.end_left'),
   changed: t('summary.end_changed'),
   no_fight: t('summary.end_no_fight'),

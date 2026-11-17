@@ -38,6 +38,7 @@ import { WINDOWS_TEXT } from './windows.js?v=0.2.135';
 import { WIKI_TEXT } from './wiki.js?v=0.2.135';
 import { WORK_TEXT } from './work.js?v=0.2.135';
 import { TRAINING_TEXT } from './training.js?v=0.2.135';
+import { TOWER_TEXT } from './tower.js?v=0.2.135';
 
 export const TEXT = Object.freeze({
   away: AWAY_TEXT,
@@ -66,6 +67,7 @@ export const TEXT = Object.freeze({
   summary: SUMMARY_TEXT,
   tally: TALLY_TEXT,
   temper: TEMPER_TEXT,
+  tower: TOWER_TEXT,
   training: TRAINING_TEXT,
   windows: WINDOWS_TEXT,
   wiki: WIKI_TEXT,

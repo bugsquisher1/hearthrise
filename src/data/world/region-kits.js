@@ -68,7 +68,7 @@ export const REGION_KITS = Object.freeze({
     units: ids(`rat slime hive_wasp drain_rat sump_slime cistern_spider culvert_bat kobold_tosher gray_whelp gray_wolf briarcoat_wolf
       dire_gray goblin_scavenger goblin_skulker goblin_digger hobgoblin_foreman carrion_crow glade_poacher walking_vine goblin_sluicer
       granary_rat barn_wasp barn_spider turncoat rook_poacher orchard_boar brook_bear
-      shrouded_pauper keeper_dunn night_carter`),
+      shrouded_pauper keeper_dunn night_carter vault_leech`),
     /* vaultdead and vaultliving: the Unmarked Catacombs' bodies, its own dead and what came in from outside (lane/a-catacomb-art,
        tools/world-art/import-catacombs-2026-11-16.mjs) */
     sets: ids('mill sewer common cottage forest warren glade stead hunt vaultdead vaultliving'),

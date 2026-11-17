@@ -50,6 +50,10 @@ export const BODIES = Object.freeze([
      never lifts. The few leaf glints the palette call put on the coat are left off the list, so they land on the coat's greys. */
   { set: 'vaultliving', id: 'night_carter', cls: 'character', rot: `${B('night_carter')}/rotations`, walk: [`${B('night_carter')}/walk`, 1],
     idle: `${B('night_carter')}/idle`, ramps: 'shadow,stone,earth,iron,bone,bronze,skin,steel', lift: 2, object: 'bd21ccf4-aef4-44f4-b8e9-db4fa6a8f24d', name: 'UC Night Carter' },
+  /* an arm-long leech, the Sewer's vermin class (a 48 frame, 28-40 px by its longer side: it measures 33-37). Olive-black with ochre
+     sides, 1.46:1 raw; lift 2, 3.14:1 (N 4.12:1) */
+  { set: 'vaultliving', id: 'vault_leech', cls: 'vermin', rot: `${B('vault_leech')}/rotations`, walk: [`${B('vault_leech')}/walk`, 1],
+    idle: `${B('vault_leech')}/idle`, ramps: 'shadow,bronze,stone,earth,iron,bone,steel,skin', lift: 2, object: '4b1488fb-a20d-4cf4-95e0-b223e5344584', name: 'UC Vault Leech' },
 ]);
 
 const pngs = (dir) => readdirSync(abs(dir)).filter((f) => /^(frame_|f)?\d+\.png$/.test(f)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));

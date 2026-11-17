@@ -45,4 +45,11 @@ export const CATACOMB_CLIPS = Object.freeze([
     ...swing(of('night_carter', 'attack2', ['s', 'e', 'n', 'w', 'se', 'ne']), of('night_carter', 'attack3', ['sw', 'nw'])),
     ...fall(of('night_carter', 'death', ['s'], [2, 3, 4, 5, 6, 6]), of('night_carter', 'death', ['e', 'w', 'se', 'sw', 'ne', 'nw']), of('night_carter', 'death2', ['n'])),
     ...flinch(of('night_carter', 'hit', ALL8, FLINCH)) } },
+  /* the Vault Leech: the rear-and-latch strike in seven facings, N re-rolled twice (a grey block, then white sparks) to a plain
+     lunge (attack3). The fall is the roll belly-up and go limp (death2: the first roll barely moved, a dead leech read as a live
+     one); its W and SW barely moved either, so they play E and SE flipped (a leech has no handedness). No NE flinch (a white puff). */
+  { set: 'vaultliving', id: 'vault_leech', clips: {
+    ...swing(of('vault_leech', 'attack', ['s', 'e', 'w', 'se', 'sw', 'ne', 'nw']), of('vault_leech', 'attack3', ['n'])),
+    ...fall(of('vault_leech', 'death2', ['s', 'e', 'n', 'se', 'ne', 'nw']), { w: { mirror: 'e' }, sw: { mirror: 'se' } }),
+    ...flinch(of('vault_leech', 'hit', ['s', 'e', 'n', 'w', 'se', 'sw', 'nw'], FLINCH)) } },
 ]);

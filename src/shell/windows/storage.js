@@ -33,7 +33,7 @@ import { huntOf } from '../../session/hunt-sections.js?v=0.2.136';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.136';
 import { whole, gold } from '../../render/format.js?v=0.2.136';
 import { glyphSvg } from '../launcher.js?v=0.2.136';
-import { itemName } from '../widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
 import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.136';
 import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.136';
@@ -172,7 +172,7 @@ function move(cs, sc, repaint, id, qty, dir) {
   /* Read from the bag before the move: a tool put away slows its skill, and that is not a silent change (panel 2026-11-01). */
   const slower = dir === 'deposit' ? toolLossWords(cs, id, qty) : '';
   return runIntent(sc, repaint, () => cs.moveStorage(id, qty, dir), dir === 'withdraw' ? t('bag.store_taking') : t('bag.store_putting'),
-    () => t(dir === 'withdraw' ? 'bag.store_took' : 'bag.store_put', { n: whole(qty), item: itemName(id) }) + (slower ? '. ' + slower : ''));
+    () => t(dir === 'withdraw' ? 'bag.store_took' : 'bag.store_put', { n: whole(qty), item: itemNameFor(id, qty) }) + (slower ? '. ' + slower : ''));
 }
 
 /* ONE unlock_buy naming the server's offer id; the cap and the next price change only from the answer's envelope. */

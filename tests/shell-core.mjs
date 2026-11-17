@@ -1301,7 +1301,7 @@ const MUTANTS = [
   { test: 'R3b', file: 'src/shell/away-work.js', from: 'return paid > was.at && now - paid < SETTLED_WITHIN_MS;', to: 'return true;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "const still = !!goes && keyOf(goes) === was.s;", to: 'const still = true;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "if (!parts.length) return null;", to: '' },
-  { test: 'R3b', file: 'src/shell/away-work.js', from: "if (gained > 0) parts.push('+' + whole(gained) + ' ' + itemName(made));", to: '' },
+  { test: 'R3b', file: 'src/shell/away-work.js', from: "if (gained > 0) parts.push('+' + whole(gained) + ' ' + itemNameFor(made, gained));", to: '' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "return { s: keyOf(w), at: Math.floor(at),", to: "return { s: keyOf(w), at: Math.floor(serverNowOf(cs)) + 1,"},
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'if (isWorkStamp(was) && (!h || h.ended)) {', to: 'if (false) {' },
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text;', to: 'return a.text;' },

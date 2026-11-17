@@ -20,7 +20,7 @@
 import { ITEMS } from '../data/items.js?v=0.2.136';
 import { whole } from '../render/format.js?v=0.2.136';
 import { kindOf } from './bag-model.js?v=0.2.136';
-import { itemName } from './widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.136';
 import { t } from '../render/player-text.js?v=0.2.136';
 
 const int = (v) => (Number.isSafeInteger(v) ? v : null);
@@ -260,7 +260,7 @@ export function noticeLines(rows, away) {
   const sold = rows.filter((r) => r.what === 'sold');
   if (sold.length === 1 && !away) {
     const s = sold[0];
-    out.push({ key: 'sold', at: s.at, item: s.item, text: 'The Weighhouse sold ' + whole(s.qty) + ' ' + itemName(s.item) + ' for ' + goldWords((s.each || 0) * s.qty) + '. Received: ' + goldWords(s.gold) });
+    out.push({ key: 'sold', at: s.at, item: s.item, text: 'The Weighhouse sold ' + whole(s.qty) + ' ' + itemNameFor(s.item, s.qty) + ' for ' + goldWords((s.each || 0) * s.qty) + '. Received: ' + goldWords(s.gold) });
   } else if (sold.length) {
     const gross = sold.reduce((n, s) => n + (s.each || 0) * s.qty, 0);
     const head = away ? 'While away, the Weighhouse sold ' : 'The Weighhouse sold ';
@@ -269,7 +269,7 @@ export function noticeLines(rows, away) {
     out.push({ key: 'sold', at: sold[sold.length - 1].at, item: null, text: head + lots + ' for ' + goldWords(gross) + '. Received: ' + goldWords(got) });
   }
   for (const r of rows.filter((x) => x.what === 'returned')) {
-    out.push({ key: 'back', at: r.at, item: r.item, text: whole(r.qty) + ' ' + itemName(r.item) + ' unsold, back in storage' });
+    out.push({ key: 'back', at: r.at, item: r.item, text: whole(r.qty) + ' ' + itemNameFor(r.item, r.qty) + ' unsold, back in storage' });
   }
   return out;
 }

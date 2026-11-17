@@ -9,7 +9,7 @@ import { taxFor, craftsCovered, canPayNext, dueNext } from '../core/bench-tax.js
 import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js?v=0.2.136';
 import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.136';
 import { whole } from '../render/format.js?v=0.2.136';
-import { itemName } from './widgets/bits.js?v=0.2.136';
+import { itemNameFor } from './widgets/bits.js?v=0.2.136';
 
 const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : null);
 
@@ -67,7 +67,7 @@ function bestStackWords(cs) {
     const qty = held[id] || 0;
     if (qty > 0 && bid > 0 && (!best || qty * bid > best.total)) best = { id, qty, total: qty * bid };
   }
-  return best ? whole(best.qty) + ' ' + itemName(best.id) : null;
+  return best ? whole(best.qty) + ' ' + itemNameFor(best.id, best.qty) : null;
 }
 
 /* What to do about it, in the player's words: gathering is always free. */

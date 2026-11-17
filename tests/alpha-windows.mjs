@@ -2182,10 +2182,38 @@ async function tickerRules(base) {
     lineAt(hero(envOf('artisan', 'fuel_bones', { bones: 2530 })), 0)];
   const fedWant = ['Fueling the Great Hearth with Bones: 1 to go', 'Fueling the Great Hearth with Bones: 0 to go',
     'Fueling the Great Hearth with Bones: 1 Bone left', 'Fueling the Great Hearth with Bones: 2,530 Bones left'];
-  const noOne = [...new Set((ARTISAN_RECIPES.inner_flame || []).flatMap((r) => Object.keys(recipeInputs(r))))]
+  /* every stack named in the plural has its one-form: the Hearth fuels, the arrows and bolts; a pair (gear in a slot, Coal
+     Tongs) and a mass (Tempering Salts) keep their name */
+  const { DRINK_ITEMS } = await imp('src/data/drinks.js');
+  const { BASIC_INDEX } = await imp('src/data/supply-basics.js');
+  const stacks = Object.assign({}, BASIC_INDEX, DRINK_ITEMS, ITEMS);
+  const noOne = [...new Set([...(ARTISAN_RECIPES.inner_flame || []).flatMap((r) => Object.keys(recipeInputs(r))), ...Object.keys(stacks)])]
+    .filter((id) => !(stacks[id] && stacks[id].slot && stacks[id].slot !== 'ammo') && !/\b(Salts|Tongs)$/.test(itemName(id)))
     .filter((id) => /[^s]s$/.test(itemName(id)) && itemNameFor(id, 1) === itemName(id));
   if (fedWords !== 'Fueling the Great Hearth with 1 Bone…' || fedLines.join('|') !== fedWant.join('|') || itemNameFor('bones', 2) !== 'Bones' || noOne.length)
     fails.push('TK-8b one Bone fed reads ' + JSON.stringify({ fedWords, fedLines, noOne }) + ', want "…with 1 Bone…" and ' + JSON.stringify(fedWant));
+  /* TK-8c THE CLASS: every count beside an item's name reads it through itemNameFor. In play: a market notice and Tamsin's
+     pick for ONE Bone. By source (src/shell, src/hunt-view, src/session, src/social, src/app): no `whole(…) + ' ' + itemName(`,
+     no pick named by itemName, and no line that fills a "{n} {item}" text row hands it itemName. */
+  const { noticeLines } = await imp('src/shell/market-model.js');
+  const { pickWords } = await imp('src/session/tally-sections.js');
+  const { TEXT } = await imp('src/data/text/text-table.js');
+  const oneBone = [noticeLines([{ what: 'sold', at: 1, item: 'bones', qty: 1, each: 2, gold: 2 }], false), noticeLines([{ what: 'returned', at: 2, item: 'bones', qty: 1 }], false)]
+    .map((l) => (l[0] ? l[0].text : '')).concat(pickWords({ item: 'bones', qty: 1 }, itemNameFor));
+  const countRows = Object.entries(TEXT).flatMap(([sf, rows]) => Object.entries(rows).filter(([, v]) => [].concat(typeof v === 'object' ? Object.values(v) : v)
+    .some((x) => /\{(n|qty|count)\} \{item\}/.test(x))).map(([k]) => "'" + sf + '.' + k + "'"));
+  const pairs = [];
+  for (const dir of ['src/shell', 'src/hunt-view', 'src/session', 'src/social', 'src/app']) {
+    for (const f of readdirSync(join(base, dir), { recursive: true })) {
+      if (!/\.js$/.test(f)) continue;
+      readFileSync(join(base, dir, f), 'utf8').split('\n').forEach((line, i) => {
+        if (/(?:whole\((?:[^()]|\([^()]*\))*\)|\.qty|\bqty) \+ ' ' \+ itemName\(/.test(line) || /pickWords\([^;]*?, itemName\)/.test(line)
+          || (countRows.some((id) => line.includes(id)) && /\bitem: itemName\(/.test(line))) pairs.push(dir + '/' + f.replace(/\\/g, '/') + ':' + (i + 1));
+      });
+    }
+  }
+  if (!/^The Weighhouse sold 1 Bone for /.test(oneBone[0]) || oneBone[1] !== '1 Bone unsold, back in storage' || oneBone[2] !== '1 Bone' || countRows.length < 5 || pairs.length)
+    fails.push('TK-8c a count of one beside a plural name: ' + JSON.stringify({ oneBone, countRows: countRows.length, pairs }));
 
   /* TK-9: a dish that can burn is a roll: the inputs and the burn's XP are certain, the dish is not (no stack moves). */
   const cook = TW.workRow('artisan', 'cook_shrimp');
@@ -5176,7 +5204,7 @@ const MUTANTS = [
   ['plans: AW-65 a store rune above the level says only that the server refused', 'src/shell/action-facts.js', "    if (sl.usable === false && sl.why === 'store_level') {", '    if (false) {'],
   ['plans: AW-27 a store rune above the level is promised as what casts', 'src/shell/hunt-go.js', "  const off = sl.why === 'store_off' || sl.why === 'store_level';", "  const off = sl.why === 'store_off';"],
   ['plans: AW-64 a worn slot with none left is not said', 'src/shell/hunt-go.js', 'const parts = (dry ? [dry] : [])', 'const parts = []'],
-  ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ', ' + whole(spare.qty) + ' ' + itemName(spare.id) + ' not on the bar' : '')", "''"],
+  ['plans: AW-64 a stack no shot reaches is not said', 'src/shell/hunt-go.js', "(spare ? ', ' + whole(spare.qty) + ' ' + itemNameFor(spare.id, spare.qty) + ' not on the bar' : '')", "''"],
   ['plans: AW-64 a whetstone reads as a spare arrow', 'src/shell/hunt-go.js', ': carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot', ': carried.filter((r) => r.qty > 0 && ammoPerShot'],
   /* the loaded slot's shot is read where its cost line is (cast-facts.js stockOf since v0.2.111; bar-draft storeOf no longer sees `worn`) */
   ['plans: AW-64 the loaded slot names a store shot it never buys', 'src/shell/cast-facts.js', "const id = Object.prototype.hasOwnProperty.call(ATTACK_KINDS, a.id) ? worn : a.id;", "const id = Object.prototype.hasOwnProperty.call(ATTACK_KINDS, a.id) ? 'steel_arrows' : a.id;"],

@@ -27,7 +27,7 @@ import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.136';
 import { ROOM_PERKS } from '../../data/perks.js?v=0.2.136';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.136';
 import { whole, gold } from '../../render/format.js?v=0.2.136';
-import { itemName } from '../widgets/bits.js?v=0.2.136';
+import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.136';
 import { runIntent } from '../intent-words.js?v=0.2.136';
 import { wherePlaces } from '../item-lore.js?v=0.2.136';
 import { patchParts, placesParts } from '../goto.js?v=0.2.136';
@@ -214,7 +214,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
     text(cf.querySelector('.hw-confirm-q'), t(sc.ask.kind === 'chest' ? 'house.confirm_build' : 'house.confirm_buy', { name: step.label }));
     /* The gold is the ACCOUNT's (one purse, 2026-12-15-account-gold.sql); each material leaves this hero's bag first,
        then the account's Storage (2027-01-10-house-from-storage.sql). */
-    const mats = step.items.map((it) => t('house.mat_qty', { qty: whole(it.qty), item: itemName(it.id) })).join(', ');
+    const mats = step.items.map((it) => t('house.mat_qty', { qty: whole(it.qty), item: itemNameFor(it.id, it.qty) })).join(', ');
     text(cf.querySelector('.hw-confirm-note'), !mats ? t('house.confirm_cost', { price: gold(step.gold) })
       : who ? t('house.confirm_cost_mats_named', { price: gold(step.gold), mats, name: who }) : t('house.confirm_cost_mats', { price: gold(step.gold), mats }));
     text(yes, t('house.pay', { price: gold(step.gold) }));

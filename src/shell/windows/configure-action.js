@@ -32,7 +32,7 @@ import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.136';
 import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.136';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { actionIconHtml, itemName } from '../widgets/bits.js?v=0.2.136';
+import { actionIconHtml, itemNameFor } from '../widgets/bits.js?v=0.2.136';
 import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.136';
 import { startSupply } from '../rune-supply.js?v=0.2.136';
 import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.136';
@@ -216,7 +216,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const cl = root.querySelector('.ca-carry');
   prop(cl, 'hidden', !carry);
   if (carry) {
-    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in backpack, ' + whole(carry.inHunt) + ' in this hunt' + (carry.wait ? '. ' + carry.wait : ''));
+    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemNameFor(carry.id, carry.have) + ' in backpack, ' + whole(carry.inHunt) + ' in this hunt' + (carry.wait ? '. ' + carry.wait : ''));
     const b = cl.querySelector('[data-x="carry"]');
     text(b, carryWords(carry));
     attr(b, 'data-item', carry.id);

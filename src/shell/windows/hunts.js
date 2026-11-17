@@ -51,7 +51,7 @@ import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.136';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.136';
 import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.136';
+import { itemNameFor, revealInWindow } from '../widgets/bits.js?v=0.2.136';
 import { glyphSvg, markCoachRead } from '../launcher.js?v=0.2.136';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.136';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.136';
@@ -184,7 +184,7 @@ async function asChosen(cs, sc, go) {
 /* The hunt under way: what its hunt bag holds now (the server's; Enter moved it out of the bag, Brannoc 10-22). */
 function carriedWords(lines) {
   if (!lines.length) return t('hunts.bag_empty');
-  return t('hunts.bag_holds', { items: lines.map((l) => whole(l.qty) + ' ' + itemName(l.id)).join(', ') });
+  return t('hunts.bag_holds', { items: lines.map((l) => whole(l.qty) + ' ' + itemNameFor(l.id, l.qty)).join(', ') });
 }
 
 /** The skeleton (built once per opening): the notes, then the list beside the picked ground's page. A fresh opening

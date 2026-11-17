@@ -95,7 +95,7 @@ export const ITEM_TEXT = Object.freeze({
 
   /* ONE of an item named in the plural, for a count beside it (src/shell/widgets/bits.js itemNameFor): "1 Bone", never
      "1 Bones" (live v0.2.135). One row per countable stack whose name is plural. A pair (Iron Boots) and a mass (Tempering
-     Salts) keep their name, so they have none. tests/alpha-windows.mjs TK-8b asks every plural Hearth fuel for its row. */
+     Salts, Coal Tongs) keep their name, so they have none. tests/alpha-windows.mjs TK-8b asks every other plural stack for its row. */
   one_bones: 'Bone',
   one_big_bones: 'Big Bone',
   one_dragon_bones: 'Dragon Bone',
@@ -111,4 +111,12 @@ export const ITEM_TEXT = Object.freeze({
   one_emberhead_arrows: 'Emberhead Arrow',
   one_dawnpoint_arrows: 'Dawnpoint Arrow',
   one_iron_bolts: 'Iron Bolt',
+  one_plain_iron_arrows: 'Plain Iron Arrow',
+  one_plain_barbed_arrows: 'Plain Barbed Arrow',
+  one_plain_steel_arrows: 'Plain Steel Arrow',
+  one_plain_mithril_arrows: 'Plain Mithril Arrow',
+  one_plain_rune_arrows: 'Plain Rune Arrow',
+  one_plain_emberhead_arrows: 'Plain Emberhead Arrow',
+  one_plain_dawnpoint_arrows: 'Plain Dawnpoint Arrow',
+  one_plain_iron_bolts: 'Plain Iron Bolt',
 });

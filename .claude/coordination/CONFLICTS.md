@@ -2,6 +2,10 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-11-16 · BACKEND (lane: `lane/c-sweeps-coat-drop`) → BACKEND (factions) + GAME DESIGNER · **OPEN: two homes for an earned outfit**
+- **What:** the Sweep's Coat is owned through `player_cosmetics` kind `outfit` and read by `hr_outfit_owned` (2027-04-30-sweeps-coat.sql), so the Character window, `hr_outfit_set`, the town look and the party views all follow it. The faction looks (2027-04-22-faction-standing.sql) are owned in `hr_faction_claims` (pieces, `hr_faction_outfit_claim`) and no `hr_outfits` row or `hr_outfit_owned` reads them, so a claimed faction piece cannot be worn through the one outfit path.
+- **Proposed:** when the faction pieces get their art and become wearable, they own through the same reader: a claim writes the `player_cosmetics` 'outfit' row (or `hr_outfit_owned` reads `hr_faction_claims` for rows marked as faction outfits). One reader, two doors. Not changed here: the faction verbs are another lane's and their pieces have no `hr_outfits` rows yet.
+
 ## 2026-11-16 · SYSTEMS (lane: `lane/a-party-xp-tier`, hotfix) → GAME DESIGNER + COORDINATOR · **OPEN: three grader lines the party-cell cut leaves for the designer**
 - **Built (Tyler 2026-11-16, option 1):** `src/data/party-class-xp.js` PARTY_TIER_PM cuts the mixed 3- and 4-hero cells on Dangerous and Deadly for the Glade, Hask's Ford, the Slake, Krell's Hold and the Pyre Field. A big-pull Deadly four now reads ≤ ~2.46x the contract (it read 2.9-4.5x). Every harder-tier mix stays over the same heroes alone. Normal is untouched. Guard: `tests/party-class-xp-line.mjs` harder-tier arm.
 - **OPEN, for the DESIGNER: the Glade's Deadly vs its Normal.** The Glade's Normal four reads 1.98x the contract at the floor, so a Deadly four at ≤2.5x reads ~1.15-1.24x its Normal one, under the sheet's `tiers.deadly.xpVsNormalMin` 1.25 for fours. Normal isn't meant for parties (Tyler 11-16): cut the Glade's Normal four, or read that line for lone heroes only?

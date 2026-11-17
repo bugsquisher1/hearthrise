@@ -39,15 +39,15 @@ function tipHtml(id, o) {
   /* A crafted piece's perks (src/data/jewelry.js), each in what a player sees; each counts once on a hero, however many pieces carry it. */
   const perks = ITEMS[id] && ITEMS[id].jewelPerks ? Object.entries(ITEMS[id].jewelPerks) : [];
   if (perks.length) h += '<dl class="hw-tip-stats hw-tip-perks">' + perks.map(([p, pm]) => '<dt>' + esc(JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p) + '</dt><dd>' + esc(perkWords(p, pm)) + '</dd>').join('') + '</dl>'
-    + '<p class="hw-tip-line"><small>Perks</small>Each perk counts once, however many pieces you wear with it.</p>';
+    + '<p class="hw-tip-line"><small>Perks</small>No stacking across pieces</p>';
   /* A bane: what the weapon does against one kind of monster, the engine's own number (designer re-read 2026-11-11: the Bramble Blade's tip said only +2/+2). */
   const banes = baneWords(id);
   if (banes.length) h += '<p class="hw-tip-line hw-tip-bane"><small>' + esc(t('item.bane_label')) + '</small>' + esc(banes.join('. ')) + '</p>';
   if (stats.length && opt.worn !== undefined) {
-    if (opt.worn === id) h += '<p class="hw-tip-cmp">You are wearing this.</p>';
+    if (opt.worn === id) h += '<p class="hw-tip-cmp">Equipped</p>';
     else {
       const d = compare(id, opt.worn);
-      h += '<p class="hw-tip-cmp">' + (opt.worn ? 'Against your ' + esc(itemName(opt.worn)) : 'Against an empty slot') + ':</p>';
+      h += '<p class="hw-tip-cmp">' + (opt.worn ? 'vs ' + esc(itemName(opt.worn)) : 'vs empty slot') + ':</p>';
       h += d.length ? '<ul class="hw-tip-delta">' + d.map((x) => '<li class="' + (x.delta > 0 ? 'is-gain' : 'is-loss') + '">' + esc(x.text + ' ' + x.label) + '</li>').join('') + '</ul>'
         : '<p class="hw-tip-cmp">No change.</p>';
     }

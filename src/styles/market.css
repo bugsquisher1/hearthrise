@@ -86,7 +86,7 @@
 .hw-mk-facts dd { margin: 0; color: var(--ink); }
 .hw-mk-field { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 4px; margin-bottom: 6px; font-size: var(--t-small); color: var(--ink-2); }
 .hw-mk-field > label { min-width: 72px; }
-.hw-mk-terms { margin: 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink); }
+.hw-mk-terms { margin: 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink); white-space: pre-line; }
 .hw-mk-terms:empty { display: none; }
 .hw-mk-kept { flex: 1 1 200px; margin: 0 0 0 10px; text-align: right; }
 .hw-mk-kept:empty { display: none; }

@@ -124,9 +124,9 @@ export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc
    still ends the hunt, 10-14). A packed heal, drink or ammo line (src/data/supplies.js SUPPLY_ROWS) is the
    partner of a store row above, or it is listed here with the reason it needs none. tests/supplies-catalogue.mjs
    B5 holds both directions: an unlisted line with no partner is red, and so is a listed one that has a partner. */
-const BY_SLOT = 'a food or drink slot names ONE item (Tyler 2026-10-21): when it runs out the next slot fires, and any store food or drink can stand there';
-const FREE_RUNG = 'the free tier-1 rung (ammoPerShot 0): a shot never spends it, so it never runs out';
-const HONE = 'a whetstone is melee\'s ceiling, not its swing (R5): when the last one wears the sword swings on unsharpened';
+const BY_SLOT = 'a food or drink slot names one item, then the next fires';
+const FREE_RUNG = 'the free tier-1 rung, ammoPerShot 0, never spent';
+const HONE = 'a whetstone raises melee\'s ceiling, never its swing';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
   turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,

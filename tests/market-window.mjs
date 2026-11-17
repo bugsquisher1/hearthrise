@@ -90,20 +90,20 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
 
   /* W5 the refusal table */
   const say = (error, figures, verb = 'market_list') => T.refusalText({ ok: false, error, verb, figures });
-  ok('W5', /The shop pays 142 for one, and nothing lists below that/.test(say('price_below_shop', { floor: 142 })), 'floor: ' + say('price_below_shop', { floor: 142 }));
-  ok('W5', /The most is 28,500 each/.test(say('price_above_cap', { ceiling: 28500 })), 'ceiling: ' + say('price_above_cap', { ceiling: 28500 }));
-  ok('W5', /You have 50 listings up/.test(say('too_many_listings', { limit: 50 })), 'listings cap');
-  ok('W5', /The listing fee is 8 gold/.test(say('insufficient_gold', { need: 8, have: 2 })), 'a list short of its fee');
-  ok('W5', /You need 1,560 gold\. You have 1,200/.test(say('insufficient_gold', { need: 1560, have: 1200 }, 'market_buy')), 'a buy short of gold');
+  ok('W5', /^Below the shop price: 142 each$/.test(say('price_below_shop', { floor: 142 })), 'floor: ' + say('price_below_shop', { floor: 142 }));
+  ok('W5', /^Above the highest price: 28,500 each$/.test(say('price_above_cap', { ceiling: 28500 })), 'ceiling: ' + say('price_above_cap', { ceiling: 28500 }));
+  ok('W5', /^Max listings: 50$/.test(say('too_many_listings', { limit: 50 })), 'listings cap');
+  ok('W5', /^Listing fee: 8 gold$/.test(say('insufficient_gold', { need: 8, have: 2 })), 'a list short of its fee');
+  ok('W5', /Need 1,560 gold, have 1,200/.test(say('insufficient_gold', { need: 1560, have: 1200 }, 'market_buy')), 'a buy short of gold');
   ok('W5', /Only 2 are left at that price/.test(say('not_enough', { available: 2 }, 'market_buy')), 'not enough left');
-  ok('W5', say('market_locked', { min_level: 10, min_skill_level: 30 }) === 'The Weighhouse trades with heroes of Level 10, or with a bench skill at 30.', 'the rule says both numbers: ' + say('market_locked', { min_level: 10, min_skill_level: 30 }));
+  ok('W5', say('market_locked', { min_level: 10, min_skill_level: 30 }) === 'Requires Level 10 or a bench skill at 30', 'the rule says both numbers: ' + say('market_locked', { min_level: 10, min_skill_level: 30 }));
   const lockedAnswer = F.refusalOf({ body: { ok: false, verb: 'market_buy', error: 'market_locked', min_level: 7, min_skill_level: 25 } });
-  ok('W5', /Level 7, or with a bench skill at 25\./.test(T.refusalText(lockedAnswer)), 'the numbers are the answer\'s own, off the wire: ' + T.refusalText(lockedAnswer));
+  ok('W5', /^Requires Level 7 or a bench skill at 25$/.test(T.refusalText(lockedAnswer)), 'the numbers are the answer\'s own, off the wire: ' + T.refusalText(lockedAnswer));
   ok('W5', /bench skill/.test(say('market_locked', null)) && !/Keep hunting|—/.test(say('market_locked', null)), 'an answer with no numbers invents none and doesn\'t send a crafter hunting: ' + say('market_locked', null));
   const benchRules = M.rulesOf({ fee_bp: 100, cut_bp: 400, min_level: 7, min_skill_level: 25 });
   ok('W5', benchRules.minLevel === 7 && benchRules.minSkillLevel === 25,'the window reads both numbers from the rules row: ' + JSON.stringify(benchRules));
   ok('W5', /^Can't be sold to players/.test(say('not_tradeable', null)), 'the listable rule');
-  ok('W5', /^Your own listing/.test(say('own_listing', null, 'market_buy')), 'own listing');
+  ok('W5', /^Own listing/.test(say('own_listing', null, 'market_buy')), 'own listing');
   const r = F.refusalOf({ body: { ok: false, verb: 'market_list', error: 'price_below_shop', detail: { floor: 142 } } });
   ok('W5', r.figures && r.figures.floor === 142, 'the floor sits in `detail` on the wire and must reach the words: ' + JSON.stringify(r.figures));
   const top = F.refusalOf({ body: { ok: false, verb: 'market_list', error: 'too_many_listings', limit: 50 } });
@@ -140,10 +140,10 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
   ok('W7', n.rows.length === 3 && n.newest === T0 + 4 * 60000, 'only sold and returned, newer than the last told: ' + n.rows.length);
   ok('W7', M.noticesSince(hist, T0 + 4 * 60000).rows.length === 0, 'nothing is told twice');
   const away = M.noticeLines(n.rows, true);
-  ok('W7', /^While you were away the Weighhouse sold 2 lots for 39 gold\. You received 36 gold\.$/.test(away[0].text), 'the away line says what the seller received: ' + away[0].text);
-  ok('W7', /2 Coal didn't sell and are back in your storage\./.test(away[1].text), 'the return: ' + away[1].text);
+  ok('W7', /^While away, the Weighhouse sold 2 lots for 39 gold\. Received: 36 gold$/.test(away[0].text), 'the away line says what the seller received: ' + away[0].text);
+  ok('W7', /^2 Coal unsold, back in storage$/.test(away[1].text), 'the return: ' + away[1].text);
   const one = M.noticeLines(n.rows.filter((x) => x.qty === 2 && x.what === 'sold'), false);
-  ok('W7', /^The Weighhouse sold 2 Coal for 26 gold\. You received 24 gold\.$/.test(one[0].text), 'one sale online: ' + one[0].text);
+  ok('W7', /^The Weighhouse sold 2 Coal for 26 gold\. Received: 24 gold$/.test(one[0].text), 'one sale online: ' + one[0].text);
 
   /* W8 the sample, and no one-press chip from market history */
   const s = M.priceSample({ at: T0, history: [{ day: '2026-10-30', trades: 2 }, { day: '2026-10-01', trades: 9 }] });
@@ -188,7 +188,7 @@ const MUTANTS = [
   { test: 'W2', file: MODEL, from: 'return Math.max(rules.feeMin, Math.ceil(qty * ask * rules.feeBp / 10000));', to: 'return Math.floor(qty * ask * rules.feeBp / 10000);', why: 'the sheet shows a smaller fee than the server takes' },
   { test: 'W3', file: MODEL, from: '    left -= take * a.each;\n', to: '', why: 'Most I can afford never spends the purse it counts' },
   { test: 'W4', file: MODEL, from: ' && !ITEMS[id].premium);', to: ');', why: 'the bond is offered in a search' },
-  { test: 'W5', file: WORDS, from: "'The shop pays ' + whole(f.floor)", to: "'The shop pays ' + whole(f.ceiling)", why: 'the refusal names the wrong number' },
+  { test: 'W5', file: WORDS, from: "'Below the shop price: ' + whole(f.floor)", to: "'Below the shop price: ' + whole(f.ceiling)", why: 'the refusal names the wrong number' },
   { test: 'W5', file: REFUSAL, from: 'const v = n(b[k]) !== null ? b[k] : d[k];', to: 'const v = b[k];', why: 'a number one level down never reaches the words' },
   { test: 'W6', file: GESTURE, from: "r.error === 'network' || ", to: '', why: 'a dropped connection reads as a refusal, so the next press is a NEW gesture and buys twice' },
   { test: 'W6', file: CATCH, from: "if (/^market_/.test(String(body.verb))) return server.accrue(body); ", to: '', why: 'the catch-up retry takes a key the window never saw' },

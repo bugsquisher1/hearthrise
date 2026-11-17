@@ -8,8 +8,8 @@
 // row's own Message and Invite to party buttons run that menu's entries
 // (src/shell/menu-providers.js), never a copy of their logic.
 //   Add a friend   by claimed name (the server resolves it; a block refuses it)
-//   Asks for you   Accept / Decline
-//   Your asks      Cancel (the request you sent)
+//   Friend requests  Accept / Decline
+//   Sent requests    Cancel (the request you sent)
 //   Blocked        the block list with Unblock (./block-list.js; Settings'
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
@@ -37,9 +37,9 @@ export function renderFriends() {
     + '<div class="hf-add"><input type="text" class="hf-name" data-hs-act="ask-name" maxlength="20" autocomplete="off" aria-label="A player’s name" placeholder="A player’s name">'
     + '<button type="button" class="hh-tool" data-hs-act="ask">Add friend</button></div>'
     + '<p class="hf-msg" role="status" aria-live="polite"></p>'
-    + '<h3 class="hs-sub hf-head is-in">Asks for you</h3><ul class="hf-list is-in"></ul>'
+    + '<h3 class="hs-sub hf-head is-in">Friend requests</h3><ul class="hf-list is-in"></ul>'
     + '<h3 class="hs-sub">Friends</h3><ul class="hf-list is-friends"></ul><p class="hh-empty hf-none">No friends yet. <span class="hw-desk-word">Right-click</span><span class="hw-phone-word">Hold</span> a name in chat to add one.</p>'
-    + '<h3 class="hs-sub hf-head is-out">Your asks</h3><ul class="hf-list is-out"></ul>' + blocksHtml() + '</div>';
+    + '<h3 class="hs-sub hf-head is-out">Sent requests</h3><ul class="hf-list is-out"></ul>' + blocksHtml() + '</div>';
 }
 
 /* A row names ONE hero (the server's person: the account's current character and its slot). The name, the menu's
@@ -92,7 +92,7 @@ renderFriends.patch = function patchFriends(body, ctx) {
   cls(body.querySelector('.hf-head.is-out'), 'is-on', f.outgoing().length > 0);
   cls(body.querySelector('.hf-none'), 'is-on', f.read && !f.friends().length);
   prop(body.querySelector('[data-hs-act="ask"]'), 'disabled', st.pending);
-  text(body.querySelector('.hf-msg'), st.msg || (f.read ? '' : 'Reading your friends…'));
+  text(body.querySelector('.hf-msg'), st.msg || (f.read ? '' : 'Loading friends…'));
   patchBlocks(body, ctx);
 };
 
@@ -100,7 +100,7 @@ renderFriends.events = Object.freeze(['keydown']);
 
 /* What the server's answer to an ask means, in words: a request back to someone who asked first ACCEPTS it
    (hr_friend_request answers state 'friends'), so it never reads as "Asked". */
-const ASK_WORDS = Object.freeze({ requested: 'Asked. They will see it in their friends list.', friends: 'You are friends now.' });
+const ASK_WORDS = Object.freeze({ requested: 'Request sent', friends: 'Friend added' });
 
 async function settle(ctx, body, st, p, done) {
   st.pending = true;
@@ -136,7 +136,7 @@ renderFriends.act = function actFriends(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   const id = el.getAttribute('data-id');
   if (action === 'ask') ask();
-  else if (action === 'accept') settle(ctx, body, st, social.friends.answer(id, true), 'You are friends now.');
+  else if (action === 'accept') settle(ctx, body, st, social.friends.answer(id, true), 'Friend added');
   else if (action === 'decline') settle(ctx, body, st, social.friends.answer(id, false), '');
   else if (action === 'withdraw') settle(ctx, body, st, social.friends.remove(id), '');
   else if (action === 'run') {

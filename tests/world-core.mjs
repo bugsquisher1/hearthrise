@@ -671,7 +671,7 @@ async function check(M) {
     ok('G6', /Wren is training Defense at the Training Yard\./.test(yard) && /data-world-go="training"/.test(yard) && !/World yet|Mill Cellar/.test(yard),
       'a yard session must say where the hero trains and open Training: ' + yard);
     const home = M.bannerM.unmappedBanner({ activeMonster: 'yard_dummy', _huntId: 'training_house_magic', playerName: 'Wren' }, town, mon) || '';
-    ok('G6', /Wren is training Magic on your dummy at home\./.test(home), 'a house dummy session must say it trains at home: ' + home);
+    ok('G6', /Wren is training Magic on the home dummy/.test(home), 'a house dummy session must say it trains at home: ' + home);
     const ridge = M.bannerM.unmappedBanner({ activeMonster: 'wolf', _huntId: 'meadowbrook_thicket' }, town, mon) || '';
     ok('G6', /isn’t in the World yet/.test(ridge) && /data-world-go="hunt"/.test(ridge), 'a hunt with no map keeps its line: ' + ridge);
     /* G7 (lane/a-training-display): at 1440x900 the line sat 10 px off the stage's foot, under the action bar that the shell lays over

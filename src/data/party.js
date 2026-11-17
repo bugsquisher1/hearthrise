@@ -33,7 +33,7 @@ export const PARTY = Object.freeze({
    on the party panel's own row (src/shell/widgets/party-leave.js). */
 export const PARTY_COPY = Object.freeze({
   leaveTogether: 'Leave if anyone leaves the hunt or dies',
-  leaveTogetherTip: 'When another member’s hunt ends, this hero is paid for its hunt so far and comes home too.',
+  leaveTogetherTip: 'Rewards so far are kept',
 });
 
 /** Every problem with the table, as strings. Empty = valid. */

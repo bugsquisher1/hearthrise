@@ -209,7 +209,7 @@ const ARMS = {
     const prim = ST.primaryOf(st, 'den_knot');
     if (!prim || prim[0] !== 'hearth' || prim[1] !== 'Fuel the hearth') out.push('the Den Knot offers ' + JSON.stringify(prim));
     const why = BU.namedBlock(cs({ den_knot: 1 }, { inner_flame: { xp: 0, level: 1 } }), 'den_knot');
-    if (why !== 'Den Knot needs Inner Flame ' + HD.NAMED_FUELS.den_knot.req + '. You have 1.') out.push('the Den Knot below its level says ' + JSON.stringify(why));
+    if (why !== 'Den Knot: requires Inner Flame ' + HD.NAMED_FUELS.den_knot.req) out.push('the Den Knot below its level says ' + JSON.stringify(why));
     if (!IL.usesOf('lamp_jelly').some((l) => /Great Hearth/.test(l))) out.push('the Lamp Jelly tooltip names no Hearth');
     /* THE TOWN READ'S FLAME: on the local clock, replaced by every answer */
     const clock = 1000;

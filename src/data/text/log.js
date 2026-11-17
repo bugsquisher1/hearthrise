@@ -16,5 +16,5 @@ export const LOG_TEXT = Object.freeze({
   shot_miss: '{who} shoots at {target} and misses.',
   shot_dodge: '{target} dodges {who}’s shot.',
   /* A skill level that unlocks a move (abilities.js unlock): the player adds it to the action bar. */
-  unlocked: 'You can now use {moves}. Add it to your action bar.',
+  unlocked: 'Unlocked: {moves}',
 });

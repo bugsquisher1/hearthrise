@@ -584,7 +584,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
             links: l ? [...l.querySelectorAll('[data-auth-legal]')].map((b) => [b.getAttribute('data-auth-legal'), parseFloat(getComputedStyle(b).fontSize), r(b)]) : [],
             submit: r(document.querySelector('.auth-submit')), back: r(document.querySelector('[data-auth-go="sign-in"]')), across: document.scrollingElement.scrollWidth - innerWidth };
         });
-        if (sheet.text !== 'By creating an account you agree to the Terms of Service and the Privacy Policy.' || !sheet.shown) fails.push('B-20 ' + tag + 'Create account does not say what pressing it means: ' + JSON.stringify(sheet.text));
+        if (sheet.text !== 'Creating an account means agreeing to the Terms of Service and the Privacy Policy.' || !sheet.shown) fails.push('B-20 ' + tag + 'Create account does not say what pressing it means: ' + JSON.stringify(sheet.text));
         if (sheet.px < 12 || sheet.links.length !== 2 || sheet.links.some(([, px, on]) => px < 12 || !on)) fails.push('B-20 ' + tag + 'the legal line or its links are under 12 px or off the screen: ' + JSON.stringify([sheet.px, sheet.links]));
         if (!sheet.submit || !sheet.back || sheet.across > 0) fails.push('B-20 ' + tag + 'the legal line pushed Create account or Back to sign in off the screen (' + sheet.across + ' px across)');
         await page.fill('input[name=email]', 'new@example.test');
@@ -707,7 +707,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await r.page.click('.auth-submit');
       await wait(r.page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await r.page.click('[data-app="play"][data-slot="0"]');
-      if (!(await wait(r.page, () => /While you were away/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
+      if (!(await wait(r.page, () => /\bAway \d/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
       await r.page.reload({ waitUntil: 'load' });
       await r.page.waitForTimeout(500);
       const lost = owed.puts.filter((p) => p.p_patch && (Number.isFinite(p.p_patch.awaySeen && p.p_patch.awaySeen.at) && p.p_patch.awaySeen.at !== Date.parse('2026-10-17T00:00:00Z') - 60 * 60000
@@ -1056,7 +1056,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       /* The sign-in says what the game is, once, under the crest (newcomer panel 2026-11-01). */
       const pitch = await page.evaluate(() => { const p = document.querySelector('.auth-brand .auth-pitch'); return p && p.getClientRects().length ? p.textContent : null; });
-      if (pitch !== 'Your hero keeps hunting after you close the game.') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
+      if (pitch !== 'Hunts keep going with the game closed') fails.push('B-9 the sign-in screen pitches ' + JSON.stringify(pitch));
       /* THE PRESS MOVES ON (friends' panel 2026-11-01): off with its words while the server is out; a lost answer's retry keeps its key; once made, no press asks again. */
       const press = await page.evaluate(async () => {
         const { renderHeroCreate } = await import(location.origin + '/src/app/hero-create.js');
@@ -1085,7 +1085,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         step.destroy(); card.remove();
         return out;
       });
-      if (!press.working[0] || press.working[1] !== 'Creating your hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
+      if (!press.working[0] || press.working[1] !== 'Creating hero…' || !press.oneAsk || press.lost[0] || press.lost[1] !== 'Enter town' || !press.sameKey
         || !press.entering[0] || press.entering[1] !== 'Entering town…' || press.entering[2] !== 1 || !press.noAsk || press.stuck[0] || !/Hero created/.test(press.stuck[1]) || !press.again) fails.push('B-9 the Enter town press: ' + JSON.stringify(press));
       /* Sign-up sent: the fields stand aside for the message and the way back (phone panel 2026-11-01: Back half off a 390 px screen). */
       const sent = await page.evaluate(async () => {
@@ -1225,16 +1225,16 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       /* "Up to 4" beside two slots says how the other two come, at the server's price (blind playtest 2026-10-31). */
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
       /* The price is the offer block's own (the server's quote), so the line names none (designer 2026-11-09). */
-      if (!/Hero slots: 2 \(up to 4 play at once, more cost gold\)/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
+      if (!/Hero slots: 2 \(up to 4 play at once\)\. More cost gold/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
-        || b0.purse !== 'Your gold: 14,100' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Your gold: 14,100, 900 short, off, no payer to pick)');
+        || b0.purse !== 'Gold: 14,100' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
       else {
         o.purse = 80000; o.goldV = 8; o.lag = null;
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelector('[data-app="buy-slot"]') && !document.querySelector('[data-app="buy-slot"]').disabled);
         const b1 = await btn();
-        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Your gold: 80,000') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
+        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
         await page.click('[data-app="buy-slot"]');
         const b2 = await btn();
         if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
@@ -1328,7 +1328,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       if (!(await landOnNotice(page))) fails.push('B-7 the closed answer did not show the closed notice');
       else if (notice) {
         const said = await page.evaluate((q) => document.querySelector(q).innerText, NOTICE);
-        if (!/invite-only right now/i.test(said) || !/signed up/i.test(said) || !/whoever invited you/i.test(said)) fails.push('B-7 the notice does not say what is going on and what to do: ' + JSON.stringify(said));
+        if (!/Invite only: account not on the list yet/.test(said) || !/signed up/i.test(said) || !/Send this account id to your inviter/.test(said)) fails.push('B-7 the notice does not say what is going on and what to do: ' + JSON.stringify(said));
         if (!said.includes(UID)) fails.push('B-7 the notice does not show the account id: ' + JSON.stringify(said));
         if (/qa@example\.test/.test(said)) fails.push('B-7 the notice shows more of the account than its id');
 
@@ -1349,11 +1349,11 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const offAtPress = await page.evaluate((q) => { const b = document.querySelector(q); b.click(); return b.disabled; }, CHECK);
         if (!offAtPress) fails.push('B-7 Check again stayed on while it asked');
         await wait(page, (q) => !document.querySelector(q).disabled, CHECK, 4000);
-        if (!/not on the list yet/.test(await lineOf(page))) fails.push('B-7 a no does not say why: ' + JSON.stringify(await lineOf(page)));
+        if (!/^Not on the invite list yet$/.test(await lineOf(page))) fails.push('B-7 a no does not say why: ' + JSON.stringify(await lineOf(page)));
         o.down = true;
         await page.click(CHECK);
         await wait(page, (q) => !document.querySelector(q).disabled, CHECK, 4000);
-        if (!/didn't answer/.test(await lineOf(page))) fails.push('B-7 a failed check reads as ' + JSON.stringify(await lineOf(page)));
+        if (!/^Connection failed, try again$/.test(await lineOf(page))) fails.push('B-7 a failed check reads as ' + JSON.stringify(await lineOf(page)));
         o.down = false;
         if (await page.$('form[data-auth="sign-in"]')) fails.push('B-7 a check landed on the sign-in screen');
 

@@ -320,7 +320,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     for (const [tag, prep] of [['solo', null], ['party of 4', partyOf4]]) { // HR-6 the alerts block nothing
       const { ctx, page, up } = await open((env) => { if (prep) prep(env); stamped(env); });
       if (up) {
-        if (!(await wait(page, () => /While you were away/.test(document.querySelector('.hw-alert-text')?.textContent || '')))) fails.push('HR-6 CONTROL ' + tag + ': no away card came up');
+        if (!(await wait(page, () => /\bAway \d/.test(document.querySelector('.hw-alert-text')?.textContent || '')))) fails.push('HR-6 CONTROL ' + tag + ': no away card came up');
         await page.keyboard.press('Enter');
         await wait(page, () => document.querySelector('[data-hs-win="chat"] [role="tab"]'));
         await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
@@ -358,8 +358,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // HR-7 the away card follows the server
       const { ctx, page, s, up } = await open((env) => stamped(env));
       if (up) {
-        const line = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).find((t) => /While you were away/.test(t)) || null);
-        if (!(await wait(page, () => /While you were away/.test(document.querySelector('.hw-alert-text')?.textContent || '')))) fails.push('HR-7 CONTROL: no away card came up');
+        const line = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).find((t) => /\bAway \d/.test(t)) || null);
+        if (!(await wait(page, () => /\bAway \d/.test(document.querySelector('.hw-alert-text')?.textContent || '')))) fails.push('HR-7 CONTROL: no away card came up');
         const first = await line();
         if (!/Still hunting, with 7 h 43 min of stamina left\./.test(first || '')) fails.push('HR-7 CONTROL: the first line is ' + JSON.stringify(first));
         /* the next envelope's stamina replaces the number */
@@ -370,7 +370,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* the hunt ends: no line says it is still hunting; the summary is the notice now */
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: Object.assign({}, s.env.hunt.session, { end_reason: 'stamina', ended_at: new Date(s.env.hunt_server_now_ms).toISOString() }) });
         await pushEnvelope(page, s);
-        if (!(await wait(page, () => !/While you were away/.test(Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' ')), null, 5000))) fails.push('HR-7 the hunt ended and the card still says: ' + JSON.stringify(await line()));
+        if (!(await wait(page, () => !/\bAway \d/.test(Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' ')), null, 5000))) fails.push('HR-7 the hunt ended and the card still says: ' + JSON.stringify(await line()));
         if (/Still hunting/.test(await page.evaluate(() => document.body.innerText))) fails.push('HR-7 "Still hunting" is on screen after the hunt ended');
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelector('.hb-bar'));
@@ -401,7 +401,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const shown = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' | '));
-        if (/While you were away/.test(shown)) fails.push('HR-9 a hunt on screen says "While you were away": ' + shown);
+        if (/\bAway \d/.test(shown)) fails.push('HR-9 a hunt on screen says "While you were away": ' + shown);
       } else fails.push('HR-9 the screen did not mount');
       await ctx.close();
     }

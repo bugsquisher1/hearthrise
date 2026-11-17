@@ -59,8 +59,8 @@ function seatWhere(m) {
 /** What the party does next, from the server's party (the leader picks the ground; a member waits). */
 function nextStep(p, r) {
   if (r.anyHunting) return p.hunt ? 'The party is hunting in ' + huntName(p.hunt) + '.' : 'The party is hunting.';
-  if (r.isLeader) return r.members.length > 1 ? 'You lead. Pick a hunt and press Enter with party.'
-    : 'You are the only one here. Invite someone (right-click a player), or pick a hunt.';
+  if (r.isLeader) return r.members.length > 1 ? 'Leader: pick a hunt, then Enter with party'
+    : 'Party of one: invite a player or pick a hunt';
   const lead = r.members.find((m) => m.seat === r.leaderSeat);
   return 'Waiting for ' + (lead ? lead.name : 'the leader') + ' to pick a hunt.';
 }

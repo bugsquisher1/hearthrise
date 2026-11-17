@@ -327,7 +327,7 @@ const cases = {
     const f = M.shell.facts.factsOf(slot.action, ctx);
     if (f.cost !== want[0] || f.effect[0] !== want[1] || f.cooldown !== want[2]) return 'Configure action reads other facts: ' + JSON.stringify(f);
     const short = M.shell.facts.reasonOf({ action: slot.action, conditions: cond }, { discipline: 'destruction', store, supplySource: 'mine', onEmpty: 'switch' }, [], { mana: cast.mana - 1 }, null, ctx.skills, null);
-    return short && short.code === 'mana' && short.text === 'Needs ' + cast.mana + ' mana, you have ' + (cast.mana - 1) + '.' ? null : 'a hero 1 mana short of the cast reads ' + JSON.stringify(short);
+    return short && short.code === 'mana' && short.text === 'Needs ' + cast.mana + ' mana, have ' + (cast.mana - 1) ? null : 'a hero 1 mana short of the cast reads ' + JSON.stringify(short);
   },
   /* NEVER AUTO-PICKED: a freshly picked rune spell starts on Plain, the choices run cheapest tier first, and a default bar names Plain or nothing. */
   'a-deeper-rune-is-opt-in': (M) => {
@@ -735,15 +735,15 @@ const cases = {
     const has = (x, type, effect, unlock) => x.type === type && effect.every((e) => x.effect.includes(e)) && x.unlock === unlock;
     /* (the words are the text home's, src/data/text/bar.js: the shipped target lines, a line's and a ring's own beside them) */
     const rows = [
-      ['raking_shot', 'Hits every monster on a 4-tile line through your target', ['On the line: 40% to 80% of your Max Hit'], 'Unlocks at Ranged 10.'],
-      ['turning_cut', 'Hits up to 8 monsters beside you.', ['Each monster reached: 30% to 60% of your Max Hit'], 'Unlocks at Melee 10.'],
-      ['hoarfrost', 'Hits the monsters around your target.', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s (30% slower swings and windups)'], 'Unlocks at Magic 14.'],
-      ['spring_tide', 'You and everyone near you get it.', ['Heals 120–180.'], 'Unlocks at Magic 20.'],
+      ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10.'],
+      ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10.'],
+      ['hoarfrost', 'Hits monsters around the target', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s, 30% slower swings'], 'Unlocks at Magic 14.'],
+      ['spring_tide', 'Hero and nearby allies', ['Heals 120–180.'], 'Unlocks at Magic 20.'],
     ];
     for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
     if (f('power_strike').unlock !== null) return 'a row with no unlock reads one: ' + f('power_strike').unlock;
     /* a status with no slow and no mark still says how long it lasts, and Sickness what it does */
-    if (!f('rend').effect.includes('Causes bleed for 6 s.') || !f('green_sickness').effect.includes('Causes sickness for 6 s (takes 10% more damage)')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
+    if (!f('rend').effect.includes('Causes bleed for 6 s.') || !f('green_sickness').effect.includes('Causes sickness for 6 s, 10% more damage taken')) return 'the old statuses read ' + JSON.stringify([f('rend').effect, f('green_sickness').effect]);
     /* a shot spell's cost line says what each cast shoots (Raking Shot looses two of the bar's ammo), a plain one only mana */
     const src = ['raking_shot', 'power_strike'].map((id) => f(id).cost);
     if (src.join('|') !== 'Cost: 10 mana, 2 ammo|Cost: 6 mana') return 'the cost lines read ' + JSON.stringify(src);
@@ -754,7 +754,7 @@ const cases = {
     const sl = { action: { type: 'ability', id: 'raking_shot' }, conditions: [], join: 'and', usable: true };
     const bag = [{ id: 'bronze_arrows', qty: 50 }];
     const under = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 7, xp: 0 } }, null);
-    if (!under || under.code !== 'unlock' || under.text !== 'Requires Ranged 10 (you: 7), waits until then') return 'a slot under its unlock reads ' + JSON.stringify(under);
+    if (!under || under.code !== 'unlock' || under.text !== 'Requires Ranged 10, now 7') return 'a slot under its unlock reads ' + JSON.stringify(under);
     const at = reasonOf(sl, set, bag, null, 'bronze_arrows', { ranged: { level: 10, xp: 0 } }, null);
     if (at && at.code === 'unlock') return 'a slot at its unlock still waits: ' + JSON.stringify(at);
     if (reasonOf(sl, set, bag, null, 'bronze_arrows', null, null)) return 'with no skills read the slot claims a wait: ' + JSON.stringify(reasonOf(sl, set, bag, null, 'bronze_arrows', null, null));

@@ -48,11 +48,10 @@ import { levelOf } from '../session/character-sections.js?v=0.2.134';
 import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.134';
 import { nameOf } from '../session/item-sections.js?v=0.2.134';
 import { huntName } from '../session/party-sections.js?v=0.2.134';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
 import { whole } from '../render/format.js?v=0.2.134';
 import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.134';
-import { bestFind } from '../hunt-view/summary-model.js?v=0.2.134';
+import { bestFind, END_WORDS } from '../hunt-view/summary-model.js?v=0.2.134';
 import { itemName } from './widgets/bits.js?v=0.2.134';
 import { t } from '../render/player-text.js?v=0.2.134';
 import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.134';
@@ -141,8 +140,8 @@ export function awayRecapOf(cs) {
   if (Number.isSafeInteger(was.gold) && gold !== null && gold > was.gold) parts.push(signed(gold - was.gold, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
-  const name = nameOf(cs) || 'Your hero';
-  const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + huntName(h.huntId);
+  const name = nameOf(cs) || 'Hero';
+  const head = 'Away ' + awayWords(gone) + ': ' + name + ' hunted ' + huntName(h.huntId);
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
@@ -153,9 +152,12 @@ export function awayRecapOf(cs) {
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
+/* The end reasons and next-thing lines are labels with no period (src/data/text/summary.js, away.js); in this card's prose each one ends a sentence. */
+const dot = (s) => (s && !/[.!?…]$/.test(s) ? s + '.' : s);
+
 /* What the hunt is doing now, from the envelope: the stamina left, or how long ago it ended and the stamina rested since. */
 function nowWords(cs, h, now) {
-  const name = nameOf(cs) || 'Your hero';
+  const name = nameOf(cs) || 'Hero';
   const where = huntName(h.huntId);
   const st = staminaOf(cs);
   const stamina = st && st.msLeft > 0 ? awayWords(st.msLeft) : null;
@@ -167,11 +169,11 @@ function nowWords(cs, h, now) {
   const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
   /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
   const said = (h.ended ? afterDoneWords(cs, h.sessionId, name) : '') || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '');
-  const then = said ? ' ' + said : '';
+  const then = said ? ' ' + dot(said) : '';
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
-    ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
-      .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
+    ? ' The hunt has ended' + ago + '. ' + dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
+      .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt'))
       + then + (stamina ? ' Stamina now: ' + stamina + '.' : '')
     : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';
 }

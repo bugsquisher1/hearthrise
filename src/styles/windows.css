@@ -91,7 +91,7 @@
 /* Its well and gold bar are the Forged Steel confirmation's (shell.css). */
 .hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }
-.hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
+.hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); white-space: pre-line; }
 .hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); white-space: pre-line; }
 .hw-confirm-note:empty { display: none; }
 .hw-sell-note { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
@@ -427,7 +427,7 @@
 .hw-tiers .hh-seg[hidden] { display: none; }
 .hw-tiers .hh-segs:not(:has(.hh-seg:not([hidden]))) { display: none; }
 .hw-tier-read:empty { display: none; }
-.hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-tier-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); white-space: pre-line; }
 .hw-tier-note:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
@@ -538,6 +538,7 @@
 .hw-skill.is-working .hw-skill-name { color: var(--gold-2); }
 .hw-skill[data-hs-act] .hw-skill-lv::after { content: '\203A'; margin-left: 4px; color: var(--ink-3); }
 .hw-work-hint { margin-bottom: 4px; }
+.hw-work-use, .hw-work-tool, .hw-work-end { white-space: pre-line; }
 .hw-work { display: none; }
 .hw-work.is-on { display: block; }
 .hw-work-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }

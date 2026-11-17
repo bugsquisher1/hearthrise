@@ -19,7 +19,6 @@
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
 import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.134';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.134';
 import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.134';
 import { lossLine } from './boss-loss.js?v=0.2.134';
@@ -42,7 +41,7 @@ export const END_WORDS = Object.freeze({
   party_member_left: t('summary.end_party_member_left'),
   heals_out: t('summary.end_heals_out'),
   ammo_out: t('summary.end_ammo_out'),
-  runes_out: END_REASON_COPY.runes_out.one,
+  runes_out: t('summary.end_runes_out'),
   gold_out: t('summary.end_gold_out'),
   rule: t('summary.end_rule'),
   stamina: t('summary.end_stamina'),
@@ -50,7 +49,7 @@ export const END_WORDS = Object.freeze({
   boss_time: t('summary.end_boss_time'),
   left: t('summary.end_left'),
   changed: t('summary.end_changed'),
-  no_fight: END_REASON_COPY.no_fight.one,
+  no_fight: t('summary.end_no_fight'),
   server: t('summary.end_server'),
 });
 

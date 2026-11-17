@@ -94,7 +94,8 @@ function formulaHtml(f) {
   const w = formulaWords(f);
   if (!w) return '';
   const check = JSON.stringify({ terms: f.terms, inputs: f.example.inputs, result: f.example.result, blessed: f.example.blessed });
-  return page('formulas', f.id, w.name, '<p class="wk-text">' + esc(w.words) + '</p>' + (f.id === 'level_curve' ? levelTable(f.terms.rows) : '')
+  /* the rule as labels, one a line (Tyler 2026-11-16: outside lore a page states labels, never a paragraph) */
+  return page('formulas', f.id, w.name, w.words.split('\n').map((l) => '<p class="wk-text">' + esc(l) + '</p>').join('') + (f.id === 'level_curve' ? levelTable(f.terms.rows) : '')
     + '<p class="wk-example" data-wk-formula="' + esc(f.id) + '" data-wk-check="' + esc(check) + '"><b>' + esc(t('wiki.example')) + '</b> ' + esc(w.example) + '</p>');
 }
 

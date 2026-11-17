@@ -199,7 +199,7 @@ function grade(o) {
   ok(o.at3.html.includes('Fourth hero slot: 75,000 gold (max 4 heroes)')
      && o.at3.html.includes('Buy a hero slot for 75,000 gold') && !/\b5 heroes|fifth/.test(o.at3.html),
     `FS-3: at three heroes the offer reads ${js(o.at3.html)}`);
-  ok(o.at3.line === 'Hero slots: 3 (up to 4 play at once, more cost gold)',
+  ok(o.at3.line === 'Hero slots: 3 (up to 4 play at once). More cost gold',
     `FS-3: at three heroes the line over the roster reads ${js(o.at3.line)}`);
   ok(o.at4.rows.split(',').length === 4 && o.at4.offer === null && o.at4.html === '' && o.at4.line === 'Heroes at once: up to 4',
     `FS-3: at four heroes the screen reads ${js(o.at4)} (expected four rows, no offer, "Heroes at once: up to 4")`);

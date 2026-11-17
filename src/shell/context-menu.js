@@ -112,7 +112,7 @@ export function mountContextMenu(ctx, roots, providers) {
           if (r && typeof r.say === 'string') { say(r.say); btn.disabled = false; return; }
           if (r && r.ok === false) { say(refusalWords(r.error)); btn.disabled = false; return; }
           closeFloatMenu(doc);
-        }, () => { say('That did not work. Try again.'); btn.disabled = false; });
+        }, () => { say('Failed, try again'); btn.disabled = false; });
       },
       onClose: () => {},
       alive: () => alive,

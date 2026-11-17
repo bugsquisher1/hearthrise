@@ -31,7 +31,7 @@ import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGest
 import { t } from '../../../render/player-text.js?v=0.2.134';
 
 const SEARCH_MAX = 50;
-const LOST_WORDS = 'No answer from the Weighhouse. Press again. It won\'t buy twice.';
+const LOST_WORDS = 'No answer, safe to press again';
 
 /** The Browse pane's skeleton. */
 export function browseHtml(ctx) {
@@ -90,7 +90,7 @@ function floorWarning(ctx, left) {
     const h = huntOf(c);
     const s = h && !h.ended ? settingsOf(c) : null;
     if (s && Number.isSafeInteger(s.goldFloor) && s.goldFloor > left) {
-      return (nameOf(c) || 'Your hero') + '\'s hunt stops buying food below ' + goldWords(s.goldFloor) + '. This leaves ' + whole(Math.max(0, left)) + '.';
+      return (nameOf(c) || 'Hero') + ' stops buying food below ' + goldWords(s.goldFloor) + '. Left after: ' + whole(Math.max(0, left));
     }
   }
   return '';
@@ -145,10 +145,10 @@ function patchBuy(root, v, page) {
   const press = buy.querySelector('[data-hs-act="mk-buy"]');
   text(press, g ? 'Try again' : plan.qty ? 'Buy ' + whole(plan.qty) + ' for ' + goldWords(plan.total) : t('controls.buy'));
   prop(press, 'disabled', v.off || !plan.qty || (short && !g));
-  attr(press, 'data-off-why', v.offWhy || (short ? 'You need ' + goldWords(-left) + ' more.' : null));
+  attr(press, 'data-off-why', v.offWhy || (short ? 'Need ' + goldWords(-left) + ' more' : null));
   prop(buy.querySelector('.hw-mk-forget'), 'hidden', !g);
-  text(buy.querySelector('.hw-mk-after'), left === null || !plan.qty ? '' : short ? 'You need ' + whole(plan.total) + ' gold. You have ' + whole(purse) + '.'
-    : 'You\'ll have ' + goldWords(left) + ' left.' + (plan.qty < n ? ' Only ' + whole(plan.qty) + ' are for sale.' : ''));
+  text(buy.querySelector('.hw-mk-after'), left === null || !plan.qty ? '' : short ? 'Need ' + whole(plan.total) + ' gold, have ' + whole(purse)
+    : 'Left after: ' + goldWords(left) + (plan.qty < n ? '. Only ' + whole(plan.qty) + ' for sale' : ''));
   text(buy.querySelector('.hw-mk-warn'), left === null || short || !plan.qty ? '' : floorWarning(ctx, left));
 }
 
@@ -217,7 +217,7 @@ export function patchBrowse(v) {
   /* THE EMPTY MARKET READS AS AN INVITATION: said only once the server has answered that nothing is for sale. */
   const bare = sc.forSale !== null && !sc.forSale.length && !sc.query && !sc.closed;
   cls(pane.querySelector('.hw-mk-invite'), 'is-on', bare);
-  text(pane.querySelector('.hw-mk-invite-p'), 'Nothing is for sale yet. Be the first to list something from your bag or your storage, and the Weighhouse holds it until someone buys it.');
+  text(pane.querySelector('.hw-mk-invite-p'), 'Nothing for sale yet');
   const cols = pane.querySelector('.hw-mk-cols');
   prop(cols, 'hidden', bare);
   if (!sc.pick && list.length && !ctx.isPhone()) { sc.pick = list[0].id; readItem(ctx, cs, sc, sc.pick); }
@@ -259,11 +259,11 @@ async function runBuy(o, plan, deliver) {
   const name = itemName(item);
   if (stop && answerLost(stop)) { sc.msg = LOST_WORDS; repaint(); return; }
   dropGesture(sc);
-  const done = g.bought ? 'Bought ' + whole(g.bought) + ' ' + name + ' for ' + goldWords(g.spent) + '.' : '';
+  const done = g.bought ? 'Bought ' + whole(g.bought) + ' ' + name + ' for ' + goldWords(g.spent) : '';
   const raced = stop && ['gone', 'not_enough', 'expired'].includes(stop.error);
-  sc.msg = !stop ? done + (g.deliver === 'storage' ? ' It\'s in your storage.' : ' It\'s in your bag.')
-    : raced && g.bought ? done + ' The rest sold first, so nothing more was charged. The next prices are below.'
-    : (done ? done + ' ' : '') + said;
+  sc.msg = !stop ? done + (g.deliver === 'storage' ? ', sent to storage' : ', sent to bag')
+    : raced && g.bought ? done + ', the rest sold first'
+    : (done ? done + '. ' : '') + said;
   if (!stop) sc.want = 1;
   repaint();
   await rereadAll(ctx, cs, sc);
@@ -336,10 +336,10 @@ export async function cancelListing(o, listing) {
   let r;
   try { r = await marketCancel(ctx.account, cs, listing, cancelKey(sc, listing)); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
-  if (answerLost(r)) { sc.msg = 'No answer from the Weighhouse. Press Cancel again. It\'s safe.'; repaint(); return; }
+  if (answerLost(r)) { sc.msg = 'No answer, safe to press Cancel again'; repaint(); return; }
   sc.cancels.delete(listing);
   const c = r.ok && r.receipt ? r.receipt : null;
-  sc.msg = !r.ok ? refusalText(r, cs) : c && c.item_id ? 'Canceled. ' + whole(c.qty) + ' ' + itemName(c.item_id) + (c.qty === 1 ? ' is' : ' are') + ' back in your storage.' : 'Canceled. It\'s back in your storage.';
+  sc.msg = !r.ok ? refusalText(r, cs) : c && c.item_id ? 'Canceled, ' + whole(c.qty) + ' ' + itemName(c.item_id) + ' back in storage' : 'Canceled, back in storage';
   repaint();
   await rereadAll(ctx, cs, sc);
 }

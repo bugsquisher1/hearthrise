@@ -29,24 +29,24 @@ const FIELD = {
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
 export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.134" alt="" width="311" height="384">'
-  + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Your hero keeps hunting after you close the game.</p></header>';
+  + '<p class="auth-name">Hearthrise</p><p class="auth-pitch">Hunts keep going with the game closed</p></header>';
 
 /* The two pages a player can read from here (legal-reader.js), as presses. */
 const legalLink = (which) => '<button type="button" class="auth-link" data-auth-legal="' + which + '">' + esc(LEGAL_DOCS[which].title) + '</button>';
 /* Under the pitch, where the crest's column has room (the card's own height is spent on a phone, app.css): the sign-up
    says what pressing the button means; the sign-in just offers the pages, for everyone who joined before it did. */
 const LEGAL_LINE = Object.freeze({
-  create: '<p class="auth-legal">By creating an account you agree to the ' + legalLink('terms') + ' and the ' + legalLink('privacy') + '.</p>',
+  create: '<p class="auth-legal">Creating an account means agreeing to the ' + legalLink('terms') + ' and the ' + legalLink('privacy') + '.</p>',
   'sign-in': '<p class="auth-legal is-links">' + legalLink('privacy') + legalLink('terms') + '</p>',
 });
 
 const SCREENS = Object.freeze({
   'sign-in': { title: 'Sign in', fields: ['email', 'password'], submit: 'Sign in',
-    links: [['create', 'Create an account'], ['forgot', 'Forgot your password?']] },
+    links: [['create', 'Create an account'], ['forgot', 'Forgot password?']] },
   create: { title: 'Create an account', fields: ['email', 'newPassword', 'confirm'], submit: 'Create account',
-    lead: 'Already have an account? Sign in instead.', links: [['sign-in', 'Back to sign in']] },
+    links: [['sign-in', 'Back to sign in']] },
   forgot: { title: 'Reset your password', fields: ['email'], submit: 'Send reset link',
-    lead: 'We\'ll email you a reset link.', links: [['sign-in', 'Back to sign in']] },
+    links: [['sign-in', 'Back to sign in']] },
   'set-password': { title: 'Choose a new password', fields: ['newPassword', 'confirm'], submit: 'Save password', links: [] },
 });
 

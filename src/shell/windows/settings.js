@@ -40,9 +40,9 @@ function rowHtml(r) {
   const open = set ? '<label class="st-line">' : '<div class="st-line">';
   const head = '<span class="st-label">' + (r.type === 'action' ? '' : esc(r.label)) + '</span>';
   /* A note (Help: how the game works) is read, not set: its label heads it and its help is the text. */
-  if (r.type === 'note') return '<div class="st-row is-note" data-row="' + esc(r.id) + '"><h4 class="st-label">' + esc(r.label) + '</h4><p class="st-help">' + esc(r.help) + '</p></div>';
+  if (r.type === 'note') return '<div class="st-row is-note" data-row="' + esc(r.id) + '"><h4 class="st-label">' + esc(r.label) + '</h4>' + r.help.split('\n').map((l) => '<p class="st-help">' + esc(l) + '</p>').join('') + '</div>';
   return '<div class="st-row" data-row="' + esc(r.id) + '" title="' + esc(r.help) + '">' + open + head + control(r)
-    + (set ? '</label>' : '</div>') + '<p class="st-help">' + esc(r.help) + '</p></div>';
+    + (set ? '</label>' : '</div>') + '' + r.help.split('\n').map((l) => '<p class="st-help">' + esc(l) + '</p>').join('') + '</div>';
 }
 
 /** The skeleton (built once). */

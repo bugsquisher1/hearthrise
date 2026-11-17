@@ -251,7 +251,7 @@ function startApp(win) {
       clear();
       obs.screen('characters');
       root.className = 'app is-auth';
-      root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
+      root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Characters</h1>'
         + '<p class="auth-lead" role="status">Loading characters…</p></div></main>';
     }
     const a = account;
@@ -279,9 +279,9 @@ function startApp(win) {
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
        at a time." because the server had not said yet); unsaid, nothing is said */
     const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer, roster);
-    root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
+    root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
-      + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
+      + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
       + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
@@ -350,7 +350,7 @@ function startApp(win) {
     if (!r.ok) {
       const m = root.querySelector('.auth-message');
       if (m) m.textContent = r.reason === 'limit' ? 'Heroes at once: ' + r.limit + '. Close one first.'
-        : 'Character didn\'t load. Try again in a minute.';
+        : 'Character failed to load, try again soon';
       return false;
     }
     if (a !== account) return false;

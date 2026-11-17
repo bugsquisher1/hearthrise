@@ -86,7 +86,7 @@ function skillsWindow(groups) {
   const render = function renderSkills() {
     return '<div class="hw-skills">'
       + groups.map(([cat, label]) => '<section class="hw-skill-group"><h3 class="hw-skill-head">' + esc(label) + '</h3><ul class="hw-skill-list" data-cat="' + cat + '"></ul></section>').join('')
-      + '<p class="hh-empty hw-skill-none">Reading your skills…</p></div>';
+      + '<p class="hh-empty hw-skill-none">Loading skills…</p></div>';
   };
   render.patch = function patchSkills(body, ctx) {
     const sk = skillLevelsOf(ctx.character);

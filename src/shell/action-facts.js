@@ -89,7 +89,7 @@ function shotProblem(a, role, skills) {
   if (isRune(it)) return t('bar.shot_rune');
   const by = weaponsOf(Object.keys(HUNT_ROLES).filter((r) => shootsItem(r, it)));
   if (!by) return t('bar.shot_nobody');
-  return t(role && HUNT_ROLES[role] ? 'bar.shot_wrong_weapon' : 'bar.shot_no_weapon', { weapons: by });
+  return role && HUNT_ROLES[role] ? t('bar.shot_wrong_weapon', { weapons: by }) : t('bar.shot_no_weapon');
 }
 
 /** "Your weapon can’t cast this. It works once you hold a Shield." for a spell the hero's worn
@@ -350,7 +350,7 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     if (!r) return { code: 'unknown', text: t('bar.unknown_ability'), glyph: 'uiLock', strike: true };
     if (!r.active) return { code: 'inactive', text: t('bar.inactive', { ability: abilityName(a.id) }), glyph: 'uiLock', strike: true };
     const disc = set && set.discipline ? set.discipline : null;
-    if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
+    if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon'), glyph: 'uiLock', strike: true };
     if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r.disciplines[0]) }), glyph: 'uiLock', strike: true };
     /* NOT UNLOCKED YET (`unlock`, a level in the row's own skill, the server's `skills`): the slot is kept and waits, as the engine's does (abilities.js 'level') */
     const have = r.unlock && skills ? (skills[abilitySkill(r)] || { level: 1 }).level : null;

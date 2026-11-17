@@ -44,7 +44,7 @@
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
 import { ALERT_INDEX } from '../data/alerts.js?v=0.2.134';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.134';
+import { t } from '../render/player-text.js?v=0.2.134';
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.134';
 import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.134';
 import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.134';
@@ -66,7 +66,7 @@ import { levelOf } from '../session/character-sections.js?v=0.2.134';
 import { ITEMS } from '../data/items.js?v=0.2.134';
 import { trackOnce } from '../net/observability.js?v=0.2.134';
 
-const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
+const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -162,7 +162,7 @@ function candidatesOf(cs, viewed) {
      already dismissed never comes back as a side line. */
   if (h.ended && h.endReason === 'died') {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
-      text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
+      text: t('summary.died_in', { name: who(cs), ground: where }) });
   }
   /* LEAVE TOGETHER (Tyler 2026-10-22): "<Name> left the hunt, so <hero> came home too." / "<Name> died, so ..." */
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,

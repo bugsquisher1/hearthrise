@@ -23,28 +23,28 @@ const keyOf = (o) => o.from + '>' + o.to;
 
 /* What one row needs and why its button is off: the first thing missing, in the order the server checks it. */
 function blockOf(cs, o, h, purse, lv) {
-  if (lv !== null && lv < o.level) return 'Needs Crafting ' + o.level + '. Yours is ' + lv + '.';
-  if (h.today >= h.perDay) return 'Your heroes made ' + whole(h.perDay) + ' Hallmarks today. More after midnight UTC.';
+  if (lv !== null && lv < o.level) return 'Requires Crafting ' + o.level + ', have ' + lv;
+  if (h.today >= h.perDay) return 'Daily limit: ' + whole(h.perDay) + ' Hallmarks, resets at midnight UTC';
   /* where the gem comes from, from the catalogue (item-lore.js whereToGet), so a new tier's gem says its own home */
   if (heldForHallmark(cs, o.gem).all < 1) return 'Needs a ' + itemName(o.gem) + '. ' + (whereToGet(o.gem) ? whereToGet(o.gem) + '. ' : '') + 'Or buy one at the Weighhouse.';
-  if (purse !== null && purse < o.gold) return 'You need ' + gold(o.gold - purse) + ' more.';
+  if (purse !== null && purse < o.gold) return 'Need ' + gold(o.gold - purse) + ' more';
   return '';
 }
 
-/* "you hold 2, 1 in Storage" */
+/* "held 2, 1 in Storage" */
 function holdWords(cs, id) {
   const n = heldForHallmark(cs, id);
-  return 'you hold ' + whole(n.all) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '');
+  return 'held ' + whole(n.all) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '');
 }
 
 /** The section's skeleton, above the skill's rows. */
 export function hallmarkPaneHtml() {
   return '<section class="hw-hallmark"><h3 class="hs-sub">Hallmark</h3>'
-    + '<p class="hs-note hw-hallmark-how">Set a gem in a Fine piece and choose its second perk. Nothing is rolled here and it can\'t fail. It costs gold and the gem.</p>'
+    + '<p class="hs-note hw-hallmark-how">Fine piece + gem: pick its second perk, no roll, no fail</p>'
     + '<p class="hs-note hw-hallmark-day"></p>'
     + '<ul class="hw-ledger hw-hallmark-rows"></ul><p class="hh-empty hw-hallmark-none"></p>'
     + '<div class="hw-confirm hw-hallmark-ask" role="alertdialog" aria-label="Confirm the Hallmark"><p class="hw-confirm-q"></p>'
-    + '<p class="hw-confirm-note">The Fine piece and the gem are used. The new piece trades like any other.</p>'
+    + '<p class="hw-confirm-note">Uses the Fine piece and the gem\nResult: tradeable</p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="hallmark-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="hallmark-no">Cancel</button></div></div></section>';
 }
@@ -75,19 +75,19 @@ export function patchHallmarkPane(root, ctx, sc) {
   /* With no Fine piece the section is one line (the rows below are the way to one); the rest shows once there is something to choose. */
   prop(root.querySelector('.hw-hallmark-how'), 'hidden', !offers.length);
   prop(root.querySelector('.hw-hallmark-day'), 'hidden', !offers.length);
-  text(root.querySelector('.hw-hallmark-day'), h ?'Hallmarks today across your heroes: ' + whole(h.today) + ' of ' + whole(h.perDay) + '.' : '');
+  text(root.querySelector('.hw-hallmark-day'), h ? 'Hallmarks today: ' + whole(h.today) + '/' + whole(h.perDay) : '');
   const none = root.querySelector('.hw-hallmark-none');
   cls(none, 'is-on', !offers.length);
-  text(none, !h ? 'The Hallmark step loads from the server.' : offers.length ? ''
-    : 'Hold a Fine piece to choose its second perk here. Make Banded Signet can roll one, and setting a Road Carnelian in a plain one always does.');
+  text(none, !h ? 'Loading…' : offers.length ? ''
+    : 'Requires a Fine piece in the bag');
   const asked = sc.hallmark ? offers.find((o) => keyOf(o) === sc.hallmark) : null;
   if (sc.hallmark && (!asked || !!blockOf(cs, asked, h, purse, lv) || sc.pending)) sc.hallmark = null;
   const cf = root.querySelector('.hw-hallmark-ask');
   const yes = cf.querySelector('[data-hs-act="hallmark-yes"]');
   cls(cf, 'is-on', !!sc.hallmark);
   if (sc.hallmark && asked) {
-    text(cf.querySelector('.hw-confirm-q'), 'Hallmark your ' + itemName(asked.from) + ' with ' + (JEWEL_PERKS[asked.perk] ? JEWEL_PERKS[asked.perk].name : asked.perk)
-      + ' for ' + gold(asked.gold) + ' and a ' + itemName(asked.gem) + '? It makes ' + itemName(asked.to) + ', and can\'t be undone.');
+    text(cf.querySelector('.hw-confirm-q'), 'Hallmark ' + itemName(asked.from) + ' with ' + (JEWEL_PERKS[asked.perk] ? JEWEL_PERKS[asked.perk].name : asked.perk)
+      + '?\nCost: ' + gold(asked.gold) + ', 1 ' + itemName(asked.gem) + '\nResult: ' + itemName(asked.to) + ', permanent');
     text(yes, 'Hallmark for ' + gold(asked.gold));
   }
   prop(yes, 'disabled', sc.pending);
@@ -110,7 +110,7 @@ export function actHallmarkPane(ctx, action, t, sc, repaint) {
     const o = h ? h.offers.find((x) => keyOf(x) === sc.hallmark) : null;
     sc.hallmark = null;
     if (!o) { repaint(); return true; }
-    runIntent(sc, repaint, () => hallmarkPiece(ctx.account, cs, o.from, o.to, o.gold), 'At the jeweler\'s bench…', () => 'You made ' + itemName(o.to) + '.', cs);
+    runIntent(sc, repaint, () => hallmarkPiece(ctx.account, cs, o.from, o.to, o.gold), 'At the jeweler\'s bench…', () => 'Made ' + itemName(o.to), cs);
     return true;
   }
   return false;

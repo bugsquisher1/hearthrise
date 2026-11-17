@@ -23,7 +23,7 @@ const SKELETON = '<section class="gm-part"><h3 class="hs-sub">Who\'s playing</h3
   + '<section class="gm-part"><h3 class="hs-sub">One hero</h3><div class="gm-row"><input class="hh-num gm-field gm-find" type="text" maxlength="20" aria-label="A hero\'s name" placeholder="A hero\'s name">'
   + '<button type="button" class="hh-tool" data-hs-act="gm-look">Look</button></div>'
   + '<div class="gm-hero" hidden><p class="gm-facts"></p><ul class="gm-more"></ul>'
-  + '<input class="hh-num gm-field gm-why" type="text" maxlength="200" aria-label="Why" placeholder="Why? A few words, kept in the log">'
+  + '<input class="hh-num gm-field gm-why" type="text" maxlength="200" aria-label="Why" placeholder="Reason, logged">'
   + '<div class="gm-row"><button type="button" class="hh-tool" data-hs-act="gm-stop">Stop</button>'
   + '<select class="hh-select gm-minutes" aria-label="For how long">' + MUTE_MINUTES.map(([m, w]) => '<option value="' + m + '">' + w + '</option>').join('') + '</select>'
   + '<button type="button" class="hh-tool" data-hs-act="gm-mute">Mute</button><button type="button" class="hh-tool" data-hs-act="gm-unmute">Unmute</button>'
@@ -32,8 +32,8 @@ const SKELETON = '<section class="gm-part"><h3 class="hs-sub">Who\'s playing</h3
   + '<button type="button" class="hh-tool" data-hs-act="gm-no">Cancel</button></div></div></div></section>'
   + '<section class="gm-part"><h3 class="hs-sub">Say to everyone</h3><div class="gm-row"><input class="hh-num gm-field gm-say" type="text" maxlength="240" aria-label="A line to everyone" placeholder="Everyone reads this as the Game Master">'
   + '<button type="button" class="hh-tool" data-hs-act="gm-say">Say</button></div></section>'
-  + '<section class="gm-part"><h3 class="hs-sub">This test hero</h3><p class="hs-note">Only this account can be given anything, and it can\'t trade, use the market or reach a leaderboard. The hero must be idle.</p>'
-  + '<input class="hh-num gm-field gm-grant-why" type="text" maxlength="200" aria-label="Why" placeholder="Why? A few words, kept in the log">'
+  + '<section class="gm-part"><h3 class="hs-sub">This test hero</h3><p class="hs-note">Test account only, no trade, market or leaderboard, idle hero only</p>'
+  + '<input class="hh-num gm-field gm-grant-why" type="text" maxlength="200" aria-label="Why" placeholder="Reason, logged">'
   + '<div class="gm-row"><input class="hh-num gm-field gm-gold" type="number" min="1" aria-label="Gold" placeholder="Gold"><button type="button" class="hh-tool" data-hs-act="gm-give-gold">Give gold</button></div>'
   + '<div class="gm-row"><input class="hh-num gm-field gm-item" type="text" maxlength="64" aria-label="Item id" placeholder="Item id"><input class="hh-num gm-field gm-qty" type="number" min="1" aria-label="How many" placeholder="How many"><button type="button" class="hh-tool" data-hs-act="gm-give-item">Give item</button></div>'
   + '<div class="gm-row"><input class="hh-num gm-field gm-level" type="number" min="2" aria-label="Level" placeholder="Level"><button type="button" class="hh-tool" data-hs-act="gm-give-level">Raise Level</button></div></section>'
@@ -113,9 +113,9 @@ async function reread(ctx, st, h) {
 }
 
 const CONFIRMS = Object.freeze({
-  'gm-stop': (h, m) => ({ ask: 'Stop ' + h.name + '? It keeps what it earned, as if the player had pressed Stop.', yes: 'Stop ' + h.name, verb: 'stop', m }),
-  'gm-mute': (h, m) => ({ ask: 'Mute ' + h.name + '\'s account for ' + m[1] + '? Chat and whispers stop until then.', yes: 'Mute ' + h.name, verb: 'mute', m }),
-  'gm-ban': (h, m) => ({ ask: 'Ban ' + h.name + '\'s account? Every hero on it leaves the game, and the player sees a notice.', yes: 'Ban ' + h.name, verb: 'ban', m }),
+  'gm-stop': (h, m) => ({ ask: 'Stop ' + h.name + '? Rewards kept', yes: 'Stop ' + h.name, verb: 'stop', m }),
+  'gm-mute': (h, m) => ({ ask: 'Mute ' + h.name + '\'s account for ' + m[1] + '? Chat and whispers off', yes: 'Mute ' + h.name, verb: 'mute', m }),
+  'gm-ban': (h, m) => ({ ask: 'Ban ' + h.name + '\'s account and sign out its heroes?', yes: 'Ban ' + h.name, verb: 'ban', m }),
 });
 
 async function runConfirmed(ctx, el, root, c, st) {

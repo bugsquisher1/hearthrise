@@ -101,14 +101,14 @@ export function tierPull(r, id, size = 1) {
 const tierLine = (r, tier, size) => { const L = TIER_LINES[tier.id]; return typeof L === 'string' ? L : tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same; };
 export function tierWords(r, id, size = 1) {
   const tier = tierRowOf(r.hunt, id);
-  return tier.id === DEFAULT_TIER ? '' : [tierLine(r, tier, size), TIER_DEATH_LINE].join(' ');
+  return tier.id === DEFAULT_TIER ? '' : [tierLine(r, tier, size), TIER_DEATH_LINE].join('\n');
 }
 
 /** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: big groups that hit hard." '' on Normal. Pure. */
 export function tierChoiceWords(r, id, size = 1) {
   const tier = tierRowOf(r.hunt, id);
   if (tier.id === DEFAULT_TIER) return '';
-  const first = tierLine(r, tier, size).split('. ')[0].replace(/\.$/, '');
+  const first = tierLine(r, tier, size).split('\n')[0].replace(/\.$/, '');
   return t('hunts.tier_choice', { tier: TIER_NAME[tier.id], head: first.charAt(0).toLowerCase() + first.slice(1) });
 }
 

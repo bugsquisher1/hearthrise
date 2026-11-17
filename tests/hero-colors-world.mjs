@@ -208,7 +208,7 @@ try {
   await page.click('[data-hs-act="of-colors"]');
   await page.waitForFunction(() => /times a day/.test(document.querySelector('.hw-cs-outfit .hh-intent-msg').textContent), null, { timeout: 15000 }).catch(() => null);
   const said9 = await page.evaluate(() => document.querySelector('.hw-cs-outfit .hh-intent-msg').textContent);
-  step('CW-9 past the cap the words say so, with the row\'s number', said9 === 'A hero can change colors 2 times a day. More after midnight UTC.', said9);
+  step('CW-9 past the cap the words say so, with the row\'s number', said9 === 'Daily limit: 2 color changes, resets at midnight UTC', said9);
   step('CW-9 and nothing is charged', await purse() === was9, await purse());
   if (shots) await a.shot('outfit-limit');
   await sql(`update public.hr_sink_rules set per_day = 100 where sink_id = 'hero_colors'`);

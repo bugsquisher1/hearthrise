@@ -84,7 +84,7 @@ export function renderConfigureAction(ctx) {
   /* The phone sheet has no title band: its close is the window's own square steel close. */
   const close = glyphSvg(ctx && ctx.glyphs, 'uiClose') || '×';
   return '<div class="ca">'
-    + '<p class="ca-loading">Your bar loads from the server…</p>'
+    + '<p class="ca-loading">Loading action bar…</p>'
     + '<div class="ca-form">'
     + '<div class="ca-top"><span class="ca-rank"></span>'
     + '<span class="ca-tabs" role="tablist" aria-label="Kind of action">'
@@ -111,7 +111,7 @@ export function renderConfigureAction(ctx) {
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
     + '</div></div></div>'
     + '<p class="hh-intent-msg ca-msg" role="status" aria-live="polite"></p>'
-    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Your hero uses this by itself. Here you choose when.</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
+    + '<div class="hc-foot ca-foot"><p class="ca-self hw-phone-only">Fires automatically, set when below</p>' + tool('clear', 'Empty slot') + tool('cancel', 'Cancel') + tool('save', 'Save', ' is-primary') + '</div>'
     + '</div></div>';
 }
 
@@ -172,7 +172,7 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-store', r.carry === 'store');
   cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells');
   cls(el, 'is-locked', !!r.locked);
-  attr(el, 'title', r.locked ? (r.lockWhy || (r.kind === 'ammo' ? 'Your weapon can’t shoot this' : 'Your weapon can’t cast this')) : '');
+  attr(el, 'title', r.locked ? (r.lockWhy || (r.kind === 'ammo' ? 'Wrong ammo for this weapon' : 'This weapon can’t cast it')) : '');
   prop(el, 'disabled', off);
 }
 
@@ -216,7 +216,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const cl = root.querySelector('.ca-carry');
   prop(cl, 'hidden', !carry);
   if (carry) {
-    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in your backpack, ' + whole(carry.inHunt) + ' in this hunt.' + (carry.wait ? ' ' + carry.wait : ''));
+    text(cl.querySelector('.ca-carry-t'), whole(carry.have) + ' ' + itemName(carry.id) + ' in backpack, ' + whole(carry.inHunt) + ' in this hunt' + (carry.wait ? '. ' + carry.wait : ''));
     const b = cl.querySelector('[data-x="carry"]');
     text(b, carryWords(carry));
     attr(b, 'data-item', carry.id);
@@ -273,7 +273,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   if (icon.getAttribute('data-for') !== ik) { icon.innerHTML = shown ? actionIconHtml(ctx.glyphs, shown.action) : ''; attr(icon, 'data-for', ik); }
   text(root.querySelector('.ca-d-name'), shown ? shown.name : '');
   const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];
-  text(root.querySelector('.ca-vs'), cmp.length ? 'vs your ' + picked.name : '');
+  text(root.querySelector('.ca-vs'), cmp.length ? 'vs ' + picked.name : '');
   rows(root.querySelector('.ca-cmp'), cmp, { key: (x) => x, build: () => element(ctx.doc, '<li></li>'), patch: (li, x) => text(li, x) });
   const max = shown && shown.kind === 'drink' ? vitalsOf(cs).manaMax : vitalsOf(cs).hpMax;
   text(root.querySelector('.ca-waste'), shown ? wasteLine(shown, threshold(d, shown.kind), max) : '');

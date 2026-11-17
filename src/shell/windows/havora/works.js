@@ -45,21 +45,21 @@ export function giftRoom(w, purse) {
   return Number.isSafeInteger(purse) ? Math.max(0, Math.min(w.maxGift, purse)) : w.maxGift;
 }
 
-/** The button for all that can go today: "Give the 18,000 gp left today", what the project still needs when that's less, or "Give the 500 gp you have". Pure. */
+/** The button for all that can go today: "Give the 18,000 gp left today", what the project still needs when that's less, or "Give all 500 gp". Pure. */
 export function maxWords(w, purse = null) {
   const room = giftRoom(w, purse);
-  if (room < w.maxGift) return 'Give the ' + gold(room) + ' you have';
+  if (room < w.maxGift) return 'Give all ' + gold(room);
   return w.left < w.leftToday ? 'Give the ' + gold(w.maxGift) + ' it still needs' : 'Give the ' + gold(w.maxGift) + ' left today';
 }
 
 /** Why a gift is off for gold, under the buttons, before any press; '' when the purse covers them, isn't stated, or the last button already says it ("Give the
-    500 gp you have": a line more pushed the custom gift under a 1366x768 window's foot, v0.2.97 gate). Pure. */
+    all 500 gp": a line more pushed the custom gift under a 1366x768 window's foot, v0.2.97 gate). Pure. */
 export function purseWords(w, purse, gifts) {
   if (!Number.isSafeInteger(purse) || !w || w.maxGift === 0) return '';
   const least = w.minGift || 1;
-  if (purse < least) return purse ? 'You have ' + gold(purse) + ', and the smallest gift is ' + gold(least) + '.' : 'Your purse is empty.';
+  if (purse < least) return purse ? 'Minimum gift: ' + gold(least) + ', have ' + gold(purse) : 'Not enough gold';
   if (purse < w.maxGift) return '';
-  return gifts.some((g) => g > purse) ? 'You have ' + gold(purse) + '. A gift can\'t be more than your purse.' : '';
+  return gifts.some((g) => g > purse) ? 'Max gift: ' + gold(purse) : '';
 }
 
 /** Where it stands: "Framed: 412,300 of 1,000,000 gp". Pure. */
@@ -78,14 +78,14 @@ export function nextWords(w, row) {
 /** Today's line, in the designer's words where the day is done. Pure. */
 export function todayWords(w) {
   if (w.finished) return '';
-  if (w.maxGift === 0) return 'Havora takes ' + gold(w.perDay) + ' a day from one account, and you\'ve given yours. More after midnight UTC.';
-  return 'You can give ' + gold(w.leftToday) + ' more today. More after midnight UTC.';
+  if (w.maxGift === 0) return 'Daily limit reached: ' + gold(w.perDay) + ', resets at midnight UTC';
+  return 'Left today: ' + gold(w.leftToday) + ', resets at midnight UTC';
 }
 
 /** This account's place and total, from the server. Pure. */
 export function meWords(w) {
-  if (!w.gold) return 'You haven\'t given to ' + (w.name || 'the Works') + ' yet.';
-  return w.place === null ? 'You\'ve given ' + gold(w.gold) + '.' : 'You\'re ' + placeWords(w.place) + ', with ' + gold(w.gold) + ' given.';
+  if (!w.gold) return 'Given: none yet';
+  return w.place === null ? 'Given: ' + gold(w.gold) : 'Rank: ' + placeWords(w.place) + ', ' + gold(w.gold) + ' given';
 }
 
 /** The tab as the Havora window lists it. */
@@ -133,7 +133,7 @@ export function patchWorks(pane, ctx) {
   text(pane.querySelector('.hv-works-lead'), w && w.finished ? row.aboutDone : row.about);
   text(pane.querySelector('.hv-works-stage'), w ? stageWords(w, row) : '');
   style(pane.querySelector('.hv-works-fill'), 'width', w && w.goal > 0 ? Math.min(100, (w.total / w.goal) * 100).toFixed(1) + '%' : '0%');
-  text(pane.querySelector('.hv-works-next'), w ? (w.finished ? row.name + ' is finished. Nothing else is being built right now.' : nextWords(w, row)) : '');
+  text(pane.querySelector('.hv-works-next'), w ? (w.finished ? row.name + ' finished, nothing else to build' : nextWords(w, row)) : '');
   const give = pane.querySelector('.hv-works-give');
   prop(give, 'hidden', !!(w && w.finished));
   const off = sc.pending || !w || w.maxGift === 0;
@@ -144,7 +144,7 @@ export function patchWorks(pane, ctx) {
   for (const b of pane.querySelectorAll('[data-hs-act="works-give"]')) {
     const short = Number.isSafeInteger(purse) ? Math.max(0, Number(b.getAttribute('data-amount')) - purse) : 0;
     prop(b, 'disabled', off || short > 0);
-    attr(b, 'data-off-why', short && !off ? 'You need ' + gold(short) + ' more.' : null);
+    attr(b, 'data-off-why', short && !off ? 'Need ' + gold(short) + ' more' : null);
   }
   prop(pane.querySelector('[data-hs-act="works-typed"]'), 'disabled', off || poor);
   const max = pane.querySelector('.hv-works-max');
@@ -200,7 +200,7 @@ export function actWorks(ctx, body, action, ev, t) {
   /* a field holding no whole number never reaches the server: it says the rule it would have said */
   if (!Number.isSafeInteger(amount) || amount < 1) { sc.msg = refusalText({ ok: false, error: 'works_small', verb: 'town_works', project: w.project, min: w.minGift }, cs); repaint(); return true; }
   /* nor does a typed gift over the purse the envelope states: the line under the buttons, said at the press */
-  if (Number.isSafeInteger(purse) && amount > purse) { sc.msg = 'You have ' + gold(purse) + '. A gift can\'t be more than your purse.'; repaint(); return true; }
+  if (Number.isSafeInteger(purse) && amount > purse) { sc.msg = 'Max gift: ' + gold(purse); repaint(); return true; }
   const row = rowOf(w);
   runIntent(sc, repaint, () => giveToWorks(ctx.account, cs, w.project, amount).then((r) => { sc.stale = true; return r; }), 'Giving it…', (r) => thanks(r, row), cs);
   return true;

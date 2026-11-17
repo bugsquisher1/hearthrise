@@ -166,7 +166,7 @@ function patchTalk(body, ctx, social, st) {
   if (atBottom || st.jump) { list.scrollTop = list.scrollHeight; st.jump = false; prop(pill, 'hidden', true); }
   else if (added) prop(pill, 'hidden', false);
   const none = body.querySelector('.hc-none.is-talk');
-  text(none, lines.length ? '' : social.chat.loading ? 'Reading the chat…' : 'Nothing said here yet.');
+  text(none, lines.length ? '' : social.chat.loading ? 'Loading chat…' : 'No messages yet');
   cls(none, 'is-on', !lines.length);
   social.chat.view(whisper ? null : tab, true);
   social.whispers.view(whisper ? tab : null, true);

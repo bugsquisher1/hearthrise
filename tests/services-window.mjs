@@ -152,7 +152,7 @@ async function checks(overrides) {
           fails.push('SV-3 the tiers read ' + JSON.stringify(rows));
         }
         const note = await txt(page, '.hw-bless-note');
-        if (!/Free below Level 30./.test(note || '') || !/uses them all up/.test(note || '')) fails.push('SV-3 the note reads ' + JSON.stringify(note));
+        if (note !== 'Each Blessing: −32% death XP loss. Used up on death. Free until Level 30') fails.push('SV-3 the note reads ' + JSON.stringify(note));
         await press(page, '[data-hs-win="shop"] [data-pane="services"] [data-hs-act="bless"][data-tier="2"]', 'SV-3');
         await wait(page, () => !document.querySelector('[data-hs-win="shop"] [data-pane="services"] .hw-services.is-pending'), null, 4000);
         const bl = sent(s, 'hr_blessing_buy');
@@ -162,7 +162,7 @@ async function checks(overrides) {
         await press(page, '[data-hs-win="shop"] .hw-tab[data-tab="services"]', 'SV-6');
         await page.waitForTimeout(120);
         const kept = await txt(page, '.hh-intent-msg');
-        if (!/Blessing II is yours/.test(kept || '')) fails.push('SV-6 the Shop\'s repaint wiped the Services answer: ' + JSON.stringify(kept));
+        if (!/Blessing II gained/.test(kept || '')) fails.push('SV-6 the Shop\'s repaint wiped the Services answer: ' + JSON.stringify(kept));
         // SV-4
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] input[type="text"]').length) !== 0) fails.push('SV-4 the Services window still offers a name box');
         if (sent(s, 'hr_character_name_set').length) fails.push('SV-4 the Services window sent a free name change');
@@ -175,10 +175,10 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-7 the Services tab did not open');
       else {
         const blows = await txt(page, '.hw-temper [data-track="blows"]'), armor = await txt(page, '.hw-temper [data-track="armor"]');
-        if (!/Iron Sword/.test(blows || '') || !/Rung 1 of 5/.test(blows || '') || !/1% harder/.test(blows || '') || !/Next rung 2%/.test(blows || '')) fails.push('SV-7 the Blows row reads ' + JSON.stringify(blows));
-        if (!/Needs 20 Tempering Salts\. You hold 20 \(5 in Storage\)\./.test(blows || '')) fails.push('SV-8 the Blows row does not say what it takes and what the hero holds: ' + JSON.stringify(blows));
+        if (!/Iron Sword/.test(blows || '') || !/Rung 1\/5/.test(blows || '') || !/damage and heals \+1%/.test(blows || '') || !/Next: \+2%/.test(blows || '')) fails.push('SV-7 the Blows row reads ' + JSON.stringify(blows));
+        if (!/Tempering Salts: 20\/20, 5 in Storage/.test(blows || '')) fails.push('SV-8 the Blows row does not say what it takes and what the hero holds: ' + JSON.stringify(blows));
         if ((await txt(page, '.hw-temper-way')) !== '') fails.push('SV-8 a hero who holds enough is told where to get it');
-        if (!/Rung 5 of 5/.test(armor || '') || !/5% softer/.test(armor || '') || !/Full/.test(armor || '')) fails.push('SV-7 the Armor row reads ' + JSON.stringify(armor));
+        if (!/Rung 5\/5/.test(armor || '') || !/damage taken -5%, max/.test(armor || '') || !/Full/.test(armor || '')) fails.push('SV-7 the Armor row reads ' + JSON.stringify(armor));
         if (!(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 a full ladder can still be pressed');
         const before = s.calls.length;
         const sales = () => s.calls.slice(before).filter((c) => c.name === 'hr-accrue' && JSON.stringify(c.body).includes('unlock_buy'));
@@ -211,9 +211,9 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-8 the Services tab did not open short of material');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/You hold 4 \(1 in Storage\)\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
+        if (!/Tempering Salts: 4\/20, 1 in Storage/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-8 short of material reads ' + JSON.stringify(b));
         const way = await txt(page, '.hw-temper-way');
-        if (!/Tempering Salts: requires Smithing 15 \(you: \d+\), made from 1 Iron Bar and 1 Bone Chips/.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
+        if (!/Tempering Salts: requires Smithing 15 \(now \d+\), made from 1 Iron Bar and 1 Bone Chips\. Bone Chips drop from /.test(way || '') || !/Also sold at the Weighhouse/.test(way || '') || way.split('Smithing').length !== 2) fails.push('SV-8 the way reads ' + JSON.stringify(way));
       }
       await ctx.close();
     }
@@ -243,8 +243,8 @@ async function checks(overrides) {
         /* the answer shows only after the re-read has landed: read both in the one frame the words first appear */
         const seen = await page.waitForFunction(() => { const m = document.querySelector('.hw-temper-msg'); const b = document.querySelector('.hw-temper [data-track="blows"]'); return m && /Not enough/.test(m.textContent) ? b.textContent : null; }, null, { timeout: 8000 }).then((h) => h.jsonValue(), () => null);
         const said = !!seen;
-        if (!said || !/Not enough Tempering Salts: you have 3 in your bag and 1 in Storage, and it takes 20\./.test(await txt(page, '.hw-temper-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-temper-msg')));
-        if (!/You hold 8 \(5 in Storage\)\./.test(seen || '')) fails.push('SV-8 a refused sale did not re-read the server: the row still reads ' + JSON.stringify(seen));
+        if (!said || !/Not enough Tempering Salts: 3 in bag, 1 in Storage, need 20/.test(await txt(page, '.hw-temper-msg') || '')) fails.push('SV-8 the refusal reads ' + JSON.stringify(await txt(page, '.hw-temper-msg')));
+        if (!/Tempering Salts: 8\/20, 5 in Storage/.test(seen || '')) fails.push('SV-8 a refused sale did not re-read the server: the row still reads ' + JSON.stringify(seen));
       }
       await ctx.close();
     }
@@ -292,7 +292,7 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-7 the Services tab did not open short of gold');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/You need 10,800 gp more\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 short of gold reads ' + JSON.stringify(b));
+        if (!/Need 10,800 gp more/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 short of gold reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }
@@ -301,7 +301,7 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-7 the Services tab did not open on Bronze');
       else {
         const b = await txt(page, '.hw-temper [data-track="blows"]');
-        if (!/can't be tempered\. Gear worn from Level 15 can\./.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
+        if (!/Not temperable, requires gear from Level 15/.test(b || '') || !(await off(page, '.hw-temper [data-track="blows"] button'))) fails.push('SV-7 a Bronze Sword reads ' + JSON.stringify(b));
       }
       await ctx.close();
     }
@@ -332,7 +332,7 @@ async function checks(overrides) {
       if (!opened) fails.push('SV-5 the Services tab did not open without the sections');
       else {
         if (!(await off(page, '[data-hs-act="stam-ask"]'))) fails.push('SV-5 Buy stamina is on with no quote');
-        if (!/not priced/.test(await txt(page, '.hw-stam-quote') || '')) fails.push('SV-5 the stamina line does not say it is unpriced');
+        if ((await txt(page, '.hw-stam-quote')) !== 'No refill price yet') fails.push('SV-5 the stamina line does not say it is unpriced');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-bless li').length) !== 0) fails.push('SV-5 blessing rows were invented');
         if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="shop"] [data-pane="services"] .hw-temper li').length) !== 0) fails.push('SV-5 Tempering rows were invented');
       }

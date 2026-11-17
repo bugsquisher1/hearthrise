@@ -62,7 +62,7 @@ export function gridHtml() {
     + '<p class="hh-empty hw-none"></p>' + elsewhereHtml() + '</section>'
     + '<section class="hw-pane" data-pane="hunt">'
     + '<p class="hw-cap"><span class="hw-loot-sum"></span></p>'
-    + '<ul class="hw-loot"></ul><p class="hh-empty hw-loot-none">Nothing picked up yet. What a hunt brings back shows here, with what to do with each item next time.</p>'
+    + '<ul class="hw-loot"></ul><p class="hh-empty hw-loot-none">Nothing picked up yet</p>'
     + '<p class="hw-loot-note"></p></section>';
 }
 
@@ -135,7 +135,7 @@ function patchBagPane(root, st, ctx) {
   });
   const none = pane.querySelector('.hw-none');
   cls(none, 'is-on', st.loaded && !st.shown.length);
-  text(none, !st.loaded ? '' : !st.items.length ? 'Your bag is empty. Loot from hunts and things you buy land here.' : 'Nothing in the bag matches. Clear the search or pick All.');
+  text(none, !st.loaded ? '' : !st.items.length ? 'Bag empty' : 'No matches');
   patchElsewhere(pane, ctx, sc.query);
 }
 
@@ -209,7 +209,7 @@ export function patchTools(root, st, ctx) {
   prop(ob, 'hidden', !st.outgrown.length);
   prop(ob, 'disabled', sc.pending);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
-  text(tools.querySelector('.hw-value'), !st.shop ? 'Reading the shop prices…' : !val ? 'Value –' : 'Worth ' + gold(val.total) + (val.unpriced ? ' (' + val.unpriced + ' unpriced)' : ''));
+  text(tools.querySelector('.hw-value'), !st.shop ? 'Loading shop prices…' : !val ? 'Value –' : 'Worth: ' + gold(val.total) + (val.unpriced ? ', ' + val.unpriced + ' unpriced' : ''));
 
   const cf = root.querySelector('.hw-confirm');
   cls(cf, 'is-on', !!sc.confirm);
@@ -254,8 +254,8 @@ function patchHuntPane(root, st, ctx) {
     },
   });
   cls(pane.querySelector('.hw-loot-none'), 'is-on', !loot.length);
-  text(pane.querySelector('.hw-loot-note'), st.rules ? 'Loot goes into your bag as it drops. Back in town, Dispatch loot (in the Bag tab or Storage) stores and sells each item by its plan. Don\'t pick up leaves it on the ground.'
-    : 'Reading your loot plans…');
+  text(pane.querySelector('.hw-loot-note'), st.rules ? 'Dispatch loot stores and sells by plan, in town'
+    : 'Loading loot plans…');
 }
 
 /** The grid column for the open tab. */

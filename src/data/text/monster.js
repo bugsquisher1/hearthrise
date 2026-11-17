@@ -18,7 +18,7 @@ export const MONSTER_TEXT = Object.freeze({
 
   /* Where it lives. */
   h_homes: 'Where it lives',
-  home: 'Level {lo} to {hi}, {how}',
+  home: 'Levels {lo}–{hi}, {how}',
   how_common: 'common',
   how_uncommon: 'uncommon',
   how_rare: 'rare',
@@ -51,9 +51,9 @@ export const MONSTER_TEXT = Object.freeze({
   /* What each harder tier does to it, on the ground its page was opened from (Tyler 2026-11-11: "cant this just say 'difficulty
      increases by x% on dangerous/deadly'"). The numbers are that ground's own dials (hunt-tiers.js GROUND_TIERS), the ones the
      engine fights with: {hp} is the Health dial in percent more, {hits} is hits_pct or, from twice as hard up, hits_times. */
-  tier_both: 'On {tier} it has {hp}% more Health and hits {hits}.',
-  tier_hits: 'On {tier} it hits {hits}.',
-  tier_hp: 'On {tier} it has {hp}% more Health.',
+  tier_both: '{tier}: +{hp}% Health, hits {hits}',
+  tier_hits: '{tier}: hits {hits}',
+  tier_hp: '{tier}: +{hp}% Health',
   hits_pct: '{pct}% harder',
   hits_times: '{times} times as hard',
 
@@ -67,7 +67,7 @@ export const MONSTER_TEXT = Object.freeze({
   /* Its drops. */
   h_drops: 'Drops',
   per_kill: 'Chance per kill',
-  no_drops: 'It drops nothing.',
+  no_drops: 'No drops',
   band_common: 'Common',
   band_uncommon: 'Uncommon',
   band_scarce: 'Scarce',

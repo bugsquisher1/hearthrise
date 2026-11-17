@@ -5,7 +5,11 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## v0.2.135 — 2026-11-17 (Boss Calls and Training Gear)
+## v0.2.135 — 2026-11-17 (The Burning Tower)
+
+<!-- tower -->
+**The Burning Tower.** Climb the Tower floor by floor, alone or with your party. Every 10th floor drops a key. Take your keys to the Hearth Chest in town to open it for Tower weapons, supplies and a rare chance at the Key Warden outfit. Each kind of key opens the chest a few times a week. The Key Ring in your bag holds every key you carry.
+<!-- /tower -->
 
 **Training gear.** The Arms Master now sells training gear. Each item says how long it lasts, like Training Sword (12 h), and Buy asks before it spends your gold. Open one in Training for 200% skill XP while you train.
 
@@ -19,7 +23,15 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Top bar and Chronicle.** The top bar groups the windows into short menus. The Wiki has a new Chronicle with your hero's story so far.
 
-**Havora.** A new Hearth plaza, cleaner ground edges, bridges that fit their rivers, chimney smoke, flowing water and townsfolk at work. Every hunting ground got softer, more natural edges, and floors no longer show a repeating tile.
+**Havora.** A new Hearth plaza, cleaner ground edges, bridges that fit their rivers, chimney smoke and flowing water. Six townsfolk now go about their work in town, each with a look of their own. Every hunting ground got softer, more natural edges, and floors no longer show a repeating tile.
+
+**Next buy.** Back in town, the hunt summary names one next buy your gold covers and opens the window where you buy it.
+
+**Party XP.** One party XP table now counts on every hunting ground. Mixed parties earn the most on Dangerous and Deadly.
+
+**Barrow March gear.** Three new shields drop in the Barrow March, and Tempering now goes up to tier 6 with new Tempering Salts. The Castle and the top room upgrades are now for sale in the House.
+
+**Loot plans.** The bag can copy another hero's loot plan in one press.
 
 **Sharper art.** Pixel art stays crisp at 125% and 150% Windows scaling.
 

@@ -459,16 +459,26 @@ async function bagByTouch(page, tag, fails) {
 }
 
 /* ── PH-6 ── A high Level's "What next" (the Coordinator's 10-24 gate: a Level 29 mage at 844x390, the card ran down
-   over HP / XP / MP). Since the label sweep (2026-11-16) every goal is one short label and the deed line no longer names its materials, so the long
-   card is a hero with many goals: first the deed, its name the server's longest (home-sections.js takes 60), then under More the next gear, the next
-   ground (a party's, with how to make one), an empty field (the plant line) and the next spell. A Level 29 mage who has walked the grounds above her. */
+   over HP / XP / MP). Since the label sweep (2026-11-16) every goal is one short label, so the long card is a hero with many goals: first the harvest
+   (the longest list a line holds, below), then under More the deed (its name the server's longest: home-sections.js takes 60), the next gear, the next
+   ground (a party's, with how to make one) and the next spell. A Level 29 mage who has walked the grounds above her.
+   NO ENGLISH LABEL RUNS PAST FIVE LINES on a phone (set v0.2.135: the whole harvest list is 4 lines at 667x375 and fits every cap), so the card's
+   words never scrolled and this rule proved nothing. The cap and its scroll are still the card's guard for longer words (a translation, a
+   longer list), so PH-6 serves the harvest row at three times its English (LONG_WORDS, through open()'s route): the layout reads the words the
+   page draws, never where they came from. */
+const LONG_ROW = "  goal_harvest: 'Harvest {crops} on the Farm (J)',";
+const LONG_WORDS = async (page) => {
+  const real = await readFile(join(ROOT, 'src/data/text/coach.js'), 'utf8');
+  if (!real.includes(LONG_ROW)) throw new Error('PH-6: src/data/text/coach.js has no harvest row ' + LONG_ROW);
+  const body = real.replace(LONG_ROW, "  goal_harvest: '" + Array(3).fill('Harvest {crops} on the Farm (J)').join(', then ') + "',");
+  await page.route(/\/src\/data\/text\/coach\.js(\?|$)/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', headers: { 'Cache-Control': 'no-store' }, body }));
+};
 function longCoach(env) {
   env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(29) + 100, gold: 5000 });
   env.hunt_settings = Object.assign({}, env.hunt_settings, { role: 'mage', discipline: 'staff' });
   env.skills = { magic: { xp: 9000000, level: 44 }, defense: { xp: 900, level: 5 } };
-  /* THE LONGEST FIRST LINE A HERO CAN READ (every coach line is a short label since 2026-11-16, so only a list runs long): the account's
-     field with one plot of every crop ready, a Keep's ten plots. The harvest goes before the deed (hunt-tutorial.js nextGoal), so the card's
-     words are the whole list and the phone's cap has something to scroll. */
+  /* THE LONGEST FIRST LINE A HERO CAN READ: the account's field with one plot of every crop ready (a Keep's ten plots). The harvest goes
+     before the deed (hunt-tutorial.js nextGoal), so the card's words are the whole list. */
   env.farm_land = { cap: 10, plot_level: 1, plots: Object.keys(CROPS).map((crop, i) => ({ i, crop, ready: true, ready_in_s: 0, waterable: false, regrows_left: 0, by: 0, by_name: 'Basil' })) };
   /* walked: the Warrens (no step up ahead of the deed), Hask's Ford and the Slake, so the next ground is the Muster Barrows, a party's, and the line says how to make one */
   env.hunt_bests = { min_ms: 600000, grounds: Object.fromEntries(['coppercap_warrens', 'hasks_ford', 'the_slake'].map((g) => [g, { solo: { xp_h: 90000, balance_h: 100 }, party: null }])) };
@@ -488,7 +498,6 @@ const coachState = (page) => page.evaluate((src) => (0, eval)(src), COACH);
 async function coachFits(page, tag, fails, phone) {
   const c = await coachState(page);
   if (!c) { fails.push('PH-6 [' + tag + '] CONTROL: no open coach card'); return; }
-  if (process.env.PH6_DEBUG) console.log('DBG', tag, JSON.stringify({ id: c.id, chars: c.chars, maxH: c.maxH, text: c.text, end: c.end, lines: c.lines, card: c.card, words: await page.evaluate(() => { const p = document.querySelector('.hs-widget .hs-pointer:not(.is-min)'); return p && p.querySelector('.hs-coach-text') && p.querySelector('.hs-coach-text').textContent; }) }));
   if (c.chars < 300) { fails.push('PH-6 [' + tag + '] CONTROL: the coach (' + c.id + ') says only ' + c.chars + ' characters, so it proves nothing'); return; }
   if (!phone) {
     /* THE DESKTOP'S HUNT CARD STANDS IN THE LEFT COLUMN (hud-room.js dockCoach; audit 2026-11-15 F1: under the hunt bar it lay on the hero): whole where the column has the room,
@@ -1527,7 +1536,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     for (const vp of run('coach') ? [...PHONES, { width: 1440, height: 900 }] : []) {
       const tag = tagOf(vp);
       for (const [where, fixture, prep] of [['hunt', HUNT, longCoach], ['town', ALPHA, inTown]]) {
-        const o = await open(vp, fixture, prep);
+        const o = await open(vp, fixture, prep, { route: LONG_WORDS });
         if (!o.up) { fails.push('PH-6 [' + tag + '] the ' + where + ' did not mount'); await o.ctx.close(); continue; }
         await shot(o.page, 'coach-long-' + where + '-' + tag);
         await coachFits(o.page, tag + ' ' + where, fails, vp.width < 1024);

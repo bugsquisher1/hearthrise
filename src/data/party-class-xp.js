@@ -69,7 +69,9 @@ export const SOLO_XP_PM = 1150;
    alone where a pull of five meets it, and no more than that, or the full box's Deadly four passes 2.5x the contract. The cells between are the old
    rows' median shape (a four of three classes 0.98 of four, of two 0.88; a three of two classes 0.93 of three). */
 const row = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
-export const PARTY_CLASS_XP = row([990, 1500], [990, 1600, 1700], [970, 1580, 1765, 1800]);
+/* THE ONE-CLASS PAIR 950 (was 990; on set v0.2.135, 2026-11-17): with Turning Cut on every melee weapon without a shield (Tyler 2026-11-16) a shield and
+   hatchets pair on the Pauper Vaults at 8 each read 1.03 of its heroes alone at 990 (tests/party-class-xp-line.mjs, 3 seeds), over the 10-31 line. */
+export const PARTY_CLASS_XP = row([950, 1500], [990, 1600, 1700], [970, 1580, 1765, 1800]);
 
 /* WHAT THE PLAYER IS TOLD (designer 2026-11-02; blind party test 2026-11-01). The table above is a factor on an even share of a bigger pull, so "52% more" sat on a party
    that measured 19% more than its heroes alone. THIS row is the measured answer, in whole percent to the nearest 5: Level XP per hero at the default pull, against the
@@ -89,10 +91,10 @@ const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obj
 const BASE_VS_ALONE = Object.freeze({
   mill_cellar: said([-55, -30], [-70, -45, -45], [-80, -60, -55, -55]),
   meadowbrook_thicket: said([-40, -10], [-55, -25, -20], [-65, -40, -30, -30]),
-  wickstead: said([-40, -10], [-55, -25, -20], [-65, -45, -35, -35]),
-  mosslight_glade: said([-35, 0], [-45, -15, -10], [-60, -30, -20, -20]),
-  millrace_sewer: said([-25, 10], [-35, 10, 15], [-45, 0, 10, 15]),
-  coppercap_warrens: said([-20, 20], [-25, 20, 30], [-30, 10, 25, 30]),
+  wickstead: said([-45, -10], [-55, -25, -20], [-65, -45, -35, -35]),
+  mosslight_glade: said([-35, 0], [-45, -10, -5], [-55, -25, -15, -15]),
+  millrace_sewer: said([-30, 10], [-35, 10, 15], [-45, 0, 10, 15]),
+  coppercap_warrens: said([-25, 20], [-25, 20, 25], [-30, 15, 30, 30]),
 });
 /* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));

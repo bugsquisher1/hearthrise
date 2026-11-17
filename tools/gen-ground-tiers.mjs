@@ -48,8 +48,9 @@ const FILE_NOTE = `-- THIS FILE (lane/d-flat-party-xp, Tyler 2026-11-16: "just b
 -- brings Deadly's pull on the table, 8 (was 5): the Warrens and Hask's Ford {8,8,8,8} (were {5,5,5,5}), the Slake too (its own 6
 -- retired), the Glade 6 (was 5; on 8 a hero alone at its floor met the Brook Bear too seldom), Krell's Hold 6 like its Deadly (was 5),
 -- the Muster as before. Deadly's monsters have 1300 permille HP on the table (was 1100): every ground on the table's Deadly moves its
--- hp_pm, the Muster's too (it kept 1000; its Dangerous still does). The first grounds (the Thicket, Wickstead, the Sewer) bring no more
--- monsters, as before. Damage and XP as they stand.
+-- hp_pm, the Muster's too (it kept 1000; its Dangerous still does), and the Glade's is 1450 and Hask's Ford's 1400 (with Turning Cut on every
+-- melee weapon without a shield a party of four cut through them past ~2.5x the pace). The first grounds (the Thicket, Wickstead, the Sewer)
+-- bring no more monsters, as before. Damage and XP as they stand.
 -- ORDER: after 2027-04-27-march-folded-ground-tiers.generated.sql and the 2027-05-01-v0135 catalogues (set v0.2.135). Idempotent: the rows
 -- are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
 -- src/data/balance-sheet.js, src/data/party-class-xp.js and the packs follows AT ONCE (a hunt already running keeps the pull it froze).

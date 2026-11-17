@@ -567,8 +567,8 @@ const mutants = [
   { name: 'the Thicket\'s Gray Wolf pays three times the coin and five times the XP (staying in the wood pays more of both)', case: 'harder-pays-more',
     edits: [['src/data/monsters.js', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 40, gp: [2, 6]', 'hp: 17, atk: 4, baseAcc: 0.48, def: 1, xp: 200, gp: [6, 18]']] },
   /* the party-built pack's climb is the four's (lane/d-open-march-balance). RE-AIMED (lane/d-flat-party-xp, one party table, Tyler 2026-11-16): the Slake's
-     own four cell is gone, so its four at 55 earns about half the Muster's (380k against 767k Level XP an hour) and the old 0.76-fit slip (x0.94) no longer
-     crosses it. The Muster's XP rows at x0.4 (about 307k) put the Slake back over it. */
+     own four cell is gone, so its four at 55 earns about half the Muster's (368k against 689k Level XP an hour on set v0.2.135, cloth's smaller damage and Turning Cut in; it read 380k against 767k) and the old 0.76-fit slip (x0.94) no longer
+     crosses it. The Muster's XP rows at x0.4 (about 275k) put the Slake back over it. */
   { name: 'the Muster Barrows pay x0.4 XP (a four levels faster on the Slake under them)', case: 'harder-pays-more',
     edits: [['src/data/grounds/muster_barrows/pack.js', 'def: 21, xp: 1060,', 'def: 21, xp: 424,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 22, xp: 1278,', 'def: 22, xp: 511,'],
       ['src/data/grounds/muster_barrows/pack.js', 'def: 44, xp: 2978,', 'def: 44, xp: 1191,'], ['src/data/grounds/muster_barrows/pack.js', 'def: 52, xp: 11567,', 'def: 52, xp: 4627,']] },

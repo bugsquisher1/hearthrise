@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-common.png",
   "size": [2048,1904],
-  "pixels": "aff44ab9b2f74d5dbb5501f9c723fe6a95bb3c4915787b1d6d19c4ecf94d35ec",
+  "pixels": "1d6dfe3ada1772da0645cc66afeecc4076cdf95097506e3619f20784d5659ecf",
   "sprites": {
     "alder": {
       "class": "sapling",
@@ -266,7 +266,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[1245,1871]]
+            "s": [[1206,1871]]
           }
         }
       }
@@ -308,7 +308,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[1319,1871]]
+            "s": [[1280,1871]]
           }
         }
       }
@@ -1333,13 +1333,13 @@
     "hedge": {
       "class": "bush",
       "layer": "prop",
-      "frame": [38,25],
-      "anchor": [19,24],
+      "frame": [38,21],
+      "anchor": [19,20],
       "footprint": [1,1],
       "overhang": [0,0,0,0],
       "hover": 0,
-      "height": 23,
-      "contact": [1,36],
+      "height": 21,
+      "contact": [0,37],
       "shadow": {
         "kind": "ellipse",
         "w": 26,
@@ -1352,7 +1352,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[1206,1871]]
+            "s": [[1358,1871]]
           }
         }
       }
@@ -1664,7 +1664,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[1278,1871]]
+            "s": [[1239,1871]]
           }
         }
       }
@@ -2260,7 +2260,7 @@
           "fps": 0,
           "loop": false,
           "dirs": {
-            "s": [[1358,1871]]
+            "s": [[1319,1871]]
           }
         }
       }

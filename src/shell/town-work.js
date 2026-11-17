@@ -326,6 +326,12 @@ export function jobReplacedWords(cs, w) {
   return what ? 'Stopped ' + what : '';
 }
 
+/* AN ERRAND (supabase/migrations/2027-04-27-hearth-errand.sql hr_hearth_errand): a Hearth run of ONE, "Fuel the hearth". The server
+   remembers the job it interrupts and points the hero back at it when the run ends, so the press stops nothing, and nothing here
+   arms a Stop: that Stop would land after the server's way back and end the job (the shell's settle of a spent bench,
+   town-poll.js settleSpentBench, ends the run). */
+const isErrand = (w, n) => w.kind === 'artisan' && w.skill === 'inner_flame' && n === 1;
+
 /**
  * Start (or switch to) a work row: ONE set_activity. `send(fn, busy, done)` is the window's runIntent;
  * `repaint` repaints it when the armed stop fires while something else is in flight. Returns send's promise.
@@ -335,7 +341,8 @@ export function startWork(cs, w, send, repaint, words, count) {
   /* A whole count only on a bench row; anything else (All, a gathering node) runs until stopped or out. */
   const n = w.kind === 'artisan' && Number.isInteger(count) && count > 0 ? count : null;
   const activity = n === null ? { kind: w.kind, id: w.id } : { kind: w.kind, id: w.id, count: n };
-  const replaced = jobReplacedWords(cs, w);
+  const errand = isErrand(w, n);
+  const replaced = errand ? '' : jobReplacedWords(cs, w);
   return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w)), 'Starting…', () => {
     clearTimeout(run.timer);
     run.timer = null;
@@ -344,7 +351,7 @@ export function startWork(cs, w, send, repaint, words, count) {
     run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0,
       /* a ROLLED job's every grade, so the end line can say what the dice made (src/data/jewelry.js) */
       outs: w.row && w.row.roll ? Object.fromEntries(recipeOutcomes(w.row).map((id) => [id, bag[id] || 0])) : null };
-    if (w.kind === 'artisan') {
+    if (w.kind === 'artisan' && !errand) {
       const sup = supplyOf(cs);
       const runs = affordable(cs, w, n === null ? runsOf(w.row, sup) : Math.min(n, runsOf(w.row, sup)));
       const endAt = Date.now() + runs * actionMs(cs, w) + SLACK_MS;

@@ -20,7 +20,9 @@
 //            each laid or not by the warped share at its centre, so the wall's edge is a row of crowns along a wavy line, never a
 //            crown cut in half. The union is outlined in the thicket's darkest colour, its outer px lit up-left and shaded
 //            down-right, and the floor at its foot gets a soil line (`soil: 'M'`, that floor's grain lit a step, its outer px two)
-//            or a cast shadow; what the crowns leave of a thicket cell far from the floor stays as painted
+//            or a cast shadow; what the crowns leave of a thicket cell far from the floor stays as painted. `canopy.depth` draws
+//            every crown of the mass, not only the edge's (lit, shaded, clustered, a hollow here and there); `canopy.clearFeet`
+//            lays no crown over a walked foot (o.dry); a pair's `swing` lets the edge's line rise and fall over `swingScale` px
 //   trail    a worn path a cell or two wide (`o.trails`): drawn along a line through its cells' centres, never on the cells, so
 //            its sides wander and a diagonal run of cells (a staircase of squares on the tileset) is one rounded line
 //            (trailLine); laid only over its host floor (grass), a pixel of shadow under the grass edge on its up-left side
@@ -258,7 +260,10 @@ function engine(o) {
     for (const m of S) {
       const own = mats[m] && mats[m].own;
       if (own && m !== home && (own === true || (own === 'walk' ? !(mats[m].banks || '').includes(home) || walked() : own.includes(home)))) continue;
-      const v = share(m, wx, wy, S) + (p.bias && p.bias[m] || 0) + (o.dryness && dryFloors.has(m) && (walkHeld(p.a) || walkHeld(p.b)) ? o.dryness(x, y) : 0);
+      /* `swing`: material a's claim rises and falls along the border over `swingScale` px (a canopy's bays and bulges), a bay
+         three times as deep as a bulge is proud */
+      const sw = p.swing && m === p.a ? p.swing * Math.max(-1, Math.min(1 / 3, sn(x, y, p.swingScale || 90, seed + 97))) : 0;
+      const v = share(m, wx, wy, S) + (p.bias && p.bias[m] || 0) + sw + (o.dryness && dryFloors.has(m) && (walkHeld(p.a) || walkHeld(p.b)) ? o.dryness(x, y) : 0);
       if (v > bv || (v === bv && z(m) > z(best))) { second = bv; bv = v; best = m; } else if (v > second) second = v;
     }
     return { m: best, margin: (bv - Math.max(0, second)) * T / 2 };
@@ -345,6 +350,8 @@ function engine(o) {
       const other = S.slice(1).sort((a, b) => share(b, gx, gy, S) - share(a, gx, gy, S))[0];
       laid = winAt(gx, gy, S, pairOf(C, other), false).m === C;
     }
+    /* `clearFeet`: a crown is never laid over a walked foot (o.dry): the thicket's edge may wander, never over where a hero stands */
+    if (laid && lattice.clearFeet && o.dry) for (let dy = -r; dy <= r && laid; dy += 2) for (let dx = -r; dx <= r; dx += 2) if (dx * dx + dy * dy <= r * r && o.dry(Math.round(gx + dx), Math.round(gy + dy))) { laid = false; break; }
     const k = { gx, gy, r, laid };
     crownMemo.set(key, k);
     return k;
@@ -400,7 +407,23 @@ function engine(o) {
     pick = pick || order[order.length - 1];
     return { m: pick, c: fillAt(pick, x, y) };
   }
-  return { draw, share, canopy: C, fillAt };
+  /** The front crown over (x, y) (the laid crown covering it whose centre lies furthest south: it stands in front of the ones
+      behind it), less the crowns `hollow(i, j)` leaves out; null where no crown covers it (a hollow in the canopy). */
+  function frontCrown(x, y, hollow) {
+    const s = lattice.spacing, rh = s * Math.sqrt(3) / 2, px = x + 0.5, py = y + 0.5, j0 = Math.floor(py / rh);
+    let best = null;
+    for (let j = j0 - 2; j <= j0 + 2; j++) {
+      const i0 = Math.floor((px - (j & 1 ? s / 2 : 0)) / s);
+      for (let i = i0 - 2; i <= i0 + 2; i++) {
+        const k = crown(i, j);
+        if (!k.laid || (hollow && hollow(i, j))) continue;
+        const d = Math.hypot(px - k.gx, py - k.gy);
+        if (d <= k.r && (!best || k.gy > best.k.gy)) best = { k, d, i, j };
+      }
+    }
+    return best;
+  }
+  return { draw, share, canopy: C, fillAt, frontCrown };
 }
 
 const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { sweep: 0, warp: 0, mid: 0, fine: 0 } : {}, p);
@@ -637,6 +660,32 @@ export function reseam(img, o) {
     canopy = { C: eng.canopy, dark };
   }
   rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt, canopy);
+  /* a canopy in depth (`mats.ch.canopy.depth`: a thicket painted as one leaf tile, a flat green slab inside its crowned edge).
+     Every px of it, painted or drawn, 3+ px in from its edge (the rims there stay), is laid in the crown in front of it from the
+     same lattice the edge's crowns stand on: the fill's own grain, the crown's up-left lit a step and its down-right a step down, its
+     top rim (where it stands over the crown behind) the outline colour, its cluster (a value noise over about four crowns) a step
+     sunlit or a step shaded; one crown in `hollows` left out, so a dark hollow opens between its neighbours */
+  if (eng.canopy && mats[eng.canopy].canopy && mats[eng.canopy].canopy.depth) {
+    const C = eng.canopy, dp = mats[C].canopy.depth, w = img.width, h = img.height;
+    const isC = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; isC[i] = (lab[i] ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]) === C ? 1 : 0; }
+    const hollow = (i, j) => hash2(i, j, seed + 83) < (dp.hollows || 0.06);
+    const f = tiles[C].data, dark = canopy.dark;
+    for (let y = 3; y < h - 3; y++) for (let x = 3; x < w - 3; x++) {
+      const i = y * w + x;
+      if (!isC[i]) continue;
+      let edge = false;
+      for (let dy = -3; dy <= 3 && !edge; dy++) for (let dx = -3; dx <= 3; dx++) if (!isC[i + dy * w + dx]) { edge = true; break; }
+      if (edge) continue;
+      const fc = eng.frontCrown(x, y, hollow), p = ((y % T) * T + (x % T)) * 4;
+      if (!fc) { out.data.set(stepRgb(f[p], f[p + 1], f[p + 2], -2), i * 4); continue; }
+      const { k, d } = fc, ox = x + 0.5 - k.gx, oy = y + 0.5 - k.gy;
+      if (d > k.r - 1.5 && oy < -k.r * 0.2) { out.data.set(dark, i * 4); continue; }
+      const l = (-ox - oy) / (k.r * Math.SQRT2), cl = sn(k.gx, k.gy, 64, seed + 89);
+      const step = (l > 0.3 ? 1 : l < -0.4 ? -1 : 0) + (cl > 0.35 ? 1 : cl < -0.35 ? -1 : 0);
+      out.data.set(stepRgb(f[p], f[p + 1], f[p + 2], step), i * 4);
+    }
+  }
   /* a floor lifted whole (`mats.ch.lift`: steps up its ramps), drawn or kept: a mound that must not read as the track beside it */
   const lifts = Object.entries(o.mats || {}).filter(([, v]) => v.lift);
   if (lifts.length) for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
@@ -700,7 +749,9 @@ export function reseam(img, o) {
       out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2];
     }
   }
-  return { img: out, changed };
+  /* each px's material after the pass (drawn, or its cell's): a driver's checks read it */
+  const matAt = (x, y) => { const i = y * img.width + x; return lab[i] && matOf[i] !== null ? matOf[i] : rows[Math.floor(y / T)][Math.floor(x / T)]; };
+  return { img: out, changed, matAt };
 }
 
 /* ── the rims a style adds on the pixels it drew: the bank's wet ground and lit water lip; the soft edge's shadow ── */
@@ -979,6 +1030,20 @@ function selftest() {
     if (n < 120) crumbs++;
   }
   ok(crumbs === 0 && notches >= 3, 'canopy: laid in whole crowns: no crumb apart (' + crumbs + '), ' + notches + ' notches between crowns down a 104 px edge');
+  /* the canopy in depth (lane/a-ground-paths: "flat green slabs"): a deep mass is no longer one leaf tile, and lit and shaded; with
+     clearFeet no crown stands on a walked foot (here every grass cell is walked, its foot the [wet] box) */
+  const dr = ['TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg', 'TTTTTTgggg'];
+  const footOf = (x, y) => { const cx = Math.floor(x / T), cy = Math.floor(y / T); return cx >= 6 && cx < 10 && cy >= 0 && cy < 6 && Math.abs(x - cx * T - 16) <= 6 && y >= cy * T + 25; };
+  const dO = { rows: dr, mats: { g: { z: 1 }, T: { z: 2, canopy: { spacing: 24, jitter: 4, clearFeet: true, depth: { hollows: 0.06 } } } }, fills: { T: leaf, g: flat(GR) }, seed: 6, dry: footOf,
+    pairs: [{ a: 'T', b: 'g', style: 'canopy', sweep: 18, reach: 160, swing: 0.2, bias: { T: 0.4 } }] };
+  const dd = reseam(paint(dr, { T: leaf, g: flat(GR) }), dO);
+  const cellKey = (im, cx, cy) => { let k = ''; for (let y = cy * T; y < cy * T + T; y++) for (let x = cx * T; x < cx * T + T; x++) k += colourAt(im, x, y); return k; };
+  const deepCells = new Set([[1, 1], [2, 2], [3, 3], [1, 4], [2, 1], [3, 2]].map(([cx, cy]) => cellKey(dd.img, cx, cy)));
+  let lit = 0, shaded = 0, onFeet = 0;
+  for (let y = T; y < 5 * T; y++) for (let x = T; x < 4 * T; x++) { const c = RAMP_AT.get(colourAt(dd.img, x, y)), b = RAMP_AT.get(LEAF[(x * 7 + y * 3) % 11 < 1 ? 3 : (x + 2 * y) % 3].toLowerCase()); if (c && b && c.ramp === b.ramp) { if (c.k > b.k) lit++; if (c.k < b.k) shaded++; } }
+  for (let y = 0; y < 6 * T; y++) for (let x = 6 * T; x < 10 * T; x++) if (footOf(x, y) && dd.matAt(x, y) === 'T') onFeet++;
+  ok(deepCells.size === 6 && lit > 200 && shaded > 200, 'canopy depth: six deep cells, six different tiles (' + deepCells.size + '), ' + lit + ' px lit and ' + shaded + ' px shaded off the leaf tile');
+  ok(onFeet === 0, 'canopy clearFeet: no crown on a walked foot (' + onFeet + ' px)');
   /* the trail (lane/a-ground-paths, Tyler: "ruler-straight cut lines" and "tile staircases on diagonals"): a one-cell path that
      runs straight, then down a diagonal staircase of cells, then straight again, painted the tileset's way (whole dirt cells) */
   const TG = flat(RAMPS.leaf[3]), TD = flat(RAMPS.earth[3]), dirtHex = RAMPS.earth[3].toLowerCase();

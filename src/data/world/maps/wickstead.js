@@ -9,7 +9,7 @@
 // the cattle ford (y30-32, three wide) to the Cart Shed. Every open tile lies in an open 3x3 except the
 // footbridge. The hedges and the wood ('#') block a step and a shot and count as trees.
 //
-// ART: OPEN (lane b-wickstead-art, 2026-10-28). Its ground `wickstead_ground` (art/world/stead) is PixelLab map
+// ART: OPEN (lane b-wickstead-art, 2026-10-28). Its ground `wickstead_ground` (art/world/stead-floor, its own set since lane/a-ground-paths: the drawn canopy's cells fill a sheet) is PixelLab map
 // efbc2aa2, painted from these rows in the Meadowbrook's tileset family (as the Glade's 4589f28b was), with a dirt
 // track along the route. Every placed object is an existing style-1 sprite (mill, sewer, common,
 // cottage, forest and warren sets). The four creatures reuse shipped style-1 units, the same animal under a new
@@ -80,8 +80,12 @@ export default Object.freeze({
     { id: 'pine', x: 18, y: 23 },
     /* the crossings: the ford stones, and the footbridge over the one 1-tile choke (y8): a log raft as long as the brook is
        wide, centred on it (footprint 2 wide at x29-30), resting a few pixels on each bank; the water runs on under it
-       (lane/a-ground-seams 2026-11-16: the row was an earth causeway painted flat on the brook) */
-    { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 30 },
+       (lane/a-ground-seams 2026-11-16: the row was an earth causeway painted flat on the brook). The cattle ford is the brook
+       with a stone on every one of its twelve open tiles, as the Thicket's and the Glade's fords are (lane/a-ground-paths
+       2026-11-17: it was a square of dirt stamped through the brook) */
+    { id: 'mb_stepping_stones', x: 28, y: 30 }, { id: 'mb_stepping_stones', x: 29, y: 30 }, { id: 'mb_stepping_stones', x: 30, y: 30 }, { id: 'mb_stepping_stones', x: 31, y: 30 },
+    { id: 'mb_stepping_stones', x: 28, y: 31 }, { id: 'mb_stepping_stones', x: 29, y: 31 }, { id: 'mb_stepping_stones', x: 30, y: 31 }, { id: 'mb_stepping_stones', x: 31, y: 31 },
+    { id: 'mb_stepping_stones', x: 28, y: 32 }, { id: 'mb_stepping_stones', x: 29, y: 32 }, { id: 'mb_stepping_stones', x: 30, y: 32 }, { id: 'mb_stepping_stones', x: 31, y: 32 },
     { id: 'wk_footbridge', x: 29, y: 8 },
     /* P0 the Rick Yard: the hay the rats nest in */
     { id: 'hay_bale', x: 8, y: 16 }, { id: 'hay_bale', x: 9, y: 16 }, { id: 'straw', x: 19, y: 24 }, { id: 'sack_pile', x: 20, y: 17 },

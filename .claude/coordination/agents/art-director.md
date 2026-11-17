@@ -3550,3 +3550,12 @@ lock flattened Hask's gravel to 75% one grey; an emboss on that noise reads as r
 (5) the three meadow grounds share one dirt tile pixel for pixel; only Wickstead's ford holds a clean cell of it. (6) map objects
 ride the edge bundle (src/core/hunt-ground.js vendors world/maps): an object id edit moves the payload hash. (7) the shared in-app
 browser pane is not a lane's: headless region-kit shots (extra=SET&from=DIR renders the base atlases for true befores).
+Round 2 (same lane, the Coordinator's calls): Wickstead's ford is the brook with twelve stones (the other meadow fords' way); the
+meadow canopy in depth (seams.mjs canopy.depth: every crown of the edge's lattice drawn, lit, clustered, hollows) at 24 px crowns,
+its edge on a long swing, no crown on a walked foot (clearFeet); the thicket varieties (`*_grass_variety`, at the canopy's 0,0) went
+with the flat tile they varied; Wickstead's ground moved to stead-floor (every canopy cell is now a tile of its own: stead hit 2032
+of 2048). Lessons: (1) measure the walk cue, not the look: seam-grounds prints walked feet under crowns and blocked thicket cells
+mostly open; a meander that opens bays doubled the second, a lower grass bias traded it for crowns on feet, keeping crowns off feet
+outright let the bias drop to the cell line (Meadowbrook 24/43 -> 0/42, the Glade 18/37 -> 0/35); (2) a swing three times as deep as
+it is proud reads as bays, not blobs; past about 0.2 of share the bays open thicket a hero cannot walk; (3) a guard case that never
+reaches its condition (no crown near a foot) is no guard: push the fixture until the mutant goes red.

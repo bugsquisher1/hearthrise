@@ -9638,5 +9638,5 @@
       ]
     ]
   },
-  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map efbc2aa2 (the Meadowbrook's Greenhaven tileset family + one thicket-to-brook bank set 9b397402, painted from the wickstead rows: hedge thicket, farm yards in meadow grass, a dirt track along the loop, the Meadowbrook with its footbridge planks and gravel ford, the Burned House's flagstone floor, a tilled plot) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/wickstead_ground.png): 222353 px of 8 borders redrawn from the fills' own pixels (bank, canopy, trail, scatter)."
+  "notes": "Stitched from four full-scale view_map renders (30x20 cells each) of PixelLab map efbc2aa2 (the Meadowbrook's Greenhaven tileset family + one thicket-to-brook bank set 9b397402, painted from the wickstead rows: hedge thicket, farm yards in meadow grass, a dirt track along the loop, the Meadowbrook with its footbridge planks and gravel ford, the Burned House's flagstone floor, a tilled plot) by tools/world-art/port-pixellab.mjs. Seams (lane/a-ground-seams, tools/world-art/seam-grounds.mjs from art/world-src/seams/wickstead_ground.png): 245308 px of 8 borders redrawn from the fills' own pixels (bank, canopy, trail, scatter)."
 }

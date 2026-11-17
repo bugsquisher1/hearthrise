@@ -197,15 +197,18 @@ const meadow = (g, m, p) => ({ T: g, G: m, D: p });
 const TRAIL_FILL = Object.freeze(['wickstead_ground', 29, 31]);
 const TRAIL = Object.freeze({ D: { host: 'G', links: '=:', blockGrow: 20, blockWarp: 11, variety: { seed: 32, tone: 'damp', shift: true } } });
 const TRAIL_PAIR = Object.freeze({ a: 'D', b: 'G', style: 'trail' });
-/* Wickstead's ford (x28-31 y30-32) was a dirt square stamped through the brook: the trail fills its cells and 12 px past them
-   (blockGrow), so its edge on the water is the bank's, and that bank wanders (bays a cell wide, a few px deep) */
+/* Wickstead's ford (x28-31 y30-32) was a dirt square stamped through the brook: it is the brook again (its `cells`), a stone on
+   every open tile (src/data/world/maps/wickstead.js), the trail run on to the water's edge on each bank; the banks there wander */
 const FORD_BANK = Object.freeze({ bias: { G: 0.05 }, sweep: 12, warp: 10, mid: 5 });
 /* the meadow grounds' banks, and their thicket wall in crowns over the water (leaning out over it), the grass and the path; no
    soil line: the meadow canopy's painted edge had none, its crowns cast a shadow instead */
-const BANKS = (wet, grass = {}) => [
+/* a thicket wall's long meander: its edge swings over about five cells, never a straight run; a bay at most half a cell deep into
+   the thicket's blocked cells, a bulge a few px over the grass (a deeper bay reads as ground a hero could walk) */
+const MEANDER = Object.freeze({ sweep: 18, reach: 160, swing: 0.2, swingScale: 110 });
+const BANKS = (wet, grass = {}, wall = 0.06) => [
   Object.assign({ a: 'W', b: 'G', style: 'bank', bias: { G: 0.3 }, sweep: 7, warp: 5, wet }, grass),
   { a: 'W', b: 'D', style: 'bank', bias: { D: 0.3 }, sweep: 5, warp: 4, wet },
-  WALL('W', { bias: { T: 0.3 } }), WALL('G', { bias: { G: 0.25 } }), WALL('D', { bias: { D: 0.25 } }),
+  WALL('W', Object.assign({ bias: { T: 0.3 } }, MEANDER)), WALL('G', Object.assign({ bias: { T: wall } }, MEANDER)), WALL('D', Object.assign({ bias: { T: wall } }, MEANDER)),
 ];
 /* the warp's noise spreads about 0.4 of its reach, so a border meant to wander a few px either way takes about twice the defaults'
    octaves: WILD for a soft border with bays (a bank, a mound: an earthwork stays round), TRACK for a two-cell track whose two edges
@@ -216,7 +219,9 @@ const TRACK = Object.freeze({ style: 'ragged', sweep: 6, warp: 6, mid: 3 });
    on earth or grass */
 const CROWNS = Object.freeze({ spacing: 18, jitter: 3 });
 const WALL = (floor, o = {}) => Object.assign({ a: 'T', b: floor, style: 'canopy', sweep: 9, warp: 8 }, o);
-const MEADOW_MATS = { W: { z: 0, own: true }, D: { z: 1 }, G: { z: 2 }, T: { z: 3, canopy: CROWNS } };
+/* the meadow thicket in depth (seams.mjs canopy.depth: every crown of the mass drawn, lit, clustered, a hollow here and there,
+   where it was one flat leaf tile), its crowns a tree wide (24 px), its edge meandering over five cells (MEANDER) */
+const MEADOW_MATS = { W: { z: 0, own: true }, D: { z: 1 }, G: { z: 2 }, T: { z: 3, canopy: { spacing: 24, jitter: 4, clearFeet: true, depth: { hollows: 0.06 } } } };
 /* the brook may fill its painted bank cells (map cells nobody stands on) so a jog in it bends, never a walked foot (`walk`) */
 const BROOK_MATS = Object.assign({}, MEADOW_MATS, { W: { z: 0, own: 'walk', banks: 'G' } });
 /* Mosslight's brook was one straight band three cells wide the width of the map, its banks two ruler lines. It bends now: a row
@@ -231,13 +236,13 @@ const MOSSLIGHT_CELLS = Object.assign({}, ...MOSSLIGHT_BENDS.flatMap(([x0, x1, y
 { '45,17': 'G', '45,18': 'G', '44,17': 'D', '44,18': 'D' });
 export const GROUNDS = Object.freeze({
   /* the brook ran dead straight down its banks and the footbridge was planks painted flat on the water */
-  wickstead_ground: { set: 'stead', map: 'wickstead', seed: 41, solid: { '~': 'W', '=': 'W', '#': 'T' }, samples: meadow([0, 0], [5, 3], [15, 8]),
+  wickstead_ground: { set: 'stead-floor', map: 'wickstead', seed: 41, solid: { '~': 'W', '=': 'W', '#': 'T' }, samples: meadow([0, 0], [5, 3], [15, 8]),
     repaint: { '=': 'W' }, mats: Object.assign({ F: { z: 2.5, unit: true } }, BROOK_MATS), smooth: true, trails: TRAIL, fillFrom: { D: TRAIL_FILL },
     /* the Burned House's floor (x39-51 y33-35) was a pale slab of one flagstone tile ruled straight into the grass: it ends on its
        own stones, the edge ones loose in the grass and a few gone inside (scatter), the slab's corners lost to the meander */
-    pairs: BANKS(2, FORD_BANK).concat([TRAIL_PAIR, { a: 'F', b: 'G', style: 'scatter', sweep: 10, warp: 9, mid: 4, loose: 0.5, holes: 0.35, fade: 16, fadeIn: 14 }, WALL('F')]),
+    pairs: BANKS(2, FORD_BANK, 0.35).concat([TRAIL_PAIR, { a: 'F', b: 'G', style: 'scatter', sweep: 10, warp: 9, mid: 4, loose: 0.5, holes: 0.35, fade: 16, fadeIn: 14 }, WALL('F')]),
     /* the tilled plot (x50-55 y23-24) is dark enough to read as thicket: it is its own floor, never touched (it would be crowned) */
-    cells: Object.assign(rect(50, 23, 6, 2, 'P'), rect(39, 33, 13, 3, 'F')), keep: 'P',
+    cells: Object.assign(rect(50, 23, 6, 2, 'P'), rect(39, 33, 13, 3, 'F'), rect(28, 30, 4, 3, 'W')), keep: 'P',
     before: () => raft({ set: 'stead', id: 'wk_footbridge', cells: 4, footprint: [2, 1], what: 'The Wickstead footbridge' }) },
   /* the brook's banks stepped down the grid, and its two rafts (144 px of logs on 96 px of water) sat a row below the
      trail. Its brook cells carry their own grassy banks, so the water is read from the pixels as the floors are */
@@ -355,6 +360,20 @@ function run(id) {
     for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[0].length; x++) if (read[y][x] !== rows[y][x] && !(g.keep || '').includes(rows[y][x])) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) redraw.add((x + dx) + ',' + (y + dy));
   }
   const r = reseam(img, { rows, mats: g.mats, pairs: g.pairs, keep: g.keep || '', seed: g.seed, fills, smooth: !!g.smooth, open, dry, dryness, trails, redraw });
+  /* the thicket never says one thing while the walk mask says another: a walked foot under its crowns, or a blocked thicket cell
+     opened to more grass than crown, is counted (printed with the run; a bay or a bulge never costs a whole cell) */
+  const C = Object.keys(g.mats).find((m) => g.mats[m].canopy);
+  let under = 0, opened = 0;
+  if (C) for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[0].length; x++) {
+    let n = 0, k = 0;
+    if (open(x, y)) {
+      for (let py = y * T + T - 1 - FOOT.rise; py < y * T + T; py++) for (let px = x * T + 16 - FOOT.half; px <= x * T + 16 + FOOT.half; px++) { n++; if (r.matAt(px, py) === C) k++; }
+      if (k * 2 > n) under++;
+    } else if (rows[y][x] === C) {
+      for (let py = y * T; py < y * T + T; py++) for (let px = x * T; px < x * T + T; px++) { n++; if (r.matAt(px, py) !== C) k++; }
+      if (k * 2 > n) opened++;
+    }
+  }
   let kept = 0;
   for (const ch of g.over || '') kept += overhang(r.img, img, rows, ch, fills, T);
   varietiesKept(g.set, id, img, r.img);
@@ -368,7 +387,7 @@ function run(id) {
   writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
   mkdirSync(join(ROOT, 'art/review/ground-seams'), { recursive: true });
   writeFileSync(join(ROOT, 'art/review/ground-seams', id + '-grid.txt'), rows.join('\n') + '\n');
-  console.log('  ✓ ' + g.set + '/' + id + ': seams, ' + r.changed + ' px redrawn' + (g.over ? ', ' + kept + ' px of ' + [...g.over].join(' and ') + ' laid back' : ''));
+  console.log('  ✓ ' + g.set + '/' + id + ': seams, ' + r.changed + ' px redrawn' + (g.over ? ', ' + kept + ' px of ' + [...g.over].join(' and ') + ' laid back' : '') + (C ? '; walked feet under the ' + C + ' crowns: ' + under + ', blocked ' + C + ' cells mostly open: ' + opened : ''));
 }
 
 /* every floor variety of this ground keys its variants on its `at` cell's tile (compose.js): a redrawn `at` cell would be a tile of

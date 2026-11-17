@@ -3974,9 +3974,9 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   world-core family V), but every wang pair still has ONE tile per transition key, so the town shows a regular pebble row along every
   grass/dirt edge and the water is one tile. The same edge-preserving shift (tools/world-art/variety.mjs) could vary a transition's
   own-material half; or a PixelLab Tileset Pro set with variant fills. Owner: art-director (pipeline) / asset-director (gens). P3.
-- 2026-11-16 (art-director, lane/a-havora-art) the note above is DONE for the town: grass/earth and grass/water transitions get 3
-  seamless warped variants (tools/world-art/edge-variety.mjs), the cobble pairs 3 variants with loose setts
-  (tools/world-art/sett-edges.mjs), and grass|dirt and cobble|dirt|grass edges are drawn ragged at cell scale
+- 2026-11-16 (art-director, lane/a-havora-art) the note above is DONE for the town: the town's grass/earth, grass/water and two cobble pairs are
+  rebuilt by tools/world-art/havora-seams.mjs on lane/a-ground-seams's seams.mjs (ragged, bank, scatter; 4 variants a key)
+  and grass|dirt and cobble|dirt|grass edges are also drawn ragged at cell scale
   (src/world/core/ground-rough.js, blend.rough; the walk mask is untouched; world-core family E). STILL OPEN: (1) Havora's river
   dead-ends into the P10 home lot (rows 62-71 are earth under the lot) and reappears south of it: a plan fix (move the lot or
   route the river), game-designer / Coordinator; (2) the square's six benches sit in a 2x3 grid because their seats are

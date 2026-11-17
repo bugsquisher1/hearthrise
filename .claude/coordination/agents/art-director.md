@@ -3424,8 +3424,8 @@ Step 2b: the disc and first course are the Hearth's own stone, the buff courses 
 edge, shade only lower-right: the per-pixel speckle was the "sand"), a slim dark kerb at the rim, and the square's edge band is
 the LANE's setts sampled on the lane's own grid (the blend draws dual tiles half a tile off the cells: u = (x + 16) mod 32), so a
 lane runs into the square with no seam and a 4 px kerb parts setts from flags. Transitions: ground-rough.js draws open|open edges
-ragged at cell scale (never walls/water, so the look never lies about walking); edge-variety.mjs warps transition tiles with a
-field that is zero on the tile border (seamless whatever the neighbour drew); sett-edges.mjs lays loose broken setts. Bridges:
+ragged at cell scale (never walls/water, so the look never lies about walking); the edge tiles themselves are seams.mjs's
+(havora-seams.mjs; my own warp and loose-sett tools were retired for the ground-seams lane's tool). Bridges:
 havora_bridge cut by two whole bays at a post's left edge (bridge-span.mjs) + a `deck` material aliased to water, so the river
 shows under the rail and no planks pair strip appears. Lessons: (1) STATIONS stands are MAP coords already (I added WEST once
 and the check was wrong; the town-stations test caught nothing because nothing was wrong, but verify coords before trusting a

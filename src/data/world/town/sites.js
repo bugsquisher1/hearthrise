@@ -142,7 +142,8 @@ export const BLEND = Object.freeze({
   alias: Object.freeze({ cobble: 'flagstone', palisade: 'grass', deck: 'water' }),
   /* lane/a-havora-art (Tyler 2026-11-16, "the ground transitions look like shit"): the grass and the dirt meet on a ragged
      edge, not the blueprint's ruled one (src/world/core/ground-rough.js: drawn only, the walk mask is the plan's); each
-     straight run of the edge tiles also draws one of four variants (tools/world-art/edge-variety.mjs) */
+     edge tile is one of four drawn by tools/world-art/havora-seams.mjs (seams.mjs: ragged grass and dirt, a bank on the river,
+     the square's setts scattered whole into the dirt and grass) */
   rough: Object.freeze({ seed: 23, pairs: Object.freeze([Object.freeze(['grass', 'earth']),
     /* the cobble lanes fray too, more sparingly: a lane was laid to a line, its edge only lost a sett here and there */
     Object.freeze(['earth', 'flagstone', 0.64, 0.36]), Object.freeze(['grass', 'flagstone', 0.64, 0.36])]), spill: 0.62, bite: 0.38, scale: 2.6, deep: 4 }),

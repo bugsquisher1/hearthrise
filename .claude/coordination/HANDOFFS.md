@@ -259,12 +259,12 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 ## 2026-11-16 · art-director (lane/a-havora-art) → asset director (a PixelLab lane) · what Havora still needs as NEW pixels
 Done from existing pixels (0 gens): the ring, kerbs, setts apron, edge variants, frayed cobble edges, the three bridges, one
 woodpile / well / bench family. These need generations (style 1, palette hr-world-56-v2, native import), in priority order:
-1. Cobble-to-dirt and cobble-to-grass Tileset Pro sets (the square's setts as the upper, the town dirt / grass as the lower,
-   3+ variants per key): broken setts along an irregular edge. The scripted variants only add loose stones; each edge tile's
-   own line is still the original straight sett course.
+1. (Withdrawn: the cobble edges are now seams.mjs scatter tiles, havora-seams.mjs; a Tileset Pro set only if Tyler still calls
+   the lane edges straight once he sees them.)
 2. A fuel basket (wicker, kindling and split logs) for the Hearth's fuel corners: common `basket` holds apples.
 3. The lamppost redrawn in the Hall's stone and iron (style audit #4); the square's three were removed, the street ones stay.
 4. A town grass base tile with more blade contrast (style audit: the floor with least grain); the variety only tints patches.
+
 ## 2026-11-16 · art-director (lane/a-ground-seams) → the Havora lane (lane/a-havora-art), Coordinator · the transition tool
 - **Havora lane:** `tools/world-art/seams.mjs` is on origin/lane/a-ground-seams (8dd68d3b8, joint rule 9a4faebf9). For a town wang
   pair: `node tools/world-art/seams.mjs tiles --lower L.png --upper U.png --style ragged|stagger|scatter|kerb|bank [--unit-lower]

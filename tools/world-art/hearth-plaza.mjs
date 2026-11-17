@@ -34,8 +34,8 @@ import { hash2, noise } from './ground-finish.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const BASE = 'art/world-src/havora-hearth/havora_square_plaza_base.png';
 export const OUT = 'art/world/common/havora_square_plaza.png';
-/* the lane's setts: the all-setts tile of the square's flagstone pair (on the palette since sett-edges.mjs) */
-export const SETTS = Object.freeze({ sheet: 'art/world/common/square_grass_flag.png', cell: Object.freeze([0, 3]) });
+/* the lane's setts: the all-setts tile ('1111') of the square's flagstone pair, wherever its sidecar lays it (on the palette) */
+export const SETTS = Object.freeze({ sidecar: 'art/world/common/square_grass_flag.json', sheet: 'art/world/common/square_grass_flag.png' });
 const T = 32;
 
 /* the ring's centre (the Hearth's front step, local tile 11.5, 12.5) and its courses' outer radii, measured on the paving's joints
@@ -241,7 +241,8 @@ export function hearthPlaza(base, setts) {
 
 function main() {
   const sheet = decodePNG(readFileSync(join(ROOT, SETTS.sheet)));
-  const setts = { img: sheet, cx: SETTS.cell[0] * T, cy: SETTS.cell[1] * T };
+  const [sc, sr] = JSON.parse(readFileSync(join(ROOT, SETTS.sidecar), 'utf8')).tiles['1111'][0];
+  const setts = { img: sheet, cx: sc * T, cy: sr * T };
   const img = hearthPlaza(decodePNG(readFileSync(join(ROOT, BASE))), setts);
   for (let i = 0; i < img.data.length; i += 4) {
     if (img.data[i + 3] >= 128 && !inPalette(img.data[i], img.data[i + 1], img.data[i + 2])) { console.error('✗ off-palette pixel at', i / 4); process.exit(1); }

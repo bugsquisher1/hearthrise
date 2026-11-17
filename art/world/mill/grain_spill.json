@@ -3,6 +3,22 @@
   "class": "decal",
   "style": "s1",
   "material": "wood",
+  "restyle": {
+    "map": {
+      "#c4ccd2": "#a88457",
+      "#c8e6e0": "#a88457"
+    },
+    "clamp": {
+      "earth": [
+        1,
+        4
+      ],
+      "stone": [
+        0,
+        2
+      ]
+    }
+  },
   "source": "grain_spill.png",
   "frame": [
     42,
@@ -31,5 +47,5 @@
     "image": "d5e90ad6-7b7b-5187-8e70-986b0315a20a",
     "cell": 7
   },
-  "notes": "Cell 7 of a 4x4 style-1 prop sheet (PixelLab image d5e90ad6-7b7b-5187-8e70-986b0315a20a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Cell 7 of a 4x4 style-1 prop sheet (PixelLab image d5e90ad6-7b7b-5187-8e70-986b0315a20a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 16, tools/world-art/restyle.mjs): the pale grains the wood grade snapped onto steel and mithril blue laid back in the grain's own tan (earth 5), and its top and bottom steps folded in (earth 1-4, stone 0-2)."
 }

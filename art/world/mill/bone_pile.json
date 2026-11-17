@@ -3,6 +3,18 @@
   "class": "decal",
   "style": "s1",
   "material": "stone",
+  "restyle": {
+    "clamp": {
+      "stone": [
+        1,
+        3
+      ],
+      "bone": [
+        0,
+        0
+      ]
+    }
+  },
   "source": "bone_pile.png",
   "frame": [
     22,
@@ -31,5 +43,5 @@
     "image": "4be24e7a-2037-5e9d-895a-148f18fc1f7a",
     "cell": 11
   },
-  "notes": "Cell 11 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Cell 11 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 16, tools/world-art/restyle.mjs): its top light and bottom speckle folded into the middle steps (stone 1-3, bone 0), the contrast of the skull and pebbles beside it."
 }

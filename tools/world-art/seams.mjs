@@ -6,7 +6,9 @@
 // A wang pair from a tileset draws its border on the cell grid: every edge tile is the same profile, so a long border is a ruler
 // line, a diagonal is a staircase, and the same kerb or pebble row repeats every 32 px. This tool redraws a border from the two
 // materials' OWN pixels (no pixel of its own, so a palette-locked ground stays locked), in one of these styles:
-//   ragged   the border wanders (domain-warped noise, blobs not specks); for soft floors: grass, earth, ash, mud
+//   ragged   the border wanders (domain-warped noise, blobs not specks); for soft floors: grass, earth, ash, mud. A raised mass
+//            (a barrow bank) keeps the edge a player reads: `outline: n` darkens its own last n px, `skirt: 'M', skirtPx` lays the
+//            lower floor round its foot with material M's fill (a listed material), as the tileset's bank face was
 //   stagger  a stone floor ends on its own stones: every stone (a component of its fill tile between the mortar lines) is laid
 //            WHOLE or not at all, so the edge steps along the joints; for stone meeting stone (flagstone and cobble)
 //   scatter  stagger, and the stones thin out: loose stones lie past the edge, a few are missing inside it, both fading with the
@@ -213,11 +215,13 @@ function engine(o) {
     const wx = x + e * (ox + (fine ? p.mid * sn(x, y, 10, seed + 5) + p.fine * sn(x, y, 4, seed + 3) : 0));
     const wy = y + e * (oy + (fine ? p.mid * sn(x, y, 10, seed + 6) + p.fine * sn(x, y, 4, seed + 4) : 0));
     /* a material held to its own cells (`own`: water beside open floor) may draw back inside them, never spread out of them, so a
-       tile a hero stands on is never painted under water (tests/world-assets.mjs [wet]) */
+       tile a hero stands on is never painted under water (tests/world-assets.mjs [wet]); `own` as a string names only the cells it
+       never spreads into (the open ones: water may still lap into a reed bed) */
     const home = cellAt(Math.floor(x / T), Math.floor(y / T));
     let best = null, bv = -1, second = -1;
     for (const m of S) {
-      if (mats[m] && mats[m].own && m !== home) continue;
+      const own = mats[m] && mats[m].own;
+      if (own && m !== home && (own === true || own.includes(home))) continue;
       const v = share(m, wx, wy, S) + (p.bias && p.bias[m] || 0);
       if (v > bv || (v === bv && z(m) > z(best))) { second = bv; bv = v; best = m; } else if (v > second) second = v;
     }
@@ -325,7 +329,8 @@ const pairDefaults = (p) => Object.assign({}, DEFAULTS, p.style === 'kerb' ? { s
 /**
  * A painted ground's borders redrawn. Returns { img (a new image), changed (px) }.
  *   o.rows   the paint grid: one string per cell row, one character per cell (the same grid the ground was painted from)
- *   o.mats   { ch: { z: layer (upper over lower), unit: true for a stone floor (laid stone by stone), mortar: the joints' share } }
+ *   o.mats   { ch: { z: layer (upper over lower), unit: true for a stone floor (laid stone by stone), mortar: the joints' share,
+ *            own: true (never drawn outside its own cells) or the cell characters it is never drawn into } }
  *   o.pairs  [{ a, b, style, warp, scale, fine, jitter, loose, holes, fade, fadeIn, bias, course, kerb, lift }]: the borders to
  *            redraw (others stay as painted). Every pair of materials that touch should be listed, or its border is left as painted
  *            beside a redrawn one.
@@ -373,12 +378,25 @@ export function reseam(img, o) {
       if (out.data[d] !== img.data[d] || out.data[d + 1] !== img.data[d + 1] || out.data[d + 2] !== img.data[d + 2]) changed++;
     }
   }
-  rims(out, lab, matOf, pairOf, mats, img.width, img.height);
+  /* a skirt is its material's grain, never its specks (a puddle's blue in the mud): a colour under 5% of the fill is its body colour */
+  const grain = {};
+  const skirtAt = (m, x, y) => {
+    const d = tiles[m] && tiles[m].data;
+    if (!d) return null;
+    if (!grain[m]) {
+      const n = new Map();
+      for (let i = 0; i < d.length; i += 4) { const k = hexOf(d[i], d[i + 1], d[i + 2]); n.set(k, (n.get(k) || 0) + 1); }
+      grain[m] = { keep: new Set([...n].filter(([, c]) => c >= T * T * 0.05).map(([k]) => k)), body: rgbOf([...n].sort((p, q) => q[1] - p[1])[0][0]) };
+    }
+    const p = ((y % T) * T + (x % T)) * 4, c = [d[p], d[p + 1], d[p + 2]];
+    return grain[m].keep.has(hexOf(c[0], c[1], c[2])) ? c : grain[m].body;
+  };
+  rims(out, lab, matOf, pairOf, mats, img.width, img.height, skirtAt);
   return { img: out, changed };
 }
 
 /* ── the rims a style adds on the pixels it drew: the bank's wet ground and lit water lip; the soft edge's shadow ── */
-function rims(out, lab, matOf, pairOf, mats, w, h) {
+function rims(out, lab, matOf, pairOf, mats, w, h, skirtAt) {
   const z = (m) => (mats[m] && mats[m].z) || 0;
   const step = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -397,6 +415,24 @@ function rims(out, lab, matOf, pairOf, mats, w, h) {
       if (p.style === 'bank' && z(n) < z(m) && r <= p.wet - (hash2(x, y, 41) < 0.35 ? 1 : 0)) { wetBy = n; break; }
     }
     if (wetBy) { step.push([i, -1]); continue; }
+    /* a raised floor (a barrow bank): its own last `outline` px darkened (two steps at the very edge, one inside), and the lower floor
+       within `skirt` px of it laid with the skirt material's fill (the bare earth round its foot), its first px a step down */
+    let edge = 0, skirt = 0, by = null;
+    for (let r = 1; r <= 4; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const X = x + dx, Y = y + dy;
+      if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) continue;
+      const n = matOf[Y * w + X];
+      if (n === m || n === null) continue;
+      const p = pairOf(m, n);
+      if (z(n) < z(m) && p.outline && r <= p.outline && !edge) edge = r;
+      if (z(n) > z(m) && p.skirt && r <= (p.skirtPx || 3) && !skirt) { skirt = r; by = p.skirt; }
+    }
+    if (edge) { step.push([i, edge === 1 ? -2 : -1]); continue; }
+    if (skirt) {
+      const c = skirtAt(by, x, y);
+      if (c) { out.data[i * 4] = c[0]; out.data[i * 4 + 1] = c[1]; out.data[i * 4 + 2] = c[2]; if (skirt === 1) step.push([i, -1]); continue; }
+    }
     for (const [dx, dy] of [[-1, 0], [0, -1], [1, 0], [0, 1], [-1, -1]]) {
       const X = x + dx, Y = y + dy;
       if (X < 0 || Y < 0 || X >= w || Y >= h || !lab[Y * w + X]) continue;
@@ -527,6 +563,37 @@ function selftest() {
   ok(ringBad === 0, 'every variant meets the tile edge as variant 0 does (' + ringBad + ' ring px differ)');
   ok(inner > 0, 'the variants differ inside the tile (' + inner + ' px)');
   ok(WANG_KEYS.every((k) => set.tiles[k].length === 4), 'all 16 keys carry 4 variants');
+  /* flat fills, one colour each off its own ramp, laid by the rows: a pixel's material is its colour */
+  const flat = (hex) => { const t = createImage(T, T), c = rgbOf(hex); for (let i = 0; i < T * T; i++) t.data.set([...c, 255], i * 4); return t; };
+  const paint = (rs, fills) => { const im = createImage(rs[0].length * T, rs.length * T); for (let y = 0; y < im.height; y++) for (let x = 0; x < im.width; x++) im.data.set(fills[rs[Math.floor(y / T)][Math.floor(x / T)]].data.subarray(0, 4), (y * im.width + x) * 4); return im; };
+  const colourAt = (im, x, y) => { const p = (y * im.width + x) * 4; return hexOf(im.data[p], im.data[p + 1], im.data[p + 2]); };
+  /* `own` as a string: the water laps into the reed bed beside it, never into the walked floor on its other side */
+  const W = RAMPS.water[0], O = RAMPS.earth[4], R = RAMPS.leaf[2];
+  const wr = ['oooWWWWrrr', 'oooWWWWrrr', 'oooWWWWrrr', 'oooWWWWrrr'];
+  const wf = { W: flat(W), o: flat(O), r: flat(R) };
+  const wo = reseam(paint(wr, wf), { rows: wr, mats: { W: { z: 0, own: 'o' }, o: { z: 1 }, r: { z: 2 } }, fills: wf, seed: 9,
+    pairs: [{ a: 'W', b: 'o', style: 'ragged', sweep: 10, warp: 10 }, { a: 'W', b: 'r', style: 'ragged', sweep: 10, warp: 10 }] }).img;
+  let wetO = 0, wetR = 0;
+  for (let y = 0; y < wo.height; y++) for (let x = 0; x < wo.width; x++) if (colourAt(wo, x, y) === W.toLowerCase()) { const c = wr[Math.floor(y / T)][Math.floor(x / T)]; if (c === 'o') wetO++; if (c === 'r') wetR++; }
+  ok(wetO === 0 && wetR > 0, "own 'o': the water never on the walked cells (" + wetO + ' px), into the reeds ' + wetR + ' px');
+  /* a raised mass: its own last px darkened, the floor round its foot laid with the skirt's fill, none of the skirt farther out */
+  const B = RAMPS.earth[5], G = RAMPS.leaf[4], M = RAMPS.earth[2];
+  const br = ['gggggggg', 'ggbbbbgg', 'ggbbbbgg', 'gggggggg', 'mmmmmmmm'];
+  const bf = { b: flat(B), g: flat(G), m: flat(M) };
+  const bo = reseam(paint(br, bf), { rows: br, mats: { m: { z: 0 }, g: { z: 1 }, b: { z: 2 } }, fills: bf, seed: 4,
+    pairs: [{ a: 'g', b: 'b', style: 'ragged', outline: 2, skirt: 'm' }, { a: 'g', b: 'm', style: 'ragged' }] }).img;
+  const dark2 = hexOf(...stepRgb(...rgbOf(B), -2)), dark1 = hexOf(...stepRgb(...rgbOf(B), -1));
+  let rim = 0, skirt = 0, stray = 0;
+  for (let y = 0; y < 3 * T; y++) for (let x = 0; x < bo.width; x++) {
+    const c = colourAt(bo, x, y);
+    if (c === dark2 || c === dark1) rim++;
+    if (c === M.toLowerCase() || c === hexOf(...stepRgb(...rgbOf(M), -1))) {
+      let near = false;
+      for (let dy = -4; dy <= 4 && !near; dy++) for (let dx = -4; dx <= 4; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < bo.width && Y < bo.height) { const n = colourAt(bo, X, Y); if (n === B.toLowerCase() || n === dark1 || n === dark2) { near = true; break; } } }
+      if (near) skirt++; else stray++;
+    }
+  }
+  ok(rim > 0 && skirt > 0 && stray === 0, 'outline 2 + skirt: ' + rim + ' rim px on the mass, ' + skirt + ' skirt px at its foot, ' + stray + ' skirt px astray');
   console.log(bad ? `✗ seams selftest: ${bad} failed` : '✓ seams selftest');
   return bad ? 1 : 0;
 }

@@ -3,8 +3,8 @@
 // refill, the Tally widget and the hunt's top bar (src/shell/widgets/vitals-hub.js, stamina-buy.js,
 // tally-hud.js, hunt-topbar.js).
 //
-// One row per label, read by t('hud.<key>'). Labels, not sentences (Tyler 2026-11-14): a tooltip or a status
-// line is the short form players know from MMOs.
+// One row per line, read by t('hud.<key>'). A label stays short; a tooltip that explains is one or two short real
+// sentences (the natural RPG voice, Tyler 2026-11-16).
 // ════════════════════════════════════════════════════════════════════════
 
 export const HUD_TEXT = Object.freeze({
@@ -12,36 +12,36 @@ export const HUD_TEXT = Object.freeze({
   hp: 'Health',
   hp_k: 'HP',
   hp_rate: 'Health regen per second',
-  hp_rate_rest: '+{rate}/s rest',
-  hp_rate_fight: 'Health regen between fights, {rate} in a fight',
+  hp_rate_rest: '+{rate}/s resting',
+  hp_rate_fight: 'Health regen between fights ({rate} in a fight)',
   mana: 'Mana',
   mana_k: 'MP',
   mana_rate: 'Mana regen per second',
   medal: 'Level and experience',
   lv: 'Lv',
   level: 'Level',
-  level_to_next: 'Level {level}: {pct}% to {next}',
-  stamina: 'Stamina: hunting time left',
+  level_to_next: 'Level {level} ({pct}% to level {next})',
+  stamina: 'Stamina (hunting time left)',
   charm: 'Charm',
-  charm_empty: 'Charm socket: empty',
-  food_store: 'Food: store',
+  charm_empty: 'Empty charm socket',
+  food_store: 'Food: from the store',
   food_n: 'Food ×{n}',
   /* the socket's tooltip: {where} is where_hunt or where_bag */
   where_hunt: 'hunt bag',
   where_bag: 'bag',
-  food_title: 'Food in {where}: {n}, most {item}',
-  food_store_title: 'No food in {where}, bar buys {item} at {price} each',
-  food_none_title: 'No food in {where}, no store food on the bar',
+  food_title: 'Food in your {where}: {n} (mostly {item})',
+  food_store_title: 'No food in your {where}. Your bar buys {item} at {price} each.',
+  food_none_title: 'No food in your {where}, and no store food on your bar.',
 
   /* THE STAMINA REFILL (the "+" after the timer, and the Shop's Services tab asks the same). {hours} "4 h", {price} "1,600 gp". */
   stam_ask: 'Buy {hours} of stamina for {price}?',
   stam_buy: 'Buy stamina',
   stam_head: 'Stamina',
   stam_now: '{left} of {cap}',
-  stam_premium: 'Premium: +{hours} h stamina cap',
+  stam_premium: 'Premium: +{hours} h max stamina',
   stam_unpriced: 'No refill price yet',
   stam_quote: 'One refill: +{hours} for {price}',
-  stam_day: 'Bought today: {n} of {max}, each costs more',
+  stam_day: 'Bought today: {n} of {max}. Each one costs more.',
   stam_go: 'Buy',
   stam_go_for: 'Buy for {price}',
   stam_go_plus: 'Buy +{hours} for {price}',
@@ -49,12 +49,12 @@ export const HUD_TEXT = Object.freeze({
   stam_done: 'Stamina restored',
 
   /* THE TALLY WIDGET. {board} where her board stands; {ground} a hunt's name. */
-  tally_aria: 'Tallies',
-  tally_open: 'Open the Tally, drag to move',
+  tally_aria: 'Your tallies',
+  tally_open: 'Open the Tally (drag to move)',
   tally: 'Tally',
-  tally_none: 'Kill tasks: Tamsin\'s board, {board}',
-  tally_done_row: 'done',
-  tally_not_here_row: 'not here',
+  tally_none: 'No kill tasks. Tamsin\'s board is in {board}.',
+  tally_done_row: '(done)',
+  tally_not_here_row: '(not here)',
   tally_counts_in: 'Counts only in {ground}',
 
   /* THE HUNT'S TOP BAR. {s} seconds; {ground} the hunt's name. */
@@ -70,20 +70,20 @@ export const HUD_TEXT = Object.freeze({
   leaving: 'Leaving…',
   leaving_now: 'Leaving now…',
   leaving_late: 'Still leaving…',
-  leaving_lost: 'No connection yet…',
-  leaving_slow: 'Waiting for server…',
+  leaving_lost: 'Waiting for a connection…',
+  leaving_slow: 'Waiting for the server…',
   leaving_in: 'Leaving in {s}s',
-  /* @sentence: the phone's one line under the bar says what the countdown is for */
-  leave_why: 'Finishes the current fight, then heads home',
+  /* the phone's one line under the bar says what the countdown is for */
+  leave_why: 'Your hero finishes the current fight, then heads home.',
   hunting: 'Hunting',
   last_hunt: 'Last hunt: {ground}',
-  leave_failed: 'Hunt not ended. {why}',
+  leave_failed: 'Couldn\'t leave the hunt. {why}',
 
   /* THE HUNT ANALYZER (src/shell/widgets/analyzer.js). {min} minutes. */
   an_title: 'Hunt analyzer',
   an_skill: 'Skill',
-  an_later: 'Per hour: after {min} min',
-  an_later_premium: 'Per hour: after {min} min',
+  an_later: 'Per-hour rates show after {min} minutes',
+  an_later_premium: 'Per-hour rates and time to next level show after {min} minutes',
   an_tab_session: 'Session',
   an_tab_training: 'Training',
   an_tab_taken: 'Taken',
@@ -92,9 +92,9 @@ export const HUD_TEXT = Object.freeze({
   an_kills: 'Monsters killed',
   an_level_xp: 'Level XP',
   an_gold: 'Gold',
-  an_loot_value: 'Unsold loot value',
+  an_loot_value: 'Loot value (unsold)',
   an_supplies_cost: 'Supplies cost',
-  an_balance: 'Balance',
+  an_balance: 'Balance (gold + loot − supplies)',
   an_sec_rates: 'Per hour',
   an_level_xp_h: 'Level XP per hour',
   an_raw_xp_h: 'Level XP per hour before bonuses',
@@ -116,12 +116,12 @@ export const HUD_TEXT = Object.freeze({
   an_hero: 'This hero',
   an_party: 'Party',
   an_close: 'Close the hunt analyzer',
-  an_close_title: 'Close',
-  an_wait: 'Fills in once the hunt has run a moment',
-  an_ended: 'Hunt ended: session summary',
+  an_close_title: 'Close (Hunt details opens it again)',
+  an_wait: 'Numbers show up once the hunt gets going',
+  an_ended: 'Hunt over. Here’s how it went.',
   an_session: 'Session',
   an_next: 'Next level in',
-  an_more: 'More detail: premium',
+  an_more: 'More detail with Premium',
   an_per_hour: '{n} an hour',
   an_next_in: 'next level in {time}',
   an_from_bag: 'from bag',

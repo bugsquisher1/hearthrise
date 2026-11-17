@@ -137,9 +137,9 @@ async function checks() {
     {
       const { trainingRefusal } = await import('../src/shell/training-words.js');
       const want = [
-        [{ verb: 'training_start', error: 'insufficient_gold', fee: 272, purse: 100 }, /costs 272 gold\. You have 100/],
-        [{ verb: 'house_dummy', error: 'insufficient_gold', price: 250000, purse: 5200 }, /costs 250,000 gold\. You have 5,200/],
-        [{ verb: 'training_start', error: 'hunt_open' }, /out hunting/],
+        [{ verb: 'training_start', error: 'insufficient_gold', fee: 272, purse: 100 }, /^First hour: 272 gold\. Gold: 100$/],
+        [{ verb: 'house_dummy', error: 'insufficient_gold', price: 250000, purse: 5200 }, /^Next unlock: 250,000 gold\. Gold: 5,200$/],
+        [{ verb: 'training_start', error: 'hunt_open' }, /is hunting, training is in town/],
         [{ verb: 'house_dummy', error: 'dummy_max' }, /Every skill is unlocked/],
       ];
       for (const [r, re] of want) { const w = trainingRefusal(r, 'Tyler'); if (!re.test(w || '')) fails.push('TR-0 ' + r.error + ' reads ' + JSON.stringify(w)); }
@@ -178,16 +178,16 @@ async function checks() {
         await page.click('[data-hs-act="train-stop"]');
         await wait(page, () => { const r = document.querySelector('[data-hs-win="training"] .tw-ended'); return !!r && !r.hidden; }, null, 4000);
         if (!s.calls.some((c) => c.name === 'hr_hunt_leave')) fails.push('TR-2 Stop did not send the hunt\'s Leave');
-        if (!/You stopped/.test(await q(page, '.tw-ended') || '')) fails.push('TR-2 the window does not say why it ended');
+        if (!/^Stopped /.test(await q(page, '.tw-ended') || '')) fails.push('TR-2 the window does not say why it ended');
       }
       if (errors.length) fails.push('TR-2 console: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
     }
     /* TR-3 */
     for (const [label, o, want, pick] of [
-      ['hunting', { hunt: clone(BASE_ENV.hunt) }, /out hunting/, null],
+      ['hunting', { hunt: clone(BASE_ENV.hunt) }, /is hunting, training is in town/, null],
       ['party', { party: clone(BASE_ENV.party) || { leader: 0, self: 0, members: [{ slot: 0, name: 'Tyler' }, { slot: 1, name: 'Mira' }] } }, /in a party/, null],
-      ['short', { gold: 100 }, /The first hour costs 272 gold\. You have 100\./, null],
+      ['short', { gold: 100 }, /^First hour: 272 gold\. Gold: 100$/, null],
       ['busy', { training: SECTION({ dummy: DUMMY({ busy: 'Mira' }) }) }, /Dummy in use by Mira/, 'defense'],
     ]) {
       const s = world(o);
@@ -210,7 +210,7 @@ async function checks() {
         why: (document.querySelector('.hd-why') || {}).textContent || '', next: (document.querySelector('.hd-next') || {}).textContent || '' }));
       if (r.held.join() !== 'Defense') fails.push('TR-4 the held skills are not the server\'s: ' + r.held.join());
       if (!/250,000/.test(r.next)) fails.push('TR-4 the next price is not the server\'s: ' + r.next);
-      if (!r.offAll || !/costs 250,000 gold\. You have 5,200/.test(r.why)) fails.push('TR-4 short of the price, Unlock is not off with why: ' + JSON.stringify(r));
+      if (!r.offAll || !/^Next unlock: 250,000 gold\. Gold: 5,200$/.test(r.why)) fails.push('TR-4 short of the price, Unlock is not off with why: ' + JSON.stringify(r));
       await ctx.close();
       const s2 = world({ gold: 300000 });
       const o2 = await open(s2);
@@ -234,13 +234,13 @@ async function checks() {
       if (!await openTraining(page)) fails.push('TR-6 the icon did not open the Training window');
       else {
         const xp = await q(page, '.tw-xp'), left = await q(page, '.tw-gear-left');
-        if (xp !== '60,000 Melee XP/h (200%)') fails.push('TR-6 the rate is not the server\'s, with its 200%: ' + JSON.stringify(xp));
+        if (xp !== '60,000 Melee XP/h at 200%') fails.push('TR-6 the rate is not the server\'s, with its 200%: ' + JSON.stringify(xp));
         if (left !== 'Training Sword at 200%, 9 hours 30 minutes left') fails.push('TR-6 the hours left are not the server\'s: ' + JSON.stringify(left));
         const rowsOf = (sel) => page.evaluate((x) => [...document.querySelectorAll('[data-hs-win="training"] ' + x + ' .tw-gear-row')]
           .map((r) => r.querySelector('.tw-gear-name').textContent + ' | ' + r.querySelector('.tw-gear-fig').textContent), sel);
         const held = await rowsOf('.tw-gear-held'), shop = await rowsOf('.tw-gear-shop');
-        if (held.join() !== 'Training Sword (12 h), bound | 1 in bag') fails.push('TR-6 the sealed ones held: ' + JSON.stringify(held));
-        if (shop.join() !== 'Training Sword (12 h) | 250,000 gold,Training Sword (24 h) | 450,000 gold') fails.push('TR-6 the Arms Master\'s rows: ' + JSON.stringify(shop));
+        if (held.join() !== 'Training Sword, 12 h, bound | 1 in bag') fails.push('TR-6 the sealed ones held: ' + JSON.stringify(held));
+        if (shop.join() !== 'Training Sword, 12 h | 250,000 gold,Training Sword, 24 h | 450,000 gold') fails.push('TR-6 the Arms Master\'s rows: ' + JSON.stringify(shop));
         if (SHOTS) { await page.locator('[data-hs-win="training"] .tw-gear').scrollIntoViewIfNeeded(); await page.screenshot({ path: join(SHOTS, 'training-desktop-items.png') }); }
         await page.click('[data-hs-win="training"] .tw-gear-shop .tw-gear-row:first-child [data-hs-act="gear-buy"]');
         await wait(page, () => /0 of 10|1 of 10/.test((document.querySelector('[data-hs-win="training"] .tw-gear-note') || {}).textContent || '')
@@ -265,12 +265,12 @@ async function checks() {
       for (const [label, sec, check] of [
         ['under Level 10', SECTION(GEAR({ rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 5 } })), async (page) => {
           const r = await offWhy(page);
-          return r.off && /Training opens at Level 10\. You are Level 5\./.test(r.why) ? null : 'Start ' + (r.off ? 'off' : 'ON') + ' with ' + JSON.stringify(r.why);
+          return r.off && /^Requires Level 10\. Level now: 5$/.test(r.why) ? null : 'Start ' + (r.off ? 'off' : 'ON') + ' with ' + JSON.stringify(r.why);
         }],
         ['closed', SECTION(GEAR({ shop: { on: false, today: 0, max: 10 } })), async (page) => {
           const r = await page.evaluate(() => ({ presses: document.querySelectorAll('[data-hs-win="training"] .tw-gear-press').length,
             note: (document.querySelector('[data-hs-win="training"] .tw-gear-note') || {}).textContent || '' }));
-          return r.presses === 0 && /aren't for sale yet/.test(r.note) ? null : JSON.stringify(r);
+          return r.presses === 0 && /not for sale yet/.test(r.note) ? null : JSON.stringify(r);
         }],
       ]) {
         const s2 = world({ training: sec });

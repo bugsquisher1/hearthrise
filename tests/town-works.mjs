@@ -797,7 +797,7 @@ const ARMS = {
     const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [GIVE])) + String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [FAULT]));
     for (const m of def.matchAll(/'error', '((?:works_|not_a_|bad_a)[a-z_]+)'/g)) if (!X.RW.REFUSAL_WORDS[m[1]]) out.push('no words for ' + m[1]);
     const plain = X.IW.refusalText({ ok: false, error: 'works_over', verb: 'town_works', project: P }, null);
-    if (!/more than you can give/.test(plain)) out.push('with its number lost, works_over reads ' + plain);
+    if (!/^Over today's limit$/.test(plain)) out.push('with its number lost, works_over reads ' + plain);
     const join = X.HR.honorBoard('gold_given').join;
     if (join !== 'Give gold to Havora: Works, powders, rounds, Crier') out.push('Gold Given\'s join line reads ' + join);
     return out;
@@ -822,9 +822,9 @@ const ARMS = {
        today" live, and "Not enough gold." only after the press). The purse is the envelope's; the room is the server's; the last button gives the smaller. */
     const room = await as(db, A, 'select public.hr_town_works_view(0)');
     const poor = await giftsOf(X, room, 500);
-    if (poor.gifts.some((g) => !g.off) || poor.gifts.map((g) => g.why).join('|') !== 'You need 500 gp more.|You need 4,500 gp more.') out.push('with 500 gp the gifts read ' + JSON.stringify(poor.gifts));
+    if (poor.gifts.some((g) => !g.off) || poor.gifts.map((g) => g.why).join('|') !== 'Need 500 gp more|Need 4,500 gp more') out.push('with 500 gp the gifts read ' + JSON.stringify(poor.gifts));
     /* the last button says the purse itself; a line more pushed the custom gift under a 1366x768 window's foot (chat-social CW-HAVORA measures it) */
-    if (poor.max.words !== 'Give the 500 gp you have' || poor.max.off || poor.max.hidden || poor.cap !== '500' || poor.why) out.push('with 500 gp the last button and its line read ' + JSON.stringify(poor));
+    if (poor.max.words !== 'Give all 500 gp' || poor.max.off || poor.max.hidden || poor.cap !== '500' || poor.why) out.push('with 500 gp the last button and its line read ' + JSON.stringify(poor));
     /* where the last button gives what the project still needs, the purse under a gift says it on the line */
     const near = await giftsOf(X, { ...room, left: 800, max_gift: 800 }, 900);
     if (near.gifts[0].off !== true || near.max.words !== 'Give the 800 gp it still needs' || near.why !== 'Max gift: 900 gp') out.push('near the finish with 900 gp the window reads ' + JSON.stringify(near));

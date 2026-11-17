@@ -313,13 +313,13 @@ const ARMS = {
     const out = [];
     const R = (o, name) => X.IW.refusalText({ ok: false, verb: 'crier', ...o }, name ? { slot: 0, read: () => null, name } : null);
     const want = [
-      [{ error: 'crier_word' }, 'The Crier won\'t shout that word. Change it. You weren\'t charged.'],
-      [{ error: 'crier_link' }, 'The Crier won\'t shout web addresses. You weren\'t charged.'],
+      [{ error: 'crier_word' }, 'Word not allowed, not charged'],
+      [{ error: 'crier_link' }, 'No web addresses, not charged'],
       [{ error: 'crier_long', n: 133, max: 120 }, 'Max 120 letters (yours: 133)'],
       [{ error: 'crier_limit', perDay: 5 }, 'Daily limit: 5 Crier lines per account, resets at midnight UTC'],
       [{ error: 'crier_busy', waitS: 12 }, 'Crier busy, not charged, retry in 12 s'],
       [{ error: 'crier_off' }, 'Crier off duty, not charged'],
-      [{ error: 'quote_changed', price: 2000 }, 'Price changed to 2,000 gp, not charged. Press again to pay.'],
+      [{ error: 'quote_changed', price: 2000 }, 'Price now 2,000 gp, not charged'],
       /* a muted press, said for the Crier (the raised row lock reads the same code through src/session/server.js raisedCode) */
       [{ error: 'muted' }, 'Muted, Crier off'],
     ];

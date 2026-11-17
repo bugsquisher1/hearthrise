@@ -525,19 +525,19 @@ const ARMS = {
     if (X.OF.dyeKeyOf(C1) !== '1.2.3.4') out.push('dyeKeyOf reads ' + X.OF.dyeKeyOf(C1));
     /* THE WORDS, the design's, with the server's number */
     const said = (body) => X.IW.refusalText(X.REF.refusalOf({ ok: true, body: Object.assign({ ok: false }, body) }));
-    if (said({ error: 'colors_same' }) !== 'Those are already this hero\'s colors. Nothing was charged.') out.push('colors_same says ' + said({ error: 'colors_same' }));
+    if (said({ error: 'colors_same' }) !== 'Same colors, not charged') out.push('colors_same says ' + said({ error: 'colors_same' }));
     if (said({ error: 'colors_limit', per_day: R.perDay }) !== `Daily limit: ${R.perDay} color changes, resets at midnight UTC`) out.push('colors_limit says ' + said({ error: 'colors_limit', per_day: R.perDay }));
     if (said({ error: 'colors_limit', per_day: 3 }) !== 'Daily limit: 3 color changes, resets at midnight UTC') out.push('a moved row still says ' + said({ error: 'colors_limit', per_day: 3 }));
     if (!X.IW.refusalWords('colors_limit') || X.IW.refusalWords('colors_limit') === X.RW.REFUSAL_FALLBACK) out.push('colors_limit has no plain line');
     /* THE TRY-ON TELLS THE TRUTH: every part by its name; the druid says why it has none, and that the colors stay */
     const knight = X.OW.showsWords(X.OF.OUTFIT_ROWS.knight, false);
-    if (!/Plume, Waist cloth/.test(knight) || !/rest stays as drawn/.test(knight)) out.push('the knight\'s try-on says ' + knight);
+    if (!/^Dyeable here: Plume, Waist cloth$/.test(knight)) out.push('the knight\'s try-on says ' + knight);
     const hidden = X.OW.showsWords(X.OF.OUTFIT_ROWS.knight, true);
-    if (!/doesn't show/.test(hidden)) out.push('a save the knight can\'t show says ' + hidden);
+    if (!/show only on other outfits/.test(hidden)) out.push('a save the knight can\'t show says ' + hidden);
     const druid = X.OW.showsWords(X.OF.OUTFIT_ROWS.druid, false);
-    if (!/green/.test(druid) || !/every other outfit/.test(druid)) out.push('the druid says ' + JSON.stringify(druid));
+    if (!/green/.test(druid) || !/other outfits/.test(druid)) out.push('the druid says ' + JSON.stringify(druid));
     /* the creation step's words and what a new hero wears: the real kit, the real look */
-    if (X.HC.START_OUTFIT !== 'knight' || !/plume and waist cloth/.test(X.HC.startWords())) out.push('the step says ' + X.HC.startWords());
+    if (X.HC.START_OUTFIT !== 'knight' || !/^Starting outfit: Plate Harness/.test(X.HC.startWords())) out.push('the step says ' + X.HC.startWords());
     const start = X.SK.START_EQUIPMENT;
     if (!start.shield || start.weapon !== 'practice_sword') out.push('the start kit moved: the step previews the tank\'s outfit');
     /* the picks shown on the small outfits together show every region */

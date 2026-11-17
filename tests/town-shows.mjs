@@ -851,7 +851,7 @@ const ARMS = {
       [{ error: 'show_busy', verb: 'town_powder', bookedS: 360, waitS: 60 }, 'Hearth powders booked for 6 min, not charged'],
       [{ error: 'show_limit', verb: 'town_round', perDay: 4 }, 'Daily limit: 4 rounds per account, resets at midnight UTC'],
       [{ error: 'show_busy', verb: 'town_round', bookedS: 200, waitS: 20 }, 'Round in progress, not charged, retry in 20 s'],
-      [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'Price changed to 4,000 gp, not charged. Press again to pay.'],
+      [{ error: 'quote_changed', verb: 'town_powder', price: 4000 }, 'Price now 4,000 gp, not charged'],
       [{ error: 'not_a_show', verb: 'town_powder' }, 'Havora doesn\'t sell that.'],
     ];
     for (const [r, words] of want) if (R(r) !== words) out.push(JSON.stringify(r) + ' reads: ' + R(r));
@@ -867,7 +867,7 @@ const ARMS = {
     /* ONLY THE FLAME CHANGES COLOR, so the Hearth tab says so, with the rules row's own seconds */
     const lead = (/data-pane="hearth"><p class="hv-lead">([^<]*)</.exec(html) || [])[1] || '';
     if (/fills|square/i.test(lead)) out.push('the Hearth tab promises the square a color: ' + lead);
-    if (!lead.includes('burns that color for ' + X.GS.SINK_RULES.powder.seconds + ' seconds') || !lead.includes('everyone in Havora sees who threw it')) out.push('the Hearth tab reads: ' + lead);
+    if (!lead.includes('Great Hearth for ' + X.GS.SINK_RULES.powder.seconds + ' s') || !lead.includes('thrower shown to all')) out.push('the Hearth tab reads: ' + lead);
     /* THE DAY'S LINE AND THE ANSWER STAND IN THE FOOT, one line per tab: a short window scrolls the pane under them */
     const foot = (/<div class="hv-foot">(.*)<\/div><\/div>$/.exec(html) || [])[1] || '';
     for (const id of ['hearth', 'round', 'works']) if (!foot.includes('hv-count" data-of="' + id + '"')) out.push('the foot has no line for ' + id + ': ' + foot);
@@ -881,8 +881,8 @@ const ARMS = {
     /* A PRICE THE PURSE CAN'T PAY IS OFF BEFORE THE PRESS, AND SAYS BY HOW MUCH (v0.2.97 gate, the Works tab's class: "Throw Cinnabar: 2,000 gp" live on a 500 gp purse).
        The real patch over plain elements, the envelope's purse against the server's quote; with no purse stated the server judges. */
     const poor = await buysOf(X, view, 500), flush = await buysOf(X, view, 9000), unsaid = await buysOf(X, view, null);
-    if (!poor.powder.off || poor.powder.why !== 'You need 1,500 gp more.' || poor.powder.line !== 'You need 1,500 gp more.') out.push('with 500 gp the powder reads ' + JSON.stringify(poor.powder));
-    if (!poor.round.off || poor.round.line !== 'You need 4,500 gp more.') out.push('with 500 gp the round reads ' + JSON.stringify(poor.round));
+    if (!poor.powder.off || poor.powder.why !== 'Need 1,500 gp more' || poor.powder.line !== 'Need 1,500 gp more') out.push('with 500 gp the powder reads ' + JSON.stringify(poor.powder));
+    if (!poor.round.off || poor.round.line !== 'Need 4,500 gp more') out.push('with 500 gp the round reads ' + JSON.stringify(poor.round));
     if (flush.powder.off || flush.round.off || flush.powder.line || flush.round.line || flush.powder.why !== null) out.push('with 9,000 gp the buys read ' + JSON.stringify(flush));
     if (unsaid.powder.off || unsaid.round.off) out.push('with no purse stated a buy is off: ' + JSON.stringify(unsaid));
     /* THE TAVERN OPENS ITS ROUND TAB */

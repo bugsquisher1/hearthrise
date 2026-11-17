@@ -91,9 +91,9 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
   /* W5 the refusal table */
   const say = (error, figures, verb = 'market_list') => T.refusalText({ ok: false, error, verb, figures });
   ok('W5', /^Below the shop price: 142 each$/.test(say('price_below_shop', { floor: 142 })), 'floor: ' + say('price_below_shop', { floor: 142 }));
-  ok('W5', /The most is 28,500 each/.test(say('price_above_cap', { ceiling: 28500 })), 'ceiling: ' + say('price_above_cap', { ceiling: 28500 }));
-  ok('W5', /You have 50 listings up/.test(say('too_many_listings', { limit: 50 })), 'listings cap');
-  ok('W5', /The listing fee is 8 gold/.test(say('insufficient_gold', { need: 8, have: 2 })), 'a list short of its fee');
+  ok('W5', /^Above the highest price: 28,500 each$/.test(say('price_above_cap', { ceiling: 28500 })), 'ceiling: ' + say('price_above_cap', { ceiling: 28500 }));
+  ok('W5', /^Max listings: 50$/.test(say('too_many_listings', { limit: 50 })), 'listings cap');
+  ok('W5', /^Listing fee: 8 gold$/.test(say('insufficient_gold', { need: 8, have: 2 })), 'a list short of its fee');
   ok('W5', /Need 1,560 gold, have 1,200/.test(say('insufficient_gold', { need: 1560, have: 1200 }, 'market_buy')), 'a buy short of gold');
   ok('W5', /Only 2 are left at that price/.test(say('not_enough', { available: 2 }, 'market_buy')), 'not enough left');
   ok('W5', say('market_locked', { min_level: 10, min_skill_level: 30 }) === 'The Weighhouse trades with heroes of Level 10, or with a bench skill at 30.', 'the rule says both numbers: ' + say('market_locked', { min_level: 10, min_skill_level: 30 }));
@@ -103,7 +103,7 @@ async function runTests({ M, I, G, C, F, R, T, S, base }) {
   const benchRules = M.rulesOf({ fee_bp: 100, cut_bp: 400, min_level: 7, min_skill_level: 25 });
   ok('W5', benchRules.minLevel === 7 && benchRules.minSkillLevel === 25,'the window reads both numbers from the rules row: ' + JSON.stringify(benchRules));
   ok('W5', /^Can't be sold to players/.test(say('not_tradeable', null)), 'the listable rule');
-  ok('W5', /^Your own listing/.test(say('own_listing', null, 'market_buy')), 'own listing');
+  ok('W5', /^Own listing/.test(say('own_listing', null, 'market_buy')), 'own listing');
   const r = F.refusalOf({ body: { ok: false, verb: 'market_list', error: 'price_below_shop', detail: { floor: 142 } } });
   ok('W5', r.figures && r.figures.floor === 142, 'the floor sits in `detail` on the wire and must reach the words: ' + JSON.stringify(r.figures));
   const top = F.refusalOf({ body: { ok: false, verb: 'market_list', error: 'too_many_listings', limit: 50 } });

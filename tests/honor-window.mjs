@@ -174,7 +174,7 @@ async function checks(overrides, shots) {
       /* GOLD GIVEN: gold words, an account's row whichever hero is viewed, and the words say account */
       if (!(await pick(page, 'gold_given'))) fails.push('HP-GOLD Gold Given never drew');
       const g = await readRoll(page);
-      if (g.lines.map((l) => l.place + ' ' + l.name + ' ' + l.value + ' ' + l.tag + (l.viewed ? '*' : '')).join(', ') !== '1st Osric 12,000 gp , 2nd Wennet 9,000 gp Your account*') fails.push('HP-GOLD the roll reads ' + JSON.stringify(g.lines));
+      if (g.lines.map((l) => l.place + ' ' + l.name + ' ' + l.value + ' ' + l.tag + (l.viewed ? '*' : '')).join(', ') !== '1st Osric 12,000 gp , 2nd Wennet 9,000 gp You*') fails.push('HP-GOLD the roll reads ' + JSON.stringify(g.lines));
       if (g.count !== '2 accounts on this board') fails.push('HP-GOLD the count reads ' + g.count);
       if (g.you !== 'Rank: 2nd of 2, led by Wennet' || g.next !== 'Next up: Osric\'s account, 3,000 gp ahead') fails.push('HP-GOLD the standing reads ' + JSON.stringify([g.you, g.next]));
       if (await page.evaluate(() => document.querySelector('[data-hs-win="honor"] .hr-you h3').textContent) !== 'Account standing') fails.push('HP-GOLD the section is not named for the account');

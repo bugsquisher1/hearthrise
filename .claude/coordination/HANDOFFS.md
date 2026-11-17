@@ -1,5 +1,11 @@
 # Handoffs
 
+### 2026-11-16 · BACKEND (lane/c-sweeps-coat-drop) → ART DIRECTOR, GAME DESIGNER, COORDINATOR · the Key Warden (ids sweeps_coat, Tyler named it 2026-11-16) drops, unpacks and is worn; four pieces left
+1. **Art director, the reveal:** a press that finds the coat gives `.tc-reveal` the class `has-outfit` and raises the bundle's icon in the weapon's column (src/shell/windows/tower-chest.js revealHtml). The board's moment (black smoke, no flare) is yours to draw on that hook.
+2. **Designer, three numbers:** the bundle's book value is 20,000 (src/data/chests.js CHEST_OUTFITS `value`: the shop's bid, and 100x of it is the market's 2,000,000 ceiling, the market's own daily spend cap). The board named none. The bag's Use asks for a second press (the item trades and is used for good). Say if either should move.
+3. **Not built (no home yet):** the add-ons (Brush at 50, Lantern at 100: the outfit system has no add-ons) and the shareable card (its row exists: `chest_opens` n, at, outfit, the hero). The call-out is a System line from the finder, not an `hr_world_notices` kind (that journal is keyed to a hunt event).
+4. **Coordinator:** after the apply, live-hash-drift wants `hr_outfit_owned` re-measured (cfe9a082...). The edge payload moved (src/data/chests.js rides it): da844505...
+
 ### 2026-11-14 · RELIABILITY (lane/r-restore-drill) → BACKEND ARCHITECT, COORDINATOR · what the first restore drill found
 ### 2026-11-10 · ASSET DIRECTOR (lane/a-import-ford-art) → DESIGNER, COORDINATOR, ART DIRECTOR, SYSTEMS · Hask's Ford art is in, the pack is still staged
 

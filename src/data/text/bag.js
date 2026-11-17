@@ -28,6 +28,12 @@ export const BAG_TEXT = Object.freeze({
   locked_n: { one: 'Locked {count} stack.', other: 'Locked {count} stacks.' },
   unlocked_n: { one: 'Unlocked {count} stack.', other: 'Unlocked {count} stacks.' },
   locks_reading: 'Reading your locks…',
+  /* An outfit's bundle (the Key Warden): Use owns the outfit for this hero (src/shell/windows/inventory/outfit-bundle.js). Labels. */
+  bundle_owned: 'Outfit already owned',
+  /* the first press arms the use (a tradeable item, used for good): the second unlocks it */
+  bundle_confirm: 'Press again to unlock for good',
+  bundle_busy: 'Unpacking…',
+  bundle_used: 'Outfit unlocked: {outfit}',
   /* The Storage window (src/shell/windows/storage.js). Its Expand reads the server's offer (hr_bag_expand_view). */
   store_search: 'Search items',
   store_in_storage: 'In storage',

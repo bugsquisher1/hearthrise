@@ -44,7 +44,8 @@ const B = '000000c0-0000-4000-a000-0000901dc102';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const FILE = '2027-03-05-hero-colors.sql';
-const CATALOGUE = '2027-03-05-outfits-catalogue.generated.sql';
+/* the outfits catalogue the chain lands last (tools/gen-outfits.mjs OUT_FILE; 2027-03-05's is applied history) */
+const CATALOGUE = '2027-04-30-sweeps-coat-outfits-catalogue.generated.sql';
 const SET = 'public.hr_hero_colors_set(integer,jsonb,bigint,uuid)';
 const WEAR = 'public.hr_outfit_set(integer,text,jsonb,uuid)';
 const PRICE = 'public.hr_hero_colors_price(uuid,integer)';
@@ -436,9 +437,19 @@ const ARMS = {
 
   'HC-ART': async (db, X) => {
     const out = [];
-    const server = new Map((await q(db, 'select outfit_id, regions from public.hr_outfits')).map((r) => [r.outfit_id, r.regions]));
+    const rowsOf = await q(db, 'select outfit_id, regions, bundle from public.hr_outfits');
+    const server = new Map(rowsOf.map((r) => [r.outfit_id, r.regions]));
+    const bundleOn = new Map(rowsOf.map((r) => [r.outfit_id, r.bundle]));
     const { OUTFIT_ROWS, BASE_REGIONS, MASK_COLOURS } = X.OF;
-    for (const [id, r] of Object.entries(OUTFIT_ROWS)) if (JSON.stringify(server.get(id)) !== JSON.stringify(r.regions)) out.push(`${id}: the server's regions ${JSON.stringify(server.get(id))}, the data's ${JSON.stringify(r.regions)}`);
+    for (const [id, r] of Object.entries(OUTFIT_ROWS)) {
+      /* a bundle outfit (the Key Warden) is owned only through its bundle (2027-04-30-sweeps-coat.sql): its row carries it, and a hero
+         that never used one does not own it */
+      if ((bundleOn.get(id) || null) !== (r.bundle || null)) out.push(`${id}: the server's bundle ${bundleOn.get(id)}, the data's ${r.bundle}`);
+      if (r.bundle && (await one(db, 'select $1 = any (public.hr_outfit_owned($2::uuid, 0))', [id, '00000000-0000-4000-8000-00000000c0a7']))) {
+        out.push(`${id}: a bundle outfit is owned by a hero that never used its bundle`);
+      }
+      if (JSON.stringify(server.get(id)) !== JSON.stringify(r.regions)) out.push(`${id}: the server's regions ${JSON.stringify(server.get(id))}, the data's ${JSON.stringify(r.regions)}`);
+    }
     if (X.OF.validate().length) out.push('outfits.js: ' + X.OF.validate().join('; '));
     /* WHAT THE PICKER OFFERS IS WHAT THE ART SHOWS: read off the shipped atlas, pixel by pixel. */
     const { decodePNG } = await import(pathToFileURL(join(ROOT, 'tools/world-art/png.mjs')).href);
@@ -497,7 +508,7 @@ const ARMS = {
     const text = mutant && mutant.sql ? plantSql(MIG(FILE), mutant.sql) : MIG(FILE);
     const inventory = async () => (await q(db, `select p.oid::regprocedure::text fn, md5(pg_get_functiondef(p.oid)) m from pg_proc p
       where p.pronamespace = 'public'::regnamespace and p.prokind = 'f' and p.proname in ('hr_hero_colors_price', 'hr_hero_colors_view', 'hr_hero_colors_saved_today', 'hr_town_look_touch', 'hr_hero_colors_set', 'hr_outfit_set', 'hr_title_wear', 'hr_social_party_view') order by 1`)).map((r) => r.fn + ':' + r.m).join('\n');
-    const rows = () => q(db, 'select outfit_id, regions, premium, sort from public.hr_outfits order by outfit_id').then(JSON.stringify);
+    const rows = () => q(db, 'select outfit_id, regions, premium, sort, bundle from public.hr_outfits order by outfit_id').then(JSON.stringify);
     const was = await inventory(), rowsWere = await rows();
     await db.exec('savepoint again');
     /* the file's own self-check makes a second hero unpaid: re-applied on the ladder it was written against (tests/_slots.mjs) */

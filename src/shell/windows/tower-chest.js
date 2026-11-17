@@ -175,9 +175,11 @@ function patchStokes(host, k, pending) {
 const REVEAL_KEYS = Object.freeze(['bronze', 'silver', 'gold', 'platinum']);
 export function revealHtml(r) {
   if (!r || !REVEAL_KEYS.includes(r.key)) return '';
-  const weapon = r.opens.map((o) => o.weapon).find(Boolean) || null;
-  return '<div class="tc-reveal' + (weapon ? ' has-weapon' : '') + '" data-key="' + esc(r.key) + '"><span class="tc-reveal-chest"></span>'
-    + (weapon ? '<span class="tc-reveal-col"></span><img class="tc-reveal-item" src="' + esc(PIXEL_DIR + weapon + '.png') + '" alt="" width="32" height="32" decoding="async">' : '')
+  /* a super-rare outfit is the find that rises (its bundle's icon, `has-outfit` for the art's own smoke), else the weapon */
+  const bundle = r.opens.map((o) => o.bundle).find(Boolean) || null;
+  const up = bundle || r.opens.map((o) => o.weapon).find(Boolean) || null;
+  return '<div class="tc-reveal' + (up ? ' has-weapon' : '') + (bundle ? ' has-outfit' : '') + '" data-key="' + esc(r.key) + '"><span class="tc-reveal-chest"></span>'
+    + (up ? '<span class="tc-reveal-col"></span><img class="tc-reveal-item" src="' + esc(PIXEL_DIR + up + '.png') + '" alt="" width="32" height="32" decoding="async">' : '')
     + '</div>';
 }
 
@@ -196,14 +198,17 @@ function patchResult(pane, r, tw) {
   cls(pane.querySelector('.tc-scene'), 'is-open', !!reveal);
   const k = keyRow(tw, r.key);
   const weapons = r.opens.filter((o) => o.weapon);
-  const ids = weapons.map((o) => o.weapon);
+  /* a super-rare outfit found leads the list, labelled as one (its bundle is the item in the haul) */
+  const finds = r.opens.filter((o) => o.bundle);
+  const ids = weapons.map((o) => o.weapon).concat(finds.map((o) => o.bundle));
   const rest = Object.fromEntries(Object.entries(r.haul).filter(([id]) => !ids.includes(id)));
   const used = pane.querySelector('.tc-used');
   prop(used, 'hidden', r.opens.length < 2);
   text(used, r.opens.length > 1 ? t('tower.opened_many', { count: r.opens.length }) : '');
   const well = (id, name, sub, found) => '<div class="tc-loot-item' + (found ? ' tt-found-row' : '') + '"><img src="' + esc(PIXEL_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">'
     + '<span><b class="' + (found ? 'tt-found' : 'tc-loot-name') + '">' + esc(name) + '</b><span class="tc-loot-sub">' + esc(sub) + '</span></span></div>';
-  pane.querySelector('.tc-loot').innerHTML = weapons.map((o) => well(o.weapon, itemName(o.weapon),
+  pane.querySelector('.tc-loot').innerHTML = finds.map((o) => well(o.bundle, itemName(o.bundle), t('tower.super_rare'), true)).join('')
+    + weapons.map((o) => well(o.weapon, itemName(o.weapon),
     [o.family ? familyWord(o.family) : '', k && k.skillPlus !== null ? t('tower.plus', { plus: k.skillPlus }) : ''].filter(Boolean).join(' '), true)).join('')
     + Object.entries(rest).filter(([, q]) => Number.isSafeInteger(q) && q > 0).map(([id, q]) => well(id, itemName(id), t('tower.count', { count: whole(q) }), false)).join('');
   revealInWindow(host);
@@ -236,7 +241,9 @@ export function patchChest(pane, cs, tw, sc) {
     /* what else a key holds, said on the slot to a pointer that rests on it: the equipped type's share, the contents, the bonus */
     const tip = [c.ownFamily && c.ownPm !== null ? t('tower.own', { family: familyWord(c.ownFamily), pct: ppmWords(c.ownPm * 1000) }) : '',
       Object.keys(k.inside).length ? t('tower.inside', { list: lootList(k.inside).join(', ') }) : '',
-      k.skillPlus !== null ? t('tower.skill_plus', { plus: k.skillPlus }) : ''].filter(Boolean).join('\n');
+      k.skillPlus !== null ? t('tower.skill_plus', { plus: k.skillPlus }) : '',
+      /* the super-rare outfits this key can find, each at the server's chance */
+      ...k.outfits.map((o) => t('tower.outfit_chance', { name: itemName(o.item), pct: ppmWords(o.pm * 1000) }))].filter(Boolean).join('\n');
     attr(pane.querySelector('.tc-pick[data-key="' + k.key + '"]'), 'title', tip || null);
   }
   const st = k && k.stokesDefault ? stokeRow(k, k.stokesDefault) : null;

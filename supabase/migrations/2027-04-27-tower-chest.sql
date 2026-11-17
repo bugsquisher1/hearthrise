@@ -42,7 +42,7 @@
 --   The keys and any Cinders the stokes spend over what the press pays are taken from the bag first, then the account's Storage
 --   (hr_materials_take), one ledger row an item taken; the haul lands by ONE hr_apply on the caller's key (kind hunt, intent
 --   chest_open:<chest>:<key>:<count>:<stokes|d>, meta { reason, chest, key, opens[], took, cinders_spent }).
---   ok: { ok, version, chest, key, count, opens: [{ n, stokes, chance_ppm, weapon, family }], haul: { item: qty }, cinders_spent, dry, opens_total,
+--   ok: { ok, version, chest, key, count, opens: [{ n, stokes, chance_ppm, weapon, family, outfit, bundle }], haul: { item: qty }, cinders_spent, dry, opens_total,
 --   chest_section }. A replay answers this receipt once more and moves nothing.
 --   REFUSALS, each moving nothing: not_signed_in, bad_slot, bad_idem, bad_chest (no hr_chests row), bad_key (no hr_chest_keys row),
 --   bad_count (not 1..per_call), bad_stokes (not 0 or an hr_chest_stokes row), rate_limited, feature_off, no_character, in_hunt (the hero is
@@ -52,6 +52,17 @@
 --   no_key { have, need } (bag + Storage), bag_full { stacks, cap, need } (the worst case of the press: every haul item not held, one weapon a
 --   family it could roll, less the key's stack it empties: checked BEFORE any roll, so a refusal never says what a key would have found),
 --   intent_mismatch, and hr_apply's own (which an honest press under these locks never meets; if one does, the whole press rolls back).
+-- THE SUPER-RARE OUTFIT (lane/c-sweeps-coat-drop, backend-architect, 2026-11-16; Tyler 2026-11-14: "a super rare outfit that can drop from
+--   any chest", the designer's Sweep's Coat, named Key Warden by Tyler 2026-11-16; src/data/chests.js CHEST_OUTFITS, hr_chest_outfits): every key used rolls ONCE more on its own
+--   stream (hr_chest_outfit_roll: hr_seed(hero, 'chest:<n>:outfit'), never the weapon's), and the chest's outfit rows for that key, stacked
+--   in outfit order, each cover pm x 1000 of the million: at most one outfit a key, each at exactly its chance (Bronze 2, Silver 3, Gold 4,
+--   Platinum 5 permille). A hit pays the outfit's BUNDLE item (tradeable, book value: the board's "it trades, until someone wears it") into
+--   the haul, is recorded on the key's chest_opens row (outfit, outfit_roll) and answered in opens[] { outfit, bundle }; the bag's worst
+--   case counts a bundle stack the bag lacks. THE CALL-OUT: once the press has applied, each find posts one System line (chat_messages,
+--   channel system, from the finder: hr_chat_name_authority stamps the hero's name) "found the [[item:<bundle>]] in the Hearth Chest (<the key's
+--   name>)" unless the hero is quiet (player_state.presence_quiet), outside the rare-drop daily cap (hr_world_notices counts the
+--   settle's rare_drop events only). The line is in the press's transaction: a refused press posts nothing. Using the bundle is
+--   2027-04-30-sweeps-coat.sql's hr_outfit_bundle_use.
 -- hr_chest_stoke_default(p_slot int, p_key text, p_stokes int, p_idem uuid) -> jsonb   CLIENT VERB. The hero's default stoke count for one
 --   kind of key (the design's "Save as default"). Moves no value. ok: { ok, key, stokes, chest_section }. Refusals: the shape ones, bad_key,
 --   bad_stokes, rate_limited, feature_off, no_character, intent_mismatch.
@@ -77,12 +88,13 @@
 -- hr_chest_section(p_user uuid, p_slot int) -> jsonb (owner-only; both verbs answer it; the window lane projects it): { on, dry, opens,
 --   per_call, own_pm, own_family, cinders { bag, storage, ring }, warmth_pm, week_ends (the next Monday 00:00 UTC), families: [{ family, name,
 --   opened (this week), max (opens_per_week), held, held_max }], keys: [{ key, family, item, name, from, held { bag, storage, ring }, base_pm,
---   chance_ppm (now, with the default stokes), stokes_default, stokes: [{ n, pm, cost }], inside { item: qty }, ready, skill_plus }] }:
---   every number the menu shows, the server's own.
+--   chance_ppm (now, with the default stokes), stokes_default, stokes: [{ n, pm, cost }], inside { item: qty }, ready, skill_plus,
+--   outfits: [{ outfit, item, pm }] }] }: every number the menu shows, the server's own.
 -- chest_luck (user_id, slot) NEW: dry (keys since the last weapon), opens (keys used, ever: the roll's index and the Turnkey title's count),
---   stokes (default stokes a key). chest_opens NEW, append-only: one row a key used, with its key family (the week's count reads it). Both:
+--   stokes (default stokes a key). chest_opens NEW, append-only: one row a key used, with its key family (the week's count reads it) and its
+--   outfit roll and find (the row a shareable card is built from: the key number, the date, the hero). Both:
 --   RLS on, the owner reads its own rows, NO client write (no policy, no grant but select).
--- Owner-only helpers: hr_chest_chance_ppm, hr_chest_roll, hr_chest_held, hr_chest_family_held, hr_chest_week_start, hr_chest_section,
+-- Owner-only helpers: hr_chest_chance_ppm, hr_chest_roll, hr_chest_outfit_roll, hr_chest_held, hr_chest_family_held, hr_chest_week_start, hr_chest_section,
 --   hr_tower_key_mint, hr_chest_opens_immutable (the trigger that refuses any UPDATE or DELETE of a chest_opens row).
 --
 -- ── CONCURRENCY / IDEMPOTENCY ──────────────────────────────────────────────
@@ -142,6 +154,7 @@ begin
      or to_regclass('public.hr_chest_key_families') is null or not exists (select 1 from public.hr_chest_key_families where key_family = 'tower')
      or to_regclass('public.hr_chest_weapons') is null or to_regclass('public.hr_chest_weapon_families') is null
      or to_regclass('public.hr_chest_families') is null or to_regclass('public.hr_chests') is null
+     or to_regclass('public.hr_chest_outfits') is null
      or (select count(*) from public.hr_chest_luck) <> 1 or not exists (select 1 from public.hr_chest_keys) then
     raise exception 'PRECONDITION: apply 2027-04-27-tower-chest-catalogue.generated.sql first (the chest''s catalogue)'; end if;
   if to_regclass('public.tower_runs') is null or to_regclass('public.hr_tower_rules') is null then
@@ -193,10 +206,13 @@ create table if not exists public.chest_opens (
   roll          int         not null check (roll between 0 and 999999),
   family        text,
   weapon        text,
+  outfit_roll   int         check (outfit_roll between 0 and 999999),
+  outfit        text        check (outfit ~ '^[a-z0-9_]{1,40}$'),
   intent_id     uuid        not null,
   at            timestamptz not null default now(),
   constraint chest_opens_n unique (user_id, slot, n),
-  constraint chest_opens_hit check ((weapon is null) = (family is null) and (weapon is null or roll < chance_ppm))
+  constraint chest_opens_hit check ((weapon is null) = (family is null) and (weapon is null or roll < chance_ppm)),
+  constraint chest_opens_outfit check (outfit is null or outfit_roll is not null)
 );
 create index if not exists chest_opens_week on public.chest_opens (user_id, slot, key_family, at);
 create table if not exists public.player_key_ring (
@@ -230,7 +246,7 @@ create trigger hr_chest_opens_immutable before update or delete on public.chest_
   for each row execute function public.hr_chest_opens_immutable();
 comment on table public.chest_luck is '2027-04-27-tower-chest.sql: each hero''s Hearth warmth (dry: keys since its last tower weapon), its lifetime key count (the roll''s index) and its default stokes a key. Written only by hr_chest_open and hr_chest_stoke_default. RLS: own rows readable, no client write.';
 comment on table public.player_key_ring is '2027-04-27-tower-chest.sql (lane/c-key-ring): a hero''s Key Ring, its chest keys by item, once the ring is bought (player_progress unlock/key_ring). Written only by the ring''s triggers (a key landing in the bag), hr_chest_open (a key used) and hr_key_ring_store (keys into Storage). RLS: own rows readable, no client write.';
-comment on table public.chest_opens is '2027-04-27-tower-chest.sql: append-only, one row a key used at the Hearth Chest: its index, key family, chance, roll, warmth, stokes and weapon. The audit a dispute is replayed from, a family''s weekly open count (hr_chest_open) and the Turnkey title''s count. Written only by hr_chest_open. RLS: own rows readable, no client write.';
+comment on table public.chest_opens is '2027-04-27-tower-chest.sql: append-only, one row a key used at the Hearth Chest: its index, key family, chance, roll, warmth, stokes, weapon, and its outfit roll and outfit found (the super-rare). The audit a dispute is replayed from, a family''s weekly open count (hr_chest_open) and the Turnkey title''s count. Written only by hr_chest_open. RLS: own rows readable, no client write.';
 
 -- ── §2 THE HELPERS (owner-only) ──────────────────────────────────────────────
 -- A key's chance in parts per million: base (permille) x the warmth after p_dry dry keys x the stoke (permille), at most 1,000,000. Null for
@@ -273,6 +289,16 @@ begin
     v_fam := p_families[1 + (v_t * cardinality(p_families)) / 1000000];
   end if;
   return jsonb_build_object('roll', v_r, 'weapon', true, 'family', v_fam);
+end $fn$;
+
+-- ONE KEY'S OUTFIT ROLL (lane/c-sweeps-coat-drop): the hero's n-th key on its OWN stream (never the weapon's, so an outfit row never moves a
+-- weapon's odds), 0..999999. The open walks the key's hr_chest_outfits rows in outfit order, each covering pm x 1000 of the million: at most
+-- one outfit a key, each at exactly its chance. Pure in its inputs and the secret: the same hero and n roll the same.
+create or replace function public.hr_chest_outfit_roll(p_user uuid, p_slot int, p_n bigint)
+returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
+begin
+  -- TOWER-CHEST (2027-04-27-tower-chest.sql)
+  return (((public.hr_seed(p_user, p_slot, 'chest:' || p_n || ':outfit') % 1000000) + 1000000) % 1000000)::int;
 end $fn$;
 
 -- What the hero holds of an item: { bag, storage, ring }.
@@ -512,7 +538,10 @@ begin
                             from public.hr_chest_stokes s), '[]'::jsonb),
       'inside', jsonb_build_object('tower_cinders', v_k.cinders) || jsonb_build_object(v_k.salts_item, v_k.salts_qty)
                 || jsonb_build_object(v_k.food_item, v_k.food_qty),
-      'ready', (select count(*) from public.hr_chest_weapons w where w.key_id = v_k.key_id) = v_fams));
+      'ready', (select count(*) from public.hr_chest_weapons w where w.key_id = v_k.key_id) = v_fams,
+      -- the super-rare outfits this key can find and their chance (permille), in the order the open stacks them
+      'outfits', coalesce((select jsonb_agg(jsonb_build_object('outfit', o.outfit_id, 'item', o.item_id, 'pm', o.pm) order by o.outfit_id collate "C")
+                             from public.hr_chest_outfits o where o.key_id = v_k.key_id), '[]'::jsonb)));
   end loop;
   return jsonb_build_object('on', public.hr_feature_on('burning_tower', p_user), 'dry', coalesce(v_l.dry, 0), 'opens', coalesce(v_l.opens, 0),
     'warmth_pm', 1000 + least(coalesce(v_l.dry, 0)::bigint * v_lk.warmth_step_pm, v_lk.warmth_cap_pm - 1000),
@@ -571,6 +600,7 @@ declare
   v_stacks int; v_cap int; v_new int; v_want int; v_st int; v_cost bigint; v_spent bigint := 0; v_paid bigint := 0;
   v_dry int; v_n bigint; v_chance int; v_roll jsonb; v_weapon text; v_opens jsonb := '[]'::jsonb; v_haul jsonb := '{}'::jsonb;
   v_take jsonb; v_a jsonb; v_out jsonb; i int; v_it record; v_ring bigint; v_rest bigint; v_need jsonb;
+  v_oroll int; v_cum int; v_orow record; v_outfit text; v_bundle text; v_finds jsonb := '[]'::jsonb; v_find jsonb;
 begin
   -- TOWER-CHEST (2027-04-27-tower-chest.sql)
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
@@ -627,12 +657,15 @@ begin
   if v_held < p_count then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_key', 'have', v_held, 'need', p_count)); end if;
   -- THE BAG, BEFORE ANY ROLL: the worst case of the press must fit (every haul item the bag doesn't hold, a weapon a family it could roll,
-  -- less the key's stack the press empties), so no refusal ever follows a roll and says what a key found.
+  -- an outfit bundle it could find and the bag lacks, less the key's stack the press empties), so no refusal ever follows a roll and says
+  -- what a key found.
   select count(*)::int into v_stacks from public.player_inventory where user_id = v_uid and slot = p_slot;
   select bank_cap into v_cap from public.player_state where user_id = v_uid and slot = p_slot;
   v_new := (select count(*) from (values ('tower_cinders'), (v_k.salts_item), (v_k.food_item)) h(item)
              where not exists (select 1 from public.player_inventory i where i.user_id = v_uid and i.slot = p_slot and i.item_id = h.item))::int
            + least(p_count, cardinality(v_fams))
+           + least(p_count, (select count(*) from public.hr_chest_outfits o where o.key_id = v_k.key_id
+                              and not exists (select 1 from public.player_inventory i where i.user_id = v_uid and i.slot = p_slot and i.item_id = o.item_id))::int)
            - case when (v_keys->>'bag')::bigint between 1 and v_rest then 1 else 0 end;
   if v_new > 0 and v_stacks + v_new > v_cap then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bag_full', 'stacks', v_stacks, 'cap', v_cap, 'need', v_new)); end if;
@@ -661,11 +694,25 @@ begin
         select w.item_id into v_weapon from public.hr_chest_weapons w where w.key_id = v_k.key_id and w.family = v_roll->>'family';
         v_haul := jsonb_set(v_haul, array[v_weapon], to_jsonb(coalesce((v_haul->>v_weapon)::bigint, 0) + 1));
       end if;
-      insert into public.chest_opens (user_id, slot, n, chest_id, key_id, key_family, stokes, cinders_spent, dry, chance_ppm, roll, family, weapon, intent_id)
+      -- THE SUPER-RARE OUTFIT: one more roll on the key's own outfit stream; the key's outfit rows stacked in outfit order, each pm x 1000
+      -- of the million (at most one a key). A find pays its bundle, never a weapon's odds.
+      v_outfit := null; v_bundle := null; v_cum := 0;
+      v_oroll := public.hr_chest_outfit_roll(v_uid, p_slot, v_n);
+      for v_orow in select o.outfit_id, o.item_id, o.pm from public.hr_chest_outfits o where o.key_id = v_k.key_id order by o.outfit_id collate "C" loop
+        v_cum := v_cum + v_orow.pm * 1000;
+        if v_oroll < v_cum then v_outfit := v_orow.outfit_id; v_bundle := v_orow.item_id; exit; end if;
+      end loop;
+      if v_bundle is not null then
+        v_haul := jsonb_set(v_haul, array[v_bundle], to_jsonb(coalesce((v_haul->>v_bundle)::bigint, 0) + 1));
+        v_finds := v_finds || jsonb_build_array(jsonb_build_object('n', v_n, 'bundle', v_bundle));
+      end if;
+      insert into public.chest_opens (user_id, slot, n, chest_id, key_id, key_family, stokes, cinders_spent, dry, chance_ppm, roll, family, weapon,
+                                      outfit_roll, outfit, intent_id)
         values (v_uid, p_slot, v_n, p_chest, v_k.key_id, v_k.key_family, v_st, v_cost, v_dry, v_chance, (v_roll->>'roll')::int,
-                case when v_weapon is null then null else v_roll->>'family' end, v_weapon, p_idem);
+                case when v_weapon is null then null else v_roll->>'family' end, v_weapon, v_oroll, v_outfit, p_idem);
       v_opens := v_opens || jsonb_build_array(jsonb_build_object('n', v_n, 'stokes', v_st, 'chance_ppm', v_chance, 'weapon', v_weapon,
-                                                                 'family', case when v_weapon is null then null else v_roll->>'family' end));
+                                                                 'family', case when v_weapon is null then null else v_roll->>'family' end,
+                                                                 'outfit', v_outfit, 'bundle', v_bundle));
       v_dry := case when v_weapon is null then v_dry + 1 else 0 end;
       v_paid := v_paid + v_k.cinders;
     end loop;
@@ -702,6 +749,17 @@ begin
     if coalesce(v_a->>'ok', 'false') <> 'true' then
       raise exception using errcode = 'HR001', message = (v_a || jsonb_build_object('ok', false))::text; end if;
     update public.chest_luck set dry = v_dry, opens = opens + p_count, updated_at = now() where user_id = v_uid and slot = p_slot;
+    -- THE CALL-OUT (the board's "super-rare drop moments"): each outfit found is told to every chat tab on the System channel, from the
+    -- finder (hr_chat_name_authority stamps the hero's own name), with the key's number; never for a quiet hero; never counted by the
+    -- rare-drop daily cap. Inside the press's transaction: a press that rolls back posts nothing.
+    if jsonb_array_length(v_finds) > 0
+       and not coalesce((select ps.presence_quiet from public.player_state ps where ps.user_id = v_uid and ps.slot = p_slot), false) then
+      for v_find in select value from jsonb_array_elements(v_finds) loop
+        insert into public.chat_messages (id, channel, from_id, from_name, from_slot, body)
+          values (gen_random_uuid(), 'system', v_uid, 'Adventurer', p_slot,
+                  'found the [[item:' || (v_find->>'bundle') || ']] in the Hearth Chest (' || v_k.name || ')');
+      end loop;
+    end if;
     v_out := jsonb_build_object('ok', true, 'version', v_a->'version', 'chest', p_chest, 'key', v_k.key_id, 'count', p_count, 'opens', v_opens,
                                 'haul', v_haul || jsonb_build_object('tower_cinders', v_paid), 'cinders_spent', v_spent, 'dry', v_dry,
                                 'opens_total', v_l.opens + p_count);
@@ -799,6 +857,7 @@ end $fn$;
 -- ── §4 PRIVILEGES: the verbs the signed-in client's alone, every helper the owner's ──
 revoke all on function public.hr_chest_chance_ppm(int, int, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_roll(uuid, int, bigint, int, text, text[]) from public, anon, authenticated, service_role;
+revoke all on function public.hr_chest_outfit_roll(uuid, int, bigint) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_held(uuid, int, text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_family_held(uuid, int, text) from public, anon, authenticated, service_role;
 revoke all on function public.hr_chest_week_start(timestamptz) from public, anon, authenticated, service_role;
@@ -856,13 +915,13 @@ declare
   v_u      constant uuid := '000000c0-0000-4000-a000-0000c4e57001';
   k        constant text := '000000c0-0000-4000-b000-c4e5';
   v        jsonb; v2 jsonb; v_sig text; v_role text; t text; v_sid uuid; v_sid2 uuid; v_sid3 uuid; v_fam record; v_w text;
-  v_stacks bigint; v_keys bigint; v_sid4 uuid;
+  v_stacks bigint; v_keys bigint; v_sid4 uuid; v_hit bigint; v_lines bigint;
   v_weapons constant bigint := (select count(*) from public.hr_chest_weapons);
 begin
   -- (a) PRIVILEGES AND SHAPE: every helper the owner's alone; the verbs the signed-in client's alone and on the baseline; the tables
   --     readable by their owner and written by no client; the mint's trigger on tower_runs.
   foreach v_sig in array array['public.hr_chest_chance_ppm(integer,integer,integer)', 'public.hr_chest_roll(uuid,integer,bigint,integer,text,text[])',
-                               'public.hr_chest_held(uuid,integer,text)', 'public.hr_chest_family_held(uuid,integer,text)',
+                               'public.hr_chest_outfit_roll(uuid,integer,bigint)', 'public.hr_chest_held(uuid,integer,text)', 'public.hr_chest_family_held(uuid,integer,text)',
                                'public.hr_chest_week_start(timestamp with time zone)', 'public.hr_chest_section(uuid,integer)', 'public.hr_tower_key_mint()',
                                'public.hr_key_ring_owned(uuid,integer)', 'public.hr_key_ring_sweep(uuid,integer)', 'public.hr_key_ring_on_unlock()',
                                'public.hr_key_ring_on_bag()', 'public.hr_key_ring_section(uuid,integer)',
@@ -1056,6 +1115,36 @@ begin
     v := public.hr_chest_stoke_default(0, 'silver', 2, (k || '0000000c')::uuid);
     if coalesce(v->>'ok', '') <> 'true' or (select stokes->>'silver' from public.chest_luck where user_id = v_u and slot = 0) is distinct from '2' then
       raise exception 'tower-chest §9(c): the default stoke answered %', v; end if;
+    -- (e) THE SUPER-RARE OUTFIT (lane/c-sweeps-coat-drop): the hero's next key set to the first index past 100,000 whose outfit roll finds
+    --     the Bronze Key's first outfit (the week lifted for the probe): one key pays its bundle into the bag, records the outfit and its roll
+    --     on the key's row, and posts ONE System line from the hero naming the key's metal; the next find, the hero quiet, posts none
+    select o.outfit_id, o.item_id, o.pm into v_fam from public.hr_chest_outfits o where o.key_id = 'bronze' order by o.outfit_id collate "C" limit 1;
+    if v_fam.item_id is null then raise exception 'tower-chest §9(e) CANNOT RUN: the Bronze Key finds no outfit'; end if;
+    update public.hr_chest_key_families set opens_per_week = 1000, held_max = 1000 where key_family = 'tower';
+    v_hit := 100000;
+    loop v_hit := v_hit + 1; exit when public.hr_chest_outfit_roll(v_u, 0, v_hit) < v_fam.pm * 1000 or v_hit > 400000; end loop;
+    update public.chest_luck set opens = v_hit - 1 where user_id = v_u and slot = 0;
+    v_lines := (select count(*) from public.chat_messages where from_id = v_u and channel = 'system');
+    delete from public.hr_rate_counters where user_id = v_u;
+    v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '00000011')::uuid);
+    if coalesce(v->>'ok', '') <> 'true' or v #>> '{opens,0,outfit}' is distinct from v_fam.outfit_id or v #>> '{opens,0,bundle}' is distinct from v_fam.item_id
+       or (v->'haul'->>v_fam.item_id)::int is distinct from 1
+       or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_fam.item_id) is distinct from 1
+       or (select count(*) from public.chest_opens where user_id = v_u and slot = 0 and n = v_hit and outfit = v_fam.outfit_id
+             and outfit_roll < v_fam.pm * 1000) <> 1
+       or (select count(*) from public.chat_messages where from_id = v_u and from_slot = 0 and channel = 'system'
+             and body = 'found the [[item:' || v_fam.item_id || ']] in the Hearth Chest (' || (select k2.name from public.hr_chest_keys k2 where k2.key_id = 'bronze') || ')') <> 1
+       or (select count(*) from public.chat_messages where from_id = v_u and channel = 'system') <> v_lines + 1 then
+      raise exception 'tower-chest §9(e): key % answered % (the bundle, the row or the one call-out is off)', v_hit, v; end if;
+    update public.player_state set presence_quiet = true where user_id = v_u and slot = 0;
+    loop v_hit := v_hit + 1; exit when public.hr_chest_outfit_roll(v_u, 0, v_hit) < v_fam.pm * 1000 or v_hit > 800000; end loop;
+    update public.chest_luck set opens = v_hit - 1 where user_id = v_u and slot = 0;
+    delete from public.hr_rate_counters where user_id = v_u;
+    v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '00000012')::uuid);
+    if coalesce(v->>'ok', '') <> 'true' or v #>> '{opens,0,outfit}' is distinct from v_fam.outfit_id
+       or (select qty from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_fam.item_id) is distinct from 2
+       or (select count(*) from public.chat_messages where from_id = v_u and channel = 'system') <> v_lines + 1 then
+      raise exception 'tower-chest §9(e): a quiet hero''s find answered % (or was called out)', v; end if;
     raise exception 'tower-chest §9: ok' using errcode = 'P0001';
   exception when sqlstate 'P0001' then
     if sqlerrm <> 'tower-chest §9: ok' then raise; end if;

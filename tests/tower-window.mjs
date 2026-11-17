@@ -79,7 +79,9 @@ function section(o = {}) {
       keys: KEYS.map(([key, item, name, from, pm, cin, salts, sq, food, fq, plus]) => ({ key, item, name, from, family: 'tower', skill_plus: plus,
         held: held[key] || { bag: 0, storage: 0, ring: 0 }, base_pm: pm, chance_ppm: key === 'bronze' ? (o.chance ?? 326400) : 96000, stokes_default: key === 'bronze' ? (o.stokes ?? 1) : 0,
         stokes: [{ n: 1, pm: 1700, cost: 3 * cin }, { n: 2, pm: 2500, cost: 7 * cin }, { n: 3, pm: 3300, cost: 12 * cin }],
-        inside: { tower_cinders: cin, [salts]: sq, [food]: fq }, ready: o.notReady ? false : true })) },
+        inside: { tower_cinders: cin, [salts]: sq, [food]: fq }, ready: o.notReady ? false : true,
+        /* the super-rare outfit on every key (2027-04-27-tower-chest.sql hr_chest_outfits): the Key Warden, 0.2% Bronze, 0.3% Silver */
+        outfits: [{ outfit: 'sweeps_coat', item: 'sweeps_coat_bundle', pm: key === 'bronze' ? 2 : 3 }] })) },
   };
 }
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
@@ -361,7 +363,7 @@ async function checks(overrides, shots) {
         fails.push('TW-4 the keys read ' + JSON.stringify([c.picks, c.icons, c.cinders]));
       if (c.warm !== 'x1.2' || c.stokes.join() !== 'None,x1 150*,x2 350,x3 600' || c.stokeHead !== 'Stoke' || c.chance !== 'Chance: 33%')
         fails.push('TW-4 the odds read ' + JSON.stringify([c.warm, c.stokes, c.stokeHead, c.chance]));
-      if (c.tip !== 'Equipped type (Bow): 50%\nContents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20\nWeapon bonus: +1 combat skill')
+      if (c.tip !== 'Equipped type (Bow): 50%\nContents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20\nWeapon bonus: +1 combat skill\nKey Warden: 0.2%')
         fails.push('TW-4 the key\'s inside reads ' + JSON.stringify(c.tip));
       if (c.use !== 'on' || c.all !== 'on') fails.push('TW-4 Use/Use all with keys in town read ' + JSON.stringify([c.use, c.all]));
       if (shots) { await page.waitForTimeout(700); await page.screenshot({ path: join(shots, 'tower-chest-desktop-1440x900.png') }); }
@@ -403,6 +405,17 @@ async function checks(overrides, shots) {
       await wait(page, () => /Keys used: 3/.test(document.querySelector('[data-hs-win="tower"] .tt-result')?.textContent || ''));
       c = await chestView(page);
       if (c.result !== 'Keys used: 3 | Hearth Cinders x150 | Tempering Salts x45 | Cooked Shrimp x60') fails.push('TW-8 a press with no weapon reads ' + JSON.stringify(c.result));
+      /* TW-4c THE SUPER-RARE (the Key Warden, lane/c-sweeps-coat-drop): a key that finds the coat leads the loot with it, labelled Super
+         Rare, and the reveal raises its bundle (has-outfit), all from the server's answer (opens[].outfit, its bundle in the haul) */
+      await page.click('[data-hs-win="tower"] .tc-keys-back');
+      s.answer = (name, body) => (name === 'hr_chest_open' ? { ok: true, count: 1, opens: [{ n: 17, stokes: 1, chance_ppm: 326400, weapon: null, outfit: 'sweeps_coat', bundle: 'sweeps_coat_bundle' }],
+        haul: { sweeps_coat_bundle: 1, tower_cinders: 50, temper_salts: 15, cooked_shrimp: 20 }, cinders_spent: 150 } : { ok: true });
+      await page.click('[data-hs-win="tower"] .tc-use');
+      const coat = await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-result .tt-found')?.textContent === 'Key Warden');
+      c = await chestView(page);
+      const rvCoat = await page.evaluate(() => { const r = document.querySelector('[data-hs-win="tower"] .tc-scene .tc-reveal'); return r ? { outfit: r.classList.contains('has-outfit'), item: r.querySelector('.tc-reveal-item')?.getAttribute('src') || null } : null; });
+      if (!coat || c.result !== 'Key Warden Super Rare | Hearth Cinders x50 | Tempering Salts x15 | Cooked Shrimp x20'
+        || !rvCoat || !rvCoat.outfit || rvCoat.item !== 'assets/icons-bundle/pixel/items/sweeps_coat_bundle.png') fails.push('TW-4c a key that finds the coat reads ' + JSON.stringify([c.result, rvCoat]));
       const badChest = notLabels(await paneLines(page, 'chest'));
       if (badChest.length) fails.push('TW-8 the Chest tab says sentences: ' + JSON.stringify(badChest));
       /* Keys: back to the slots and the stokes, the answer gone */
@@ -613,6 +626,11 @@ async function checks(overrides, shots) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
+  /* TW-4c, the Key Warden (lane/c-sweeps-coat-drop) */
+  ['a super-rare find is drawn as plain loot', 'src/shell/windows/tower-chest.js', '  const finds = r.opens.filter((o) => o.bundle);', '  const finds = [];'],
+  ['the reveal ignores the outfit', 'src/shell/windows/tower-chest.js', '  const bundle = r.opens.map((o) => o.bundle).find(Boolean) || null;', '  const bundle = null;'],
+  ['the open\'s answer drops the outfit', 'src/session/tower-intents.js', '    outfit: id(o.outfit), bundle: id(o.outfit) ? id(o.bundle) : null }));', '    outfit: null, bundle: null }));'],
+  ['the key tip hides the outfit\'s chance', 'src/session/tower-sections.js', '    outfits: Object.freeze(outfits),', '    outfits: Object.freeze([]),'],
   ['the Havora door shows with the switch off', 'src/shell/windows/havora/index.js', "  prop(root.querySelector('.hv-tower'), 'hidden', !towerOf(cs));", "  prop(root.querySelector('.hv-tower'), 'hidden', false);"],
   ['the parser keeps a forged checkpoint', 'src/session/tower-sections.js', '  const out = v.slice(0, max).map((x) => (Number.isSafeInteger(x) && x >= 0 ? x : null));', '  const out = v.slice(0, max);'],
   ['a dropped checkpoint is still sent', 'src/shell/windows/tower.js', '  return sc.landing !== null && tw.checkpoints.includes(sc.landing) ? sc.landing : tw.checkpoints[tw.checkpoints.length - 1];', '  return sc.landing !== null ? sc.landing : tw.checkpoints[tw.checkpoints.length - 1];'],
@@ -669,14 +687,17 @@ async function main() {
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  /* --mutant=<part of a name>: those alone (a lane proves its own) */
+  const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+  const list = MUTANTS.filter(([name]) => !pick || name.includes(pick));
+  for (const [name, file, from, to] of list) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
     const fails = await checks({ [file]: text.replace(from, () => to) });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'tower-window --mutate: ' + bad + ' escaped' : 'tower-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'tower-window --mutate: ' + bad + ' escaped' : 'tower-window --mutate: ' + list.length + '/' + list.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 

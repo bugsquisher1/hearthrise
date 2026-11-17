@@ -48,6 +48,8 @@ export function itemUse(id) {
   /* Tyler 2026-10-23: the shield makes the tank (src/data/shields.js) */
   if (isShield(it)) return 'shield';
   if (it.slot) return SLOT_WORD[it.slot] || 'gear';
+  /* a super-rare outfit's bundle (src/data/chests.js CHEST_OUTFITS): used once, the hero wears it for good */
+  if (it.type === 'outfit_bundle') return 'outfit';
   if (Number(it.heals) > 0) return 'food, heals ' + it.heals;
   return 'material';
 }

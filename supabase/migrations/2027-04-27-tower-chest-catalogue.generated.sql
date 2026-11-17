@@ -11,9 +11,11 @@
 --   in keys' worth of Cinders); hr_chest_luck (one row: the warmth step and cap, the own-family weight, the per-call clamp);
 --   hr_chest_families (the 7 weapon families, the "types"); hr_chest_weapons (each key's
 --   weapon a family: 28 rows; a key short of its 7 is refused chest_not_ready); hr_chest_weapon_families (104
---   weapon items and their family). All rewritten whole: no player row points at any of them (the key and Cinders items are hr_items rows).
+--   weapon items and their family); hr_chest_outfits (4: the super-rare outfits, each outfit's bundle item and its chance on every
+--   key in permille, src/data/chests.js CHEST_OUTFITS; lane/c-sweeps-coat-drop, the Sweep's Coat). All rewritten whole: no player row
+--   points at any of them (the key, Cinders and bundle items are hr_items rows).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower.
--- REVERSIBLE: drop the eight tables after 2027-04-27-tower-chest.sql's reversal.
+-- REVERSIBLE: drop the nine tables after 2027-04-27-tower-chest.sql's reversal.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_chests (
   chest_id text primary key check (chest_id ~ '^[a-z0-9_]{1,40}$'),
@@ -68,10 +70,17 @@ create table if not exists public.hr_chest_weapon_families (
   item_id text primary key,
   family  text not null
 );
+create table if not exists public.hr_chest_outfits (
+  key_id    text not null,
+  outfit_id text not null check (outfit_id ~ '^[a-z0-9_]{1,40}$'),
+  item_id   text not null check (item_id ~ '^[a-z0-9_]{1,40}$'),
+  pm        int  not null check (pm between 1 and 1000),
+  primary key (key_id, outfit_id)
+);
 do $$
 declare t text;
 begin
-  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families', 'hr_chest_outfits'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on table public.%I from public, anon, authenticated, service_role', t);
   end loop;
@@ -80,6 +89,7 @@ comment on table public.hr_chest_key_families is '2027-04-27-tower-chest-catalog
 comment on table public.hr_chest_keys is '2027-04-27-tower-chest-catalogue.generated.sql: the Hearth Chest''s open key table (src/data/chests.js CHEST_KEYS): each key in a family (hr_chest_key_families); a Tower landing''s key is the highest Tower row at or under it; what each key always holds; its base weapon chance (permille). Read by hr_tower_key_mint, hr_chest_open and hr_chest_section.';
 comment on table public.hr_chest_luck is '2027-04-27-tower-chest-catalogue.generated.sql: the Hearth''s warmth (a dry key warms the next by warmth_step_pm of its base, up to warmth_cap_pm), the own-family weight and the per-call clamp (src/data/chests.js CHEST_LUCK). One row.';
 comment on table public.hr_chest_weapons is '2027-04-27-tower-chest-catalogue.generated.sql: each key''s tower weapon a family (src/data/chests.js weapons). A key without one for every hr_chest_families row is not ready: hr_chest_open refuses it.';
+comment on table public.hr_chest_outfits is '2027-04-27-tower-chest-catalogue.generated.sql: the super-rare outfits (src/data/chests.js CHEST_OUTFITS): each outfit''s bundle item and its chance on every key, permille. hr_chest_open rolls one outfit a key on its own stream, the rows stacked in outfit order (at most one a key, each at its chance). Read by hr_chest_open and hr_chest_section.';
 
 delete from public.hr_chests;
 insert into public.hr_chests (chest_id, name) values
@@ -247,6 +257,12 @@ insert into public.hr_chest_weapon_families (item_id, family) values
   ('yew_crossbow', 'crossbow'),
   ('yew_staff', 'staff'),
   ('yew_wand', 'wand');
+delete from public.hr_chest_outfits;
+insert into public.hr_chest_outfits (key_id, outfit_id, item_id, pm) values
+  ('bronze', 'sweeps_coat', 'sweeps_coat_bundle', 2),
+  ('silver', 'sweeps_coat', 'sweeps_coat_bundle', 3),
+  ('gold', 'sweeps_coat', 'sweeps_coat_bundle', 4),
+  ('platinum', 'sweeps_coat', 'sweeps_coat_bundle', 5);
 
 -- §4 SELF-CHECK: the data's rows (a digest of every key row and every key family), each key in a family and each family with a key, the
 -- Tower's family there, a family's open table rising, every item a row names an hr_items row (the keys and the Cinders bound), every weapon
@@ -286,7 +302,21 @@ begin
     raise exception 'chest-catalogue §4: a key''s weapon is not of its family, or names no key or family'; end if;
   if exists (select 1 from public.hr_chest_weapon_families w where not exists (select 1 from public.hr_chest_families c where c.family = w.family)) then
     raise exception 'chest-catalogue §4: a weapon item reads no family'; end if;
-  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families'] loop
+  -- THE SUPER-RARE OUTFITS: the data's rows; every key carries each outfit (no key inherits or misses a chance); a key's outfits never add
+  -- past a sure thing; each bundle a TRADEABLE hr_items row of book value (the board: it trades until someone wears it)
+  select string_agg(concat_ws(':', key_id, outfit_id, item_id, pm), '|' order by concat_ws(':', key_id, outfit_id, item_id, pm) collate "C")
+    into v_sum from public.hr_chest_outfits;
+  if v_sum is distinct from 'bronze:sweeps_coat:sweeps_coat_bundle:2|gold:sweeps_coat:sweeps_coat_bundle:4|platinum:sweeps_coat:sweeps_coat_bundle:5|silver:sweeps_coat:sweeps_coat_bundle:3' then raise exception 'chest-catalogue §4: hr_chest_outfits is not src/data/chests.js: %', v_sum; end if;
+  if exists (select 1 from public.hr_chest_keys k cross join (select distinct outfit_id from public.hr_chest_outfits) o
+              where not exists (select 1 from public.hr_chest_outfits x where x.key_id = k.key_id and x.outfit_id = o.outfit_id))
+     or exists (select 1 from public.hr_chest_outfits x where not exists (select 1 from public.hr_chest_keys k where k.key_id = x.key_id))
+     or exists (select 1 from public.hr_chest_outfits x group by x.key_id having sum(x.pm) > 1000)
+     or exists (select 1 from public.hr_chest_outfits x group by x.item_id having count(distinct x.outfit_id) > 1)
+     or exists (select 1 from public.hr_chest_outfits x group by x.outfit_id having count(distinct x.item_id) > 1) then
+    raise exception 'chest-catalogue §4: an outfit is missing on a key, names no key, adds past a sure thing, or shares a bundle'; end if;
+  if exists (select 1 from public.hr_chest_outfits x where not exists (select 1 from public.hr_items i where i.item_id = x.item_id and i.tradeable and i.value > 0)) then
+    raise exception 'chest-catalogue §4: an outfit''s bundle is no tradeable hr_items row of book value (apply the items catalogue first)'; end if;
+  foreach t in array array['hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families', 'hr_chest_outfits'] loop
     if exists (select 1 from pg_policies where schemaname = 'public' and tablename = t) then
       raise exception 'chest-catalogue §4: a policy opens % to a client', t; end if;
     foreach v_role in array array['anon', 'authenticated'] loop

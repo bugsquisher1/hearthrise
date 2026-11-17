@@ -10,7 +10,7 @@
 //   node tests/tower-chest.mjs --arm=odds   one arm
 //   node tests/tower-chest.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
 //
-// mutant-anchors: src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql
+// mutant-anchors: src/data/chests.js, supabase/migrations/2027-04-27-tower-chest.sql, supabase/migrations/2027-04-30-sweeps-coat.sql, src/shell/windows/inventory/outfit-bundle.js
 //
 //   TCH-DATA    the table is Tyler's (16 / 8 / 4.5 / 2%, x1.7 / 2.5 / 3.3 for 3 / 7 / 12 keys' Cinders, +4% of base a dry key to 3x at 50);
 //               the design's warmth table read back through src/data/chests.js; the server's chance (hr_chest_chance_ppm) and the data's
@@ -41,6 +41,13 @@
 //   TCH-FORGED  a forged chest, key, count or stoke, a key with no weapons built, a count over the keys held, a used key, a replayed key,
 //               a key reused for another press, a hero in a hunt, a full bag (before any roll) and the family's week (six opens since Monday
 //               00:00 UTC; last week's and another family's opens never count) are each refused and move nothing; the client can call the two verbs and none of the helpers, and no verb takes a chance, warmth or family
+//   TCH-OUTFIT  THE SWEEP'S COAT (lane/c-sweeps-coat-drop; Tyler 2026-11-14, a super-rare outfit from any chest): the data's 0.2 / 0.3 /
+//               0.4 / 0.5% on the server's rows, the bundle a tradeable item of book value; the server's outfit roll over 20,000 keys at
+//               each key's chance, on its own stream (even odds with the weapon's roll meet a quarter of the time); a near miss finds
+//               nothing; a seeded open finds the coat through the verb (its bundle in the bag, the row's outfit and roll, ONE System line
+//               naming the key's metal; a replay none; a quiet hero none); the bag's worst case counts the bundle before any roll; the
+//               bundle used (2027-04-30-sweeps-coat.sql hr_outfit_bundle_use): one taken, owned, worn, a reload says so, journalled once,
+//               a replay moves nothing, a second bundle on an owned coat is kept (already_owned); a hero with none can't own, wear or use it
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -694,7 +701,163 @@ async function forgedArm(db, M) {
   return bad;
 }
 
-const ARMS = { data: dataArm, odds: oddsArm, mint: mintArm, held: heldArm, ring: ringArm, open: openArm, forged: forgedArm };
+/* ── TCH-OUTFIT ───────────────────────────────────────────────────────────── */
+const UID2 = '000000c0-0000-4000-a000-00005c0a7c02';
+/* the first key index past `from` whose outfit roll is `want` (true: under `under` ppm, a find; false: in [under, 2 x under), a near miss) */
+async function nextRoll(db, from, under, want) {
+  return Number(await one(db, `select n from generate_series($1::bigint + 1, $1::bigint + 400000) n
+     where ${want ? 'public.hr_chest_outfit_roll($2, 0, n) < $3' : 'public.hr_chest_outfit_roll($2, 0, n) between $3 and 2 * $3 - 1'} limit 1`, [from, UID, under]));
+}
+async function outfitArm(db, M) {
+  const bad = [];
+  const O = M.CH.CHEST_OUTFITS;
+  const coat = O[0];
+  if (!coat || coat.outfit !== 'sweeps_coat' || coat.item !== 'sweeps_coat_bundle') return ['TCH-OUTFIT the data has no Key Warden row: ' + JSON.stringify(coat)];
+  /* (1) THE DATA: Tyler's super-rare from any chest, the designer's 0.2 / 0.3 / 0.4 / 0.5%; the server's rows are the data's; the bundle
+     trades (the board: "it trades, until someone wears it") at its book value */
+  if (JSON.stringify(coat.pm) !== JSON.stringify({ bronze: 2, silver: 3, gold: 4, platinum: 5 })) bad.push('TCH-OUTFIT the coat\'s chances read ' + JSON.stringify(coat.pm));
+  const rows = await q(db, 'select key_id, outfit_id, item_id, pm from public.hr_chest_outfits order by key_id');
+  const want = M.CH.CHEST_KEYS.flatMap((k) => O.map((o) => [k.id, o.outfit, o.item, o.pm[k.id]].join(':'))).sort().join('|');
+  if (rows.map((r) => [r.key_id, r.outfit_id, r.item_id, r.pm].join(':')).sort().join('|') !== want) bad.push('TCH-OUTFIT hr_chest_outfits reads ' + JSON.stringify(rows));
+  const item = await q(db, 'select tradeable, value from public.hr_items where item_id = $1', [coat.item]);
+  if (!item.length || item[0].tradeable !== true || Number(item[0].value) !== coat.value) bad.push('TCH-OUTFIT the bundle\'s item row reads ' + JSON.stringify(item));
+  /* (2) THE RATE A KEY: the server's outfit roll over N keys a key, each key's chance within Z standard deviations; and its OWN stream:
+     against the weapon's roll at even odds, both hit about a quarter of the time (one stream would make it a half) */
+  const N2 = 20000;
+  for (const k of M.CH.CHEST_KEYS) {
+    const p = coat.pm[k.id] / 1000;
+    const hits = Number(await one(db, 'select count(*) from generate_series(1, $2) n where public.hr_chest_outfit_roll($1, 0, n) < $3', [UID, N2, coat.pm[k.id] * 1000]));
+    const z = (hits - N2 * p) / Math.sqrt(N2 * p * (1 - p));
+    if (!(Math.abs(z) < Z)) bad.push(`TCH-OUTFIT the ${k.id} key found ${hits} coats in ${N2} keys, ${(hits / N2 * 100).toFixed(3)}% against ${(p * 100).toFixed(1)}% (z ${z.toFixed(1)})`);
+  }
+  const both = Number(await one(db, `select count(*) from generate_series(1, $2) n where public.hr_chest_outfit_roll($1, 0, n) < 500000
+      and (public.hr_chest_roll($1, 0, n, 500000, null, $3::text[])->>'weapon')::boolean`, [UID, N2, M.CH.WEAPON_FAMILY_KEYS]));
+  const zb = (both - N2 / 4) / Math.sqrt(N2 * 0.25 * 0.75);
+  if (!(Math.abs(zb) < Z)) bad.push(`TCH-OUTFIT the outfit roll is not its own stream: ${both} of ${N2} keys hit both at even odds (z ${zb.toFixed(1)})`);
+  /* (3) A SEEDED OPEN THAT FINDS THE COAT, THROUGH THE VERB: the hero's next key set to the first index whose roll finds it */
+  const r = await H.inTx(db, async () => {
+    const out = {};
+    await hero(db, M, { tower_key_silver: 6, tower_key_gold: 2 });
+    const lines = async () => q(db, "select body from public.chat_messages where from_id = $1 and channel = 'system' order by created_at, id", [UID]);
+    await db.query('insert into public.chest_luck (user_id, slot) values ($1, 0) on conflict (user_id, slot) do nothing', [UID]);
+    const silver = coat.pm.silver * 1000;
+    /* a near miss first: a roll just over the silver chance finds nothing */
+    out.near = await nextRoll(db, 0, silver, false);
+    await db.query('update public.chest_luck set opens = $2 where user_id = $1 and slot = 0', [UID, out.near - 1]);
+    out.miss = await open(db, 'silver', 1, 0);
+    out.n = await nextRoll(db, out.near, silver, true);
+    await db.query('update public.chest_luck set opens = $2 where user_id = $1 and slot = 0', [UID, out.n - 1]);
+    const key = idem();
+    out.hit = await open(db, 'silver', 1, 0, key);
+    out.again = await open(db, 'silver', 1, 0, key);
+    out.bag = await bag(db, coat.item);
+    out.row = await q(db, 'select n, outfit, outfit_roll from public.chest_opens where user_id = $1 and outfit is not null', [UID]);
+    out.lines = await lines();
+    /* the quiet hero's find is told to nobody */
+    await db.query('update public.player_state set presence_quiet = true where user_id = $1 and slot = 0', [UID]);
+    out.n2 = await nextRoll(db, out.n, silver, true);
+    await db.query('update public.chest_luck set opens = $2 where user_id = $1 and slot = 0', [UID, out.n2 - 1]);
+    out.quiet = await open(db, 'silver', 1, 0);
+    out.linesQuiet = await lines();
+    /* THE BAG, BEFORE THE ROLL: a bag with room for the haul and the weapon but not the bundle is refused, and with a bundle held it fits */
+    await db.query('update public.player_state set presence_quiet = false where user_id = $1 and slot = 0', [UID]);
+    await db.query(`delete from public.player_inventory where user_id = $1 and slot = 0 and item_id not in ('tower_key_gold', $2)`, [UID, coat.item]);
+    await db.query(`delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2`, [UID, coat.item]);
+    const stacks = Number(await one(db, 'select count(*) from public.player_inventory where user_id = $1 and slot = 0', [UID]));
+    /* the gold key's press needs: Cinders, salts, food (3 new stacks) + a weapon + the bundle; its key stack stays (2 held, 1 used) */
+    await db.query('update public.player_state set bank_cap = $2 where user_id = $1 and slot = 0', [UID, stacks + 4]);
+    out.full = await open(db, 'gold', 1, 0);
+    await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1)', [UID, coat.item]);
+    await db.query('update public.player_state set bank_cap = $2 where user_id = $1 and slot = 0', [UID, stacks + 5]);
+    out.fits = await open(db, 'gold', 1, 0);
+    /* (4) THE BUNDLE IN THE BAG, USED: this hero owns the coat and wears it; a hero with none can't wear it */
+    await db.query('update public.player_state set bank_cap = 200 where user_id = $1 and slot = 0', [UID]);
+    const use = (uid, it, k = idem()) => (async () => {
+      await db.query('delete from public.hr_rate_counters where user_id = $1', [uid]);
+      await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
+      try { return await one(db, 'select public.hr_outfit_bundle_use(0, $1, $2::uuid)', [it, k]); }
+      finally { await db.query(`select set_config('request.jwt.claim.sub', '', true)`); }
+    })();
+    const wear = async (uid, outfit) => {
+      await db.query('delete from public.hr_rate_counters where user_id = $1', [uid]);
+      await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
+      try { return await one(db, `select public.hr_outfit_set(0, $1, '{}'::jsonb, $2::uuid)`, [outfit, idem()]); }
+      finally { await db.query(`select set_config('request.jwt.claim.sub', '', true)`); }
+    };
+    const owned = async (uid) => one(db, 'select public.hr_outfit_owned($1::uuid, 0)', [uid]);
+    await db.query('update public.player_inventory set qty = 2 where user_id = $1 and slot = 0 and item_id = $2', [UID, coat.item]);
+    out.ownedBefore = await owned(UID);
+    out.wearBefore = await wear(UID, coat.outfit);
+    out.bagBefore = await bag(db, coat.item);
+    const ukey = idem();
+    out.use = await use(UID, coat.item, ukey);
+    out.useAgain = await use(UID, coat.item, ukey);
+    out.bagAfter = await bag(db, coat.item);
+    out.ownedAfter = await owned(UID);
+    out.second = await use(UID, coat.item);
+    out.bagKept = await bag(db, coat.item);
+    out.wearAfter = await wear(UID, coat.outfit);
+    out.ledger = await q(db, 'select qty, meta from public.player_ledger where user_id = $1 and intent = $2', [UID, 'outfit_bundle_use:' + coat.item]);
+    /* a reload: the envelope (hr_load's hr_state_of) says owned and worn */
+    out.env = (await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID])).outfit;
+    await H.character(db, M, UID2, { level: 12, inv: {}, gold: 0 });
+    out.other = { owned: await owned(UID2), wear: await wear(UID2, coat.outfit), use: await use(UID2, coat.item) };
+    out.forged = await use(UID, 'tower_cinders');
+    /* (5) THE BAG'S USE, CLIENT TO SERVER: the bag's own module (src/shell/windows/inventory/outfit-bundle.js) on a hero with one bundle sends
+       ONE hr_outfit_bundle_use (the slot, the item, a key: nothing else) through the session's intent, the verb runs on this chain, the
+       re-read envelope says owned, and the bag's Use is then off with why */
+    await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 1)', [UID2, coat.item]);
+    const B = await import(pathToFileURL(join(M.root, 'src/shell/windows/inventory/outfit-bundle.js')).href + V);
+    const calls = [];
+    const account = { server: { rpc: async (name, args) => {
+      calls.push({ name, keys: Object.keys(args).sort().join() });
+      await db.query('delete from public.hr_rate_counters where user_id = $1', [UID2]);
+      await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [UID2]);
+      try { return { ok: true, body: await one(db, `select public.${name}($1, $2, $3::uuid)`, [args.p_slot, args.p_item, args.p_idem]) }; }
+      finally { await db.query(`select set_config('request.jwt.claim.sub', '', true)`); }
+    } } };
+    const cs = { slot: 0, status: 'open', env: null, loads: 0, read(k) { return this.env ? this.env[k] : undefined; },
+      async load() { this.loads++; this.env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID2]); } };
+    await cs.load();
+    out.client = { before: B.bundleUseBlock(cs, coat.item) };
+    out.client.said = await B.useBundle(account, cs, coat.item, (fn, busy, done) => fn().then((x) => (x && x.ok ? { ok: true, said: done(x), busy } : x)));
+    Object.assign(out.client, { calls, loads: cs.loads, after: B.bundleUseBlock(cs, coat.item), owned: await owned(UID2), bag: await one(db,
+      'select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)', [UID2, coat.item]) });
+    /* the bag's two presses (a tradeable item used for good): the first arms, a second on the same bundle within 10 s uses it; another
+       bundle or a late press arms again */
+    const sc = {};
+    out.client.arm = [B.armBundle(sc, coat.item, 0), B.armBundle(sc, coat.item, 4000), B.armBundle(sc, coat.item, 5000), B.armBundle(sc, coat.item, 20000),
+      B.armBundle(sc, 'other_bundle', 21000), B.armBundle(sc, coat.item, 22000)];
+    return out;
+  });
+  const hitOpen = r.hit && r.hit.opens && r.hit.opens[0];
+  if (!r.miss || r.miss.ok !== true || r.miss.opens[0].outfit !== null || r.miss.haul[coat.item]) bad.push('TCH-OUTFIT a near miss (a roll just over the chance) answered ' + JSON.stringify(r.miss).slice(0, 200));
+  if (!hitOpen || hitOpen.outfit !== coat.outfit || hitOpen.bundle !== coat.item || r.hit.haul[coat.item] !== 1 || r.bag !== 1) bad.push(`TCH-OUTFIT key ${r.n}, rolled to find the coat, answered ${JSON.stringify(r.hit).slice(0, 240)} (bag ${r.bag})`);
+  if (!r.again || JSON.stringify(r.again.opens) !== JSON.stringify(r.hit.opens) || r.bag !== 1) bad.push('TCH-OUTFIT a replayed press answered ' + JSON.stringify(r.again).slice(0, 160));
+  if (r.row.length !== 1 || Number(r.row[0].n) !== r.n || r.row[0].outfit !== coat.outfit || !(r.row[0].outfit_roll < coat.pm.silver * 1000)) bad.push('TCH-OUTFIT the find\'s chest_opens row reads ' + JSON.stringify(r.row));
+  const said = 'found the [[item:' + coat.item + ']] in the Hearth Chest (' + M.CH.CHEST_KEYS.find((k) => k.id === 'silver').name + ')';
+  if (r.lines.length !== 1 || r.lines[0].body !== said) bad.push(`TCH-OUTFIT the call-out reads ${JSON.stringify(r.lines)}, want one line ${JSON.stringify(said)}`);
+  if (!r.quiet || r.quiet.ok !== true || r.quiet.opens[0].outfit !== coat.outfit || r.linesQuiet.length !== 1) bad.push('TCH-OUTFIT a quiet hero\'s find was called out, or not found: ' + JSON.stringify(r.linesQuiet));
+  if (!r.full || r.full.error !== 'bag_full' || !r.fits || r.fits.ok !== true) bad.push(`TCH-OUTFIT the bag's worst case misses the bundle: ${JSON.stringify(r.full).slice(0, 120)} / with one held ${JSON.stringify(r.fits).slice(0, 120)}`);
+  if ((r.ownedBefore || []).includes(coat.outfit) || !r.wearBefore || r.wearBefore.error !== 'not_owned' || r.bagBefore !== 2) bad.push(`TCH-OUTFIT before the bundle is used the hero owns or wears the coat: ${JSON.stringify([r.ownedBefore, r.wearBefore])}`);
+  if (!r.use || r.use.ok !== true || r.use.outfit !== coat.outfit || r.bagAfter !== r.bagBefore - 1 || !(r.ownedAfter || []).includes(coat.outfit)) bad.push(`TCH-OUTFIT the use answered ${JSON.stringify(r.use).slice(0, 200)} (bag ${r.bagBefore} -> ${r.bagAfter}, owned ${r.ownedAfter})`);
+  if (!r.useAgain || r.useAgain.version !== r.use.version) bad.push('TCH-OUTFIT a replayed use answered ' + JSON.stringify(r.useAgain).slice(0, 160));
+  if (!r.second || r.second.error !== 'already_owned' || r.bagKept !== 1 || r.bagAfter !== 1) bad.push(`TCH-OUTFIT a second bundle on an owned coat answered ${JSON.stringify(r.second)} (bag ${r.bagAfter} -> ${r.bagKept})`);
+  if (!r.wearAfter || r.wearAfter.ok !== true || !r.env || r.env.worn !== coat.outfit || !(r.env.owned || []).includes(coat.outfit)) bad.push(`TCH-OUTFIT the owner can't wear it, or a reload says otherwise: ${JSON.stringify([r.wearAfter, r.env]).slice(0, 240)}`);
+  if (r.ledger.length !== 1 || Number(r.ledger[0].qty) !== -1 || r.ledger[0].meta.outfit !== coat.outfit || r.ledger[0].meta.from !== 'bag') bad.push('TCH-OUTFIT the use is not journalled once: ' + JSON.stringify(r.ledger));
+  if ((r.other.owned || []).includes(coat.outfit) || !r.other.wear || r.other.wear.error !== 'not_owned' || !r.other.use || r.other.use.error !== 'none_held') bad.push('TCH-OUTFIT a hero with no bundle owns, wears or uses the coat: ' + JSON.stringify(r.other).slice(0, 240));
+  if (!r.forged || r.forged.error !== 'bad_item') bad.push('TCH-OUTFIT a use of an item no outfit names answered ' + JSON.stringify(r.forged));
+  const cl = r.client;
+  if (cl.before !== '' || !cl.said || cl.said.ok !== true || cl.said.said !== 'Outfit unlocked: Key Warden' || cl.calls.length !== 1
+    || cl.calls[0].name !== 'hr_outfit_bundle_use' || cl.calls[0].keys !== 'p_idem,p_item,p_slot' || cl.loads !== 2
+    || cl.after !== 'Outfit already owned' || !(cl.owned || []).includes(coat.outfit) || Number(cl.bag) !== 0) {
+    bad.push('TCH-OUTFIT the bag\'s Use, client to server, reads ' + JSON.stringify(cl).slice(0, 300));
+  }
+  if (JSON.stringify(cl.arm) !== JSON.stringify([false, true, false, false, false, false])) bad.push('TCH-OUTFIT the bag\'s two presses read ' + JSON.stringify(cl.arm));
+  return bad;
+}
+
+const ARMS = { data: dataArm, odds: oddsArm, mint: mintArm, held: heldArm, ring: ringArm, open: openArm, forged: forgedArm, outfit: outfitArm };
 const CHEST_SQL = 'supabase/migrations/2027-04-27-tower-chest.sql';
 const MUTANTS = [
   { name: 'the chance ignores the warmth', arm: 'data', want: /^TCH-DATA the server's chance/, fn: 'public.hr_chest_chance_ppm(integer,integer,integer)',
@@ -757,6 +920,30 @@ const MUTANTS = [
     find: '  if cardinality(v_fams) <> (select count(*) from public.hr_chest_families) then', replace: '  if cardinality(v_fams) = 0 and false then' },
   { name: 'the bag is checked after the roll', arm: 'forged', want: /^TCH-FORGED a full bag/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
     find: '  if v_new > 0 and v_stacks + v_new > v_cap then', replace: '  if false then' },
+  /* TCH-OUTFIT: the Key Warden (lane/c-sweeps-coat-drop) */
+  { name: 'the outfit rides the weapon\'s stream', arm: 'outfit', want: /^TCH-OUTFIT the outfit roll is not its own stream/, fn: 'public.hr_chest_outfit_roll(uuid,integer,bigint)',
+    find: "'chest:' || p_n || ':outfit'", replace: "'chest:' || p_n" },
+  { name: 'the open finds an outfit at twice its chance', arm: 'outfit', want: /^TCH-OUTFIT a near miss/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: '        v_cum := v_cum + v_orow.pm * 1000;', replace: '        v_cum := v_cum + v_orow.pm * 2000;' },
+  { name: 'the bag\'s worst case forgets the bundle', arm: 'outfit', want: /^TCH-OUTFIT the bag's worst case/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: '+ least(p_count, (select count(*) from public.hr_chest_outfits o', replace: '+ 0 * least(p_count, (select count(*) from public.hr_chest_outfits o' },
+  { name: 'a find is not called out', arm: 'outfit', want: /^TCH-OUTFIT the call-out/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: '    if jsonb_array_length(v_finds) > 0\n', replace: '    if false\n' },
+  { name: 'a quiet hero is called out', arm: 'outfit', want: /^TCH-OUTFIT a quiet hero/, fn: 'public.hr_chest_open(integer,text,text,integer,integer,uuid)',
+    find: 'and not coalesce((select ps.presence_quiet', replace: 'and not coalesce(false and (select ps.presence_quiet' },
+  { name: 'every hero owns a bundle outfit', arm: 'outfit', want: /^TCH-OUTFIT (before the bundle|a hero with no bundle)/, fn: 'public.hr_outfit_owned(uuid,integer)',
+    find: 'then exists (select 1 from public.player_cosmetics c', replace: 'then true or exists (select 1 from public.player_cosmetics c' },
+  { name: 'an owned outfit burns another bundle', arm: 'outfit', want: /^(TCH-OUTFIT a second bundle|THREW)/, fn: 'public.hr_outfit_bundle_use(integer,text,uuid)',
+    find: '  if exists (select 1 from public.player_cosmetics c where c.user_id = v_uid', replace: '  if false and exists (select 1 from public.player_cosmetics c where c.user_id = v_uid' },
+  { name: 'the use takes no bundle', arm: 'outfit', want: /^TCH-OUTFIT the use answered/, fn: 'public.hr_outfit_bundle_use(integer,text,uuid)',
+    find: '  v_take := public.hr_materials_take(v_uid, p_slot, jsonb_build_object(p_item, 1), true);',
+    replace: "  v_take := jsonb_build_object('ok', true, 'from', jsonb_build_object('bag', jsonb_build_object(p_item, 1)));" },
+  { name: 'the bag\'s Use stays on for an owned outfit', arm: 'outfit', want: /^TCH-OUTFIT the bag's Use/, file: 'src/shell/windows/inventory/outfit-bundle.js',
+    from: "  return o && o.owned.has(outfit) ? t('bag.bundle_owned') : '';", to: "  return '';" },
+  { name: 'one press uses a bundle', arm: 'outfit', want: /^TCH-OUTFIT the bag's two presses/, file: 'src/shell/windows/inventory/outfit-bundle.js',
+    from: '  if (a && a.id === id && now - a.at <= ARM_MS) { sc.bundleArm = null; return true; }', to: '  if (true) { sc.bundleArm = null; return true; }' },
+  { name: 'the data\'s Silver coat chance moves', arm: 'outfit', want: /^TCH-OUTFIT the coat's chances/, file: 'src/data/chests.js',
+    from: 'pm: Object.freeze({ bronze: 2, silver: 3, gold: 4, platinum: 5 })', to: 'pm: Object.freeze({ bronze: 2, silver: 6, gold: 4, platinum: 5 })' },
   { name: 'the data\'s warmth cap moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js', from: '  warmthCapPm: 3000,', to: '  warmthCapPm: 2500,' },
   { name: 'the data\'s Platinum odds move', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
     from: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20,", to: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 40," },
@@ -785,7 +972,8 @@ async function main() {
       } else {
         const dir = mkdtempSync(join(tmpdir(), 'hr-tch-'));
         try {
-          for (const d of ['src/core', 'src/data', 'src/session', join('supabase', 'functions', 'hr-accrue'), 'tests/hunt-core/fixtures']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
+          /* src/shell and src/render: TCH-OUTFIT drives the bag's own outfit-bundle module against the chain */
+          for (const d of ['src/core', 'src/data', 'src/session', 'src/shell', 'src/render', join('supabase', 'functions', 'hr-accrue'), 'tests/hunt-core/fixtures']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
           cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
           const p = join(dir, m.file);
           let src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
@@ -813,7 +1001,7 @@ async function main() {
     bad.push(...got);
   }
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? `tower-chest: ${bad.length} FAILED` : 'tower-chest: green (the table, the odds, the mint on both doors with no earn cap, the held limit, the Key Ring, the open, six a family a week, every forged value refused)');
+  console.log(bad.length ? `tower-chest: ${bad.length} FAILED` : 'tower-chest: green (the table, the odds, the mint on both doors with no earn cap, the held limit, the Key Ring, the open, six a family a week, every forged value refused, the Key Warden found, used and worn)');
   process.exit(bad.length ? 1 : 0);
 }
 

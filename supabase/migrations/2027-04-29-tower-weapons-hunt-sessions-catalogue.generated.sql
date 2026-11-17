@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 62ffef68e8985e3bfeef1e5b9d2b20ea5f7e25209036cec154c7b3ff101c94a2
+--   digest: ded1db6db541ff79e5baf3b7288d1b92d7d9c1347654e08a5d1d594ce353c70b
 --   82 supplies, 166 hunts (named + training), 47 limits, 17 end reasons,
---   626 vendor values, 49 store supplies paid per use, 5 target modes,
+--   627 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 21 abilities, 10 action-set options, 23 hunt grounds
 --
 -- NEW IN THIS FILE (lane/a-tower-art-gen, 2026-11-16): the Hearth Chest's weapons (lane/d-tower-weapons, src/data/items) in hr_hunt_weapons and
@@ -1969,6 +1969,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('studded_pants', 60),
   ('sump_membrane', 4),
   ('swarm_heart', 650),
+  ('sweeps_coat_bundle', 20000),
   ('swordfish', 8),
   ('temper_salts', 7),
   ('timber_beam', 46),
@@ -2123,7 +2124,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 166
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 17
-     or (select count(*) from public.hr_hunt_vendor_value) <> 626
+     or (select count(*) from public.hr_hunt_vendor_value) <> 627
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)

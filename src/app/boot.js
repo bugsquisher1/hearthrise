@@ -281,7 +281,7 @@ function startApp(win) {
     const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer, roster);
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
-      + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
+      + '<ul class="char-list">' + (rows || '<li class="char-row">The server didn\'t answer. Reload the page to try again.</li>') + '</ul>'
       + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
@@ -349,8 +349,8 @@ function startApp(win) {
     const r = await a.open(slot);
     if (!r.ok) {
       const m = root.querySelector('.auth-message');
-      if (m) m.textContent = r.reason === 'limit' ? 'Heroes at once: ' + r.limit + '. Close one first.'
-        : 'Character failed to load, try again soon';
+      if (m) m.textContent = r.reason === 'limit' ? 'You can play ' + r.limit + ' heroes at once. Close one first.'
+        : 'Your character didn\'t load. Try again in a minute.';
       return false;
     }
     if (a !== account) return false;

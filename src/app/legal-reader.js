@@ -103,7 +103,7 @@ export function openLegal(box, which, opener) {
   const win = doc.defaultView;
   readLegal(d.file, win.location.href).then((text) => {
     if (!host.isConnected) return;
-    body.innerHTML = text === null ? '<p>Page failed to load</p>' : legalHtml(text, { dropTitle: true });
+    body.innerHTML = text === null ? '<p>This page didn\'t load. Check your connection.</p>' : legalHtml(text, { dropTitle: true });
   });
   return host;
 }

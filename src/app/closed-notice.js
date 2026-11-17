@@ -16,10 +16,10 @@ import { AUTH_BRAND } from './sign-in.js?v=0.2.134';
 
 const CHECK = Object.freeze({ idle: 'Check again', busy: 'Checking…' });
 const SAY = Object.freeze({
-  closed: 'Not on the invite list yet',
-  unanswered: 'Connection failed, try again',
-  copied: 'Copied',
-  selected: 'Copy blocked, id selected',
+  closed: 'You\'re not on the list yet. Send your account id to whoever invited you, then check again.',
+  unanswered: 'The server didn\'t answer. Check your connection and try again.',
+  copied: 'Copied. Send it to whoever invited you.',
+  selected: 'Your browser blocked the copy, so the id is selected. Copy it from there.',
 });
 
 /** Copy `value`: the clipboard, else the browser's copy of a selection. 'copied', or 'selected' with `el` left selected. */
@@ -43,16 +43,16 @@ async function copyText(win, el, value) {
 export function renderBannedNotice(root, o) {
   root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card" data-banned-notice>'
     + '<h1 class="auth-title">This account has been banned</h1>'
-    + '<p class="auth-lead">Banned by the Game Master. Appeals: Discord</p>'
+    + '<p class="auth-lead">The Game Master banned this account. If you think that\'s a mistake, ask on the Discord.</p>'
     + '<p class="auth-links"><a class="auth-link" href="' + esc(o.discord) + '" rel="noopener">Join the Discord</a>'
     + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
 }
 
 export function renderClosedNotice(root, o) {
   root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card" data-closed-notice>'
-    + '<h1 class="auth-title">Signed up</h1>'
-    + '<p class="auth-lead">Invite only: account not on the list yet</p>'
-    + '<p class="auth-lead">Send this account id to your inviter</p>'
+    + '<h1 class="auth-title">You\'re signed up</h1>'
+    + '<p class="auth-lead">Hearthrise is invite-only right now, and your account isn\'t on the list yet.</p>'
+    + '<p class="auth-lead">Send this account id to whoever invited you. Once they\'ve added you, press Check again.</p>'
     + '<div class="auth-id"><code class="auth-id-value">' + esc(o.id || '') + '</code>'
     + '<button type="button" class="hh-tool" data-closed="copy">Copy</button></div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'

@@ -25,7 +25,6 @@
 // only. Nothing is guessed.
 // ════════════════════════════════════════════════════════════════════════
 
-import { listWords } from '../render/format.js?v=0.2.134';
 import { spellRow } from '../data/monster-spells.js?v=0.2.134';
 
 export const EXPLAIN_WINDOW_MS = 10000;
@@ -78,20 +77,21 @@ function explainFall(events, fall, who) {
   const ordered = Array.from(groups.values()).sort((a, b) => b.total - a.total).slice(0, MAX_GROUPS);
   for (const g of ordered) {
     const shown = g.amounts.slice(-MAX_HITS_LISTED);
-    parts.push(plural(g.amounts.length, g.who + ' hit', g.who + ' hits') + ' (' + shown.join(', ') + (g.amounts.length > shown.length ? ', …' : '') + ')');
+    /* one sentence per attacker: "Briarcoat Wolf hit 3 times (12, 15, 18)" */
+    parts.push(g.who + ' hit ' + (g.amounts.length === 1 ? 'once' : g.amounts.length + ' times') + ' (' + shown.join(', ') + (g.amounts.length > shown.length ? ', …' : '') + ')');
   }
-  if (!hits.length) parts.push('no damage was seen in the last ' + secs(EXPLAIN_WINDOW_MS) + ' s');
+  if (!hits.length) parts.push('No damage was seen in the last ' + secs(EXPLAIN_WINDOW_MS) + ' s');
 
   const lastHeal = heals.length ? heals[heals.length - 1].atMs : null;
-  if (lastHeal === null) parts.push('no heal in the last ' + secs(EXPLAIN_WINDOW_MS) + ' s');
-  else if (to - lastHeal >= 3000) parts.push('no heal for ' + secs(to - lastHeal) + ' s');
-  if (dry.length) parts.push('ran out of ' + dry.map((d) => spell(d.item)).filter((x, i, a) => a.indexOf(x) === i).join(' and '));
-  else if (!ate.length && lastHeal === null) parts.push('nothing eaten or drunk');
+  if (lastHeal === null) parts.push('No heal in the last ' + secs(EXPLAIN_WINDOW_MS) + ' s');
+  else if (to - lastHeal >= 3000) parts.push('No heal for the last ' + secs(to - lastHeal) + ' s');
+  if (dry.length) parts.push('Ran out of ' + dry.map((d) => spell(d.item)).filter((x, i, a) => a.indexOf(x) === i).join(' and '));
+  else if (!ate.length && lastHeal === null) parts.push('Nothing was eaten or drunk');
 
   const low = [];
   const vit = who.vitals;
-  if (vit && num(vit.mana) !== null && num(vit.manaMax) > 0 && vit.mana / vit.manaMax <= LOW_MANA) low.push(who.name + ' at ' + Math.round(vit.mana) + ' mana');
-  for (const o of who.others || []) if (num(o.mana) !== null && num(o.manaMax) > 0 && o.mana / o.manaMax <= LOW_MANA) low.push(o.name + ' at ' + Math.round(o.mana) + ' mana');
+  if (vit && num(vit.mana) !== null && num(vit.manaMax) > 0 && vit.mana / vit.manaMax <= LOW_MANA) low.push(who.name + ' was down to ' + Math.round(vit.mana) + ' mana');
+  for (const o of who.others || []) if (num(o.mana) !== null && num(o.manaMax) > 0 && o.mana / o.manaMax <= LOW_MANA) low.push(o.name + ' was down to ' + Math.round(o.mana) + ' mana');
   parts.push(...low);
 
   const rules = [];
@@ -100,21 +100,20 @@ function explainFall(events, fall, who) {
     if (seenRule.has(w.rule)) continue;
     seenRule.add(w.rule);
     const why = whyWords(w.why);
-    rules.push("rule '" + ruleName(w) + "' was waiting" + (why ? ' for ' + why : ''));
+    rules.push('Your rule “' + ruleName(w) + '” was waiting' + (why ? ' for ' + why : ''));
   }
   const firedBy = new Map();
   for (const f of fired) firedBy.set(f.rule, (firedBy.get(f.rule) || { n: 0, label: ruleName(f) }));
   for (const f of fired) firedBy.get(f.rule).n++;
-  for (const [id, r] of firedBy) if (!seenRule.has(id)) rules.push("rule '" + r.label + "' fired " + plural(r.n, 'time', 'times'));
+  for (const [id, r] of firedBy) if (!seenRule.has(id)) rules.push('Your rule “' + r.label + '” fired ' + (r.n === 1 ? 'once' : plural(r.n, 'time', 'times')));
 
   const last = hits.length ? hits[hits.length - 1] : null;
   const killingBlow = last ? { by: last.an || 'Something', amount: last.amount, ability: typeof last.ability === 'string' ? last.ability : null } : null;
   const killer = typeof fall.monster === 'string' ? spell(fall.monster) : null;
 
   const lines = [];
-  /* the bar's rules, a sentence of their own on the same line (copy 11-06: no "; " joins) */
-  const ruled = rules.length ? listWords(rules, Infinity) : '';
-  lines.push(who.name + ' died: ' + parts.join(', ') + '.' + (ruled ? ' ' + ruled.charAt(0).toUpperCase() + ruled.slice(1) + '.' : ''));
+  /* "Marlow died. Briarcoat Wolf hit 3 times (12, 15, 18). No heal for the last 8 s." Every fact its own short sentence, the bar's rules last. */
+  lines.push(who.name + ' died. ' + parts.concat(rules).map((s) => s + '.').join(' '));
   /* a monster's spell names itself: "from Barn Spider’s Venom Spray" (src/data/monster-spells.js) */
   const cast = killingBlow && spellRow(killingBlow.ability);
   if (killingBlow) lines.push('The killing blow was ' + killingBlow.amount + ' from ' + killingBlow.by + (cast ? '’s ' + cast.n : '') + '.');

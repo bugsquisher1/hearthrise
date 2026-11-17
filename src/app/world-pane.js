@@ -119,7 +119,7 @@ export async function mountWorldPane(host, character, o) {
   } catch (e) {
     console.error('[world] the world failed to load', e);
     const s = stage.querySelector('.world-status');
-    if (s && !reloading) s.textContent = 'World failed to load, reload the page';
+    if (s && !reloading) s.textContent = 'The world didn\'t load. Reload the page.';
   } finally {
     doc.defaultView.clearInterval(waitTick);
     doc.defaultView.removeEventListener('offline', sayWait);

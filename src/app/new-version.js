@@ -27,7 +27,7 @@ import { BUILD } from '../build-info.js?v=0.2.134';
 import { readServed } from '../session/server.js?v=0.2.134';
 
 export const NEW_VERSION_COPY = Object.freeze({
-  line: 'New version available, reload to update',
+  line: 'A new version of Hearthrise is out. Reload to get it.',
   reload: 'Reload',
   later: 'Later',
 });

@@ -13,7 +13,7 @@
 import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.134';
 import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.134';
 import { itemName } from './widgets/bits.js?v=0.2.134';
-import { whole, hoursWords } from '../render/format.js?v=0.2.134';
+import { whole, hoursWords, listWords } from '../render/format.js?v=0.2.134';
 import { supplyWords } from './hunt-go.js?v=0.2.134';
 import { t } from '../render/player-text.js?v=0.2.134';
 
@@ -37,7 +37,7 @@ export function readinessOf(cs) {
   if (s) {
     for (const l of supplyWords(s, cs, carried).lines) {
       checks.push({ id: l.id, ok: !l.short, text: l.text });
-      if (l.short) short.push('0 ' + l.id);
+      if (l.short) short.push('no ' + l.id);
     }
   } else checks.push({ id: 'bar', ok: true, text: t('prep.ready_bar_later') });
 
@@ -61,7 +61,7 @@ export function readinessOf(cs) {
   return { name, ready: short.length === 0, checks, short };
 }
 
-/** "Ranger: 0 ammo, no stamina" or "Tyler: ready" (an empty food or drink slot is a heads-up, never short). */
+/** "Ranger: no ammo and no stamina" or "Tyler: ready" (an empty food or drink slot is a heads-up, never short). */
 export function readinessLine(r) {
-  return r.name + ': ' + (r.ready ? 'ready' : r.short.join(', '));
+  return r.name + ': ' + (r.ready ? 'ready' : listWords(r.short, Infinity));
 }

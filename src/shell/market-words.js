@@ -9,36 +9,37 @@
 import { whole, listWords } from '../render/format.js?v=0.2.134';
 import { depotOf } from '../session/item-sections.js?v=0.2.134';
 
-/** Why the Weighhouse won't list a stack, by the server's `why` (hr_market_items: its one listable rule). The sentence is the rule, never a guess. */
-const NO_BUYER = 'not bought by the shop, own use only';
+/** Why the Weighhouse won't list a stack, by the server's `why` (hr_market_items: its one listable rule). The sentence is the rule, never a guess.
+    `say` follows "You can't sell these to other players."; `tag` heads its names in the Sell tab's list. */
+const NO_BUYER = Object.freeze({ say: 'The shop won\'t buy them, so they\'re yours to use.', tag: 'no shop value' });
 const WHY_NOT = Object.freeze({
-  start_kit: 'starting kit',
+  start_kit: { say: 'Every new hero starts with them.', tag: 'starting kit' },
   no_value: NO_BUYER,
   no_shop_price: NO_BUYER,
-  untradeable: 'gifts and trophies',
-  premium: 'premium rewards',
+  untradeable: { say: 'Gifts and trophies stay with you.', tag: 'gift or trophy' },
+  premium: { say: 'Premium rewards stay with you.', tag: 'premium reward' },
 });
 const capital = (s) => s[0].toUpperCase() + s.slice(1);
-/** The one stack's refusal: "These can't be sold to other players: every new hero starts with some, even if you made yours." */
+/** The one stack's refusal: "You can't sell these to other players. Every new hero starts with them." */
 export function notListableWords(why) {
-  return 'These can\'t be sold to other players' + (Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.');
+  return 'You can\'t sell these to other players.' + (Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ' ' + WHY_NOT[why].say : '');
 }
 /**
- * The Sell tab's line over what it leaves out, each stack with its reason: "2 stacks here can't be sold to other players. Cooked
- * Shrimp: every new hero starts with some, ...". `kept`: [{ name, why }] from the server's summaries.
+ * The Sell tab's line over what it leaves out, by reason: "3 stacks can't be sold to other players. Starting kit: Cooked
+ * Shrimp and Bread. Gift or trophy: Wolf Trophy." `kept`: [{ name, why }] from the server's summaries.
  */
 export function keptWords(kept) {
   if (!kept.length) return '';
   const byWhy = new Map();
-  for (const k of kept) { const said = WHY_NOT[k.why] || 'not tradeable'; byWhy.set(said, [...(byWhy.get(said) || []), k.name]); }
-  return whole(kept.length) + (kept.length === 1 ? ' stack' : ' stacks') + ' here can\'t be sold to other players. '
-    + Array.from(byWhy, ([said, names]) => listWords(names) + ': ' + said + '.').join(' ');
+  for (const k of kept) { const said = Object.prototype.hasOwnProperty.call(WHY_NOT, k.why) ? WHY_NOT[k.why].tag : 'not tradeable'; byWhy.set(said, [...(byWhy.get(said) || []), k.name]); }
+  return whole(kept.length) + (kept.length === 1 ? ' stack' : ' stacks') + ' can\'t be sold to other players. '
+    + Array.from(byWhy, ([said, names]) => capital(said) + ': ' + listWords(names) + '.').join(' ');
 }
 
 const MARKET_VERBS = new Set(['market_list', 'market_buy', 'market_cancel', 'market_browse', 'market_item', 'market_mine']);
 
 /** Who the Weighhouse trades with, in the server's numbers: a refusal's, or the rules row's in the window. */
-export const lockedWords = (minLevel, minSkill) => 'The Weighhouse trades with heroes of Level ' + whole(minLevel) + ', or with a bench skill at ' + whole(minSkill) + '.';
+export const lockedWords = (minLevel, minSkill) => 'The Weighhouse opens to you at Level ' + whole(minLevel) + ', or once a crafting skill reaches ' + whole(minSkill) + '.';
 
 /** The next UTC midnight as this player's clock reads it (display only): when the daily counts reset. */
 function resetWords() {
@@ -48,21 +49,21 @@ function resetWords() {
 }
 
 const WORDS = Object.freeze({
-  insufficient_item: () => 'Not enough left',
-  price_below_shop: (f) => (f.floor === undefined ? 'Below the shop price'
-    : 'Below the shop price: ' + whole(f.floor) + ' each'),
-  price_above_cap: (f) => 'Above the highest price' + (f.ceiling === undefined ? '' : ': ' + whole(f.ceiling) + ' each'),
+  insufficient_item: () => 'You don\'t have that many left.',
+  price_below_shop: (f) => (f.floor === undefined ? 'That\'s below the shop price.'
+    : 'That\'s below the shop price of ' + whole(f.floor) + ' gp each.'),
+  price_above_cap: (f) => 'That\'s above the highest price allowed' + (f.ceiling === undefined ? '.' : ', ' + whole(f.ceiling) + ' gp each.'),
   storage_no_room: (f, cs) => {
     const d = cs ? depotOf(cs) : null;
-    return 'Storage full for unsold items, build ' + (d && d.next ? 'the ' + d.next.name : 'another chest');
+    return 'Your storage has no room for unsold items. Build ' + (d && d.next ? 'the ' + d.next.name : 'another chest') + ' first.';
   },
-  too_many_listings: (f) => 'Max listings: ' + whole(f.limit),
-  list_daily_cap: (f) => 'Daily limit: ' + whole(f.limit) + ' listings, resets at ' + resetWords(),
-  insufficient_gold: (f, cs, r) => (r.verb === 'market_list' ? 'Listing fee: ' + whole(f.need) + ' gold'
-    : 'Need ' + whole(f.need) + ' gold, have ' + whole(f.have)),
+  too_many_listings: (f) => 'You can only have ' + whole(f.limit) + ' listings at once.',
+  list_daily_cap: (f) => 'You\'ve hit today\'s limit of ' + whole(f.limit) + ' listings. It resets at ' + resetWords() + '.',
+  insufficient_gold: (f, cs, r) => (r.verb === 'market_list' ? 'You need ' + whole(f.need) + ' gp for the listing fee.'
+    : 'You need ' + whole(f.need) + ' gp. You have ' + whole(f.have) + '.'),
   not_enough: (f) => (f.available === undefined ? 'There aren\'t that many left at that price.'
     : 'Only ' + whole(f.available) + (f.available === 1 ? ' is' : ' are') + ' left at that price.'),
-  bag_full: (f, cs) => 'Bag full, send it to storage',
+  bag_full: (f, cs) => 'Your bag is full. Send it to storage instead.',
   market_locked: (f) => (f.min_level === undefined || f.min_skill_level === undefined ? null : lockedWords(f.min_level, f.min_skill_level)),
 });
 

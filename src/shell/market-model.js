@@ -197,35 +197,36 @@ export function ageWords(at, now) {
 function leftWords(at, now) {
   if (!Number.isFinite(at)) return '';
   const d = at - now;
-  if (d <= 0) return 'returning to storage';
+  if (d <= 0) return 'heading back to storage';
   if (d < HOUR) return 'under an hour left';
   if (d < 2 * DAY) return Math.ceil(d / HOUR) + ' h left';
   return Math.round(d / DAY) + ' days left';
 }
 
-/** A Browse row's line: "From 13 each, 320 for sale. Last sold for 13, 2 h ago". */
+/** A Browse row's line: "320 for sale from 13 gp each. Last sold 2 h ago for 13 gp each." */
 export function rowWords(s, now) {
   if (!s.forSale) return noneWords(s, now);
-  const last = s.lastEach !== null ? '. Last sold for ' + whole(s.lastEach) + ', ' + ageWords(s.lastAt, now) : '';
-  return 'From ' + whole(s.lowest) + ' each, ' + whole(s.forSale) + ' for sale' + last;
+  const last = s.lastEach !== null ? ' Last sold ' + ageWords(s.lastAt, now) + ' for ' + whole(s.lastEach) + ' gp each.' : '';
+  return whole(s.forSale) + ' for sale from ' + whole(s.lowest) + ' gp each.' + last;
 }
 
-/** "No one is selling this. Last sold 2 days ago for 12 each." */
+/** "No one is selling this. Last sold 2 days ago for 12 gp each." */
 export function noneWords(s, now) {
-  return 'No one is selling this.' + (s.lastEach !== null ? ' Last sold ' + ageWords(s.lastAt, now) + ' for ' + whole(s.lastEach) + ' each.' : '');
+  return 'No one is selling this.' + (s.lastEach !== null ? ' Last sold ' + ageWords(s.lastAt, now) + ' for ' + whole(s.lastEach) + ' gp each.' : '');
 }
 
-/** The Sell tab's line for one stack: what the shop pays and what the market says, side by side. */
+/** The Sell tab's line for one stack: "You have 40. The shop pays 5 gp each. Players sell from 12 gp." */
 export function sellRowWords(s, bid, qty) {
-  const shop = bid === undefined || bid === null ? 'The shop does not buy this' : 'The shop pays ' + whole(bid);
-  const market = !s ? 'Reading the market…' : s.forSale ? 'Market: from ' + whole(s.lowest) : 'No one is selling these';
-  return '×' + whole(qty) + '. ' + shop + '. ' + market;
+  const shop = bid === undefined || bid === null ? 'The shop won\'t buy these.' : 'The shop pays ' + whole(bid) + ' gp each.';
+  const market = !s ? 'Checking the market…' : s.forSale ? 'Players sell from ' + whole(s.lowest) + ' gp.' : 'No one is selling these.';
+  return 'You have ' + whole(qty) + '. ' + shop + ' ' + market;
 }
 
-/** My listings' line: "2 of 3 left, 240 each, 6 days left, received 230". */
+/** My listings' line: "2 of 3 left at 240 gp each. 6 days left. 230 gp received so far." */
 export function listingWords(l, now) {
-  return whole(l.qty) + ' of ' + whole(l.listed) + ' left, ' + whole(l.each) + ' each, ' + leftWords(l.expiresAt, now)
-    + (l.received ? ', received ' + whole(l.received) : '');
+  const left = leftWords(l.expiresAt, now);
+  return whole(l.qty) + ' of ' + whole(l.listed) + ' left at ' + whole(l.each) + ' gp each.' + (left ? ' ' + left[0].toUpperCase() + left.slice(1) + '.' : '')
+    + (l.received ? ' ' + whole(l.received) + ' gp received so far.' : '');
 }
 
 /** History's line for one row, in the design's words. */
@@ -234,11 +235,11 @@ export function historyWords(h, now) {
   const when = ageWords(h.at, now);
   const n = whole(h.qty) + ' ' + name;
   const lines = {
-    sold: 'Sold ' + n + ' for ' + goldWords((h.each || 0) * h.qty) + '. Received: ' + goldWords(h.gold),
+    sold: 'Sold ' + n + ' for ' + goldWords((h.each || 0) * h.qty) + '. You received ' + goldWords(h.gold) + '.',
     bought: 'Bought ' + n + ' for ' + goldWords(Math.abs(h.gold)) + '.',
-    listed: 'Listed ' + n + ' at ' + whole(h.each || 0) + ' each, fee ' + goldWords(Math.abs(h.gold)),
-    cancelled: 'Canceled, ' + n + ' returned to storage',
-    returned: n + ' unsold, returned to storage',
+    listed: 'Listed ' + n + ' at ' + whole(h.each || 0) + ' gp each. The fee was ' + goldWords(Math.abs(h.gold)) + '.',
+    cancelled: 'Canceled. ' + n + ' went back to your storage.',
+    returned: n + ' didn\'t sell and went back to your storage.',
   };
   return { line: lines[h.what] || n, when };
 }
@@ -260,16 +261,16 @@ export function noticeLines(rows, away) {
   const sold = rows.filter((r) => r.what === 'sold');
   if (sold.length === 1 && !away) {
     const s = sold[0];
-    out.push({ key: 'sold', at: s.at, item: s.item, text: 'The Weighhouse sold ' + whole(s.qty) + ' ' + itemName(s.item) + ' for ' + goldWords((s.each || 0) * s.qty) + '. Received: ' + goldWords(s.gold) });
+    out.push({ key: 'sold', at: s.at, item: s.item, text: 'The Weighhouse sold ' + whole(s.qty) + ' ' + itemName(s.item) + ' for ' + goldWords((s.each || 0) * s.qty) + '. You received ' + goldWords(s.gold) + '.' });
   } else if (sold.length) {
     const gross = sold.reduce((n, s) => n + (s.each || 0) * s.qty, 0);
-    const head = away ? 'While away, the Weighhouse sold ' : 'The Weighhouse sold ';
+    const head = away ? 'While you were away, the Weighhouse sold ' : 'The Weighhouse sold ';
     const lots = sold.length === 1 ? '1 lot' : whole(sold.length) + ' lots';
     const got = sold.reduce((n, s) => n + s.gold, 0);
-    out.push({ key: 'sold', at: sold[sold.length - 1].at, item: null, text: head + lots + ' for ' + goldWords(gross) + '. Received: ' + goldWords(got) });
+    out.push({ key: 'sold', at: sold[sold.length - 1].at, item: null, text: head + lots + ' for ' + goldWords(gross) + '. You received ' + goldWords(got) + '.' });
   }
   for (const r of rows.filter((x) => x.what === 'returned')) {
-    out.push({ key: 'back', at: r.at, item: r.item, text: whole(r.qty) + ' ' + itemName(r.item) + ' unsold, back in storage' });
+    out.push({ key: 'back', at: r.at, item: r.item, text: whole(r.qty) + ' ' + itemName(r.item) + ' didn\'t sell and ' + (r.qty === 1 ? 'is' : 'are') + ' back in your storage.' });
   }
   return out;
 }

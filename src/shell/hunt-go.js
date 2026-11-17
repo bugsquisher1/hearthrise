@@ -127,8 +127,11 @@ function spareWords(kind, rows, named) {
     const c = CONSUMABLES[r.id];
     if (c && c.kind === kind && c.source !== 'store' && !named.has(r.id) && r.qty > 0 && (!best || r.qty > best.qty)) best = r;
   }
-  return best ? 'Carried: ' + whole(best.qty) + ' ' + itemName(best.id) + ', put it on the bar' : '';
+  return best ? 'You have ' + whole(best.qty) + ' ' + itemName(best.id) + '. Add it to your bar to use it.' : '';
 }
+
+/* A sentence that follows another one starts with a capital ("buys..." after a full stop reads "Buys..."). */
+const cap = (w) => (w ? w[0].toUpperCase() + w.slice(1) : w);
 
 function bareWords(kind, parts, carried) {
   if (kind !== 'rune') return spareWords(kind, carried, new Set(parts.map((p) => (p.own ? p.own.id : null)))) || t(BARE_WORDS[kind]);
@@ -137,19 +140,22 @@ function bareWords(kind, parts, carried) {
   /* NO UNEXPLAINED DEAD BUTTON (designer 2026-10-29, lane/a-starter-bars): a slot the player set to Carried runes only, with none left
      (no default bar: rule-subjects.js); this line says the fix before the hunt */
   const fixes = Array.from(new Map(parts.filter((p) => p.spell && p.fix).map((p) => [p.fix.name, p.fix])).values());
-  return spells.join(' and ') + ' will not fire' + (fixes.length ? ', pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp)').join(' or ') + ' on the slot' : '');
+  return spells.join(' and ') + ' won\'t fire.' + (fixes.length ? ' Pick ' + fixes.map((x) => x.name + ' (' + x.price + ' gp)').join(' or ') + ' on its slot to fix it.' : '');
 }
 
 /* Every item the bar's slots name. */
 const barNames = (s) => new Set(s.slots.filter((sl) => !sl.empty && sl.enabled !== false && sl.action.type === 'consume').map((sl) => sl.action.id));
 
-/* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
+/* What the store charges, after "buys X at": "14 gp" for a supply, "5 gp a cast" for a rune bought per cast. */
+const priceWords = (price, each) => price + ' gp' + (each === 'a cast' ? ' a cast' : '');
+
+/* One part of a supply line: "20 Cooked Shrimp", "no Cooked Shrimp left", "buys Salted Shrimp at 14 gp". */
 function partWords(p) {
   const name = p.own ? p.own.name || itemName(p.own.id) : '';
-  /* a rune a new hero never had is not "left": "no Fire runes of yours". With the store behind it the empty stock says
+  /* a rune a new hero never had is not "left": "no Fire Runes". With the store behind it the empty stock says
      nothing ("no Fire runes of yours, then Plain Fire Rune..." read like a robot, first-hour play 2026-10-31). */
-  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name + ' carried' : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? ' carried' : ' left')) : null;
-  const store = p.store ? p.store.name + ' from the store, ' + p.store.price + ' gp ' + p.store.each : null;
+  const own = p.own ? (p.own.n > 0 ? whole(p.own.n) + ' ' + name : p.kind === 'rune' && p.store ? null : 'no ' + name + (p.kind === 'rune' ? '' : ' left')) : null;
+  const store = p.store ? 'buys ' + p.store.name + ' at ' + priceWords(p.store.price, p.store.each) : null;
   return [own, store].filter(Boolean).join(', then ');
 }
 
@@ -167,7 +173,7 @@ function liveRunes(live) {
     else spends.push({ price: p.store.price, names: [p.store.name] });
   }
   const andWords = (n) => (n.length < 2 ? n[0] : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]);
-  return spends.map((x) => x.words || andWords(x.names) + ' from the store, ' + x.price + ' gp a cast').join('. ');
+  return spends.map((x, i) => { const w = x.words || 'buys ' + andWords(x.names) + ' at ' + priceWords(x.price, 'a cast'); return i ? cap(w) : w; }).join('. ');
 }
 
 /* THE RUNES LINE: what casts (liveRunes), then the spells that will not fire and their fix. Nothing usable keeps the listed stocks (bareWords). */
@@ -224,21 +230,22 @@ function shotLine(s, cs, carried) {
   const worn = (equipmentOf(cs) || {}).ammo || null;
   const skills = skillsOf(cs);
   const plan = shotPlan(s, worn, carried, skills);
-  const waiting = plan.locked.map((l) => ', ' + itemName(l.id) + ': ' + l.text).join('');
+  const waiting = plan.locked.map((l) => '. ' + itemName(l.id) + ': ' + l.text).join('');
   const dry = !!worn && shootsItem(s.role, ITEMS[worn]) && !((carried.find((r) => r.id === worn) || {}).qty > 0) ? 'no ' + itemName(worn) + ' left' : null;
   if (!plan.own.length && !plan.store.length) {
     const spare = carried.find((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && !shortOf(r.id, skills, null));
-    return { id: 'ammo', text: 'Ammo: ' + (dry || 'nothing loaded') + ', no attacks'
-      + (spare ? ', Bag → ' + itemName(spare.id) + ' → Put on the bar' : ', empty slot → Ammo → pick a store shot') + waiting, short: true, pays: false };
+    return { id: 'ammo', text: 'Ammo: ' + (dry || 'none loaded') + '. Can\'t attack without ammo.'
+      + (spare ? ' Put ' + itemName(spare.id) + ' on your bar from your bag.' : ' Add an Ammo slot to your bar and pick ammo from the store.') + waiting, short: true, pays: false };
   }
   const parts = (dry ? [dry] : [])
-    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id) + ' carried') + (o.id === worn ? (o.free ? ' loaded' : ', loaded') : '')))
-    .concat(plan.store.map((st) => st.name + ' from the store, ' + st.price + ' gp each'));
+    .concat(plan.own.map((o) => (o.free ? itemName(o.id) : whole(o.n) + ' ' + itemName(o.id)) + (o.id === worn ? ' (loaded)' : '')))
+    .concat(plan.store.map((st) => 'buys ' + st.name + ' at ' + st.price + ' gp'));
   const idle = plan.own.length && !plan.own[0].free ? []
     : carried.filter((r) => r.qty > 0 && shootsItem(s.role, ITEMS[r.id]) && ammoPerShot(ITEMS[r.id]) > 0 && !plan.order.includes(r.id) && !shortOf(r.id, skills, null));
   const spare = idle.reduce((best, r) => (!best || r.qty > best.qty ? r : best), null);
-  return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + (plan.own.some((o) => o.free) ? ', never runs out' : '')
-    + (spare ? ', ' + whole(spare.qty) + ' ' + itemName(spare.id) + ' not on the bar' : '') + waiting, short: false, pays: plan.store.length > 0 };
+  const endless = plan.own.find((o) => o.free);
+  return { id: 'ammo', text: 'Ammo: ' + parts.join(', then ') + (endless ? '. ' + itemName(endless.id) + ' never run out' : '')
+    + (spare ? '. ' + whole(spare.qty) + ' ' + itemName(spare.id) + ' aren\'t on your bar' : '') + waiting, short: false, pays: plan.store.length > 0 };
 }
 
 /** The hunt screen's warning: a hero hunting with a weapon that can shoot nothing won't attack at all (the panel 2026-11-01
@@ -246,7 +253,7 @@ function shotLine(s, cs, carried) {
 export function noShotWords(cs) {
   const s = settingsOf(cs);
   const shot = s ? shotLine(s, cs, carriedOf(cs) || []) : null;
-  return shot && shot.short ? shot.text.replace(/^Ammo: /, '') : '';
+  return shot && shot.short ? cap(shot.text.replace(/^Ammo: /, '')) : '';
 }
 
 /* HELD TASKS THAT DO NOT COUNT HERE (the panel 2026-11-01: 11 h at 0/120 because the list had moved its pick): said, never
@@ -288,12 +295,12 @@ export function supplyWords(s, cs, carried) {
        through a hunt under "Drink: from the store"; a slot names ONE item, Tyler 2026-10-21): said beside what the bar will do. */
     const spare = usable && HEADS_UP_KINDS.has(kind) ? spareWords(kind, carried, barNames(s)) : '';
     /* nothing usable: the stocks are listed, never chained with "then" (no fallback runs between empties) */
-    out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)) + (spare ? '. ' + spare : ''), short: false });
+    out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(usable ? ', then ' : ', ') : 'nothing your bar can use') + (usable ? '' : '. ' + bareWords(kind, parts, carried)) + (spare ? '. ' + spare : ''), short: false });
   }
   /* A kind the bar has no slot for at all, with a stack waiting. */
   for (const kind of HEADS_UP_KINDS) {
     const spare = !kinds.has(kind) && (kinds.has('food') || kinds.has('drink')) ? spareWords(kind, carried, barNames(s)) : '';
-    if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': no bar slot. ' + spare, short: false });
+    if (spare) out.push({ id: kind, text: KIND_WORDS[kind] + ': none on your bar. ' + spare, short: false });
   }
   if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: t('prep.go_no_food_drink'), short: false });
   return { lines: out, paysStore };

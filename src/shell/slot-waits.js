@@ -51,9 +51,9 @@ const monstersWord = (n) => (n === 1 ? 'a monster' : n + ' or more monsters') + 
 
 function neverWords(c, slot, party) {
   const need = atLeast(c), top = topOf(c, slot, party);
-  if (need !== null && c.metric === 'allies_below') return 'Waiting: needs ' + heroesWord(c, need) + (party > 1 ? ', party of ' + party : ', not in a party');
-  if (need !== null && c.metric === 'enemies_in_aoe') return 'Waiting: this reaches ' + (top === 1 ? 'one monster' : top + ' monsters') + ' at most, so it never gets to ' + need + '. Change this condition to let it fire.';
-  return 'Never fires: “' + conditionWords(c) + '” never happens';
+  if (need !== null && c.metric === 'allies_below') return 'Never fires. It needs ' + heroesWord(c, need) + (party > 1 ? ' and your party has ' + party + '.' : ' and you\'re not in a party.');
+  if (need !== null && c.metric === 'enemies_in_aoe') return 'Never fires. It hits ' + (top === 1 ? 'one monster' : top + ' monsters') + ' at most, so it can\'t reach ' + need + '. Change this condition so it can fire.';
+  return 'Never fires. “' + conditionWords(c) + '” can\'t happen.';
 }
 
 /**
@@ -70,13 +70,13 @@ export function waitReason(sl, party, test) {
   if (never) return mark('never_' + never.metric, neverWords(never, sl, party), never);
   const t = test ? test(sl) : null;
   if (!t || t.pass) return null;
-  if (t.ignored) return { code: 'ignored', text: 'Waiting: ignores the current monster', glyph: 'uiTarget', strike: false };
+  if (t.ignored) return { code: 'ignored', text: 'Skips the monster you\'re fighting', glyph: 'uiTarget', strike: false };
   const failing = conds.filter((c, i) => !(t.mask & (1 << i)));
   const c = failing.find((x) => MARKS[x.metric] && atLeast(x) !== null) || failing[0];
   if (!c) return null;
   if (MARKS[c.metric] && atLeast(c) !== null) {
     const words = c.metric === 'allies_below' ? heroesWord(c, atLeast(c)) : monstersWord(atLeast(c));
-    return mark('wait_' + c.metric, 'Waiting: needs ' + words, c);
+    return mark('wait_' + c.metric, 'Waiting for ' + words, c);
   }
   return { code: 'wait_until', text: 'Waiting until ' + conditionWords(c) + '.', glyph: 'uiHourglass', strike: false, quiet: true, rest: true };
 }
@@ -90,8 +90,8 @@ export function setupNote(d, party) {
   for (const c of d.conditions) {
     if (!canHold(c, d, party)) return neverWords(c, d, party);
     const need = c.metric === 'enemies_in_aoe' ? atLeast(c) : null;
-    if (need === 2) return 'Waits on a lone monster';
-    if (need > 2) return 'Waits under ' + need + ' monsters in its area';
+    if (need === 2) return 'Won\'t fire on a lone monster';
+    if (need > 2) return 'Won\'t fire until ' + need + ' monsters are in its area';
   }
   return '';
 }

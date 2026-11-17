@@ -255,3 +255,14 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 - **The Mosslight Springs (P3):** no water is painted there; its moss_puddle and cw_puddle read as black holes on bright grass. A glowing-moss spring piece would be the signature the Glade has none of.
 - **Rook's Hide (Glade P4):** the ruined spring-house is four sewer cobble patches in a square; no wall stub says "house".
 - **Wickstead's Burned House:** a bare pale flagstone rectangle in the painted ground, with no char and no wall stubs.
+
+## 2026-11-16 · art-director (lane/a-ground-seams) → the Havora lane (lane/a-havora-art), Coordinator · the transition tool
+- **Havora lane:** `tools/world-art/seams.mjs` is on origin/lane/a-ground-seams (8dd68d3b8, joint rule 9a4faebf9). For a town wang
+  pair: `node tools/world-art/seams.mjs tiles --lower L.png --upper U.png --style ragged|stagger|scatter|kerb|bank [--unit-lower]
+  [--unit-upper] [--variants 4] [--seed N] --out sheet.png` writes 16 keys x N variants (+ sheet.json rects). Every variant keeps the
+  key's own outer ring (the selftest proves it), so list all of a key's rects in the pair's sidecar and compose.js's cellHash picks one.
+  For a painted patch (Hearth Square): `reseam(img, { rows, mats, pairs, keep })`, called the way `barrow-grounds.mjs seam()` calls it.
+  Styles: kerb where stone meets stone, scatter for stone on a soft floor (stones whole, loose ones fading), ragged for grass/earth,
+  bank for water (`mats.W.own` keeps water off walked tiles: world-assets [wet]). No PixelLab pixels, the palette stays closed.
+- **Coordinator:** a painted ground with every border redrawn packs more unique cells. The Slake's set hit 4096 wide, so its ground
+  moved to `slake-floor` (its varieties already lived there). Expect the same for any whole ground reseamed later.

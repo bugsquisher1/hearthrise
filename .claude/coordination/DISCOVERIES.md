@@ -3974,3 +3974,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   world-core family V), but every wang pair still has ONE tile per transition key, so the town shows a regular pebble row along every
   grass/dirt edge and the water is one tile. The same edge-preserving shift (tools/world-art/variety.mjs) could vary a transition's
   own-material half; or a PixelLab Tileset Pro set with variant fills. Owner: art-director (pipeline) / asset-director (gens). P3.
+- 2026-11-16 (art-director, lane/a-ground-seams) GROUND SEAM AUDIT, every hunting ground rendered (art/review/ground-seams/before).
+  Fixed: Krell's Hold (kerb, scatter, rock outcrop), the Slake (shores). Open, ranked by what a player sees: (1) Wickstead: the
+  footbridge is a flat painted strip on a ruler-straight brook; the Burned House and the tilled plot are bare rectangles. (2) Meadowbrook:
+  the log raft (72 px of logs) sits a row below the trail and short of the west bank of a 160 px brook. (3) Mosslight: the river is one
+  straight band with a hairline bank. (4) Pyre Field: cinder pits and charred blocks are hard squares on the ash. (5) Sewer: the sewage
+  channel's L has no kerb. (6) Warrens: the chasm is a hard rectangle. (7) Muster: the barrow mounds step on the grid. (8) Hask's Ford:
+  the ford's water edges are straight. Mill Cellar: nothing. 1-3 are PixelLab view_map grounds with no paint grid: they need a grid
+  classified from their pixels and the pre-seam paint kept in art/world-src. No new PixelLab pixels needed so far. Owner: art-director.

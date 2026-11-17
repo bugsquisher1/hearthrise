@@ -188,7 +188,12 @@ export function presetsOf(cs) {
     if (!isObj(r) || !Number.isInteger(r.preset) || r.preset < 0 || r.preset > 7 || !str(r.name, 24)) continue;
     const gear = {};
     if (isObj(r.gear)) for (const [slot, id] of Object.entries(r.gear)) if (/^[a-z0-9_]{1,32}$/.test(slot) && typeof id === 'string' && ID.test(id)) gear[slot] = id;
-    out.push({ preset: r.preset, name: r.name, actionSet: Number.isInteger(r.action_set) ? r.action_set : null, gear });
+    out.push({ preset: r.preset, name: r.name, actionSet: Number.isInteger(r.action_set) ? r.action_set : null, gear,
+      /* What the setup fights as and that key's ability list (the server's hr_setup_fights_as), and whether its saved gear is the
+         worn set (false on the setup in use after a mid-hunt swap moved only the bar). Null when the server sent none: no mid-hunt Use. */
+      fightsAs: str(r.fights_as, 32) && ID.test(r.fights_as) ? r.fights_as : null,
+      discipline: str(r.discipline, 32) && ID.test(r.discipline) ? r.discipline : null,
+      wearing: typeof r.wearing === 'boolean' ? r.wearing : null });
   }
   return out;
 }

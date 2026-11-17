@@ -392,6 +392,8 @@ export const REFUSAL_WORDS = Object.freeze({
   /* Naming, saving and removing a setup (2026-11-15-preset-names.sql). */
   bad_preset_name: 'Names: 1 to 24 characters',
   setup_in_use: 'Setup in use, equip another first',
+  /* hr_hunt_preset_apply in a hunt (2027-05-04-setup-swap-mid-hunt.sql): the bar swaps only to a setup of the worn weapon type. */
+  setup_needs_weapon: 'Town only: needs another weapon',
   /* Setup slots and titles (2027-02-28-setup-slots.sql, 2027-02-28-titles.sql). With the server's numbers these read from intent-words.js refusalText. */
   setup_locked: 'Setup slots full',
   setup_slots_max: 'Every setup slot owned',

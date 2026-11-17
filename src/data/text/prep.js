@@ -18,6 +18,8 @@ export const PREP_TEXT = Object.freeze({
   setups_none: 'No saved setups',
   setups_none_named: 'Not saved: {name}',
   in_use: 'In use',
+  /* the setup in use after a mid-hunt swap: its bar is on, another setup's gear is still worn */
+  in_use_bar: 'In use (bar only)',
   gear_count: { one: '{count} piece of gear', other: '{count} pieces of gear' },
   not_saved: 'not saved',
   setup_n: 'Setup {n}',
@@ -28,7 +30,17 @@ export const PREP_TEXT = Object.freeze({
   use_equipped_hint: 'Copy worn gear into {name}',
   use_equipped_ask: 'Replace {name} with worn gear?',
   count_line: '{n} of {max} setups',
-  town_only: 'Changes in town only',
+  /* While hunting (Tyler 2026-11-17, "Bar only, keep gear"): Use swaps the bar; New and Use equipped take the worn gear, in town. */
+  town_only: 'Mid-hunt: bar swap only, gear changes in town',
+  /* A row's Use, off in a hunt: the setup fights with another weapon type (its ability list, the server's discipline). */
+  needs_shield: 'Town only: needs a sword and shield',
+  needs_sword: 'Town only: needs a sword, no shield',
+  needs_dual_axe: 'Town only: needs hatchets',
+  needs_club: 'Town only: needs a club or hammer',
+  needs_ranged: 'Town only: needs a bow or crossbow',
+  needs_destruction: 'Town only: needs a wand',
+  needs_restoration: 'Town only: needs a staff',
+  needs_weapon: 'Town only: needs another weapon',
   need_more: 'Need {gold} more',
 
   /* FIGHTS AS: read only, the worn weapon decides it. A dim role says how to get it. */
@@ -89,6 +101,8 @@ export const PREP_TEXT = Object.freeze({
   saved: 'Saved {name}',
   saved_on: 'Saved and equipped {name}',
   putting_on: 'Equipping setup…',
+  swapping: 'Swapping bar…',
+  bar_swapped: 'Bar swapped, gear kept',
   put_on: 'Setup equipped',
   replaced: 'Replaced {name} with worn gear and bar',
   deleting: 'Deleting…',

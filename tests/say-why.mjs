@@ -289,7 +289,7 @@ export const REASONS = Object.freeze({
   ],
   /* THE HUNT PREP BUILDER (lane/b-hunt-prep-builder, 2026-11-11): the setups column and the builder's copy of one setup. */
   'src/shell/windows/hunt-prep/setups.js': [
-    { cond: 'sc.pending || hunting', words: "t('prep.town_only')", where: 'Use: the town-only note while hunting' },
+    { cond: 'hunting && !swap.ok', words: "(swap && swap.why ? ', ' + swap.why : '')", where: 'Use in a hunt (Tyler 2026-11-17, bar only): a setup of another weapon type says "Town only: needs ..." on its own line; the setup in use reads In use' },
     { cond: 'noNew', words: "setupFullWords(count, price)", where: 'New and its Save: the window line (full), the town-only note (hunting), the none line (no presets)' },
     { cond: 'sc.pending || hunting || !pickedRow', words: "t('prep.town_only')", where: 'Use equipped: the town-only note; with no setup picked there is nothing to replace (the none line)' },
     { cond: 'short > 0', words: "t('prep.need_more'", where: 'Buy a setup: the window line says how much more gold' },

@@ -28,8 +28,13 @@
 // THE ONE-SETUP MODEL (designer ruling 2026-10-22: a setup owns its bar; the hero is on one):
 //   PN-7  THE SETUP IN USE: the row the server's hunt_settings.preset names reads
 //         "In use" and offers no Delete; the others keep theirs
-//   PN-8  SETUPS CHANGE IN TOWN: with a hunt open, Use, Use equipped and New
-//         setup are off and the window says why; once the hunt has ended, Save
+//   PN-8  GEAR CHANGES IN TOWN, THE BAR SWAPS MID-HUNT (Tyler 2026-11-17, "Bar only,
+//         keep gear"): with a hunt open, Use equipped and New setup are off and the
+//         window says why; Use is on for a setup of the worn weapon type (the server's
+//         discipline for each) and sends ONE hr_hunt_preset_apply ("Bar swapped, gear
+//         kept"), off on the setup in use, and off on a setup of another weapon type
+//         whose line says "Town only: needs a bow or crossbow"; once the hunt has ended,
+//         the setup in use after a bar-only swap reads "In use (bar only)" and Save
 //         current setup sends ONE hr_hunt_preset_save on the first free number
 //   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, New setup is off, also when the server's
 //         setup_slots counts past that limit (the window then says the limit's number)
@@ -63,7 +68,12 @@ const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeo
 
 function scripted() {
   const s = { env: clone(FIXTURE), version: 1, calls: [], delayMs: 400, refuse: null, hang: false };
-  s.env.hunt_presets = [s.env.hunt_presets[0], Object.assign(clone(s.env.hunt_presets[0]), { preset: 3, name: 'Mill run' })];
+  /* What each setup fights as is the server's (hr_hunt_presets_view: fights_as, discipline, wearing; 2027-05-04-setup-swap-mid-hunt.sql),
+     and so is the worn set's (hunt_settings.discipline): the fixture's hero wears a sword alone. "Archery" fights with a bow. */
+  s.env.hunt_settings = Object.assign({}, s.env.hunt_settings, { discipline: 'sword' });
+  const p0 = Object.assign(clone(s.env.hunt_presets[0]), { fights_as: 'sword', discipline: 'sword', wearing: true });
+  s.env.hunt_presets = [p0, Object.assign(clone(p0), { preset: 3, name: 'Mill run', wearing: false }),
+    Object.assign(clone(p0), { preset: 4, name: 'Archery', gear: { weapon: 'practice_bow' }, fights_as: 'ranged', discipline: 'ranged', wearing: false })];
   s.next = () => Object.assign(clone(s.env), { version: ++s.version, client_state: {} });
   /* The server's answer to one of the three verbs: a refusal leaves the record as it was. */
   s.answer = (name, b) => {
@@ -151,11 +161,23 @@ async function checks(overrides) {
     await page.click(ROW(0) + ' small');
     await page.waitForTimeout(120);
     if (await page.isVisible(ROW(0) + ' .hw-del') || await page.isVisible(ROW(3) + ' .hw-del')) fails.push('PN-7 Delete shows on the setup in use once it is picked, or stays on a row not picked');
-    // PN-8 (the fixture's hunt is open)
-    const off8 = await page.evaluate((sel) => ({ use: document.querySelector(sel + ' .hw-use').disabled, over: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]').disabled, fresh: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="new"]').disabled,
-      add: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]').disabled,
-      why: !!document.querySelector('[data-hs-win="hunt-prep"] .hw-town-only.is-on') }), ROW(3));
-    if (!off8.use || !off8.over || !off8.add || !off8.fresh || !off8.why) fails.push('PN-8 with a hunt open the setup controls read ' + JSON.stringify(off8));
+    // PN-8 (the fixture's hunt is open): Use swaps the bar to a setup of the worn weapon type only; New and Use equipped stay off
+    const off8 = await page.evaluate((rows) => {
+      const row = (sel) => { const li = document.querySelector(sel); return li && { use: li.querySelector('.hw-use').disabled, small: li.querySelector('small').textContent }; };
+      return { rows: rows.map(row), over: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="use-equipped"]').disabled, fresh: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="new"]').disabled,
+        add: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]').disabled,
+        why: !!document.querySelector('[data-hs-win="hunt-prep"] .hw-town-only.is-on') };
+    }, [ROW(0), ROW(3), ROW(4)]);
+    const [on0, same3, bow4] = off8.rows;
+    if (!off8.over || !off8.add || !off8.fresh || !off8.why) fails.push('PN-8 with a hunt open New and Use equipped read ' + JSON.stringify(off8));
+    if (!on0 || !on0.use || !/^In use, /.test(on0.small)) fails.push('PN-8 the setup in use offers Use in a hunt: ' + JSON.stringify(on0));
+    if (!same3 || same3.use || /Town only/.test(same3.small)) fails.push('PN-8 a setup of the worn weapon type cannot swap in a hunt: ' + JSON.stringify(same3));
+    if (!bow4 || !bow4.use || !/, Town only: needs a bow or crossbow$/.test(bow4.small)) fails.push('PN-8 a setup of another weapon type reads ' + JSON.stringify(bow4));
+    await page.click(ROW(3) + ' .hw-use');
+    await page.waitForTimeout(600);
+    const ap8 = sent(s, 'hr_hunt_preset_apply');
+    if (ap8.length !== 1 || ap8[0].body.p_slot !== 0 || ap8[0].body.p_preset !== 3 || !ap8[0].body.p_idem) fails.push('PN-8 Use in a hunt sent ' + JSON.stringify(ap8.map((c) => c.body)));
+    if (await msgOf(page) !== 'Bar swapped, gear kept') fails.push('PN-8 a mid-hunt Use reads "' + await msgOf(page) + '"');
     // PN-1
     await page.click(ROW(0) + ' .hs-name');
     const field = ROW(0) + ' .hs-name-edit';
@@ -241,11 +263,14 @@ async function checks(overrides) {
     if (!noneLine.bar || noneLine.line !== 'Not saved: ' + noneLine.bar) fails.push('PN-11 none saved reads ' + JSON.stringify(noneLine));
     // PN-8 back in town: the hunt has ended; setups 0 and 2 exist, so the next is number 1.
     s.env.hunt.ended = true;
-    s.env.hunt_presets = [clone(FIXTURE.hunt_presets[0]), Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: 2, name: 'Mill run' })];
+    /* the setup in use after a mid-hunt swap: another setup's gear is still on (the server's wearing false) */
+    s.env.hunt_presets = [Object.assign(clone(FIXTURE.hunt_presets[0]), { wearing: false }), Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: 2, name: 'Mill run' })];
     await reload(page);
     await openPrep(page);
     await page.waitForTimeout(300);
     if (await page.isVisible('[data-hs-win="hunt-prep"] .hw-town-only')) fails.push('PN-8 in town the window still says setups change in town');
+    const town8 = await page.evaluate((sel) => document.querySelector(sel + ' small').textContent, ROW(0));
+    if (!/^In use \(bar only\), /.test(town8)) fails.push('PN-8 the setup in use after a bar-only swap reads "' + town8 + '"');
     await page.click('[data-hs-win="hunt-prep"] [data-hs-act="new"]');
     await page.waitForTimeout(120);
     await page.fill('[data-hs-win="hunt-prep"] .hw-preset-name', 'Thicket solo');
@@ -385,7 +410,7 @@ const MUTANTS = [
   ['a refusal loses its reason', 'src/session/preset-intents.js', "error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused'", "error: 'refused'"],
   ['the plaque ignores the server\'s set name', 'src/shell/widgets/action-bar.js', "text(nm.querySelector('.hs-name-t'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');", "text(nm.querySelector('.hs-name-t'), s ? 'Set ' + (s.preset + 1) : '–');"],
   ['the setup in use offers Delete', 'src/shell/windows/hunt-prep/setups.js', "cls(li, 'is-current', current);", "cls(li, 'is-current', false);"],
-  ['Use and Save stay on in a hunt', 'src/shell/windows/hunt-prep/setups.js', "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || hunting);", "prop(li.querySelector('.hw-use'), 'disabled', sc.pending);",
+  ['Use and Save stay on in a hunt', 'src/shell/windows/hunt-prep/setups.js', "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || (hunting && !swap.ok));", "prop(li.querySelector('.hw-use'), 'disabled', sc.pending);",
     'const noNew = sc.pending || !presets || full || hunting;', 'const noNew = sc.pending || !presets || full;', "prop(from, 'disabled', sc.pending || hunting || !pickedRow);", "prop(from, 'disabled', sc.pending || !pickedRow);"],
   ['a new setup takes a used number', 'src/shell/windows/hunt-prep/setups.js', 'while (used.has(free) && free < MAX_PRESETS) free++;', 'free = used.size;'],
   ['a sixth setup can be saved', 'src/shell/windows/hunt-prep/setups.js', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = 8;'],
@@ -394,7 +419,10 @@ const MUTANTS = [
   ['Buy sends a price of its own', 'src/shell/windows/hunt-prep/setups.js', 'buySetupSlot(ctx.account, cs, q.price)', 'buySetupSlot(ctx.account, cs, 1)'],
   ['Buy stays on with a short purse', 'src/shell/windows/hunt-prep/setups.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', sc.pending);"],
   ['Buy stays on while it is in flight', 'src/shell/windows/hunt-prep/setups.js', "prop(buy, 'disabled', sc.pending || short > 0);", "prop(buy, 'disabled', short > 0);"],
-  ['a setup past the count loses its controls', 'src/shell/windows/hunt-prep/setups.js', "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || hunting);", "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || hunting || p.preset >= count0(cs));", 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;\nconst count0 = (cs) => { const q = setupSlotsOf(cs); return q ? q.count : 99; };'],
+  /* SETUPS SWAP MID-HUNT, BAR ONLY (Tyler 2026-11-17): the old town-only rule back, and a setup of another weapon type let through */
+  ['Use stays off for every setup in a hunt', 'src/shell/windows/hunt-prep/setups.js', "  if (p.discipline === set.discipline) return { ok: true, why: '' };", "  if (false) return { ok: true, why: '' };"],
+  ['a setup of another weapon type swaps in a hunt', 'src/shell/windows/hunt-prep/setups.js', "  if (p.discipline === set.discipline) return { ok: true, why: '' };", "  if (p.discipline) return { ok: true, why: '' };"],
+  ['a setup past the count loses its controls', 'src/shell/windows/hunt-prep/setups.js', "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || (hunting && !swap.ok));", "prop(li.querySelector('.hw-use'), 'disabled', sc.pending || (hunting && !swap.ok) || p.preset >= count0(cs));", 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;\nconst count0 = (cs) => { const q = setupSlotsOf(cs); return q ? q.count : 99; };'],
   ['the button hides past the free count', 'src/shell/windows/hunt-prep/setups.js', "prop(buy, 'hidden', price === null);", "prop(buy, 'hidden', true);"],
   ['the window says the old full line', 'src/shell/windows/hunt-prep/setups.js', ": full ? setupFullWords(count, price) + ", ": full ? 'All ' + MAX_PRESETS + ' setup slots are used.' + "],
   ['an answer hides why Save is off', 'src/shell/windows/hunt-prep/setups.js', "const why = hunting || !presets ? ''", "const why = sc.msg || hunting || !presets ? ''"],
@@ -407,7 +435,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'preset-names: ' + fails.length + ' rule(s) RED'
-      : 'preset-names: rename is one intent shown from the server, Escape sends nothing, refusals in words, delete asks once, the bar\'s set renames; all survive a reload; the setup in use has no Delete, setups change in town, five at most');
+      : 'preset-names: rename is one intent shown from the server, Escape sends nothing, refusals in words, delete asks once, the bar\'s set renames; all survive a reload; the setup in use has no Delete, gear changes in town and the bar swaps mid-hunt to the worn weapon type only, five at most');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(() => checks(null));

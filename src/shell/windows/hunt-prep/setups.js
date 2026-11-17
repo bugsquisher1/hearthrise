@@ -7,9 +7,13 @@
 // the first free number), Use equipped (ONE hr_hunt_preset_save over the picked setup, asked once),
 // the count line, and past the server's count the Buy line (ONE hr_setup_slot_buy at the quote).
 // Picking a row is display only: the builder (builder.js) loads that setup's copy.
+// IN A HUNT (Tyler 2026-11-17, "Bar only, keep gear"): Use swaps the BAR only, and only to a setup that
+// fights as the worn weapon type (midHuntUse: the server's discipline for each setup against the worn
+// set's); any other row keeps Use off and says "Town only: needs ..." on its line. New and Use equipped
+// stay town-only (they take the worn gear). The server refuses the same (2027-05-04-setup-swap-mid-hunt.sql).
 // ════════════════════════════════════════════════════════════════════════
 import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.136';
-import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.136';
+import { settingsOf, huntOf } from '../../../session/hunt-sections.js?v=0.2.136';
 import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.136';
 import { runIntent } from '../../intent-words.js?v=0.2.136';
 import { gold } from '../../../render/format.js?v=0.2.136';
@@ -18,10 +22,22 @@ import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-
 import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.136';
 import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.136';
 import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.136';
-import { t } from '../../../render/player-text.js?v=0.2.136';
+import { t, hasText } from '../../../render/player-text.js?v=0.2.136';
 import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.136';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
+
+/**
+ * MID-HUNT USE: with a hunt open, may Use swap to setup `p` (the bar only)? Only to a setup whose ability list (the server's
+ * discipline for it, hunt_presets) is the worn set's (hunt_settings), never the one already on. Unknown is no (§6: fail safe).
+ * `why`: the row's label when it is a setup of another weapon type.
+ * @param {{preset:number, discipline:string|null}|null} p @param {number|null} inUse @param {{discipline:string|null}|null} set
+ */
+export function midHuntUse(p, inUse, set) {
+  if (!p || p.preset === inUse || !set || !set.discipline || !p.discipline) return { ok: false, why: '' };
+  if (p.discipline === set.discipline) return { ok: true, why: '' };
+  return { ok: false, why: t(hasText('prep.needs_' + p.discipline) ? 'prep.needs_' + p.discipline : 'prep.needs_weapon') };
+}
 
 /* The lowest setup number nothing stands on: a new setup goes there. MAX_PRESETS when all are taken. */
 export function firstFree(presets) {
@@ -73,18 +89,22 @@ export function patchSetups(root, ctx, sc, hunting) {
       /* The setup the hero is on (the server's hunt_settings.preset) is marked and has no Delete. */
       const current = p.preset === inUse;
       const picked = p.preset === sc.picked;
+      const swap = hunting ? midHuntUse(p, inUse, set) : null;
       cls(li, 'is-current', current);
       cls(li, 'is-picked', picked);
       attr(li, 'aria-current', picked ? 'true' : null);
-      text(li.querySelector('small'), (current ? t('prep.in_use') + ', ' : '') + t('prep.gear_count', { count: gearN }) + (picked && dirty ? ', ' + t('prep.not_saved') : ''));
+      /* "In use (bar only)": a mid-hunt swap put this setup's bar on and left another setup's gear on (the server's `wearing`). */
+      text(li.querySelector('small'), (current ? t(p.wearing === false ? 'prep.in_use_bar' : 'prep.in_use') + ', ' : '') + t('prep.gear_count', { count: gearN })
+        + (picked && dirty ? ', ' + t('prep.not_saved') : '') + (swap && swap.why ? ', ' + swap.why : ''));
       cls(li, 'is-naming', sc.naming === p.preset);
       /* Delete asks once on the same button ("Delete it?", with Keep beside it); the second press sends. */
       const armed = sc.arming === p.preset;
       cls(li, 'is-arming', armed);
       text(li.querySelector('.hw-del'), armed ? t('controls.delete_confirm') : t('controls.delete'));
       for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
-      /* Use stays on the setup in use too: it puts that setup's saved gear back on (the server wears it). */
-      prop(li.querySelector('.hw-use'), 'disabled', sc.pending || hunting);
+      /* In town Use stays on the setup in use too: it puts that setup's saved gear back on (the server wears it). In a hunt it swaps
+         the bar only, to a setup of the worn weapon type; another type's row says why on its line (midHuntUse). */
+      prop(li.querySelector('.hw-use'), 'disabled', sc.pending || (hunting && !swap.ok));
     },
   });
   const none = root.querySelector('.hw-presets-none');
@@ -166,7 +186,10 @@ export function actSetups(ctx, body, sc, repaint, action, ev, el) {
   if (action === 'apply') {
     if (!setup) return true;
     pickSetup(sc, setup.preset);
-    runIntent(sc, repaint, () => settleTownActivity(cs).then(() => cs.applyPreset(preset)), t('prep.putting_on'), () => { dropDraft(sc); return t('prep.put_on'); }, cs);
+    /* In a hunt the server swaps the bar only (the gear stays on): the words say so. */
+    const h = huntOf(cs), hunting = !!h && !h.ended;
+    runIntent(sc, repaint, () => settleTownActivity(cs).then(() => cs.applyPreset(preset)), t(hunting ? 'prep.swapping' : 'prep.putting_on'),
+      () => { dropDraft(sc); return t(hunting ? 'prep.bar_swapped' : 'prep.put_on'); }, cs);
     return true;
   }
   if (action === 'use-equipped') {

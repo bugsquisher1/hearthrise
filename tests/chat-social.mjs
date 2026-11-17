@@ -776,6 +776,8 @@ async function pageRules(overrides, shots) {
           return { poor: await one(500, {}), near: await one(900, { left: 800, max_gift: 800 }) };
         });
         if (gift.poor.read !== 'Give all 500 gp' || gift.near.read !== 'Give the 800 gp it still needs') fails.push('CW-HAVORA-GIFT [' + tag + '] CONTROL: the Works read never landed: ' + JSON.stringify(gift));
+        /* with 500 gp the last button already says it ("Give all 500 gp"): no purse line under the gifts, the line that pushed them under the foot */
+        else if (gift.poor.why) fails.push('CW-HAVORA-GIFT [' + tag + '] with 500 gp a purse line says again what the last button says: ' + JSON.stringify(gift.poor));
         else if (gift.poor.field < 30 || gift.poor.give < 30 || !gift.poor.reads) fails.push('CW-HAVORA-GIFT [' + tag + '] with 500 gp the custom gift does not read above the foot: ' + JSON.stringify(gift.poor));
         if (!gift.near.why || gift.near.field < 30 || gift.near.give < 30 || !gift.near.scrolls) fails.push('CW-HAVORA-GIFT [' + tag + '] with the purse line the custom gift loses its height: ' + JSON.stringify(gift.near));
       }

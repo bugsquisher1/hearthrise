@@ -6,7 +6,7 @@
 //   node tests/instant-press.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/instant-press.mjs --shots <dir>  also write the popup and the answer in view (1440x900, 667x375)
 //
-// mutant-anchors: src/shell/press-ack.js src/session/intent-ledger.js src/session/character-session.js src/app/live-overlay.js src/shell/windows/play-cap.js src/shell/intent-words.js src/styles/windows.css src/shell/widgets/alerts.js
+// mutant-anchors: src/shell/press-ack.js src/session/intent-ledger.js src/session/character-session.js src/app/live-overlay.js src/shell/windows/play-cap.js src/shell/intent-words.js src/styles/windows.css src/shell/widgets/alerts.js src/shell/windows/work.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the Services sections.
@@ -148,12 +148,17 @@ async function checks(overrides) {
     await wait(run.page, () => document.querySelector('.hs-launchers'));
     return run;
   };
-  const press = (page, q) => page.evaluate((x) => { const b = document.querySelector(x); if (!b || b.disabled) return false; b.scrollIntoView({ block: 'nearest' }); b.click(); return true; }, q);
+  /* a tap: its pointerdown holds the scroll region it lands in (window-fit.js), as a finger does; a bare click() left the body to be re-trimmed under the answer */
+  const press = (page, q) => page.evaluate((x) => { const b = document.querySelector(x); if (!b || b.disabled) return false; b.scrollIntoView({ block: 'nearest' }); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click(); return true; }, q);
   const answered = (page, q) => wait(page, (x) => { const m = document.querySelector(x); return m && m.textContent && !/…$/.test(m.textContent); }, q, 4000);
   const openWoodcutting = async (page) => {
     await page.keyboard.press('g');
     await wait(page, () => document.querySelector('[data-hs-win="skills-trade"] .hw-skill[data-skill="woodcutting"]'), null, 4000);
-    await press(page, '[data-hs-win="skills-trade"] .hw-skill[data-skill="woodcutting"]');
+    /* IP-7: the head's Back comes WITH the skill's rows, in the press's own frame: painted on a later refresh it grew the head under the
+       next press and pushed the pressed Start out of a 667x375 body (release run 44098000549) */
+    const back = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="skills-trade"] .hw-skill[data-skill="woodcutting"]'); b.scrollIntoView({ block: 'nearest' }); b.click();
+      const k = document.querySelector('[data-hs-win="skills-trade"] > .hs-win-head .hs-back'); return !!k && !k.hidden; });
+    if (!back) fails.push('IP-7 opening a skill leaves the window\'s Back for a later paint (the head grows under the next press)');
     await wait(page, () => document.querySelector('.hw-work-go[data-kind="gather"]:not([disabled])'), null, 4000);
   };
   const POPUP = '[data-hs-win="play-cap"] .hplaycap-words';
@@ -398,6 +403,7 @@ const MUTANTS = [
   ['every refusal opens the popup', 'src/shell/intent-words.js', 'if (PLAY_CAP.has(r.error)) return r.error;', "if (r.error) return 'too_many_playing';"],
   ['an alert also says the play cap on its line', 'src/shell/widgets/alerts.js', "playCapOf(r) ? '' : refusalWords(r.error, a.action === 'join' ? 'party_join' : undefined)", 'refusalWords(r.error)'],
   ['the answer covers the press', 'src/shell/press-ack.js', '    clearOfAnswer(p.el);\n', ''],
+  ['a skill\'s Back waits for a later paint', 'src/shell/windows/work.js', "sc.skill = el.getAttribute('data-skill'); sc.msg = ''; repage();", "sc.skill = el.getAttribute('data-skill'); sc.msg = ''; repaint();"],
   ['the answer to a press scrolls away', 'src/styles/windows.css', '{ position: sticky; bottom: 0; z-index: 1; padding: 6px 10px; }', '{ padding: 6px 10px; }'],
 ];
 

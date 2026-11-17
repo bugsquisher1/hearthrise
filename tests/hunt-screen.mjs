@@ -1938,7 +1938,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const picked = 'mosslight_glade', other = 'coppercap_warrens';
         await wait(page, () => document.querySelector('.hw-hunt[data-hunt="mosslight_glade"]'), null);
         await page.click('.hw-hunt[data-hunt="' + picked + '"]');
-        s.env.party = Object.assign({}, s.env.party, { leader_tiers: { [picked]: 'dangerous', [other]: 'deadly' } });
+        /* The other ground's pick comes FIRST: a page that read one pick for every ground gives the Glade Deadly's pull, not its own Dangerous
+           (the Warrens' two harder tiers both bring 8, so only the Glade tells them apart: the CONTROL below goes red if the data stops doing so). */
+        s.env.party = Object.assign({}, s.env.party, { leader_tiers: { [other]: 'deadly', [picked]: 'dangerous' } });
         await pushEnvelope(page, s);
         const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt-detail .hw-tiers.is-on .hw-tier-read'); return v && /Set by .*: Dangerous/.test(v.textContent); }, null);
         const m = await page.evaluate(() => {
@@ -1951,6 +1953,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* The pull a pair brings on the leader's tier, from the data (balance-sheet.js moves it: the Glade's Dangerous brings 6 since 2026-11-16). */
         const { tierRowOf, pullOfTier } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
         const pullOf = (h, t) => pullOfTier(tierRowOf(h, t), 2);
+        if (pullOf(picked, 'dangerous') === pullOf(picked, 'deadly')) fails.push('HS-14 CONTROL: ' + picked + '\'s Dangerous and Deadly bring the same pull, so one pick for every ground reads true: pick grounds whose tiers differ');
         if (!new RegExp(' packs? of ' + pullOf(picked, 'dangerous') + '[ ,]').test(m.facts)) fails.push('HS-14 a pair\'s facts line does not say the leader\'s pull: ' + m.facts);
         /* The leader's pick is per ground too: another ground's page reads the leader's pick THERE. */
         await page.click('.hw-hunt[data-hunt="' + other + '"]');

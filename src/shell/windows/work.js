@@ -288,8 +288,11 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
   if (ev.type === 'keydown') {
     if (action !== 'open-skill' || (ev.key !== 'Enter' && ev.key !== ' ')) return false;
   } else if (ev.type !== 'click') return false;
-  if (action === 'open-skill') { sc.skill = el.getAttribute('data-skill'); sc.msg = ''; repaint(); return true; }
-  if (action === 'work-back') { sc.skill = null; sc.msg = ''; repaint(); return true; }
+  /* To a skill's rows and back: the header's Back follows the page AT ONCE (the shell's refresh paints both, as Hunts does). Painted on a later
+     refresh, the Back grew the head under a pressed Start and pushed its row out of the body (IP-7, a 667x375 phone). */
+  const repage = () => (typeof ctx.refresh === 'function' ? ctx.refresh('skills-trade') : repaint());
+  if (action === 'open-skill') { sc.skill = el.getAttribute('data-skill'); sc.msg = ''; repage(); return true; }
+  if (action === 'work-back') { sc.skill = null; sc.msg = ''; repage(); return true; }
   if (action === 'work-stop') { if (workOf(cs)) stopWork(cs, send); return true; }
   if (action.indexOf('hallmark-') === 0) return actHallmarkPane(ctx, action, el, sc, repaint);
   if (action === 'work-n') {

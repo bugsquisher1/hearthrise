@@ -15,12 +15,14 @@
 //   HA-READ  every line on an open hall's card is one this guard can play. A line it can't read is advice nobody measured.
 //   HA-WIN   each party the card names wins at least RATE of the tries, on the bar its lines build, in the gear a hero holds BEFORE the boss's
 //            first win (his own prize held out: at Krell it is the only tier 7, and the card is read before it), at the Level the line names,
-//            or the hall's floor when it names none. "A third hero" is every way to fight (gear.mjs STYLES), so the line is true whoever comes.
+//            or the hall's floor when it names none. "A third hero" is every way to fight (gear.mjs STYLES), so the line is true whoever comes;
+//            "two more" is every pair of them.
 //
 // THE CARD'S GRAMMAR (label lines, Tyler 2026-11-14 "Recommended: 4+ players"; one form a line):
 //   Everyone: Eat under P%                            every food slot under P% HP
 //   Healer: <spell> when N are under P%               the healer's slot, N allies under P%
 //   Healer: <spell> under P%                          the healer's slot, the lowest ally under P%
+//   Party: a tank, a healer and two more              a tank, a healer and every pair of kinds (36), at the hall's floor
 //   Party: a tank, a healer and a third hero          a tank, a healer and one more of every kind, at the hall's floor
 //   Party: a tank and a healer                        the two, at the hall's floor (the card the audit read)
 //   Two heroes: Level L or higher                     the tank and the healer alone, at Level L
@@ -36,9 +38,10 @@ import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
 const { PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const { loadGear, STYLES } = await import(pathToFileURL(join(REPO, 'tools/balance-sim/gear.mjs')).href);
 
-/* THREE TIMES IN FOUR: a boss may be hard, never a lie. Each plan the card names wins at least this share of its tries (Krell's card, 100 tries
-   a cell: 94 to 100% at 85 for every third hero, 90% for two at 106). The seeds are fixed (boss-call-table.mjs secretOf), so a cell's rate
-   moves only when the data does. */
+/* THREE TIMES IN FOUR: a boss may be hard, never a lie. Each plan the card names wins at least this share of its tries (Krell's card, 40 tries
+   a cell, after cloth's Magic damage cut (lane/d-mage-110): a tank, a healer and two more 80 to 100% at 85 for every pair; the card's old
+   third hero 0% as a tank or a sword alone, and two heroes 0% at every Level up to 120). The seeds are fixed (boss-call-table.mjs secretOf),
+   so a cell's rate moves only when the data does. */
 const RATE = 0.75;
 const argN = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? Number(process.argv[i + 1]) : d; };
 const SEEDS = argN('--seeds', 40);
@@ -85,6 +88,10 @@ export function readCard(X, hall) {
     if ((m = /^Everyone: Eat under (\d+)%$/.exec(line))) plan.eat = Number(m[1]);
     else if ((m = /^Healer: (.+) when (\d+) are under (\d+)%$/.exec(line))) slot('healer', m[1], [{ metric: 'allies_below', op: 'gte', value: Number(m[2]), subject: 'under_' + m[3] }], line);
     else if ((m = /^Healer: (.+) under (\d+)%$/.exec(line))) slot('healer', m[1], [{ metric: 'ally_hp_pct', op: 'lt', value: Number(m[2]), subject: 'lowest' }], line);
+    else if (line === 'Party: a tank, a healer and two more') {
+      const kinds = Object.keys(STYLES);
+      for (let i = 0; i < kinds.length; i++) for (let j = i; j < kinds.length; j++) plan.parties.push({ line, party: ['tank', 'healer', kinds[i], kinds[j]], L: floor });
+    }
     else if (line === 'Party: a tank, a healer and a third hero') for (const s of Object.keys(STYLES)) plan.parties.push({ line, party: ['tank', 'healer', s], L: floor });
     else if (line === 'Party: a tank and a healer') plan.parties.push({ line, party: ['tank', 'healer'], L: floor });
     else if ((m = /^Two heroes: Level (\d+) or higher$/.exec(line))) plan.parties.push({ line, party: ['tank', 'healer'], L: Number(m[1]) });
@@ -164,17 +171,20 @@ async function guard(root, o = {}) {
 
 /* ── THE PROOF ──────────────────────────────────────────────────────────────── */
 const PACK = 'src/data/grounds/krells_hold/pack.js';
-const LINES = "'Party: a tank, a healer and a third hero', 'Two heroes: Level 106 or higher'] },";
+const LINES = "'Party: a tank, a healer and two more'] },";
 const MUTANTS = [
   /* the card the audit read (F22): a tank and a healer, nothing about a third */
   { name: 'the card says a tank and a healer (the audit\'s card)', edits: [[PACK, LINES, "'Party: a tank and a healer'] },"]], want: /HA-WIN krells_hold's card says "Party: a tank and a healer" and tank \+ healer at Level 85/ },
   { name: 'a party line nobody measured', edits: [[PACK, LINES, "'Party: four mages'] },"]], want: /HA-READ krells_hold's card says "Party: four mages"/ },
+  /* the card F22 shipped, true until cloth's Magic damage cut (lane/d-mage-110): a third tank or a sword alone runs out of time at 85 */
+  { name: 'the card asks for a third hero (the F22 card)', edits: [[PACK, LINES, "'Party: a tank, a healer and a third hero'] },"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and a third hero" and tank \+ healer \+ tank at Level 85/ },
+  { name: 'two heroes from Level 106 (the F22 card)', edits: [[PACK, LINES, "'Two heroes: Level 106 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 106 or higher" and tank \+ healer at Level 106/ },
   /* the line the first fix shipped: measured in Krell's own tier 7, which nobody wears before his first win */
-  { name: 'two heroes from Level 88', edits: [[PACK, "'Two heroes: Level 106 or higher'", "'Two heroes: Level 88 or higher'"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 88 or higher" and tank \+ healer at Level 88/ },
-  /* the first fix's food: a tank, a healer and a sword won 56 of 100 at 85, the tank dead under his enrage */
-  { name: 'the card\'s food is Salted Lobster', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and a third hero"/ },
-  /* the whole card this lane found (lane/c-krell-uniques, 2026-11-15): red twice */
-  { name: 'the first fix\'s card (Salted Lobster, two heroes from 88)', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"], [PACK, "'Two heroes: Level 106 or higher'", "'Two heroes: Level 88 or higher'"]], want: /HA-WIN/ },
+  { name: 'two heroes from Level 88', edits: [[PACK, LINES, "'Two heroes: Level 88 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN krells_hold's card says "Two heroes: Level 88 or higher" and tank \+ healer at Level 88/ },
+  /* the first fix's food: the tank dead under his enrage */
+  { name: 'the card\'s food is Salted Lobster', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"]], want: /HA-WIN krells_hold's card says "Party: a tank, a healer and two more"/ },
+  /* the whole card lane/c-krell-uniques found (2026-11-15): red twice */
+  { name: 'the first fix\'s card (Salted Lobster, two heroes from 88)', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_lobster',"], [PACK, LINES, "'Two heroes: Level 88 or higher', 'Party: a tank, a healer and two more'] },"]], want: /HA-WIN/ },
   { name: 'everyone eats at 40%', edits: [[PACK, "bars: ['Everyone: Eat under 75%',", "bars: ['Everyone: Eat under 40%',"]], want: /HA-WIN/ },
   { name: 'the card\'s food is the start bar\'s Salted Shrimp', edits: [[PACK, "storeFloor: 'salted_swordfish',", "storeFloor: 'salted_shrimp',"]], want: /HA-WIN/ },
   { name: 'Krell at 30,000 HP', edits: [[PACK, 'hp: 18000, atk: 247,', 'hp: 30000, atk: 247,']], want: /HA-WIN/ },

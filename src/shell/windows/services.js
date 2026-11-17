@@ -87,7 +87,7 @@ export function patchServicesPane(body, ctx) {
   /* BLESSINGS */
   const b = blessingsOf(cs);
   text(root.querySelector('.hw-bless-note'), !b ? 'Loading Blessings…'
-    : 'Each Blessing: −25% death XP loss. Used up on death' + (b.freeUntil ? '. Free until Level ' + b.freeUntil : ''));
+    : (b.tiers.some((r) => r.tier === 1 && r.permille > 0) ? 'Each Blessing: −' + Math.round(b.tiers.find((r) => r.tier === 1).permille / 10) + '% death XP loss. ' : '') + 'Used up on death' + (b.freeUntil ? '. Free until Level ' + b.freeUntil : ''));
   const next = b ? b.tiers.find((r) => !r.held) : null;
   rows(root.querySelector('.hw-bless'), b ? b.tiers : [], {
     key: (r) => String(r.tier),

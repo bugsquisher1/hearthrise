@@ -37,8 +37,8 @@ export const SCENERY = Object.freeze([
   ['square_general_store', 106, 30], ['square_depot', 118, 30], ['square_bank', 113, 16], ['square_barracks', 108, 66],
   ['square_market_stall', 129, 44], ['square_market_stall', 129, 48], ['square_market_stall', 129, 52], ['square_market_stall', 129, 56],
   ['hearth_brazier', 111, 54], ['hearth_brazier', 124, 54],
-  /* the fuel corners either side of the Hearth (step 2b): the woodpile, a split log or pithwood waiting to be thrown, the fire bucket, bark chips where the fuel is thrown */
-  ['fuel_log', 111, 48], ['bucket', 111, 49], ['fuel_pithwood', 123, 48], ['bucket', 123, 49], ['square_decal_chips_b', 114, 51],
+  /* the fuel corners either side of the Hearth (step 2b): the woodpile, a split log waiting to be thrown, the fire bucket, bark chips where the fuel is thrown */
+  ['fuel_log', 111, 48], ['bucket', 111, 49], ['fuel_log', 123, 48], ['bucket', 123, 49], ['square_decal_chips_b', 114, 51],
   ['ty_bench_pair', 123, 55], ['ty_bench_pair', 125, 55], ['ty_bench_pair', 127, 55],
   ['ty_bench_pair', 123, 58], ['ty_bench_pair', 125, 58], ['ty_bench_pair', 127, 58],
   ['square_decal_chips_a', 120, 51], ['square_decal_moss_a', 131, 59],

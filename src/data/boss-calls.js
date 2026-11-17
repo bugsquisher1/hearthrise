@@ -71,7 +71,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   /* The boss bar (src/shell/widgets/boss-bar.js) past each line, the same words the world calls out (hunt-view/scene.js). */
   bar: Object.freeze({ adds: 'Adds incoming', guarded: 'Shielded by adds', enrage: 'Enraged' }),
   /* The combat log's line, after his name (src/hunt-view/combat-log.js), and what the world calls out over him (src/hunt-view/scene.js). */
-  log: Object.freeze({ adds: 'calls his adds to attack non-tanks', guarded: 'calls his adds to shield him and attack non-tanks', enrage: 'becomes enraged and hits harder' }),
+  log: Object.freeze({ adds: 'calls his adds. They go after anyone who isn\'t tanking.', guarded: 'calls his adds. They shield him and go after anyone who isn\'t tanking.', enrage: 'is enraged and hits harder.' }),
   shout: Object.freeze({ adds: 'Adds!', enrage: 'Enraged!' }),
   /* THE LOSING LINE (src/hunt-view/boss-loss.js): three labels, one a line: where it was lost, what this hero's bar did there, what answers it.
      {pct} his HP at the end; {n} the server's count. */

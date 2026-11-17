@@ -90,60 +90,60 @@ export const BOSS_HALL_WORDS = Object.freeze({
   press: 'Open {hall}',
   /* WHERE A KEY COMES FROM (designer 2026-11-14, lane/d-march-balance: the hand play found the page never said). {source} is `source` with
      the monster whose drops name the hall's key, or nothing when no monster drops it. Labels (Tyler 2026-11-14). */
-  have: Object.freeze({ none: 'Requires {key}{source}', one: '{key}: 1', other: '{key}: {n}' }),
-  source: ', dropped by {dropper}',
+  have: Object.freeze({ none: 'Requires a {key}{source}', one: 'You have 1 {key}', other: 'You have {n} keys' }),
+  source: ' (dropped by the {dropper})',
   /* A key can drop to anyone in a party, and only the leader opens the hall (hr_boss_hall_enter takes the leader's key). Said plainly to a
      member who holds one, until the open takes a key from any seat (the designer's ruling, handed to Systems the same day). */
-  memberKey: 'Give your {key} to the party leader',
+  memberKey: 'Only the party leader can open the hall. Give them your {key}.',
   warnTitle: 'Fight {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14), the same shape as a called room's (boss-calls.js warn). */
   warn: Object.freeze([
-    'Hits hard\n50% HP: adds attack non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
-    'Cost: 1 {key}, win or lose\nTime limit: {minutes} min',
+    'Hits hard\nAt 50% HP: calls adds that attack non-tanks{guard}\nAt 25% HP: hits even harder{haste}\nThe fight ends if anyone dies',
+    'Cost: 1 {key} (win or lose)\nTime limit: {minutes} min',
   ]),
   /* the same label as a called room's (boss-calls.js warnGuard): what his adds do, never a move to turn off */
-  warnGuard: ' and shield him until killed',
+  warnGuard: ' and shield him until they die',
   /* WHAT WINS (lane/d-march-balance, the v0.2.132 re-play: 0 of 6 on the bars a party is handed). A hall that names a store food (`storeFloor`)
      says it, and its bar line (`words.bars`, label style), under the key line; {food} the store food. `foodShort` is red: this hero's bar buys
      weaker food (src/shell/hunt-go.js storeFoodUnder). */
-  food: 'Requires {food} or better on every bar',
-  foodShort: 'Bar food: {have}. Change that slot to {food}.',
+  food: 'Requires {food} or better on every hero\'s bar',
+  foodShort: 'Your bar has {have}. Change that slot to {food}.',
   /* ...for another hero of this account in the party (boss-hall-pane.js foodShortWords) */
-  foodShortPeer: '{name}\'s food: {have}. Change that slot to {food}.',
+  foodShortPeer: '{name}\'s bar has {have}. Change that slot to {food}.',
   /* a hero whose name the envelope has not sent yet */
   someHero: 'A hero',
   /* the lead-in to the hall's tips (its `words.bars`, label lines, each one change from the bar a party is handed) */
-  tips: 'What wins',
+  tips: 'How to beat him',
   /* the tips list's name for a screen reader */
-  tipsLabel: 'What wins',
+  tipsLabel: 'How to beat him',
   /* the boss row's phases.hasten: the spell that speeds up under his enrage line */
-  warnHaste: ', {spell} comes faster',
+  warnHaste: ' and casts {spell} more often',
   /* the ground's own "Recommended: N+ players" (hunt-list.js partyNote) speaks first; this row only where the ground names no size */
-  warnAlone: 'Recommended: party',
+  warnAlone: 'Recommended: a party',
   confirm: 'Use the {key}',
   cancel: 'Not yet',
   opening: 'Opening {hall}…',
-  opened: Object.freeze({ party: 'Door open, party on the way', alone: 'Door open, heading in' }),
+  opened: Object.freeze({ party: 'The door opens. Your party is on its way.', alone: 'The door opens. You\'re on your way.' }),
   hunting: 'Not while hunting',
   /* The end card's Hunt again, off for a hall (one door: the key on the ground's page). */
-  again: 'Fight again: use another {key} from the hunt\'s page',
+  again: 'To fight him again, use another {key} from the hunt\'s page.',
   /* The end card's line when the hall's boss is down (summary-model.js END_WORDS.boss_felled is a called room's: it names a title). */
   felled: 'You beat {Boss}.',
   /* The boss bar (src/shell/widgets/boss-bar.js): the spell that speeds up, counting down, and a named add while he stands. */
-  bar: Object.freeze({ soon: '{spell} in {s} s', casting: '{spell} is coming', named: '{pct}%', namedRage: 'Enraged' }),
+  bar: Object.freeze({ soon: '{spell} in {s} s', casting: 'Casting {spell}', named: '{pct}%', namedRage: 'Enraged' }),
   /* The combat log's line when his adds come with a named add among them (src/hunt-view/combat-log.js), after his name. */
   log: Object.freeze({
-    named: 'calls up {names} and his adds to attack non-tanks',
-    namedGuarded: 'calls up {names} and his adds to shield him and attack non-tanks',
-    namedOnly: 'calls up {names} to attack non-tanks',
-    namedOnlyGuarded: 'calls up {names} to shield him and attack non-tanks',
+    named: 'calls in {names} and the rest of his adds. They go after anyone who isn\'t tanking.',
+    namedGuarded: 'calls in {names} and the rest of his adds. They shield him and go after anyone who isn\'t tanking.',
+    namedOnly: 'calls in {names}. They go after anyone who isn\'t tanking.',
+    namedOnlyGuarded: 'calls in {names}. They shield him and go after anyone who isn\'t tanking.',
   }),
   /* The verb's own refusals, each moving nothing (supabase/migrations/2027-04-20-boss-hall.sql): each says nothing was used. */
   refused: Object.freeze({
     hall_leader: 'Party leader only',
-    no_key: 'Requires {key}, nothing used',
-    hall_unknown: 'Hall not open, nothing used',
-    not_ready: 'Party not ready, nothing used',
-    party_hunting: 'Party still hunting, nothing used',
+    no_key: 'You need a {key}. Nothing was used.',
+    hall_unknown: 'That hall isn\'t open. Nothing was used.',
+    not_ready: 'Your party isn\'t ready. Nothing was used.',
+    party_hunting: 'Your party is still hunting. Nothing was used.',
   }),
 });

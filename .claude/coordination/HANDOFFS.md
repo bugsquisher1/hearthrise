@@ -1,5 +1,10 @@
 # Handoffs
 
+### 2026-11-17 · BACKEND (lane/c-setup-swap-mid-hunt) → THE HUNT-PREP UI LANE, SECURITY, COORDINATOR · a setup swaps mid-hunt, bar only
+1. **UI lane (hunt-prep.js, builder.js):** a setup now swaps mid-hunt, bar only, for a setup of the worn weapon type (2027-05-04-setup-swap-mid-hunt.sql; setups.js `midHuntUse`). Two stale bits are yours: the hunt-prep.js header still says Use is town-only, and the builder's Save and use stays off in a hunt (it could follow `midHuntUse`: hr_action_set_options already saves any set mid-hunt).
+2. **Security (EA review):** `hr_hunt_set_preset` (2026-10-23, authenticated, called by no client) still moves a session's set mid-hunt with no weapon-type rule and without moving the setup in use. Recommend retiring it (revoke + baseline row) in its own lane.
+3. **Coordinator (next edge deploy):** supabase/functions/hr-accrue/equip.js (~line 207) still says hr_hunt_preset_apply answers hunt_open in a hunt; fix the comment when the edge next moves (no deploy for a comment).
+
 ### 2026-11-16 · BACKEND (lane/c-sweeps-coat-drop) → ART DIRECTOR, GAME DESIGNER, COORDINATOR · the Key Warden (ids sweeps_coat, Tyler named it 2026-11-16) drops, unpacks and is worn; four pieces left
 1. **Art director, the reveal:** a press that finds the coat gives `.tc-reveal` the class `has-outfit` and raises the bundle's icon in the weapon's column (src/shell/windows/tower-chest.js revealHtml). The board's moment (black smoke, no flare) is yours to draw on that hook.
 2. **Designer, three numbers:** the bundle's book value is 20,000 (src/data/chests.js CHEST_OUTFITS `value`: the shop's bid, and 100x of it is the market's 2,000,000 ceiling, the market's own daily spend cap). The board named none. The bag's Use asks for a second press (the item trades and is used for good). Say if either should move.

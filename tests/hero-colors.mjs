@@ -91,7 +91,7 @@ export const MUTANTS = {
   helper_open: { arm: 'HC-GRANT', why: 'a helper is the client\'s', ddl: `grant execute on function ${TOUCH} to authenticated` },
   no_baseline: { arm: 'HC-GRANT', why: 'the verb is not on the client baseline', ddl: "delete from public.hr_client_rpc_baseline where proname = 'hr_hero_colors_set'" },
   repin_lost: { arm: 'HC-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [FILE, /('public\.hr_outfit_set\(integer,text,jsonb,uuid\)', '3b261fe4efc49f28df681742affc584f', ')[0-9a-f]{32}'/, '$100000000000000000000000000000000\''] },
-  words_same_lost: { arm: 'HC-CLIENT', why: 'colors_same has no words', js: ['src/data/refusal-words.js', [["  colors_same: 'Those are already this hero\\'s colors. Nothing was charged.',\n", '']]] },
+  words_same_lost: { arm: 'HC-CLIENT', why: 'colors_same has no words', js: ['src/data/refusal-words.js', [["  colors_same: 'Same colors, not charged',\n", '']]] },
   words_limit_hardcoded: { arm: 'HC-CLIENT', why: 'the limit\'s words ignore the server\'s number', js: ['src/shell/intent-words.js', [["return 'Daily limit: ' + r.figures.per_day + ' color changes, resets at midnight UTC';", "return 'Daily limit: 10 color changes, resets at midnight UTC';"]]] },
   figures_dropped: { arm: 'HC-CLIENT', why: 'the session drops the limit\'s number', js: ['src/session/refusal.js', [["'slots', 'price', 'per_day']", "'slots', 'price']"]]] },
   press_own_price: { arm: 'HC-CLIENT', why: 'the press sends a price of its own', js: ['src/session/hero-color-intents.js', [['p_colors, p_price: price,', 'p_colors, p_price: 1,']]] },

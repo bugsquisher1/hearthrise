@@ -119,7 +119,9 @@ const PRE_NAMES = Object.freeze({ hrsr_role_of: 'hr_hunt_role_of', hrsr_role_vie
    friend's end sent a hero home; bench tax's gold kind), so the "before" image holds the body as the chain ended, taken before any plant. */
 const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql', hr_gold_kind: '2027-02-19-bench-tax.sql', hr_social_party_view: '2027-03-05-hero-colors.sql',
   /* a bundle outfit (the Sweep's Coat) is owned only by the hero that used its bundle: the plan cache's SQL pre-image owns it for everyone */
-  hr_outfit_owned: '2027-04-30-sweeps-coat.sql' });
+  hr_outfit_owned: '2027-04-30-sweeps-coat.sql',
+  /* each setup says what it fights as and whether its gear is on (a setup switches mid-hunt, bar only): the plan cache's pre-image says neither */
+  hr_hunt_presets_view: '2027-05-04-setup-swap-mid-hunt.sql' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
   const out = [];

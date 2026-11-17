@@ -967,3 +967,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - At a boss the lever that moved was food, not the hints: eat at 85% or Greater Mend at 90% left the weak trios at 58-70%; Salted Swordfish took every third to 90-100% (the tank dies under his enrage on Lobster). A pair fails on the clock, so food doesn't help it, only Levels do.
 - Test advice by reading the words the player reads (a small label grammar, an unreadable line is red) and playing them; then the card and the measurement can't drift apart.
 - Backticks inside `node -e "..."` ran the guard twice by command substitution. Use a script file for any text with backticks.
+
+## 2026-11-17 lane/d-flat-party-xp re-landed on set/v0.2.135
+- A re-land is a re-measure: a combat change merged beside a party table (Turning Cut for every shieldless melee) moved Andy's four +10-18% on the Deadly floor. Run the tier tool on every ground, staged ones too, before re-pinning anything.
+- Retiring per-ground cells retires them on STAGED packs too; their guard rows were fitted to those cells. The flat-table fix for a staged pack is its own pull (the Morrow packs 6/6), never a cell.
+- A tier HP dial slows a hero alone more than a four (the Glade +12% HP: lone -16%, four -8.5%), so it is the cap's dial, but it also widens the gap between the two harder tiers. Equal pulls plus more HP make Deadly the worse pick; the pull is what must differ.
+- Prove a pin's cause on an archive of the SET first: the set was already red on engine-parity (the income dial's coin, then Turning Cut's kills), and only what was left over belonged to this lane.
+- Apostrophes in pins (Hask's Ford) through Python or sed break the file again: Edit tool, then `node --check`.

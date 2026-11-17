@@ -60,7 +60,12 @@ const SEED = '-4611686018427387904';
    as pinned; glade-4 and sewer-2 behind it), the lone kiting ranger held. Cause, proved by laying origin/main's src/data/party-class-xp.js and
    src/core/hunt/xp-share.js back alone into an archive of the lane (all four pins hold, exit 0): ONE party table by size for every ground and tier (Tyler
    2026-11-16, "just balance the hunting grounds xp vs having a unique formula everywhere"); a party's XP moves its Levels, and the Levels their rolls.
-   The peer keys on hunt_check (hunt-settle.js huntPeerKeys, member.js frozenKey) move no pin. */
+   The peer keys on hunt_check (hunt-settle.js huntPeerKeys, member.js frozenKey) move no pin.
+   RE-PINNED 2026-11-17 (lane/d-flat-party-xp merged with set/v0.2.135), THREE CAUSES, each proved on an archive: (1) the SET ALONE is red here (warrens-4's
+   tally at settle 1, kills 209 as pinned): the income dial (GROUND_GP_FIT 0.7 and the Warrens' and the Glade's coin rows, lane/d-supply-prices) moves the coin;
+   with those rows and the dial laid back, warrens-4 and glade-4 hold. (2) Then sewer-2's world moves, kills 114 -> 121: Turning Cut on every melee weapon
+   without a shield (Tyler 2026-11-16), so its sword alone casts it. (3) The one party table moves warrens-4's world at settle 1 (the set's party-class-xp.js and
+   xp-share.js laid back into this tree: only the set's own tally moves remain). glade-4 515 and glade-1-kite 128 kills as pinned. The baseline is --write here. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

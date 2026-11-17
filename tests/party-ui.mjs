@@ -862,13 +862,13 @@ async function pureRules(M, base) {
       [['tank', 'ranger'], 'meadowbrook_thicket', full(2, 10, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
       [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 40, 'Meadowbrook Thicket')],
-      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 25, 'The Sewer')],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 30, 'Coppercap Warrens')],
+      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 30, 'The Sewer')],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 25, 'Coppercap Warrens')],
       [['tank', 'ranger'], 'millrace_sewer', more(2, 10, 'The Sewer')],
       [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 15, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
       [[null, 'ranger'], 'wickstead', full(2, 10, 'Wickstead')],
-      [[null, 'tank'], 'wickstead', less(1, 40, 'Wickstead')],
+      [[null, 'tank'], 'wickstead', less(1, 45, 'Wickstead')],
       /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6). */
       [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', less(1, 70, 'Meadowbrook Thicket')],
       [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
@@ -879,7 +879,7 @@ async function pureRules(M, base) {
       [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
       [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 65, 'Wickstead')],
       /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): Hask's Ford's mixed pair reads -5; the Pyre Field's reads even */
-      [['tank', 'ranger'], 'hasks_ford', full(2, 5, 'Hask's Ford')],
+      [['tank', 'ranger'], 'hasks_ford', full(2, 5, 'Hask\'s Ford')],
       [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about the same as solo in The Pyre Field'],
       [['tank', 'melee_dps'], 'pyre_field', less(1, 35, 'The Pyre Field')],
     ]) {

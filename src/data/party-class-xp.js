@@ -86,7 +86,9 @@ export const PARTY_CLASS_XP = row([950, 1500], [990, 1600, 1700], [970, 1580, 17
    more than against a typical hero alone (the cells above). first-week-bands vs-alone: the Thicket's mix at 10 reads +35.5%, the Glade's at 24 +23.1%.
    THE ONE-CLASS ANSWERS (the lane's fifth commit) are re-measured the same way at the raised one-class cells, never scaled (a small kill's share floors).
    RE-READ 2026-11-11 UNDER SOLO +15% (lane/d-solo-fifteen; party-class-xp-line --table --mixed, the floor, 3 seeds): every cell lands on its number or one 5-step
-   from it (the Cellar's four 28, the Glade's four 34, the Warrens' three 29, Wickstead's three 43), so the lines stand. */
+   from it (the Cellar's four 28, the Glade's four 34, the Warrens' three 29, Wickstead's three 43), so the lines stand.
+   RE-WRITTEN 2026-11-17 ON THE ONE TABLE AND SET v0.2.135 (cloth's smaller damage, Turning Cut on every melee weapon without a shield, the one-class pair 950;
+   tests/party-class-xp-line.mjs --mixed --write, 3 seeds, the floor): every ground's line here and in its pack is that run's. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 const BASE_VS_ALONE = Object.freeze({
   mill_cellar: said([-55, -30], [-70, -45, -45], [-80, -60, -55, -55]),

@@ -212,7 +212,7 @@ async function configureFits(page, tag, fails) {
   if (!(await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank')))) { fails.push('PH-1 [' + tag + '] a bar slot did not open Configure action'); return; }
   /* A press on a slot opens this, and a player may have meant to use it: the foot says the hero does it alone, clear of its buttons (QA 2026-11-04). Every icon at a whole pixel scale (28 px drew 0.875x). */
   const foot = await page.evaluate(() => { const p = document.querySelector('.ca-self'), r = p && p.getBoundingClientRect(), b = document.querySelector('.ca-foot [data-x="clear"]').getBoundingClientRect();
-    return { said: !!r && r.width > 0 && /by itself/.test(p.textContent), clear: !!r && r.right <= b.left + 0.5, tall: r ? r.height : 0, icons: Array.from(document.querySelectorAll('.ca-ico .hh-icon')).map((e) => e.getBoundingClientRect().width).filter((w) => w > 0) }; });
+    return { said: !!r && r.width > 0 && /^Fires automatically/.test(p.textContent), clear: !!r && r.right <= b.left + 0.5, tall: r ? r.height : 0, icons: Array.from(document.querySelectorAll('.ca-ico .hh-icon')).map((e) => e.getBoundingClientRect().width).filter((w) => w > 0) }; });
   if (!foot.said || !foot.clear) fails.push('PH-1 [' + tag + '] the foot does not say the hero acts alone, or lies on its buttons: ' + JSON.stringify(foot));
   if (!foot.icons.length || foot.icons.some((w) => Math.abs(w - 32) > 0.01)) fails.push('PH-1 [' + tag + '] an icon is off the whole-pixel scale: ' + JSON.stringify(foot.icons.slice(0, 4)));
   for (const tab of ['spells', 'food', 'ammo']) {
@@ -666,18 +666,18 @@ async function staminaBuy(open, fails, done) {
   a.s.onRefill = () => { a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 410, n: 3 }); return { ok: false, error: 'quote_changed', stamina_refill: a.s.env.stamina_refill }; };
   a.s.env.stamina_refill = Object.assign({}, QUOTE, { restore_ms: 2880000, price: 520, n: 3 });
   await askThenBuy();   // the question reads 520 (the server's then); the server moves to 410 under the second press
-  const moved = await wait(a.page, () => /^Prices or your bag changed/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
+  const moved = await wait(a.page, () => /^Prices changed, check the total and try again$/.test(document.querySelector('.hb-buy-msg').textContent) && / 410 gp$/.test(document.querySelector('.hb-buy-quote').textContent), null, 6000);
   if (!moved) fails.push('PH-9 [' + tag + '] after quote_changed (the server quotes 410 gp) the panel reads ' + JSON.stringify(await panelOf(a.page)));
   a.s.onRefill = () => { a.s.env.stamina = Object.assign({}, a.s.env.stamina, { ms: 28800000 }); a.s.env.stamina_refill = { available: false, why: 'stamina_full', n: 3, per_day: 6 };
     return { ok: false, error: 'stamina_full', stamina_refill: a.s.env.stamina_refill }; };
   await askThenBuy();
-  const full = await wait(a.page, () => document.querySelector('.hb-buy-go').disabled && /^Your stamina is already full\.$/.test(document.querySelector('.hb-buy-why').textContent), null, 6000);
+  const full = await wait(a.page, () => document.querySelector('.hb-buy-go').disabled && /^Stamina full$/.test(document.querySelector('.hb-buy-why').textContent), null, 6000);
   if (!full) fails.push('PH-9 [' + tag + '] after the server said the bar is full the panel still offers a refill: ' + JSON.stringify(await panelOf(a.page)));
   await done(a, tag);
   /* Cannot be bought: Buy off with the server's words, the "+" still there; a premium hero is not told about premium. */
   for (const [label, prep, words, premium] of [
-    ['today\'s refills used', freeHero(25000, { available: false, why: 'refill_limit', n: 7, per_day: 6 }), /^No more stamina refills today\.$/, true],
-    ['not enough gold, a premium hero', (env) => { freeHero(100, QUOTE)(env); env.premium = { active: true }; }, /^Not enough gold\.$/, false]]) {
+    ['today\'s refills used', freeHero(25000, { available: false, why: 'refill_limit', n: 7, per_day: 6 }), /^Daily refill limit reached$/, true],
+    ['not enough gold, a premium hero', (env) => { freeHero(100, QUOTE)(env); env.premium = { active: true }; }, /^Not enough gold$/, false]]) {
     const o = await open(vp, HUNT, prep);
     if (!o.up) { fails.push('PH-9 [' + label + '] the hunt did not mount'); await o.ctx.close(); continue; }
     await o.page.click('.hb-stam-buy', { timeout: 2500 }).catch(() => null);
@@ -1252,7 +1252,7 @@ async function touchMeaning(page, tag, fails) {
   await page.touchscreen.tap(buy.x, buy.y);
   await page.waitForTimeout(150);
   const said = await page.evaluate(() => { const e = document.querySelector('.hs-off-why'); return e && { text: e.textContent, on: window.__onScreen(window.__r(e)) }; });
-  if (!said || !/You need/.test(said.text) || !said.on) fails.push('PH-14 [' + tag + '] a press on the grey Buy says ' + JSON.stringify(said));
+  if (!said || !/^Need \d[\d,]* gp more$/.test(said.text) || !said.on) fails.push('PH-14 [' + tag + '] a press on the grey Buy says ' + JSON.stringify(said));
 }
 /* ...in a hunt: the slot's reason first on its sheet, Tamsin's Take says why, every grey Take on her words. */
 async function touchHunt(page, s, tag, fails) {
@@ -1269,7 +1269,7 @@ async function touchHunt(page, s, tag, fails) {
   /* After her board's answer: the line once stood only until the board had loaded. */
   for (let i = 0; i < 60 && !s.calls.some((c) => c.name === 'hr_tally_view'); i++) await page.waitForTimeout(50);
   await page.waitForTimeout(400);
-  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-board-why'); return !!l && l.getClientRects().length > 0 && /back in town/.test(l.textContent); });
+  const line = await page.evaluate(() => { const l = document.querySelector('[data-hs-win="tally"] .ht-board-why'); return !!l && l.getClientRects().length > 0 && /^Take more in town$/.test(l.textContent); });
   if (!line) fails.push('PH-14 [' + tag + '] hunting, her board does not say why every Take is grey');
 }
 

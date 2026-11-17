@@ -3,7 +3,7 @@
   "class": "terrain",
   "kind": "variety",
   "style": "s1",
-  "of": "slake/the_slake_ground",
+  "of": "slake-floor/the_slake_ground",
   "at": [
     36,
     3

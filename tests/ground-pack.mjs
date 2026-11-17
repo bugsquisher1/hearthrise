@@ -71,18 +71,16 @@ function gp3() {
     const folded = covered.filter((o) => foldedPacks(o).includes(id));
     if (folded.length === covered.length) continue; /* folded: the whole --check guards its rows */
     const have = existsSync(join(MIG, f)) ? readFileSync(join(MIG, f), 'utf8').replace(/\r\n/g, '\n') : null;
-    if (!folded.length) { const ship = shipText(id); ok(have === ship.sql, 'GP-3 ' + f + ' is not what tools/pack.mjs ship ' + id + ' renders today'); continue; }
+    const ship = shipText(id);
+    if (!folded.length) { ok(have === ship.sql, 'GP-3 ' + f + ' is not what tools/pack.mjs ship ' + id + ' renders today'); continue; }
     /* PARTLY FOLDED (lane/d-flat-party-xp, 2026-11-16: a world move dated after the pack, 2027-04-24-flat-party-xp-tiers re-issues hr_ground_tiers
        whole with every shipped pack folded in). A folded whole file carries the pack's rows for the tables it writes, and its own --check holds
        them to the data; the pack's applied file is history there. Every OTHER table must still be the pack's file, row for row, and every
        table the file holds and the render no longer adds must be one a folded whole file writes, with the pack's keys in it. */
     if (have === null) { ok(false, 'GP-3 ' + f + ' is not on disk'); continue; }
     const tab = (stmts) => { const m = new Map(); for (const t of stmts) m.set(t.table, [...(m.get(t.table) || []), ...t.rows.map((r) => r.join(','))]); return m; };
-    const wholes = folded.map((o) => tab(rowsOf(readFileSync(join(MIG, o), 'utf8'))));
-    /* the render diffs only the OTHER tables: a carried table's rows are its whole file's, and a world move there (set v0.2.135: the income
-       dial sells Krell's Hold's drops at its dial, so folding the pack moves hr_hunt_vendor_value rows) is that file's, never the pack's */
-    const ship = shipText(id, ROOT, new Set(wholes.flatMap((w) => [...w.keys()])));
     const mine = tab(rowsOf(have)), now = tab(ship.added.map((t) => ({ table: t.table, rows: t.rows })));
+    const wholes = folded.map((o) => tab(rowsOf(readFileSync(join(MIG, o), 'utf8'))));
     for (const [t, rows] of now) ok(JSON.stringify([...(mine.get(t) || [])].sort()) === JSON.stringify([...rows].sort()), 'GP-3 ' + f + ': its ' + t + ' rows are not what tools/pack.mjs ship ' + id + ' renders today');
     for (const [t, rows] of mine) {
       if (now.has(t)) continue;
@@ -106,6 +104,11 @@ function gp4() {
   const refuse = (what, after) => { let threw = false; try { diffRows(base, rowsOf(after)); } catch { threw = true; } ok(threw, 'GP-4 the diff did not refuse ' + what); };
   refuse('a moved base row', "insert into public.hr_hunts (hunt_id, band_min, band_max) values ('a', 1, 9), ('b', 3, 4);\n");
   refuse('a gone base row', "insert into public.hr_hunts (hunt_id, band_min, band_max) values ('a', 1, 2);\n");
+  /* the income dial's sale is the pack's to carry (PACK_MOVABLE): a moved vendor row is one upserted row; a gone one is still refused */
+  const vend = rowsOf("insert into public.hr_hunt_vendor_value (item_id, value) values ('a', 10), ('b', 20);\n");
+  const sale = diffRows(vend, rowsOf("insert into public.hr_hunt_vendor_value (item_id, value) values ('a', 7), ('b', 20);\n"));
+  ok(sale.length === 1 && sale[0].rows.length === 1 && sale[0].rows[0].join() === "'a',7", 'GP-4 a moved vendor row (the income dial) is not carried as the pack' + "'" + 's one upserted row');
+  { let threw = false; try { diffRows(vend, rowsOf("insert into public.hr_hunt_vendor_value (item_id, value) values ('a', 10);\n")); } catch { threw = true; } ok(threw, 'GP-4 the diff did not refuse a gone vendor row'); }
   refuse('a table a pack may not write', "insert into public.hr_hunts (hunt_id, band_min, band_max) values ('a', 1, 2), ('b', 3, 4);\ninsert into public.hr_hunt_limits (key, value) values ('x', 1);\n");
   ok(diffRows(base, rowsOf("insert into public.hr_hunts (hunt_id, band_min, band_max) values ('a', 1, 2), ('b', 3, 4), ('c', 5, 6);\n")).length === 1, 'GP-4 the diff did not read one added row');
   const fn = (body) => 'create or replace function public.f() returns int language sql as $$ select ' + body + ' $$;\n';
@@ -161,7 +164,10 @@ function ownRows(gid, monsters) {
     for (const s of rowsOf(readFileSync(join(MIG, f), 'utf8'))) {
       const key = PACK_TABLES[s.table];
       if (!key) continue;
-      for (const r of s.rows) if (key.some((k) => own.has(r[s.cols.indexOf(k)]))) (out[s.table] = out[s.table] || new Set()).add(r.join('\u0001'));
+      /* a row keyed by a hunt is that hunt's alone (the Burning Tower's floors place the Cellar's rats: its spawn row is the Tower's file's, never
+         the Cellar's); a row keyed by a monster or an item is the ground's that places it */
+      const by = key.includes('hunt_id') ? ['hunt_id'] : key;
+      for (const r of s.rows) if (by.some((k) => own.has(r[s.cols.indexOf(k)]))) (out[s.table] = out[s.table] || new Set()).add(r.join('\u0001'));
     }
   }
   return out;
@@ -202,8 +208,7 @@ async function dumpTables(db) {
 /* every shipped pack no whole file folds yet: its own file is part of the chain end, so GP-6 applies it and folds it with the planted ones */
 const openPacks = () => packIds().filter((id) => packSqlOf(id) && !COVERED.every((g) => foldedPacks(outOf(g)).includes(id)));
 async function gp6(planted, mutate = null) {
-  /* an open pack's own file as it stands on disk: GP-3 holds an unfolded one to its render, and a partly folded one cannot render whole (its carried tables move) */
-  const ships = { ...planted, ...Object.fromEntries(openPacks().filter((id) => !(id in planted)).map((id) => [id, { sql: readFileSync(join(MIG, packSqlOf(id)), 'utf8') }])) };
+  const ships = { ...planted, ...Object.fromEntries(openPacks().filter((id) => !(id in planted)).map((id) => [id, shipText(id)])) };
   const { bootReplay } = await import('./schema-replay.mjs');
   const { db } = await bootReplay();
   const sqls = Object.values(ships).map((s) => s.sql);

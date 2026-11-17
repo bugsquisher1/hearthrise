@@ -33,6 +33,12 @@ export const PACK_TABLES = Object.freeze({
   hr_hunt_shields: ['item_id'],
 });
 
+/* THE ROWS A PACK MAY MOVE (Coordinator ruling 2026-11-17, set/v0.2.135): an item sells at the highest income dial of the grounds that
+   drop it (src/data/loot-sale.js), so a ground with a dial under 1 lowers the sale of base items it drops. That sale is the ground's own
+   data, so the pack carries it: a moved row here is upserted with the pack's rows, never refused. Every other table still refuses a move,
+   and no table may lose a row. */
+export const PACK_MOVABLE = Object.freeze(new Set(['hr_hunt_vendor_value']));
+
 /** Split `s` at top-level commas (outside quotes, parentheses and brackets). */
 function splitTop(s) {
   const out = []; let depth = 0, q = false, cur = '';
@@ -107,24 +113,22 @@ function keyed(stmts) {
 /**
  * The rows `after` adds over `before` (two renders of the same whole files): [{ table, cols, rows }], in `after`'s table order.
  * Throws, naming the row, when a row of `before` is changed or gone, or when an added row is in a table a pack may not write.
- * `carried` (a Set of tables, ground-pack GP-3's partly folded pack): tables a whole file that folds the pack writes, whose rows that
- * file and its --check own; they are neither diffed nor added. Absent: every table is diffed (tools/pack.mjs ship).
  */
-export function diffRows(before, after, carried = null) {
+export function diffRows(before, after) {
   const b = keyed(before), a = keyed(after), added = [], bad = [];
   for (const [table, e] of a) {
-    if (carried && carried.has(table)) continue;
     const was = b.get(table);
     const rows = [];
     for (const [k, r] of e.rows) {
       const old = was && was.rows.get(k);
       if (!old) rows.push(r);
+      else if (old.join('\u0001') !== r.join('\u0001') && PACK_MOVABLE.has(table)) rows.push(r);
       else if (old.join('\u0001') !== r.join('\u0001')) bad.push(table + ' row ' + k.split('\u0001').join('/') + ' moves: ' + old.join(', ') + ' -> ' + r.join(', '));
     }
     if (rows.length && !PACK_TABLES[table]) bad.push(table + ' gains ' + rows.length + ' row(s), and a pack may not write ' + table);
     if (rows.length) added.push({ table, cols: e.cols, rows });
   }
-  for (const [table, e] of b) for (const k of e.rows.keys()) if (!(carried && carried.has(table)) && !(a.get(table) && a.get(table).rows.has(k))) bad.push(table + ' row ' + k.split('\u0001').join('/') + ' is gone');
+  for (const [table, e] of b) for (const k of e.rows.keys()) if (!(a.get(table) && a.get(table).rows.has(k))) bad.push(table + ' row ' + k.split('\u0001').join('/') + ' is gone');
   if (bad.length) { const err = new Error('not additive (a pack only adds rows; this is a world move):\n  ' + bad.slice(0, 20).join('\n  ') + (bad.length > 20 ? '\n  ... ' + (bad.length - 20) + ' more' : '')); err.rows = bad; throw err; }
   return added;
 }

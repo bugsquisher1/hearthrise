@@ -16,7 +16,7 @@
 //                                                    a STAGED pack in src/data/grounds/<id>, copied from a shipped ground under new
 //                                                    ids (Levels moved with the band), so it plays in the sim at once
 //   node tools/pack.mjs index                        re-write src/data/grounds/index.js from the folders
-//   node tools/pack.mjs ship <id>                    the pack's server rows as ONE additive file (tools/pack/ship.mjs), its
+//   node tools/pack.mjs ship <id> [--in-place]       the pack's server rows as ONE additive file (tools/pack/ship.mjs), its
 //                                                    apply-order line, and the pack opened on it. Refuses a pack that moves any
 //                                                    other row, schema or function body (a world move)
 //   node tools/pack.mjs art <ground> [--write]       the ground's ART LIST from its rows (tools/pack/art.mjs): floor, props, bodies
@@ -273,6 +273,20 @@ async function ship(id, argv) {
   const S = await import(u('tools/pack/ship.mjs'));
   const { readFileSync, writeFileSync } = await import('node:fs');
   if (!F.packIds().includes(id)) { console.error('pack ship: no pack ' + id); process.exit(2); }
+  /* --in-place: an OPEN pack whose file is STAGED (never applied: its apply-order note says so) re-renders into that same file from
+     today's data, folded or not (the whole files that fold it carry the same rows). An applied file is history: refused. */
+  if (argv.includes('--in-place')) {
+    const cur = W.packSqlOf(id), note = cur ? String(JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'))._order_notes[cur] || '') : '';
+    if (!cur || !note.startsWith('STAGED')) { console.error('pack ship --in-place: ' + id + (cur ? ": its file " + cur + " is not STAGED (an applied file is history)" : " has no file")); process.exit(1); }
+    let out;
+    try { out = S.shipText(id); if (out.moved.length) throw new Error(id + ' moves the schema or a function body of ' + out.moved.join(', ')); }
+    catch (e) { console.error('pack ship --in-place: ' + (e.message || e)); process.exit(1); }
+    const path = join(ROOT, 'supabase', 'migrations', cur);
+    if (readFileSync(path, 'utf8') === out.sql) { console.log('pack ship: ' + cur + ' is current'); return; }
+    writeFileSync(path, out.sql);
+    console.log('pack ship --in-place: rewrote ' + cur + " from today's data (" + out.added.reduce((n, t) => n + t.rows.length, 0) + ' rows in ' + out.added.length + ' tables)');
+    return;
+  }
   /* once a whole file folds the pack, its rows are the whole files' (a re-ship after it would move that file's --check): a world move changes it */
   const outs = readFileSync(join(ROOT, 'tools', 'gen-hunts.mjs'), 'utf8').match(/OUT_NAME = '([^']+)'/);
   if (outs && W.foldedPacks(outs[1]).includes(id)) { console.error('pack ship: ' + id + ' is folded into the whole files (' + outs[1] + '): change it with a world move, not a re-ship'); process.exit(1); }

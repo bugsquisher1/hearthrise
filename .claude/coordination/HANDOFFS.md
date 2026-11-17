@@ -255,3 +255,13 @@ Nothing server-side was changed here. Baseline finding 3 ("the whole character r
 - **The Mosslight Springs (P3):** no water is painted there; its moss_puddle and cw_puddle read as black holes on bright grass. A glowing-moss spring piece would be the signature the Glade has none of.
 - **Rook's Hide (Glade P4):** the ruined spring-house is four sewer cobble patches in a square; no wall stub says "house".
 - **Wickstead's Burned House:** a bare pale flagstone rectangle in the painted ground, with no char and no wall stubs.
+
+## 2026-11-16 · art-director (lane/a-havora-art) → asset director (a PixelLab lane) · what Havora still needs as NEW pixels
+Done from existing pixels (0 gens): the ring, kerbs, setts apron, edge variants, frayed cobble edges, the three bridges, one
+woodpile / well / bench family. These need generations (style 1, palette hr-world-56-v2, native import), in priority order:
+1. Cobble-to-dirt and cobble-to-grass Tileset Pro sets (the square's setts as the upper, the town dirt / grass as the lower,
+   3+ variants per key): broken setts along an irregular edge. The scripted variants only add loose stones; each edge tile's
+   own line is still the original straight sett course.
+2. A fuel basket (wicker, kindling and split logs) for the Hearth's fuel corners: common `basket` holds apples.
+3. The lamppost redrawn in the Hall's stone and iron (style audit #4); the square's three were removed, the street ones stay.
+4. A town grass base tile with more blade contrast (style audit: the floor with least grain); the variety only tints patches.

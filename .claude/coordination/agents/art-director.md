@@ -3418,3 +3418,16 @@ into common + a LIGHTS row) framing the ring. 0 gens: the PixelLab tools were no
 Lessons: (1) the square's checkered stands make a SYMMETRIC prop pair on one row impossible inside the checker (x and 235-x have
 opposite parity): only (111,54)/(124,54) works; (2) a stand directly north of a 39 px prop is hidden (ST-1); (3) a first soot
 pass as thresholded noise blobs read as camouflage and a wear band as a stripe: grained probability gradients read as soot.
+
+## 2026-11-16 lane/a-havora-art steps 2b, 3, 4 (Tyler: "a little better, not the bar"; transitions; the bridge; stone seams)
+Step 2b: the disc and first course are the Hearth's own stone, the buff courses worn smooth (highlight only on a slab's upper-left
+edge, shade only lower-right: the per-pixel speckle was the "sand"), a slim dark kerb at the rim, and the square's edge band is
+the LANE's setts sampled on the lane's own grid (the blend draws dual tiles half a tile off the cells: u = (x + 16) mod 32), so a
+lane runs into the square with no seam and a 4 px kerb parts setts from flags. Transitions: ground-rough.js draws open|open edges
+ragged at cell scale (never walls/water, so the look never lies about walking); edge-variety.mjs warps transition tiles with a
+field that is zero on the tile border (seamless whatever the neighbour drew); sett-edges.mjs lays loose broken setts. Bridges:
+havora_bridge cut by two whole bays at a post's left edge (bridge-span.mjs) + a `deck` material aliased to water, so the river
+shows under the rail and no planks pair strip appears. Lessons: (1) STATIONS stands are MAP coords already (I added WEST once
+and the check was wrong; the town-stations test caught nothing because nothing was wrong, but verify coords before trusting a
+script); (2) a selftest family id must be new (my R1-R6 collided with the roofs' R ids: two mutants "not caught"); (3) joint
+segmentation of setts fails where shading crosses the joint row: take stone patches by colour, not by connected blocks.

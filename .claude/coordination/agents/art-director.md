@@ -3405,3 +3405,16 @@ is the median colour changes almost nothing (earth, ash): use damp or an explici
 dark floor read as litter: details only where they belong (town grass/dirt, wickstead); (3) moss on the sewer cobble is the
 lattice: a map of the moss to its mortar breaks it without cutting a stone. Open: wang TRANSITION tiles are still one variant
 (a regular pebble row along every town grass edge), water is not varied, the cottage ground (49 repeats) was left.
+
+## 2026-11-16 lane/a-havora-art step 2 (Tyler: "the hearth area to be perfect"; the Hearth's log stacks "dont match")
+The ring was one grey with the square and the square one grey with the town's cobble. tools/world-art/hearth-plaza.mjs re-lays
+the ring from the painted paving's own pixels (base kept at art/world-src/havora-hearth/): slabs found as connected non-mortar
+runs, each BUFF (a step lighter) or RUST (own value, shade to the Hearth's browns) by a seeded hash (75% buff), the Hearth's rust
+flecks, warm joints, the outer course a dark border, a grained soot gradient at the step, a polished walk. Written on the palette,
+so the sidecar is material native and the rest of the square is the old atlas pixel for pixel (--check).
+Props: common/woodpile IS kh_woodpile's drawing now (lift 1 to sit with the Hearth's ochre logs; class stays fixture, a content
+rule pins it), ty_bench_pair (the yard bench on a 2x1 footprint) for all six square benches, hearth_brazier (kh_brazier copied
+into common + a LIGHTS row) framing the ring. 0 gens: the PixelLab tools were not exposed to this agent.
+Lessons: (1) the square's checkered stands make a SYMMETRIC prop pair on one row impossible inside the checker (x and 235-x have
+opposite parity): only (111,54)/(124,54) works; (2) a stand directly north of a 39 px prop is hidden (ST-1); (3) a first soot
+pass as thresholded noise blobs read as camouflage and a wear band as a stripe: grained probability gradients read as soot.

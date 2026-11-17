@@ -71,7 +71,7 @@
 //         key chip on a sheet; a press on a grey Buy says why beside it; a slot's sheet says why it will not fire;
 //         hunting, Tamsin's board says why every Take is grey
 //   PH-15 ONE CARD AT A TIME (667x375, 922x423): three alerts show as one solid card and a count, clear of the bar and of
-//         the coach card; in town the card stands clear of the hero's column and the place's name
+//         the coach card; in town the card stands clear of the hero's column and the place's name, and so does its folded tab
 //   PH-16 NEVER A SILENT WAIT (667x375): with the world's module held, offline says so on the waiting line and the
 //         connection's line, and both clear back online; a leave with no answer says it waits, and says the connection is
 //         gone; a counting leave says what the wait is for, under the bar
@@ -89,17 +89,17 @@
 //   PH-22 THE DOORS: Create account and Back to sign in on screen (667x375, 844x390); Enter town and its way back (667x375)
 //   PH-23 Refresh in the sheet, in the purse's row and on no tab; How many, Price each and List on screen together; Sort in the sheet (667x375)
 //   PH-24 A PARTY ON A PHONE: an invite from the Party window, ONE hr_hunt_party_invite and its answer in words; an invite
-//         shows beside an open sheet (844x390), its Join clear of the town card; the red count says what it wants; no mouse
+//         shows beside an open sheet (844x390), clear of the town card (What next served long) and its Join with it; the red count says what it wants; no mouse
 //         words and no press under 40 px in seven windows (667x375)
 //   The small-phone panel on v0.2.83 (2026-11-03, 844x390 and 667x375):
 //   PH-25 A GROUND'S PAGE GETS THE SHEET: with its card up, at least 190 px to read (it was 104), the sheet's head in reach in
 //         town, the card beside the sheet, Enter and the way back on screen at the page's end; mid-hunt the way back still works
 //   PH-26 HUNT DETAILS: all four tabs whole and clear of the fold and the close, no sideways pan; alone, no hero / party switch and
 //         at least 72 px of numbers with Next level in showing (it was 61, its first 30 a head that said Session again); in a party the switch stays
-//   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words whole without a scroll, in the town's card, beside a sheet and under the
+//   PH-27 EVERY CARD'S WORDS FIT: each tutorial card's words (three times over since the one-line cards) whole without a scroll, in the town's card, beside a sheet and under the
 //         hunt bar, up to the length each room holds (under the hunt bar the cards a hunt can show, each title on one line, its presses on a row under the words); a longer
 //         card's corner shows the gold tip until its words end; at 1440x900 no title of three words or more ends on one word
-//   PH-28 HOW YOU FIGHT: the lead and all five ways whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
+//   PH-28 HOW YOU FIGHT: the lead and all five ways (at twice their English) whole with no scroll; a refusal keeps Enter town on screen; on a screen too short, "More below" until its end
 //   PH-29 THE PARTY PANEL: alone, folded to its name and plus, and a press opens it for good; in a party, open; a desktop from 1280 px starts open with its dash (narrower: HS-28)
 //   PH-30 THE BAR'S PRESSES: the slots' page at least 36 px wide, the setup's name 36 px tall and clear of its neighbour
 //   PH-31 AFTER CREATE ACCOUNT: only the answer and the way back, no word left from the form
@@ -835,6 +835,19 @@ async function createDoor(browser, base, vp, fails) {
     if (!sent.back) fails.push('PH-31 [' + tag + '] after Create account the way back is off the screen');
   } finally { await ctx.close(); }
 }
+/* PH-28 READS THE LEAD AND THE FIVE WAYS AT TWICE THEIR ENGLISH. Since the label sweep (set v0.2.135, src/data/how-to-play.js) the lead is 113
+   characters and each way a short line, so the step kept 85 px to spare at 667x375 and release run 44118906758 let the missing font-size-adjust
+   and a lead moved down and narrowed through. Twice over is about what v0.2.134 said, the length the step was built to hold (a translation, a
+   longer rule). Served over the page's own copy (a served mutant stays), never written to the tree: the layout reads the words the page draws. */
+const HOW_STYLE = 'const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });';
+const HOW_LEAD = /export const HOW_YOU_FIGHT_LEAD = ('(?:[^'\\]|\\.)*');/;
+const howTwice = (src) => src.replace(HOW_STYLE, () => HOW_STYLE.replace('does, uses });', "does: does + ' ' + does, uses: uses + ' ' + uses });"))
+  .replace(HOW_LEAD, (m, lit) => 'export const HOW_YOU_FIGHT_LEAD = ' + lit + " + ' ' + " + lit + ';');
+const HOW_TWICE = async (page) => {
+  const real = await readFile(join(ROOT, 'src/data/how-to-play.js'), 'utf8');
+  if (!real.includes(HOW_STYLE) || !HOW_LEAD.test(real)) throw new Error('PH-28: src/data/how-to-play.js moved its style() or its lead');
+  await page.route(/\/src\/data\/how-to-play\.js(\?|$)/, async (r) => { const res = await r.fetch(); return r.fulfill({ response: res, body: howTwice(await res.text()) }); });
+};
 async function heroDoor(page, tag, fails) {
   await wait(page, () => document.querySelector('[data-app="create"]'));
   await page.click('[data-app="create"]');
@@ -1022,10 +1035,16 @@ async function titlesBalance(page, sel, tag, fails) {
 }
 /* `hunting`: the card under the hunt bar. It shows only the cards a hunt can show (none gated on being in town: those are held to the
    town's card above), and its presses stand on a row under the words, so every title is one line across the card (phone 2026-11-14: on
-   the title's row they left it 75 px, and "Your hero fights on its own" stood four lines at 667x375). */
+   the title's row they left it 75 px, and "Your hero fights on its own" stood four lines at 667x375).
+   EACH CARD'S WORDS THREE TIMES OVER, as PH-6 serves the harvest row. Since the label sweep (set v0.2.135, src/data/text/coach.js: one line of
+   at most ten words) the longest card is 57 characters, at most two lines, while the rooms hold 171 (under the hunt bar) to 283 (the town's card at
+   844x390), the same on v0.2.134 and v0.2.135: every card fit however the card was drawn, and release run 44118906758 let the narrow cards, the
+   presses' column, the 1.3 leading and the missing font-size-adjust through. Run together three times (57 characters is 173), the words come
+   back to the length each room holds, the guard for a longer line (a translation, a longer name): the layout reads the words the page draws. */
 async function wordsFit(page, sel, field, under, tag, where, fails, hunting = false) {
   const inTown = (c) => (c.when || []).some((w) => w && w.kind === 'in_town');
-  const rows = HUNT_TUTORIAL.filter((c) => typeof c.text === 'string' && !(hunting && inTown(c))).map((c) => ({ id: c.id, title: c.title, words: (field === 'in' && (c.textIn || c.inWindow)) || c.text, lines: hunting }));
+  const thrice = (s) => Array(3).fill(s).join(' ');
+  const rows = HUNT_TUTORIAL.filter((c) => typeof c.text === 'string' && !(hunting && inTown(c))).map((c) => ({ id: c.id, title: c.title, words: thrice((field === 'in' && (c.textIn || c.inWindow)) || c.text), lines: hunting }));
   if (hunting && rows.length < 20) { fails.push('PH-27 [' + tag + ' ' + where + '] CONTROL: only ' + rows.length + ' cards a hunt can show'); return; }
   const out = await page.evaluate(([q, list, cap]) => {
     const p = document.querySelector(q); if (!p) return null;
@@ -1141,14 +1160,20 @@ async function menuSending(o, tag, fails) {
   await page.click('.hw-menu [data-hs-act="party-invite"]', { timeout: 2500 }).catch(() => null);
   if (!(await wait(page, () => /Sending/.test((document.querySelector('.hw-menu-say') || {}).textContent || ''), null, 1500))) fails.push('PH-24 [' + tag + '] the menu\'s Invite says nothing until the server answers');
 }
+/* The town's card beside the sheet is What next served long (longCoach, LONG_WORDS: PH-6's card), so its ROOM sets where it ends. Since the
+   label sweep (set v0.2.135) the cards are one line, and the hero's next card (Sell junk) ended 86 px down, nowhere near the invite under
+   any room: release run 44118906758 let a room that runs past the invite through. */
 async function inviteToast(page, tag, fails) {
   await wait(page, () => document.querySelector('.hw-alert'), null, 6000);
   await pressBar(page, 'chat').catch(() => null);
   await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-field'), null, 4000);
   await page.waitForTimeout(300);
   const a = await page.evaluate(() => { const e = document.querySelector('.hw-alert'), r = window.__r(e), sheet = window.__r('[data-hs-win="chat"]'), join = e.querySelector('.hw-alert-do');
-    return { seen: getComputedStyle(e).visibility === 'visible' && window.__onScreen(r), clear: r.right <= sheet.left + 0.5, join: window.__hits(join) }; });
+    const p = document.querySelector('.hs-launchers > .hs-pointer:not(.is-min)'), t = p && p.querySelector('.hs-coach-text');
+    return { seen: getComputedStyle(e).visibility === 'visible' && window.__onScreen(r), clear: r.right <= sheet.left + 0.5, join: window.__hits(join), box: r, card: p && window.__r(p), scrolls: !!t && t.scrollHeight > t.clientHeight + 1 }; });
   if (!a.seen || !a.clear || !a.join) fails.push('PH-24 [' + tag + '] with a sheet open the invite does not show beside it: ' + JSON.stringify(a));
+  if (!a.card || !a.scrolls) { fails.push('PH-24 [' + tag + '] CONTROL: no town card long enough that its room decides where it ends: ' + JSON.stringify(a.card)); return; }
+  if (window_cross(a.card, a.box)) fails.push('PH-24 [' + tag + '] the town\'s card lies on the invite beside the sheet: ' + JSON.stringify([a.card, a.box]));
 }
 async function sheetWords(page, tag, fails) {
   await page.click('.char-tool.is-all', { timeout: 2500 }).catch(() => null);
@@ -1367,6 +1392,14 @@ async function townCard(page, tag, fails, vp) {
   const more = await page.evaluate(() => { const box = document.querySelector('.hs-launchers > .hs-pointer'), b = document.createElement('button'); b.className = 'hs-coach-more'; box.appendChild(b);
     const goal = getComputedStyle(b).display; box.classList.add('is-line'); const line = getComputedStyle(b).display; box.classList.remove('is-line'); b.remove(); return { goal, line }; });
   if (more.goal === 'none' || more.line !== 'none') fails.push('PH-15 [' + tag + '] What next\'s More reads ' + JSON.stringify(more));
+  /* FOLDED, ITS TAB STAYS CLEAR OF THE HERO TOO. Since the icon row's own rule (set v0.2.135, shell.css: every screen hangs the town's card at
+     the first icon, left: auto) the open card is placed by its own width and right alone, and the phone's rule that keeps the card at the left
+     reaches only the folded tab: release run 44118906758 deleted it unseen. Without it the tab hangs under the first icon (252..357 at 667x375). */
+  await page.click('.hs-launchers > .hs-pointer:not(.is-min) .hs-coach-min', { timeout: 2500 }).catch(() => null);
+  const tab = (await wait(page, () => document.querySelector('.hs-launchers > .hs-pointer.is-min'), null, 3000)) ? await page.evaluate(() => window.__r('.hs-launchers > .hs-pointer.is-min')) : null;
+  if (!tab) { fails.push('PH-15 [' + tag + '] CONTROL: the town\'s card did not fold to its tab'); return; }
+  if (window_cross(tab, hero)) fails.push('PH-15 [' + tag + '] the town\'s folded card lies on the hero\'s column: ' + JSON.stringify(tab));
+  if (!window_onScreen(tab, vp)) fails.push('PH-15 [' + tag + '] the town\'s folded card runs off the screen: ' + JSON.stringify(tab));
 }
 
 /* ── PH-16 ── Words while waiting: the world's line and the connection's, a leave with no answer, a leave counting down. */
@@ -1740,6 +1773,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
         const s = scripted(ALPHA, (env) => { env.hero_slots = [0, 1]; });
         s.emptySlot1 = true;
         await stub(page, s, false);
+        await HOW_TWICE(page);
         await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded', timeout: NAV_MS });
         await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
         await page.fill('input[name=email]', 'qa@example.test');
@@ -1822,7 +1856,7 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const o = await open(SMALLEST, ALPHA, noParty);
       if (o.up) { await partyInvite(o, tag, fails); await done(o, tag); } else fails.push('PH-24 [' + tag + '] the town did not mount');
       const invited = (env) => { townOnly(env); env.party = null; env.party_invites = [{ id: '00000000-0000-4000-8000-000000000001', hunt: 'mill_cellar', from: 'Mira' }]; };
-      const t = await open({ width: 844, height: 390 }, ALPHA, invited);
+      const t = await open({ width: 844, height: 390 }, ALPHA, (env) => { longCoach(env); invited(env); }, { route: LONG_WORDS });
       if (t.up) { await inviteToast(t.page, '844x390', fails); await shot(t.page, 'invite-beside-sheet-844x390'); await done(t, '844x390'); } else fails.push('PH-24 the town did not mount');
       const c = await open(SMALLEST, ALPHA, invited);
       if (c.up) { await sheetWords(c.page, tag, fails); await done(c, tag); } else fails.push('PH-24 [' + tag + '] the town did not mount');

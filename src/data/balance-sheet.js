@@ -400,14 +400,14 @@ export const TIER_DIALS = Object.freeze({
      its heroes alone on the Glade and Hask's Ford, on 7 0.93-0.94, on 8 1.04-1.06 (party-tier-xp), where Tyler 2026-11-16 asks every Dangerous party to
      stand at or over them. A bigger pull is where a party's hands count; the two harder tiers now differ by their blows, their HP and their pay, as the
      Muster's always did. */
-  dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1200 }),
+  dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),
   /* Deadly's HP 1300 (was 1100; lane/d-flat-party-xp, 2026-11-16, with ONE party table for every ground, Tyler's "just balance the hunting grounds
      xp vs having a unique formula everywhere"): on the full box a mixed four at a ground's floor kills far faster than its heroes alone, and on
      1100 Andy's four (axe, bow, wand, a Healer 5 under) read 2.40-2.61x the pace contract on the Glade and Hask's Ford where a four on Dangerous
      needs the same table to stand over its heroes alone. 1300 (a pile that stays on you longer: more food, more risk) took the Glade's floor
      four to 2.20x and Hask's to 2.19x at the same table (party-tier-xp, 2 seeds x 0.5 h). A Deadly kill still pays the most XP; an HP point
      of it pays a little less than Dangerous's (0.96 against 1.09): the tier's price is the longer fight. */
-  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1300, xpPm: 1250 }),
+  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),
 });
 /** The party sizes a tier row answers for (the server's catalogue reads its pull by size, 1..4). */
 export const TIER_SIZES = 4;
@@ -418,10 +418,15 @@ const BASE_TIER_OVERRIDES = Object.freeze({
   /* The Glade's Dangerous brings 6, two under the table's 8 (lane/d-flat-party-xp, 2026-11-16): on 8 a lone tank at the floor never met the Brook Bear in
      a played hour and on 7 the Keep's five pelts took 2.7 h (tests/hunt-core/drop-tables.mjs big-pull, bar 2 h).
      On 6 the pelts take 1.63 h and a four at the floor stands at 1.04 of its heroes alone (party-tier-xp; 1.01 at the middle). */
-  /* Its Deadly's HP is 1450, not the table's 1300 (lane/d-flat-party-xp on set v0.2.135, 2026-11-17): with Turning Cut on every melee weapon without a
-     shield (Tyler 2026-11-16) Andy's four read 2.60x the pace contract at the floor (party-tier-xp, 2 seeds x 0.5 h), past Tyler's ~2.5x. On 1450 it reads
-     2.38 (4 seeds) and a hero alone on Deadly still out-levels Normal at the floor (1.60 against 1.47 of the contract) and the middle (1.18 against 0.97). */
-  mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ deadly: Object.freeze({ hpPm: 1450 }) }), why: 'Dangerous brings 6 here, two under Deadly: on a bigger pull a hero alone at the floor reaches the Brook Bear too seldom. Deadly monsters here have 45% more health instead of 30%. Groups of four were killing them too fast for the XP they give' }),
+  /* THE GLADE'S HARDER TIERS CARRY MORE HP: Dangerous 1400, Deadly 1450 (the table's 1100 and 1150; lane/d-flat-party-xp, 2026-11-17). Its Dangerous brings 6
+     and its Deadly the full box, so a four with Turning Cut on the box read 2.82x the pace contract at the floor (party-tier-xp, 2 seeds x 0.5 h), past
+     Tyler's ~2.5x, and on 1350 a lone hammer at the Warrens' floor (32) out-levelled the Warrens' Normal (209,368 against 202,863, hunt-tiers ladder). Both
+     tiers move together: a hero alone is slowed by HP about as much on each, so Deadly still pays it more an hour than Dangerous. */
+  mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1450 }) }),
+    why: 'Dangerous brings 6 here, two under Deadly: on a bigger pull a hero alone at the floor reaches the Brook Bear too seldom. Monsters on both harder tiers have more health here than elsewhere. Groups of four were killing them too fast for the XP they give' }),
+  /* The Warrens' harder tiers carry Dangerous 1150 and Deadly 1250 (lane/d-flat-party-xp, 2026-11-17): Andy's four read 2.52x the contract on Deadly at the floor. */
+  coppercap_warrens: Object.freeze({ dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1150 }), deadly: Object.freeze({ hpPm: 1250 }) }),
+    why: 'Monsters on both harder tiers have more health here than elsewhere. Groups of four were killing them too fast for the XP they give' }),
   mill_cellar: Object.freeze({ normalOnly: true, why: 'the first ground: a choice adds nothing to the first minutes (Coordinator 2026-11-05)' }),
   /* The Thicket sits just under Wickstead: its Normal at Wickstead's floor (8) pays 6-12% under Wickstead's, so the table's x1.2 and x1.25 a kill on its
      harder tiers beat Wickstead's Normal for every way to fight (tests/hunt-core/hunt-tiers.mjs ladder; lane/b-ground-formula-2: a lone tank 25.8k against
@@ -431,9 +436,11 @@ const BASE_TIER_OVERRIDES = Object.freeze({
     why: 'the Thicket sits just under Wickstead. At the table\'s +20% and +25% a kill its harder tiers out-earned Wickstead, so they pay +5% and +8%' }),
   /* The Sewer's Deadly pays x1.22 Level XP, not the table's x1.25: since the gentle party blow shape (STAT_FORMULA.fit.party.blowShape) a lone hammer on
      it at the Glade's floor (16) read 78,980 XP an hour against the Glade's Normal 78,779 (tests/hunt-core/hunt-tiers.mjs ladder, v0.2.106 run
-     42394831391). Still above its Dangerous (x1.2), so Deadly stays the better paid. */
-  millrace_sewer: Object.freeze({ dials: Object.freeze({ deadly: Object.freeze({ xpPm: 1220 }) }),
-    why: 'at +25% a kill the Sewer\'s Deadly out-earned the Glade for a hammer at Level 16, so it pays +22%' }),
+     42394831391). Still above its Dangerous (now x1.1), so Deadly stays the better paid.
+     ITS HARDER TIERS CARRY 1150 AND 1250 HP (the table's 1100 and 1150; lane/d-flat-party-xp, 2026-11-17): on the table's 1150 the same lone hammer read
+     91,101 on Deadly against the Glade's Normal 87,181 (the ladder); moving both tiers keeps Deadly ahead of Dangerous for a hero alone. */
+  millrace_sewer: Object.freeze({ dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1150 }), deadly: Object.freeze({ hpPm: 1250, xpPm: 1220 }) }),
+    why: 'at +25% a kill the Sewer\'s Deadly out-earned the Glade for a hammer at Level 16, so it pays +22%, and both harder tiers carry a little more health' }),
 });
 /* A ground pack's own tier row, when its shape demands one (src/data/grounds/<id>/pack.js `tierOverride`, with its why). */
 export const TIER_PULL_OVERRIDES = Object.freeze(foldRows('tier override', BASE_TIER_OVERRIDES, GROUND_PACKS, (p) => (p.tierOverride ? { [p.id]: p.tierOverride } : {})));

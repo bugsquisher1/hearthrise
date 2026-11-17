@@ -50,7 +50,7 @@ function away(M, fx, xpMultOf, awayFlag) {
 /* THE ONE TABLE (Tyler 2026-11-16: "just balance the hunting grounds xp vs having a unique formula everywhere"; lane/d-flat-party-xp; party-class-xp.js
    PARTY_CLASS_XP): heroes alive -> permille by distinct classes (1, 2, ...), the same on every ground and tier. It replaces the designer's per-ground rows
    (2026-11-01 to 2026-11-13). Typed here on purpose: a retune is the data row AND this pin, moved together. */
-const PARTY_TABLE = { 2: [950, 1500], 3: [990, 1600, 1700], 4: [970, 1580, 1765, 1800] };
+const PARTY_TABLE = { 2: [880, 1500], 3: [990, 1600, 1700], 4: [970, 1580, 1670, 1700] };
 /* A HERO HUNTING ALONE (Tyler 2026-11-08: "a solo person gets a small exp boost"), typed here like the table: a retune moves both. */
 const SOLO = 1150; /* party-class-xp.js SOLO_XP_PM, pinned: +15% (Tyler 2026-11-11), was 1050 */
 /* A kill big enough that every cell lands whole (no floor hides a cell), divisible by 2, 3, 4 and 5. */
@@ -403,7 +403,7 @@ const mutants = [
   { name: 'one ground pays its own cell (the Glade x0.55, the stopgap\'s shape)', case: 'party-class-every-cell',
     edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'mosslight_glade' ? 0.55 : 1));"]] },
   { name: 'one cell drifts (a same-class duo back to the even share)', case: 'party-class-every-cell',
-    edits: [['src/data/party-class-xp.js', 'export const PARTY_CLASS_XP = row([950,', 'export const PARTY_CLASS_XP = row([1000,']] },
+    edits: [['src/data/party-class-xp.js', 'export const PARTY_CLASS_XP = row([880,', 'export const PARTY_CLASS_XP = row([1000,']] },
   { name: 'a ground the data never named pays the even share', case: 'party-class-no-row-is-even',
     edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = ground && ground.id === 'a_ground_with_no_row' && heroes.length > 1 ? 1000 : partyClassXp(heroes.map((h) => h.role)).permille;"]] },
   { name: 'a hero alone reads a party cell', case: 'party-class-no-row-is-even',

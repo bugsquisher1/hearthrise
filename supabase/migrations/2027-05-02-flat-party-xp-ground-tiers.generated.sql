@@ -18,17 +18,17 @@
 -- moves only Defense XP, whose own term (16 foes a swing x K) holds the 4000 cap at a full box of 8.
 -- THIS FILE (lane/d-flat-party-xp, Tyler 2026-11-16: "just balance the hunting grounds xp vs having a unique formula everywhere"):
 -- the party's Level XP bonus is ONE table for every ground (src/data/party-class-xp.js, engine data, no table here), and the grounds
--- carry the rest. Over 2027-04-27-march-folded-ground-tiers.generated.sql (the same rows with the five March packs folded in): Dangerous
--- brings Deadly's pull on the table, 8 (was 5): the Warrens and Hask's Ford {8,8,8,8} (were {5,5,5,5}), the Slake too (its own 6
--- retired), the Glade 6 (was 5; on 8 a hero alone at its floor met the Brook Bear too seldom), Krell's Hold 6 like its Deadly (was 5),
--- the Muster as before. Deadly's monsters have 1300 permille HP on the table (was 1100): every ground on the table's Deadly moves its
--- hp_pm, the Muster's too (it kept 1000; its Dangerous still does), and the Glade's is 1450 and Hask's Ford's 1400 (with Turning Cut on every
--- melee weapon without a shield a party of four cut through them past ~2.5x the pace). The first grounds (the Thicket, Wickstead, the Sewer)
--- bring no more monsters, as before. Damage and XP as they stand.
--- ORDER: after 2027-04-27-march-folded-ground-tiers.generated.sql, the 2027-05-01-v0135 catalogues and the Tower's files (set v0.2.135). Idempotent: the rows
--- are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2). The hr-accrue deploy carrying the same
--- src/data/balance-sheet.js, src/data/party-class-xp.js and the packs follows AT ONCE (a hunt already running keeps the pull it froze).
--- REVERSIBLE: re-apply 2027-04-27-march-folded-ground-tiers.generated.sql, with the engine from before this lane.
+-- carry the rest. Over 2027-04-27-march-folded-ground-tiers.generated.sql (the same rows with the five March packs folded in), so that
+-- Deadly pays more an hour than Dangerous for a party and for a hero alone (same coin and drops a kill, more risk): Dangerous pays 1100
+-- permille XP (was 1200) and brings Deadly's pull, 8 (was 5), on the Warrens, Hask's Ford, the Slake and the Muster; Deadly's HP is
+-- 1150 (was 1100). The Glade carries Dangerous 1400 / Deadly 1450 HP (its Dangerous brings 6, for the Brook Bear), the Warrens, Hask's
+-- Ford and the Sewer 1150 / 1250, the Muster the table's (its Dangerous 1000 retired). Krell's Hold brings 6 on both tiers (was 5 on
+-- Dangerous). The first grounds (the Thicket, Wickstead, the Sewer) bring no more monsters, as before. Damage as it stands.
+-- ORDER: after 2027-04-27-march-folded-ground-tiers.generated.sql and the 2027-05-01-v0135 catalogues (set v0.2.135); no other file
+-- writes hr_ground_tiers. Idempotent: the rows are rewritten whole, so a second apply is byte-identical. No begin/commit (CLAUDE.md §2).
+-- The hr-accrue deploy carrying the same src/data/balance-sheet.js, src/data/party-class-xp.js and the packs follows AT ONCE (a hunt
+-- already running keeps the pull it froze). REVERSIBLE: re-apply 2027-04-27-march-folded-ground-tiers.generated.sql, with the engine
+-- from before this lane.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────
@@ -58,26 +58,26 @@ comment on table public.hr_ground_tiers is
   '2027-05-02-flat-party-xp-ground-tiers.generated.sql: the harder tiers a ground offers (src/data/hunt-tiers.js through tools/gen-ground-tiers.mjs; tests/hunt-core/hunt-tiers.mjs holds the two equal). Per ground and tier: the pull for 1-4 heroes, the monsters'' damage (dmg_pm) and health (hp_pm) and a kill''s Level XP (xp_pm), permille; never coin. Read by hr_hunt_tier_set and the freeze. No row = not offered. Normal is no row.';
 delete from public.hr_ground_tiers;
 insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values
-  ('millrace_sewer', 'dangerous', '{0,0,0,0}'::int[], 1170, 1100, 1200),
-  ('millrace_sewer', 'deadly', '{0,0,0,0}'::int[], 1330, 1300, 1220),
+  ('millrace_sewer', 'dangerous', '{0,0,0,0}'::int[], 1170, 1150, 1100),
+  ('millrace_sewer', 'deadly', '{0,0,0,0}'::int[], 1330, 1250, 1220),
   ('meadowbrook_thicket', 'dangerous', '{0,0,0,0}'::int[], 2711, 1000, 1050),
   ('meadowbrook_thicket', 'deadly', '{0,0,0,0}'::int[], 3433, 1000, 1080),
-  ('coppercap_warrens', 'dangerous', '{8,8,8,8}'::int[], 1170, 1100, 1200),
-  ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1330, 1300, 1250),
-  ('mosslight_glade', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1200),
+  ('coppercap_warrens', 'dangerous', '{8,8,8,8}'::int[], 1170, 1150, 1100),
+  ('coppercap_warrens', 'deadly', '{8,8,8,8}'::int[], 1330, 1250, 1250),
+  ('mosslight_glade', 'dangerous', '{6,6,6,6}'::int[], 1170, 1400, 1100),
   ('mosslight_glade', 'deadly', '{8,8,8,8}'::int[], 1330, 1450, 1250),
-  ('wickstead', 'dangerous', '{0,0,0,0}'::int[], 2654, 1100, 1200),
-  ('wickstead', 'deadly', '{0,0,0,0}'::int[], 3351, 1300, 1250),
-  ('hasks_ford', 'dangerous', '{8,8,8,8}'::int[], 1170, 1100, 1200),
-  ('hasks_ford', 'deadly', '{8,8,8,8}'::int[], 1330, 1400, 1250),
-  ('krells_hold', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1200),
-  ('krells_hold', 'deadly', '{6,6,6,6}'::int[], 1330, 1300, 1250),
-  ('muster_barrows', 'dangerous', '{8,8,8,8}'::int[], 1170, 1000, 1200),
-  ('muster_barrows', 'deadly', '{8,8,8,8}'::int[], 1330, 1300, 1250),
-  ('pyre_field', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1200),
-  ('pyre_field', 'deadly', '{6,6,6,6}'::int[], 1330, 1300, 1250),
-  ('the_slake', 'dangerous', '{8,8,8,8}'::int[], 1170, 1100, 1200),
-  ('the_slake', 'deadly', '{8,8,8,8}'::int[], 1330, 1300, 1250);
+  ('wickstead', 'dangerous', '{0,0,0,0}'::int[], 2654, 1100, 1100),
+  ('wickstead', 'deadly', '{0,0,0,0}'::int[], 3351, 1150, 1250),
+  ('hasks_ford', 'dangerous', '{8,8,8,8}'::int[], 1170, 1150, 1100),
+  ('hasks_ford', 'deadly', '{8,8,8,8}'::int[], 1330, 1250, 1250),
+  ('krells_hold', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1100),
+  ('krells_hold', 'deadly', '{6,6,6,6}'::int[], 1330, 1150, 1250),
+  ('muster_barrows', 'dangerous', '{8,8,8,8}'::int[], 1170, 1100, 1100),
+  ('muster_barrows', 'deadly', '{8,8,8,8}'::int[], 1330, 1150, 1250),
+  ('pyre_field', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1100),
+  ('pyre_field', 'deadly', '{6,6,6,6}'::int[], 1330, 1150, 1250),
+  ('the_slake', 'dangerous', '{8,8,8,8}'::int[], 1170, 1100, 1100),
+  ('the_slake', 'deadly', '{8,8,8,8}'::int[], 1330, 1150, 1250);
 alter table public.hr_ground_tiers alter column hp_pm set not null;
 alter table public.hr_ground_tiers add constraint hr_ground_tiers_dmg_pm_check check (dmg_pm between 1000 and 4000);
 alter table public.hr_ground_tiers add constraint hr_ground_tiers_hp_pm_check check (hp_pm between 1000 and 4000);
@@ -95,26 +95,26 @@ begin
     raise exception 'tier-dials: hr_ground_tiers is not shaped (dmg_pm, hp_pm, xp_pm), every one an integer and not null'; end if;
   if (select count(*) from public.hr_ground_tiers) <> 20
      or exists (select 1 from (values
-      ('millrace_sewer','dangerous',array[0,0,0,0],1170,1100,1200),
-      ('millrace_sewer','deadly',array[0,0,0,0],1330,1300,1220),
+      ('millrace_sewer','dangerous',array[0,0,0,0],1170,1150,1100),
+      ('millrace_sewer','deadly',array[0,0,0,0],1330,1250,1220),
       ('meadowbrook_thicket','dangerous',array[0,0,0,0],2711,1000,1050),
       ('meadowbrook_thicket','deadly',array[0,0,0,0],3433,1000,1080),
-      ('coppercap_warrens','dangerous',array[8,8,8,8],1170,1100,1200),
-      ('coppercap_warrens','deadly',array[8,8,8,8],1330,1300,1250),
-      ('mosslight_glade','dangerous',array[6,6,6,6],1170,1100,1200),
+      ('coppercap_warrens','dangerous',array[8,8,8,8],1170,1150,1100),
+      ('coppercap_warrens','deadly',array[8,8,8,8],1330,1250,1250),
+      ('mosslight_glade','dangerous',array[6,6,6,6],1170,1400,1100),
       ('mosslight_glade','deadly',array[8,8,8,8],1330,1450,1250),
-      ('wickstead','dangerous',array[0,0,0,0],2654,1100,1200),
-      ('wickstead','deadly',array[0,0,0,0],3351,1300,1250),
-      ('hasks_ford','dangerous',array[8,8,8,8],1170,1100,1200),
-      ('hasks_ford','deadly',array[8,8,8,8],1330,1400,1250),
-      ('krells_hold','dangerous',array[6,6,6,6],1170,1100,1200),
-      ('krells_hold','deadly',array[6,6,6,6],1330,1300,1250),
-      ('muster_barrows','dangerous',array[8,8,8,8],1170,1000,1200),
-      ('muster_barrows','deadly',array[8,8,8,8],1330,1300,1250),
-      ('pyre_field','dangerous',array[6,6,6,6],1170,1100,1200),
-      ('pyre_field','deadly',array[6,6,6,6],1330,1300,1250),
-      ('the_slake','dangerous',array[8,8,8,8],1170,1100,1200),
-      ('the_slake','deadly',array[8,8,8,8],1330,1300,1250)) d(hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm)
+      ('wickstead','dangerous',array[0,0,0,0],2654,1100,1100),
+      ('wickstead','deadly',array[0,0,0,0],3351,1150,1250),
+      ('hasks_ford','dangerous',array[8,8,8,8],1170,1150,1100),
+      ('hasks_ford','deadly',array[8,8,8,8],1330,1250,1250),
+      ('krells_hold','dangerous',array[6,6,6,6],1170,1100,1100),
+      ('krells_hold','deadly',array[6,6,6,6],1330,1150,1250),
+      ('muster_barrows','dangerous',array[8,8,8,8],1170,1100,1100),
+      ('muster_barrows','deadly',array[8,8,8,8],1330,1150,1250),
+      ('pyre_field','dangerous',array[6,6,6,6],1170,1100,1100),
+      ('pyre_field','deadly',array[6,6,6,6],1330,1150,1250),
+      ('the_slake','dangerous',array[8,8,8,8],1170,1100,1100),
+      ('the_slake','deadly',array[8,8,8,8],1330,1150,1250)) d(hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm)
                  where not exists (select 1 from public.hr_ground_tiers t where t.hunt_id = d.hunt_id and t.tier = d.tier
                                      and t.pull = d.pull and t.dmg_pm = d.dmg_pm and t.hp_pm = d.hp_pm and t.xp_pm = d.xp_pm)) then
     raise exception 'tier-dials: hr_ground_tiers is not the generated %-row set', 20; end if;

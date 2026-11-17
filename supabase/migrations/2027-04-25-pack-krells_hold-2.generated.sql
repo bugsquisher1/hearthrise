@@ -129,8 +129,8 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('priests_cord', 26)
 on conflict (item_id) do update set unit = excluded.unit;
 insert into public.hr_ground_tiers (hunt_id, tier, pull, dmg_pm, hp_pm, xp_pm) values
-  ('krells_hold', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1200),
-  ('krells_hold', 'deadly', '{6,6,6,6}'::int[], 1330, 1300, 1250)
+  ('krells_hold', 'dangerous', '{6,6,6,6}'::int[], 1170, 1100, 1100),
+  ('krells_hold', 'deadly', '{6,6,6,6}'::int[], 1330, 1150, 1250)
 on conflict (hunt_id, tier) do update set pull = excluded.pull, dmg_pm = excluded.dmg_pm, hp_pm = excluded.hp_pm, xp_pm = excluded.xp_pm;
 insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_ms) values
   ('krells_hold', 'krells_hold_hall', 'lord_krell', 'hall_key', 600000)
@@ -252,8 +252,8 @@ begin
     or (item_id = 'lookouts_whistle' and unit = 24)
     or (item_id = 'priests_cord' and unit = 26);
   if v_n <> 40 then raise exception 'pack krells_hold: hr_hunt_vendor_value holds % of its 40 rows as written', v_n; end if;
-  select count(*) into v_n from public.hr_ground_tiers where (hunt_id = 'krells_hold' and tier = 'dangerous' and pull = '{6,6,6,6}'::int[] and dmg_pm = 1170 and hp_pm = 1100 and xp_pm = 1200)
-    or (hunt_id = 'krells_hold' and tier = 'deadly' and pull = '{6,6,6,6}'::int[] and dmg_pm = 1330 and hp_pm = 1300 and xp_pm = 1250);
+  select count(*) into v_n from public.hr_ground_tiers where (hunt_id = 'krells_hold' and tier = 'dangerous' and pull = '{6,6,6,6}'::int[] and dmg_pm = 1170 and hp_pm = 1100 and xp_pm = 1100)
+    or (hunt_id = 'krells_hold' and tier = 'deadly' and pull = '{6,6,6,6}'::int[] and dmg_pm = 1330 and hp_pm = 1150 and xp_pm = 1250);
   if v_n <> 2 then raise exception 'pack krells_hold: hr_ground_tiers holds % of its 2 rows as written', v_n; end if;
   select count(*) into v_n from public.hr_boss_halls where (hall_id = 'krells_hold' and hunt_id = 'krells_hold_hall' and monster_id = 'lord_krell' and key_item = 'hall_key' and limit_ms = 600000);
   if v_n <> 1 then raise exception 'pack krells_hold: hr_boss_halls holds % of its 1 rows as written', v_n; end if;

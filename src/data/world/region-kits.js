@@ -67,8 +67,10 @@ export const REGION_KITS = Object.freeze({
       cw_rails cw_rubble cw_stalagmite cw_tool_rack`),
     units: ids(`rat slime hive_wasp drain_rat sump_slime cistern_spider culvert_bat kobold_tosher gray_whelp gray_wolf briarcoat_wolf
       dire_gray goblin_scavenger goblin_skulker goblin_digger hobgoblin_foreman carrion_crow glade_poacher walking_vine goblin_sluicer
-      granary_rat barn_wasp barn_spider turncoat rook_poacher orchard_boar brook_bear`),
-    sets: ids('mill sewer common cottage forest warren glade stead hunt'),
+      granary_rat barn_wasp barn_spider turncoat rook_poacher orchard_boar brook_bear
+      shrouded_pauper`),
+    /* vaultdead: the Unmarked Catacombs' own dead (lane/a-catacomb-art, tools/world-art/import-catacombs-2026-11-16.mjs) */
+    sets: ids('mill sewer common cottage forest warren glade stead hunt vaultdead'),
     grounds: Object.freeze({
       mill_cellar: Object.freeze({ family: 'sewer', signature: ids('millstone') }),
       millrace_sewer: Object.freeze({ family: 'sewer', signature: ids('grate_bridge rat_nest') }),

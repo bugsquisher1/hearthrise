@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/world-art/import-clips.mjs — REVIEWED CLIP FRAMES INTO THE SHIPPED SHEETS (lane/a-hunt-clips, 2026-11-10).
 //
-//   node tools/world-art/import-clips.mjs            write every row of hunt-clips.mjs and barrow-clips.mjs into art/world/<set>/<id>.{png,json}
+//   node tools/world-art/import-clips.mjs            write every row of hunt-clips.mjs, barrow-clips.mjs and catacomb-clips.mjs into art/world/<set>/<id>.{png,json}
 //   node tools/world-art/import-clips.mjs --check    exit 1 when a committed sheet or sidecar is not what a re-run writes
 //   node tools/world-art/import-clips.mjs --id rat   one sprite (with --check too)
 // Then node tools/world-art/build.mjs (the atlases) and, for the heroes, tools/world-art/outfit-masks.mjs.
@@ -35,6 +35,7 @@ import { plant } from './port-hunt-sim.mjs';
 import { measureFrame } from './measure.mjs';
 import { HUNT_CLIPS } from './hunt-clips.mjs';
 import { BARROW_CLIPS } from './barrow-clips.mjs';
+import { CATACOMB_CLIPS } from './catacomb-clips.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const SEAT_PX = 3;          // port-pixellab.mjs: a swing frame may stand this far above the anchor
@@ -198,7 +199,7 @@ function run(argv) {
   const check = argv.includes('--check');
   const only = argv.includes('--id') ? argv[argv.indexOf('--id') + 1] : null;
   let stale = 0, done = 0;
-  for (const row of HUNT_CLIPS.concat(BARROW_CLIPS)) {
+  for (const row of HUNT_CLIPS.concat(BARROW_CLIPS, CATACOMB_CLIPS)) {
     if (only && row.id !== only) continue;
     const dir = join(ROOT, ART_DIR, row.set), jp = join(dir, row.id + '.json');
     const sc0 = JSON.parse(readFileSync(jp, 'utf8'));

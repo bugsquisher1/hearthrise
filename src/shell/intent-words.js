@@ -62,7 +62,7 @@ function requirementWords(item, cs, counts) {
 }
 
 /* "Needs Level 30" after an item's name reads "Steel Helm needs Level 30". */
-const lowerFirst = (w) => (w ? w[0].toLowerCase() + w.slice(1) : w);
+const lowerFirst = (w) => (w ? w[0].toLowerCase() + w.slice(1).replace(/\.$/, '') : w);
 
 /**
  * "You need Cooking 15 to cook Raw Wolf Meat. You have 4." — a skill short of what a town action asks (Tyler 10-25:

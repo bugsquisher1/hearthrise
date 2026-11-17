@@ -12,7 +12,7 @@
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
 import { whole, gold } from '../../render/format.js?v=0.2.134';
 import { itemName } from '../widgets/bits.js?v=0.2.134';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.134';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords, sentenceList } from '../item-lore.js?v=0.2.134';
 import { t } from '../../render/player-text.js?v=0.2.134';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.134';
 import { planWords } from '../loot-dispatch.js?v=0.2.134';
@@ -42,7 +42,7 @@ function tipHtml(id, o) {
     + '<p class="hw-tip-line"><small>Perks</small>No stacking across pieces</p>';
   /* A bane: what the weapon does against one kind of monster, the engine's own number (designer re-read 2026-11-11: the Bramble Blade's tip said only +2/+2). */
   const banes = baneWords(id);
-  if (banes.length) h += '<p class="hw-tip-line hw-tip-bane"><small>' + esc(t('item.bane_label')) + '</small>' + esc(banes.join('. ')) + '</p>';
+  if (banes.length) h += '<p class="hw-tip-line hw-tip-bane"><small>' + esc(t('item.bane_label')) + '</small>' + esc(sentenceList(banes)) + '</p>';
   if (stats.length && opt.worn !== undefined) {
     if (opt.worn === id) h += '<p class="hw-tip-cmp">Equipped</p>';
     else {
@@ -58,8 +58,8 @@ function tipHtml(id, o) {
   const need = needOf(id, opt.skills, opt.level);
   if (need) h += '<p class="hw-tip-need' + (need.short ? ' is-short' : '') + '">' + esc(need.text) + '</p>';
   const src = sourcesOf(id, opt.offers);
-  if (src.length) h += '<p class="hw-tip-line"><small>Comes from</small>' + esc(src.join('. ')) + '</p>';
-  h += '<p class="hw-tip-line"><small>Used for</small>' + esc(usesOf(id).join('. ')) + '</p>';
+  if (src.length) h += '<p class="hw-tip-line"><small>Comes from</small>' + esc(sentenceList(src)) + '</p>';
+  h += '<p class="hw-tip-line"><small>Used for</small>' + esc(sentenceList(usesOf(id))) + '</p>';
   /* The server's bid, for what the bag holds. No bid: the row says who won't buy it; the shop bids only on bag stacks, so an
      item the bag doesn't hold (a Buy row) just has no value line. */
   const sale = saleWords(id);

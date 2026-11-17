@@ -63,13 +63,13 @@ export function patchServicesPane(body, ctx) {
   text(root.querySelector('.hw-stam-now'), st ? 'Stamina ' + hoursText(st.msLeft) + ' of ' + hoursText(st.capMs) + '.' : 'Stamina loads from the server.');
   const quote = root.querySelector('.hw-stam-quote');
   const ask = root.querySelector('[data-hs-act="stam-ask"]');
-  if (!q) { text(quote, 'The server has not priced a refill yet.'); text(ask, 'Buy stamina'); }
+  if (!q) { text(quote, 'Checking the refill price…'); text(ask, 'Buy stamina'); }
   else if (!q.available) {
-    text(quote, q.why === 'stamina_full' ? 'Stamina full' : 'Daily refills used: ' + whole(q.perDay) + ' of ' + whole(q.perDay));
+    text(quote, q.why === 'stamina_full' ? 'Your stamina is full' : 'You\'ve used all ' + whole(q.perDay) + ' refills today');
     text(ask, 'Buy stamina');
   } else {
     text(quote, 'Restores ' + hoursText(q.restoreMs) + ' for ' + gold(q.price) + '. Bought today: ' + whole(q.boughtToday) + ' of ' + whole(q.perDay) + '. Each one costs more.'
-      + (purse !== null && purse < q.price ? ', need ' + gold(q.price - purse) + ' more' : ''));
+      + (purse !== null && purse < q.price ? ' You need ' + gold(q.price - purse) + ' more.' : ''));
     text(ask, 'Buy ' + hoursText(q.restoreMs) + ' for ' + gold(q.price));
   }
   const canStam = !!q && q.available && !sc.pending && (purse === null || purse >= q.price);
@@ -86,8 +86,8 @@ export function patchServicesPane(body, ctx) {
   prop(yes, 'disabled', sc.pending);
   /* BLESSINGS */
   const b = blessingsOf(cs);
-  text(root.querySelector('.hw-bless-note'), !b ? 'Blessings load from the server.'
-    : 'Cuts death XP loss, used up on death' + (b.freeUntil ? ', free below Level ' + b.freeUntil : ''));
+  text(root.querySelector('.hw-bless-note'), !b ? 'Loading Blessings…'
+    : (b.freeUntil ? 'Free until level ' + b.freeUntil + '. ' : '') + 'Lose less XP when you die. A Blessing is used up when you die.');
   const next = b ? b.tiers.find((r) => !r.held) : null;
   rows(root.querySelector('.hw-bless'), b ? b.tiers : [], {
     key: (r) => String(r.tier),
@@ -95,10 +95,10 @@ export function patchServicesPane(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="bless" data-tier="' + r.tier + '"></button></li>'),
     patch: (li, r) => {
       const short = !r.held && next && next.tier === r.tier && purse !== null && purse < r.price ? r.price - purse : 0;
-      text(li.querySelector('small'), Math.round(r.permille / 10) + '% less XP lost' + (r.tier > 1 ? ' with ' + (r.tier > 2 ? 'I and II' : 'I') : '') + ', ' + (r.held ? 'owned' : r.price ? gold(r.price) : 'free')
-        + (short ? ', need ' + gold(short) + ' more' : ''));
+      text(li.querySelector('small'), Math.round(r.permille / 10) + '% less XP lost' + (r.tier > 1 ? ' with ' + (r.tier > 2 ? 'I and II' : 'I') : '') + '. ' + (r.held ? 'Active' : r.price ? gold(r.price) : 'Free')
+        + (short ? ' (you need ' + gold(short) + ' more)' : ''));
       const btn = li.querySelector('button');
-      text(btn, r.held ? 'Owned' : next && next.tier === r.tier ? (r.price ? 'Bless for ' + gold(r.price) : 'Bless for free') : 'Needs ' + ROMAN[r.tier - 1]);
+      text(btn, r.held ? 'Active' : next && next.tier === r.tier ? (r.price ? 'Bless for ' + gold(r.price) : 'Bless for free') : 'Needs Blessing ' + ROMAN[r.tier - 1]);
       prop(btn, 'disabled', r.held || !next || next.tier !== r.tier || sc.pending || (purse !== null && purse < r.price));
     },
   });
@@ -143,7 +143,7 @@ export function actServicesPane(ctx, body, action, ev, el) {
     const row = b && b.tiers.find((x) => x.tier === tier);
     if (!row || row.held) return true;
     sc.msgAt = null;
-    runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => 'Blessing ' + ROMAN[tier] + ' gained');
+    runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => 'Blessing ' + ROMAN[tier] + ' is active.');
     return true;
   }
   if (action === 'bless-all') {

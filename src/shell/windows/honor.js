@@ -99,11 +99,11 @@ function standing(b, roll, slot) {
   const me = (accounts ? roll.mine[0] : roll.mine.find((m) => m.slot === slot)) || null;
   if (!me) return { line: 'Not ranked yet. ' + b.join, next: '', near: [] };
   const shared = roll.top.concat(me.near).some((r) => r.place === me.place && r.rank !== me.rank);
-  const line = 'Rank: ' + (shared ? 'tied ' : '') + ordinal(me.place) + ' of ' + whole(roll.total) + (accounts ? ', led by ' + me.name : '');
+  const line = 'Rank: ' + ordinal(me.place) + ' of ' + whole(roll.total) + (shared ? ' (tied)' : '') + (accounts ? '. Led by ' + me.name : '');
   const up = me.near.filter((r) => r.place < me.place).sort((x, y) => y.rank - x.rank)[0];
   const gap = up ? up.score - me.score : 0;
-  const next = !up ? '' : 'Next up: ' + up.name + (accounts ? '\'s account, ' + gold(gap) : b.reads === 'total'
-    ? ', ' + whole(gap) + (gap === 1 ? ' level' : ' levels') : ', ' + whole(gap) + ' XP') + ' ahead';
+  const next = !up ? '' : 'Next up: ' + up.name + (accounts ? '\'s account (' + gold(gap) : b.reads === 'total'
+    ? ' (' + whole(gap) + (gap === 1 ? ' level' : ' levels') : ' (' + whole(gap) + ' XP') + ' ahead)';
   const inTop = roll.top.some((r) => r.rank === me.rank);
   return { line, next, near: inTop ? [] : me.near };
 }

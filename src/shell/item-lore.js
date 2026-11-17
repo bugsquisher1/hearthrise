@@ -121,7 +121,15 @@ const fromWords = (skills) => skills.map((s) => t(s === 'farming' ? 'item.grown_
  * Rat at Mill Cellar", "Dropped by Briarcoat Wolf at Meadowbrook Thicket". '' when the catalogue knows no way.
  */
 export function whereToGet(id) {
-  return wherePlaces(id).map((p) => p.words).join('. ');
+  return sentenceList(wherePlaces(id).map((p) => p.words));
+}
+
+/**
+ * Lines that are each a sentence or a label, one after another: "10 gp each. Requires Farming 10 and a tier 2 plot". A line's own
+ * full stop is dropped before the join, so a text-table row that ends in one never makes "..", and a comma never glues two of them.
+ */
+export function sentenceList(parts) {
+  return parts.filter(Boolean).map((p) => String(p).replace(/\.\s*$/, '')).join('. ');
 }
 
 /** @typedef {{words: string, place: {kind: string, skill?: string, row?: string|null, item?: string, hunt?: string}|null}} ItemPlace  a line's words and the window it opens */

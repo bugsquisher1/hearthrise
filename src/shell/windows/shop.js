@@ -29,7 +29,7 @@ import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.134';
 import { kindOf, sellPlan, lootSale, lootKept, spareSale, madeFromKit, sellQty, upgradeNeeds, upgradeWanted } from '../bag-model.js?v=0.2.134';
 import { isRareOnly } from '../hunt-ground-facts.js?v=0.2.134';
 import { homeOf, chestsOf } from '../../session/home-sections.js?v=0.2.134';
-import { toolEffect, rareSaleWords } from '../item-lore.js?v=0.2.134';
+import { toolEffect, rareSaleWords, sentenceList } from '../item-lore.js?v=0.2.134';
 import { toolLossWords } from '../town-work.js?v=0.2.134';
 import { runIntent } from '../intent-words.js?v=0.2.134';
 import { showTip, hideTip } from './item-tip.js?v=0.2.134';
@@ -121,13 +121,14 @@ function patchBuy(root, st, ctx) {
         const plant = o.kind === 'seed' ? seedNeedWords(st.cs, o.item) : '';
         /* "0 in the bag" is said only when it is not 0 (first-30 play 2026-11-12: it wrapped every new hero's row to three lines) */
         const held = st.qty.get(o.item) || 0;
-        text(li.querySelector('small'), gold(o.price) + ' each' + (held ? ', ' + whole(held) + ' in the bag' : '') + (does ? ', ' + does + ' in bag' : '') + (plant ? ', ' + plant : '')
-          + (short ? ', need ' + gold(short) + ' more' : ''));
+        /* "120 gp each. +5% Woodcutting speed, +2% XP, +2% yield": the price, then each fact as its own line, never glued with a comma */
+        text(li.querySelector('small'), sentenceList([gold(o.price) + ' each' + (short ? ' (you need ' + gold(short) + ' more)' : ''),
+          held ? whole(held) + ' in your bag' : '', does, plant]));
         prop(li.querySelector('select'), 'value', String(n));
         const b = li.querySelector('[data-hs-act="buy"]');
         text(b, 'Buy ' + n + ' for ' + gold(o.price * n));
         prop(b, 'disabled', st.sc.pending || short > 0);
-        attr(b, 'data-off-why', short ? 'Need ' + gold(short) + ' more' : null);
+        attr(b, 'data-off-why', short ? 'You need ' + gold(short) + ' more' : null);
       },
     });
   }
@@ -144,10 +145,10 @@ function spareOf(cs, items, rules, shop) {
 /* What Sell all junk leaves out and why, so its price and the list under it add up (say-why). */
 function sellNote(plan, kept, spare) {
   const parts = [];
-  if (spare.lines.length) parts.push('Keeps worn, higher-tier and Rare pieces');
+  if (spare.lines.length) parts.push('Keeps what you wear, better tiers and Rares');
   if (kept.ids.length) parts.push(t('shop.junk_keeps', { count: kept.ids.length, worth: gold(kept.worth) }));
-  if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
-  return parts.join(' ');
+  if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack');
+  return parts.length ? sentenceList(parts) + '.' : '';
 }
 
 function patchSell(root, st, ctx) {

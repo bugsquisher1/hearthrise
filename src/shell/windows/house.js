@@ -29,7 +29,7 @@ import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.
 import { whole, gold } from '../../render/format.js?v=0.2.134';
 import { itemName } from '../widgets/bits.js?v=0.2.134';
 import { runIntent } from '../intent-words.js?v=0.2.134';
-import { wherePlaces } from '../item-lore.js?v=0.2.134';
+import { wherePlaces, sentenceList } from '../item-lore.js?v=0.2.134';
 import { patchParts, placesParts } from '../goto.js?v=0.2.134';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.134';
 import { t } from '../../render/player-text.js?v=0.2.134';
@@ -86,7 +86,7 @@ export function costLines(step, purse, bag, bank) {
        each place a link to its window (Tyler 2026-11-08). */
     const places = short ? wherePlaces(it.id) : [];
     lines.push({ key: it.id, label: inBag === null ? t('house.cost_item', { item: itemName(it.id), qty: whole(it.qty) })
-      : t('house.cost_item_held', { item: itemName(it.id), qty: whole(it.qty), held: heldWords(inBag, inStorage) }), where: places.map((p) => p.words).join('. '), places, short });
+      : t('house.cost_item_held', { item: itemName(it.id), qty: whole(it.qty), held: heldWords(inBag, inStorage) }), where: sentenceList(places.map((p) => p.words)), places, short });
   }
   return { lines, afford: !lines.some((l) => l.short) };
 }

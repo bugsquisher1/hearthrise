@@ -23,18 +23,18 @@ const keyOf = (o) => o.from + '>' + o.to;
 
 /* What one row needs and why its button is off: the first thing missing, in the order the server checks it. */
 function blockOf(cs, o, h, purse, lv) {
-  if (lv !== null && lv < o.level) return 'Requires Crafting ' + o.level + ', have ' + lv;
-  if (h.today >= h.perDay) return 'Daily limit: ' + whole(h.perDay) + ' Hallmarks, resets at midnight UTC';
+  if (lv !== null && lv < o.level) return 'Requires Crafting ' + o.level + ' (you have ' + lv + ')';
+  if (h.today >= h.perDay) return 'That\'s all ' + whole(h.perDay) + ' Hallmarks for today. They reset at midnight UTC.';
   /* where the gem comes from, from the catalogue (item-lore.js whereToGet), so a new tier's gem says its own home */
   if (heldForHallmark(cs, o.gem).all < 1) return 'Needs a ' + itemName(o.gem) + '. ' + (whereToGet(o.gem) ? whereToGet(o.gem) + '. ' : '') + 'Or buy one at the Weighhouse.';
-  if (purse !== null && purse < o.gold) return 'Need ' + gold(o.gold - purse) + ' more';
+  if (purse !== null && purse < o.gold) return 'You need ' + gold(o.gold - purse) + ' more';
   return '';
 }
 
-/* "held 2, 1 in Storage" */
+/* "You have 2 (1 in storage)" */
 function holdWords(cs, id) {
   const n = heldForHallmark(cs, id);
-  return 'held ' + whole(n.all) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '');
+  return 'You have ' + whole(n.all) + (n.storage ? ' (' + whole(n.storage) + ' in storage)' : '');
 }
 
 /** The section's skeleton, above the skill's rows. */
@@ -66,7 +66,7 @@ export function patchHallmarkPane(root, ctx, sc) {
       /* The choice is the perk: lead with it; the piece it goes on and what it does sit under it. */
       text(li.querySelector('b'), 'Add ' + (JEWEL_PERKS[o.perk] ? JEWEL_PERKS[o.perk].name : o.perk));
       text(li.querySelector('.hw-hallmark-what'), 'Your ' + itemName(o.from) + (it && it.jewelPerks ? ' gains: ' + perkWords(o.perk, it.jewelPerks[o.perk] || 0) + '.' : '.'));
-      text(li.querySelector('.hw-hallmark-need'), why || ('Uses it and 1 ' + itemName(o.gem) + ' (' + holdWords(cs, o.gem) + ').'));
+      text(li.querySelector('.hw-hallmark-need'), why || ('Uses it and 1 ' + itemName(o.gem) + '. ' + holdWords(cs, o.gem) + '.'));
       const btn = li.querySelector('button');
       text(btn, 'Hallmark for ' + gold(o.gold));
       prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);
@@ -79,7 +79,7 @@ export function patchHallmarkPane(root, ctx, sc) {
   const none = root.querySelector('.hw-hallmark-none');
   cls(none, 'is-on', !offers.length);
   text(none, !h ? 'Loading…' : offers.length ? ''
-    : 'Requires a Fine piece in the bag');
+    : 'Put a Fine piece in your bag to Hallmark it');
   const asked = sc.hallmark ? offers.find((o) => keyOf(o) === sc.hallmark) : null;
   if (sc.hallmark && (!asked || !!blockOf(cs, asked, h, purse, lv) || sc.pending)) sc.hallmark = null;
   const cf = root.querySelector('.hw-hallmark-ask');
@@ -87,7 +87,7 @@ export function patchHallmarkPane(root, ctx, sc) {
   cls(cf, 'is-on', !!sc.hallmark);
   if (sc.hallmark && asked) {
     text(cf.querySelector('.hw-confirm-q'), 'Hallmark ' + itemName(asked.from) + ' with ' + (JEWEL_PERKS[asked.perk] ? JEWEL_PERKS[asked.perk].name : asked.perk)
-      + '?\nCost: ' + gold(asked.gold) + ', 1 ' + itemName(asked.gem) + '\nResult: ' + itemName(asked.to) + ', permanent');
+      + '?\nCost: ' + gold(asked.gold) + ' and 1 ' + itemName(asked.gem) + '\nResult: ' + itemName(asked.to) + ' (permanent)');
     text(yes, 'Hallmark for ' + gold(asked.gold));
   }
   prop(yes, 'disabled', sc.pending);

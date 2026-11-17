@@ -17,12 +17,12 @@ import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.134';
 
 /* What the player reads after the bridge answers, by its status (or the link's). */
 const SAID = Object.freeze({
-  sent: 'Report sent, thanks',
-  rate_limited: 'Too many reports, try again in {m}',
-  unauthenticated: 'Session expired, reload and sign in',
-  payload_too_large: 'Too large, untick the picture',
-  bad_request: 'Report unreadable, add a line and retry',
-  other: 'Send failed, text kept, try again',
+  sent: 'Report sent. Thanks!',
+  rate_limited: 'That\'s a lot of reports. Try again in {m}.',
+  unauthenticated: 'Your session expired. Reload and sign in again.',
+  payload_too_large: 'That\'s too large to send. Untick the picture and try again.',
+  bad_request: 'We couldn\'t read that report. Add a line and try again.',
+  other: 'It didn\'t send. Your text is still here, so try again.',
 });
 const SENT = new Set(['accepted', 'stored', 'duplicate']);
 

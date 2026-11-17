@@ -21,15 +21,15 @@ import { patchParts, targetOf } from '../goto.js?v=0.2.134';
 import { t } from '../../render/player-text.js?v=0.2.134';
 
 const TRACKS = Object.freeze([
-  { id: 'blows', label: 'Blows', effect: 'damage and heals', sign: '+', none: 'Requires a weapon' },
-  { id: 'armor', label: 'Armor', effect: 'damage taken', sign: '-', none: 'Requires armor' },
+  { id: 'blows', label: 'Blows', effect: 'damage and heals', sign: '+', none: 'Wear a weapon to temper it' },
+  { id: 'armor', label: 'Armor', effect: 'damage taken', sign: '-', none: 'Wear armor to temper it' },
 ]);
 const pct = (pm) => String(pm / 10) + '%';
 
 /** What a row says: the rung, what it does now, what the next rung does. */
 function rowWords(track, r) {
   if (!r.piece) return track.none;
-  if (!r.ladder) return 'Not temperable' + (r.below ? ', requires gear from Level 15' : ' yet');
+  if (!r.ladder) return r.below ? 'Only gear from Level 15 and up can be tempered' : 'Can\'t be tempered yet';
   const now = 'Rung ' + r.ladder.rung + '/' + r.ladder.max + ': ';
   if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max';
   return (r.ladder.rung ? now + track.effect + ' ' + track.sign + pct(r.nowPm) + '. Next: ' + track.sign + pct(r.nextPm)
@@ -37,7 +37,7 @@ function rowWords(track, r) {
 }
 
 /* What the next rung takes besides gold, and what this hero holds. */
-const needWords = (needs) => needs.map((n) => n.name + ': ' + whole(n.held) + '/' + whole(n.need) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '')).join('. ');
+const needWords = (needs) => needs.map((n) => n.name + ': ' + whole(n.held) + ' of ' + whole(n.need) + (n.storage ? ' (' + whole(n.storage) + ' in storage)' : '')).join('. ');
 
 /* Where an input only a hunt gets drops, from the monsters' rows and the open grounds, never typed (Tyler 2026-11-07: "what drops the
    Fine Tempering Salts?"): "Big Bones drop from Hobgoblin Foreman at Coppercap Warrens." */
@@ -96,7 +96,7 @@ export function patchTemperPane(root, ctx, sc) {
       text(li.querySelector('.hw-temper-now'), rowWords(track, r) + (short ? '. Need ' + gold(short) + ' more' : ''));
       text(li.querySelector('.hw-temper-need'), needWords(r.needs));
       const btn = li.querySelector('button');
-      text(btn, offer ? 'Temper for ' + gold(r.ladder.gold) : r.ladder ? 'Full' : 'No rungs');
+      text(btn, offer ? 'Temper for ' + gold(r.ladder.gold) : r.ladder ? 'Fully tempered' : 'No rungs');
       prop(btn, 'disabled', !offer || !!short || itemsShort || sc.pending || !!sc.ask);
     },
   });

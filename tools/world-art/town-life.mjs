@@ -258,6 +258,56 @@ const TWINS = Object.freeze({
   square_market_stall_sway: { set: 'common', of: 'square_market_stall', axis: 'y', rows: [21, 26], cols: [9, 52], amp: 1.4, wave: 5, n: 8 },
 });
 
+/**
+ * STIR: an animal painted into a building's art (the hens and the goat in P02's yard) comes alive. Its pixels (the opaque
+ * component at `seed`, or every opaque pixel of `box`) are cut from a still TWIN of the building (`cut`) and drawn over it from
+ * these frames: the pixels of `part` (its head) moved by moves[f] = [dx, dy] each frame, the rest in place. The frame is the
+ * piece's box grown by PAD, so frame 0 laid over the twin is the building's art exactly.
+ */
+const PAD = 2;
+function pieceOf(o) {
+  const atlas = decodePNG(readFileSync(join(ROOT, 'assets', 'world', 'atlas-' + o.set + '.png')));
+  const man = JSON.parse(readFileSync(join(ROOT, 'assets', 'world', 'atlas-' + o.set + '.json'), 'utf8'));
+  const sp = man.sprites[o.of];
+  const [sx, sy] = Object.values(sp.anims)[0].dirs.s[0];
+  const [W, H] = sp.frame;
+  const at = (x, y) => { if (x < 0 || y < 0 || x >= W || y >= H) return null; const i = ((sy + y) * atlas.width + sx + x) * 4; return atlas.data[i + 3] >= 128 ? '#' + [0, 1, 2].map((k) => atlas.data[i + k].toString(16).padStart(2, '0')).join('') : null; };
+  const mine = new Set();
+  if (o.box) { const [x0, y0, x1, y1] = o.box; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (at(x, y)) mine.add(x + ',' + y); }
+  else {
+    const stack = [o.seed];
+    while (stack.length) { const [x, y] = stack.pop(), k = x + ',' + y; if (mine.has(k) || !at(x, y)) continue; mine.add(k); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) stack.push([x + dx, y + dy]); }
+  }
+  const xs = [...mine].map((k) => +k.split(',')[0]), ys = [...mine].map((k) => +k.split(',')[1]);
+  return { at, W, H, mine, x0: Math.min(...xs) - PAD, y0: Math.min(...ys) - PAD, w: Math.max(...xs) - Math.min(...xs) + 1 + 2 * PAD, h: Math.max(...ys) - Math.min(...ys) + 1 + 2 * PAD };
+}
+function stir(o) {
+  const pc = pieceOf(o);
+  const inPart = (x, y) => x >= o.part[0] && x <= o.part[2] && y >= o.part[1] && y <= o.part[3];
+  return o.moves.map(([dx, dy]) => {
+    const px = blank(pc.w, pc.h);
+    const put = (x, y, c) => { const fx = x - pc.x0, fy = y - pc.y0; if (fx >= 0 && fy >= 0 && fx < pc.w && fy < pc.h) px[fy][fx] = c; };
+    for (const k of pc.mine) { const [x, y] = k.split(',').map(Number); if (!inPart(x, y)) put(x, y, pc.at(x, y)); }
+    for (const k of pc.mine) { const [x, y] = k.split(',').map(Number); if (inPart(x, y)) put(x + dx, y + dy, pc.at(x, y)); }
+    return px;
+  });
+}
+/* the building with its stirring pieces cut out: one still frame, drawn in its place (ambient-life.js SWAYS) */
+function cut(o) {
+  const pcs = o.pieces.map((id) => pieceOf(STIRS[id]));
+  const a = pcs[0];
+  return [Array.from({ length: a.H }, (_, y) => Array.from({ length: a.W }, (_, x) => (pcs.some((p) => p.mine.has(x + ',' + y)) ? null : a.at(x, y))))];
+}
+const STIRS = Object.freeze({
+  /* the brown hen, head down at the dirt: it lifts its head to look and pecks again */
+  p02_hen_brown: { set: 'havora', of: 'havora_home_p02', seed: [155, 228], part: [163, 222, 172, 236], moves: [[0, 0], [0, -1], [0, -2], [0, -2], [0, -1], [0, 0], [0, 0], [0, 0]] },
+  /* the white hen pecks */
+  p02_hen_white: { set: 'havora', of: 'havora_home_p02', seed: [237, 232], part: [226, 220, 235, 232], moves: [[0, 0], [0, 0], [0, 1], [0, 2], [0, 1], [0, 0], [0, 0], [0, 0]] },
+  /* the goat nods as it chews */
+  p02_goat: { set: 'havora', of: 'havora_home_p02', box: [66, 192, 79, 214], part: [66, 192, 79, 214], moves: [[0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 0], [0, 0], [0, 0]] },
+});
+const CUTS = Object.freeze({ havora_home_p02_still: { set: 'havora', of: 'havora_home_p02', pieces: ['p02_hen_brown', 'p02_hen_white', 'p02_goat'] } });
+
 const FLOW = () => flow({ size: 32, marks: 7, len: [2, 5], seed: 0xf10a });
 
 /* THE CLIPS: frame size, anchor (the point the map places: a chimney's mouth, the fire's mouth, a wave's centre), class and
@@ -271,11 +321,15 @@ export const CLIPS = Object.freeze({
   water_flow: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW() },
   ty_banner_sway: { cls: 'fixture', fps: LIFE_BEAT_FPS / 2, twin: TWINS.ty_banner_sway, draw: () => sway(TWINS.ty_banner_sway) },
   square_market_stall_sway: { cls: 'stall', fps: LIFE_BEAT_FPS / 2, twin: TWINS.square_market_stall_sway, draw: () => sway(TWINS.square_market_stall_sway) },
+  p02_hen_brown: { cls: 'stir', fps: LIFE_BEAT_FPS / 2, stir: STIRS.p02_hen_brown, draw: () => stir(STIRS.p02_hen_brown) },
+  p02_hen_white: { cls: 'stir', fps: LIFE_BEAT_FPS / 2, stir: STIRS.p02_hen_white, draw: () => stir(STIRS.p02_hen_white) },
+  p02_goat: { cls: 'stir', fps: LIFE_BEAT_FPS / 2, stir: STIRS.p02_goat, draw: () => stir(STIRS.p02_goat) },
+  havora_home_p02_still: { cls: 'lot', fps: LIFE_BEAT_FPS / 2, twin: CUTS.havora_home_p02_still, draw: () => cut(CUTS.havora_home_p02_still) },
   mill_wheel: { cls: 'turning', fps: LIFE_BEAT_FPS, draw: () => wheel({ of: 'mill', box: [139, 76, 13, 42], period: 14 }) },
   /* the same ripples two cells square (the open sea in a quarter of the draws): the T tile's pattern four times over */
   water_flow_2: { cls: 'ripple', fps: LIFE_BEAT_FPS, draw: () => FLOW().map((px) => [...px, ...px].map((line) => [...line, ...line])) },
 });
-const ANCHORS = Object.freeze({ chimney_smoke: [10, 44], hearth_smoke: [18, 90], hearth_embers: [20, 36], water_glint_a: [5, 2], water_glint_b: [6, 1], water_flow: [0, 0], water_flow_2: [0, 0], mill_wheel: [0, 0] });
+const ANCHORS = Object.freeze({ chimney_smoke: [10, 44], hearth_smoke: [18, 90], hearth_embers: [20, 36], water_glint_a: [5, 2], water_glint_b: [6, 1], water_flow: [0, 0], water_flow_2: [0, 0], mill_wheel: [0, 0], p02_hen_brown: [0, 0], p02_hen_white: [0, 0], p02_goat: [0, 0] });
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 
@@ -332,5 +386,8 @@ function main() {
   if (stale) process.exit(1);
   if (check) console.log('town-life --check: the sources match this script');
 }
+
+/** Where each stirring piece lies in its building (the EMITTERS point: ambient-life.js), for a reader of this script. */
+export function stirPoints() { return Object.fromEntries(Object.entries(STIRS).map(([id, o]) => { const p = pieceOf(o); return [id, [p.x0, p.y0]]; })); }
 
 if (isMain(import.meta.url)) main();

@@ -28,6 +28,8 @@
 //   TL-TURN   a turning piece (the mill's waterwheel) is its building's own pixels: frame 0 is the art, every frame its outline
 //   TL-SWAY   a banner or an awning is drawn as its twin: the same class, frame, anchor and footprint, frame 0 its art exactly,
 //             no pixel more than 2 px from where the art had it, on the half beat, each placed one from its own frame
+//             A still twin (P02 with its hens and goat cut out): its stirring pieces at rest over it are the art exactly
+//   TL-STIR   each stirring piece moves, and never draws a colour the art has nowhere within 2 px
 //   TL-GLANCE a keeper standing at her work (Tamsin at her board, the smith) looks about: every face her idle clip has, turning
 //             on the beat, and the frame drawn is the face of the moment
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -86,7 +88,8 @@ export function problems(env) {
       want++;
       const px = bx + e.at[0], py = by + e.at[1];
       if (!loops.some((a) => a.id === e.clip && a.px === px && a.py === py)) bad('TL-SMOKE', o.id + ' at ' + o.x + ',' + o.y + ': its ' + e.clip + ' is not at its point (' + px + ',' + py + ')');
-      let on = false;
+      /* smoke and sparks rise from the art itself (a turning or stirring piece is held to its pixels by TL-TURN, TL-SWAY) */
+      let on = !['plume', 'vfx'].includes(book.sprite(e.clip).class);
       for (let dy = -1; dy <= 4 && !on; dy++) on = opaque(e.at[0], e.at[1] + dy);
       if (!on) bad('TL-SMOKE', o.id + ': the ' + e.clip + ' point ' + e.at.join(',') + ' is not on the sprite\'s art (no opaque pixel at or under it)');
     }
@@ -283,6 +286,36 @@ export function problems(env) {
     const fps = b.anims && b.anims.idle && b.anims.idle.fps;
     if (!fps || LIFE_BEAT_FPS % fps !== 0) bad('TL-SWAY', twin + ' turns off the beat (' + fps + ' fps)');
     const art = px(orig, 0), n = book.frames(twin, 'idle', 's');
+    if (n === 1) {
+      /* A STILL TWIN (its animals cut out): its pieces at frame 0 laid over it are the art exactly, and it lacks every piece pixel */
+      const pieces = (env.emitters[orig] || []).filter((e) => book.has(e.clip) && book.sprite(e.clip).class === 'stir');
+      if (!pieces.length) bad('TL-SWAY', twin + ' is still but nothing stirs over it');
+      const tw = px(twin, 0), over = new Map();
+      for (const e of pieces) {
+        const f = book.frame(e.clip, 'idle', 's', 0), fp = px(e.clip, 0);
+        for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) { const c = fp(x, y); if (c) over.set((e.at[0] + x) + ',' + (e.at[1] + y), c); }
+      }
+      let miss = 0, kept = 0;
+      for (let y = 0; y < a.frame[1]; y++) for (let x = 0; x < a.frame[0]; x++) {
+        const k = x + ',' + y, c = over.has(k) ? over.get(k) : tw(x, y);
+        if (c !== art(x, y)) miss++;
+        if (over.has(k) && tw(x, y)) kept++;
+      }
+      if (miss) bad('TL-SWAY', twin + ' with its pieces at rest is not the art of ' + orig + ' (' + miss + ' px)');
+      if (kept) bad('TL-SWAY', twin + ' keeps ' + kept + ' px of a piece that moves (it would show twice)');
+      for (const e of pieces) {
+        const m = book.frames(e.clip, 'idle', 's'), seen = new Set();
+        for (let i = 0; i < m; i++) {
+          const f = book.frame(e.clip, 'idle', 's', i), fp = px(e.clip, i);
+          let key = '', far = 0;
+          for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) { const c = fp(x, y); key += c || '.'; if (c && ![-2, -1, 0, 1, 2].some((dy) => [-2, -1, 0, 1, 2].some((dx) => art(e.at[0] + x + dx, e.at[1] + y + dy) === c))) far++; }
+          seen.add(key);
+          if (far) bad('TL-STIR', e.clip + ' frame ' + i + ' has ' + far + ' px the art has nowhere near');
+        }
+        if (seen.size < 2) bad('TL-STIR', e.clip + ' never stirs');
+      }
+      continue;
+    }
     const keys = new Set();
     for (let i = 0; i < n; i++) {
       const fr = px(twin, i);
@@ -416,6 +449,9 @@ function selftest() {
     'a banner swayed by its own art (never moves)': { sways: Object.assign({}, SWAYS, { ty_banner: 'ty_banner' }) },
     'an awning twin of another sprite': { sways: Object.assign({}, SWAYS, { square_market_stall: 'ty_banner_sway' }) },
     'a twin missing from the atlas': { manifests: sprites('townlife', (s) => { delete s.ty_banner_sway; return s; }) },
+    'a hen laid a pixel off': { emitters: Object.assign({}, EMITTERS, { havora_home_p02: EMITTERS.havora_home_p02.map((e) => (e.clip === 'p02_hen_white' ? { clip: e.clip, at: [e.at[0], e.at[1] + 1] } : e)) }) },
+    'the yard drawn whole under its hens': { sways: Object.assign({}, SWAYS, { havora_home_p02: 'havora_home_p02' }), manifests: sprites('havora', (s) => Object.assign(s, { havora_home_p02: Object.assign({}, s.havora_home_p02, { anims: { idle: Object.assign({}, s.havora_home_p02.anims.idle, { fps: 4 }) } }) })) },
+    'a hen that never stirs': { manifests: sprites('townlife', (s) => Object.assign(s, { p02_hen_white: Object.assign({}, s.p02_hen_white, { anims: { idle: Object.assign({}, s.p02_hen_white.anims.idle, { dirs: { s: s.p02_hen_white.anims.idle.dirs.s.map(() => s.p02_hen_white.anims.idle.dirs.s[0]) } }) } }) })) },
     /* TL-TURN */
     'the wheel drawn from other pixels': { manifests: sprites('townlife', (s) => Object.assign(s, { mill_wheel: Object.assign({}, s.mill_wheel, { anims: { idle: Object.assign({}, s.mill_wheel.anims.idle, { dirs: s.water_flow.anims.idle.dirs }) } }) })) },
     'the wheel laid a pixel off': { emitters: Object.assign({}, EMITTERS, { mill: EMITTERS.mill.map((e) => (e.clip === 'mill_wheel' ? { clip: e.clip, at: [e.at[0] + 1, e.at[1]] } : e)) }) },

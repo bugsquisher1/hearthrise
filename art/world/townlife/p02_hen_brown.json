@@ -1,0 +1,31 @@
+{
+  "id": "p02_hen_brown",
+  "class": "stir",
+  "style": "s1",
+  "drawn": "tools/world-art/town-life.mjs",
+  "material": "native",
+  "source": "p02_hen_brown.png",
+  "frame": [
+    30,
+    28
+  ],
+  "anchor_px": [
+    0,
+    0
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 4,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Havora's ambient life, drawn by tools/world-art/town-life.mjs: hard pixels, palette colours, no generation. Placed by src/world/core/ambient.js from src/data/world/ambient-life.js."
+}

@@ -131,6 +131,9 @@ export const CLASSES = Object.freeze({
   // A moving piece of a building, laid over it at its own pixels and drawn in the air after it (the mill's waterwheel turning): its
   // anchor the piece's corner, its frames the building's own pixels moved inside the piece's outline (town-life.mjs wheel).
   turning: row({ anchor: [0, 0], body: [16, 72], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'air' }),
+  // An animal painted into a building's art come alive (a hen pecking in a yard): its own pixels cut from a still twin of the
+  // building and drawn over it, its head moved a pixel or two (town-life.mjs stir); drawn in the air after the building.
+  stir: row({ anchor: [0, 0], body: [8, 48], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'air' }),
 });
 
 // Terrain is T×T, fully opaque. kind 'wang16': corner tiles keyed NW NE SW SE,

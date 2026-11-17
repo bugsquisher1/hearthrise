@@ -26,6 +26,7 @@
 
 export const LIFE_BEAT_FPS = 8;
 
+const piece = (clip, x, y) => Object.freeze({ clip, at: Object.freeze([x, y]) });
 const chimney = (x, y) => Object.freeze({ clip: 'chimney_smoke', at: Object.freeze([x, y]) });
 
 export const EMITTERS = Object.freeze({
@@ -33,7 +34,8 @@ export const EMITTERS = Object.freeze({
   great_hearth: Object.freeze([Object.freeze({ clip: 'hearth_smoke', at: Object.freeze([176, 3]) }), Object.freeze({ clip: 'hearth_embers', at: Object.freeze([176, 250]) })]),
   /* the shacks' stovepipes (P01, P02) and the homes' stacks */
   havora_home_p01: Object.freeze([chimney(217, 2)]),
-  havora_home_p02: Object.freeze([chimney(245, 2)]),
+  /* P02's yard: its two hens peck and its goat nods (town-life.mjs stir: cut from its still twin, SWAYS) */
+  havora_home_p02: Object.freeze([chimney(245, 2), piece('p02_hen_brown', 143, 212), piece('p02_hen_white', 225, 219), piece('p02_goat', 64, 190)]),
   havora_home_p06: Object.freeze([chimney(256, 2)]),
   havora_home_p09: Object.freeze([chimney(291, 3)]),
   havora_home_p10: Object.freeze([chimney(40, 2)]),
@@ -59,7 +61,9 @@ export const GLANCES = Object.freeze({
 });
 
 /* cloth on the breeze: a placed sprite drawn as its TWIN (the same frame, anchor and footprint, its cloth moving: town-life.mjs sway) */
-export const SWAYS = Object.freeze({ ty_banner: 'ty_banner_sway', square_market_stall: 'square_market_stall_sway' });
+export const SWAYS = Object.freeze({ ty_banner: 'ty_banner_sway', square_market_stall: 'square_market_stall_sway',
+  /* ...and a building whose animals stir is drawn with them cut out (its still twin), the pieces over it */
+  havora_home_p02: 'havora_home_p02_still' });
 
 export const SURFACES = Object.freeze({
   water: Object.freeze({ flows: Object.freeze([Object.freeze(['water_flow_2', 2]), Object.freeze(['water_flow', 1])]), clips: Object.freeze(['water_glint_a', 'water_glint_b']), every: 2, seed: 0x61f7 }),

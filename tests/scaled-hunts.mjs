@@ -188,8 +188,9 @@ function rules(S) {
       const table = S.scaledMonsters(MONSTERS, gid, L);
       for (const [id, role] of Object.entries(B.GROUND_ROSTER[gid])) {
         const m = MONSTERS[id], r = S.scaledRow(m, id, gid, L), gap = to - g.floor;
-        /* the XP fit is the TOP ground's (scaled-hunts.js topGroundOf), never the home ground's (designer 2026-11-11): one number for every scaled Level */
-        const topG = S.topGroundOf(), f = B.formulaStats({ level: m.level + gap, role, tier: m.tier, floor: to, fit: g.fit, ground: gid }, { formula: F, groundXp: { [gid]: B.GROUND_XP_FIT[topG] || 1 } });
+        /* the XP fit is the TOP ground's (scaled-hunts.js topGroundOf), never the home ground's (designer 2026-11-11): one number for every scaled Level;
+           so is the coin rise's income dial (balance-sheet.js GROUND_GP_FIT, lane/d-supply-prices 2026-11-16) */
+        const topG = S.topGroundOf(), f = B.formulaStats({ level: m.level + gap, role, tier: m.tier, floor: to, fit: g.fit, ground: gid }, { formula: F, groundXp: { [gid]: B.GROUND_XP_FIT[topG] || 1 }, groundGp: { [gid]: B.GROUND_GP_FIT[topG] || 1 } });
         if (topG !== Object.keys(G.OPEN_GROUNDS).sort((a, b) => band(b)[1] - band(a)[1] || band(b)[0] - band(a)[0])[0]) bad.push(gid + ' L' + L + ': topGroundOf says ' + topG);
         /* coin: the row's own (the formula at its own Level and floor) plus coinPm of the rise, so a scaled kill never pays less coin than unscaled */
         const o = B.formulaStats({ level: m.level, role, tier: m.tier, floor: g.floor, fit: g.fit, ground: gid }), oMean = (o.gp[0] + o.gp[1]) / 2;

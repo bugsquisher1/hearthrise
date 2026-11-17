@@ -335,14 +335,14 @@ async function arms(db, tick, setActivity, opts) {
     const none = cs(0, 0, {});
     const recap = F.benchStopRecapOf(low, () => 'Iron Bar');
     const words = [F.feeRowWords(low, w), F.feeFullWords(low, w), F.feeHeadWords(low, 'smithing'), F.feeBlock(low, w), F.feeBlock(none, w), F.feeBlock(cs(500, 0, {}), w), F.benchEndWords(low, () => 'Iron Bar')];
-    const goodWords = words[0] === 'The public bench takes about 9.8 gold a craft.'
-      && words[1] === 'The public bench takes about 9.8 gold a craft. A forge in your house takes none.'
+    const goodWords = words[0] === 'Bench fee: about 9.8 gold a craft'
+      && words[1] === 'Bench fee: about 9.8 gold a craft\nFree with a forge at home'
       /* the rate the server's carry charges (5 crafts took 12 gold under "about 3 gold a craft", Tyler's live play 2026-11-01) */
       && F.feeWords(2400) === 'about 2.4 gold a craft' && F.feeWords(2500) === 'about 2.5 gold a craft' && F.feeWords(12400) === 'about 12 gold a craft'
-      && /15% .*A forge in your house takes none\./.test(words[2])
-      && /Sell your 40 Iron Bar at the shop, or gather something\. Gathering is free\./.test(words[3]) && /wants 9 gold/.test(words[3])
-      && /Gather something and sell it\. Gathering is free\./.test(words[4]) && words[5] === ''
-      && /Iron Bar stopped after 4: out of gold for the bench fee\. 3 gold paid/.test(words[6]) && !/_|bench_tax/.test(words.join(' '))
+      && /^Bench fee: 15% [\s\S]*\nFree with a forge at home$/.test(words[2])
+      && /Sell 40 Iron Bar at the shop, or gather for free$/.test(words[3]) && /^Bench fee: 9 gold, have 3\./.test(words[3])
+      && /Gather for free, then sell$/.test(words[4]) && words[5] === ''
+      && /^Iron Bar stopped after 4, out of gold for the bench fee\nBench fee paid: 3 gold\n/.test(words[6]) && !/_|bench_tax/.test(words.join(' '))
       && F.feeWords(450) === 'about 1 gold every 2 crafts' && F.feeWords(3000) === '3 gold a craft' && F.feeWords(900) === 'about 1 gold a craft'
       && F.benchPaidWords(low, IRON.id, Date.parse('2026-11-01T00:00:00Z')) === '3 gold to the public bench'
       && !!recap && recap.kind === 'away' && recap.id.startsWith('bench-gold:') && recap.text === words[6];

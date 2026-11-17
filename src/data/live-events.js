@@ -42,36 +42,37 @@ export const LIVE_EVENT_TYPES = Object.freeze({
 
 /* THE WORDS, one set an event. `name`, `start` and `end` are the server's too (the generated catalogue); the rest only the client reads
    (src/shell/live-events-view.js): `soon` and `on` the plate's tooltip, `chip` the plate, `hunts` a Hunts line, `page` the ground's page
-   (`pageUntil`, `pageFree` its second sentence), `callLine` and `callEnding` the Call out section, `warning` and `confirm` its free call.
+   (`pageUntil`, `pageFree` its second sentence), `callLine` and `callEnding` the Call out section (the section's own labels say a fight
+   costs no gold: src/data/boss-calls.js series.costFree).
    TRUTHFUL TO THE SERVER'S RULE (2027-03-22-live-events.sql: a dial moves Level XP a kill or a fee, never coin, drops, rares or skill
-   XP): the XP event says what stays the same, and a called room still pays nothing (src/data/boss-calls.js). */
+   XP): the XP event says what stays the same. OPEN HALLS WAIVES GOLD ONLY (2027-04-24-boss-call-series.sql): a called fight still costs
+   its stamina and still drops on a win, so no client line here says "free" or "no drops". `start` and `end` are the SERVER'S announcer
+   lines (the generated catalogue) and still say "free": they move with that catalogue's next regeneration, before the switch goes on. */
 export const WORDS = Object.freeze({
   bonus_weekend: Object.freeze({
     name: 'Bonus XP weekend',
-    soon: 'A Bonus XP weekend starts {start}. Rest up so your stamina is full when it begins.',
-    on: 'You get {pct}% more Level XP from every hunt until {end}, even while you\'re away. Coin, drops and skill XP don\'t change.',
+    soon: 'Bonus XP weekend starts {start}',
+    on: '+{pct}% Level XP on every hunt until {end}',
     chip: '+{pct}% Level XP',
-    start: 'The Bonus XP weekend has started. Every hunt earns {pct}% more Level XP until {end}.',
-    end: 'The Bonus XP weekend is over. The next one starts {next}.',
+    start: 'Bonus XP weekend: +{pct}% Level XP until {end}',
+    end: 'Bonus XP weekend over. Next: {next}',
     hunts: '+{pct}% Level XP this weekend',
-    page: 'You get {pct}% more Level XP this weekend.',
+    page: '+{pct}% Level XP this weekend',
     analyzer: 'Weekend bonus',
   }),
   open_halls: Object.freeze({
     name: 'Open Halls',
-    soon: 'Open Halls starts {start}. You\'ll be able to call out the Rat King or Chief Coppercap for free.',
-    on: 'You can call out the Rat King or Chief Coppercap for free until {end}. You still get no XP, coin or drops for the fight.',
+    soon: 'Open Halls starts {start}. Calling out the Rat King or Chief Coppercap will cost no gold, only stamina.',
+    on: 'Until {end}, calling out the Rat King or Chief Coppercap costs no gold, only stamina. He still drops only when you win.',
     chip: 'Open Halls',
     start: 'The halls are open. Until {end}, calling out the Rat King or Chief Coppercap is free. Bring a friend or a second hero.',
     end: 'The halls are closed again. Calling out costs its usual fee.',
-    hunts: 'Call out {boss} for free',
+    hunts: 'Call out {boss} for no gold',
     page: 'Open Halls is on.',
-    pageUntil: 'You can call out {boss} for free until {end}.',
-    pageFree: 'You can call out {boss} for free.',
+    pageUntil: 'You can call out {boss} for no gold until {end}.',
+    pageFree: 'You can call out {boss} for no gold.',
     callLine: 'Open Halls is on until {end}.',
     callEnding: 'Open Halls ends in {mins} min.',
-    warning: 'Open Halls is on, so it\'s free. You still get no XP, coin or drops in his room. The fight ends after {minutes} minutes.',
-    confirm: 'Call him out for free',
   }),
 });
 

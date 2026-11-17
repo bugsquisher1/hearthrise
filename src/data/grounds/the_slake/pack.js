@@ -32,14 +32,19 @@
 // smith and a fletcher make them (style-gear.js). MEASURED (tests/hunt-core/drop-tables.mjs, a lone tank at the floor in the
 // full set, one played hour): each Scarce piece every 0.91-1.08 h, each Rare every 13.8-16.2 h, coin 8,679 g, commons 943 g, gear
 // 2,539 g (29% of the coin, the cap is 50%) at the tier-4 sale rate of 0.075.
+// THE WEAPON GROUND, THE FORD THE ARMOR GROUND (designer 2026-11-16, lane/d-andy-march-feedback; the Ford's header says why). The
+// weapons stay as they are; the armor rows go x0.75 (boots 0.0057 -> 0.0043, legs 0.0475 -> 0.0356, helmets 0.021 -> 0.0158, bodies
+// 0.05 -> 0.0375) and the gloves and belts x0.85 (0.0014 -> 0.0012, 0.0032 -> 0.0027). Re-measured the same way: each armor piece
+// every 1.21-1.44 h, the weapons every 0.91-1.08 h, each Rare every 13.8-18.9 h, gear 2,033 g (23% of the coin), total 11,717 g
+// (-4% on the pin). The Slake keeps its other two reasons: about a tenth more XP than the Ford at the same Level, and the weapons.
 // Commons feed the Hearth (Grave Dust at 46, Bone Chips at 40, Big Bones) and the forge (Coal, Copper Ore). Each body drops its own
 // imbuement item, a Material that only sells until linings are built (the board, "2026-11-10 Resistance and imbuements"). The
 // Color Cord is the fire lining's piece for the Pyre Field.
 //
 // THE BARGEMAN'S SPELL: Cold Bilge (whole group, frost; the area spells board's seed row) is this pack's own `spells` row
 // (lane/b-pack-fields, engine piece 10), cast now that the area spells are live.
-import { definePack, box, gather } from '../shape.js?v=0.2.133';
-import map from './map.js?v=0.2.133';
+import { definePack, box, gather } from '../shape.js?v=0.2.135';
+import map from './map.js?v=0.2.135';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
 
@@ -50,6 +55,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Bargemen, 4 Mudlarks and the
      2 Sergeants who hold the barge. */
   hunt: {
+    region: 'barrow_march',
     name: 'The Slake', theme: 'The river slows down here and drops its copper in the mud, along with the dead soldiers it carried down from Hask\'s Ford.',
     band: [50, 65],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: BG, w: 6, rarity: 'uncommon' },
@@ -102,9 +108,9 @@ export default definePack({
          weapon: weak to the sword, where every Ford body breaks to a hammer). Its boots and its sidearm. */
       weaponWeak: 'sword', weaponResist: ['hammer'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'copper_ore', ch: 0.4, band: 'common' }, { id: 'green_rivet', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_boots', ch: 0.0057, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0057, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0057, band: 'scarce' },
+        { id: 'mithril_boots', ch: 0.0043, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0043, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0043, band: 'scarce' },
         { id: 'mithril_sword', ch: 0.0057, band: 'scarce' }],
-      hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 514, gp: [14, 43], formula: true },
+      hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 514, gp: [10, 30], formula: true },
     bargeman: {
       name: 'Bargeman', icon: '🧟', tier: 4, level: 54, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the flat: the barge's crew. Where the Fordsunk's bloat swallows arrows, the crew's cracked
@@ -112,10 +118,10 @@ export default definePack({
          about 21 an hour, so its Scarce rows sit near the 5% ceiling. */
       weaponWeak: 'ranged', weaponResist: [], spells: ['cold_bilge'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.4, band: 'common' }, { id: 'barge_nail', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platelegs', ch: 0.0475, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0475, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0475, band: 'scarce' },
+        { id: 'mithril_platelegs', ch: 0.0356, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0356, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0356, band: 'scarce' },
         { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
-        { id: 'mithril_belt', ch: 0.0032, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0032, band: 'rare' }, { id: 'warlock_belt', ch: 0.0032, band: 'rare' }],
-      hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 935, gp: [23, 69], formula: true },
+        { id: 'mithril_belt', ch: 0.0027, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0027, band: 'rare' }, { id: 'warlock_belt', ch: 0.0027, band: 'rare' }],
+      hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 935, gp: [16, 48], formula: true },
     mudlark: {
       name: 'Mudlark', icon: '🪝', tier: 4, level: 52, cls: 'undead', family: 'Undead', speed: 4400,
       /* the skirmisher: the river scavengers who picked the dead and drowned among them. Small, crouched and quick enough to catch
@@ -123,19 +129,19 @@ export default definePack({
          dead, and a bow, and the Grave Dust goes in the sack with them. */
       weaponWeak: 'magic', weaponResist: ['ranged'],
       drops: [{ id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'mudlark_hook', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_helm', ch: 0.021, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.021, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.021, band: 'scarce' },
+        { id: 'mithril_helm', ch: 0.0158, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0158, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0158, band: 'scarce' },
         { id: 'maple_bow', ch: 0.021, band: 'scarce' },
-        { id: 'mithril_gauntlets', ch: 0.0014, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0014, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0014, band: 'rare' }],
-      hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 608, gp: [14, 41], formula: true },
+        { id: 'mithril_gauntlets', ch: 0.0012, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0012, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0012, band: 'rare' }],
+      hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 608, gp: [10, 29], formula: true },
     color_sergeant: {
       name: 'Color Sergeant', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier, who holds the grounded barge with the company's colors. No override: the one body on the
          flat a hammer breaks. The bodies, the staff, and the caster's prizes. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'color_cord', ch: 0.1, band: 'uncommon' },
-        { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' },
+        { id: 'mithril_platebody', ch: 0.0375, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.0375, band: 'scarce' }, { id: 'warlock_body', ch: 0.0375, band: 'scarce' },
         { id: 'maple_staff', ch: 0.05, band: 'scarce' },
         { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1439, gp: [33, 98], formula: true },
+      hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1439, gp: [23, 69], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (58) for 0.90-1.10 of the
      pace contract (288,135 an hour at 58). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.05 the middle
@@ -151,6 +157,7 @@ export default definePack({
      Slake gives a little back: 0.97 -> 0.93 (the full grade's median lone way at 58 read 0.98 of the contract, so about 0.94; a lone tank at 50 still
      levels about 7% faster here than on the Ford). */
   xpFit: { k: 0.93, why: 'Monsters here give a little less XP than the base formula, so the Muster Barrows above pay a party more' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   /* DANGEROUS BRINGS SIX, one more than the table's five, for every group (TIER_PULL_OVERRIDES' shape: one number). On five a Melee
      and Healer pair two or three Levels under the floor made 2.3k to 5.5k gold an hour a head on Dangerous, and 1.2k five under,
      where the weight-class ruling (11-06) asks them to lose gold. On six they lose 2.2k, 3.1k and 5.7k (as opened, 2 seeds x 1 h).

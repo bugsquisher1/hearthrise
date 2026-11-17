@@ -18,8 +18,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES, suggestedTrigger } from './abilities.js?v=0.2.133';
-import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.133';
+import { ABILITIES, suggestedTrigger } from './abilities.js?v=0.2.135';
+import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.135';
 
 /* WHICH FOE A HERO TAKES FIRST (spec §3.2 #11; src/core/hunt/targeting.js
    ORDER implements each). `follow` takes the leader's target; in a party of
@@ -27,7 +27,7 @@ import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.133';
 export const TARGET_MODES = Object.freeze({
   nearest: Object.freeze({ label: 'Nearest' }),
   weakest: Object.freeze({ label: 'Lowest HP' }),
-  highest_pct: Object.freeze({ label: 'Highest % life' }),
+  highest_pct: Object.freeze({ label: 'Highest HP %' }),
   strongest: Object.freeze({ label: 'Strongest' }),
   follow: Object.freeze({ label: 'Follow the leader' }),
 });
@@ -98,7 +98,7 @@ const UNDERTOW_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 
 /* THE AREA MOVES (playtest v0.2.127, P1: a Level 14 sword, a Level 24 mage and a Level 36 party never saw one): each style's
    area move stands LAST on its default set, so a bar the player never edited holds it. Each waits for its skill level
    (abilities.js `unlock`: the engine skips it and the bar strikes it until then) and fires on its own trigger; the server keeps
-   only the slots of the hero's discipline (Turning Cut is a sword alone's). Hoarfrost waits on Fireball's mana like Frost Lance. */
+   only the slots of the hero's discipline (Turning Cut is every melee weapon's but the tank's). Hoarfrost waits on Fireball's mana like Frost Lance. */
 /* Raking Shot spends two shots, so a default bar looses it only at 3+ in its line (designer 2026-11-13, measured: at 2+ the
    crossbow + shield Ranger at the Sewer floor read +18.2% over its bill, under drop-tables' +25%, and a Thicket full mix
    32% over alone against the Party window's 45%; at 3+ +27.5% and both green). */
@@ -107,7 +107,8 @@ const HOARFROST_WHEN = Object.freeze([{ metric: 'enemies_in_aoe', op: 'gte', val
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('power_strike')]),
   /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a
-     sword alone casts Power Strike, two axes and a club or bare hands Power Strike and Cleave (roadmap p15). */
+     sword alone casts Power Strike and Turning Cut, two axes and a club or bare hands Power Strike, Cleave and Turning Cut
+     (roadmap p15; Turning Cut on every melee weapon without a shield, Tyler 2026-11-16). */
   melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),
   ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier'), slot('hoarfrost', HOARFROST_WHEN)]),

@@ -61,13 +61,16 @@
 
 /* ── Tamsin's tally (widgets/tally-hud.js): each held kill task's server count on a notched stick ── */
 .hs-tally { display: flex; flex-direction: column; gap: 4px; max-height: var(--hs-room, none); padding: 4px 6px; background: var(--hud-fill);
-  border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated; }
+  border: var(--art-3) solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated; }
 .hs-widget.is-tally.is-quiet { display: none; }
 .hs-widget.is-boss-bar.is-quiet { display: none; }
 .hs-boss { display: flex; flex-direction: column; gap: 4px; width: min(420px, 100%); padding: 4px 8px; background: var(--hud-fill); color: var(--ink); font-size: 13px; }
 .hs-boss-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .hs-boss-name { color: var(--gold-2); }
 .hs-boss-state { color: var(--ink-2); }
+/* a Call out series: "Fight 2 of 5" beside his name (boss-bar.js), the state kept at the right */
+.hs-boss-series { margin-right: auto; font-size: var(--t-micro); color: var(--ink-2); }
+.hs-boss-series:empty { display: none; }
 .hs-boss.is-raging .hs-boss-state, .hs-boss.is-wave .hs-boss-state { color: var(--gold-2); font-weight: 700; }
 .hs-boss-track { position: relative; height: 12px; background: var(--world-shadow); }
 .hs-boss-fill { position: absolute; inset: 0 auto 0 0; background: var(--gold); }
@@ -113,12 +116,21 @@
 /* A Forged Steel popup (the thin steel frame, solid), the gold bar at its left: the game is speaking to you. */
 .hs-pointer {
   position: absolute; top: calc(100% + 12px); left: 10px; z-index: 5; width: 260px; margin: 0; padding: 4px 8px 6px 14px;
-  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  background: var(--bg-2); border: var(--art-3) solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated;
   box-shadow: inset 4px 0 0 var(--gold), 0 6px 16px color-mix(in srgb, var(--world-shadow) 50%, transparent);
   font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); pointer-events: none;
 }
 /* In a hunt the card hangs under the hunt top bar (hunt-topbar.js), inside that widget's own box. */
 .hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }
+/* IN TOWN IT HANGS TO THE ROW'S LEFT (the bar's groups, 2026-11-16: an 8-icon row put a card hung at its left edge over Town and Home
+   at the World's top right): its right end under the first icon, its tip at that icon's middle. */
+.hs-launchers > .hs-pointer { left: auto; right: calc(100% - 46px); }
+.hs-launchers > .hs-pointer::before { left: auto; right: 10px; }
+/* A GROUP'S MENU OPEN: the card docks to its left, its right end 8 px short of the menu (launcher-menu.js dockClear measures
+   --hs-menu-left), so the menu never lies over Got it or the card's other presses; its tip would point at nothing, so it goes. :where keeps
+   the weight of the rule above, so a phone's own card rules (below) still win. */
+.hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer { right: max(calc(100% - 46px), calc(100% - var(--hs-menu-left, 100%) + 8px)); }
+.hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer::before { display: none; }
 /* A town card's body never ends on one lone word ("…she pays you gold and a" / "helmet.", the v0.2.130 gate, both sizes): the words wrap
    pretty. Only the town's cards: a card inside a window is sized with the window (window-fit.js), so it keeps its lines. */
 :is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }
@@ -194,8 +206,8 @@
   position: absolute; top: calc(100% + 6px); right: 0;
   padding: 3px 8px; white-space: pre;
   font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 700; color: var(--ink);
-  background: var(--bg-2); border: 6px solid transparent; border-radius: 0;
-  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  background: var(--bg-2); border: var(--art-3) solid transparent; border-radius: 0;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated;
   opacity: 0; pointer-events: none; transition: opacity 120ms ease-out;
 }
 .hs-launch:hover::before, .hs-launch:focus-visible::before { opacity: 1; }
@@ -205,10 +217,35 @@
 /* Every key on the Controls page is one a touch screen does not have. */
 :root.is-touch .st .st-tab[data-cat="controls"] { display: none; }
 .hs-launch-name, .hs-off-why { position: fixed; z-index: 80; box-sizing: border-box; width: max-content; max-width: min(320px, calc(100vw - 8px)); margin: 0; padding: 2px 8px; pointer-events: none;
-  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  background: var(--bg-2); border: var(--art-3) solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated;
   font-family: var(--f-ui); font-size: var(--t-micro); line-height: 1.35; color: var(--ink); }
 .hs-launch-name { font-weight: 700; }
 .hs-launch { -webkit-touch-callout: none; }
+/* ── A GROUP'S MENU (launcher.js barPlan; Tyler 2026-11-16, the row had grown to 19 icons): the group's icon is a launcher like any
+   other, lit while one of its windows is open; its menu hangs under it, right-aligned to it, a Forged Steel popup (the thin frame,
+   solid). One line a window: its glyph, its name, its key. The open window's line carries the picked row's gold bar. */
+.hs-launch-group { position: relative; display: flex; }
+.hs-launch.is-group[aria-expanded="true"] { color: var(--gold-2); background: var(--bg-2); }
+.hs-launch.is-group[aria-expanded="true"]::before { opacity: 0; }
+.hs-launch-menu {
+  position: absolute; top: calc(100% + 4px); right: -8px; z-index: 12; display: flex; flex-direction: column; min-width: 232px; padding: 2px 2px 4px;
+  background: var(--bg-2); border: 6px solid transparent; border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+.hs-launch-menu-h { margin: 0; padding: 2px 10px 6px; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .12em; color: var(--gold-2);
+  border-bottom: 1px solid var(--line-soft); margin-bottom: 2px; }
+.hs-launch-item { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px 0 10px;
+  border: 0; border-radius: 0; background: none; text-align: left; cursor: pointer; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); }
+.hs-launch-item .hs-glyph { width: 20px; height: 20px; fill: currentColor; color: var(--ink-3); }
+.hs-launch-item:hover, .hs-launch-item:focus-visible { background: var(--surf-panel); }
+.hs-launch-item:hover .hs-glyph, .hs-launch-item:focus-visible .hs-glyph { color: var(--ink); }
+.hs-launch-item:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hs-launch-item.is-open { box-shadow: inset 4px 0 0 var(--gold); color: var(--gold-2); }
+.hs-launch-item.is-open .hs-glyph { color: var(--gold-2); }
+.hs-launch-label { min-width: 0; }
+.hs-launch-key { min-width: 24px; padding: 1px 5px; text-align: center; border: 1px solid var(--steel-btn); background: var(--fill-1);
+  font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); }
+:root.is-touch .hs-launch-key { display: none; }
 
 /* ══ FORGED STEEL: the one chrome (Tyler approved the skin on 2026-10-24; ART_DIRECTION §9, §10) ══
    Every window wears one thin steel frame with a square stud in each corner (assets/ui/steel-frame.png, 6 art
@@ -227,8 +264,8 @@
   pointer-events: auto;
   isolation: isolate;
   background: none;
-  border: 12px solid transparent;
-  border-image: url('../../assets/ui/steel-frame.png') 6 / 12px stretch;
+  border: var(--art-6) solid transparent;
+  border-image: url('../../assets/ui/steel-frame.png') 6 / var(--art-6) stretch;
   border-radius: 0;
   image-rendering: pixelated;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
@@ -236,7 +273,7 @@
 /* The floor and its grain: one layer under everything in the window, faded by the opacity setting alone. */
 .hs-win::before {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: url('../../assets/ui/steel-grain.png') 0 0 / 64px 64px repeat, var(--bg-1);
+  background: url('../../assets/ui/steel-grain.png') 0 0 / calc(32 * var(--art-px)) calc(32 * var(--art-px)) repeat, var(--bg-1);
   image-rendering: pixelated; opacity: var(--panel-alpha);
 }
 .hs-win.is-floating { box-shadow: 0 14px 36px color-mix(in srgb, var(--world-shadow) 65%, transparent); }
@@ -251,7 +288,7 @@
 .hs-win.is-entering { animation: hs-in 120ms ease-out both; }
 .hs-win.is-leaving { animation: hs-out 120ms ease-in both; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
-  .hs-win.is-entering, .hs-win.is-leaving, .hs-widget, .hs-launch::before { animation: none; transition: none; }
+  .hs-win.is-entering, .hs-win.is-leaving, .hs-widget, .hs-launch::before, .hs-launch-menu { animation: none; transition: none; }
 }
 /* The title band: darker than the floor, ruled off in dim gold; the window's glyph and name in gold. */
 .hs-win-head {
@@ -329,8 +366,8 @@
 /* THE ONE PRIMARY: a raised gold plate (pixel art, a lip along its foot), pressed when pressed; its word in Cinzel. */
 .hw-primary, .hh-tool.is-primary {
   min-height: 40px; padding: 0 14px;
-  border: solid transparent; border-width: 6px 6px 10px; border-radius: 0;
-  border-image: url('../../assets/ui/gold-plate.png') 3 3 5 3 fill / 6px 6px 10px stretch; image-rendering: pixelated;
+  border: solid transparent; border-width: var(--art-3) var(--art-3) var(--art-5); border-radius: 0;
+  border-image: url('../../assets/ui/gold-plate.png') 3 3 5 3 fill / var(--art-3) var(--art-3) var(--art-5) stretch; image-rendering: pixelated;
   background: none; color: var(--bg-0);
   font-family: var(--f-display); font-weight: 700; font-size: var(--t-small); letter-spacing: .06em;
 }
@@ -339,8 +376,8 @@
 .hw-primary:disabled, .hh-tool.is-primary:disabled { opacity: .5; cursor: default; filter: none; }
 /* A POPUP (an item's tooltip, a right-click menu): solid, in the thin steel frame (3 art px = 6 px). */
 .hw-tip, .hw-menu {
-  background: var(--bg-2); border: 6px solid transparent; border-radius: 0;
-  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch; image-rendering: pixelated;
+  background: var(--bg-2); border: var(--art-3) solid transparent; border-radius: 0;
+  border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch; image-rendering: pixelated;
 }
 /* A SLIDER (the window opacity, the HUD layout's fades): a sunk track and a small gold plate to drag, its value
    written beside it; never the browser's own control. */
@@ -396,6 +433,16 @@
   .hs-launch { flex: 0 1 auto; width: 44px; min-width: 0; }
   .hs-launchers { padding-left: 4px; max-width: calc(100vw - 60px); }
   .hs-win-head .hs-key, .hs-launch::before { display: none; }
+  /* A GROUP'S MENU IS A SHEET (CLAUDE.md §7: never a bottom nav): it slides out at the right under the icon row, where a window's sheet
+     stands, with the sheet's steel spine; its windows two to a line at a thumb's height, so eight fit the shortest phone unscrolled. */
+  .hs-launch-menu {
+    position: fixed; top: 40px; right: 0; bottom: 0; width: min(400px, 48vw); min-width: 0; box-sizing: border-box;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 2px 6px; padding: 6px 8px 8px; overflow-y: auto;
+    border-width: 0 0 0 12px; border-image: url('../../assets/ui/steel-frame.png') 6 / 0 0 0 12px stretch;
+    animation: hs-in 120ms ease-out both;
+  }
+  .hs-launch-menu-h { grid-column: 1 / -1; padding: 6px 4px 8px; font-size: var(--t-small); }
+  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: var(--tap); padding: 0 6px; }
   /* IN TOWN THE CARD STANDS AT THE LEFT (phone playtest 2026-10-31: under the first icon it lay on the hero's name): below
      the place's name, clear of the hero at the centre and of the alerts at the right; the gold ring shows the icon, so
      no tip. A card about the bar keeps its own foot (below). */
@@ -506,8 +553,8 @@
     top: 0; bottom: 0; right: 0; left: auto;
     width: min(400px, 48vw);
     max-height: none;
-    border-width: 0 0 0 12px;
-    border-image: url('../../assets/ui/steel-frame.png') 6 / 0 0 0 12px stretch;
+    border-width: 0 0 0 var(--art-6);
+    border-image: url('../../assets/ui/steel-frame.png') 6 / 0 0 0 var(--art-6) stretch;
   }
   /* A SHEET IS FULL HEIGHT IN TOWN TOO: up over the place's row (the 44 px Town and Home, the panel's 2 px, its 4 px gap) to the
      icon row, as it stands in a hunt, where that row is gone. It cost every sheet 50 px of a 340 px screen. The stage's clip lets
@@ -517,8 +564,8 @@
   .hs-win.is-modal {
     top: 50%; bottom: auto; left: 50%; right: auto;
     max-width: calc(100vw - 16px); max-height: calc(100% - 8px);
-    border-width: 6px;
-    border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 6px stretch;
+    border-width: var(--art-3);
+    border-image: url('../../assets/ui/steel-frame-thin.png') 3 / var(--art-3) stretch;
   }
   .hs-win-head { min-height: 40px; cursor: default; }
   .hs-win-crumb { display: none; }   /* a phone's band says Back and the page's name */

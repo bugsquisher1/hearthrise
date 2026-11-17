@@ -288,7 +288,7 @@ async function run(mutant) {
       ok(TW.workBlock(cs, W, false) === '', 'SS-4 the Work window blocks a bench Storage covers: ' + JSON.stringify(TW.workBlock(cs, W, false)));
       await put(A, 0, IN, 0, 0);
       const none = TW.workBlock(csOf(await envOf(A, 0)), W, false);
-      ok(/in your bag or Storage\.( |$)/.test(none), 'SS-4 with neither, the line reads ' + JSON.stringify(none) + ' (want it to say it looked in the bag and Storage)');
+      ok(/in bag or Storage\.( |$)/.test(none), 'SS-4 with neither, the line reads ' + JSON.stringify(none) + ' (want it to say it looked in the bag and Storage)');
       const br = BU.buryRecipeOf('bones');
       if (br) {
         await put(A, 0, 'bones', 1, 5);
@@ -334,7 +334,7 @@ async function run(mutant) {
       await q('update public.player_state set bank_cap = $2 where user_id = $1 and slot = 0', [A, Math.max(1, stacks)]);
       if (stacks < 1) problems.push('SS-6 HARNESS: the hero holds no stack to fill the bag with');
       const why = TW.workBlock(csOf(await envOf(A, 0)), W, false);
-      ok(why === 'Your bag is full. Make room for ' + (await import(pathToFileURL(join(base, 'src/shell/widgets/bits.js')).href)).itemName(OUT) + ' first.',
+      ok(why === 'Bag full, no room for ' + (await import(pathToFileURL(join(base, 'src/shell/widgets/bits.js')).href)).itemName(OUT),
         'SS-6 the Work window says ' + JSON.stringify(why) + ' for a product with no room');
       const r = await make(3, 'SS-6');
       if (r) {

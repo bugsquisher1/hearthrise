@@ -32,38 +32,47 @@
 //   partywarn  a warning first: the leader is about to take the party above this
 //           hero's level (a `party_notices` ground_warn, id = the notice's), or a
 //           friend's stamina is low (`stamina_low_ms`, id = session + seat)
+//   spell   a level-up in the record unlocked moves for the weapon worn (spell-news.js:
+//           the projection's own diff, never on a load), one line for all of them,
+//           id = each move's (`also` records the rest); it goes once they are on the bar
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
 // in memory for the page and in the character's residue (`alerts.seen`,
 // display state, bounded) for the next visit, so a reload or a re-sent
 // envelope never repeats one. Which kinds show is the residue's `alerts.off`.
+// A LIVE line (LIVE below: a supply at zero, a friend's low stamina) says what the
+// record says now, so it is the envelope's: it stands only while the server says
+// it of the open hunt, in that read's words, and is news again if said again.
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.133';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.133';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.133';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.133';
-import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.133';
-import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.133';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.133';
-import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.133';
-import { itemName } from './widgets/bits.js?v=0.2.133';
-import { noShotWords } from './hunt-go.js?v=0.2.133';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.133';
-import { deathSeen } from './death-popup.js?v=0.2.133';
-import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.133';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.133';
-import { benchStopRecapOf } from './bench-fee.js?v=0.2.133';
-import { workRow } from './town-work.js?v=0.2.133';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.133';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.133';
-import { gold } from '../render/format.js?v=0.2.133';
-import { levelOf } from '../session/character-sections.js?v=0.2.133';
-import { ITEMS } from '../data/items.js?v=0.2.133';
-import { trackOnce } from '../net/observability.js?v=0.2.133';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.135';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.135';
+import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.135';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.135';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.135';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
+import { noShotWords } from './hunt-go.js?v=0.2.135';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.135';
+import { deathSeen } from './death-popup.js?v=0.2.135';
+import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.135';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.135';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.135';
+import { workRow } from './town-work.js?v=0.2.135';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.135';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.135';
+import { gold } from '../render/format.js?v=0.2.135';
+import { levelOf } from '../session/character-sections.js?v=0.2.135';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { trackOnce } from '../net/observability.js?v=0.2.135';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.135';
+import { endedWords as trainingEndWords } from './training-words.js?v=0.2.135';
+import { spellWatch, movesOnBar } from './spell-news.js?v=0.2.135';
 
-const tallyLabel = (task) => { const t = tallyTask(task); return t ? t.label : 'a tally'; };
+const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -71,7 +80,13 @@ const residueOf = (cs) => {
 };
 const who = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 /* The lines a new hunt retires once its session is open (the last hunt's end, death and low supply). */
-const RETIRE = new Set(['ended', 'death', 'low']);
+const RETIRE = new Set(['ended', 'trained', 'death', 'low']);
+/* THE LIVE LINES say what the record says NOW of the open hunt (a bar supply at zero, a friend's low stamina), not something that
+   happened: ids `low:<session>:…` and `lowstam:<session>:…`. Each is the envelope's (CLAUDE.md §6): its words are this read's, it
+   goes when the server stops saying it, and its id is forgotten then, so the server saying it again is news again (a friend refills,
+   then runs low once more). The full-game audit's F7, 2026-11-15: "Corwen has 1 min of stamina left. Their hunt ends then, and Ilsa
+   comes home too." stood on screen after the server had stopped saying it, for a hero it held eleven hours for. */
+const LIVE = /^(?:low|lowstam):/;
 /* How long the away card must have been up to count as read when the page is left. */
 const AWAY_READ_MS = 8000;
 /* THE HOOK, COUNTED (designer 2026-11-10: "Your hero keeps hunting after you close the game"). Three funnel steps this centre is the one to see,
@@ -128,9 +143,11 @@ const supplyWords = (id) => itemName(id);
 
 /**
  * What this character's record says happened, as candidate alerts (pure).
- * @returns {{id: string, kind: string, text: string, session: string|null, item?: string}[]}
+ * @returns {Candidate[]}
  */
 function candidatesOf(cs, viewed) {
+  /** @typedef {{id: string, kind: string, text: string, session: string|null, invite?: string, item?: string, quiet?: boolean}} Candidate */
+  /** @type {Candidate[]} */
   const out = (invitesOf(cs) || []).map((i) => ({ id: 'invite:' + i.id, kind: 'invite', session: null, invite: i.id,
     text: i.from + ' invites ' + who(cs) + ' to their party.' }));
   /* What another player's move did to this hero, once per notice the server wrote. */
@@ -145,6 +162,13 @@ function candidatesOf(cs, viewed) {
   }
   const h = huntOf(cs);
   if (!h) return out;
+  /* A TRAINING SESSION is no hunt (Tyler 2026-11-16): its end is a label and its button opens Training (its own Start, never the
+     hunt's restart); while it runs it spends no supply and needs no ammo, so it raises no supply line. */
+  if (trainedBy(h.huntId)) {
+    if (h.ended) out.push({ id: 'trained:' + h.sessionId, kind: 'trained', session: h.sessionId, quiet: viewed,
+      text: t('training.alert_ended', { name: who(cs), why: trainingEndWords({ reason: h.endReason }) }) });
+    return out;
+  }
   const where = huntName(h.huntId);
   /* A boss room has no "Start again": its one door is the press on the ground's page (a call's fee or a hall's key: src/data/boss-halls.js). */
   const endedKind = roomOfHunt(h.huntId) ? 'party' : 'ended', endedSession = endedKind === 'ended' ? h.sessionId : null;
@@ -153,7 +177,7 @@ function candidatesOf(cs, viewed) {
      already dismissed never comes back as a side line. */
   if (h.ended && h.endReason === 'died') {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
-      text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
+      text: t('summary.died_in', { name: who(cs), ground: where }) });
   }
   /* LEAVE TOGETHER (Tyler 2026-10-22): "<Name> left the hunt, so <hero> came home too." / "<Name> died, so ..." */
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
@@ -255,12 +279,17 @@ export function createAlertCenter(account, opts) {
   /* No stamp over a card still being read, on screen or on the way out (a page only hidden may flicker back, so it stamps as ever); every other stamp is away-recap.js's own. */
   const stampAway = (cs, leaving) => ((leaving ? cardUnread(cs) : cardYoung(cs)) ? false : stampNow(cs, leaving));
   const seenOf = (slot) => { let s = seen.get(slot); if (!s) { s = new Set(); seen.set(slot, s); } return s; };
+  /* Has this character been shown id `id`, on this page or (the residue) before it. */
+  const wasSeen = (cs, id) => { const stored = residueOf(cs).seen; return seenOf(cs.slot).has(id) || (Array.isArray(stored) && stored.includes(id)); };
+  const spells = spellWatch();
 
+  /* `c.also`: more ids the one line stands for (a prompt for several spells), recorded as seen with its own. */
   function fire(cs, c) {
     const mine = seenOf(cs.slot);
     const stored = residueOf(cs).seen;
-    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;
-    mine.add(c.id);
+    if (wasSeen(cs, c.id)) return false;
+    const ids = [c.id].concat(Array.isArray(c.also) ? c.also : []);
+    for (const id of ids) mine.add(id);
     if (c.quiet) return false;
     if (!alertShown(cs, c.kind)) return false;
     const kind = ALERT_INDEX[c.kind];
@@ -272,9 +301,16 @@ export function createAlertCenter(account, opts) {
     /* `transient`: live news a reload never raises again, so it takes no place in the saved list */
     if (!c.transient) {
       const r = residueOf(cs);
-      cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });
+      cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(ids).slice(-ALERTS_SEEN_MAX) });
     }
     return true;
+  }
+
+  /* A live line the server stopped saying is forgotten, on this page and in the saved list: said again, it fires again. */
+  function forget(cs, unsaid) {
+    const mine = seenOf(cs.slot), r = residueOf(cs);
+    for (const id of Array.from(mine)) if (unsaid(id)) mine.delete(id);
+    if (Array.isArray(r.seen) && r.seen.some(unsaid)) cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: r.seen.filter((id) => !unsaid(id)) });
   }
 
   /* first_gear_found: the first read of a hunt is the baseline (what dropped unseen is the return's news, not a find); a gear id new since then is the find. */
@@ -315,6 +351,9 @@ export function createAlertCenter(account, opts) {
     /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);
+    /* A level-up in this record that unlocked moves (spell-news.js): one line for all of them, never on a load. */
+    const spell = spells.news(cs, (id) => wasSeen(cs, id), who(cs));
+    if (spell) now.push(spell);
     /* Before it fires: firing writes the residue, and the listeners' scan runs inside that write. */
     if (away && !seenOf(cs.slot).has(away.id)) youngAway.set(cs.slot, { at: Date.now(), seen: residueOf(cs).seen, off: residueOf(cs).off });
     for (const c of now) any = fire(cs, c) || any;
@@ -327,14 +366,23 @@ export function createAlertCenter(account, opts) {
        hunt): once the server says another session is open, an ended, death or low line of an older one goes. */
     const h = huntOf(cs);
     const open = h && !h.ended ? h.sessionId : null;
+    /* The live lines this read says of the open hunt, by id, and the ones it no longer says (LIVE, above). */
+    const said = new Map(now.filter((c) => LIVE.test(c.id)).map((c) => [c.id, c.text]));
+    const unsaid = (id) => !!open && LIVE.test(id) && id.split(':')[1] === open && !said.has(id);
+    forget(cs, unsaid);
     for (let i = alerts.length - 1; i >= 0; i--) {
       const a = alerts[i];
       if (a.slot !== cs.slot) continue;
       /* A warning is about what comes next: a friend's low stamina goes with the hunt it was raised in, a warned ground once a hunt is open. */
       const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
       /* AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary): the player closed the summary, or dismissed the death. */
-      const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
-      if (stale || seenEnd || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
+      const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'trained' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
+      /* A new spell prompt is answered once the server's bar holds every move it named (added here, or by hand). */
+      const added = a.kind === 'spell' && Array.isArray(a.spells) && a.spells.every((id) => movesOnBar(settingsOf(cs)).has(id));
+      /* A live line goes when the server stops saying it, and its words are this read's (LIVE, above). */
+      if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }
+      if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }
+      if (stale || seenEnd || added || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
       /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
       const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;
       if (line === null) { alerts.splice(i, 1); any = true; } else if (line !== a.text) { a.text = line; any = true; }
@@ -359,6 +407,7 @@ export function createAlertCenter(account, opts) {
     returning.delete(slot);
     gearSeen.delete(slot);
     heroUnit.delete(slot);
+    spells.forget(slot);
     seen.delete(slot);
     for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].slot === slot) alerts.splice(i, 1);
     changed();

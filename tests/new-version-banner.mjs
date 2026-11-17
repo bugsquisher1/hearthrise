@@ -103,7 +103,7 @@ async function rules(m) {
     if (!r1 || !r2 || !b || p.body.children.filter((c) => c.className === 'new-version').length !== 1) return 'the banner did not show once: ' + JSON.stringify([r1, r2, !!b]);
     if (p.body.children[0] !== b || !p.classes.has('has-new-version')) return 'the banner is not above the app';
     const text = b.children.map((c) => c.textContent);
-    if (text[0] !== N.NEW_VERSION_COPY.line || text[0] !== 'A new version of Hearthrise is out. Reload to get it.' || text[1] !== 'Reload') return 'the banner says ' + JSON.stringify(text);
+    if (text[0] !== N.NEW_VERSION_COPY.line || text[0] !== 'New version available, reload to update' || text[1] !== 'Reload') return 'the banner says ' + JSON.stringify(text);
     const [url, init] = p.calls[0];
     if (url !== 'https://x/src/build-info.js?n=1000' || !init || init.cache !== 'no-store') return 'the ask was ' + JSON.stringify(p.calls[0]);
     return true;

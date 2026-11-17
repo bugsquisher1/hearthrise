@@ -6,7 +6,7 @@
 //   node tests/combat-training-db.mjs            the guard
 //   node tests/combat-training-db.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: supabase/migrations/2027-04-16-combat-training.sql
+// mutant-anchors: supabase/migrations/2027-04-16-combat-training.sql supabase/migrations/2027-04-24-boss-call-series.sql
 //
 //   TD-VERB    the view quotes the catalogue's price; a forged price is quote_changed and charges nothing; the first hour is charged on the
 //              server's number, one shop row on the caller's key, and a replay charges once; a hero in a party is refused; no other door
@@ -266,7 +266,8 @@ const MUTANTS = [
   { name: 'the next hour is never bought', fn: FN.hour, find: 'if v_s.hours_limit >= v_max or p_to is distinct from', repl: 'if true or p_to is distinct from', arm: 'doors', want: /TD-DOORS/ },
   { name: 'a short purse trains on', fn: FN.hour, find: "    perform public.hr_hunt_close(p_session, 'gold_out', p_to, true);\n", repl: '', arm: 'doors', want: /TD-DOORS/ },
   { name: 'the hour is charged to nobody', fn: FN.hour, find: 'v_g := public.hr_purse_move(p_user, -v_fee, 0);', repl: 'v_g := public.hr_purse_of(p_user);', arm: 'doors', want: /TD-DOORS/ },
-  { name: 'a training window stamps the pool', fn: FN.member, find: '  if not v_train then\n    if v_e <> greatest(0, v_s0 - v_paid) then', repl: '  if true then\n    if v_e <> greatest(0, v_s0 - v_paid) then', arm: 'doors', want: /TD-DOORS/ },
+  /* (the line reads `elsif` since 2027-04-24-boss-call-series.sql put a called room's arm ahead of it: the same guard, the same mutant) */
+  { name: 'a training window stamps the pool', fn: FN.member, find: '  elsif not v_train then\n    if v_e <> greatest(0, v_s0 - v_paid) then', repl: '  elsif true then\n    if v_e <> greatest(0, v_s0 - v_paid) then', arm: 'doors', want: /TD-DOORS/ },
   { name: 'the window check is never asked', fn: FN.member, find: '  if v_train then perform public.hr_training_window(', repl: '  if false then perform public.hr_training_window(', arm: 'forged', want: /TD-FORGED/ },
   { name: 'the window check lets Level XP through', fn: FN.window, find: "k not in ('accrued_to', 'hp', 'journal', 'xp', 'xp_frac', 'progress')", repl: "k not in ('accrued_to', 'hp', 'journal', 'xp', 'xp_frac', 'progress', 'level_xp')", arm: 'forged', want: /TD-FORGED/ },
   { name: 'the window check pays any skill', fn: FN.window, find: 'where e.key <> v_t.skill or jsonb_typeof', repl: 'where jsonb_typeof', arm: 'forged', want: /TD-FORGED/ },
@@ -276,7 +277,7 @@ const MUTANTS = [
   { name: 'a second apply moves a body', fn: FN.quote, find: 'declare v_t public.hr_training_grounds%rowtype; v_r public.hr_training_rules%rowtype;', repl: 'declare /* moved by a probe */ v_t public.hr_training_grounds%rowtype; v_r public.hr_training_rules%rowtype;', arm: 'again', want: /TD-AGAIN/ },
   { name: 'the section counts only the first hour', fn: FN.section, find: "and l.intent like 'training\\_%' and l.meta->>'session' = v_s.id::text", repl: "and l.intent like 'training\\_start%' and l.meta->>'session' = v_s.id::text", arm: 'doors', want: /TD-DOORS .* section mid-run/ },
   { name: 'the section forgets the last stop', fn: FN.section, find: "   where h.user_id = p_user and h.slot = p_slot and h.ended_at is not null\n", repl: "   where false\n", arm: 'doors', want: /TD-DOORS .* section after the end/ },
-  { name: 'a party may train', fn: FN.quote, find: "v_why := case when public.hr_hunt_party_of(p_user, p_slot) is not null then 'in_party'", repl: "v_why := case when false then 'in_party'", arm: 'verb', want: /TD-VERB/ },
+  { name: 'a party may train', fn: FN.quote, find: "when public.hr_hunt_party_of(p_user, p_slot) is not null then 'in_party'", repl: "when false then 'in_party'", arm: 'verb', want: /TD-VERB/ },
 ];
 
 async function main() {

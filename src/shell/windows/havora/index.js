@@ -10,16 +10,15 @@
 // Every control is off while an intent is in flight. Nothing here ever computes a price (CLAUDE.md §1, §6). A price the purse can't pay is off before the press and the
 // line under it says by how much: the purse is the envelope's, the price the server's read, and the server still judges (v0.2.97 gate, the Works tab's same class).
 // ════════════════════════════════════════════════════════════════════════
-import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.133';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.133';
-import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.133';
-import { TOWN_NAME } from '../../../data/world/town/plan.js?v=0.2.133';
-import { ITEMS } from '../../../data/items.js?v=0.2.133';
-import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.133';
-import { whole, gold } from '../../../render/format.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.133';
-import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.133';
+import { readSinks, throwPowder, standRound } from '../../../session/town-intents.js?v=0.2.135';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.135';
+import { SHOW_FLAMES, SINK_RULES } from '../../../data/gold-sinks.js?v=0.2.135';
+import { ITEMS } from '../../../data/items.js?v=0.2.135';
+import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.135';
+import { whole, gold } from '../../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.135';
+import { WORKS_TAB, worksHtml, patchWorks, actWorks } from './works.js?v=0.2.135';
 
 const ASK_MS = 15000;
 const RETRY_MS = 5000;
@@ -45,20 +44,20 @@ export function throwWords(show, price) {
 }
 /** What the purse the envelope states is short of a price: 0 when it covers it, or when either isn't known (the server judges). Pure. */
 export const shortOf = (price, purse) => (Number.isSafeInteger(price) && Number.isSafeInteger(purse) && purse < price ? price - purse : 0);
-const needWords = (short) => (short ? 'You need ' + gold(short) + ' more.' : '');
+const needWords = (short) => (short ? 'Need ' + gold(short) + ' more' : '');
 
 /** "Stand a round: 5,000 gp". Pure. */
 export function roundWords(price) {
   return 'Stand a round' + (Number.isSafeInteger(price) ? ': ' + gold(price) : '');
 }
 
-const countLine = (q, noun) => (q.perDay === null ? '' : whole(q.n) + ' of ' + whole(q.perDay) + ' ' + noun + ' today from this account. More after midnight UTC.');
+const countLine = (q, noun) => (q.perDay === null ? '' : 'Today: ' + whole(q.n) + '/' + whole(q.perDay) + ' ' + noun + ', resets at midnight UTC');
 
-/* "Your powder burns after the Rat King's Knot." while a named flame holds the fire; what's booked otherwise. */
+/* "Queued after: Rat King's Knot" while a named flame holds the fire; what's booked otherwise. */
 function queueLine(sinks) {
   const m = sinks.mine;
-  if (m && m.behind) return 'Your powder burns after the ' + ((ITEMS[m.behind] && ITEMS[m.behind].n) || 'named fuel') + '.';
-  if (m) return 'Your ' + SHOW_FLAMES[m.show].label + ' is booked on the Hearth.';
+  if (m && m.behind) return 'Queued after: ' + ((ITEMS[m.behind] && ITEMS[m.behind].n) || 'named fuel');
+  if (m) return 'Booked: ' + SHOW_FLAMES[m.show].label;
   const q = sinks.powder;
   return q.bookedS > 0 ? 'The Hearth\'s powders are booked for ' + whole(Math.ceil(q.bookedS / 60)) + (Math.ceil(q.bookedS / 60) === 1 ? ' minute.' : ' minutes.') : '';
 }
@@ -72,14 +71,14 @@ export function renderHavora(ctx) {
     + '<div class="hv-top"><div class="hw-tabs" role="tablist">' + TABS.map((t, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + esc(t.id) + '" aria-selected="' + (i === 0) + '">' + esc(t.label) + '</button>').join('') + '</div>'
     + '<span class="hv-gold"></span></div>'
     + '<section class="hw-pane hv-pane" data-pane="hearth">'
-    + '<p class="hv-lead">Throw a powder on the Great Hearth. It burns that color for ' + whole(SINK_RULES.powder.seconds) + ' seconds, and everyone in ' + esc(TOWN_NAME) + ' sees who threw it.</p>'
+    + '<p class="hv-lead">Lights the Great Hearth for ' + whole(SINK_RULES.powder.seconds) + ' s, thrower shown to all</p>'
     + '<div class="hv-powders" role="radiogroup" aria-label="Which powder">' + offers.map((id) => '<button type="button" role="radio" class="hv-powder is-' + esc(id) + '" data-hs-act="pick" data-show="' + esc(id) + '" aria-checked="false"><i class="hv-swatch" aria-hidden="true"></i>' + esc(SHOW_FLAMES[id].label) + '</button>').join('') + '</div>'
     /* why the buy is off stands over it: under it, a phone sheet's foot lay on the line */
     + '<p class="hw-why hv-why" data-of="hearth"></p>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="powder"></button>'
     + '</section>'
     + '<section class="hw-pane hv-pane" data-pane="round">'
-    + '<p class="hv-lead">Stand a round at the Tavern. Fireworks go up over Hearth Square for ' + whole(SINK_RULES.round.seconds) + ' seconds, and the whole town hears who paid.</p>'
+    + '<p class="hv-lead">Fireworks over Hearth Square for ' + whole(SINK_RULES.round.seconds) + ' s, payer shown to all</p>'
     + '<p class="hw-why hv-why" data-of="round"></p>'
     + '<button type="button" class="hh-tool is-primary hv-buy" data-hs-act="round"></button>'
     + '</section>'
@@ -154,7 +153,7 @@ renderHavora.act = function actHavora(ctx, body, action, ev, t) {
     const show = pickedOf(sc);
     const price = sc.sinks.powder.price;
     runIntent(sc, repaint, () => throwPowder(ctx.account, cs, show, price).then(after), 'Throwing it…',
-      (r) => (r.behind ? 'Paid ' + gold(r.price) + '. Your powder burns after the ' + ((ITEMS[r.behind] && ITEMS[r.behind].n) || 'named fuel') + '.' : 'Paid ' + gold(r.price) + '. Your hero heads for the fire.'), cs);
+      (r) => (r.behind ? 'Paid ' + gold(r.price) + '. Queued after: ' + ((ITEMS[r.behind] && ITEMS[r.behind].n) || 'named fuel') : 'Paid ' + gold(r.price) + ', heading to the fire'), cs);
     return true;
   }
   if (action === 'round' && sc.sinks.round.price !== null) {

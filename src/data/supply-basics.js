@@ -53,9 +53,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.133';
-import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.133';
-import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.133';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.135';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.135';
+import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.135';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
@@ -78,8 +78,16 @@ const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, par
    PLAIN STAYS 1 G because of the first grounds, not because it is right (Tyler: "runes being 1 gold each is wildly cheap"): every
    +1 g costs the Sewer floor party 119 g/h and it clears the Thicket by 5.5 (tests/hunt-core/forest-cave.mjs first-grounds-net-chain),
    so Plain can move only with a coin change. Each deeper price stands above what a crafter can list at (tests/craft-wages.mjs W-RUNE).
-   A deeper rune is the player's own pick on a slot: no default bar names one, and nothing rewrites a saved bar. */
-export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 16, 24]);
+   A deeper rune is the player's own pick on a slot: no default bar names one, and nothing rewrites a saved bar.
+   CARVED 16 -> 28 AND GRAVEN 24 -> 44 (designer 2026-11-16, lane/d-andy-march-feedback; Andy: "Right now you're inting if you're not
+   going BIS runes"). Measured on the real settle (the board, "2026-11-16 Andy's March feedback"): at 16 / 24, on Deadly every deeper rune
+   paid for itself, because a faster kill is less time taking hits, so less food. Andy's four (hammer, bow, mage, a Healer five under)
+   on Carved earned 7-12% more XP AND 6-13k more gold a head an hour than on Plain, and a lone Mage on the Slake's Deadly at 60 on Graven
+   +44% XP and +20k gold. Price can't take that back below Carved without punishing Normal (Carved breaks even in his four at about
+   52-71 g). So Plain, Scored and Etched keep Tyler's numbers (Etched 12, 2026-11-05) and stay the sensible Deadly kit, and the top two
+   become a real trade on every tier: the Carved step in his four on Deadly now reads -0.7k to +0.5k a head for +2-4% XP, and on Normal
+   the top rune costs a lone Mage 23-48% of its gold for 12-22% more XP. */
+export const STORE_RUNE_PRICE = Object.freeze([1, 8, 12, 28, 44]);
 /* A deeper store rune is called by its tier's own name, "Scored Fire Rune" (Tyler 2026-11-08: "Plain Scored Fire Rune" read wrong
    beside "the store's"); Plain names only the tier-1 row, the store's own cheap rune. The ids keep their `plain_` prefix. */
 const storeRune = (family, t) => shot(t.tier === 1 ? 'plain_' + family + '_rune' : 'plain_' + runeId(family, t.tier),
@@ -124,9 +132,9 @@ export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc
    still ends the hunt, 10-14). A packed heal, drink or ammo line (src/data/supplies.js SUPPLY_ROWS) is the
    partner of a store row above, or it is listed here with the reason it needs none. tests/supplies-catalogue.mjs
    B5 holds both directions: an unlisted line with no partner is red, and so is a listed one that has a partner. */
-const BY_SLOT = 'a food or drink slot names ONE item (Tyler 2026-10-21): when it runs out the next slot fires, and any store food or drink can stand there';
-const FREE_RUNG = 'the free tier-1 rung (ammoPerShot 0): a shot never spends it, so it never runs out';
-const HONE = 'a whetstone is melee\'s ceiling, not its swing (R5): when the last one wears the sword swings on unsharpened';
+const BY_SLOT = 'a food or drink slot names one item, then the next fires';
+const FREE_RUNG = 'the free tier-1 rung, ammoPerShot 0, never spent';
+const HONE = 'a whetstone raises melee\'s ceiling, never its swing';
 export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null), {
   turnip_mash: BY_SLOT, cooked_herring: BY_SLOT, cooked_wolf_meat: BY_SLOT, cooked_panther_meat: BY_SLOT, cooked_pikeperch: BY_SLOT,
   cooked_copper_crab: BY_SLOT, wheat_bread: BY_SLOT, cooked_silverfin: BY_SLOT, baked_potato: BY_SLOT, cooked_goldgill: BY_SLOT,

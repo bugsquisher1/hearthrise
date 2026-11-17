@@ -1,0 +1,32 @@
+{
+  "id": "square_market_stall_sway",
+  "class": "stall",
+  "style": "s1",
+  "drawn": "tools/world-art/town-life.mjs",
+  "of": "common/square_market_stall",
+  "material": "native",
+  "source": "square_market_stall_sway.png",
+  "frame": [
+    76,
+    58
+  ],
+  "anchor_px": [
+    38,
+    57
+  ],
+  "footprint": [
+    3,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 4,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "A twin of square_market_stall with its cloth on the breeze: its locked pixels, moved by tools/world-art/town-life.mjs. Drawn in its place by compose.js (ambient-life.js SWAYS)."
+}

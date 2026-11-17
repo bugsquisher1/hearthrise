@@ -958,20 +958,20 @@ async function pageRules(overrides, shots) {
         await ask('Waiter');
         const r0 = await read();
         if (r0.friend.join() !== 'Bree Hollow' || JSON.stringify(r0.target) !== '["Bree Hollow","0"]' || r0.asks.join() !== 'Asker' || r0.mine.join() !== 'Waiter'
-          || r0.blocked.join() !== 'Pest' || r0.msg !== 'Asked. They will see it in their friends list.') fail2('the first read shows ' + JSON.stringify(r0));
+          || r0.blocked.join() !== 'Pest' || r0.msg !== 'Request sent') fail2('the first read shows ' + JSON.stringify(r0));
         /* the next read: renames everywhere, the friend now on its other hero; the ask was answered `friends` (a mutual ask) */
         s.social = answer(true); s.ask = { ok: true, state: 'friends', person: { id: ID(1), name: 'Asker Renamed', slot: 0 } };
         await ask('Asker');
         const r1 = await read();
         if (r1.friend.join() !== 'Wren Ashby' || JSON.stringify(r1.target) !== '["Wren Ashby","1"]' || r1.asks.join() !== 'Asker Renamed' || r1.mine.join() !== 'Waiter Renamed'
           || r1.blocked.join() !== 'Pest Renamed') fail2('the next read shows ' + JSON.stringify(r1));
-        if (r1.msg !== 'You are friends now.') fail2('a mutual ask reads "' + r1.msg + '"');
+        if (r1.msg !== 'Friend added') fail2('a mutual ask reads "' + r1.msg + '"');
         /* a refused Unblock says why */
         s.block = { ok: false, error: 'rate_limited' };
         await page.click('[data-hs-win="friends"] [data-hs-act="unblock"]');
         await page.waitForTimeout(500);
         const r2 = await read();
-        if (r2.msg !== 'Too many changes at once. Try again in a moment.') fail2('a refused Unblock reads "' + r2.msg + '"');
+        if (r2.msg !== 'Too many changes, try again') fail2('a refused Unblock reads "' + r2.msg + '"');
         /* Inspect from the row's menu asks for THAT hero (the server's slot), not the account's any one */
         const n0 = s.calls.filter((c) => c.name === 'hr_inspect').length;
         await page.click('[data-hs-win="friends"] .hf-list.is-friends .hf-row .hf-who', { button: 'right' });

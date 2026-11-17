@@ -4,13 +4,15 @@
 // Both backends draw exactly this list, in this order, so the node tests read
 // the same decisions the canvas paints (the rules are the W2 sign-off stills'):
 //   ground   groundTiles(): Wang tiles from the vertex grid, building floors,
-//            void under rock — static per map, so the backend bakes it once
+//            void under rock — static per map, so the backend bakes it once; a
+//            floor with a VARIETY draws one of its variants per cell (ground-variety.js)
 //   decals   flat art (rugs, spills, the hatch)
 //   shadows  ONE mask: manifest ellipses and cast silhouettes (shadows.js)
 //   sprites  everything that stands, y-sorted by its contact row (zsort.js):
 //            the map's objects, the state's props (a home's furniture) and units
 //   raised   what sits at wall height: rock tops, capstones, roofs, chimneys
 //   lights   the map's light kind plus point lights
+//   (THE MAP'S LIFE, core/ambient.js lifeDraws: water light first among the standing, smoke and sparks last among the raised)
 //   plates   screen-resolution text anchors (names), bubbles (the crier's
 //            line over its speaker) and the walk mark (where a tap sent you)
 //
@@ -33,12 +35,15 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.133';
-import { heroBuilding } from './roofs.js?v=0.2.133';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.133';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.133';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.133';
-import { markShapes } from './mark-shapes.js?v=0.2.133';
+import { ySort } from './zsort.js?v=0.2.135';
+import { heroBuilding } from './roofs.js?v=0.2.135';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.135';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.135';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.135';
+import { markShapes } from './mark-shapes.js?v=0.2.135';
+import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.135';
+import { roughEdges } from './ground-rough.js?v=0.2.135';
+import { lifeDraws, glanceOf, swayOf } from './ambient.js?v=0.2.135';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -55,6 +60,27 @@ function cellHash(x, y) {
   let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return (h ^ (h >>> 16)) >>> 0;
+}
+
+/* A FLOOR'S VARIETY (ground-variety.js; the variants are a terrain of kind 'variety', tools/world-art/variety.mjs): the
+   varieties naming terrain `of`, and a cell's variant. A corner of a cell is TONED when every cell touching it is the same
+   varied floor (`same(cx, cy)`, so a transition or a painted wall keeps its edge) and the noise says so; each corner is
+   worked out once (`memo`, one per corner of the grid) and shared by the cells round it, so a patch runs across tiles. */
+function varietiesOf(book, of) {
+  const out = [];
+  for (const [id, t] of Object.entries(book.terrains)) if (t.kind === 'variety' && t.of === of) out.push({ id, t });
+  return out;
+}
+function cornerBit(memo, mw, open, seed, cx, cy) {
+  const i = (cy + 1) * mw + cx + 1;
+  if (memo[i] < 0) memo[i] = open(cx, cy) ? toneAt(cx, cy, seed) : 0;
+  return memo[i];
+}
+function varietyTile(book, v, memo, mw, open, x, y) {
+  const seed = v.t.seed | 0;
+  const key = (cornerBit(memo, mw, open, seed, x, y) << 3) | (cornerBit(memo, mw, open, seed, x + 1, y) << 2)
+    | (cornerBit(memo, mw, open, seed, x, y + 1) << 1) | cornerBit(memo, mw, open, seed, x + 1, y + 1);
+  return book.tile(v.id, '1111', varietyIndex(key, x, y, seed));
 }
 
 /**
@@ -83,16 +109,31 @@ function* blendSteps(map, book, T, inPatch, out) {
   for (const p of terr) { const a = idOf.get(p.t.lower), b = idOf.get(p.t.upper); pairM[a * K + b] = pairM[b * K + a] = 1; }
   const LO = terr.map((p) => idOf.get(p.t.lower)), UP = terr.map((p) => idOf.get(p.t.upper));
   const KEYS = Array.from({ length: 16 }, (_, b) => b.toString(2).padStart(4, '0'));   // corner bits NW NE SW SE → the tile key
+  /* a material's VARIETY (a variety of one of these pairs' own interior tiles): its all-one-material dual tiles draw a variant */
+  const VAR = known.map((m) => pairs.map((id) => varietiesOf(book, id).find((v) => v.t.lower === m && v.t.upper === m)).find(Boolean) || null);
   /* each cell's material once (alias applied, -1 under a patch or with no pair), then four reads per dual tile */
-  const W = map.w, Hm = map.h, mat = new Int16Array(W * Hm);
+  const W = map.w, Hm = map.h, authored = new Int16Array(W * Hm);
   for (let cy = 0; cy < Hm; cy++) {
     for (let cx = 0; cx < W; cx++) {
-      if (inPatch(cx, cy)) { mat[cy * W + cx] = -1; continue; }
+      if (inPatch(cx, cy)) { authored[cy * W + cx] = -1; continue; }
       const m = map.ground[cy * W + cx], a = alias[m] || m, i = idOf.get(a);
-      mat[cy * W + cx] = i === undefined ? -1 : i;
+      authored[cy * W + cx] = i === undefined ? -1 : i;
     }
   }
+  /* a natural edge drawn ragged (ground-rough.js): the materials as DRAWN; the map's ground and its walk mask are untouched */
+  const mat = map.blend.rough ? roughEdges(authored, W, Hm, idOf, map.blend.rough) : authored;
   const matOf = (x, y) => mat[Math.min(Hm - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
+  /* a cell is a dual-tile corner: it is OPEN for its variety when the cells round it (3 x 3, inside the map) are all its material */
+  const same = (cx, cy) => {
+    const m = cx >= 0 && cy >= 0 && cx < W && cy < Hm ? mat[cy * W + cx] : -1;
+    if (m < 0) return false;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const qx = cx + dx, qy = cy + dy;
+      if (qx < 0 || qy < 0 || qx >= W || qy >= Hm || mat[qy * W + qx] !== m) return false;
+    }
+    return true;
+  };
+  const memo = new Int8Array((W + 2) * (Hm + 2)).fill(-1);
   const H = T >> 1;
   const c = new Int16Array(4);
   const count = (m) => (c[0] === m) + (c[1] === m) + (c[2] === m) + (c[3] === m);
@@ -116,10 +157,14 @@ function* blendSteps(map, book, T, inPatch, out) {
         if (n > best) { best = n; pick = p; }
       }
       if (pick < 0) continue;
-      const lo = LO[pick], up = UP[pick];
-      let bits = 0;
-      for (let i = 0; i < 4; i++) { const m = c[i]; bits = (bits << 1) | (m === up || (m !== lo && !pairM[m * K + lo] && pairM[m * K + up]) ? 1 : 0); }
-      const t = book.tile(terr[pick].id, KEYS[bits], cellHash(x, y));
+      const v = c[0] === c[1] && c[0] === c[2] && c[0] === c[3] ? VAR[c[0]] : null;
+      let t = v ? varietyTile(book, v, memo, W + 2, same, x, y) : null;
+      if (!t) {
+        const lo = LO[pick], up = UP[pick];
+        let bits = 0;
+        for (let i = 0; i < 4; i++) { const m = c[i]; bits = (bits << 1) | (m === up || (m !== lo && !pairM[m * K + lo] && pairM[m * K + up]) ? 1 : 0); }
+        t = book.tile(terr[pick].id, KEYS[bits], cellHash(x, y));
+      }
       if (t) out.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T + H, y: y * T + H });
     }
     yield;
@@ -184,9 +229,31 @@ function* groundSteps(map, book, tables, T) {
   const painted = !!(terr && terr.painted);
   const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !painted && !!(m && m.solid); };
   const g = map.groundTerrain === null ? null : vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
+  /* a painted ground's VARIETIES: each names one of its cells (`at`); every cell that draws that cell's tile draws a variant.
+     A tile is that tile when it is the same atlas rect (the build packs a repeated tile once). */
+  const vars = painted && fill ? varietiesOf(book, map.groundTerrain) : [];
+  const vkind = vars.length ? new Int8Array(map.w * map.h).fill(-1) : null;
+  if (vkind) {
+    const list = terr.tiles['1111'];
+    const bases = vars.map((v) => list[v.t.at[1] * fill[0] + v.t.at[0]] || null);
+    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
+      const p = list[(y % fill[1]) * fill[0] + (x % fill[0])];
+      for (let k = 0; k < bases.length; k++) if (p && bases[k] && p[0] === bases[k][0] && p[1] === bases[k][1]) { vkind[y * map.w + x] = k; break; }
+    }
+  }
+  const vmemo = vkind ? vars.map(() => new Int8Array((map.w + 3) * (map.h + 3)).fill(-1)) : null;
+  /* a painted cell's corner (cx, cy) is open when the four cells round it are all variety k */
+  const kindAt = (x, y) => (x >= 0 && y >= 0 && x < map.w && y < map.h ? vkind[y * map.w + x] : -1);
+  const openFor = (k) => (cx, cy) => kindAt(cx - 1, cy - 1) === k && kindAt(cx, cy - 1) === k && kindAt(cx - 1, cy) === k && kindAt(cx, cy) === k;
+  const opens = vkind ? vars.map((_, k) => openFor(k)) : null;
   for (let y = 0; y < (map.groundTerrain === null ? 0 : map.h); y++) {
     for (let x = 0; x < map.w; x++) {
       if (solid(x, y)) { voids.push({ x: x * T, y: y * T }); continue; }
+      const k = vkind ? vkind[y * map.w + x] : -1;
+      if (k >= 0) {
+        const t = varietyTile(book, vars[k], vmemo[k], map.w + 3, opens[k], x, y);
+        if (t) { tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T }); continue; }
+      }
       /* A fill is one periodic field cut into a cols x rows cycle: lay it in order so it tiles seamlessly. */
       const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : cellHash(x, y);
       const t = book.tile(map.groundTerrain, fill ? '1111' : tileKey(g, map.w, x, y), n);
@@ -344,6 +411,10 @@ export function composeFrame(map, book, state, view, tables, T) {
   const near = (x, y, w, h) => x < view.ox + view.w + 2 * T && y < view.oy + view.h + 2 * T && x + w > view.ox - 2 * T && y + h > view.oy - 2 * T;
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
+  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs */
+  const life = lifeDraws(map, book, state.t || 0, view, T);
+  for (const d of life.ground) { d.seq = seq++; stand.push(d); }
+  for (const d of life.air) { d.seq = seq++; raised.push(d); }
 
   /** @param {string} id @param {number} tx @param {number} ty
       @param {{anim?: string, dir?: string, i?: number, kind?: string, alpha?: number, ref?: any, bias?: number, raised?: boolean, shadow?: boolean,
@@ -428,8 +499,14 @@ export function composeFrame(map, book, state, view, tables, T) {
        The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
     const swap = state.objectSwap && state.objectSwap[o.id];
     /* townsfolk breathe and fires flicker through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
-    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
-    else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    /* ...and a keeper looks about her (core/ambient.js glanceOf: Tamsin to her board and back, the smith to his forge) */
+    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: glanceOf(o.id, o.x, o.y, state.t || 0), i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
+    else {
+      /* ...and cloth moves on the breeze: a banner or an awning drawn as its twin (core/ambient.js swayOf), an idle the switch holds */
+      const sway = !swap && swayOf(book, o.id, o.x, o.y, state.t || 0);
+      if (sway) place(sway.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: sway.i });
+      else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
+    }
   }
 
   const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));

@@ -52,7 +52,7 @@ import {
 /* HUNT SESSIONS (lane C2): the one hunt settle, and the cheap "is a hunt
    open?" read. A hunter's window is the SESSION's — a collect for a hunter is a
    hunt settle, and a hunter may not switch (hr_hunt_leave moves the pointer). */
-import { settleHunt, huntOpenOf, HUNT_SETTLE_MIN_MS } from './hunt-settle.js';
+import { settleHunt, huntOpenOf, HUNT_SETTLE_MIN_MS, OWED_WINDOW_REASONS } from './hunt-settle.js';
 import { refusalBody } from './envelope.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
@@ -641,9 +641,9 @@ export async function collectCurrentWindow(o) {
       return { outcome: 'paid', version: b.version ?? env.version,
         env: (b.state ? b : null), receipt: null };
     }
-    /* A deploy in flight (hunt-settle.js world_shape_pending) owes a window it could not settle: the verb
-       waits for it rather than mutate ahead of it. Any other `nothing` owes nothing. */
-    if ((v.outcome === 'nothing' && v.reason !== 'world_shape_pending') || v.outcome === 'none') {
+    /* A deploy in flight (hunt-settle.js OWED_WINDOW_REASONS: another world shape, a session mode this engine lacks) owes a
+       window it could not settle: the verb waits for it rather than mutate ahead of it. Any other `nothing` owes nothing. */
+    if ((v.outcome === 'nothing' && !OWED_WINDOW_REASONS.includes(v.reason)) || v.outcome === 'none') {
       return { outcome: 'nothing', version: env.version, reason: v.reason || 'nothing_accrued' };
     }
     return { outcome: 'refused', version: null, error: v.reason || 'hunt_settle_refused',

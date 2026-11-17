@@ -188,6 +188,10 @@ export const REASONS = Object.freeze({
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
   ],
+  /* a scaled hunt's Buy (audit F26): off with the bank full, the day's hours bought, or the purse short of the total */
+  'src/shell/windows/scale-pane.js': [
+    { cond: 'pending || !!s.why', words: "s.why === 'bank' ? t('hunts.scale_bank_full', { max: s.bankMaxH })", where: 'Buy hours: the line above it says why (the bank full, the day\'s limit bought, not enough gold); a full bank or day hides the slider too' },
+  ],
   'src/shell/windows/boss-call-pane.js': [
     { cond: '!open', words: 'BOSS_CALL_WORDS.noQuote', where: 'Call out: the line above the press reads the server\'s why (party of two, leader only, 3 a day), the hunt under way, or no answer yet' },
   ],
@@ -195,37 +199,43 @@ export const REASONS = Object.freeze({
   'src/shell/windows/boss-hall-pane.js': [
     { cond: '!open', words: "text(box.querySelector('.hw-call-line'), hallWords(said, hall))", where: 'Open the hall: the line above the press says why (out hunting, only the party leader can open it, no key in the bag), or how many keys the hero has' },
   ],
+  /* the Faction tab (lane/b-faction-ui): each press that waits on the server's clock or standing has its line beside it */
+  'src/shell/windows/character/faction.js': [
+    { cond: '!swapReady(f, now)', words: 'nextSwapWords(f, now)', where: 'Swap to the other side: the swap line above it says when the cooldown ends ("next swap in 3 days"), from the server\'s swap_ready_at' },
+    { cond: '!(f && f.swap && f.swap.ms >= f.swap.needMs)', words: 'swapLeftWords(f)', where: 'Finish the swap: the swap line above it says the hunting time still owed ("4 h 10 m left"), from the server\'s credited swap time' },
+    { cond: '!claimable(f, p)', words: "t('factions.piece_needs'", where: 'Claim a piece: its row says the hours of that side\'s standing it needs' },
+  ],
   'src/shell/windows/temper-pane.js': [
-    { cond: '!offer || !!short', words: "' You need ' + gold(short) + ' more.'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
-    { cond: 'itemsShort', words: "'Needs ' + whole(n.need) + ' ' + n.name + '. You hold '", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
+    { cond: '!offer || !!short', words: "'. Need ' + gold(short) + ' more'", where: 'Temper: the line beside it says what the purse is short of; a ladder at its top reads Full on the button, gear with no ladder reads No rungs, and while the confirm is open it asks in the window' },
+    { cond: 'itemsShort', words: "n.name + ': ' + whole(n.held) + '/' + whole(n.need)", where: 'Temper, short of its material: the line beside it says what the rung takes and what the hero holds, in the bag and Storage, and the note under both rows says where to get it (wayWords)' },
   ],
   'src/shell/windows/hallmark-pane.js': [
     { cond: '!!why || sc.pending || !!sc.hallmark', words: "text(li.querySelector('.hw-hallmark-need'), why ||", where: 'Hallmark: the line beside it says the first thing missing (the Crafting level, the day\'s limit, the gem and where to get one, the gold short); while the confirm is open it asks in the window' },
   ],
   'src/shell/windows/havora/works.js': [
-    { cond: 'off', words: 'a day from one account, and you', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
-    { cond: 'short > 0', words: "'You need ' + gold(short) + ' more.'", where: 'a gift over the envelope\'s purse: data-off-why says how much more on a press, and the line under the buttons says what the purse holds' },
-    { cond: 'poor', words: "'Your purse is empty.'", where: 'a purse under the smallest gift: the last button is hidden, Give is off, and the line under the buttons says why' },
+    { cond: 'off', words: 'Daily limit reached: ', where: 'Give: off while a gift is in flight, before the first read, and when today\'s allowance is spent; the line under them says so in the designer\'s words' },
+    { cond: 'short > 0', words: "'Need ' + gold(short) + ' more'", where: 'a gift over the envelope\'s purse: data-off-why says how much more on a press, and the line under the buttons says what the purse holds' },
+    { cond: 'poor', words: "'Not enough gold'", where: 'a purse under the smallest gift: the last button is hidden, Give is off, and the line under the buttons says why' },
   ],
   'src/shell/windows/market/browse.js': [
-    { cond: '!plan.qty', words: "'You need ' + goldWords(-left) + ' more.'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
-    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
+    { cond: '!plan.qty', words: "'Need ' + goldWords(-left) + ' more'", where: 'Buy: the line under it says what the purse is short of, and data-off-why says it on a press; with nothing to buy the page says none are for sale' },
+    { cond: 'v.off || !!g', words: "No answer, safe to press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
   ],
   'src/shell/windows/market/sell.js': [
     { cond: 'sug === null', words: "!s ? '…'", where: 'Suggested: off only until the server has said the item\'s floor and ceiling; the facts read … until then' },
     { cond: '!s || !!why || !!shortFee', words: "text(foot.querySelector('.hw-mk-why'), why || shortFee || f.msg);", where: 'List: its own line says the reason (locked, how many, under the shop, over the most, short of the fee)' },
-    { cond: 'v.off || !!g', words: "No answer from the Weighhouse. Press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
+    { cond: 'v.off || !!g', words: "No answer, safe to press again", where: 'while a lost answer is out, only Try again and Cancel stay on; the window\'s line says why' },
   ],
   'src/shell/windows/inventory/actions.js': [
     { cond: 'on && !sc.pending', words: "'<small class=\"hw-mi-why\" data-why=\"'", where: 'every item-menu entry that is off: its own line under it (Cook all, Equip, Sell, Lock, Put on the bar, Link in chat)' },
   ],
   'src/shell/windows/inventory/grid.js': [
     { cond: '!prim || !!wearWhy', words: 'wearWhy || buryWhy', where: 'the picked stack\'s line (.hw-pick-why): Equip\'s and Cook all\'s reason' },
-    { cond: '!st.shop', words: "'Reading the shop prices…'", where: 'Sell selected / Sell all: off only before the shop section loads; the tools row value line says so' },
+    { cond: '!st.shop', words: "'Loading shop prices…'", where: 'Sell selected / Sell all: off only before the shop section loads; the tools row value line says so' },
     { cond: 'sc.pending || !!dWhy', words: "whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);", where: 'Dispatch loot: its own line under the tools row (out hunting, nothing planned, reading the bag)' },
     { cond: '!!why', words: "(offWhy ? '. ' + offWhy : '')", where: 'the This hunt row: a plan the server refuses for the item (starting kit, no shop price) is said on the row line' },
     { cond: 'sc.confirm.empty', words: 'hw-confirm-note', where: 'the confirmation lists what is kept' },
-    { cond: '!st.rules', words: "'Reading your loot plans…'", where: 'the This hunt tab: the plan select is off before bag_rules loads and the tab note says so' },
+    { cond: '!st.rules', words: "'Loading loot plans…'", where: 'the This hunt tab: the plan select is off before bag_rules loads and the tab note says so' },
     { cond: '!cur', words: "cls(pick, 'is-on', !!cur)", where: 'More sits on the picked line, which shows only with a stack picked' },
   ],
   'src/shell/windows/inventory/doll.js': [
@@ -233,7 +243,7 @@ export const REASONS = Object.freeze({
     { cond: 'locked || short', words: "text(li.querySelector('.hw-fit-need'), short ? need.text : '')", where: 'the fit row\'s need line ("Needs Level 30 — you\'re 28")' },
   ],
   'src/shell/windows/shop.js': [
-    { cond: 'short > 0', words: "'. You need ' + gold(short) + ' more.'", where: 'the offer row: "You need 40 gp more."' },
+    { cond: 'short > 0', words: "', need ' + gold(short) + ' more'", where: 'the offer row: "You need 40 gp more."' },
     { cond: 'isLocked', words: "isLocked ? 'Locked'", where: 'the button reads Locked and the row says locked' },
     { cond: '!plan.lines.length', words: "t('shop.sell_junk')", where: 'the label carries the total only when there is junk' },
   ],
@@ -242,8 +252,8 @@ export const REASONS = Object.freeze({
     { cond: 'sc.pending || !!dWhy', words: "text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);", where: 'Dispatch loot in Storage: its own line (the store note says a hunt)' },
   ],
   'src/shell/windows/services.js': [
-    { cond: '!canStam', words: "' You need ' + gold(q.price - purse) + ' more.'", where: 'the stamina quote line: full, all bought today, or how much more gold' },
-    { cond: 'r.held || !next', words: "'. You need ' + gold(short) + ' more.'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
+    { cond: '!canStam', words: "', need ' + gold(q.price - purse) + ' more'", where: 'the stamina quote line: full, all bought today, or how much more gold' },
+    { cond: 'r.held || !next', words: "', need ' + gold(short) + ' more'", where: 'each blessing row: Owned, Needs I, or how much more gold' },
     { cond: 'missing < 2 || sc.pending || allShort', words: "!missing ? t('shop.bless_all_on') : missing < 2 ? '' : sc.pending ? t('shop.bless_all_busy') : allShort ? t('shop.bless_all_short')", where: 'Bless all: the line under it says all are on, a purchase is under way, or the gold is short for the next one; with one missing it is hidden and that row\'s own button says why' },
   ],
   'src/shell/widgets/stamina-buy.js': [
@@ -253,15 +263,18 @@ export const REASONS = Object.freeze({
     { cond: '!show || !!opt.locked', words: 'GEAR_HUNT_WORDS.upgrades', where: 'the upgrade line\'s why' },
   ],
   'src/shell/windows/hunts.js': [
-    { cond: 'follower', words: "'Your party leader picks the hunt and starts it.", where: 'the page lead for a party member' },
+    { cond: 'follower', words: "t('hunts.lead_follower')", where: 'the page lead for a party member' },
     { cond: '!tiersOf(groundOf(hunt).id).includes(want)', words: 'tierWords(r, tier, size)', where: 'a ground offers its tiers as buttons, and the note says what each does' },
     { cond: '!!now', words: 'carriedWords(carried)', where: 'a running hunt: the page says what it carries; the top bar has Leave' },
+  ],
+  'src/shell/windows/hunt-after-pane.js': [
+    { cond: '!!v.now', words: "t('away.after_hunting')", where: 'When the hunt ends: while a hunt runs the control is off, and the line under it says that hunt\'s own plan and that it can be changed once the hunt is over' },
   ],
   'src/shell/windows/hunt-detail.js': [
     { cond: 'v.partyBlock.full', words: 'v.partyBlock.why', where: 'the party block says the party\'s size' },
   ],
   'src/shell/windows/hunt-summary.js': [
-    { cond: 'huntOpen || !again', words: "'Hunt again is off. A hunt is already running.'", where: 'the summary\'s line under its buttons' },
+    { cond: 'huntOpen || !again', words: "'Hunt again off: a hunt is already running'", where: 'the summary\'s line under its buttons' },
   ],
   /* THE HUNT PREP BUILDER (lane/b-hunt-prep-builder, 2026-11-11): the setups column and the builder's copy of one setup. */
   'src/shell/windows/hunt-prep/setups.js': [
@@ -281,7 +294,7 @@ export const REASONS = Object.freeze({
     { cond: 'off || !sc.draft || sc.stale || hunting', words: "t('prep.changed')", where: 'Save and use: the same, and the town-only note while hunting (setups.js)' },
   ],
   'src/shell/windows/character/titles.js': [
-    { cond: 'w.off', words: "'. You need ' + gold(short) + ' more.'", where: 'the row\'s own line says how much more gold; a row short of its kills has no button, its line says the count' },
+    { cond: 'w.off', words: "'. Need ' + gold(short) + ' more'", where: 'the row\'s own line says how much more gold; a row short of its kills has no button, its line says the count' },
   ],
   'src/shell/windows/chat-crier.js': [
     { cond: '!q || q.price === null', words: "q && q.price === null ? CRIER.done", where: 'Cry it and Again: past the day\'s last line the button itself reads the Crier\'s day is done; before the first quote the line under them reads Asking the Crier…' },
@@ -301,7 +314,7 @@ export const REASONS = Object.freeze({
   'src/shell/windows/character/outfit.js': [
     { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium, not owned'", where: 'the outfit tile says not owned; Equip needs another outfit' },
     { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
-    { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'You need ' + gold(short) + ' more.' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
+    { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
   ],
   'src/shell/windows/house.js': [
     { cond: '!on', words: "t('house.cost_gold_short'", where: 'each step\'s cost lines mark what is short, with your counts' },
@@ -316,7 +329,7 @@ export const REASONS = Object.freeze({
     { cond: 'running', words: "'Working on it now'", where: 'the row says it is running' },
   ],
   'src/shell/windows/party-finder.js': [
-    { cond: 'inParty', words: "'You are in a party. Leave it to join another.'", where: 'the finder line' },
+    { cond: 'inParty', words: "'Already in a party'", where: 'the finder line' },
   ],
   'src/shell/windows/party.js': [],
   'src/shell/windows/chat.js': [
@@ -340,7 +353,7 @@ export const REASONS = Object.freeze({
     { cond: 'row.removable', words: 'hs-hudset-show', where: 'a fixed widget\'s box (cannot be hidden by design; the row is labelled)' },
   ],
   'src/app/slot-offer.js': [
-    { cond: 'short > 0', words: "You need ' + whole(short) + ' more gold.", where: 'the offer block' },
+    { cond: 'short > 0', words: "t('slots.short', { gold: whole(short) })", where: 'the offer block' },
   ],
   /* Other lanes own these files right now (lane/a-v0246-followups); listed as they stand, see the report. */
   'src/shell/windows/farm.js': [
@@ -349,7 +362,7 @@ export const REASONS = Object.freeze({
     { cond: 'st.farming < up.farming || !afford', words: "t('farm.tier_next", where: 'the tier line names the price and Farming level (OPEN: does not say which is short)' },
   ],
   'src/shell/windows/configure-action.js': [
-    { cond: 'off', words: "'Your weapon can’t shoot this'", where: 'a locked supply: title only (OPEN: other lane)' },
+    { cond: 'off', words: "'Wrong ammo for this weapon'", where: 'a locked supply: title only (OPEN: other lane)' },
     { cond: 'MAX_CONDITIONS', words: 'MAX_CONDITIONS', where: 'the conditions list (OPEN: no words at the cap)' },
     { cond: 'd.action.id', words: 'd.action.id', where: 'Save needs an action picked' },
     { cond: 's.open', words: 's.open', where: 'move up/down at the ends' },
@@ -411,21 +424,21 @@ async function pure(base = ROOT) {
   const { refusalOf } = await imp('src/session/refusal.js');
   const read = (lv, inv) => (k) => (k === 'skills' ? { cooking: { xp: 0, level: lv }, smithing: { xp: 0, level: lv } } : k === 'inventory' ? inv : k === 'state' ? { active_kind: 'idle', active_id: null } : null);
   const bear = buryBlock({ read: read(11, { raw_bear_meat: 2 }) }, buryRecipeOf('raw_bear_meat'));
-  if (bear !== 'You need Cooking 40 to cook Raw Bear Meat. You have 11.') fails.push('SW-3 Cook all above the level reads ' + JSON.stringify(bear));
+  if (bear !== 'Requires Cooking 40, now 11') fails.push('SW-3 Cook all above the level reads ' + JSON.stringify(bear));
   const axe = workBlock({ read: read(1, {}) }, workRow('artisan', 'forge_bronze_axe'), false);
-  if (axe !== 'You need Smithing 3 to make Bronze Axe. You have 1.') fails.push('SW-3 a bench row above the level reads ' + JSON.stringify(axe));
+  if (axe !== 'Requires Smithing 3, now 1') fails.push('SW-3 a bench row above the level reads ' + JSON.stringify(axe));
   /* A reforge spends the bag's piece: a hero wearing it hears why, once the rest of the row is there (lane/c-klappa-club) */
   const wearing = (inv) => ({ read: (k) => (k === 'equipment' ? { weapon: 'practice_club' } : read(1, inv)(k)) });
   const club = workRow('artisan', 'reforge_klappas_club');
   const ready = workBlock(wearing({ bronze_bar: 6, small_fang: 3 }), club, false);
-  if (ready !== 'You\'re wearing your Practice Club. Take it off first.') fails.push('SW-3 a reforge of the worn weapon reads ' + JSON.stringify(ready));
+  if (ready !== 'Equipped: Practice Club. Unequip it first.') fails.push('SW-3 a reforge of the worn weapon reads ' + JSON.stringify(ready));
   const early = workBlock(wearing({ small_fang: 3 }), club, false);
   if (!/^No Bronze Bar /.test(early)) fails.push('SW-3 the row tells a hero to take the weapon off before the bars are there: ' + JSON.stringify(early));
   /* The engine's own refusal of the same press (activity_locked), driven through the one start path. */
   const sc = { pending: false, msg: '' };
   const cs = { read: read(11, { raw_bear_meat: 2 }), edgeIntent: async () => refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', kind: 'artisan', id: 'cook_bear_meat' } }) };
   await startWork(cs, workRow('artisan', buryRecipeOf('raw_bear_meat').recipe.id), (fn, busy, done) => runIntent(sc, () => {}, fn, busy, done, cs), () => {});
-  if (sc.msg !== 'You need Cooking 40 to cook Raw Bear Meat. You have 11.') fails.push('SW-3 the engine\'s activity_locked on Cook all reads ' + JSON.stringify(sc.msg));
+  if (sc.msg !== 'Requires Cooking 40, now 11') fails.push('SW-3 the engine\'s activity_locked on Cook all reads ' + JSON.stringify(sc.msg));
   const gate = refusalText(refusalOf({ ok: false, body: { ok: false, error: 'activity_locked', id: 'mosslight_glade', spawn_gate: true } }));
   if (!gate || /did not go through/.test(gate)) fails.push('SW-3 a spawn-gated hunt reads the fallback: ' + JSON.stringify(gate));
   return fails;
@@ -497,7 +510,7 @@ async function screens(overrides) {
             const why = document.querySelector('.hw-menu.is-on .hw-mi-why[data-why="m-bury"]');
             return { label: b && b.textContent, off: !!b && b.disabled, why: why && why.textContent, shown: !!why && why.getBoundingClientRect().height > 0 };
           });
-          if (!m.label || !m.off || m.why !== 'You need Cooking 40 to cook Raw Bear Meat. You have 11.' || !m.shown) fails.push('SW-4 the item menu\'s Cook all reads ' + JSON.stringify(m));
+          if (!m.label || !m.off || m.why !== 'Requires Cooking 40, now 11' || !m.shown) fails.push('SW-4 the item menu\'s Cook all reads ' + JSON.stringify(m));
           await shot('cook-all');
           await page.keyboard.press('Escape');
         }
@@ -513,7 +526,7 @@ async function screens(overrides) {
             const why = b && b.nextElementSibling && b.nextElementSibling.matches('.hw-mi-why') ? b.nextElementSibling : null;
             return { off: !!b && b.disabled, why: why && why.textContent, shown: !!why && why.getBoundingClientRect().height > 0 };
           });
-          if (!p.off || p.why !== 'The shop does not buy back your starting kit.' || !p.shown) fails.push('SW-4 the loot plan\'s Sell on a starting-kit item reads ' + JSON.stringify(p));
+          if (!p.off || p.why !== 'Shop doesn\'t buy starting kit' || !p.shown) fails.push('SW-4 the loot plan\'s Sell on a starting-kit item reads ' + JSON.stringify(p));
           await shot('plan-kit-sell');
           await page.keyboard.press('Escape');
         }
@@ -529,7 +542,7 @@ async function screens(overrides) {
           if (li) li.scrollIntoView({ block: 'center' });
           return b ? { off: b.disabled, small: li.querySelector('small').textContent } : null;
         });
-        if (!row || !row.off || !/You need 350 gp more\./.test(row.small)) fails.push('SW-4 a Shop buy short of gold reads ' + JSON.stringify(row));
+        if (!row || !row.off || !/need 350 gp more$/.test(row.small)) fails.push('SW-4 a Shop buy short of gold reads ' + JSON.stringify(row));
         await shot('shop-short');
       }
       if (errors.length) fails.push('SW-4 console errors at ' + w + '×' + h + ': ' + errors.slice(0, 3).join(' | ').slice(0, 300));
@@ -566,7 +579,7 @@ const MUTANTS = [
   ['the loot plan greys Sell on a starting-kit item with a hover title only', 'src/shell/windows/inventory/actions.js',
     "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\"', why);", "' data-rule=\"' + v + '\" aria-pressed=\"' + (rule === v) + '\" title=\"' + esc(why) + '\"');", true],
   ['a Shop buy short of gold is greyed with no words', 'src/shell/windows/shop.js',
-    "          + (short ? '. You need ' + gold(short) + ' more.' : ''));", "          + '');", true],
+    "          + (short ? ', need ' + gold(short) + ' more' : ''));", "          + '');", true],
   ['a new rule-disabled control with no reason', 'src/shell/windows/services.js',
     "  prop(yes, 'disabled', sc.pending);\n  /* BLESSINGS */", "  prop(yes, 'disabled', sc.pending || purse === 0);\n  /* BLESSINGS */"],
   ['the engine\'s activity_locked on a bench reads as a hunt\'s', 'src/shell/town-work.js',

@@ -21,20 +21,20 @@
 //                          its line is the server's answer, and every count on
 //                          screen changes only from the re-read envelope
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.133';
-import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.133';
-import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.133';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.133';
-import { ABILITIES } from '../data/abilities.js?v=0.2.133';
-import { ITEMS } from '../data/items.js?v=0.2.133';
-import { shootsItem } from '../data/hunt-roles.js?v=0.2.133';
-import { shortOf } from './item-lore.js?v=0.2.133';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.133';
-import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.133';
-import { runIntent } from './intent-words.js?v=0.2.133';
-import { itemName } from './widgets/bits.js?v=0.2.133';
-import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.133';
-import { whole } from '../render/format.js?v=0.2.133';
+import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.135';
+import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.135';
+import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.135';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.135';
+import { ABILITIES } from '../data/abilities.js?v=0.2.135';
+import { ITEMS } from '../data/items.js?v=0.2.135';
+import { shootsItem } from '../data/hunt-roles.js?v=0.2.135';
+import { shortOf } from './item-lore.js?v=0.2.135';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.135';
+import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.135';
+import { runIntent } from './intent-words.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
+import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.135';
+import { whole } from '../render/format.js?v=0.2.135';
 
 /* The server's hunt is open and not on its way home: a session, not ended, no Leave or change pending. */
 function running(cs) {
@@ -60,7 +60,7 @@ const wornOf = (cs) => (equipmentOf(cs) || {}).ammo || null;
    shot the worn weapon looses: a rune's version is its spell's (the server's `rune_level`), and food has no such gate. */
 function waitOf(id, role, skills) {
   const need = shootsItem(role, ITEMS[id]) ? shortOf(id, skills, null) : null;
-  return need ? need.text + ', so it can’t be shot until then.' : null;
+  return need ? need.text : null;
 }
 
 /** The bag's hunt supplies this running hunt could carry in, or null (see the header). */

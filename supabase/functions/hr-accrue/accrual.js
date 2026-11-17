@@ -1212,6 +1212,7 @@ function fightOf(sim, unitId, call) {
  *        xpFrac, hp, gold, equipment, inventory, deathsLifetimeBefore, perks,
  *        hearthfindReady) }]
  * @param inp.scale    { level } when the server scales this window (hr_scaled_hunt_of through the instance read), else absent
+ * @param inp.sessionMode  the instance's frozen session mode id (hunt_instances.session_mode through the instance read; src/data/session-modes.js)
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }], scaleLevel }
  */
@@ -1239,10 +1240,12 @@ export function accrueHunt(inp) {
   const scale = inp.scale && Number.isInteger(inp.scale.level) ? { level: inp.scale.level } : null;
   /* A LIVE EVENT (hr_live_xp_windows through the instance read): each member's own windows; none live, no hook, the hunt as it always ran. */
   const xpMultOf = xpMultFor(sides, (sd) => sd.mi.liveXp);
+  /* THE SESSION MODE (src/data/session-modes.js): the instance's, frozen by the server at its start (hunt-settle.js reads it back). A
+     death is priced at its share, so in a mode that costs nothing the proposal's death_xp is empty; the database bounds it again. */
   const sim = simulateHuntInstance(
     { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
     { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items, ...(scale ? { scale } : {}),
-      ...(xpMultOf ? { xpMultOf } : {}) });
+      ...(xpMultOf ? { xpMultOf } : {}), sessionMode: inp.sessionMode });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
 
   const out = [];
@@ -1368,6 +1371,14 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
       meta: { ms: settledTo - winFrom, ticks: summary.ticks, kills: summary.kills,
               mon: String(mi.huntId || '').slice(0, 64),
               ...(summary.kills > 0 ? { km: s.bestiary.counts() } : {}),
+              /* A TRAINING WINDOW'S ITEM TIME (src/core/hunt/training.js trainingTick): the ms it played at the item's rate, the
+                 claim hr_training_window re-proves against the hero's bank and spends (2027-04-23-training-gear.sql). */
+              ...(hs.tally.boostMs > 0 ? { boost_ms: hs.tally.boostMs } : {}),
+              /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js; hunt-rewards.js payPrize): this hero's roll for today was made in this
+                 window, piece or no piece. Said only then, beside the boss's kill in `km`: hr_hunt_apply_member stamps the day on it
+                 (2027-04-25-boss-daily.sql hr_boss_prize_take) and lets the piece through only on that stamp. A database before that
+                 file never hears it: this engine rolls only on that file's `prize_left`. */
+              ...(hs.prizeRolled === true ? { prize: true } : {}),
               from: new Date(winFrom).toISOString(),
               to: new Date(settledTo).toISOString() },
     },

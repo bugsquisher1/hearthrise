@@ -10,12 +10,12 @@
 // Search filters every category by label and help text at once. Built once;
 // patched in place through paint.js, so a search or a toggle never rebuilds it.
 // ════════════════════════════════════════════════════════════════════════
-import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.133';
-import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.133';
-import { keyLabel } from '../launcher.js?v=0.2.133';
-import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
+import { SETTINGS, SETTING_CATEGORIES } from '../../data/settings.js?v=0.2.135';
+import { read, write, visible, categoriesFor, search } from '../settings-model.js?v=0.2.135';
+import { keyLabel } from '../launcher.js?v=0.2.135';
+import { attr, cls, prop, text } from '../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
 
 function control(r) {
   const sid = 'data-sid="' + esc(r.id) + '" data-hs-act="set"';
@@ -40,9 +40,9 @@ function rowHtml(r) {
   const open = set ? '<label class="st-line">' : '<div class="st-line">';
   const head = '<span class="st-label">' + (r.type === 'action' ? '' : esc(r.label)) + '</span>';
   /* A note (Help: how the game works) is read, not set: its label heads it and its help is the text. */
-  if (r.type === 'note') return '<div class="st-row is-note" data-row="' + esc(r.id) + '"><h4 class="st-label">' + esc(r.label) + '</h4><p class="st-help">' + esc(r.help) + '</p></div>';
+  if (r.type === 'note') return '<div class="st-row is-note" data-row="' + esc(r.id) + '"><h4 class="st-label">' + esc(r.label) + '</h4>' + r.help.split('\n').map((l) => '<p class="st-help">' + esc(l) + '</p>').join('') + '</div>';
   return '<div class="st-row" data-row="' + esc(r.id) + '" title="' + esc(r.help) + '">' + open + head + control(r)
-    + (set ? '</label>' : '</div>') + '<p class="st-help">' + esc(r.help) + '</p></div>';
+    + (set ? '</label>' : '</div>') + '' + r.help.split('\n').map((l) => '<p class="st-help">' + esc(l) + '</p>').join('') + '</div>';
 }
 
 /** The skeleton (built once). */

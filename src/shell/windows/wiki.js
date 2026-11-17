@@ -13,18 +13,48 @@
 //
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts, nothing a player can spend, no intent and no residue.
 // ════════════════════════════════════════════════════════════════════════
-import { prop, attr, text } from '../../render/paint.js?v=0.2.133';
-import { whole, chance, listWords } from '../../render/format.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { t } from '../../render/player-text.js?v=0.2.133';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.133';
-import { skillPages, groundPages, formulaPages } from '../wiki-model.js?v=0.2.133';
+import { prop, attr, text } from '../../render/paint.js?v=0.2.135';
+import { whole, chance, listWords } from '../../render/format.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { t } from '../../render/player-text.js?v=0.2.135';
+import { glyphSvg } from '../widgets/bits.js?v=0.2.135';
+import { skillPages, groundPages, formulaPages } from '../wiki-model.js?v=0.2.135';
+import { chronicleOf } from '../chronicle-model.js?v=0.2.135';
+import { linkHtml, targetOf } from '../goto.js?v=0.2.135';
 
-const WIKI_SECTIONS = Object.freeze(['skills', 'grounds', 'formulas']);
-const SECTION_WORD = Object.freeze({ skills: 'wiki.tab_skills', grounds: 'wiki.tab_grounds', formulas: 'wiki.tab_formulas' });
+/* THE BOOK (the top bar's groups, 2026-11-16): the Chronicle first, the story so far (Tyler: "Yeah build the chronicle"), then the wiki. */
+const WIKI_SECTIONS = Object.freeze(['chronicle', 'skills', 'grounds', 'formulas']);
+const SECTION_WORD = Object.freeze({ chronicle: 'chronicle.tab', skills: 'wiki.tab_skills', grounds: 'wiki.tab_grounds', formulas: 'wiki.tab_formulas' });
 
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs || SCRATCH); if (!s) { s = { tab: 'skills', query: '' }; SCRATCH.set(cs || SCRATCH, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs || SCRATCH); if (!s) { s = { tab: 'chronicle', query: '' }; SCRATCH.set(cs || SCRATCH, s); } return s; };
+
+/* ── THE CHRONICLE (src/shell/chronicle-model.js): every page in the story's order. An open page is its title and the story; a shut one
+   is its title under a lock, a line about itself and what opens it (the ground a link to its page in Hunts). Read as a book, top to
+   bottom: no cards, the pages ruled apart like the wiki's. Its pages follow the server, so the section is rebuilt when one opens. */
+const SLOT = '\u0001';
+function howHtml(h) {
+  if (h.words) return esc(h.words);
+  const [before, after] = t('chronicle.how_ground', { ground: SLOT }).split(SLOT);
+  return esc(before) + linkHtml(h.ground, targetOf({ kind: 'hunt', hunt: h.hunt })) + esc(after || '')
+    + (h.band ? '<span class="ck-band">' + esc(t('hunts.level_band', { lo: h.band[0], hi: h.band[1] })) + '</span>' : '');
+}
+function chronicleHtml(ctx, c) {
+  return '<p class="ck-found">' + esc(t('chronicle.found', { n: c.found, total: c.total })) + '</p>'
+    + c.pages.map((p) => '<article class="wk-page ck-page' + (p.open ? '' : ' is-shut') + '" data-wk-sec="chronicle" data-wk-id="' + esc(p.id) + '">'
+      + '<h4 class="wk-name">' + (p.open ? '' : glyphSvg(ctx.glyphs, 'uiLock')) + '<span>' + esc(p.title) + '</span></h4>'
+      + (p.open ? p.paras.map((x) => '<p class="wk-text ck-text">' + esc(x) + '</p>').join('')
+        : '<p class="ck-teaser">' + esc(p.teaser) + '</p><p class="ck-how">' + howHtml(p.how) + '</p>')
+      + '</article>').join('');
+}
+/* The section's pages, redrawn only when the open set changes (its key), so a display tick does no work. */
+function patchChronicle(sec, ctx) {
+  const c = chronicleOf(ctx.character);
+  if (sec.getAttribute('data-ck') === c.key) return;
+  sec.setAttribute('data-ck', c.key);
+  for (const el of sec.querySelectorAll(':scope > :not(.wk-sec-h)')) el.remove();
+  sec.insertAdjacentHTML('beforeend', chronicleHtml(ctx, c));
+}
 
 /* A share as the page says it: 0.65 -> 65, 0.015 -> 1.5. A multiplier's extra: 1.15 -> 15. */
 const pc = (f) => Math.round(f * 1000) / 10;
@@ -94,14 +124,16 @@ function formulaHtml(f) {
   const w = formulaWords(f);
   if (!w) return '';
   const check = JSON.stringify({ terms: f.terms, inputs: f.example.inputs, result: f.example.result, blessed: f.example.blessed });
-  return page('formulas', f.id, w.name, '<p class="wk-text">' + esc(w.words) + '</p>' + (f.id === 'level_curve' ? levelTable(f.terms.rows) : '')
+  /* the rule as labels, one a line (Tyler 2026-11-16: outside lore a page states labels, never a paragraph) */
+  return page('formulas', f.id, w.name, w.words.split('\n').map((l) => '<p class="wk-text">' + esc(l) + '</p>').join('') + (f.id === 'level_curve' ? levelTable(f.terms.rows) : '')
     + '<p class="wk-example" data-wk-formula="' + esc(f.id) + '" data-wk-check="' + esc(check) + '"><b>' + esc(t('wiki.example')) + '</b> ' + esc(w.example) + '</p>');
 }
 
 /** The whole wiki, built once per opening: the search, the tabs, then every page of every section. */
 export function renderWiki(ctx) {
   const g = ctx.glyphs;
-  const secs = { skills: skillPages().map((s) => skillHtml(ctx, s)), grounds: groundPages().map(groundHtml), formulas: formulaPages().map(formulaHtml) };
+  /* the Chronicle's pages are drawn by the patch (they follow the server) */
+  const secs = { chronicle: [], skills: skillPages().map((s) => skillHtml(ctx, s)), grounds: groundPages().map(groundHtml), formulas: formulaPages().map(formulaHtml) };
   return '<div class="wk">'
     + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="wk-search" placeholder="'
     + esc(t('wiki.search')) + '" aria-label="' + esc(t('wiki.search')) + '" autocomplete="off"></span></div>'
@@ -119,7 +151,10 @@ renderWiki.patch = function patchWiki(body, ctx) {
   const sc = scratchOf(ctx.character);
   const root = body.querySelector('.wk');
   if (!root) return;
+  patchChronicle(root.querySelector('section.wk-sec[data-wk-sec="chronicle"]'), ctx);
   const q = sc.query.trim().toLowerCase();
+  /* the count of pages found reads beside the pages, not over a search's matches */
+  prop(root.querySelector('.ck-found'), 'hidden', !!q);
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(!q && b.getAttribute('data-tab') === sc.tab));
   let shown = 0;
   for (const sec of root.querySelectorAll('section.wk-sec')) {

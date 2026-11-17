@@ -3,6 +3,9 @@
   "class": "fixture",
   "style": "s1",
   "material": "wood",
+  "restyle": {
+    "outline": true
+  },
   "source": "havora_cook_spit.png",
   "frame": [
     51,
@@ -38,5 +41,5 @@
     "cost": 10,
     "style": "havora/havora_tavern"
   },
-  "notes": "A stone fire pit with a roast on a spit: the tavern cook yard's open fire (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 6 of 16, cropped to its art."
+  "notes": "A stone fire pit with a roast on a spit: the tavern cook yard's open fire (lane/b-havora-polish 2026-10-26: the cook yard's own art in place of the cottage forge sprite). Candidate 6 of 16, cropped to its art. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 11, tools/world-art/restyle.mjs): its rim given the world's line, as the cook yard's oven, cauldron and the tavern have."
 }

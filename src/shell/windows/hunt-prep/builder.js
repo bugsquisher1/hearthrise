@@ -5,30 +5,33 @@
 // for the setup in use, ONE hr_hunt_preset_read for another (session/preset-read.js). The builder edits
 // a COPY of it (prep-draft.js): Fights as (read only), stance, target, chase and distance, the gold to
 // keep, and the slot grid (grid.js). Save sends the copy as ONE hr_action_set_options with every key;
-// Save and use then ONE hr_hunt_preset_apply. If the envelope changes the picked setup under a dirty
+// Save and use then ONE hr_hunt_preset_apply. Basic setup (Tyler 2026-11-16) fills the copy's bar with the basic
+// setup of the weapon type the picked setup fights as (src/shell/basic-setup.js, src/data/basic-setups.js), against
+// the server's skills and carried stock; like Sort and Clear it sends nothing until Save. If the envelope changes the picked setup under a dirty
 // draft (the HUD bar edited it), the builder says so and Save waits until the draft is loaded again.
 // A clean draft always follows the server. Nothing here spends or gates anything (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.133';
-import { presetsOf, equipmentOf } from '../../../session/item-sections.js?v=0.2.133';
-import { text, cls, prop, attr } from '../../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { runIntent, refusalWords } from '../../intent-words.js?v=0.2.133';
-import { HUNT_ROLES, ROLE_ORDER } from '../../../data/hunt-roles.js?v=0.2.133';
-import { HUNT_STANCES, TARGET_MODES, HERO_DISTANCE } from '../../../data/rule-subjects.js?v=0.2.133';
-import { GOLD_FLOOR } from '../../../data/hunt-sessions.js?v=0.2.133';
-import { itemName } from '../../widgets/bits.js?v=0.2.133';
-import { setupsOf } from '../../hunt-go.js?v=0.2.133';
-import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.133';
-import { readPreset } from '../../../session/preset-read.js?v=0.2.133';
-import { draftFrom, draftKey, isDirty, optionsOf, clearedBar, stepDistance, goldFloorOk } from '../../prep-draft.js?v=0.2.133';
-import { sortBar } from '../../bar-sort.js?v=0.2.133';
-import { t } from '../../../render/player-text.js?v=0.2.133';
-import { gridHtml, patchGrid, actGrid } from './grid.js?v=0.2.133';
+import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.135';
+import { presetsOf, equipmentOf, skillsOf, carriedOf } from '../../../session/item-sections.js?v=0.2.135';
+import { text, cls, prop, attr } from '../../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { runIntent, refusalWords } from '../../intent-words.js?v=0.2.135';
+import { HUNT_ROLES, ROLE_ORDER } from '../../../data/hunt-roles.js?v=0.2.135';
+import { HUNT_STANCES, TARGET_MODES, HERO_DISTANCE } from '../../../data/rule-subjects.js?v=0.2.135';
+import { GOLD_FLOOR } from '../../../data/hunt-sessions.js?v=0.2.135';
+import { itemName } from '../../widgets/bits.js?v=0.2.135';
+import { setupsOf } from '../../hunt-go.js?v=0.2.135';
+import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.135';
+import { readPreset } from '../../../session/preset-read.js?v=0.2.135';
+import { draftFrom, draftKey, isDirty, optionsOf, clearedBar, stepDistance, goldFloorOk } from '../../prep-draft.js?v=0.2.135';
+import { sortBar } from '../../bar-sort.js?v=0.2.135';
+import { basicBar, basicSetupOf } from '../../basic-setup.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
+import { gridHtml, patchGrid, actGrid } from './grid.js?v=0.2.135';
 
 /** Throw the draft away: the next patch builds it again from the server's row. */
 export function dropDraft(sc) {
-  sc.draft = null; sc.draftFor = null; sc.base = ''; sc.read = null; sc.stale = false; sc.sorted = false; sc.cleared = false; sc.roleHint = null; sc.drag = null;
+  sc.draft = null; sc.draftFor = null; sc.base = ''; sc.read = null; sc.stale = false; sc.sorted = false; sc.cleared = false; sc.basic = false; sc.roleHint = null; sc.drag = null;
 }
 
 /** Pick setup `n` for editing (the draft of the old pick is thrown away). */
@@ -64,6 +67,7 @@ export function builderHtml() {
     + '<span class="hb-label">' + t('prep.gold_word') + '</span></label><p>' + t('prep.gold_line') + '</p></div>'
     + '</div>'
     + '<div class="hpb-barhead">' + head('prep.bar') + '<small class="hpb-barcount"></small>'
+    + '<button type="button" class="hh-tool" data-hs-act="basic">' + t('controls.basic_setup') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="sort">' + t('controls.sort') + '</button><button type="button" class="hh-tool" data-hs-act="clear">' + t('controls.clear') + '</button></div>'
     + gridHtml()
     + '<p class="hpb-under">' + t('prep.bar_hint') + '</p>'
@@ -164,9 +168,11 @@ export function patchBuilder(root, ctx, sc, hunting, repaint) {
   patchOptions(root, sc, off);
   patchGrid(root, ctx, sc, view, off);
   for (const b of root.querySelectorAll('[data-hs-act="sort"], [data-hs-act="clear"]')) prop(b, 'disabled', off || !sc.draft);
+  /* Basic setup needs the weapon type the server says this setup fights as. */
+  prop(root.querySelector('[data-hs-act="basic"]'), 'disabled', off || !sc.draft || !basicSetupOf(view && view.discipline));
   const dirty = draftDirty(sc);
   /* The state line: what just happened to the copy, else that it is not saved yet. */
-  text(root.querySelector('.hpb-state'), sc.stale ? t('prep.changed') : sc.sorted ? t('prep.sorted') : sc.cleared ? t('prep.cleared') : dirty ? t('prep.unsaved') : '');
+  text(root.querySelector('.hpb-state'), sc.stale ? t('prep.changed') : sc.basic ? t('prep.basic_loaded') : sc.sorted ? t('prep.sorted') : sc.cleared ? t('prep.cleared') : dirty ? t('prep.unsaved') : '');
   /* THE FOOTER'S SAVES. Save keeps the copy on the server; Save and use keeps it and puts that setup on (town only). On the setup in
      use Save alone is the primary: there is nothing to switch to. */
   const foot = root.querySelector('.hpb-foot');
@@ -194,6 +200,17 @@ export function saveDraft(ctx, sc, repaint, andUse) {
   }, t('prep.saving'), () => { dropDraft(sc); return andUse ? t('prep.saved_on', { name }) : t('prep.saved', { name }); }, cs);
 }
 
+/** BASIC SETUP: the copy's bar becomes the basic setup of the weapon type the picked setup fights as (its discipline, the server's),
+    with the moves the server's skill levels allow and the food and drink the hero carries (basic-setup.js). The fight options stay. */
+function loadBasic(ctx, sc) {
+  const cs = ctx.character;
+  const bar = sc.draft && sc.view ? basicBar({ discipline: sc.view.discipline, skills: skillsOf(cs), carried: carriedOf(cs) }) : null;
+  if (!bar) return false;
+  sc.draft.slots = bar;
+  sc.basic = true; sc.sorted = false; sc.cleared = false;
+  return true;
+}
+
 /** The column's presses and changes. Returns true/false when handled, undefined when it is not the column's. */
 export function actBuilder(ctx, body, sc, repaint, action, ev, el) {
   if (action === 'b-slot') return actGrid(ctx, body, sc, repaint, ev, el);
@@ -204,7 +221,7 @@ export function actBuilder(ctx, body, sc, repaint, action, ev, el) {
   if (action === 'save-use' && click) { saveDraft(ctx, sc, repaint, true); return true; }
   if (action === 'load-again' && click) { sc.draft = null; repaint(); return true; }
   if (!d || sc.pending) return click || change ? true : undefined;
-  const touched = () => { sc.sorted = false; sc.cleared = false; repaint(); };
+  const touched = () => { sc.sorted = false; sc.cleared = false; sc.basic = false; repaint(); };
   if (action === 'd-stance' && click) { if (HUNT_STANCES[el.getAttribute('data-val')]) d.stance = el.getAttribute('data-val'); touched(); return true; }
   if (action === 'd-target' && change) { if (TARGET_MODES[el.value]) d.targetMode = el.value; touched(); return true; }
   if (action === 'd-chase' && click) { if (d.chase !== null) d.chase = !d.chase; touched(); return true; }
@@ -216,7 +233,8 @@ export function actBuilder(ctx, body, sc, repaint, action, ev, el) {
     touched();
     return true;
   }
-  if (action === 'sort' && click) { d.slots = sortBar(d.slots); sc.sorted = true; sc.cleared = false; repaint(); return true; }
-  if (action === 'clear' && click) { d.slots = clearedBar(); sc.cleared = true; sc.sorted = false; repaint(); return true; }
+  if (action === 'sort' && click) { d.slots = sortBar(d.slots); sc.sorted = true; sc.cleared = false; sc.basic = false; repaint(); return true; }
+  if (action === 'clear' && click) { d.slots = clearedBar(); sc.cleared = true; sc.sorted = false; sc.basic = false; repaint(); return true; }
+  if (action === 'basic' && click) { loadBasic(ctx, sc); repaint(); return true; }
   return undefined;
 }

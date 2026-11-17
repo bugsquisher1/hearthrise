@@ -1,15 +1,15 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/bench-fee.js — WHAT THE PUBLIC BENCH TAKES, IN PLAIN WORDS (Tyler 2026-11-01).
 //
-// "The public bench takes 3 gold a craft. A workshop in your house takes none." Every number is the server's `bench_tax` section
+// "Bench fee: 3 gold a craft / Free with a workshop at home" Every number is the server's `bench_tax` section
 // (src/session/bench-sections.js) and its purse, read here and spent nowhere. The server stops a job it cannot pay and says
 // so; these are the words for that stop, before Start and after it, and they name the stack the shop would pay it back with.
 // ════════════════════════════════════════════════════════════════════════
-import { taxFor, craftsCovered, canPayNext, dueNext } from '../core/bench-tax.js?v=0.2.133';
-import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js?v=0.2.133';
-import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.133';
-import { whole } from '../render/format.js?v=0.2.133';
-import { itemName } from './widgets/bits.js?v=0.2.133';
+import { taxFor, craftsCovered, canPayNext, dueNext } from '../core/bench-tax.js?v=0.2.135';
+import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js?v=0.2.135';
+import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.135';
+import { whole } from '../render/format.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
 
 const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : null);
 
@@ -25,14 +25,14 @@ export function feeWords(mg) {
 /** The recipe row's line, or '' when the job takes no fee. */
 export function feeRowWords(cs, w) {
   const mg = w.kind === 'artisan' ? benchFeeMg(cs, w.id) : 0;
-  return mg > 0 ? 'The public bench takes ' + feeWords(mg) + '.' : '';
+  return mg > 0 ? 'Bench fee: ' + feeWords(mg) : '';
 }
 
 /** The full sentence, with what takes it off. */
 export function feeFullWords(cs, w) {
   const row = feeRowWords(cs, w);
   const room = roomWords(benchTaxOf(cs), w.skill);
-  return row && room ? row + ' A ' + room + ' in your house takes none.' : row;
+  return row && room ? row + '\nFree with a ' + room + ' at home' : row;
 }
 
 /** The skill's start screen, before any press: the share and what takes it off, or what the account's room already does. */
@@ -40,8 +40,8 @@ export function feeHeadWords(cs, skill) {
   const t = benchTaxOf(cs);
   const r = t && t.rooms[skill];
   if (!r) return '';
-  if (r.free) return 'No bench fee: you have a ' + r.room + ' in your house.';
-  return 'The public bench takes ' + (r.permille / 10) + '% of what you make, at shop prices. A ' + r.room + ' in your house takes none.';
+  if (r.free) return 'No bench fee: ' + r.room + ' at home';
+  return 'Bench fee: ' + (r.permille / 10) + '% of output at shop prices\nFree with a ' + r.room + ' at home';
 }
 
 /** The live tax this hero's next run of `w` would owe, from the server's numbers, or null. */
@@ -67,13 +67,13 @@ function bestStackWords(cs) {
     const qty = held[id] || 0;
     if (qty > 0 && bid > 0 && (!best || qty * bid > best.total)) best = { id, qty, total: qty * bid };
   }
-  return best ? 'your ' + whole(best.qty) + ' ' + itemName(best.id) : null;
+  return best ? whole(best.qty) + ' ' + itemName(best.id) : null;
 }
 
 /* What to do about it, in the player's words: gathering is always free. */
 function payWords(cs) {
   const stack = bestStackWords(cs);
-  return stack ? 'Sell ' + stack + ' at the shop, or gather something. Gathering is free.' : 'Gather something and sell it. Gathering is free.';
+  return stack ? 'Sell ' + stack + ' at the shop, or gather for free' : 'Gather for free, then sell';
 }
 
 /** Why this row cannot start for gold (plain words), or ''. */
@@ -81,22 +81,22 @@ export function feeBlock(cs, w) {
   const tax = rowTax(cs, w);
   if (!tax || canPayNext(tax)) return '';
   const t = benchTaxOf(cs);
-  const kept = t && t.keep > 0 ? ' and keep ' + whole(t.keep) : '';
-  return 'The public bench wants ' + whole(dueNext(tax)) + ' gold for this. You have ' + whole(tax.purse) + kept + '. ' + payWords(cs);
+  const kept = t && t.keep > 0 ? ', reserve ' + whole(t.keep) : '';
+  return 'Bench fee: ' + whole(dueNext(tax)) + ' gold, have ' + whole(tax.purse) + kept + '. ' + payWords(cs);
 }
 
 /** The latest run's end, in words, while nothing runs; '' when there is none to tell. Gold first: that stop needs an answer. */
 export function benchEndWords(cs, recipeName) {
   const run = benchRunOf(cs);
   if (!run || !run.end) return '';
-  const paid = run.gold > 0 ? whole(run.gold) + ' gold paid to the public bench.' : '';
+  const paid = run.gold > 0 ? 'Bench fee paid: ' + whole(run.gold) + ' gold' : '';
   const name = recipeName(run.recipe);
   if (run.end === 'gold') {
     const t = benchTaxOf(cs);
-    const why = t && t.keep > 0 ? 'the bench fee would take your gold below the ' + whole(t.keep) + ' you keep.' : 'out of gold for the bench fee.';
-    return name + ' stopped after ' + whole(run.crafts) + ': ' + why + (paid ? ' ' + paid : '') + ' ' + payWords(cs);
+    const why = t && t.keep > 0 ? 'gold at reserve ' + whole(t.keep) : 'out of gold for the bench fee';
+    return [name + ' stopped after ' + whole(run.crafts) + ', ' + why, paid, payWords(cs)].filter(Boolean).join('\n');
   }
-  return paid ? name + ': ' + whole(run.crafts) + ' done. ' + paid : '';
+  return paid ? name + ': ' + whole(run.crafts) + ' done\n' + paid : '';
 }
 
 /** A job the bench stopped for gold, as one alert line for the return (once per stop: alerts remember the id), or null. */

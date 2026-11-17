@@ -157,7 +157,8 @@ export function validateSprite(sp, grid = GRIDS.base) {
 export function validateTerrain(t, grid = GRIDS.base) {
   const out = [];
   const T = grid.T;
-  const need = t.kind === 'fill' ? ['1111'] : WANG_KEYS;
+  /* a fill and a variety (tools/world-art/variety.mjs: one floor tile's variants, src/world/core/ground-variety.js) hold one key */
+  const need = t.kind === 'fill' || t.kind === 'variety' ? ['1111'] : WANG_KEYS;
   for (const k of need) if (!t.tiles[k] || !t.tiles[k].length) out.push({ rule: 'wang', id: t.id, detail: `no tile for corners ${k}` });
   if (t.kind === 'fill' && t.cycle && t.cycle[0] * t.cycle[1] !== (t.tiles['1111'] || []).length) out.push({ rule: 'wang', id: t.id, detail: `cycle ${t.cycle.join('x')} needs ${t.cycle[0] * t.cycle[1]} variants, has ${(t.tiles['1111'] || []).length}` });
   for (const [k, list] of Object.entries(t.tiles)) {

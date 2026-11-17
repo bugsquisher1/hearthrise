@@ -21,7 +21,7 @@
 //
 //   import { openWorld } from './tools/qa/local-world.mjs';
 //   const world = await openWorld();                     // { url, db, skip, tick, play, close }; one world per process
-//   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x' });
+//   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x', scale: 1.25 });
 //   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
 //   await world.cron('hr-account-purge');                // run a scheduled job's own command (the pg_cron shim runs nothing by itself)
@@ -99,6 +99,62 @@ export function shiftEpochs(v, ms) {
   if (Array.isArray(v)) return v.map((e) => shiftEpochs(e, ms));
   if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, e]) => [k, shiftEpochs(e, ms)]));
   return v;
+}
+
+const columnsOf = async (tx, table, types) => (await tx.query(`select column_name as c from information_schema.columns
+  where table_schema = 'public' and table_name = $1 and data_type = any($2)`, [table, types])).rows.map((r) => r.c);
+
+/* One row's clocks and JSON back by `ms`. ended_at never moves: only open sessions come here, and it is null on them. */
+async function moveRow(tx, table, id, ms, clockCols, jsonCols) {
+  if (clockCols.length) await tx.query(`update public.${table} set ` + clockCols.map((c) => `${c} = ${c} - make_interval(secs => $2::float8 / 1000)`).join(', ') + ' where id = $1', [id, ms]);
+  for (const c of jsonCols) {
+    const v = (await tx.query(`select ${c}::text as v from public.${table} where id = $1`, [id])).rows[0].v;
+    if (v === null) continue;
+    let parsed;
+    try { parsed = JSON.parse(v); } catch { continue; }
+    await tx.query(`update public.${table} set ${c} = $2 where id = $1`, [id, JSON.stringify(shiftEpochs(parsed, ms))]);
+  }
+}
+
+/** The skip's mover, inside the caller's transaction: every clock a skip (and a wait, `how.town`) moves back by `ms`.
+    Answers how many open hunts moved. --selftest runs it on a planted database. */
+export async function moveClocks(tx, ms, how = {}) {
+  const sessionClocks = (await columnsOf(tx, 'hunt_sessions', ['timestamp with time zone'])).filter((c) => c !== 'ended_at');
+  const instanceClocks = await columnsOf(tx, 'hunt_instances', ['timestamp with time zone']);
+  const sessionJson = await columnsOf(tx, 'hunt_sessions', ['json', 'jsonb']);
+  const instanceJson = [...await columnsOf(tx, 'hunt_instances', ['json', 'jsonb']), 'world'];
+  const open = (await tx.query(`select id, instance_id from public.hunt_sessions where ended_at is null`)).rows;
+  for (const s of open) await moveRow(tx, 'hunt_sessions', s.id, ms, sessionClocks, sessionJson);
+  for (const id of new Set(open.map((s) => s.instance_id).filter(Boolean))) await moveRow(tx, 'hunt_instances', id, ms, instanceClocks, instanceJson);
+  /* the stamina pool's clock rides the session's: hr_hunt_apply refuses a pool written past settled_to (stamina_ahead), and refused settles forfeit the hunt */
+  await tx.query(`update public.player_state p set stamina_at = p.stamina_at - make_interval(secs => $1::float8 / 1000)
+    from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot and p.stamina_at is not null`, [ms]);
+  /* A held Blessing counts at a death only when bought_at <= the window's start (hr_blessing_take), so it is a clock the
+     hunt's are compared with: left behind, a Blessing bought just before a skip reads as bought after every window the skip
+     settles and the death ignores it (audit 2026-11-15, the Barrows). Every row moves, hunting or not: order is all it keeps. */
+  await tx.query(`update public.player_blessings set bought_at = bought_at - make_interval(secs => $1::float8 / 1000)`, [ms]);
+  /* History moves with the clock: an open session moved behind an ended one would read as the older (played 10-31: the
+     Thicket's analyzer showed the Cellar hunt that ended before it, "Hunt ended", after a skip of 25 minutes) */
+  for (const s of (await tx.query(`select id from public.hunt_sessions where ended_at is not null`)).rows) {
+    await moveRow(tx, 'hunt_sessions', s.id, ms, [...sessionClocks, 'ended_at'], []);
+  }
+  if (how.away) {
+    await tx.query(`update public.player_state set client_state = jsonb_set(client_state, '{awaySeen,at}', to_jsonb((client_state->'awaySeen'->>'at')::bigint - $1::bigint))
+      where jsonb_typeof(client_state->'awaySeen'->'at') = 'number'`, [ms]);
+  }
+  if (how.town) {
+    const back = `make_interval(secs => $1::float8 / 1000)`;
+    const idle = `not exists (select 1 from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot)`;
+    await tx.query(`update public.player_state p set stamina_at = p.stamina_at - ${back} where p.stamina_at is not null and ${idle}`, [ms]);
+    await tx.query(`update public.player_state p set active_since = p.active_since - ${back}, accrued_to = p.accrued_to - ${back}
+      where p.active_kind in ('artisan', 'gather') and p.active_since is not null and p.accrued_to is not null and ${idle}`, [ms]);
+    await tx.query(`update public.account_farm_plots set planted_at = planted_at - ${back},
+      waterings = array(select w - ${back} from unnest(waterings) w)`, [ms]);
+    /* every rate window (hr_rate_ok: a minute, an hour) is a clock too: the minutes waited have passed for it. A bot that
+       plays hours in wall minutes otherwise reads hr_load's 180 a minute as rate_limited (coverage bot, 2026-11-07) */
+    await tx.query(`update public.hr_rate_counters set window_start = window_start - ${back}`, [ms]);
+  }
+  return open.length;
 }
 
 // ── THE DATABASE ─────────────────────────────────────────────────────────
@@ -502,21 +558,6 @@ export async function openWorld(o = {}) {
   const tickMs = o.tickMs === undefined ? 10000 : o.tickMs;
   const ticker = tickMs ? setInterval(() => { tick().catch((e) => console.error('[local-world] tick: ' + e.message)); }, tickMs) : null;
 
-  const columnsOf = async (table, types) => (await db.query(`select column_name as c from information_schema.columns
-    where table_schema = 'public' and table_name = $1 and data_type = any($2)`, [table, types])).rows.map((r) => r.c);
-
-  /* One row's clocks and JSON back by `ms`. ended_at never moves: only open sessions come here, and it is null on them. */
-  async function moveRow(tx, table, id, ms, clockCols, jsonCols) {
-    if (clockCols.length) await tx.query(`update public.${table} set ` + clockCols.map((c) => `${c} = ${c} - make_interval(secs => $2::float8 / 1000)`).join(', ') + ' where id = $1', [id, ms]);
-    for (const c of jsonCols) {
-      const v = (await tx.query(`select ${c}::text as v from public.${table} where id = $1`, [id])).rows[0].v;
-      if (v === null) continue;
-      let parsed;
-      try { parsed = JSON.parse(v); } catch { continue; }
-      await tx.query(`update public.${table} set ${c} = $2 where id = $1`, [id, JSON.stringify(shiftEpochs(parsed, ms))]);
-    }
-  }
-
   const world = {
     url: origin + '/play.html', origin, db, offsite, reports, tick, pushed: () => push.pushed(),
     /** The client files this world was asked for: `served` (a Set of paths) and `missed` (every request answered 404). */
@@ -526,41 +567,8 @@ export async function openWorld(o = {}) {
       if (!(minutes > 0)) throw new Error('local-world: skip(minutes) wants a positive number');
       const ms = Math.round(minutes * 60000);
       if (ticking) await ticking.catch(() => {});
-      const sessionClocks = (await columnsOf('hunt_sessions', ['timestamp with time zone'])).filter((c) => c !== 'ended_at');
-      const instanceClocks = await columnsOf('hunt_instances', ['timestamp with time zone']);
-      const sessionJson = await columnsOf('hunt_sessions', ['json', 'jsonb']);
-      const instanceJson = [...await columnsOf('hunt_instances', ['json', 'jsonb']), 'world'];
       /* one transaction: a page's poll can never settle a session whose clocks moved and whose instance's did not */
-      const moved = await db.transaction(async (tx) => {
-        const open = (await tx.query(`select id, instance_id from public.hunt_sessions where ended_at is null`)).rows;
-        for (const s of open) await moveRow(tx, 'hunt_sessions', s.id, ms, sessionClocks, sessionJson);
-        for (const id of new Set(open.map((s) => s.instance_id).filter(Boolean))) await moveRow(tx, 'hunt_instances', id, ms, instanceClocks, instanceJson);
-        /* the stamina pool's clock rides the session's: hr_hunt_apply refuses a pool written past settled_to (stamina_ahead), and refused settles forfeit the hunt */
-        await tx.query(`update public.player_state p set stamina_at = p.stamina_at - make_interval(secs => $1::float8 / 1000)
-          from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot and p.stamina_at is not null`, [ms]);
-        /* History moves with the clock: an open session moved behind an ended one would read as the older (played 10-31: the
-           Thicket's analyzer showed the Cellar hunt that ended before it, "Hunt ended", after a skip of 25 minutes) */
-        for (const s of (await tx.query(`select id from public.hunt_sessions where ended_at is not null`)).rows) {
-          await moveRow(tx, 'hunt_sessions', s.id, ms, [...sessionClocks, 'ended_at'], []);
-        }
-        if (how.away) {
-          await tx.query(`update public.player_state set client_state = jsonb_set(client_state, '{awaySeen,at}', to_jsonb((client_state->'awaySeen'->>'at')::bigint - $1::bigint))
-            where jsonb_typeof(client_state->'awaySeen'->'at') = 'number'`, [ms]);
-        }
-        if (how.town) {
-          const back = `make_interval(secs => $1::float8 / 1000)`;
-          const idle = `not exists (select 1 from public.hunt_sessions s where s.ended_at is null and s.user_id = p.user_id and s.slot = p.slot)`;
-          await tx.query(`update public.player_state p set stamina_at = p.stamina_at - ${back} where p.stamina_at is not null and ${idle}`, [ms]);
-          await tx.query(`update public.player_state p set active_since = p.active_since - ${back}, accrued_to = p.accrued_to - ${back}
-            where p.active_kind in ('artisan', 'gather') and p.active_since is not null and p.accrued_to is not null and ${idle}`, [ms]);
-          await tx.query(`update public.account_farm_plots set planted_at = planted_at - ${back},
-            waterings = array(select w - ${back} from unnest(waterings) w)`, [ms]);
-          /* every rate window (hr_rate_ok: a minute, an hour) is a clock too: the minutes waited have passed for it. A bot that
-             plays hours in wall minutes otherwise reads hr_load's 180 a minute as rate_limited (coverage bot, 2026-11-07) */
-          await tx.query(`update public.hr_rate_counters set window_start = window_start - ${back}`, [ms]);
-        }
-        return open.length;
-      });
+      const moved = await db.transaction((tx) => moveClocks(tx, ms, how));
       return settleUp({ moved, minutes });
     },
     /** `minutes` pass for everyone: every open hunt as skip() moves it, and town time too (rest, crops, a bench job). */
@@ -580,6 +588,8 @@ export async function openWorld(o = {}) {
       for (const c of driver.contexts) await c.close().catch(() => {});
       driver.contexts.clear();
       if (driver.browser) await driver.browser.close().catch(() => {});
+      for (const b of driver.scaled.values()) await (await b).close().catch(() => {});
+      driver.scaled.clear();
       push.close();
       server.closeAllConnections();
       await new Promise((r) => server.close(r));
@@ -614,7 +624,7 @@ export async function openWorld(o = {}) {
 }
 
 // ── THE DRIVER ───────────────────────────────────────────────────────────
-const driver = { browser: null, contexts: new Set() };
+const driver = { browser: null, scaled: new Map(), contexts: new Set() };
 async function browserOf() {
   if (driver.browser && driver.browser.isConnected()) return driver.browser;
   const { chromium } = await import('playwright');
@@ -622,11 +632,28 @@ async function browserOf() {
   driver.browser = await chromium.launch(launchOptions({ headless: true }));
   return driver.browser;
 }
+/* A DISPLAY SCALE AS WINDOWS SETS ONE (125 %, 150 %): Chromium's own device scale (--force-device-scale-factor, the page
+   the window's size), never DevTools' deviceScaleFactor. Measured 2026-11-16: the emulation lays a 6 px border out at 7 CSS px
+   at 1.25, where a real 125 % screen snaps it to 7 DEVICE px (5.6 CSS), so what it drew was not what a player sees.
+   One browser per scale and window size, closed with the world. */
+function scaledBrowserOf(scale, viewport) {
+  const key = scale + '@' + viewport.width + 'x' + viewport.height;
+  if (!driver.scaled.has(key)) driver.scaled.set(key, (async () => {
+    const { chromium } = await import('playwright');
+    const { launchOptions } = await import(pathToFileURL(join(ROOT, 'tests/_chrome.mjs')).href);
+    return chromium.launch(launchOptions({ headless: true, args: ['--force-device-scale-factor=' + scale, '--window-size=' + viewport.width + ',' + viewport.height] }));
+  })());
+  return driver.scaled.get(key);
+}
 
-async function play(world, { account, viewport = { width: 1280, height: 720 }, touch = false, shots = null } = {}) {
+async function play(world, { account, viewport = { width: 1280, height: 720 }, touch = false, shots = null, scale = 1 } = {}) {
   if (!/^[a-z0-9_-]{1,40}$/i.test(String(account || ''))) throw new Error('local-world: play({ account }) wants a plain name');
-  const browser = await browserOf();
-  const ctx = await browser.newContext({ viewport, hasTouch: !!touch, isMobile: !!touch });
+  /* scale: the display's devicePixelRatio (Windows laptops run 125-150 %: viewport 1536x864 at scale 1.25 is a 1920x1080
+     panel); a touch screen keeps the emulation, which its viewport and touch need */
+  const dpr = Number(scale) > 0 ? Number(scale) : 1;
+  const real = dpr !== 1 && !touch;
+  const browser = real ? await scaledBrowserOf(dpr, viewport) : await browserOf();
+  const ctx = await browser.newContext(real ? { viewport: null } : { viewport, deviceScaleFactor: dpr, hasTouch: !!touch, isMobile: !!touch });
   driver.contexts.add(ctx);
   const errors = [], offsite = [];
   const local = new URL(world.origin).host;
@@ -770,7 +797,7 @@ async function smoke({ shots, viewport, touch, site }) {
 }
 
 // ── THE SELFTEST ─────────────────────────────────────────────────────────
-function selftest() {
+async function selftest() {
   const fails = [];
   const self = fileURLToPath(import.meta.url);
   const env = { ...process.env, HR_ENGINE_DB_URL: 'postgres://x@db.' + PRODUCTION_REF + '.supabase.co:6543/postgres' };
@@ -779,8 +806,30 @@ function selftest() {
   const T = Date.UTC(2026, 9, 30);
   const moved = shiftEpochs({ v: 1, s: 99, w: [T, 'x', [T + 5, 12]], u: [[{ respawnAtMs: T + 9 }, 1200, null]] }, 60000);
   if (JSON.stringify(moved) !== JSON.stringify({ v: 1, s: 99, w: [T - 60000, 'x', [T + 5 - 60000, 12]], u: [[{ respawnAtMs: T + 9 - 60000 }, 1200, null]] })) fails.push('shiftEpochs moved the wrong values: ' + JSON.stringify(moved));
+  /* THE SKIP KEEPS A BLESSING'S ORDER (audit 2026-11-15): moveClocks on a planted database holding the columns it reads. A hero
+     enters at T, buys a Blessing at T + 1 min, settles to T + 2 min; a 30 min skip must leave the Blessing between the two. */
+  const { PGlite } = await import('@electric-sql/pglite');
+  const pg = new PGlite();
+  try {
+    const at = (min) => new Date(T + min * 60000).toISOString();
+    await pg.exec(`create table public.hunt_sessions (id int primary key, instance_id int, user_id int, slot int, entered_at timestamptz, settled_to timestamptz, ended_at timestamptz, state jsonb);
+      create table public.hunt_instances (id int primary key, settled_to timestamptz, world jsonb);
+      create table public.player_state (user_id int, slot int, stamina_at timestamptz, client_state jsonb, active_kind text, active_since timestamptz, accrued_to timestamptz);
+      create table public.player_blessings (user_id int, slot int, tier int, bought_at timestamptz);
+      create table public.account_farm_plots (planted_at timestamptz, waterings timestamptz[]);
+      create table public.hr_rate_counters (window_start timestamptz);`);
+    await pg.query(`insert into public.hunt_sessions values (1, 1, 7, 0, $1, $2, null, '{}'), (2, null, 7, 1, $1, $1, $1, '{}')`, [at(0), at(2)]);
+    await pg.query(`insert into public.hunt_instances values (1, $1, '{}')`, [at(2)]);
+    await pg.query(`insert into public.player_blessings values (7, 0, 1, $1), (7, 1, 2, $1)`, [at(1)]);
+    await pg.transaction((tx) => moveClocks(tx, 30 * 60000, {}));
+    const rows = (await pg.query(`select (select settled_to from public.hunt_sessions where id = 1) as settled,
+      array_agg(b.bought_at order by b.slot) as bought from public.player_blessings b`)).rows[0];
+    const want = Date.parse(at(1 - 30));
+    if (!rows.bought.every((d) => new Date(d).getTime() === want)) fails.push('a skip left player_blessings.bought_at behind: ' + JSON.stringify(rows.bought) + ' (want ' + at(1 - 30) + ')');
+    if (new Date(rows.settled).getTime() !== Date.parse(at(2 - 30))) fails.push('a skip did not move the open hunt: ' + JSON.stringify(rows.settled));
+  } finally { await pg.close(); }
   for (const f of fails) console.log('  RED  ' + f);
-  console.log(fails.length ? 'local-world --selftest: RED' : 'local-world --selftest: production refused by name; the mover moves epochs and nothing else');
+  console.log(fails.length ? 'local-world --selftest: RED' : 'local-world --selftest: production refused by name; the mover moves epochs and nothing else; a skip keeps a Blessing before the window it was bought for');
   return fails.length ? 1 : 0;
 }
 
@@ -791,7 +840,7 @@ if (isMain(import.meta.url)) {
   process.on('unhandledRejection', (e) => { console.error('local-world: HARNESS: ' + String(e && e.message || e).split('\n')[0]); process.exit(2); });
   const args = process.argv.slice(2);
   const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
-  if (args.includes('--selftest')) process.exit(selftest());
+  if (args.includes('--selftest')) process.exit(await selftest());
   refuseProduction();
   const cmd = args[0];
   if (cmd === 'smoke') {

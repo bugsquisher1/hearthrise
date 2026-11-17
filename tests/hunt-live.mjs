@@ -76,6 +76,9 @@
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
 //   LV-NOFIGHT A HERO WHO CAN'T FIGHT GOES HOME (designer 10-31): a bare bow with the store shut ends no_fight at its
 //         span on the server's commits; viewed, the prediction stops there too and every commit before it matches.
+//   LV-YARD THE YARD NEVER ENDS FOR NO BLOWS (Tyler 2026-11-16: a yard session ended no_fight at ten minutes): a bare bow (nothing
+//         loaded, an empty bag and bar, the store shut) at the Ranged yard and a Mage with no runes at the Magic yard play past the
+//         no-fight span. Browser closed: no end, the hero's blows land on the dummy, the skill keeps paying. Viewed: every commit matches.
 //   LV-SPELL A MONSTER'S GROUP STRIKE (Tyler 2026-11-08, lane/b-area-engine): every hero of a party of four, and a lone hero, is struck
 //         at every landing wherever it stands, on the server's commits (browser closed); viewed, every commit matches and the browser
 //         plays the server's own marks; a frost-resisting tank (gear resistPm, carried to a peer's browser in its frozen row) takes half.
@@ -90,7 +93,9 @@
 //   LV-AREA A HERO'S AREA ABILITY, BOTH PATHS (Tyler 2026-11-08, lane/b-area-set): a sword alone with Turning Cut beside a tank, watched by
 //         the TANK, so the caster is the browser's frozen peer. Browser closed: the server's commits cast it and it strikes for a share of
 //         the caster's own blow; a hero under its unlock level never casts it. Viewed: every commit matches the prediction both ways (the
-//         peer's level and its largest blow reach the browser in its frozen row).
+//         peer's level and its largest blow reach the browser in its frozen row). Every melee weapon without a shield casts it (Tyler
+//         2026-11-16): a club at its unlock in the Thicket's full box casts it on its own rule, each cast on 3 or more, and the tank's sword
+//         and shield with the same slot never does, both paths.
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -1689,6 +1694,40 @@ function rules(M) {
     ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
     ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
   }
+  { /* LV-YARD the yard never ends for no blows (Tyler 2026-11-16), viewed and with the browser closed */
+    const SPAN = (M.HSD.NO_FIGHT_END_MIN + 2) * 60000;
+    for (const [hunt, role, skill, weapon] of [['training_yard_ranged', 'ranger', 'ranged', 'shortbow'], ['training_yard_magic', 'mage', 'magic', 'apprentice_wand']]) {
+      const mi = memberOf(M, 'a', 0, role, 30);
+      mi.huntId = hunt;
+      mi.equipment = { weapon };
+      /* nothing loaded, nothing carried, no runes, no food, an empty bar, and the store shut */
+      mi.huntSession = Object.assign({}, mi.huntSession, { bag: {}, supplySource: 'mine', onEmpty: 'end' });
+      mi.hero = M.SPAWN.heroSetup({ weaponType: M.HR.wornRoleKey(mi.equipment, M.ITEMS), options: {}, partyRoles: [role], bar: [] });
+      const srv = server(M, [mi], { hunt });
+      const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+      E.seed(srv.live(mi.user, 0));
+      const verdicts = [], ends = [];
+      let blows = 0, lateXp = 0;
+      for (let t = T0; t <= T0 + SPAN; t += 100) {
+        E.advance(t, () => {});
+        if ((t - T0) % 16000 === 0 && t > T0) {
+          const was = mi.skills[skill] || 0;
+          const c = srv.commit(t);
+          if (!c) continue;
+          for (const e of c.ends) ends.push(e);
+          verdicts.push(E.reconcile(c.check));
+          blows += c.tl.hunt_events.filter((e) => e.type === 'dmg' && e.u === mi.unitId && e.t !== mi.unitId).length;
+          if (t - T0 > M.HSD.NO_FIGHT_END_MIN * 60000) lateXp += (mi.skills[skill] || 0) - was;
+        }
+      }
+      const off = verdicts.filter((v) => v !== 'match');
+      console.log(`  LV-YARD ${skill}: browser closed, ${blows} blows on the dummy, ${lateXp} ${skill} XP after the no-fight span, ends ${JSON.stringify(ends)}; viewed, ${off.length} of ${verdicts.length} commits off`);
+      ok('LV-YARD', ends.length === 0, `${skill}: browser closed: a ${role} with nothing to shoot ended its training ${JSON.stringify(ends)}`);
+      ok('LV-YARD', blows > 30, `${skill}: browser closed: a ${role} with nothing loaded landed ${blows} blows on the dummy in ${SPAN / 60000} min`);
+      ok('LV-YARD', lateXp > 0, `${skill}: browser closed: the yard paid ${lateXp} ${skill} XP past the no-fight span`);
+      ok('LV-YARD', verdicts.length > 40 && off.length === 0, `${skill}: viewed: ${off.length} of ${verdicts.length} commits did not match the prediction`);
+    }
+  }
   { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's cell over
        the even share (src/data/party-class-xp.js, read here: lane/b-party-xp moved it 1070 -> 1210); a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
     const SPAN = 240000;
@@ -1943,6 +1982,29 @@ function rules(M) {
       else ok('LV-AREA', cast.length === 0 && hits.length === 0, `${name}: browser closed: a hero at Melee ${level} cast Turning Cut ${cast.length} time(s) under its unlock ${row.unlock}`);
       ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `${name}: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
     }
+    // THE CLUB AND THE TANK (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on"): a Practice Club at Melee 10,
+    // its unlock, with Turning Cut on the rule a new slot starts with (3 or more beside it), and the tank's sword and shield with the same
+    // slot, in the Thicket's full box (8 a pull), watched by the TANK (the club is the browser's frozen peer). Browser closed: the club casts
+    // it and every cast strikes 3 or more; the tank never casts it. Viewed: every commit matches the prediction.
+    const rule = { action: { type: 'ability', id: 'turning_cut' }, conditions: row.trigger.map((c) => ({ ...c })), join: 'and' };
+    const box = () => {
+      const a = memberOf(M, 'a', 0, 'tank', 40), b = memberOf(M, 'b', 1, 'melee_dps', row.unlock);
+      b.equipment = { weapon: 'practice_club' };
+      a.hero = M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, bar: [rule], partyRoles: ['tank', 'melee_dps'], leaveTogether: true });
+      b.hero = M.SPAWN.heroSetup({ weaponType: M.HR.roleWeaponOf(M.ITEMS.practice_club), options: {}, bar: [rule], partyRoles: ['tank', 'melee_dps'], leaveTogether: true });
+      for (const m of [a, b]) { m.huntId = 'meadowbrook_thicket'; m.hp = 1e9; m.hero = Object.assign({}, m.hero, { density: 8 }); }
+      return [a, b];
+    };
+    const mis = box();
+    const r = withoutSpells(M, () => run(M, mis, 96000, { viewer: { user: 'a', slot: 0 } }));
+    const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+    const castBy = (u) => server.filter((e) => e.type === 'cast' && e.ability === 'turning_cut' && e.u === u);
+    const struck = castBy(mis[1].unitId).map((c) => server.filter((e) => e.type === 'dmg' && e.ability === 'turning_cut' && e.u === c.u && e.atMs === c.atMs).length);
+    const off = r.verdicts.filter((x) => x.v !== 'match');
+    console.log(`  LV-AREA a club (Melee ${row.unlock}) beside a sword and shield: ${struck.length} Turning Cuts striking ${JSON.stringify(struck)}, the tank ${castBy(mis[0].unitId).length}; ${r.verdicts.length - off.length} of ${r.verdicts.length} commits matched`);
+    ok('LV-AREA', struck.length >= 2 && struck.every((n) => n >= 3), `a club at Melee ${row.unlock}: browser closed: ${struck.length} Turning Cuts striking ${JSON.stringify(struck)} (want some, each on 3 or more)`);
+    ok('LV-AREA', castBy(mis[0].unitId).length === 0, `a sword and shield: browser closed: cast Turning Cut ${castBy(mis[0].unitId).length} time(s)`);
+    ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `a club beside a sword and shield: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
   }
   return fails;
 }
@@ -1978,6 +2040,7 @@ const MUTANTS = [
   /* A real per-frame slowdown: every 100th frame step does 60 ms of work, in every play (LV-E budget). */
   ['a frame step stalls 60 ms every 100 frames (LV-E budget)', 'src/session/live-link.js', '  advance(clientNow) {\n',
     '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],
+  ['the yard\'s bow waits for arrows (LV-YARD)', 'src/core/hunt/damage.js', '      if (yard) return yard;\n', '', /^LV-YARD/],
   ['the no_fight end never fires (LV-NOFIGHT)', 'src/core/action-rules.js', '  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,', '  no_fight: () => false,', /^LV-NOFIGHT/],
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
   ['the prediction shows its own rare rolls (LV-RR)', 'src/hunt-view/live-engine.js', 'sim.events.filter(predicted)', 'sim.events', /^LV-RR/],
@@ -2005,6 +2068,8 @@ const MUTANTS = [
   ['a pack opens with every cast at once (LV-STAGGER)', 'src/core/hunt/monster-spells.js', '    if (!u.spellCds) u.spellCds = firstCasts(sc, list);', '    if (!u.spellCds) u.spellCds = {};', /^LV-STAGGER: browser closed: \d+ casters/],
   ['every caster waits the same, the wait is not drawn (LV-STAGGER)', 'src/core/hunt/monster-spells.js', 'const wait = steps > 0 ? sc.rng.int(0, steps) * sc.dtMs : 0;', 'const wait = steps > 0 ? Math.floor(steps / 2) * sc.dtMs : 0;', /^LV-STAGGER: browser closed: \d+ casters/],
   ['a frozen peer row drops the levels its abilities read (LV-AREA)', 'src/core/member.js', '  for (const k of engineSkillsOf(m.hero.slots)) lv[k] = levelOf(m.state.skills, k);\n', '', /^LV-AREA: at its unlock: viewed/],
+  ["Turning Cut a sword alone's again (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a club at Melee \d+: browser closed/],
+  ["Turning Cut the tank's too (LV-AREA)", 'src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", /^LV-AREA: a sword and shield: browser closed/],
   ['an ability casts under its unlock (LV-AREA)', 'src/core/hunt/abilities.js', "    if (row.unlock && h.skills && skillLevel(h, row) < row.unlock) return { why: 'level' };\n", '', /^LV-AREA: under its unlock: browser closed/],
   ['a frozen peer row drops its kind first (LV-KINDS)', 'src/core/member.js', '    shield: m.shield === true, hero: m.hero, session, lv, shots };',
     '    shield: m.shield === true, hero: Object.assign({}, m.hero, { settings: m.hero.settings && Object.assign({}, m.hero.settings, { tkind: undefined }) }), session, lv, shots };', /^LV-KINDS: viewed/],

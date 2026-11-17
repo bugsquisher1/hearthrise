@@ -19,7 +19,9 @@
 //   TK-4 EACH HERO ITS OWN: two heroes in one party name two kinds; the engine's read gives each member its own, never the leader's.
 //   TK-5 THE BAR OFFERS ONLY WHAT THE SERVER TAKES: for every ground the server holds, every monster the bar's First target lists
 //        (src/shell/widgets/first-target.js reads hunt-grounds.js monstersOn) is one hr_hunt_ground_spawns holds there.
-//   TK-6 TWICE: the file applied again on the chain end applies (its pin takes its own image) and moves no body, row or check.
+//   TK-6 TWICE: the file applied again on the chain THROUGH ITSELF applies (its pin takes its own image) and moves no body, row or check.
+//        Not the chain end: 2027-04-25-boss-daily.sql splices hr_hunt_instance_read after it, so there the pin rightly refuses (the
+//        house scope, tests/account-depot.mjs A4: upTo the file).
 //
 // The mutants are SQL patched into the booted replay; their anchors are FILE's text.
 import { isMain } from './_is-main.mjs';
@@ -197,7 +199,9 @@ async function barInsideCatalogue(db) {
   return problems;
 }
 
-/* TK-6: FILE applied a second time on the booted chain (`again`: a mutant's edit to its text) applies, and moves no body, row or check. */
+/* TK-6: FILE applied a second time on the chain AS OF FILE (`again`: a mutant's edit to its text) applies, and moves no body, row or check. The
+   chain as of FILE, not its end: a later file restates hr_hunt_instance_read whole (2027-04-23-session-modes.sql) and FILE's pin rightly refuses
+   a body another file moved (combat-training-db TD-AGAIN stands the same way). */
 async function twice(db, again) {
   const problems = [];
   const print = async () => JSON.stringify({
@@ -239,7 +243,7 @@ async function main() {
       if (m.again) {
         let got = [];
         if (m.again(text) === text) got = ['HARNESS: the edit changed nothing in ' + FILE];
-        else try { got = await twice((await bootReplay()).db, m.again); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+        else try { got = await twice((await bootReplay({ upTo: FILE })).db, m.again); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
         const hit = got.some((p) => m.want.test(p));
         if (!hit) escaped++;
         console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got[0] || 'every check held').slice(0, 200));
@@ -266,7 +270,7 @@ async function main() {
   }
   const boot = () => bootReplay();
   const last = (await boot()).db;
-  const problems = [...await bothPaths(boot), ...await aParty(boot), ...await barInsideCatalogue(last), ...await twice(last)];
+  const problems = [...await bothPaths(boot), ...await aParty(boot), ...await barInsideCatalogue(last), ...await twice((await bootReplay({ upTo: FILE })).db)];
   for (const p of problems) console.log('FAIL  ' + p);
   console.log(problems.length ? 'target-kind-db: ' + problems.length + ' FAILED'
     : 'target-kind-db: green (a healer named first on both paths, refused not clamped, read afresh and survives a reload, each hero its own, the bar inside the catalogue, a second apply moves nothing)');

@@ -53,6 +53,10 @@ export const MATERIALS = Object.freeze({
   setts: Object.freeze({ solid: false }),
   /* the Training Yard's raked sand (art lane 2026-11-09, havora_earth_sand): walked on, a ring of it under the dummies */
   sand: Object.freeze({ solid: false }),
+  /* water under something that stands over it (lane/a-havora-art 2026-11-16): a bridge's deck (walked on), the mill's wheel
+     bay (under the mill's footprint, which a building may not stand on if solid). Open ground DRAWN as the water (BLEND alias
+     deck: 'water'), so the river runs on under the bridge sprite and no plank strip shows below its rail */
+  deck: Object.freeze({ solid: false }),
 });
 
 /* 'span' and 'bridge' (laid over water or a gap) are walked ON: it never blocks the step it covers (2026-10-18:
@@ -64,6 +68,8 @@ const light = (radius, tint) => Object.freeze({ radius, tint });
 export const LIGHTS = Object.freeze({
   wall_torch: light(5, 'torch'),
   brazier: light(4, 'brazier'),
+  /* Hearth Square's two iron braziers at the foot of the walk up to the Great Hearth */
+  hearth_brazier: light(3, 'brazier'),
   lamppost: light(3, 'torch'),
   candle: light(1.5, 'torch'),
   hearth: light(4.5, 'hearth'),

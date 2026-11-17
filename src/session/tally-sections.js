@@ -12,7 +12,7 @@
 // nothing kept from an older one. Null = the server sent no tally yet, and every
 // Tally control stays off (fail safe).
 // ════════════════════════════════════════════════════════════════════════
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.133';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.135';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -77,12 +77,11 @@ export function tallyLine(h) {
   return label + ' ' + h.kills + '/' + h.target;
 }
 
-/** What counts toward a task, in words: its monster alone, not the ground's every kill (blind playtest 2026-10-31: "Every
-    kill in Meadowbrook Thicket counts" over 32 kills and 11/200). `where`: the ground's name. Pure. */
+/** What counts toward a task, as a label: its monster alone, not the ground's every kill (blind playtest 2026-10-31: "Every
+    kill in Meadowbrook Thicket counts" over 32 kills and 11/200): "Gray Wolves in Meadowbrook Thicket". `where`: the ground's name. Pure. */
 export function countsWords(task, where) {
   const row = tallyTask(task);
-  if (!row) return 'It counts while you\'re away.';
-  return 'Only ' + row.label + ' in ' + where + (/^the /i.test(row.label) ? ' counts' : ' count') + ', even while you\'re away.';
+  return row ? row.label + ' in ' + where : where;
 }
 
 /** Her pick in words: "an Apprentice Hat", "Iron Boots", "4 Slime Gel" (`nameOf` names an item id). A name already in the

@@ -7,15 +7,15 @@
 // came back and Buy again on anything bought. The other party is never named: the server's
 // rows hold no name to show.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { whole } from '../../../render/format.js?v=0.2.133';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.133';
-import { nameOf } from '../../../session/item-sections.js?v=0.2.133';
-import { listingWords, historyWords } from '../../market-model.js?v=0.2.133';
-import { offerForSale, readItem, setView } from './state.js?v=0.2.133';
-import { cancelListing } from './browse.js?v=0.2.133';
-import { t } from '../../../render/player-text.js?v=0.2.133';
+import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { whole } from '../../../render/format.js?v=0.2.135';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.135';
+import { nameOf } from '../../../session/item-sections.js?v=0.2.135';
+import { listingWords, historyWords } from '../../market-model.js?v=0.2.135';
+import { offerForSale, readItem, setView } from './state.js?v=0.2.135';
+import { cancelListing } from './browse.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
 
 /** The two ledger panes' skeletons. */
 export function ledgerHtml() {
@@ -51,7 +51,7 @@ export function patchLedger(v) {
     const bare = !!mine && !list.length;
     cls(root.querySelector('.hw-mk-none'), 'is-on', bare);
     cls(root.querySelector('.hw-mk-none-p'), 'is-on', bare);
-    text(root.querySelector('.hw-mk-none-p'), 'You have nothing listed. Anything you list stays here until it sells, and you can take it back any time.');
+    text(root.querySelector('.hw-mk-none-p'), 'Nothing listed');
     const today = mine ? mine.today : {};
     text(root.querySelector('.hw-mk-caps'), !mine || !sc.rules ? '' : whole(list.length) + ' of ' + whole(sc.rules.maxListings) + ' listings up, ' + whole(Number(today.listed) || 0) + ' of ' + whole(sc.rules.maxListsPerDay) + ' listed today');
     return;
@@ -73,7 +73,7 @@ export function patchLedger(v) {
     },
   });
   const none = root.querySelector('.hw-mk-hist-none');
-  text(none, mine && !hist.length ? 'Nothing yet. Your sales, purchases and returns stay here for 30 days.' : '');
+  text(none, mine && !hist.length ? 'No history yet, kept 30 days' : '');
   cls(none, 'is-on', !!(mine && !hist.length));
 }
 

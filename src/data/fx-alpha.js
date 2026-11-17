@@ -22,14 +22,14 @@
 const row = (r) => Object.freeze(Object.assign({ min: 0, max: 100, step: 10, initial: 100 }, r));
 
 export const FX_ALPHA = Object.freeze([
-  row({ id: 'self', field: 'fxSelf', label: 'Your spell effects',
-    help: 'How strong your hero’s attacks, spells and heals look. Lower lets you see the fight through them.' }),
+  row({ id: 'self', field: 'fxSelf', label: 'Own spell effects',
+    help: 'Strength of the hero’s attack, spell and heal effects' }),
   row({ id: 'peer', field: 'fxPeer', label: 'Other heroes’ spell effects',
-    help: 'The same for everyone else in the hunt, your other heroes too.' }),
+    help: 'The same for everyone else in the hunt' }),
   row({ id: 'monster', field: 'fxMonster', label: 'Monster spell effects',
     help: 'How strong a monster’s hits and spells look when they land.' }),
   row({ id: 'marks', field: 'fxMarks', label: 'Danger marks', min: 50,
-    help: 'The marks on the ground where a monster’s spell is about to land. They never go below half, so you can always see them coming.' }),
+    help: 'Ground marks for incoming monster spells, never below half' }),
 ]);
 
 /** The row of `id` ('self' | 'peer' | 'monster' | 'marks'). */

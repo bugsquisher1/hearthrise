@@ -272,7 +272,8 @@ async function arms(db, src, group = null) {
   const hunt = async (user, slot, lagS) => {
     const inst = (await q(`select gen_random_uuid() id`))[0].id;
     await db.query(`set session_replication_role = replica`);
-    await db.query(`insert into public.hunt_instances (id, hunt_id, kind, settled_to) values ($1, 'wolves', 'solo', now() - make_interval(secs => $2))`, [inst, lagS]);
+    /* replica skips triggers, so hr_hunt_mode_freeze (2027-04-23-session-modes.sql) cannot stamp the NOT NULL mode: the fixture names the catalogue's own */
+    await db.query(`insert into public.hunt_instances (id, hunt_id, kind, settled_to, session_mode) values ($1, 'wolves', 'solo', now() - make_interval(secs => $2), public.hr_session_mode_of('wolves'))`, [inst, lagS]);
     await db.query(`insert into public.hunt_sessions (user_id, slot, hunt_id, instance_id, hunt_from, settled_to, next_swing_at) values ($1, $2, 'wolves', $3, now(), now(), now())`, [user, slot, inst]);
     await db.query(`set session_replication_role = origin`);
     return inst;

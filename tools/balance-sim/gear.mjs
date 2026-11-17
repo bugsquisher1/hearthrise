@@ -43,7 +43,7 @@ export async function loadGear(root) {
   const { SHIELD_ITEMS } = await import(u('src/data/shields.js') + v);
   const { STARTER_SETS, START_EQUIPMENT } = await import(u('src/data/start-kit.js') + v);
   const CC = await import(u('src/data/catalogue-coherence.js') + v);
-  const { OPEN_GROUNDS, HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js') + v);
+  const { OPEN_GROUNDS, OPEN_HALL_GROUNDS, HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js') + v);
   const reach = CC.reachableSources();
   /* the reachable set with `also` grounds opened (one per distinct list, built once) */
   const reaches = new Map();
@@ -53,7 +53,10 @@ export async function loadGear(root) {
     const key = ids.join(',');
     if (!reaches.has(key)) {
       for (const g of ids) if (!Object.prototype.hasOwnProperty.call(HUNT_GROUNDS, g)) throw new Error('balance-sim gear: openAlso names no ground ' + g);
-      reaches.set(key, CC.reachableSources({ grounds: { ...OPEN_GROUNDS, ...Object.fromEntries(ids.map((g) => [g, HUNT_GROUNDS[g]])) } }));
+      /* the open keyed halls too (reachableSources' own default: an open pack's hall pays like its ground). Without them a staged ground
+         was graded without Lord Krell's drops, so at Carter's Rest a Level 110 hammer wore the Ember Warhammer and a bow the Runewood Bow
+         while the Mage kept its Duskwood wand (lane/d-mage-110) */
+      reaches.set(key, CC.reachableSources({ grounds: { ...OPEN_GROUNDS, ...OPEN_HALL_GROUNDS, ...Object.fromEntries(ids.map((g) => [g, HUNT_GROUNDS[g]])) } }));
     }
     return reaches.get(key);
   };
@@ -88,7 +91,7 @@ export async function loadGear(root) {
   /**
    * The worn set of `style` at Level `L`. opts: { tierOffset, only, heavyShield, line (another armour line),
    * armourSlots (default all six; the reachable ones are filled), noArmour, ammo (an item for the ammo slot),
-   * starter (the start kit's pieces only), openAlso (ground ids played as open: see the header) }.
+   * starter (the start kit's pieces only), openAlso (ground ids played as open: see the header), exclude (item ids held out) }.
    */
   function kitOf(style, L, opts = {}) {
     const S = STYLES[style];
@@ -104,7 +107,9 @@ export async function loadGear(root) {
       return set;
     }
     const off = (group) => (opts.only === group || opts.only === 'all' ? (opts.tierOffset || 0) : 0);
-    const ok = opts.openAlso ? canIn(reachWith(opts.openAlso)) : can;
+    const okR = opts.openAlso ? canIn(reachWith(opts.openAlso)) : can;
+    /* `exclude`: pieces this hero can't hold yet, whatever drops them (a hall's own prize before its first win) */
+    const ok = opts.exclude ? (id, L) => !opts.exclude.includes(id) && okR(id, L) : okR;
     const set = {};
     set.weapon = pick(ladder[S.weapon] || [], L, off('weapon'), practiceFor(S.weapon), ok);
     if (S.offhand === 'shield') {

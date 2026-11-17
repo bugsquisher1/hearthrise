@@ -19,12 +19,12 @@
 //                                         Security review) ships
 // worldTargetOf turns what the World picked under a pointer into a target.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=0.2.133';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.133';
-import { refusalText } from './intent-words.js?v=0.2.133';
-import { monsterName } from './widgets/bits.js?v=0.2.133';
-import { partyMembershipOf, partyPeopleOf } from '../session/party-sections.js?v=0.2.133';
-import { inviteOwn, invitePlayer, afterLeave } from '../session/party-intents.js?v=0.2.133';
+import { MONSTERS } from '../data/monsters.js?v=0.2.135';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.135';
+import { refusalText } from './intent-words.js?v=0.2.135';
+import { monsterName } from './widgets/bits.js?v=0.2.135';
+import { partyMembershipOf, partyPeopleOf } from '../session/party-sections.js?v=0.2.135';
+import { inviteOwn, invitePlayer, afterLeave } from '../session/party-intents.js?v=0.2.135';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -90,7 +90,7 @@ function partyEntries(ctx, cs) {
       run: async (t) => {
         if (mine(t)) {
           const r = await inviteOwn(account, cs, t.slot);
-          return r.ok ? { done: t.name + ' joined your party.' } : { say: refusalText(r) };
+          return r.ok ? { done: t.name + ' joined the party' } : { say: refusalText(r.error === 'already_in_party' ? { ...r, verb: 'party_invite', invitee: t.name } : r) };
         }
         const r = t.id && UUID.test(t.id) ? await invitePlayer(account, cs, t.id, Number.isInteger(t.slot) ? t.slot : null) : await cs.inviteByName(t.name);
         return r.ok ? { done: 'Invite sent to ' + t.name + '.' } : { say: refusalText({ ...r, verb: 'party_invite' }) };

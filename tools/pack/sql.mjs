@@ -26,6 +26,11 @@ export const PACK_TABLES = Object.freeze({
   hr_ground_tiers: ['hunt_id', 'tier'],
   /* a pack's keyed hall (its `hall`, src/data/boss-halls.js): the one row that says which room its key opens. Krell's Hold is the first */
   hr_boss_halls: ['hall_id'],
+  /* a ground after Krell pays a faction standing (its standingFor, tools/gen-factions.mjs): the one row that says which side */
+  hr_faction_grounds: ['hunt_id'],
+  /* a pack's own shield (an off-hand that makes a shield arm, src/data/shields.js isShield over ITEMS): the row that says its item guards.
+     Krell's Tollgate is the first (lane/c-krell-uniques); after hr_items, its parent */
+  hr_hunt_shields: ['item_id'],
 });
 
 /** Split `s` at top-level commas (outside quotes, parentheses and brackets). */

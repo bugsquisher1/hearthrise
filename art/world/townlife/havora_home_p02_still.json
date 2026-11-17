@@ -1,0 +1,32 @@
+{
+  "id": "havora_home_p02_still",
+  "class": "lot",
+  "style": "s1",
+  "drawn": "tools/world-art/town-life.mjs",
+  "of": "havora/havora_home_p02",
+  "material": "native",
+  "source": "havora_home_p02_still.png",
+  "frame": [
+    378,
+    297
+  ],
+  "anchor_px": [
+    189,
+    296
+  ],
+  "footprint": [
+    12,
+    8
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 4,
+      "loop": true,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "notes": "A twin of havora_home_p02 with its cloth on the breeze: its locked pixels, moved by tools/world-art/town-life.mjs. Drawn in its place by compose.js (ambient-life.js SWAYS)."
+}

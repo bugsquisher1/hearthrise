@@ -13,16 +13,16 @@
 // WHICH BOSS: in a room, the room's boss for the whole fight (the room is the fight). On a ground, a boss with lines who stands hurt at
 // the instant shown: the party is on him. Before the first blow, and once a reset heals him, the bar steps aside.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.133';
-import { BOSS_HALL_WORDS, roomOfHunt, isNamedAdd } from '../../data/boss-halls.js?v=0.2.133';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.133';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.133';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.133';
-import { text, cls, style, prop } from '../../render/paint.js?v=0.2.133';
+import { BOSS_CALL_WORDS, isGuarded } from '../../data/boss-calls.js?v=0.2.135';
+import { BOSS_HALL_WORDS, roomOfHunt, isNamedAdd } from '../../data/boss-halls.js?v=0.2.135';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.135';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.135';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.135';
+import { text, cls, style, prop } from '../../render/paint.js?v=0.2.135';
 
 /** The skeleton (built once). */
 export function renderBossBar() {
-  return '<section class="hs-boss" role="group" aria-label="The boss"><div class="hs-boss-head"><b class="hs-boss-name"></b><span class="hs-boss-state"></span></div>'
+  return '<section class="hs-boss" role="group" aria-label="The boss"><div class="hs-boss-head"><b class="hs-boss-name"></b><span class="hs-boss-series"></span><span class="hs-boss-state"></span></div>'
     + '<div class="hs-boss-track" role="img"><i class="hs-boss-fill"></i><i class="hs-boss-mark is-adds"></i><i class="hs-boss-mark is-enrage"></i></div>'
     + '<div class="hs-boss-add" hidden><b class="hs-boss-add-name"></b><span class="hs-boss-add-state"></span></div>'
     + '<div class="hs-boss-flare" hidden><span class="hs-boss-flare-words"></span><div class="hs-boss-flare-track" role="img"><i class="hs-boss-flare-fill"></i></div></div></section>';
@@ -100,6 +100,8 @@ renderBossBar.patch = function patchBossBar(el, ctx) {
   const now = boss.pm === null ? 1000 : boss.pm;
   const raging = now <= ph.enragePm, wave = now <= ph.addsPm;
   text(el.querySelector('.hs-boss-name'), boss.name);
+  /* A CALL OUT SERIES: which fight of how many, the server's count (hunt-sections.js huntOf `call`); nothing on any other hunt. */
+  text(el.querySelector('.hs-boss-series'), h.call ? BOSS_CALL_WORDS.series.now.replace('{fight}', String(h.call.fight)).replace('{fights}', String(h.call.fights)) : '');
   text(el.querySelector('.hs-boss-state'), raging ? BOSS_CALL_WORDS.bar.enrage : wave ? BOSS_CALL_WORDS.bar[isGuarded(MONSTERS[boss.monster]) ? 'guarded' : 'adds'] : Math.ceil(now / 10) + '%');
   const box = el.querySelector('.hs-boss');
   cls(box, 'is-wave', wave && !raging);

@@ -30,6 +30,15 @@
 // a smith's and a fletcher's (style-gear.js). MEASURED (tests/hunt-core/drop-tables.mjs, a lone tank at the floor in the full
 // set, one played hour): each Scarce piece every 0.99-1.05 h, each Rare every 15.2 h, coin 7,403 g, commons 951 g, gear 1,931 g
 // (26% of the coin, the cap is 50%) at the tier-4 sale rate of 0.075. That tank clears +40% over its store bill.
+// THE ARMOR GROUND, THE SLAKE THE WEAPON GROUND (designer 2026-11-16, lane/d-andy-march-feedback; Andy: "the Slake and Hask's are
+// essentially the same, with Slake dropping the same plus more equipment options, so I'd never choose Hask's"; Tyler 11-09: grounds
+// should differ). Measured as it stood, the Slake beat the Ford for every way alone on Normal at the same Level: +1-12% XP, +0.6-3.2k
+// gold an hour, the same armor and the weapons too. The XP order stays (the Slake is harder: forest-cave harder-pays-more), so the
+// Ford takes the armor: boots, helmets and legs x1.25 (0.0064 -> 0.008, 0.026 -> 0.0325) and the gloves and belts x1.27 (0.0033 ->
+// 0.0042), while the Slake's armor rows go x0.75. The bodies stay at the 5% ceiling here. Re-measured the same way: each Scarce
+// piece every 0.79-1.05 h (the bodies 1.05), each Rare every 11.9 h, gear 2,222 g (30% of the coin), total 10,576 g (+3% on the pin).
+// The Slake's armor now comes every 1.21-1.44 h, so a set fills about 1.6 times as fast here. The Ford's other reason was already
+// there: no group spell, so a party on Deadly spends about a third of the Slake's supplies (Andy's four at 55: 8k against 21k a head).
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, a Material that
 // only sells until linings are built (the board, "2026-11-10 Resistance and imbuements"). Ford Weed is the element piece: the
 // ground before sells the lining for the ground after, and the Slake's Bargemen will throw cold river water.
@@ -47,8 +56,8 @@
 // tier-4 weapons are the Slake's, so opened alone a sword alone at 45 swings its tier-3 sword and nets +5% over its store bill
 // (`node tools/pack.mjs check hasks_ford --mode full`, 6 seeds x 4 h), where the rule is +25% for every way. With the Slake's
 // mithril sword gettable it nets +45%, and that full grade passes every row (`--with the_slake`, exit 0, 66 rows).
-import { definePack, box, gather } from '../shape.js?v=0.2.133';
-import map from './map.js?v=0.2.133';
+import { definePack, box, gather } from '../shape.js?v=0.2.135';
+import map from './map.js?v=0.2.135';
 
 const PK = 'banded_pikeman', FS = 'fordsunk', LW = 'ledger_wight', BN = 'bannerman';
 
@@ -59,6 +68,7 @@ export default definePack({
   /* Weights are the pockets' head-count at density 4 (the first four of each box): 12 Pikemen, 6 Fordsunk, 4 Ledger Wights and
      the 2 Bannermen. */
   hunt: {
+    region: 'barrow_march',
     name: 'Hask\'s Ford', theme: 'Captain Hask sold this river crossing to Lord Krell. Krell\'s men killed Hask\'s soldiers here, and they came back as undead.',
     band: [45, 60],
     spawns: [{ monster: PK, w: 12, rarity: 'common' }, { monster: FS, w: 6, rarity: 'uncommon' },
@@ -108,17 +118,17 @@ export default definePack({
          words). Their boots and helmets, their bones for the Hearth. */
       weaponResist: ['sword'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_band', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_boots', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0064, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0064, band: 'scarce' },
-        { id: 'mithril_helm', ch: 0.0064, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0064, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0064, band: 'scarce' }],
-      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 485, gp: [13, 38], formula: true },
+        { id: 'mithril_boots', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.008, band: 'scarce' }, { id: 'warlock_boots', ch: 0.008, band: 'scarce' },
+        { id: 'mithril_helm', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.008, band: 'scarce' }],
+      hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 485, gp: [9, 27], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
          legs, and the weed that grew through them. */
       weaponResist: ['ranged'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platelegs', ch: 0.026, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.026, band: 'scarce' }, { id: 'warlock_pants', ch: 0.026, band: 'scarce' }],
-      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 921, gp: [21, 64], formula: true },
+        { id: 'mithril_platelegs', ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0325, band: 'scarce' }],
+      hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 921, gp: [15, 44], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
       /* the glass: the company's dead quartermasters, still keeping the books by the stores. It hits hard and breaks fast. A
@@ -127,16 +137,16 @@ export default definePack({
       weaponResist: ['magic'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'ledger_leaf', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' }],
-      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 652, gp: [14, 41], formula: true },
+      hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 652, gp: [10, 28], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. The gloves
          and belts. */
       weaponResist: ['ranged'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'toll_token', ch: 0.1, band: 'uncommon' },
-        { id: 'mithril_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0033, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0033, band: 'rare' },
-        { id: 'mithril_belt', ch: 0.0033, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0033, band: 'rare' }, { id: 'warlock_belt', ch: 0.0033, band: 'rare' }],
-      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1507, gp: [32, 95], formula: true },
+        { id: 'mithril_gauntlets', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0042, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0042, band: 'rare' },
+        { id: 'mithril_belt', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0042, band: 'rare' }, { id: 'warlock_belt', ch: 0.0042, band: 'rare' }],
+      hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1507, gp: [22, 67], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the
      pace contract (254,360 an hour at 53). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.15 the middle
@@ -150,6 +160,7 @@ export default definePack({
      (quick grade, the Slake's weapons on the ladder, 1 seed x 1 h). A fit scales every way alike, so 1.28 x 1.00 / 1.26 = 1.02. The Warrens'
      own fit fell further the same day (1 -> 0.76), so a lone hero at 45 still earns a little more here than there. */
   xpFit: { k: 1.02, why: 'at 1.28 the median lone way read 1.26 of the pace contract at the band middle (53) under solo +15% and the re-pinned contract (quick grade, 1 seed x 1 h). At 1.02 it reads about 1.00' },
+  gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
   roster: {
     banded_pikeman: 'swarm',   // the common majority
     fordsunk: 'heavy',         // the tank: slow (2400), thick

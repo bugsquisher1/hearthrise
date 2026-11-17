@@ -2,15 +2,18 @@
   "id": "hedge",
   "class": "bush",
   "style": "s1",
-  "material": "foliage",
+  "material": "native",
+  "restyle": {
+    "outline": true
+  },
   "source": "hedge.png",
   "frame": [
     38,
-    25
+    21
   ],
   "anchor_px": [
     19,
-    24
+    20
   ],
   "footprint": [
     1,
@@ -28,8 +31,21 @@
   ],
   "pixellab": {
     "tool": "create_image_pro_flash",
-    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
-    "cell": 6
+    "image": "98714414-dfac-5d85-b1a2-88c495acaded",
+    "job": "7f2472dc-1716-4ccb-aee0-717431f52a3e",
+    "seed": 5102,
+    "size": [
+      48,
+      32
+    ],
+    "cost": 5,
+    "palette": "hr-world-56-v2 (shadow, leaf, moss, earth 0-2)",
+    "style": "common/oak canopy crop (44x24 at 6,11)",
+    "raw": "art/world-src/gen-2026-11-16/style-fix/hedge-5102.png",
+    "candidates": [
+      "5101",
+      "5102"
+    ]
   },
-  "notes": "Cell 6 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Redrawn by lane/a-style-fix (2026-11-16, style audit row 5): the old hedge was a flat green slab (grain .35, no leaf clumps) beside the painted bush and oak. A Pro Flash image on the world palette with the oak canopy as its style anchor (2 seeds, 10 gens; 5102 picked for the oak's star leaf clusters), cut to its opaque box and ported by tools/world-art/port-pixellab.mjs object: pixels unscaled, bottom-centre anchor, on the palette so material native. Its leaf tips on the rim take the world's line at build (restyle outline), as the oak's canopy is ringed."
 }

@@ -12,9 +12,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.133';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.133';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.133';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.135';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.135';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.135';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -207,15 +207,19 @@ export const NO_FIGHT_END_MIN = 10;
    points the character at its last non-hunt activity
    (player_state.last_activity_kind / _id), if that is still allowed; else
    idle in town. A data row so Huntera-style combat training can take its
-   place later without touching the settle. A BENCH IS REMEMBERED BUT NEVER RESUMED
-   (2027-02-15-panel-truth.sql hr_resume_has_inputs): a resume has no count, so it would spend
-   a whole hunt's loot the player never pointed at. Gathering spends nothing and resumes. */
+   place later without touching the settle. Gathering spends nothing and
+   resumes as it was. A BENCH RESUMES FOR THE COUNT IT HAD LEFT WHEN THE HUNT
+   STARTED (Tyler 2026-11-15, 2027-04-24-bench-resume.sql; it replaces his
+   2026-10-31 "bench jobs dont"): only a bench that was running at Enter, for
+   the smaller of its own count and what the bag plus Storage could make then
+   (player_state.last_activity_left), so never the hunt's loot. */
 export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
    stamina refills): stored and resumed by name the day it exists, refused until
-   then (it has no catalogue rows). */
+   then (it has no catalogue rows). What each kind remembers at Enter and does at
+   the end is one arm of hr_activity_left and of hr_resume_plan (the same file). */
 export const RESUMABLE_KINDS = Object.freeze(['gather', 'artisan', 'training']);
 
 /* The end card: a title, then the reason in one plain sentence. */
@@ -223,10 +227,10 @@ export const END_CARD_COPY = Object.freeze({
   title: 'Hunt over',
   again: 'Hunt again',
   details: 'Details',
-  againShort: 'Not enough {item} to pack this bag again. You have {have}, and the bag needs {need}.',
+  againShort: 'Not enough {item}: {have}/{need}',
   /* The death cost this much XP in all (DEATH_XP_LOSS), summed by the
      renderer from the `death` event's server-stated `xp_lost`. */
-  xpLost: Object.freeze({ one: 'Dying cost you 1 XP.', other: 'Dying cost you {n} XP.' }),
+  xpLost: Object.freeze({ one: 'Death cost: 1 XP', other: 'Death cost: {n} XP' }),
   /* After an automatic end the character walks home and picks up what it was
      doing; `{activity}` is the server's own name for it ("fishing at Shrimp
      Spot"), drawn from the `ended` event's `resume`. */
@@ -237,30 +241,30 @@ export const END_REASON_COPY = Object.freeze({
   /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
   died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
   /* CALL OUT (src/data/boss-calls.js): the kill and the limit. A death is `died` / `party_member_died`, as anywhere. */
-  boss_felled: Object.freeze({ one: '{name} beat him and walked out of {ground}. There\'s a title for you under Titles in the Character window.' }),
-  boss_time: Object.freeze({ one: 'The ten minutes ran out before he went down. {name} came home from {ground}.' }),
+  boss_felled: Object.freeze({ one: '{name} beat him in {ground}. New title: Character → Titles' }),
+  boss_time: Object.freeze({ one: 'Time up before the boss went down' }),
   /* LEAVE TOGETHER (Tyler 2026-10-22): `{member}` the party member whose hunt ended first (the server's
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
   party_member_died: Object.freeze({ one: '{member} died, so {name} came home too.' }),
   party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
-  heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
-  ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
-  runes_out: Object.freeze({ one: 'You ran out of runes, so you headed home.' }),
-  gold_out: Object.freeze({ one: 'You ran out of gold for supplies, so you headed home.' }),
-  rule: Object.freeze({ one: 'One of your stop rules was met, so you headed home.' }),
-  stamina: Object.freeze({ one: 'Out of stamina, so you headed home. It rests back 1:1 while you are not hunting.' }),
-  hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
-  left: Object.freeze({ one: 'You left the hunt and walked home.' }),
-  changed: Object.freeze({ one: 'You moved on to {hunt}.' }),
-  no_fight: Object.freeze({ one: `You went ${NO_FIGHT_END_MIN} minutes without landing a blow, so you headed home. Check your weapon, your ammo and your action bar.` }),
-  server: Object.freeze({ one: 'The server ended the hunt. Everything you earned up to then is yours.' }),
+  heals_out: Object.freeze({ one: 'Out of healing food' }),
+  ammo_out: Object.freeze({ one: 'Out of {item}' }),
+  runes_out: Object.freeze({ one: 'Out of runes' }),
+  gold_out: Object.freeze({ one: 'Out of gold for supplies' }),
+  rule: Object.freeze({ one: 'Stop rule met' }),
+  stamina: Object.freeze({ one: 'Out of stamina' }),
+  hours: Object.freeze({ one: 'Time limit reached: 1 h', other: 'Time limit reached: {n} h' }),
+  left: Object.freeze({ one: 'Left the hunt' }),
+  changed: Object.freeze({ one: 'Moved on to {hunt}' }),
+  no_fight: Object.freeze({ one: `No hits: ${NO_FIGHT_END_MIN} min. Check weapon, ammo and action bar` }),
+  server: Object.freeze({ one: 'Ended by the server, rewards kept' }),
 });
 
 /* The "since you last looked" strip and the timeline. The time of each line
    is drawn by the renderer from the event's server timestamp. */
 export const TIMELINE_COPY = Object.freeze({
-  heading: 'Since you last looked',
-  empty: 'Nothing new since you last looked.',
+  heading: 'Since last visit',
+  empty: 'Nothing new',
   /* Shown under a `death` line whose server-stated `xp_lost` is above 0. */
   xpLost: Object.freeze({ one: 'Lost 1 XP.', other: 'Lost {n} XP.' }),
 });
@@ -271,8 +275,8 @@ export const EVENT_COPY = Object.freeze({
   rare_drop: Object.freeze({ one: 'Rare drop: {item}.' }),
   death: Object.freeze({ one: 'Killed by {monster}.' }),
   slot_dry: Object.freeze({ one: 'Ran out of {item}.' }),
-  stamina_low: Object.freeze({ one: 'Stamina is low, with about 1 minute left.', other: 'Stamina is low, with about {n} minutes left.' }),
+  stamina_low: Object.freeze({ one: 'Stamina low: about 1 minute left', other: 'Stamina low: about {n} minutes left' }),
   /* Sell-to-cover: loot sold to the vendor so the shop could be paid. */
-  cover: Object.freeze({ one: 'Sold 1 item to keep the shop paid.', other: 'Sold {n} items to keep the shop paid.' }),
+  cover: Object.freeze({ one: 'Sold 1 item to pay for supplies', other: 'Sold {n} items to pay for supplies' }),
   ended: Object.freeze({ one: 'Hunt over: {reason}' }),
 });

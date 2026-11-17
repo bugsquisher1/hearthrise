@@ -82,6 +82,12 @@ const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand']);
 const HOUR_BANDS = Object.freeze(['scarce', 'rare', 'trophy']);
 /* The tutorial cellar teaches the pull with one slot: its Hive Wasp's helmets in three weights (build-coverage). */
 const TUTORIAL = Object.freeze({ ground: 'mill_cellar' });
+/* NO TIER 8 (Tyler 2026-11-14: "after tier 7 we start getting unique with the itemization"; the board's "2026-11-14 The Morrow Hills"
+   section 9). Dawnsteel is the last standard set: Krell's Hold drops tier 6 to its top, 110, and from there Carter's Rest's boots and
+   legs (gloves and belts as Rares) and Lord Krell's bodies and helms finish tier 7 between them. A ground whose floor is 110 or more
+   is past the standard ladder, so build-coverage does not ask it for a helmet, body, legs and boots in each weight. Every other band
+   rule still reads it. */
+const UNIQUE_GEAR_FROM = 110;
 /* MONSTERS STILL OVER TWO COMMONS (the designer's trim, 2026-10-23): the Giant Rat's wheat, the Warrens' ore, ears
    and coal. SHRINK-ONLY: a monster leaves when its Commons are one product and at most one bones row. */
 const COMMONS_PENDING = Object.freeze(['rat', 'goblin_scavenger', 'goblin_skulker', 'goblin_digger', 'hobgoblin_foreman', 'chief_coppercap']);
@@ -244,6 +250,8 @@ const cases = {
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       /* the tutorial room teaches the pull with one slot (the Hive Wasp's helmets, designer 2026-10-23) */
       if (gid === TUTORIAL.ground) continue;
+      /* past the last standard tier a ground covers no build (UNIQUE_GEAR_FROM) */
+      if (M.HUNTS[ground.hunt].band[0] >= (M.uniqueGearFrom ?? UNIQUE_GEAR_FROM)) continue;
       const have = new Set();
       for (const id of rosterOf(ground)) for (const d of M.MONSTERS[id].drops || []) {
         const w = d.band === 'scarce' && weightOf(M, M.ITEMS[d.id]);
@@ -300,7 +308,8 @@ const cases = {
   },
   'four-slots'(M) {
     const droppers = {};
-    for (const [mid, m] of Object.entries(M.MONSTERS)) for (const d of m.drops || []) (droppers[d.id] = droppers[d.id] || new Set()).add(mid);
+    /* (a called boss is his ground boss again, stronger: his win drops that boss's own table, src/data/boss-calls.js, so he is not a second dropper) */
+    for (const [mid, m] of Object.entries(M.MONSTERS)) if (m.called !== true) for (const d of m.drops || []) (droppers[d.id] = droppers[d.id] || new Set()).add(mid);
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       for (const id of rosterOf(ground)) {
         const m = M.MONSTERS[id], drops = m.drops || [];
@@ -735,6 +744,8 @@ const dataMutants = [
   { name: 'the Sewer\'s kobolds drop helmets, not boots', case: 'build-coverage', edit: (ms) => {
     rowOf(ms, 'kobold_tosher', 'adept_boots').id = 'adept_helmet'; rowOf(ms, 'kobold_tosher', 'studded_boots').id = 'studded_helmet'; rowOf(ms, 'kobold_tosher', 'iron_boots').id = 'iron_helm';
   } },
+  /* the standard ladder's end is a Level, not a pass for everything: moved past the Morrow Hills, their grounds owe a build again */
+  { name: 'the standard ladder runs on past Level 110 (a tier 8 nobody built)', case: 'build-coverage', edit: (ms, M2) => { M2.uniqueGearFrom = 999; } },
 ];
 /* Played on the monsters' copy: the expected loot on the floor hours' kills (and, with `fresh`, the fresh and party hunts). */
 const playMutants = [

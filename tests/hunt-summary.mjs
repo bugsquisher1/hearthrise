@@ -20,6 +20,8 @@
 //       and, for a free character, the session tally
 //   S5  Hunt again's arguments are the ended hunt's own
 //   S6  a forfeited hunt (the server's `forfeit`) reads why in plain words; a plain server end keeps its own
+//   S8  a training session's card is the skill's XP, its levels and the yard's fee (the server's last stop, the tally's XP first),
+//       never Monsters / Level XP / Gold zeros; why it ended in the Training window's words; no Hunt again
 //   S7  an ended hunt names the tier it ran at (the server's session `tier`) on the card and in Earlier hunts; Normal and a forged tier name the ground alone
 //   A1  Hunt again sends ONE hr_hunt_enter with the same ground, set, limits and
 //       bag; a call missing its ground sends nothing
@@ -137,11 +139,11 @@ async function runTests(M) {
 
   await t('S1 every END_ORDER reason has a plain sentence', () => {
     eq(Object.keys(MD.END_WORDS), [...END_ORDER], 'END_WORDS covers END_ORDER, in order');
-    for (const r of END_ORDER) ok(/^[A-Z].*\.$/.test(MD.endWords(r)), r + ' is a sentence');
-    ok(MD.endWords('nonsense') === 'The hunt ended.', 'an unknown reason still reads');
+    for (const r of END_ORDER) ok(/^[A-Z][^]*\S$/.test(MD.endWords(r)) && MD.endWords(r) !== 'Hunt ended', r + ' has its own words (a label, Tyler 2026-11-14)');
+    ok(MD.endWords('nonsense') === 'Hunt ended', 'an unknown reason still reads');
     /* out of stamina: why, how it comes back, and what the hero has now (panel 2026-11-01: "Your stamina ran out." and nothing else) */
-    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + ' Stamina now: 5 h 46 min.', 'the stamina end says what is rested');
-    ok(/comes back hour for hour/.test(MD.END_WORDS.stamina), 'the stamina end says how it comes back');
+    eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', 5 * 3600000 + 46 * 60000), MD.END_WORDS.stamina + '. Stamina now: 5 h 46 min', 'the stamina end says what is rested');
+    eq(MD.END_WORDS.stamina, 'Out of stamina · Stamina refills 1 h per hour', 'the stamina end says why and how it comes back');
     eq(MD.reasonWords({ reason: 'stamina' }, 'Pip', null), MD.END_WORDS.stamina, 'an older hunt, or a server that has not said: no number');
     eq(MD.reasonWords({ reason: 'left' }, 'Pip', 3600000), MD.END_WORDS.left, 'another end says nothing of stamina');
   });
@@ -211,7 +213,7 @@ async function runTests(M) {
     eq(MD.againWithBag(MD.huntAgainOf(s), []).bag, [], 'an empty bag goes on store supplies, as Enter does');
   });
 
-  await t('S6 a forfeited hunt says why in plain words, never "by the server"', () => {
+  await t('S6 a forfeited hunt says why in plain words, and that its last minutes did not count', () => {
     /* The server's session as hr_hunt_view projects it after hr_hunt_forfeit (2026-11-17-hunt-density-home.sql). */
     const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
     const sess = (over) => Object.assign({ id: 'sess-f', hunt: 'mill_cellar', preset: 0, entered_at: '2026-10-18T10:00:00Z',
@@ -219,11 +221,11 @@ async function runTests(M) {
     const card = (session) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [])])[0];
     const f = card(sess());
     eq([f.reason, f.forfeit], ['server', true], 'the stored card keeps the forfeit');
-    eq(MD.endWords(f.reason, f.forfeit), 'Your hunt was stopped because the server could not accept its last few minutes, so nothing from them was counted.', 'the forfeit sentence');
+    eq(MD.endWords(f.reason, f.forfeit), 'Stopped by the server. The last minutes did not count', 'the forfeit sentence');
     const plain = card(sess({ forfeit: false }));
     eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
     const left = card(sess({ end_reason: 'left' }));
-    ok(/^You left the hunt\. .*nothing from them was counted\.$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
+    ok(/^Left the hunt\. .*did not count$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
   });
@@ -239,6 +241,38 @@ async function runTests(M) {
     /* the residue is the player's own file: a forged tier names nothing */
     eq([MD.groundTitle(MD.sanitizeSummaries([entry(1, { hunt: 'wickstead', tier: 'constructor' })])[0]), MD.sanitizeSummaries([entry(1, { tier: 'Deadly!' })])[0].tier],
       ['Wickstead', null], 'a forged tier');
+  });
+
+  /* S8 (the designer's coherence pass 2026-11-15, walk rows 5 and 7): an hour of Defense at the yard read "You left the hunt. Monsters 0,
+     Level XP 0, Gold 0 gp" and left out the Defense 18 to 20 and the 176 g; its 12-hour end read "The hunt reached its time limit." */
+  await t('S8 a training session\'s card is the skill it gave and the fee it cost, from the server, in the yard\'s own words', () => {
+    const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
+    const sess = (over) => Object.assign({ id: 'sess-y', hunt: 'training_yard_defense', preset: 0, entered_at: '2026-11-15T10:00:00Z', ended_at: '2026-11-15T11:00:00Z',
+      end_reason: 'left', phase: 'ended', bag: [], tally: { kills: 0, xp: { level: 0, defense: 30000 }, coins: 0 } }, over || {});
+    /* the `training` section's last stop for this session (2027-04-23-training-gear.sql hr_training_section) */
+    const stop = { reason: 'left', skill: 'defense', at: null, session: 'sess-y', xp: 30000, paid: 176, level: 20, from: 18 };
+    const card = (session, st) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [], null, st)])[0];
+    const c = card(sess(), stop);
+    eq(c.train, { skill: 'defense', xp: 30000, fee: 176, from: 18, to: 20 }, 'the skill, its XP, the fee and the levels, each the server\'s');
+    eq([c.kills, c.xp, c.gold, c.balance, c.loot, c.supplies], [null, null, null, null, [], []], 'no row of hunting zeros');
+    eq(MD.huntAgainOf(c), null, 'never an hr_hunt_enter: training has its own Start');
+    /* the `training` section can land after the `hunt` one: the card keeps the tally's XP, then the stop fills the rest */
+    const early = card(sess(), null);
+    eq(early.train, { skill: 'defense', xp: 30000, fee: null, from: null, to: null }, 'before the stop: the session tally\'s XP');
+    eq(MD.withTrainingStop(early, stop).train, c.train, 'the stop fills the fee and levels');
+    eq([MD.withTrainingStop(early, { ...stop, session: 'sess-other' }), MD.withTrainingStop(c, stop)], [null, null], 'another session\'s stop, or a card already full: nothing');
+    /* why it ended: the Training window's words, never a hunt's */
+    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'Training stopped', 'stopped');
+    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Training ended (12 h reached)', 'the 12-hour end');
+    eq(MD.endWords('gold_out', false, null, 'Wren', null, 'training_yard_defense'), 'Training ended (out of gold)', 'out of gold');
+    /* Tyler 2026-11-16: a yard session's end read "You went 10 minutes without landing a blow, so you headed home." Every end a
+       training session can carry reads as training, never a hunt's words. */
+    for (const why of END_ORDER) {
+      const w = MD.endWords(why, false, null, 'Wren', null, 'training_yard_ranged');
+      ok(/^Training (ended|stopped)/.test(w) && !/hunt|headed home|came home|blow|ammo|stamina/i.test(w), 'a training session ended ' + why + ' reads ' + JSON.stringify(w));
+    }
+    eq(MD.endWords('hours', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.hours, 'a hunt keeps its own words');
+    eq(card(sess({ hunt: 'wickstead' }), stop).train, null, 'a hunt is no training card');
   });
 
   const FIX = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -369,14 +403,14 @@ async function runTests(M) {
     const sell = r.steps[1];
     /* the LOOT PLAN's rule, Dispatch loot's own (Coordinator 2026-11-11): never a locked stack (Sticky Core), the kit (Shrimp) or a stack with no bid (Bones) */
     eq(sell.lines, [{ item: 'rat_tail', qty: 31 }, { item: 'slime_gel', qty: 12 }], 'the sale names the plan\'s Sell stacks whole, and nothing else');
-    eq(sell.words, 'Your loot plan marks Rat Tail and Slime Gel for the shop.', 'the sale says whose rule it is');
+    eq(sell.words, 'Marked Sell: Rat Tail and Slime Gel', 'the sale says whose rule it is');
     eq(r.steps[0].ops, { gloves: 'leather_gloves', belt: 'bronze_belt' }, 'Equip is the plan\'s ONE delta');
-    eq(r.steps[0].words, 'Wear Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense).', 'Equip says what goes on');
+    eq(r.steps[0].words, 'Upgrade: Leather Gloves (+1 Melee accuracy) and Bronze Belt (+2 Defense)', 'Equip says what goes on');
     eq(r.steps[2].lines, [{ item: 'wolf_pelt', qty: 3 }], 'Deposit names the plan\'s Deposit stacks whole');
-    eq(r.steps[2].words, 'Your loot plan marks Wolf Pelt for Storage, and that frees 1 bag space.', 'Deposit says what it frees');
+    eq(r.steps[2].words, 'Marked Deposit: Wolf Pelt, frees 1 bag space', 'Deposit says what it frees');
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
     eq(steps({ rules: { locked: new Set(['sticky_core', 'wolf_pelt']), loot: rules.loot } }).steps.map((s) => s.id), ['equip', 'sell', 'bless'], 'a locked Deposit stack is not a step');
-    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30. A death costs you less with them on.'], 'Bless names the tiers not on');
+    eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30'], 'Bless names the tiers not on');
     /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
     const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
     const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });
@@ -385,7 +419,7 @@ async function runTests(M) {
     /* Bless only while the purse covers the next tier (the server prices each); a purse not read reads as enough */
     const dear = { tiers: [{ tier: 1, price: 500, held: true }, { tier: 2, price: 900, held: false }, { tier: 3, price: 1400, held: false }], freeUntil: null };
     eq(steps({ blessings: dear, purse: 100 }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'short of the next Blessing, no Bless step');
-    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Costs 2,300 gp. A death costs you less with them on.', 'the purse covers the next');
+    eq(steps({ blessings: dear, purse: 900 }).steps[3].title + ' · ' + steps({ blessings: dear, purse: 900 }).steps[3].words, 'Bless II and III · Cost: 2,300 gp', 'the purse covers the next');
     eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
     /* nothing to do at all: no steps, Hunt again is the press */
     const none = steps({ plan: { ops: {}, picks: [], choices: [] }, rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
@@ -461,7 +495,7 @@ const MUTANTS = [
   { test: 'D3', file: EXPLAIN, from: "e.atMs >= from && e.atMs <= to)", to: "e.atMs <= to)" },
   { test: 'D4', file: EXPLAIN, from: "kind: wipe ? 'wipe'", to: "kind: false ? 'wipe'" },
   { test: 'S1', file: MODEL, from: "if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;", to: 'return why;' },
-  { test: 'S1', file: MODEL, from: "  stamina: 'Your stamina ran out, so your hero came home. It comes back hour for hour while you aren\\'t hunting.',\n", to: '' },
+  { test: 'S1', file: MODEL, from: "  stamina: t('summary.end_stamina'),\n", to: '' },
   { test: 'S2', file: SUMMARIES, from: "    if (out.length >= HISTORY_MAX) break;", to: '' },
   { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id)) continue;", to: "if (!s) continue;" },
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
@@ -473,7 +507,7 @@ const MUTANTS = [
   { test: 'S4', file: SUMMARIES, from: 'balance: num(v.balance), ', to: '' },
   { test: 'S4', file: MODEL, from: 'balance: hero ? hero.balance : null,', to: 'balance: null,' },
   { test: 'S4', file: SUMMARIES, from: 'balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),', to: 'balanceH: num(v.balanceH),' },
-  { test: 'S4', file: MODEL, from: 'isObj(t.xp) ? num(t.xp.level) : num(t.xp)', to: 'num(t.xp)' },
+  { test: 'S4', file: MODEL, from: 'isObj(tl.xp) ? num(tl.xp.level) : num(tl.xp)', to: 'num(tl.xp)' },
   { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, hours: summary.hoursLimit," },
   { test: 'S6', file: MODEL, from: "return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason]", to: "return END_WORDS[reason]" },
   { test: 'S6', file: MODEL, from: "    forfeit: s.forfeit === true,\n", to: '' },
@@ -481,15 +515,20 @@ const MUTANTS = [
   { test: 'S7', file: MODEL, from: "    tier: typeof s.tier === 'string' ? s.tier : null,\n", to: '' },
   { test: 'S7', file: SUMMARIES, from: "    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,\n", to: '' },
   { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
+  { test: 'S8', file: MODEL, from: "  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill });\n", to: '' },
+  { test: 'S8', file: MODEL, from: "fee: mine ? mine.paid : null,", to: "fee: null," },
+  { test: 'S8', file: MODEL, from: "  if (train) {\n    const dur", to: "  if (false) {\n    const dur" },
+  { test: 'S8', file: SUMMARIES, from: "    train: trainOf(v.train),\n", to: '' },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },
   { test: 'A5', file: RECORDER, from: 'a.started = a.sid !== null || a.done.size > 0;', to: 'a.started = false;' },
-  { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return;\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
+  { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return fillTraining(cs, stop);\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
   { test: 'A2', file: RECORDER, from: "const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };", to: "const ex = { deaths: [] };" },
   /* Back in town (T1..T4) */
   { test: 'T1', file: TOWN, from: "rules.loot[r.id] === rule && !rules.locked.has(r.id) &&", to: "rules.loot[r.id] === rule &&" },
   { test: 'T1', file: TOWN, from: " && !(rule === 'sell' && isStartKit(r.id))", to: '' },
-  { test: 'T1', file: TOWN, from: "const lines = sale.lines.slice(0, SELL_LINES_MAX);", to: "const lines = sale.lines.slice(0);" },
+  /* one sale's worth of lines: sellPlan stops at SELL_LINES_MAX (audit F18 moved the cap there, where every bulk sale reads it) */
+  { test: 'T1', file: 'src/shell/bag-model.js', from: "    if (lines.length >= SELL_LINES_MAX) { more++; continue; }\n", to: '' },
   { test: 'T1', file: TOWN, from: "const can = missing.length > 0 && (purse === null || purse >= missing[0].price);", to: "const can = missing.length > 0;" },
   { test: 'T1', file: TOWN, from: "if (step.count > 0) out.push(Object.assign(step, { done: false }));", to: "if (step.count >= 0) out.push(Object.assign(step, { done: false }));" },
   { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done);", to: "const first = out[0];" },

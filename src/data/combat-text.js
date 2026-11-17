@@ -18,8 +18,8 @@
 const on = (regular, boss) => Object.freeze({ regular, boss });
 
 export const FLOAT_TYPES = Object.freeze([
-  Object.freeze({ id: 'dealt', label: 'Damage you deal', on: on(true, true) }),
-  Object.freeze({ id: 'taken', label: 'Damage you take', on: on(true, true) }),
+  Object.freeze({ id: 'dealt', label: 'Damage dealt', on: on(true, true) }),
+  Object.freeze({ id: 'taken', label: 'Damage taken', on: on(true, true) }),
   Object.freeze({ id: 'heal', label: 'Healing', on: on(true, true) }),
   Object.freeze({ id: 'xp', label: 'Level XP gained', on: on(true, true) }),
   Object.freeze({ id: 'level', label: 'Level ups', on: on(true, true) }),

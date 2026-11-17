@@ -27,7 +27,9 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     windowMs (the settle's cut, default ten minutes: any cut walks the same swings, TICK-1; a short one lets onWindow read HP often),
     start ((role, seat, L) -> { levelXp?, skills? }: a hero's own Level XP and skill XP instead of "every combat skill at L",
     tools/balance-sim's career runs), leaveTogether (true: every hero's "Leave if anyone leaves the hunt or dies" box ticked,
-    the server's default), dropEnded (true: a hero whose hunt ended is settled no more, as on the server), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers), buffs (the server's buff rows) }.
+    the server's default), dropEnded (true: a hero whose hunt ended is settled no more, as on the server), ground (a ground row played instead of the hunt's own: a what-if copy with other numbers), buffs (the server's buff rows),
+    xpFrac (true: every hero carries the remainder map window to window as the server does, player_skills.xp_frac; absent: the
+    pre-carry per-grant floor, max(1, floor) a grant, which over-pays small grants: a training hour of 100 ms slices reads 36,000) }.
     The answer's `members` is each hero's state at the end (levelXp, skills, gold, hp, ended). */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue']);
@@ -118,12 +120,19 @@ export async function loadPlay(root) {
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
     const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null, opts.bag || null, opts.session || null, typeof opts.options === 'function' ? opts.options : null,
       typeof opts.start === 'function' ? opts.start : null, opts.leaveTogether === true));
+    /* opts.prizeLeft: a keyed hall's daily prize as the server's read says it (hr_hunt_instance_read `prize_left`): true for every hero, or
+       (role, seat) -> whether that hero has today's still to take. Absent: nobody has (the engine rolls only on an explicit true). */
+    if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });
+    /* opts.prizeFirst: whether that roll is the hero's first on the boss, ever (`prize_first`): true for everyone, or (role, seat) -> boolean */
+    if (opts.prizeFirst !== undefined) members.forEach((m, i) => { m.prizeFirst = typeof opts.prizeFirst === 'function' ? opts.prizeFirst(roles[i], i) === true : opts.prizeFirst === true; });
     /* opts.buffs: the server's timed buff rows for every hero, player_state.buffs as the settle reads them */
     if (typeof opts.buffs === 'function') for (const m of members) m.buffs = opts.buffs(m);
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* opts.temper: every hero's rungs, the map hr_perks_of's `temper` carries (src/core/temper.js) */
     if (opts.temper) for (const m of members) m.perks = { temper: opts.temper };
+    /* opts.xpFrac: the server's carry (player_skills.xp_frac): an empty map at the start, each window's xp_frac written back below */
+    if (opts.xpFrac === true) for (const m of members) m.xpFrac = {};
     /* common vs rare by the hunt's own drop rows: a loot-band row (src/data/loot-bands.js) is a common in the common and
        uncommon bands; an old-model drop at 5% or more anywhere here is a common, unless it is a trophy worth 100 g or more
        (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */
@@ -179,9 +188,12 @@ export async function loadPlay(root) {
         for (const rd of (h.hints && h.hints.rare_drop) || []) (heroRares[p.key] = heroRares[p.key] || []).push(rd.item);
         if (h.ended && !m.ended) T.ended.push(p.key + ' ' + h.ended.reason);
         m.huntSession = Object.assign({}, m.huntSession, { swingIndex: h.swing_to, nextSwingAtMs: Date.parse(h.next_swing_at), staminaMs: h.stamina,
-          bag: Object.fromEntries(Object.entries(m.huntSession.bag).map(([id, l]) => [id, { ...l, left: (l.left ?? l.loaded) - (h.uses[id] || 0) }])) });
+          bag: Object.fromEntries(Object.entries(m.huntSession.bag).map(([id, l]) => [id, { ...l, left: (l.left ?? l.loaded) - (h.uses[id] || 0) }])),
+          /* a training item's hours, spent as the server spends them (the window's claim, journal meta.boost_ms) */
+          ...(m.huntSession.trainBoostMs ? { trainBoostMs: Math.max(0, m.huntSession.trainBoostMs - (p.delta.journal.meta.boost_ms || 0)) } : {}) });
         m.unitId = h.unit_id; m.hp = p.delta.hp; m.gold += p.delta.gold || 0;
         for (const [k, v] of Object.entries(p.delta.xp || {})) m.skills = { ...m.skills, [k]: (m.skills[k] || 0) + v };
+        if (m.xpFrac && p.delta.xp_frac) m.xpFrac = { ...m.xpFrac, ...p.delta.xp_frac };
         m.levelXp += p.delta.level_xp || 0;
         if (h.ended) m.ended = h.ended;
       }

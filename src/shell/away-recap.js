@@ -44,19 +44,23 @@
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.133';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.133';
-import { nameOf } from '../session/item-sections.js?v=0.2.133';
-import { huntName } from '../session/party-sections.js?v=0.2.133';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.133';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.133';
-import { whole } from '../render/format.js?v=0.2.133';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.133';
-import { bestFind } from '../hunt-view/summary-model.js?v=0.2.133';
-import { itemName } from './widgets/bits.js?v=0.2.133';
-import { t } from '../render/player-text.js?v=0.2.133';
-import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.133';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.133';
+import { levelOf } from '../session/character-sections.js?v=0.2.135';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.135';
+import { nameOf } from '../session/item-sections.js?v=0.2.135';
+import { huntName } from '../session/party-sections.js?v=0.2.135';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.135';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.135';
+import { whole } from '../render/format.js?v=0.2.135';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.135';
+import { bestFind, END_WORDS } from '../hunt-view/summary-model.js?v=0.2.135';
+import { itemName } from './widgets/bits.js?v=0.2.135';
+import { t } from '../render/player-text.js?v=0.2.135';
+import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.135';
+import { afterDoneWords } from './hunt-after.js?v=0.2.135';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.135';
+import { trainingPhrase } from '../session/training-sections.js?v=0.2.135';
+import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.135';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -140,21 +144,27 @@ export function awayRecapOf(cs) {
   if (Number.isSafeInteger(was.gold) && gold !== null && gold > was.gold) parts.push(signed(gold - was.gold, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
-  const name = nameOf(cs) || 'Your hero';
-  const head = 'While you were away (' + awayWords(gone) + '), ' + name + ' hunted ' + huntName(h.huntId);
+  const name = nameOf(cs) || 'Hero';
+  /* A TRAINING SESSION is no hunt (Tyler 2026-11-16): "Wren trained Ranged at the Training Yard", never "hunted Training Yard". */
+  const yard = trainingPhrase(h.huntId);
+  const head = 'Away ' + awayWords(gone) + ': '
+    + (yard ? t('training.away_trained', { name, skill: skillWord(trainedBy(h.huntId).skill), at: yard.at }) : name + ' hunted ' + huntName(h.huntId));
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
-  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) : '');
+  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '');
   /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does) */
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     at: was.at, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
+/* The end reasons and next-thing lines are labels with no period (src/data/text/summary.js, away.js); in this card's prose each one ends a sentence. */
+const dot = (s) => (s && !/[.!?…]$/.test(s) ? s + '.' : s);
+
 /* What the hunt is doing now, from the envelope: the stamina left, or how long ago it ended and the stamina rested since. */
 function nowWords(cs, h, now) {
-  const name = nameOf(cs) || 'Your hero';
+  const name = nameOf(cs) || 'Hero';
   const where = huntName(h.huntId);
   const st = staminaOf(cs);
   const stamina = st && st.msLeft > 0 ? awayWords(st.msLeft) : null;
@@ -164,12 +174,20 @@ function nowWords(cs, h, now) {
   const after = h.ended ? afterHuntOf(state, h, now) : null;
   const waited = !!after && after.kind === 'waited' && after.idleMs >= WAITED_FROM_MS;
   const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
-  const said = after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '';
-  const then = said ? ' ' + said : '';
+  /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
+  const said = (h.ended ? afterDoneWords(cs, h.sessionId, name) : '') || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '');
+  const then = said ? ' ' + dot(said) : '';
+  /* A TRAINING SESSION says its own label ("Training ended (out of gold), 2 h 5 min ago."), and no stamina: the yard spends none
+     (Tyler 2026-11-16). */
+  if (trainedBy(h.huntId)) {
+    if (!h.ended) return ' ' + t('training.away_still');
+    const why = trainingEndWords({ reason: h.endReason });
+    return ' ' + (ago ? t('training.away_ended_ago', { why, time: awayWords(now - h.endedAtMs) }) : why + '.') + then;
+  }
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
-    ? ' The hunt has ended' + ago + '. ' + (cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || (END_REASON_COPY[h.endReason] && END_REASON_COPY[h.endReason].one) || '')
-      .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')
+    ? ' The hunt has ended' + ago + '. ' + dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
+      .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt'))
       + then + (stamina ? ' Stamina now: ' + stamina + '.' : '')
     : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';
 }

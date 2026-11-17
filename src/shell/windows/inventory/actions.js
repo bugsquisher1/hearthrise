@@ -36,29 +36,29 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.133';
-import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.133';
-import { runIntent } from '../../intent-words.js?v=0.2.133';
-import { t } from '../../../render/player-text.js?v=0.2.133';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.133';
-import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection } from './selection.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { gold } from '../../../render/format.js?v=0.2.133';
-import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.133';
-import { itemName } from '../../widgets/bits.js?v=0.2.133';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.133';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.133';
-import { offerForSale } from '../market/state.js?v=0.2.133';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.133';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.133';
-import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.133';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.133';
-import { askElsewhere } from './elsewhere.js?v=0.2.133';
-import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.133';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.133';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.133';
-import { wearBlock } from '../../gear-gate.js?v=0.2.133';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.133';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.135';
+import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.135';
+import { runIntent } from '../../intent-words.js?v=0.2.135';
+import { t } from '../../../render/player-text.js?v=0.2.135';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.135';
+import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { gold } from '../../../render/format.js?v=0.2.135';
+import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.135';
+import { itemName } from '../../widgets/bits.js?v=0.2.135';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.135';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.135';
+import { offerForSale } from '../market/state.js?v=0.2.135';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.135';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.135';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.135';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.135';
+import { askElsewhere } from './elsewhere.js?v=0.2.135';
+import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.135';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.135';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.135';
+import { wearBlock } from '../../gear-gate.js?v=0.2.135';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.135';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -240,7 +240,7 @@ function doRule(st, id, rule, repaint) {
 
 /* Dispatch loot: the server runs every plan on the bag; its one answer is the line. */
 function doDispatch(ctx, st, repaint) {
-  send(st, repaint, () => dispatchLoot(ctx.account, st.cs), 'Dispatching your loot…', (r) => dispatchWords(r.dispatch));
+  send(st, repaint, () => dispatchLoot(ctx.account, st.cs), 'Dispatching loot…', (r) => dispatchWords(r.dispatch));
 }
 
 /* ── The context menu: built when it opens, beside the stack ── */
@@ -270,8 +270,8 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const nf = namedFuelOf(id);
   const nfWhy = nf ? namedBlock(st.cs, id) : '';
   if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);
-  if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'The bar is still loading.');
-  const sellWhy = locked ? '' : !st.shop ? 'The shop is still loading.' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
+  if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
+  const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
   h += item('m-sell', t('controls.sell'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
   h += item('m-market', t('controls.list_on_market'), !locked, '', locked ? 'Unlock it first.' : '');
   h += item('m-lock', locked ? t('controls.unlock') : t('controls.lock'), !!st.rules);
@@ -282,7 +282,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const rule = st.rules ? (st.rules.loot[id] || 'keep') : null;
   const bids = st.shop ? st.shop.bids : null;
   const choice = ([v, w]) => {
-    const why = planBlock(id, v, bids) || (st.rules ? '' : 'Reading your loot plans…');
+    const why = planBlock(id, v, bids) || (st.rules ? '' : 'Loading loot plans…');
     return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"', why);
   };
   for (const [group, words] of [['plan', 'Loot plan'], ['pickup', 'On pickup']]) {
@@ -469,6 +469,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'clear-sel': clearSelection(sc); repaint(); return true;
     case 'dispatch': doDispatch(ctx, st, repaint); return true;
     case 'sell-cat': askSell(st, st.shown.map((r) => r.id), 'Sell all', repaint); return true;
+    case 'select-outgrown': selectOutgrown(sc, st.outgrown, st.rules ? st.rules.locked : null); sc.confirm = null; repaint(); return true;
     case 'confirm-yes': doSell(st, repaint); return true;
     case 'confirm-no': sc.confirm = null; repaint(); return true;
     case 'bury-stop': doStopBury(st, repaint); return true;

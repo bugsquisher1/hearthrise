@@ -20,9 +20,9 @@
 export const CHAT_TABS = Object.freeze([
   Object.freeze({ id: 'global', label: 'Global', send: 'global', placeholder: 'Message everyone online…' }),
   Object.freeze({ id: 'local', label: 'Local', send: 'local', placeholder: 'Message everyone here…' }),
-  Object.freeze({ id: 'party', label: 'Party', send: 'party', placeholder: 'Message your party…', needs: 'party' }),
-  Object.freeze({ id: 'system', label: 'System', send: null, placeholder: 'Server notices, alerts and drops. Nothing to type here.' }),
-  Object.freeze({ id: 'combat', label: 'Combat', send: null, placeholder: 'Your hunt’s combat log. Nothing to type here.', unread: false }),
+  Object.freeze({ id: 'party', label: 'Party', send: 'party', placeholder: 'Message the party…', needs: 'party' }),
+  Object.freeze({ id: 'system', label: 'System', send: null, placeholder: 'Server notices, alerts and drops' }),
+  Object.freeze({ id: 'combat', label: 'Combat', send: null, placeholder: 'Combat log', unread: false }),
 ]);
 
 /* THE TOWN CRIER's words on the Global tab (src/shell/windows/chat-crier.js). Prices and counts are the server's. */
@@ -31,7 +31,7 @@ export const CRIER = Object.freeze({
   mark: 'Crier',
   cry: 'Cry it',
   done: 'No more lines today',
-  empty: 'Type the line first. The Crier shouts what\'s in the field.',
+  empty: 'Type the line first',
   note: (q) => 'Goes to everyone online, in gold. ' + q.n + ' of ' + q.perDay + ' today.',
 });
 

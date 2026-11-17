@@ -28,28 +28,28 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.133';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.133';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.133';
-import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.133';
-import { whole } from '../../render/format.js?v=0.2.133';
-import { glyphSvg } from '../launcher.js?v=0.2.133';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.133';
-import { actionIconHtml } from './bits.js?v=0.2.133';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.133';
-import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.133';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.133';
-import { actionName, carried, hoverLines, conflictsOf } from '../action-facts.js?v=0.2.133';
-import { whyFacts, slotWhy } from '../slot-waits.js?v=0.2.133';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.133';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.133';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.133';
-import { refusalWords } from '../intent-words.js?v=0.2.133';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, effectsDoorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.133';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.133';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.133';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.133';
-import { firstTargetHtml, patchFirstTarget, sendFirstTarget } from './first-target.js?v=0.2.133';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.135';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.135';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.135';
+import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.135';
+import { whole } from '../../render/format.js?v=0.2.135';
+import { glyphSvg } from '../launcher.js?v=0.2.135';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.135';
+import { actionIconHtml } from './bits.js?v=0.2.135';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.135';
+import { staminaBuyHtml, patchStaminaBuy, actStaminaBuy } from './stamina-buy.js?v=0.2.135';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.135';
+import { actionName, carried, hoverLines, conflictsOf } from '../action-facts.js?v=0.2.135';
+import { whyFacts, slotWhy } from '../slot-waits.js?v=0.2.135';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.135';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.135';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.135';
+import { refusalWords } from '../intent-words.js?v=0.2.135';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldReserveHtml, effectsDoorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.135';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.135';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.135';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.135';
+import { firstTargetHtml, patchFirstTarget, sendFirstTarget } from './first-target.js?v=0.2.135';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -136,8 +136,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-pl-fold"><div class="hb-pl-head"><b>More fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div>'
     /* THE FIRST TARGET (first-target.js): the monster the hero goes for first on this ground, before the Target order */
     + firstTargetHtml()
-    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label>'
-    + '<p class="hb-pl-note">The hunt sells loot, then stops, rather than spend below this.</p>'
+    + goldReserveHtml()
     + effectsDoorHtml() + '</div></div>'
     + '<div class="hb-pl-row is-stance"><span class="hh-segs hb-stance" role="group" aria-label="Stance" data-coach-hook="stance">' + stanceButtonsHtml() + '</span></div>'
     + '<div class="hb-pl-row is-move"><button type="button" class="hh-seg hb-chase" data-opt="chase" data-hs-act="opt" aria-pressed="false" data-coach-hook="chase" title="With chase off, the hero keeps its distance">Chase</button>'
@@ -179,7 +178,7 @@ function patchSlot(li, s, w, ctx, bag, conflict, why) {
 function tipHtml(i, ctx) {
   const set = settingsOf(ctx.character);
   const s = set && set.slots[i];
-  if (!s || s.empty) return '<b>Slot ' + (i + 1) + '</b><p>Empty. Press to choose a spell, rune or item for it.</p>';
+  if (!s || s.empty) return '<b>Slot ' + (i + 1) + '</b><p>Empty, press to set a spell, rune or item</p>';
   const wires = Array.from({ length: SLOTS }, (_, k) => wireSlot(set.slots[k]));
   const facts = whyFacts(ctx.character);
   const lines = hoverLines(wires[i], { bag: facts.bag, store: set.store, skills: facts.skills, set, worn: facts.worn }, slotWhy(s, facts), conflictsOf(wires, set).get(i));

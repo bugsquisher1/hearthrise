@@ -1,26 +1,91 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/text/coach.js — THE COACH'S FIRST TEN MINUTES (src/data/hunt-tutorial.js).
+// src/data/text/coach.js — THE COACH'S WORDS (src/data/hunt-tutorial.js).
 //
-// One row per sentence, read by t('coach.<key>') (src/render/player-text.js).
-// The cards that lead a new hero to Tamsin and back (designer 2026-11-10, the
-// first ten minutes): {label} is her task's monster as her board counts it,
-// {count} its kills, {ground} and {next} are hunting grounds, {level} the Level
-// that opens {next}. The older cards' words still live beside their rows.
+// One row per card line, read by t('coach.<key>') (src/render/player-text.js).
+// A coach card is a short title and ONE line that names the press (Tyler
+// 2026-11-16, the Huntera model: "Sell junk" / "Shop → Sell all junk"):
+// a *_title row is at most 4 words, every other row one line of at most 10
+// words that opens on a verb, a path or a label (tests/copy-lint.mjs
+// coach-card). {label} is Tamsin's task monster as her board counts it,
+// {count} its kills, {ground} and {next} are hunting grounds, {level} the
+// Level that opens {next}, {slot} a bar slot ("slot 4"); goal_* rows are the
+// What next line's goals.
 // ════════════════════════════════════════════════════════════════════════
 
 export const COACH_TEXT = Object.freeze({
   /* every card's two presses (Tyler 2026-11-11: no tip is mandatory): Got it closes this one, Don't show tips hides them all */
   got_it: 'Got it',
   no_tips: 'Don\'t show tips',
+  /* Tamsin's rats, the first ten minutes (designer 2026-11-10) */
   tamsins_rats_title: 'Tamsin\'s rats',
-  tamsins_rats: 'Tamsin pays for kills. Open her tally and take the {label}. Kill {count} and she pays you gold and a helmet.',
-  tamsins_rats_in: 'Press Take on the {label}. Kill {count} in the {ground} and she pays you gold and a helmet.',
+  tamsins_rats: 'Open Tamsin\'s tally → Take {label}',
+  tamsins_rats_in: 'Press Take on {label}',
   rats_count_title: 'Tamsin\'s count',
-  rats_count: 'The tally on screen counts the {label} your hero kills. At {count}, Tamsin pays you in town.',
-  tamsin_owes_title: 'Tamsin owes you',
-  tamsin_owes: 'That\'s {count} rats. Leave the hunt and she pays you in town.',
-  back_down_title: 'Back down for Level {level}',
-  back_down: 'Send your hero back to the {ground}. Level {level} is about ten minutes away, and you don\'t have to watch. Close the game. Your hero keeps hunting.',
-  back_down_in: 'Press the {ground}, then Enter. You don\'t have to watch. Close the game and your hero keeps hunting.',
-  keep_hunting: 'You don\'t have to watch. Close the game and your hero keeps hunting. Level {level} is about ten minutes away, and that\'s when you\'re ready for {next}. Everything it earns will be waiting for you.',
+  rats_count: 'Kill {count} {label} to finish Tamsin\'s task',
+  tamsin_owes_title: 'Rats done',
+  tamsin_owes: 'Leave the hunt and collect from Tamsin in town',
+  back_down_title: 'Back for Level {level}',
+  back_down: 'Hunts → {ground} → Enter',
+  back_down_in: 'Press the {ground}, then Enter',
+  keep_hunting: 'Safe to close the game: your hero keeps hunting to Level {level}',
+  brook: 'Hunt here to Level {level} for {next}',
+  /* Tamsin's wolves */
+  tamsins_task: 'Open Tamsin\'s tally → Take {count} {label}',
+  tamsins_task_in: 'Pick {weight} armor, then Take {label}',
+  tamsins_task_in_any: 'Pick an armor weight, then Take {label}',
+  tamsin_pays: 'Kill {count} {label}, then collect {gold} gp from Tamsin',
+  /* the cards a builder states from the facts (hunt-tutorial.js SAY) */
+  styles: 'Equip another weapon in town to switch style',
+  styles_in: 'Press a weapon, then Equip',
+  load_shot: 'Bag → {shot} → Put on the bar',
+  load_shot_in: 'Press {shot}, then Put on the bar',
+  bar_intro: 'Press a slot to change what it does',
+  why_waits: 'Press {slot} to change when it fires',
+  spell_runes: 'Press {slot}, pick {rune}, then Save',
+  food_when: 'Press {slot} and set its HP with − or +',
+  food_when_to: 'Press {slot} and set it to {pct}% HP',
+  food_order_lower: 'Press {slot} and lower it to {pct}% HP',
+  food_order_later: 'Press {slot}, then Later until after {own}',
+  food_order_both: 'Press {slot}, lower it to {pct}%, then Later',
+  first_spell: 'Press {slot} → {tab} → {spell} → {rune}',
+  leave_cellar: 'Leave the hunt to go back to town',
+  more_heroes: 'Characters → Create hero',
+  leave_party: 'Tell your party, then leave the hunt',
+  bless: 'Shop → Services → Bless all {n}',
+  first_eat: 'Cook more {item} before it runs out',
+  first_drink_store: 'Plant turnips to brew your own juice',
+  first_drink_own: 'Brew more {item} before it runs out',
+  party_own: 'Right-click {name}\'s tab → Invite to party',
+  fuel_hearth: 'Bag → {fuel} → Fuel all',
+  fuel_hearth_in: 'Press {fuel}, then Fuel all',
+  harvest_ready: 'Farm → Harvest, then cook Turnip Juice',
+  harvest_cook: 'Gathering and crafting → Cooking → {recipe}',
+  juice_slot: 'Put {item} in an empty slot',
+  juice_slot_before: 'Put {item} in a slot before {slot}',
+  club_make: 'Gathering and crafting → Smithing → {recipe}',
+  club_equip: 'Bag → {club} → Equip',
+  home_gather: 'Gather {item}: {have} of {qty}',
+  home_buy: 'House → Buy the {deed}',
+  purse_goal: 'Buy a hero slot or a House deed',
+  /* WHAT NEXT: one goal a line (hunt-tutorial.js nextGoal) */
+  goal_armor: 'Shop → Buy gloves or a belt to train Defense',
+  goal_free_hero: 'Create your free {nth} hero in Characters',
+  goal_slot: 'Buy a {nth} hero slot for {gold}',
+  goal_top_up: 'Press + beside stamina: {hours} h for {gold}',
+  goal_step_up: 'Next step up: {ground}, Level {level}',
+  goal_harvest: 'Harvest {crops} on the Farm (J)',
+  goal_tally: 'Take a task on Tamsin\'s tally (Q)',
+  goal_deed: 'Buy the {deed} in the House',
+  goal_temper: 'Temper your {piece} for {gold}: Shop → Services',
+  goal_saving: 'Next goal: a {nth} hero slot, {gold}',
+  goal_party: 'Find a party for {ground}',
+  goal_party_how: 'Invite a friend or create a second hero',
+  goal_party_how_own: 'Right-click your other hero\'s tab → Invite to party',
+  goal_gear: 'Next gear at Level {level}: {gear}',
+  goal_gear_made: 'Next gear at Level {level}: {gear}, made in {skill}',
+  goal_gear_made_at: 'Next gear at Level {level}: {gear}, made at {skill} {req}',
+  goal_ground: 'Next ground: {ground}, Level {level}+',
+  goal_ground_party: 'Next ground: {ground}, Level {level}+ with a party',
+  goal_plant: 'Plant a seed on the Farm (J)',
+  goal_skill: 'Next at {skill} {level}: {unlock}',
 });

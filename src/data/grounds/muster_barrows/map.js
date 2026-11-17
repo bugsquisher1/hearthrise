@@ -3,7 +3,7 @@
 // Rebuild the hash with `node tests/world-core.mjs --hashes` after changing what blocks a step. Shape of the pack: src/data/grounds/shape.js.
 //
 // THE GRID IS THE ART LANE'S, CELL FOR CELL (origin/lane/b-muster-barrows-art aac5732b1, art/briefs/muster-barrows-grid-2026-10-29.txt):
-// the painted ground art/world/muster/muster_barrows_ground was laid from these rows, so a row moved here is a repaint there. The
+// the painted ground art/world/muster-floor/muster_barrows_ground was laid from these rows, so a row moved here is a repaint there. The
 // art lane's lint: 1,070 open tiles, every one in an open 3x3 and reachable from the road in. The road comes in from Hask's Ford on
 // the west edge, y8-11. No river: larger clearings than the Ford's, joined by lanes three to five tiles wide.
 //   '.' withered grass and the mud track (grass: the painter lays the March's grass, mud and barrow-turf tiles from the brief's PAINT rows)

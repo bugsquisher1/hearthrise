@@ -13,15 +13,15 @@
 //                   absent, never an empty placeholder.
 // Read only; every number is the envelope's.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.133';
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.133';
-import { BUFFS_DEF } from '../../../core/buffs.js?v=0.2.133';
-import { buffsOf, imbuementsOf, roleOf } from '../../../session/item-sections.js?v=0.2.133';
-import { partyOf } from '../../../session/hunt-sections.js?v=0.2.133';
-import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.133';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.133';
-import { itemName } from '../../widgets/bits.js?v=0.2.133';
-import { DOLL } from './doll.js?v=0.2.133';
+import { ITEMS } from '../../../data/items.js?v=0.2.135';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.135';
+import { BUFFS_DEF } from '../../../core/buffs.js?v=0.2.135';
+import { buffsOf, imbuementsOf, roleOf } from '../../../session/item-sections.js?v=0.2.135';
+import { partyOf } from '../../../session/hunt-sections.js?v=0.2.135';
+import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.135';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.135';
+import { itemName } from '../../widgets/bits.js?v=0.2.135';
+import { DOLL } from './doll.js?v=0.2.135';
 
 const TOTALS = Object.freeze([['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'], ['rangeAtkB', 'Ranged'], ['magicAtkB', 'Magic']]);
 const IMBUE_WORDS = Object.freeze({ keen: 'Keen', life_leech: 'Life Leech', mana_leech: 'Mana Leech', ward: 'Ward', element_ward: 'Element Ward' });
@@ -54,8 +54,8 @@ function roleWords(cs, eq) {
     id = me ? me.role : null;
   }
   const w = eq.weapon ? itemName(eq.weapon) : null;
-  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ', from your ' + w : '');
-  return w ? 'Role: the server has not named a role for your ' + w + ' yet' : 'No weapon worn: wear one to take a hunt role';
+  if (id && HUNT_ROLES[id]) return 'Role: ' + HUNT_ROLES[id].label + (w ? ', from the ' + w : '');
+  return w ? 'Role: none yet for the ' + w : 'Role: none, no weapon';
 }
 
 function buffWords(b) {

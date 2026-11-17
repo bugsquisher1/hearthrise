@@ -44,19 +44,20 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
   nodes: Object.freeze(nodes.map(([node, x, y, p]) => Object.freeze({ id: 'n' + x + '_' + y, node, x, y, pocket: p }))) });
 
 /* ── THE PACK ─────────────────────────────────────────────────────────────
-   { id, status, sql, hunt, ground, map, monsters, roster, items, itemText, xpFit, tierOverride }
+   { id, status, sql, hunt, ground, map, monsters, roster, items, itemText, xpFit, gpFit, tierOverride }
      id        [a-z0-9_]: the hunt id AND the ground id (one ground a pack)
      status    'staged' (built, its art not done: never listed, never served, the hunt row says `staged`) | 'open'
      sql       the pack's additive server file (supabase/migrations/<date>-pack-<id>.generated.sql), written by
                `node tools/pack.mjs ship <id>`; null until then. The whole catalogue generators leave a pack out until a world
                move folds it (tools/pack/fold.mjs), so a pack never re-issues a whole catalogue.
-     hunt      a src/data/hunts.js row without its id
+     hunt      a src/data/hunts.js row without its id, its `region` one of REGIONS and `standingFor` (when present) one of STANDING_SIDES
      ground    a src/data/hunt-grounds.js row without its id and hunt
      map       the map row (src/data/world/maps' shape); ground.map names it
      monsters  { id: row }: the pack's NEW monsters, src/data/monsters.js rows (the numbers by `tools/pack.mjs propose --write`)
      roster    { monster: role }: each placed monster's role (src/data/balance-sheet.js GROUND_ROSTER's row)
      items     { id: row }: the pack's NEW items, src/data/items.js rows; itemText { id: 'its line' } (item-descriptions.js)
      xpFit, tierOverride   (optional) its GROUND_XP_FIT number and TIER_PULL_OVERRIDES row (balance-sheet.js), each with its reason
+     gpFit                 (optional) its GROUND_GP_FIT number (balance-sheet.js): the ground's income dial on coin and on what its loot sells for
      partyVsAlone   (optional) the measured line the party window says { 2: [...], 3: [...], 4: [...] } (party-class-xp.js PARTY_VS_ALONE's shape,
                tests/party-class-xp-line.mjs --write). A pack carries NO party pay cell: one party table for every ground (Tyler 2026-11-16)
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
@@ -79,9 +80,15 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                one spell model: monster-spells.js folds them in (an id already taken is refused), validateSpell judges each row, and a row
                none of the pack's own monsters casts is refused (tools/pack.mjs lintFields) */
 export const PACK_STATUS = Object.freeze(['staged', 'open']);
+
+/* A HUNT ROW'S PLACE (lane/c-faction-standing; the board's "2026-11-14 The Morrow Hills" §6). `region`: the regions in the order the road
+   walks them, one per hunt row. `standingFor`: the side a ground pays standing to, on every ground of a region after Krell's and on no
+   other (src/data/factions.js; catalogue-coherence.js factionGroundProblems holds the rule, the server reads hr_faction_grounds). */
+export const REGIONS = Object.freeze(['greenhaven', 'barrow_march', 'morrow_hills']);
+export const STANDING_SIDES = Object.freeze(['first_flame', 'last_ember']);
 const ID = /^[a-z0-9_]{1,40}$/;
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
-const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'tierOverride', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
+const KEYS = Object.freeze(['id', 'status', 'sql', 'hunt', 'ground', 'map', 'monsters', 'roster', 'items', 'itemText', 'xpFit', 'gpFit', 'tierOverride', 'partyVsAlone', 'checks', 'bagGuide', 'hall', 'fuel', 'spells']);
 const FUEL_KEYS = Object.freeze(['item', 'xp', 'req', 'flame', 'secs', 'chunk']);
 const SPELL_ROW_KEYS = Object.freeze(['n', 'shape', 'r', 'len', 'range', 'windupMs', 'cdMs', 'hitPm', 'element']);
 const posInt = (n) => Number.isInteger(n) && n > 0;
@@ -150,12 +157,18 @@ export function definePack(p) {
   if (p.sql != null && !new RegExp('^\\d{4}-\\d{2}-\\d{2}-pack-' + id + '(-\\d+)?\\.generated\\.sql$').test(p.sql)) no('sql is not <date>-pack-' + id + '[-N].generated.sql');
   if (p.status === 'open' && p.sql == null) no('an open pack is served, so it names its file (node tools/pack.mjs ship ' + id + ')');
   if (!isObj(p.hunt) || 'id' in p.hunt || 'staged' in p.hunt) no('hunt is not a hunts.js row without id and staged (status says staged)');
+  if (!REGIONS.includes(p.hunt.region)) no('hunt.region is not one of ' + REGIONS.join(' | '));
+  if ('standingFor' in p.hunt && !STANDING_SIDES.includes(p.hunt.standingFor)) no('hunt.standingFor is not one of ' + STANDING_SIDES.join(' | '));
   if (!isObj(p.ground) || 'id' in p.ground || 'hunt' in p.ground) no('ground is not a hunt-grounds.js row without id and hunt');
   if (!isObj(p.map) || p.map.id !== p.ground.map) no('map is not the row ground.map names');
+  /* A pack plays the default session mode (src/data/session-modes.js): its additive file carries no hr_ground_session_modes row
+     (tools/pack/sql.mjs PACK_TABLES), so a mode named here would be one the server never froze. */
+  if ('mode' in p.ground || (isObj(p.hall) && isObj(p.hall.ground) && 'mode' in p.hall.ground)) no('a pack ground names a session mode, which a pack cannot carry to the server yet');
   for (const k of ['monsters', 'roster', 'items', 'itemText']) if (p[k] !== undefined && !isObj(p[k])) no(k + ' is not an object');
   for (const k of ['monsters', 'items']) for (const x of Object.keys(p[k] || {})) if (!ID.test(x)) no(k + ' id ' + x + ' is not [a-z0-9_]');
   for (const x of Object.keys(p.itemText || {})) if (!(p.items && x in p.items)) no('itemText names ' + x + ', which is not one of its items');
   if (p.xpFit !== undefined && !(isObj(p.xpFit) && Number.isFinite(p.xpFit.k) && typeof p.xpFit.why === 'string' && p.xpFit.why)) no('xpFit is not { k, why }');
+  if (p.gpFit !== undefined && !(isObj(p.gpFit) && Number.isFinite(p.gpFit.k) && p.gpFit.k > 0 && typeof p.gpFit.why === 'string' && p.gpFit.why)) no('gpFit is not { k (above 0), why }');
   if (p.tierOverride !== undefined && !(isObj(p.tierOverride) && typeof p.tierOverride.why === 'string' && p.tierOverride.why)) no('tierOverride has no why');
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');
   if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');

@@ -20,8 +20,8 @@
 // the plain fire (never a missing sprite).
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.133';
-import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.133';
+import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.135';
+import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.135';
 
 /* The named colors and the bought powders, one table to draw from. A bought flame stays out of src/data/hearth.js, which the edge bundles. */
 const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });
@@ -77,10 +77,11 @@ function createHearthBurn(map, o) {
      * One frame of the Hearth's effects.
      * @param {{ me?: {key: string, x: number, y: number, chunk: string, since: number}|null,
      *           burn?: {x: number, y: number, chunk: string, at: number}|null,
+     *           errand?: {x: number, y: number, chunk: string, at: number}|null,
      *           peers?: {key: string, x: number, y: number}[], flame?: {flame: string, startedAt: number}|null }} env
      *   me: your hero at its fuel stand working a fuel bench (since: when it got there); burn: your named fuel,
-     *   thrown once from where the hero stands (at: when it arrived); peers: others working at the Hearth's stands;
-     *   flame: TownPresence.hearth()
+     *   thrown once from where the hero stands (at: when it arrived); errand: your one everyday fuel, the same;
+     *   peers: others working at the Hearth's stands; flame: TownPresence.hearth()
      * @param {number} now  ms
      * @returns {{ fx: object[], swap: object|null }}
      */
@@ -98,7 +99,8 @@ function createHearthBurn(map, o) {
       };
       for (const p of env.peers || []) cycle(p.key, null, p, 'fuel_bone');
       if (env.me) cycle(env.me.key, env.me.since, env.me, env.me.chunk);
-      if (env.burn && has(env.burn.chunk)) throwFx(fx, env.burn, env.burn.chunk, now - env.burn.at, flame);
+      /* the throws made once: a named burn's, an errand's */
+      for (const b of [env.burn, env.errand]) if (b && has(b.chunk)) throwFx(fx, b, b.chunk, now - b.at, flame);
       /* the colour's sparks rise on a beat while it burns */
       if (flame) {
         const a = (now - env.flame.startedAt) % NAMED_SPARKS_MS;
@@ -125,6 +127,11 @@ const burnsHere = (burn, me) => !!burn.stand && burn.stand.station === me.statio
 export function createHearthView(map, o) {
   const burn = createHearthBurn(map, o);
   let standKey = null, arrivedAt = null, lastXp = null;
+  /* AN ERRAND'S FUEL (2027-04-27-hearth-errand.sql): "Fuel the hearth" on one everyday fuel is a run of one the server ends in
+     seconds, while the visit it sends the hero on walks for ~25 s. The fuel the pointer named (on its rise, away from a work
+     stand at the fire) is held here and thrown ONCE when that visit gets to the fire, whatever the pointer says by then; a body
+     set down anywhere but the fire drops it. bodyKey: the hero's whole stand (any station), seenFuel: the last frame's fuel. */
+  let errand = null, bodyKey = null, seenFuel = null;
   const floats = [];
   return {
     /**
@@ -143,8 +150,16 @@ export function createHearthView(map, o) {
       if (key !== standKey) { standKey = key; arrivedAt = null; }
       if (me && arrivedAt === null && atStand(e.place, me)) arrivedAt = now;
       const there = me && arrivedAt !== null && atStand(e.place, me);
-      const chunk = there && e.active ? chunkOfRecipe(e.active) : null;
+      /* a fuel bench's beat is a WORK stand's (the server's `work`): a visit throws its one fuel once, below */
+      const chunk = there && me.work && e.active ? chunkOfRecipe(e.active) : null;
       const hero = e.hero || { x: 0, y: 0 };
+      const fuel = e.active ? chunkOfRecipe(e.active) : null;
+      const body = e.me ? e.me.station + ':' + e.me.stand + ':' + e.me.since : null;
+      if (body !== bodyKey) { if (bodyKey !== null && !me) errand = null; bodyKey = body; }
+      if (me && me.work) errand = null;
+      else if (fuel && fuel !== seenFuel) errand = { chunk: fuel, at: null };
+      seenFuel = fuel;
+      if (errand && errand.at === null && there && !me.work) errand.at = now;
       /* the peers working at the Hearth's stands, where the frame drew them */
       const working = new Set((e.walkers || []).filter((w) => w.work && /^hearth/.test(w.station || '')).map((w) => w.id + ':' + w.slot));
       const peers = [];
@@ -155,7 +170,9 @@ export function createHearthView(map, o) {
       /* your named fuel, thrown once you stand at the fire (from the server's yes, never before) */
       const b = e.burn && there && burnsHere(e.burn, me) && chunkOfNamed(e.burn.item)
         ? { x: hero.x, y: hero.y, chunk: chunkOfNamed(e.burn.item), at: Math.max(e.burn.at, arrivedAt) } : null;
-      const out = burn.frame({ me: chunk ? { key: 'me', x: hero.x, y: hero.y, chunk, since: arrivedAt } : null, burn: b, peers, flame: e.flame }, now);
+      const thrown = errand && errand.at !== null && there ? { x: hero.x, y: hero.y, chunk: errand.chunk, at: errand.at } : null;
+      const out = burn.frame({ me: chunk ? { key: 'me', x: hero.x, y: hero.y, chunk, since: arrivedAt } : null, burn: b, errand: thrown,
+        peers, flame: e.flame }, now);
       /* "+N Inner Flame": only what a settle PAID (the server's XP rising), over the hero while it is at the fire */
       if (Number.isFinite(e.xp)) {
         if (lastXp !== null && e.xp > lastXp && me) floats.push({ text: '+' + Math.round(e.xp - lastXp).toLocaleString('en-US') + ' Inner Flame', kind: 'xp', at: now });

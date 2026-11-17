@@ -839,6 +839,9 @@ body[data-theme="hearthlight"] {
   --world-ground-planks-b:    #4f3623;
   --world-ground-water-a:     #2b4a6a;
   --world-ground-water-b:     #284666;
+  /* a bridge's deck over the river: drawn as the water under it (BLEND alias), so its tone is the water's */
+  --world-ground-deck-a:      var(--world-ground-water-a);
+  --world-ground-deck-b:      var(--world-ground-water-b);
   --world-ground-cliff-a:     #3a3a3e;
   --world-ground-cliff-b:     #36363a;
   --world-ground-palisade-a:  #3d2a1d;
@@ -997,6 +1000,24 @@ body[data-theme-palette="iron"] {
      the fight): narrower than this, those widgets start folded to their titles (src/data/hud-widgets.js `folded`,
      src/shell/hud.js FOLD_RULES; src/shell/shell.js reads it). A width, not a breakpoint: no @media reads it. */
   --hud-fold-below: 1280px;
+  /* THE DEVICE PIXEL (Tyler 2026-11-16: blurry and grainy at Windows' 125 % and 150 %). --dpr is the screen's
+     devicePixelRatio, written on <html> by src/render/device-px.js (1 until it runs). Pixel art is drawn at a WHOLE
+     number of device px an art px at any display scale (ART_DIRECTION §2, §7), never 7.5 device px for 3 art px.
+     --art-px is one art px of a frame, plate or mark drawn 2 px an art px: the most whole device px that is no
+     thicker than 2 CSS px (2 CSS px at DPR 1, 1.5, 2 and 3; 1.6 at 1.25, which is 2 device px), so a layout made at
+     100 % never loses room to its frames. --art-N is N of them, a frame's width (tests/device-px.mjs reads every frame
+     on the screen at 100 to 175 %). --icon-step is a 32-art-px icon at x1 (32 device px); --icon-1 and --icon-2 are the icon drawn
+     at about 32 and 64 px: the least whole scale at 3/4 of that or more (x1 at 125 %, x2 at 150 %). */
+  --dpr: 1;
+  --art-px: calc(max(1, round(down, 2 * var(--dpr))) / var(--dpr) * 1px);
+  --art-2: calc(2 * var(--art-px));
+  --art-3: calc(3 * var(--art-px));
+  --art-4: calc(4 * var(--art-px));
+  --art-5: calc(5 * var(--art-px));
+  --art-6: calc(6 * var(--art-px));
+  --icon-step: calc(32px / var(--dpr));
+  --icon-1: round(up, 24px, var(--icon-step));
+  --icon-2: round(up, 48px, var(--icon-step));
 }
 :root,
 body[data-theme="hearthlight"] {

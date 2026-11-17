@@ -160,9 +160,9 @@ async function clientWords(root) {
   const set = { role: 'ranger', supplySource: 'mine', onEmpty: 'switch', store: [] };
   const slot = (id) => ({ action: { type: 'attack_with_item', id }, conditions: [], join: 'and', usable: true, count: 5 });
   const stone = F.reasonOf(slot('copper_whetstone'), set, [{ id: 'copper_whetstone', qty: 5 }], null);
-  if (!stone || !stone.strike || !/^A whetstone is not a shot/.test(stone.text)) return 'a bow\'s Copper Whetstone slot reads ' + JSON.stringify(stone);
+  if (!stone || !stone.strike || stone.text !== 'Whetstone, never fires') return 'a bow\'s Copper Whetstone slot reads ' + JSON.stringify(stone);
   const rune = F.reasonOf(slot('chalked_fire_rune'), set, [{ id: 'chalked_fire_rune', qty: 5 }], null);
-  if (!rune || !rune.strike || !/^A rune isn’t a shot/.test(rune.text)) return 'a bow\'s Chalked Fire Rune slot reads ' + JSON.stringify(rune);
+  if (!rune || !rune.strike || rune.text !== 'Rune, never fires') return 'a bow\'s Chalked Fire Rune slot reads ' + JSON.stringify(rune);
   const arrows = F.reasonOf(slot('iron_arrows'), set, [{ id: 'iron_arrows', qty: 5 }], null);
   if (arrows) return 'a bow\'s Iron Arrows slot (5 carried) reads ' + JSON.stringify(arrows);
   if (!F.weaponWarning({ type: 'attack_with_item', id: 'copper_whetstone' }, null, 'ranger')) return 'Configure action says nothing about a whetstone attack slot';
@@ -171,13 +171,13 @@ async function clientWords(root) {
   const at = (n) => ({ ranged: { xp: 1, level: n } });
   const held = [{ id: 'mithril_arrows', qty: 5 }];
   const under = F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(42));
-  if (!under || !under.strike || under.code !== 'skill' || under.text !== 'Needs Ranged 45 (you have 42). This slot waits until then, and your next ammo fires.') return 'Mithril Arrows at Ranged 42 read ' + JSON.stringify(under);
+  if (!under || !under.strike || under.code !== 'skill' || under.text !== 'Needs Ranged 45, now 42, next ammo fires meanwhile') return 'Mithril Arrows at Ranged 42 read ' + JSON.stringify(under);
   if (F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(45))) return 'Mithril Arrows at Ranged 45 read ' + JSON.stringify(F.reasonOf(slot('mithril_arrows'), set, held, null, null, at(45)));
   if (F.reasonOf(slot('mithril_arrows'), set, held, null, null, null)) return 'with no skills from the server yet, Mithril Arrows read ' + JSON.stringify(F.reasonOf(slot('mithril_arrows'), set, held, null, null, null));
   if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(42)) !== under.text) return 'Configure action on Mithril Arrows at Ranged 42 reads ' + JSON.stringify(F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(42)));
   if (F.weaponWarning({ type: 'attack_with_item', id: 'mithril_arrows' }, null, 'ranger', at(45))) return 'Configure action warns at Ranged 45';
   const ammoRun = (skills) => T.tableOf('ammo', { role: 'ranger', bag: [], store: [], skills }).runs.find((r) => r.kind === 'ammo').rows.find((r) => r.action.id === 'mithril_arrows');
-  if (!ammoRun(at(42)).locked || ammoRun(at(42)).lockWhy !== 'Needs Ranged 45 (you have 42)') return 'the Ammo run at Ranged 42 reads ' + JSON.stringify(ammoRun(at(42)));
+  if (!ammoRun(at(42)).locked || ammoRun(at(42)).lockWhy !== 'Needs Ranged 45, now 42') return 'the Ammo run at Ranged 42 reads ' + JSON.stringify(ammoRun(at(42)));
   if (ammoRun(at(45)).locked || ammoRun(null).locked) return 'the Ammo run locks Mithril Arrows at Ranged 45 or before the server has said: ' + JSON.stringify([ammoRun(at(45)).locked, ammoRun(null).locked]);
   const run = T.tableOf('ammo', { role: 'ranger', bag: [], store: [] }).runs.find((r) => r.kind === 'ammo');
   const row = (id) => (run && run.rows.find((r) => r.action.id === id)) || null;

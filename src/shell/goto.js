@@ -63,6 +63,9 @@ export function linkHtml(words, target) {
   return '<button type="button" class="hs-goto" ' + ATTR + '="' + esc(keyOf(target)) + '">' + esc(words) + '</button>';
 }
 
+/** The attribute's VALUE for `target`, for a button patched in place (attr()), or null with no target. */
+export const gotoKey = (target) => (target && WIN.test(target.win) ? keyOf(target) : null);
+
 /** The attribute that makes any element a link to `target` ('' with no target): a row that is pressed whole, around its own real button. */
 export const gotoAttr = (target) => (target && WIN.test(target.win) ? ' ' + ATTR + '="' + esc(keyOf(target)) + '"' : '');
 

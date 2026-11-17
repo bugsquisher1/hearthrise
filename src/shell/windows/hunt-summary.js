@@ -47,6 +47,7 @@ import { towerOf } from '../../session/tower-sections.js?v=0.2.135';
 import { TOWER_RULES } from '../../data/tower.js?v=0.2.135';
 import { climbEnd } from '../tower-words.js?v=0.2.135';
 import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.135';
+import { targetOf, gotoKey } from '../goto.js?v=0.2.135';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
@@ -280,14 +281,16 @@ function patchTown(root, ctx, sc, town) {
     patch: (el, s) => {
       cls(el, 'is-done', s.done);
       const ico = el.querySelector('.hsum-ico');
-      const want = s.done ? 'done' : s.icon ? 'item:' + s.icon : 'shield';
-      if (ico.getAttribute('data-ico') !== want) { ico.setAttribute('data-ico', want); ico.innerHTML = s.done ? glyphSvg(ctx.glyphs, 'uiCheck') : s.icon ? itemIconHtml(ctx.glyphs, s.icon) : glyphSvg(ctx.glyphs, 'uiShield'); }
+      const want = s.done ? 'done' : s.icon ? 'item:' + s.icon : s.glyph || 'shield';
+      if (ico.getAttribute('data-ico') !== want) { ico.setAttribute('data-ico', want); ico.innerHTML = s.done ? glyphSvg(ctx.glyphs, 'uiCheck') : s.icon ? itemIconHtml(ctx.glyphs, s.icon) : glyphSvg(ctx.glyphs, s.glyph || 'uiShield'); }
       text(el.querySelector('b'), s.title);
       text(el.querySelector('small'), s.words);
       const btn = el.querySelector('button');
       prop(btn, 'hidden', s.done);
       prop(btn, 'disabled', sc.pending);
       text(btn, s.verb);
+      /* THE NEXT BUY's Show is a link (goto.js): it opens the window where the buy is made, on its row, and sends nothing */
+      attr(btn, 'data-hs-goto', s.place ? gotoKey(targetOf(s.place)) : null);
       cls(btn, 'is-primary', town.primary === s.id);
       const done = el.querySelector('.hsum-done');
       prop(done, 'hidden', !s.done);

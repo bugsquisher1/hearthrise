@@ -140,7 +140,9 @@ export default definePack({
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'color_cord', ch: 0.1, band: 'uncommon' },
         { id: 'mithril_platebody', ch: 0.0375, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.0375, band: 'scarce' }, { id: 'warlock_body', ch: 0.0375, band: 'scarce' },
         { id: 'maple_staff', ch: 0.05, band: 'scarce' },
-        { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' }],
+        { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' },
+        /* the tank's off-hand beside the Mage's (shields.js, the audit's F8): the sergeant's own shield */
+        { id: 'mithril_faced_shield', ch: 0.0033, band: 'rare' }],
       hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1439, gp: [23, 69], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (58) for 0.90-1.10 of the

@@ -88,6 +88,15 @@
 .hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .hw-tools [data-hs-act="sell-cat"] { display: none; }
 .hw-tools [data-hs-act="sell-cat"].is-on { display: inline-block; }
+/* Copy loot plan from <hero> (inventory/plan-copy.js, audit 2026-11-15 F11): one press per other open hero, under Dispatch loot; its confirm below. */
+.hw-plancopy { display: none; margin-top: 8px; }
+.hw-plancopy.is-on { display: block; }
+.hw-plancopy-list { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hw-plancopy-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
+.hw-plancopy-confirm.is-on { display: block; }
+.hw-plancopy-q { margin: 0; font-weight: 700; color: var(--ink); }
+.hw-plancopy-do { display: flex; gap: 6px; margin-top: 8px; }
+.hw-plancopy-do .hw-primary { display: inline-block; }
 /* Its well and gold bar are the Forged Steel confirmation's (shell.css). */
 .hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; }
 .hw-confirm.is-on { display: block; }

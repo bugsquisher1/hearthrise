@@ -20,7 +20,9 @@
 //             smoke and sparks last among the raised (over the roofs, under the light), never with the effects (an effect is
 //             named for a phone's first view even off screen: client-boot B-21); nothing past compose's margin;
 //             each loop advances one frame per beat from its own phase, so the chimneys never puff in step
-//   TL-FOLK   the townsfolk (src/data/world/town/folk.js, src/world/town-folk.js): a body with idle and walk clips in a dye;
+//   TL-FOLK   the townsfolk (src/data/world/town/folk.js, src/world/town-folk.js): each in a body of its own from art/world/townsfolk
+//             (never a hero's outfit: the Quarry Brute in six dyes read as one man in six shirts), never shared, never dyed (a dye
+//             pulls the colour masks into the town), with idle and walk in all eight facings (a walker paths in eight);
 //             every stop open, reached from the town's start, never a station stand or an exit; a path between stops; over a
 //             whole loop each changes only on FOLK_TICK_HZ and stands on whole art px (a walker costs that many paints a
 //             second, never the frame rate), reaches every stop, walks at most 40% of its loop (work in bursts, not pacing),
@@ -209,11 +211,18 @@ export function problems(env) {
   const stands = new Set(STATIONS.flatMap((s) => (s.stands || []).map(([x, y]) => x + ',' + y)));
   const exits = new Set(town.exits.map((e) => e.x + ',' + e.y));
   const reach = reachFrom(town.mask, town.w, town.h, town.start);
+  const FACES = ['s', 'e', 'n', 'w', 'se', 'sw', 'ne', 'nw'], wornBy = new Map();
   for (const r of rows) {
     const s = book.sprite(r.body);
     if (!s.anims || !s.anims.idle || !s.anims.walk) bad('TL-FOLK', r.id + ': its body ' + r.body + ' has no idle and walk clips');
-    const dye = String(r.dye || '').split('.').map(Number);
-    if (dye.length !== 4 || dye.some((v) => !Number.isInteger(v) || v < 0 || v > 15)) bad('TL-FOLK', r.id + ': its dye ' + r.dye + ' is not a dye key');
+    else {
+      const short = FACES.filter((d) => !(s.anims.idle.dirs || {})[d] || !(s.anims.walk.dirs || {})[d]);
+      if (short.length) bad('TL-FOLK', r.id + ': its body ' + r.body + ' has no idle or walk facing ' + short.join(', ') + ' (a walker paths in eight directions)');
+    }
+    if (book.frame(r.body).set !== 'townsfolk') bad('TL-FOLK', r.id + ': its body ' + r.body + ' is not a townsperson of its own (art/world/townsfolk)');
+    if (r.dye !== undefined) bad('TL-FOLK', r.id + ': its body ' + r.body + ' is dyed ' + r.dye + ' (a dye pulls the colour masks into the town)');
+    if (wornBy.has(r.body)) bad('TL-FOLK', r.id + ' wears the body of ' + wornBy.get(r.body) + ', ' + r.body);
+    wornBy.set(r.body, r.id);
     for (const [x, y] of r.route) {
       const k = x + ',' + y, i = y * town.w + x;
       if (town.mask[i] || !reach[i]) bad('TL-FOLK', r.id + ': its stop ' + k + ' is not an open tile the town reaches');
@@ -437,7 +446,13 @@ function selftest() {
     'a townsperson rests in a wall': { folk: folkWith(1, (r) => ({ route: [[0, 0, 9000, 's']].concat(r.route.slice(1)) })) },
     'a townsperson paces (rests a second)': { folk: folkWith(0, (r) => ({ route: r.route.map(([x, y, , f]) => [x, y, 1000, f]) })) },
     'a townsperson with no walk clip': { folk: folkWith(1, () => ({ body: 'npc_crier' })) },
-    'a townsperson in no dye': { folk: folkWith(0, () => ({ dye: 'red' })) },
+    'a townsperson back in the Quarry Brute': { folk: folkWith(0, () => ({ body: 'outfit_brute', dye: '3.1.0.0' })) },
+    'a body that cannot walk a diagonal': { manifests: sprites('townsfolk', (s) => {
+      const b = s.folk_carter, dirs = Object.fromEntries(Object.entries(b.anims.walk.dirs).filter(([d]) => d !== 'ne'));
+      return Object.assign(s, { folk_carter: Object.assign({}, b, { anims: Object.assign({}, b.anims, { walk: Object.assign({}, b.anims.walk, { dirs }) }) }) });
+    }) },
+    'a townsperson of its own body dyed': { folk: folkWith(3, () => ({ dye: '2.5.0.0' })) },
+    'two townsfolk in one body': { folk: folkWith(1, () => ({ body: 'folk_market_woman', dye: undefined })) },
     'a walker moves every frame': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u) => (u.anim === 'walk' ? Object.assign({}, u, { x: u.x + (now % 62.5) / 32 / 62.5 }) : u)) }); } },
     'a townsperson with a name plate': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u) => Object.assign({}, u, { plate: { text: 'Hob', kind: 'peer' } })) }); } },
     'a townsperson drawn as a player': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u) => Object.assign({}, u, { ref: { player: { id: 'x', name: 'Hob' } } })) }); } },

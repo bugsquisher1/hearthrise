@@ -26,6 +26,9 @@ export const HUNTS_TEXT = Object.freeze({
     one: 'In another party: {names} (switch to them, press Leave party)',
     other: 'In another party: {names} (switch to each, press Leave party)',
   },
+  /* A ground where a hero alone spends more on food than the hunt pays (supplies.js healerWanted, measured): said under the ground's
+     name to a party with no Healer. A warning, never a gate. {monster} is the ground's hardest hitter. The party_size shape. */
+  wants_healer: 'Recommended: Healer ({monster} hits too hard for food)',
 
   /* How crowded a ground is. {size} is a count or pack_range. */
   pack_range: '{min} to {max}',

@@ -447,6 +447,12 @@ landed 2026-10-15 (40 generations, all R3; approval pending Tyler); R2 waits for
 | mosslight_ground | glade | terrain | 32×32 tiles | still |  | **retain** | view_map |
 | rook_poacher | glade | character | 64×64 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
 | walking_vine | glade | vermin | 48×48 | idle 1@5, walk 6@10, attack 6@10, death 6@10, corpse 1 | senwseswnenw | **retain** | see sidecar |
+| folk_carter | townsfolk | character | 64×64 | idle 4@5, walk 8@10 | senwseswnenw | **staged**: Havora's carter (town/folk.js), 38 gens, NE walk is NW flipped; art director read pending | create_object_pro_flash `3c206e45` |
+| folk_dock_porter | townsfolk | character | 64×64 | idle 4@5, walk 8@10 | senwseswnenw | **staged**: Havora's dock porter, 28 gens; art director read pending | create_object_pro_flash `51e287e9` |
+| folk_fishmonger | townsfolk | character | 64×64 | idle 4@5, walk 8@10 | senwseswnenw | **staged**: Havora's fishwife, 28 gens; art director read pending | create_object_pro_flash `cabbf241` |
+| folk_market_woman | townsfolk | character | 64×64 | idle 4@5, walk 8@10 | senwseswnenw | **staged**: Havora's market woman, 30 gens; art director read pending | create_object_pro_flash `3300bc6b` |
+| folk_sweeper | townsfolk | character | 64×64 | idle 4@5 (the broom at work), walk 8@10 | senwseswnenw | **staged**: Havora's sweeper, 33 gens; art director read pending | create_object_pro_flash `baef9591` |
+| folk_water_carrier | townsfolk | character | 64×64 | idle 4@5, walk 8@10 | senwseswnenw | **staged**: Havora's water carrier, 41 gens; art director read pending | create_object_pro_flash `8a434966` |
 
 ### b224 — Asset Director promotion pass
 

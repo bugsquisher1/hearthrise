@@ -86,6 +86,8 @@ export function huntOf(cs) {
     endBy: isObj(h.session) && str(h.session.end_by) ? h.session.end_by.trim().slice(0, 40) || null : null,
     /* What ended that member (hr_hunt_view `end_by_why`, an END_ORDER name: stamina, left ...), or null. */
     endWhy: isObj(h.session) ? str(h.session.end_by_why) : null,
+    /* The tier an ENDED session ran at (hr_hunt_view `tier`, 2027-03-16-ended-hunt-tier.sql: stamped as it ends), or null (open: hunt_tier.playing says it). */
+    tier: isObj(h.session) && TIER_IDS.includes(h.session.tier) ? h.session.tier : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
     /* A CALL OUT SERIES (hr_hunt_view `call`, 2027-04-24-boss-call-series.sql): the server's own count of fights and wins and what it charged; null on every other hunt. */

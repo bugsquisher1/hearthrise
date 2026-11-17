@@ -95,6 +95,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_item_lock_many: 'lock or unlock many items in one call, all or nothing; moves no value (storage-intents.js lockItems)',
   hr_loot_rule_set: "an item's loot plan (keep in bag / deposit in storage / sell) or its pickup filter (do not pick up); a name and a word, the server validates it (CharacterSession.setLootRule)",
   /* Tyler 2026-10-25 (2027-01-23-loot-dispatch.sql): a slot and a key; the plans, bag, bid and Storage room are the server's. */
+  hr_loot_plan_copy: "this hero takes the loot plan of another hero of the same account: two slots, no item, count or price; the server reads both heroes under the caller's own account (loot-intents.js copyLootPlan; 2027-04-24-loot-plan-copy.sql)",
   hr_loot_dispatch: "run this hero's loot plans in town: deposit and sell the planned stacks; names no item, count or price (loot-intents.js dispatchLoot)",
   hr_hunt_preset_save: 'snapshot the action set and gear as a setup (CharacterSession.savePreset)',
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',

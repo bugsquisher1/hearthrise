@@ -33,7 +33,7 @@ import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOf
 import { PARTY } from '../data/party.js?v=0.2.135';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
 import { MONSTERS } from '../data/monsters.js?v=0.2.135';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.135';
+import { SUPPLIES, healerWanted } from '../data/supplies.js?v=0.2.135';
 import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.135';
 import { whole, gold } from '../render/format.js?v=0.2.135';
 import { t } from '../render/player-text.js?v=0.2.135';
@@ -50,6 +50,18 @@ export function partyNote(hunt) {
   const p = g && g.pockets.find((q) => q.forParty);
   /* A warning, never a gate (Tyler 2026-11-08: "Either they are strong enough to do the harder content or they aren't"): a lone hero walks the hall. */
   return p ? t('hunts.party_size', { n: p.forParty }) : '';
+}
+
+/**
+ * "The Barrow Knights here hit harder than food can keep up with. Bring a Healer. …" for a ground whose bag guide says a hero fighting
+ * this way at this Level is measured to need one (supplies.js healerWanted), or ''. `healed`: the hero is a Healer or its party has one.
+ * The monster named is the ground's hardest hitter, from its own rows (the highest Level among its spawns). Never a gate.
+ */
+export function healerNote(hunt, level, discipline, healed) {
+  if (healed || !healerWanted(hunt, Number.isInteger(level) ? level : null, discipline)) return '';
+  const h = HUNT_INDEX[hunt];
+  const top = h ? h.spawns.map((s) => MONSTERS[s.monster]).filter((m) => m && m.boss !== true).sort((a, b) => (b.level || 0) - (a.level || 0))[0] : null;
+  return top ? t('hunts.wants_healer', { monster: top.name }) : '';
 }
 
 /** One line per hunt ground, lowest band first (ties by name). */

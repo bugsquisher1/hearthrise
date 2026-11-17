@@ -7,7 +7,7 @@
 // ════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.135';
 import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.135';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.135';
+import { armourLineWord, MATERIAL_TIERS } from '../data/gear-tiers.js?v=0.2.135';
 import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.135';
 import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.135';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.135';
@@ -56,11 +56,19 @@ function needsOf(cs, ladder) {
   });
 }
 
+/* The Levels of the gear the SERVER has rungs for: { from, to } (the lowest and highest tier among its ladders, each as the Level that
+   tier is worn at, gear-tiers.js), or null with none. The smith's "can't be tempered" line says them (temper-pane.js), so it is the
+   server's answer, never this build's price table. */
+function spanOf(ladders) {
+  const levels = ladders.map((l) => (MATERIAL_TIERS.find((m) => m.tier === l.tier) || {}).level).filter(Number.isInteger);
+  return levels.length ? { from: Math.min(...levels), to: Math.max(...levels) } : null;
+}
+
 const mapOf = (ladders) => Object.fromEntries(ladders.map((l) => [temperUnlockId(l.track, l.tier), l.rung]));
 
 /**
- * The two rows the smith's window shows: { blows, armor }, each { piece, below, ladder, needs, nowPm, nextPm } for what this hero wears now,
- * `ladder` null on gear with none (`below`: under the first ladder), `piece` null when it wears nothing of the kind. Null until the server has said.
+ * The two rows the smith's window shows: { blows, armor }, each { piece, below, span, ladder, needs, nowPm, nextPm } for what this hero wears now,
+ * `ladder` null on gear with none (`below`: under the first ladder; `span`: the Levels the server's ladders cover), `piece` null when it wears nothing of the kind. Null until the server has said.
  */
 export function temperRowsOf(cs) {
   const ladders = temperOf(cs), eq = /** @type {Record<string, string> | null} */ (equipmentOf(cs));
@@ -73,9 +81,10 @@ export function temperRowsOf(cs) {
   const line = armorLineOf(eq, ITEMS);
   const armorLadder = line ? ladderOf('armor', line.tier) : null;
   const worn = line ? armourLineWord(line.armourClass, line.tier) : null;
+  const span = spanOf(ladders);
   return {
-    blows: { piece: weapon ? weapon.n : null, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },
-    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, below: !!line && belowLadders(line.tier), ladder: armorLadder, needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
+    blows: { piece: weapon ? weapon.n : null, span, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },
+    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, span, below: !!line && belowLadders(line.tier), ladder: armorLadder, needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
   };
 }
 

@@ -15,8 +15,10 @@
 //                value_over). Those pelts, and only the rest of the price seeded, buy the ladder to the Keep through
 //                hr_unlock_buy; then the Trophy Room to its top visible rung.
 //   HP-2 VIEWED  hunt viewed (the player's settle): the same hunt on the other door credits a pelt the same way.
-//   HP-3 HELD    the Castle and the rung 5s are refused by name, hr_home_view stops at the Keep and at four rungs a room,
-//                and no sellable row costs an item the catalogue cannot reach.
+//   HP-3 THE TOP  the Castle and the rung 5s are SOLD for what the Barrow March drops and the top crafts make (lane/d-audit-balance-2,
+//                2026-11-15: they were held for dragon scales nothing drops): under the Keep the Castle is refused by its tier, never as
+//                held; a Keep owner buys it with its price and is home tier 5; the Trophy Room sells to its fifth rung; hr_home_view lists
+//                the Castle and five rungs a room; and no sellable row costs an item the catalogue cannot reach.
 //   HP-4 SELF-CHECK the two 2027-02-16 files refuse their own apply on a visible rung with a dead item, a sold Castle, and a
 //                bear whose kill bound forgets the pelt; a second apply of both, on the chain as of the later of them, is
 //                byte-identical (later full replaces own these rows at the chain end).
@@ -197,16 +199,30 @@ const ARMS = {
     const U = H.UIDS[0];
     const problems = [];
     await H.character(db, M, U, { level: 24, gold: 5000000, inv: {} });
-    for (const offer of ['property.castle', 'room.kitchen.5', 'room.trophy.5']) {
-      const v = await buy(db, U, offer);
-      if (!v || v.error !== 'offer_unsupported') problems.push(`${offer} answered ${JSON.stringify(v).slice(0, 200)}, want offer_unsupported`);
-    }
+    /* under the Keep: refused, and by its tier or its price, never as a held row */
+    const early = await buy(db, U, 'property.castle');
+    if (!early || early.ok === true || early.error === 'offer_unsupported') problems.push(`the Castle under the Keep answered ${JSON.stringify(early).slice(0, 200)}, want a refusal that is not offer_unsupported`);
     const home = await one(db, 'select public.hr_home_view($1, 0)', [U]);
     const names = home.tiers.map((t) => t.offer);
-    if (names.includes('property.castle')) problems.push('the House window lists the Castle');
-    if (!names.includes('property.keep')) problems.push('the House window does not list the Keep');
-    const tall = home.rooms.filter((r) => r.rungs !== 4);
-    if (tall.length) problems.push(`rooms not at four visible rungs: ${tall.map((r) => r.room + '=' + r.rungs).join(', ')}`);
+    if (!names.includes('property.castle')) problems.push('the House window does not list the Castle');
+    const short = home.rooms.filter((r) => r.rungs !== 5);
+    if (short.length) problems.push(`rooms not at five visible rungs: ${short.map((r) => r.room + '=' + r.rungs).join(', ')}`);
+    /* a Keep owner pays the Castle's price, then the Trophy Room to its top */
+    /* a held row has no price to seed: said as a problem, not thrown past the checks above */
+    const priced = async (offer) => { try { await seedPrice(db, U, offer); return true; } catch (e) { problems.push(String(e.message)); return false; } };
+    for (const offer of ['property.homestead', 'property.farmstead', 'property.manor', 'property.keep', 'property.castle']) {
+      if (!(await priced(offer))) continue;
+      const v = await buy(db, U, offer);
+      if (!v || v.ok !== true) problems.push(`${offer} refused: ${JSON.stringify(v).slice(0, 200)}`);
+    }
+    const tier = await one(db, 'select public.hr_account_property_tier($1)', [U]);
+    if (tier !== 5) problems.push(`the account's home is tier ${tier} after the Castle, want 5`);
+    for (let n = 1; n <= 5; n++) {
+      const offer = 'room.trophy.' + n;
+      if (!(await priced(offer))) continue;
+      const v = await buy(db, U, offer);
+      if (!v || v.ok !== true) problems.push(`${offer} refused at the Castle: ${JSON.stringify(v).slice(0, 200)}`);
+    }
     /* The class, as the server holds it: no price in the window names an item the catalogue cannot reach. */
     const { reachableSources } = await import('../src/data/catalogue-coherence.js');
     const reach = reachableSources();
@@ -399,8 +415,12 @@ const MUTANTS = {
     js: (M) => { const b = M.MONSTERS.brook_bear; const was = b.drops; b.drops = was.filter((d) => d.id !== 'bear_pelt'); return () => { b.drops = was; }; } },
   bound_forgets_pelt: { arm: 'HP-2', why: 'the 10-29 class: the kill bound omits the drop, a window with a pelt is refused value_over',
     ddl: "update public.hr_hunt_kill_bounds set drops = drops - 'bear_pelt'" },
-  castle_sold: { arm: 'HP-3', why: 'the Castle is sold though its scales have no source',
-    ddl: `update public.hr_unlock_offers set refusal = null, gold = 150000, items = '{"dragon_scale": 4}'::jsonb, req_property_tier = 4 where offer_id = 'property.castle'` },
+  castle_on_scales: { arm: 'HP-3', why: 'the Castle is sold for dragon scales again, an item nothing drops',
+    ddl: `update public.hr_unlock_offers set items = items || '{"dragon_scale": 4}'::jsonb where offer_id = 'property.castle'` },
+  castle_held: { arm: 'HP-3', why: 'the Castle is held again: the House stops at the Keep',
+    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'property.castle'` },
+  rung5_held: { arm: 'HP-3', why: 'a fifth rung is held again: the Trophy Room stops at four',
+    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'room.trophy.5'` },
   rung_needs_dead_item: { arm: 'HP-3', why: 'a visible Trophy rung costs an item nobody can hold',
     ddl: `update public.hr_unlock_offers set items = items || '{"dragon_gem": 1}'::jsonb where offer_id = 'room.trophy.3'` },
   keep_asks_more: { arm: 'HP-1', why: 'the Keep\'s price drifts past what the hero earned',

@@ -61,6 +61,7 @@ import { wearBlock } from '../../gear-gate.js?v=0.2.135';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.135';
 import { unlockRing } from './key-ring.js?v=0.2.135';
 import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.135';
+import { actPlanCopy } from './plan-copy.js?v=0.2.135';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -483,6 +484,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'lock-sel': doLockMany(st, repaint); return true;
     case 'clear-sel': clearSelection(sc); repaint(); return true;
     case 'dispatch': doDispatch(ctx, st, repaint); return true;
+    case 'plan-copy': case 'plan-copy-yes': case 'plan-copy-no': return actPlanCopy(ctx, st, action, el, repaint);
     case 'sell-cat': askSell(st, st.shown.map((r) => r.id), 'Sell all', repaint); return true;
     case 'select-outgrown': selectOutgrown(sc, st.outgrown, st.rules ? st.rules.locked : null); sc.confirm = null; repaint(); return true;
     case 'confirm-yes': doSell(st, repaint); return true;

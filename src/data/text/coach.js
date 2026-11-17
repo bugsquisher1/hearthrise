@@ -27,6 +27,11 @@ export const COACH_TEXT = Object.freeze({
   back_down_title: 'Back for Level {level}',
   back_down: 'Hunts → {ground} → Enter',
   back_down_in: 'Press the {ground}, then Enter',
+  /* THE FIRST DANGEROUS RUN (board 2026-11-15 F5: Normal costs no food to Level 15, Dangerous does and gives more XP); {ground} a ground in the
+     hero's range with a Dangerous tier */
+  first_dangerous_title: 'Try Dangerous',
+  first_dangerous: 'Hunts → {ground} → Dangerous → Enter',
+  first_dangerous_in: 'Press {ground}, then Dangerous, then Enter',
   keep_hunting: 'Safe to close the game: your hero keeps hunting to Level {level}',
   brook: 'Hunt here to Level {level} for {next}',
   /* Tamsin's wolves */
@@ -34,6 +39,9 @@ export const COACH_TEXT = Object.freeze({
   tamsins_task_in: 'Pick {weight} armor, then Take {label}',
   tamsins_task_in_any: 'Pick an armor weight, then Take {label}',
   tamsin_pays: 'Kill {count} {label}, then collect {gold} gp from Tamsin',
+  /* her task's count is done, the server's row says so (audit 2026-11-15 F3): while hunting, then back in town */
+  count_done: 'Leave the hunt and collect {gold} gp from Tamsin',
+  count_done_town: 'Open Tamsin\'s tally → collect {gold} gp',
   /* the cards a builder states from the facts (hunt-tutorial.js SAY) */
   styles: 'Equip another weapon in town to switch style',
   styles_in: 'Press a weapon, then Equip',
@@ -44,6 +52,7 @@ export const COACH_TEXT = Object.freeze({
   spell_runes: 'Press {slot}, pick {rune}, then Save',
   food_when: 'Press {slot} and set its HP with − or +',
   food_when_to: 'Press {slot} and set it to {pct}% HP',
+  food_when_both: 'Press {slot} and {other}, set both to {pct}% HP',
   food_order_lower: 'Press {slot} and lower it to {pct}% HP',
   food_order_later: 'Press {slot}, then Later until after {own}',
   food_order_both: 'Press {slot}, lower it to {pct}%, then Later',

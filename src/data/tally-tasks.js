@@ -91,6 +91,30 @@ export const TALLY_TASKS = Object.freeze([
     materials: [{ item: 'magic_essence', qty: 2 }, { item: 'bone_chips', qty: 4 }, { item: 'copper_ore', qty: 4 }] }),
   row({ id: 'warrens_goblin_diggers', hunt: 'coppercap_warrens', monster: 'goblin_digger', label: 'Goblin Diggers', count: 30, gold: 1090, party: true,
     materials: [{ item: 'copper_ore', qty: 8 }, { item: 'coal', qty: 4 }, { item: 'iron_ore', qty: 3 }] }),
+  /* THE BARROW MARCH (designer 2026-11-15, lane/d-audit-balance-2; the playthrough audit's F28: at Level 87 her board offered nothing above the
+     Warrens' Level 32). One task a March ground, five rows, which is the sample and the set. MEASURED on the real settle
+     (`node tools/balance-sim/audit-table.mjs tally`, a lone tank at each floor, 2 h): the count is that monster's kills in about an hour, the gold
+     35% of that hour's coin. Kills an hour, coin an hour: Fordsunk 39.5, 7,303; Mudlarks 45, 8,680; Stokers 35, 11,091; Gatekeepers 19.5, 12,248.
+     The Barrows are built for a group (a lone tank kills 14.5 Barrow Knights an hour, a four 83.5), so its 30 is two hours alone and 22 minutes
+     in a four, as the Warrens' 30 Diggers are, and its gold sits between its neighbours'.
+     HER PICK IS THE NEXT TIER WHERE THE HERO CAN'T GET IT YET, the Glade's rule (2026-11-02): the Slake (50 to 65) pays the Barrows' Rune,
+     Wyvernhide and Sorcerer pieces, worn at 60, a set to finish before the Barrow Knights (a Level 55 hero in the tier under dies there on weak
+     food: F14); the Pyre Field (70 to 90) pays the Hold's Emberforged, Dragonhide and Archmage pieces, worn at 75, which drop nowhere under the
+     Hold's Level 85. The Ford, the Barrows and the Hold pay their own ground's pieces. She still skips a slot the hero wears at that tier or
+     better, and her three pays a day cap all of it (11,570 gp a day at the most, against the 110,000 a hero earns in 12 hunted hours there).
+     Her materials are what the March's own crafts take: Grave Dust for the tempering salts worn gear asks for from Level 45
+     (src/data/temper.js), Big Bones and Coal for the forge. The Gatekeeper is the Hold's Hall Key carrier, so her task there counts the
+     monster a hero is already hunting. */
+  row({ id: 'ford_fordsunk', hunt: 'hasks_ford', monster: 'fordsunk', label: 'Fordsunk', count: 40, gold: 2560, party: false,
+    materials: [{ item: 'grave_dust', qty: 6 }, { item: 'bone_chips', qty: 8 }, { item: 'big_bones', qty: 6 }] }),
+  row({ id: 'slake_mudlarks', hunt: 'the_slake', monster: 'mudlark', label: 'Mudlarks', count: 45, gold: 3040, party: false, piecesFrom: 'muster_barrows',
+    materials: [{ item: 'grave_dust', qty: 8 }, { item: 'coal', qty: 8 }, { item: 'copper_ore', qty: 10 }] }),
+  row({ id: 'barrows_barrow_knights', hunt: 'muster_barrows', monster: 'muster_knight', label: 'Barrow Knights', count: 30, gold: 3400, party: true,
+    materials: [{ item: 'grave_dust', qty: 10 }, { item: 'big_bones', qty: 8 }, { item: 'bone_chips', qty: 10 }] }),
+  row({ id: 'pyre_stokers', hunt: 'pyre_field', monster: 'stoker', label: 'Stokers', count: 35, gold: 3880, party: false, piecesFrom: 'krells_hold',
+    materials: [{ item: 'grave_dust', qty: 12 }, { item: 'coal', qty: 12 }, { item: 'big_bones', qty: 10 }] }),
+  row({ id: 'hold_gatekeepers', hunt: 'krells_hold', monster: 'gatekeeper', label: 'Gatekeepers', count: 20, gold: 4290, party: false,
+    materials: [{ item: 'grave_dust', qty: 14 }, { item: 'coal', qty: 14 }, { item: 'gold_bar', qty: 4 }] }),
 ]);
 
 /** The task row of an id, or null. */

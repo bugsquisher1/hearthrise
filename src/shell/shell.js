@@ -284,6 +284,7 @@ export function mountShell(root, o) {
     }
     roomForStack();
     stackWidgets();
+    dockCoach();
     clearPlates();
     publishInset();
     roomForCoach();
@@ -311,7 +312,9 @@ export function mountShell(root, o) {
   }
 
   /* Every panel ends above the floor and the screen's plates clear what they would cover (./hud-room.js). */
-  const { roomForStack, liftMoved, clearPlates } = createHudRoom({ hud, worldHud, screenHud, layer, isPhone: () => phoneMq.matches, gap: DOCK_EDGE });
+  /* Where the camera frames the hero in a hunt: the middle of the World the docked widgets leave (insetNow), in page px. */
+  const heroAt = () => { if (!fightOn(opts)) return null; const b = shell.getBoundingClientRect(), i = insetNow(false); return { x: b.left + (i.left + b.width - i.right) / 2, y: b.top + (i.top + b.height - i.bottom) / 2 }; };
+  const { roomForStack, liftMoved, clearPlates, dockCoach } = createHudRoom({ hud, worldHud, screenHud, layer, isPhone: () => phoneMq.matches, gap: DOCK_EDGE, heroAt });
   /* A widget that stacks sits under the widgets it names (./widget-stack.js). */
   const stackWidgets = createWidgetStack({ hud, worldHud, screenHud });
 
@@ -358,8 +361,8 @@ export function mountShell(root, o) {
   /* The World edges the docked HUD widgets cover ({left, right, top, bottom}),
      published only when they change, so the camera frames the playable area beside them. */
   let lastInset = '';
-  function insetNow() {
-    const b = shell.getBoundingClientRect();
+  function insetNow(alertToo = true) {
+    const b = shell.getBoundingClientRect(), box = { width: b.width, height: b.height };
     const widgets = [];
     const rel = (r, left = r.left - b.left) => ({ left, top: r.top - b.top, width: r.width, height: r.height });
     for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
@@ -368,12 +371,19 @@ export function mountShell(root, o) {
       const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: rel(r, left) });
     }
-    /* THE PHONE'S COACH NEVER LIES ON THE HERO (first-hour playtest 10-29 #10): the open card under the hunt bar stands
-       at the bar's right end (shell.css) and the camera frames the World beside it, as it does beside a panel. */
-    const card = phoneMq.matches && worldHud.querySelector('[data-hs-widget="hunt-topbar"] > .hs-pointer:not(.is-min)');
-    const cr = card && card.getBoundingClientRect();
-    if (cr) widgets.push({ anchor: cr.left + cr.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr', rect: rel(cr) });
-    return hudInsetOf(widgets, { width: b.width, height: b.height });
+    /* THE COACH NEVER LIES ON THE HERO (playtest 10-29 #10; audit F1, F13): the phone's card at the hunt bar's right end, the desktop's in the left column (hud-room.js
+       dockCoach), the camera framing the World beside it. So is an alert in a hunt (`alertToo`; heroAt asks without it): the phone's by its half, the desktop's by the SIDE costing less. */
+    const side = (r) => (r.left + r.width / 2 - b.left < b.width / 2 ? 'tl' : 'tr');
+    const shown = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? r : null; };
+    const bar = worldHud.querySelector('[data-hs-widget="hunt-topbar"]');
+    const card = bar && (phoneMq.matches || bar.classList.contains('is-coach-docked')) ? shown(bar.querySelector(':scope > .hs-pointer:not(.is-min)')) : null;
+    if (card) widgets.push({ anchor: side(card), rect: rel(card) });
+    const alert = alertToo && fightOn(opts) ? shown(screenHud.querySelector('[data-hs-widget="alerts"]:not(.is-under-dock) .hw-alerts:not(.is-empty) .hw-alert-list')) : null;
+    if (alert) {
+      const q = rel(alert), clear = phoneMq.matches ? null : hudInsetOf(widgets, box);
+      widgets.push({ anchor: !clear ? side(alert) : q.left + q.width - clear.left <= b.width - clear.right - q.left ? 'ml' : 'mr', rect: q });
+    }
+    return hudInsetOf(widgets, box);
   }
   function publishInset() {
     const inset = insetNow();

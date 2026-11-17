@@ -5,7 +5,7 @@
 //   node tests/hunt-summary.mjs             the tests, on the real modules
 //   node tests/hunt-summary.mjs --selftest  every planted defect must turn a test red
 //
-// mutant-anchors: src/hunt-view/death-explain.js src/hunt-view/summary-model.js src/session/hunt-summaries.js src/hunt-view/summary-recorder.js src/session/character-session.js src/session/residue.js src/shell/back-in-town.js
+// mutant-anchors: src/hunt-view/death-explain.js src/hunt-view/summary-model.js src/session/hunt-summaries.js src/hunt-view/summary-recorder.js src/session/character-session.js src/session/residue.js src/shell/back-in-town.js src/shell/next-buy.js
 //
 //   D1  a death from a fixture event stream names the killing blows with their
 //       amounts, the healing gap, the empty mana, and the heal rule that waited
@@ -40,6 +40,11 @@
 //       with something left is open again
 //   T4  DEPOSIT IS ONE hr_bank_move_many naming the plan's stacks (lane/c-bank-move-many): all of them or none, never a
 //       per-stack hr_bank_move; a refusal moves nothing and says so
+//   T5  THE NEXT BUY (next-buy.js, lane/a-next-steps; audit 2026-11-15 F12/F20): with gold to spend, ONE line names what the purse covers:
+//       a Shop piece better than the worn one (a bare slot first, then the cheapest), else Tempering's next rung (weapon, then armor,
+//       material in hand), else the cheapest room rung the house is ready for, else the dummy's next skill (a house, nobody on it): the
+//       designer's order (board 2026-11-15 F8/F12); in label words (Tyler 2026-11-14), never sentences; last on the card, Show its press,
+//       never the gold press
 // No ?v= on imports here (tests/**).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
@@ -55,6 +60,7 @@ const SESSION = 'src/session/character-session.js';
 const RESIDUE = 'src/session/residue.js';
 const SUMMARIES = 'src/session/hunt-summaries.js';
 const TOWN = 'src/shell/back-in-town.js';
+const NEXT = 'src/shell/next-buy.js';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 /* The names the recorder stamps on events as they arrive (the pose forgets a unit once it is gone). */
@@ -468,6 +474,61 @@ async function runTests(M) {
     eq(calls.filter((c) => c.name === 'hr_bank_move_many').length, 2, 'one ask per press');
   });
 
+  await t('T5 with gold to spend the card names ONE next buy the purse covers, from the server\'s sections, last and never the gold press', () => {
+    const { NB } = M;
+    /* audit 2026-11-15 F12/F20 and the Practice Shield worn to 87: a tank at 31 with the Shop's Bronze-Rimmed Shield on offer */
+    const tank = { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody' };
+    const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 } };
+    const shop = (...o) => ({ offers: o.map(([item, price, kind]) => ({ offer: 'shop.' + item, item, kind: kind || 'gear', price })), bids: new Map() });
+    const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
+      temper: null, dummy: null, home: null, bag: [], bank: [] }, over || {}));
+    const shield = buy();
+    eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'bronze_rimmed_shield',
+      { kind: 'shop', item: 'bronze_rimmed_shield' }], 'a Shop piece better than the worn one, its price and what it adds');
+    /* a bare slot first, though dearer; a piece worse than the worn one, another style's, or past the purse is never named */
+    const bare = buy({ shop: shop(['bronze_rimmed_shield', 140], ['bronze_belt', 200]) });
+    eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (200 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first');
+    eq(buy({ purse: 139 }), null, 'past the purse, nothing');
+    eq(buy({ equipment: { ...tank, shield: 'bronze_rimmed_shield' } }), null, 'what is worn already is not bought again');
+    eq(buy({ shop: shop(['bronze_rimmed_shield', 140, 'tool']) }), null, 'only the Shop\'s gear');
+    /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */
+    const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });
+    const temper = { blows: rung('Steel Sword', 3000, 0, 10), armor: rung('Bronze armor', 2000, 0, 10) };
+    const tb = buy({ shop: null, temper });
+    eq(tb && [tb.kind, tb.title, tb.words, tb.place], ['temper', 'Next buy: Temper Steel Sword (3,000 gp)', 'Damage and heals +1%', { kind: 'temper' }], 'the weapon\'s rung');
+    const ta = buy({ shop: null, temper: { ...temper, blows: rung('Steel Sword', 3000, 1, 10) } });
+    eq(ta && [ta.title, ta.words], ['Next buy: Temper Bronze armor (2,000 gp)', 'Damage taken −1%'], 'short of a material, the armor\'s rung');
+    eq(buy({ shop: null, temper, purse: 1999 }), null, 'neither rung in the purse');
+    /* the dummy's next skill, a house to hold it, nobody on it */
+    const dummy = { needs: null, hasHome: true, owned: ['melee'], ladder: [100000, 250000], nextPrice: 250000, busy: null };
+    const dm = buy({ shop: null, purse: 300000, dummy });
+    eq(dm && [dm.kind, dm.title, dm.words, dm.place], ['dummy', 'Next buy: House dummy skill (250,000 gp)', 'Train at home, no hourly fee', { kind: 'house' }], 'the dummy\'s next unlock');
+    eq([buy({ shop: null, purse: 300000, dummy: { ...dummy, hasHome: false } }), buy({ shop: null, purse: 300000, dummy: { ...dummy, busy: 'Ilsa' } }), buy({ shop: null, purse: 300000, dummy: { ...dummy, nextPrice: null } })],
+      [null, null, null], 'no house, someone on it, or every skill unlocked: nothing');
+    /* the cheapest room rung the house is ready for, gold and material in hand (the bag, then Storage) */
+    const room = (r, name, gold, need, opens) => ({ room: r, name, level: 1, rungs: 5, opens: opens || 1, rungName: null, next: { offer: 'home.' + r, name: name + ' II', rung: 2, need: need || 1, item: null, gold, items: [{ id: 'oak_log', qty: 20 }] } });
+    const home = { tier: 1, tiers: [], rooms: [room('forge', 'Forge', 9000), room('cellar', 'Cellar', 6000), room('garden', 'Garden', 4000, 2)] };
+    const rm = buy({ shop: null, purse: 10000, home, bag: [{ id: 'oak_log', qty: 5 }], bank: [{ id: 'oak_log', qty: 15 }] });
+    eq(rm && [rm.kind, rm.title, rm.words, rm.place], ['room', 'Next buy: Cellar upgrade (6,000 gp)', 'Next: Cellar II', { kind: 'house' }], 'the cheapest rung the house is ready for (the Garden waits on the next tier)');
+    eq(buy({ shop: null, purse: 10000, home, bag: [{ id: 'oak_log', qty: 5 }], bank: [] }), null, 'short of the logs: nothing');
+    /* the order (the designer's, board 2026-11-15 F8/F12): gear, then Tempering, then a room rung, then the dummy; no purse read, nothing */
+    eq(buy({ temper, dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'gear', 'gear first');
+    eq(buy({ shop: null, temper, dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'temper', 'then Tempering');
+    eq(buy({ shop: null, dummy, home, purse: 300000, bag: [{ id: 'oak_log', qty: 20 }] }).kind, 'room', 'then a room rung, ahead of the dummy');
+    eq(buy({ shop: null, dummy, home, purse: 300000, bag: [] }).kind, 'dummy', 'then the dummy');
+    /* label words, never a sentence (Tyler 2026-11-14): no full stop on any line the card can name */
+    const said = [shield, bare, tb, ta, dm, rm].flatMap((b) => [b.title, b.words]).filter((w) => /\.$/.test(w));
+    eq(said, [], 'every next-buy line is a label');
+    eq([buy({ purse: null }), buy({ purse: 0 })], [null, null], 'no purse, nothing');
+    /* on the card: one row, last, Show opens where it is bought, and it is never the gold press */
+    const none = { ops: {}, picks: [], choices: [] };
+    const solo = steps({ plan: none, rules: { locked: new Set(), loot: {} }, blessings: null, buy: shield });
+    eq([solo.steps.map((s) => [s.id, s.title, s.words, s.verb, s.icon]), solo.primary], [[['buy', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'Show', 'bronze_rimmed_shield']], 'again'],
+      'with the bag sorted the card still names the buy, and Hunt again stays the press');
+    const all = steps({ buy: shield });
+    eq([all.steps.map((s) => s.id), all.primary], [['equip', 'sell', 'deposit', 'bless', 'buy'], 'equip'], 'after the other steps, never ahead of them');
+  });
+
   return fails;
 }
 
@@ -477,7 +538,7 @@ async function load(base) {
   return {
     EX: await import(u(EXPLAIN)), MD: await import(u(MODEL)), REC: await import(u(RECORDER)),
     CS: Object.assign({}, await import(u(SESSION))), RES: await import(u(RESIDUE)),
-    TN: await import(u(TOWN)), UP: await import(u('src/shell/upgrade-plan.js')),
+    TN: await import(u(TOWN)), UP: await import(u('src/shell/upgrade-plan.js')), NB: await import(u(NEXT)),
     END_ORDER: (await import(u('src/data/hunt-sessions.js'))).END_ORDER,
   };
 }
@@ -531,7 +592,17 @@ const MUTANTS = [
   { test: 'T1', file: 'src/shell/bag-model.js', from: "    if (lines.length >= SELL_LINES_MAX) { more++; continue; }\n", to: '' },
   { test: 'T1', file: TOWN, from: "const can = missing.length > 0 && (purse === null || purse >= missing[0].price);", to: "const can = missing.length > 0;" },
   { test: 'T1', file: TOWN, from: "if (step.count > 0) out.push(Object.assign(step, { done: false }));", to: "if (step.count >= 0) out.push(Object.assign(step, { done: false }));" },
-  { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done);", to: "const first = out[0];" },
+  { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy');", to: "const first = out[0];" },
+  { test: 'T5', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy');", to: "const first = out.find((s) => !s.done);" },
+  { test: 'T5', file: TOWN, from: "  if (buy) out.push(", to: "  if (false) out.push(" },
+  { test: 'T5', file: NEXT, from: "(Number(!!a.replaces) - Number(!!b.replaces)) || ", to: '' },
+  { test: 'T5', file: NEXT, from: "x.kind === 'gear' && x.price <= o.purse && ", to: "x.kind === 'gear' && " },
+  { test: 'T5', file: NEXT, from: "|| row.needs.some((n) => n.short > 0) ", to: '' },
+  { test: 'T5', file: NEXT, from: "if (!d || !d.hasHome || ", to: "if (!d || " },
+  { test: 'T5', file: NEXT, from: "&& r.next.need <= h.tier && ", to: '&& ' },
+  { test: 'T5', file: NEXT, from: "&& holds(r.next.items, o.bag, o.bank));", to: ');' },
+  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return roomBuy(o) || dummyBuy(o) || temperBuy(o) || gearBuy(o);" },
+  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || temperBuy(o) || dummyBuy(o) || roomBuy(o);" },
   { test: 'T3', file: TOWN, from: "else if (did.has(step.id)) out.push(Object.assign(step, { done: true, title: did.get(step.id) || step.title, words: '' }));", to: '' },
   { test: 'T3', file: TOWN, from: "done: true, title: did.get(step.id) || step.title, words: ''", to: "done: true, words: ''" },
   { test: 'T4', file: TOWN, from: "lines.map((l) => l.item), 'deposit');", to: "lines.map((l) => l.item), 'withdraw');" },

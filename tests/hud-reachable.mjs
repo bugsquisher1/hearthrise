@@ -33,6 +33,8 @@
 //   HR-10 THE NEW-VERSION BANNER (live 1365x846, 2026-11-01: the launcher row lay over Reload and Later): raised and dismissed on a
 //        live page at each size and two phones, its line and presses are clear, the launchers and every panel sit in the room below it
 //        and take their presses, a window's close too; Later gives the room back
+//   HR-11 NOTHING DOCKS WHERE THE HERO STANDS (audit 2026-11-15 F1, F13: the coach card and the away card lay on the hero at 1280x720): at each size,
+//        Chat open, the shown away card and an open coach card both stand clear of the point the camera frames (the middle of the World the published inset leaves)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -154,6 +156,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     const page = await ctx.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
+    await page.addInitScript(() => window.addEventListener('hearthrise:shell-inset', (e) => { window.__hrInset = e.detail; }));   // HR-11 reads the inset the camera was last told
     const s = scripted(prep);
     await stub(page, s);
     const up = await signIn(page, base);
@@ -330,6 +333,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const at = tag + ' ' + w + 'x' + h;
           await size(page, w, h);
           await scrollBack(page);
+          /* HR-11 the hero's point, and the two cards that lay on it */
+          const spot = await page.evaluate(() => { const i = window.__hrInset, b = document.querySelector('.hs-shell').getBoundingClientRect(); const box = (e) => { const q = e && e.getBoundingClientRect(); return q && q.width > 0 && getComputedStyle(e).visibility !== 'hidden' ? { left: q.left, top: q.top, right: q.right, bottom: q.bottom } : null; };
+            return { at: i ? { x: b.left + (i.left + b.width - i.right) / 2, y: b.top + (i.top + b.height - i.bottom) / 2 } : null, away: box(document.querySelector('[data-hs-widget="alerts"] .hw-alert-list')), coach: box(document.querySelector('[data-hs-widget="hunt-topbar"] > .hs-pointer:not(.is-min)')) }; });
+          if (!spot.at) fails.push('HR-11 CONTROL ' + at + ': the shell published no inset');
+          else for (const k of ['away', 'coach']) { const q = spot[k]; if (q && spot.at.x > q.left && spot.at.x < q.right && spot.at.y > q.top && spot.at.y < q.bottom) fails.push('HR-11 ' + at + ': the ' + k + ' card lies on the spot the camera frames ' + JSON.stringify([spot.at.x, spot.at.y].map(Math.round)) + ': ' + JSON.stringify([q.left, q.top, q.right, q.bottom].map(Math.round))); }
+          if (process.env.HR_DEBUG) console.log(at, JSON.stringify(spot));
           const card = await page.evaluate(() => { const e = document.querySelector('[data-hs-widget="alerts"]'); const q = e.getBoundingClientRect(); return { left: q.left, top: q.top, right: q.right, bottom: q.bottom, hidden: getComputedStyle(e).visibility === 'hidden' }; });
           const others = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-widget="party"], [data-hs-widget="analyzer"], [data-hs-widget="tally"], [data-hs-widget="action-bar"], [data-hs-widget="hunt-topbar"], .hs-win:not(.is-leaving)')).filter((e) => e.offsetWidth && getComputedStyle(e).visibility !== 'hidden').map((e) => { const q = e.getBoundingClientRect(); return { n: e.getAttribute('data-hs-widget') || e.getAttribute('data-hs-win'), left: q.left, top: q.top, right: q.right, bottom: q.bottom }; }));
           if (!card.hidden) {
@@ -369,7 +378,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         if (!(await wait(page, () => /Still hunting, with 5 h 0 min of stamina left\./.test(document.querySelector('.hw-alert-text')?.textContent || ''), null, 5000))) fails.push('HR-7 the card keeps the stamina it came up with: ' + JSON.stringify(await line()));
         if ((await line() || '').replace(/Still hunting.*$/, '') !== (first || '').replace(/Still hunting.*$/, '')) fails.push('HR-7 what happened while away changed: ' + JSON.stringify([first, await line()]));
-        /* the hunt ends: no line says it is still hunting; the summary is the notice now */
+        /* the hunt ends ten minutes into the visit (past the return's own settle, away-recap.js endedOnReturn): no line says it is still hunting; the summary is the notice now */
+        s.env.hunt_server_now_ms += 10 * 60000;
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: Object.assign({}, s.env.hunt.session, { end_reason: 'stamina', ended_at: new Date(s.env.hunt_server_now_ms).toISOString() }) });
         await pushEnvelope(page, s);
         if (!(await wait(page, () => !/\bAway \d/.test(Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' ')), null, 5000))) fails.push('HR-7 the hunt ended and the card still says: ' + JSON.stringify(await line()));
@@ -522,7 +532,7 @@ const MUTANTS = [
   ['the alerts ignore the windows in their row (HR-6)', 'src/shell/hud-room.js', "return panels.concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)'))).map(rel);", 'return panels.map(rel);'],
   ['the card with no room stays over the window (HR-6)', 'src/shell/hud-room.js', "alerts.classList.toggle('is-under-dock', left === null);", ''],
   ['the away card keeps the line it came up with (HR-7)', 'src/shell/alerts.js', 'const line = a.kind === \'away\' ? awayLineNow(cs, a) : a.text;', 'const line = a.text;'],
-  ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended)) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
+  ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended && !endedOnReturn(h, a))) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
   ['a hunt in view is judged as an absence (HR-9)', 'src/shell/alerts.js', 'if (judged && awaySettled(cs)) returning.delete(cs.slot);', ''],
   ['the desktop\'s room reaches the phone (HR-8)', 'src/shell/hud-room.js', 'if (phone) { if (!room.has(e)) room.set(e, null); continue; }', ''],
   ['the launcher row stays at the top of the page, over the banner (HR-10)', 'src/styles/app.css', '.client-page.has-new-version .app { position: relative; flex: 1;', '.client-page.has-new-version .app { flex: 1;'],

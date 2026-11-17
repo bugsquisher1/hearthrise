@@ -29,6 +29,12 @@ export const SHOP_TEXT = Object.freeze({
   upgrade_tie_weights: 'No clear upgrade: {ties}',
   /* One tie's words when a plain stronger weapon in the bag would lose the worn one's bane (designer 2026-11-11): `more` is item.bane_more's line, the tooltip's. */
   upgrade_tie_bane: '{plain} hits harder, {bane} does {more}',
+  /* The same for a worn piece's resistance (src/shell/upgrade-plan.js, lane/a-next-steps): a plain piece that adds a number would lose it where a monster in range
+     deals that damage. {gain} is the piece's first gain ("+4 Defense"), {cuts} what the worn one keeps off ("fire damage by 10%"). */
+  upgrade_tie_resist: '{plain} adds {gain}, {worn} cuts {cuts}',
+  upgrade_resist_cut: '{element} damage by {pct}%',
+  /* A resistance a pick adds, in the preview: "-10% Fire damage taken" ({element} is the monster page's own word, monster.el_*). */
+  upgrade_resist_gain: '-{pct}% {element} damage taken',
   /* Why Dispatch loot is off in town (src/shell/loot-dispatch.js dispatchBlock): no plan yet, or a plan with nothing left in the bag to move. */
   dispatch_none_set: 'No loot plans set',
   dispatch_all_moved: 'Nothing left to move',

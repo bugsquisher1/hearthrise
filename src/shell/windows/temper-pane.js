@@ -29,7 +29,10 @@ const pct = (pm) => String(pm / 10) + '%';
 /** What a row says: the rung, what it does now, what the next rung does. */
 function rowWords(track, r) {
   if (!r.piece) return track.none;
-  if (!r.ladder) return 'Not temperable' + (r.below ? ', requires gear from Level 15' : ' yet');
+  /* SAY WHY (the playthrough audit's F17: "can't be tempered yet" at Level 55 in Mithril, no reason): gear above every ladder names the
+     Levels the SERVER's ladders cover (temper-sections.js `span`), so the line is true before and after a new tier's rungs are sold. */
+  if (!r.ladder) return !r.below && r.span ? t('temper.no_rungs', { from: r.span.from, to: r.span.to })
+    : 'Not temperable' + (r.below ? ', requires gear from Level 15' : ' yet');
   const now = 'Rung ' + r.ladder.rung + '/' + r.ladder.max + ': ';
   if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max';
   return (r.ladder.rung ? now + track.effect + ' ' + track.sign + pct(r.nowPm) + '. Next: ' + track.sign + pct(r.nextPm)

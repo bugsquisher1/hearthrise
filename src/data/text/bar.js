@@ -172,6 +172,10 @@ export const BAR_TEXT = Object.freeze({
   none_in_hunt: 'None in this hunt, {waiting}',
   none_left: 'Out of {item}: next food or drink slot takes over',
   store_off: 'Set to leave the hunt instead of buying',
+  /* A store food under what this ground is measured safe on (supplies.js storeFloorFor), while the hero hunts there: the slot still fires.
+     The prep page's shape (prep.food_weak); {heal} what one {food} heals, {hp} the hero's full HP. */
+  food_weak: '{food} heals too little here. Pick {want}',
+  food_weak_hp: '{food} heals {heal} of {hp} HP. Pick {want}',
   out_store_off: 'Out, set to leave instead of buying',
   out_no_store: 'Out, store doesn\'t sell it',
 

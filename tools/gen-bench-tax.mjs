@@ -28,7 +28,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* TIER 4'S MADE RUNGS (lane/b-phase0-tier4, designer 2026-11-08): 2027-03-08-rune-ladder is APPLIED history; the Mithril Hatchets' and Maple Crossbow's benches
    (Smithing and Crafting, 150 permille of the bid like every job of their skills) land in this forward file, the same full replace, after the items catalogue
    that names both recipes (its §4 asks for them). */
-export const OUT_FILE = '2027-03-27-phase0-tier4-bench-tax-rates.generated.sql';
+/* THE MARCH'S MADE PIECES (lane/a-next-steps with d-audit-balance-2, set v0.2.135): 2027-03-27-phase0-tier4 is APPLIED history; the Mithril-Faced Shield's
+   forge (Smithing) and the March salts' mixes (Smithing) and packs (Crafting), 150 permille like every job of their skills, the same full replace. */
+export const OUT_FILE = '2027-05-01-v0135-bench-tax-rates.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /** What is wrong with the rows, as sentences. */

@@ -17,7 +17,8 @@ const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 
 const HOUR = 3600000, GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
-const MAX = Object.freeze({ 'temper:blows:2': 5, 'temper:armor:2': 5, 'temper:blows:3': 5, 'temper:armor:3': 5 });
+const MAX = Object.freeze({ 'temper:blows:2': 5, 'temper:armor:2': 5, 'temper:blows:3': 5, 'temper:armor:3': 5, 'temper:blows:4': 5, 'temper:armor:4': 5,
+  'temper:blows:5': 5, 'temper:armor:5': 5, 'temper:blows:6': 5, 'temper:armor:6': 5 });
 const BLOWS = Object.freeze({ 'temper:blows:2': 5, 'temper:blows:3': 5 });
 const SEEDS = ['-4611686018427387904', '77'];
 /* A THIN ROW OF next-tier-wins IS READ ON EIGHT SEEDS (lane/b-one-difficulty, 2026-11-09). The thinnest row is the Glade's Level 24 bow: a full ladder pays +3.1%
@@ -29,9 +30,12 @@ const MORE_SEEDS = Object.freeze(['1', '2', '3', '4', '5', '6']), THIN = 0.03;
 const plus = (a, b) => Object.fromEntries(Object.keys(a).map((k) => [k, a[k] + b[k]]));
 /* The ladder's own pieces at a tier, by role (gear-tiers.js). The harness's kit gives a Level 24 Ranger a tier 3 bow, so a test about tiers names them. */
 const LINES = {
-  plate: { 2: ['iron_helm', 'iron_platebody', 'iron_platelegs', 'iron_boots'], 3: ['steel_helm', 'steel_platebody', 'steel_platelegs', 'steel_boots'], 4: ['mithril_helm', 'mithril_platebody', 'mithril_platelegs', 'mithril_boots'] },
-  leather: { 2: ['studded_helmet', 'studded_body', 'studded_pants', 'studded_boots'], 3: ['boarhide_helmet', 'boarhide_body', 'boarhide_pants', 'boarhide_boots'], 4: ['snakeskin_helmet', 'snakeskin_body', 'snakeskin_pants', 'snakeskin_boots'] },
-  cloth: { 2: ['adept_helmet', 'adept_body', 'adept_pants', 'adept_boots'], 3: ['scholar_helmet', 'scholar_body', 'scholar_pants', 'scholar_boots'], 4: ['warlock_helmet', 'warlock_body', 'warlock_pants', 'warlock_boots'] },
+  plate: { 2: ['iron_helm', 'iron_platebody', 'iron_platelegs', 'iron_boots'], 3: ['steel_helm', 'steel_platebody', 'steel_platelegs', 'steel_boots'], 4: ['mithril_helm', 'mithril_platebody', 'mithril_platelegs', 'mithril_boots'],
+    5: ['rune_helm', 'rune_platebody', 'rune_platelegs', 'rune_boots'], 6: ['ember_helm', 'ember_platebody', 'ember_platelegs', 'ember_boots'], 7: ['dawn_helm', 'dawn_platebody', 'dawn_platelegs', 'dawn_boots'] },
+  leather: { 2: ['studded_helmet', 'studded_body', 'studded_pants', 'studded_boots'], 3: ['boarhide_helmet', 'boarhide_body', 'boarhide_pants', 'boarhide_boots'], 4: ['snakeskin_helmet', 'snakeskin_body', 'snakeskin_pants', 'snakeskin_boots'],
+    5: ['wyvernhide_helmet', 'wyvernhide_body', 'wyvernhide_pants', 'wyvernhide_boots'], 6: ['dragonhide_helmet', 'dragonhide_body', 'dragonhide_pants', 'dragonhide_boots'], 7: ['dawnhide_helmet', 'dawnhide_body', 'dawnhide_pants', 'dawnhide_boots'] },
+  cloth: { 2: ['adept_helmet', 'adept_body', 'adept_pants', 'adept_boots'], 3: ['scholar_helmet', 'scholar_body', 'scholar_pants', 'scholar_boots'], 4: ['warlock_helmet', 'warlock_body', 'warlock_pants', 'warlock_boots'],
+    5: ['sorcerer_helmet', 'sorcerer_body', 'sorcerer_pants', 'sorcerer_boots'], 6: ['archmage_helmet', 'archmage_body', 'archmage_pants', 'archmage_boots'], 7: ['duskweave_helmet', 'duskweave_body', 'duskweave_pants', 'duskweave_boots'] },
 };
 const WEAPON = { tank: { 2: 'iron_sword', 3: 'steel_sword', 4: 'mithril_sword' }, ranger: { 2: 'longbow', 3: 'willow_longbow', 4: 'maple_bow' }, mage: { 2: 'oak_wand', 3: 'willow_wand', 4: 'maple_wand' }, healer: { 2: 'oak_staff', 3: 'willow_staff', 4: 'maple_staff' } };
 const OFF = { tank: { 2: 'ironbound_shield', 3: 'coppercap_shield', 4: 'coppercap_shield' }, mage: { 2: 'oak_spellbook', 3: 'willow_spellbook', 4: 'maple_spellbook' } };
@@ -128,8 +132,12 @@ const cases = {
     const monstersOf = (g) => [...new Set(X.G.OPEN_GROUNDS[g].pockets.flatMap((p) => p.spawns.map((s) => s.monster)))];
     let thinnest = 1e9;
     for (const [weight, line] of Object.entries(LINES)) {
-      /* a tier's rows are the grounds that tier is worn on: Iron and Studded at the Sewer and the Glade, Steel and Boarhide at the Warrens */
-      for (const [tier, grounds] of [[2, [GLADE, 'millrace_sewer']], [3, [WARRENS]]]) {
+      /* a tier's rows are the grounds that tier is worn on: Iron and Studded at the Sewer and the Glade, Steel and Boarhide at the Warrens; the
+         March's three (lane/d-audit-balance-2, temper.js tiers 4 to 6): Mithril at the Ford and the Slake, Rune at the Barrows, Emberforged at the
+         Hold, each against the next tier's bare set. Tier 6's bar is Dawnsteel (tier 7, no ladder), worn from 88, so it is read at the Hold (85 to
+         110), where it is worn. Not at the Pyre Field (70 to 90): there a plate hero in Emberforged already sits at the armor cap (a full ladder takes
+         3.4%, not 5%) and Dawnsteel only 2.3%, so a maxed Emberforged set lets 1.2% less through than bare Dawnsteel; neither moves much there */
+      for (const [tier, grounds] of [[2, [GLADE, 'millrace_sewer']], [3, [WARRENS]], [4, ['hasks_ford', 'the_slake']], [5, ['muster_barrows']], [6, ['krells_hold']]]) {
         for (const g of grounds) {
           const mons = monstersOf(g);
           const set = setOf(line, tier), next = setOf(line, tier + 1);

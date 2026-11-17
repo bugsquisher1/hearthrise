@@ -76,10 +76,15 @@ insert into public.hr_tally_tasks (task_id, ord, hunt_id, monster_id, target, go
   ('wickstead_turncoats', 3, 'wickstead', 'turncoat', 50, 780, false),
   ('sewer_rat_king', 4, 'millrace_sewer', 'rat_king', 5, 1020, true),
   ('glade_poachers', 5, 'mosslight_glade', 'glade_poacher', 60, 920, false),
-  ('warrens_goblin_diggers', 6, 'coppercap_warrens', 'goblin_digger', 30, 1090, true)
+  ('warrens_goblin_diggers', 6, 'coppercap_warrens', 'goblin_digger', 30, 1090, true),
+  ('ford_fordsunk', 7, 'hasks_ford', 'fordsunk', 40, 2560, false),
+  ('slake_mudlarks', 8, 'the_slake', 'mudlark', 45, 3040, false),
+  ('barrows_barrow_knights', 9, 'muster_barrows', 'muster_knight', 30, 3400, true),
+  ('pyre_stokers', 10, 'pyre_field', 'stoker', 35, 3880, false),
+  ('hold_gatekeepers', 11, 'krells_hold', 'gatekeeper', 20, 4290, false)
   on conflict (task_id) do update set ord = excluded.ord, hunt_id = excluded.hunt_id, monster_id = excluded.monster_id,
     target = excluded.target, gold = excluded.gold, party = excluded.party;
-delete from public.hr_tally_tasks where task_id <> all (array['cellar_giant_rats', 'thicket_gray_wolves', 'wickstead_turncoats', 'sewer_rat_king', 'glade_poachers', 'warrens_goblin_diggers']::text[]);
+delete from public.hr_tally_tasks where task_id <> all (array['cellar_giant_rats', 'thicket_gray_wolves', 'wickstead_turncoats', 'sewer_rat_king', 'glade_poachers', 'warrens_goblin_diggers', 'ford_fordsunk', 'slake_mudlarks', 'barrows_barrow_knights', 'pyre_stokers', 'hold_gatekeepers']::text[]);
 
 -- A CUT COUNT NEVER STRANDS A HELD TASK (the migration's work, not a self-check): hero_tally_tasks is 2026-12-23-tally-tasks.sql's,
 -- applied long before this file. Idempotent: a second apply finds no held row above its task's count.
@@ -153,7 +158,67 @@ insert into public.hr_tally_pieces (hunt_id, item_id, weight, equip_slot, tier) 
   ('coppercap_warrens', 'scholar_helmet', 'light', 'helmet', 3),
   ('coppercap_warrens', 'scholar_body', 'light', 'body', 3),
   ('coppercap_warrens', 'scholar_pants', 'light', 'pants', 3),
-  ('coppercap_warrens', 'scholar_boots', 'light', 'boots', 3);
+  ('coppercap_warrens', 'scholar_boots', 'light', 'boots', 3),
+  ('hasks_ford', 'mithril_helm', 'heavy', 'helmet', 4),
+  ('hasks_ford', 'mithril_platebody', 'heavy', 'body', 4),
+  ('hasks_ford', 'mithril_platelegs', 'heavy', 'pants', 4),
+  ('hasks_ford', 'mithril_boots', 'heavy', 'boots', 4),
+  ('hasks_ford', 'snakeskin_helmet', 'medium', 'helmet', 4),
+  ('hasks_ford', 'snakeskin_body', 'medium', 'body', 4),
+  ('hasks_ford', 'snakeskin_pants', 'medium', 'pants', 4),
+  ('hasks_ford', 'snakeskin_boots', 'medium', 'boots', 4),
+  ('hasks_ford', 'warlock_helmet', 'light', 'helmet', 4),
+  ('hasks_ford', 'warlock_body', 'light', 'body', 4),
+  ('hasks_ford', 'warlock_pants', 'light', 'pants', 4),
+  ('hasks_ford', 'warlock_boots', 'light', 'boots', 4),
+  ('the_slake', 'rune_helm', 'heavy', 'helmet', 5),
+  ('the_slake', 'rune_platebody', 'heavy', 'body', 5),
+  ('the_slake', 'rune_platelegs', 'heavy', 'pants', 5),
+  ('the_slake', 'rune_boots', 'heavy', 'boots', 5),
+  ('the_slake', 'wyvernhide_helmet', 'medium', 'helmet', 5),
+  ('the_slake', 'wyvernhide_body', 'medium', 'body', 5),
+  ('the_slake', 'wyvernhide_pants', 'medium', 'pants', 5),
+  ('the_slake', 'wyvernhide_boots', 'medium', 'boots', 5),
+  ('the_slake', 'sorcerer_helmet', 'light', 'helmet', 5),
+  ('the_slake', 'sorcerer_body', 'light', 'body', 5),
+  ('the_slake', 'sorcerer_pants', 'light', 'pants', 5),
+  ('the_slake', 'sorcerer_boots', 'light', 'boots', 5),
+  ('muster_barrows', 'rune_helm', 'heavy', 'helmet', 5),
+  ('muster_barrows', 'rune_platebody', 'heavy', 'body', 5),
+  ('muster_barrows', 'rune_platelegs', 'heavy', 'pants', 5),
+  ('muster_barrows', 'rune_boots', 'heavy', 'boots', 5),
+  ('muster_barrows', 'wyvernhide_helmet', 'medium', 'helmet', 5),
+  ('muster_barrows', 'wyvernhide_body', 'medium', 'body', 5),
+  ('muster_barrows', 'wyvernhide_pants', 'medium', 'pants', 5),
+  ('muster_barrows', 'wyvernhide_boots', 'medium', 'boots', 5),
+  ('muster_barrows', 'sorcerer_helmet', 'light', 'helmet', 5),
+  ('muster_barrows', 'sorcerer_body', 'light', 'body', 5),
+  ('muster_barrows', 'sorcerer_pants', 'light', 'pants', 5),
+  ('muster_barrows', 'sorcerer_boots', 'light', 'boots', 5),
+  ('pyre_field', 'ember_helm', 'heavy', 'helmet', 6),
+  ('pyre_field', 'ember_platebody', 'heavy', 'body', 6),
+  ('pyre_field', 'ember_platelegs', 'heavy', 'pants', 6),
+  ('pyre_field', 'ember_boots', 'heavy', 'boots', 6),
+  ('pyre_field', 'dragonhide_helmet', 'medium', 'helmet', 6),
+  ('pyre_field', 'dragonhide_body', 'medium', 'body', 6),
+  ('pyre_field', 'dragonhide_pants', 'medium', 'pants', 6),
+  ('pyre_field', 'dragonhide_boots', 'medium', 'boots', 6),
+  ('pyre_field', 'archmage_helmet', 'light', 'helmet', 6),
+  ('pyre_field', 'archmage_body', 'light', 'body', 6),
+  ('pyre_field', 'archmage_pants', 'light', 'pants', 6),
+  ('pyre_field', 'archmage_boots', 'light', 'boots', 6),
+  ('krells_hold', 'ember_helm', 'heavy', 'helmet', 6),
+  ('krells_hold', 'ember_platebody', 'heavy', 'body', 6),
+  ('krells_hold', 'ember_platelegs', 'heavy', 'pants', 6),
+  ('krells_hold', 'ember_boots', 'heavy', 'boots', 6),
+  ('krells_hold', 'dragonhide_helmet', 'medium', 'helmet', 6),
+  ('krells_hold', 'dragonhide_body', 'medium', 'body', 6),
+  ('krells_hold', 'dragonhide_pants', 'medium', 'pants', 6),
+  ('krells_hold', 'dragonhide_boots', 'medium', 'boots', 6),
+  ('krells_hold', 'archmage_helmet', 'light', 'helmet', 6),
+  ('krells_hold', 'archmage_body', 'light', 'body', 6),
+  ('krells_hold', 'archmage_pants', 'light', 'pants', 6),
+  ('krells_hold', 'archmage_boots', 'light', 'boots', 6);
 
 delete from public.hr_tally_materials;
 insert into public.hr_tally_materials (task_id, ord, item_id, qty) values
@@ -171,7 +236,22 @@ insert into public.hr_tally_materials (task_id, ord, item_id, qty) values
   ('glade_poachers', 3, 'copper_ore', 4),
   ('warrens_goblin_diggers', 1, 'copper_ore', 8),
   ('warrens_goblin_diggers', 2, 'coal', 4),
-  ('warrens_goblin_diggers', 3, 'iron_ore', 3);
+  ('warrens_goblin_diggers', 3, 'iron_ore', 3),
+  ('ford_fordsunk', 1, 'grave_dust', 6),
+  ('ford_fordsunk', 2, 'bone_chips', 8),
+  ('ford_fordsunk', 3, 'big_bones', 6),
+  ('slake_mudlarks', 1, 'grave_dust', 8),
+  ('slake_mudlarks', 2, 'coal', 8),
+  ('slake_mudlarks', 3, 'copper_ore', 10),
+  ('barrows_barrow_knights', 1, 'grave_dust', 10),
+  ('barrows_barrow_knights', 2, 'big_bones', 8),
+  ('barrows_barrow_knights', 3, 'bone_chips', 10),
+  ('pyre_stokers', 1, 'grave_dust', 12),
+  ('pyre_stokers', 2, 'coal', 12),
+  ('pyre_stokers', 3, 'big_bones', 10),
+  ('hold_gatekeepers', 1, 'grave_dust', 14),
+  ('hold_gatekeepers', 2, 'coal', 14),
+  ('hold_gatekeepers', 3, 'gold_bar', 4);
 
 delete from public.hr_tally_tiers;
 insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
@@ -337,10 +417,10 @@ insert into public.hr_tally_tiers (item_id, equip_slot, tier) values
 do $$
 declare v_role text; v_bad text;
 begin
-  if (select count(*) from public.hr_tally_tasks) <> 6
-     or (select sum(gold) from public.hr_tally_tasks) <> 4315
-     or (select count(*) from public.hr_tally_pieces) <> 63
-     or (select count(*) from public.hr_tally_materials) <> 15
+  if (select count(*) from public.hr_tally_tasks) <> 11
+     or (select sum(gold) from public.hr_tally_tasks) <> 21485
+     or (select count(*) from public.hr_tally_pieces) <> 123
+     or (select count(*) from public.hr_tally_materials) <> 30
      or (select held_max from public.hr_tally_config) <> 3
      or (select paid_per_day from public.hr_tally_config) <> 3
      or (select count(*) from public.hr_tally_tiers) <> 155
@@ -380,5 +460,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_tally_tiers', 'select,insert,update,delete') then
       raise exception 'tally-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'tally-catalogue: 6 tasks (4315 g in all), 63 pieces on 6 grounds, 15 materials, 155 worn tiers; all green';
+  raise notice 'tally-catalogue: 11 tasks (21485 g in all), 123 pieces on 11 grounds, 30 materials, 155 worn tiers; all green';
 end $$;

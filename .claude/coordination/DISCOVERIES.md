@@ -3982,3 +3982,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   route the river), game-designer / Coordinator; (2) the square's six benches sit in a 2x3 grid because their seats are
   server-held stands (2027-01-28 town-stands catalogue): arranging them round the ring is a lane C change; (3) the mountain
   rock meets the dirt on a straight run (rock is solid: a walk-mask edit near the quarry stands, not done here).
+- 2026-11-16 (art-director, lane/a-ground-seams) GROUND SEAM AUDIT, every hunting ground rendered (art/review/ground-seams/before).
+  Fixed: Krell's Hold (kerb, scatter, rock outcrop), the Slake (shores). Open, ranked by what a player sees: (1) Wickstead: the
+  footbridge is a flat painted strip on a ruler-straight brook; the Burned House and the tilled plot are bare rectangles. (2) Meadowbrook:
+  the log raft (72 px of logs) sits a row below the trail and short of the west bank of a 160 px brook. (3) Mosslight: the river is one
+  straight band with a hairline bank. (4) Pyre Field: cinder pits and charred blocks are hard squares on the ash. (5) Sewer: the sewage
+  channel's L has no kerb. (6) Warrens: the chasm is a hard rectangle. (7) Muster: the barrow mounds step on the grid. (8) Hask's Ford:
+  the ford's water edges are straight. Mill Cellar: nothing. 1-3 are PixelLab view_map grounds with no paint grid: they need a grid
+  classified from their pixels and the pre-seam paint kept in art/world-src. No new PixelLab pixels needed so far. Owner: art-director.

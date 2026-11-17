@@ -3431,3 +3431,16 @@ shows under the rail and no planks pair strip appears. Lessons: (1) STATIONS sta
 and the check was wrong; the town-stations test caught nothing because nothing was wrong, but verify coords before trusting a
 script); (2) a selftest family id must be new (my R1-R6 collided with the roofs' R ids: two mutants "not caught"); (3) joint
 segmentation of setts fails where shading crosses the joint row: take stone patches by colour, not by connected blocks.
+## 2026-11-16 lane/a-ground-seams (Tyler: "hard straight tile-boundary cuts where two floors meet", pre-invite gate; SAMPLE)
+Cause: a wang pair draws its border on the cell grid with one profile per key, so a long border is a ruler line and a diagonal a
+staircase; where the Hold's kit had a pair it was still a straight rim (the gravel patches read as dug pits). Tool:
+tools/world-art/seams.mjs. reseam() redraws a painted ground's borders from the two fills' own pixels: a domain-warped share field
+(bilinear on cell centres, four octaves: sweep 9/96, warp 6/26, mid 2.5/10, fine 0.8/4), stones segmented from each fill tile on
+the torus (mortar = darkest share), laid WHOLE by their centre's winner, every joint pixel owned by its nearest stone; styles kerb
+(a dressed course from the stone's own grain, lifted a step, lit up-left, joints every 7-13 px), scatter (loose stones fading out,
+a few missing), bank (wet band, lit lip, `own` holds water to its cells), ragged. transitionTiles() makes wang-16 variants whose
+outer ring is the key's own. Wired into barrow-grounds.mjs between paint and wear (HOLD_SEAMS, SLAKE_SEAMS); re-import is
+byte-identical. Lessons: (1) Otsu cuts a shaded cobble in half (lit half = stone): use the darkest share, ties included; (2) a
+default sweep on a one-cell patch draws a splash, so small patches take a calm warp; (3) water that wanders onto an open tile's
+foot is a [wet] red: hold it to its own cells; (4) every border cell becomes unique, so a full reseam can overflow a set (the
+Slake's ground moved to slake-floor); (5) a kerb round a 1-2 cell relaid patch is fussy: stagger there, kerb at doorways.

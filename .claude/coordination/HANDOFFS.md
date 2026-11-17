@@ -265,3 +265,13 @@ woodpile / well / bench family. These need generations (style 1, palette hr-worl
 2. A fuel basket (wicker, kindling and split logs) for the Hearth's fuel corners: common `basket` holds apples.
 3. The lamppost redrawn in the Hall's stone and iron (style audit #4); the square's three were removed, the street ones stay.
 4. A town grass base tile with more blade contrast (style audit: the floor with least grain); the variety only tints patches.
+## 2026-11-16 · art-director (lane/a-ground-seams) → the Havora lane (lane/a-havora-art), Coordinator · the transition tool
+- **Havora lane:** `tools/world-art/seams.mjs` is on origin/lane/a-ground-seams (8dd68d3b8, joint rule 9a4faebf9). For a town wang
+  pair: `node tools/world-art/seams.mjs tiles --lower L.png --upper U.png --style ragged|stagger|scatter|kerb|bank [--unit-lower]
+  [--unit-upper] [--variants 4] [--seed N] --out sheet.png` writes 16 keys x N variants (+ sheet.json rects). Every variant keeps the
+  key's own outer ring (the selftest proves it), so list all of a key's rects in the pair's sidecar and compose.js's cellHash picks one.
+  For a painted patch (Hearth Square): `reseam(img, { rows, mats, pairs, keep })`, called the way `barrow-grounds.mjs seam()` calls it.
+  Styles: kerb where stone meets stone, scatter for stone on a soft floor (stones whole, loose ones fading), ragged for grass/earth,
+  bank for water (`mats.W.own` keeps water off walked tiles: world-assets [wet]). No PixelLab pixels, the palette stays closed.
+- **Coordinator:** a painted ground with every border redrawn packs more unique cells. The Slake's set hit 4096 wide, so its ground
+  moved to `slake-floor` (its varieties already lived there). Expect the same for any whole ground reseamed later.

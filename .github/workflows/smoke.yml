@@ -5796,6 +5796,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-assets.mjs
 
+      # Ground seams (lane a-ground-seams 2026-11-16): tools/world-art/seams.mjs redraws where two ground materials meet.
+      # --selftest: a dead-straight border is broken (100% of rows on one column before, under 35% after), the output is
+      # deterministic and palette-closed, and every wang variant keeps its key's outer ring.
+      - name: Ground seams - proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/world-art/seams.mjs --selftest
+
       # The hunt's combat clips (lane a-hunt-clips 2026-11-10): every swing, flinch and fall in the sheets is what
       # tools/world-art/import-clips.mjs lays from the reviewed raw frames named in tools/world-art/hunt-clips.mjs.
       - name: Hunt clips - drift

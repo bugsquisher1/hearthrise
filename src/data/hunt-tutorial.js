@@ -50,7 +50,8 @@
 //   store rows), carried { item: n } (the hunt bag in a hunt, else the bag), bag { item: n }, stacks, bagCap,
 //   bankStacks, lootRules { item: deposit|sell|ignore }, weapon (worn), armoured (wears armor or a shield), armourWorn [slot] (the armor slots wearing a
 //   piece with an armor weight), lastHunt (the latest hunt, open or ended), tierTaken (a harder tier picked, running or last hunted), blessings { held, of, freeUntil, prices },
-//   endReason (the latest hunt's, once ended), death { xp, saved } (the newest death_log row), supplies [{ item,
+//   endReason (the latest hunt's, once ended), freeDeath (that hunt's mode takes nothing for a death: the Tower), towerBest (the Burning
+//   Tower's best floor while the server sends its section, else null), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
 //   home { owned, next }, gold, staminaMs, tally { held, paid, weight, tasks { task: { kills, target, done } }, paidTasks [task] }, sessionId (the open hunt's), and from the SHELL (the lane 1 / lane 2
 //   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids),
@@ -111,6 +112,8 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   storage: anchor('Storage (src/shell/windows/storage.js), its icon', 'storage', true),
   market: anchor('the Weighhouse (src/shell/windows/market), its icon', 'market', true),
   honor: anchor('Leaderboards (src/shell/windows/honor.js), its icon', 'honor', true),
+  /* the Town menu's Burning Tower line (src/data/shell-windows.js `tower`, group town), then Enter */
+  tower: anchor('the Burning Tower (src/shell/windows/tower.js), the Town menu\'s line, then Enter', 'tower', true),
   settings: anchor('Settings (src/shell/windows/settings.js), its icon, then the Help tab', 'settings', true),
   /* no icon of its own since the top bar's groups (2026-11-16): its way starts at the bar's setup press, a hook */
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New setup', 'hunt-prep'),
@@ -210,6 +213,9 @@ export const WEIGHHOUSE_LEVEL = 10;
 export const WEIGHHOUSE_BENCH = 30;
 export const ROLL_LEVEL = 16;
 const PULL_LEVEL = 10;
+/* THE BURNING TOWER, once (the design's walk-through, origin/lane/d-burning-tower §9 steps 2-6: a hero hunts to Level 10, about 6 hours, then
+   climbs; a Level 10 hero alone holds floor 15 to 20 and takes the floor-10 Bronze Key). Only while the server sends the Tower's section. */
+export const TOWER_LEVEL = 10;
 /* THE FIRST DANGEROUS RUN (lane/a-next-steps; board "2026-11-15 The audit's balance findings" F5, measured on the real settle): on Normal a hero
    in its Level's gear eats 0 to 0.5 meals an hour from Level 1 to 15, so food has no stakes; Dangerous at the Thicket and Wickstead from Level 5 costs real
    food (a tank at 8 in its gear: 74.5 meals an hour) and gives more XP, while the practice kit with no armor dies there (22 and 24 deaths in 2 h at 5).
@@ -489,6 +495,11 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('roll_of_honor', 'Leaderboards',
     'Press Leaderboards to see where you stand',
     'honor', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: ROLL_LEVEL, below: WANT_BELOW }] }),
+  /* THE BURNING TOWER (QA gate 2026-11-17: it opened only by clicking the Hearth): once, at TOWER_LEVEL, while the server offers it. Finished by
+     its Got it or by a floor on the hero's record (the server's best). */
+  step('burning_tower', t('coach.tower_title'), t('coach.tower'),
+    'tower', orGotIt({ kind: 'tower_climbed' }), { reactive: true, knowledge: true, gotIt: true,
+      when: [IN_TOWN, { kind: 'level_at', at: TOWER_LEVEL }, { kind: 'tower_open' }] }),
   /* THE FIRST DANGEROUS RUN (DANGER_LEVEL above): finished by its Got it or by the hero taking it (the server's tier picks and hunts: tier_taken), and the
      Hunts window records the take as its read (hunts.js), so a hero who goes back to Normal is not offered it again. */
   step(FIRST_DANGEROUS, t('coach.first_dangerous_title'), t('coach.first_dangerous', { ground: HUNT_INDEX[THICKET].name }),
@@ -715,7 +726,11 @@ const FACTS = Object.freeze({
   stored_stack: (p, f) => known(f.bankStacks, (n) => n > 0),
   setup_saved: (p, f) => known(f.presets, (n) => n > 0),
   /* death and Blessings (the server's section: held, its free limit and its prices) */
-  died: (p, f) => !f.huntId && f.endReason === 'died',
+  /* ...never a death its mode took nothing for (the Tower spits you out: session-modes.js deathLossPm 0), which a Blessing has nothing to cut */
+  died: (p, f) => !f.huntId && f.endReason === 'died' && f.freeDeath !== true,
+  /* the server offers the Burning Tower (its section, the burning_tower switch); climbed: a floor on its record */
+  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,
+  tower_climbed: (p, f) => known(f.towerBest, (b) => b > 0),
   blessed: (p, f) => known(f.blessings, (b) => b.held >= b.of),
   unblessed: (p, f) => known(f.blessings, (b) => b.held < b.of),
   below_free: (p, f) => known(f.blessings, (b) => Number.isInteger(b.freeUntil) && f.charLevel < b.freeUntil),

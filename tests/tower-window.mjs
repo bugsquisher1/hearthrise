@@ -6,8 +6,12 @@
 //   node tests/tower-window.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/tower-window.mjs --shots <dir>   also write the desktop (1440x900) and phone (922x423) screenshots
 //
-// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js
+// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js src/data/shell-windows.js src/shell/back-in-town.js src/shell/windows/inventory/state.js src/shell/windows/inventory/actions.js src/shell/item-lore.js
 //
+// THE QA GATE (2026-11-17): the Town menu's Burning Tower line (only with the section) and one re-read each opening (TW-1, TW-2); the Story
+// folds on a tab press and greets with Keeper Rowe (TW-2); the chest's "Weapon chance: 16%" (TW-4); a free fall upsells no Blessing and no
+// "Defeated", a party member leaving is a label row, the floor clock never past its limit (TW-6); TW-9 THE KEY WARDEN IN THE BAG: Use on the
+// strip, its tip's "Used for", the menu's two presses in one open menu, Sell and a "Super Rare" confirmation once owned.
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs); the hero is tests/fixtures/alpha-envelope.json
 // ("Tyler", slot 0), with a `tower` section in the shape of 2027-04-28-tower-section.sql hr_tower_section (its `chest`: 2027-04-27-
 // tower-chest.sql hr_chest_section, lane/c-key-ring's contract: families[], week_ends, held { bag, storage, ring }). The server half on the real chain is that file's §3, tests/tower-climb.mjs, tests/tower-chest.mjs and
@@ -52,6 +56,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { menuLines, pressBar } from './_bar.mjs';
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -220,9 +225,14 @@ async function checks(overrides, shots) {
         const v = document.querySelector('script[type=module][src*="?v="]')?.src.split('?v=')[1] || '';
         const sw = await import('/src/data/shell-windows.js?v=' + v), st = await import('/src/data/world/stations.js?v=' + v);
         const row = sw.SHELL_WINDOWS.find((r) => r.id === 'tower');
-        return { tap: st.TAP_OPENS.great_hearth.window, section: row && row.section, orElse: row && row.orElse, key: row && row.key, launcher: row && row.launcher };
+        return { tap: st.TAP_OPENS.great_hearth.window, section: row && row.section, orElse: row && row.orElse, key: row && row.key, launcher: row && row.launcher,
+          group: row && row.group, label: row && row.label };
       });
-      if (fall.tap !== 'tower' || fall.section !== 'tower' || fall.orElse !== 'inventory' || fall.key !== null || fall.launcher !== false) fails.push('TW-1 the Hearth tap row is ' + JSON.stringify(fall));
+      if (fall.tap !== 'tower' || fall.section !== 'tower' || fall.orElse !== 'inventory' || fall.key !== null || fall.launcher === false || fall.group !== 'town' || fall.label !== 'Burning Tower')
+        fails.push('TW-1 the Hearth tap row is ' + JSON.stringify(fall));
+      /* the Town menu offers the Tower only while the server sends its section */
+      const town = await menuLines(page, 'town');
+      if (!town.length || town.includes('tower')) fails.push('TW-1 with the switch off the Town menu reads ' + JSON.stringify(town));
       if (await page.evaluate(() => !!document.querySelector('[data-hs-win="tower"]'))) fails.push('TW-1 with the switch off a Tower window is open');
       if (verbs(s).length) fails.push('TW-1 with the switch off the page sent ' + verbs(s).map((c) => c.name));
       if (errors.length) fails.push('TW-1 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -275,6 +285,14 @@ async function checks(overrides, shots) {
         await page.click('[data-hs-win="tower"] [data-hs-act="story"]');
         const story = await page.evaluate(() => { const st = document.querySelector('[data-hs-win="tower"] .tt-story'); return !st.hidden && st.querySelectorAll('p').length; });
         if (story !== 5) fails.push('TW-2 the Story link shows ' + story + ' paragraphs');
+        /* the Story is Keeper Rowe's ledge (Tyler 2026-11-16: Holly leads a faction); a tab press shows that tab, the Story folded away
+           (QA gate 2026-11-17: it stayed drawn over Climb and Chest) */
+        const words = await page.evaluate(() => document.querySelector('[data-hs-win="tower"] .tt-story').textContent);
+        if (/Holly/.test(words) || !/Keeper Rowe tells you to mind the ash pile/.test(words)) fails.push('TW-2 the Story still greets with Holly');
+        await page.click('[data-hs-win="tower"] .hw-tab[data-tab="chest"]');
+        const folded = await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-story').hidden
+          && document.querySelector('[data-hs-win="tower"] [data-pane="chest"].is-on'), null, 3000);
+        if (!folded) fails.push('TW-2 the Story stays drawn after a tab press');
       }
       /* YOUR PARTY on the tower at the server's bests; the field (rank, rivals) only when the server sends one */
       s.tower = section({ party: [{ seat: 1, name: 'Mira', floor: 21, outfit: 'ranger' }] });
@@ -290,6 +308,17 @@ async function checks(overrides, shots) {
       await replay(page); await openTower(page);
       v = await climbView(page);
       if (!v || v.marks.join() !== 'rival:Bram:29,rival:Ode:28,you:Tyler:27,rival:Wren:27' || !/#1,000\+$/.test(v.rank || '')) fails.push('TW-2 a place past the depth reads ' + JSON.stringify(v && [v.marks, v.rank]));
+      /* THE TOWN MENU's line opens it (QA gate 2026-11-17: the Hearth click was its only door), and every opening re-reads the hero once:
+         another player's climb moves the rank and rivals, which only the hero's own envelope states */
+      await replay(page);
+      const town = await menuLines(page, 'town');
+      if (!town.includes('tower')) fails.push('TW-2 the Town menu has no Burning Tower line: ' + JSON.stringify(town));
+      await page.waitForTimeout(400);
+      const before = loads(s);
+      await pressBar(page, 'tower').catch(() => {});
+      if (!(await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-pane.is-on'), null, 4000))) fails.push('TW-2 the Town menu line opened no Tower window');
+      for (let i = 0; i < 40 && loads(s) <= before; i++) await page.waitForTimeout(50);
+      if (loads(s) <= before) fails.push('TW-2 opening the Tower window re-read nothing (' + before + ' -> ' + loads(s) + ')');
       if (errors.length) fails.push('TW-2 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -308,6 +337,7 @@ async function checks(overrides, shots) {
       await page.selectOption('[data-hs-win="tower"] .tt-start-pick', '20');
       s.tower = section({ checkpoints: [0, 10] });
       s.answer = (name) => (name === 'hr_tower_start' ? { ok: false, error: 'bad_landing', checkpoints: [0, 10] } : { ok: true });
+      await page.waitForTimeout(400);   // the opening's own re-read has landed: the count below is the refusal's
       const before = loads(s);
       await page.click('[data-hs-win="tower"] .tt-go');
       const said = await wait(page, () => /^Floor not available$/.test(document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || ''));
@@ -353,13 +383,16 @@ async function checks(overrides, shots) {
         return { ok: true };
       };
       await openTower(page, 'chest');
+      /* the window still sliding in moves the scene (a --shots run measured the chest 16 px off the reveal): read it once it stands still */
+      await page.waitForFunction(() => { const e = document.querySelector('[data-hs-win="tower"] .tc-chest'); if (!e) return false;
+        const x = Math.round(e.getBoundingClientRect().left); const still = window.__tcX === x; window.__tcX = x; return still; }, null, { polling: 120, timeout: 3000 }).catch(() => {});
       let c = await chestView(page);
       /* THE SCENE: the chest on the ledge BESIDE the fire, never over it (Tyler 2026-11-16), both inside the scene */
       const sc0 = c.scene;
       if (!sc0.chest || !sc0.fire || sc0.chest.r > sc0.fire.l || sc0.chest.l < sc0.frame.l || sc0.fire.r > sc0.frame.r || sc0.chest.b > sc0.frame.b)
         fails.push('TW-4 the chest is not on the ledge beside the fire: ' + JSON.stringify(sc0));
       /* a slot a key row the server lists, in its metal: held count and weapon chance; one not held is no press; the picked the one Use opens */
-      if (c.picks.join() !== 'Bronze x3 16%*,Silver x0 8% off' || c.icons.join() !== 'tower_key_bronze.png,tower_key_silver.png' || c.cinders !== 'Hearth Cinders 400')
+      if (c.picks.join() !== 'Bronze x3 Weapon chance: 16%*,Silver x0 Weapon chance: 8% off' || c.icons.join() !== 'tower_key_bronze.png,tower_key_silver.png' || c.cinders !== 'Hearth Cinders 400')
         fails.push('TW-4 the keys read ' + JSON.stringify([c.picks, c.icons, c.cinders]));
       if (c.warm !== 'x1.2' || c.stokes.join() !== 'None,x1 150*,x2 350,x3 600' || c.stokeHead !== 'Stoke' || c.chance !== 'Chance: 33%')
         fails.push('TW-4 the odds read ' + JSON.stringify([c.warm, c.stokes, c.stokeHead, c.chance]));
@@ -426,7 +459,7 @@ async function checks(overrides, shots) {
       s.tower = section({ held: { bronze: { bag: 1, storage: 0, ring: 2 } } });
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
-      if (c.picks[0] !== 'Bronze x3 16%*' || c.use !== 'on') fails.push('TW-4 a key on the ring reads ' + JSON.stringify([c.picks, c.use]));
+      if (c.picks[0] !== 'Bronze x3 Weapon chance: 16%*' || c.use !== 'on') fails.push('TW-4 a key on the ring reads ' + JSON.stringify([c.picks, c.use]));
       /* off: a key not built, out hunting */
       for (const [o, env, want] of [[{ notReady: true }, null, /^Not available yet$/], [{}, 'hunt', /^Not available while hunting$/]]) {
         s.tower = section(Object.assign({ held: { bronze: { bag: 2, storage: 1, ring: 0 } } }, o));
@@ -534,7 +567,9 @@ async function checks(overrides, shots) {
       if (!bar) fails.push('TW-6 the hunt bar on a landing reads ' + JSON.stringify(await page.evaluate(() => { const e = document.querySelector('.ht-tower'); return e && [e.hidden, e.textContent]; })));
       /* the climb ends: the Hearth spat the hero out on 33, past the old best (27), with a Bronze Key from landing 30 */
       const ended = Object.assign(clone(hunt), { ended: true, session_id: SID, session: Object.assign({}, hunt.session || {}, { end_reason: 'died', ended_at: new Date().toISOString() }) });
-      s.env = Object.assign(clone(BASE_ENV), { hunt: ended, death_log: [{ id: 1, at: new Date().toISOString(), hunt: 'the_burning_tower', session: SID, monster: 'rat', xp: 0, xp_lost: 0, saved: 0 }] });
+      /* no Blessing held, all three free at this Level: a hunt's card would offer Bless I, II and III and the death coach */
+      const BLESS = { held: [], permille: 0, free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 250 * tier, price: 0, held: false })) };
+      s.env = Object.assign(clone(BASE_ENV), { hunt: ended, blessings: BLESS, death_log: [{ id: 1, at: new Date().toISOString(), hunt: 'the_burning_tower', session: SID, monster: 'rat', xp: 0, xp_lost: 0, saved: 0 }] });
       /* the climb's place on the board when it ended (2027-04-30-tower-board.sql last.board): #12, three heroes passed, the best of them Bram */
       const BOARD = { rank: 12, passed: 3, name: 'Bram' };
       const last = (bestBefore) => ({ session: SID, start: 21, top: 32, floors: 12, end_reason: 'died', ended_at: new Date().toISOString(), keys: [{ landing: 30, key: 'bronze' }], withheld: 1, best_before: bestBefore, board: BOARD });
@@ -551,7 +586,9 @@ async function checks(overrides, shots) {
           labels: Array.from(st.querySelectorAll('.tt-lbl')).map((l) => (Array.from(l.querySelector('.tt-l1').children).map((c) => c.textContent).filter(Boolean).join(' ') + ' ' + (l.querySelector('.tt-tag').hidden ? '' : l.querySelector('.tt-tag').textContent)).trim()),
           marks: Array.from(st.querySelectorAll('.tt-mk')).map((m) => m.getAttribute('data-who') + ':' + m.querySelector('.tt-mk-who span').textContent),
           run: run.hidden ? null : Math.round(parseFloat(run.style.height)), text: c.textContent, reason: w.querySelector('.hsum-reason').hidden ? '' : w.querySelector('.hsum-reason').textContent,
-          again: press('again'), tower: press('tower'), climb: press('tower-climb'), death: !!document.querySelector('[data-hs-win="death"]') };
+          again: press('again'), tower: press('tower'), climb: press('tower-climb'), death: !!document.querySelector('[data-hs-win="death"]'),
+          steps: Array.from(w.querySelectorAll('[data-hs-act="town"][data-step]')).map((b) => b.getAttribute('data-step')),
+          next: (() => { const b = w.querySelector('[data-hs-act="coach-next"]'); return b && !b.hidden ? b.textContent : ''; })() };
       });
       const card = await wait(page, () => !!document.querySelector('[data-hs-win="hunt-summary"] .hsum-climb:not([hidden]) .te-rows .tt-row'), null, 8000);
       let got = await cardOf();
@@ -562,6 +599,8 @@ async function checks(overrides, shots) {
         || got.labels.join(' | ') !== 'New Best | 30 Bronze | 27 Old best | 21 Start') fails.push('TW-6 the run on the tower reads ' + JSON.stringify(got && [got.keys, got.run, got.marks, got.labels]));
       if (!got || got.again !== 'hidden' || got.tower !== 'on:Open chest' || got.climb !== 'on:Climb again') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
       if (got && got.death) fails.push('TW-6 the death popup opened for the Tower');
+      /* a fall that cost nothing (QA gate 2026-11-17): no Bless step and no "Defeated" coach, no hunt advice on the top line */
+      if (!got || got.steps.includes('bless') || /Defeated/.test(got.next) || /gathering/i.test(got.reason)) fails.push('TW-6 a free fall upsells: ' + JSON.stringify(got && [got.steps, got.next, got.reason]));
       if (shots) { await page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] .hs-win-body'); if (b) b.scrollTop = 0; }); await page.screenshot({ path: join(shots, 'tower-end-card-desktop-1440x900.png') }); }
       /* a climb that set no record (the server's best_before null): no New Best, no old best, no Rank or Passed (its board place is no news); with no key, Climb again is the press */
       s.tower = section({ best: 40, checkpoints: [0, 10, 20, 30, 40], last: Object.assign(last(null), { keys: [], withheld: 0 }) });
@@ -593,7 +632,85 @@ async function checks(overrides, shots) {
       }).catch((e) => ({ error: String(e && e.message || e) }));
       if (!/^Ashby was spat out: 1 Gray Wolf hit \(42\)/.test(falls.tower || '') || /died|killing/i.test(falls.tower || '') || !/^Ashby died: /.test(falls.hunt || ''))
         fails.push('TW-6 a fall in What happened reads ' + JSON.stringify(falls));
+      /* THE FLOOR CLOCK never reads past the floor's own limit, a floor's or a landing's (QA gate 2026-11-17: "3:03 left" on a three-minute
+         floor, the prediction's next room standing a stair ahead of the clock it is read against): the page's own module, on the section */
+      const clock = await page.evaluate(async (sec) => {
+        const src = Array.from(document.querySelectorAll('script[type="module"]')).map((e) => e.src).find((u) => u.includes('?v=')) || '';
+        const TB = await import(new URL('src/shell/widgets/tower-bar.js' + (src ? '?v=' + src.split('?v=')[1] : ''), document.baseURI).href);
+        const NOW = 1000000;
+        const at = (floor, ends) => TB.climbOf({ read: (k) => (k === 'tower' ? Object.assign({}, sec, { run: { session: sec.last.session, start: 21, top: floor - 1, floors: floor - 21, floor } }) : undefined),
+          live: { tower: () => ({ floor, endsAtMs: ends }) }, timeline: { serverNowAt: () => NOW }, now: () => 0 }, { ended: false, huntId: 'the_burning_tower' });
+        return [at(23, NOW + 183000), at(30, NOW + 604000), at(23, NOW + 61000)].map((c) => c && c.leftMs);
+      }, s.tower).catch((e) => [String(e && e.message || e)]);
+      if (clock.join() !== '180000,600000,61000') fails.push('TW-6 the floor clock reads ' + JSON.stringify(clock) + ' ms left (a floor 3 min, a landing 10)');
+      /* A PARTY MEMBER LEFT (QA gate 2026-11-17: no reason at all, and "Start a gathering job" on top): a label row, no hunt advice */
+      const SID2 = '0a0a0a0a-0000-4000-8000-00000000c1b1';
+      const left = Object.assign(clone(ended), { session_id: SID2, session: Object.assign({}, ended.session, { end_reason: 'party_member_left' }) });
+      s.env = Object.assign(clone(s.env), { hunt: left, death_log: [] });
+      s.tower = section({ best: 40, checkpoints: [0, 10, 20, 30, 40], last: Object.assign(last(null), { session: SID2, end_reason: 'party_member_left', keys: [], withheld: 0 }) });
+      await replay(page);
+      await page.keyboard.press('l');
+      await wait(page, () => /Party member left/.test(document.querySelector('[data-hs-win="hunt-summary"] .hsum-climb:not([hidden]) .te-rows')?.textContent || ''), null, 8000);
+      const gone = await cardOf();
+      if (!gone || gone.rows.join(' | ') !== 'Floors cleared: 21 to 32 | Ended: Party member left' || /gathering/i.test(gone.reason) || gone.steps.includes('bless'))
+        fails.push('TW-6 a climb a party member left reads ' + JSON.stringify(gone && [gone.rows, gone.reason, gone.steps]));
       if (errors.length) fails.push('TW-6 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+    { // TW-9
+      /* THE KEY WARDEN IN THE BAG (QA gate 2026-11-17: its strip offered only Sell, its tip "Used for: Sell it at the shop", and the menu's
+         two-press Use shut between the presses): Use is the strip's press, the tip says what it unlocks, the menu's first Use asks again in
+         place and the second sends ONE hr_outfit_bundle_use; once the server says the outfit is owned, Sell is the press and its
+         confirmation names the Super Rare */
+      const env = Object.assign(clone(BASE_ENV), clone(TOWN));
+      env.inventory = Object.assign({}, env.inventory, { sweeps_coat_bundle: 1 });
+      env.shop = clone(env.shop);
+      env.shop.bids.sweeps_coat_bundle = 20000;
+      const { ctx, page, errors, s } = await open({ width: 1440, height: 900 }, { env, tower: section() });
+      const POCKET = '[data-hs-win="inventory"] .hw-pocket[data-item="sweeps_coat_bundle"]';
+      const strip = () => page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && b.classList.contains('is-on') ? b.textContent : null; });
+      await page.keyboard.press('b');
+      if (!(await wait(page, (q) => document.querySelector(q), POCKET))) fails.push('TW-9 the bag shows no Key Warden bundle');
+      else {
+        await page.click(POCKET);
+        await page.waitForTimeout(200);
+        if ((await strip()) !== 'Use') fails.push('TW-9 the bundle\'s strip offers ' + JSON.stringify(await strip()));
+        await page.hover(POCKET);
+        await wait(page, () => /Used for/.test(document.querySelector('.hw-tip.is-on')?.textContent || ''), null, 3000);
+        const used = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-tip.is-on .hw-tip-line')).map((p) => p.textContent).find((x) => x.startsWith('Used for')) || '');
+        if (used !== 'Used forUnlocks the Key Warden outfit for this hero') fails.push('TW-9 the bundle\'s tip reads ' + JSON.stringify(used));
+        /* the menu: the first Use asks again on its own line and the menu stays; the second sends the one intent */
+        await page.click(POCKET, { button: 'right' });
+        await wait(page, () => document.querySelector('.hw-menu.is-on [data-hs-act="m-use"]'), null, 3000);
+        await page.click('.hw-menu.is-on [data-hs-act="m-use"]');
+        await page.waitForTimeout(250);
+        const armed = await page.evaluate(() => { const b = document.querySelector('.hw-menu.is-on [data-hs-act="m-use"]'); return b ? b.textContent : null; });
+        const usesBefore = s.calls.filter((c) => c.name === 'hr_outfit_bundle_use').length;
+        if (armed !== 'Press again to unlock for good' || usesBefore !== 0) fails.push('TW-9 the menu\'s first Use reads ' + JSON.stringify([armed, usesBefore]));
+        if (armed) await page.click('.hw-menu.is-on [data-hs-act="m-use"]');
+        for (let i = 0; i < 40 && !s.calls.some((c) => c.name === 'hr_outfit_bundle_use'); i++) await page.waitForTimeout(50);
+        const sent = s.calls.filter((c) => c.name === 'hr_outfit_bundle_use');
+        if (sent.length !== 1 || Object.keys(sent[0].body).sort().join() !== 'p_idem,p_item,p_slot' || sent[0].body.p_item !== 'sweeps_coat_bundle')
+          fails.push('TW-9 the menu\'s second Use sent ' + JSON.stringify(sent));
+      }
+      /* owned (the server's outfit section): Sell is the press, and the sale's confirmation names the Super Rare */
+      s.env = Object.assign(clone(env), { outfit: { worn: null, owned: ['sweeps_coat'] } });
+      await replay(page);
+      if (!(await page.evaluate(() => !!document.querySelector('[data-hs-win="inventory"]')))) await page.keyboard.press('b');
+      if (await wait(page, (q) => document.querySelector(q), POCKET)) {
+        await page.click(POCKET);
+        await page.waitForTimeout(200);
+        const owned = await strip();
+        if (owned !== 'Sell') fails.push('TW-9 an owned outfit\'s bundle offers ' + JSON.stringify(owned));
+        else {
+          await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
+          await wait(page, () => document.querySelector('[data-hs-win="inventory"] .hw-confirm.is-on'), null, 3000);
+          const note = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-confirm .hw-confirm-note')?.textContent || '');
+          if (!/Super Rare: 1/.test(note)) fails.push('TW-9 the bundle\'s sale confirmation reads ' + JSON.stringify(note));
+          if (s.calls.some((c) => c.name === 'hr-accrue' && /vendor_sell/.test(JSON.stringify(c.body)))) fails.push('TW-9 the bundle sold on one press');
+        }
+      } else fails.push('TW-9 after the reload the bag shows no bundle');
+      if (errors.length) fails.push('TW-9 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
   } finally {
@@ -670,6 +787,18 @@ const MUTANTS = [
   ['the end card names nobody it passed', 'src/shell/tower-words.js', '  if (place && place.passedName) rows.push(', '  if (false) rows.push('],
   ['the end card drops how many it passed', 'src/shell/tower-words.js', "v: place.passed > 0 ? t('tower.end_rank_up', { rank: rankWords(place), plus: whole(place.passed) }) : rankWords(place) });", 'v: rankWords(place) });'],
   ['Open chest shows for a climb with no key', 'src/shell/windows/hunt-summary.js', "    prop(toTower, 'hidden', !climb || !tw || !climb.keys.length);", "    prop(toTower, 'hidden', !climb || !tw);"],
+  /* the QA gate's polish (2026-11-17) */
+  ['QA: the floor clock runs past the floor\'s limit', 'src/shell/widgets/tower-bar.js', 'Math.min(limit, Math.max(0, live.endsAtMs - shown))', 'Math.max(0, live.endsAtMs - shown)'],
+  ['QA: the Tower has no Town menu line', 'src/data/shell-windows.js', "key: null, noShortcut: true, group: 'town', section: 'tower'", "key: null, noShortcut: true, launcher: false, section: 'tower'"],
+  ['QA: an opening reads nothing', 'src/shell/windows/tower.js', "if (!(h && !h.ended) && typeof cs.load === 'function') cs.load();", 'void h;'],
+  ['QA: the Story stays over a tab', 'src/shell/windows/tower.js', "sc.msg = ''; sc.story = false; sc.scrolled = false;", "sc.msg = ''; sc.scrolled = false;"],
+  ['QA: the chest\'s chance is a bare number', 'src/shell/windows/tower-chest.js', "t('tower.weapon_chance', { pct: ppmWords(k.basePm * 1000) })", 'ppmWords(k.basePm * 1000)'],
+  ['QA: a party member leaving says nothing', 'src/shell/tower-words.js', "Object.hasOwn(END_WORDS, card.reason)) rows.push(", 'false) rows.push('],
+  ['QA: a climb upsells the Blessings', 'src/shell/back-in-town.js', 'const free = !!h && h.ended && sessionModeOfHunt(h.huntId).deathLossPm === 0;', 'const free = false;'],
+  ['QA: the bundle\'s strip offers Sell', 'src/shell/windows/inventory/state.js', "  if (bundleOutfitOf(id) && !bundleUseBlock(st.cs, id)) return ['use', t('controls.use')];\n", ''],
+  ['QA: the bundle\'s tip says sell it', 'src/shell/item-lore.js', "out.push(t('item.outfit_unlocks', { outfit: OUTFIT_ROWS[it.outfit].label }));", 'void 0;'],
+  ['QA: the menu\'s first Use shuts the menu', 'src/shell/windows/inventory/actions.js', "if (btn) { text(btn, t('bag.bundle_confirm')); attr(btn, 'data-armed', 'true'); return; }", 'void btn;'],
+  ['QA: a super-rare sale is not named', 'src/shell/windows/inventory/state.js', "supers ? t('bag.confirm_super_rares', { count: supers }) : ''", "''"],
   ['the bar never says Keeper', 'src/shell/widgets/tower-bar.js', "t(c.keeper ? 'tower.bar_keeper' : 'tower.bar_floor', { floor: c.floor })", "t('tower.bar_floor', { floor: c.floor })"],
 ];
 

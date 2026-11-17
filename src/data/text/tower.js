@@ -42,11 +42,12 @@ export const TOWER_TEXT = Object.freeze({
   stage_start: 'Start {floor}',
   stage_next: 'Next key',
 
-  /* The story (LOCKED, Tyler 2026-11-14). */
+  /* The story (LOCKED, Tyler 2026-11-14). Keeper Rowe, not Holly, greets you on the ledge (Tyler 2026-11-16 "Keeper Rowe is cool"; the exact
+     words are lane/d-coherence-fixes E row, C8: Holly leads the First Flame and Havora's Hearth is neutral). */
   story_1: 'The Great Hearth has a chimney, and everybody in Havora calls it the Burning Tower. It goes up a lot farther on the inside than it does on the outside, and nobody\'s found the top.',
   story_2: 'For a few hundred years people brought their dead to the Hearth, and they\'d leave the dead person\'s sword or bow on the ledge, the way you\'d leave flowers. Nobody wanted to sell a dead man\'s sword, and nobody wanted to throw it out either. So the Keepers locked them all in one big chest on the ledge, with a different lock for the better ones, and hung the keys up inside the chimney. One key every ten floors, the good ones higher up, so no hearth-hand would get ideas.',
   story_3: 'Then the fire got into the chimney, and it\'s never gone out. That fire has eaten every bone anybody ever fed the Hearth, and it remembers all of them. Climb up there and it throws them at you, floor after floor. The old Keepers are still on the landings holding the keys, and they don\'t hand them over.',
-  story_4: 'Here\'s the good part. It can\'t kill you. It\'s the Hearth\'s own fire, and the Hearth only takes the dead. The second you feel death coming for you, it spits you out. You land on the ledge smelling like smoke, no worse off, and Holly tells you to mind the ash pile.',
+  story_4: 'Here\'s the good part. It can\'t kill you. It\'s the Hearth\'s own fire, and the Hearth only takes the dead. The second you feel death coming for you, it spits you out. You land on the ledge smelling like smoke, no worse off, and Keeper Rowe tells you to mind the ash pile.',
   story_5: 'Keeper Rowe says any key you can reach is yours. Harry says he\'s hauled wood to that Hearth for years and never seen anybody carry a stick of it up there, so he\'d like to know what\'s burning.',
 
   /* The Havora window's Hearth tab: the Tower's second door (a button, no line). */
@@ -83,6 +84,8 @@ export const TOWER_TEXT = Object.freeze({
   stoke_option: '{label}: {cost} Cinders',
   stoke_short: 'Not enough Cinders',
   chance_head: 'Chance',
+  /* a key slot's base weapon chance (QA gate 2026-11-17: a bare "16%" said nothing) */
+  weapon_chance: 'Weapon chance: {pct}',
   warm_head: 'Hearth\'s Warmth',
   times: 'x{times}',
   own: 'Equipped type ({family}): {pct}',
@@ -129,6 +132,7 @@ export const TOWER_TEXT = Object.freeze({
   end_spat: 'Spat out',
   end_ended: 'Ended',
   end_time: 'Floor time limit',
+  end_member_out: 'Party member spat out',
   end_xp: 'XP lost',
   end_withheld: 'Key limit reached',
   end_not_dropped: '{count} not dropped',

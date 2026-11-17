@@ -37,6 +37,7 @@ export const BAG_TEXT = Object.freeze({
   select_outgrown_tip: 'Gear below the worn tier',
   /* A sale's confirmation: the Rares in it, and the stacks one sale leaves for the next press (64 a sale). */
   confirm_rares: 'Rares: {count}',
+  confirm_super_rares: 'Super Rare: {count}',
   confirm_remaining: { one: 'Remaining: {count} stack', other: 'Remaining: {count} stacks' },
   /* Deposit: ONE storage move of every selected stack, whole (all or nothing); the count is the server's. */
   putting_away: 'Putting them away…',

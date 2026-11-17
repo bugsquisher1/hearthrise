@@ -1091,6 +1091,10 @@ async function runTests(mods) {
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'boss_felled', { hunt: 'krells_hold_hall' }), 's-1'), '', 'Krell\'s Hall won, watched as it ends');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'boss_felled', { hunt: 'millrace_sewer_called' }), 's-1'), '', 'a called room won');
     eq(AH.endCardAfter(wrenna(END + 2 * H, idleSince(END + 8000), 'died', { hunt: 'krells_hold_hall' }), 's-1'), 'Then Wrenna waited in town for 2 h 0 min.', 'a hall lost, the page left open: the wait, no advice');
+    /* A CLIMB (QA gate 2026-11-17: "Start a gathering job" topped the Tower's card after a fall and a party member leaving): its own label
+       rows say how it ended, so no hunt advice under any end */
+    eq(['died', 'party_member_left', 'gold_out', 'stamina'].map((r) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), r, { hunt: 'the_burning_tower' }), 's-1')),
+      ['', '', '', ''], 'a climb\'s end gives no hunt advice');
     const bar = { preset: 1, supply_source: 'mine', on_empty: 'switch', slots: [{ action: { type: 'consume', id: 'wheat_bread' } }] };
     const goldOut = (inventory) => AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'gold_out', { settings: bar, inventory }), 's-1');
     eq(goldOut({ cooked_trout: 12, copper_ore: 3 }), 'Tip: put Cooked Trout on the bar', 'food in the bag, off the bar (the label, lane/d-labels-sweep)');
@@ -1347,6 +1351,7 @@ const MUTANTS = [
   { test: 'R3t', file: 'src/shell/after-hunt.js', from: "  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };\n", to: '' },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };\n", to: '' },
+  { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (ground && ground.tower === true) return { kind: 'waited', idleMs, next: null };\n", to: '' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "if (h.endReason === 'gold_out' && typeof spare === 'string')", to: 'if (false)' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: ' && !named.has(r.id));', to: ');' },
   { test: 'R3e', file: 'src/shell/away-recap.js', from: 'afterHuntWords(state, h, now, name, spareSupplyOf(cs))', to: 'afterHuntWords(state, h, now, name)' },

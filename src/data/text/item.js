@@ -72,6 +72,7 @@ export const ITEM_TEXT = Object.freeze({
   cook_it: 'Cook it into food (requires {skill} {level})',
   plant_it: 'Plant it on the Farm',
   train_open: 'Open in Training: {hours} h of 200% {skill} XP',
+  outfit_unlocks: 'Unlocks the {outfit} outfit for this hero',
   house_asks: 'Used to build the House',
   temper_asks: 'Used to temper gear',
   /* The bag's picked line: what spends it and where to get more, each a link to its window (src/shell/goto.js). */

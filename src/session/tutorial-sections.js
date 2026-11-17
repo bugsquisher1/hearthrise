@@ -25,7 +25,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.135';
 import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.135';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, groundsSeenOf, huntTierOf } from './hunt-sections.js?v=0.2.135';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, groundsSeenOf, huntTierOf, sessionModeOfHunt } from './hunt-sections.js?v=0.2.135';
 import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.135';
 import { farmFieldOf } from './farm-sections.js?v=0.2.135';
 import { homeOf, chestsOf } from './home-sections.js?v=0.2.135';
@@ -37,6 +37,7 @@ import { wearsArmour } from '../core/vitals.js?v=0.2.135';
 import { ITEMS } from '../data/items.js?v=0.2.135';
 import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.135';
 import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.135';
+import { towerOf } from './tower-sections.js?v=0.2.135';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -85,6 +86,12 @@ function deathFacts(cs) {
   const d = (deathLogOf(cs) || [])[0];
   if (!d) return null;
   return { xp: nat(d.xpLost.level) ?? 0, saved: d.saved ? { level: nat(d.saved.level) ?? 0 } : null };
+}
+
+/* The Tower's best floor while the server sends its section, else null (not offered). */
+function towerFact(cs) {
+  const tw = towerOf(cs);
+  return tw ? tw.bestFloor : null;
 }
 
 /* The house's next tier to buy, the server's prices: { owned, next: { name, gold, items } | null }, or null. */
@@ -144,6 +151,10 @@ export function tutorialFactsOf(cs, sh) {
     skillXp: sk ? Object.fromEntries(Object.entries(sk).map(([k, r]) => [k, r.xp])) : null,
     huntId: open ? open.huntId : null, sessionId: open ? open.sessionId : null,
     endReason: h && h.ended ? h.endReason : null,
+    /* the ended hunt's mode takes nothing for a death (the Tower: session-modes.js deathLossPm 0), so no Blessing card speaks of it */
+    freeDeath: h && h.ended ? sessionModeOfHunt(h.huntId).deathLossPm === 0 : null,
+    /* the Burning Tower's best floor while the server offers the Tower (its section, the burning_tower switch), else null */
+    towerBest: towerFact(cs),
     visited,
     unitKinds: new Set(open ? Array.from(open.units.values()).filter((u) => u.side === 'monster' && u.kind).map((u) => u.kind) : []),
     /* THE BAR: what the server SHOWS (the start kit's until one is stored; v0.2.42 put the role's spells first) and

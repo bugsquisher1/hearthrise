@@ -28,6 +28,7 @@ import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.135';
 import { MONSTERS } from '../data/monsters.js?v=0.2.135';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.135';
 import { NAMED_FUELS } from '../data/hearth.js?v=0.2.135';
+import { CHEST_OUTFITS } from '../data/chests.js?v=0.2.135';
 import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.135';
 import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.135';
 import { SHOP_OFFERS } from '../data/shops.js?v=0.2.135';
@@ -218,6 +219,9 @@ export function riteOf(id) {
 
 /** A named Hearth fuel's row ({ item, xp, req, flame, secs, chunk }: src/data/hearth.js NAMED_FUELS), or null. */
 export function namedFuelOf(id) { return NAMED_FUELS[id] ? Object.assign({ item: id }, NAMED_FUELS[id]) : null; }
+
+/** Is item `id` a chest's super-rare find (an outfit's bundle, src/data/chests.js CHEST_OUTFITS)? A sale's confirmation names it. */
+export const isSuperRare = (id) => CHEST_OUTFITS.some((o) => o.item === id);
 
 let COOKS = null;
 /**

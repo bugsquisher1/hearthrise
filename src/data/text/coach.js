@@ -22,6 +22,9 @@ export const COACH_TEXT = Object.freeze({
   tamsins_rats_in: 'Press Take on {label}',
   rats_count_title: 'Tamsin\'s count',
   rats_count: 'Kill {count} {label} to finish Tamsin\'s task',
+  /* THE BURNING TOWER, once at its Level while the server offers it (hunt-tutorial.js burning_tower) */
+  tower_title: 'The Burning Tower',
+  tower: 'Town → Burning Tower → Enter',
   tamsin_owes_title: 'Rats done',
   tamsin_owes: 'Leave the hunt and collect from Tamsin in town',
   back_down_title: 'Back for Level {level}',

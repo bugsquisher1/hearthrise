@@ -155,12 +155,13 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-loot-name { color: var(--ink); }
 .tc-loot-sub { color: var(--ink-2); }
 /* THE KEYS by metal: a sunk slot a key, its icon, held count and weapon chance; the picked gold, one not held dim */
-.tc-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; margin: 0 0 8px; }
+/* a slot wide enough for its labelled chance ("Weapon chance: 16%") under the count */
+.tc-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); gap: 6px; margin: 0 0 8px; }
 .tc-pick { display: flex; align-items: center; gap: 6px; min-height: 64px; padding: 0 8px 0 0; border: 0; background: var(--bg-0);
   box-shadow: var(--steel-well); color: var(--ink); text-align: left; cursor: pointer; }
 .tc-pick-ico { width: 64px; height: 64px; flex: none; image-rendering: pixelated; }
 .tc-pick-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--t-micro); }
-.tc-pick-sub { display: flex; gap: 6px; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.tc-pick-sub { display: flex; flex-direction: column; gap: 2px; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .tc-pick-n { color: var(--ink); }
 .tc-pick[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; box-shadow: inset 4px 0 0 var(--gold); background: var(--fill-3); }
 .tc-pick[aria-checked="true"] .tc-pick-name { color: var(--gold-2); }

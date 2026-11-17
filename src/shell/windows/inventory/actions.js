@@ -62,6 +62,7 @@ import { levelOf } from '../../../session/character-sections.js?v=0.2.135';
 import { unlockRing } from './key-ring.js?v=0.2.135';
 import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.135';
 import { actPlanCopy } from './plan-copy.js?v=0.2.135';
+import { text, attr } from '../../../render/paint.js?v=0.2.135';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -160,16 +161,21 @@ function doPrimary(st, id, repaint) {
     send(st, repaint, () => assignToBar(cs, id), 'Putting it on the bar…');
   } else if (buryRecipeOf(id)) doBury(st, id, repaint);
   else if (namedFuelOf(id)) doNamed(st, id, repaint);
-  else if (bundleOutfitOf(id)) doBundle(st, id, repaint);
+  /* the strip's press is the one it shows (state.js primaryOf): Use while the bundle can be used, Sell once the server says it is owned */
+  else if (bundleOutfitOf(id) && !bundleUseBlock(cs, id)) doBundle(st, id, repaint);
   else askSell(st, [id], t('controls.sell'), repaint);
 }
 
 /* Use ONE outfit bundle (outfit-bundle.js): refused here only for what the server's outfit section already says (owned); the first
-   press arms it and asks for a second (a tradeable item worth a lot, used for good). */
-function doBundle(st, id, repaint) {
+   press arms it and asks for a second (a tradeable item worth a lot, used for good). From the context menu (`btn`, its Use) the ask is
+   that button's own words and the menu stays open for the second press (QA gate 2026-11-17: the ask closed it). */
+function doBundle(st, id, repaint, btn) {
   const why = bundleUseBlock(st.cs, id);
   if (why) { say(st, repaint, why, 'pick:' + id); return; }
-  if (!armBundle(st.sc, id)) { say(st, repaint, t('bag.bundle_confirm'), 'pick:' + id); return; }
+  if (!armBundle(st.sc, id)) {
+    if (btn) { text(btn, t('bag.bundle_confirm')); attr(btn, 'data-armed', 'true'); return; }
+    say(st, repaint, t('bag.bundle_confirm'), 'pick:' + id); return;
+  }
   useBundle(st.account, st.cs, id, (fn, busy, done) => send(st, repaint, fn, busy, done, 'pick:' + id));
 }
 
@@ -502,7 +508,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'm-bury': doBury(st, id, repaint); return true;
     case 'm-fuel-one': doBury(st, id, repaint, 1); return true;
     case 'm-hearth': doNamed(st, id, repaint); return true;
-    case 'm-use': doBundle(st, id, repaint); return true;
+    case 'm-use': doBundle(st, id, repaint, el); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], t('controls.sell'), repaint); return true;
     case 'm-market': closeMenu(ctx, st); offerForSale(ctx, id, 'bag'); return true;

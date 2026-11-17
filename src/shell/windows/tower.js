@@ -41,10 +41,10 @@ const STATS = Object.freeze([['xp', 'tower.stat_xp'], ['death', 'tower.stat_deat
   ['party', 'tower.stat_party']]);
 const SCRATCH = new WeakMap();
 /* Display scratch per CharacterSession: the tab, the story shown, the checkpoint picked (null: the highest the server lists), the stage
-   brought to the hero once a showing, the chest's. */
+   brought to the hero once a showing, the re-read an opening owes (`stale`), the chest's. */
 export const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { tab: 'climb', story: false, landing: null, scrolled: false, key: null, pending: false, msg: '', result: null }; SCRATCH.set(cs, s); }
+  if (!s) { s = { tab: 'climb', story: false, landing: null, scrolled: false, key: null, pending: false, msg: '', result: null, stale: false }; SCRATCH.set(cs, s); }
   return s;
 };
 
@@ -80,7 +80,7 @@ function climbHeroes(cs, tw) {
 
 /** The skeleton (built once per opening). */
 export function renderTower(ctx) {
-  if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.msg = ''; sc.result = null; sc.story = false; sc.scrolled = false; }
+  if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.msg = ''; sc.result = null; sc.story = false; sc.scrolled = false; sc.stale = true; }
   return '<div class="tt-tower">'
     + '<div class="tt-top"><div class="hw-tabs" role="tablist">'
     + TABS.map((id, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">'
@@ -190,7 +190,11 @@ renderTower.patch = function patchTower(body, ctx) {
   if (!tw) { if (ctx.wm && typeof ctx.wm.close === 'function') ctx.wm.close('tower'); return; }
   const sc = scratchOf(cs);
   const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('tower') : null;
-  if (want && TABS.includes(want)) { sc.tab = want; sc.msg = ''; }
+  if (want && TABS.includes(want)) { sc.tab = want; sc.msg = ''; sc.story = false; }
+  /* THE BOARD MOVES WITHOUT THIS HERO: another player's climb changes its rank and rivals, which only its own envelope states (QA gate
+     2026-11-17: "Rank #2" stood until a reload). One re-read each opening, in town (a climb's own re-reads keep it fresh while it runs);
+     the account's other heroes re-read when one of its climbs ends (src/session/account-session.js). */
+  if (sc.stale) { sc.stale = false; const h = huntOf(cs); if (!(h && !h.ended) && typeof cs.load === 'function') cs.load(); }
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.tt-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   prop(root.querySelector('.tt-story'), 'hidden', !sc.story);
@@ -221,7 +225,8 @@ renderTower.act = function actTower(ctx, body, action, ev, el) {
   if (action === 'floor-pick') { if (!sc.pending && pick(sc, tw, el.getAttribute('data-landing'))) repaint(); return true; }
   if (action === 'tab') {
     const id = el.getAttribute('data-tab');
-    if (TABS.includes(id)) { sc.tab = id; sc.msg = ''; sc.scrolled = false; body.scrollTop = 0; repaint(); }
+    /* a tab press shows that tab: the Story folds away (QA gate 2026-11-17: it stayed drawn over Climb and Chest) */
+    if (TABS.includes(id)) { sc.tab = id; sc.msg = ''; sc.story = false; sc.scrolled = false; body.scrollTop = 0; repaint(); }
     return true;
   }
   if (action === 'story') { sc.story = !sc.story; repaint(); return true; }

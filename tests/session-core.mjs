@@ -75,6 +75,8 @@
 //          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
 //   ACC-FARM the farm land is the account's: hero 0 plants and hero 1 (open beside it) sees the plot
 //          at once; hero 1 harvests it as itself (its slot) and hero 0 sees it gone
+//   TOWER-1 a hero's climb that ends (a new tower.last) re-reads every other open hero once (the board is everyone's); a first read
+//          and the same last climb again read nobody
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
 //   ACC-5  a hero the server no longer holds closes in the tab; its pending residue reaches no later hero in that slot
 //   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
@@ -1250,6 +1252,41 @@ async function rules(M) {
     if (due.length !== 2) return 'a later nudge armed nothing';
     hub.send(topic, { t: 'state', frame: 6, env: env(6, said(4)) });
     return acc.character(1).record.version === 6 || 'a real frame no longer reaches the session (version ' + acc.character(1).record.version + ')';
+  });
+  /* THE TOWER'S BOARD (2027-04-30-tower-board.sql) is every hero's (QA gate 2026-11-17: rank and rivals stood stale until a reload): a climb
+     that ENDS (a new `tower.last.session` in a hero's envelope) re-reads every OTHER open hero once, coalesced as a nudge; a hero's first read
+     and an envelope with the same last climb read nobody. */
+  await t('TOWER-1', async () => {
+    const SA = '0a0a0a0a-0000-4000-8000-0000000000a1', SB = '0a0a0a0a-0000-4000-8000-0000000000b2';
+    const tower = (last) => ({ tower: { hunt: 'the_burning_tower', rules: { room_size: 5, landing_every: 10, floor_limit_ms: 180000, landing_limit_ms: 600000, floor_top: 300 },
+      best_floor: 12, checkpoints: [0, 10], last: { session: last, start: 1, top: 12, floors: 12, keys: [] } } });
+    const srv = fakeServer({ 0: env(5, Object.assign(said(4), tower(SA))), 1: env(5, Object.assign(said(4), tower(SA))), 2: env(5, said(4)), 3: env(5, Object.assign(said(4), tower(SA))) });
+    const hub = fakeHub();
+    const due = [];
+    const tm = { setTimer: (fn, ms) => { due.push({ fn, ms }); return due.length; }, clearTimer: () => {} };
+    const acc = new A.AccountSession({ auth: { userId: () => UID, token: () => 'jwt', signOut: async () => {} }, server: srv, tab: memStore(), channel: hub.channel, timers: tm });
+    for (const s of [0, 1, 2]) await acc.open(s);
+    await new Promise((r) => setImmediate(r));
+    const loads = (s) => srv.calls.filter(([n, a]) => n === 'hr_load' && a.p_slot === s).length;
+    const settle = async () => { const run = due.splice(0); for (const d of run) d.fn(); await new Promise((r) => setImmediate(r)); };
+    due.length = 0;
+    let before = [0, 1, 2].map(loads);
+    /* a hero opened with a last climb on its record: its first read reads nobody else */
+    await acc.open(3);
+    await new Promise((r) => setImmediate(r));
+    await settle();
+    if ([0, 1, 2].map(loads).join() !== before.join()) return 'a hero\'s first read re-read the others: ' + JSON.stringify([before, [0, 1, 2].map(loads)]);
+    /* hero 0's climb ends (its envelope names a new last climb): heroes 1, 2 and 3 re-read once each, hero 0 not again */
+    before = [0, 1, 2, 3].map(loads);
+    hub.send('hr:' + UID + ':0', { t: 'state', frame: 6, env: env(6, Object.assign(said(4), tower(SB))) });
+    if (acc.character(0).record.version !== 6) return 'CONTROL: hero 0 took no frame';
+    await settle();
+    const after = [0, 1, 2, 3].map(loads);
+    if (after.join() !== [before[0], before[1] + 1, before[2] + 1, before[3] + 1].join()) return 'a climb that ended re-read ' + JSON.stringify([before, after]) + ', want every other hero once';
+    /* the same last climb again (any later envelope of hero 0) reads nobody */
+    hub.send('hr:' + UID + ':0', { t: 'state', frame: 7, env: env(7, Object.assign(said(4), tower(SB))) });
+    await settle();
+    return [0, 1, 2, 3].map(loads).join() === after.join() || 'the same last climb re-read the others again: ' + JSON.stringify([after, [0, 1, 2, 3].map(loads)]);
   });
   await t('VIEW-2', async () => {
     const srv = fakeServer({ 0: env(1, said(4)), 1: env(1, said(4)), 2: env(1, said(4)) });
@@ -2512,6 +2549,10 @@ const MUTANTS = [
   /* NUDGE (2027-02-11-party-nudge.sql) */
   ['a party nudge never re-reads the hero', 'src/session/account-session.js', "(m && m.t === 'nudge' ? this._nudged(slot) : onMsg(m))", 'onMsg(m)'],
   ['every nudge re-reads again (no coalescing)', 'src/session/account-session.js', '    if (this._nudges.has(slot)) return;\n', ''],
+  /* TOWER-1 (QA gate 2026-11-17: the board's rank and rivals stood stale) */
+  ['TOWER-1 a climb that ends re-reads nobody', 'src/session/account-session.js', 'if (climb !== undefined && c !== null && c !== climb) for', 'if (false) for'],
+  ['TOWER-1 a first read re-reads the others', 'src/session/account-session.js', 'if (climb !== undefined && c !== null && c !== climb) for', 'if (c !== null && c !== climb) for'],
+  ['TOWER-1 every envelope re-reads the others', 'src/session/account-session.js', 'if (climb !== undefined && c !== null && c !== climb) for', 'if (climb !== undefined && c !== null) for'],
   /* VIEW-3 (perf audit 10-23, Part 2: unviewed sessions off the live view) */
   ['an unviewed hero re-reads at the live pace', 'src/session/character-session.js', 'this._viewed ? pollDelayMs(', 'true ? pollDelayMs('],
   ['an unviewed hero asks the engine', 'src/session/character-session.js', 'const engine = this._viewed || this.leaveAt() !== null;', 'const engine = true;'],

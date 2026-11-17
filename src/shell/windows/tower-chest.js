@@ -118,7 +118,7 @@ function patchKeys(host, tw, picked, pending) {
       cls(b, 'is-none', !held);
       text(b.querySelector('.tc-pick-name'), metalWord(k));
       text(b.querySelector('.tc-pick-n'), t('tower.count', { count: whole(k.heldAll) }));
-      text(b.querySelector('.tc-pick-pct'), k.basePm !== null ? ppmWords(k.basePm * 1000) : '');
+      text(b.querySelector('.tc-pick-pct'), k.basePm !== null ? t('tower.weapon_chance', { pct: ppmWords(k.basePm * 1000) }) : '');
       attr(b, 'aria-label', (k.name || itemName(k.item)) + ': ' + whole(k.heldAll));
     },
   });

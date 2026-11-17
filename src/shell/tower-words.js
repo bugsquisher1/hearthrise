@@ -10,6 +10,7 @@ import { t, hasText } from '../render/player-text.js?v=0.2.135';
 import { chance, whole } from '../render/format.js?v=0.2.135';
 import { itemName } from './widgets/bits.js?v=0.2.135';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.135';
+import { END_WORDS } from '../hunt-view/summary-model.js?v=0.2.135';
 
 const VERBS = Object.freeze(['tower_start', 'chest_open', 'chest_stoke_default']);
 const num = (v) => Number.isSafeInteger(v) && v >= 0;
@@ -65,6 +66,9 @@ export function climbEnd(tw, card, towerHunt) {
   const on = run ? (run.top !== null ? run.top + 1 : run.start) : null;
   if (card.reason === 'died') rows.push({ id: 'out', k: t('tower.end_spat'), v: on !== null ? t('tower.start_floor', { floor: on }) : '' });
   else if (card.reason === 'floor_time') rows.push({ id: 'out', k: t('tower.end_ended'), v: t('tower.end_time') });
+  /* every other end as the hunt card's own label (QA gate 2026-11-17: a party member leaving said nothing), a seat's fall in the Tower's words */
+  else if (card.reason === 'party_member_died') rows.push({ id: 'out', k: t('tower.end_ended'), v: t('tower.end_member_out') });
+  else if (typeof card.reason === 'string' && Object.hasOwn(END_WORDS, card.reason)) rows.push({ id: 'out', k: t('tower.end_ended'), v: END_WORDS[card.reason] });
   /* the mode's own death loss, the server's: none in the Tower */
   if (card.reason === 'died' && tw && tw.pays && tw.pays.deathLossPm === 0) rows.push({ id: 'xp', k: t('tower.end_xp'), v: t('tower.none') });
   /* the keys the family's held limit kept back (the mint's tower_key_withheld rows): the card says why they did not drop */

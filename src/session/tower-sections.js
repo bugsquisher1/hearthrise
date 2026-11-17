@@ -188,6 +188,12 @@ export function towerOf(cs) {
   });
 }
 
+/** The newest climb that ended for this hero (the section's `last.session`), or null: none, or the Tower not offered. Pure. */
+export function lastClimbOf(cs) {
+  const tw = towerOf(cs);
+  return tw && tw.last ? tw.last.session : null;
+}
+
 /** Is `floor` a landing (a Keeper holds its key) by the server's rule? Pure. */
 export const isLanding = (tw, floor) => !!tw && Number.isSafeInteger(floor) && floor > 0 && floor % tw.rules.landingEvery === 0;
 

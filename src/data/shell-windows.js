@@ -96,8 +96,9 @@ export const SHELL_WINDOWS = Object.freeze([
     glyph: 'uiSword', width: 420, object: 'ledger' }),
   /* The Burning Tower (Tyler 2026-11-14; the board's "2026-11-14 The Burning Tower"): the climb's start floors, this week's keys and the Hearth
      Chest, one window. Shown only while the server sends the `tower` section (the burning_tower switch); the Great Hearth's tap opens it
-     (src/data/world/stations.js), and so does the Havora window's Hearth tab; while it is hidden the Hearth opens the bag, as before. */
-  Object.freeze({ id: 'tower', label: 'The Burning Tower', key: null, noShortcut: true, launcher: false, phoneIcon: false, section: 'tower', orElse: 'inventory',
+     (src/data/world/stations.js), so does the Havora window's Hearth tab, and so does its line in the Town menu (QA gate 2026-11-17: the
+     Hearth click was its only door); while it is hidden the Hearth opens the bag, as before, and the Town menu has no line for it. */
+  Object.freeze({ id: 'tower', label: 'Burning Tower', title: 'The Burning Tower', key: null, noShortcut: true, group: 'town', section: 'tower', orElse: 'inventory',
     glyph: 'uiFlame', width: 660, object: 'ledger' }),
   /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. No icon of its
      own since the bar's groups (2026-11-16): the bar's setup press opens it, so does Change setups under a ground's Go as, and P. */

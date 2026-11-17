@@ -1088,6 +1088,10 @@ const cases = {
     const d0 = died(deathEnv(9, null, false));
     if (d0.id !== 'first_death' || d0.text !== 'Shop → Services → Bless') return 'the death card with no Blessing reads ' + JSON.stringify(d0.text);
     if (died(deathEnv(9, null, true)).id === 'first_death') return 'blessed again, the death card is still up';
+    /* a death its mode took nothing for (the Burning Tower spits you out: QA gate 2026-11-17, "Next: Defeated" and a Bless upsell) is no death card */
+    const towerFall = deathEnv(9, null, false);
+    towerFall.hunt = { ...towerFall.hunt, hunt_id: 'the_burning_tower' };
+    if (died(towerFall).id === 'first_death') return 'a free Tower fall put up the death card';
     /* Level 31, past the guide: the paid Blessings card, the server's prices */
     const paid = died(deathEnv(31, null, false), { read: [] });
     const total = M.blessings.BLESSING_TIERS.reduce((n, t) => n + M.blessings.blessingPrice(t.tier, 31), 0);
@@ -1225,6 +1229,20 @@ const cases = {
     if ((say(atL(M.tut.ROLL_LEVEL - 1, 'weighhouse')) || {}).id === 'roll_of_honor') return 'the Leaderboards card came below its Level';
     const roll = say(atL(M.tut.ROLL_LEVEL, 'weighhouse'));
     if (!roll || roll.id !== 'roll_of_honor' || roll.title !== 'Leaderboards' || M.tut.coachIcon(roll, () => false) !== 'honor') return 'the Leaderboards card reads ' + JSON.stringify(roll);
+    /* THE BURNING TOWER (QA gate 2026-11-17: only a click on the Hearth opened it): one card at its Level while the server sends the Tower's
+       section, its way the Town menu's line; never with the switch off, below its Level, once read, or once the record holds a floor */
+    const atTower = (n, best, ...read) => ({ ...atL(n, 'weighhouse', 'roll_of_honor', ...read), towerBest: best });
+    const tc = say(atTower(M.tut.TOWER_LEVEL, 0));
+    if (!tc || tc.id !== 'burning_tower' || tc.title !== 'The Burning Tower' || tc.text !== 'Town → Burning Tower → Enter' || !tc.gotIt || M.tut.coachIcon(tc, () => false) !== 'tower')
+      return 'at its Level the Tower card reads ' + JSON.stringify(tc && { id: tc.id, title: tc.title, text: tc.text });
+    if ((say(atTower(M.tut.TOWER_LEVEL - 1, 0)) || {}).id === 'burning_tower') return 'the Tower card came below its Level';
+    if ((say(atTower(M.tut.TOWER_LEVEL, null)) || {}).id === 'burning_tower') return 'the Tower card came with the Tower switched off';
+    if ((say(atTower(M.tut.TOWER_LEVEL, 12)) || {}).id === 'burning_tower') return 'the Tower card came to a hero with a floor on its record';
+    if ((say(atTower(M.tut.TOWER_LEVEL, 0, 'burning_tower')) || {}).id === 'burning_tower') return 'Got it does not pass the Tower card';
+    /* through the envelope: the section's best floor while the server sends it, none without it */
+    const towerSec = { hunt: 'the_burning_tower', rules: { room_size: 5, landing_every: 10, floor_limit_ms: 180000, landing_limit_ms: 600000, floor_top: 300 }, best_floor: 0, checkpoints: [0] };
+    const towerOf = (sec) => tsb.tutorialFactsOf({ read: (k) => ({ state: { level_xp: M.xp.charXpForLevel(10) }, level: srvLevel(M, M.xp.charXpForLevel(10)), tower: sec })[k], slot: 0 }).towerBest;
+    if (towerOf(towerSec) !== 0 || towerOf({ ...towerSec, best_floor: 23 }) !== 23 || towerOf(undefined) !== null) return 'through the envelope the Tower reads ' + JSON.stringify([towerOf(towerSec), towerOf(undefined)]);
     /* WHAT GOLD BUYS (blind panel 11-03, 15k and "nothing says what's next"): once the purse can pay for the next hero, one read naming what exists at the server's prices, ahead of the House's own card; the House opens from it */
     const DEED = { name: 'Hearthside Homestead', gold: 400, items: [{ id: 'copper_ore', qty: 20 }, { id: 'normal_log', qty: 30 }] };
     const CHEST = { name: 'Millrace Crate', gold: 1500, items: [{ id: 'normal_log', qty: 40 }] };
@@ -1993,6 +2011,13 @@ const mutants = [
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Club',\n", "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Club',\n"]] },
+  /* QA gate 2026-11-17: a free Tower fall raised "Defeated" and a Bless upsell; the Tower had no tip */
+  { name: 'a free-death mode raises the death card', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "f.endReason === 'died' && f.freeDeath !== true,", "f.endReason === 'died',"]] },
+  { name: 'the Tower card never comes', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => false,']] },
+  { name: 'the Tower card comes with the switch off', case: 'tutorial-reactive',
+    edits: [['src/data/hunt-tutorial.js', "  tower_open: (p, f) => f.towerBest !== null && f.towerBest !== undefined,", '  tower_open: () => true,']] },
   { name: 'the gold card never comes', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "Number.isSafeInteger(f.slotCost) && f.slotCost > 0 && f.gold >= f.slotCost * SAVING_FROM : null),", "false : null),"]] },
   { name: 'Hunt together walls the coach again', case: 'tutorial-reactive',

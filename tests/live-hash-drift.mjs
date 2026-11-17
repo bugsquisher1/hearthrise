@@ -212,6 +212,35 @@ const CHAIN_AT = 3;
 const codeOnly = (src) => src.replace(/\r\n/g, '\n').split('\n')
   .filter((l) => !/^\s*--/.test(l)).join('\n');
 
+/* ── AN ABSENCE ASSERTION (2027-04-24-tower-climb.sql §10a, lane/fix135-drift-absent) ─────────────────────
+   `if to_regclass('public.tower_landings') is not null or to_regprocedure('public.hr_tower_starts(uuid,integer)')
+   is not null then raise …` says the file needs that body GONE. The loop over-collect below took the literal as a
+   pin target, and since neither production nor the replay has ever carried hr_tower_starts, --live --write could
+   never seed it: a permanent `untracked`. Such a literal is a mention, not a read, and the loop rules skip it.
+   Believed only as far as measured, as a drop is: the name is then derived by nothing, so if the chain END still
+   builds it, rule `catalog` reports it untracked (selftest absent_but_built_is_red). Read narrowly: the literal sits
+   in an `if`/`elsif` condition that is a pure `or` chain (an `and` anywhere makes the absence conditional, a `not`
+   can make it a presence check: either way the literal is taken) and the `then` raises. No `is null`-negated form
+   (`not (to_regprocedure('…') is null)`) exists in the chain (grep, 2026-11-17), so none is read.
+   Returns the offsets of the opening quotes of such literals in `sql`. */
+export function absenceLiterals(sql) {
+  const at = new Set();
+  for (const m of sql.matchAll(/to_regprocedure\(\s*'public\.[a-z_][a-z0-9_]*\([^']*\)'\s*\)\s*is\s+not\s+null\b/gi)) {
+    const ifs = [...sql.slice(0, m.index).matchAll(/\b(?:els)?if\b/gi)];
+    const head = ifs[ifs.length - 1];
+    if (!head) continue;
+    const then = /\bthen\b/i.exec(sql.slice(m.index));
+    if (!then) continue;
+    /* the condition from its `if` to its `then`, `is not null` aside: any `and`, any other `not` (a negated group
+       turns the raise into a presence check) or a statement boundary, and the literal is taken */
+    const cond = sql.slice(head.index + head[0].length, m.index + then.index).replace(/\bis\s+not\s+null\b/gi, ' ');
+    if (/;|\bthen\b|\band\b|\bnot\b/i.test(cond)) continue;
+    if (!/^then\s+raise\b/i.test(sql.slice(m.index + then.index))) continue;
+    at.add(m.index + m[0].indexOf("'"));
+  }
+  return at;
+}
+
 // ── A DELIBERATE DROP (2026-09-07-drop-dead-server-objects.sql) ────────────
 // Before this grammar existed the sweep could only ever ADD a function to the
 // tracked set. 2026-09-07 dropped eleven dead server objects, two of them
@@ -545,7 +574,9 @@ export async function sweep(sources, patches) {
              every signature literal in the file is taken. Over-collection is the
              safe direction. */
           let loopHits = 0;
+          const absent = absenceLiterals(sql);   // a literal the file asserts GONE is no target (absenceLiterals)
           for (const m of sql.matchAll(/'(public\.[a-z_][a-z0-9_]*\([^']*\))'/g)) {
+            if (absent.has(m.index)) continue;
             if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), false); loopHits += 1; }
           }
           prosrcHits += loopHits;
@@ -603,8 +634,10 @@ export async function sweep(sources, patches) {
            That DELIBERATELY OVER-COLLECTS — a file's precondition guards get
            swept in alongside its patch targets — and over-collection is the safe
            direction: an extra tracked body costs one baseline row, a missing one
-           costs the whole point of the guard. */
+           costs the whole point of the guard. A literal the file asserts GONE is the one exception (absenceLiterals). */
+        const absent = absenceLiterals(sql);
         for (const m of sql.matchAll(/'(public\.[a-z_][a-z0-9_]*\([^']*\))'/g)) {
+          if (absent.has(m.index)) continue;
           if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n), false); hits += 1; found += 1; }
         }
       }
@@ -1400,6 +1433,17 @@ async function selftest() {
     side: 'replay', expectNone: true, base: withoutOnly,
     rows: () => repRows.filter((r) => r.sig.split('(')[0] !== onlyName),
   };
+  /* absenceLiterals' other half: 2027-04-24-tower-climb.sql asserts hr_tower_starts GONE, so no rule derives it;
+     a chain END that builds it anyway is measured, and red. Only meaningful while the real sweep derives nothing
+     under that name (else the derived arm says the same key for another reason): ABSENCE tower_climb_full_chain. */
+  cases.absent_but_built_is_red = {
+    what: 'a name a migration asserts GONE (no rule derives it) that the chain END still builds, with no baseline entry',
+    side: 'replay', expect: 'untracked hr_tower_starts',
+    rows: () => {
+      const out = [...repRows, { sig: 'hr_tower_starts(p_user uuid, p_slot integer)', body_md5: '3'.repeat(32), norm_len: 66, mojibake: false }];
+      return out.map((r) => (r.sig === '__census__' ? { ...r, norm_len: out.length - 1 } : r));
+    },
+  };
   if (cleanLive.length || cleanRep.length) {
     throw harness('--selftest: a database identical to the baseline produced '
       + `${cleanLive.length + cleanRep.length} finding(s), so every planted defect below would `
@@ -1610,6 +1654,65 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
     }
   }
 
+  /* ── AN ABSENCE ASSERTION IS NO PIN TARGET (absenceLiterals), BOTH DIRECTIONS ───────────────────────────
+     Each loop shape takes its real target and skips a literal the file asserts GONE; a conditional or negated
+     assertion is still taken (the safe direction); the real tower-climb file tracks its loop targets and not
+     hr_tower_starts. The other half, a name asserted gone that the chain END still builds, is the classifier
+     case absent_but_built_is_red and the --mutate case absent_asserted_but_built. */
+  const LT = 'hr_selftest_loop_target', GN = 'hr_selftest_asserted_gone';
+  const GONE_IF = (cond) => `if ${cond} then raise exception 'still here'; end if;`;
+  const ABS = `to_regprocedure('public.${GN}(uuid,integer)') is not null`;
+  const FD_LOOP = (tail) => `do $$ declare f text; v text; begin foreach f in array array['public.${LT}(integer)'] loop `
+    + `v := pg_get_functiondef(f::regprocedure); end loop; ${tail} end $$;`;
+  const PROSRC_LOOP = (tail) => `do $$ declare r record; v text; begin for r in select * from (values ('public.${LT}(integer)')) t(sig) loop `
+    + `select prosrc into v from pg_proc p where p.oid = to_regprocedure(r.sig); end loop; ${tail} end $$;`;
+  const ABSENCE = {
+    functiondef_loop_skips_the_gone: {
+      what: 'the tower-climb shape: a pg_get_functiondef(var::regprocedure) loop pin beside an or-chained absence assertion',
+      files: [['9200-01-a.sql', FD_LOOP(GONE_IF(`to_regclass('public.x') is not null or ${ABS}`))]],
+      want: (t) => t.has(LT) && !t.has(GN),
+    },
+    prosrc_loop_skips_the_gone: {
+      what: 'the delete-away shape: a prosrc-by-oid loop pin beside a bare absence assertion',
+      files: [['9200-01-a.sql', PROSRC_LOOP(GONE_IF(ABS))]],
+      want: (t) => t.has(LT) && !t.has(GN),
+    },
+    conditional_absence_is_taken: {
+      what: 'an `and` makes the absence conditional (2026-09-12-hr-rejections-journal.sql reads a body only if it exists): taken',
+      files: [['9200-01-a.sql', FD_LOOP(GONE_IF(`${ABS} and position('x' in 'y') > 0`))]],
+      want: (t) => t.has(LT) && t.has(GN),
+    },
+    negated_group_is_taken: {
+      what: '`not (… is not null)` raises when the body is MISSING, a presence check: taken',
+      files: [['9200-01-a.sql', FD_LOOP(GONE_IF(`not (${ABS})`))]],
+      want: (t) => t.has(LT) && t.has(GN),
+    },
+    no_raise_is_taken: {
+      what: 'a `then` that does not raise (`if … is not null then perform …`) asserts nothing: taken',
+      files: [['9200-01-a.sql', FD_LOOP(`if ${ABS} then perform 1; end if;`)]],
+      want: (t) => t.has(LT) && t.has(GN),
+    },
+  };
+  const TC = '2027-04-24-tower-climb.sql';
+  ABSENCE.tower_climb_real = {
+    what: `the real ${TC}: its loop targets tracked, the hr_tower_starts it asserts gone not (the v0.2.135 red)`,
+    files: [[TC, await readFile(join(MIGDIR, TC), 'utf8')]],
+    want: (t) => t.has('hr_hunt_settle_session') && t.has('hr_hunt_admit') && !t.has('hr_tower_starts'),
+  };
+  ABSENCE.tower_climb_full_chain = {
+    what: 'the whole chain derives nothing under hr_tower_starts (absent_but_built_is_red rests on it)',
+    files: null,
+    want: (t) => t.has('hr_hunt_settle_session') && !t.has('hr_tower_starts'),
+  };
+  for (const [id, c] of Object.entries(ABSENCE)) {
+    const t = c.files ? await sweep(new Map(c.files)) : trackedNow;
+    if (c.want(t)) console.log(`  ok  ${id.padEnd(26)} ${t.has(GN) || t.has('hr_tower_starts') ? 'the asserted name taken' : 'the asserted name skipped'}, the loop target tracked`);
+    else {
+      console.error(`  ✗  ${id} — got ${JSON.stringify([...t.keys()].filter((n) => [LT, GN, 'hr_tower_starts', 'hr_hunt_settle_session', 'hr_hunt_admit'].includes(n)))}\n     ${c.what}`);
+      process.exitCode = 1; bad += 1;
+    }
+  }
+
   /* ── ATTRIBUTION, PROVEN IN BOTH DIRECTIONS ─────────────────────────────
      `touched_by` is the evidence apply-order-honesty.mjs grades a migration
      note against, so an over-wide attribution is a FALSE "it is APPLIED" out of
@@ -1711,7 +1814,7 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
     process.exit(1);
   }
   console.log(`\nall ${Object.keys(cases).length + Object.keys(SHAPES).length + Object.keys(ONCE).length
-    + Object.keys(CHAINS).length + Object.keys(ATTRIB).length + 1} planted defects caught by their NAMED assertion`);
+    + Object.keys(CHAINS).length + Object.keys(ABSENCE).length + Object.keys(ATTRIB).length + 1} planted defects caught by their NAMED assertion`);
 }
 
 // ── --mutate: the same proof, against the REAL migration text ──────────────
@@ -1791,6 +1894,20 @@ const MUTATIONS = {
         + 'create or replace function public.hr_mut_renamed_src(p_slot integer) returns integer language sql stable as $m$ select p_slot $m$;\n'
         + 'alter function public.hr_mut_renamed_src(integer) rename to hr_mut_renamed_twin;\n'
         + 'revoke execute on function public.hr_mut_renamed_twin(integer) from public, anon, authenticated, service_role;\n',
+  },
+  /* absenceLiterals, end to end (lane/fix135-drift-absent): 2027-04-24-tower-climb.sql asserts hr_tower_starts GONE and
+     the sweep no longer takes that literal, so a LATER file that builds the name anyway must still go red. Built by a
+     rename (no file writes the name, rule `restate` cannot derive it), so the catch can only be the measurement's. */
+  absent_asserted_but_built: {
+    file: '2027-04-30-tower-board.sql',
+    what: 'a file after tower-climb builds the hr_tower_starts that tower-climb asserts gone, by a rename the text rules '
+        + 'cannot read: the chain END carries a body nobody is watching',
+    expect: 'untracked hr_tower_starts',
+    find: "-- 2027-04-30-tower-board.sql — THE BURNING TOWER'S BOARD",
+    repl: 'create or replace function public.hr_mut_tower_src(p_user uuid, p_slot integer) returns integer language sql stable as $m$ select p_slot $m$;\n'
+        + 'alter function public.hr_mut_tower_src(uuid, integer) rename to hr_tower_starts;\n'
+        + 'revoke execute on function public.hr_tower_starts(uuid, integer) from public, anon, authenticated, service_role;\n'
+        + "-- 2027-04-30-tower-board.sql — THE BURNING TOWER'S BOARD",
   },
   new_overload_authored: {
     file: '2026-09-02-renown-kill-faucet.sql',

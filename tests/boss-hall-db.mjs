@@ -36,7 +36,7 @@
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { isMain } from './_is-main.mjs';
-import { bootReplay, inventory } from './schema-replay.mjs';
+import { bootReplay, closeReplays, inventory } from './schema-replay.mjs';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -562,6 +562,7 @@ async function main() {
       };
       let got = [];
       try { got = await withRows((restore) => ARMS[m.arm](boot, restore)); } catch (e) { if (/HARNESS/.test(String(e.message))) throw e; got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+      await closeReplays();   // an unclosed replay is never collected (tests/schema-replay.mjs closeReplays)
       const hit = got.some((p) => m.want.test(p));
       if (!hit) escaped++;
       console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + String(got[0] || 'every check held').slice(0, 150));
@@ -572,7 +573,7 @@ async function main() {
   const boot = (o) => bootReplay(o);
   const only = (process.argv.find((a) => a.startsWith('--arm=')) || '').slice(6);
   const bad = [];
-  await withRows(async (restore) => { for (const arm of Object.keys(ARMS)) if (!only || arm === only) bad.push(...await ARMS[arm](boot, restore)); });
+  await withRows(async (restore) => { for (const arm of Object.keys(ARMS)) if (!only || arm === only) { bad.push(...await ARMS[arm](boot, restore)); await closeReplays(); } });
   for (const p of bad) console.log('FAIL  ' + p);
   console.log(bad.length ? 'boss-hall-db: ' + bad.length + ' FAILED' : 'boss-hall-db: green (the verb, the key under the lock, any seat\'s key, the one door, three ends and the daily prize through both doors, the pay, the owed limit, the claim re-proved, a second apply)');
   process.exit(bad.length ? 1 : 0);

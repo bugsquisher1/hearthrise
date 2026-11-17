@@ -12,23 +12,23 @@ export const DEATH_TEXT = Object.freeze({
   title: '{name} died',
   title_in: '{name} died in {ground}',
   killed: 'Killed by {monster}',
-  lost: 'Death cost: {xp}',
-  lost_none: 'Death cost: no XP',
-  town: '{name}: back in town, full HP and mana',
+  lost: 'You lost {xp}',
+  lost_none: 'You lost no XP',
+  town: '{name} is back in town with full HP and mana.',
   /* Said only when the row's level_to is under its level_from. */
-  level_dropped: '{name}: Level {from} to Level {to}',
+  level_dropped: '{name} dropped from level {from} to level {to}.',
   /* No Blessing was held. {free} is free_until while Blessings are free for this hero, else nothing. */
-  no_blessing: 'No Blessings{free}: Shop → Services',
-  free_until: ', free until Level {level}',
+  no_blessing: 'You had no Blessings. They cut what a death costs{free}. Get them in the Shop\'s Services tab.',
+  free_until: ' and are free until level {level}',
   /* {count} is how many Blessings the death used up (the row's `blessings`), {xp} what they kept. */
-  blessing_kept: { one: 'Blessing saved {xp}, used up', other: '{count} Blessings saved {xp}, used up' },
-  blessing_used: { one: 'Blessing used up', other: '{count} Blessings used up' },
-  /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords): advice, kept as short sentences. A boss room (a call
+  blessing_kept: { one: 'Your Blessing saved {xp} and is now used up', other: 'Your {count} Blessings saved {xp} and are now used up' },
+  blessing_used: { one: 'Your Blessing is used up', other: 'Your {count} Blessings are used up' },
+  /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords): advice, one short sentence. A boss room (a call
      or a hall) is one pull, so it never says to pull less. */
-  why_in_range: 'Tip: better armor, eat sooner, or a smaller pull',
-  why_in_room: 'Tip: better armor, eat sooner, or bring a healer',
+  why_in_range: 'Better armor, eating sooner or fewer monsters at once would help.',
+  why_in_room: 'Better armor, eating sooner or a healer in your party would help.',
   /* ...for a party that had a Healer (death-popup.js hasHealer): never suggest what it already has */
-  why_in_room_healed: 'Tip: better armor, better food, or heal sooner',
+  why_in_room_healed: 'Better armor, better food or a healer who heals sooner would help.',
   /* {count} Levels under the ground's floor */
-  why_under: { one: '{count} Level under this ground', other: '{count} Levels under this ground' },
+  why_under: { one: 'You were {count} level under this hunt. More levels or better armor would help.', other: 'You were {count} levels under this hunt. More levels or better armor would help.' },
 });

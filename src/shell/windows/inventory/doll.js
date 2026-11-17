@@ -56,7 +56,41 @@ export function dollHtml(g) {
   return '<div class="hw-doll" role="group" aria-label="Worn">' + DOLL.map(slot).join('') + '</div>';
 }
 
-/** The worn-weight line's skeleton (under both columns); its hover says what each weight does. */
+/* EVERY WORN SLOT IN VIEW (Tyler 2026-11-17: "the Inventory screen is still clunky, why am i scrolling to see my belt/ammo
+   slots?"). The doll never scrolls: its column runs from the toolbar to the window's foot beside the bag (index.js), and where
+   the window cannot grow tall enough for its own wells (windows.css: 52 px from 1280 wide) they step down, 2 px at a time, to
+   what that column holds, never under DOLL_WELL_MIN (the 32 px icon at x1 and its rim). A phone's sheet keeps its 36 px wells;
+   its doll stands beside the toolbar instead (windows.css). */
+const DOLL_WELL_MIN = 36;
+const DOLL_ROWS = Math.ceil(DOLL.length / 3);
+
+/** The largest even well, in px, whose doll stands `room` px tall with `gap` between its rows and `pad` round them; never under
+    DOLL_WELL_MIN. Pure. */
+function dollWell(room, gap, pad) {
+  const w = Math.floor((room - 2 * pad - (DOLL_ROWS - 1) * gap) / DOLL_ROWS);
+  return Math.max(DOLL_WELL_MIN, w - (w % 2));
+}
+
+const FIT = '--hw-doll-fit';
+const FIT_SIG = new WeakMap();
+/** Fit the doll's wells to its column (above): measured at its own wells, capped only when they would not show whole. Runs when
+    the window's box or the screen changes, so a still window writes nothing. Display only. */
+export function fitDoll(root, phone) {
+  const doll = root.querySelector('.hw-doll'), cols = root.querySelector('.hw-inv-cols'), frame = root.closest('.hs-win');
+  const view = root.ownerDocument.defaultView;
+  if (!doll || !cols || !frame || !view) return;
+  const sig = () => [phone, view.innerWidth, view.innerHeight, frame.style.maxHeight, frame.offsetHeight, cols.clientHeight, doll.offsetHeight].join('|');
+  if (FIT_SIG.get(root) === sig()) return;
+  if (doll.style.getPropertyValue(FIT)) doll.style.removeProperty(FIT);
+  const room = cols.clientHeight;
+  if (!phone && doll.offsetHeight > room + 0.5) {
+    const cs = view.getComputedStyle(doll);
+    doll.style.setProperty(FIT, dollWell(room, parseFloat(cs.rowGap) || 0, parseFloat(cs.paddingTop) || 0) + 'px');
+  }
+  FIT_SIG.set(root, sig());
+}
+
+/** The worn-weight line's skeleton (beside the doll, under the bag); its hover says what each weight does. */
 export function weightsHtml() {
   return '<p class="hw-weights" title="' + esc(WEIGHT_ORDER.map(weightSentence).join(' ')) + '"><small>Armor worn</small>'
     + WEIGHT_ORDER.map((w) => '<span data-weight="' + w + '"></span>').join('') + '</p>';

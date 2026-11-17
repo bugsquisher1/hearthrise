@@ -31,8 +31,8 @@ export function firstFree(presets) {
   return free;
 }
 
-/** The column's skeleton. */
-export function setupsHtml() {
+/** The column's skeleton; 'more' is the builder's own press that fills the picked setup (its Basic setup, builder.js basicPressHtml), beside Use equipped. */
+export function setupsHtml(more = '') {
   return '<h3 class="hw-ledger-head is-on">' + t('prep.setups') + '</h3>'
     + '<ul class="hw-ledger hpb-sets"></ul><p class="hh-empty hw-presets-none"></p>'
     + '<div class="hw-add hpb-add" hidden><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="' + t('prep.name_this') + '" aria-label="' + t('prep.setup_name') + '" data-hs-act="preset-name">'
@@ -41,6 +41,7 @@ export function setupsHtml() {
     + '<button type="button" class="hh-tool hpb-new" data-hs-act="new" data-coach-hook="setup-save">' + t('controls.new_setup') + '</button>'
     + '<button type="button" class="hh-tool hpb-from" data-hs-act="use-equipped"><b>' + t('controls.use_equipped') + '</b><small></small></button>'
     + '<button type="button" class="hh-tool hw-keep hpb-keep" data-hs-act="keep-equipped">' + t('controls.cancel') + '</button>'
+    + more
     + '<p class="hpb-count"></p></div>'
     + '<p class="hs-note hw-town-only">' + t('prep.town_only') + '</p>'
     + '<button type="button" class="hh-tool hw-slot-buy" data-hs-act="buy-slot" hidden></button>'

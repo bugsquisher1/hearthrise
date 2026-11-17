@@ -4036,3 +4036,7 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   Same class (the Thicket's and the Glade's fords stamped on a 3x3 grid): CLOSED in round 2, both lay the six FORD_STONES. Round 2 also
   reshaped the Warrens' map rows off their rectangles (walk mask moved: mask hash and engine-parity warrens-4 re-pinned). Found: the
   called Chief's adds at 4,26 and 4,36 stand in rock on the rows; the engine moves them to the nearest free tile (P4, game-designer).
+- **2026-11-17 art-director (lane/fix137-prep-and-bag): Hunt prep's bar grid is cut by its sticky footer at 1518x845 (pre-existing).**
+  In town at 1518x845 the builder's second slot row (11-20) runs under the Close/Save foot, cut through its "+" marks; it was so before
+  this lane (art/review/fix137-prep-and-bag/before/08-1518x845-hunt-prep.png) and after. window-fit.js rule 3 should end the body on a
+  whole row; AW-93 measures Hunts, Inventory, Shop and Market but not Hunt prep. Owner: art-director (CSS) with window-fit.js. P2.

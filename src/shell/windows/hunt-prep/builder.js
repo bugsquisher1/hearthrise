@@ -7,8 +7,11 @@
 // keep, and the slot grid (grid.js). Save sends the copy as ONE hr_action_set_options with every key;
 // Save and use then ONE hr_hunt_preset_apply. Basic setup (Tyler 2026-11-16) fills the copy's bar with the basic
 // setup of the weapon type the picked setup fights as (src/shell/basic-setup.js, src/data/basic-setups.js), against
-// the server's skills and carried stock; like Sort and Clear it sends nothing until Save. If the envelope changes the picked setup under a dirty
-// draft (the HUD bar edited it), the builder says so and Save waits until the draft is loaded again.
+// the server's skills and carried stock; like Sort and Clear it sends nothing until Save. Its press names that weapon type
+// ("Basic setup" over "Sword") in the setups column beside Use equipped; on an empty bar it is the window's one gold press (Tyler
+// 2026-11-17: "i thought we were adding some defaults to this page?", the small word beside Sort went unseen).
+// If the envelope changes the picked setup under a dirty draft (the HUD bar edited it), the builder says so and Save
+// waits until the draft is loaded again.
 // A clean draft always follows the server. Nothing here spends or gates anything (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
 import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.136';
@@ -48,6 +51,12 @@ export function draftDirty(sc) {
 
 function head(key) { return '<h3 class="hw-ledger-head is-on">' + t(key) + '</h3>'; }
 
+/** BASIC SETUP'S PRESS: in the setups column beside Use equipped (hunt-prep.js; Tyler 2026-11-17 did not find it as a word beside Sort, and the
+    head of the builder grew the window past its last bar row). Two lines, Use equipped's way: the feature's name, then the weapon type it loads. */
+export function basicPressHtml() {
+  return '<button type="button" class="hh-tool hpb-basic" data-hs-act="basic"><b>' + t('controls.basic_setup') + '</b><small></small></button>';
+}
+
 /** The column's skeleton. */
 export function builderHtml() {
   const roles = ROLE_ORDER.map((r) => '<button type="button" class="hh-seg" data-hs-act="role" data-role="' + r + '" aria-pressed="false">' + esc(HUNT_ROLES[r].label) + '</button>').join('');
@@ -67,7 +76,6 @@ export function builderHtml() {
     + '<span class="hb-label">' + t('prep.gold_word') + '</span></label><p>' + t('prep.gold_line') + '</p></div>'
     + '</div>'
     + '<div class="hpb-barhead">' + head('prep.bar') + '<small class="hpb-barcount"></small>'
-    + '<button type="button" class="hh-tool" data-hs-act="basic">' + t('controls.basic_setup') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="sort">' + t('controls.sort') + '</button><button type="button" class="hh-tool" data-hs-act="clear">' + t('controls.clear') + '</button></div>'
     + gridHtml()
     + '<p class="hpb-under">' + t('prep.bar_hint') + '</p>'
@@ -103,15 +111,32 @@ function syncDraft(sc, view) {
   sc.stale = true;
 }
 
+/* The picked setup's worn gear: the server's equipment for the setup in use, its saved gear row for another. */
+function gearOf(cs, sc) {
+  const mine = (setupsOf(cs) || []).find((x) => x.preset === sc.picked) || null;
+  const saved = (presetsOf(cs) || []).find((p) => p.preset === sc.picked);
+  return mine && mine.inUse ? equipmentOf(cs) || {} : saved ? saved.gear : {};
+}
+
 /* FIGHTS AS: the setup's role from the worn weapon (the server's for the setup in use, its gear row for another), and the
    line under it: what is worn, or, after a press on a dim role, how to get that role. */
 function patchPlays(root, cs, sc, view) {
-  const setups = setupsOf(cs) || [];
-  const mine = setups.find((x) => x.preset === sc.picked) || null;
+  const mine = (setupsOf(cs) || []).find((x) => x.preset === sc.picked) || null;
   const role = mine && mine.role ? mine.role : view && view.role && HUNT_ROLES[view.role] ? view.role : null;
   for (const b of root.querySelectorAll('.hpb-plays .hh-seg')) attr(b, 'aria-pressed', String(b.getAttribute('data-role') === role));
-  const saved = (presetsOf(cs) || []).find((p) => p.preset === sc.picked);
-  text(root.querySelector('.hpb-plays-line'), fightsLine(sc.roleHint, role, mine && mine.inUse ? equipmentOf(cs) || {} : saved ? saved.gear : {}));
+  text(root.querySelector('.hpb-plays-line'), fightsLine(sc.roleHint, role, gearOf(cs, sc)));
+}
+
+/** THE BASIC SETUP PRESS: { weapon, words, lead, off }. The weapon names the weapon type it loads, the server's discipline for the setup
+    (bare hands play the club's list and say so), or that the type is unknown, and is '' before the setup is read; the words are the whole
+    label for a reader. It leads (the window's gold press) while the copy's bar is empty: the obvious next step. Off with no copy or no
+    type. Pure. */
+export function basicPress(view, draft, gear) {
+  const d = view && view.discipline;
+  const known = !!basicSetupOf(d);
+  const weapon = !view ? '' : !known ? t('prep.basic_none') : t('prep.basic_weapon_' + (d === 'club' && !(gear && gear.weapon) ? 'bare' : d));
+  const empty = !!draft && Array.isArray(draft.slots) && draft.slots.every((s) => !s);
+  return { weapon, words: weapon ? t('prep.basic_for', { weapon }) : t('controls.basic_setup'), lead: known && empty, off: !draft || !known };
 }
 
 /** The line under Fights as: how to get the role pressed (a dim one), else what is worn (the weapon and the shield beside it), else bare hands. Pure. */
@@ -168,8 +193,15 @@ export function patchBuilder(root, ctx, sc, hunting, repaint) {
   patchOptions(root, sc, off);
   patchGrid(root, ctx, sc, view, off);
   for (const b of root.querySelectorAll('[data-hs-act="sort"], [data-hs-act="clear"]')) prop(b, 'disabled', off || !sc.draft);
-  /* Basic setup needs the weapon type the server says this setup fights as. */
-  prop(root.querySelector('[data-hs-act="basic"]'), 'disabled', off || !sc.draft || !basicSetupOf(view && view.discipline));
+  /* Basic setup needs the weapon type the server says this setup fights as: its second line says which, or that it is unknown (and the
+     read line says the setup is still being read). */
+  const bp = basicPress(view, sc.draft, gearOf(cs, sc));
+  const basic = root.querySelector('[data-hs-act="basic"]');
+  text(basic.querySelector('small'), bp.weapon);
+  attr(basic, 'aria-label', bp.words);
+  cls(basic, 'is-primary', bp.lead);
+  prop(basic, 'disabled', off || bp.off);
+  attr(basic, 'data-off-why', !sc.draft ? t('prep.reading_setup') : bp.off ? t('prep.basic_none') : null);
   const dirty = draftDirty(sc);
   /* The state line: what just happened to the copy, else that it is not saved yet. */
   text(root.querySelector('.hpb-state'), sc.stale ? t('prep.changed') : sc.basic ? t('prep.basic_loaded') : sc.sorted ? t('prep.sorted') : sc.cleared ? t('prep.cleared') : dirty ? t('prep.unsaved') : '');

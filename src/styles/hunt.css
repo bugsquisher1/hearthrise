@@ -230,7 +230,7 @@
    and why). The bar's widget rises over its sibling widgets' own cards (the hunt bar's pointer is z 5), and the
    world HUD over the screen layer (.hs-screen, z 6: the alerts and the launcher row) while one is open and no
    window is: an open window (Configure action above all) stays over the bar. */
-.hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on) { z-index: 6; }
+.hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on, .hb-prep:hover) { z-index: 6; }
 .hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on) { z-index: 7; }
 /* THE BAR IS ONE FORGED OBJECT (Tyler 10-22: "dorky, no art to it"; 10-25: keep the layout, a smooth ring, the fight
    controls back on the right, more gold, bigger icons). A 6-art-px iron plate (bar-plate.png, tools/make-hud-bar-art.mjs)
@@ -286,6 +286,9 @@
   transform: translateY(8px); visibility: hidden; transition: transform 120ms ease-out, visibility 0s linear 120ms; }
 .hb-plaque.is-open .hb-pl-fold { transform: none; visibility: visible; transition: transform 120ms ease-out; }
 .hb-plaque .hb-more { display: inline-grid; }
+/* The door to Hunt prep: its name chip (shell.css .hs-keytip) stands above the bar, never under it past the screen's foot. */
+.hb-prep { position: relative; }
+.hb-plaque .hb-prep::before { top: auto; bottom: calc(100% + 6px); }
 .hb-plaque.is-open .hb-more { color: var(--gold-2); }
 .hb-pl-head { display: flex; align-items: center; justify-content: space-between; min-height: 30px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
@@ -758,7 +761,7 @@ label.st-line { cursor: pointer; }
   .hb-socket.is-food .hb-socket-ico { display: none; }
   /* The fight panel in two rows of thumb-sized controls: stance and Chase; the setup corner (its name, the saved
      setups, the sliders) and distance. */
-  .hb-plaque { width: auto; align-self: center; display: grid; grid-template-columns: minmax(clamp(46px, calc((100vw - 667px) * .5), 64px), auto) auto auto auto auto; grid-template-rows: 36px 36px; gap: 3px 2px; grid-template-areas: "stance stance stance stance chase" "set ok more dist dist"; padding-left: 4px; }
+  .hb-plaque { width: auto; align-self: center; display: grid; grid-template-columns: minmax(clamp(46px, calc((100vw - 667px) * .5), 64px), auto) auto auto auto auto; grid-template-rows: 36px 36px; gap: 3px 2px; grid-template-areas: "stance stance stance stance chase" "set prep more dist dist"; padding-left: 4px; }
   .hb-pl-row.is-set, .hb-pl-row.is-move { display: contents; }
   .hb-pl-row.is-set > .hb-label { display: none; }
   /* The setup's name is a press the height of its row (phone panel v0.2.83: 21 px tall, reading "Pre..."): one line where the
@@ -766,7 +769,7 @@ label.st-line { cursor: pointer; }
   .hb-set { grid-area: set; align-self: stretch; font-family: var(--f-ui); font-size: var(--t-micro); letter-spacing: 0; line-height: 1.1; white-space: normal; }
   .hb-set .hs-name { width: 100%; height: 100%; }
   .hb-set .hs-name-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
-  .hb-ok { grid-area: ok; }
+  .hb-prep { grid-area: prep; }
   .hb-plaque .hb-more { grid-area: more; }
   .hb-pl-row.is-stance { grid-area: stance; min-height: 0; }
   .hb-chase { grid-area: chase; }

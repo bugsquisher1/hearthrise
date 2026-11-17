@@ -594,7 +594,7 @@ const BAR_FIT = `(() => {
       if (s.overflowX === 'visible' && s.overflowY === 'visible') continue;
       const q = a.getBoundingClientRect(); if (r.left < q.left - 0.5 || r.right > q.right + 0.5 || r.top < q.top - 0.5 || r.bottom > q.bottom + 0.5) return true; }
     return false; };
-  const ctl = Array.from(document.querySelectorAll('.hb-plaque [data-opt="stance"], .hb-plaque [data-opt="chase"], .hb-plaque [data-opt="distance"], .hb-plaque .hb-more, .hb-plaque .hb-ok, .hb-set .hs-name, .hb-stam-buy'));
+  const ctl = Array.from(document.querySelectorAll('.hb-plaque [data-opt="stance"], .hb-plaque [data-opt="chase"], .hb-plaque [data-opt="distance"], .hb-plaque .hb-more, .hb-plaque .hb-prep, .hb-set .hs-name, .hb-stam-buy'));
   const bad = ctl.filter((c) => !(window.__onScreen(window.__r(c)) && window.__hits(c) && !cut(c))).map((c) => (c.getAttribute('data-opt') || c.className) + (c.getAttribute('data-val') ? ' ' + c.getAttribute('data-val') : ''));
   const hooks = ${JSON.stringify(HOOKS)}.filter((h) => { const e = document.querySelectorAll('[data-coach-hook="' + h + '"]'); return e.length !== 1 || !window.__onScreen(window.__r(e[0])); });
   return { n: ctl.length, bad, hooks };
@@ -627,7 +627,7 @@ async function barFits(page, tag, fails) {
 const DESK_BAR = `(() => {
   const bar = document.querySelector('.hb-bar').getBoundingClientRect();
   const icons = Array.from(document.querySelectorAll('.hb-slot[data-item] .hh-icon')).map((i) => Math.round(i.getBoundingClientRect().width) + 'x' + Math.round(i.getBoundingClientRect().height));
-  const ctl = Array.from(document.querySelectorAll('.hb-plaque [data-opt]:not([data-opt="gold_floor"]), .hb-plaque .hb-more, .hb-plaque .hb-ok, .hb-set .hs-name, .hb-stam-buy'));
+  const ctl = Array.from(document.querySelectorAll('.hb-plaque [data-opt]:not([data-opt="gold_floor"]), .hb-plaque .hb-more, .hb-plaque .hb-prep, .hb-set .hs-name, .hb-stam-buy'));
   return { inside: bar.left >= 0 && bar.right <= innerWidth && bar.bottom <= innerHeight, icons, n: ctl.length,
     hidden: ctl.filter((c) => !(window.__onScreen(window.__r(c)) && window.__hits(c))).map((c) => c.getAttribute('data-opt') || c.className) };
 })()`;
@@ -1087,7 +1087,7 @@ async function partyFolds(o, base, tag, fails) {
 }
 async function barPresses(page, tag, fails) {
   const f = await page.evaluate(() => { const n = document.querySelector('.hb-set .hs-name'), t = n.querySelector('.hs-name-t'), r = window.__r(n), g = window.__r('.hb-page');
-    return { page: g && g.width, h: r.height, w: r.width, cross: window.__cross(r, window.__r('.hb-ok')), hits: window.__hits(n), cut: t.scrollHeight > t.clientHeight + 1 || t.scrollWidth > t.clientWidth + 1, words: t.textContent }; });
+    return { page: g && g.width, h: r.height, w: r.width, cross: window.__cross(r, window.__r('.hb-prep')), hits: window.__hits(n), cut: t.scrollHeight > t.clientHeight + 1 || t.scrollWidth > t.clientWidth + 1, words: t.textContent }; });
   if (f.page ? f.page < 36 : tag !== '922x423') fails.push('PH-30 [' + tag + '] More slots is ' + f.page + ' px wide'); // at 922 px all ten columns fit: no press
   if (f.h < 36 || f.w < 44) fails.push('PH-30 [' + tag + '] the setup\'s name is a ' + Math.round(f.w) + ' x ' + Math.round(f.h) + ' px press');
   if (f.cross) fails.push('PH-30 [' + tag + '] the setup\'s name runs under the saved setups\' press');

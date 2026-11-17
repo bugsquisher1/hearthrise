@@ -136,6 +136,10 @@
 //         the bar's Setup, Target and stance): at 1280x720, 1024x768 and 922x423, in a hunt, with Inventory or Character open, the
 //         middle of Leave hunt, Hunt details, Setup, stance and Target is the control itself, never a window (in a hunt a
 //         docked window starts under the hunt bar and ends above the action bar; a phone's sheet ends above the bar)
+//   AW-100 EVERY WORN SLOT IN VIEW (Tyler 2026-11-17: "why am i scrolling to see my belt/ammo slots?"): with the Inventory open,
+//         in town at 1280x720, 1518x845, 1920x1080 and 922x423 and in a hunt at 1280x720, 1366x768 and 922x423, all 14 doll
+//         slots (Ammo and Belt last) show whole inside every box that clips them, with nothing scrolled; the doll keeps its own
+//         52 px wells where the desktop window has the room (town) and never goes under 36; the bag's spaces and gold stay in the window
 //   AW-93 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
 //         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
@@ -3757,7 +3761,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.evaluate((w) => { const m = document.querySelector(w + '.hh-intent-msg'); m.textContent = 'Put on 1 piece.'; }, W67);
         await page.click(W67 + '.hw-pocket[data-item="bones"]');
         await page.waitForTimeout(250);
-        const col = await page.evaluate((w) => { const c = document.querySelector(w + '.hw-inv'); return c.scrollHeight - c.clientHeight; }, W67);
+        /* the column: the one beside the doll, which scrolls on its own while the doll stands still (AW-100) */
+        const col = await page.evaluate((w) => { const c = document.querySelector(w + '.hw-inv-side'); return c.scrollHeight - c.clientHeight; }, W67);
         if (col <= 0) fails.push('AW-67 CONTROL: the column does not overflow at this size, so this proves nothing');
         const fuel = await takes(page, W67 + '.hw-pick [data-hs-act="primary"]');
         if (!fuel.hit) fails.push('AW-67 Fuel all does not take a press with the stack in hand: ' + JSON.stringify(fuel));
@@ -3771,9 +3776,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const stop = await takes(page, W67 + '[data-hs-act="bury-stop"]');
         if (!stop.hit) fails.push('AW-67 Stop does not take a press while it fuels (line ' + JSON.stringify(line) + '): ' + JSON.stringify(stop));
         /* The player's own scroll stands: the next patch does not pull the column back. */
-        await page.evaluate((w) => { document.querySelector(w + '.hw-inv').scrollTop = 0; }, W67);
+        await page.evaluate((w) => { document.querySelector(w + '.hw-inv-side').scrollTop = 0; }, W67);
         await page.waitForTimeout(700);
-        if ((await page.evaluate((w) => document.querySelector(w + '.hw-inv').scrollTop, W67)) !== 0) fails.push('AW-67 the column fights the player\'s own scroll');
+        if ((await page.evaluate((w) => document.querySelector(w + '.hw-inv-side').scrollTop, W67)) !== 0) fails.push('AW-67 the column fights the player\'s own scroll');
         /* The Shop's tabs on a scrolled body. */
         await openWin(page, 'v', 'shop');
         await page.waitForTimeout(300);
@@ -4517,16 +4522,22 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         else {
           await page.setViewportSize({ width: 1366, height: 768 });
           await page.waitForTimeout(300);
-          const foot = await page.evaluate(() => {
+          const foot = await page.evaluate(async () => {
             const w = document.querySelector('[data-hs-win="inventory"]');
             w.querySelector('.hs-win-coach').insertAdjacentHTML('beforeend', '<p class="hs-pointer is-line"><b>A card</b> <span class="hs-coach-text">words</span></p>');
+            /* the window settles under the card as the shell lets it: a frame for its observers, a frame for what they set */
+            for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(r));
             const bottom = (q) => { const e = w.querySelector(q); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().bottom) : null; };
-            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight };
+            const slots = w.querySelectorAll('.hw-doll .hw-slot'), last = slots[slots.length - 1], cols = w.querySelector('.hw-inv-cols');
+            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight,
+              doll: slots.length === 14 && last.getBoundingClientRect().bottom <= Math.min(cols.getBoundingClientRect().bottom, w.getBoundingClientRect().bottom) + 0.5 };
             w.querySelector('.hs-win-coach').textContent = '';
             return out;
           });
-          /* three whole rows of 44 px wells under a card (it was 97 px: two rows beside a cut doll) */
-          if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 130) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
+          /* under a card, in a hunt: the foot and the tools in the window, the bag scrolling above them with two whole rows of 44 px wells
+             (it was 97 px), beside the whole doll. Tyler 2026-11-17 put every worn slot first (AW-100): this read three rows beside a doll
+             cut after its second row; the doll's column now runs the window's height and the bag shares it with its foot and tools. */
+          if (foot.foot === null || foot.foot > foot.win || foot.tools === null || foot.tools > foot.win || foot.scroll < 2 * 44 + 4 + 8 || !foot.doll) fails.push('AW-62 Inventory at 1366x768 reads ' + JSON.stringify(foot));
           /* THE BAG'S KEYS STAND WHOLE (lane/a-text-polish): they sat at the end of the bag's scroll and its edge cut the third line at
              1366x768. Behind the ?, every hint shows, no scrolling box the list sits in cuts it, and it ends inside the window; at rest none
              is in the body. Measured, not snapshotted. A bag with no ? has no way to its keys: that is this rule's red, never a page
@@ -4773,6 +4784,44 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-100 every worn slot in view, no scroll (Tyler 2026-11-17: "why am i scrolling to see my belt/ammo slots?")
+      const inTown = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null }); };
+      const SIZES = [[1280, 720, 'town', 52], [1518, 845, 'town', 52], [1920, 1080, 'town', 52], [922, 423, 'town', 36], [1280, 720, 'hunt', 36], [1366, 768, 'hunt', 36], [922, 423, 'hunt', 36]];
+      for (const [w, h, scene, least] of SIZES) {
+        const at = w + 'x' + h + ' (' + scene + ')';
+        const { ctx, page, up } = await open(scene === 'town' ? { viewport: { width: w, height: h }, mutateEnv: inTown } : { viewport: { width: w, height: h } });
+        if (!up) { fails.push('AW-100 the ' + at + ' screen did not mount'); await ctx.close(); continue; }
+        if (!(await openWin(page, 'b', 'inventory'))) { fails.push('AW-100 B did not open the Inventory at ' + at); await ctx.close(); continue; }
+        await page.waitForTimeout(400);
+        const m = await page.evaluate(async () => {
+          const win = document.querySelector('[data-hs-win="inventory"]');
+          const moving = () => { for (let n = win; n; n = n.parentElement) if (getComputedStyle(n).transform !== 'none') return true; return false; };
+          for (let i = 0; i < 40 && moving(); i++) await new Promise((r) => setTimeout(r, 50));
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          /* what a box shows: its own rect cut by every ancestor that clips (to the window) and by the screen */
+          const shown = (el) => {
+            let top = 0, bottom = innerHeight;
+            for (let a = el.parentElement; a; a = a.parentElement) {
+              if (getComputedStyle(a).overflowY !== 'visible') { const b = a.getBoundingClientRect(); top = Math.max(top, b.top + a.clientTop); bottom = Math.min(bottom, b.top + a.clientTop + a.clientHeight); }
+              if (a === win) break;
+            }
+            const q = el.getBoundingClientRect();
+            return q.height > 0 && q.top >= top - 0.5 && q.bottom <= bottom + 0.5;
+          };
+          const slots = Array.from(win.querySelectorAll('.hw-doll .hw-slot'));
+          const scrolled = [];
+          for (let a = slots[0] && slots[0].parentElement; a; a = a.parentElement) { if (a.scrollTop) scrolled.push(a.className.split(' ')[0] + ' ' + a.scrollTop); if (a === win) break; }
+          return { n: slots.length, lost: slots.filter((s) => !shown(s)).map((s) => s.getAttribute('data-slot')), scrolled,
+            well: slots.length ? Math.round(slots[0].getBoundingClientRect().width) : 0, foot: shown(win.querySelector('.hw-inv-foot')), phone: matchMedia('(max-height: 540px) and (max-width: 1024px)').matches };
+        });
+        if (m.n !== 14 || m.lost.length || m.scrolled.length) fails.push('AW-100 at ' + at + ' a worn slot is out of view at rest: ' + JSON.stringify(m));
+        if (m.well < least) fails.push('AW-100 at ' + at + ' the doll\'s wells are ' + m.well + ' px, want ' + least + ' or more');
+        if (!m.phone && !m.foot) fails.push('AW-100 at ' + at + ' the bag\'s spaces and gold left the window: ' + JSON.stringify(m));
+        if (shots) await shot(page, 'worn-in-view-' + w + 'x' + h + '-' + scene);
+        await ctx.close();
+      }
+    }
+
     { // AW-94 one window header (UX flow audit 2026-11-11): the same band on every window, Back to where a press came from, a page in its host,
       // the bag beside Storage, the Shop and Character at 1440, Hunts over the dock, one gold plate per window
       const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 } });
@@ -4936,6 +4985,9 @@ const MUTANTS = [
   ['AW-25 the casters note is never shown', 'src/shell/windows/hunt-detail.js', "prop(det.querySelector('.hw-hd-casts'), 'hidden', !casts);", "prop(det.querySelector('.hw-hd-casts'), 'hidden', true);"],
   ['AW-93 a docked window stops above the bar on a short World again', 'src/shell/window-manager.js', 'return Number.isFinite(cap) && cap < DOCK_ROOM_PX && need > cap;', 'return false && need > cap;'],
   ['AW-95 a window rises over the action bar in a hunt again', 'src/shell/window-fit.js', 'if (cap !== null && !hunt && overBar(cap, Infinity)) {', 'if (cap !== null && overBar(cap, Infinity)) {'],
+  ['AW-100 the doll scrolls with the bag again', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; }', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }'],
+  ['AW-100 the doll\'s wells never fit a short column', 'src/shell/windows/inventory/doll.js', "    doll.style.setProperty(FIT, dollWell(room, parseFloat(cs.rowGap) || 0, parseFloat(cs.paddingTop) || 0) + 'px');\n", ''],
+  ['AW-100 the phone\'s doll stands under the toolbar again', 'src/styles/windows.css', '  [data-hs-win="inventory"] .hw-inv { display: grid; grid-template-columns: auto minmax(0, 1fr);', '  [data-hs-win="inventory"] .hw-inv { display: block; grid-template-columns: auto minmax(0, 1fr);'],
   ['AW-95 a docked window lies over the hunt bar again', 'src/shell/window-fit.js', '    if (hunt) clearTops(w, hunt.tops, gap);', '    if (false) clearTops(w, hunt.tops, gap);'],
   ['AW-95 the phone sheet lies over the action bar in a hunt again', 'src/shell/shell.js', 'const bars = phoneMq.matches && !hunting ? [] :', 'const bars = phoneMq.matches ? [] :'],
   ['AW-93 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],

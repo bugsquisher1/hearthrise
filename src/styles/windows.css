@@ -253,28 +253,40 @@
 
 /* ── The Inventory (src/shell/windows/inventory/*): the doll beside the grid, one iron-and-slate window ── */
 .hw-inv { outline: none; }
-/* THE FOOT STAYS IN VIEW (newcomer panel 2026-11-01: spaces, gold and Dispatch loot under the fold at 1366x768): the doll and the bag scroll between the toolbar and it; whatever else opens scrolls the whole. */
+/* THE FOOT STAYS IN VIEW (newcomer panel 2026-11-01: spaces, gold and Dispatch loot under the fold at 1366x768): the bag scrolls between the toolbar and it;
+   whatever else opens scrolls the whole. THE DOLL NEVER SCROLLS (Tyler 2026-11-17: "why am i scrolling to see my belt/ammo slots?"): its column runs beside
+   the bag, its foot and its tools, from the toolbar down, and its wells fit that column (inventory/doll.js fitDoll). */
 .hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 [data-hs-win="inventory"] .hw-inv { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 [data-hs-win="inventory"] .hw-inv > * { flex: none; }
-[data-hs-win="inventory"] .hw-inv > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }
+[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; }
+/* the column beside the doll: the bag gives way first (to two rows), then the column scrolls on its own, the doll standing still beside it */
+[data-hs-win="inventory"] .hw-inv-side { align-self: stretch; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+[data-hs-win="inventory"] .hw-inv-side > * { flex: none; }
+[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }
 [data-hs-win="inventory"] .hw-cats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 /* The tabs and the search share a line: at 1366x768 the bag kept 97 px between its toolbar and its foot, two rows beside a cut doll (door panel 2026-11-04). */
 [data-hs-win="inventory"] .hw-inv-head { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 6px; }
 [data-hs-win="inventory"] .hw-inv-head > .hw-tabs { flex: none; margin-bottom: 0; }
 [data-hs-win="inventory"] .hw-inv-head > .hw-find { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
+/* ...and the search gives way to the sort, never the sort to the window's edge (it read "Sort Typ" at every desktop size). */
+[data-hs-win="inventory"] .hw-find > .hw-search { min-width: 0; }
 [data-hs-win="inventory"] .hw-cat { flex: none; padding: 0 6px; }
 .hw-inv:focus-visible { outline: 1px dashed var(--aqua-2); outline-offset: 2px; }
 .hw-inv-cols { display: flex; align-items: flex-start; gap: 10px; }
-.hw-inv-grid { flex: 1; min-width: 0; min-height: 186px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+.hw-inv-side { flex: 1; min-width: 0; }
+.hw-inv-grid { min-height: 186px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
 .hw-cats.is-off, .hw-tools.is-off { display: none; }
-/* The worn set's armor weights, under both columns (doll.js patchWeights): a label, then one plain line. */
+/* The worn set's armor weights, beside the doll under the bag (doll.js patchWeights): a label, then one plain line. */
 .hw-weights { display: none; margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; cursor: help; }
 .hw-weights.is-on { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; }
 .hw-weights span { white-space: nowrap; }
 .hw-weights span:empty { display: none; }
 .hw-weights small { font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
 .hw-inv-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
+/* Beside the doll the foot is two lines: the bag's spaces, then Advanced view and the gold (one line squeezed the bar to nothing). */
+[data-hs-win="inventory"] .hw-inv-side .hw-inv-foot { flex-wrap: wrap; row-gap: 4px; }
+[data-hs-win="inventory"] .hw-inv-side .hw-capacity { flex-basis: 100%; }
 .hw-capacity { display: none; flex: 1; min-width: 0; align-items: center; gap: 6px; }
 .hw-capacity.is-on { display: flex; }
 .hw-capbar { position: relative; flex: 1; height: 6px; background: var(--bg-1); box-shadow: var(--hw-well); }
@@ -292,11 +304,14 @@
 .hw-imbue.is-on { display: block; }
 
 /* The paper doll: three across, five down, in the shape of a body. The worn set reads a step above the bag (Tyler 10-25:
-   the 2x doll was "a bit" big): the same 1x art in a roomier well, 36 px on a phone, 52 px from 1280 (the bag's 44 + 8). */
-.hw-doll { flex: none; display: grid; grid-template-columns: repeat(3, round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px)); grid-auto-rows: round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px); gap: round(down, clamp(4px, 4px + (100vw - 1024px) / 128, 6px), 1px); padding: round(down, clamp(4px, 4px + (100vw - 1024px) / 128, 6px), 1px); background: var(--surf-sunken); box-shadow: var(--hw-well); }
+   the 2x doll was "a bit" big): the same 1x art in a roomier well, 36 px on a phone, 52 px from 1280 (the bag's 44 + 8).
+   Where its column is shorter than that doll the well steps down to what it holds (doll.js fitDoll writes --hw-doll-fit),
+   never under the icon and its rim. */
+.hw-doll { --hw-doll-well: max(min(var(--hw-doll-fit, 52px), round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px)), calc(var(--icon-1) + 4px));
+  flex: none; display: grid; grid-template-columns: repeat(3, var(--hw-doll-well)); grid-auto-rows: var(--hw-doll-well); gap: round(down, clamp(4px, 4px + (100vw - 1024px) / 128, 6px), 1px); padding: round(down, clamp(4px, 4px + (100vw - 1024px) / 128, 6px), 1px); background: var(--surf-sunken); box-shadow: var(--hw-well); }
 .hw-slot {
   position: relative; padding: 0;
-  width: round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px); height: round(down, clamp(36px, 36px + (100vw - 1024px) / 16, 52px), 2px);
+  width: var(--hw-doll-well); height: var(--hw-doll-well);
   display: grid; place-items: center;
   background: var(--bg-1); box-shadow: var(--hw-well);
   border: 2px solid transparent; border-radius: 0; cursor: pointer;
@@ -459,7 +474,7 @@
 .hw-go-bar .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-go-note { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-go-note:empty { display: none; }
-/* Change setups: Hunt prep, under the setups it makes (the bar's groups took its icon, 2026-11-16) */
+/* Hunt prep's door under Go as, under the setups it makes (the bar's groups took its icon, 2026-11-16) */
 .hw-go-prep { margin-top: 8px; }
 /* Before you go: plain lines, what the bar spends and what it costs; a line that stops the hunt reads red. */
 .hw-before { margin: 0; padding: 0; list-style: none; }
@@ -684,6 +699,15 @@
 .hpb-barhead { display: flex; align-items: center; gap: 8px; }
 .hpb-barhead h3 { flex: 1; margin: 0; }
 .hpb-barhead small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 8px; }
+/* BASIC SETUP (builder.js basicPress; Tyler 2026-11-17 did not find it as a word beside Sort): in the setups column under Use equipped, the one
+   framed press there (the header's square steel, shell.css .hs-back), two lines Use equipped's way: its name, then the weapon type it loads;
+   on an empty bar the window's gold plate. */
+.hpb-left .hh-tool.hpb-basic { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; margin-top: 4px; padding: 6px 10px; white-space: normal; }
+.hpb-left .hh-tool.hpb-basic:not(.is-primary) { border: 2px solid var(--steel-btn); background: var(--fill-1); color: var(--ink); }
+.hpb-left .hh-tool.hpb-basic:not(.is-primary):hover:not(:disabled) { background: var(--bg-3); }
+.hpb-basic small { font-family: var(--f-ui); font-weight: 400; font-size: var(--t-micro); letter-spacing: 0; color: var(--ink-2); }
+.hpb-basic.is-primary small { font-weight: 700; color: inherit; }
+.hpb-basic small:empty { display: none; }
 .hpb-gridwrap { position: relative; width: max-content; max-width: 100%; overflow-x: auto; }
 .hpb-grid { list-style: none; margin: 0; padding: 8px; display: grid; grid-template-columns: repeat(10, clamp(40px, calc(9.375vw - 52px), 68px)); grid-auto-rows: clamp(40px, calc(9.375vw - 52px), 68px); gap: 4px;
   justify-content: start; background: var(--bg-0); box-shadow: var(--steel-well); width: max-content; user-select: none; }
@@ -738,14 +762,22 @@
   .hpb-count { margin: 0 0 0 auto; }
   .hpb-from small { display: none; }
   .hpb .hh-tool, .hpb .hh-seg, .hpb .hh-select { min-height: 44px; }
+  .hpb-left .hh-tool.hpb-basic { min-height: 44px; margin-top: 0; }
   .hpb-grid { grid-template-columns: repeat(10, 56px); grid-auto-rows: 56px; padding: 6px; }
   .hpb-grid .hb-slot, .hpb-ghost { width: 56px; height: 56px; }
   .hpb-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
-  /* The phone sheet scrolls as one, its foot under the list. */
+  /* The phone sheet scrolls as one, its foot under the list. THE DOLL BESIDE THE TOOLBAR (Tyler 2026-11-17, 922x423: Ammo and Belt
+     lay under the sheet's foot, below the toolbar's three rows): the worn slots stand at the sheet's top left, the tabs, the search,
+     the categories and the bag to their right; the rest runs the sheet's width. The bag's row takes what the doll needs past the
+     toolbar (its 1fr), so the toolbar's rows keep their own heights. */
   .hs-win[data-hs-win="inventory"] .hs-win-body { display: block; overflow: auto; }
-  [data-hs-win="inventory"] .hw-inv { display: block; overflow-y: visible; }
-  [data-hs-win="inventory"] .hw-inv > .hw-inv-scroll { overflow-y: visible; }
-  [data-hs-win="inventory"] .hw-inv-head { display: contents; }
+  [data-hs-win="inventory"] .hw-inv { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto 1fr; column-gap: 10px; align-items: start; overflow-y: visible; }
+  [data-hs-win="inventory"] .hw-inv > *, [data-hs-win="inventory"] .hw-inv-side > * { grid-column: 1 / -1; }
+  [data-hs-win="inventory"] :is(.hw-inv-head, .hw-inv-cols, .hw-inv-side) { display: contents; }
+  [data-hs-win="inventory"] :is(.hw-tabs, .hw-find, .hw-cats, .hw-inv-scroll) { grid-column: 2; }
+  [data-hs-win="inventory"] .hw-doll { grid-column: 1; grid-row: 1 / span 4; }
+  [data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { overflow-y: visible; }
+  [data-hs-win="inventory"] .hw-inv-side .hw-capacity { flex-basis: 0%; }
   [data-hs-win="inventory"] .hw-inv-head > .hw-tabs { margin-bottom: 8px; }
   [data-hs-win="inventory"] .hw-inv-head > .hw-find { margin-bottom: 6px; }
   .hw-tab { min-height: 36px; }

@@ -16,7 +16,7 @@
 //              stance, target, chase and distance, the gold to keep, and the 2 x 10 slot grid at the HUD's
 //              own tiles: drag to move, drop on a filled slot to swap, a press opens Configure action on
 //              that slot (every condition the engine has), Basic setup (basic-setup.js: the weapon type's basic
-//              bar, Tyler 2026-11-16), Sort (bar-sort.js) and Clear. All of it edits a
+//              bar, Tyler 2026-11-16; its press stands in the setups column, 11-17), Sort (bar-sort.js) and Clear. All of it edits a
 //              COPY of the picked setup (prep-draft.js); Save sends it as ONE hr_action_set_options with
 //              every key, Save and use then ONE hr_hunt_preset_apply. The setup in use is the envelope's
 //              projection; another setup is read on demand (session/preset-read.js).
@@ -35,7 +35,7 @@ import { whole } from '../../render/format.js?v=0.2.136';
 import { readinessOf, readinessLine } from '../readiness.js?v=0.2.136';
 import { t } from '../../render/player-text.js?v=0.2.136';
 import { setupsHtml, patchSetups, actSetups } from './hunt-prep/setups.js?v=0.2.136';
-import { builderHtml, patchBuilder, actBuilder, dropDraft } from './hunt-prep/builder.js?v=0.2.136';
+import { builderHtml, basicPressHtml, patchBuilder, actBuilder, dropDraft } from './hunt-prep/builder.js?v=0.2.136';
 
 const SCRATCH = new WeakMap();
 /* The window's state for one character: `pending` and `msg` (intent-words.js runIntent), `naming` the setup whose name
@@ -51,7 +51,7 @@ export const scratchOf = (cs) => {
 export function renderHuntPrep(ctx) {
   if (ctx && ctx.character) dropDraft(scratchOf(ctx.character));
   return '<div class="hw-prep hpb">'
-    + '<div class="hpb-left">' + setupsHtml() + '</div>'
+    + '<div class="hpb-left">' + setupsHtml(basicPressHtml()) + '</div>'
     + '<div class="hpb-right">'
     + '<section class="hpb-carry" hidden><h3 class="hw-ledger-head hw-carry-head">' + t('prep.carry_head') + '</h3>'
     + '<p class="hs-note hw-carry-note" hidden>' + t('prep.carry_note') + '</p>'

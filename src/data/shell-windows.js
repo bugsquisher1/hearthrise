@@ -101,8 +101,10 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'tower', label: 'Burning Tower', title: 'The Burning Tower', key: null, noShortcut: true, group: 'town', section: 'tower', orElse: 'inventory',
     glyph: 'uiFlame', width: 660, object: 'ledger' }),
   /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. No icon of its
-     own since the bar's groups (2026-11-16): the bar's setup press opens it, so does Change setups under a ground's Go as, and P. */
-  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', launcher: false, glyph: 'uiCheck', width: 1040, object: 'plain', over: true, help: 'windows.help_prep' }),
+     own since the bar's groups (2026-11-16): the door beside the bar's setup name opens it (action-bar.js, drawn from this row: the
+     glyph, the name, the key), so does Hunt prep under a ground's Go as, and P. Its glyph is a written plan (Tyler 2026-11-17: the
+     tick it had read as a confirm, and nobody found Hunt prep behind it). */
+  Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', launcher: false, glyph: 'uiQuests', width: 1040, object: 'plain', over: true, help: 'windows.help_prep' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */
   Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', group: 'social', glyph: 'uiBanner', width: 440, object: 'plain' }),

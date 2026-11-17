@@ -20,8 +20,8 @@
 //            action's facts (action-facts.js hoverLines): why it waits, the cost
 //            line, its numbers, cooldown, When line and any conflict
 //   panel    the fight panel on the bar's right, always in view (Tyler 10-19,
-//            10-25): the setup in use (a setup owns this bar; Saved setups
-//            switch it, designer ruling 2026-10-22), target, stance, chase and
+//            10-25): the setup in use (a setup owns this bar; its Hunt prep
+//            door switches it, designer ruling 2026-10-22), target, stance, chase and
 //            distance; its sliders fold out the gold to keep (gold_floor), and
 //            on a phone the target too. Each control is ONE intent
 //            (settings-intent.js), shown from the server only once it confirms
@@ -33,7 +33,8 @@ import { ABILITIES } from '../../data/abilities.js?v=0.2.136';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.136';
 import { text, cls, attr, element, keyedChild, prop, style } from '../../render/paint.js?v=0.2.136';
 import { whole } from '../../render/format.js?v=0.2.136';
-import { glyphSvg } from '../launcher.js?v=0.2.136';
+import { glyphSvg, keyLabel } from '../launcher.js?v=0.2.136';
+import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.136';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.136';
 import { actionIconHtml } from './bits.js?v=0.2.136';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.136';
@@ -104,6 +105,16 @@ function slotHtml(i) {
     + '<span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li>';
 }
 
+/* THE DOOR TO HUNT PREP (Tyler 2026-11-17: "how do i access the hunt prep"; its icon left the top bar on 11-16). Beside the setup's
+   name, drawn from the window's own row (shell-windows.js): its glyph, its name and its key, so it never reads as a confirm tick, and
+   the hover chip names it with its key the way the icon row's do (shell.css .hs-keytip). */
+const PREP = SHELL_WINDOWS.find((w) => w.id === 'hunt-prep');
+function prepDoorHtml(g) {
+  const key = keyLabel(PREP.key);
+  return '<button type="button" class="hh-tool hb-prep hs-keytip" data-hs-act="setups" aria-label="' + esc(PREP.label) + (key ? ' (' + esc(key) + ')' : '') + '"'
+    + ' data-tip="' + esc(PREP.label) + '" data-key="' + esc(key) + '">' + glyphSvg(g, PREP.glyph) + '</button>';
+}
+
 /** The skeleton (built once). */
 export function renderActionBar(ctx) {
   const g = ctx.glyphs;
@@ -129,7 +140,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-plaque" role="group" aria-label="Fight settings" data-coach-hook="fight-settings">'
     /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
     + '<div class="hb-pl-row is-set"><span class="hb-label">Setup</span><span class="hb-set" data-coach-hook="preset">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
-    + '<button type="button" class="hh-tool hb-ok" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
+    + prepDoorHtml(g)
     + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="More fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
     + '<div class="hb-pl-more" role="group" aria-label="More fight settings">'
     + '<label class="hb-pl-row is-target"><span class="hb-label">Target</span><select class="hh-select" data-opt="target_mode" data-hs-act="opt" aria-label="Target">' + targetOptionsHtml() + '</select></label>'

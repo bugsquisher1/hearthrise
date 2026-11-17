@@ -6,7 +6,7 @@
 //   node tests/top-bar.mjs --mutate        every planted defect must turn a named rule RED
 //   node tests/top-bar.mjs --shots <dir>   also write the bar and each group's menu at each size
 //
-// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js
+// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js src/styles/hunt.css src/shell/windows/hunt-detail.js
 //
 // Tyler 2026-11-16: "Our top menu bar is starting to get long again, are there some things we can either combine or move to clean
 // it up? It's getting a bit overwhelming." The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8). The windows a player
@@ -20,7 +20,8 @@
 //   TB-3  EVERY WINDOW IN TWO PRESSES (1440x900, 922x423 and 667x375, a touch screen on the phones): the row's buttons are each on
 //         screen, a thumb wide, and overlap nothing; every window the row reaches opens by mouse (or tap) in one or two presses and
 //         the menu shuts behind the pick; every window with a key opens by that key in one press (Esc: Settings; Enter: Chat); Hunt
-//         prep opens from the bar's setup press and by P; zero console errors
+//         prep opens from the bar's setup press, the Hunts page's door and P; the bar's press is named Hunt prep (P) with the window's
+//         glyph, never the tick, and its hover chip stands above the bar; the Hunts door reads Hunt prep (Tyler 2026-11-17); zero console errors
 //   TB-4  THE MENU BEHAVES (1440x900): a press opens it (aria-expanded), a second press shuts it; Esc shuts it and opens nothing;
 //         a press on the World shuts it; a key that opens a window shuts it; a pick of the window already on top shuts it and
 //         leaves that window open; the arrows walk its lines; an envelope that changes nothing, and a row redrawn for a reason under
@@ -357,10 +358,43 @@ async function checks(overrides, shots, firstRed = false) {
         await page.keyboard.press(r.key === 'escape' ? 'Escape' : r.key === 'enter' ? 'Enter' : r.key);
         if (!(await opened(page, r.id))) fails.push('TB-3 [' + tag(size) + '] its key ' + r.key + ' did not open ' + r.id);
       }
-      /* Hunt prep: no icon, the bar's setup press and P */
+      /* Hunt prep: no icon, the bar's setup press and P. THE PRESS SAYS IT IS HUNT PREP (Tyler 2026-11-17: "how do i access the hunt
+         prep"; a tick that read as a confirm): its name and key for a reader, the window's own glyph (never the tick), and on a mouse
+         the icon row's name chip ("Hunt prep  P") on hover, standing above the bar inside the screen */
       await closeAll(page);
+      const door = await page.evaluate((row) => {
+        const b = document.querySelector('[data-hs-widget="action-bar"] [data-hs-act="setups"]');
+        if (!b) return null;
+        const d = (b.querySelector('svg path') || { getAttribute: () => '' }).getAttribute('d');
+        return { label: b.getAttribute('aria-label'), tip: b.getAttribute('data-tip'), key: b.getAttribute('data-key'),
+          glyph: d === window.HR_GLYPHS[row.glyph], tick: d === window.HR_GLYPHS.uiCheck };
+      }, SHELL_WINDOWS.find((x) => x.id === 'hunt-prep'));
+      if (!door || door.label !== 'Hunt prep (P)' || door.tip !== 'Hunt prep' || door.key !== 'P' || !door.glyph || door.tick) {
+        fails.push('TB-3 [' + tag(size) + '] the bar\'s setup press does not say Hunt prep: ' + JSON.stringify(door));
+      }
+      if (!size.touch) {
+        await page.hover('[data-hs-widget="action-bar"] [data-hs-act="setups"]', { timeout: 2500 }).catch(() => null);
+        await page.waitForTimeout(250);
+        const chip = await page.evaluate(() => {
+          const b = document.querySelector('[data-hs-widget="action-bar"] [data-hs-act="setups"]'), s = getComputedStyle(b, '::before');
+          const r = b.getBoundingClientRect(), h = parseFloat(s.height) || 0, bottom = parseFloat(s.bottom);
+          return { words: s.content, shown: s.opacity === '1' && s.display !== 'none', above: Number.isFinite(bottom) && bottom > 0, top: Math.round(r.top - bottom - h) };
+        });
+        if (!/Hunt prep/.test(chip.words) || !/P/.test(chip.words) || !chip.shown || !chip.above || chip.top < 0) fails.push('TB-3 [' + tag(size) + '] hovering the setup press shows no Hunt prep chip above the bar: ' + JSON.stringify(chip));
+        await page.mouse.move(2, 200);
+      }
       await page.click('[data-hs-widget="action-bar"] [data-hs-act="setups"]', { timeout: 2500 }).catch(() => null);
       if (!(await opened(page, 'hunt-prep'))) fails.push('TB-3 [' + tag(size) + '] the bar\'s setup press did not open Hunt prep');
+      /* ...and the door under a ground's Go as says the same name, and opens it */
+      await closeAll(page);
+      await page.keyboard.press('h');
+      if (await opened(page, 'hunts')) {
+        await tryPress(page, '.hw-hunt[data-hunt="mill_cellar"]', size.touch);
+        const words = await wait(page, () => { const b = document.querySelector('.hw-go-prep'); return b && b.getClientRects().length; }, null, 3000)
+          ? await page.evaluate(() => document.querySelector('.hw-go-prep').textContent) : null;
+        if (words !== 'Hunt prep') fails.push('TB-3 [' + tag(size) + '] the Hunts page\'s door to Hunt prep reads ' + JSON.stringify(words));
+        else if (!(await tryPress(page, '.hw-go-prep', size.touch)) || !(await opened(page, 'hunt-prep'))) fails.push('TB-3 [' + tag(size) + '] the Hunts page\'s Hunt prep door did not open it');
+      } else fails.push('TB-3 [' + tag(size) + '] H did not open Hunts');
       await closeAll(page);
       await page.keyboard.press('p');
       if (!(await opened(page, 'hunt-prep'))) fails.push('TB-3 [' + tag(size) + '] P did not open Hunt prep');
@@ -394,6 +428,10 @@ const MUTANTS = [
   ['the open menu is never measured, so the card cannot dock clear', 'src/shell/launcher-menu.js', '  if (!id) return;\n  dockClear(el);\n', '  if (!id) return;\n'],
   ['a row redrawn under the open menu drops the keyboard', 'src/render/paint.js', "  if (back && typeof back.focus === 'function') back.focus();\n", ''],
   ['Hunt prep loses the bar\'s setup press', 'src/shell/widgets/action-bar.js', "  if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }", ''],
+  ['the bar\'s Hunt prep press is a tick again', 'src/shell/widgets/action-bar.js', "glyphSvg(g, PREP.glyph)", "glyphSvg(g, 'uiCheck')"],
+  ['the bar\'s Hunt prep press loses its name', 'src/shell/widgets/action-bar.js', "aria-label=\"' + esc(PREP.label) + (key ? ' (' + esc(key) + ')' : '') + '\"'", "aria-label=\"Saved setups: switch or save\"'"],
+  ['the Hunt prep chip hangs under the bar, off the screen', 'src/styles/hunt.css', '.hb-plaque .hb-prep::before { top: auto; bottom: calc(100% + 6px); }\n', ''],
+  ['the Hunts page calls Hunt prep something else', 'src/shell/windows/hunt-detail.js', 'esc(PREP_LABEL)', "'Change setups'"],
 ];
 
 async function main() {

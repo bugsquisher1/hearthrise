@@ -57,7 +57,7 @@ const argv = process.argv.slice(2);
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, viewSheets, imagesM] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -65,13 +65,13 @@ async function load(base) {
     'src/data/world/atlas-sets.js', 'src/data/world/art-budget.js',
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
-    'src/world/core/plates.js',
+    'src/world/core/plates.js', 'src/world/view-sheets.js', 'src/render/images.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, viewSheets, imagesM,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -598,6 +598,62 @@ async function check(M) {
     }
   });
 
+  /* W7 A LATE SHEET HOLDS NOTHING FOR LONG (report #81: the town held on a sheet that never came froze the picture, then a resize
+        blanked it). On a clock and timers of the test's own: a frame naming a sheet whose load never settles holds until
+        SHEET_HOLD_MS, then draws (the pane woken for it); a first view on such a sheet opens at the limit; a sheet request that
+        stalls is let go and asked again, and one that stalls every try fails (then a later ask starts over). */
+  await famAsync('W7', async () => {
+    let t = 0;
+    const timers = [];
+    const win = { performance: { now: () => t }, setTimeout: (fn, ms) => timers.push({ at: t + (ms || 0), fn }), clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].fn = null; } };
+    const run = (to) => { t = to; for (const x of timers.slice()) if (x.fn && x.at <= t) { const f = x.fn; x.fn = null; f(); } };
+    const settle = () => new Promise((k) => setTimeout(k, 0));
+    const town = M.maps.SCENE_MAPS.town, HOLD = M.viewSheets.SHEET_HOLD_MS, cast = {};
+    const never = new Promise(() => {});
+    const views = (wake) => M.viewSheets.createViewSheets({ win, sheets: { ready: () => false, ensure: () => never },
+      needs: new Map([[town, ['common', 'havora']]]), town: null, missing: () => ['havora'], wake });
+    let wakes = 0;
+    const vs = views(() => { wakes++; });
+    const first = vs.held(town, cast);
+    run(HOLD - 1);
+    const under = vs.held(town, cast);
+    run(HOLD);
+    ok('W7', first === true && under === true && vs.held(town, cast) === false && wakes >= 1,
+      'a frame naming a sheet that never comes must hold under ' + HOLD + ' ms and draw at it, the pane woken (held ' + first + ', '
+      + under + ' at ' + (HOLD - 1) + ' ms, ' + vs.held(town, cast) + ' at ' + HOLD + ' ms; ' + wakes + ' wake(s))');
+    t = 0; timers.length = 0;
+    let opened = false;
+    views(() => {}).open(() => ({ id: town, cast })).then(() => { opened = true; });
+    await settle();
+    const early = opened;
+    run(HOLD);
+    for (let i = 0; i < 5 && !opened; i++) await settle();
+    ok('W7', !early && opened, 'a first view whose sheet never comes must open at the limit (open before it: ' + early + ', at it: ' + opened + ')');
+    /* the sheet's own load: a stalled request let go and asked again; one that stalls every try fails, and is asked afresh later */
+    t = 0; timers.length = 0;
+    const imgs = [];
+    const doc = { baseURI: 'http://world-core.test/', defaultView: win, createElement: () => { const i = { onload: null, onerror: null, src: '' }; imgs.push(i); return i; } };
+    const { heldImage, LOAD_WAIT_MS, LOAD_TRIES } = M.imagesM;
+    let got = null;
+    heldImage(doc, 'assets/world/w7-stalls-once.png').then((v) => { got = v; }, () => { got = 'failed'; });
+    run(LOAD_WAIT_MS);
+    const tries = imgs.length, let1 = imgs[0] && imgs[0].src === '';
+    if (imgs[1] && imgs[1].onload) imgs[1].onload();
+    if (imgs[0] && imgs[0].onload) imgs[0].onload();   // the stuck try answering late is not the answer
+    await settle();
+    ok('W7', tries === 2 && let1 && got === imgs[1], 'a sheet request that stalls must be let go and asked again (' + tries + ' request(s), the first let go: ' + let1 + ', answered by the retry: ' + (got === imgs[1]) + ')');
+    imgs.length = 0;
+    t = 0;
+    let failed = null;
+    heldImage(doc, 'assets/world/w7-stalls-always.png').then(() => { failed = false; }, (e) => { failed = e.message; });
+    for (let k = 1; k <= LOAD_TRIES; k++) run(k * LOAD_WAIT_MS);
+    await settle();
+    const all = imgs.length;
+    heldImage(doc, 'assets/world/w7-stalls-always.png').catch(() => {});
+    ok('W7', all === LOAD_TRIES && typeof failed === 'string' && imgs.length === all + 1,
+      'a sheet that stalls every try must fail after ' + LOAD_TRIES + ' (' + all + ' request(s), failed: ' + failed + ') and be asked afresh by the next ask (' + (imgs.length - all) + ' new)');
+  });
+
   fam('G', () => {
     const idx = M.route.huntMapIndex(M.maps.WORLD_MAPS, M.hunts.HUNT_INDEX);
     const S = (a, c) => M.route.sceneFor(a, c, idx, M.maps.SCENE_MAPS);
@@ -738,7 +794,7 @@ async function check(M) {
 }
 
 /* src/data and src/core whole: the scene sheets (src/world/scene-sets.js) read the grounds, effects and rooms, and those their own imports */
-const COPY = ['src/world', 'src/data', 'src/core', 'src/build-info.js', 'assets/world'];
+const COPY = ['src/world', 'src/data', 'src/core', 'src/render/images.js', 'src/build-info.js', 'assets/world'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-core-'));
   for (const p of COPY) {
@@ -804,7 +860,12 @@ const MUTANTS = [
   ['W5', 'a chunk let go keeps its pixels', 'src/world/render/ground-chunks.js', [['  function release(c) { c.width = 0; c.height = 0; }', '  function release(c) { }']]],
   ['W5', 'a new map drawn before its view\'s ground is baked', 'src/world/render/canvas-backend.js', [['      if ((!hold && !ground.stale()) || !map || !canvas) return true;', '      return true;']]],
   ['W5', 'a held frame resizes (so blanks) the shown canvas again (report #81)', 'src/world/render/canvas-backend.js', [['    dirty = false;\n  }\n', '    sizeTo(canvas, W, H);\n    dirty = false;\n  }\n']]],
-  ['W5', 'a painted frame never gives the shown canvas its new size', 'src/world/render/canvas-backend.js', [['    sizeTo(canvas, W, H);   // the size measure() read', '    // the size measure() read']]],
+  ['W7', 'a late sheet holds the town frame for good again (report #81)', 'src/world/view-sheets.js', [['return miss.some((set) => t - asked.get(set) < SHEET_HOLD_MS);', 'return miss.length > 0;']]],
+  ['W7', 'the first view waits on a late sheet for good', 'src/world/view-sheets.js', [['await Promise.race([sheets.ensure(missing(now.cast)), new Promise((done) => win.setTimeout(done, SHEET_HOLD_MS))]);', 'await sheets.ensure(missing(now.cast));']]],
+  ['W7', 'a pane with no loop is never woken at the limit', 'src/world/view-sheets.js', [['      win.setTimeout(wakeUp, SHEET_HOLD_MS);\n', '']]],
+  ['W7', 'a stalled sheet request is never let go', 'src/render/images.js', [['      }, LOAD_WAIT_MS) : 0;', '      }, Infinity) : 0;']]],
+  ['W7', 'a stalled sheet request fails at once instead of asking again', 'src/render/images.js', [['if (n < LOAD_TRIES) attempt(n + 1); else fail(', 'if (false) attempt(n + 1); else fail(']]],
+  ['W5', 'a painted frame never gives the shown canvas its new size','src/world/render/canvas-backend.js', [['    sizeTo(canvas, W, H);   // the size measure() read', '    // the size measure() read']]],
   ['W2', 'a hole corner (cliff) leaves its dual tile undrawn', 'src/world/core/compose.js', [['for (let i = 0; i < 4; i++) if (c[i] < 0) c[i] = most;', 'if (c.some((m) => m < 0)) continue;']]],
   ['W2', 'a third material drawn as the upper of the pair', 'src/world/core/compose.js', [['(m !== lo && !pairM[m * K + lo] && pairM[m * K + up])', '(m !== lo)']]],
   ['L1', 'every window of a map is let off the tree rule', 'src/world/core/map-compile.js', [['if (2 * greenIn(wx, wy) < ww * wh) continue;', 'continue;']]],

@@ -6,6 +6,8 @@
 //   hero XP    = floor(base share x party factor x that hero's multiplier)   (XP-02)
 //   on a SCALED hunt a party's factor is thinned by the row's partyPm (src/data/scaled-hunts.js, on every scaled row: the kill
 //   carries it from damage.js); a hero alone is never thinned
+//   in a SESSION MODE that pays part of a kill (src/data/session-modes.js xpPm; the Burning Tower's 375) the monster XP is that share
+//   of the row's before anything else (inst.xpPm, world-step.js; absent, the whole kill, exactly as before)
 // THE PARTY FACTOR (Tyler 2026-10-31: better only with different classes) is
 // src/data/party-class-xp.js, read from the living heroes at each kill, on the
 // ground and the tier in `inst` (PARTY_TIER_PM, Tyler 2026-11-16), never latched: a death or a leave changes the next kill.
@@ -59,10 +61,11 @@ const xpOf = (kill) => {
  * Answers { [id]: { xp, raw, ev } }; nobody alive is nobody paid. `ev`: the part of `xp` the hero's multiplier added (a live event's, its
  * only user), so a personal best can leave it out (hunt_session_tally.xp_event); 0 when the multiplier is 1.
  */
-function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, tierId = 'normal') {
+function splitKillXp(xp, heroes, sc, ground, partyPm = 1000, tierId = 'normal', xpPm = 1000) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
-  const raw = xp / heroes.length;
+  /* THE MODE'S SHARE of the kill, first (never multiplied at 1000: a hunt's split is the same arithmetic it always was) */
+  const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;
   const groundId = ground ? ground.id : null;
   const cell = partyClassXp(groundId, heroes.map((h) => h.role), tierId).permille;
   const party = heroes.length > 1 && Number.isInteger(partyPm) && partyPm > 0 && partyPm !== 1000 ? (cell * partyPm) / 1000 : cell;
@@ -89,7 +92,8 @@ export function shareKillXp(inst, kill, sc) {
   const living = units.filter((u) => u.side === 'hero' && u.alive === true);
   /* the hunt's tier (hunt-tiers.js tierRowOf: its `id`; a scaled hunt's own row carries none and reads Normal's cells, its partyPm thinning them) */
   const tierId = inst && inst.tier && typeof inst.tier.id === 'string' ? inst.tier.id : 'normal';
-  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000, tierId);
+  const paid = splitKillXp(xp, living, sc, inst && inst.ground ? inst.ground : null, kill && Number.isInteger(kill.partyPm) ? kill.partyPm : 1000, tierId,
+    inst && Number.isInteger(inst.xpPm) ? inst.xpPm : 1000);
   const ids = Object.keys(paid);
   const answer = {};
   if (!ids.length) return answer;

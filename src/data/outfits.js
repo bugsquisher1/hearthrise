@@ -16,6 +16,11 @@
 //   parts     what each of those regions IS on this outfit: the word the picker shows,
 //             so the free try-on says exactly what a paid save changes here.
 //   plain     an outfit with no regions says why (the druid: the mask lane held it).
+//   bundle    the bag item whose use makes the outfit the hero's own (the Key Warden, the Hearth Chest's super-rare: the Burning
+//             Tower board §5; src/data/chests.js CHEST_OUTFITS rolls it). Owned only through it, never by premium or by everyone:
+//             hr_outfits carries the bundle (tools/gen-outfits.mjs), hr_outfit_owned owns such a row only for a hero with its
+//             player_cosmetics 'outfit' row, written once by hr_outfit_bundle_use (2027-04-30-sweeps-coat.sql), and the Character
+//             window lists it only once the server says the hero owns it.
 // DYES are the colours a region may take: DYE_COUNT tokens --dye-N in
 // src/styles/tokens.css, each a colour of the world palette. A saved colour is an
 // INDEX; the server checks it against hr_outfit_dyes.
@@ -27,8 +32,8 @@
 
 import { OUTFITS } from './hunt-outfits.js?v=0.2.135';
 
-const row = (label, premium, parts, plain) => Object.freeze({
-  label, premium, regions: Object.freeze(Object.keys(parts)), parts: Object.freeze(parts), plain: plain || null,
+const row = (label, premium, parts, plain, bundle) => Object.freeze({
+  label, premium, regions: Object.freeze(Object.keys(parts)), parts: Object.freeze(parts), plain: plain || null, bundle: bundle || null,
 });
 
 export const OUTFIT_ROWS = Object.freeze({
@@ -40,6 +45,8 @@ export const OUTFIT_ROWS = Object.freeze({
   brute: row('Quarry Brute', true, { head: 'Cap', body: 'Shirt' }),
   witch: row('Hedge Witch', true, { head: 'Hat', body: 'Robe', feet: 'Trim' }),
   dawnward: row('Dawnward', true, { body: 'Cape' }),
+  /* round 6 (Tyler's hooded keeper): the hood and its cape, the robe, the apron with the boots; the key, the singed edges and the rope stay as drawn, so no legs */
+  sweeps_coat: row('Key Warden', false, { head: 'Hood', body: 'Robe', feet: 'Apron and boots' }, null, 'sweeps_coat_bundle'),
 });
 
 /* A region's name in the creation step. */
@@ -91,6 +98,8 @@ export function validate() {
     }
     if (!r.regions.length && !r.plain) out.push(id + ': no regions, and no words saying why');
     if (r.regions.length && r.plain) out.push(id + ': it has regions, and words saying it has none');
+    if (r.bundle !== null && (typeof r.bundle !== 'string' || !/^[a-z0-9_]{1,40}$/.test(r.bundle))) out.push(id + ': its bundle is not an item id');
+    if (r.bundle && r.premium) out.push(id + ': owned through its bundle, so premium cannot own it too');
   }
   if (BASE_REGIONS.length !== MASK_COLOURS.length) out.push('a mask key for each of the hero\'s regions');
   if (!Number.isInteger(DYE_COUNT) || DYE_COUNT < 1 || DYE_COUNT > 64) out.push('DYE_COUNT must be 1..64');

@@ -21,6 +21,7 @@ export const OUTFITS = Object.freeze({
   witch: 'outfit_witch',
   dawnward: 'outfit_dawnward',
   druid: 'outfit_druid',
+  sweeps_coat: 'outfit_sweeps_coat',
 });
 
 /* role (src/data/hunt-roles.js) → the outfit it wears when the server names none. */

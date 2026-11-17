@@ -47,6 +47,7 @@ import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeti
 import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.135';
 import { aloneIn } from '../core/hunt/abilities.js?v=0.2.135';
 import { xpMultFor } from '../core/live-events.js?v=0.2.135';
+import { towerOf, towerEndsAt } from '../core/hunt/tower.js?v=0.2.135';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -204,7 +205,13 @@ export function createLiveEngine(o) {
     if (!where) return fail('no ground for the hunt ' + String(live.instance.hunt).slice(0, 60));
     const text = typeof live.instance.world === 'string' ? live.instance.world : null;
     let world, sides;
+    /* THE BURNING TOWER (src/core/hunt/tower.js): the floor the server read for this start point (hunt_live.instance.tower_floor, the
+       edge's ctx.towerFloor), and the ground's own session mode (hunt-grounds.js `mode`, the same row the server froze the instance's
+       from), so the prediction plays the climb the settle will. A climb with no floor is a start point this build can't read. */
+    const tf = live.instance.tower_floor;
+    const towerFloor = Number.isSafeInteger(tf) && tf >= 1 ? tf : null;
     try {
+      if (towerOf(where.ground) && towerFloor === null) throw new Error('tower_floor');
       world = text ? decodeWorldRow(JSON.parse(text)) : null;
       sides = live.members.slice().sort((a, b) => (a.key < b.key ? -1 : 1))
         .map((mi) => (mi.frozen ? frozenSide(mi)
@@ -215,6 +222,7 @@ export function createLiveEngine(o) {
     /* A LIVE EVENT (hunt_live.instance.live_xp): each member's Level XP windows by key, the server's own, so a kill earns here what it will there */
     const lx = live.instance.live_xp && typeof live.instance.live_xp === 'object' ? live.instance.live_xp : null;
     const s = {
+      towerFloor, sessionMode: typeof where.ground.mode === 'string' ? where.ground.mode : undefined,
       instance: String(live.instance.id),
       world, next: Number(live.instance.next_swing_at_ms), where, sides,
       /* A restarted instance's fresh world counts on from its stored swing (combat-sim.js worldSwing):
@@ -255,7 +263,8 @@ export function createLiveEngine(o) {
     const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
       worldSwing: s.worldSwing },
     { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items, ...(s.scale ? { scale: s.scale } : {}),
-      ...(s.xpMultOf ? { xpMultOf: s.xpMultOf } : {}) });
+      ...(s.xpMultOf ? { xpMultOf: s.xpMultOf } : {}), ...(s.sessionMode ? { sessionMode: s.sessionMode } : {}),
+      ...(s.towerFloor !== null ? { towerFloor: s.towerFloor } : {}) });
     /* THE INSTANCE HAS ENDED (every member left: a death and the party's end with it, a leave, stamina):
        the engine runs no swing and its clock stands. A prediction that kept calling it never caught up:
        64 empty swings a frame, then a catch-up whose loop never ended (live v0.2.22, Andy: the tab froze
@@ -416,6 +425,17 @@ export function createLiveEngine(o) {
     slotTester(unit) {
       const side = st && st.world && !st.ended ? st.sides.find((x) => x.member.unitId === unit) : null;
       return side ? slotTesterOf(st.world, st.where.grid, side.member, items) : null;
+    },
+    /**
+     * THE CLIMB in the world this prediction runs (the Burning Tower): { floor (the room standing, or about to), endsAtMs (the instant its
+     * time runs out: tower.js towerEndsAt), atMs (the instant that world stands at) }, or null off the Tower or with none running. The hunt
+     * bar reads it: display only, and every server start point replaces the floor it counts from.
+     */
+    tower() {
+      if (!st || st.ended || st.towerFloor === null) return null;
+      const w = st.world;
+      if (!w || !Number.isSafeInteger(w.towerFloor)) return { floor: st.towerFloor, endsAtMs: null, atMs: st.next };
+      return { floor: w.towerFloor, endsAtMs: towerEndsAt(w), atMs: st.next };
     },
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),

@@ -1,0 +1,245 @@
+/* ════════════════════════════════════════════════════════════════════════
+   src/styles/tower.css — THE BURNING TOWER WINDOW (src/shell/windows/tower.js, tower-chest.js, src/shell/tower-stage.js) and a climb's
+   end card (src/shell/tower-end-card.js): direction A "The Chimney" (Tyler 2026-11-16, art/review/tower-mocks).
+   The art is tools/world-art/tower-window-art.mjs's (assets/ui/tower/), laid at x2, never smoothed; its sizes and places are the custom
+   properties the modules set from src/data/tower-art.js (one source), so nothing here repeats an art number. Charcoal & Gold: every colour
+   a token; no card around anything, the heads are the shell's (.hw-hd-h), the one gold press on the foot.
+   ════════════════════════════════════════════════════════════════════════ */
+.tt-tower [hidden] { display: none; }
+.tt-top { display: flex; align-items: flex-end; column-gap: 8px; margin-bottom: 8px; border-bottom: 2px solid var(--steel-sep); }
+.tt-top .hw-tabs { flex: 1 1 auto; margin-bottom: -2px; border-bottom: 0; }
+.tt-story-link { min-height: 32px; margin-bottom: 4px; padding: 0 10px; }
+.tt-story { margin: 0 0 10px; padding: 8px 10px; background: var(--bg-0); box-shadow: var(--steel-well); }
+.tt-story p { margin: 0 0 6px; font-size: var(--t-small); line-height: 1.5; color: var(--ink); }
+.tt-now { margin: 0 0 8px; font-weight: 700; color: var(--gold-2); }
+.tt-hd { margin: 0 0 6px; }
+.tt-k { color: var(--ink-2); }
+.tt-v { color: var(--ink); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+.tt-line { margin: 0 0 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.tt-line:empty, .tt-tower .hs-note:empty { display: none; }
+
+/* ── THE CLIMB: the tower beside its column ── */
+.tt-climb { display: grid; grid-template-columns: 330px minmax(0, 1fr); column-gap: 18px; align-items: start; }
+.tt-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 100%; }
+
+/* THE STAGE: a scrolling shaft; the stack at --tr-col-x, the heroes left of it, the landings' words right of it. */
+.tt-stage { --tr-col-x: 140px; position: relative; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: var(--steel-rule) var(--steel-sep); }
+.tt-climb-stage { height: 460px; }
+.tt-shaft { position: relative; }
+.tt-col { position: absolute; top: 0; left: var(--tr-col-x); width: var(--tr-colw);
+  background: url('../../assets/ui/tower/chimney.png') 0 0 / var(--tr-colw) var(--tr-courseh) repeat-y; image-rendering: pixelated; }
+.tt-run { position: absolute; left: calc(var(--tr-col-x) - 14px); width: 4px; background: var(--gold); box-shadow: 0 0 0 2px var(--world-void); }
+.tt-land { --tr-row: 0; position: absolute; left: calc(var(--tr-col-x) - (var(--tr-lw) - var(--tr-colw)) / 2); width: var(--tr-lw); height: var(--tr-lh);
+  background: url('../../assets/ui/tower/landings.png') 0 calc(var(--tr-row) * -1 * var(--tr-lh)) / var(--tr-lw) calc(var(--tr-lrows) * var(--tr-lh)) no-repeat;
+  image-rendering: pixelated; }
+/* THE DARK above the best: four stepped bands of the void over the stones and the landings' iron, never a blur or a fade */
+.tt-dark { position: absolute; left: var(--tr-col-x); width: var(--tr-colw); pointer-events: none; }
+.tt-land[data-dark]::after { content: ''; position: absolute; inset: 0;
+  -webkit-mask: url('../../assets/ui/tower/landings.png') 0 calc(var(--tr-row) * -1 * var(--tr-lh)) / var(--tr-lw) calc(var(--tr-lrows) * var(--tr-lh)) no-repeat;
+  mask: url('../../assets/ui/tower/landings.png') 0 calc(var(--tr-row) * -1 * var(--tr-lh)) / var(--tr-lw) calc(var(--tr-lrows) * var(--tr-lh)) no-repeat; }
+.tt-dark[data-dark="1"], .tt-land[data-dark="1"]::after { background: color-mix(in srgb, var(--world-void) 34%, transparent); }
+.tt-dark[data-dark="2"], .tt-land[data-dark="2"]::after { background: color-mix(in srgb, var(--world-void) 56%, transparent); }
+.tt-dark[data-dark="3"], .tt-land[data-dark="3"]::after { background: color-mix(in srgb, var(--world-void) 74%, transparent); }
+.tt-dark[data-dark="4"], .tt-land[data-dark="4"]::after { background: color-mix(in srgb, var(--world-void) 88%, transparent); }
+.tt-tick { position: absolute; left: calc(var(--tr-col-x) + var(--tr-colw) + 8px); width: var(--tr-tw); height: var(--tr-th); pointer-events: none;
+  background: url('../../assets/ui/tower/ticks.png') calc(-1 * var(--tr-tw)) 0 / calc(2 * var(--tr-tw)) var(--tr-th); image-rendering: pixelated; }
+.tt-tick.is-lit { background-position: 0 0; }
+/* A LANDING'S WORDS: its floor and metal, a tag under them; on the Climb tab the whole row over the band is the press that picks it */
+/* the first line stands level with the band (its centre at the floor), the tag hangs under it */
+.tt-lbl { position: absolute; left: calc(var(--tr-col-x) - (var(--tr-lw) - var(--tr-colw)) / 2); right: 0; transform: translateY(-14px);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px; min-height: 36px; margin: 0;
+  padding: 5px 0 0 calc(var(--tr-lw) + 10px); border: 0; background: none; color: var(--ink-2); text-align: left;
+  font: 700 var(--t-micro)/1.1 var(--f-ui); white-space: nowrap; }
+button.tt-lbl:not(:disabled) { cursor: pointer; }
+button.tt-lbl:not(:disabled):hover .tt-n, button.tt-lbl:not(:disabled):hover .tt-w { color: var(--gold-2); }
+button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tt-l1 { display: flex; gap: 6px; align-items: baseline; }
+.tt-n { min-width: 22px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.tt-lbl.is-dark, .tt-lbl.is-dark .tt-n { color: var(--ink-3); }
+.tt-lbl.is-pick .tt-n, .tt-lbl.is-pick .tt-w { color: var(--gold-2); }
+.tt-tag { padding: 3px 6px 4px; font: 700 var(--t-micro)/1 var(--f-label); letter-spacing: .04em; }
+.tt-tag[data-tone="gold"] { color: var(--bg-0); background: var(--gold); }
+.tt-tag[data-tone="steel"] { color: var(--ink); background: var(--fill-3); }
+/* A HERO ON THE TOWER: name over floor, the head in a sunk well, a leader to the stack (gold you, green your party, steel the field) */
+.tt-mk { --tr-mk: var(--steel-btn); position: absolute; right: calc(100% - var(--tr-col-x) + 12px); transform: translateY(-50%);
+  display: flex; align-items: center; gap: 6px; white-space: nowrap; pointer-events: none; }
+.tt-mk[data-who="you"] { --tr-mk: var(--gold); }
+.tt-mk[data-who="party"] { --tr-mk: var(--world-plate-peer); }
+.tt-mk-who { display: flex; flex-direction: column; align-items: flex-end; font: 700 var(--t-micro)/1.1 var(--f-ui); color: var(--ink-2);
+  font-variant-numeric: lining-nums tabular-nums; }
+.tt-mk-who b { max-width: 84px; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+.tt-mk[data-who="you"] .tt-mk-who, .tt-mk[data-who="you"] .tt-mk-who b { color: var(--gold-2); }
+.tt-mk[data-who="party"] .tt-mk-who b { color: var(--world-plate-peer); }
+.tt-mk-well { display: grid; place-items: center; width: calc(var(--tr-hw) + 4px); height: calc(var(--tr-hh) + 4px); background: var(--bg-0); box-shadow: var(--steel-well); }
+.tt-mk[data-who="you"] .tt-mk-well { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tt-head { --tr-hi: 0; width: var(--tr-hw); height: var(--tr-hh); image-rendering: pixelated;
+  background: url('../../assets/ui/tower/heads.png') calc(var(--tr-hi) * -1 * var(--tr-hw)) 0 / calc(var(--tr-heads) * var(--tr-hw)) var(--tr-hh) no-repeat; }
+.tt-mk-line { position: absolute; left: 100%; top: 50%; width: 12px; height: 2px; margin-top: -1px; background: var(--tr-mk); }
+
+/* THE COLUMN: Best Floor, Next Key and its ticks, what a climb pays, the Start Floor and Enter on the foot */
+.tt-best { display: flex; align-items: baseline; gap: 10px; margin: 0; }
+.tt-big { font: 700 var(--t-num)/1 var(--f-ui); color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.tt-rank { display: inline-flex; gap: 6px; align-items: baseline; }
+.tt-next-row { display: flex; align-items: center; gap: 10px; }
+.tt-key-well { display: grid; place-items: center; flex: none; width: 72px; height: 72px; background: var(--bg-0); box-shadow: var(--steel-well); }
+.tt-key-ico { width: 64px; height: 64px; image-rendering: pixelated; }
+.tt-next-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tt-next-name { color: var(--ink); white-space: nowrap; }
+.tt-next-floor { color: var(--ink-2); font-size: var(--t-micro); }
+.tt-pips { display: flex; gap: 4px; margin-top: 8px; }
+.tt-pip { width: 14px; height: 14px; background: var(--bg-0); box-shadow: var(--steel-well); }
+.tt-pip.is-on { background: var(--gold); box-shadow: inset -2px -2px 0 var(--gold-3), inset 2px 2px 0 var(--gold-2); }
+.tt-rows { display: flex; flex-direction: column; }
+.tt-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--steel-sep); font-size: var(--t-small); }
+.tt-row:last-child { border-bottom: 0; }
+.tt-row .tt-v { margin-left: auto; text-align: right; }
+.tt-foot { position: sticky; bottom: -12px; margin: auto 0 -12px; padding: 4px 0 12px; background: var(--bg-1); }
+.tt-start-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--t-small); }
+.tt-start-row .hh-select { flex: 0 1 auto; margin-left: auto; min-width: 96px; min-height: 36px; font-size: var(--t-small); font-weight: 700; }
+.tt-foot .hw-why { margin: 0 2px 6px; }
+.tt-foot .hw-why:empty { display: none; }
+.tt-go { display: block; width: 100%; min-height: 40px; }
+
+/* ── THE CHEST: the firebox, the chest on the ledge beside the fire, the reveal where the chest sits ── */
+.tc-scene { position: relative; width: var(--tr-sw); max-width: 100%; height: var(--tr-sh); margin: 0 auto 8px; overflow: hidden; }
+.tc-scene-art { position: absolute; left: 50%; top: 0; width: var(--tr-sw); height: var(--tr-sh); margin-left: calc(var(--tr-sw) / -2); image-rendering: pixelated;
+  background: url('../../assets/ui/tower/firebox.png') 0 0 / var(--tr-sw) var(--tr-sh) no-repeat; }
+.tc-fire { position: absolute; left: var(--tr-fx); top: var(--tr-fy); width: var(--tr-fw); height: var(--tr-fh); image-rendering: pixelated;
+  background: url('../../assets/ui/tower/fire.png') 0 0 / calc(var(--tr-fn) * var(--tr-fw)) var(--tr-fh) no-repeat;
+  animation: tc-loop var(--tr-fms) steps(var(--tr-fn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-fn)) * var(--tr-fw)); }
+.tc-chest { position: absolute; left: var(--tr-cx); top: var(--tr-cy); width: var(--tr-cw); height: var(--tr-ch); image-rendering: pixelated;
+  background: url('../../assets/ui/tower/chest.png') 0 0 / calc(var(--tr-cn) * var(--tr-cw)) var(--tr-ch) no-repeat;
+  animation: tc-loop var(--tr-cms) steps(var(--tr-cn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-cn)) * var(--tr-cw)); }
+@keyframes tc-loop { from { background-position: 0 0; } to { background-position: var(--tr-loop) 0; } }
+.tc-scene.is-open .tc-chest { visibility: hidden; }
+.tc-reveal-slot { position: absolute; left: var(--tr-rx); top: var(--tr-ry); }
+/* THE REVEAL (revealHtml; the strips are tools/world-art/tower-art.mjs): 48 x 64 art px frames at x2, stepped, never smoothed, the open
+   box exactly over the shut chest. The key's lock catches the light, the lid lifts on its fire, embers climb (8 frames); a weapon's column
+   rises (4) and its icon climbs out of the chest's mouth in whole art pixels. Reduced motion shows the last frame of each, still. */
+.tc-reveal { position: relative; width: 96px; height: 128px; }
+.tc-reveal-chest, .tc-reveal-col { position: absolute; inset: 0; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; }
+.tc-reveal-chest { background-size: 768px 128px; animation: tc-open 800ms steps(7, jump-none) forwards; }
+.tc-reveal-col { background-size: 384px 128px; opacity: 0; animation: tc-col 300ms steps(3, jump-none) 800ms forwards; }
+.tc-reveal-item { position: absolute; left: 14px; top: 68px; width: 64px; height: 64px; image-rendering: pixelated; opacity: 0;
+  animation: tc-rise 400ms steps(8, jump-none) 900ms forwards; }
+@keyframes tc-open { from { background-position: 0 0; } to { background-position: -672px 0; } }
+@keyframes tc-col { from { opacity: 1; background-position: 0 0; } to { opacity: 1; background-position: -288px 0; } }
+@keyframes tc-rise { from { opacity: 1; transform: translateY(0); } to { opacity: 1; transform: translateY(-64px); } }
+.tc-reveal[data-key="bronze"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-bronze.png'); }
+.tc-reveal[data-key="silver"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-silver.png'); }
+.tc-reveal[data-key="gold"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-gold.png'); }
+.tc-reveal[data-key="platinum"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-platinum.png'); }
+.tc-reveal[data-key="bronze"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-bronze.png'); }
+.tc-reveal[data-key="silver"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-silver.png'); }
+.tc-reveal[data-key="gold"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-gold.png'); }
+.tc-reveal[data-key="platinum"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-platinum.png'); }
+@media (prefers-reduced-motion: reduce) {
+  .tc-fire, .tc-chest, .tc-reveal-chest, .tc-reveal-col, .tc-reveal-item { animation: none; }
+  .tc-reveal-chest { background-position: -672px 0; }
+  .tc-reveal-col { opacity: 1; background-position: -288px 0; }
+  .tc-reveal-item { opacity: 1; transform: translateY(-64px); }
+}
+/* THE LOOT under the scene: a sunk pocket an item, the weapon's name in gold */
+.tt-result { margin: 0 0 8px; }
+.tc-loot-head { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
+.tc-loot-head .tt-hd { flex: 1; margin: 0; }
+.tc-keys-back { min-height: 32px; padding: 0 12px; }
+.tc-used { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.tc-loot { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.tc-loot-item { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 8px 0 0; background: var(--bg-0); box-shadow: var(--steel-well); }
+.tc-loot-item img { width: 64px; height: 64px; flex: none; image-rendering: pixelated; }
+.tc-loot-item > span { display: flex; flex-direction: column; min-width: 0; font-size: var(--t-micro); }
+.tc-loot-item b { line-height: 1.15; }
+.tt-found { color: var(--gold-2); }
+.tc-loot-name { color: var(--ink); }
+.tc-loot-sub { color: var(--ink-2); }
+/* THE KEYS by metal: a sunk slot a key, its icon, held count and weapon chance; the picked gold, one not held dim */
+.tc-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; margin: 0 0 8px; }
+.tc-pick { display: flex; align-items: center; gap: 6px; min-height: 64px; padding: 0 8px 0 0; border: 0; background: var(--bg-0);
+  box-shadow: var(--steel-well); color: var(--ink); text-align: left; cursor: pointer; }
+.tc-pick-ico { width: 64px; height: 64px; flex: none; image-rendering: pixelated; }
+.tc-pick-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--t-micro); }
+.tc-pick-sub { display: flex; gap: 6px; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.tc-pick-n { color: var(--ink); }
+.tc-pick[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; box-shadow: inset 4px 0 0 var(--gold); background: var(--fill-3); }
+.tc-pick[aria-checked="true"] .tc-pick-name { color: var(--gold-2); }
+.tc-pick:hover:not(:disabled) .tc-pick-name { color: var(--gold-2); }
+.tc-pick:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tc-pick:disabled { cursor: default; }
+.tc-pick.is-none { opacity: .42; }
+/* OPENS LEFT, an ember a chest this week, and keys held (one row a key family) */
+.tc-fam { display: flex; flex-wrap: wrap; align-items: center; column-gap: 18px; row-gap: 4px; margin: 0 0 6px; font-size: var(--t-small); }
+.tc-fam-name { flex: 1 0 100%; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.tc-fam-week, .tc-fam-held { display: flex; align-items: center; gap: 8px; margin: 0; }
+.tc-fam-held { margin-left: auto; }
+.tc-embers { display: inline-flex; gap: 4px; }
+.tc-ember { width: 16px; height: 16px; image-rendering: pixelated; background: url('../../assets/ui/tower/embers.png') -16px 0 / 32px 16px no-repeat; }
+.tc-ember.is-lit { background-position: 0 0; }
+/* STOKE: one press a count, its Cinders under it; the chance it moves at the right in gold */
+.tc-stoke-box { margin: 0 0 4px; }
+.tc-stoke-row { display: flex; align-items: center; gap: 12px; }
+.tc-stokes { display: flex; }
+.tc-stoke { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 58px; min-height: 40px; padding: 3px 10px;
+  border: 0; background: var(--bg-0); box-shadow: var(--steel-well); color: var(--ink-2); cursor: pointer; font: 700 var(--t-micro)/1.15 var(--f-ui); }
+.tc-stoke-cost { font-weight: 500; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.tc-stoke-cost:empty { display: none; }
+.tc-stoke[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; background: var(--fill-3); color: var(--gold-2); }
+.tc-stoke:hover:not(:disabled) { color: var(--gold-2); }
+.tc-stoke:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tc-stoke:disabled { cursor: default; opacity: .6; }
+.tc-chance { display: flex; align-items: baseline; gap: 6px; margin: 0 0 0 auto; }
+.tc-chance-v { font-size: var(--t-lead); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.tc-meta { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 18px; margin: 0 0 4px; font-size: var(--t-small); }
+.tc-meta p { display: flex; gap: 6px; margin: 0; }
+.tc-meta .tc-hand { display: none; }
+/* A PRESS'S ANSWER in the keys' and stokes' place: the loot, the week, the keys of that kind left and the warmth */
+.is-result .tc-keys, .is-result .tc-none, .is-result .tc-stoke-box, .is-result .tc-cinders, .is-result .tc-resets { display: none; }
+.is-result .tc-meta .tc-hand { display: flex; margin-left: auto; }
+.is-result .tc-meta { justify-content: flex-start; }
+.tc-resets { margin: 0 0 4px; }
+.tc-uses { display: flex; gap: 8px; }
+.tc-use { flex: 1; min-height: 40px; }
+.tc-use-all { flex: none; min-height: 40px; padding: 0 16px; }
+
+/* ── THE PHONE (922 x 423 and smaller): one sheet; the tower (its narrower stack, the floors' numbers and tags) beside its column, the
+   rules under the fold; the scene's ledge view, the chest and the fire both in it ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .tt-climb { grid-template-columns: 264px minmax(0, 1fr); column-gap: 8px; }
+  .tt-stage { --tr-col-x: 102px; }
+  .tt-climb-stage .tt-mk { right: calc(100% - var(--tr-col-x) + 8px); }
+  .tt-climb-stage .tt-mk-line { width: 8px; }
+  .tt-climb-stage { height: 270px; }
+  .tt-climb-stage .tt-shaft { --tr-colw: var(--tr-colw-n); --tr-lw: var(--tr-lw-n); }
+  .tt-climb-stage .tt-col { background-image: url('../../assets/ui/tower/chimney-narrow.png'); }
+  .tt-climb-stage .tt-land { background-image: url('../../assets/ui/tower/landings-narrow.png'); }
+  .tt-climb-stage .tt-land[data-dark]::after { -webkit-mask-image: url('../../assets/ui/tower/landings-narrow.png'); mask-image: url('../../assets/ui/tower/landings-narrow.png'); }
+  .tt-climb-stage .tt-w { display: none; }
+  .tt-climb-stage .tt-lbl { padding-left: calc(var(--tr-lw) + 4px); }
+  .tt-mk-who b { max-width: 40px; }
+  .tt-side { gap: 8px; }
+  .tt-rules-box { display: none; }
+  .tt-next .tt-hd { display: none; }
+  .tt-next-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .tt-pips { gap: 2px; margin-top: 6px; }
+  .tt-pip { width: 7px; height: 8px; }
+  .tt-big { font-size: var(--t-h2); }
+  .tt-foot, .tt-foot.tc-foot { position: static; margin: auto 0 0; padding-bottom: 4px; }
+  .tt-start-row { flex-direction: column; align-items: stretch; gap: 4px; margin-bottom: 6px; }
+  .tt-start-row .hh-select { margin-left: 0; min-width: 0; padding: 0 2px 0 6px; font-size: var(--t-micro); }
+  .tc-scene { width: var(--tr-pvw); height: var(--tr-pvh); }
+  .tc-scene-art { left: 0; top: calc(-1 * var(--tr-pvy)); margin-left: calc(-1 * var(--tr-pvx)); }
+  .tc-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tc-loot { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tc-stoke { min-width: 44px; padding: 4px 6px; }
+  .tc-stoke-row { flex-wrap: wrap; }
+}
+
+/* ── A CLIMB'S END CARD (the hunt summary, src/shell/tower-end-card.js): the run up the stack, the rows and the keys under it ── */
+.hsum-climb { margin: 8px 0 10px; }
+.te-wrap { display: flex; flex-direction: column; gap: 10px; }
+.te-stage { --tr-col-x: 132px; max-height: 260px; }
+.te-side { display: flex; flex-direction: column; gap: 10px; }
+.te-rows .tt-row.is-gold .tt-v { color: var(--gold-2); }
+.te-keys { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.te-key { display: flex; align-items: center; gap: 10px; }

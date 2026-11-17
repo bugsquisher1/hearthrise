@@ -935,6 +935,12 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Three guards sat on their bar with no room (a rung at +5.3% on +5%, a drop at 9.8 h on 10 h, a min-of-six margin). Any change to the fight's dice turns those red. Give the row room, or the guard reads a mean.
 - A rung mutant must sit outside the dice: two seeds by one hour read a rung to about a point and a half.
 - The sim's slotsByRole replaces EVERY role's default lane, not only the role named. Give every role its slots or the bills are fiction.
+
+## 2026-11-16 lane/d-tower-weapons (the 28 tower weapons, +skill on worn gear)
+- A +skill is worth whole max-hit steps (0.35 a level), so +1 to +4 reads flat at some Levels and jumps at others. Prove the rule as an identity (tower weapon at skill S == twin at S+N, every foe), and read the XP effect in bands on six seeds.
+- +4 at Levels 45-90 is 0.4-4.3% Level XP an hour, casters least. A design line that says "+4 is about a tier" was read at one Level on one ground: measure the claim where the item is worn before repeating it.
+- A staged migration's own probe can depend on a catalogue being EMPTY (the chest's §9 "no weapon is built"). When data fills a table, grep the staged files' probes for that assumption first.
+- Name a batch with the lore's own split (each lock a part of town history) and cap a pattern (at most four "X's Weapon" a key). The audit still found two place words repeated in seven lines.
 ## 2026-11-15 lane/d-coherence-133 (coherence pass: v0.2.133 + the day's lanes, CLAUDE.md §3.5)
 - `cell.mjs` takes `skillsBySeat: [{ melee, ranged, magic, defense }]` and `options: { tier }`, so a +skill or "trains every spare hour" question is one scratch script and a few seconds a cell. Use the career's skill at a Level (the training lane's table: 22 at Level 10, 37 at 25), never skill = Level, or a training gain reads 2 to 3 times too big.
 - "+Magic does nothing" at the Hold is the Mage being spawn-bound (lowest typical HP 98.8%, 1.47x a hammer), not a flat formula (`abilities.js` lvPm is +2% of base a level). Before calling a stat worthless, check whether the hero measured is already capped by monster supply.

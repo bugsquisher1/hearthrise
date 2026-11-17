@@ -24,7 +24,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, CALLED_HUNTS, OPEN_HALL_HUNTS, TRAINING_HUNTS, TOWER_HUNTS } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
 import { wholeViewOrRerun } from './pack/whole.mjs';
@@ -47,7 +47,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    server rows (their kill bounds and drops' bids, restated by the whole hunt-sessions file), and tools/pack's GP-3 holds an applied pack file to what ship renders
    today unless every whole file carries the pack. This forward file is the same rows as 2027-04-16 with the five 2027-04-22 packs' hr_hunts rows folded in:
    no row moves. */
-export const OUT_NAME = '2027-04-27-march-folded-hunts-catalogue.generated.sql';
+/* 2027-04-16 is the file before this one. THE BURNING TOWER (lane/c-tower-climb, Tyler 2026-11-14; src/data/tower.js) joins hr_hunts in this forward
+   file, with no spawn row (its one door is hr_tower_start, its rooms the engine's: src/core/hunt/tower.js): hunts.js TOWER_HUNTS. It applies AFTER
+   2027-04-24-tower-climb.sql, whose hr_hunt_admit sends the Tower to its one door before the ordinary gate reads hr_hunts, and its self-check
+   refuses to land before that door stands: a Tower in hr_hunts with no door would be one the ordinary hr_hunt_enter opens. */
+/* THE BURNING TOWER ON THE v0.2.135 SET (lane/c-tower-all, backend-architect, 2026-11-17; the Coordinator: one generator, ONE forward file regenerated on
+   the assembled branch): 2027-04-27-march-folded-hunts-catalogue is the file before this one and this one carries it whole, the March packs folded in. It
+   collapses 2027-04-24-tower-climb-hunts-catalogue (STAGED, never applied, now deleted): the Tower's one hr_hunts row joins here, and the file still
+   refuses to land before 2027-04-24-tower-climb.sql's hr_hunt_admit sends the Tower to its one door. ORDER: right after 2027-04-24-tower-climb.sql. */
+export const OUT_NAME = '2027-05-02-tower-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -92,14 +100,26 @@ export function huntRows(hunts, monsters) {
       return [s.monster, s.w];
     });
     if (!own(monsters, h.art)) throw new Error(`hunt ${h.id} art ${h.art} is not a monster id`);
-    /* A called room's, a keyed hall's and a training ground's one door is its verb (hr_boss_call, hr_boss_hall_enter, hr_training_start): no spawn row names its foe. */
-    return { id: h.id, lo, hi, spawns: h.called === true || h.hall === true || h.train ? [] : spawns };
+    /* A called room's, a keyed hall's, a training ground's and the Tower's one door is its verb (hr_boss_call, hr_boss_hall_enter, hr_training_start,
+       hr_tower_start): no spawn row names its foe. */
+    return { id: h.id, lo, hi, spawns: h.called === true || h.hall === true || h.train || h.tower === true ? [] : spawns };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 
 /* A STAGED hunt (hunts.js `staged`: built, art pending) is not served: hr_hunts never names it. */
-export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...OPEN_HALL_HUNTS, ...TRAINING_HUNTS], monsters = MONSTERS) {
+export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...OPEN_HALL_HUNTS, ...TRAINING_HUNTS, ...TOWER_HUNTS], monsters = MONSTERS) {
   const r = huntRows(hunts, monsters);
+  /* THE TOWER'S DOOR FIRST (2027-04-24-tower-climb.sql): its hunt is in hr_hunts only where hr_hunt_admit already sends it to hr_tower_start */
+  const towers = hunts.filter((h) => h.tower === true).map((h) => `'${h.id}'`);
+  const doorFirst = towers.length ? `do $$
+begin
+  if strpos(coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.hr_hunt_admit(uuid,integer,text)')), ''), 'tower_only') = 0
+     or not exists (select 1 from public.hr_tower_rules r where r.hunt_id = any (array[${towers.join(', ')}]::text[])) then
+    raise exception 'PRECONDITION: apply 2027-04-24-tower-climb.sql first: the Tower joins hr_hunts only once hr_hunt_admit sends it to its one door';
+  end if;
+end $$;
+
+` : '';
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
   const nSpawns = r.reduce((n, h) => n + h.spawns.length, 0);
   const huntValues = r.map((h) => `  ('${h.id}', ${h.lo}, ${h.hi})`).join(',\n');
@@ -116,9 +136,11 @@ export function render(hunts = [...OPEN_HUNTS, ...CALLED_HUNTS, ...OPEN_HALL_HUN
 -- Read by hr_apply (2026-10-20-hunts-start-gate.sql): the band floor and the
 -- spawn set. Server-only: RLS on, NO policy, no client grant (the client reads
 -- src/data/hunts.js). Idempotent: delete+insert inside the migration.
+-- THE BURNING TOWER (lane/c-tower-climb, 2026-11-15): its hunt joins with no spawn row, and only once its one door stands (the check below).
+-- STATUS: STAGED, NOT APPLIED. ORDER: right AFTER 2027-04-24-tower-climb.sql, the last of the lane's five.
 -- ════════════════════════════════════════════════════════════════════════
 
-create table if not exists public.hr_hunts (
+${doorFirst}create table if not exists public.hr_hunts (
   hunt_id  text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   band_min int  not null check (band_min >= 0),
   band_max int  not null,

@@ -21,6 +21,7 @@ import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.135';
 import { connection } from '../../net/connection.js?v=0.2.135';
 import { t } from '../../render/player-text.js?v=0.2.135';
 import { trainingNowOf } from '../training-now.js?v=0.2.135';
+import { patchTowerBar } from './tower-bar.js?v=0.2.135';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'hud.leaving', now: 'hud.leaving_now', late: 'hud.leaving_late' });
@@ -44,6 +45,8 @@ export function renderHuntTopbar() {
        Stop training. */
     + '<b class="ht-ground"><span class="ht-name"></span><span class="ht-wide ht-at"></span></b><span class="ht-clock" title="' + t('hud.top_clock') + '"></span>'
     + '<span class="ht-wide ht-fee" hidden></span>'
+    /* THE BURNING TOWER: the floor standing and its time left (./tower-bar.js), quiet off the Tower */
+    + '<span class="ht-tower" role="timer" hidden><b class="ht-floor"></b><span class="ht-floor-left"></span></span>'
     /* The phone's bar has the width beside the Party panel only: "Details" and "Leave" there (hunt.css .ht-wide). */
     + '<button type="button" class="hh-tool" data-hs-act="details" aria-label="' + t('hud.top_details_aria') + '"><span class="ht-wide ht-hunt-word">' + t('hud.top_hunt_word') + ' </span><span class="ht-det-word">' + t('hud.top_details_word') + '</span></button>'
     + '<button type="button" class="hh-tool" data-hs-act="summary">' + t('hud.top_summary') + '</button>'
@@ -81,6 +84,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   prop(fee, 'hidden', !(train && train.feeH !== null));
   prop(el.querySelector('.ht-hunt-word'), 'hidden', !!train);
   text(el.querySelector('.ht-det-word'), t(train ? 'training.bar_details' : 'hud.top_details_word'));
+  patchTowerBar(el.querySelector('.ht-tower'), ctx.character, h);
   const leave = el.querySelector('.is-leave');
   prop(leave.querySelector('.ht-leave-hunt'), 'hidden', !!train);
   prop(leave.querySelector('.ht-leave-train'), 'hidden', !train);

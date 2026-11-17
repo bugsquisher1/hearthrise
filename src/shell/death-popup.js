@@ -25,6 +25,7 @@ import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.135';
 import { huntName } from '../session/party-sections.js?v=0.2.135';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.135';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.135';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.135';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.135';
 import { whole } from '../render/format.js?v=0.2.135';
 import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.135';
@@ -63,6 +64,8 @@ export function deathSeen(cs, session) {
 export function deathPopupOf(cs) {
   const h = huntOf(cs);
   if (!h || !h.ended || h.endReason !== 'died' || deathSeen(cs, h.sessionId)) return null;
+  /* THE BURNING TOWER: nobody dies there, the Hearth spits you out and it costs nothing (the board's §1). The climb's end card says so. */
+  if (h.huntId === TOWER_RULES.hunt) return null;
   const log = deathLogOf(cs);
   const row = log && log[0];
   /* The newest row must be THIS hunt's death (a row with no session is an older server's: the newest). */

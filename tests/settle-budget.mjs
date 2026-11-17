@@ -117,7 +117,9 @@ const SEQUENCE_REFS = Object.freeze({ 'public.hunt_session_tally': ['ledger_hwm'
 const PRE_NAMES = Object.freeze({ hrsr_role_of: 'hr_hunt_role_of', hrsr_role_view: 'hr_role_view', hrsr_sections: 'hr_state_sections_of' });
 /* Bodies a LATER file moved on purpose. Their old pre-image would undo that file, not the settle-cost lanes (party-truth's why a
    friend's end sent a hero home; bench tax's gold kind), so the "before" image holds the body as the chain ended, taken before any plant. */
-const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql', hr_gold_kind: '2027-02-19-bench-tax.sql', hr_social_party_view: '2027-03-05-hero-colors.sql' });
+const RESTATED_AFTER = Object.freeze({ hr_hunt_view: '2027-02-18-party-truth.sql', hr_gold_kind: '2027-02-19-bench-tax.sql', hr_social_party_view: '2027-03-05-hero-colors.sql',
+  /* a bundle outfit (the Sweep's Coat) is owned only by the hero that used its bundle: the plan cache's SQL pre-image owns it for everyone */
+  hr_outfit_owned: '2027-04-30-sweeps-coat.sql' });
 /** The pre-image DDL the lane's files carry (their pg_temp copies), renamed back to the public functions they were. */
 export function preImages() {
   const out = [];
@@ -272,6 +274,11 @@ export const MUTANTS = [
   { name: 'immutableBackToSql', why: 'hr_jsonb_add (IMMUTABLE, 300 calls a settle) is SQL again', expect: 'SB-3', plant: backToSql('hr_jsonb_add') },
   { name: 'setofBackToSql', why: 'hr_unlock_levels (RETURNS TABLE) is SQL again', expect: 'SB-3', plant: backToSql('hr_unlock_levels') },
   { name: 'sectionBackToSql', why: 'hr_premium_view (once an envelope) is SQL again', expect: 'SB-3', plant: backToSql('hr_premium_view') },
+  /* lane/c-tower-paydown: the Burning Tower's floor read (hr_hunt_instance_read, every hunt's every settle) as 2027-04-24-tower-climb.sql first
+     staged it, a SET-clause SQL function */
+  { name: 'towerFloorBackToSql', why: 'hr_tower_floor_of (every instance read) is a SET-clause SQL function again', expect: 'SB-3',
+    plant: `create or replace function public.hr_tower_floor_of(p_instance uuid) returns int language sql stable set search_path = public, pg_catalog
+      as $m$ select max(coalesce(r.top_floor + 1, r.start_floor)) from public.tower_runs r where r.instance_id = p_instance and r.ended_at is null $m$;` },
 ];
 
 async function main() {

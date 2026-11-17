@@ -35,10 +35,10 @@ const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
- *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye)
+ *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object, pours?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye); pours: monsters in a pour (monster-pour.js createMonsterPour: the Burning Tower's fire)
  */
 export function createCanvasBackend(o) {
-  const { win, doc, css, dyes } = o;
+  const { win, doc, css, dyes, pours } = o;
   let { book, images, tables } = o;
   const tone = (name) => css('--world-' + name);
   const layer = (opts) => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d', opts) }; };
@@ -106,7 +106,9 @@ export function createCanvasBackend(o) {
 
   function blit(g, d, view) {
     if (d.kind === 'void') { g.fillStyle = tone('void'); g.fillRect(d.x - view.ox, d.y - view.oy, d.w, d.h); return; }
-    const s = source(d);
+    /* A UNIT IN A POUR (monster-pour.js) draws from its baked sheet, and not at all until it is baked: never its own colours for a flicker */
+    const s = d.pour && pours ? pours.source(d.id, d.pour, d.sx, d.sy) : source(d);
+    if (!s) return;
     g.drawImage(s.img, s.sx, s.sy, d.w, d.h, d.x - view.ox, d.y - view.oy, d.w, d.h);
   }
 
@@ -472,11 +474,14 @@ export function createCanvasBackend(o) {
     s.add(list);
     for (const l of [list.decals, list.sprites, list.raised, list.fx]) for (const d of l) s.add(!!images[d.set]);
     if (dyes) for (const d of list.sprites) if (d.dye) s.add(dyes.has(d.id, d.dye));
+    if (pours) for (const d of list.sprites) if (d.pour) s.add(pours.has(d.id, d.pour));
     return s.end();
   }
 
   /* THE FRAME'S COLORS (hero-dye.js): every dyed unit it draws, then at most one bake, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
   function wantDyes(list) {
+    /* and every poured unit's sheet, at most one bake a frame (monster-pour.js) */
+    if (pours) { for (const d of list.sprites) if (d.pour) pours.want(d.id, d.pour, book.sprite(d.id), images[d.set]); pours.pump(); }
     if (!dyes) return;
     for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);
     dyes.pump();

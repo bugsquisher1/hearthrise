@@ -52,6 +52,11 @@ export const FAMILY_FUELS = Object.freeze(['lamp_jelly', 'dry_husk', 'pithwood']
 export const HEARTH_FUELS = Object.freeze([
   fuel('bones', FLAME_FUEL.recipeXp, 1, 400, 'fuel_bone'),
   ...FAMILY_FUELS.map((item) => fuel(item, FLAME_FUEL.recipeXp, 1, 400, 'fuel_' + item)),
+  /* TOWER CINDERS (lane/c-tower-chest; the Burning Tower board §5, Tyler 2026-11-14): the chest's own fuel, burnt in the fire it came
+     out of. The design sizes 50 at "about 1,950 Inner Flame XP ... an hour of a hunt's bones": 100 pre-dial a Cinder (39 paid, 2.5 bones'
+     worth), burning at a bone's XP a second (1,000 ms, 2.5 x a bone's 400), from Inner Flame 1 like a bone. Its only other door is the
+     chest's stokes (src/data/chests.js). The chest's Cinders are bound: they come from no kill, floor or death. */
+  fuel('tower_cinders', 100, 1, 1000, 'fuel_coal'),
   /* Big Bones paid 15, under a plain bone's 40 (the board's "15 -> retuned"): the designer's retune puts it between
      Bones and Dragon Bones (game-designer call, lane/b-inner-flame 2026-10-27) */
   fuel('big_bones', 60, 15, 1500, 'fuel_bone'),

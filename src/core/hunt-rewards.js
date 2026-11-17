@@ -62,12 +62,14 @@ function defenseXp(m, attacker, missed, ctx) {
   return (lv * COMBAT_XP.defenseXpPerLevelPermille / 1000) * (missed && m.shield === true ? COMBAT_XP.blockMult : 1);
 }
 
-/* The kill counters every hero in the instance earns for one monster kill. */
-function countKill(m, kind) {
+/* The kill counters every hero in the instance earns for one monster kill. The session's tally and the lifetime count always (the settle
+   bounds a window by its kills); the Bestiary's and the tasks' (`updateQuest`) only where the session mode counts them (`bestiary`). */
+function countKill(m, kind, bestiary) {
   const st = m.state;
   st.stats = st.stats || {};
   st.stats.kills = (st.stats.kills || 0) + 1;
   m.hs.tally.kills += 1;
+  if (!bestiary) return;
   call(m.fx, 'updateQuest', 'kill_any', 1, { target: kind });
   call(m.fx, 'updateQuest', 'kill_monster', 1, { target: kind });
 }
@@ -107,8 +109,13 @@ function payPrize(present, ids, row, ctx, atMs) {
    order; `ids` their unit ids), and the Hearthfind for `killer`. A rare unit
    goes to the rare roll, its rotation kept on `world.rareWon`. */
 function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
-  const row = (ctx.monsters || MONSTERS)[kind];
-  if (!row) return;
+  /* WHAT THE SESSION MODE PAYS (session-modes.js; ctx.pay, absent in a full hunt): a mode that pays no coin or no drops kills a row that
+     has none, by this one door (the settle refuses a window that says otherwise: mode_pays); one that counts no Bestiary counts the
+     session's kill and nothing else (countKill), and draws no Hearthfind. */
+  const pay = ctx.pay || null;
+  const row0 = (ctx.monsters || MONSTERS)[kind];
+  if (!row0) return;
+  const row = !pay || (pay.coin && pay.drops) ? row0 : { ...row0, ...(pay.coin ? {} : { gp: null }), ...(pay.drops ? {} : { drops: [] }) };
   const rng = ctx.rng;
   /* THE ROW'S WHOLE KILL for every party size (Tyler 2026-11-08: one difficulty for every group), shared by who was there. */
   const gp = Array.isArray(row.gp) ? rng.int(row.gp[0], row.gp[1]) : 0;
@@ -124,9 +131,10 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
      never the shared table. Every other kill, his adds' included, rolls as it always did, draw for draw. */
   if (ctx.prize === kind) payPrize(present, ids, row, ctx, atMs);
   else payDrops(present, ids, lead, row, ctx, world, atMs);
-  for (const m of present) countKill(m, kind);
+  for (const m of present) countKill(m, kind, !pay || pay.bestiary);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
-     who landed it. The grant is hr_apply's, from its own catalogue. */
+     who landed it. The grant is hr_apply's, from its own catalogue. Never in a mode that counts no Bestiary. */
+  if (pay && !pay.bestiary) return;
   const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind };
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
@@ -187,7 +195,8 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
  * `ctx` = { rng (the swing's `r` stream), monsters?, tier? (the hunt's hunt-tiers.js row), hearthfind? (the indexed table; the catalogue's when absent),
  *   emit?(event) (the instance's world events: a party's `rare_roll`), call? (the room's boss call: it pays only his drops, on his kill),
  *   prize? (a keyed hall's boss, by id: his rows are each hero's own daily roll, payPrize),
- *   train? (a training ground's { place, skill }: it pays that skill only, src/core/hunt/training.js) }.
+ *   train? (a training ground's { place, skill }: it pays that skill only, src/core/hunt/training.js),
+ *   pay? (the session mode's { xpPm, coin, drops, bestiary }, session-modes.js sessionPayOf; absent in a full hunt: every route pays whole) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {
@@ -197,6 +206,9 @@ export function rewardSwing(members, events, world, ctx) {
   if (ctx.call) return calledSwing(members, events, world, unitOf, ctx.call.monster, ctx);
   /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
   if (ctx.train) return trainingSwing(members, events, unitOf);
+  /* A SESSION MODE'S SHARE OF EVERY SKILL ROUTE (session-modes.js xpPm; Level XP takes it at the split, xp-share.js): never multiplied at 1000. */
+  const pm = ctx.pay && Number.isInteger(ctx.pay.xpPm) && ctx.pay.xpPm !== 1000 ? ctx.pay.xpPm : null;
+  const share = (n) => (pm === null ? n : (n * pm) / 1000);
   const deaths = [];
   for (const ev of events) {
     switch (ev.type) {
@@ -209,13 +221,13 @@ export function rewardSwing(members, events, world, ctx) {
         const m = members.get(ev.u);
         const t = unitOf(ev.t);
         if (m && t && t.side === 'mon' && ev.amount > 0 && DAMAGE_XP_FAMILIES.includes(m.family)) {
-          call(m.fx, 'addXp', FAMILY_SKILL[m.family], ev.amount * COMBAT_XP.hitXpPerDamage);
+          call(m.fx, 'addXp', FAMILY_SKILL[m.family], share(ev.amount * COMBAT_XP.hitXpPerDamage));
         }
         if (m && ev.crit === true) { m.state.stats = m.state.stats || {}; m.state.stats.crits = (m.state.stats.crits || 0) + 1; }
         /* A status tick (`dot`: poison, burn, bleed) is not a blow: it trains no Defense (Tyler 2026-10-22). */
         const hit = ev.dot === true ? null : members.get(ev.t);
         const d = hit ? defenseXp(hit, unitOf(ev.u), false, ctx) : 0;
-        if (d > 0) call(hit.fx, 'addXp', 'defense', d);
+        if (d > 0) call(hit.fx, 'addXp', 'defense', share(d));
         break;
       }
       case 'miss': {
@@ -223,7 +235,7 @@ export function rewardSwing(members, events, world, ctx) {
            footwork: it trains Defense like any blow taken, never at a shield block's rate. */
         const aimed = members.get(ev.t);
         const d = aimed ? defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx) : 0;
-        if (d > 0) call(aimed.fx, 'addXp', 'defense', d);
+        if (d > 0) call(aimed.fx, 'addXp', 'defense', share(d));
         break;
       }
       case 'cast':
@@ -231,7 +243,7 @@ export function rewardSwing(members, events, world, ctx) {
       case 'shot': {
         const m = members.get(ev.u);
         const n = m && ev.mana > 0 && ev.magicXpMult > 0 ? magicXpFor(ev.mana, ev.magicXpMult / 1000) : 0;
-        if (n > 0) call(m.fx, 'addXp', 'magic', n);
+        if (n > 0) call(m.fx, 'addXp', 'magic', share(n));
         break;
       }
       case 'kill': {

@@ -16,12 +16,17 @@
 //                bounds the debit by the same share (hr_death_xp_mode_max), so a bug in one can't cost anyone XP.
 //   blessings    a death uses up the Blessings held (blessings.js). False: a death leaves them for the next real hunt
 //                (hr_hunt_apply_member never calls hr_blessing_take).
-//   coin, drops  a kill pays coin / drops loot (no bones, no rare roll).                } What a mode PAYS is read from phase 2
-//   xpPm         a kill's Level and skill XP, in permille of the formula's.            } (the Tower's ground): the engine pays the
-//   bestiary     a kill counts for the Bestiary, tasks and Hearthfind.                  } row and the settle refuses a window that
-//   stamina      the session drains stamina as a hunt does.                             } pays more, in one change. Until then
-//                                                                                        } tools/gen-session-modes.mjs refuses a ground
-//                                                                                        } naming a mode that pays less than a hunt.
+//   coin, drops  a kill pays coin / drops loot (no bones, no rare roll).                } WHAT A MODE PAYS (lane/c-tower-climb, phase 2):
+//   xpPm         a kill's Level and skill XP, in permille of the formula's.            } the engine pays the row (sessionPayOf: src/core/
+//   bestiary     a kill counts for the Bestiary, tasks and Hearthfind.                  } hunt-rewards.js, xp-share.js) and the settle
+//   stamina      the session drains stamina as a hunt does.                             } refuses a window that pays more (`mode_pays`,
+//                                                                                        } and every XP bound at xpPm:
+//                                                                                        } 2027-04-24-tower-climb.sql). TWO LOCKS again.
+//   checkpointEvery  a run in this mode may start from every this-many steps of the record it has reached (0: no checkpoints, a run
+//                starts at the bottom). Tyler 2026-11-16: the Tower returns to any landing up to the hero's best, a party to the
+//                highest landing every member has reached; the server picks the record and checks the pick (hr_mode_checkpoints,
+//                2027-04-24-tower-climb.sql), never the client's floor. A descent (the Unmarked Catacombs' vault doors) reads the
+//                same field against its own record.
 //
 // THE LOAD-TIME RULE (it can't be farmed, and that is a rule on the table): a mode whose death costs less than the full price
 // must pay no coin, no drops and no Bestiary, or this module does not load (and so neither does the engine, the edge or the
@@ -33,11 +38,18 @@
 
 export const SESSION_MODES = Object.freeze({
   /* Every ground today. A death takes the full 6% and uses the Blessings up. */
-  hunt: Object.freeze({ id: 'hunt', deathLossPm: 1000, blessings: true, xpPm: 1000, coin: true, drops: true, bestiary: true, stamina: true }),
-  /* The Burning Tower (Tyler 2026-11-14): "it spits you out". A death takes nothing and leaves the Blessings alone. About half
-     the XP of an hour's hunting: 200 permille a kill (the designer's fit of Tyler's "start 50% exp", the board's §7), no coin,
-     no drops, no Bestiary. Stamina drains. */
-  tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 200, coin: false, drops: false, bestiary: false, stamina: true }),
+  hunt: Object.freeze({ id: 'hunt', deathLossPm: 1000, blessings: true, xpPm: 1000, coin: true, drops: true, bestiary: true, stamina: true, checkpointEvery: 0 }),
+  /* The Burning Tower (Tyler 2026-11-14): "it spits you out". A death takes nothing and leaves the Blessings alone. No coin, no
+     drops, no Bestiary. Stamina drains. XP: Tyler's "start 50% exp" (the board's §7: an hour against an hour, between 35 and 65% of
+     hunting for the median hero alone at the top Level measured, and no cell over hunting). The designer's 200 permille, fitted on
+     proxy rooms, read 0.24 on real climbs (lane/c-tower-climb); 375 is fitted on REAL climbs (lane/c-tower-chest,
+     `node tools/balance-sim/tower-climb.mjs --levels 10,20,30,45 --seeds 3 --starts -10,0,10 --who solo,pair,three,four`): the
+     median hero alone reads 0.44 of hunting at Level 45 (0.47 / 0.43 / 0.64 at 10 / 20 / 30), a party a head about a third,
+     the best of 96 cells, three seeds each (a Level 30 bow restarting on its top landing) 0.80, none over; the best skill cell 1.05 of a Training
+     Yard hour (the yard costs gold and no stamina). The player's words (drafts for the window lane): docs/planning/PRIORITY_BOARD.md
+     '2026-11-15 The Hearth Chest, and the Tower's XP fitted on real climbs'. */
+  tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false, bestiary: false, stamina: true,
+    checkpointEvery: 10 }),
 });
 
 /* The mode of every ground that names none. */
@@ -57,6 +69,7 @@ export function validateSessionModes(modes, def) {
     if (!permille(m.deathLossPm)) out.push(key + ': deathLossPm is not a whole permille 0..1000');
     if (!permille(m.xpPm)) out.push(key + ': xpPm is not a whole permille 0..1000');
     for (const f of FLAGS) if (typeof m[f] !== 'boolean') out.push(key + ': ' + f + ' is not true or false');
+    if (!Number.isInteger(m.checkpointEvery) || m.checkpointEvery < 0 || m.checkpointEvery > 1000) out.push(key + ': checkpointEvery is not a whole number 0..1000');
     /* THE ANTI-FARM RULE: a death that costs less than a hunt's pays nothing a hunt pays. */
     if (m.deathLossPm < 1000 && (m.coin || m.drops || m.bestiary)) out.push(key + ': a cheaper death pays coin, drops or Bestiary');
     /* A Blessing is never spent on a death that costs nothing. */
@@ -64,8 +77,8 @@ export function validateSessionModes(modes, def) {
   }
   const d = modes[def];
   if (!d) out.push('the default mode ' + def + ' is no row');
-  else if (!(d.deathLossPm === 1000 && d.blessings && d.xpPm === 1000 && d.coin && d.drops && d.bestiary && d.stamina)) {
-    out.push('the default mode ' + def + ' is not a full hunt');
+  else if (!(d.deathLossPm === 1000 && d.blessings && d.xpPm === 1000 && d.coin && d.drops && d.bestiary && d.stamina && d.checkpointEvery === 0)) {
+    out.push('the default mode ' + def + ' is not a full hunt. Every ground that names no mode would pay or cost less than a hunt');
   }
   return out;
 }
@@ -77,4 +90,12 @@ if (PROBLEMS.length) throw new Error('src/data/session-modes.js does not load: '
 export function sessionModeOf(id) {
   const k = id === undefined || id === null ? DEFAULT_SESSION_MODE : String(id);
   return Object.hasOwn(SESSION_MODES, k) ? SESSION_MODES[k] : null;
+}
+
+/** WHAT A KILL PAYS in the mode `id` names (absent: the default): { xpPm, coin, drops, bestiary }, the engine's one read of it
+    (src/core/combat-sim.js hands it to the rewards and the split). An id no row has is a refusal, never a guess. */
+export function sessionPayOf(id) {
+  const m = sessionModeOf(id);
+  if (!m) throw new Error('sessionPayOf: ' + String(id) + ' is no session mode (src/data/session-modes.js)');
+  return Object.freeze({ xpPm: m.xpPm, coin: m.coin, drops: m.drops, bestiary: m.bestiary });
 }

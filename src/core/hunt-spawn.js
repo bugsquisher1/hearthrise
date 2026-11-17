@@ -105,7 +105,8 @@ function heroUnit(id, h, partyRoles, tile) {
  * takes the role's default for this party). Heroes are units 1..n. `o.density`, when given,
  * is the density the packs spawn at (the settle's whole entering party), else the party's own.
  * `o.tier` (a hunt-tiers.js row, null = Normal) is the hunt's tier the first packs spawn on, as every respawn does; `o.monsters` the
- * rows they spawn from (combat-sim.js huntPlayOf: a scaled hunt's table; the catalogue when absent).
+ * rows they spawn from (combat-sim.js huntPlayOf: a scaled hunt's table; the catalogue when absent). `o.tower` ({ floor, atMs }: the
+ * Burning Tower, src/core/hunt/tower.js) is the floor whose room stands first and the instant it stands (its time starts there).
  */
 export function newHuntWorld(ground, grid, party, o) {
   if (!Array.isArray(party) || !party.length || party.length > ground.start.length) {
@@ -120,8 +121,11 @@ export function newHuntWorld(ground, grid, party, o) {
     density: o && Number.isInteger(o.density) ? o.density
       : densityFor(ground, party.length, partyPick(party.map((h, i) => ({ density: h.density, lead: h.lead === true, seat: i })))) });
   world.units = units;
+  /* THE BURNING TOWER: the floor is a working value of the span (never encoded); the room's start is the pocket's persisted respawn instant. */
+  if (o && o.tower) /** @type {any} */ (world).towerFloor = o.tower.floor;
   const inst = { world, ground, grid, occ: null, tier: (o && o.tier) || null, makeUnit, monsters: (o && o.monsters) || MONSTERS };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);
+  if (o && o.tower) /** @type {any} */ (world).packs[0].respawnAtMs = o.tower.atMs;
   return world;
 }
 

@@ -148,6 +148,16 @@
     "$family:pglite-chain-replay": {
       "reason": "NOT A GUARD FILE — a note covering the entries tagged family 'pglite-chain-replay'. Each boots a real PostgreSQL (PGlite/WASM) and applies the WHOLE migration chain verbatim before asserting, which costs minutes per file. CI already replays that chain once, in the registered `schema-drift` step (plus its --mutate and --live-selftest). Registering these individually would multiply the chain replay by the file count and turn a 20-minute workflow into an hour, for guards whose migrations also carry their own executing self-check blocks. The right fix is a SHARED replayed database these all attach to (tests/schema-replay.mjs already exports bootReplay for exactly this) — a real piece of work, not a line in a YAML file."
     },
+    "tower-world.mjs": {
+      "reason": "A MANUAL WALK, like honor-roll-world: a brand-new account plays the Burning Tower on the real play.html and the real hr-accrue engine on the replayed chain (a climb viewed, one with the browser closed, the landing key minted by the server and opened at the chest). It needs Node 23.6+ (the engine is type-stripped; CI pins Node 20) and replays the chain on a machine's first run, so it cannot be a CI step. CI guards the halves: tests/tower-window.mjs (the window, mutation-proven), tests/tower-climb.mjs and tests/tower-chest.mjs (the server, mutation-proven), tests/envelope-contract.mjs (the section).",
+      "owner": "systems-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/tower-world.mjs --shots DIR"
+      }
+    },
     "special-attributes.mjs": {
       "reason": "THE HIDDEN SAMPLE'S RULES (designer, lane/d-special-attributes, PRIORITY_BOARD 2026-11-15): the five special-attribute rows in src/data/special-attributes.js; since lane/c-krell-uniques two of them (Krell's Tollgate, the Banded Legguards) ship through the Hold's pack, and SA1 holds them to exactly what is written there (hidden, or shipped as written). It is not in smoke.yml because lane/a-133-ci-time holds smoke.yml and tests/ci-shape.baseline.json this cycle (a lane does not edit another lane's files). lane/c-krell-uniques moved two rows into a catalogue while smoke.yml is still lane/a-133-ci-time's, so it is registered, plain and --mutate, by the Coordinator once that lane lands (the step is `node tests/special-attributes.mjs --mutate`).",
       "owner": "game-designer",

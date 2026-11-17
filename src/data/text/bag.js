@@ -8,6 +8,11 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const BAG_TEXT = Object.freeze({
+  /* +SKILL while worn (src/core/combat.js SKILL_PLUS_FIELDS: a tower weapon's), the item card's stat names */
+  stat_melee_plus: 'Melee skill',
+  stat_ranged_plus: 'Ranged skill',
+  stat_magic_plus: 'Magic skill',
+  stat_defense_plus: 'Defense skill',
   /* The selection line over the bulk tools: how many stacks, and what the shop would pay for them (the server's bids). */
   selected: '{count} selected',
   selected_worth: '{count} selected, worth {worth}',
@@ -29,6 +34,12 @@ export const BAG_TEXT = Object.freeze({
   locked_n: { one: 'Locked {count} stack.', other: 'Locked {count} stacks.' },
   unlocked_n: { one: 'Unlocked {count} stack.', other: 'Unlocked {count} stacks.' },
   locks_reading: 'Loading locks…',
+  /* An outfit's bundle (the Key Warden): Use owns the outfit for this hero (src/shell/windows/inventory/outfit-bundle.js). Labels. */
+  bundle_owned: 'Outfit already owned',
+  /* the first press arms the use (a tradeable item, used for good): the second unlocks it */
+  bundle_confirm: 'Press again to unlock for good',
+  bundle_busy: 'Unpacking…',
+  bundle_used: 'Outfit unlocked: {outfit}',
   /* The Storage window (src/shell/windows/storage.js). Its Expand reads the server's offer (hr_bag_expand_view). */
   store_search: 'Search items',
   store_in_storage: 'In storage',
@@ -62,6 +73,13 @@ export const BAG_TEXT = Object.freeze({
   store_expanding: 'Expanding bag…',
   store_expanded: 'Bag now holds {n} stacks',
   store_expanded_plain: 'Bag expanded',
+  /* The Key Ring tab (src/shell/windows/inventory/key-ring.js; Tyler 2026-11-16): labels, the server's price. */
+  ring_tab: 'Key Ring',
+  ring_locked: 'Locked',
+  ring_empty: 'No keys',
+  ring_unlock: 'Unlock: {gold}',
+  ring_unlocking: 'Unlocking…',
+  ring_unlocked: 'Key Ring unlocked',
   /* The key help at the window's foot, one hint a row: the key, then "to" and what it does (grid.js keyHintHtml sets the key apart). */
   key_search: '/ to search',
   key_move: 'Arrows to move',

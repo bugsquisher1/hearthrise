@@ -26,7 +26,8 @@
 //   CW-4  OUTFIT SAVE IS ONE INTENT: trying on an owned outfit and pressing Save
 //         sends exactly ONE hr_outfit_set naming it, the worn mark stays on the
 //         server's outfit until the re-read; a premium outfit not owned can be
-//         tried on and never saved
+//         tried on and never saved; CW-4c a bundle outfit (the Key Warden) has no
+//         card until the server's owned list names it
 //   CW-5  THE DEATH LOG is the server's rows: who killed the hero, where, the XP
 //   CW-7  the sheet lays out from the window's own width: every vital row whole, none over the identity
 //   CW-8  THE TAB MATCHES THE HUD (r09: Level 4 on the tab, 11 on the HUD): the
@@ -234,6 +235,17 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(150);
         const witch = await page.evaluate(() => ({ off: document.querySelector('[data-hs-act="of-save"]').disabled, name: document.querySelector('.hw-of-name').textContent }));
         if (!witch.off || !/Premium, not owned/.test(witch.name)) fails.push('CW-4 a premium outfit not owned can be saved, or is not marked: ' + JSON.stringify(witch));
+        /* CW-4c A BUNDLE OUTFIT IS A FIND (src/data/outfits.js `bundle`, the Key Warden): no card while the server's owned list lacks it,
+           its card once the server says the hero owns it. */
+        const coatCard = () => page.evaluate(() => !!document.querySelector('[data-hs-act="of-pick"][data-outfit="sweeps_coat"]'));
+        if (await coatCard()) fails.push('CW-4c the Key Warden shows in the grid of a hero who does not own it');
+        const ownedWas = s.env.outfit;
+        s.env.outfit = Object.assign({}, ownedWas, { owned: ownedWas.owned.concat(['sweeps_coat']) });
+        await push(page, s);
+        if (!(await wait(page, () => !!document.querySelector('[data-hs-act="of-pick"][data-outfit="sweeps_coat"]'), null, 4000))) fails.push('CW-4c the Key Warden is missing from the grid of a hero the server says owns it');
+        s.env.outfit = ownedWas;
+        await push(page, s);
+        await wait(page, () => !document.querySelector('[data-hs-act="of-pick"][data-outfit="sweeps_coat"]'), null, 4000);
         await page.click('[data-hs-act="of-pick"][data-outfit="ranger"]');
         await page.waitForTimeout(150);
         await page.click('[data-hs-act="of-save"]');
@@ -529,6 +541,7 @@ const MUTANTS = [
   ['Save colors stays live on a short purse (CW-4b)', 'src/shell/windows/character/outfit.js', "prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);", "prop(save, 'disabled', sc.pending || !offer || sc.price === null);"],
   ['a short purse says nothing under Save colors (CW-4b)', 'src/shell/windows/character/outfit.js', "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '');", "text(root.querySelector('.hw-of-why'), '');"],
   ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || (o.worn || null) === d.outfit", "sc.pending || !o || (o.worn || null) === d.outfit"],
+  ['a bundle outfit shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit.js', "    && (!OUTFIT_ROWS[id].bundle || (!!o && o.owned.has(id))));", "    && true);"],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],
 ];

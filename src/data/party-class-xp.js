@@ -35,6 +35,7 @@
 import { HUNT_ROLES } from './hunt-roles.js?v=0.2.135';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.135';
 import { foldRows } from './grounds/shape.js?v=0.2.135';
+import { TOWER_RULES, TOWER_PARTY_XP } from './tower.js?v=0.2.135';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -175,6 +176,9 @@ export function partyClassXp(groundId, roles, tierId = 'normal') {
   for (const r of roles) if (Object.hasOwn(CLASS_OF_ROLE, r)) held.add(CLASS_OF_ROLE[r]);
   const classes = Object.keys(PARTY_CLASSES).filter((c) => held.has(c));
   const n = roles.length;
+  /* THE BURNING TOWER (src/data/tower.js TOWER_PARTY_XP; the board's §7): one flat row whatever the classes, a hero alone the plain kill (no solo
+     boost: in the Tower the party's edge is the floors it reaches). */
+  if (groundId === TOWER_RULES.hunt) return { permille: TOWER_PARTY_XP[Math.min(Math.max(n, 1), 4)], classes };
   if (n === 1) return { permille: SOLO_XP_PM, classes };
   if (n < 2 || !Object.hasOwn(PARTY_CLASS_XP, groundId)) return { permille: 1000, classes };
   const tab = PARTY_CLASS_XP[groundId];

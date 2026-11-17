@@ -25,6 +25,7 @@ import { sinkRefusal } from './sink-words.js?v=0.2.135';
 import { t } from '../render/player-text.js?v=0.2.135';
 import { trainingRefusal } from './training-words.js?v=0.2.135';
 import { factionRefusal } from './faction-words.js?v=0.2.135';
+import { towerRefusal } from './tower-words.js?v=0.2.135';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -98,6 +99,9 @@ export function refusalText(r, cs) {
   /* The factions: the server's standing, swap time and cooldown in their sentences (faction-words.js). */
   const faction = factionRefusal(r, cs);
   if (faction) return faction;
+  /* The Burning Tower and the Hearth Chest: the day's and the week's keys, as labels (tower-words.js). */
+  const tower = towerRefusal(r);
+  if (tower) return tower;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
     const why = seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]

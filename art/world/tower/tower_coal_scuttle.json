@@ -1,0 +1,35 @@
+{
+  "id": "tower_coal_scuttle",
+  "class": "clutter",
+  "style": "s1",
+  "material": "native",
+  "source": "tower_coal_scuttle.png",
+  "frame": [
+    18,
+    21
+  ],
+  "anchor_px": [
+    9,
+    20
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "559004a0-f390-4e59-9118-1fb4cc2a62e2",
+    "cell": 0
+  },
+  "notes": "Cell 0 of a 4x4 style-1 prop sheet (PixelLab image 559004a0-f390-4e59-9118-1fb4cc2a62e2, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

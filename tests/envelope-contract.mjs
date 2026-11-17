@@ -205,6 +205,20 @@ function contract(R, cs, body, tl) {
   need('factions', !!fx && fx.side === null && fx.canJoin === false && fx.sides.length === 2 && fx.sides.every((x) => fx.standing[x] === 0)
     && fx.pieces.length > 0 && fx.pieces.every((x) => x.needMs > 0 && fx.sides.includes(x.side) && x.held === false) && fx.swapNeedMs > 0 && fx.cooldownMs > 0,
     'factionOf yields ' + JSON.stringify(fx) + ' from ' + JSON.stringify(body.factions).slice(0, 240));
+  // the Burning Tower (2027-04-28-tower-section.sql, the switch on inside this test): a hero who never climbed, checkpoint 0 (floor 1) its
+  // one start, the Tower mode's own pay (no coin, no death loss), the rules the window says, and the chest's menu with every key row and
+  // key family the server lists and the instant its week resets; every OTHER seat of the hero's party with the name the party section
+  // shows and its best (0: nobody climbed); no field (no Tower board yet: no rank, no rivals)
+  const tw = R.TWR.towerOf(cs);
+  const others = body.party && Array.isArray(body.party.members) ? body.party.members.filter((m) => m.seat !== body.party.self_seat) : [];
+  need('tower', !!tw && tw.checkpoints.join() === '0' && tw.record === 0 && tw.bestFloor === 0 && tw.run === null && tw.last === null && tw.rules.landingEvery > 0
+    && tw.rules.floorLimitMs > 0 && tw.rules.landingLimitMs >= tw.rules.floorLimitMs && !!tw.pays && tw.pays.deathLossPm === 0 && tw.pays.coin === false
+    && tw.pays.xpPm > 0 && tw.pays.xpPm < 1000 && Array.isArray(body.tower.party) && tw.field === null
+    && tw.party.length === others.length && tw.party.every((p) => p.floor === 0 && others.some((m) => m.seat === p.seat && m.name === p.name))
+    && !!tw.chest && tw.chest.keys.length >= 4 && tw.chest.keys.every((k) => k.basePm > 0 && k.chancePpm > 0 && k.stokes.length > 0 && k.heldAll === 0)
+    && tw.chest.perCall > 0 && tw.chest.weekEnds !== null && tw.chest.families.length >= 1
+    && tw.chest.families.every((x) => x.openedWeek === 0 && x.maxWeek > 0 && x.held === 0 && x.maxHeld >= x.maxWeek && !!x.name),
+    'towerOf yields ' + JSON.stringify(tw && { party: tw.party, field: tw.field }) + ' ' + JSON.stringify(tw).slice(0, 300) + ' from ' + JSON.stringify(body.tower).slice(0, 300));
   // when the hunt ends (2027-04-25-hunt-itinerary.sql): a hunter that never picked reads the default, the grace, and its running hunt's own frozen choice
   const ha = R.HA.huntAfterOf(cs);
   need('hunt_after', !!ha && ha.choice === 'job' && ha.skill === null && Number.isInteger(ha.graceS) && ha.graceS > 0
@@ -214,6 +228,10 @@ function contract(R, cs, body, tl) {
   const be = R.IS.bagExpandOf(cs);
   need('bag_expand', !!be && be.cap === 100 && be.rung === 0 && !!be.next && be.next.offer === 'bank.0' && be.next.gold === 3000 && be.next.adds === 20,
     'bagExpandOf yields ' + JSON.stringify(be) + ' from ' + JSON.stringify(body.bag_expand));
+  // the Key Ring (2027-04-27-tower-chest.sql, lane/c-key-ring): not bought, its offer at the server's price (gold-ladders.js), no keys on it
+  const kr = R.IS.keyRingOf(cs);
+  need('key_ring', !!kr && kr.unlocked === false && !!kr.offer && kr.offer.offer === 'key_ring.0' && Number.isInteger(kr.offer.gold) && kr.offer.gold > 0
+    && Array.isArray(kr.keys) && kr.keys.length === 0, 'keyRingOf yields ' + JSON.stringify(kr) + ' from ' + JSON.stringify(body.key_ring));
   // Tempering (2027-02-27-tempering.sql): each ladder's rung and the next rung's price, the smith's window
   const tp = R.TP.temperOf(cs);
   need('temper', Array.isArray(tp) && tp.length === 4 && tp.every((l) => l.rung === 0 && l.max === 5 && typeof l.offer === 'string' && Number.isInteger(l.gold) && l.gold > 0),
@@ -334,7 +352,8 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
-  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls']);
+  'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
+  'tower', 'key_ring']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -394,6 +413,7 @@ async function readers(root) {
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
+    TWR: await import(u('src/session/tower-sections.js')),
     HA: await import(u('src/session/hunt-after-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
@@ -433,6 +453,9 @@ async function realBody(db, M, H) {
   await db.query("update public.hr_live_events set first_at = now() - interval '1 hour', every_days = null where event_id = 'open_halls'");
   /* THE FACTIONS (2027-04-23-faction-section.sql): their switch on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'factions'");
+  /* THE BURNING TOWER (2027-04-28-tower-section.sql) and THE KEY RING (2027-04-27-tower-chest.sql), whose section rides the Tower's switch:
+     on for everyone, inside this test's transaction only. */
+  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'burning_tower'");
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,
@@ -549,6 +572,10 @@ const DB_MUTANTS = [
   /* lane/b-faction-ui: the Faction tab reads each piece's need and the swap's need */
   ['factions', 'public.hr_faction_view(uuid,integer)', "'need_ms', o.need_ms,", "'need', o.need_ms,"],
   ['factions', 'public.hr_faction_section(uuid,integer)', "jsonb_build_object('swap_need_ms', r.swap_ms,", "jsonb_build_object('swap_ms', r.swap_ms,"],
+  /* lane/b-tower-window: the Tower window lists the server's start floors and says each key's chance from the chest's menu */
+  ['tower', 'public.hr_tower_section(uuid,integer)', "'checkpoints', to_jsonb(public.hr_mode_checkpoints(m.mode_id, v_rec)),", "'start_floors', to_jsonb(public.hr_mode_checkpoints(m.mode_id, v_rec)),"],
+  ['tower', 'public.hr_tower_section(uuid,integer)', "'floor_limit_ms', r.floor_limit_ms,", "'floor_ms', r.floor_limit_ms,"],
+  ['tower', 'public.hr_chest_section(uuid,integer)', "'chance_ppm', public.hr_chest_chance_ppm(", "'chance', public.hr_chest_chance_ppm("],
   /* lane/c-hunt-itinerary: the hunt page's control and the analyzer's line read the grace and the running hunt's own choice */
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'grace_s', v_grace,", "'grace', v_grace,"],
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now,", "'job', public.hr_hunt_after_job(p_user, p_slot), 'running', v_now,"],

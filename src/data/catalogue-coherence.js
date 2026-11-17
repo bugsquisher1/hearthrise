@@ -47,6 +47,7 @@ import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GRO
 import { BOSS_CALLS } from './boss-calls.js?v=0.2.135';
 import { HUNT_INDEX } from './hunts.js?v=0.2.135';
 import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.135';
+import { CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js?v=0.2.135';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js?v=0.2.135';
@@ -280,6 +281,13 @@ export function reachableSources(opts = {}) {
   for (const id of gatherProductIds()) put(id, 'gathered');
   /* the Arms Master sells the gold rows of the training items (hr_training_gear_buy); the bound rows are the Crowns store's */
   for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) put(g.id, 'the Arms Master');
+  /* the Burning Tower: a landing's Keeper mints its key (2027-04-27-tower-chest.sql hr_tower_key_mint), the Hearth Chest pays the Cinders */
+  for (const k of CHEST_KEYS) put(k.item, 'a Burning Tower landing');
+  put(CINDERS, 'the Hearth Chest');
+  /* the tower weapons: a key's weapon roll at the Hearth Chest (2027-04-27-tower-chest.sql hr_chest_open, hr_chest_weapons) */
+  for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) put(id, 'the Hearth Chest');
+  /* a super-rare outfit's bundle: a key's outfit roll at the Hearth Chest (hr_chest_open reads hr_chest_outfits) */
+  for (const o of CHEST_OUTFITS) put(o.item, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) put(id, CODED_SOURCES[id].label);
   if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
   for (const t of HEARTHFIND_TABLE) if (t.kind === 'node' || met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
@@ -353,6 +361,13 @@ export function itemSources() {
   /* The training items' gold rows: the Arms Master (src/data/training.js; hr_training_gear_buy, 2027-04-23-training-gear.sql). The bound
      rows' door is the Crowns store, which waits on the Crowns ledger (tests/catalogue-coherence.mjs PENDING_SOURCE). */
   for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) push(m, g.id, 'the Arms Master');
+  /* The Burning Tower (src/data/chests.js; 2027-04-27-tower-chest.sql): a landing mints its key, the Hearth Chest pays the Cinders. */
+  for (const k of CHEST_KEYS) push(m, k.item, 'a Burning Tower landing');
+  push(m, CINDERS, 'the Hearth Chest');
+  /* The tower weapons (src/data/tower-weapons.js): a key's weapon roll at the Hearth Chest (hr_chest_open reads hr_chest_weapons). */
+  for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) push(m, id, 'the Hearth Chest');
+  /* A super-rare outfit's bundle (src/data/chests.js CHEST_OUTFITS): a key's outfit roll at the Hearth Chest (hr_chest_open). */
+  for (const o of CHEST_OUTFITS) push(m, o.item, 'the Hearth Chest');
   for (const id of Object.keys(CODED_SOURCES)) push(m, id, CODED_SOURCES[id].label);
   return m;
 }
@@ -385,6 +400,11 @@ export function itemUses() {
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
   /* a training item is opened into its hero's training hours for its skill (hr_training_gear_open; the settle opens the next by itself) */
   for (const g of TRAINING_GEAR_ITEMS) push(m, g.id, 'opened into training hours');
+  /* a Tower key is used at the Hearth Chest (hr_chest_open); the Cinders also stoke it (and burn in the Hearth, a HEARTH_FUELS rung) */
+  for (const k of CHEST_KEYS) push(m, k.item, 'used at the Hearth Chest');
+  push(m, CINDERS, 'stokes the Hearth Chest');
+  /* an outfit's bundle is used once: its hero owns the outfit for good (hr_outfit_bundle_use, 2027-04-30-sweeps-coat.sql) */
+  for (const o of CHEST_OUTFITS) push(m, o.item, 'used: the hero owns the outfit');
   /* a named fuel is burnt alone in the Great Hearth (src/data/hearth.js; hr_hearth_burn, 2027-01-31-inner-flame.sql) */
   for (const id of Object.keys(NAMED_FUELS)) push(m, id, 'burnt in the Great Hearth (a named fuel)');
   return m;

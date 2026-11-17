@@ -87,24 +87,24 @@ const CLAIMS = {
     /* Gear names the hero's LEVEL (Tyler 2026-10-24): a Level-14 hero with Defense 99 is still short of the Iron Platelegs. */
     const with1 = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' },
       csWith({ defense: { xp: 0, level: 99 } }, 14, M.XP.charXpForLevel(15)));   // the XP this build's curve calls Level 15: the server says 14
-    if (with1 !== 'Iron Platelegs needs Level 15 (you\'re 14).') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
+    if (with1 !== 'Iron Platelegs needs Level 15, now 14.') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
     /* The refusal's own numbers (hr_apply's need / have, through the session reader) win over the sections. */
     const served = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'scholar_helmet', counts: { have: 28, need: 30 } },
       csWith({}, 5, M.XP.charXpForLevel(5)));
-    if (served !== 'Scholar Hat needs Level 30 (you\'re 28).') out.push('RW3 the server\'s own Level reads ' + JSON.stringify(served));
+    if (served !== 'Scholar Hat needs Level 30, now 28.') out.push('RW3 the server\'s own Level reads ' + JSON.stringify(served));
     /* A supply keeps its skill ("Supplies/runes stick to skill level"). */
     const arrows = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'barbed_arrows' }, csWith({ ranged: { xp: 0, level: 3 } }, 1));
-    if (arrows !== 'Barbed Arrows needs Ranged 15 (you have 3).') out.push('RW3 the Barbed Arrows refusal reads ' + JSON.stringify(arrows));
+    if (arrows !== 'Barbed Arrows needs Ranged 15, now 3.') out.push('RW3 the Barbed Arrows refusal reads ' + JSON.stringify(arrows));
     /* whatever the requirement names (Tyler 2026-10-24: gear moves to Level gates, supplies and runes keep skills) */
     const words = [M.IL.needWords('level', 30, 28), M.IL.needWords('magic', 20, 14), M.IL.needWords('level', 30, null)].join('|');
-    if (words !== 'Needs Level 30 (you\'re 28)|Needs Magic 20 (you have 14)|Needs Level 30') out.push('RW3 the requirement words read ' + JSON.stringify(words));
+    if (words !== 'Needs Level 30, now 28|Needs Magic 20, now 14|Needs Level 30') out.push('RW3 the requirement words read ' + JSON.stringify(words));
     const bare = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' });
     if (bare !== 'Iron Platelegs needs Level 15.') out.push('RW3 without a character it reads ' + JSON.stringify(bare));
     const noItem = M.IW.refusalText({ ok: false, error: 'requirement_not_met' });
-    if (noItem === M.RW.REFUSAL_FALLBACK || !/requirement/.test(noItem)) out.push('RW3 with no item named it reads ' + JSON.stringify(noItem));
+    if (noItem === M.RW.REFUSAL_FALLBACK || !/Requirement/.test(noItem)) out.push('RW3 with no item named it reads ' + JSON.stringify(noItem));
     /* "You no longer have that many." of WHAT (blind playtest 2026-10-31): the item the server named. */
     const short = M.IW.refusalText({ ok: false, error: 'insufficient_item', item: 'cooked_shrimp' });
-    if (short !== 'You no longer have that many Cooked Shrimp.') out.push('RW3 a short stack reads ' + JSON.stringify(short));
+    if (short !== 'Not enough Cooked Shrimp left') out.push('RW3 a short stack reads ' + JSON.stringify(short));
     return out;
   },
   RW4: async (M) => {
@@ -127,7 +127,7 @@ const CLAIMS = {
     const cs = new M.CS.CharacterSession({ slot: 0, uid: 'u', server: { intents: null } });
     const r = await cs._settled({ ok: false, status: 409, body: { ok: false, verb: 'equip', error: 'hunt_open' } });
     const said = M.IW.refusalText(r);
-    if (said !== 'Leave the hunt to change gear.') out.push('RW5 an equip mid-hunt reads ' + JSON.stringify(said) + ' (' + JSON.stringify(r) + ')');
+    if (said !== 'Leave the hunt to change gear') out.push('RW5 an equip mid-hunt reads ' + JSON.stringify(said) + ' (' + JSON.stringify(r) + ')');
     const other = M.IW.refusalText({ ok: false, error: 'hunt_open', verb: 'set_activity' });
     if (other !== M.RW.REFUSAL_WORDS.hunt_open) out.push('RW5 another verb\'s hunt_open reads ' + JSON.stringify(other));
     return out;

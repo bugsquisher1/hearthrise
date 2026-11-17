@@ -705,7 +705,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await r.page.click('.auth-submit');
       await wait(r.page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await r.page.click('[data-app="play"][data-slot="0"]');
-      if (!(await wait(r.page, () => /While you were away/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
+      if (!(await wait(r.page, () => /\bAway \d/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
       await r.page.reload({ waitUntil: 'load' });
       await r.page.waitForTimeout(500);
       const lost = owed.puts.filter((p) => p.p_patch && (Number.isFinite(p.p_patch.awaySeen && p.p_patch.awaySeen.at) && p.p_patch.awaySeen.at !== Date.parse('2026-10-17T00:00:00Z') - 60 * 60000

@@ -95,7 +95,7 @@ const cases = {
     const said = M.W.waitReason(sl, 1, f.test());
     if (!said) return 'a Mage\'s Fireball on a lone monster says nothing';
     if (said.strike || said.rest || said.need !== '2+') return 'it should wait, marked "2+", not struck: ' + JSON.stringify(said);
-    if (!/^Waiting: needs 2 or more monsters in its area\./.test(said.text)) return 'it reads ' + JSON.stringify(said.text);
+    if (!/^Waiting: needs 2 or more monsters in its area$/.test(said.text)) return 'it reads ' + JSON.stringify(said.text);
     const n = casts(M, f, 60000);
     if (n.fireball) return 'the engine cast Fireball ' + n.fireball + ' times on a lone monster: re-judge the words (and the designer\'s default)';
     if (!n.frost_lance) return 'CONTROL: Frost Lance never fired either, so the fixture proves nothing';
@@ -112,7 +112,7 @@ const cases = {
     /* With no fight behind it (town, or no prediction running) it still says so: it needs only the party's size. */
     for (const [where, test] of [['in town', null], ['in a fight', alone.test()]]) {
       const said = M.W.waitReason(sl, 1, test);
-      if (!said || said.strike || said.need !== '2+' || said.text !== 'Waiting: needs 2 or more heroes under 80% health, and you’re not in a party.') return where + ' a lone Healer\'s Circle reads ' + JSON.stringify(said);
+      if (!said || said.strike || said.need !== '2+' || said.text !== 'Waiting: needs 2 or more heroes under 80% health, not in a party') return where + ' a lone Healer\'s Circle reads ' + JSON.stringify(said);
     }
     const duo = fight(M, 'healer', [sl], { mons: [[13, 3]], duo: true, hurt: true });
     const free = M.W.waitReason(sl, 2, duo.test());
@@ -121,7 +121,7 @@ const cases = {
     /* A party too small for the slot's own number, and a party it now fits but nobody is hurt yet. */
     const wants3 = slotOf('circle_of_renewal', [{ metric: 'allies_below', op: 'gte', value: 3, subject: 'under_80' }]);
     const small = M.W.waitReason(wants3, 2, null);
-    if (!small || !/your party has 2\.$/.test(small.text)) return 'wanting 3 in a party of 2 reads ' + JSON.stringify(small);
+    if (!small || !/, party of 2$/.test(small.text)) return 'wanting 3 in a party of 2 reads ' + JSON.stringify(small);
     const fine = M.W.waitReason(sl, 2, fight(M, 'healer', [sl], { mons: [[13, 3]], duo: true }).test());
     return fine && fine.need === '2+' && /^Waiting: needs 2 or more heroes/.test(fine.text) ? null : 'a healthy duo reads ' + JSON.stringify(fine);
   },
@@ -228,7 +228,7 @@ const cases = {
     return M.W.slotWhy(slotOf('challenge', []), facts({ set, holding: true })).code === 'holding' ? null : 'a tank holding the pack does not read Holding';
   },
   'alone-only': (M) => {
-    const WORDS = 'Only when you hunt alone.';
+    const WORDS = 'Solo only';
     const alone = Object.values(M.AD.ABILITIES).filter((r) => r.alone).map((r) => r.id);
     if (alone.join() !== 'undertow') return 'the alone spells are ' + JSON.stringify(alone) + ', want Undertow alone: re-judge this case';
     const row = M.AD.ABILITIES.undertow;
@@ -252,19 +252,19 @@ const cases = {
     const stray = Object.keys(M.AD.ABILITIES).filter((id) => id !== 'undertow' && M.F.factsOf({ type: 'ability', id }).alone);
     if (stray.length) return 'a spell that casts in a party says it does not: ' + stray.join(', ');
     const draft = { action: { type: 'ability', id: 'undertow' }, conditions: [], join: 'and' };
-    if (M.W.setupNote(draft, 2) !== WORDS + ' It does nothing in a party.') return 'Configure action in a party reads ' + JSON.stringify(M.W.setupNote(draft, 2));
+    if (M.W.setupNote(draft, 2) !== WORDS + ', does nothing in a party') return 'Configure action in a party reads ' + JSON.stringify(M.W.setupNote(draft, 2));
     return M.W.setupNote(draft, 1) === '' ? null : 'Configure action alone reads ' + JSON.stringify(M.W.setupNote(draft, 1));
   },
   'configure-note': (M) => {
     const draft = (id) => ({ action: { type: 'ability', id }, conditions: M.conditions.suggestedConditions({ type: 'ability', id }), join: 'and' });
-    if (M.W.setupNote(draft('fireball'), 1) !== 'On a lone monster this slot waits and your hero fights on without it. To use it on one, remove this condition.') return 'Fireball\'s suggestion reads ' + JSON.stringify(M.W.setupNote(draft('fireball'), 1));
-    if (!/you’re not in a party/.test(M.W.setupNote(draft('circle_of_renewal'), 1))) return 'a lone Healer\'s Circle reads ' + JSON.stringify(M.W.setupNote(draft('circle_of_renewal'), 1));
+    if (M.W.setupNote(draft('fireball'), 1) !== 'Waits on a lone monster') return 'Fireball\'s suggestion reads ' + JSON.stringify(M.W.setupNote(draft('fireball'), 1));
+    if (!/not in a party/.test(M.W.setupNote(draft('circle_of_renewal'), 1))) return 'a lone Healer\'s Circle reads ' + JSON.stringify(M.W.setupNote(draft('circle_of_renewal'), 1));
     if (M.W.setupNote(draft('circle_of_renewal'), 2) !== '') return 'a duo\'s Circle reads ' + JSON.stringify(M.W.setupNote(draft('circle_of_renewal'), 2));
     for (const id of ['frost_lance', 'power_strike', 'mend']) if (M.W.setupNote(draft(id), 1) !== '') return id + ' reads ' + JSON.stringify(M.W.setupNote(draft(id), 1));
     if (M.W.setupNote({ action: { type: 'consume', id: null }, conditions: [], join: 'and' }, 1) !== '') return 'a blank slot reads a note';
     /* The player's own numbers: three on the area, a test that can't happen, more than a single-target strike can ever reach. */
     const set = (id, c) => M.W.setupNote({ action: { type: 'ability', id }, conditions: [c], join: 'and' }, 1);
-    if (!/^With fewer than 3 monsters/.test(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }))) return 'three on the area reads ' + JSON.stringify(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }));
+    if (!/^Waits under 3 monsters/.test(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }))) return 'three on the area reads ' + JSON.stringify(set('fireball', { metric: 'enemies_in_aoe', op: 'gte', value: 3 }));
     if (!/never gets to 2/.test(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a strike wanting 2 reads ' + JSON.stringify(set('power_strike', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));
     /* A Cleave hits up to three beside its hero (abilities.js maxHits): two is a crowd it can see, four never comes. */
     if (/never gets to/.test(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }))) return 'a Cleave wanting 2 reads ' + JSON.stringify(set('cleave', { metric: 'enemies_in_aoe', op: 'gte', value: 2 }));

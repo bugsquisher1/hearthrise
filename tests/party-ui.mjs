@@ -795,7 +795,7 @@ async function pureRules(M, base) {
     srv.calls.length = 0;
     srv.reply = { ok: false, error: 'rate_limited' };
     await change(true);
-    if (dom.el.querySelector('.hp-msg').textContent !== 'Too many changes at once. Try again in a moment.') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
+    if (dom.el.querySelector('.hp-msg').textContent !== 'Too many changes, try again') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
     v = boxesOf(dom, ctx);
     if (srv.calls.some((c) => c[0] === 'hr_load') || v !== 'Eddie:off|Hank:-|Apollo:-|Fremulon:-') return 'a refusal changed the box: ' + v;
     srv.reply = { ok: true };
@@ -958,7 +958,7 @@ async function pureRules(M, base) {
     srv.env[0].party.leave_together = true;
     await cs.load();
     const stam = centre.list().find((a) => a.id === 'lowstam:' + srv.env[0].hunt.session_id + ':' + hunting.seat);
-    if (!stam || stam.text !== hunting.name + ' has 14 min of stamina left. Their hunt ends then, and Tyler comes home too.') return 'the low-stamina line reads ' + JSON.stringify(centre.list().map((a) => a.text));
+    if (!stam || stam.text !== hunting.name + ': 14 min of stamina left, then Tyler comes home too') return 'the low-stamina line reads ' + JSON.stringify(centre.list().map((a) => a.text));
     if (M.PP.stateWords({ staminaLowMs: 13.5 * 60000 }) !== 'Stamina 14 min') return 'the panel reads ' + M.PP.stateWords({ staminaLowMs: 13.5 * 60000 });
     if (M.PP.rosterOf(cs).members.find((m) => m.seat === hunting.seat).staminaLowMs !== 13.5 * 60000) return 'the roster drops the low stamina';
     srv.env[0].hunt.ended = true;
@@ -1000,22 +1000,22 @@ async function pureRules(M, base) {
     if (!v) return 'HARNESS: the fixture is not a hunting party of two';
     const name = friend(v.e).name;
     let lines = v.centre.list().filter((a) => /^lowstam:/.test(a.id));
-    if (lines.length !== 1 || lines[0].text !== name + ' has 1 min of stamina left. Their hunt ends then, and Tyler comes home too.') return 'the Start\'s read raised ' + words(lines);
+    if (lines.length !== 1 || lines[0].text !== name + ': 1 min of stamina left, then Tyler comes home too') return 'the Start\'s read raised ' + words(lines);
     lines = await says(v, null);
     if (lines.length) return '[F7] the server stopped saying it and the line stood: ' + words(lines);
     if (M.PP.rosterOf(v.cs).members.find((m) => m.seat === friend(v.e).seat).staminaLowMs !== null) return '[F7] the party panel still shows a low stamina the server no longer says';
     /* (2) SAID AGAIN IS NEWS AGAIN, and the number is each read's: 13.5 min, then 4.2 min, one line re-worded. */
     lines = await says(v, 13.5 * 60000);
-    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 14 min of stamina left.')) return 'the server said it again (13.5 min) and the lines read ' + words(lines);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ': 14 min of stamina left')) return 'the server said it again (13.5 min) and the lines read ' + words(lines);
     const key = lines[0].key;
     lines = await says(v, 4.2 * 60000);
-    if (lines.length !== 1 || lines[0].key !== key || !lines[0].text.startsWith(name + ' has 5 min of stamina left.')) return 'the server said 4.2 min and the lines read ' + words(lines);
+    if (lines.length !== 1 || lines[0].key !== key || !lines[0].text.startsWith(name + ': 5 min of stamina left')) return 'the server said 4.2 min and the lines read ' + words(lines);
     /* (3) DISMISSED STAYS GONE while the server keeps saying it; a refill and a second low spell is a new warning. */
     v.centre.dismiss(key);
     if ((await says(v, 3.9 * 60000)).length) return 'a dismissed warning came back while the server still said it';
     if ((await says(v, null)).length) return 'a refill raised a line';
     lines = await says(v, 9 * 60000);
-    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 9 min of stamina left.')) return 'low again after a refill, the lines read ' + words(lines);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ': 9 min of stamina left')) return 'low again after a refill, the lines read ' + words(lines);
     /* (4) AN EVENT IS NOT A LIVE LINE: "ran out: slot 2 takes over" happened, and no later read takes it back. */
     v.centre.say(v.cs, { id: 'out:' + v.e.hunt.session_id + ':k1', kind: 'low', session: v.e.hunt.session_id, text: 'Tyler’s Cooked Shrimp ran out.' });
     await v.cs.load();
@@ -1054,7 +1054,7 @@ async function pureRules(M, base) {
     const back = await open((e) => { friend(e).stamina_low_ms = null; }, clone(p1.srv.residue));
     if (!back || back.centre.list().some((a) => /^lowstam:/.test(a.id))) return 'on return a warning stood that the server does not say';
     lines = await says(back, 8 * 60000);
-    if (lines.length !== 1 || !lines[0].text.startsWith(name + ' has 8 min of stamina left.')) return 'back from a closed browser, a friend who refilled and ran low again raised ' + words(lines);
+    if (lines.length !== 1 || !lines[0].text.startsWith(name + ': 8 min of stamina left')) return 'back from a closed browser, a friend who refilled and ran low again raised ' + words(lines);
     if ((await says(back, null)).length) return 'on the return path the line outlived the server\'s word';
     return true;
   });

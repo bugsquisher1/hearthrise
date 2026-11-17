@@ -25,6 +25,8 @@
 //             whole loop each changes only on FOLK_TICK_HZ and stands on whole art px (a walker costs that many paints a
 //             second, never the frame rate), reaches every stop, walks at most 40% of its loop (work in bursts, not pacing),
 //             carries no name plate and is never a player; only a map with townsfolk gets them
+//   TL-GLANCE a keeper standing at her work (Tamsin at her board, the smith) looks about: every face her idle clip has, turning
+//             on the beat, and the frame drawn is the face of the moment
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -34,11 +36,11 @@ import { decodePNG } from '../tools/world-art/png.mjs';
 import { createBook } from '../src/world/core/book.js';
 import { compileMap } from '../src/world/core/map-compile.js';
 import { composeFrame } from '../src/world/core/compose.js';
-import { lifeOf, lifeDraws } from '../src/world/core/ambient.js';
+import { lifeOf, lifeDraws, glanceOf } from '../src/world/core/ambient.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../src/data/world/terrain.js';
 import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
-import { EMITTERS, SURFACES, LIFE_BEAT_FPS } from '../src/data/world/ambient-life.js';
+import { EMITTERS, SURFACES, LIFE_BEAT_FPS, GLANCES } from '../src/data/world/ambient-life.js';
 import { FOLK, FOLK_TICK_HZ } from '../src/data/world/town/folk.js';
 import { createTownFolk, folkExtras } from '../src/world/town-folk.js';
 import { STATIONS } from '../src/data/world/stations.js';
@@ -215,10 +217,38 @@ export function problems(env) {
   if (!env.folkExtras(town, book.sprites).units) bad('TL-FOLK', 'the walk scene of the town gets no townsfolk');
   const cellar = compile(WORLD_MAPS.find((m) => m.id === 'mill_cellar'));
   if (env.folkExtras(cellar, book.sprites).units) bad('TL-FOLK', 'a map with no townsfolk gets them');
+
+  /* TL-GLANCE */
+  const beat = 1000 / LIFE_BEAT_FPS;
+  for (const [id, g] of Object.entries(GLANCES)) {
+    const o = town.objects.find((m) => m.id === id);
+    if (!o) { bad('TL-GLANCE', id + ' is not placed in the town'); continue; }
+    const dirs = (book.sprite(id).anims.idle || { dirs: {} }).dirs;
+    for (const f of g.faces) if (!dirs[f]) bad('TL-GLANCE', id + ' looks ' + f + ', a face its idle clip does not have');
+    const seenFaces = new Set();
+    let was = null;
+    for (let t = t0; t < t0 + g.holdMs * g.faces.length * 2; t += beat / 5) {
+      const f = env.glanceOf(id, o.x, o.y, t);
+      seenFaces.add(f);
+      /* t walks a fifth of a beat at a time from a beat: a turn first seen here fell on the beat only if t is one */
+      if (was !== null && f !== was && t % beat !== 0) bad('TL-GLANCE', id + ' turned off the beat at ' + t);
+      was = f;
+    }
+    if (seenFaces.size < 2) bad('TL-GLANCE', id + ' never looks about (' + [...seenFaces].join() + ')');
+    if (id === 'npc_crier' && !seenFaces.has('w')) bad('TL-GLANCE', 'Tamsin never looks to her board (west of her)');
+    /* the frame compose draws is the face of the moment */
+    for (const t of [t0, t0 + g.holdMs, t0 + 2 * g.holdMs]) {
+      const view = { ox: o.x * T - 200, oy: o.y * T - 200, w: 400, h: 400 };
+      const d = env.composeFrame(town, book, { t }, view, tables, T).sprites.find((x) => x.id === id);
+      const face = env.glanceOf(id, o.x, o.y, t), clip = book.sprite(id).anims.idle;
+      const want = book.frame(id, 'idle', face, Math.floor((t * clip.fps) / 1000) % book.frames(id, 'idle', face));
+      if (!d || d.sx !== want.sx || d.sy !== want.sy) bad('TL-GLANCE', id + ' drawn facing other than its glance at t+' + (t - t0));
+    }
+  }
   return out;
 }
 
-const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras });
+const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras, glanceOf });
 
 function selftest() {
   const ok = problems(real());
@@ -281,6 +311,10 @@ function selftest() {
     'a townsperson never leaves its first stop': { createTownFolk: (...a) => { const f = createTownFolk(...a); return Object.assign({}, f, { frame: (now) => f.frame(now).map((u, i) => Object.assign({}, u, { x: a[2][i].route[0][0], y: a[2][i].route[0][1] })) }); } },
     'the cellar gets townsfolk': { folkExtras: () => ({ units: () => [] }) },
     'the town gets none': { folkExtras: () => ({}) },
+    /* TL-GLANCE */
+    'Tamsin stares south': { glanceOf: () => 's' },
+    'Tamsin turns off the beat': { glanceOf: (id, x, y, t) => glanceOf(id, x, y, t + 37) },
+    'Tamsin looks where she has no face': { glanceOf: (id, x, y, t) => (glanceOf(id, x, y, t) === 'w' ? 'nw' : glanceOf(id, x, y, t)) },
   };
   let missed = 0;
   for (const [name, m] of Object.entries(mutants)) {

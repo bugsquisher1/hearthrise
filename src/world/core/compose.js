@@ -42,7 +42,7 @@ import { vertexGrid, tileKey } from './wang.js?v=0.2.133';
 import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.133';
 import { markShapes } from './mark-shapes.js?v=0.2.133';
 import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.133';
-import { lifeDraws } from './ambient.js?v=0.2.133';
+import { lifeDraws, glanceOf } from './ambient.js?v=0.2.133';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -496,7 +496,8 @@ export function composeFrame(map, book, state, view, tables, T) {
        The tiles it blocks are the object's own, and a sprite swapped in shares its frame and anchor (tests/town-works.mjs), so the box above still holds. */
     const swap = state.objectSwap && state.objectSwap[o.id];
     /* townsfolk breathe and fires flicker through place() as an idle unit does, on the state's clock, so the Idle animations switch holds them too */
-    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: 's', i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
+    /* ...and a keeper looks about her (core/ambient.js glanceOf: Tamsin to her board and back, the smith to his forge) */
+    if (!swap && standing.folk[i]) place(o.id, o.x, o.y, { fp: [o.fw, o.fh], anim: 'idle', dir: glanceOf(o.id, o.x, o.y, state.t || 0), i: clipFrame(book, o.id, 'idle', 's', state.t || 0) });
     else place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });
   }
 

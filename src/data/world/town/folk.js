@@ -3,7 +3,7 @@
 //
 // Tyler 2026-11-16: "it doesn't feel 'alive' what so ever." People going about their work: a carter
 // hauling between the arrival yard's crates and the trough, a water carrier between the well and
-// Hearth Square. src/world/town-folk.js walks them; nothing here is read by the server, spends, gates
+// Hearth Square, a dock porter on the quay, stall keepers and a fishmonger looking about at their stalls. src/world/town-folk.js walks them; nothing here is read by the server, spends, gates
 // or blocks a step, and no one is a player: no name plate, no player menu.
 //
 //   FOLK_TICK_HZ   everything a townsperson shows (where it stands, its walk and idle frames) changes on
@@ -39,5 +39,15 @@ export const FOLK = Object.freeze({
     /* the water carrier: from the well on the square's west lane to the Great Hearth's side, and back */
     person({ id: 'water_carrier', body: 'outfit_brute', dye: '0.13.0.0', speed: 1.3, offsetMs: 7000,
       route: [stop(100, 41, 20000, 'w'), stop(108, 51, 14000, 'e')] }),
+    /* the dock porter: from the cargo by the harbour square down the quay to the pier head, and back */
+    person({ id: 'dock_porter', body: 'outfit_brute', dye: '1.3.0.0', speed: 1.4, offsetMs: 21000,
+      route: [stop(131, 83, 19000, 'e'), stop(141, 88, 13000, 's')] }),
+    /* the stall keepers of Hearth Square (beside their stalls, looking out over the square) and the harbour's fishmonger */
+    person({ id: 'keeper_north', body: 'outfit_brute', dye: '2.5.0.0', speed: 1, offsetMs: 0,
+      route: [stop(131, 45, 9000, 'w'), stop(131, 45, 5000, 's'), stop(131, 45, 7000, 'w'), stop(131, 45, 4000, 'n')] }),
+    person({ id: 'keeper_south', body: 'outfit_brute', dye: '9.4.0.0', speed: 1, offsetMs: 6000,
+      route: [stop(131, 53, 8000, 'w'), stop(131, 53, 6000, 'n'), stop(131, 53, 9000, 'w'), stop(131, 53, 4000, 's')] }),
+    person({ id: 'fishmonger', body: 'outfit_brute', dye: '15.12.0.0', speed: 1, offsetMs: 3000,
+      route: [stop(122, 85, 10000, 'e'), stop(122, 85, 6000, 's'), stop(122, 85, 8000, 'e')] }),
   ]),
 });

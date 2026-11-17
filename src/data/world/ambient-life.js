@@ -13,6 +13,8 @@
 //                  frame), so a home's smoke rises from its chimney wherever and on whatever map it stands.
 //                  A chimney's point is its mouth's middle, two rows into the stack (the first puff covers the cap).
 //                  A cold chimney (a storehouse, the bank, a ruin) simply has no row.
+//   GLANCES        a standing keeper's look about: sprite id -> { faces (cardinals its idle clip has), holdMs (a whole
+//                  number of beats, so a turn is a frame the beat already paints) }; each placed one starts at its own face
 //   SURFACES       material -> the light it catches: `clips` (one picked per glint), about one open cell in
 //                  `every`, `seed` the hash's. A map opts in by naming the material in its row's `life`.
 //
@@ -44,6 +46,12 @@ export const EMITTERS = Object.freeze({
   mill: Object.freeze([chimney(111, 34)]),
   smithy: Object.freeze([chimney(136, 32)]),
   square_general_store: Object.freeze([chimney(301, 21)]),
+});
+
+/* Tamsin (the crier stands in for her) looks to her board, west of her, and back to the square; the smith to his forge, north */
+export const GLANCES = Object.freeze({
+  npc_crier: Object.freeze({ faces: Object.freeze(['s', 'w', 's', 'e', 'w']), holdMs: 3500 }),
+  npc_smith: Object.freeze({ faces: Object.freeze(['s', 'n', 's', 'w']), holdMs: 4500 }),
 });
 
 export const SURFACES = Object.freeze({

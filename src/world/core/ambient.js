@@ -16,7 +16,7 @@
 // one paint. The art's layer picks where it is drawn (lifeDraws).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { EMITTERS, SURFACES } from '../../data/world/ambient-life.js?v=0.2.133';
+import { EMITTERS, SURFACES, GLANCES, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.133';
 
 /** An integer hash of three numbers (the same on every client). */
 function lifeHash(a, b, c) {
@@ -133,4 +133,17 @@ export function lifeDraws(map, book, t, view, T) {
     }
   }
   return { ground, air };
+}
+
+/**
+ * Which way a standing keeper placed at (x, y) faces at time t: its GLANCES faces in turn, each held holdMs, from its own
+ * place in the round (a hash of where it stands, in whole beats, so every turn falls on the beat); s for anyone else.
+ * @param {string} id @param {number} x @param {number} y @param {number} t ms
+ */
+export function glanceOf(id, x, y, t) {
+  const g = GLANCES[id];
+  if (!g) return 's';
+  const beat = 1000 / LIFE_BEAT_FPS;
+  const start = (lifeHash(x, y, 7) % 64) * beat;
+  return g.faces[Math.floor((Math.max(0, t) + start) / g.holdMs) % g.faces.length];
 }

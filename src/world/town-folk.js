@@ -2,7 +2,7 @@
 // src/world/town-folk.js — HAVORA'S TOWNSFOLK AT THEIR WORK (display only).
 //
 // Each townsperson (src/data/world/town/folk.js) walks a loop of stops: it rests at a stop, facing its
-// work, then walks the map's own path (core/path.js findPath, on the walk mask) to the next one at a
+// work (two stops on one tile are a turn where it stands: a stall keeper looking about), then walks the map's own path (core/path.js findPath, on the walk mask) to the next one at a
 // stroll. Where it is is a pure function of the clock, so every client draws the same carter at the same
 // crate, a reload puts it back where it was, and nothing is kept between frames but the loop itself.
 // Nothing here reads a server value, sends anything, blocks a step or is a player: no name plate, and its
@@ -37,6 +37,8 @@ function loopOf(map, row) {
     t += rest;
     if (stops.length < 2) break;
     const [nx, ny] = stops[(i + 1) % stops.length];
+    /* the next stop on the same tile is a turn where it stands: no walk */
+    if (nx === x && ny === y) continue;
     const pts = findPath(map.mask, map.w, map.h, [x, y], [nx, ny]) || [[x, y], [nx, ny]];
     const cum = [0];
     for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));

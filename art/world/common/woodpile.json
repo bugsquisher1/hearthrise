@@ -30,6 +30,5 @@
     "tool": "create_object_pro_flash",
     "object": "80ea6463"
   },
-  "notes": "THE ONE WOODPILE (lane/a-havora-art 2026-11-16; style audit #1, Tyler on the Hearth: \"Somethings just dont match.. like these stacks of logs\"): the drawing of hold/kh_woodpile (PixelLab object 80ea6463, rough bark, dark gaps, cut ends lit from the upper left), copied here so the town, the Meadowbrook, the Glade and Wickstead stack one woodpile; the old cell-2 prop (round log ends on a ruler grid, lit from the lower right) is retired. Lifted one value step (lift 1) so its bark sits with the Great Hearth's ochre logs.",
-  "lift": 1
+  "notes": "THE ONE WOODPILE: the town, the Meadowbrook, the Glade and Wickstead stack one woodpile, the drawing of hold/kh_woodpile (PixelLab object 80ea6463, rough bark, dark gaps, cut ends lit from the upper left; lane/a-havora-art 2026-11-16 retired the old cell-2 prop). Derived by tools/world-art/barrow-grounds.mjs oneWoodpile (lane/a-late-grounds-seams 2026-11-17, 0 gens): 95 rim px take the world's line, the dark between the logs one shadow step deeper, the chips at its foot kept, no lift, so it stands beside the trees and the Stokers' log stack (pyre/ma_log_stack) as one of them."
 }

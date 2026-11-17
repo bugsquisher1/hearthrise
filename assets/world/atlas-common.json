@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-common.png",
   "size": [2048,1932],
-  "pixels": "2d260908294eedbc3f1c59bc6515dde6a497c05598e7d2fc3b99d16fabb85808",
+  "pixels": "8ab675e4d60bee01fc2564d0b06863a5077147e5e5a623d97a447e1803a40698",
   "sprites": {
     "alder": {
       "class": "sapling",

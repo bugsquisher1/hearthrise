@@ -1,0 +1,46 @@
+{
+  "id": "ma_burnt_ash",
+  "class": "tree",
+  "style": "s1",
+  "material": "foliage",
+  "source": "ma_burnt_ash.png",
+  "frame": [
+    68,
+    97
+  ],
+  "anchor_px": [
+    34,
+    96
+  ],
+  "footprint": [
+    2,
+    2
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "derived (0 gens)",
+    "from": "westwood_ash",
+    "object": "7900b47f-7906-4126-b677-bff020ea20f8"
+  },
+  "notes": "An ash tree the fire took (the Pyre Field): common/westwood_ash's drawing copied by tools/world-art/barrow-grounds.mjs burntAsh, its crown charred by the restyle (greens onto the stone and earth ramps' dark end, the bark a step down). Same frame, anchor and footprint as the Westwood ash. 0 gens.",
+  "restyle": {
+    "map": {
+      "#6b7a38": "#4f4e52",
+      "#4a5a2a": "#3a3a3e",
+      "#2c4a2c": "#3d2a1d",
+      "#1f3322": "#2a1c14",
+      "#16241a": "#2a1c14",
+      "#3d2a1d": "#2a1c14",
+      "#4f4e52": "#3a3a3e"
+    }
+  }
+}

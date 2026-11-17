@@ -81,6 +81,11 @@ export const FINISH = Object.freeze({
   section: Object.freeze({ x0: 29 * T + 9, y0: 24 * T + 23, every: 64 }),
 });
 const R = (ramp, i) => RAMPS[ramp][i];
+/* the worn path's wander (px either way, over about three cells) and the px over which its edge thins out (lane/a-late-grounds-seams) */
+const PATH_WANDER = 7, PATH_FEATHER = 5;
+/* the side walls' skirting: the floor's last px against a side wall's coping a step down its ramp, the first two (ART_DIRECTION section 5:
+   a room's floor meets its wall on a darker contact strip; the sides showed only a pale coping on pale ash, with nothing to stand on) */
+const SKIRT = Object.freeze([2, 1, 1, 1]);
 /* the landing's own colours (its plate, seams, soot, and the bars and seams this finish lays); the ash lip the transition draws is none of them */
 const IRON_FAMILY = Object.freeze([R('iron', 0), R('iron', 1), R('iron', 2), R('iron', 3), R('shadow', 0), R('shadow', 1), R('shadow', 2), R('stone', 0)]);
 const ASH_FAMILY = Object.freeze([R('stone', 2), R('stone', 3), R('stone', 4), R('bone', 0)]);
@@ -144,12 +149,13 @@ export function finishFloor(img, rows) {
   /* the floor's own bounds, a cell round (src/data/world/maps/burning_tower.js rows), so the finish follows the room wherever it is drawn */
   const S = flueShape();
   for (let y = (S.y0 - 1) * T; y < (S.y1 + 2) * T; y++) for (let x = (S.x0 - 1) * T; x < (S.x1 + 2) * T; x++) {
-    const hw = 13 + (noise(x, y, 14, 91) - 0.5) * 10, d = segD(x, y);
+    /* the path wanders as feet do (lane/a-late-grounds-seams: dead straight up x30 it read as a ruler stripe), and its edge thins out */
+    const hw = 13 + (noise(x, y, 14, 91) - 0.5) * 10, d = segD(x - PATH_WANDER * (noise(0, y, 88, 99) - 0.5) * 2, y);
     if (d >= hw) continue;
     const core = 1 - d / hw, cell = cellOf(x, y), h = hexAt(img, x, y);
     if (cell === 'I') { if (POLISH[h] && hash2(x, y, 93) < 0.26 * core) { setHex(img, x, y, POLISH[h]); counts.path++; } continue; }
     if (cell !== 'A' && cell !== 'H') continue;
-    if (TROD[h]) { setHex(img, x, y, TROD[h]); counts.path++; }
+    if (TROD[h] && hash2(x, y, 96) < smooth((hw - d) / PATH_FEATHER)) { setHex(img, x, y, TROD[h]); counts.path++; }
     else if (h === R('stone', 3) && hash2(x, y, 95) < 0.06 + 0.24 * core) { setHex(img, x, y, R('stone', 2)); counts.path++; }
   }
   /* 4 CINDERS: specks in a falling cluster round each centre, mostly soot, a few still red or alight; some are two pixels */
@@ -281,8 +287,14 @@ export function layWalls() {
   /* the stone ramp bottoms out at #3a3a3e (lock.mjs shadeGround), so the sink runs on down the shadow ramp: one chain, dark to light */
   const CHAIN = [...RAMPS.shadow, ...RAMPS.stone];
   const sink = (im, n) => { const out = crop(im, 0, 0, im.width, im.height); for (let i = 0; i < out.data.length; i += 4) { const k = CHAIN.indexOf('#' + [0, 1, 2].map((j) => out.data[i + j].toString(16).padStart(2, '0')).join('')); if (k >= 0) out.data.set(rgb(CHAIN[Math.max(0, k - n)]), i); } return out; };
+  /* laid in RUNNING BOND (lane/a-late-grounds-seams, the seams audit row 17): one slab a cell, square on square, read at 1440x900 as a
+     tile grid round the room; every other course is set half a slab over, so the mass reads as the coursed top of a thick wall */
   const top = sink(slab, 4);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (wall(x, y)) blit(img, top, 0, 0, T, T, x * T, y * T);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (wall(x, y)) {
+    const off = y % 2 ? T >> 1 : 0;
+    blit(img, top, off, 0, T - off, T, x * T, y * T);
+    if (off) blit(img, top, 0, 0, off, T, x * T + T - off, y * T);
+  }
   /* 1: the side walls' coping seen from above: the plain run's cap turned a quarter (its lit row to the west, the light's side), on the edge of
      the mass that meets the floor. A south wall carries its own cap on its face (3). */
   const cap = S.plain[0], capV = createImage(CAP, T);
@@ -295,6 +307,21 @@ export function layWalls() {
     if (!wall(x, y) || floor(x, y + 1)) continue;
     if (floor(x - 1, y)) { blit(img, capV, 0, 0, CAP, T, x * T, y * T, true); sides++; }
     if (floor(x + 1, y)) { blit(img, capV, 0, 0, CAP, T, x * T + T - CAP, y * T, true); sides++; }
+  }
+  /* 1b: the skirting along those copings, on the floor cell beside each (a step down its own ramp; ragged by a px where the hash says) */
+  const PLACE = new Map();
+  for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => PLACE.set(c, { ramp, k }));
+  const down = (px, py, n) => { const at = PLACE.get(hexAt(img, px, py)); if (at) setHex(img, px, py, at.ramp[Math.max(0, at.k - n)]); };
+  let skirt = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!wall(x, y) || floor(x, y + 1)) continue;
+    for (const [dir, fx] of [[1, x + 1], [-1, x - 1]]) {
+      if (!floor(fx, y)) continue;
+      for (let py = y * T; py < y * T + T; py++) {
+        const reach = SKIRT.length - (hash2(fx, py, 111) < 0.4 ? 1 : 0);
+        for (let i = 0; i < reach; i++) { down(dir > 0 ? fx * T + i : fx * T + T - 1 - i, py, SKIRT[i]); skirt++; }
+      }
+    }
   }
   /* 2: the faces, north to south. A face's slice is picked by its distance from the flue's axis, so the rhythm (an ember crack every sixth,
      a pier every twelfth) mirrors left and right: the cracks flank the irons, the piers stand where the curve meets the straight sides */
@@ -335,7 +362,7 @@ export function layWalls() {
   }
   writeFileSync(file, encodePNG(img));
   const jp = file.replace(/\.png$/, '.json'), sc = JSON.parse(readFileSync(jp, 'utf8'));
-  sc.notes += ' The soot-brick walls are laid over the paint by tools/world-art/tower-flue.mjs: ' + faces + ' north face slices (' + cracked + ' ember-cracked) and ' + south + ' south face slices of the two kept pro-flash runs (gen-2026-11-16/01-flue-sample/walls, the plain run remapped onto the ember run\'s ramp), ' + sides + ' side copings (the run\'s cap turned a quarter), and the mass beyond every edge a wall\'s top: the flue\'s hearthstone slab sunk 4 steps down the stone and shadow ramps, one flat tone with no falloff.';
+  sc.notes += ' The soot-brick walls are laid over the paint by tools/world-art/tower-flue.mjs: ' + faces + ' north face slices (' + cracked + ' ember-cracked) and ' + south + ' south face slices of the two kept pro-flash runs (gen-2026-11-16/01-flue-sample/walls, the plain run remapped onto the ember run\'s ramp), ' + sides + ' side copings (the run\'s cap turned a quarter) with ' + skirt + ' px of skirting on the floor beside them, and the mass beyond every edge a wall\'s top: the flue\'s hearthstone slab sunk 4 steps down the stone and shadow ramps, laid in running bond, one flat tone with no falloff.';
   writeFileSync(jp, JSON.stringify(sc, null, 2) + '\n');
   console.log('  ✓ tower/burning_tower_ground: ' + faces + ' north faces (' + cracked + ' ember-cracked), ' + south + ' south faces, ' + sides + ' side copings');
 }

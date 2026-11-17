@@ -9621,5 +9621,5 @@
     "tileset": "7442c425-c417-4486-92fd-4c0f5b60d65a,5730601c-af79-4b9f-9eea-6cf5b8df42d0",
     "grid": "art/briefs/the-slake-grid-2026-11-14.txt"
   },
-  "notes": "Painted from art/briefs/the-slake-grid-2026-11-14.txt with the tiles of 2 PixelLab pro tilesets on the dual grid by tools/world-art/port-pixellab.mjs paint; pixels unscaled. Seams (lane/a-ground-seams, tools/world-art/seams.mjs): 189093 px of 2 borders redrawn from the fills' own pixels (bank, ragged). Wear (lane/b-march-floors, tools/world-art/ground-finish.mjs): 242733 px of the fills stepped one value down their ramps in noise patches."
+  "notes": "Painted from art/briefs/the-slake-grid-2026-11-14.txt with the tiles of 2 PixelLab pro tilesets on the dual grid by tools/world-art/port-pixellab.mjs paint; pixels unscaled. Seams (lane/a-ground-seams, tools/world-art/seams.mjs): 277582 px of 2 borders redrawn from the fills' own pixels (bank, ragged). Wear (lane/b-march-floors, tools/world-art/ground-finish.mjs): 260299 px of the fills stepped one value down their ramps in noise patches."
 }

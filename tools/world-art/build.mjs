@@ -30,6 +30,8 @@
 //   exactly as that terrain locks it, so every variant meets the floor it varies with no seam.
 //   lift (a sprite) / shade (a terrain): whole value steps up a body's ramps or down a painted floor's, after the lock (lockOf),
 //   for the [ring] readability rule (tests/world-assets.mjs); never another hue.
+//   restyle (a sprite, tools/world-art/restyle.mjs): whole-pixel repaints on the palette just after the lock (a ramp stepped or
+//   clamped, the rim given the world's line), so a drawing in another hand meets the dominant style; the source stays the drawing.
 // THE SET'S GRID: art/world/<set>/_set.json { "grid": "hd64" } names the art grid the set is
 // drawn on (src/data/world/art-budget.js GRIDS); no file is the base grid. The grid's T, class
 // table, shadow rule and measuring bands build and validate the set, and the manifest records
@@ -44,6 +46,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodePNG, encodeSheetPNG, crop, pixelHash, createImage } from './png.mjs';
 import { lock, regradeFinding, liftBody, shadeGround } from './lock.mjs';
+import { restyle, restyleProblems } from './restyle.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
 import { validateSprite, validateMask, validateTerrain, validateAtlasSize, referenceFrames, MASK_PALETTE, REGRADE_KEPT } from './validate.mjs';
 import { pack } from './pack.mjs';
@@ -86,10 +89,11 @@ export function keyFrame(img) {
   return out;
 }
 
-/** The lock, then a body's `lift` (that many value steps up its ramps, lock.mjs liftBody) or a painted floor's `shade` (that many
-    down, shadeGround): the readability steps a sidecar declares (ART_DIRECTION section 4), done here so the source stays the drawing. */
+/** The lock, then a sidecar's `restyle` (restyle.mjs: whole-pixel repaints on the palette), then a body's `lift` (that many value
+    steps up its ramps, lock.mjs liftBody) or a painted floor's `shade` (that many down, shadeGround): the readability steps a
+    sidecar declares (ART_DIRECTION section 4), done here so the source stays the drawing. */
 export function lockOf(sc, img) {
-  const locked = lock(img, sc.material);
+  const locked = sc.restyle && !restyleProblems(sc.restyle).length ? restyle(lock(img, sc.material), sc.restyle) : lock(img, sc.material);
   return sc.lift ? liftBody(locked, sc.lift) : sc.shade ? shadeGround(locked, sc.shade) : locked;
 }
 
@@ -181,6 +185,8 @@ export function buildSet(root, set) {
     /* palette-locked art is never graded (lock.mjs): a set that would is not written */
     const regrade = masks ? null : regradeFinding(sc, sheet, REGRADE_KEPT);
     if (regrade) findings.push(regrade);
+    /* a restyle the build cannot read is refused, never half-applied (restyle.mjs) */
+    if (sc.restyle) for (const p of restyleProblems(sc.restyle)) findings.push({ rule: 'restyle', id: sc.id, detail: p });
     if (sc.class === 'terrain') {
       const tiles = {};
       for (const [k, cells] of Object.entries(sc.tiles)) tiles[k] = cells.map(([c, r]) => lockOf(sc, crop(sheet, c * T, r * T, T, T)));

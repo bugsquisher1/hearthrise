@@ -3,6 +3,18 @@
   "class": "vermin",
   "style": "s1",
   "material": "unit",
+  "restyle": {
+    "clamp": {
+      "bone": [
+        0,
+        0
+      ],
+      "stone": [
+        0,
+        3
+      ]
+    }
+  },
   "source": "mudlark.png",
   "anchor_px": [
     24,
@@ -144,5 +156,5 @@
       }
     }
   },
-  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object b0f9bca5-f91f-462d-a28a-f7dcc24f0114 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object b0f9bca5-f91f-462d-a28a-f7dcc24f0114 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 19, tools/world-art/restyle.mjs): its bone-white top step and lightest stone folded one step down (bone 0, stone 0-3), toward the units' median contrast; one step further reads under 3:1 off the Slake's dark floor ([ring]), so it stops here."
 }

@@ -3,6 +3,18 @@
   "class": "decal",
   "style": "s1",
   "material": "light",
+  "restyle": {
+    "clamp": {
+      "torch": [
+        0,
+        0
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
   "source": "coins_scattered.png",
   "frame": [
     18,
@@ -31,5 +43,5 @@
     "image": "4be24e7a-2037-5e9d-895a-148f18fc1f7a",
     "cell": 12
   },
-  "notes": "Cell 12 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+  "notes": "Cell 12 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled. Restyled at build (lane/a-style-fix 2026-11-16, style audit row 16, tools/world-art/restyle.mjs): the coins' white-gold glints folded one step down (torch, bronze), so the spill sits on the cellar floor below the monsters instead of glaring."
 }

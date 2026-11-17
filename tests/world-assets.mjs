@@ -76,6 +76,11 @@
 // 25-tile set (the sixteen moved on a 4x8 sheet among wall tiles and wall twins), a missing corner, twins the ring cannot
 // tell apart, a 64 px tile and a box off the sheet.
 //
+// THE STYLE AUDIT'S FIXES (lane/a-style-fix 2026-11-16). Rule [restyle] (tools/world-art/restyle.mjs): a sidecar may repaint
+// its locked pixels on the palette (a ramp stepped or clamped, a snapped colour mapped back, the rim given the world's line)
+// so a drawing in another hand meets the dominant style. --selftest runs the ops on a planted frame, proves every shipped
+// restyle is in its atlas and would drift if dropped, and plants specs that move the line.
+//
 // mutant-anchors: assets/world/ art/world/ tools/world-art/ src/data/world/ src/data/hunt-outfits.js
 //
 // Exit: 0 green · 1 a finding, drift, or a mutant escaped · 2 harness.
@@ -89,9 +94,10 @@ import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
 import { CLASSES, MANIFEST_VERSION, FACINGS, READABLE } from '../src/data/world/art-budget.js';
 import { spawnFloorLuminance, frameRing, contrast } from '../tools/world-art/ring-contrast.mjs';
-import { PALETTE_ID } from '../tools/world-art/palette.mjs';
+import { PALETTE_ID, RAMPS } from '../tools/world-art/palette.mjs';
+import { restyle, restyleProblems, LINE } from '../tools/world-art/restyle.mjs';
 import { style1Findings, reachableRefs, codeSets, RETIRED_SETS } from '../tools/world-art/style1.mjs';
-import { readSidecars, listSets, setGrid } from '../tools/world-art/build.mjs';
+import { readSidecars, listSets, setGrid, framesOf } from '../tools/world-art/build.mjs';
 /* every set the renderer can load, on any art grid (the sandbox's hd64 set loads on its first entry) */
 import { LOADED_SETS as ATLAS_SETS, MASK_SETS } from '../src/data/world/atlas-sets.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
@@ -762,6 +768,40 @@ function selftest(atlases) {
     else { escaped++; console.log('  ✗ [ring] scope: Cellar ' + dark.length + ' finding(s) (want 0), the Ford ' + held.length + ' (want some)'); } }
   const LIVE_MUTANTS = 18;
 
+  /* [restyle] (tools/world-art/restyle.mjs, lane/a-style-fix 2026-11-16): a sidecar's whole-pixel repaint after the lock. The
+     ops on a planted frame (a stepped interior, a line on a lit rim, a one-wide strand darkened on its own ramp, a seam left
+     open); every shipped restyle is in its atlas and dropping it is drift; an unreadable spec is refused (the build's own
+     refusal is planted in the drift tree below). */
+  { const E = RAMPS.earth, L = LINE, D = E[0];
+    const f = createImage(6, 5);
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 5; x++) { f.data.set([...hex(x === 0 || y === 0 || x === 4 || y === 3 ? E[4] : E[3]), 255], (y * 6 + x) * 4); }
+    f.data.set([...hex(E[4]), 255], (4 * 6 + 2) * 4);            // a strand hanging one pixel wide under the box
+    const px = (im, x, y) => '#' + [0, 1, 2].map((k) => im.data[(y * 6 + x) * 4 + k].toString(16).padStart(2, '0')).join('');
+    const r = restyle(f, { step: { earth: -1 }, outline: true });
+    const s = restyle(f, { outline: { seams: 'n' } });
+    const ok = px(r, 2, 1) === E[2] && px(r, 0, 2) === L && px(r, 2, 0) === L && px(r, 2, 4) === D && px(s, 2, 0) === E[4] && px(s, 0, 2) === L;
+    if (ok) console.log('  ✓ restyle on a planted frame: interior one step down, a lit rim on the line, a strand on its own darkest step, a seam left open');
+    else { escaped++; console.log(`  ✗ restyle on a planted frame: interior ${px(r, 2, 1)}, rim ${px(r, 0, 2)}, strand ${px(r, 2, 4)}, seam ${px(s, 2, 0)}`); }
+    const bad = [{ step: { shadow: 1 } }, { map: { [E[3]]: L } }, { clamp: { stone: [3, 1] } }, { outline: 'yes' }, { tint: 1 }];
+    const refused = bad.filter((b) => restyleProblems(b).length).length;
+    if (refused === bad.length && !restyleProblems({ map: { [E[3]]: E[2] }, clamp: { stone: [1, 2] }, outline: { seams: 'ns' } }).length) console.log(`  ✓ ${bad.length} unreadable restyles refused (the line moved, an inverted clamp, an unknown op); a sound one read`);
+    else { escaped++; console.log(`  ✗ restyle specs: ${refused} of ${bad.length} refused`); }
+    let shippedN = 0, kept = 0, dropped = 0;
+    for (const set of listSets(ROOT).filter((x) => !MASK_SETS[x])) {
+      const a = atlases.find((x) => x.manifest.set === set);
+      for (const sc of readSidecars(ROOT, set).filter((x) => x.restyle && a && a.manifest.sprites[x.id])) {
+        shippedN++;
+        const sheet = decodePNG(readFileSync(join(ROOT, ART_DIR, set, sc.source)));
+        const ship = spriteFromAtlas(a.manifest, a.atlas, sc.id).frames[0].img;
+        const { restyle: _, ...bare } = sc;
+        if (pixelHash(framesOf(sc, sheet, setGrid(ROOT, set)).frames[0].img) === pixelHash(ship)) kept++;
+        if (pixelHash(framesOf(bare, sheet, setGrid(ROOT, set)).frames[0].img) !== pixelHash(ship)) dropped++;
+      }
+    }
+    if (shippedN && kept === shippedN && dropped === shippedN) console.log(`  ✓ ${shippedN} shipped restyles are in their atlases, and each one dropped would be drift`);
+    else { escaped++; console.log(`  ✗ shipped restyles: ${shippedN} declared, ${kept} built into their atlas, ${dropped} that drift when dropped`); } }
+  const RESTYLE_MUTANTS = 4;   // the three above and the build's own refusal in the drift tree below
+
   // The sheet encoding: the committed bytes pass, RGBA is red, and the encoder gives back every pixel, transparent ones
   // included, past 256 colours too (it falls back to RGBA there, so no sheet can lose a colour to a palette).
   const sheetBytes = readFileSync(join(ROOT, OUT_DIR, atlases[0].manifest.image));
@@ -792,7 +832,13 @@ function selftest(atlases) {
     if (!victim) { console.error('world-assets --selftest: harness — needs a shipped native terrain drawn on the palette'); process.exit(2); }
     const { file: vFile, ...vSc } = victim;
     writeFileSync(join(tmp, vFile), JSON.stringify({ ...vSc, material: 'terrain' }, null, 2) + '\n');
+    /* [restyle] through the BUILD: a shipped restyle rewritten to move the line (the shadow ramp) */
+    const styled = listSets(tmp).filter((x) => !MASK_SETS[x]).flatMap((x) => readSidecars(tmp, x)).find((sc) => sc.restyle);
+    if (!styled) { console.error('world-assets --selftest: harness — needs a shipped sidecar with a restyle'); process.exit(2); }
+    { const { file: sFile, ...sSc } = styled; writeFileSync(join(tmp, sFile), JSON.stringify({ ...sSc, restyle: { step: { shadow: 1 } } }, null, 2) + '\n'); }
     const clean = checkAll(tmp);
+    if (clean.findings.some((x) => x.rule === 'restyle' && x.id === styled.id)) console.log(`  ✓ ${styled.id}'s restyle rewritten to move the line: the build refuses it by [restyle]`);
+    else { escaped++; console.log(`  ✗ ${styled.id}'s restyle rewritten to move the line: the build did NOT refuse it by [restyle]`); }
     if (clean.findings.some((x) => x.rule === 'regrade' && x.id === victim.id)) console.log(`  ✓ ${victim.id} (drawn on the palette) re-declared terrain: the build refuses it by [regrade]`);
     else { escaped++; console.log(`  ✗ ${victim.id} re-declared terrain: the build did NOT refuse it by [regrade]`); }
     if (clean.drift.some((d) => d.startsWith(`${set}:`) && d.includes('pixels differ'))) console.log('  ✓ a hand-edited atlas pixel: caught by [drift]');
@@ -800,7 +846,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + MASK_MUTANTS + KIT_MUTANTS + PRO_MUTANTS + WET_MUTANTS} planted defects caught; ${controls.length + 4 + PRO_CONTROLS} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 13 + LIVE_MUTANTS + RESTYLE_MUTANTS + MASK_MUTANTS + KIT_MUTANTS + PRO_MUTANTS + WET_MUTANTS} planted defects caught; ${controls.length + 4 + PRO_CONTROLS} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

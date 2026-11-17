@@ -92,13 +92,13 @@
     "from": "muster/barrow_knight",
     "object": "95e3ea23-fbf4-4bbd-b467-fa6beec1a011",
     "onto": [
-      "#0b0a0c",
       "#17141a",
       "#231d1f",
       "#2f2723",
       "#2c2e33",
-      "#4a4d54"
+      "#4a4d54",
+      "#6e727a"
     ]
   },
-  "notes": "The Provost is the Barrow Knight burned in his plate (brief 12 P3): every earth and bronze pixel of muster/barrow_knight's locked frames, by luminance rank, onto #0b0a0c #17141a #231d1f #2f2723 #2c2e33 #4a4d54 by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn."
+  "notes": "The Provost is the Barrow Knight burned in his plate (brief 12 P3): every earth and bronze pixel of muster/barrow_knight's locked frames, by luminance rank, onto #17141a #231d1f #2f2723 #2c2e33 #4a4d54 #6e727a by tools/world-art/import-barrow-2026-11-14.mjs. No pixel moved, none drawn."
 }

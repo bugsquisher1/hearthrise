@@ -63,6 +63,7 @@ import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.134'
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.134';
 import { mountNewVersion } from './new-version.js?v=0.2.134';
 import { lowerFirst } from '../render/format.js?v=0.2.134';
+import { mountDevicePx } from '../render/device-px.js?v=0.2.134';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -108,6 +109,8 @@ function startApp(win) {
   /* A touch-only screen of any size has no keys and no hover (app.css, shell.css :root.is-touch; a media query for it
      would be a new spelling, tests/breakpoint-guard.mjs). */
   doc.documentElement.classList.toggle('is-touch', win.matchMedia('(hover: none) and (pointer: coarse)').matches);
+  /* The screen's devicePixelRatio as --dpr, so every frame and icon draws whole device px at 125 % and 150 % too (tokens.css). */
+  mountDevicePx(win);
   const fresh = mountNewVersion(win);
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;

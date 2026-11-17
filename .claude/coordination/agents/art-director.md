@@ -1,5 +1,25 @@
 # Art Director — running log
 
+## 2026-11-16 - whole device px at 125 % and 150 % (lane/a-visual-audit, from main v0.2.133)
+
+Tyler: blurry and grainy at Windows display scaling. Lessons worth keeping:
+
+- **DevTools' deviceScaleFactor is not a Windows display.** Under the emulation a 6 px border lays out at 7 CSS px; on a real
+  125 % screen (`--force-device-scale-factor`, the zoom-for-DSF path) it snaps to 7 DEVICE px (5.6 CSS). Every "before" taken with
+  the emulation was the wrong picture. local-world's `scale` and tests/device-px.mjs launch Chromium at its own device scale.
+- **The world was already right.** camera.js rounds its zoom to whole device px and canvas-backend sizes the bitmap to the box;
+  runs of 3 at 125 %. The grain was DOM chrome: frames at 7.5 device px for 3 art px, icons at 1.25x, 1.5x and 2.5x.
+- **The suspected 128 px icons were not there:** all 685 item, supply and ability icons are 32 px. Measure before believing a brief.
+- **Round frames DOWN.** Rounding --art-px up (the camera's rule) made 125 % frames 20 % thicker, and the Inventory lost a whole
+  doll row to the whole-row scroll rule at 1536x864. Floor never costs a 100 % layout room; it gained 11 px there.
+- **A whole-scale icon needs a box that holds it.** x2 at 150 % overflowed a 32 px `.hw-ico` to one side (the overflow was not
+  centred) and over the rarity border. Containers follow `--icon-1`; pockets are `max(well, icon + 4px)`.
+- **A MediaQueryList held only by its own listener is collected** and its change never fires: hold it at module scope. Headless
+  cannot change scale without a resize, so the resolution-query path is proven on a stand-in window, the page path end to end.
+- **An epsilon no mutant can make bite is not a fix.** The 1/32 px border pad survived every scale, so it went.
+- Open: outfit canvases (hero preview, Character) still stretch at 125 %; in town at 1280x720 the Inventory covers half the
+  action bar; at 125 % a bag icon is x1 (crisp, small in its well). The middle road, area-sampled scaling, is barred by CLAUDE.md §10.
+
 ## 2026-11-14 - nobody wades (lane/b-map-audit, from main v0.2.130)
 
 Tyler on live: "the bridge needs fixed in mosslight glade, i'm walking through water". Lessons worth keeping:

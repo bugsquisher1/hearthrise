@@ -14,8 +14,8 @@
    gold rule with the small diamond at its middle (assets/ui/steel-diamond.png, x2). */
 .hsum-head { position: relative; margin: 2px 2px 6px; padding-bottom: 20px; }
 .hsum-head::after { content: ''; position: absolute; left: -2px; right: -2px; bottom: 8px; height: 2px; background: var(--steel-rule); }
-.hsum-head::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 7px); bottom: 2px; width: 14px; height: 14px;
-  background: url('../../assets/ui/steel-diamond.png') 0 0 / 14px 14px no-repeat; image-rendering: pixelated; }
+.hsum-head::before { content: ''; position: absolute; z-index: 1; left: calc(50% - 3.5 * var(--art-px)); bottom: 2px; width: calc(7 * var(--art-px)); height: calc(7 * var(--art-px));
+  background: url('../../assets/ui/steel-diamond.png') 0 0 / 100% 100% no-repeat; image-rendering: pixelated; }
 .hsum-title { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-h2); line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
 .hsum-when { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hsum-when:empty { display: none; }
@@ -38,8 +38,8 @@
 /* A loot or supply line, as the Bag shows an item: its 32 px pixel icon, its name, the count at the right. */
 .hsum-item { display: flex; align-items: center; gap: 10px; min-height: 40px; border-top: 2px solid var(--steel-sep); }
 .hsum-item:first-child { border-top: 0; }
-.hsum-ico { width: 32px; height: 32px; flex: none; display: grid; place-items: center; }
-.hsum-ico .hh-icon { width: 32px; height: 32px; image-rendering: pixelated; }
+.hsum-ico { width: max(32px, var(--icon-1)); height: max(32px, var(--icon-1)); flex: none; display: grid; place-items: center; }
+.hsum-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; }
 .hsum-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hsum-name b { font-size: var(--t-small); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hsum-name small { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }

@@ -28,8 +28,8 @@
 .hw-mk-row:hover { background: var(--fill-2); }
 .hw-mk-row.is-picked { background: var(--fill-3); box-shadow: inset 0 0 0 2px var(--gold), inset 6px 0 0 var(--gold), inset 8px 4px 0 var(--fill-0); }
 .hw-mk-row:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
-.hw-mk-row .hw-ico { width: 40px; height: 40px; }
-.hw-mk-row .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-mk-row .hw-ico { width: max(40px, calc(var(--icon-1) + 4px)); height: max(40px, calc(var(--icon-1) + 4px)); }
+.hw-mk-row .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .hw-mk-row .hw-line-name small { white-space: normal; line-height: 1.25; }
 .hw-mk-page { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--fill-1); border: 2px solid var(--steel-edge); border-left-color: var(--steel-rule); }
 .hw-mk-page[hidden] { display: none; }
@@ -133,8 +133,8 @@
   /* A SHORT SCREEN CANNOT SPARE A FOOT: the whole page scrolls as one, and only the press stays pinned at the bottom
      of the sheet, always in reach (QA 10-24: Equip sat a scroll away). The 30-day line waits for a bigger screen. */
   .hw-mk-page .hw-hd-page { flex: none; overflow: visible; }
-  .hw-mk-head .hw-ico { width: 40px; height: 40px; }
-  .hw-mk-head .hw-ico .hh-icon { width: 32px; height: 32px; }
+  .hw-mk-head .hw-ico { width: max(40px, calc(var(--icon-1) + 4px)); height: max(40px, calc(var(--icon-1) + 4px)); }
+  .hw-mk-head .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
   .hw-mk-foot { padding: 0; border-top: 0; }
   .hw-mk-foot.is-on { display: contents; }
   .hw-mk-foot > :not(.hw-mk-do) { margin: 4px 12px; }

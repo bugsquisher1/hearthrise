@@ -1849,6 +1849,9 @@ jobs:
   # ── in-page-26 ── HUNT SCREEN MUTANT SHARD 12 (2026-11-13). Run 43525080246 on release/v0.2.129:
   # `hunt-screen --shard-plan` booked all 11 shards ~18.1 min, over the 18 min cap. The cap stays; a
   # 12th shard takes the plan to ~16.6 min each.
+  # 2026-11-16 (lane/a-visual-audit): the display-scale guard joins it. MEASURED on Tyler's PC: device-px 2.0 min plain,
+  # --mutate 5.5 (a clean run, then nine mutants, each opening only the scales it shows at). 0.5 + 16.6 + 2.0 + 5.5 =
+  # 24.6; the 40-minute budget holds the 12.5-min apt stall too (37.1).
   in-page-26:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -1871,6 +1874,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=12/12
+
+      # PIXEL ART AT A DISPLAY SCALE (Tyler 2026-11-16: blurry and grainy at Windows' 125 % and 150 %): on a real
+      # 100/110/125/150/175 % Chromium every pixel frame is whole device px an art px, every item icon a whole
+      # scale inside its pocket, and a changed scale is written again. --mutate plants nine defects.
+      - name: Display scale (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/device-px.mjs
+          node tools/mutant-gate.mjs node tests/device-px.mjs --mutate
 
       - name: Upload failure artifacts
         if: failure()

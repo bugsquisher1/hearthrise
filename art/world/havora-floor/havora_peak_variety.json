@@ -1,0 +1,17 @@
+{
+  "id": "havora_peak_variety",
+  "class": "terrain",
+  "kind": "variety",
+  "style": "s1",
+  "of": "havora-floor/havora_rock_peak",
+  "key": "1111",
+  "lower": "peak",
+  "upper": "peak",
+  "seed": 5,
+  "tone": "damp",
+  "spots": "both",
+  "detail": [
+    "mill/pebbles"
+  ],
+  "notes": "The mountain's upper tier made into 96 (tools/world-art/variety.mjs), picked per cell by src/world/core/ground-variety.js: damp and dry patches and loose pebbles across the high rock, so it reads as weathered stone and not a laid floor (lane/a-havora-seams-2)."
+}

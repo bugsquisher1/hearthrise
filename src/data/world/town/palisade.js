@@ -4,9 +4,12 @@
 // POST at both ends (havora_palisade_hw / _he<k>: the strip's thick post half a tile outside the run, so a run meets
 // the gatehouse, the river bank or a corner on a post instead of a cut log). A north-south run lays one slice of a
 // seamless 128 px loop per row (havora_palisade_v<rows from its north end mod 4>, footprint 2 x 1 on the band's west
-// column); a free end shows the stake tips (north, havora_palisade_vn) or the feet (south, _vs). A north-south run
-// that starts under an east-west run (a corner) runs on from behind it. Plan coordinates [id, x, y] (town/plan.js).
-// The cells stay palisade: what blocks a step is unchanged.
+// column): the strip's own stakes stood one behind the other down the band's middle, in the east-west runs' perspective
+// (tools/world-art/palisade-art.mjs, lane/a-havora-seams-2); a free north end is its first stake's tip (havora_palisade_vn),
+// a south end the strip's thick post (_vs). A CORNER (a north-south band under an east-west run's end): the east-west run
+// stops a column short and ends on its post over the band's middle, and the north-south run starts under that post, so the
+// two runs meet on one post (no run overhangs the other). Plan coordinates [id, x, y] (town/plan.js).
+// What blocks a step is the sprites' footprints; at a corner the band's outer column under the east-west run is open.
 // PURE ESM. Display data only.
 import { GROUND_ROWS } from './ground.js?v=0.2.135';
 import { WEST } from './plan.js?v=0.2.135';
@@ -22,9 +25,12 @@ function lay() {
       if (wall(x, y) && wall(x, y + 1) && !wall(x, y - 1) && !wall(x - 1, y) && wall(x + 1, y) && wall(x + 2, y)) {
         let e = x;
         while (wall(e + 1, y) && wall(e + 1, y + 1)) e++;
-        for (let c = x; c <= e; c++) {
+        /* a corner: a north-south band runs on below the run's end, so the run ends a column in, on its post over the band's middle */
+        const below = (c) => wall(c, y + 2) && wall(c + 1, y + 2) && !wall(c - 1, y + 2) && !wall(c + 2, y + 2);
+        const a = below(x) ? x + 1 : x, b = below(e - 1) ? e - 1 : e;
+        for (let c = a; c <= b; c++) {
           const k = (c - x) % 8;
-          put(c === x ? 'havora_palisade_hw' : c === e ? 'havora_palisade_he' + k : 'havora_palisade_h' + k, c, y);
+          put(c === a ? 'havora_palisade_hw' : c === b ? 'havora_palisade_he' + k : 'havora_palisade_h' + k, c, y);
         }
         x = e;
       }
@@ -39,7 +45,7 @@ function lay() {
       if (!band(x, y) || band(x, y - 1)) continue;
       let s = y;
       while (band(x, s + 1)) s++;
-      /* under a corner (an east-west run on the row above) the run goes on from behind it: no tips */
+      /* under a corner (an east-west run on the row above) the run starts behind the corner post: no free end there */
       const corner = wall(x, y - 1);
       for (let r = y; r <= s; r++) {
         const id = r === y && !corner ? 'havora_palisade_vn' : r === s && !wall(x, s + 1) ? 'havora_palisade_vs' : 'havora_palisade_v' + ((r - y) % 4);

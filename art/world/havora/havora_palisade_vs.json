@@ -3,19 +3,14 @@
   "class": "palisade_v",
   "style": "s1",
   "material": "wood",
-  "restyle": {
-    "outline": {
-      "seams": "n"
-    }
-  },
   "source": "havora_palisade_vs.png",
   "frame": [
     64,
-    32
+    128
   ],
   "anchor_px": [
     32,
-    31
+    127
   ],
   "footprint": [
     2,
@@ -42,5 +37,5 @@
     "cost": 10,
     "style": "havora/havora_home_p01"
   },
-  "notes": "The south end of a north-south palisade run (stake feet bound with rope): slice 7 of the 256 px strip, kept as cut (lane/b-havora-polish 2026-10-26, town/palisade.js). Restyled at build (lane/a-style-fix 2026-11-16, style audit row 10, tools/world-art/restyle.mjs): the run's free south end (the feet) given the world's line as the buildings have; its north edge goes on into the run (a seam, no line)."
+  "notes": "The south end of a north-south run: two stakes and the strip's thick post last, so a run ends on a post (tools/world-art/palisade-art.mjs)."
 }

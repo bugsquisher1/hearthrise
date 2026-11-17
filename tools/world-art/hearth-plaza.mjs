@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from '../../tests/_is-main.mjs';
 import { decodePNG, encodePNG, pixelHash } from './png.mjs';
 import { lock, inPalette } from './lock.mjs';
+import { RAMPS } from './palette.mjs';
 import { hash2, noise } from './ground-finish.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -121,6 +122,65 @@ function slabs(img) {
   return { list: out, owner: seen };
 }
 
+/* one value step along a palette colour's own ramp (k > 0 lighter); a colour on no ramp is left as it is */
+const RAMP_AT = new Map();
+for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c.toLowerCase(), { ramp, k }));
+const stepHex = (hex, k) => { const at = RAMP_AT.get(hex); return at ? at.ramp[Math.max(0, Math.min(at.ramp.length - 1, at.k + k))] : hex; };
+
+/** The square's flags outside the ring and inside the apron, re-laid at one-px density (in place). */
+function flags(img) {
+  const { width: W, height: H, data } = img;
+  const inField = (x, y) => x >= 0 && y >= 0 && x < W && y < H && radius(x, y) >= RING + 1 && Math.min(x, y, W - 1 - x, H - 1 - y) >= BAND + BAND_KERB;
+  /* a joint: the mortar, the moss in it, and the field's two darkest greys (its joints' shadowed side) */
+  const joint = (x, y) => { const c = hexAt(data, (y * W + x) * 4); return MORTAR.has(c) || MOSS.has(c) || c === '#2c2e33' || c === '#3a3a3e'; };
+  /* the flags: 4-connected runs of stone in the field */
+  const own = new Int32Array(W * H).fill(-1), list = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (own[y * W + x] >= 0 || !inField(x, y) || joint(x, y)) continue;
+    const px = [], stack = [y * W + x];
+    own[y * W + x] = list.length;
+    while (stack.length) {
+      const j = stack.pop(); px.push(j);
+      const jx = j % W, jy = (j - jx) / W;
+      for (const [nx, ny] of [[jx + 1, jy], [jx - 1, jy], [jx, jy + 1], [jx, jy - 1]]) {
+        if (!inField(nx, ny) || own[ny * W + nx] >= 0 || joint(nx, ny)) continue;
+        own[ny * W + nx] = list.length; stack.push(ny * W + nx);
+      }
+    }
+    const tally = {};
+    for (const j of px) { const c = hexAt(data, j * 4); tally[c] = (tally[c] || 0) + 1; }
+    list.push({ px, body: Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0] });
+  }
+  const flagAt = (x, y) => (x >= 0 && y >= 0 && x < W && y < H ? own[y * W + x] : -1);
+  /* a dark speck inside one flag is that flag's */
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (!inField(x, y) || own[y * W + x] >= 0) continue;
+    const k = flagAt(x - 1, y);
+    if (k >= 0 && flagAt(x + 1, y) === k && flagAt(x, y - 1) === k && flagAt(x, y + 1) === k) { own[y * W + x] = k; list[k].px.push(y * W + x); }
+  }
+  /* a two-px joint: its upper (or left) px goes to the flag above (or left of) it, as that flag's shaded edge */
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (!inField(x, y) || !joint(x, y)) continue;
+    let k = -1;
+    if (joint(x, y + 1) && !joint(x, y - 1) && flagAt(x, y - 1) >= 0) k = flagAt(x, y - 1);
+    else if (joint(x + 1, y) && !joint(x - 1, y) && flagAt(x - 1, y) >= 0) k = flagAt(x - 1, y);
+    if (k < 0) continue;
+    own[y * W + x] = k; list[k].px.push(y * W + x);
+  }
+  /* each flag: its body, its lit upper-left edge and shaded lower-right edge, one px each, a pit or two */
+  for (const [k, f] of list.entries()) {
+    for (const j of f.px) {
+      const x = j % W, y = (j - x) / W;
+      const out = (dx, dy) => flagAt(x + dx, y + dy) !== k;
+      let c = f.body;
+      if (out(1, 0) || out(0, 1)) c = stepHex(f.body, -1);
+      else if (out(-1, 0) || out(0, -1)) c = stepHex(f.body, 1);
+      else if (hash2(x, y, 97) < 0.012) c = stepHex(f.body, -1);
+      put(data, j * 4, c);
+    }
+  }
+}
+
 /** The finished paving: the base locked as the build locks it, the ring re-laid, the apron and its kerb. Pure but for `setts`. */
 export function hearthPlaza(base, setts) {
   const img = lock(base, 'terrain');
@@ -161,6 +221,11 @@ export function hearthPlaza(base, setts) {
       put(data, p, s.body);
     }
   }
+  /* 2b. the square's big flags (outside the ring, inside the apron) at the Hearth's pixel density (lane/a-havora-seams-2: the generated
+     field's joints, edges and grain ran two px wide beside the one-px setts and Hearth): every two-px joint thinned to one, the px
+     given back to the flag on its upper-left as its shaded edge; each flag's grain worn back to its body, a one-px lit edge on its
+     upper left and a one-px shade on its lower right, a pit here and there */
+  flags(img);
   /* 3. the Hearth's rust flecks on its own stone, in small clumps */
   for (const s of list) {
     if (s.tone !== 'hearth') continue;

@@ -1,0 +1,40 @@
+{
+  "id": "uc_ossuary_wall",
+  "class": "hanging",
+  "style": "s1",
+  "material": "native",
+  "source": "uc_ossuary_wall.png",
+  "frame": [
+    32,
+    42
+  ],
+  "anchor_px": [
+    16,
+    41
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "114a7acd-00cf-460c-bf32-1ad3a956284b",
+    "cut": [
+      0,
+      0,
+      32,
+      40
+    ]
+  },
+  "notes": "The ossuary (art/briefs/ground-unmarked_catacombs.txt): px 0-31 of the 96x40 run, hung on a vault wall face, by tools/world-art/catacomb-ground.mjs; pixels unscaled, nothing drawn."
+}

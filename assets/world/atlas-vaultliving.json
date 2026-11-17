@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-vaultliving.png",
   "size": [2048,700],
-  "pixels": "73c1266e50ffba850ac4c4c7108ec01436074b4659edeb0c1a4c20992f03066b",
+  "pixels": "af6d7c785ef0531a0a09d774ddc584b65b1fb726d97388598df41507ab402b4f",
   "sprites": {
     "night_carter": {
       "class": "character",

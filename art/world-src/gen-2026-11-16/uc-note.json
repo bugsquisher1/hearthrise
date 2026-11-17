@@ -24,7 +24,7 @@
   "lift at import (ring on the stand-in floor, median 0.013: the Sewer's painted ground under the map's open tiles)": {
     "shrouded_pauper": "0 (4.57 raw)", "keeper_dunn": "2 (1.59 -> 3.14)", "night_carter": "2 (1.46 -> 2.98 S E W; N 1.13 at any lift, his back is the shadow ramp)",
     "vault_leech": "2 (1.46 -> 3.14, N 4.12)", "bone_wall": "1 (2.01-2.16 -> 2.98-3.14)",
-    "note": "the vault family's own floor is owed (art/briefs/ground-unmarked_catacombs.txt); re-measure when it lands and re-port with the driver"
+    "note": "re-measured on the vault family's own floor 2026-11-17 (gen-2026-11-17/vault-note.json): the lifts hold; the Night Carter's back lifts on into the stone greys (re-ported by the driver)"
   },
   "kept clips (uc-bodies/<body>/<clip>/<facing>/fNN.png, f00 the still)": "the facings and lays are tools/world-art/catacomb-clips.mjs; every refusal is named there in one line",
   "refused clips (the pattern)": {

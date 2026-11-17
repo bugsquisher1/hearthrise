@@ -1,0 +1,35 @@
+{
+  "id": "uc_wood_book",
+  "class": "fixture",
+  "style": "s1",
+  "material": "native",
+  "source": "uc_wood_book.png",
+  "frame": [
+    48,
+    51
+  ],
+  "anchor_px": [
+    24,
+    50
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "2942e2cc-244d-453f-b8c1-09cef8eb2c05",
+    "name": "UC Wood Book"
+  },
+  "notes": "Ported from PixelLab object 2942e2cc-244d-453f-b8c1-09cef8eb2c05 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

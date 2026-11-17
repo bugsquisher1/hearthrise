@@ -1,0 +1,32 @@
+{
+  "lane": "lane/a-catacomb-art (2026-11-17): the Unmarked Catacombs' own vault floor (it stood on the Sewer's painted ground) and its two signature pieces, PixelLab subscription gens only (credits $0 throughout)",
+  "brief": "art/briefs/ground-unmarked_catacombs.txt: damp lime-washed stone vaults, standing water in the Flooded Vault, an ossuary of skulls set in lime, Dunn's Wood Book on a lectern; dark, so lifted bodies read 3:1",
+  "driver": "node tools/world-art/import-catacombs-2026-11-16.mjs --only ground | pieces (tools/world-art/catacomb-ground.mjs), then build.mjs --set vault",
+  "tiles (vault-tiles/, create_topdown_tileset pro, 32 px, high top-down, palette hr-world-56-v2, max_colors 12, both halves born on the palette, chained; import native)": {
+    "1-flagstone-rock 6cc9b014": "the hub: worn irregular slabs, #2f2723 with black joints (median 0.0218); the rock a near-black wall top (0.0076); transition 0.25, a thin pale lime rim; roundness 2 (cut corners)",
+    "2-earth-rock 9fc6c7de": "the Carters' packed earth #2a1c14 (0.0137), the rock chained",
+    "3-flagstone-earth c7473d04": "both chained, flat",
+    "4-water-flagstone 4f2763d2": "black standing water #0b0a0c with a faint blue fleck (0.0031), the flagstone chained and raised a quarter tile behind a pale wet rim",
+    "5-water-rock 577ffa4d": "both chained, the rock raised behind the rim",
+    "6-flagstone-setts 344c8c76": "the Keepers' setts, small square #2f2723/#231d1f with black joints (0.0218), a thin worn brown edge where they meet the flagstone",
+    "refused": {
+      "rejected-1-flagstone-rock-light 1cee7c78": "the first sample: flagstone #3a3a3e (median 0.043, out of the dim band, and the stone ramp cannot shade lower) and a brick wall top that read as a second floor",
+      "rejected-6-flagstone-setts-light 682c0434": "setts #3a3a3e (0.043): the Keepers' Room is Dunn's pocket, and the lifted dark bodies read about 2.1:1 on it"
+    }
+  },
+  "walls (vault-walls/run-61369edf.png)": "create_image_pro_flash 192x64, 6 gens, the Hold's wall run (26-hold-sample/walls/run-cacd73f5) as a shape-only style image: a dark cap, dressed blocks washed in old pale lime, damp streaks, a wet foot. Its four inside 32 px slices are laid over every rock cell with floor or water south of it (124 faces); the two end slices carry the run's outline and are not used",
+  "pieces (vault-pieces/)": {
+    "uc_wood_book 2942e2cc": "create_object_pro_flash, one direction, 48x64, high top-down, palette, 5 gens, the Hold's kh_lectern as a style image: a grey stone lectern, the ledger open on it, a tallow candle at each top corner with wax down the stone. Class fixture (48x51), placed at 34,35 north of Dunn's pocket (one solid tile: the map's maskHash moved f43f14d7 -> b34acba6)",
+    "uc_ossuary_wall 114a7acd": "create_image_pro_flash 96x40, 5 gens, the vault wall run as its style image: rows of skulls between courses of long bones; the lime of the face shows between them. Cut into three 32 px panels (uc_ossuary_wall, _b, _c), class hanging (no step blocked), hung on the Bone Room's ten north faces and its four pillars"
+  },
+  "read": "tools/qa/region-kit.html on the map (the real renderer, cellar light, x2), each room with the five bodies and the hero: art/review/catacomb-art/scene-*.png (gitignored). The gallery's lime wall and pillars, the ossuary pillars of the Bone Room, the black water of the Flooded Vault, the setts in their flagstone border round the Wood Book: one set of stone, one light, one grid with the bodies",
+  "ring (art-budget.js READABLE, measured as tests/world-assets.mjs [ring] does: the floor's median under the map's spawn tiles, 0.0137)": {
+    "shrouded_pauper": "4.54 / 6.37 / 6.66 / 4.54 (s e n w), as drawn",
+    "keeper_dunn": "3.12 all four (lift 2)",
+    "bone_wall": "3.12 / 2.97 / 2.97 / 2.97 (lift 1)",
+    "night_carter": "2.97 all four: his back (n) was 1.13:1, drawn in the shadow ramp, which never lifts alone; it now lifts 3 steps on into the stone greys on n, ne and nw only (port-pixellab.mjs unit --lift-into shadow:stone:3@n,ne,nw, lock.mjs liftBody `into`), so his front keeps its black hook and hat brim",
+    "vault_leech": "3.12 / 3.12 / 4.10 / 3.12 (lift 2)",
+    "per pocket": "the floor under the Cut, the Gallery and the Loading Vault's pockets is 0.013-0.014; under the Bone Room, the Flooded Vault's causeway and the Keepers' Room it is 0.0218 (bare flagstone and setts), where the lifted dark bodies read about 2.6-2.8:1. The catacombs is not a held kit (READABLE.kits), so no guard judges it; one more lift step on Dunn, the Bone Wall, the Carter and the Leech is the art director's call"
+  },
+  "gens": "136 by this lane's tally: 8 tilesets x 15 = 120 (6 kept, 2 refused), the wall run 6, the Wood Book 5, the ossuary 5. With the 20 for the drop icons, balance 7752 -> 7509 (243: other sessions ran jobs on the account at the same time). Credits $0 throughout"
+}

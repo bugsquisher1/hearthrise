@@ -137,8 +137,9 @@ const CELLAR_SHEETS = await sheetsOf('mill_cellar');
    sheets read over a little more than a phone's 422x195, so no camera detail can add one, and a stand whose small view is sure to draw the Havora sheet. */
 async function townStands() {
   const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
-  const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
-    'src/world/core/book.js', 'src/world/core/map-compile.js', 'src/data/world/terrain.js', 'src/world/core/compose.js', 'src/data/world/stations.js'].map(imp));
+  const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }, { FOLK }] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
+    'src/world/core/book.js', 'src/world/core/map-compile.js', 'src/data/world/terrain.js', 'src/world/core/compose.js', 'src/data/world/stations.js',
+    'src/data/world/town/folk.js'].map(imp));
   const manifests = {};
   for (const s of ATLAS_SETS) manifests[s] = JSON.parse(await readFile(join(ROOT, 'assets/world/atlas-' + s + '.json'), 'utf8'));
   const book = bookm.createBook(manifests);
@@ -149,6 +150,8 @@ async function townStands() {
     const view = { ox: Math.max(0, Math.min(map.w * T - w, Math.round(x * T - w / 2))), oy: Math.max(0, Math.min(map.h * T - h, Math.round(y * T - h / 2))), w, h };
     const f = comp.composeFrame(map, book, { hero: { x, y } }, view, tables, T);
     const out = new Set([book.frame('outfit_knight').set]);
+    /* the townsfolk walk on the clock (src/world/town-folk.js) and any of them may stand in a first view: their sheets, as the hero's */
+    for (const p of FOLK.town_common || []) out.add(book.frame(p.body).set);
     const meets = (d) => d.x < view.ox + w && d.x + d.w > view.ox && d.y < view.oy + h && d.y + d.h > view.oy;
     for (const l of [f.decals, f.sprites, f.raised]) for (const d of l) if (d.set && meets(d)) out.add(d.set);
     for (const sh of f.shadows) if (sh.type === 'cast') out.add(sh.sprite.set);

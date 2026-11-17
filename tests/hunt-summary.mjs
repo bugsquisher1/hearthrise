@@ -262,8 +262,15 @@ async function runTests(M) {
     eq(MD.withTrainingStop(early, stop).train, c.train, 'the stop fills the fee and levels');
     eq([MD.withTrainingStop(early, { ...stop, session: 'sess-other' }), MD.withTrainingStop(c, stop)], [null, null], 'another session\'s stop, or a card already full: nothing');
     /* why it ended: the Training window's words, never a hunt's */
-    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'Defense training stopped', 'stopped');
-    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Defense training ended: max session reached', 'the 12-hour end');
+    eq(MD.endWords('left', false, null, 'Wren', null, 'training_yard_defense'), 'Training stopped', 'stopped');
+    eq(MD.reasonWords(card(sess({ end_reason: 'hours' }), stop), 'Wren', 5 * 3600000), 'Training ended (12 h reached)', 'the 12-hour end');
+    eq(MD.endWords('gold_out', false, null, 'Wren', null, 'training_yard_defense'), 'Training ended (out of gold)', 'out of gold');
+    /* Tyler 2026-11-16: a yard session's end read "You went 10 minutes without landing a blow, so you headed home." Every end a
+       training session can carry reads as training, never a hunt's words. */
+    for (const why of END_ORDER) {
+      const w = MD.endWords(why, false, null, 'Wren', null, 'training_yard_ranged');
+      ok(/^Training (ended|stopped)/.test(w) && !/hunt|headed home|came home|blow|ammo|stamina/i.test(w), 'a training session ended ' + why + ' reads ' + JSON.stringify(w));
+    }
     eq(MD.endWords('hours', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.hours, 'a hunt keeps its own words');
     eq(card(sess({ hunt: 'wickstead' }), stop).train, null, 'a hunt is no training card');
   });

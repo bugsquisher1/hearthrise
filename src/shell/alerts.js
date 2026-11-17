@@ -65,6 +65,8 @@ import { gold } from '../render/format.js?v=0.2.134';
 import { levelOf } from '../session/character-sections.js?v=0.2.134';
 import { ITEMS } from '../data/items.js?v=0.2.134';
 import { trackOnce } from '../net/observability.js?v=0.2.134';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.134';
+import { endedWords as trainingEndWords } from './training-words.js?v=0.2.134';
 
 const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 
@@ -74,7 +76,7 @@ const residueOf = (cs) => {
 };
 const who = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 /* The lines a new hunt retires once its session is open (the last hunt's end, death and low supply). */
-const RETIRE = new Set(['ended', 'death', 'low']);
+const RETIRE = new Set(['ended', 'trained', 'death', 'low']);
 /* THE LIVE LINES say what the record says NOW of the open hunt (a bar supply at zero, a friend's low stamina), not something that
    happened: ids `low:<session>:…` and `lowstam:<session>:…`. Each is the envelope's (CLAUDE.md §6): its words are this read's, it
    goes when the server stops saying it, and its id is forgotten then, so the server saying it again is news again (a friend refills,
@@ -137,9 +139,11 @@ const supplyWords = (id) => itemName(id);
 
 /**
  * What this character's record says happened, as candidate alerts (pure).
- * @returns {{id: string, kind: string, text: string, session: string|null, item?: string}[]}
+ * @returns {Candidate[]}
  */
 function candidatesOf(cs, viewed) {
+  /** @typedef {{id: string, kind: string, text: string, session: string|null, invite?: string, item?: string, quiet?: boolean}} Candidate */
+  /** @type {Candidate[]} */
   const out = (invitesOf(cs) || []).map((i) => ({ id: 'invite:' + i.id, kind: 'invite', session: null, invite: i.id,
     text: i.from + ' invites ' + who(cs) + ' to their party.' }));
   /* What another player's move did to this hero, once per notice the server wrote. */
@@ -154,6 +158,13 @@ function candidatesOf(cs, viewed) {
   }
   const h = huntOf(cs);
   if (!h) return out;
+  /* A TRAINING SESSION is no hunt (Tyler 2026-11-16): its end is a label and its button opens Training (its own Start, never the
+     hunt's restart); while it runs it spends no supply and needs no ammo, so it raises no supply line. */
+  if (trainedBy(h.huntId)) {
+    if (h.ended) out.push({ id: 'trained:' + h.sessionId, kind: 'trained', session: h.sessionId, quiet: viewed,
+      text: t('training.alert_ended', { name: who(cs), why: trainingEndWords({ reason: h.endReason }) }) });
+    return out;
+  }
   const where = huntName(h.huntId);
   /* A boss room has no "Start again": its one door is the press on the ground's page (a call's fee or a hall's key: src/data/boss-halls.js). */
   const endedKind = roomOfHunt(h.huntId) ? 'party' : 'ended', endedSession = endedKind === 'ended' ? h.sessionId : null;
@@ -353,7 +364,7 @@ export function createAlertCenter(account, opts) {
       /* A warning is about what comes next: a friend's low stamina goes with the hunt it was raised in, a warned ground once a hunt is open. */
       const stale = a.kind === 'partywarn' && (a.session ? a.session !== open : !!open);
       /* AN END ALREADY SEEN IS OVER (party panel 2026-11-03: "Pip left the hunt, so Kell came home too" outlived that hunt's summary): the player closed the summary, or dismissed the death. */
-      const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
+      const seenEnd = !!a.session && (a.kind === 'ended' || a.kind === 'trained' || a.kind === 'death') && (summaryClosedFor(cs, a.session) || deathSeen(cs, a.session));
       /* A live line goes when the server stops saying it, and its words are this read's (LIVE, above). */
       if (unsaid(a.id)) { alerts.splice(i, 1); any = true; continue; }
       if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }

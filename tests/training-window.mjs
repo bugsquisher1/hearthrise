@@ -193,7 +193,7 @@ async function checks() {
         await page.click('[data-hs-act="train-stop"]');
         await wait(page, () => { const r = document.querySelector('[data-hs-win="training"] .tw-ended'); return !!r && !r.hidden; }, null, 4000);
         if (!s.calls.some((c) => c.name === 'hr_hunt_leave')) fails.push('TR-2 Stop did not send the hunt\'s Leave');
-        if (await q(page, '.tw-ended') !== 'Melee training stopped') fails.push('TR-2 the window does not say why it ended');
+        if (!/^Training stopped$/.test(await q(page, '.tw-ended') || '')) fails.push('TR-2 the window does not say why it ended: ' + JSON.stringify(await q(page, '.tw-ended')));
         await labelsOnly(page, 'after Stop');
       }
       if (errors.length) fails.push('TR-2 console: ' + errors.slice(0, 2).join(' | '));

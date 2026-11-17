@@ -57,6 +57,9 @@ import { t } from '../render/player-text.js?v=0.2.134';
 import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.134';
 import { afterDoneWords } from './hunt-after.js?v=0.2.134';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.134';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.134';
+import { trainingPhrase } from '../session/training-sections.js?v=0.2.134';
+import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.134';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -141,7 +144,10 @@ export function awayRecapOf(cs) {
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
   const name = nameOf(cs) || 'Hero';
-  const head = 'Away ' + awayWords(gone) + ': ' + name + ' hunted ' + huntName(h.huntId);
+  /* A TRAINING SESSION is no hunt (Tyler 2026-11-16): "Wren trained Ranged at the Training Yard", never "hunted Training Yard". */
+  const yard = trainingPhrase(h.huntId);
+  const head = 'Away ' + awayWords(gone) + ': '
+    + (yard ? t('training.away_trained', { name, skill: skillWord(trainedBy(h.huntId).skill), at: yard.at }) : name + ' hunted ' + huntName(h.huntId));
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
@@ -170,6 +176,13 @@ function nowWords(cs, h, now) {
   /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
   const said = (h.ended ? afterDoneWords(cs, h.sessionId, name) : '') || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '');
   const then = said ? ' ' + dot(said) : '';
+  /* A TRAINING SESSION says its own label ("Training ended (out of gold), 2 h 5 min ago."), and no stamina: the yard spends none
+     (Tyler 2026-11-16). */
+  if (trainedBy(h.huntId)) {
+    if (!h.ended) return ' ' + t('training.away_still');
+    const why = trainingEndWords({ reason: h.endReason });
+    return ' ' + (ago ? t('training.away_ended_ago', { why, time: awayWords(now - h.endedAtMs) }) : why + '.') + then;
+  }
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
     ? ' The hunt has ended' + ago + '. ' + dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')

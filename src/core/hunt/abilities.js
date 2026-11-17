@@ -59,7 +59,6 @@ import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, atta
 import { place, covers } from './shapes.js?v=0.2.134';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.134';
 import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js?v=0.2.134';
-import { trainingFree } from './training.js?v=0.2.134';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -478,8 +477,6 @@ function shotLocked(h, id) {
  * source, price }: a `store` line is the partner's basic version, damage.js blow).
  */
 export function payBasic(inst, hero, cost, sc) {
-  /* THE YARD SWINGS FOR FREE (src/core/hunt/training.js): the pay is the time, so no basic spends mana or a shot there. */
-  if (trainingFree(inst && inst.ground)) return true;
   const c = cost || {};
   if (int(c.mana) > 0) {
     if (int(hero.mana) < c.mana) return false;

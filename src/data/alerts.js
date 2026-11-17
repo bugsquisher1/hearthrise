@@ -14,7 +14,7 @@
 //   action   what the button does (src/shell/alerts.js NEXT): 'bag' opens the
 //            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite,
-//            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window
+//            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window, 'training' the Training window
 //   decline  a second button's words (the invite's Decline), or none
 //   share    a Share button's words: the rare find's card (src/shell/share-card.js)
 //   button   the button's words
@@ -29,6 +29,8 @@ export const ALERT_KINDS = Object.freeze([
   /* Only a hero set to end its hunt on empty can run out (the store pays per use otherwise): show that hunt. */
   Object.freeze({ id: 'low', label: 'Low supplies', glyph: 'uiWarn', action: 'show', button: 'See the hunt', fadeMs: 30000 }),
   Object.freeze({ id: 'ended', label: 'Hunt ended', glyph: 'uiHourglass', action: 'restart', button: 'Start again' }),
+  /* A training session's end (Tyler 2026-11-16: never a hunt's words): its own Start is in the Training window, never the hunt's restart. */
+  Object.freeze({ id: 'trained', label: 'Training ended', glyph: 'uiHourglass', action: 'training', button: 'Open Training' }),
   /* "While you were away" on return (src/shell/away-recap.js, designer 2026-10-22): what the hunt did meanwhile. */
   Object.freeze({ id: 'away', label: 'While away', glyph: 'uiHourglass', action: 'show', button: 'See the hunt' }),
   /* PARTY_SPEC §1.3: an invite reaches a stranger anywhere in the game, Join / Decline (the server's party_invites). */

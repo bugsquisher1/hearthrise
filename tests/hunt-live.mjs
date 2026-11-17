@@ -76,6 +76,9 @@
 //         casts on them, on the server's commits (browser closed) and in the prediction (viewed).
 //   LV-NOFIGHT A HERO WHO CAN'T FIGHT GOES HOME (designer 10-31): a bare bow with the store shut ends no_fight at its
 //         span on the server's commits; viewed, the prediction stops there too and every commit before it matches.
+//   LV-YARD THE YARD NEVER ENDS FOR NO BLOWS (Tyler 2026-11-16: a yard session ended no_fight at ten minutes): a bare bow (nothing
+//         loaded, an empty bag and bar, the store shut) at the Ranged yard and a Mage with no runes at the Magic yard play past the
+//         no-fight span. Browser closed: no end, the hero's blows land on the dummy, the skill keeps paying. Viewed: every commit matches.
 //   LV-SPELL A MONSTER'S GROUP STRIKE (Tyler 2026-11-08, lane/b-area-engine): every hero of a party of four, and a lone hero, is struck
 //         at every landing wherever it stands, on the server's commits (browser closed); viewed, every commit matches and the browser
 //         plays the server's own marks; a frost-resisting tank (gear resistPm, carried to a peer's browser in its frozen row) takes half.
@@ -1667,6 +1670,40 @@ function rules(M) {
     ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
     ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
   }
+  { /* LV-YARD the yard never ends for no blows (Tyler 2026-11-16), viewed and with the browser closed */
+    const SPAN = (M.HSD.NO_FIGHT_END_MIN + 2) * 60000;
+    for (const [hunt, role, skill, weapon] of [['training_yard_ranged', 'ranger', 'ranged', 'shortbow'], ['training_yard_magic', 'mage', 'magic', 'apprentice_wand']]) {
+      const mi = memberOf(M, 'a', 0, role, 30);
+      mi.huntId = hunt;
+      mi.equipment = { weapon };
+      /* nothing loaded, nothing carried, no runes, no food, an empty bar, and the store shut */
+      mi.huntSession = Object.assign({}, mi.huntSession, { bag: {}, supplySource: 'mine', onEmpty: 'end' });
+      mi.hero = M.SPAWN.heroSetup({ weaponType: M.HR.wornRoleKey(mi.equipment, M.ITEMS), options: {}, partyRoles: [role], bar: [] });
+      const srv = server(M, [mi], { hunt });
+      const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+      E.seed(srv.live(mi.user, 0));
+      const verdicts = [], ends = [];
+      let blows = 0, lateXp = 0;
+      for (let t = T0; t <= T0 + SPAN; t += 100) {
+        E.advance(t, () => {});
+        if ((t - T0) % 16000 === 0 && t > T0) {
+          const was = mi.skills[skill] || 0;
+          const c = srv.commit(t);
+          if (!c) continue;
+          for (const e of c.ends) ends.push(e);
+          verdicts.push(E.reconcile(c.check));
+          blows += c.tl.hunt_events.filter((e) => e.type === 'dmg' && e.u === mi.unitId && e.t !== mi.unitId).length;
+          if (t - T0 > M.HSD.NO_FIGHT_END_MIN * 60000) lateXp += (mi.skills[skill] || 0) - was;
+        }
+      }
+      const off = verdicts.filter((v) => v !== 'match');
+      console.log(`  LV-YARD ${skill}: browser closed, ${blows} blows on the dummy, ${lateXp} ${skill} XP after the no-fight span, ends ${JSON.stringify(ends)}; viewed, ${off.length} of ${verdicts.length} commits off`);
+      ok('LV-YARD', ends.length === 0, `${skill}: browser closed: a ${role} with nothing to shoot ended its training ${JSON.stringify(ends)}`);
+      ok('LV-YARD', blows > 30, `${skill}: browser closed: a ${role} with nothing loaded landed ${blows} blows on the dummy in ${SPAN / 60000} min`);
+      ok('LV-YARD', lateXp > 0, `${skill}: browser closed: the yard paid ${lateXp} ${skill} XP past the no-fight span`);
+      ok('LV-YARD', verdicts.length > 40 && off.length === 0, `${skill}: viewed: ${off.length} of ${verdicts.length} commits did not match the prediction`);
+    }
+  }
   { /* LV-CLASS PARTY LEVEL XP (Tyler 2026-10-31), both paths: a Melee and a Ranger in the Cellar earn the table's cell over
        the even share (src/data/party-class-xp.js, read here: lane/b-party-xp moved it 1070 -> 1210); a Melee and a Melee earn the even share. The same swings pay the same XP viewed and browser closed. */
     const SPAN = 240000;
@@ -1956,6 +1993,7 @@ const MUTANTS = [
   /* A real per-frame slowdown: every 100th frame step does 60 ms of work, in every play (LV-E budget). */
   ['a frame step stalls 60 ms every 100 frames (LV-E budget)', 'src/session/live-link.js', '  advance(clientNow) {\n',
     '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],
+  ['the yard\'s bow waits for arrows (LV-YARD)', 'src/core/hunt/damage.js', '      if (yard) return yard;\n', '', /^LV-YARD/],
   ['the no_fight end never fires (LV-NOFIGHT)', 'src/core/action-rules.js', '  no_fight: (hs, t) => Number.isInteger(hs.fightAtMs) && t - Math.max(hs.fightAtMs, Number(hs.huntFromMs) || 0) >= NO_FIGHT_END_MIN * 60000,', '  no_fight: () => false,', /^LV-NOFIGHT/],
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
   ['the prediction shows its own rare rolls (LV-RR)', 'src/hunt-view/live-engine.js', 'sim.events.filter(predicted)', 'sim.events', /^LV-RR/],

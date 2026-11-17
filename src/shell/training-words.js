@@ -8,6 +8,7 @@
 import { t } from '../render/player-text.js?v=0.2.134';
 import { whole } from '../render/format.js?v=0.2.134';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.134';
+import { TRAINING_RULES } from '../data/training.js?v=0.2.134';
 
 const MINUTE = 60000;
 const num = (v) => Number.isSafeInteger(v);
@@ -24,14 +25,14 @@ export function timeWords(ms) {
   return h && r ? t('training.time_both', { hours, minutes }) : hours || minutes;
 }
 
-/** Why the last session ended, or '' when there is none. */
+/** Why the last session ended, as a label ("Training ended (out of gold)"), or '' when there is none. Never a hunt's words: any other
+    end (a quiet stretch, the server's stop) reads "Training ended". */
 export function endedWords(last) {
   if (!last) return '';
-  const o = { skill: skillWord(last.skill) };
-  if (last.reason === 'gold_out') return t('training.ended_gold_out', o);
-  if (last.reason === 'hours') return t('training.ended_hours', o);
-  if (last.reason === 'left') return t('training.ended_left', o);
-  return t('training.ended_other', o);
+  if (last.reason === 'gold_out') return t('training.ended_gold_out');
+  if (last.reason === 'hours') return t('training.ended_hours', { hours: TRAINING_RULES.maxHours });
+  if (last.reason === 'left') return t('training.ended_left');
+  return t('training.ended_other');
 }
 
 /** A training refusal that carries the server's numbers, as a label, or null (the shared table then says it). */

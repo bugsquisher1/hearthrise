@@ -41,11 +41,19 @@ export const TRAINING_TEXT = Object.freeze({
   run_clock: 'Elapsed: {time}',
   run_paid: 'Paid: {gold} gold',
 
-  /* Why the last run ended (the section's last_stop.reason). */
-  ended_gold_out: '{skill} training ended: out of gold',
-  ended_hours: '{skill} training ended: max session reached',
-  ended_left: '{skill} training stopped',
-  ended_other: '{skill} training ended',
+  /* Why the last run ended (the section's last_stop.reason, a training session's end reason): a label, never a hunt's words (Tyler
+     2026-11-16), in the end card's label form (src/data/text/summary.js end_*). The Training window, the end card, the away line and
+     the alert all read these. {hours} the longest session. */
+  ended_gold_out: 'Training ended (out of gold)',
+  ended_hours: 'Training ended ({hours} h reached)',
+  ended_left: 'Training stopped',
+  ended_other: 'Training ended',
+  /* THE AWAY LINE (src/shell/away-recap.js) and THE ALERT (src/shell/alerts.js) for a training session. {at} the bar's place words,
+     {why} one of the labels above, {time} how long ago it ended. */
+  away_trained: '{name} trained {skill} {at}',
+  away_still: 'Still training.',
+  away_ended_ago: '{why}, {time} ago.',
+  alert_ended: '{name}: {why}',
 
   /* Why Start is off, said before the press; the same words answer the server's refusal. */
   closed: 'Training Yard closed',

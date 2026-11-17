@@ -970,6 +970,43 @@ async function runTests(mods) {
     w.centre.destroy(); had.centre.destroy(); over.centre.destroy();
   });
 
+  /* ── R3y: A TRAINING SESSION IS NO HUNT (Tyler 2026-11-16: a yard session's away line read "You went 10 minutes without landing a
+     blow, so you headed home. Check your weapon, your ammo and your action bar."): the away line, the alert and the end label say
+     training, never a hunt's words; a running yard raises no supply line (it spends none) ── */
+  t('R3y a training session\'s away line and alert speak of training, never of a hunt', () => {
+    const T0 = 1_800_000_000_000, H2 = 2 * 3600 * 1000;
+    const HUNTISH = /hunt|headed home|came home|blow|ammo|action bar|stamina/i;
+    const env = (huntId, ended, reason) => ({ name: 'Wren', state: { level_xp: XP.charXpForLevel(30) }, level: { xp: XP.charXpForLevel(30), level: 30, into: 0, need: 1 },
+      hunt: { session_id: 's-y', hunt_id: huntId, ended: !!ended, session: ended ? { end_reason: reason } : {}, hero: {}, pose: { units: [] } },
+      stamina: { ms: 3600000, max_ms: 43200000 },
+      /* a bow with nothing loaded and nothing carried: a hunt would warn of it */
+      hunt_settings: { preset: 0, presets: [], role: 'ranger', slots: [], store: [] }, equipment: { weapon: 'practice_bow' }, inventory: {} });
+    const hero = (e, stamp) => ({ slot: 0, env: e, record: { residue: stamp ? { awaySeen: { s: 's-y', at: T0, xp: XP.charXpForLevel(30), lv: 30 } } : {} },
+      read: (k) => e[k], serverNow: () => T0 + H2, flushResidue: () => Promise.resolve(),
+      setResidue(f, v) { this.record = { residue: Object.assign({}, this.record.residue, { [f]: v }) }; return true; }, subscribe: () => () => {} });
+    /* the away line: what it did, and why it ended, in training's words */
+    for (const [reason, want] of [['no_fight', /Training ended\./], ['gold_out', /Training ended \(out of gold\)\./], ['hours', /Training ended \(12 h reached\)\./], ['left', /Training stopped\./]]) {
+      const line = AR.awayRecapOf(hero(env('training_yard_ranged', true, reason), true));
+      ok(line && /^Away 2 h 0 min: Wren trained Ranged at the Training Yard\./.test(line.text) && want.test(line.text) && !HUNTISH.test(line.text),
+        'a yard session ended ' + reason + ': ' + JSON.stringify(line && line.text));
+    }
+    const still = AR.awayRecapOf(hero(env('training_house_magic', false), true));
+    ok(still && /Wren trained Magic on the home dummy\. Still training\.$/.test(still.text) && !HUNTISH.test(still.text), 'a session still running: ' + JSON.stringify(still && still.text));
+    /* the alert of a hero not on screen: the label, and Training's own door (never the hunt's restart) */
+    const centreOf = (e) => AL.createAlertCenter({ viewed: 1, character: () => hero(e, false), characters: () => [hero(e, false)], subscribe: () => () => {} }, { track: () => {}, clock: () => 0 });
+    for (const [reason, want] of [['gold_out', 'Wren: Training ended (out of gold)'], ['no_fight', 'Wren: Training ended'], ['hours', 'Wren: Training ended (12 h reached)']]) {
+      const c = centreOf(env('training_yard_ranged', true, reason));
+      const lines = c.list();
+      ok(lines.length === 1 && lines[0].kind === 'trained' && lines[0].text === want && lines[0].action === 'training', 'a yard session ended ' + reason + ' alerts ' + JSON.stringify(lines));
+      c.destroy();
+    }
+    /* a running yard with a bow and nothing to shoot says nothing; the same bow on a hunt is warned (the control) */
+    const yard = centreOf(env('training_yard_ranged', false)), hunt = centreOf(env('mill_cellar', false));
+    ok(yard.list().length === 0, 'a running yard raised ' + JSON.stringify(yard.list().map((a) => a.text)));
+    ok(hunt.list().some((a) => a.kind === 'low'), 'CONTROL: a bow with nothing to shoot on a hunt raised ' + JSON.stringify(hunt.list().map((a) => a.text)));
+    yard.destroy(); hunt.destroy();
+  });
+
   /* ── R3c/R3d: what the hero did AFTER the hunt (src/shell/after-hunt.js, designer re-read 2026-11-11 #2: the second night's
      "The hunt has ended 5 h 45 min ago" said nothing of the hero idle in town, nor what would have filled the time) ── */
   const T0 = 1_800_000_000_000, MIN = 60 * 1000, H = 60 * MIN;
@@ -1287,6 +1324,12 @@ const MUTANTS = [
   { test: 'R6', file: 'src/shell/alerts.js', from: 'gearSeen.set(cs.slot, { session: h.sessionId, ids: new Set(ids) }); return; }', to: 'gearSeen.set(cs.slot, { session: h.sessionId, ids: new Set() }); }' },
   { test: 'R6', file: 'src/shell/alerts.js', from: '&& GEAR_TYPES.has(ITEMS[l.item].type))', to: ')' },
   { test: 'R6', file: 'src/shell/alerts.js', from: '    for (const id of ids) was.ids.add(id);\n', to: '' },
+  { test: 'R3y', file: 'src/shell/away-recap.js', from: '  const yard = trainingPhrase(h.huntId);', to: '  const yard = null;' },
+  { test: 'R3y', file: 'src/shell/away-recap.js', from: "  if (trainedBy(h.huntId)) {\n    if (!h.ended) return ' ' + t('training.away_still');", to: "  if (false) {\n    if (!h.ended) return ' ' + t('training.away_still');" },
+  { test: 'R3y', file: 'src/shell/away-recap.js', from: "    if (!h.ended) return ' ' + t('training.away_still');\n", to: '' },
+  { test: 'R3y', file: 'src/shell/alerts.js', from: '  if (trainedBy(h.huntId)) {\n    if (h.ended) out.push', to: '  if (false) {\n    if (h.ended) out.push' },
+  { test: 'R3y', file: 'src/shell/alerts.js', from: "    return out;\n  }\n  const where = huntName(h.huntId);", to: "  }\n  const where = huntName(h.huntId);" },
+  { test: 'R3y', file: 'src/shell/training-words.js', from: "  if (last.reason === 'gold_out') return t('training.ended_gold_out');\n", to: '' },
   { test: 'R3c', file: 'src/shell/away-recap.js', from: "      + then + (stamina ? ' Stamina now: '", to: "      + (stamina ? ' Stamina now: '" },
   { test: 'R3c', file: 'src/shell/away-recap.js', from: "const ago = h.ended && !waited && ", to: 'const ago = h.ended && ' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: 'Math.abs(since - home) <= SAME_MS', to: 'true' },

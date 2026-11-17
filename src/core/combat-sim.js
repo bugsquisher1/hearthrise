@@ -320,6 +320,8 @@ export function simulateHuntInstance(inst, ctx) {
     //     LEAVE TOGETHER: every member whose own end holds at this boundary sends the ticked others home with
     //     it, here (they meet the flag in the end checks below), however the members are ordered.
     for (const m of members) m.hs.fightAtMs = world && m.unitId !== null ? world.fightAt : null;
+    /* A TRAINING GROUND HAS NO NO-FIGHT END (src/core/hunt/training.js): it pays the time whatever the blows. */
+    if (train) for (const m of members) m.hs.fightAtMs = null;
     const own = new Map();
     for (const m of members) {
       if (m.left || m.hs.nextSwingAtMs > atMs) continue;

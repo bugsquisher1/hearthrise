@@ -40,7 +40,8 @@
 //   B-21 THE TOWN OPENS ON ITS VIEW (phone, first visit: Play waited 6.5 s for six sheets, the view drew two): with the other sheets held the
 //        town opens and is painted, asks for nothing the view does not draw until the server has named its stand, then asks for all the others;
 //        a view that draws a held sheet waits for it, a shadow falling off it does not (v0.2.97); a failed sheet, a read that never
-//        answers and a sheet whose decode() never settles (v0.2.106) do not hold it shut. Its pixels: PB-VIEW
+//        answers and a sheet whose decode() never settles (v0.2.106) do not hold it shut (judged under a 10-minute hold, so never by the
+//        limit); a view sheet that never comes (report #81) keeps it shut under SHEET_HOLD_MS and opens it, with placeholders, after. Its pixels: PB-VIEW
 //   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-17 "WHILE YOU WERE AWAY" IS WRITTEN ON THE WAY OUT (beta cost 11-01: a put a minute per hero): a hunt on screen with a young
@@ -103,6 +104,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
+import { SHEET_HOLD_MS } from '../src/world/view-sheets.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
@@ -844,10 +846,23 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       };
       const opened = (page, ms) => wait(page, () => document.querySelector('.hs-launchers') && document.querySelector('#panel-world canvas.world-canvas') && !document.querySelector('.world-status'), null, ms);
       const late = TOWN_SHEETS.order.filter((s) => !TOWN_VIEWS.quiet.drawn.includes(s));
+      /* A LATE SHEET HOLDS THE TOWN AT MOST SHEET_HOLD_MS (report #81), so a view that waited on a sheet it does not draw, or on a decode
+         that never settles, would now open late with stubs, not stay shut. Those cases are served a hold of 10 minutes, so each rule
+         is judged on its own: the view opens without a wait, never by the limit. The limit itself is the last case's. */
+      const longHold = async (page) => {
+        let served = null;
+        await page.route('**/src/world/view-sheets.js*', async (r) => {
+          const res = await r.fetch(), body = await res.text(), out = body.replace(/export const SHEET_HOLD_MS = \d+;/,'export const SHEET_HOLD_MS = 600000;');
+          served = out !== body;
+          return r.fulfill({ response: res, body: out });
+        });
+        return () => { if (served !== true) fails.push('B-21 harness: view-sheets.js was ' + (served === null ? 'never asked for' : 'served without its SHEET_HOLD_MS line') + ', so the hold was not lengthened'); };
+      };
       if (!late.includes('havora')) fails.push('B-21 harness: the first hearth stand now draws the Havora sheet (' + TOWN_VIEWS.quiet.drawn.join() + '): pick another stand');
 
       { // the first view opens with its other sheets held, asks for none of them on the town's start while the server has yet to name its stand, and asks for them all as it opens
         const { ctx, page, errors } = await fresh({}, PHONE);
+        const heldLong = await longHold(page);
         let named = null;
         const naming = new Promise((k) => { named = k; });
         await answerWith(page, TOWN_VIEWS.quiet);
@@ -882,6 +897,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           if (never.length) fails.push('B-21 behind the first view the page never asked for ' + never.join() + ' (asked: ' + asked.join() + ')');
         }
         for (const g of gates.values()) g.open();
+        heldLong();
         if (errors.length) fails.push('B-21 console errors: ' + errors.slice(0, 3).join(' | '));
         await ctx.close();
       }
@@ -934,11 +950,29 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       { // a sheet whose decode() never settles (a page that is not rendering; live v0.2.106: 60-100 s on "Still loading the world") is not waited on
         const { ctx, page, errors } = await fresh({}, PHONE);
         await answerWith(page, TOWN_VIEWS.quiet);
+        const heldLong = await longHold(page);
         await page.addInitScript(() => { window.__decodes = 0; HTMLImageElement.prototype.decode = function () { window.__decodes++; return new Promise(() => {}); }; });
         await toPlay(page);
         if (!(await opened(page, 15000))) fails.push('B-21 a sheet whose decode() never settles held the town shut: ' + await page.evaluate(() => (document.querySelector('.world-status') || {}).textContent || 'no line'));
         else if (!(await page.evaluate(() => window.__decodes))) fails.push('B-21 harness: no sheet called decode(), so a stuck decode was never met (src/render/images.js)');
+        heldLong();
         if (errors.length) fails.push('B-21 console errors: ' + errors.slice(0, 3).join(' | '));
+        await ctx.close();
+      }
+
+      { // a first-view sheet that never comes (report #81) holds the town no longer than SHEET_HOLD_MS: shut before it, open with placeholders after it
+        const { ctx, page } = await fresh({}, PHONE);
+        await answerWith(page, TOWN_VIEWS.onHavora);
+        let hits = 0;
+        await page.route('**/assets/world/atlas-havora.png*', () => { hits++; return new Promise(() => {}); });
+        await toPlay(page);
+        for (let k = 0; k < 400 && !hits; k++) await page.waitForTimeout(25);
+        const asked = Date.now();
+        const early = await opened(page, Math.max(500, SHEET_HOLD_MS - 2000));
+        const later = early || await opened(page, SHEET_HOLD_MS + 8000);
+        if (!hits) fails.push('B-21 harness: a view on the Havora sheet never asked for it');
+        else if (early) fails.push('B-21 a first view opened ' + (Date.now() - asked) + ' ms after asking for a sheet that never came, under the ' + SHEET_HOLD_MS + ' ms hold: a slow sheet must not show stubs');
+        else if (!later) fails.push('B-21 a first-view sheet that never came held the town shut past the ' + SHEET_HOLD_MS + ' ms hold (report #81): ' + await page.evaluate(() => (document.querySelector('.world-status') || {}).textContent || 'no line'));
         await ctx.close();
       }
     }
@@ -1451,6 +1485,8 @@ const MUTANTS = [
   ['a read that never answers holds the town shut (B-21)', 'src/world/view-sheets.js', 'await Promise.race([town.heard(), new Promise((done) => win.setTimeout(done, PLACE_WAIT_MS))]);', 'await new Promise(() => {});'],
   ['a shadow off the view holds the town for its sheet (B-21, v0.2.97: the Weighhouse plaque under the hearth view)', 'src/world/render/canvas-backend.js', " && sh.sprite.set && meets(castBox(sh.sprite, sh.m))) ", ' && sh.sprite.set) '],
   ['a frame naming a sheet on its way is drawn anyway (B-21)', 'src/world/view-sheets.js', 'return miss.some((set) => t - asked.get(set) < SHEET_HOLD_MS);', 'return false;'],
+  ['a first view waits on a sheet that never comes past the hold (B-21, report #81)', 'src/world/view-sheets.js', 'await Promise.race([sheets.ensure(missing(now.cast)), new Promise((done) => win.setTimeout(done, SHEET_HOLD_MS))]);', 'await sheets.ensure(missing(now.cast));'],
+  ['a sheet that never comes holds the town forever (B-21, report #81)', 'src/world/view-sheets.js', 'return miss.some((set) => t - asked.get(set) < SHEET_HOLD_MS);', 'return miss.length > 0;'],
   ['a failed sheet ends the town instead of drawing stubs (B-21)', 'src/world/atlas.js', "(e) => { console.warn('[world] atlas \"' + set + '\" did not load; its sprites draw as stubs', e && e.message); return false; })", '(e) => { throw e; })'],
   ['a scene shows before its sheets arrive', 'src/world/world-boot.js', "could not be prepared', e));\n      }\n      return null;",
     "could not be prepared', e));\n      }"],

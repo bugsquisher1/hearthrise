@@ -28,16 +28,20 @@ export const SITES = Object.freeze([
 
 /* the buildings and things with style-1 art, in plan coordinates (a sprite's footprint from its x, y) */
 export const SCENERY = Object.freeze([
-  /* HEARTH SQUARE: the Great Hearth (footprint 11 x 4, x112-122 y45-48; its fire is the map's ambient loop),
-     the ring of halls, the market stalls (trade, later), the benches, and the wear of the paving */
+  /* HEARTH SQUARE: the Great Hearth (footprint 11 x 4, x112-122 y45-48; its fire is the map's ambient loop) on its ring of
+     hearthstone (the paving, tools/world-art/hearth-plaza.mjs), the ring of halls, the market stalls (trade, later), the benches,
+     and the wear of the paving. lane/a-havora-art (Tyler 2026-11-16, "the hearth area to be perfect"): two iron braziers framing
+     the ring's south corners (y54: no stand behind them), the six benches one family (two seats to each), and
+     no street lamp, ink-blot soot or stray puddle on the square: the Hearth is its light and its soot is in the paving */
   ['great_hearth', 112, 45],
   ['square_general_store', 106, 30], ['square_depot', 118, 30], ['square_bank', 113, 16], ['square_barracks', 108, 66],
   ['square_market_stall', 129, 44], ['square_market_stall', 129, 48], ['square_market_stall', 129, 52], ['square_market_stall', 129, 56],
-  ['square_bench_wood', 123, 55], ['square_bench_stone', 125, 55], ['square_bench_log', 127, 55],
-  ['square_bench_stone', 123, 58], ['square_bench_wood', 125, 58], ['square_bench_log', 127, 58],
-  ['square_decal_soot', 115, 51], ['square_decal_chips_a', 120, 51], ['square_decal_puddle_a', 104, 53], ['square_decal_moss_a', 131, 59],
+  ['hearth_brazier', 111, 54], ['hearth_brazier', 124, 54],
+  ['ty_bench_pair', 123, 55], ['ty_bench_pair', 125, 55], ['ty_bench_pair', 127, 55],
+  ['ty_bench_pair', 123, 58], ['ty_bench_pair', 125, 58], ['ty_bench_pair', 127, 58],
+  ['square_decal_chips_a', 120, 51], ['square_decal_moss_a', 131, 59],
   ['square_decal_leaves_a', 110, 58], ['square_decal_tuft_a', 103, 59],
-  ['lamppost', 105, 57], ['lamppost', 123, 43], ['lamppost', 101, 47],
+  ['lamppost', 101, 47],
   /* the smithy and the mill (whole sprites) and their yards */
   ['smithy', 76, 38], ['npc_smith', 78, 43], ['flower_bed', 79, 45],
   ['mill', 89, 28], ['hatch', 88, 34], ['barrels', 86, 30], ['flour_sack', 87, 30], ['water_trough', 86, 33], ['hay_bale', 87, 33],

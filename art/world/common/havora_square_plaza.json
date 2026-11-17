@@ -4,7 +4,7 @@
   "kind": "fill",
   "painted": true,
   "style": "s1",
-  "material": "terrain",
+  "material": "native",
   "source": "havora_square_plaza.png",
   "lower": "painted",
   "upper": "painted",
@@ -2344,5 +2344,5 @@
       "cost": 10
     }
   },
-  "notes": "Hearth Square paving (common/square_plaza, Tyler approved) with its kerb: the border tiles are 32 px slices of one kerbstone strip (create_image_pro fbe03a24), turned so the gutter faces out of the square. A flat part of the ground, so every stand on the square edge stays clear of props."
+  "notes": "Hearth Square paving (common/square_plaza, Tyler approved) with its kerb: the border tiles are 32 px slices of one kerbstone strip (create_image_pro fbe03a24), turned so the gutter faces out of the square. A flat part of the ground, so every stand on the square edge stays clear of props. HEARTHSTONE (lane/a-havora-art 2026-11-16, Tyler: the hearth area must be the focal point): the source is now written by tools/world-art/hearth-plaza.mjs from the untouched paving (art/world-src/havora-hearth/havora_square_plaza_base.png): the ring re-laid in warm hearthstone flecked with the Hearth's rust, a dark border course, soot before the firebox and a polished walk. On the palette, so material native."
 }

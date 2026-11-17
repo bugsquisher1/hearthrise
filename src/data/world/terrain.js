@@ -64,6 +64,8 @@ const light = (radius, tint) => Object.freeze({ radius, tint });
 export const LIGHTS = Object.freeze({
   wall_torch: light(5, 'torch'),
   brazier: light(4, 'brazier'),
+  /* Hearth Square's two iron braziers at the foot of the walk up to the Great Hearth */
+  hearth_brazier: light(3, 'brazier'),
   lamppost: light(3, 'torch'),
   candle: light(1.5, 'torch'),
   hearth: light(4.5, 'hearth'),

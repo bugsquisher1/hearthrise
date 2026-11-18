@@ -306,9 +306,10 @@ export function createAlertCenter(account, opts) {
       share: kind.share || null, glyph: kind.glyph, pending: false, msg: '' }, c));
     if (c.kind === 'away' && c.session) track('away_recap_shown', { slot: cs.slot, minutes: c.minutes, still_hunting: !c.ended, levels: c.levels }, c.id);
     if (alerts.length > 32) alerts.length = 32;
-    if (kind.fadeMs) {
+    const fadeMs = /** @type {{ fadeMs?: number }} */ (kind).fadeMs;
+    if (fadeMs) {
       const key = alerts[0].key;
-      const fade = setTimeout(() => { const i = alerts.findIndex((a) => a.key === key); if (i >= 0) { alerts.splice(i, 1); changed(); } }, kind.fadeMs);
+      const fade = /** @type {any} */ (setTimeout(() => { const i = alerts.findIndex((a) => a.key === key); if (i >= 0) { alerts.splice(i, 1); changed(); } }, fadeMs));
       /* a fade never holds a process open (Node's tests; a browser's timer has no unref) */
       if (fade && typeof fade.unref === 'function') fade.unref();
     }

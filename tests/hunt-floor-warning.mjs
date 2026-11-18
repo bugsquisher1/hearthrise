@@ -224,7 +224,7 @@ const MUTANTS = [
   ['the gate keeps a hard floor', 'supabase/migrations/2027-02-24-risk-no-level-block.sql', "  -- SECURITY C2: every spawn's OWN gate", "  if public.hr_level_of(p_user, p_slot) < 1 then perform 1; end if;\n  -- SECURITY C2: every spawn's OWN gate"],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],
   /* G4 (lane/d-party-pace): the party ground loses the tie at 5, so a fresh four is sent to the Thicket again */
-  ['a fresh four at 5 is sent to the Thicket again (the Sewer from 5)', 'src/shell/hunt-list.js', "(group ? (y.groupFit === 'party') - (x.groupFit === 'party') : 0) || ", ''],
+  ['a fresh four at 5 is sent to the Thicket again (the Sewer from 5)', 'src/shell/hunt-list.js', "(group ? Number(y.groupFit === 'party') - Number(x.groupFit === 'party') : 0) || ", ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
   ['a party\'s advice claims the ground for the party again (A1)', 'src/shell/hunt-list.js', "export function adviceTag(r, rec, step) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');",
     "export function adviceTag(r, rec, step, party) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Recommended for the party' : t('hunts.tag_right_level');"],

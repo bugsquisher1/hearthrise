@@ -207,7 +207,7 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
   /* A PARTY TAKES THE PARTY GROUND ON A TIE (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): the Sewer and the Thicket both open at 5, and a four at
      5-7 earns about 1.6x the same heroes alone in the Thicket there (the board's "2026-11-18 Party pace"). A hero alone never sees a party ground here (fit). */
   const group = (Number(partySize) || 1) >= 2;
-  const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (group ? (y.groupFit === 'party') - (x.groupFit === 'party') : 0) || (x.name < y.name ? -1 : 1))[0] || null;
+  const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (group ? Number(y.groupFit === 'party') - Number(x.groupFit === 'party') : 0) || (x.name < y.name ? -1 : 1))[0] || null;
   if (!lv.length) return { row: rows[0] || null, note: null };
   const lo = Math.min(...lv), hi = Math.max(...lv);
   const holds = (r, from, to) => r.band[0] <= from && to <= r.band[1];

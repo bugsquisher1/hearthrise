@@ -495,7 +495,7 @@ const MUTANTS = [
   { name: 'wins: a seat short of wins is read with the caller\x27s count', file: 'src/shell/windows/boss-call-pane.js', from: 'return { need: q.wins.need, ...(who ? (seat ? { have: seat.have } : {}) : { have: q.wins.have }) };', to: 'return { need: q.wins.need, have: q.wins.have };', want: /BW-11/ },
   { name: 'wins: the quote drops its wins', file: 'src/session/boss-quote.js', from: 'danger: dangerOf(q.danger), wins: winsOf(q.wins),', to: 'danger: dangerOf(q.danger), wins: null,', want: /BW-11/ },
   /* BW-10 (QA audit 2026-11-18 N3): the confirm opens in view */
-  { name: 'the confirm opens below the page\'s fold', file: 'src/shell/windows/hunts.js', from: '}), el)) return inView();', to: '}), el)) return true;' },
+  { name: 'the confirm opens below the page\'s fold', file: 'src/shell/windows/hunts.js', from: '}), el)) return inView();', to: '}), el)) return true;', want: /BW-10 the confirm opened out of view/ },
   { name: 'the first press charges', file: 'src/shell/windows/boss-call-pane.js', from: "if (action === 'call-warn') { sc.warned = true; repaint(); return true; }", to: "if (action === 'call-warn') { run(() => callOut(ctx.account, cs, sc.call.id, 1, sc.quote.price), '', () => ''); return true; }", want: /BW-2/ },
   { name: 'the press sends the data\'s fee, not the server\'s', file: 'src/shell/windows/boss-call-pane.js', from: 'run(() => callOut(ctx.account, cs, call.id, n, quote.price),', to: 'run(() => callOut(ctx.account, cs, call.id, n, call.fight.fee),', want: /BW-3/ },
   /* THE SLIDER (Tyler 2026-11-14): the count it picked is what is sent, its top is the server's, it answers as it moves, and no number beside it is made here */

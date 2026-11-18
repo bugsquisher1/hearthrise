@@ -16,7 +16,6 @@
     "src/core/away.js utcDaySegments",
     "src/core/bench-tax.js feeMgOf",
     "src/core/buffs.js BUFF_DRAIN_RULE",
-    "src/core/combat.js monsterCombatRolls",
     "src/core/drops.js prizeChance",
     "src/core/farm.js canPlantCrop",
     "src/core/farm.js plotUpgradeCheck",

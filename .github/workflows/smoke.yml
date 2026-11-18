@@ -5850,6 +5850,17 @@ jobs:
           node tests/tower-window.mjs
           node tools/mutant-gate.mjs node tests/tower-window.mjs --mutate
 
+      # THE UNMARKED CATACOMBS ON SCREEN (lane/b-catacombs-client, 2026-11-18): the Tower window's Catacombs tab only with the
+      # `catacomb` section; the server's wings, vault doors and checkpoints the only picks and one Enter one hr_catacomb_start (wing and
+      # door); off with why (the door's Level, a stale list, a hunt); the chest's key families and armor keys ("Armor coming soon");
+      # a fall costs nothing (no death popup, "carried up"), the hunt bar's room; the wings drawn on the Catacombs' own map
+      # (src/world/hunt-maps.js RUN_MAPS); a sheet on the phone. --mutate: each mutant runs only the arm its name starts with.
+      - name: Catacombs tab (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catacombs-window.mjs
+          node tools/mutant-gate.mjs node tests/catacombs-window.mjs --mutate
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

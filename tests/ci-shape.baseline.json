@@ -508,6 +508,8 @@
     "node tools/world-art/tower-window-art.mjs --check": "in-page-39",
     "node tests/tower-window.mjs": "in-page-39",
     "node tools/mutant-gate.mjs node tests/tower-window.mjs --mutate": "in-page-39",
+    "node tests/catacombs-window.mjs": "in-page-39",
+    "node tools/mutant-gate.mjs node tests/catacombs-window.mjs --mutate": "in-page-39",
     "node tests/frame-self-echo.mjs": "db-replay-14",
     "node tools/mutant-gate.mjs node tests/frame-self-echo.mjs --mutate": "db-replay-14",
     "node tests/frame-push-revive.mjs": "db-replay-14",

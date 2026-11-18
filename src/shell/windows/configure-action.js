@@ -39,7 +39,7 @@ import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.137
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.137';
 import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.137';
 import { glyphSvg } from '../launcher.js?v=0.2.137';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine } from '../action-table.js?v=0.2.137';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine, pickHint } from '../action-table.js?v=0.2.137';
 import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.137';
 import { whole, sepHtml } from '../../render/format.js?v=0.2.137';
 
@@ -104,7 +104,7 @@ export function renderConfigureAction(ctx) {
     + '<div class="ca-pick">'
     + '<div class="ca-well"><div class="ca-pinned" aria-hidden="true"></div><div class="ca-runs" role="listbox" aria-label="Choose what this slot does"></div><p class="ca-empty"></p></div>'
     + '<div class="ca-detail" aria-live="polite">'
-    + '<div class="ca-d-head"><span class="ca-d-icon"></span><b class="ca-d-name"></b></div>'
+    + '<p class="ca-d-none"></p><div class="ca-d-head"><span class="ca-d-icon"></span><b class="ca-d-name"></b></div>'
     + '<p class="ca-vs"></p><ul class="ca-cmp"></ul><p class="ca-waste"></p>'
     + '<p class="ca-src"></p><p class="ca-eff"></p><p class="ca-req"></p><p class="ca-d-warn"></p>'
     + runesHtml()
@@ -156,12 +156,14 @@ function patchCond(row, c, i, s, doc) {
   if (m.value === 'effect') prop(eff, 'value', String(c.value));
 }
 
-/* One table row (button, role option): icon · name · four number cells. */
+/* One table row (button, role option): icon · name (a locked row's lock and what it needs under it) · its run's number cells
+   (three for a spell, four for a supply: action-table.js RUN_COLUMNS). */
 function rowHtml(ctx, r) {
-  return '<button type="button" class="ca-row" role="option" data-hs-act="cfg" data-x="pick" data-type="' + esc(r.action.type) + '" data-id="' + esc(r.action.id) + '">'
+  const cells = cellsOf(r).map((_, i) => '<span class="ca-c' + (i === 2 ? ' ca-sort' : '') + '" data-c="' + i + '"></span>').join('');
+  return '<button type="button" class="ca-row' + (r.kind === 'spells' ? ' is-spell' : '') + '" role="option" data-hs-act="cfg" data-x="pick" data-type="' + esc(r.action.type) + '" data-id="' + esc(r.action.id) + '">'
     + '<span class="ca-ico">' + actionIconHtml(ctx.glyphs, r.action) + '</span>'
-    + '<span class="ca-namebox"><span class="ca-name"></span><span class="ca-lock" aria-hidden="true">' + glyphSvg(ctx.glyphs, 'uiLock') + '</span></span>'
-    + '<span class="ca-c" data-c="0"></span><span class="ca-c" data-c="1"></span><span class="ca-c ca-sort" data-c="2"></span><span class="ca-c" data-c="3"></span></button>';
+    + '<span class="ca-namebox"><span class="ca-name"></span><span class="ca-need"><span class="ca-lock" aria-hidden="true">' + glyphSvg(ctx.glyphs, 'uiLock') + '</span><span class="ca-need-t"></span></span></span>'
+    + cells + '</button>';
 }
 function patchRow(el, r, picked, off) {
   text(el.querySelector('.ca-name'), r.name);
@@ -172,7 +174,9 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-store', r.carry === 'store');
   cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells');
   cls(el, 'is-locked', !!r.locked);
-  attr(el, 'title', r.locked ? (r.lockWhy || (r.kind === 'ammo' ? 'Wrong ammo for this weapon' : 'This weapon can’t cast it')) : '');
+  /* what a locked row needs, on the row (UI audit 2026-11-18: a lock said nothing): "Wand", "Melee 10"; whole in its title */
+  text(el.querySelector('.ca-need-t'), r.locked ? r.need || '' : '');
+  attr(el, 'title', r.locked ? r.lockWhy || r.need || '' : '');
   prop(el, 'disabled', off);
 }
 
@@ -249,9 +253,12 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* THE TABLE: runs of rows, the pick pinned at the top of the well */
   rows(root.querySelector('.ca-runs'), table.runs, {
     key: (run) => tab + ':' + run.kind,
-    build: (run) => element(ctx.doc, '<section class="ca-run" data-run="' + esc(run.kind) + '">' + (run.label ? '<h3 class="ca-run-label">' + esc(run.label) + '</h3>' : '')
+    /* The run's name heads its name column (Food, Drink), one line over the list instead of two (UI audit 2026-11-18: a phone
+       sheet's list showed its heads and no row); the section keeps it for a reader (aria-label). */
+    build: (run) => element(ctx.doc, '<section class="ca-run" data-run="' + esc(run.kind) + '"' + (run.label ? ' aria-label="' + esc(run.label) + '"' : '') + '>'
       /* Each head cell carries its column's data-c, so a rule that hides a column hides its head with it. */
-      + '<div class="ca-head" aria-hidden="true"><span></span><span class="ca-name">Name</span>' + run.cols.map((c, i) => '<span class="ca-c' + (i === 2 ? ' ca-sort' : '') + '" data-c="' + i + '">' + esc(c) + '</span>').join('') + '</div>'
+      + '<div class="ca-head" aria-hidden="true"><span></span><span class="ca-name' + (run.label ? ' ca-run-label' : '') + '">' + esc(run.head) + '</span>'
+      + run.cols.map((c, i) => '<span class="ca-c' + (i === 2 ? ' ca-sort' : '') + '" data-c="' + i + '">' + esc(c) + '</span>').join('') + '</div>'
       + '<div class="ca-list"></div></section>'),
     patch: (sec, run) => rows(sec.querySelector('.ca-list'), run.rows, {
       key: (r) => keyOf(r.action),
@@ -272,6 +279,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const ik = shown ? keyOf(shown.action) : '';
   if (icon.getAttribute('data-for') !== ik) { icon.innerHTML = shown ? actionIconHtml(ctx.glyphs, shown.action) : ''; attr(icon, 'data-for', ik); }
   text(root.querySelector('.ca-d-name'), shown ? shown.name : '');
+  /* an empty slot's pane says what fills it (UI audit 2026-11-18: a blank third of the window) */
+  text(root.querySelector('.ca-d-none'), shown ? '' : pickHint(tab));
   const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];
   text(root.querySelector('.ca-vs'), cmp.length ? 'vs ' + picked.name : '');
   rows(root.querySelector('.ca-cmp'), cmp, { key: (x) => x, build: () => element(ctx.doc, '<li></li>'), patch: (li, x) => text(li, x) });
@@ -282,7 +291,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const named = shown && picked && keyOf(shown.action) === keyOf(picked.action) ? d.action : shown ? startSupply(shown.action, set.store) : null;
   const f = named ? factsOf(named, facts) : null;
   text(root.querySelector('.ca-src'), f && f.cost ? f.cost : '');
-  text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join(' ') : effectLine(shown));
+  /* its target, a label, on a line of its own above what it does ("Hits the target Deals 6–10 damage." ran them together) */
+  text(root.querySelector('.ca-eff'), f && named.type === 'ability' ? [f.type].concat(f.effect).filter(Boolean).join('\n') : effectLine(shown));
   /* The spell card's requirement, the level it unlocks at (an area ability's `unlock`), and an alone spell's callout beside it
      (Tyler 2026-11-09: "Make that callout clear to the player"). */
   text(root.querySelector('.ca-req'), f && f.requires ? [f.requires, f.unlock, f.alone].filter(Boolean).join(' ') : '');

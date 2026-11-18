@@ -439,6 +439,8 @@
 .ca-token:hover:not(:disabled) { border-bottom-color: var(--gold); }
 .ca-token:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .ca-token option { background: var(--bg-1); color: var(--ink); font-weight: 400; }
+/* a choice is as wide as the word it shows, not its longest option ("my HP" stood 240 px wide, its arrow far off) */
+select.ca-token { field-sizing: content; }
 .ca-cond [data-f="subject"], .ca-cond [data-f="effect"], .ca-num { display: none; }
 .ca-cond [data-f="subject"].is-on, .ca-cond [data-f="effect"].is-on { display: inline-block; }
 .ca-num.is-on { display: inline-flex; align-items: center; gap: 2px; }
@@ -451,13 +453,19 @@
 .ca-weapon, .ca-carry { margin: 0; font-size: var(--t-small); color: var(--gold-2); line-height: 1.45; }
 .ca-warn:empty, .ca-note:empty, .ca-weapon:empty, .ca-d-warn { display: none; }
 .ca-d-warn { color: var(--gold-2); white-space: pre-line; }
-/* The table beside the detail: one sunken well, only the list scrolls. */
-.ca-pick { display: grid; grid-template-columns: 480px minmax(0, 1fr); gap: 16px; min-height: 0; }
+/* The table beside the detail: one sunken well, only the list scrolls. The list takes the width the detail leaves, and each
+   number column is as wide as its head and its longest cell, so no head or cell wraps (UI audit 2026-11-18: "1 Fire rune" on
+   two lines beside an empty third of the window; phone-touch PH-1 and hunt-screen HS-7 measure it). A supply's columns:
+   amount, gold, gold per point, carried; a spell's: mana, cooldown, rune. The detail grows a little in a wider host (Hunt prep). */
+.ca-pick { display: grid; grid-template-columns: minmax(0, 1fr) clamp(232px, 28%, 320px); gap: 16px; min-height: 0; }
 .ca-well { position: relative; max-height: 380px; overflow-y: auto; overscroll-behavior: contain; background: var(--surf-sunken); }
-.ca-run-label { margin: 0; padding: 8px 8px 2px; font-family: var(--f-label); font-size: var(--t-h3); font-variant: small-caps; letter-spacing: .04em; color: var(--ink-2); }
-.ca-head, .ca-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) 56px 56px 60px 60px; align-items: center; column-gap: 12px; padding: 0 8px; }
+.ca-head, .ca-row { display: grid; grid-template-columns: var(--icon-1) minmax(0, 1fr) 64px 48px 88px 64px; align-items: center; column-gap: 12px; padding: 0 8px; }
+.ca-row.is-spell, .ca-run[data-run="spells"] .ca-head { grid-template-columns: var(--icon-1) minmax(0, 1fr) 44px 76px 140px; }
 .ca-head { position: sticky; top: 0; z-index: 1; min-height: 28px; background: var(--surf-sunken); font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); }
-.ca-head .ca-c { text-align: right; line-height: 1.1; }
+.ca-head .ca-c { text-align: right; }
+.ca-head .ca-name { font: inherit; }
+/* the run's name heads the name column (Food, Drink, Arrows and bolts): the one line between the runs */
+.ca-head .ca-run-label { font-variant: small-caps; color: var(--ink-2); }
 .ca-row { width: 100%; min-height: 40px; border: 0; border-bottom: 1px solid var(--line-soft); background: none; color: var(--ink); font: inherit; font-size: var(--t-small); text-align: left; cursor: pointer; }
 .ca-row:hover:not(:disabled), .ca-row:focus-visible { background: var(--surf-panel); outline: none; }
 .ca-row.is-on { background: var(--bg-3); }
@@ -467,12 +475,17 @@
 .ca-row:disabled { cursor: default; }
 .ca-ico, .ca-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
 .ca-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-body); font-family: var(--f-ui); }
-.ca-namebox { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.ca-lock { display: none; flex: none; width: 14px; height: 14px; color: var(--ink-3); }
+/* A locked row's lock and what it needs stand under its name, the row as tall as before ("Melee 10", "Wand"). */
+.ca-namebox { display: flex; flex-direction: column; justify-content: center; min-width: 0; line-height: 1.2; }
+.ca-need { display: none; align-items: center; gap: 4px; min-width: 0; font-size: var(--t-micro); line-height: 1.15; color: var(--ink-3); }
+.ca-row.is-locked .ca-need { display: flex; }
+/* one line, the row's rhythm kept: the rare long one ("Two axes or Axes or Club or Hammer or Bare hands") ends in an ellipsis and
+   is said whole in the row's title and the details pane */
+.ca-need-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-lock { display: inline-flex; flex: none; width: 14px; height: 14px; }
 .ca-lock svg { width: 14px; height: 14px; }
-.ca-row.is-locked .ca-lock { display: inline-flex; }
 .ca-row.is-locked .ca-name { color: var(--ink-3); }
-.ca-c { text-align: right; font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); }
+.ca-c { text-align: right; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); }
 .ca-row .ca-c[data-c="0"] { color: var(--hud-hp-ink); }
 .ca-row.is-mana .ca-c[data-c="0"] { color: var(--hud-mana-ink); }
 .ca-row .ca-sort { color: var(--ink); font-weight: 700; }
@@ -494,7 +507,9 @@
 .ca-waste { color: var(--gold-2); }
 .ca-src { padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .ca-eff, .ca-req { font-size: var(--t-micro); color: var(--ink-3); }
-.ca-vs:empty, .ca-cmp:empty, .ca-waste:empty, .ca-src:empty, .ca-eff:empty, .ca-req:empty { display: none; }
+.ca-eff { white-space: pre-line; }
+.ca-vs:empty, .ca-cmp:empty, .ca-waste:empty, .ca-src:empty, .ca-eff:empty, .ca-req:empty, .ca-d-none:empty { display: none; }
+.ca-d-none { padding-top: 8px; color: var(--ink-3); }
 /* A rune spell's supply (configure-runes.js, Tyler 2026-11-08): the carried runes it spends, then the rune shop or leaving the hunt. */
 .ca-runes { display: none; padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .ca-runes.is-on { display: flex; flex-direction: column; gap: 2px; }
@@ -810,7 +825,7 @@ label.st-line { cursor: pointer; }
      and the list, so the list has the band's whole height once the sentence has scrolled by (QA 10-24: at 922 x 423
      4 of 16 spells and 2 of 46 foods could be reached; at 667 x 375 Save and the close were off screen). The detail
      pane rides beside the list (sticky): the pick and its whole heal warning stay in view (HS-23). */
-  /* width = min = max = 100%: the window manager writes an inline width (800 px) a plain width never beats, and
+  /* width = min = max = 100%: the window manager writes an inline width (880 px) a plain width never beats, and
      with no max the sheet ran 133 px off a 667 px screen, Save and the close with it. */
   .hs-win[data-hs-win="configure-action"].is-modal { top: 0; left: 0; right: 0; bottom: 0; transform: none; width: 100%; min-width: 100%; max-width: 100%; height: 100%; max-height: none; border-width: 0; animation: ca-sheet 160ms ease-out both; }
   .hs-win[data-hs-win="configure-action"] .hs-win-head { display: none; }
@@ -823,11 +838,15 @@ label.st-line { cursor: pointer; }
   .ca-move { display: none; }
   .ca-close { display: grid; flex: none; margin-left: auto; width: var(--tap); height: var(--tap); }
   .ca-move-phone { display: flex; gap: 4px; margin-top: auto; padding-top: 6px; }
-  /* The sentence spends one line less: "+ Add a condition" stands at the end of its first line. */
-  .ca-sentence { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 8px; padding-bottom: 4px; }
-  .ca-sentence > * { grid-column: 1 / -1; }
-  .ca-sentence > .ca-lead { grid-column: 1; }
-  .ca-sentence > .ca-add { grid-area: 1 / 2; align-self: center; }
+  /* THE SENTENCE ON ONE LINE (UI audit 2026-11-18: at 922x423 the list got 100 px, its heads and no row): the action, its
+     first condition and "+ Add a condition" run on as one line; a further condition takes a line of its own, and the
+     warning, the weapon's word and the carry stand under them. Each choice is as wide as the word it shows (field-sizing). */
+  .ca-sentence { flex-flow: row wrap; align-items: center; gap: 0 8px; padding-bottom: 4px; font-size: var(--t-small); }
+  .ca-sentence > * { flex: 1 0 100%; order: 2; }
+  .ca-conds { display: contents; }
+  .ca-sentence > .ca-lead, .ca-cond.is-on { flex: 0 1 auto; order: 0; }
+  .ca-sentence > .ca-add { flex: none; order: 1; margin-left: auto; }
+  .ca-drop { margin-left: 0; }
   .ca-lead, .ca-cond { min-height: 40px; }
   .ca-warn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ca-d-warn:not(:empty) { display: block; }
@@ -836,7 +855,9 @@ label.st-line { cursor: pointer; }
   .ca-well { max-height: none; overflow: visible; }
   .ca-pinned.is-on { display: none; }
   .ca-detail { position: sticky; top: 0; max-height: calc(100vh - 160px); overflow-y: auto; overscroll-behavior: contain; }
-  .ca-head, .ca-row { grid-template-columns: 32px minmax(0, 1fr) 52px 56px 56px; column-gap: 8px; }
+  /* (the gold and cooldown columns, data-c 1, give way to the detail beside the list) */
+  .ca-head, .ca-row { grid-template-columns: var(--icon-1) minmax(0, 1fr) 64px 88px 64px; column-gap: 8px; }
+  .ca-row.is-spell, .ca-run[data-run="spells"] .ca-head { grid-template-columns: var(--icon-1) minmax(0, 1fr) 44px 140px; }
   /* The heads stick to the sheet's scroller while their run scrolls under them: solid, so no row reads through. */
   .ca-head { min-height: 24px; background: var(--bg-0); }
   .ca-head .ca-c[data-c="1"], .ca-row .ca-c[data-c="1"] { display: none; }

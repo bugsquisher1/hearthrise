@@ -1,0 +1,41 @@
+{
+  "$comment": [
+    "The import-direction breaches tests/layering.mjs found on 2026-11-18 (v0.2.137, architecture audit item 2).",
+    "It only shrinks: a breach not listed here is red, and an entry that no longer breaches is red as STALE until its line",
+    "is deleted (node tests/layering.mjs --write prunes stale entries and never adds one). Fix one by moving the shared",
+    "piece down a layer (or passing it in from above), then delete its line in the same commit."
+  ],
+  "breaches": [
+    "src/data/abilities.js -> src/core/hunt/shapes.js",
+    "src/data/chests.js -> src/core/combat.js",
+    "src/data/hunt-tutorial.js -> src/core/member.js",
+    "src/data/hunt-tutorial.js -> src/core/xp.js",
+    "src/data/hunt-tutorial.js -> src/render/player-text.js",
+    "src/data/item-authority.js -> src/core/artisan.js",
+    "src/data/library2-items.js -> src/core/bane.js",
+    "src/data/monster-spells.js -> src/core/hunt/shapes.js",
+    "src/data/skill-authority.js -> src/core/pacing.js",
+    "src/data/skill-authority.js -> src/core/progression.js",
+    "src/hunt-view/clip-hook.js -> src/world/core/facing.js",
+    "src/hunt-view/combat-log.js -> src/shell/widgets/bits.js",
+    "src/hunt-view/scene.js -> src/shell/widgets/bits.js",
+    "src/hunt-view/scene.js -> src/world/core/book.js",
+    "src/hunt-view/summary-model.js -> src/shell/hunt-ground-facts.js",
+    "src/hunt-view/summary-model.js -> src/shell/training-words.js",
+    "src/hunt-view/summary-recorder.js -> src/shell/widgets/bits.js",
+    "src/net/auth.js -> src/session/config.js",
+    "src/net/hero-readers.js -> src/hunt-view/summary-model.js",
+    "src/net/hero-readers.js -> src/session/character-sections.js",
+    "src/net/hero-readers.js -> src/session/hunt-sections.js",
+    "src/net/observability.js -> src/session/replay-pref.js",
+    "src/net/observability.js -> src/session/session-observers.js",
+    "src/render/creature-sprite.js -> src/world/atlas.js",
+    "src/render/outfit-sprite.js -> src/world/atlas.js",
+    "src/render/outfit-sprite.js -> src/world/hero-dye.js",
+    "src/session/character-session.js -> src/hunt-view/timeline.js",
+    "src/session/live-link.js -> src/hunt-view/live-diff.js",
+    "src/session/live-link.js -> src/hunt-view/live-engine.js",
+    "src/session/training-sections.js -> src/render/player-text.js",
+    "src/world/world-boot.js -> src/hunt-view/scene.js"
+  ]
+}

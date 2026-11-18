@@ -64,7 +64,7 @@ export const GAME_MODULES = Object.freeze([
   'src/data/tower-weapons.js', 'src/data/tower.js', 'src/data/town-criers.js', 'src/data/town-presence.js',
   'src/data/town-works.js', 'src/data/training.js', 'src/data/wave3-uniques.js', 'src/data/world/ambient-life.js',
   'src/data/world/atlas-sets.js', 'src/data/world/hearth-moods.js', 'src/data/world/house-layouts.js',
-  'src/data/world/maps/burning_tower.js', 'src/data/world/maps/coppercap_warrens.js',
+  'src/data/world/maps/burning_tower.js', 'src/data/world/maps/coppercap_warrens.js', 'src/data/world/maps/grids.js',
   'src/data/world/maps/home_cottage.js', 'src/data/world/maps/index.js', 'src/data/world/maps/meadowbrook_thicket.js',
   'src/data/world/maps/mill_cellar.js', 'src/data/world/maps/millrace_sewer.js',
   'src/data/world/maps/mosslight_glade.js', 'src/data/world/maps/sandbox_hd64.js', 'src/data/world/maps/town_common.js',

@@ -28,7 +28,6 @@
     "src/core/perks.js restedPayload",
     "src/core/rested.js RESTED_CAP_LIBRARY",
     "src/core/skill-sim.js duplicateGatherIds",
-    "src/core/workers.js workerTickMs",
     "src/core/xp.js skillCapOf",
     "src/core/xp.js totalLevel",
     "src/data/blessings.js blessingPrice",

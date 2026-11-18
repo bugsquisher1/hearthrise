@@ -3,7 +3,7 @@
 //
 // THE BUG THIS WOULD HAVE CAUGHT: index.ts's standalone parallel-settle branch
 // (the `if (!out.accrued)` block — the pointer is idle but the RESTED bank
-// and/or the WORKER crew owe something) returned `accrued:true` WITHOUT an
+// owes something; the WORKER crew rode it too until its 2026-11-18 cut) returned `accrued:true` WITHOUT an
 // `away` receipt. The client gate `isEnvelopeApplicable` (src/net/accrue.js)
 // REQUIRES `res.away` to be an object; without it `classifyAccrueResponse`
 // returns `malformed`, three of those trip ACCRUE_HALT_AFTER_TRIES → the
@@ -64,15 +64,6 @@ export async function accrueEnvelopeAwayGuard() {
       if (/windowTo:\s*read\.now\b/.test(branch)) {
         fail('SOURCE: the standalone-settle away receipt sets `windowTo: read.now` (an ISO string) — '
           + 'summaryFromAway does Number(a.windowTo) so the card shows a null window. Use nowMs (ms).');
-      }
-      /* THE ROSTER-CLOBBER GUARD (2026-08-25). The branch must NOT put the worker
-         SUMMARY back at the `workers` key — that overwrites hr_state_of's crew
-         roster (from `...wr`) with a stats object, and reconcileWorkers then sees
-         a non-array and leaves the crew empty. The summary rides `workerSummary`. */
-      if (/\bworkers:\s*wout\.summary\b/.test(branch)) {
-        fail('SOURCE: the standalone-settle branch spreads `workers: wout.summary`, clobbering the '
-          + 'crew ROSTER `...wr` carries. reconcileWorkers reads `workers` as an array and will skip '
-          + 'the summary object, leaving an idle player\'s producing crew invisible. Use workerSummary.');
       }
     }
   } catch (e) {

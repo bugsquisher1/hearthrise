@@ -431,6 +431,7 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  ['a boss room\'s death reads the room\'s floor, not his Level (DP-0, QA audit 2026-11-18 N4)', 'src/shell/death-popup.js', '  const gap = (boss && Number.isInteger(boss.level) ? boss.level : band[0]) - at;', '  const gap = band[0] - at;'],
   ['OK scrolls off a phone on a long card', 'src/styles/summary.css', 'position: sticky; bottom: -10px; z-index: 1; ', ''],
   ['a death teaches nothing: the card has no why', 'src/shell/death-popup.js', '    why: whyWords(cs, d),', "    why: '',"],  ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
   ['the dismissal is not kept', 'src/shell/death-popup.js', '{ const s = showing; showing = null; dismissDeath(cs, s); }', '{ showing = null; }'],

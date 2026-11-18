@@ -60,7 +60,7 @@ import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.137';
 import { roomOf } from './hunt/boss-room.js?v=0.2.137';
 import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.137';
 import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js?v=0.2.137';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
+import { runRulesOf } from '../data/tower.js?v=0.2.137';
 import { sessionPayOf } from '../data/session-modes.js?v=0.2.137';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
@@ -104,7 +104,7 @@ const tierPick = (ms) => { const lead = ms.find((x) => x.hero.lead === true) || 
  * its `monsters` are the floor standing's table, which simulateHuntInstance sets on this answer floor by floor (a fresh object every call).
  */
 export function huntPlayOf(groundId, scale) {
-  if (groundId === TOWER_RULES.hunt) return { level: null, monsters: null, tierOf: () => null, normalOf: () => true };
+  if (runRulesOf(groundId)) return { level: null, monsters: null, tierOf: () => null, normalOf: () => true };
   const asked = scale && Number.isInteger(scale.level) ? scale.level : null;
   const level = asked !== null && scaleLevelFor(groundId, asked) === asked ? asked : null;
   if (level === null) return { level: null, monsters: null, tierOf: (id) => tierRowOf(groundId, id), normalOf: () => false };
@@ -344,7 +344,7 @@ export function simulateHuntInstance(inst, ctx) {
     //     LEAVE TOGETHER: every member whose own end holds at this boundary sends the ticked others home with
     //     it, here (they meet the flag in the end checks below), however the members are ordered.
     for (const m of members) m.hs.fightAtMs = world && m.unitId !== null ? world.fightAt : null;
-    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world) : null;
+    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world, tw) : null;
     /* A TRAINING GROUND HAS NO NO-FIGHT END (src/core/hunt/training.js): it pays the time whatever the blows. */
     if (train) for (const m of members) m.hs.fightAtMs = null;
     const own = new Map();
@@ -369,7 +369,7 @@ export function simulateHuntInstance(inst, ctx) {
           const standing = members.filter((x) => !x.left);
           /* ...and on the hunt's tier, the one every respawn reads below (hunt-tiers.js: its health is the packs' from the first). */
           const tier = play.tierOf(tierPick(standing));
-          if (tw) play.monsters = towerMonsters(ctx.towerFloor);
+          if (tw) play.monsters = towerMonsters(ctx.towerFloor, tw);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
             { density: densityFor(ctx.ground, standing.length, pickOf(standing)), tier, monsters: play.monsters, ...(tw ? { tower: { floor: ctx.towerFloor, atMs } } : {}) });
           fresh = true;
@@ -433,7 +433,7 @@ export function simulateHuntInstance(inst, ctx) {
       const { ground } = ctx;
       const tier = play.tierOf(tierPick(members.filter((m) => !m.left && m.unitId !== null)));
       /* the floor standing's table on the Tower (read before the swing: a room cleared in it stands again only after the stair) */
-      if (tw) play.monsters = towerMonsters(world.towerFloor);
+      if (tw) play.monsters = towerMonsters(world.towerFloor, tw);
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground, grid: ctx.grid, heroes, tier, ...(play.monsters ? { monsters: play.monsters } : {}),
         ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}), ...(fullPay ? {} : { xpPm: pay.xpPm }) });

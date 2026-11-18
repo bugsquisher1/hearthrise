@@ -438,7 +438,7 @@ export function createLiveEngine(o) {
       if (!st || st.ended || st.towerFloor === null) return null;
       const w = st.world;
       if (!w || !Number.isSafeInteger(w.towerFloor)) return { floor: st.towerFloor, endsAtMs: null, atMs: st.next };
-      return { floor: w.towerFloor, endsAtMs: towerEndsAt(w), atMs: st.next };
+      return { floor: w.towerFloor, endsAtMs: towerEndsAt(w, towerOf(st.where.ground)), atMs: st.next };
     },
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),

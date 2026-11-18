@@ -1405,6 +1405,8 @@ async function runTests(mods) {
       const centre = centreWith(cs, server);
       const first = awayLine(centre);
       ok(first && first.facts.gold === null && first.facts.kills === null, 'CONTROL: before the read nothing is guessed: ' + JSON.stringify(first && first.facts));
+      /* another envelope while the read is in flight asks nothing more */
+      for (const fn of cs.subs) fn(cs, 'changed');
       await tick();
       const line = awayLine(centre);
       eq([line.facts.gold, line.facts.looted, line.facts.paid, line.facts.kills, line.facts.best], [1650, 2500, 850, 390, 'iron_platebody'], 'the hunt\'s own tally over the absence');

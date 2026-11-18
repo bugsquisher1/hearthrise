@@ -53,13 +53,16 @@
 //   THE YARD THAT TOOK OVER a hunt (its plan, src/shell/hunt-after.js) leaves the hunt's line standing: the stamp's hunt ended while the
 //     player was away and the server opened the training session after the stamp, so the line tells that hunt from what outlives it (the
 //     Level, the death row) and then the yard. A 12 h hunt and a death went untold because the newest session was the yard's.
+//     Its Gold, Kills and Best find are the hunt's own tally, which the envelope no longer carries (its analyzer is the yard's): the server's
+//     answer for that one session, read once by the alert centre (src/session/past-hunt.js, post-patch audit B4); until it comes, none is said.
 //   A SKILL THE ABSENCE TRAINED says its levels: the stamp keeps the server's level of the skill a training session (or the yard a hunt
 //     goes on to) trains, and the return says "Melee 28 to 34" from two server answers.
 // ════════════════════════════════════════════════════════════════════════
 import { levelOf, deathLogOf } from '../session/character-sections.js?v=0.2.139';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.139';
+import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf } from '../session/hunt-sections.js?v=0.2.139';
 import { nameOf, skillsOf } from '../session/item-sections.js?v=0.2.139';
 import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.139';
+import { pastHuntOf } from '../session/past-hunt.js?v=0.2.139';
 import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.139';
 import { deathWords } from './death-popup.js?v=0.2.139';
 import { huntName } from '../session/party-sections.js?v=0.2.139';
@@ -67,7 +70,7 @@ import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.139';
 import { cameHomeWords } from '../data/party-words.js?v=0.2.139';
 import { whole } from '../render/format.js?v=0.2.139';
 import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.139';
-import { bestFind, END_WORDS } from '../hunt-view/summary-model.js?v=0.2.139';
+import { bestFind, END_WORDS, goldOutWords } from '../hunt-view/summary-model.js?v=0.2.139';
 import { itemName } from './widgets/bits.js?v=0.2.139';
 import { t } from '../render/player-text.js?v=0.2.139';
 import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.139';
@@ -192,7 +195,12 @@ function diedWords(cs, session, card = false) {
  * @returns {{id: string, kind: 'away', session: string, text: string, said?: string, ended?: boolean, at?: number, cameAt?: number, minutes?: number, levels?: number, facts?: object}|null}
  */
 export function awayRecapOf(cs) {
-  const was = stampOf(cs);
+  return awayRecapFrom(cs, stampOf(cs));
+}
+
+/** awayRecapOf against a given stamp `was` (the line keeps its own, `stamp`: the alert centre judges it again once the hunt the yard took
+    over has been read, src/session/past-hunt.js, whether or not the residue has moved on since). Pure. */
+export function awayRecapFrom(cs, was) {
   /* A hero working in town when the player left: what the job did (./away-work.js). */
   if (isWorkStamp(was)) {
     const now = serverNowOf(cs);
@@ -221,8 +229,9 @@ export function awayRecapOf(cs) {
   const from = Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : null;
   if (from !== null && lv.level > from) parts.push('Level ' + from + ' to ' + lv.level);
   if (lv.xp > was.xp) parts.push(signed(lv.xp - was.xp, 'Level XP'));
-  /* the hunt's own tally (gold, kills, its best find) is the session's: once the yard took over it is gone, and nothing is guessed */
-  const a = over ? null : analyzerOf(cs);
+  /* the hunt's own tally (gold, kills, its best find) is the session's. Once the yard took over, the envelope's analyzer is the yard's: the
+     hunt's is the server's answer for that session (src/session/past-hunt.js, audit 2026-11-18-139 B4), and until it has come nothing is guessed */
+  const a = over ? pastHuntOf(cs, was.s) : analyzerOf(cs);
   const gold = goldOf(was, a);
   if (gold) parts.push(signed(gold.net, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
@@ -248,7 +257,10 @@ export function awayRecapOf(cs) {
     at: was.at, cameAt: now, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
     facts: { name, hunt, place: yard ? yard.doing : hunt ? huntName(hunt) : '', gone, lvFrom: from, lvTo: lv.level, xp: Math.max(0, lv.xp - was.xp),
       gold: gold ? gold.net : null, looted: gold ? gold.looted : null, paid: gold ? gold.paid : null, kills: kills !== null ? Math.max(0, kills) : null, best,
-      train, died: over ? diedWords(cs, was.s, true) : '', after: then, tookOver: over },
+      train, died: over ? diedWords(cs, was.s, true) : '', after: then, tookOver: over,
+      /* `ask`: the session whose tally the line still waits for; `deathSession`: a death during the absence (the card's Bless again) */
+      ask: over && !a ? was.s : null, deathSession: over ? (deathRow ? was.s : null) : h.ended && h.endReason === 'died' ? h.sessionId : null },
+    stamp: was,
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
@@ -276,7 +288,12 @@ function nowFacts(cs, h, now) {
   const next = said ? dot(said) : '';
   if (trainedBy(h.huntId)) return { training: true, ended: h.ended, ago, why: h.ended ? trainingEndWords({ reason: h.endReason }) : '', next, stamina: null };
   /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
-  const why = h.ended ? dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
+  /* OUT OF GOLD SAYS WHY (post-patch audit 2026-11-18 B3): what the store's supplies cost against the coins, the hunt's own tally, and the
+     reserve it fell to, the server's setting (summary-model.js goldOutWords, the end card's same words) */
+  const tally = h.ended && h.endReason === 'gold_out' ? analyzerOf(cs) : null;
+  const goldOut = h.ended && h.endReason === 'gold_out'
+    ? goldOutWords(tally && tally.hero ? { gold: tally.hero.gold, lootValue: tally.hero.lootValue, balance: tally.hero.balance } : {}, goldFloorOf(cs)) : '';
+  const why = goldOut ? dot(goldOut) : h.ended ? dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
     .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')) : '';
   return { training: false, ended: h.ended, ago, why, next, stamina };
 }

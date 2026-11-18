@@ -32,6 +32,7 @@ import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.139';
 import { ITEMS } from '../data/items.js?v=0.2.139';
 import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.139';
 import { t } from '../render/player-text.js?v=0.2.139';
+import { gold as gp } from '../render/format.js?v=0.2.139';
 
 export { sanitizeSummaries };
 
@@ -90,10 +91,27 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || t('summary.end_plain');
 }
 
+/**
+ * A HUNT THAT RAN OUT OF GOLD SAYS WHY, IN ITS OWN NUMBERS (post-patch audit 2026-11-18 B3: a solo Level 5 in the Sewer read "Gold reserve
+ * reached" beside Gold +2,679 gp and Balance +871 gp; played on the local world, 680 gp of coins against 1,160 gp of store food took the purse
+ * from 787 gp to the 300 gp reserve in 19 min, a real stop). What the store's supplies cost is the server's tally (its balance is coins plus
+ * loot value less those supplies, so they are coins + loot value - balance), the coins are its tally too, and `floor` is the reserve the
+ * server keeps (hunt-sections.js goldFloorOf). Loot is not gold until it is sold, so it is no part of the sum. Short of either number it
+ * says the reserve alone, and short of that the plain label.
+ */
+export function goldOutWords(s, floor) {
+  const reserve = Number.isSafeInteger(floor) && floor >= 0 ? gp(floor) : null;
+  const coins = int(s.gold), loot = int(s.lootValue), balance = int(s.balance);
+  const spent = coins !== null && loot !== null && balance !== null ? coins + loot - balance : null;
+  if (reserve && spent !== null && spent > 0) return t('summary.end_gold_out_why', { spent: gp(spent), coins: gp(coins), floor: reserve });
+  return reserve ? t('summary.end_gold_out_floor', { floor: reserve }) : END_WORDS.gold_out;
+}
+
 /** The end card's reason line. `msLeft`: the stamina the server says the hero has now, given only for the newest hunt with none running:
     out of stamina, the card says what it has rested back, so Hunt again is a decision and not a guess (panel 2026-11-01). */
-export function reasonWords(s, hero, msLeft) {
-  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why, s.hunt) : t('summary.end_plain');
+export function reasonWords(s, hero, msLeft, floor) {
+  const why = s.reason === 'gold_out' && s.forfeit !== true ? goldOutWords(s, floor)
+    : s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why, s.hunt) : t('summary.end_plain');
   if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;
   const m = Math.floor(msLeft / 60000);
   return t('summary.stamina_now', { why, left: (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min' });

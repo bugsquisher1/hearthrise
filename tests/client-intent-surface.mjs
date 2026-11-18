@@ -73,6 +73,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_target_kind_set: 'the hero’s First target on one hunt ground, a ground id and a monster id or none; the server checks the kind against its catalogue of that ground, refused not clamped, no value (target-intents.js setTargetKind; 2027-04-22-target-kind.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
+  hr_hunt_analyzer: 'a read: the server\'s analyzer of one of this hero\'s own sessions (the slot and a session id), once per page for the hunt a yard took over, so its away card keeps its Gold, Kills and Best find (past-hunt.js askPastHunt); rate-gated, nothing moves',
   /* Combat training (the designer's 2026-11-13 spec; server half lane/c-combat-training). */
   hr_training_start: 'train one combat skill at the yard or on the house dummy: the slot, a skill id, the place and the hourly fee the player saw, with a fresh key; the server re-quotes on its clock and charges each hour (training-intents.js)',
   hr_house_dummy_unlock: 'unlock one skill on the account\'s house dummy at the price the player saw, with a fresh key; the server gates, prices and debits it (training-intents.js)',

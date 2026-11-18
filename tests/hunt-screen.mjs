@@ -2250,7 +2250,7 @@ const MUTANTS = [
   /* Tyler 10-25: the bar is configurable IN TOWN from the server's projected picks; the client fills nothing (HS-27). */
   ['the fight panel locks a value the server sent in town (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return null;"],
   ['the client fills an unset option with its own pick (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return v === undefined ? null : v === null ? 'nearest' : v;"],
-  ['the gold to keep shows a client default while unset (HS-27)', 'src/shell/widgets/settings-intent.js', "return Number.isSafeInteger(v) && v >= 0 ? v : null;", "return Number.isSafeInteger(v) && v >= 0 ? v : GOLD_FLOOR.default;"],
+  ['the gold to keep shows a client default while unset (HS-27)', 'src/session/hunt-sections.js', "  return Number.isSafeInteger(v) && v >= 0 ? v : null;\n}\n\nexport function analyzerOf", "  return Number.isSafeInteger(v) && v >= 0 ? v : 300;\n}\n\nexport function analyzerOf"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (sup && !(ownCount(a, bag) > 0)', '    if (false && sup && !(ownCount(a, bag) > 0)'],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],

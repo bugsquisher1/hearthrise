@@ -30,7 +30,7 @@ import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?
 import { observeSessions } from '../../session/character-session.js?v=0.2.139';
 import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js?v=0.2.139';
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.139';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { staminaOf, goldFloorOf } from '../../session/hunt-sections.js?v=0.2.139';
 import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.139';
 import { resultHtml, patchResult } from '../result-block.js?v=0.2.139';
 import { afterDoneWords } from '../hunt-after.js?v=0.2.139';
@@ -213,7 +213,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
        spat out, never died; the reason line keeps only what the hero did after */
     const tw = towerOf(cs);
     const climb = climbEnd(tw, cur, TOWER_RULES.hunt);
-    const why = climb || cur.live ? '' : reasonWords(cur, nameOf(cs), st ? st.msLeft : null);
+    const why = climb || cur.live ? '' : reasonWords(cur, nameOf(cs), st ? st.msLeft : null, goldFloorOf(cs));
     text(root.querySelector('.hsum-reason'), [why, after].filter(Boolean).join(' '));
     prop(root.querySelector('.hsum-reason'), 'hidden', !why && !after);
     patchClimbCard(root.querySelector('.hsum-climb'), cs, tw, climb);

@@ -17,7 +17,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.139';
 import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.139';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { settingsOf, partyOf, goldFloorOf } from '../../session/hunt-sections.js?v=0.2.139';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
 import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.139';
 import { answerWithin } from '../bar-draft.js?v=0.2.139';
@@ -61,15 +61,6 @@ export function goldReserveHtml() {
     + '<p class="hb-pl-note">' + t('prep.gold_line') + '</p>';
 }
 
-/* The server's gold floor (hunt_settings.gold_floor, hr_hunt_settings_view). settingsOf (hunt-sections.js, the
-   live-engine lane's) does not parse it yet: read here until it does. */
-function goldFloorOf(cs) {
-  const raw = cs && typeof cs.read === 'function' ? cs.read('hunt_settings') : null;
-  if (!raw || typeof raw !== 'object') return null;
-  const v = raw.gold_floor;
-  /* The server sends the floor it keeps (hr_hunt_limits gold_floor_default when unset, 2027-01-25-town-defaults.sql). */
-  return Number.isSafeInteger(v) && v >= 0 ? v : null;
-}
 
 /** Patch every [data-opt] control under `root` to the server's settings; off while pending or unknown. */
 export function patchControls(root, cs) {

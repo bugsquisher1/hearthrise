@@ -1,0 +1,64 @@
+{
+  "lane": "lane/a-catacomb-icons (2026-11-18): the Unmarked Catacombs' 20 item icons, in place of the twin drawings they wore since lane/c-catacombs (tests/pixel-icons.mjs KNOWN_TWINS). The Coordinator generated and chose them; PixelLab subscription gens only (credits $0 throughout)",
+  "items": "the eight wing keys (src/data/chests.js CATACOMB_KEYS: waterlogged_key_bronze silver gold platinum, bone_key_bronze silver gold platinum) and the twelve Bronze and Silver pieces (src/data/catacomb-armor.js CATACOMB_ARMOR_SHIPPED: tinkers_kettle ratters_hood midwifes_hat hodmans_boots tanners_boots washerwomans_slippers, cranemans_helm fletchers_hood bakers_cap dockhands_boots sewermans_boots fishwifes_slippers), each drawn from its row's name and line",
+  "tool": "create_1_direction_object, view top-down, palette hr-world-56-v2 (all 56), 64 candidates a call on a 30 px canvas (10 gens), item_descriptions in slot order",
+  "finish": "tools/world-art/import-catacomb-icons-2026-11-18.mjs, by import-drop-icons-2026-11-17.mjs iconOf: the 30x30 pick centred on 32x32, the outline closed in #0b0a0c, palette and alpha checked. picks/<id>.png are the raw candidates as PixelLab returned them; fill is the larger side of the pick's bounding box over the 32 px cell",
+  "look": "each wing has one look up its four tiers, the metal changing under it: the Waterlogged keys verdigris, waterweed and a drip; the Bone keys a bone bow growing into a skull (knucklebone, crossed bones, skull, glowing skull)",
+  "sample (call 1fbd7080, 10 gens; style tower_key_bronze tower_key_silver iron_helm studded_boots)": {
+    "kept": {
+      "bone_key_bronze": "c12: a knucklebone bow on a bronze shaft (88%)"
+    }
+  },
+  "keys (call f49a1cd4, 10 gens; style tower_key_silver tower_key_gold candle_snuffer)": {
+    "kept": {
+      "waterlogged_key_bronze": "c02: a verdigris-green bronze ring bow, waterweed hanging off it, a drip (91%)",
+      "waterlogged_key_silver": "c13: a silver key, the bow a cluster of rings, weed wound up the shaft, two drips (91%)",
+      "waterlogged_key_gold": "c18: a gold key, weed on the bow and shaft, a blue stone in the bow, a drip (91%)",
+      "waterlogged_key_platinum": "c26: a pale platinum key with a star-shaped bow, a blue drip under it (91%)",
+      "bone_key_gold": "c48: a bone skull bow on a gold shaft (88%)",
+      "bone_key_platinum": "c58: a white skull bow with green eyes on a pale shaft (88%)"
+    }
+  },
+  "armor (call 4da2f598, 10 gens; style iron_helm snakeskin_helmet studded_boots)": {
+    "kept": {
+      "tinkers_kettle": "c00: a grey iron pot worn as a helm, a spout, a strap under it (84%)",
+      "midwifes_hat": "c14: a deep red bonnet with a cream lining (78%)",
+      "hodmans_boots": "c21: dark iron plated boots (78%)",
+      "tanners_boots": "c25: red-brown leather boots with buckles (81%)",
+      "washerwomans_slippers": "c28: blue felt slippers, fur at the cuff (81%)",
+      "cranemans_helm": "c33: a polished steel kettle helm with a spike (78%)",
+      "fletchers_hood": "fix call 2c1309b8 c49 (replaces armor c39, too dark on the slot): a bright moss-green hood with a fan of white goose feathers",
+      "bakers_cap": "c45: a tall cream baker's cap, a wooden handle tucked in its band (75%)",
+      "dockhands_boots": "fix call 2c1309b8 c12 (replaces armor c51, a twin of hodmans_boots): tall dark boots with steel caps and a brass anchor buckle on each",
+      "sewermans_boots": "c54: black waders with green sewer slime at the soles (84%)",
+      "fishwifes_slippers": "c61: red slippers with a fur lining (81%)"
+    }
+  },
+  "redo (call e7936e0f, 10 gens)": {
+    "kept": {
+      "bone_key_silver": "c03: a crossed-bones bow on a silver shaft (91%), the second step of the Bone line",
+      "ratters_hood": "c56: a goggled leather cap with a dead rat hung by the tail (84%)"
+    }
+  },
+  "refused": "the first bone silver (a plain ring, read as a Tower key) and the first ratter's hood (the rat tails did not show)",
+  "fix (Coordinator, 2026-11-18, call 2c1309b8, 10 gens, style tower_key_silver snakeskin_helmet studded_boots)": "after the bag read: dockhands_boots and fletchers_hood replaced (above); the bone_key_silver retries lost the key or the bones, so c03 stays",
+  "read": "art/review/catacomb-icons/final-20.png (the Coordinator's preview of all 20); lane/a-catacomb-icons read them in the real bag (tools/qa/local-world.mjs, a new local hero, real pocketHtml and CSS, a list of its own beside the bag's) at 1440x900 (44 px pockets) and 922x423 (36 px), the icon at 32 px, each wing's keys under the Tower keys, each piece under its standard twin. All 20 read as their kind; weakest: bone_key_silver (thin, the crossed bones read as a plain cross), fletchers_hood and sewermans_boots (the darkest on the slot; the arrows and the slime are what carry them), hodmans_boots beside dockhands_boots (one dark plate boot, the rope the only difference) and washerwomans_slippers beside fishwifes_slippers (one fur-lined slipper in blue and in red)",
+  "total": "4 calls, 40 gens (subscription; credits $0), 256 candidates, 20 kept",
+  "later (call a3610df6, 10 gens; same palette, the armor call's style images iron_helm snakeskin_helmet studded_boots)": {
+    "where": "picks-later/<id>.png: the Gold and Platinum twelve (src/data/catacomb-armor.js, not in CATACOMB_ARMOR_NOW). Not written to assets/ and not on the importer's list until their rows ship; then each id joins import-catacomb-icons-2026-11-18.mjs with its picks dir. All 12 finish clean today (iconOf on picks-later: on the palette, binary alpha)",
+    "kept": {
+      "coffer_guards_helm": "c01: a gold-trimmed visored helm, a key on a chain (78%)",
+      "woodwards_hood": "c07: a hood with a bow and oak leaves (81%)",
+      "fire_tenders_cap": "c11: a cap with an ember lining and coal sparks (75%)",
+      "porters_boots": "c16: plate boots with a rope load strap (84%)",
+      "soapboilers_boots": "c22: lye-bleached leather boots (81%)",
+      "scribes_slippers": "c25: slippers with a quill and gold thread (81%)",
+      "vault_cutters_helm": "c30: a helm with a candle on the brow (88%)",
+      "pothunters_hood": "c38: a hood of white fur with pheasant feathers (84%)",
+      "almoners_hat": "c40: a hat with bread and a coal sack (88%)",
+      "ice_cutters_boots": "c48: plate boots on crampons (84%)",
+      "dyers_boots": "c54: leather boots with bands of dye (81%)",
+      "dunns_slippers": "c61: empty slippers with a green ghost wisp (78%)"
+    }
+  }
+}

@@ -8,8 +8,6 @@
 //   node tests/settle-properties.mjs --nightly                the nightly size: ten times the runs, a seed per UTC day
 //                                                             (also chosen when GITHUB_EVENT_NAME=schedule)
 //   node tests/settle-properties.mjs --mutate                 every planted defect must be FOUND and SHRUNK small
-//   node tests/settle-properties.mjs --roles=open             the engine tier under the live read's party-roles rule:
-//                                                             KNOWN-F1 reproduces (the fix lane's check)
 //   --only=engine | --only=db                                 one tier; --verbose prints what each tier exercised
 //
 // mutant-anchors: supabase/functions/hr-accrue/accrual.js src/core/combat-sim.js src/core/action-rules.js supabase/migrations/2027-03-21-scaled-hunts.sql
@@ -50,14 +48,14 @@
 //              wallet, stack, bag line, XP, Level XP or stamina pool is ever negative.
 //
 // A FAILURE prints the shrunk case, the first difference and `--seed S --path P` to replay it. NOTHING IS HIDDEN: a real
-// defect is reported and, until fixed, pinned STRICTLY (KNOWN-F1: red the day it stops reproducing), and the two things
-// SPLIT does not compare (a closed instance's own clock, the Level-up display list) say why where they are skipped.
+// defect is reported and, until fixed, pinned STRICTLY (red the day it stops reproducing; KNOWN-F1, the first, fixed
+// 2026-11-18 and now a mutant below), and the two things SPLIT does not compare (a closed instance's own clock, the
+// Level-up display list) say why where they are skipped.
 // Every red, every run size and the coverage floor (a run that exercised too little is red: NOT VACUOUS) are exit codes.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import fc from 'fast-check';
-import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
@@ -74,8 +72,6 @@ const valOf = (name) => {
 const intArg = (name) => { const v = valOf(name); if (v === null) return null; const n = Number(v); if (!Number.isInteger(n)) throw new Error(name + ' wants an integer, got ' + v); return n; };
 const VERBOSE = has('--verbose');
 const ONLY = valOf('--only');
-/* --roles=open: play the generated hunts under the live read's party-roles rule (KNOWN-F1 reproduces; the fix lane's check) */
-const ROLES_ARG = valOf('--roles') || 'roster';
 
 /* THE SIZES. CI: one fixed seed and a bounded count (measured 2026-11-18 on the lane's PC: 250 engine hunts 34 s, 40 DB
    hunts 11 s, plus the chain's boot). Nightly: a seed per UTC day (deterministic for that night, printed, so a red
@@ -214,18 +210,15 @@ function heroState(E, sc, h, i) {
   };
 }
 
-/* THE PARTY ROLES THE READ HANDS heroSetup (a hero's DEFAULT distance, chase and target mode depend on its party: roles.js
-   defaultSettings). The live read (hunt-settle.js readHuntSettle) builds them from the OPEN members only, so when a
-   partner's hunt ends a survivor's defaults change at whichever settle follows that end: one window and a cut list play
-   different hunts. That is KNOWN-F1, a real one-engine defect this guard found (2026-11-18), pinned below. Until it is
-   fixed, the generated hunts read 'roster' (the party the hunt started with), under which every other property holds and
-   is checked; KNOWN-F1 replays its shrunk case under 'open', the live rule, and must still diverge. */
-const ROLES_FROM = Object.freeze({ roster: (heroes) => heroes, open: (heroes) => heroes.filter((h) => !h.ended) });
+/* THE HERO THE READ HANDS THE ENGINE is its own character's (heroSetup, as hunt-settle.js readHuntSettle builds it): never
+   the party the read saw. A setting the player left unset is the role's default for the party standing in the world at
+   each boundary, which the engine reads itself (roles.js settingsOf). KNOWN-F1 (found here 2026-11-18, fixed the same
+   day): the read once handed heroSetup the OPEN members' roles, so a survivor's defaults moved at whichever settle came
+   after its partner's end; ENGINE_MUTANTS keeps that defect planted for --mutate. */
 
 /** The read: every open member's engine input, built afresh from the carried state (hunt-settle.js memberInput's shape). */
-function readOf(E, sc, inst, open, purse, toMs, heroes, rolesFrom) {
+function readOf(E, sc, inst, open, purse, toMs) {
   const where = E.whereOf(sc.hunt);
-  const partyRoles = ROLES_FROM[rolesFrom](heroes).map((h) => h.role);
   const members = open.map((h) => ({
     key: h.key, user: h.user, slot: h.slot, seat: h.seat, unitId: h.unitId, sessionId: 's-' + h.key, version: 1, huntId: sc.hunt,
     huntSession: { id: 's-' + h.key, instanceId: IID, huntFromMs: T0, nextSwingAtMs: h.nextSwingAtMs, swingIndex: h.swingIndex,
@@ -234,7 +227,7 @@ function readOf(E, sc, inst, open, purse, toMs, heroes, rolesFrom) {
     skills: { ...h.skills }, levelXp: h.levelXp, xpFrac: { ...h.xpFrac }, hp: h.hp === null ? 1e9 : h.hp, gold: purse[h.user],
     equipment: { ...h.equipment }, inventory: {}, buffs: h.buffs ? h.buffs.map((b) => ({ ...b })) : null,
     deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-    hero: E.SPAWN.heroSetup({ weaponType: E.wornRoleKey(h.equipment, E.ITEMS), options: h.options, bar: [], partyRoles,
+    hero: E.SPAWN.heroSetup({ weaponType: E.wornRoleKey(h.equipment, E.ITEMS), options: h.options, bar: [],
       leaveTogether: h.together === true, lead: h.seat === 0 }),
   }));
   return { instance: { id: IID, nextSwingAtMs: inst.nextSwingAtMs, world: inst.world, worldSwing: inst.worldSwing },
@@ -248,7 +241,7 @@ const proposalImage = (out) => canon(out);
  * PLAY ONE TIMELINE: windows ending at `cuts` (each { at: absolute ms, mode }), the last one the span's end.
  * Answers { agg (per hero), inst (the final instance), events, problems (WINDOW / RETRY / NONNEG findings, in order) }.
  */
-export function playTimeline(E, sc, cuts, rolesFrom = 'roster') {
+export function playTimeline(E, sc, cuts) {
   const heroes = sc.heroes.map((h, i) => heroState(E, sc, h, i));
   const purse = {};
   for (const h of heroes) if (!(h.user in purse)) purse[h.user] = h.gold0;
@@ -264,13 +257,13 @@ export function playTimeline(E, sc, cuts, rolesFrom = 'roster') {
     const open = heroes.filter((h) => !h.ended);
     if (!open.length) break;
     if (!(c.at > inst.settledTo)) continue;                 // the instance is already settled past this cut: nothing owed
-    const inp = readOf(E, sc, inst, open, purse, c.at, heroes, rolesFrom);
+    const inp = readOf(E, sc, inst, open, purse, c.at);
     const before = readImage(inp);
     const out = E.AC.accrueHunt(inp);
     if (readImage(inp) !== before) bad('RETRY', `the engine changed the read it was handed (window to +${c.at - T0} ms): a lost commit's proposal leaks into the next ${firstDiff(before, readImage(inp))}`);
     if (c.mode === 'retry' && out.accrued) {
       seen.retried++;
-      const again = E.AC.accrueHunt(readOf(E, sc, inst, open, purse, c.at, heroes, rolesFrom));
+      const again = E.AC.accrueHunt(readOf(E, sc, inst, open, purse, c.at));
       if (proposalImage(again) !== proposalImage(out)) bad('RETRY', `the same window proposed twice answered differently (to +${c.at - T0} ms) ${firstDiff(proposalImage(out), proposalImage(again))}`);
     }
     if (out.refused) { bad('SPLIT', `the window to +${c.at - T0} ms was refused ${out.reason} (${out.worldBytes} B)`); continue; }
@@ -376,10 +369,10 @@ export function cutsOf(sc, whole) {
 
 /** The engine property: SPLIT, WINDOW, RETRY and NONNEG on one generated case. Answers the problems (empty = green);
     `tally` (optional) counts what the case exercised, so a run can prove it was not vacuous. */
-export function engineCase(E, sc, tally, rolesFrom = 'roster') {
-  const whole = playTimeline(E, sc, [{ at: T0 + sc.spanMs, mode: 'land' }], rolesFrom);
+export function engineCase(E, sc, tally) {
+  const whole = playTimeline(E, sc, [{ at: T0 + sc.spanMs, mode: 'land' }]);
   const cuts = cutsOf(sc, whole);
-  const split = playTimeline(E, sc, cuts, rolesFrom);
+  const split = playTimeline(E, sc, cuts);
   const problems = [...whole.problems.map((p) => 'one window: ' + p), ...split.problems.map((p) => 'cut: ' + p)];
   if (tally) {
     const t = (k, n = 1) => { tally[k] = (tally[k] || 0) + n; };
@@ -417,35 +410,6 @@ export function engineCase(E, sc, tally, rolesFrom = 'roster') {
   return problems;
 }
 
-/* KNOWN-F1, found by this guard on 2026-11-18 and reported, not fixed here (the lane's rule: an engine defect is reported
-   with its shrunk case). A party hunt where one hero's hunt ENDS (a Leave, stamina, a death, gold out, a stop rule) while a
-   partner hunts on: the live read hands heroSetup the party roles of the OPEN members (hunt-settle.js readHuntSettle), so
-   the survivor's DEFAULT settings (roles.js defaultSettings: chase, target mode) switch to a lone hero's at the first
-   settle after the end. One window switches them only when it closes; a cut just after the end switches them at once.
-   Smallest case (--roles=open shrinks to it): a tank Leaves at its first swing, a ranger hunts on, 4,001 ms cut at 2,001:
-   the ranger pulls at +4.7 s in one window, +4.0 s in the cut list. The pinned case below (the first shrink, 232001 ms,
-   run on to 300001): a Level-32 Mage hunting on after her tank's gold-out earns Magic XP 2216 vs 2086, Defense 323 vs
-   189, loot 16 vs 15.
-   STRICT, like a ratchet: red when the case stops diverging under the live rule (the engine fixed) or the live rule's line
-   moves (the read fixed); then delete KNOWN_F1 and ROLES_FROM.roster and let every hunt read 'open'. */
-const KNOWN_F1 = Object.freeze({
-  rule: 'const partyRoles = members.map((m) => m._role).filter(Boolean);',
-  case: Object.freeze({ hunt: 'coppercap_warrens', tier: 'normal', density: null, secret: '0', spanMs: 300001, cuts: [{ at: 230001, mode: 'land' }], near: [],
-    heroes: [
-      { role: 'tank', lvl: 0, over: 0, food: 0, arrows: 0, gold: 0, floor: 0, onEmpty: 'switch', source: 'mine', stamina: null, together: false, shared: false, leaveAt: null, stop: { pct: 5, forMs: 0 }, buff: null },
-      { role: 'mage', lvl: 0, over: 0, food: 0, arrows: 0, gold: 1000000, floor: 0, onEmpty: 'switch', source: 'mine', stamina: null, together: false, shared: false, leaveAt: null, stop: null, buff: null }] }),
-});
-export function knownF1(E, root) {
-  const out = [];
-  const src = readFileSync(join(root, 'supabase/functions/hr-accrue/hunt-settle.js'), 'utf8');
-  if (src.split(KNOWN_F1.rule).length !== 2) out.push('KNOWN-F1 the live read no longer builds the party roles from the members it read (hunt-settle.js): if that fixed the defect, delete KNOWN_F1 and ROLES_FROM.roster; if the line only moved, re-point KNOWN_F1.rule');
-  const live = engineCase(E, KNOWN_F1.case, null, 'open');
-  if (!live.some((p) => p.startsWith('SPLIT'))) out.push('KNOWN-F1 no longer reproduces under the live rule (the survivor plays the same however the windows are cut): delete KNOWN_F1 and ROLES_FROM.roster, then run --roles=open');
-  const model = engineCase(E, KNOWN_F1.case, null, 'roster');
-  if (model.length) out.push('KNOWN-F1 control: the pinned case is red under the roster rule too: ' + model[0].slice(0, 240));
-  return out;
-}
-
 /* The shrunk case, compact: what a reader needs to see the failure. */
 function describe(sc) {
   return JSON.stringify({ hunt: sc.hunt, tier: sc.tier, density: sc.density, secret: sc.secret, spanMs: sc.spanMs,
@@ -459,7 +423,7 @@ export async function runEngine(root, o) {
   const t0 = Date.now();
   const tally = {};
   const prop = fc.property(scenarioArb(E.grounds), (sc) => {
-    const problems = engineCase(E, sc, tally, o.rolesFrom || 'roster');
+    const problems = engineCase(E, sc, tally);
     if (problems.length) throw new Error(problems.slice(0, 3).join('\n  '));
     return true;
   });
@@ -664,8 +628,8 @@ export async function runDb(env, o) {
    src/core, src/data and the edge (tests/hunt-core/fixtures/h1.js plant), never the tree; a database mutant in the booted
    chain's live body, put back after. Each must turn the property RED on the CI seed AND shrink to a small case: at most
    SHRUNK.heroes heroes and SHRUNK.cuts cuts (a mutant caught only by a sprawling case proves the generator, not the
-   property), and that shrunk case must be GREEN on the clean engine or body, so a failure the tree already has (KNOWN-F1,
-   or the next finding) can never pass for a catch. */
+   property), and that shrunk case must be GREEN on the clean engine or body, so a failure the tree already has (the next
+   finding, pinned) can never pass for a catch. */
 const SHRUNK = Object.freeze({ heroes: 2, cuts: 2 });
 const ENGINE_MUTANTS = [
   { name: 'a settle drops the remainder: the watermark is the window end, not the next swing', file: 'supabase/functions/hr-accrue/accrual.js',
@@ -679,6 +643,10 @@ const ENGINE_MUTANTS = [
     from: '    const next = m.hs.nextSwingAtMs;', to: '    const next = toMs;' },
   { name: 'the store sells past the purse (and the floor)', file: 'src/core/action-rules.js',
     from: '  return Math.max(0, int(hs.purse, 0)) + coverValue(hs) - floorOf(hs) >= price;', to: '  return true;' },
+  /* KNOWN-F1 planted back: a survivor's unset settings read the party the read handed in (an ended partner counts until the
+     next settle drops it), not the party standing in the world at the boundary */
+  { name: 'KNOWN-F1: the party defaults read every member the read handed in, not the party standing', file: 'src/core/combat-sim.js',
+    from: '    const roles = rolesOf(inWorld(members));', to: '    const roles = rolesOf(members);' },
 ];
 const AI_SIG = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const DB_MUTANTS = [
@@ -764,11 +732,8 @@ async function main() {
   if (process.argv.includes('--mutate')) return mutate({ seed: intArg('--seed') ?? CI_SEED });
   let red = 0;
   if (ONLY !== 'db') {
-    if (!ROLES_FROM[ROLES_ARG]) { console.error('✗ --roles is roster or open'); return 2; }
-    const r = await runEngine(ROOT, { seed: SEED, runs: ENGINE_RUNS, path: PATH, rolesFrom: ROLES_ARG });
+    const r = await runEngine(ROOT, { seed: SEED, runs: ENGINE_RUNS, path: PATH });
     red += report('engine', r, describe, ENGINE_FLOOR);
-    const f1 = knownF1(await loadEngine(ROOT), ROOT);
-    if (f1.length) { red++; for (const p of f1) console.error('✗ ' + p); } else console.log('✓ KNOWN-F1 still reproduces under the live read (reported; pinned until fixed)');
   }
   if (ONLY !== 'engine') {
     let env;

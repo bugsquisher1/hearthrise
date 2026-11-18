@@ -121,10 +121,11 @@ export function heroSnapshot(state, c) {
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + skillPlusOf(c.eq, 'defense') + (Number(c.eq.guardB) || 0));
   /* TEMPERING (src/core/temper.js): only a hero with a rung carries these, so a rung-0 hero's snapshot is what it always was. */
   const blowsPm = blowsPmOf(c.equipment, c.items, c.temper), armorPm = armorPmOf(c.equipment, c.items, c.temper) + steadyPmOf(c.eq, c.bonus);
-  /* CRAFTED JEWELRY (src/data/jewelry.js), the same way: Follow-through and Surge ride the unit as numbers, only on a hero that wears them
-     (Keen is already in the rolls' crit chance). */
+  /* CRAFTED JEWELRY (src/data/jewelry.js), the same way: Follow-through, Surge and Focus ride the unit as numbers, only on a hero that wears
+     them (Keen and Steady are already in the rolls' crit chance and accuracy). */
   const jewel = (c.eq && c.eq.jewel) || null;
   const followPm = jewel && jewel.follow > 0 ? jewel.follow : 0, surgePm = jewel && jewel.surge > 0 ? jewel.surge : 0;
+  const focusPm = jewel && jewel.focus > 0 ? jewel.focus : 0;
   /* RESISTANCE (Tyler 2026-11-08; physical 2026-11-14), the same: { element | physical: permille less taken } from the resolved gear (combat.js
      equipmentStats), only on a hero whose gear carries any; damage.js hurt takes it at the armour chain's resistances step (targeting.js elementOn). */
   const resistPm = resistProfile(c.eq && c.eq.resistPm);
@@ -134,7 +135,7 @@ export function heroSnapshot(state, c) {
   /* THE OWN HEAL (combat.js equipmentStats selfHealPm, the fist line's), the same: a number on the unit, only on a hero that wears one. */
   const selfHealPm = c.eq && c.eq.selfHealPm > 0 ? c.eq.selfHealPm : 0;
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
-    ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(resistPm ? { resistPm } : {}),
+    ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
     ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };
 }
 
@@ -468,7 +469,7 @@ function shotItemsOf(hero) {
 /* A peer's jewelry perks, as numbers like its rungs (combat-sim.js syncUnit), so the browser lands its blows and casts as the server does;
    and its own heal (selfHealPm), so its HP climbs in the browser as on the server. */
 const jewelSnap = (snap) => ({ ...(snap.selfHealPm ? { selfHealPm: snap.selfHealPm } : {}),
-  ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}),
+  ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}), ...(snap.focusPm ? { focusPm: snap.focusPm } : {}),
   ...(snap.resistPm ? { resistPm: snap.resistPm } : {}), ...(snap.skillPlus ? { skillPlus: snap.skillPlus } : {}) });
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds` as the instance plays them

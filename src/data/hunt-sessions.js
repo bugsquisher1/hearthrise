@@ -67,9 +67,10 @@ export const GATHER_SHARE = Object.freeze({ min: 0, max: 100, default: 0, inert:
    names and stores the set in player_action_sets.options; a new option is a
    row here, never a new RPC signature, column or client-baseline row. Refused,
    never clamped; a key sent as null goes back to its default. An absent key
-   reads its default at the settle: the role's (rule-subjects.js ROLE_DEFAULTS
-   through src/core/hunt/roles.js defaultSettings) for target_mode, stance,
-   distance and chase; `default` below for the rest.
+   reads its default in the engine: for target_mode, stance, distance and chase
+   the role's (rule-subjects.js ROLE_DEFAULTS) for the party standing in the
+   world at each boundary (src/core/hunt/roles.js settingsOf); `default` below
+   for the rest.
      target  a mode of hr_hunt_target_modes
      limit   an integer inside the hr_hunt_limits `<limit>_min` / `_max` pair
      enum    one of `values`

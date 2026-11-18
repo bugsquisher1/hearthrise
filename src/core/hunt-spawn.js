@@ -11,7 +11,7 @@ import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v
 import { disciplineAbilities } from '../data/abilities.js?v=0.2.139';
 import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.139';
 import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.139';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.139';
+import { pickLeader, settingsOf } from './hunt/roles.js?v=0.2.139';
 import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.139';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
@@ -25,11 +25,13 @@ export function huntFor(activeId) {
  * weapon and the shield beside it; never the outfit), a staff's Mage / Healer pick
  * from its options; its bar, the stored slots (conditions.js: an ability outside
  * the key's discipline, hunt-roles.js ROLE_KEYS, is dropped; a lane the bar leaves empty
- * takes its defaults); its stop rules, density and settings, the stored options
- * over its role's defaults for this party (`partyRoles`, roles.defaultSettings).
+ * takes its defaults); its stop rules, density and settings: ONLY the ones the stored
+ * options set. A setting the player left unset is its role's default for the party as it
+ * stands in the world at each boundary, which only the engine knows (roles.settingsOf, read
+ * by combat-sim.js syncUnit and heroUnit): a hero is the same whatever party read it.
  * Null when the weapon has no role.
  *
- * @param o { weaponType (the role key), options (player_action_sets.options), bar (the stored slots), partyRoles, lead (leads its party),
+ * @param o { weaponType (the role key), options (player_action_sets.options), bar (the stored slots), lead (leads its party),
  *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns),
  *            leaveTogether (the hero's "Leave if anyone leaves the hunt or dies") }
  */
@@ -39,9 +41,9 @@ export function heroSetup(o) {
   if (!role) return null;
   const row = HUNT_ROLES[role];
   const allowed = disciplineAbilities(disciplineOf(o.weaponType || 'neutral'));
-  const roles = Array.isArray(o.partyRoles) && o.partyRoles.length ? o.partyRoles : [role];
-  const d = defaultSettings(role, roles);
   const pick = (k, dv) => (opt[k] === undefined || opt[k] === null ? dv : opt[k]);
+  /* the player's own setting, or no key at all (its default is the engine's to read, for the party standing then) */
+  const own = (k, as) => (opt[k] === undefined || opt[k] === null ? {} : { [as]: opt[k] });
   const stops = Array.isArray(opt.stop_rules) && !stopRulesProblem(opt.stop_rules) ? opt.stop_rules : [];
   return {
     role,
@@ -69,8 +71,8 @@ export function heroSetup(o) {
     actionSet: pick('action_set', 'hunt'),
     range: row.range,
     element: '',
-    settings: { dist: pick('distance', d.dist), chase: pick('chase', d.chase), tmode: pick('target_mode', d.tmode),
-      stance: pick('stance', d.stance), ...kindPick(opt.target_kind) },
+    settings: { ...own('distance', 'dist'), ...own('chase', 'chase'), ...own('target_mode', 'tmode'), ...own('stance', 'stance'),
+      ...kindPick(opt.target_kind) },
   };
 }
 
@@ -79,10 +81,11 @@ export function heroSetup(o) {
    none. Anything but a catalogue id is none, so a forged or stale value only ever falls back to the Target setting alone. */
 const kindPick = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(MONSTERS, v) ? { tkind: v } : {});
 
-/* One hero unit: the server-read hero at `tile`, its settings over its role's
-   defaults for this party (roles.defaultSettings). */
+/* One hero unit: the server-read hero at `tile`, its own settings over its role's
+   defaults for the party in the world with it (roles.settingsOf, which the settle asks
+   again at every boundary: combat-sim.js syncUnit). */
 function heroUnit(id, h, partyRoles, tile) {
-  const s = Object.assign(defaultSettings(h.role, partyRoles), h.settings || {});
+  const s = settingsOf(h.role, h.settings, partyRoles);
   const [x, y] = tile;
   const u = makeUnit({ id, side: 'hero', kind: h.role, pocket: null, alive: true, hp: h.hp ?? h.maxHp, maxHp: h.maxHp,
     x, y, fx: x, fy: y, speed: HUNT_ROLES[h.role].speed, role: h.role, dist: s.dist, chase: s.chase, tmode: s.tmode,

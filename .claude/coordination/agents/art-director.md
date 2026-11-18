@@ -3799,3 +3799,13 @@ serve) when the map puts Havora back in that view. Edge payload moved (sites.js 
 Lessons: (1) a clean built edge needs no ground make-do: when the art is fixed, remove the compensations in the same lane or they
 float (the soot band sat 10 px off the new wall); (2) a test that searches for a stand that fits silently drifts away from the case it
 names: pin the real case (the new hero's first stand) and let the search only name the fallback in the red.
+## 2026-11-18 lane/a-catacomb-icons (from set/v0.2.140): the Unmarked Catacombs' 20 PixelLab icons replace their twin drawings
+The Coordinator's picks (art/world-src/gen-2026-11-18/catacomb-icons, note.json: 4 calls, 40 gens) through
+tools/world-art/import-catacomb-icons-2026-11-18.mjs, which reuses import-drop-icons' iconOf with its own picks dir (one finish, two
+importers); the 20 KNOWN_TWINS pairs are gone from tests/pixel-icons.mjs (no art manifest mapped a Catacombs id to its twin: the pixel
+path is derived from the id). The Gold/Platinum twelve wait in picks-later/, finished clean but not written (an icon with no ITEMS row
+is an orphan). Read in the real bag at 1440x900 and 922x423 beside the Tower keys and the standard helms and boots: all read as their
+kind; weakest bone_key_silver (a thin cross), fletchers_hood and sewermans_boots (darkest on the slot), hodman/dockhand and
+washerwoman/fishwife (one silhouette each pair). Lesson: to read icons in the real bag without granting items, build pockets with the
+real pocketHtml into a list of your own placed AFTER the bag's list: the bag's keyed patch takes the first .hw-pockets in document
+order, so a list put before it, or pockets put inside it, are swept away or pushed below the fold.

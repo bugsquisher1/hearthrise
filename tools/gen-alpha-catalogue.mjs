@@ -35,7 +35,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { CROPS } from '../src/data/gathering.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
 import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '../src/data/blessings.js';
-import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
+import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_PREMIUM, JEWEL_SHOP_SLOTS } from '../src/data/jewelry.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,7 +54,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE BLESSING CUT (lane/c-death-and-slots, Tyler 2026-11-10): 2027-03-14-jewelry is APPLIED history; hr_blessing_tiers.permille moves 320 / 630 / 950 ->
    250 / 500 / 750 (src/data/blessings.js BLESSING_CUT_PERMILLE) in this forward file, the same full delete+insert replace. No shop, seed or refill row moves.
    hr_blessing_take reads the row at the death, so no body and no edge waits on it: either order against the 2027-03-25 death pair and the hr-accrue. */
-export const OUT_NAME = '2027-03-25-death-share-alpha-catalogue.generated.sql';
+/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-03-25-death-share is APPLIED history; the Fang Studs, the Wolfbone Necklace (3,000 g) and the
+   Seam Jasper Band (12,000 g) join the outfitter at their premium (src/data/jewelry.js JEWEL_SHOP_PRICE, Tyler 2026-11-05 call 5: plain jewelry stays in
+   the Shop), the same full delete+insert replace. No other row moves. ORDER: after this lane's items catalogue (the rows in hr_items). */
+export const OUT_NAME = '2027-05-09-jewelry-sample-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -87,11 +90,14 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
-    if (o.kind === 'gear' && own(JEWEL_SHOP_PRICE, o.item)) {
+    /* every crafted piece the Shop lists comes here (src/data/jewelry.js JEWEL_PIECES), priced or not, so a cloak or an unpriced jewel is refused, never sold as plain gear */
+    if (o.kind === 'gear' && (own(JEWEL_SHOP_PRICE, o.item) || own(JEWEL_PIECES, o.item))) {
       /* PLAIN CRAFTED JEWELRY STAYS IN THE SHOP AT A PREMIUM (Tyler 2026-11-05, call 5): a crafted piece's plain row, at its own price and at least
          JEWEL_SHOP_PREMIUM x its book, so the Shop never undercuts the crafter and buy-then-sell always loses. The one door past tier 1. */
       const it = items[o.item];
       if (!JEWEL_PIECES[o.item] || it.jewelGrade || o.basic !== null) throw new Error(`gear offer ${o.item} is not a plain crafted jewelry piece with no basic`);
+      /* jewelry only (the ruling's words): a crafted cloak has no Shop premium, so the Shop sells none past the Traveler Cape */
+      if (!JEWEL_SHOP_SLOTS.includes(it.slot)) throw new Error(`gear offer ${o.item} is a crafted ${it.slot}, not jewelry: no Shop premium`);
       if (o.price !== JEWEL_SHOP_PRICE[o.item] || o.price < JEWEL_SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not its premium (${JEWEL_SHOP_PRICE[o.item]} g, at least ${JEWEL_SHOP_PREMIUM} x its book ${it.v})`);
       if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
@@ -168,7 +174,10 @@ export function render(offers = supplyRows(), r = rules()) {
 -- file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files).
 -- hr_shop_view lists them: 2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql.
 -- ORDER: after the v0.2.29 chain (needs hr_items, hr_hunt_supplies, hr_crops); first of v0.2.30.
--- NEW IN THIS FILE (lane/c-death-and-slots, Tyler 2026-11-10: Blessings cut a death by 25 / 50 / 75%, the
+-- NEW IN THIS FILE (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2): the crafted Fang Studs and Wolfbone
+-- Necklace (3,000 g) and the Seam Jasper Band (12,000 g) join the outfitter at their premium (Tyler 2026-11-05, call 5: plain jewelry stays in the
+-- Shop, at least 10x its book). Every other row is carried unchanged from 2027-03-25-death-share-alpha-catalogue.generated.sql (applied history).
+-- CARRIED FROM 2027-03-25 (lane/c-death-and-slots, Tyler 2026-11-10: Blessings cut a death by 25 / 50 / 75%, the
 -- designer's numbers, replacing 32 / 63 / 95): hr_blessing_tiers.permille ${r.tiers.map((t) => t.xpLossReductionPermille).join(' / ')}
 -- (src/data/blessings.js BLESSING_CUT_PERMILLE). Prices and every shop, seed and refill row are carried
 -- unchanged from 2027-03-14-jewelry-alpha-catalogue.generated.sql (applied history). hr_blessing_take reads the
@@ -290,6 +299,7 @@ function gearCases(base) {
     ['gear with a basic', g({ basic: 'salted_shrimp' })],
     ['a crafted ring under its premium', g({ item: 'banded_signet', offer: 'supply.banded_signet', price: JEWEL_SHOP_PRICE.banded_signet - 1 })],
     ['a Fine ring in the Shop', g({ item: 'banded_signet_keen', offer: 'supply.banded_signet_keen', price: JEWEL_SHOP_PRICE.banded_signet })],
+    ['the crafted cloak in the Shop at a jewel premium', g({ item: 'warband_bulwark', offer: 'supply.warband_bulwark', price: 12000 })],
   ];
 }
 

@@ -134,12 +134,13 @@ export function refusalText(r, cs) {
     return title.name + ' takes ' + whole(r.figures.need) + ' ' + title.noun + '. ' + ((cs && nameOf(cs)) || 'This hero') + ' has ' + whole(r.figures.have) + '. Gold can\'t skip kills.';
   }
   if (title && r.error === 'title_owned' && cs && nameOf(cs)) return nameOf(cs) + ' already has that title.';
-  /* The Hallmark step under its Crafting level, or past the account's day (hr_hallmark sends the numbers). */
-  if (r && r.error === 'hallmark_level' && r.figures && Number.isInteger(r.figures.need) && Number.isInteger(r.figures.have)) {
-    return 'A Hallmark takes Crafting ' + r.figures.need + '. ' + ((cs && nameOf(cs)) || 'This hero') + ' has ' + r.figures.have + '.';
+  /* The Hallmark step or the jewel reforge under its bench's level, or past the account's day (hr_hallmark and hr_jewel_reforge send the numbers and the bench). */
+  if (r && (r.error === 'hallmark_level' || r.error === 'reforge_level') && r.figures && Number.isInteger(r.figures.need) && Number.isInteger(r.figures.have)) {
+    const bench = typeof r.bench === 'string' && own(SKILLS_DEF, r.bench) ? SKILLS_DEF[r.bench].name : 'Smithing';
+    return (r.error === 'hallmark_level' ? 'A Hallmark' : 'A reforge') + ' takes ' + bench + ' ' + r.figures.need + '. ' + ((cs && nameOf(cs)) || 'This hero') + ' has ' + r.figures.have + '.';
   }
-  if (r && r.error === 'hallmark_limit' && r.figures && Number.isInteger(r.figures.limit)) {
-    return 'Daily limit: ' + r.figures.limit + ' Hallmarks, resets at midnight UTC';
+  if (r && (r.error === 'hallmark_limit' || r.error === 'reforge_limit') && r.figures && Number.isInteger(r.figures.limit)) {
+    return 'Daily limit: ' + r.figures.limit + (r.error === 'hallmark_limit' ? ' Hallmarks' : ' reforges') + ', resets at midnight UTC';
   }
   /* A town action above the server's skill level: town-work.js names the skill, both levels and the action. */
   if (r && r.error === 'level_too_low' && r.skill && Number.isInteger(r.skill.need)) return skillShortWords(r.skill.id, r.skill.need, r.skill.have, r.skill.doing);

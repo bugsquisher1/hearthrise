@@ -80,7 +80,10 @@ const SEED = '-4611686018427387904';
    every pin (exit 0); the band itself moves none.
    RE-PINNED 2026-11-18 (set/v0.2.139 merged into lane/d-party-pace), LANE/D-DROP-HOMES' DROP ROWS ONLY: warrens-4 moved at settle 4 (kills 211 as pinned);
    glade-4, sewer-2 and the lone ranger hold. Cause: src/data/monsters.js drop rows (armor, weapons and shields drop at every tier, Tyler 2026-11-18) change
-   the Warrens' loot rolls. Proof: set/v0.2.139 alone (f5ec21295) reads the same red, and with origin/main's src/data/monsters.js laid in it holds every pin (exit 0). */
+   the Warrens' loot rolls. Proof: set/v0.2.139 alone (f5ec21295) reads the same red, and with origin/main's src/data/monsters.js laid in it holds every pin (exit 0).
+   RE-PINNED 2026-11-18 (lane/d-jewelry-sample on v0.2.139, 5b58e0b6e), WARRENS-4'S TALLY ONLY (world and timeline hold, kills 211): the Goblin Digger's Seam
+   Jasper Rare (src/data/monsters.js) is a new item in the tally. glade-4, sewer-2 and the lone ranger hold. Proof: this lane's tree with origin/main's
+   src/data/monsters.js laid back alone holds every pin (exit 0), so Steady and Focus (combat.js, damage.js) move none: no pinned hero wears them. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

@@ -17,7 +17,8 @@
 //       and >= 1.5 h at the multiplier ceiling (dropBonus x the best drop
 //       buff — the trophy/charm memory and Boss-of-the-Day multipliers and
 //       Vigour were deleted with the closed rebuild, lane C2);
-//   (e) >= 4 lucky rows per tier T1-T6, unique items, lucky row LAST;
+//   (e) >= 4 lucky rows per tier T1-T6, unique items, lucky row LAST; a row that LEFT FOR A RULING (LEFT_BY_RULING) still
+//       counts toward its tier only while its item is crafted and drops from no monster at all;
 //   (f) item.tier is the monster's tier or one above it;
 //
 // BOTH PATHS (lane C2: a hunt is one engine whether a client watches or not):
@@ -38,6 +39,7 @@ import { pathFor } from '../src/data/item-art.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
+import { JEWEL_PIECES } from '../src/data/jewelry.js';
 import { effectiveDropChance } from '../src/core/drops.js';
 import { lootKey } from '../src/core/goals.js';
 import {
@@ -59,6 +61,15 @@ const HOURS_MAX = 30;
 const CEILING_HOURS_MIN = 1.5;
 const FAUCET_SHARE = 0.05;
 const MIN_ROWS_PER_TIER = 4;
+/* ROWS THAT LEFT FOR A RULING (shrink-only): a lucky row taken off because its item may no longer drop anywhere. Tyler 2026-11-18: the two
+   dropped Wickstead jewels become crafted (Smithing 15, src/data/jewelry.js), and a crafted piece drops nowhere (tests/jewelry-sources.mjs JS2),
+   so the Wolf Cub's Wolfbone Necklace and the Giant Bat's Fang Studs left. Each counts toward its tier's (e) floor only while its item is a
+   crafted piece no monster drops; a new lucky row on its tier takes the entry's place. Every lucky row stands on a monster no open ground spawns
+   (2026-11-18): whether the system stays is the designer's call (CONFLICTS 2026-11-18). */
+export const LEFT_BY_RULING = Object.freeze({
+  wolfbone_torc: Object.freeze({ tier: 1, monster: 'small_wolf', why: 'Tyler 2026-11-18: crafted at Smithing 15' }),
+  fang_studs: Object.freeze({ tier: 2, monster: 'giant_bat', why: 'Tyler 2026-11-18: crafted at Smithing 15' }),
+});
 const LOADOUT = Object.freeze({
   1: { level: 8, metal: 'bronze' }, 2: { level: 20, metal: 'iron' }, 3: { level: 33, metal: 'steel' },
   4: { level: 48, metal: 'mithril' }, 5: { level: 63, metal: 'rune' }, 6: { level: 80, metal: 'ember' },
@@ -196,6 +207,11 @@ function check(monsters) {
     lines.push(`  T${m.tier} ${mid.padEnd(18)} ${d.id.padEnd(22)} 1 in ${String(Math.round(1 / base)).padStart(5)}  `
       + `${String(got.kills).padStart(4)}/h  ${hrs.toFixed(1).padStart(5)} h  ceiling ${ceilHrs.toFixed(1).padStart(4)} h`);
   }
+  for (const [id, left] of Object.entries(LEFT_BY_RULING)) {
+    const still = Object.entries(monsters).filter(([, om]) => (om.drops || []).some((od) => od && od.id === id)).map(([oid]) => oid);
+    ok(!!JEWEL_PIECES[id] && !still.length, 'e', `${id} is LEFT_BY_RULING (${left.why}) but ${still.length ? 'still drops from ' + still.join(', ') : 'is not a crafted piece'}`);
+    if (JEWEL_PIECES[id] && !still.length) perTier[left.tier] = (perTier[left.tier] || 0) + 1;
+  }
   for (let t = 1; t <= 6; t++) {
     ok((perTier[t] || 0) >= MIN_ROWS_PER_TIER, 'e', `tier ${t} has ${perTier[t] || 0} lucky rows, needs ${MIN_ROWS_PER_TIER}`);
   }
@@ -203,8 +219,9 @@ function check(monsters) {
 }
 
 /* ── BOTH PATHS ──────────────────────────────────────────────────────────── */
-const PROBE_MONSTER = 'small_wolf';
-const PROBE_ITEM = 'wolfbone_torc';
+/* the Kobold's Iron Helm since 2026-11-18 (the Wolf Cub's Wolfbone Necklace left for the ruling above) */
+const PROBE_MONSTER = 'kobold';
+const PROBE_ITEM = 'iron_helm';
 function bothPaths() {
   fails = [];
   const notes = [];
@@ -287,7 +304,9 @@ const MUTATIONS = {
   widows_fang:      { rule: 'f', mk: () => withRow(null, (ms) => { lastOf(ms, 'giant_spider').id = 'widows_fang'; }) },
   lucky_first:      { rule: 'e', mk: () => withRow(null, (ms) => { ms.zombie.drops.unshift(ms.zombie.drops.pop()); }) },
   /* the loot-band exemption stays narrow: a plain (unbanded) second row of a lucky item is still a shortcut source */
-  plain_second_source: { rule: 'a', mk: () => withRow(null, (ms) => { ms.drain_rat.drops.push({ id: 'wolfbone_torc', ch: 0.001 }); }) },
+  plain_second_source: { rule: 'a', mk: () => withRow(null, (ms) => { ms.drain_rat.drops.push({ id: 'iron_helm', ch: 0.001 }); }) },
+  /* a row that left for a ruling counts only while its item drops nowhere: one back on a monster is red, and its tier is short again */
+  left_drops_again: { rule: 'e', mk: () => withRow(null, (ms) => { ms.giant_bat.drops.push({ id: 'fang_studs', ch: 0.00019 }); }) },
 };
 
 const argv = process.argv.slice(2);

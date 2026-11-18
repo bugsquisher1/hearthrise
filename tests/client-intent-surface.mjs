@@ -73,6 +73,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_target_kind_set: 'the hero’s First target on one hunt ground, a ground id and a monster id or none; the server checks the kind against its catalogue of that ground, refused not clamped, no value (target-intents.js setTargetKind; 2027-04-22-target-kind.sql)',
   hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
+  hr_hunt_analyzer: 'a read: the server\'s analyzer of one of this hero\'s own sessions (the slot and a session id), once per page for the hunt a yard took over, so its away card keeps its Gold, Kills and Best find (past-hunt.js askPastHunt); rate-gated, nothing moves',
   /* Combat training (the designer's 2026-11-13 spec; server half lane/c-combat-training). */
   hr_training_start: 'train one combat skill at the yard or on the house dummy: the slot, a skill id, the place and the hourly fee the player saw, with a fresh key; the server re-quotes on its clock and charges each hour (training-intents.js)',
   hr_house_dummy_unlock: 'unlock one skill on the account\'s house dummy at the price the player saw, with a fresh key; the server gates, prices and debits it (training-intents.js)',
@@ -136,7 +137,8 @@ export const CLIENT_RPCS = Object.freeze({
   /* The gold sinks (Tyler 2026-11-04): a slot, a catalogue id and the QUOTE the player saw; the server counts, prices and refuses quote_changed. */
   hr_setup_slot_buy: 'buy this hero\'s next setup slot at the quoted price (preset-intents.js buySetupSlot; 2027-02-28-setup-slots.sql)',
   hr_title_buy: 'claim a catalogue title at the quoted price; the server counts this hero\'s kills (title-intents.js buyTitle; 2027-02-28-titles.sql)',
-  hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks Crafting and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
+  hr_hallmark: 'Hallmark one Fine jewelry piece into the catalogue\'s pair at the quoted price; the server checks the piece\'s own bench skill and takes the piece and the gem (hallmark-intents.js hallmarkPiece; 2027-03-14-jewelry-hallmark.sql)',
+  hr_jewel_reforge: 'reforge one Hallmarked piece into the next tier\'s catalogue pair at the quoted fee difference; the server checks the new piece\'s bench skill and takes the piece, the bars and the gem (hallmark-intents.js reforgePiece; 2027-05-09-jewel-reforge.sql)',
   hr_title_wear: 'wear a title this hero holds, or null to take it off; moves no value (title-intents.js wearTitle)',
   /* The factions (2027-04-22-faction-standing.sql, behind the `factions` switch 2027-04-23-faction-section.sql): a slot, a side or a piece
      id and a fresh key, never a number; the server reads the Krell count, standing, swap time and cooldown itself. Moves no value. */

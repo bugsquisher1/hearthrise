@@ -130,6 +130,8 @@ declare
     'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls',
     /* crafted jewelry's catalogues (2027-03-14-jewelry-catalogue.generated.sql): the Hallmark step, its day limit, the graded rows' ceilings */
     'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings',
+    /* the jewel reforge's catalogue (2027-05-09-jewelry-sample-catalogue.generated.sql) */
+    'hr_jewel_reforge_offers',
     /* scaled hunts' catalogues (2027-03-21-scaled-hunts-catalogue.generated.sql): the rule, the grounds, the scaled kill bounds */
     'hr_scaled_hunt_rule', 'hr_scaled_grounds', 'hr_scaled_kill_bounds',
     /* the live events' catalogues (2027-03-22-live-events-catalogue.generated.sql): the types and the schedule */

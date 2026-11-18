@@ -64,7 +64,9 @@ const RAW_CAP = (req) => Math.round(at(HUNTING_FOR_RAW, req) * 0.6);
 const CHAIN_CAP = (req) => Math.round(huntingAt(req) * 0.9);
 /* Tier 3 sells at 0.14 of book by the 10-23 ruling, one price per item however it came: this is made to be carried. (The forged Coppercap and
    Mithril-Faced shields, Mithril Hatchets and Maple Crossbow left with their recipes, lane/d-drop-homes 2026-11-18: each drops now.) */
-const TIER_3_USE = Object.freeze({ reforge_steelgrate: 'a Rare Kingsgrate reforged' });
+const TIER_3_USE = Object.freeze({ reforge_steelgrate: 'a Rare Kingsgrate reforged',
+  /* the tier 3 cloak (src/data/jewelry.js, Crafting 30): worn or sold to a player, never to the shop, which bids tier 3 gear at 0.14 of book (loot-bands.js) */
+  stitch_warband_bulwark: 'the crafted tier 3 cloak, made to wear' });
 const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_earth_rune', 'chalked_water_rune', 'chalked_fire_rune',
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 

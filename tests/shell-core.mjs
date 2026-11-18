@@ -81,9 +81,12 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, AW, SHELL_CSS } = mods;
+  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, AW, SM, HSUM, AN, SHELL_CSS } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
+  /* an async rule (a read the alert centre waits on): run with the rest, judged before the verdict */
+  const later = [];
+  const ta = (id, fn) => { later.push(Promise.resolve().then(fn).catch((e) => { fails.push(id + ': ' + e.message); })); };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
   const ok = (c, msg) => { if (!c) throw new Error(msg); };
 
@@ -1386,8 +1389,115 @@ async function runTests(mods) {
       ok(all.length === 1 && all[0].text === 'Cass earned the title Ratcatcher and 2 more. Claim them in Character → Titles.', 'three at once: ' + JSON.stringify(all.map((a) => a.text)));
       many.destroy();
     });
+
+    /* ── R3k-R3m: the post-patch audit's return findings (2026-11-18, v0.2.139: B3 B4 B5) ── */
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    const centreWith = (cs, server, viewed = 0) => AL.createAlertCenter({ viewed, character: () => cs, characters: () => [cs], subscribe: () => () => {}, server },
+      { track: () => {}, clock: () => 0 });
+    const blessed = (held) => ({ permille: 0, free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 250 * tier, price: 0, held })) });
+
+    ta('R3k a hunt the yard took over keeps its Gold, Kills and Best find: the server\'s tally of that session, read once (post-patch audit B4)', async () => {
+      const calls = [];
+      const server = { rpc: async (name, args) => { calls.push([name, args]);
+        return { ok: true, body: { ok: true, hunt_ms: 12 * H, session: {}, hero: { kills: 400, coins: 2600, waste: 900, loot: { bones: 50, iron_platebody: 1 } } } }; } };
+      /* THE BROWSER CLOSED: the card comes up with no Gold or Kills guessed, then the server's tally of the stamped hunt fills them */
+      const cs = heroOf(yard(), STAMP, T0 + 13 * H);
+      const centre = centreWith(cs, server);
+      const first = awayLine(centre);
+      ok(first && first.facts.gold === null && first.facts.kills === null, 'CONTROL: before the read nothing is guessed: ' + JSON.stringify(first && first.facts));
+      /* another envelope while the read is in flight asks nothing more */
+      for (const fn of cs.subs) fn(cs, 'changed');
+      await tick();
+      const line = awayLine(centre);
+      eq([line.facts.gold, line.facts.looted, line.facts.paid, line.facts.kills, line.facts.best], [1650, 2500, 850, 390, 'iron_platebody'], 'the hunt\'s own tally over the absence');
+      ok(/\+1,650 gold, 390 kills\. Best find: Iron Platebody\./.test(line.text) && /Then Ashwick went to the yard to train Melee\./.test(line.text), 'the line: ' + line.text);
+      const block = AW.awayBlockOf(cs, line);
+      eq([block.result.figs.map((f) => f.key), block.best, block.result.ups], [['xp', 'gold', 'kills'], 'iron_platebody', ['Melee 40 → 42']], 'the card\'s result block is whole, the yard\'s levels beside it');
+      for (const fn of cs.subs) fn(cs, 'changed');
+      await tick();
+      eq(calls, [['hr_hunt_analyzer', { p_slot: 0, p_session: S1 }]], 'one read, of that session');
+      centre.destroy();
+      /* THE HUNT IN VIEW: the page watched it end and roll into the yard, so no card and no read */
+      const seen = [];
+      const watched = heroOf(Object.assign(yard(), { hunt: { session_id: S1, hunt_id: 'mosslight_glade', ended: false, session: {}, hero: {}, pose: { units: [] } } }),
+        Object.assign({}, STAMP, { at: T0 + 13 * H - MIN }), T0 + 13 * H);
+      const wc = centreWith(watched, { rpc: async (n, a) => { seen.push([n, a]); return { ok: false }; } });
+      watched.env = yard();
+      for (const fn of watched.subs) fn(watched, 'changed');
+      await tick();
+      ok(!awayLine(wc) && seen.length === 0, 'a hunt watched into the yard raised a card or a read: ' + JSON.stringify(seen));
+      wc.destroy();
+    });
+
+    t('R3l a death during the absence offers the death popup\'s Bless again on the away card while the hero lacks one (post-patch audit B5)', () => {
+      /* THE BROWSER CLOSED, the yard took over from a hunt that died: three Blessings used up */
+      const cs = heroOf(Object.assign(yard({ died: true }), { blessings: blessed(false) }), STAMP, T0 + 13 * H);
+      const centre = centreOf(cs);
+      const line = awayLine(centre);
+      eq(AW.awayBlockOf(cs, line).bless, 'Bless again', 'the yard\'s card after a death');
+      cs.env = Object.assign(yard({ died: true }), { blessings: blessed(true) });
+      eq(AW.awayBlockOf(cs, line).bless, '', 'blessed again since: no press');
+      /* the press: the Shop on its Services tab for the hero on screen, else that hero shown first */
+      const done = [];
+      const ctx = { alerts: { list: () => [line], dismiss: () => true }, character: { slot: 0 }, goTo: (s, w) => done.push(['goTo', s, w]),
+        wm: { close: (id) => done.push(['close', id]), openTab: (w, tab) => done.push(['tab', w, tab]) } };
+      const el = { getAttribute: (k) => (k === 'data-alert' ? line.key : null) };
+      ok(AW.renderAway.act(ctx, null, 'away-bless', { type: 'click' }, el) === true, 'the press is the card\'s');
+      eq(done, [['close', 'away'], ['tab', 'shop', 'services']], 'Bless again opens Shop, Services');
+      done.length = 0; ctx.character = { slot: 1 };
+      AW.renderAway.act(ctx, null, 'away-bless', { type: 'click' }, el);
+      eq(done, [['close', 'away'], ['goTo', 0, 'shop']], 'another hero\'s: that hero, then the Shop');
+      centre.destroy();
+      /* ...and a hunt that died while away with nothing after it (no yard): the same press */
+      const S9 = '99999999-9999-4999-8999-999999999999';
+      const plain = heroOf({ name: 'Ashwick', level: { xp: XP57 + 10, level: 57, into: 0, need: 1 }, blessings: blessed(false),
+        hunt: { session_id: S9, hunt_id: 'mosslight_glade', ended: true, session: { end_reason: 'died', ended_at: iso(T0 + 6 * H) }, hero: {}, pose: { units: [] } },
+        death_log: [{ id: 3, at: iso(T0 + 6 * H), hunt: 'mosslight_glade', session: S9, monster: 'warband_captain', xp: 900, xp_lost: { level: 900 }, saved: { level: 2700 }, blessings: 3 }] },
+        { s: S9, at: T0, xp: XP57, lv: 57, h: 'mosslight_glade' }, T0 + 9 * H);
+      const pc = centreOf(plain, 1);
+      eq(AW.awayBlockOf(plain, awayLine(pc)).bless, 'Bless again', 'a hunt that died while away, the hero not on screen');
+      pc.destroy();
+    });
+
+    t('R3m a hunt out of gold says why with the numbers that ended it, on the end card and the away card (post-patch audit B3)', () => {
+      const WHY = 'Gold reserve reached. Store supplies cost 1,160 gp and the coins brought in 680 gp, so your gold fell to your 300 gp reserve.';
+      /* THE HUNT IN VIEW: its end card (the stored summary's server tally: coins 680, loot 311, balance -169, so 1,160 gp of store supplies) */
+      const card = { reason: 'gold_out', gold: 680, lootValue: 311, balance: -169 };
+      eq(SM.reasonWords(card, 'Solo', null, 300), WHY, 'the end card');
+      eq(SM.reasonWords(card, 'Solo', null, null), 'Gold reserve reached', 'no reserve from the server: the label alone');
+      eq(SM.reasonWords({ reason: 'gold_out' }, 'Solo', null, 300), 'Gold reserve reached. Your gold fell to your 300 gp reserve.', 'no tally: the reserve alone');
+      /* THE BROWSER CLOSED: the away card's line and its why, from the hunt's analyzer and the server's reserve */
+      const S7 = '77777777-7777-4777-8777-777777777777';
+      const away = heroOf({ name: 'Solo', level: { xp: XP57 + 500, level: 57, into: 0, need: 1 }, hunt_settings: { gold_floor: 300 },
+        hunt: { session_id: S7, hunt_id: 'millrace_sewer', ended: true, session: { end_reason: 'gold_out', ended_at: iso(T0 + 3 * H) }, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 35, coins: 680, waste: 1160, loot_value: 311, balance: -169 } } },
+        { s: S7, at: T0, xp: XP57, lv: 57, gold: 0, sp: 0, kills: 0 }, T0 + 4 * H);
+      const line = AR.awayRecapOf(away);
+      ok(line && line.text.includes(WHY), 'the away line: ' + JSON.stringify(line && line.text));
+      eq(AW.awayBlockOf(away, line).why, WHY, 'the away card');
+    });
+
+    t('R9 the end card\'s Gold is what the purse kept, the away card\'s own reading, and a record with no spend says Coins (post-patch audit, end card)', () => {
+      /* THE HUNT IN VIEW: its end card, the stored summary's server tally (coins 615, loot 314, balance -171: 1,100 gp of store supplies) */
+      const cur = { hunt: 'millrace_sewer', lvFrom: 5, lvTo: 6, ups: [], xp: 8024, xpH: 25383, gold: 615, lootValue: 314, balance: -171, kills: 35, ms: 18 * MIN };
+      const fig = HSUM.resultOf(cur).figs.find((f) => f.key === 'gold');
+      eq([fig.label, fig.value, fig.sub], ['Gold', '−485 gp', '615 gp in coins, 1,100 gp on supplies'], 'the end card\'s Gold');
+      /* THE BROWSER CLOSED: the same hunt told by the away card reads the same figure */
+      const away = AW.awayBlockOf(null, { facts: { gold: -485, looted: 615, paid: 1100 } }).result.figs.find((f) => f.key === 'gold');
+      eq([away.label, away.value, away.sub], [fig.label, fig.value, fig.sub], 'the away card\'s Gold is the same reading');
+      /* a record that sent no spend (the session tally of an older server): its coins under Coins, never as Gold */
+      const coins = HSUM.resultOf(Object.assign({}, cur, { lootValue: null, balance: null })).figs.find((f) => f.key === 'gold');
+      eq([coins.label, coins.value], ['Coins', '+615 gp'], 'no spend to set against them: Coins');
+    });
+
+    t('R10 the analyzer says which figure its coins row is, on the hero\'s tab and the party\'s (post-patch audit, analyzer)', () => {
+      const html = AN.renderAnalyzer({});
+      ok(/<dt>Coins<\/dt><dd data-stat="gold">/.test(html) && !/<dt>Gold<\/dt><dd data-stat="gold">/.test(html), 'the coins row is labelled Coins');
+      ok(/<dt>Coins and loot value per hour<\/dt><dd data-stat="perHour\.goldAndLoot">/.test(html), 'and its rate says it is coins and loot');
+    });
   }
 
+  await Promise.all(later);
   return fails;
 }
 
@@ -1416,6 +1526,9 @@ async function load(base) {
     AR: await import(u('src/shell/away-recap.js')),
     AL: await import(u('src/shell/alerts.js')),
     AW: await import(u('src/shell/windows/away.js')),
+    SM: await import(u('src/hunt-view/summary-model.js')),
+    HSUM: await import(u('src/shell/windows/hunt-summary.js')),
+    AN: await import(u('src/shell/widgets/analyzer.js')),
     AH: await import(u('src/shell/after-hunt.js')),
     HA: await import(u('src/shell/hunt-after.js')),
     XP: await import(u('src/core/xp.js')),
@@ -1524,7 +1637,7 @@ const MUTANTS = [
   /* R3g-R3j: the return never lies or goes silent (full-game audit 2026-11-18 A6 A2 A22 A23) */
   { test: 'R3g', file: 'src/shell/away-recap.js', from: "if (gold) parts.push(signed(gold.net, 'gold'));", to: "if (gold) parts.push(signed(gold.looted, 'gold'));" },
   { test: 'R3g', file: 'src/shell/away-recap.js', from: "if (!Number.isSafeInteger(was.gold) || !Number.isSafeInteger(was.sp) || coins === null", to: "if (!Number.isSafeInteger(was.gold) || coins === null" },
-  { test: 'R3g', file: 'src/shell/windows/away.js', from: "value: (f.gold < 0 ? '−' : '+') + gold(Math.abs(f.gold)),", to: "value: '+' + gold(f.looted)," },
+  { test: 'R3g', file: 'src/shell/result-block.js', from: "value: (kept.net < 0 ? '−' : '+') + gold(Math.abs(kept.net)),", to: "value: '+' + gold(kept.coins)," },
   { test: 'R3h', file: 'src/shell/away-recap.js', from: '  if (a && a.last && a.last.session === was.s) return true;\n', to: '' },
   { test: 'R3h', file: 'src/shell/away-recap.js', from: '  return Number.isFinite(h.huntFromMs) && h.huntFromMs > was.at;\n', to: '  return false;\n' },
   { test: 'R3h', file: 'src/shell/away-recap.js', from: "  const died = over ? diedWords(cs, was.s) : '';", to: "  const died = '';" },
@@ -1540,6 +1653,21 @@ const MUTANTS = [
   { test: 'R7', file: 'src/shell/town-news.js', from: "  return st && st.active_kind === 'artisan' && typeof st.active_id === 'string'", to: "  return st && benchRunOf(cs) && benchRunOf(cs).end === null && st.active_kind === 'artisan' && typeof st.active_id === 'string'" },
   { test: 'R7', file: 'src/shell/town-news.js', from: "    const exact = w.skill !== 'cooking' && !w.row.roll;", to: '    const exact = true;' },
   { test: 'R8', file: 'src/shell/alerts.js', from: '    const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));', to: '    const titled = null;' },
+  /* R3k-R3m: the post-patch audit's return findings (2026-11-18 v0.2.139 B4 B5 B3) */
+  { test: 'R3k', file: 'src/shell/away-recap.js', from: '  const a = over ? pastHuntOf(cs, was.s) : analyzerOf(cs);', to: '  const a = over ? null : analyzerOf(cs);' },
+  { test: 'R3k', file: 'src/shell/alerts.js', from: "      if (a.kind === 'away') askPast(cs, a);\n", to: '' },
+  { test: 'R3k', file: 'src/shell/alerts.js', from: "if (!session || !a.stamp || pastAsked.has(cs.slot + ':' + session)) return;", to: 'if (!session || !a.stamp) return;',
+    also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) return pastHuntOf(cs, session);\n', to: '' }] },
+  { test: 'R3l', file: 'src/shell/windows/away.js', from: "summary: go === 'again', bless: blessOf(cs, f) };", to: "summary: go === 'again', bless: '' };" },
+  { test: 'R3l', file: 'src/shell/windows/away.js', from: "if (ctx.character && ctx.character.slot === a.slot) ctx.wm.openTab('shop', 'services'); else", to: "if (false) ctx.wm.openTab('shop', 'services'); else" },
+  { test: 'R3l', file: 'src/shell/away-recap.js', from: ": h.ended && h.endReason === 'died' ? h.sessionId : null },", to: ': null },' },
+  { test: 'R3m', file: 'src/hunt-view/summary-model.js', from: "  const why = s.reason === 'gold_out' && s.forfeit !== true ? goldOutWords(s, floor)", to: '  const why = false ? goldOutWords(s, floor)' },
+  { test: 'R3m', file: 'src/hunt-view/summary-model.js', from: 'coins + loot - balance', to: 'coins - balance' },
+  { test: 'R3m', file: 'src/shell/away-recap.js', from: '  const why = goldOut ? dot(goldOut) :', to: '  const why = false ? dot(goldOut) :' },
+  /* R9, R10: every surface says which gold it is (post-patch audit 2026-11-18, the end card) */
+  { test: 'R9', file: 'src/shell/windows/hunt-summary.js', from: '      goldFig(goldKeptOf(cur), cur.gold),', to: '      goldFig(null, cur.gold),' },
+  { test: 'R9', file: 'src/shell/result-block.js', from: "  return Number.isFinite(coins) ? { key: 'gold', label: t('summary.fig_coins'),", to: "  return Number.isFinite(coins) ? { key: 'gold', label: t('summary.fig_gold')," },
+  { test: 'R10', file: 'src/data/text/hud.js', from: "  an_gold: 'Coins',", to: "  an_gold: 'Gold'," },
   { test: 'R8', file: 'src/shell/town-news.js', from: " && !told('title:' + r.id)) : [];", to: ') : [];' },
   { test: 'R8', file: 'src/shell/town-news.js', from: "also: ready.slice(1).map((r) => 'title:' + r.id),", to: 'also: [],' },
   { test: 'R3e', file: 'src/shell/away-recap.js', from: '? FIRST_AWAY_MIN_MS : AWAY_MIN_MS;', to: '? AWAY_MIN_MS : AWAY_MIN_MS;' },

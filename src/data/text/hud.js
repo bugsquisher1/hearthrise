@@ -104,7 +104,9 @@ export const HUD_TEXT = Object.freeze({
   an_sec_totals: 'Session',
   an_kills: 'Monsters killed',
   an_level_xp: 'Level XP',
-  an_gold: 'Gold',
+  /* the hunt's coins (the server's `coins`), so it is never read as the gold the purse kept: the cards' Gold is coins less supplies
+     (src/shell/result-block.js goldFig; post-patch audit 2026-11-18). The Party tab's row is the same figure, summed. */
+  an_gold: 'Coins',
   an_loot_value: 'Unsold loot value',
   an_supplies_cost: 'Supplies cost',
   an_balance: 'Balance',
@@ -114,7 +116,7 @@ export const HUD_TEXT = Object.freeze({
      bonuses. "Before bonuses" read as a party cutting a hero's XP (lane/a-honest-lines, re-landed by lane/a-honesty-rescue). The summary
      card's row says the same (hunt-summary.js). */
   an_raw_xp_h: 'Level XP per hour (no party or solo bonus)',
-  an_gold_loot_h: 'Gold and loot value per hour',
+  an_gold_loot_h: 'Coins and loot value per hour',
   an_supplies_h: 'Supplies per hour',
   an_balance_h: 'Balance per hour',
   an_sec_supplies: 'Supplies used',

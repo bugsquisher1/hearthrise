@@ -5,6 +5,8 @@
 //                every blow, crit, follow-through and surge alike, and the perks change the hunt they play.
 // perks-show     each perk does what its words say, on the dice: Keen crits more basic blows, Follow-through lands the same blow on a
 //                second monster beside the target (a `follow` number), Surge lands a cast's numbers half again as hard (a crit-marked heal).
+// earrings-show  the earrings' pair (lane/d-jewelry-sample 2026-11-18): Steady turns some of a hero's missed basic blows into hits (its
+//                misses fall by about its share), and Focus gives a caster mana back on its kills, so a mage swings its mana basic more.
 // once-per-hero  two Keen rings play exactly one: a perk counts once however many pieces carry it.
 // plain-draws-nothing  a hero in plain rings carries no perk on its unit, so its hunt is the hunt its stats make.
 //
@@ -27,8 +29,11 @@ const RINGS = Object.freeze({
   keenTwice: { ring1: 'banded_signet_keen', ring2: 'banded_signet_keen' },
   keenOnce: { ring1: 'banded_signet_keen', ring2: 'banded_signet' },
 });
+/* The earrings (src/data/jewelry.js, Smithing): Steady and Focus at T2 (150 and 20 permille), and the plain studs they are measured over. */
+const EARS = Object.freeze({ both: { earrings: 'fang_studs_steady_focus' }, steady: { earrings: 'fang_studs_steady' }, focus: { earrings: 'fang_studs_focus' },
+  plain: { earrings: 'fang_studs' } });
 const ringsFor = (set) => (role) => (typeof set === 'function' ? set(role) : set);
-const PERKED = (role) => (role === 'healer' || role === 'mage' ? RINGS.casts : RINGS.blows);
+const PERKED = (role) => Object.assign({}, role === 'healer' || role === 'mage' ? RINGS.casts : RINGS.blows, EARS.both);
 
 /* A whole result in one string: keys sorted, since a credit map's order is the order of its first credit in a cut. */
 const sorted = (x) => (Array.isArray(x) ? x.map(sorted) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, sorted(x[k])])) : x);
@@ -49,6 +54,8 @@ function play(P, ground, L, roles, o) {
     basics: count((e) => e.type === 'dmg' && e.ability === 'basic' && !e.follow && !ids.has(e.t)),
     crits: count((e) => e.type === 'dmg' && e.ability === 'basic' && e.crit && !e.follow && !ids.has(e.t)),
     follows: count((e) => e.type === 'dmg' && e.follow === true),
+    misses: count((e) => e.type === 'miss' && !e.dodge && !ids.has(e.t)),
+    manaSwings: count((e) => e.type === 'shot' && e.mana > 0),
     heals: count((e) => e.type === 'heal'),
     surgedHeals: count((e) => e.type === 'heal' && e.crit === true),
     casts: count((e) => e.type === 'cast'),
@@ -85,6 +92,20 @@ const cases = {
     if (!(sum(heals, 'heals') > 40 && sg > 0.02 && sg < 0.13)) return 'Surge marked ' + sum(heals, 'surgedHeals') + ' of ' + sum(heals, 'heals') + ' heals';
     return null;
   },
+  'earrings-show': (P) => {
+    /* Steady at T2: 15% of the basic blows that would miss land. The miss share must fall by near that, never by nothing and never by half. */
+    const missOf = (rs) => sum(rs, 'misses') / Math.max(1, sum(rs, 'misses') + sum(rs, 'basics'));
+    const steady = SEEDS.map((secret) => play(P, GLADE, 24, ['tank'], { secret, rings: EARS.steady }));
+    const plain = SEEDS.map((secret) => play(P, GLADE, 24, ['tank'], { secret, rings: EARS.plain }));
+    const cut = 1 - missOf(steady) / Math.max(1e-9, missOf(plain));
+    if (!(sum(plain, 'misses') > 100 && cut > 0.07 && cut < 0.25)) return 'Steady cut the miss share ' + (100 * missOf(plain)).toFixed(1) + '% -> ' + (100 * missOf(steady)).toFixed(1) + '%';
+    /* Focus at T2: 2% of max mana on each kill. A mage's mana basic is its pace, so it swings it more; a plain-stud mage gets nothing back. */
+    const focus = SEEDS.map((secret) => play(P, GLADE, 24, ['mage'], { secret, rings: EARS.focus }));
+    const bare = SEEDS.map((secret) => play(P, GLADE, 24, ['mage'], { secret, rings: EARS.plain }));
+    const more = sum(focus, 'casts') / Math.max(1, sum(bare, 'casts'));
+    if (!(sum(bare, 'casts') > 100 && more > 1.05 && more < 1.6)) return 'Focus moved a mage\'s casts ' + sum(bare, 'casts') + ' -> ' + sum(focus, 'casts') + ' (mana swings ' + sum(bare, 'manaSwings') + ' -> ' + sum(focus, 'manaSwings') + ')';
+    return null;
+  },
   'once-per-hero': (P) => {
     for (const role of ['tank', 'ranger']) {
       const twice = play(P, GLADE, 24, [role], { spanMs: HOUR / 4, rings: RINGS.keenTwice });
@@ -99,6 +120,9 @@ const cases = {
     if (eq.jewel !== undefined) return 'plain rings carry perks: ' + JSON.stringify(eq.jewel);
     const perked = X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), RINGS.blows), X.ITEMS);
     if (JSON.stringify(perked.jewel) !== JSON.stringify({ keen: 40, follow: 40 })) return 'Hallmarked rings read ' + JSON.stringify(perked.jewel);
+    const ears = X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), EARS.both), X.ITEMS);
+    if (JSON.stringify(ears.jewel) !== JSON.stringify({ steady: 150, focus: 20 })) return 'Hallmarked Fang Studs read ' + JSON.stringify(ears.jewel);
+    if (X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), EARS.plain), X.ITEMS).jewel !== undefined) return 'plain Fang Studs carry perks';
     return null;
   },
 };
@@ -109,6 +133,10 @@ const mutants = [
   { name: 'Surge never lands', case: 'perks-show', edits: [['src/core/hunt/abilities.js', 'return u.surgePm > 0 && !!(row.dmg || row.heal || row.shield) && sc.rng.chance(u.surgePm / 1000);', 'return false;']] },
   { name: 'a perk counts once per piece, so two rings stack', case: 'once-per-hero', edits: [['src/core/combat.js', "if (pm > 0 && !(out[k] >= pm)) { out[k] = pm; any = true; }", "if (pm > 0) { out[k] = (out[k] || 0) + pm; any = true; }"]] },
   { name: 'Follow-through draws from the wall clock, so two cuts disagree', case: 'both-paths', edits: [['src/core/hunt/damage.js', 'if (next && sc.rng.chance(u.followPm / 1000))', 'if (next && Math.random() < u.followPm / 1000)']] },
+  { name: 'Steady never reaches the accuracy', case: 'earrings-show', edits: [['src/core/combat.js', '  if (steady) accuracy += (1 - accuracy) * steady;', '']] },
+  { name: 'Steady adds to the hit chance before the clamp, so a capped hero gets nothing and a low one double', case: 'earrings-show', edits: [['src/core/combat.js', '  if (steady) accuracy += (1 - accuracy) * steady;', '  if (steady) accuracy = Math.min(0.95, accuracy + steady);']] },
+  { name: 'the settle never puts Focus on the unit', case: 'earrings-show', edits: [['src/core/combat-sim.js', '  if (snap.focusPm) u.focusPm = snap.focusPm; else if (u.focusPm) delete u.focusPm;\n', '']] },
+  { name: 'Focus pays one mana a kill, whatever the max', case: 'earrings-show', edits: [['src/core/hunt/damage.js', 'Math.max(1, Math.floor((max * u.focusPm) / 1000))', '1']] },
   { name: 'a plain ring carries an empty perk map', case: 'plain-draws-nothing', edits: [['src/core/combat.js', '  if (jewel) Object.assign(s, { jewel });', '  Object.assign(s, { jewel: jewel || {} });']] },
 ];
 

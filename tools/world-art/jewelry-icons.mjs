@@ -29,15 +29,23 @@ const K = '#0b0a0c';
 export const STONES = Object.freeze({
   keen: ['#f2a03a', '#ffd36a'], surge: ['#4fa8e8', '#a8e4ff'], follow: ['#8e1f1f', '#c23a2a'],
   thrift: ['#557a3e', '#73944c'], deflect: ['#6e727a', '#969aa1'], second_wind: ['#3d6234', '#7ccf4a'],
+  /* the earrings' pair (2026-11-18): Steady a bone bead, Focus a mana-teal drop */
+  steady: ['#c9bfa0', '#e6dcbc'], focus: ['#4f7a80', '#86b4b4'],
 });
 /* Where each piece's stones sit (the stone's top-left pixel), first perk then second: a new piece is a row here. */
-export const STONE_AT = Object.freeze({ banded_signet: [[13, 6], [15, 21]] });
+export const STONE_AT = Object.freeze({ banded_signet: [[13, 6], [15, 21]], seam_jasper_band: [[13, 6], [15, 21]], fang_studs: [[14, 12], [13, 20]] });
 /* A Hallmarked band: the piece's light steel re-cut to gold, light to dark. */
 const GILT = Object.freeze({ '#c8e6e0': '#ffd36a', '#c4ccd2': '#e8c547', '#8a9aa8': '#cfa25c' });
 /* The Ruby re-cut as a carnelian: each red one step lighter, its brightest to the torch's orange. */
 const CARNELIAN_CUT = Object.freeze({ '#c23a2a': '#f2a03a', '#8e1f1f': '#c23a2a', '#5e1a1f': '#8e1f1f', '#3e1216': '#5e1a1f' });
+/* The Ruby re-cut as a seam jasper: its bright red to bronze ochre and its shadows to earth, its middle red kept, so the stone reads
+   mottled red-brown beside the orange Carnelian and the clear Ruby. */
+const JASPER_CUT = Object.freeze({ '#c23a2a': '#a8743a', '#5e1a1f': '#553a26', '#3e1216': '#3d2a1d' });
 /* The gems this script cuts: each tier's gem from a shipped gem it re-cuts. */
-const GEMS = Object.freeze({ road_carnelian: { from: 'ruby', cut: CARNELIAN_CUT } });
+const GEMS = Object.freeze({ road_carnelian: { from: 'ruby', cut: CARNELIAN_CUT }, seam_jasper: { from: 'ruby', cut: JASPER_CUT } });
+/* A PLAIN PIECE drawn from a shipped one (before its grades, which wear it): the Seam Jasper Band is the Banded Signet's steel ring
+   with its dark inner band re-cut to the jasper's earth, so the tier 3 ring reads apart from the tier 2 one at 1x. */
+const PLAINS = Object.freeze({ seam_jasper_band: { from: 'banded_signet', cut: Object.freeze({ '#1a2c44': '#553a26', '#17141a': '#2a1c14' }) } });
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 function put(img, x, y, hex) {
@@ -68,10 +76,11 @@ function recut(img, cut) {
 /** Every icon this script draws, by id: an image. */
 export function drawAll() {
   const out = {};
+  for (const [id, p] of Object.entries(PLAINS)) out[id] = recut(cloneImage(read(p.from)), p.cut);
   for (const [id, it] of Object.entries(JEWELRY_ITEMS)) {
     const at = STONE_AT[it.jewelBase];
     if (!at) throw new Error('jewelry-icons: no STONE_AT row for ' + it.jewelBase);
-    const img = cloneImage(read(it.jewelBase));
+    const img = cloneImage(out[it.jewelBase] || read(it.jewelBase));
     if (it.jewelGrade === 'hallmarked') recut(img, GILT);
     Object.keys(it.jewelPerks).forEach((p, n) => stone(img, at[n][0], at[n][1], STONES[p]));
     out[id] = img;

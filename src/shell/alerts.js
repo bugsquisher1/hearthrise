@@ -61,7 +61,8 @@ import { noShotWords } from './hunt-go.js?v=0.2.139';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
 import { deathSeen } from './death-popup.js?v=0.2.139';
 import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.139';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.139';
+import { awayRecapOf, awayRecapFrom, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.139';
+import { askPastHunt } from '../session/past-hunt.js?v=0.2.139';
 import { benchStopRecapOf } from './bench-fee.js?v=0.2.139';
 import { workDoneOf, runningRunKey, titleNewsOf } from './town-news.js?v=0.2.139';
 import { workRow } from './town-work.js?v=0.2.139';
@@ -324,6 +325,23 @@ export function createAlertCenter(account, opts) {
     return true;
   }
 
+  /* THE HUNT A YARD TOOK OVER (post-patch audit 2026-11-18 B4): its Gold, Kills and Best find are its own tally, the server's answer for that
+     one session (src/session/past-hunt.js), read once; the line is judged again against its own stamp with it, and keeps its id. */
+  const pastAsked = new Set();
+  function askPast(cs, a) {
+    const session = a.facts && a.facts.ask;
+    if (!session || !a.stamp || pastAsked.has(cs.slot + ':' + session)) return;
+    pastAsked.add(cs.slot + ':' + session);
+    askPastHunt(account, cs, session).then((past) => {
+      if (!past || !alerts.includes(a)) return;
+      const again = awayRecapFrom(cs, a.stamp);
+      if (!again || again.id !== a.id) return;
+      /* a hunt's line (its id matched the asked one): a bench line carries no `said` */
+      Object.assign(a, { facts: again.facts, said: /** @type {{ said?: string }} */ (again).said, text: again.text });
+      changed();
+    }).catch(() => {});
+  }
+
   /* A live line the server stopped saying is forgotten, on this page and in the saved list: said again, it fires again. */
   function forget(cs, unsaid) {
     const mine = seenOf(cs.slot), r = residueOf(cs);
@@ -409,6 +427,7 @@ export function createAlertCenter(account, opts) {
       if (said.has(a.id) && said.get(a.id) !== a.text) { a.text = said.get(a.id); any = true; }
       if (stale || seenEnd || added || (a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; continue; }
       /* "While you were away": what the hunt is doing now is the record's, never the moment the card came up (CLAUDE.md §6). */
+      if (a.kind === 'away') askPast(cs, a);
       const line = a.kind === 'away' ? awayLineNow(cs, a) : a.text;
       if (line === null) { alerts.splice(i, 1); any = true; } else if (line !== a.text) { a.text = line; any = true; }
     }

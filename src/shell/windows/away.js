@@ -17,8 +17,10 @@ import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.
 import { whole, gold } from '../../render/format.js?v=0.2.139';
 import { t } from '../../render/player-text.js?v=0.2.139';
 import { itemName, itemIconHtml, skillName } from '../widgets/bits.js?v=0.2.139';
-import { resultHtml, patchResult } from '../result-block.js?v=0.2.139';
+import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.139';
 import { awayNowOf } from '../away-recap.js?v=0.2.139';
+import { deathWords, blessingsMissing } from '../death-popup.js?v=0.2.139';
+import { deathLogOf } from '../../session/character-sections.js?v=0.2.139';
 import { spanWords } from '../after-hunt.js?v=0.2.139';
 import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.139';
 import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.139';
@@ -33,13 +35,9 @@ const heroOf = (ctx, a) => ctx.peers().find((p) => p.slot === a.slot) || null;
    Start is the Training window's) or a run (a climb or a descent: the Tower window's). */
 const restartable = (hunt) => !!hunt && !roomOfHunt(hunt) && !trainedBy(hunt) && !runRulesOf(hunt);
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
-/* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, signed, with
-   both under it; null when the line has no store spend to set against the coins (../away-recap.js says no gold then). */
-function goldFig(f) {
-  if (!Number.isFinite(f.gold) || !Number.isFinite(f.looted) || !Number.isFinite(f.paid)) return null;
-  return { key: 'gold', label: t('summary.fig_gold'), value: (f.gold < 0 ? '−' : '+') + gold(Math.abs(f.gold)),
-    sub: f.paid > 0 ? t('away.card_gold_both', { looted: gold(f.looted), paid: gold(f.paid) }) : t('away.card_gold_looted', { looted: gold(f.looted) }) };
-}
+/* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, the end card's
+   own reading (../result-block.js goldFig); none when the line has no store spend to set against the coins (../away-recap.js says no gold then). */
+const awayGoldFig = (f) => goldFig(Number.isFinite(f.gold) && Number.isFinite(f.looted) && Number.isFinite(f.paid) ? { net: f.gold, coins: f.looted, spent: f.paid } : null, null);
 
 /**
  * One hero's block as it reads now: the result (a hunt's, two server answers), the best find, the line under it, and its press.
@@ -56,7 +54,7 @@ export function awayBlockOf(cs, a) {
     /* the skill the yard that took over trained, "Melee 28 to 34" (two server answers) */
     ups: tr && tr.to > tr.from ? [t('summary.skill_up', { skill: skillName(tr.skill), from: tr.from, to: tr.to })] : [],
     figs: [f.xp > 0 ? { key: 'xp', label: t('summary.fig_xp'), value: '+' + whole(f.xp) } : null,
-      goldFig(f),
+      awayGoldFig(f),
       f.kills > 0 ? { key: 'kills', label: t('summary.fig_kills'), value: whole(f.kills) } : null].filter(Boolean),
   /* A YARD'S CARD HAS ITS NUMBERS (audit 2026-11-18 A22): the skill's levels and XP over the absence, the server's */
   } : tr ? { level: { name: skillName(tr.skill), from: tr.from, to: tr.to }, ups: [],
@@ -79,7 +77,15 @@ export function awayBlockOf(cs, a) {
   } else if (now) why = now.stamina ? t('away.card_still_stamina', { time: now.stamina }) : t('away.card_still');
   return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, when, stamina, go, label,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */
-    summary: go === 'again' };
+    summary: go === 'again', bless: blessOf(cs, f) };
+}
+
+/* A DEATH DURING THE ABSENCE OFFERS ITS BLESSINGS BACK (post-patch audit 2026-11-18 B5: "3 Blessings saved 18,220 Level XP, used up" and no way
+   back to them; the next hunt ran unblessed). The death popup's own press ("Bless again" once the death used them, ../death-popup.js), while the
+   server says the hero lacks one; '' otherwise. The death is the server's row for the session the line names (`deathSession`). */
+function blessOf(cs, f) {
+  const row = cs && f.deathSession ? (deathLogOf(cs) || []).find((r) => r.session === f.deathSession) : null;
+  return row && blessingsMissing(cs) === true ? deathWords(cs, { session: f.deathSession, row }).bless : '';
 }
 
 /** The skeleton (built once): how long the player was away, the heroes, OK. */
@@ -94,7 +100,9 @@ function heroRow(ctx) {
     + resultHtml()
     + '<p class="haway-best"><span class="hsum-ico"></span><span class="haway-best-name"><small>' + t('away.card_best') + '</small><b></b></span></p>'
     + '<p class="haway-why"></p><p class="haway-when"></p>'
-    + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button><span class="haway-stamina"></span></div><p class="hh-intent-msg haway-msg" role="status" aria-live="polite"></p></li>');
+    + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="away-bless" hidden></button><span class="haway-stamina"></span></div>'
+    + '<p class="hh-intent-msg haway-msg" role="status" aria-live="polite"></p></li>');
 }
 
 renderAway.patch = function patchAway(body, ctx) {
@@ -129,6 +137,9 @@ renderAway.patch = function patchAway(body, ctx) {
       prop(go, 'disabled', !!a.pending);
       /* ONE gold press on the card: the first hero's next move */
       cls(go, 'is-primary', list.indexOf(a) === 0);
+      const bless = li.querySelector('[data-hs-act="away-bless"]');
+      text(bless, b.bless);
+      prop(bless, 'hidden', !b.bless);
       text(li.querySelector('.haway-msg'), a.msg || '');
     },
   });
@@ -140,9 +151,15 @@ function dismissAll(ctx) { for (const a of linesOf(ctx)) ctx.alerts.dismiss(a.ke
 renderAway.act = function actAway(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   if (action === 'away-ok') { ctx.wm.close('away'); return true; }
-  if (action !== 'away-go' && action !== 'away-summary') return false;
+  if (action !== 'away-go' && action !== 'away-summary' && action !== 'away-bless') return false;
   const a = linesOf(ctx).find((x) => x.key === el.getAttribute('data-alert'));
   if (!a || a.pending) return true;
+  /* Bless again: the Shop on its Services tab, the hero on screen's; another hero's is shown first (as the death popup's press does) */
+  if (action === 'away-bless') {
+    ctx.wm.close('away');
+    if (ctx.character && ctx.character.slot === a.slot) ctx.wm.openTab('shop', 'services'); else if (ctx.goTo) ctx.goTo(a.slot, 'shop');
+    return true;
+  }
   const go = action === 'away-summary' ? 'summary' : el.getAttribute('data-go');
   if (go === 'again') { restart(ctx, body, a); return true; }
   const win = go === 'train' ? 'training' : go === 'summary' ? 'hunt-summary' : OPENS[go] || null;

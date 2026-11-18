@@ -397,6 +397,11 @@ export function playerCombatRolls(monster, ctx) {
   let accuracy = 0.55 + (((accLvl + accBonus) - defScore) * 0.01);
   accuracy *= weak.accuracyMult;
   accuracy = Math.max(0.15, Math.min(0.95, accuracy));
+  /* STEADY (src/data/jewelry.js): that share of the basic blows that would miss land anyway, taken off the miss AFTER the clamp, so it
+     reads for every way to fight (a bow or a wand at the 95% ceiling still misses 5%) and is worth most where misses are many (a ground
+     above the hero's own stats). Only a basic blow reads accuracy (damage.js roll); a spell never misses. No draw: the same one roll. */
+  const steady = eq.jewel && eq.jewel.steady > 0 ? Math.min(1000, eq.jewel.steady) / 1000 : 0;
+  if (steady) accuracy += (1 - accuracy) * steady;
 
   let maxHit = Math.floor((dmgLvl * 0.35) + (strBonus * 0.6) + 2);
   /* ⚠ `- Math.floor(defScore * 0.03)`, NOT `Math.floor(maxHit - defScore*0.03)`.

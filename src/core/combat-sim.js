@@ -55,6 +55,7 @@ import { stepSwing } from './hunt/world-step.js?v=0.2.139';
 import { makeEvent, trackStep } from './hunt/events.js?v=0.2.139';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.139';
 import { pullLeader } from './hunt/pull-cycle.js?v=0.2.139';
+import { settingsOf } from './hunt/roles.js?v=0.2.139';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.139';
 import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.139';
 import { roomOf } from './hunt/boss-room.js?v=0.2.139';
@@ -131,12 +132,23 @@ function heroOf(m) {
     regenPm: m.state.regenPm }, snap);
 }
 
+/* THE PARTY AS IT STANDS (KNOWN-F1, 2026-11-18): the members with a hero in the world whose hunt has not ended, at
+   this instant. A member counts from the boundary its hero arrives to the boundary its hunt ends, both instants of the
+   instance's own clock, so every window reads the same party at the same instant however the settles were cut: never
+   the party some read happened to see (a read sees a member walking in before it arrives, and drops one that ended
+   only at the next settle). The defaults of the settings read it (syncUnit), as the pull's density, the leader's hold
+   pick and the tier read the same members. */
+const inWorld = (members) => members.filter((m) => !m.left && m.unitId !== null);
+const rolesOf = (ms) => ms.map((m) => m.hero.role);
+
 /* The settings and combat snapshot the settle writes onto a member's unit
    (roles.js / damage.js read them there): the hero's options, its role and its
    gear, skills and Level as they stand NOW, so a level gained mid-window counts
    from the next swing however the window was cut. Max HP and max mana are
-   raise-only inside a hunt (a Level is never lost in one: a death ends it). */
-function syncUnit(u, m) {
+   raise-only inside a hunt (a Level is never lost in one: a death ends it).
+   `roles`: the party standing in the world at this instant (inWorld), whose
+   make-up decides a setting the player left unset (roles.settingsOf). */
+function syncUnit(u, m, roles) {
   const snap = m.snapshot(m.state);
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
   /* THE LEVEL, for the party's level share (xp-share.js) and nothing else: a level gained mid-window counts from the next kill, never persisted, like `mit`. */
@@ -149,6 +161,7 @@ function syncUnit(u, m) {
   /* CRAFTED JEWELRY'S PERKS, the same: never persisted, absent on a hero that wears none (damage.js roll, abilities.js fire). */
   if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;
   if (snap.surgePm) u.surgePm = snap.surgePm; else if (u.surgePm) delete u.surgePm;
+  if (snap.focusPm) u.focusPm = snap.focusPm; else if (u.focusPm) delete u.focusPm;
   /* ELEMENTAL RESISTANCE (Tyler 2026-11-08), the same: from the gear the server holds, never persisted, absent with none (targeting.js elementOn). */
   if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;
   /* THE OWN HEAL (the fist line's wraps, src/data/fists.js), the same: never persisted, absent with none (pull-cycle.js tickHeroes). */
@@ -158,13 +171,8 @@ function syncUnit(u, m) {
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
   u.regenPm = m.state.regenPm;
-  if (m.hero.settings) {
-    const s = m.hero.settings;
-    if (s.dist !== undefined) u.dist = s.dist;
-    if (s.chase !== undefined) u.chase = s.chase;
-    if (s.tmode !== undefined) u.tmode = s.tmode;
-    if (s.stance !== undefined) u.stance = s.stance;
-  }
+  const s = settingsOf(m.hero.role, m.hero.settings, roles);
+  u.dist = s.dist; u.chase = s.chase; u.tmode = s.tmode; u.stance = s.stance;
   /* THE KIND FIRST (targeting.js kindOf): never persisted, so written here at every boundary like the gear values above, absent with none */
   const k = m.hero.settings && m.hero.settings.tkind;
   if (typeof k === 'string' && k) u.tkind = k; else if (u.tkind !== undefined) delete u.tkind;
@@ -330,14 +338,17 @@ export function simulateHuntInstance(inst, ctx) {
   for (const m of members) {
     m.left = !!m.hs.endedReason;
     m.hs._events = out.get(m.key).events;
+  }
+  const roles0 = rolesOf(inWorld(members));
+  for (const m of members) {
     const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;
-    if (u) syncUnit(u, m);
+    if (u) syncUnit(u, m, roles0);
   }
   /* A HERO WITH NO MEMBER walks out first: a session the database closed between
      settles (a kick, a leave at once — hr_hunt_close clears unit_id, not the world)
      left its unit standing, and an unowned hero would earn kills nobody is paid for. */
   if (world) {
-    const owned = new Set(members.filter((m) => !m.left && m.unitId !== null).map((m) => m.unitId));
+    const owned = new Set(inWorld(members).map((m) => m.unitId));
     for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);
   }
 
@@ -395,6 +406,8 @@ export function simulateHuntInstance(inst, ctx) {
        switch) still steps once, so no window is empty (hr_hunt_apply refuses `bad_window`); the
        flagged ends (a death, gold out, a stop rule) are stamped after the loop and never meet it. */
     if (!members.some((m) => !m.left) && atMs > startMs) break;
+    /* THE PARTY AT THIS BOUNDARY, after its ends and arrivals (inWorld): the same members the density, hold and tier picks below read. */
+    const roles = rolesOf(inWorld(members));
     const byUnit = new Map();
     for (const m of here) {
       const u = world.units.find((x) => x.id === m.unitId);
@@ -408,7 +421,7 @@ export function simulateHuntInstance(inst, ctx) {
       if (train) trainingTick(m, train, tick);
       /* The whetstone wears on this swing (member.js wear), so the snapshot below already drops a spent one. */
       if (typeof m.wear === 'function') m.wear(atMs);
-      if (u) syncUnit(u, m);
+      if (u) syncUnit(u, m, roles);
       byUnit.set(m.unitId, m);
     }
     // (2) ONE world swing for the whole instance, then what it paid each member.
